@@ -23,7 +23,8 @@ environments/<species>/
     └── test_<species>_env.py  # Environment tests
 ```
 
-You also need TOML config files under `configs/<species>/` for each training stage.
+You also need a stage manifest and TOML config files under `configs/<species>/`
+for each training stage (see [Stage manifest](#stage-manifest) below).
 Every implemented species must also have one entry in
 `configs/species_manifest.toml`; the generated public catalog and its CI drift
 check use that manifest as their source of truth.
@@ -108,9 +109,56 @@ register(
 )
 ```
 
+## Stage Manifest
+
+Create `configs/<species>/stages.toml` declaring the species' recipe graph:
+one `[[stages]]` entry per node, in an order where every parent precedes its
+children. The committed Velociraptor manifest is the three-node template:
+
+```toml
+schema = "mesozoic.stage-manifest/v2"
+
+[[stages]]                       # quiet stance; gate reward-cleared by the statue (plan §4.8)
+id = "stance"
+config = "stage1_balance.toml"
+legacy_number = 1
+recipe = "stand"
+deliverable = true
+
+[[stages]]
+id = "locomotion"
+config = "stage2_locomotion.toml"
+legacy_number = 2
+warm_start_from = "stance"
+recipe = "walk"
+deliverable = true
+
+[[stages]]                       # id stays "behavior"; the task name (strike) is the TOML's [stage] name
+id = "behavior"
+config = "stage3_strike.toml"
+legacy_number = 3
+warm_start_from = "locomotion"
+recipe = "hunt"
+deliverable = true
+```
+
+Per entry: `id` must match `^[a-z][a-z0-9_]*$` (`stance`, `recovery`,
+`locomotion` and `behavior` are reserved, and a numbered reserved id must
+declare its `legacy_number`); `config` is the stage TOML filename;
+`legacy_number` is one of the three historical numbers, absent on an id-only
+stage; `warm_start_from` names an **earlier** entry (a self or forward
+reference is fatal); `deliverable = true` marks every node whose certified
+checkpoint is a published policy (a v2 manifest with no deliverable is fatal);
+and `recipe` is the behavior label (`stand`, `walk`, `hunt`). A species with a
+recovery node uses the four-entry T-Rex layout, where `recovery` (recipe
+`stand`, `warm_start_from = "stance"`, no legacy number) sits between stance
+and locomotion. See [Behavior Recipes](/docs/training/recipes) for how the
+manifest drives training and publication.
+
 ## Config Files
 
-Create TOML configs for each training stage under `configs/<species>/`:
+Create the TOML configs the manifest names, one per training stage, under
+`configs/<species>/`:
 
 ```toml
 [stage]

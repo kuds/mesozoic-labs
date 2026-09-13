@@ -78,16 +78,28 @@ python scripts/test_env.py --render  # With visualization
 
 ### 4. Train with Curriculum Learning
 
-Run all three stages using the current TOML-configured budgets:
+Run the three advancing stages — each warm-started from its declared parent
+(`configs/velociraptor/stages.toml`: stance → locomotion → behavior, all
+published deliverables) — using the current TOML-configured budgets:
 
 ```bash
 python scripts/train_sb3.py curriculum --algorithm ppo
 ```
 
+To reuse the certified stance and locomotion of an earlier run and train only
+the strike leaf (the notebook's `TRUNK_FROM`):
+
+```bash
+python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+```
+
+See [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md) for
+the behavior recipes and the reuse rule.
+
 ### 5. Evaluate Trained Policy
 
 ```bash
-python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
+python scripts/train_sb3.py eval logs/<run_dir>/03_behavior/models/stage3_final.zip
 ```
 
 ## Environment Details

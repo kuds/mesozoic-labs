@@ -14,29 +14,38 @@ A dinosaur-inspired bipedal simulation model with an oversized head and vestigia
 
 ## Curriculum
 
-The T-Rex is the first species with a **four-stage curriculum**, identified
-by a per-species stage manifest rather than bare numbers:
+The T-Rex manifest (`configs/trex/stages.toml`, schema
+`mesozoic.stage-manifest/v2`) declares four nodes and three recipes — stand,
+walk and hunt — every one of them a published deliverable:
 
-1. **Stance** (historical stage 1) — settle from a randomized spawn and hold
-   a stable upright pose; gated on physical stance quality
-   (`stance_quality/v1`), not reward, because a zero-action "statue" is the
-   reward optimum of the undisturbed task.
-2. **Recovery** (stage 1b, new) — the same task plus scheduled external
-   pushes (165.5 N for 0.20 s on the current plant, derived from the plant's
-   own mass and stance geometry), warm-started from the certified stance
+1. **`stance`** (recipe `stand`; root, historical stage 1) — settle from a
+   randomized spawn and hold a stable upright pose; gated on physical stance
+   quality (`stance_quality/v1`), not reward, because a zero-action "statue"
+   is the reward optimum of the undisturbed task.
+2. **`recovery`** (recipe `stand`; `warm_start_from = "stance"`; no legacy
+   number, addressed by id) — the same task plus scheduled external pushes
+   (165.5 N for 0.20 s on the current plant, derived from the plant's own
+   mass and stance geometry), warm-started from the certified stance
    checkpoint. Only a disturbance can certify *active* balance control; the
    `recovery_quality/v1` gate judges per-shove recovery against frozen null
    baselines. It was frozen on 2026-08-28 with measured thresholds; the
    verdict comes from the stage directory's `gate_resolution.json`, written
    by `freeze_recovery_gate.py`.
-3. **Locomotion** (historical stage 2) — forward walking/running.
-4. **Behavior** (historical stage 3) — the head-contact "bite" proxy task.
+3. **`locomotion`** (recipe `walk`; `warm_start_from = "stance"`, historical
+   stage 2) — forward walking/running. Its edge is declared `stance` today;
+   the plan is to re-declare it as `recovery` by a manifest edit once a
+   recovery run passes the frozen gate (plan assumption A2) — nothing
+   re-parents it on its own.
+4. **`behavior`** (recipe `hunt`; `warm_start_from = "locomotion"`,
+   historical stage 3) — the head-contact "bite" proxy task.
 
-Integer stage references keep their historical meaning everywhere (stage 2
-remains locomotion); the recovery stage is addressed by its semantic id.
-The catalog tables and stage videos below cover the numbered curriculum;
-recovery results join them as runs certified under the now-frozen
-`recovery_quality/v1` gate are published.
+A recipe label resolves to its deepest deliverable, so the notebook's
+`BEHAVIOR = "stand"` trains stance and then recovery and enforces the
+recovery verdict; the stance node alone is addressed by its id. Integer stage
+references keep their historical meaning everywhere (stage 2 remains
+locomotion). The catalog table above shows each node's recipe and warm-start
+parent, and the video cards below are keyed by stage id. See
+[Behavior Recipes](/docs/training/recipes).
 
 ## Anatomy
 
@@ -48,7 +57,7 @@ The T-Rex model includes:
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
 
-## Diagnostic Metrics (Stage 3)
+## Diagnostic Metrics (behavior node, hunt)
 
 After each training stage the `eval` command reports:
 
@@ -75,6 +84,20 @@ cd environments/trex
 # View the model
 python scripts/view_model.py
 
-# Train stage 1 using its current TOML-configured budget
+# Train the stance node using its current TOML-configured budget
 python scripts/train_sb3.py train --stage 1
+
+# The advancing stages (stance, locomotion, behavior) in manifest order
+python scripts/train_sb3.py curriculum --algorithm ppo
+
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+
+# The recovery node, entering from a certified stance handoff (PPO-only)
+python scripts/train_sb3.py train --stage recovery --algorithm ppo \
+  --load logs/<run>/01_stance/models/robust_best_model.zip \
+  --load-mode initialize_next_stage
 ```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.

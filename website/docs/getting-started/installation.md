@@ -72,8 +72,8 @@ For the easiest setup, use the pre-configured Google Colab notebooks in the `not
 
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Unified SB3 curriculum training for T-Rex, Velociraptor, and Brachiosaurus
-- `notebooks/jax_training.ipynb` - Unified JAX/MJX training for all three species on an NVIDIA GPU
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"walk"` or a deliverable's stage id) for any of the six species with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
+- `notebooks/jax_training.ipynb` - JAX/MJX training for T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus on an NVIDIA GPU, one stage at a time via `CURRENT_STAGE`
 - `notebooks/ray_tune_sweep.ipynb` - Ray Tune hyperparameter sweeps
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 

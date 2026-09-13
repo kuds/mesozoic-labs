@@ -33,6 +33,25 @@ per-stage sweep budgets. CLI budget flags are deliberate overrides.
 
 You submit one command and come back when it's done — no manual chaining required.
 
+> **Sweeps stay on the numbered ladder.** "All three curriculum stages" means
+> the advancing, legacy-numbered stages (stance, locomotion, behavior); the
+> search-space files and the collector stay keyed `stage1` / `stage2` /
+> `stage3`, and the non-advancing recovery node is not swept. Each Vertex AI
+> trial is a single-stage `train()` run wrapped by the `trial` subcommand, so a
+> chained stage-2 or stage-3 trial enters under `initialize_next_stage` and
+> gets the same declared-parent refusal the curriculum gets (the task
+> fingerprint is recorded as lineage, not matched); the Ray Tune worker
+> (`ray_tune.py`) runs its own SB3 loop and validates its warm-start checkpoint
+> against the plant only. Both judge the stage afterwards through
+> `generate_stage_artifacts`, which writes a `gate_verdict.json` beside the
+> trial's handoff, and the collector records a `stage_passed` flag per trial —
+> but a trial directory is not a run directory (its `models/` sit directly
+> under `stageN/<trial_id>/`), so it never satisfies the certified-ancestor
+> reuse rule and cannot be passed as `curriculum --trunk-from`. Promote a
+> winning configuration by committing it to the TOML and training a fresh
+> curriculum (or a trunked `--retrain-from` run); see
+> [Behavior Recipes](recipes.md).
+
 ## The Strategy: Why Sweep Stages Sequentially
 
 Each stage builds on what the previous stage learned, so the optimal hyperparameters for Stage 2 depend on having a good Stage 1 policy. Sweeping all three stages simultaneously would be wasteful — Stage 2 hyperparameters don't matter much if Stage 1 policy was poor.
@@ -410,6 +429,13 @@ launch-all (after stage N completes)
     └─ constructs checkpoint path: /gcs/<bucket>/sweeps/<species>/stageN/<trial_id>/models/stageN_final.zip
     └─ passes it as --load to stage N+1 trials
 ```
+
+The chained load enters stage N+1 under `initialize_next_stage`, as the
+curriculum's own stage-to-stage warm starts do, and `train()` refuses it
+unless the winner records the stage declared as this node's `warm_start_from`
+parent. The trial directories are still never reusable as certified ancestors
+by a later `--trunk-from` run: each is a bare stage directory, not a run
+holding stage subdirectories.
 
 Vertex AI uses trial results to decide which hyperparameter regions to explore next. Trials in promising areas get more follow-up trials; poor regions are avoided. This is why Bayesian optimisation needs far fewer trials than grid search.
 

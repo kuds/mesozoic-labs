@@ -40,9 +40,19 @@ python -m pytest environments/brachiosaurus/tests/ -v
 # Train stage 1 using its current TOML-configured budget
 python environments/brachiosaurus/scripts/train_sb3.py train --stage 1
 
+# Train the full chain (stance -> locomotion -> food reach), each stage
+# warm-started from its declared parent in configs/brachiosaurus/stages.toml
+python environments/brachiosaurus/scripts/train_sb3.py curriculum --algorithm ppo
+
+# Or reuse an earlier run's certified trunk and train only what is missing above it
+python environments/brachiosaurus/scripts/train_sb3.py curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+
 # View the model (requires display)
 python environments/brachiosaurus/scripts/view_model.py
 ```
+
+Stance, locomotion and food reach are each a published deliverable (`stand`,
+`walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
 
 ## Files
 

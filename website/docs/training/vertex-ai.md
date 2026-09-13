@@ -1,23 +1,39 @@
 # Training on Google Cloud Vertex AI
 
-This guide covers how to run Mesozoic Labs training jobs on [Vertex AI](https://cloud.google.com/vertex-ai), Google Cloud's managed ML platform. Vertex AI lets you run the full 3-stage curriculum on cloud GPUs without managing infrastructure.
+This guide covers how to run Mesozoic Labs training jobs on [Vertex AI](https://cloud.google.com/vertex-ai), Google Cloud's managed ML platform. Vertex AI lets you run a species' whole advancing curriculum — stance, locomotion, behavior — on cloud GPUs without managing infrastructure.
 
 ## How Multi-Stage Curriculum Works in a Single Job
 
-**You do not need to submit one job per stage.** The `curriculum` subcommand runs all three stages end-to-end inside a single Docker container:
+**You do not need to submit one job per stage.** The `curriculum` subcommand runs the species' advancing stages in manifest order inside a single Docker container:
 
 ```
-Stage 1 (Balance) → Stage 2 (Locomotion) → Stage 3 (Behavior)
-        └──────────── single Vertex AI job ────────────────┘
+stance (stand) → locomotion (walk) → behavior (hunt)
+        └──────── single Vertex AI job ────────┘
 ```
+
+Each node warm-starts from its declared `warm_start_from` parent's handoff
+checkpoint and writes a `gate_verdict.json` beside its own handoff; a node
+whose parent has no certified checkpoint stops the run. The non-advancing
+`recovery` node (T-Rex, Compsognathus) is skipped by the CLI curriculum and
+trained with its own `train --stage recovery` job. Stand, walk and hunt are
+each certified on their own, and a finished run can be handed back to a later
+job as `--trunk-from` so that only the missing leaf is trained. See
+[Behavior Recipes](recipes.md).
 
 ### Per-stage hyperparameters
 
-Each stage has its **own TOML config** (`configs/<species>/stage1_*.toml`, `stage2_*.toml`, `stage3_*.toml`). When the curriculum advances, the script loads that stage's config and re-initialises the model with those hyperparameters. This means you get a full hyperparameter shift at each stage automatically — no manual intervention required.
+Each stage has its **own TOML config** — the files named by the species'
+`configs/<species>/stages.toml` (`stage1_*.toml`, `stage2_*.toml`,
+`stage3_*.toml` for Velociraptor, Brachiosaurus and Dibothrosuchus;
+`stance.toml`, `recovery.toml`, `locomotion.toml`, `behavior.toml` for T-Rex
+and both Compsognathus variants). When the curriculum advances, the script
+loads that stage's config and re-initialises the algorithm with those
+hyperparameters. This means you get a full hyperparameter shift at each stage
+automatically — no manual intervention required.
 
-Hyperparameters and reward weights vary by species and stage. The
-`configs/<species>/stage*.toml` files are authoritative; do not copy a single
-progression from this cloud-deployment guide. The generated
+Hyperparameters and reward weights vary by species and stage. The stage TOML
+files are authoritative; do not copy a single progression from this
+cloud-deployment guide. The generated
 [model pages](/docs/models/velociraptor) show each stage's current budget and
 advancement gate.
 
@@ -38,9 +54,10 @@ before the stage advances early:
 
 Each evaluation must also contain at least 10 episodes, the current
 `StageThreshold.min_eval_episodes` implementation default. If the per-stage
-`timesteps` budget is exhausted before the gates are met, the curriculum
-advances anyway — so the job always completes, regardless of agent performance.
-Checkpoints and VecNormalize stats are saved at the end of each stage.
+`timesteps` budget is exhausted before the gates are met, the node's
+`gate_verdict.json` records the failure and the curriculum stops before the
+next node rather than training it from an uncertified parent. Checkpoints and
+VecNormalize stats are saved at the end of each stage.
 
 The JAX/MJX CLI curriculum is not equivalent: it performs one reward-only check
 after each configured stage budget. The JAX notebook helper checks all enabled
@@ -52,8 +69,15 @@ to that backend.
 
 | Command | Use when |
 |---|---|
-| `curriculum` | Full automated run — one job, stages 1–3 with per-stage hyperparameters applied automatically |
-| `train --stage N` | Re-running a single stage, loading from a specific checkpoint, or manually controlling stage budgets |
+| `curriculum` | Full automated run — one job, the advancing stages (stance → locomotion → behavior) with per-stage hyperparameters applied automatically |
+| `curriculum --trunk-from RUN_DIR` | Reuse an earlier run's certified stance and walk and train only the behavior leaf; add `--retrain-from locomotion` to retrain walk and hunt on the earlier stance, and `--label TEXT` to tag the run |
+| `train --stage N` | Re-running a single stage (a legacy number or a stage id such as `recovery`), loading from a specific checkpoint, or manually controlling stage budgets |
+
+`--output-dir` must be a fresh directory per run: the curriculum writes its
+stage directories (`01_stance/`, `02_locomotion/`, `03_behavior/`) directly
+under it and refuses one that already records a stage
+(`StageDirectoryOccupiedError`), so re-submitting a job into the same
+`/gcs/...` path fails on purpose.
 
 ## Quick Start with Google Cloud Shell
 
@@ -174,6 +198,22 @@ print(f"Job submitted: {job.resource_name}")
 
 Vertex AI automatically mounts the `base_output_dir` bucket at `/gcs/YOUR_BUCKET/` inside the container.
 
+To spend the job's budget on the behavior leaf only, reuse an earlier run's
+certified trunk. The target is always trained; `--retrain-from` widens what is
+retrained, and `--label` tags every trained node:
+
+```python
+"args": [
+    f"environments/{SPECIES}/scripts/train_sb3.py",
+    "curriculum",
+    "--n-envs", "4",
+    "--trunk-from", f"/gcs/YOUR_BUCKET/training/{SPECIES}/<earlier_run>",
+    "--retrain-from", "locomotion",   # optional: retrain walk and hunt on the earlier stance
+    "--label", "lr-3e-4",             # optional
+    "--output-dir", f"/gcs/YOUR_BUCKET/training/{SPECIES}/<new_run>",
+],
+```
+
 ### Option B: Single-Stage Training
 
 Use this when you want to re-run one specific stage, pick up from a checkpoint, or manually control the timestep budget per stage:
@@ -208,14 +248,31 @@ job.run(sync=False)
 
 With no `--timesteps` argument, the job reads the current Stage 1 budget from
 its TOML config. Pass an explicit value only for a deliberate override. To chain
-stages manually, pass the previous stage's final model to `--load` in the next
-job:
+stages manually, pass the declared parent's handoff checkpoint to `--load` in
+the next job under `--load-mode initialize_next_stage`:
 
 ```python
-# Stage 2 picks up the Stage 1 final model
-"--load", "/gcs/YOUR_BUCKET/training/velociraptor/stage1/models/stage1_final.zip",
+# Locomotion enters from the stance handoff along its declared warm_start_from edge;
+# a single-stage job writes straight into its --output-dir (the stage1 directory above)
 "--stage", "2",
+"--load", "/gcs/YOUR_BUCKET/training/velociraptor/stage1/models/robust_best_model.zip",
+"--load-mode", "initialize_next_stage",
+"--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor/stage2",
 ```
+
+The loaded checkpoint must be the declared parent's handoff — `robust_best_model`,
+else `best_model`, each with its `_vecnorm.pkl` sidecar beside it — and stage
+directories are named `{position:02d}_{id}`. The default
+`--load-mode resume_same_stage` requires an exact task match and refuses a
+stance checkpoint for locomotion; `initialize_next_stage` in turn refuses a
+checkpoint whose recorded stage is not the node's declared parent. A
+hand-chained ladder is unjudged: `train` writes no `gate_verdict.json`, so its
+stage directories cannot serve as a later job's `--trunk-from` until each is
+re-judged with `scripts/backfill_gate_verdict.py`, and a certified walk-only
+run exists only through the notebook (`BEHAVIOR = "walk"`) — the curriculum
+always trains through the behavior leaf. Prefer `curriculum --trunk-from
+<run>` over hand chaining: it applies the same rule, judges every node and
+records the lineage (`parent_run_id`) for the audit.
 
 ### Option C: Using `gcloud` CLI
 
@@ -317,7 +374,7 @@ Use `--override` to change TOML config values without editing files. This is des
 ],
 ```
 
-> **Important:** `--override` applies the same value to **all three stages**. This is intentional for sweep jobs where you want a consistent adjustment. If you need different values per stage, use separate `train --stage N` jobs instead.
+> **Important:** a plain `section.key=value` override applies the same value to **every stage**, which is intentional for sweep jobs where you want a consistent adjustment. To target one stage, prefix the key with its legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, `recovery.ppo.learning_rate=1e-4` (see [stage-scoped overrides](sweeps.md#stage-scoped-overrides-with---override)). The non-advancing `recovery` node still needs its own `train --stage recovery` job — because the curriculum skips it, not because `--override` cannot address it.
 
 ## 6. W&B Integration on Vertex AI
 
@@ -429,14 +486,23 @@ job.wait()
 After training completes, download checkpoints from GCS:
 
 ```bash
-# Download all artifacts for a species
+# Download the whole run directory for a species
 gcloud storage cp -r gs://YOUR_BUCKET/training/velociraptor/ ./results/
-
-# Download just the final stage 3 model
-gcloud storage cp \
-  gs://YOUR_BUCKET/training/velociraptor/stage3/models/stage3_final.zip \
-  ./models/
 ```
+
+Download the run directory whole. Per-stage artifacts live under
+`01_stance/`, `02_locomotion/` and `03_behavior/`, each with
+`models/robust_best_model.zip` and its `_vecnorm.pkl` sidecar,
+`stage_config.json` and `gate_verdict.json`. A CLI curriculum run records
+its verdicts and `curriculum_results.csv` there; a notebook run additionally
+carries `provenance.json` and `summary.json`, whose `provenance.deliverables`
+lists every deliverable trained or judged in that run — a trunk reused from
+another run appears under `provenance.ancestors` instead (per deliverable:
+`model_path`, `model_hash`,
+`normalization_hash`, `gate_kind`, `certified`, `replication`) with
+`selected_model_path` pointing at the primary deliverable — the run's target,
+else the deepest certified one. A run copied back whole can be passed to a
+later job as `--trunk-from`.
 
 ## 10. Cost Estimation
 
@@ -615,7 +681,7 @@ If training crashes with OOM, reduce `--n-envs` or switch to a machine type with
 
 ### Job gets preempted frequently
 
-Increase `--save-freq` to save checkpoints more often. Consider switching to on-demand VMs for the final stage (Stage 3) where you don't want to risk losing a long training run.
+Increase `--save-freq` to save checkpoints more often. Consider switching to on-demand VMs for the leaf (behavior) stage where you don't want to risk losing a long training run.
 
 ## Next Steps
 

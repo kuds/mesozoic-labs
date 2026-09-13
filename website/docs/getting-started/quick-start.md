@@ -10,10 +10,10 @@ Train your first dinosaur-inspired simulated agent.
 
 Open one of the unified training notebooks in the `notebooks/` directory:
 
-- `notebooks/sb3_training.ipynb` - PPO or SAC curriculum training with Stable-Baselines3
-- `notebooks/jax_training.ipynb` - PPO curriculum training with JAX/MJX on an NVIDIA GPU
+- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a species (Velociraptor, T-Rex, Brachiosaurus, Dibothrosuchus, Compsognathus or the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stand"`, `"walk"` or `"hunt"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
+- `notebooks/jax_training.ipynb` - PPO training with JAX/MJX on an NVIDIA GPU for T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus, one stage at a time via `CURRENT_STAGE`; behavior chains are the SB3 notebook's in Phase A.
 
-Both notebooks support T-Rex, Velociraptor, and Brachiosaurus through a species selector and handle dependency installation automatically.
+Both notebooks handle dependency installation automatically.
 
 ## Option 2: Docker (Recommended for Reproducibility)
 
@@ -28,7 +28,7 @@ docker run --rm mesozoic-labs:latest \
   environments/velociraptor/scripts/train_sb3.py \
   train --stage 1 --algorithm ppo --timesteps 1000 --n-envs 1
 
-# Full numbered curriculum (all stages) with GPU
+# The advancing stages (stance, locomotion, behavior) in manifest order, with GPU
 docker run --rm --gpus all \
   -v "$(pwd)/outputs:/app/outputs" \
   mesozoic-labs:latest \
@@ -61,19 +61,52 @@ python scripts/view_model.py
 
 ### Train with Curriculum Learning
 
-The `curriculum` command runs all three stages in a single call. Each stage automatically loads its own hyperparameters from the TOML config when it starts:
+The `curriculum` command runs the species' advancing stages (stance,
+locomotion, behavior) in manifest order in a single call. Each node loads its
+own hyperparameters from its TOML config, warm-starts from its declared
+`warm_start_from` parent's handoff checkpoint, and writes a `gate_verdict.json`
+beside that handoff; a node whose parent has no certified checkpoint stops the
+run. Stand, walk and hunt are each published on their own — see
+[Behavior Recipes](/docs/training/recipes).
 
 ```bash
-# Full 3-stage curriculum — one command, all stages handled automatically
+# The advancing stages in manifest order — one command
 python scripts/train_sb3.py curriculum --algorithm ppo
 
-# Or control stages manually; each command reads its current budget from TOML
-python scripts/train_sb3.py train --stage 1 --algorithm ppo
-python scripts/train_sb3.py train --stage 2 --algorithm ppo \
-  --load logs/<stage1_dir>/models/stage1_final.zip
-python scripts/train_sb3.py train --stage 3 --algorithm ppo \
-  --load logs/<stage2_dir>/models/stage2_final.zip
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+
+# Reuse only the earlier stance; retrain walk and hunt (requires --trunk-from)
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --retrain-from locomotion --output-dir logs/<new_run>
+
+# Or control nodes by hand; each command reads its current budget from TOML and
+# writes into its --output-dir (without one: logs/<species>/<stage_dir>_<timestamp>/).
+# A later node enters from its declared parent's handoff under initialize_next_stage.
+python scripts/train_sb3.py train --stage 1 --algorithm ppo --output-dir logs/<run>/01_stance
+python scripts/train_sb3.py train --stage 2 --algorithm ppo --output-dir logs/<run>/02_locomotion \
+  --load logs/<run>/01_stance/models/robust_best_model.zip \
+  --load-mode initialize_next_stage
+python scripts/train_sb3.py train --stage 3 --algorithm ppo --output-dir logs/<run>/03_behavior \
+  --load logs/<run>/02_locomotion/models/robust_best_model.zip \
+  --load-mode initialize_next_stage
 ```
+
+`--label TEXT` tags a run (train or curriculum). Stage directories inside a run
+are named `{position:02d}_{id}` (`01_stance`, `02_locomotion`, `03_behavior`);
+the handoff the curriculum promotes is `robust_best_model`, else `best_model`,
+with its `_vecnorm.pkl` sidecar. The default `--load-mode resume_same_stage`
+requires an exact task match, so a parent's checkpoint must be loaded with
+`--load-mode initialize_next_stage`, which in turn refuses a checkpoint whose
+recorded stage is not the node's declared parent. A stage directory that
+already holds `stage_config.json` or `gate_verdict.json` is refused unless the
+load is `--load <checkpoint> --load-mode resume_same_stage`, so a new attempt is
+a new run directory. Hand-chained `train` runs are unjudged — `train` writes no
+`gate_verdict.json` — so they cannot serve as a later run's `--trunk-from`
+until re-judged with `scripts/backfill_gate_verdict.py`; and the curriculum
+always trains through the behavior leaf, so a certified walk-only run exists
+only through the notebook (`BEHAVIOR = "walk"`).
 
 Pass `--timesteps` only when you intentionally want to override the stage
 config. The generated [model pages](/docs/models/velociraptor) show the current

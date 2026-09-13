@@ -73,9 +73,19 @@ python environments/dibothrosuchus/scripts/train_sb3.py train --stage 1
 # Or through the shared entry point
 python -m environments.shared.train --species dibothrosuchus train --stage 1
 
+# Train the full chain (stance -> locomotion -> snap), each stage warm-started
+# from its declared parent in configs/dibothrosuchus/stages.toml
+python environments/dibothrosuchus/scripts/train_sb3.py curriculum --algorithm ppo
+
+# Or reuse an earlier run's certified trunk and train only what is missing above it
+python environments/dibothrosuchus/scripts/train_sb3.py curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+
 # View the model (requires display)
 python environments/dibothrosuchus/scripts/view_model.py
 ```
+
+Stance, locomotion and snap are each a published deliverable (`stand`,
+`walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
 
 ## Environment Details
 

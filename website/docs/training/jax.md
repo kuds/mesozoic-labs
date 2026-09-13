@@ -13,7 +13,7 @@ The JAX backend provides:
 - **Configurable batched simulation** -- parallel environments via `jax.vmap`, sized to the target hardware
 - **CUDA acceleration** -- the documented accelerated path targets NVIDIA GPUs
 - **Three-stage task sequence** -- balance, locomotion, then a species-specific simulator task
-- **All three species** -- T-Rex, Velociraptor, and Brachiosaurus
+- **Four species** -- T-Rex, Velociraptor, Brachiosaurus, and Dibothrosuchus
 
 CPU execution can be useful for smoke tests, but large training runs are intended for a CUDA GPU. TPU execution has not been validated by this project and is not part of the documented setup.
 
@@ -29,7 +29,13 @@ CPU execution can be useful for smoke tests, but large training runs are intende
 
 Both backends consume the same MJCF assets and TOML stage files. They do not
 currently have identical success proxies or curriculum-gate behavior; those
-differences are described below.
+differences are described below. The behavior-recipe machinery — `BEHAVIOR`,
+`TRUNK_FROM`, `RETRAIN_FROM`, certified-ancestor reuse, `gate_verdict.json`
+and per-deliverable publication — belongs to the SB3 notebook and the SB3
+`curriculum` command in Phase A: the JAX runner reads each species' stage
+manifest but walks the advancing stages by number, carrying parameters
+forward, and writes no `gate_verdict.json`, so a JAX run cannot serve as a
+`--trunk-from` trunk. See [Behavior Recipes](recipes.md).
 
 ## Installation
 
@@ -79,15 +85,19 @@ or reproduce the mapping performed by the CLI/curriculum wrapper.
 
 ### Colab Notebook
 
-The `notebooks/jax_training.ipynb` notebook supports all three species. Set the `SPECIES` variable at the top of the notebook:
+The `notebooks/jax_training.ipynb` notebook supports the same four species. Set the `SPECIES` variable at the top of the notebook:
 
 ```python
-SPECIES = "trex"  # or "velociraptor" or "brachiosaurus"
+SPECIES = "trex"  # or "velociraptor", "brachiosaurus", "dibothrosuchus"
 ```
 
 The notebook handles dependency installation, GPU detection, and stage-config
 loading. Stage progression is manual: after evaluating the current stage,
-change `CURRENT_STAGE` and rerun the stage cells.
+change `CURRENT_STAGE` and rerun the stage cells. Stage ladders are read from
+each species' stage manifest, but this notebook still walks the advancing
+ladder by `CURRENT_STAGE`; behavior chains (`BEHAVIOR`, `TRUNK_FROM`,
+certified-ancestor reuse) are the [SB3 notebook's](recipes.md#in-the-notebook)
+in Phase A.
 
 ## Architecture
 
@@ -120,7 +130,7 @@ The SB3 and JAX paths share:
 
 - **MJCF model files** (`*.xml`) -- identical physics models, no changes needed
 - **Many reward primitives** -- pure functions are reused across NumPy and JAX, while backend-specific wiring still differs
-- **Stage config inputs** (`configs/*/stage*.toml`) -- the config-aware JAX paths read the same files
+- **Stage config inputs** (the stage TOML files each species' `configs/<species>/stages.toml` names) -- the config-aware JAX paths read the same files
 - **Evaluation rendering** -- CPU MuJoCo rendering for both (MJX has no native renderer)
 
 They differ in:

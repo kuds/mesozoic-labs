@@ -37,7 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `warm_start_from`, which on every v1 and synthesized manifest is set
   exactly when the position is > 1, so a legacy curriculum is unchanged:
   `_stage_entry_shaping_callbacks` takes `parent_id` and fires only when the
-  node has an edge and the load crosses it (a root never warms up); `train()`
+  node has an edge and the load crosses it (a root never warms up) — every
+  caller, the Ray sweep worker's stage-entry shaping included, passes the
+  trial stage's edge; `train()`
   and the notebook's `train_stage` refuse an `initialize_next_stage` load
   whose recorded stage is not the declared parent
   (`task_fingerprint.validate_declared_parent`); `train_curriculum` resolves
@@ -50,8 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the handoff pair, plant identity validating, task hash equal), recording
   them under `ancestors/<stage_id>/` and their children's `parent_run_id`;
   `generate_stage_artifacts` writes the verdict beside the handoff it judged
-  and `scripts/backfill_gate_verdict.py` re-derives it for pre-Phase-A stage
-  directories.
+  and `environments/shared/scripts/backfill_gate_verdict.py`
+  (`python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`)
+  re-derives it for pre-Phase-A stage directories, refusing missing evidence
+  (`recovery_quality/v1` cannot be backfilled). Every run judged before
+  Phase A has no `gate_verdict.json` and is refused as a `--trunk-from` /
+  `TRUNK_FROM` trunk until its stage directories are re-judged —
+  `generate_stage_artifacts`, or the backfill tool for `stance_quality/v1`
+  and `reward_and_length/v1` verdicts; `recovery_quality/v1` must be
+  re-judged through the notebook chain.
 - **Catalog and website per deliverable** (Phase A, WS4): species catalog
   `schema_version` 4 and `configs/species_manifest.toml` `schema_version` 2
   (decision D-A8). Stage rows carry `deliverable`, `warm_start_from` and
@@ -237,6 +246,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with
+  no alias** (Phase A, WS1). Ids are an open vocabulary
+  (`^[a-z][a-z0-9_]*$`); the four historical ids stay reserved, `stage{N}`
+  is refused as an id, and species-free readers (`detect_stage_from_path`,
+  the sweep collector) recognise only the reserved ids while species-aware
+  readers accept any declared id (decision D-A12). Importers of the old name
+  fail at import time.
 - **Ancestor reuse is chain-aware and never reuses the target** (Phase A,
   WS2 follow-up). `find_certified_ancestor` gains rule 4: a non-root
   candidate must record, in its `stage_config.json` run block, an
@@ -258,7 +274,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of riding along without affecting the status. The completion cell reports
   a publishable-but-partial bundle, naming the uncertified deliverable,
   rather than failing the run; the chain loop that replaces the per-stage
-  cells enforces the verdict outright.
+  cells enforces the verdict outright. With #530 the pilot is gone: recovery
+  runs as the second node of the `stand` recipe (`BEHAVIOR = "stand"`) and
+  its frozen verdict is enforced like every other node's (decision D-A11).
+- **SAC gets the stage-entry warm-up in the notebook** (Phase A, WS5
+  notebook; plan assumption A9). The chain loop's `train_stage` builds its
+  shaping through `_stage_entry_shaping_callbacks` unfiltered, so a SAC node
+  entering from its parent under `initialize_next_stage` receives the same
+  warm-up clamps and forward-velocity ramp the CLI gives it (closes
+  gap-review DU1).
 - **`train_curriculum` records no gate verdict for an interrupted node.** A
   Ctrl-C partway through a stage's budget used to write a FAILED
   "budget exhausted" `gate_verdict.json`, which every later `--trunk-from`

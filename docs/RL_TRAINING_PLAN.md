@@ -13,6 +13,15 @@
 > [investigations/REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md). Running SAC trials
 > before the rescale will test the normalization fix in isolation; running
 > them after will confound the two changes.
+>
+> **Update (2026-09-13):** `notebooks/sb3_training.ipynb` no longer
+> auto-advances three stages. It trains one behavior chain chosen by
+> `BEHAVIOR` (`"hunt"` = stance → locomotion → behavior, the "All 3" setting
+> below), optionally reusing an earlier run's certified trunk through
+> `TRUNK_FROM`. The T-Rex stage configs are now `configs/trex/stance.toml`,
+> `locomotion.toml` and `behavior.toml` (plus `recovery.toml`); Brachiosaurus
+> keeps its `stage*.toml` files. See
+> [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md).
 
 ---
 

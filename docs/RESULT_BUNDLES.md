@@ -31,12 +31,13 @@ notebook's `BEHAVIOR` node in the chain loop). The bundle status is:
 | status | meaning |
 |---|---|
 | `complete` | the target is present and certified **and** every deliverable present in the run is certified — the bundle is then immutable |
-| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting hunt, a walk-only run targeting hunt, a run whose hunt leaf failed above a certified trunk |
-| `failed` | no deliverable is certified — a failed root, or a trunk whose gate failed below every leaf |
+| `partial` | at least one deliverable is certified, but not the target or not every present one — a stance-only run targeting hunt, a walk-only run targeting hunt, a run whose hunt leaf failed above a trunk it trained and certified |
+| `failed` | no deliverable is certified — a failed root, a trunk whose gate failed below every leaf, or a trunked run whose only trained node (its target) failed |
 
 `summary.json` is written whenever at least one deliverable is certified, so a
-failed leaf still publishes its certified trunk and a walk-only run writes a
-valid bundle. The **primary deliverable** — `provenance.selected_model_path`
+failed leaf still publishes the certified trunk trained in the same run (a
+trunk reused from another run is recorded under `provenance.ancestors`, not
+republished) and a walk-only run writes a valid bundle. The **primary deliverable** — `provenance.selected_model_path`
 / `model_hash` and the headline `final_avg_reward` — is the target when it is
 certified, else the deepest certified deliverable in manifest order; it is
 always a certified deliverable, never a failed leaf.
@@ -88,7 +89,15 @@ exactly as before. Schema-2 and schema-3 summaries keep their own rules.
 directory root beside `stage_config.json` and records the node's verdict with
 the SHA-256 of the handoff checkpoint and its VecNormalize sidecar; it is what
 makes a node reusable as an ancestor by a later run. Pre-Phase-A bundles have
-none, and the audit does not require it.
+none, and the audit does not require it. A run judged before Phase A
+therefore cannot serve as a `--trunk-from` / `TRUNK_FROM` trunk until its
+stage directories are re-judged — by `generate_stage_artifacts`, or by
+`python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>`,
+which re-derives a `stance_quality/v1` or `reward_and_length/v1` verdict from
+the evidence the directory already holds (`judged_by = "backfill"`), refuses
+to invent one from missing evidence, and cannot backfill
+`recovery_quality/v1` (re-judge that through the notebook chain, which rolls
+the panel).
 
 `ancestors/<stage_id>/ancestor.json` records `{schema, stage_id, stage_key,
 parent_run_id, source_run_dir, source_stage_dir, handoff {name, model_path,
@@ -99,7 +108,13 @@ id, a missing file, a verdict whose hashes disagree with the record's, or a
 task fingerprint that disagrees between `ancestor.json`, `gate_verdict.json`
 and `stage_config.json`. A stage that warm-started from a reused ancestor
 records `parent_run_id` in its `stage_config.json` run block, and the audit
-binds that lineage to the record's checkpoint hash.
+binds that lineage to the record's checkpoint hash. A same-stage resume of a
+node that entered from its parent keeps those edge keys and adds
+`resume_load_path` / `resume_checkpoint_sha256` (`config.RESUME_LINEAGE_KEYS`)
+for the periodic checkpoint it continued from, so a resumed-then-judged node
+still chains by digest. The run block also always records
+`hyperparameters_sha256` and, when set, a `label`; the notebook's
+`train_stage` adds `duration_seconds` on every exit (decision D-A15).
 
 JAX/MJX also writes `stage_result.json` so stages completed in separate Colab
 sessions can be combined idempotently under one run ID.
