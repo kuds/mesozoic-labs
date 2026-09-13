@@ -1,5 +1,7 @@
 """Tests for environments.shared.curriculum.manager."""
 
+from pathlib import Path
+
 import pytest
 
 from environments.shared.curriculum import (
@@ -42,6 +44,10 @@ class TestStageThreshold:
     def test_forward_vel_threshold(self):
         t = StageThreshold(min_avg_forward_vel=0.5)
         assert t.min_avg_forward_vel == 0.5
+
+    def test_min_success_lcb_defaults_fail_closed(self):
+        """No binomial bound reaches +inf, so an unpopulated bar refuses every panel."""
+        assert StageThreshold().min_success_lcb == float("inf")
 
 
 class TestCurriculumManager:
@@ -272,6 +278,56 @@ class TestCurriculumManager:
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0])
         assert summary["mean_forward_vel"] == 1.5
 
+    def test_task_success_gate_blocks_low_lcb(self):
+        """19/30 bounds at 0.467 < 0.5: refused, whatever the reward."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "gate_kind": "task_success/v1",
+                    "min_success_lcb": 0.5,
+                    "min_eval_episodes": 30,
+                    "min_avg_reward": 100.0,
+                    "required_consecutive": 1,
+                }
+            },
+        )
+        assert not mgr.should_advance([1e6] * 30, [1000.0] * 30, success_rates=[1.0] * 19 + [0.0] * 11)
+        latest = mgr.summary()["eval_history"][1][-1]
+        assert (latest["success_count"], latest["n_success_samples"]) == (19, 30)
+
+    def test_task_success_gate_passes_high_lcb(self):
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "gate_kind": "task_success/v1",
+                    "min_success_lcb": 0.5,
+                    "min_eval_episodes": 30,
+                    "min_avg_reward": 100.0,
+                    "required_consecutive": 2,
+                }
+            },
+        )
+        panel = [1.0] * 20 + [0.0] * 10
+        assert not mgr.should_advance([500.0] * 30, [1000.0] * 30, success_rates=panel)
+        assert mgr.should_advance([500.0] * 30, [1000.0] * 30, success_rates=panel)
+
+    def test_task_success_gate_keeps_the_reward_rail_as_a_conjunct(self):
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "gate_kind": "task_success/v1",
+                    "min_success_lcb": 0.5,
+                    "min_eval_episodes": 30,
+                    "min_avg_reward": 361.0,
+                    "required_consecutive": 1,
+                }
+            },
+        )
+        assert not mgr.should_advance([200.0] * 30, [1000.0] * 30, success_rates=[1.0] * 30)
+
     def test_record_eval_with_success_rate(self):
         """record_eval should include success rate in summary."""
         mgr = CurriculumManager(
@@ -320,6 +376,30 @@ class TestThresholdsFromConfigs:
         assert thresholds[1]["min_avg_forward_vel"] == 0.5
         assert thresholds[1]["min_success_rate"] == 0.3
         assert thresholds[1]["min_eval_episodes"] == 12
+
+    def test_extracts_task_success_thresholds(self):
+        """task_success/v1's bar is copied (the manager judges it in-training), unlike recovery's."""
+        configs = {
+            1: {
+                "curriculum_kwargs": {
+                    "gate_schema_version": GATE_SCHEMA_VERSION,
+                    "gate_kind": "task_success/v1",
+                    "min_success_lcb": 0.5,
+                    "min_eval_episodes": 30,
+                    "min_avg_reward": 361.0,
+                    "required_consecutive": 1,
+                }
+            }
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1] == {
+            "gate_kind": "task_success/v1",
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+            "min_avg_reward": 361.0,
+            "required_consecutive": 1,
+        }
+        assert StageThreshold(**thresholds[1]).min_success_lcb == 0.5
 
     def test_empty_configs(self):
         thresholds = thresholds_from_configs({})
@@ -388,8 +468,14 @@ class TestThresholdsFromConfigs:
         advance.
         """
         from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import _CONFIGS_DIR
 
-        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+        # Every species with a stage manifest, compsognathus and its robot
+        # included: D-B14 keeps them on reward_and_length/v1, and the loop
+        # must see them so a kind drift there fails here too.
+        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
+        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus"} <= set(species_ids)
+        for species in species_ids:
             stages = load_all_stages(species)
             chain = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, int)}
             kinds = validate_gate_configs(chain)
@@ -413,6 +499,51 @@ class TestThresholdsFromConfigs:
         assert "min_avg_episode_length" not in curriculum
         # The bound's power is specified at this panel size.
         assert curriculum["min_eval_episodes"] == 40
+
+    def test_trex_behavior_gates_on_task_success(self):
+        """The trex hunt is certified on the binomial LCB95, not on speed or a raw mean (plan §4.4, WS-B2).
+
+        Review CF2 / plan D1 retired ``min_avg_forward_vel`` (a bite episode
+        cannot average 2.0 m/s) and SS2 retired the raw-mean
+        ``min_success_rate`` (43% false-block at threshold); the schema's
+        misplaced-key check would reject either if it crept back.  The panel
+        size is REQUIRED for this kind because the bound's power is a
+        function of the declared n, and it is coupled to the notebook's
+        provenance ``evaluation_episodes`` (result_bundle/evidence.py
+        refuses any other row count) -- decision D-B1 keeps all of them at
+        30, so a change to one must move the rest.
+        """
+        import re
+
+        from environments.shared.config import load_all_stages
+        from environments.shared.curriculum import TASK_SUCCESS_GATE_KIND
+
+        curriculum = load_all_stages("trex")[3]["curriculum_kwargs"]
+        assert curriculum["gate_kind"] == TASK_SUCCESS_GATE_KIND
+        assert "min_avg_forward_vel" not in curriculum
+        assert "min_success_rate" not in curriculum
+        # D-B2: 0.5 is PROVISIONAL until the first Phase-B pilot re-freezes it.
+        assert curriculum["min_success_lcb"] == 0.5
+        # D-B1: the declared panel n; every notebook evaluation_episodes= must agree.
+        assert curriculum["min_eval_episodes"] == 30
+        notebook = Path(__file__).resolve().parents[3] / "notebooks" / "sb3_training.ipynb"
+        notebook_text = notebook.read_text(encoding="utf-8")
+        declared = {int(n) for n in re.findall(r"evaluation_episodes=(\d+)", notebook_text)}
+        assert declared == {curriculum["min_eval_episodes"]}, declared
+        # The number the judge actually counts is the ROW COUNT of
+        # evaluation_selected.csv, which the notebook's selected-checkpoint
+        # panels roll with a literal n_episodes=; raising min_eval_episodes
+        # without moving these would make every notebook hunt verdict refuse.
+        rolled = {int(n) for n in re.findall(r"n_episodes=(\d+)", notebook_text)}
+        assert rolled == {curriculum["min_eval_episodes"]}, rolled
+        # The scheduler's hysteresis stays as an allowed key (D-B3); the
+        # thresholds the manager extracts carry the bar.
+        assert curriculum["required_consecutive"] == 3
+        thresholds = thresholds_from_configs(load_all_stages("trex"))[3]
+        assert thresholds["gate_kind"] == TASK_SUCCESS_GATE_KIND
+        assert thresholds["min_success_lcb"] == 0.5
+        assert thresholds["min_eval_episodes"] == 30
+        assert StageThreshold(**thresholds).min_success_lcb == 0.5
 
     def test_with_real_configs(self):
         """Integration test: extract thresholds from actual TOML configs."""

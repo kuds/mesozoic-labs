@@ -34,6 +34,17 @@ stage directory, a recorded task fingerprint, the pushed panel's per-seed
 successes) is a *refusal* naming what is missing, never a fall-through to the
 reward gate: a pushed stage certified on return alone is precisely the
 advance-on-unmeasured-evidence failure the gate architecture exists to stop.
+
+``task_success/v1`` (the hunting deliverable, plan §4.4) is judged here from
+the stage directory's ``evaluation_selected.csv`` — the selected checkpoint's
+per-episode task successes, hash-bound to the handoff pair
+``select_handoff_checkpoint`` picks now — through
+:func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`
+(:func:`task_success_statistics` reads and binds the evidence).  A rounded
+mean cannot recover ``k/n``, so the CSV is the ONLY input the kind accepts:
+an absent file, an unbound one, or one for another checkpoint is a refusal.
+The dispatch is closed at the end: a kind registered in ``GATE_KINDS`` with
+no arm here is refused by name, never routed to the reward conjunction.
 """
 
 from __future__ import annotations
@@ -55,7 +66,18 @@ def evaluate_recorded_gate(
     Evaluations must be chronological. ``None`` means the available records
     cannot prove either a pass or a failure—for example, when a velocity or
     success-rate gate is enabled but that metric was not saved.
+
+    A ``task_success/v1`` history is judged on each evaluation's
+    ``success_count`` / ``n_success_samples`` (the keys
+    ``CurriculumManager.record_eval`` stores) through the same exact
+    binomial bound the gate certifies with; a history that records no
+    count — ``evaluations.npz`` carries none — is incomplete (``None``),
+    never a pass on the reward rail the hunting statue clears.
     """
+    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+
+    if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
+        return _recorded_task_success_gate(curriculum, evaluations)
     criteria: list[tuple[str, float]] = []
     ceilings: list[tuple[str, float]] = []
     if curriculum.get("min_avg_reward") is not None:
@@ -99,6 +121,62 @@ def evaluate_recorded_gate(
         if consecutive >= required_consecutive:
             return True
 
+    return None if incomplete else False
+
+
+def _recorded_task_success_gate(
+    curriculum: Mapping[str, Any],
+    evaluations: list[dict[str, Any]],
+) -> bool | None:
+    """The ``task_success/v1`` reading of a recorded evaluation history.
+
+    Each evaluation needs ``success_count`` and ``n_success_samples``; the
+    bound over them must clear ``min_success_lcb`` at ``n_success_samples
+    >= min_eval_episodes``, together with the reward rail and the optional
+    length floor over the same evaluation, ``required_consecutive`` times
+    in a row.  An evaluation missing any of those is incomplete and resets
+    the streak; a history that never proves a pass reads ``None`` when any
+    evaluation was incomplete and ``False`` otherwise.  An undeclared bar
+    or panel size is ``None``: nothing can be proven against a gate nobody
+    stated.
+    """
+    from environments.shared.curriculum.task_success_gate import (
+        TaskSuccessGateThresholds,
+        evaluate_task_success_gate,
+    )
+
+    try:
+        thresholds = TaskSuccessGateThresholds.from_curriculum(curriculum)
+    except ValueError:
+        return None
+    if not evaluations:
+        return None
+    required_consecutive = int(curriculum.get("required_consecutive", 3))
+    consecutive = 0
+    incomplete = False
+    for evaluation in evaluations:
+        count = evaluation.get("success_count")
+        n_samples = evaluation.get("n_success_samples")
+        reward = evaluation.get("mean_reward") if thresholds.min_avg_reward is not None else 0.0
+        length = evaluation.get("mean_episode_length") if thresholds.min_avg_episode_length is not None else 0.0
+        if count is None or n_samples is None or reward is None or length is None:
+            incomplete = True
+            consecutive = 0
+            continue
+        k, n = int(count), int(n_samples)
+        if n < 0 or k < 0 or k > n:
+            incomplete = True
+            consecutive = 0
+            continue
+        result = evaluate_task_success_gate([True] * k + [False] * (n - k), thresholds)
+        passes = (
+            result.passed
+            and (thresholds.min_avg_reward is None or float(reward) >= thresholds.min_avg_reward)
+            and (thresholds.min_avg_episode_length is None or float(length) >= thresholds.min_avg_episode_length)
+        )
+        consecutive = consecutive + 1 if passes else 0
+        if consecutive >= required_consecutive:
+            return True
     return None if incomplete else False
 
 
@@ -261,21 +339,25 @@ def _recovery_spec_disagreements(
     return failures
 
 
-def _recovery_reward_rail(
+def _reward_rail(
     curriculum: Mapping[str, Any],
     stage_results: Mapping[str, Any],
     *,
     stage: int | str,
+    kind_label: str,
 ) -> list[str]:
-    """Enforce the optional reward RAIL a recovery config may declare.
+    """Enforce the optional reward RAIL a composite-gate config may declare.
 
-    ``recovery_quality/v1`` may carry ``min_avg_reward`` in the same role
-    ``stance_quality/v1`` gives it — a rail well below the null, not the gate
-    — but the frozen capability spec records no rail, so the resolver cannot
-    enforce one.  A declared criterion nobody evaluates is the half-enforced
-    gate this module exists to prevent, so it is checked here as an additional
-    *conjunct*: it can only refuse, never advance anything the frozen verdict
-    did not already pass.
+    ``recovery_quality/v1`` and ``task_success/v1`` may carry
+    ``min_avg_reward`` in the same role ``stance_quality/v1`` gives it — a
+    rail well below the null, not the gate — but neither the frozen recovery
+    capability spec nor the task-success bound records a rail, so their own
+    evaluators cannot enforce one.  A declared criterion nobody evaluates is
+    the half-enforced gate this module exists to prevent, so it is checked
+    here as an additional *conjunct*: it can only refuse, never advance
+    anything the kind's own verdict did not already pass.  *kind_label*
+    names the rail in the failure text (``recovery rail`` / ``task_success
+    rail``).
     """
     target = curriculum.get("min_avg_reward")
     if target is None:
@@ -283,12 +365,163 @@ def _recovery_reward_rail(
     reward = _gate_metric(stage_results, "best_model_reward", "best_eval_reward", "mean_reward")
     if reward is None:
         return [
-            f"stage {stage} declares min_avg_reward {float(target):.2f} as a recovery rail, "
+            f"stage {stage} declares min_avg_reward {float(target):.2f} as a {kind_label} rail, "
             "but no reward measurement is available to check it"
         ]
     if reward < float(target):
-        return [f"stage {stage} best model reward {reward:.2f} < recovery rail {float(target):.2f}"]
+        return [f"stage {stage} best model reward {reward:.2f} < {kind_label} rail {float(target):.2f}"]
     return []
+
+
+def _recovery_reward_rail(
+    curriculum: Mapping[str, Any],
+    stage_results: Mapping[str, Any],
+    *,
+    stage: int | str,
+) -> list[str]:
+    """The recovery spelling of :func:`_reward_rail` (kept for its callers and tests)."""
+    return _reward_rail(curriculum, stage_results, stage=stage, kind_label="recovery")
+
+
+def task_success_statistics(stage_dir: "str | Path") -> "tuple[dict[str, Any] | None, list[str]]":
+    """The selected checkpoint's task-success count, bound to the handoff pair.
+
+    Reads ``<stage_dir>/evaluation_selected.csv`` — the per-episode evidence
+    the notebook, the trainers' post-training panel and the JAX saver write
+    for the SELECTED checkpoint — and binds it to the handoff pair
+    ``select_handoff_checkpoint`` picks NOW through the rows'
+    ``checkpoint_sha256`` column — and, when the rows record one, their
+    ``normalization_sha256`` against the pair's ``_vecnorm.pkl``: an SB3
+    handoff is the pair, and a panel rolled under other observation
+    statistics is a panel of a different policy (the backfill tool and
+    publication refuse the same file).  Returns ``(stats, failures)``:
+    *stats* carries ``best_model_success_count``, ``best_model_n_episodes``,
+    ``best_model_success_lcb`` (exact one-sided 95% Clopper-Pearson), the
+    bound ``checkpoint_sha256`` and — when the rows carry the columns —
+    ``best_model_reward`` / ``best_model_length``, the same panel's means
+    the rail and the length floor are judged on; or is ``None`` with
+    *failures* naming what is missing.  Every missing input is a refusal:
+    a rounded mean cannot recover ``k/n``, and evidence that cannot be
+    shown to describe the handoff is evidence for some other policy.
+    """
+    from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.curriculum.recovery_gate import binomial_lcb
+    from environments.shared.curriculum.task_success_gate import read_task_successes
+    from environments.shared.result_bundle.hashing import sha256_file
+
+    root = Path(stage_dir)
+    handoff = select_handoff_checkpoint(root / "models")
+    if handoff is None:
+        return None, [
+            f"{root / 'models'} has no complete handoff pair (a checkpoint with its matched _vecnorm.pkl), "
+            "so there is no selected checkpoint whose task_success evidence could be judged"
+        ]
+    handoff_name, handoff_stem, handoff_vecnorm = handoff
+    handoff_zip = Path(handoff_stem + ".zip")
+    path = root / "evaluation_selected.csv"
+    if not path.is_file():
+        return None, [
+            f"{path} is absent: the selected checkpoint's per-episode task_success evidence is the only "
+            "input task_success/v1 accepts (a rounded mean cannot recover k/n)"
+        ]
+    try:
+        evidence = read_task_successes(path)
+    except (OSError, ValueError) as exc:
+        return None, [f"{path} cannot be read as task_success evidence: {exc}"]
+    if evidence.checkpoint_sha256 is None:
+        return None, [
+            f"{path} records no checkpoint_sha256 column, so it cannot be shown to describe the handoff {handoff_name}"
+        ]
+    handoff_digest = sha256_file(handoff_zip)
+    if evidence.checkpoint_sha256 != handoff_digest:
+        return None, [
+            f"{path} describes checkpoint {evidence.checkpoint_sha256}, not the handoff {handoff_name} ({handoff_digest})"
+        ]
+    if evidence.normalization_sha256 is not None:
+        vecnorm_digest = sha256_file(Path(handoff_vecnorm))
+        if evidence.normalization_sha256 != vecnorm_digest:
+            return None, [
+                f"{path} ran under VecNormalize statistics {evidence.normalization_sha256}, not the handoff "
+                f"{handoff_name}'s sidecar ({vecnorm_digest}); a panel rolled under other observation "
+                "statistics is evidence for a different policy"
+            ]
+    n = len(evidence.successes)
+    k = sum(1 for success in evidence.successes if success)
+    stats: dict[str, Any] = {
+        "best_model_success_count": k,
+        "best_model_n_episodes": n,
+        "best_model_success_lcb": binomial_lcb(k, n),
+        "checkpoint_sha256": handoff_digest,
+    }
+    if evidence.mean_reward is not None:
+        stats["best_model_reward"] = evidence.mean_reward
+    if evidence.mean_length is not None:
+        stats["best_model_length"] = evidence.mean_length
+    return stats, []
+
+
+def _task_success_stage_gate(
+    curriculum: Mapping[str, Any],
+    stage_results: Mapping[str, Any],
+    *,
+    stage: int | str,
+    stage_dir: "str | Path | None",
+) -> tuple[bool, list[str]]:
+    """Judge ``task_success/v1`` from the stage directory's selected-checkpoint evidence.
+
+    The verdict is :func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`
+    over the per-episode successes :func:`task_success_statistics` reads and
+    hash-binds, then the reward rail and the optional length floor as
+    conjuncts over the SAME panel's mean reward / length (the CSV's own
+    rows; *stage_results* is consulted only when the file carries no such
+    column).  Judging the rail on *stage_results* alone would read a sweep
+    trial's ``best_eval_reward`` — the argmax EvalCallback panel of the
+    mean-reward best_model — beside a bound from the handoff pair's panel,
+    and publication (which rails on the CSV) would disagree with the
+    verdict on the same directory.  Every input this call lacks is a
+    refusal naming it — no stage directory, no evidence file, evidence for
+    another checkpoint, an undeclared bar — never a fall-through to the
+    reward arm, which the ~600 hunting statue clears.
+    """
+    from environments.shared.curriculum.task_success_gate import (
+        TaskSuccessGateThresholds,
+        evaluate_task_success_gate,
+        read_task_successes,
+    )
+
+    if stage_dir is None:
+        return False, [
+            f"stage {stage} declares task_success/v1, which is judged from the stage directory's "
+            "evaluation_selected.csv; no stage_dir was given"
+        ]
+    try:
+        thresholds = TaskSuccessGateThresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        return False, [f"stage {stage} declares task_success/v1 without a judgeable gate: {exc}"]
+    stats, failures = task_success_statistics(Path(stage_dir))
+    if stats is None:
+        return False, [f"stage {stage} task_success/v1 evidence: {failure}" for failure in failures]
+    # The statistics above already bound the file to the handoff; the
+    # verdict itself comes from the shared evaluator over the same rows.
+    evidence = read_task_successes(Path(stage_dir) / "evaluation_selected.csv")
+    result = evaluate_task_success_gate(evidence.successes, thresholds)
+    failures = [f"stage {stage} {failure}" for failure in result.failures]
+    # The panel's own aggregates shadow whatever the caller passed.
+    judged: dict[str, Any] = dict(stage_results)
+    judged.update({key: stats[key] for key in ("best_model_reward", "best_model_length") if key in stats})
+    failures.extend(_reward_rail(curriculum, judged, stage=stage, kind_label="task_success"))
+    if thresholds.min_avg_episode_length is not None:
+        length = _gate_metric(judged, "best_model_length", "best_eval_length", "mean_episode_length")
+        if length is None:
+            failures.append(
+                f"stage {stage} declares min_avg_episode_length {thresholds.min_avg_episode_length:.1f}, "
+                "but no episode-length measurement is available to check it"
+            )
+        elif length < thresholds.min_avg_episode_length:
+            failures.append(
+                f"stage {stage} best model episode length {length:.1f} < {thresholds.min_avg_episode_length:.1f}"
+            )
+    return not failures, failures
 
 
 def _recovery_stage_gate(
@@ -473,10 +706,12 @@ def evaluate_stage_gate(
             this stage, required by ``stance_quality/v1`` and ignored by every
             other kind.
         stage_dir: The stage's own directory, required by
-            ``recovery_quality/v1`` and ignored by every other kind: it holds
-            the frozen ``gate_resolution.json`` and the task fingerprint that
-            resolution is checked against.  Omitting it does not soften the
-            recovery gate — it refuses.
+            ``recovery_quality/v1`` (it holds the frozen
+            ``gate_resolution.json`` and the task fingerprint that resolution
+            is checked against) and by ``task_success/v1`` (it holds the
+            selected checkpoint's ``evaluation_selected.csv`` and the handoff
+            pair it is bound to), ignored by every other kind.  Omitting it
+            does not soften either gate — both refuse.
         recovery_successes_by_seed: The pushed panel's per-episode successes
             keyed by panel seed (``RecoveryPanelEvidence.successes_by_seed()``),
             required by ``recovery_quality/v1`` and ignored by every other
@@ -502,6 +737,7 @@ def evaluate_stage_gate(
     from environments.shared.curriculum.gate_schema import GATE_KINDS
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 
     gate_kind = curriculum.get("gate_kind")
     if gate_kind is None:
@@ -531,4 +767,18 @@ def evaluate_stage_gate(
         )
     if gate_kind == STANCE_GATE_KIND:
         return _stance_stage_gate(gate_kind, stance_report, stage)
-    return _reward_and_length_stage_gate(curriculum, stage_results)
+    if gate_kind == TASK_SUCCESS_GATE_KIND:
+        # The hunting verdict comes ONLY from the selected checkpoint's
+        # per-episode evidence (plan §4.4): the reward conjunction below
+        # would certify a hunt on min_avg_reward, which is a collapse rail
+        # the statue clears, so every missing input refuses inside the arm.
+        return _task_success_stage_gate(curriculum, stage_results, stage=stage, stage_dir=stage_dir)
+    if gate_kind == "reward_and_length/v1":
+        return _reward_and_length_stage_gate(curriculum, stage_results)
+    # A kind registered in GATE_KINDS with no arm above: the NEXT kind
+    # (command_tracking/v1, Phase D) lands here first, and must fail closed
+    # by construction rather than certify on the reward conjunction.
+    return False, [
+        f"stage {stage} declares gate_kind {gate_kind!r}, which is registered but has no evaluator in "
+        "reporting.gates.evaluate_stage_gate; refusing rather than judging it on the reward conjunction"
+    ]

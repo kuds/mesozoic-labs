@@ -210,3 +210,33 @@ class TestSaveResultsJsonIsAtomic:
 
         assert path.read_bytes() == before
         assert [p.name for p in tmp_path.iterdir()] == ["summary.json"]
+
+
+class TestTaskSuccessStageRow:
+    """The judged count, panel size and bound reach the stage row (plan §4.4)."""
+
+    def test_exported_when_the_stage_result_carries_them(self, tmp_path):
+        results = [
+            make_stage_result(
+                3,
+                best_model_success_count=20,
+                best_model_n_episodes=30,
+                best_model_success_lcb=0.5005613,
+                gate_kind="task_success/v1",
+            )
+        ]
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        stage = json.loads(path.read_text())["stages"]["3"]
+        assert stage["selected_model_success_count"] == 20
+        assert stage["selected_model_n_episodes"] == 30
+        assert stage["selected_model_success_lcb"] == 0.5006
+        # A count is published as an integer, not 20.0.
+        assert isinstance(stage["selected_model_success_count"], int)
+        assert isinstance(stage["selected_model_n_episodes"], int)
+
+    def test_absent_when_the_stage_result_lacks_them(self, tmp_path):
+        path = save_results_json([make_stage_result(3)], "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        stage = json.loads(path.read_text())["stages"]["3"]
+        assert not {"selected_model_success_count", "selected_model_n_episodes", "selected_model_success_lcb"} & set(
+            stage
+        )

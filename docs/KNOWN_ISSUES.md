@@ -147,6 +147,47 @@ tolerance) remains the standing recommendation for the divergences above.
   `gate_config_sha256(gate_config_view(stage_config.json["curriculum"]))`
   and compare it with `load_all_stages("trex")[1]["curriculum_kwargs"]`'s
   digest, recording which of the two backfill paths each needed.
+- **MEDIUM (provisional threshold)** — **the trex hunting bar
+  `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
+  (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
+  on the strength of the schema-2 committed result (`results/trex/ppo/
+  summary.json` stage 3: mean 0.9667 → 29/30 → LCB 0.8514, a recomputation
+  from a rounded mean with no per-episode evidence, judged at
+  `min_success_rate` 0.25 with no velocity term under a different `[env]`
+  block) — freeze-then-revise, not the pilot-then-freeze precedent the
+  recovery gate set. Follow-up: after the first hunting pilot under
+  `task_success/v1`, re-freeze the bar attainable-not-aspirational from its
+  `evaluation_selected.csv` (20/30 clears 0.5 at 0.5006; 19/30 does not),
+  update the TOML comment and plan §4.4, and re-judge — never retrain — any
+  verdict minted under the provisional bar (a moved threshold is a re-judge
+  under D-B7/D-B8).
+- **LOW (calibration owed)** — **`collapse_peak_warmup_timesteps =
+  1_000_000` on the trex behavior stage is a judgment, not a measurement
+  (decision D-B5).** Stance's 1.0M was measured by replaying run
+  `20260803_012355`'s evaluation series through the detector; no
+  behavior-stage series under the current config exists to replay, so the
+  value is the stance/recovery number bounded below by the 600k stage-entry
+  window (`warmup_timesteps` + `ramp_timesteps`, where a warm-started walker
+  evaluates near the 602.13 statue and would arm the 270.9 floor at once)
+  and above by the ≤ 0.5× budget pin in `test_curriculum_early_stopping.py`.
+  Follow-up: replay the first full hunting run's `evaluations.npz` through
+  `EvalCollapseEarlyStopCallback` (as STAGE1_SPLIT_PLAN §12.4 did) and
+  re-derive; re-measure the statue (`zero_action_baseline.py trex:3
+  --episodes 40 --seed 3042`) whenever a behavior reward weight or the plant
+  moves, and re-derive the 361 rail and the 602.0 reference together.
+- **MEDIUM (operational)** — **a CLI-certified hunt (`curriculum --target
+  hunt`) is judged IN-TRAINING on the last EvalCallback panel and cannot be
+  backfilled.** `train_curriculum` has no post-stage judge and writes no
+  `evaluation_selected.csv`; its `task_success/v1` verdict is the
+  `CurriculumManager`'s own bound over the EvalCallback successes
+  (persisted as `success_count` / `n_success_samples` in the verdict's
+  `stage_result`, with `required_consecutive` hysteresis), which is a
+  different estimator from the post-stage arm's single hash-bound panel on
+  the selected handoff. `backfill_gate_verdict.py` refuses such a directory
+  (no `evaluation_selected.csv` hash-bound to the handoff), and publication
+  needs the notebook, whose chain loop writes the evidence CSV and judges
+  it through `generate_stage_artifacts`. Treat a CLI hunt verdict as a
+  training-time signal, not a certification.
 
 <!-- The items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and

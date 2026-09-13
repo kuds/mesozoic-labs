@@ -40,6 +40,7 @@ from typing import Any
 
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
+from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
 #: kind does not require a bump; changing how an existing one is evaluated
@@ -102,6 +103,25 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
+    # The hunting deliverable's gate (BEHAVIOR_RECIPES_PLAN §4.4): certifies
+    # the selected checkpoint's per-episode TASK success through an exact
+    # one-sided 95% binomial lower bound (recovery_gate.binomial_lcb) at a
+    # declared panel size, replacing the raw min_success_rate floor.
+    # ``min_avg_reward`` is carried as a collapse RAIL on the selected
+    # checkpoint's mean reward — never the gate, exactly the stance role —
+    # and ``min_avg_episode_length`` is optional.  ``required_consecutive``
+    # stays allowed as the in-training manager's hysteresis (decision D-B3),
+    # like every advancing kind's copy of it.  See
+    # :mod:`environments.shared.curriculum.task_success_gate`.
+    TASK_SUCCESS_GATE_KIND: frozenset(
+        {
+            "min_success_lcb",
+            "min_eval_episodes",
+            "min_avg_reward",
+            "min_avg_episode_length",
+            "required_consecutive",
+        }
+    ),
     # An explicit, recorded non-advancing mode for pilots and diagnostics.
     # Declaring it is the ONLY supported way to run a stage with no gate, and
     # it refuses to advance rather than passing by default.
@@ -150,6 +170,12 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
             "recovery_dwell_steps",
         }
     ),
+    # The bound AND the panel size are required — min_eval_episodes is
+    # required here alone among the kinds because a binomial bound's power
+    # is a function of the declared n (20/30 clears 0.5, 19/30 does not),
+    # so a config that leaves n to a backend default is not stating the
+    # gate it claims.  min_avg_reward stays an optional rail.
+    TASK_SUCCESS_GATE_KIND: frozenset({"min_success_lcb", "min_eval_episodes"}),
     "none/v1": frozenset(),
 }
 
@@ -201,6 +227,7 @@ _DIAGNOSTIC_KEYS = frozenset(
         "diagnostics_plateau_min_relative_variation",
         "supplementary_episodes",
         "stance_report_episodes",
+        "task_success_panel_episodes",
         "baseline_warn_after_budget_fraction",
         "stance_probe_filter_hz",
         "stance_probe_hold_constant",

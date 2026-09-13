@@ -303,6 +303,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 #### Phase B (BEHAVIOR_RECIPES_PLAN §4.4/§4.5)
+- **`task_success/v1`, the hunting gate kind** (Phase B, WS-B1; plan §4.4,
+  decisions D-B1, D-B2, D-B3, D-B12, D-B13, D-B14).
+  `environments/shared/curriculum/task_success_gate.py` certifies the
+  selected checkpoint's per-episode task success through the exact one-sided
+  95% Clopper-Pearson lower bound (`recovery_gate.binomial_lcb`; 20/30 clears
+  0.5 at 0.5006, 19/30 does not, the committed 29/30 bounds at 0.851) at a
+  declared panel size: `GATE_KINDS` gains the kind consuming
+  `min_success_lcb`, `min_eval_episodes`, `min_avg_reward` (a collapse rail,
+  never the gate), `min_avg_episode_length` and `required_consecutive`, with
+  the bar AND the panel size required. One implementation, three consumers:
+  `reporting.gates.evaluate_stage_gate` judges it post-stage from
+  `evaluation_selected.csv` hash-bound to the handoff pair — the checkpoint
+  digest AND the VecNormalize sidecar digest when the rows record one (an
+  absent or unbound file, or one rolled under other observation statistics,
+  is a refusal; `task_success_statistics` reads the count, and the dispatch
+  is now closed — a registered kind with no arm is refused by name instead
+  of routed to the reward conjunction), railing `min_avg_reward` and the
+  optional length floor on the SAME panel's mean reward / length rather than
+  on the argmax EvalCallback panel a sweep trial's `stage_results` carry;
+  `result_bundle.evidence` re-derives a recorded pass from the same rows
+  bound to the certified checkpoint and requires the published
+  `selected_model_success_count` / `_n_episodes` to equal the rows' k/n;
+  the sweep collector judges a row from the trial's recorded
+  `success_count` / `n_success_episodes` and rails on the same panel's
+  `selected_mean_reward` / `selected_mean_episode_length` (new
+  `metrics.json` keys and CSV columns beside `success_lcb_threshold`; a
+  non-integral count is not evaluable), and one shared trainer panel
+  (`train_base.run_success_panel`, behind `train()` and the Ray Tune
+  worker) sizes the hunt panel at `max(post-eval n, min_eval_episodes)`,
+  writes it as the trial's evidence CSV and records the count ONLY beside
+  that file — a panel that did not evaluate the handoff pair records no
+  count, so the row is "not evaluable" beside the refused verdict —
+  while `generate_stage_artifacts` rolls a panel from the handoff pair on
+  the publication seed when none is bound or the bound one is smaller
+  than `min_eval_episodes` (`task_success_panel_episodes` overrides the
+  size; 0 skips), so the row and the on-disk verdict agree by
+  construction. `evaluate_recorded_gate` (what
+  `google_drive_summary.ipynb` reads over `evaluations.npz`) judges the
+  kind on per-evaluation `success_count` / `n_success_samples` and reads a
+  history without them as incomplete, never as a reward-rail pass; the
+  notebook exports `success_lcb_threshold`. In training,
+  `CurriculumManager` forms the same bound from the EvalCallback panel's
+  successes (`success_count` / `n_success_samples` in the eval history;
+  `StageThreshold.min_success_lcb` defaults to `+inf`), and the CLI
+  curriculum's verdict records the count it was judged on (`success_count`
+  / `n_success_samples` persisted in the verdict's `stage_result`). The verdict,
+  `summary.json` stage rows (`selected_model_success_count` /
+  `_n_episodes` / `_success_lcb`, optional and validated) and the catalog
+  headline (`task success LCB95`) carry the judged numbers;
+  `backfill_gate_verdict.py` re-derives the kind from a hash-bound CSV and
+  refuses without one; the JAX path refuses the kind by name and, per
+  D-B13, refuses a final stage declaring it before any training (on the
+  declared kind alone — the final stage's block is still not
+  schema-validated, so single-stage pilots train as before). Every other
+  species' hunt stays on `reward_and_length/v1` (D-B14); the trex
+  `behavior.toml` adoption, the catalog gate formatter and the website
+  formatter land with WS-B2.
+- **The trex hunt is gated on `task_success/v1` with a measured collapse
+  floor** (Phase B, WS-B2; plan §4.4 and plan D1; 2026-08 review CF2, CF3,
+  SS2; decisions D-B1, D-B2, D-B3, D-B4, D-B5, D-B14). `configs/trex/
+  behavior.toml` `[curriculum]` declares `gate_kind = "task_success/v1"`
+  with `min_success_lcb = 0.5` — PROVISIONAL, pre-pilot (D-B2): the exact
+  one-sided 95% Clopper-Pearson bound needs 20/30 at n = 30 (LCB 0.5006;
+  19/30 bounds at 0.4669), 26/40 at n = 40 (0.5081; 25/40 at 0.4828), and
+  the committed 2026-03 result recomputes to 29/30 → 0.8514 from its rounded
+  mean (a recomputation, not a re-judgement: no per-episode evidence, judged
+  at `min_success_rate` 0.25 with no velocity term) — and
+  `min_eval_episodes = 30` (D-B1, coupled to the notebook's selected panel
+  and provenance `evaluation_episodes`). `min_avg_forward_vel = 2.0` is
+  retired (CF2 / D1: a bite ends the episode after ~0.5 m, so a bite episode
+  cannot average 2.0 m/s) and the raw-mean `min_success_rate = 0.5` (SS2:
+  43% false-block at threshold) is replaced by the bound; `min_avg_reward`
+  becomes the collapse RAIL at 361 = round(0.6 × 602.13) (D-B4), the statue
+  ratio the stance rail uses. The absolute `collapse_peak_floor = 100.0`
+  (CF3; 6× below the do-nothing reward) is REMOVED, not shadowed, for the
+  relative pair `collapse_peak_floor_reference = 602.0` /
+  `collapse_peak_floor_fraction = 0.45` (floor 270.9) from the hunting statue
+  measured 2026-09-13: 602.13 ± 175.35 over 40 episodes, 40/40 full horizon,
+  `zero_action_baseline.py trex:3 --episodes 40 --seed 3042`, mujoco 3.10.0,
+  physics revision 7, pinned by `statue_constants_physics_revision = 7` so
+  `test_statue_constant_freshness.py` now guards the stage;
+  `collapse_peak_warmup_timesteps = 1_000_000` (D-B5 — a judgment bounded by
+  the 600k stage-entry window and the half-budget test bound, not a replay;
+  re-measure follow-up in KNOWN_ISSUES) and explicit `collapse_min_evals /
+  collapse_patience / collapse_drop_fraction = 20 / 10 / 0.5` (locomotion's
+  tuned values, not the 12/8/0.4 defaults). `required_consecutive = 3` stays
+  as in-training hysteresis only (D-B3); `[env]`, `timesteps` and the
+  warm-up/ramp keys are untouched, so the task fingerprint is unchanged and
+  only the behavior stage's gate digest moved. The catalog gate formatter
+  and its website mirror gain the kind's branch (`task success LCB95 ≥ 0.5;
+  reward rail ≥ 361; ≥ 30 episodes/evaluation; verdict from the selected
+  checkpoint's evaluation_selected.csv (post-stage; fail-closed when
+  absent)`, no consecutive-passes tail; the mirror test pins none < recovery
+  < task_success < generic), `configs/species_manifest.toml` names the kind
+  and the bar on the trex hunt deliverable and its D-A9 pointers say "a
+  later phase (D-B15)", and `species.generated.json` / the README SPECIES
+  block are regenerated (RESULTS block unchanged). The committed-config test
+  loops cover every species with a stage manifest (D-B14; a stage may omit
+  the collapse floor only when its TOML says the omission is deliberate),
+  and the trex stage-3 catalog pin now asserts no velocity target, the 0.5
+  bar and no raw success rate. Every other species' hunt stays on
+  `reward_and_length/v1`.
 - **The gate verdict records the gate it was judged under, and reuse checks
   it** (Phase B, WS-B3; decisions D-A22, D-B6, D-B7, D-B8). `gate_verdict.json`
   gains `gate` — the `curriculum.gate_schema.gate_config_view` projection of

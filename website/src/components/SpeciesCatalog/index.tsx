@@ -46,11 +46,11 @@ function formatVerdict(stage: ResultStage): string {
   return `${stage.passed ? 'passed' : 'failed'} retired gate (${gate})`;
 }
 
-function requireCriterion(value: number | null, key: string): number {
-  // The Python renderer indexes a frozen recovery threshold directly and
-  // fails on a missing one; a recovery_quality/v1 gate without its
-  // thresholds is a catalog bug, not a row to render with blanks.
-  if (value === null) throw new Error(`recovery_quality/v1 gate is missing ${key}`);
+function requireCriterion(gate: AdvancementGate, value: number | null, key: string): number {
+  // The Python renderer indexes a kind's own threshold directly and fails
+  // on a missing one; a recovery_quality/v1 or task_success/v1 gate without
+  // its thresholds is a catalog bug, not a row to render with blanks.
+  if (value === null) throw new Error(`${gate.gateKind} gate is missing ${key}`);
   return value;
 }
 
@@ -71,21 +71,41 @@ function formatGate(gate: AdvancementGate): string {
   // publish hysteresis that never applies to it.
   if (gate.gateKind === 'recovery_quality/v1') {
     const recoveryCriteria = [
-      `recovery success LCB95 ≥ ${requireCriterion(gate.minRecoverySuccessLcb, 'min_recovery_success_lcb').toLocaleString()}`,
+      `recovery success LCB95 ≥ ${requireCriterion(gate, gate.minRecoverySuccessLcb, 'min_recovery_success_lcb').toLocaleString()}`,
     ];
     if (gate.minPairedSuccessDeltaLcb !== null) {
       recoveryCriteria.push(
         `paired Δ vs each required frozen null LCB95 ≥ ${gate.minPairedSuccessDeltaLcb.toLocaleString()}`,
       );
     }
-    const reentry = requireCriterion(gate.recoveryTRecoverSteps, 'recovery_t_recover_steps').toLocaleString();
-    const dwell = requireCriterion(gate.recoveryDwellSteps, 'recovery_dwell_steps').toLocaleString();
+    const reentry = requireCriterion(gate, gate.recoveryTRecoverSteps, 'recovery_t_recover_steps').toLocaleString();
+    const dwell = requireCriterion(gate, gate.recoveryDwellSteps, 'recovery_dwell_steps').toLocaleString();
     recoveryCriteria.push(
       `re-entry ≤ ${reentry} steps + ${dwell}-step dwell`,
       `≥ ${gate.minEvaluationEpisodes} episodes/evaluation`,
       'verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)',
     );
     return recoveryCriteria.join('; ');
+  }
+  // A task_success/v1 verdict is produced once, post-stage, from the
+  // selected checkpoint's per-episode evaluation_selected.csv: the binomial
+  // LCB95 on task success against the declared bar at the declared panel
+  // size, with min_avg_reward as a collapse RAIL ("reward rail"), never the
+  // gate; required_consecutive is in-training hysteresis only, so the
+  // generic consecutive-passes tail is not rendered here either.
+  if (gate.gateKind === 'task_success/v1') {
+    const taskCriteria = [
+      `task success LCB95 ≥ ${requireCriterion(gate, gate.minSuccessLcb, 'min_success_lcb').toLocaleString()}`,
+    ];
+    if (gate.minAverageReward !== null) taskCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()}`);
+    if (gate.minAverageEpisodeLength !== null) {
+      taskCriteria.push(`episode length ≥ ${gate.minAverageEpisodeLength.toLocaleString()}`);
+    }
+    taskCriteria.push(
+      `≥ ${gate.minEvaluationEpisodes} episodes/evaluation`,
+      "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
+    );
+    return taskCriteria.join('; ');
   }
   const criteria: string[] = [];
   if (gate.minAverageReward !== null) criteria.push(`reward ≥ ${gate.minAverageReward.toLocaleString()}`);

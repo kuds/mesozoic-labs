@@ -18,6 +18,7 @@ import numpy as np
 
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
+from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .stance_diagnostics import derive_stance_info
 
 logger = logging.getLogger(__name__)
@@ -38,10 +39,14 @@ def success_metric_applicable(stage_config: dict[str, Any]) -> bool:
 
     Stage number alone is deliberately not used: the TOML curriculum config
     is the authority, and a genuine zero remains meaningful whenever a
-    positive success-rate threshold is configured.
+    positive success-rate threshold is configured — or whenever the stage
+    declares ``task_success/v1``, whose bar is ``min_success_lcb`` (plan
+    §4.4) and which consumes no ``min_success_rate`` key at all.
     """
 
     curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
+        return True
     return float(curriculum.get("min_success_rate", 0.0)) > 0.0
 
 
@@ -592,11 +597,20 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         else:
             horizon_fraction, horizon_count = None, 0
 
+        # task_success/v1 gates on a binomial LOWER BOUND, not the raw rate;
+        # the plateau follows the raw success rate against the LCB bar (the
+        # bound is monotone in the rate at fixed n, so the metric that has
+        # to move is the same one) and the label says which bar it is.
+        task_success = self.curriculum_kwargs.get("gate_kind") == TASK_SUCCESS_GATE_KIND
         configured = (
             _GateMetric(
                 "mean_success_rate",
-                "success rate",
-                float(self.curriculum_kwargs.get("min_success_rate", 0.0)),
+                "success rate (LCB95 bar)" if task_success else "success rate",
+                float(
+                    self.curriculum_kwargs.get("min_success_lcb", self.curriculum_kwargs.get("min_success_rate", 0.0))
+                )
+                if task_success
+                else float(self.curriculum_kwargs.get("min_success_rate", 0.0)),
                 values["mean_success_rate"],
                 counts["mean_success_rate"],
                 percent=True,

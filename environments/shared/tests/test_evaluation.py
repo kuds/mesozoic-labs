@@ -811,6 +811,146 @@ class TestPostEvalEpisodes:
         assert seen == {"quality": 4, "velocity": 2}
         assert panel["quality_eval_checkpoint"] == "final_model"
 
+    def test_the_panel_records_the_success_count_and_writes_task_success_evidence(self, tmp_path, monkeypatch):
+        """D-B12: the count a task_success/v1 row is judged on, and the same panel as the on-disk evidence."""
+        import csv
+
+        pytest.importorskip("stable_baselines3")
+        from environments.shared import curriculum as curriculum_package
+        from environments.shared import evaluation, train_base
+        from environments.shared.result_bundle import sha256_file
+
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"weights")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+
+        class _Alg:
+            @staticmethod
+            def load(path, env=None):
+                return object()
+
+        eval_env = MagicMock()
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
+        monkeypatch.setattr(curriculum_package, "load_vecnorm_stats", lambda *a, **k: True)
+        monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
+        monkeypatch.setattr(
+            train_base,
+            "eval_policy",
+            lambda *a, n_episodes: ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 20 + [0.0] * 10, [5.0] * 30),
+        )
+        stage_config = {
+            "curriculum_kwargs": {
+                "gate_kind": "task_success/v1",
+                "min_success_lcb": 0.5,
+                "min_eval_episodes": 30,
+                "min_avg_reward": 361.0,
+            }
+        }
+        seen: dict = {}
+
+        def eval_policy(*a, n_episodes):
+            seen["n_episodes"] = n_episodes
+            return ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 20 + [0.0] * 10, [5.0] * 30)
+
+        monkeypatch.setattr(train_base, "eval_policy", eval_policy)
+        panel = train_base._post_training_eval_panels(
+            SimpleNamespace(species="trex", success_keys=["bite_success"]),
+            MagicMock(),
+            eval_env,
+            models,
+            "ppo",
+            None,
+            stage_config,
+            quality_episodes=4,
+            # Smaller than min_eval_episodes: the evidence panel is sized at the
+            # declared n, or the judge would refuse the trainer's own file.
+            velocity_episodes=10,
+        )
+        assert seen["n_episodes"] == 30
+        assert panel["quality_eval_checkpoint"] == "robust_best_model"
+        assert (panel["success_count"], panel["n_success_episodes"]) == (20, 30)
+        assert panel["mean_success_rate"] == pytest.approx(20 / 30)
+        # The same panel's aggregates, so the sweep row rails on the panel the count came from.
+        assert (panel["selected_mean_reward"], panel["selected_mean_episode_length"]) == (600.0, 1000.0)
+        eval_env.seed.assert_called_once_with(3042)
+        with (tmp_path / "evaluation_selected.csv").open(newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == 30
+        assert {row["checkpoint_sha256"] for row in rows} == {sha256_file(models / "robust_best_model.zip")}
+        assert {row["normalization_sha256"] for row in rows} == {sha256_file(models / "robust_best_model_vecnorm.pkl")}
+        assert {row["evaluation_seed"] for row in rows} == {"3042"}
+        assert sum(row["task_success"] == "True" for row in rows) == 20
+
+    def test_a_hunt_panel_without_a_handoff_pair_records_no_count(self, tmp_path, monkeypatch, caplog):
+        """The smoke-trial shape (no checkpoint saved, final_model evaluated): no evidence CSV can be
+        bound, so no success_count is recorded either — the sweep row is 'not evaluable' beside the
+        refused verdict, never a PASS beside a FAILED verdict file (D-B12 amendment)."""
+        pytest.importorskip("stable_baselines3")
+        from environments.shared import evaluation, train_base
+
+        (tmp_path / "models").mkdir()
+        eval_env = MagicMock()
+        monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
+        monkeypatch.setattr(
+            train_base,
+            "eval_policy",
+            lambda *a, n_episodes: ([600.0] * 30, [1000] * 30, [1.0] * 30, [1.0] * 25 + [0.0] * 5, [5.0] * 30),
+        )
+        stage_config = {
+            "curriculum_kwargs": {
+                "gate_kind": "task_success/v1",
+                "min_success_lcb": 0.5,
+                "min_eval_episodes": 30,
+                "min_avg_reward": 361.0,
+            }
+        }
+        with caplog.at_level(logging.WARNING):
+            panel = train_base._post_training_eval_panels(
+                SimpleNamespace(species="trex", success_keys=["bite_success"]),
+                MagicMock(),
+                eval_env,
+                tmp_path / "models",
+                "ppo",
+                None,
+                stage_config,
+                quality_episodes=4,
+                velocity_episodes=30,
+            )
+        assert panel["quality_eval_checkpoint"] == "final_model"
+        assert panel["mean_success_rate"] == pytest.approx(25 / 30)
+        assert not {"success_count", "n_success_episodes", "selected_mean_reward"} & set(panel)
+        assert "NOT recorded as a task_success/v1 count" in caplog.text
+        eval_env.seed.assert_not_called()
+        assert not (tmp_path / "evaluation_selected.csv").exists()
+
+    def test_other_kinds_record_the_count_but_write_no_evidence(self, tmp_path, monkeypatch):
+        pytest.importorskip("stable_baselines3")
+        from environments.shared import evaluation, train_base
+
+        (tmp_path / "models").mkdir()
+        eval_env = MagicMock()
+        monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
+        monkeypatch.setattr(
+            train_base,
+            "eval_policy",
+            lambda *a, n_episodes: ([1.0] * 3, [10] * 3, [0.0] * 3, [1.0, 0.0, 0.0], [0.0] * 3),
+        )
+        panel = train_base._post_training_eval_panels(
+            SimpleNamespace(species="velociraptor", success_keys=[]),
+            MagicMock(),
+            eval_env,
+            tmp_path / "models",
+            "ppo",
+            None,
+            {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 1.0}},
+            quality_episodes=4,
+            velocity_episodes=3,
+        )
+        assert (panel["success_count"], panel["n_success_episodes"]) == (1, 3)
+        eval_env.seed.assert_not_called()
+        assert not (tmp_path / "evaluation_selected.csv").exists()
+
     def test_train_threads_the_knob_through_to_the_report(self):
         """The parameter exists on train() and reaches _report_hpt_metrics."""
         import ast

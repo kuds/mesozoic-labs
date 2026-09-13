@@ -51,6 +51,18 @@ RECORDED_CURRICULUM: dict[str, Any] = {
 }
 
 
+#: The hunting gate (plan §4.4) as a recorded block: the bar, its panel size
+#: and the reward rail the evidence below clears.
+TASK_SUCCESS_CURRICULUM: dict[str, Any] = {
+    "gate_kind": "task_success/v1",
+    "gate_schema_version": 1,
+    "min_success_lcb": 0.5,
+    "min_eval_episodes": 30,
+    "min_avg_reward": 361.0,
+    "required_consecutive": 3,
+}
+
+
 def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evidence: bool = True) -> Path:
     """A velociraptor stance directory as a pre-Phase-A run left it: config, handoff pair, evidence."""
     stage_dir = tmp_path / "20260801_120000" / "stage1"
@@ -306,6 +318,42 @@ class TestBackfill:
         monkeypatch.setattr(config_module, "load_all_stages", broken)
         with pytest.raises(BackfillError, match="cannot be loaded: no such species config"):
             backfill_gate_verdict(stage_dir, gate="current")
+        assert read_gate_verdict(stage_dir) is None
+
+    def test_a_task_success_gate_is_re_derived_from_hash_bound_evidence(self, tmp_path):
+        """task_success/v1 (plan §4.4): 20/30 bound to the handoff backfills as a PASS with the count keys."""
+        from environments.shared.reporting import save_evaluation_episodes
+
+        stage_dir = _stage_dir(tmp_path, curriculum=TASK_SUCCESS_CURRICULUM, evidence=False)
+        models = stage_dir / "models"
+        save_evaluation_episodes(
+            stage_dir,
+            rewards=[600.0] * 30,
+            lengths=[1000] * 30,
+            forward_velocities=[1.0] * 30,
+            distances=[5.0] * 30,
+            successes=[True] * 20 + [False] * 10,
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=models / "best_model.zip",
+            normalization_path=models / "best_model_vecnorm.pkl",
+        )
+
+        backfill_gate_verdict(stage_dir)
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None
+        assert verdict["passed"] is True and verdict["failures"] == []
+        assert verdict["gate_kind"] == "task_success/v1"
+        assert verdict["stage_result"]["best_model_success_count"] == 20
+        assert verdict["stage_result"]["best_model_n_episodes"] == 30
+        assert verdict["stage_result"]["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
+        assert verdict["gate"]["thresholds"]["min_success_lcb"] == 0.5
+
+    def test_a_task_success_gate_without_evidence_is_refused(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path, curriculum=TASK_SUCCESS_CURRICULUM, evidence=False)
+        with pytest.raises(BackfillError, match=r"declares task_success/v1: no evaluation_selected.csv"):
+            backfill_gate_verdict(stage_dir)
         assert read_gate_verdict(stage_dir) is None
 
     def test_a_recovery_gate_is_refused(self, tmp_path):

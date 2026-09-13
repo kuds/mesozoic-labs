@@ -865,6 +865,25 @@ class TestCheckStageGateForConfig:
         assert "recovery_quality/v1" in failures[0]
         assert "cannot evaluate" in failures[0]
 
+    def test_task_success_is_refused_with_the_reason_as_the_verdict(self):
+        """task_success/v1 (plan §4.4) has no JAX evaluator: the refusal IS the verdict."""
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "task_success/v1",
+                "min_success_lcb": 0.5,
+                "min_eval_episodes": 30,
+                "min_avg_reward": 100.0,
+            }
+        }
+        passed, failures = check_stage_gate_for_config(self._results(duty=0.0, reward=1e9), config)
+        assert passed is False
+        assert len(failures) == 1
+        assert "task_success/v1" in failures[0] and "cannot evaluate" in failures[0]
+        assert "evaluation_selected.csv" in failures[0]
+
     def test_a_recovery_gate_is_refused_on_sky_high_evidence_even_with_its_optional_rail(self):
         from environments.shared.jax_eval import check_stage_gate_for_config
 

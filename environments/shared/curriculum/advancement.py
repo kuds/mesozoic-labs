@@ -20,6 +20,7 @@ from .manager import CurriculumManager
 from .sb3_compat import BaseCallback
 from .schedules import ENT_COEF_WARMUP_MARKER, _ConstantSchedule
 from .stance_gate import STANCE_GATE_KIND, StancePanel, stance_panel_from_episode_duties
+from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +88,17 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         preferred: list[float] | None,
         fallback: list[float] | None,
     ) -> list[float] | None:
-        """Select success samples only when the current stage gates on them."""
+        """Select success samples only when the current stage gates on them.
 
-        if self.curriculum_manager.current_threshold.min_success_rate <= 0.0:
+        A ``task_success/v1`` stage gates on them by kind (its bar is
+        ``min_success_lcb``, and ``min_success_rate`` is not a key it
+        consumes); every other kind only when a positive success-rate floor
+        is declared.  Incidental target contacts in balance/locomotion are
+        not stage success.
+        """
+
+        threshold = self.curriculum_manager.current_threshold
+        if threshold.gate_kind != TASK_SUCCESS_GATE_KIND and threshold.min_success_rate <= 0.0:
             return None
         return preferred if preferred else fallback
 

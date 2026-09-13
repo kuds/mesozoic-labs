@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.reporting import CSV_METRIC_COLUMNS
 from environments.shared.reporting import write_results_csv as _write_results_csv
 from environments.shared.reporting.formatting import parse_optional_bool
@@ -18,14 +19,17 @@ from .constants import SweepStageError
 
 logger = logging.getLogger(__name__)
 
-#: Gate kinds whose verdict is a function of the scalar metrics a sweep row
-#: carries.  Every other declared kind needs evidence the sweep never collects
-#: (stance_quality/v1: an episode panel's duty statistics; recovery_quality/v1:
-#: a pushed panel paired against a frozen resolution), so for those the sweep
-#: refuses to compute ``stage_passed`` rather than substituting the reward
-#: rail — on trex stance the 3271.8 statue and the 2133.4 chatterer both
-#: clear the 2100 rail, which is the substitution this set exists to stop.
-_OFFLINE_EVALUABLE_GATE_KINDS = frozenset({"reward_and_length/v1"})
+#: Gate kinds whose verdict is a function of the metrics a sweep row carries:
+#: the legacy scalar conjunction, and ``task_success/v1`` (decision D-B12),
+#: whose exact binomial bound is a function of the post-training panel's
+#: recorded ``success_count`` / ``n_success_episodes``.  Every other declared
+#: kind needs evidence the sweep never collects (stance_quality/v1: an
+#: episode panel's duty statistics; recovery_quality/v1: a pushed panel
+#: paired against a frozen resolution), so for those the sweep refuses to
+#: compute ``stage_passed`` rather than substituting the reward rail — on
+#: trex stance the 3271.8 statue and the 2133.4 chatterer both clear the
+#: 2100 rail, which is the substitution this set exists to stop.
+_OFFLINE_EVALUABLE_GATE_KINDS = frozenset({"reward_and_length/v1", TASK_SUCCESS_GATE_KIND})
 
 
 def _evaluate_curriculum_gate(
@@ -91,6 +95,71 @@ def _evaluate_curriculum_gate(
             fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")
 
     return passed, fail_reasons
+
+
+def _evaluate_task_success_row(
+    best_reward: float | None,
+    aux_metrics: Mapping[str, Any],
+    curriculum: Mapping[str, Any],
+) -> tuple[bool | None, list[str]]:
+    """The ``task_success/v1`` row verdict from the recorded count (decision D-B12).
+
+    ``(passed, reasons)``; *passed* is ``None`` when the trial recorded no
+    ``success_count`` / ``n_success_episodes`` (the panel was skipped, failed,
+    or did not evaluate the handoff pair — the trainers record the count
+    only beside the evidence CSV they wrote from it), or recorded a
+    non-integral one, which the caller reports as not evaluable — never as
+    a pass from the rounded ``mean_success_rate``, which cannot recover
+    ``k/n``.  The statistic is the library's own
+    :func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`,
+    so the row and the on-disk verdict judged from the trial's evidence CSV
+    (written from the same panel) cannot disagree.  The reward rail and the
+    optional length floor are conjuncts over the SAME panel's recorded
+    ``selected_mean_reward`` / ``selected_mean_episode_length`` — the
+    numbers the judge reads back off the CSV — never over *best_reward*,
+    the argmax EvalCallback panel of a possibly different checkpoint.
+    """
+    from environments.shared.curriculum.gate_schema import finite_gate_metric
+    from environments.shared.curriculum.task_success_gate import (
+        TaskSuccessGateThresholds,
+        evaluate_task_success_gate,
+    )
+
+    count = finite_gate_metric(aux_metrics.get("success_count"))
+    n_episodes = finite_gate_metric(aux_metrics.get("n_success_episodes"))
+    if count is None or n_episodes is None or n_episodes < 0 or count < 0 or count > n_episodes:
+        return None, ["trial recorded no success_count/n_success_episodes"]
+    if count != int(count) or n_episodes != int(n_episodes):
+        return None, [f"trial recorded a non-integer success_count/n_success_episodes ({count!r}/{n_episodes!r})"]
+    try:
+        thresholds = TaskSuccessGateThresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        return None, [f"stage declares task_success/v1 without a judgeable gate: {exc}"]
+    n = int(n_episodes)
+    k = int(count)
+    result = evaluate_task_success_gate([True] * k + [False] * (n - k), thresholds)
+    reasons = list(result.failures)
+    if thresholds.min_avg_reward is not None:
+        reward = finite_gate_metric(aux_metrics.get("selected_mean_reward"))
+        if reward is None:
+            return None, [
+                *reasons,
+                "trial recorded no selected_mean_reward for the panel its success_count came from, "
+                f"so the task_success rail {thresholds.min_avg_reward} cannot be judged on it",
+            ]
+        if reward < thresholds.min_avg_reward:
+            reasons.append(f"reward {reward} < task_success rail {thresholds.min_avg_reward}")
+    if thresholds.min_avg_episode_length is not None:
+        length = finite_gate_metric(aux_metrics.get("selected_mean_episode_length"))
+        if length is None:
+            return None, [
+                *reasons,
+                "trial recorded no selected_mean_episode_length for the panel its success_count came from, "
+                f"so min_avg_episode_length {thresholds.min_avg_episode_length} cannot be judged on it",
+            ]
+        if length < thresholds.min_avg_episode_length:
+            reasons.append(f"ep_length {length} < min_avg_episode_length {thresholds.min_avg_episode_length}")
+    return not reasons, reasons
 
 
 def _curriculum_block(config: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -173,6 +242,9 @@ def _gate_row_fields(
                 'explicitly with gate_kind = "none/v1"'
             )
         fields.update(gate_evaluable=False, stage_passed=None, gate_reason=reason)
+    elif gate_kind == TASK_SUCCESS_GATE_KIND:
+        verdict, reasons = _evaluate_task_success_row(best_reward, aux_metrics, curriculum)
+        fields.update(gate_evaluable=verdict is not None, stage_passed=verdict, gate_reason="; ".join(reasons))
     elif gate_kind in _OFFLINE_EVALUABLE_GATE_KINDS:
         thresholds = _thresholds_from_curriculum(curriculum)
         passed, reasons = _evaluate_curriculum_gate(best_reward, aux_metrics, *thresholds)
@@ -344,6 +416,10 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["std_forward_vel"] = aux.get("std_forward_vel")
         row["mean_distance_traveled"] = aux.get("mean_distance_traveled")
         row["mean_success_rate"] = aux.get("mean_success_rate")
+        row["success_count"] = aux.get("success_count")
+        row["n_success_episodes"] = aux.get("n_success_episodes")
+        row["selected_mean_reward"] = aux.get("selected_mean_reward")
+        row["selected_mean_episode_length"] = aux.get("selected_mean_episode_length")
         row["training_duration_seconds"] = aux.get("training_duration_seconds")
 
         # Quality evaluation metrics (spinning detection, heading, reward breakdown)
@@ -355,6 +431,7 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["ep_length_threshold"] = ep_length_threshold
         row["forward_vel_threshold"] = forward_vel_threshold
         row["success_rate_threshold"] = success_rate_threshold
+        row["success_lcb_threshold"] = curriculum.get("min_success_lcb")
 
         row.update(_gate_row_fields(curriculum, best_reward, aux))
 
@@ -1000,11 +1077,16 @@ def _collect_results_local(
                     "std_forward_vel": metrics.get("std_forward_vel"),
                     "mean_distance_traveled": metrics.get("mean_distance_traveled"),
                     "mean_success_rate": metrics.get("mean_success_rate"),
+                    "success_count": metrics.get("success_count"),
+                    "n_success_episodes": metrics.get("n_success_episodes"),
+                    "selected_mean_reward": metrics.get("selected_mean_reward"),
+                    "selected_mean_episode_length": metrics.get("selected_mean_episode_length"),
                     "training_duration_seconds": metrics.get("training_duration_seconds"),
                     "reward_threshold": trial_reward_th,
                     "ep_length_threshold": trial_ep_th,
                     "forward_vel_threshold": trial_fwd_th,
                     "success_rate_threshold": trial_sr_th,
+                    "success_lcb_threshold": trial_curriculum.get("min_success_lcb"),
                 }
             )
 

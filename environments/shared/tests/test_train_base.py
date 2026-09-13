@@ -921,12 +921,15 @@ class TestTrainCurriculumWalksTheManifest:
         task_sha256=None,
         plant=None,
         target=None,
+        eval_panel=None,
     ):
         """*task_sha256* and *plant*, when given, are what every node derives as its task digest and
         what ``current_plant_identity`` answers, so the REAL reuse rule can run against a real trunk
         (a test that leaves ``find_ancestor`` None); otherwise both are inert stand-ins.  *target* is
         forwarded as ``target=`` (decision D-A24).  The REAL ``CurriculumManager`` is used and every
-        instance is kept under ``record["managers"]`` so a test can pin where the walk left it."""
+        instance is kept under ``record["managers"]`` so a test can pin where the walk left it; *eval_panel*,
+        when given, is called with the run's manager inside every ``model.learn`` so a test can feed it
+        the EvalCallback panel a node's in-training verdict is judged on."""
         from environments.shared import ancestors as ancestors_module
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
@@ -947,7 +950,14 @@ class TestTrainCurriculumWalksTheManifest:
         }
         model = MagicMock()
         model.num_timesteps = 10
-        model.learn.side_effect = learn_side_effect
+        if eval_panel is None:
+            model.learn.side_effect = learn_side_effect
+        else:
+
+            def learn(*args, **kwargs):
+                eval_panel(record["managers"][-1])
+
+            model.learn.side_effect = learn
 
         def write_verdict(stage_dir, **kwargs):
             # D-A22: every verdict the loop writes names the gate it judged
@@ -1386,6 +1396,83 @@ class TestTrainCurriculumWalksTheManifest:
             assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
             assert verdict["stage_dir"].name in {"01_stance", "02_locomotion", "03_behavior"}
             assert verdict["checkpoint"].suffix == ".zip" and verdict["normalization"].suffix == ".pkl"
+
+    def test_a_task_success_node_records_the_panel_count_it_was_judged_on(self, tmp_path):
+        """The CLI hunt verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
+        from environments.shared.curriculum import CurriculumManager
+        from environments.shared.train_base import _in_training_task_success_result
+
+        curriculum = {
+            "gate_kind": "task_success/v1",
+            "gate_schema_version": 1,
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+            "min_avg_reward": 361.0,
+            "required_consecutive": 1,
+        }
+        manager = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={3: {k: v for k, v in curriculum.items() if k != "gate_schema_version"}},
+            start_stage=3,
+        )
+        # No panel recorded yet: nothing is invented for the verdict.
+        assert _in_training_task_success_result(manager, 3, curriculum) is None
+        assert manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+
+        recorded = _in_training_task_success_result(manager, 3, curriculum)
+        assert recorded is not None
+        assert (recorded["success_count"], recorded["n_success_samples"]) == (20, 30)
+        assert (recorded["best_model_success_count"], recorded["best_model_n_episodes"]) == (20, 30)
+        assert recorded["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
+        assert recorded["gate_kind"] == "task_success/v1"
+        # Other kinds record nothing extra.
+        assert _in_training_task_success_result(manager, 3, {"gate_kind": "reward_and_length/v1"}) is None
+        # And the record survives the writer's projection: what KNOWN_ISSUES
+        # says the verdict file carries is what is on disk.
+        from environments.shared.curriculum.gate_schema import gate_config_view
+        from environments.shared.result_bundle import read_gate_verdict, write_gate_verdict
+
+        stage_dir = tmp_path / "03_behavior"
+        models = stage_dir / "models"
+        models.mkdir(parents=True)
+        (models / "best_model.zip").write_bytes(b"weights")
+        (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
+        write_gate_verdict(
+            stage_dir,
+            species="velociraptor",
+            stage=3,
+            stage_id="behavior",
+            gate_kind="task_success/v1",
+            gate_schema_version=1,
+            passed=True,
+            failures=[],
+            task_sha256="sha256:" + "c" * 64,
+            judged_by="test",
+            checkpoint=models / "best_model.zip",
+            normalization=models / "best_model_vecnorm.pkl",
+            gate_config=gate_config_view(curriculum),
+            stage_result=recorded,
+        )
+        on_disk = read_gate_verdict(stage_dir)["stage_result"]
+        assert (on_disk["success_count"], on_disk["n_success_samples"]) == (20, 30)
+        assert (on_disk["best_model_success_count"], on_disk["best_model_n_episodes"]) == (20, 30)
+
+    def test_the_walk_records_the_hunt_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
+        """train_curriculum passes stage_result= to write_gate_verdict for the task_success node (and
+        None for every other kind): the wiring, not only the helper, is pinned."""
+
+        def eval_panel(manager):
+            if manager.current_stage == 3:
+                manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
+
+        record = self._run("trex", tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
+
+        by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
+        assert by_id["behavior"]["gate_kind"] == "task_success/v1"
+        stage_result = by_id["behavior"]["stage_result"]
+        assert (stage_result["success_count"], stage_result["n_success_samples"]) == (20, 30)
+        assert stage_result["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
+        assert by_id["stance"]["stage_result"] is None and by_id["locomotion"]["stage_result"] is None
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
         """A Ctrl-C partway through a budget is not a gate failure: no verdict, no handoff, loop stops."""

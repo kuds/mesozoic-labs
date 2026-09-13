@@ -2,7 +2,7 @@
 
 import pytest
 
-from environments.shared.reporting import evaluate_recorded_gate, evaluate_stage_gate
+from environments.shared.reporting import evaluate_recorded_gate, evaluate_stage_gate, save_evaluation_episodes
 
 
 class TestStrictRecordedGate:
@@ -235,6 +235,193 @@ class TestEvaluateStageGateRewardAndLength:
         )
         assert passed is False
         assert any("no reward measurement" in failure for failure in failures)
+
+
+class TestTaskSuccessRecordedGate:
+    """evaluate_recorded_gate (google_drive_summary.ipynb's check_stage_passed reads it over
+    evaluations.npz) must not report a task_success/v1 hunt as gated on its reward rail alone."""
+
+    CURRICULUM = {
+        "gate_kind": "task_success/v1",
+        "gate_schema_version": 1,
+        "min_success_lcb": 0.5,
+        "min_eval_episodes": 30,
+        "min_avg_reward": 361.0,
+        "required_consecutive": 3,
+    }
+
+    @staticmethod
+    def _evaluation(count=None, *, reward=602.0, n=30):
+        record = {"mean_reward": reward, "mean_episode_length": 1000.0, "n_episodes": n, "mean_success_rate": 0.0}
+        if count is not None:
+            record.update(success_count=count, n_success_samples=n)
+        return record
+
+    def test_a_statue_history_without_a_success_sample_is_incomplete_never_a_pass(self):
+        """0% success at statue-level reward (602 = the collapse reference) over evaluations.npz."""
+        assert evaluate_recorded_gate(self.CURRICULUM, [self._evaluation()] * 3) is None
+
+    def test_nineteen_of_thirty_fails(self):
+        assert evaluate_recorded_gate(self.CURRICULUM, [self._evaluation(19)] * 3) is False
+
+    def test_twenty_of_thirty_required_consecutive_times_passes(self):
+        history = [self._evaluation(19), *([self._evaluation(20)] * 3)]
+        assert evaluate_recorded_gate(self.CURRICULUM, history) is True
+        assert evaluate_recorded_gate(self.CURRICULUM, history[:3]) is False
+
+    def test_the_rail_and_the_panel_size_are_conjuncts(self):
+        assert evaluate_recorded_gate(self.CURRICULUM, [self._evaluation(30, reward=200.0)] * 3) is False
+        assert evaluate_recorded_gate(self.CURRICULUM, [self._evaluation(10, n=10)] * 3) is False
+
+    def test_an_undeclared_bar_proves_nothing(self):
+        curriculum = {k: v for k, v in self.CURRICULUM.items() if k != "min_success_lcb"}
+        assert evaluate_recorded_gate(curriculum, [self._evaluation(30)] * 3) is None
+
+
+class TestEvaluateStageGateTaskSuccess:
+    """The hunting arm (plan §4.4): judged from evaluation_selected.csv, bound to the handoff."""
+
+    CURRICULUM = {
+        "gate_kind": "task_success/v1",
+        "gate_schema_version": 1,
+        "min_success_lcb": 0.5,
+        "min_eval_episodes": 30,
+        "min_avg_reward": 361.0,
+        "required_consecutive": 3,
+    }
+    RESULTS = {"best_model_reward": 602.1, "best_model_length": 1000.0}
+
+    def _evidence(
+        self,
+        stage_dir,
+        successes,
+        *,
+        checkpoint_path=None,
+        normalization_path=None,
+        checkpoint="best_model",
+        reward=600.0,
+        length=1000,
+    ):
+        models = stage_dir / "models"
+        models.mkdir(parents=True, exist_ok=True)
+        zip_path = models / f"{checkpoint}.zip"
+        zip_path.write_bytes(b"policy")
+        vecnorm = models / f"{checkpoint}_vecnorm.pkl"
+        vecnorm.write_bytes(b"stats")
+        n = len(successes)
+        return save_evaluation_episodes(
+            stage_dir,
+            rewards=[reward] * n,
+            lengths=[length] * n,
+            forward_velocities=[1.0] * n,
+            distances=[5.0] * n,
+            successes=successes,
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=zip_path if checkpoint_path is None else checkpoint_path,
+            normalization_path=vecnorm if normalization_path is None else normalization_path,
+        )
+
+    def test_twenty_of_thirty_passes(self, tmp_path):
+        self._evidence(tmp_path, [True] * 20 + [False] * 10)
+        assert evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path) == (True, [])
+
+    def test_stage_dir_none_is_refused(self):
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3)
+        assert passed is False
+        assert failures == [
+            "stage 3 declares task_success/v1, which is judged from the stage directory's "
+            "evaluation_selected.csv; no stage_dir was given"
+        ]
+
+    def test_a_missing_checkpoint_column_is_refused(self, tmp_path):
+        from environments.shared.tests.result_bundle_helpers import _rewrite_csv_column
+
+        path = self._evidence(tmp_path, [True] * 30)
+        _rewrite_csv_column(path, field="checkpoint_sha256", value=None)
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert any("no checkpoint_sha256" in failure for failure in failures)
+
+    def test_evidence_for_another_checkpoint_is_refused(self, tmp_path):
+        other = tmp_path / "other.zip"
+        other.write_bytes(b"another policy")
+        self._evidence(tmp_path, [True] * 30, checkpoint_path=other)
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert any(
+            "describes checkpoint" in failure and "not the handoff best_model" in failure for failure in failures
+        )
+
+    def test_a_panel_below_min_eval_episodes_is_refused(self, tmp_path):
+        self._evidence(tmp_path, [True] * 25)
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert any("n_episodes 25 < min_eval_episodes 30" in failure for failure in failures)
+
+    def test_the_rail_is_a_conjunct(self, tmp_path):
+        self._evidence(tmp_path, [True] * 30, reward=200.0)
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert failures == ["stage 3 best model reward 200.00 < task_success rail 361.00"]
+
+    def test_the_rail_is_judged_on_the_evidence_panel_not_the_npz_best(self, tmp_path):
+        """A sweep trial's stage_results carry the argmax EvalCallback panel (best_eval_reward);
+        the rail reads the selected panel the bound came from, so publication and the verdict agree."""
+        self._evidence(tmp_path, [True] * 30, reward=300.0)
+        passed, failures = evaluate_stage_gate(
+            self.CURRICULUM, {"best_eval_reward": 700.0, "best_eval_length": 1000.0}, stage=3, stage_dir=tmp_path
+        )
+        assert passed is False
+        assert failures == ["stage 3 best model reward 300.00 < task_success rail 361.00"]
+        # And the other way round: a low npz best does not fail a panel that clears the rail.
+        self._evidence(tmp_path, [True] * 30, reward=600.0)
+        assert evaluate_stage_gate(self.CURRICULUM, {"best_eval_reward": 100.0}, stage=3, stage_dir=tmp_path) == (
+            True,
+            [],
+        )
+
+    def test_the_optional_length_floor_is_a_conjunct(self, tmp_path):
+        self._evidence(tmp_path, [True] * 30, length=500)
+        curriculum = dict(self.CURRICULUM, min_avg_episode_length=900.0)
+        passed, failures = evaluate_stage_gate(curriculum, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert failures == ["stage 3 best model episode length 500.0 < 900.0"]
+
+    def test_evidence_under_another_vecnorm_sidecar_is_refused(self, tmp_path):
+        """An SB3 handoff is the pair: a panel rolled under other observation statistics is another policy's."""
+        other_stats = tmp_path / "other_vecnorm.pkl"
+        other_stats.write_bytes(b"other statistics")
+        self._evidence(tmp_path, [True] * 30, normalization_path=other_stats)
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert len(failures) == 1
+        assert "ran under VecNormalize statistics" in failures[0] and "not the handoff best_model" in failures[0]
+
+    def test_an_undeclared_bar_is_refused(self, tmp_path):
+        self._evidence(tmp_path, [True] * 30)
+        curriculum = {k: v for k, v in self.CURRICULUM.items() if k != "min_success_lcb"}
+        passed, failures = evaluate_stage_gate(curriculum, self.RESULTS, stage=3, stage_dir=tmp_path)
+        assert passed is False
+        assert any("min_success_lcb" in failure for failure in failures)
+
+    def test_the_statistics_carry_the_judged_numbers(self, tmp_path):
+        from environments.shared.reporting.gates import task_success_statistics
+        from environments.shared.result_bundle import sha256_file
+
+        self._evidence(tmp_path, [True] * 29 + [False])
+        stats, failures = task_success_statistics(tmp_path)
+        assert failures == [] and stats is not None
+        assert (stats["best_model_success_count"], stats["best_model_n_episodes"]) == (29, 30)
+        assert stats["best_model_success_lcb"] == pytest.approx(0.851, abs=1e-3)
+        assert stats["checkpoint_sha256"] == sha256_file(tmp_path / "models" / "best_model.zip")
+        # The same panel's aggregates, so the rail and the verdict describe one panel.
+        assert (stats["best_model_reward"], stats["best_model_length"]) == (600.0, 1000.0)
+
+    def test_reward_and_length_is_still_routed(self):
+        """The tightened fallthrough keeps the historical kind on its arm."""
+        curriculum = {"gate_kind": "reward_and_length/v1", "gate_schema_version": 1, "min_avg_reward": 100.0}
+        assert evaluate_stage_gate(curriculum, {"best_model_reward": 150.0}, stage=2) == (True, [])
 
 
 class TestEvaluateStageGateFailsClosed:

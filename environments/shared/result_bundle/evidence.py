@@ -14,7 +14,9 @@ import re
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
+from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from ..stage_manifest import find_stage_dir
 from .errors import ResultBundleError
 
@@ -283,6 +285,11 @@ def _evaluation_evidence_aggregates(
         "forward_vel_std": _population_std(forward_velocities),
         "distance": _mean(distances),
         "success_rate": _mean(successes),
+        # task_success/v1's re-derived statistic: the exact one-sided 95%
+        # binomial lower bound on the same per-episode successes, so a
+        # summary's selected_model_success_lcb is checked like every other
+        # published aggregate.  Only compared when the summary records it.
+        "success_lcb": binomial_lcb(sum(1 for s in successes if s), len(successes)),
     }
 
 
@@ -494,6 +501,92 @@ def _validate_stance_panel_evidence(
         )
 
 
+def _validate_task_success_evidence(
+    evidence_path: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    selected_aggregates: Mapping[str, Any],
+    certified_hash: "str | None",
+    stage: "int | str",
+    stage_summary: Mapping[str, Any] | None = None,
+) -> None:
+    """Re-derive a ``task_success/v1`` pass from the selected checkpoint's episodes.
+
+    Deliberately recomputes rather than trusting the recorded verdict or the
+    summary's bound: the published claim must be reproducible from the rows
+    behind it.  The rows must be hash-bound to the certified checkpoint —
+    evidence that records no ``checkpoint_sha256`` cannot be shown to
+    describe the published policy, and a stage with no certified checkpoint
+    recorded has nothing to bind to, so both are refusals here where the
+    legacy kinds only warn — and the statistic is
+    :func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`,
+    the one implementation the post-stage judge and the sweep share.  The
+    published ``selected_model_success_count`` / ``selected_model_n_episodes``
+    (when *stage_summary* records them) must equal the rows' ``k`` / ``n``
+    exactly: the bound alone is checked at a tolerance, and a count claim
+    the evidence contradicts is a laundered headline.
+    """
+    from ..curriculum.task_success_gate import (
+        TaskSuccessGateThresholds,
+        evaluate_task_success_gate,
+        read_task_successes,
+    )
+
+    try:
+        evidence = read_task_successes(evidence_path)
+    except (OSError, ValueError) as exc:
+        raise ResultBundleError(
+            f"stage {stage} selected evidence cannot be read as task_success evidence: {exc}"
+        ) from exc
+    if evidence.checkpoint_sha256 is None:
+        raise ResultBundleError(
+            f"stage {stage} selected evidence records no checkpoint_sha256, so a task_success/v1 pass "
+            "cannot be bound to the published checkpoint"
+        )
+    if certified_hash is None:
+        raise ResultBundleError(
+            f"stage {stage} records no certified selected checkpoint in provenance, so a "
+            f"{TASK_SUCCESS_GATE_KIND} pass cannot be bound to the published checkpoint"
+        )
+    if evidence.checkpoint_sha256 != certified_hash:
+        raise ResultBundleError(
+            f"stage {stage} selected evidence was produced by checkpoint {evidence.checkpoint_sha256}, "
+            f"not the certified selected checkpoint {certified_hash}"
+        )
+    try:
+        thresholds = TaskSuccessGateThresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        raise ResultBundleError(f"publication gate threshold for stage {stage} must be numeric: {exc}") from exc
+    result = evaluate_task_success_gate(evidence.successes, thresholds)
+    if not result.passed:
+        raise ResultBundleError(
+            f"stage {stage} publication gate fails {TASK_SUCCESS_GATE_KIND}: " + "; ".join(result.failures)
+        )
+    for key, judged in (
+        ("selected_model_success_count", result.success_count),
+        ("selected_model_n_episodes", result.n_episodes),
+    ):
+        recorded = None if stage_summary is None else stage_summary.get(key)
+        if recorded is None:
+            continue
+        if _integral(recorded) != judged:
+            raise ResultBundleError(
+                f"stage {stage} {key} records {recorded!r}, but the selected evidence holds "
+                f"{result.success_count}/{result.n_episodes} successes"
+            )
+    for threshold_name, aggregate_name, threshold in (
+        ("min_avg_reward", "reward", thresholds.min_avg_reward),
+        ("min_avg_episode_length", "episode_length", thresholds.min_avg_episode_length),
+    ):
+        if threshold is None:
+            continue
+        actual = float(selected_aggregates[aggregate_name])
+        if actual < threshold:
+            raise ResultBundleError(
+                f"stage {stage} publication gate fails {threshold_name}: evidence={actual:.6g} threshold={threshold:.6g}"
+            )
+
+
 def validate_evaluation_evidence(
     run_dir: str | Path,
     summary: Mapping[str, Any],
@@ -628,6 +721,16 @@ def validate_evaluation_evidence(
             label="selected",
             metric_map=selected_metric_map,
         )
+        if stage_summary.get("selected_model_success_lcb") is not None:
+            # Recorded only by a task_success/v1 stage; when present it must
+            # reproduce from the evidence like every other aggregate.
+            _compare_evaluation_aggregates(
+                stage_summary,
+                selected_aggregates,
+                stage=stage,
+                label="selected",
+                metric_map={"selected_model_success_lcb": ("success_lcb", 0.00005)},
+            )
         config_path = find_stage_dir(run_path, stage) / "stage_config.json"
         try:
             config_value = json.loads(config_path.read_text(encoding="utf-8"))
@@ -712,6 +815,21 @@ def validate_evaluation_evidence(
                 # `env_kwargs` is the in-memory name the same dict carries.
                 env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
+            )
+        elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
+            # The hunting gate (plan §4.4) is re-derived from the SAME
+            # per-episode file, bound to the certified checkpoint: the
+            # exact binomial bound over the task_success column, then the
+            # rail and the optional length floor over the aggregates.  It
+            # REPLACES the legacy loop below, which would certify the
+            # stage on min_avg_reward — a collapse rail the statue clears.
+            _validate_task_success_evidence(
+                find_stage_dir(run_path, stage) / "evaluation_selected.csv",
+                curriculum,
+                selected_aggregates=selected_aggregates,
+                certified_hash=certified_hash,
+                stage=stage,
+                stage_summary=stage_summary,
             )
         elif recorded_pass:
             publication_thresholds = {

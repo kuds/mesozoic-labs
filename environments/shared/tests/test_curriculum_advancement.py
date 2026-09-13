@@ -85,6 +85,15 @@ class TestCallbackMethodsMocked:
 
         assert result is None
 
+    def test_task_success_stage_gates_on_the_sample_without_a_rate_floor(self):
+        """task_success/v1 consumes no min_success_rate; the kind alone selects the sample."""
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_threshold = StageThreshold(gate_kind="task_success/v1", min_success_rate=0.0)
+
+        assert cb._success_rates_for_stage([1.0, 0.0], [1.0]) == [1.0, 0.0]
+        assert cb._success_rates_for_stage(None, [1.0, 0.0]) == [1.0, 0.0]
+
     def test_success_gate_prefers_full_eval_samples(self):
         cb = object.__new__(CurriculumCallback)
         cb.curriculum_manager = MagicMock()

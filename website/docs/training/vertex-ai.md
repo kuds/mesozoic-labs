@@ -48,12 +48,14 @@ before the stage advances early:
 |---|---|
 | `min_avg_reward` | Mean episode reward over the evaluation window |
 | `min_avg_episode_length` | Mean episode length over the evaluation window |
-| `min_avg_forward_vel` | Optional mean forward-velocity gate, enabled when greater than zero |
-| `min_success_rate` | Optional episode success-rate gate, enabled when greater than zero |
+| `min_avg_forward_vel` | Optional mean forward-velocity gate, enabled when greater than zero (`reward_and_length/v1` only) |
+| `min_success_rate` | Optional episode success-rate gate, enabled when greater than zero (`reward_and_length/v1` only) |
+| `min_success_lcb` | `task_success/v1` only (the trex hunt): the one-sided 95% lower bound on per-episode task success must clear this bar, judged offline from the trial's recorded `success_count` / `n_success_episodes`; `min_avg_reward` is a collapse rail on the same panel's `selected_mean_reward` |
 | `required_consecutive` | Number of consecutive evaluations in which all enabled criteria must pass |
 
-Each evaluation must also contain at least 10 episodes, the current
-`StageThreshold.min_eval_episodes` implementation default. If the per-stage
+Each evaluation must also contain at least `min_eval_episodes` episodes (10 by
+default, the `StageThreshold.min_eval_episodes` implementation default; a
+`task_success/v1` stage must declare it — the trex hunt uses 30). If the per-stage
 `timesteps` budget is exhausted before the gates are met, the node's
 `gate_verdict.json` records the failure and the curriculum stops before the
 next node rather than training it from an uncertified parent. Checkpoints and

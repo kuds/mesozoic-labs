@@ -852,13 +852,34 @@ def train_trial(config: dict[str, Any]) -> None:
             _sync_trial_metadata(trial_dir, drive_best_model_dir.parent)
 
         # Post-training evaluation for distance + forward velocity metrics.
-        # Load the best model for evaluation (matches what gets handed off).
-        from ...evaluation import eval_policy
+        # Evaluate the HANDOFF pair (robust_best_model before best_model,
+        # each with its matched VecNormalize — the same selector
+        # generate_stage_artifacts and the next stage use), so the metrics
+        # and the task-success evidence below describe the promoted policy;
+        # a bare best_model without its sidecar is the legacy fallback.
+        from ...curriculum.checkpoints import select_handoff_checkpoint
+        from ...train_base import run_success_panel
 
         best_model_zip = model_dir / "best_model.zip"
         best_vecnorm = model_dir / "best_model_vecnorm.pkl"
         eval_model = model
-        if best_model_zip.exists():
+        evaluated_handoff = select_handoff_checkpoint(model_dir)
+        if evaluated_handoff is not None:
+            _handoff_name, handoff_stem, handoff_vecnorm = evaluated_handoff
+            eval_model = alg_cls.load(handoff_stem, env=eval_env)
+            validate_model_plant(
+                eval_model,
+                plant_identity,
+                artifact=f"{handoff_stem}.zip",
+                allow_legacy=allow_legacy_plant,
+            )
+            load_vecnorm_stats(
+                handoff_vecnorm,
+                eval_env,
+                current_plant=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
+            )
+        elif best_model_zip.exists():
             eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
             validate_model_plant(
                 eval_model,
@@ -876,11 +897,21 @@ def train_trial(config: dict[str, Any]) -> None:
         eval_env.training = False
         eval_env.norm_reward = False
 
-        _, eval_lengths, eval_fwd_vels, eval_successes, eval_distances = eval_policy(
-            eval_model,
-            eval_env,
-            species_cfg.success_keys,
-            n_episodes=n_eval_episodes,
+        # The shared panel (train_base.run_success_panel): for a
+        # task_success/v1 stage it is re-seeded to the publication seed and
+        # written as the trial's evaluation_selected.csv hash-bound to the
+        # handoff pair, so generate_stage_artifacts judges the SAME panel
+        # this trial's row is judged on (decision D-B12).
+        (_eval_rewards, eval_lengths, eval_fwd_vels, eval_successes, eval_distances), success_panel_metrics = (
+            run_success_panel(
+                eval_model,
+                eval_env,
+                species_cfg,
+                n_episodes=n_eval_episodes,
+                curriculum=stage_config.get("curriculum_kwargs", {}),
+                evaluated_handoff=evaluated_handoff,
+                stage_dir=trial_dir,
+            )
         )
         import json as _json
 
@@ -899,6 +930,10 @@ def train_trial(config: dict[str, Any]) -> None:
             "timesteps": timesteps,
             "done": True,
         }
+        # Reported to Ray too, so the results DataFrame rows carry the count
+        # (and the same panel's mean reward / length) a task_success/v1 row
+        # is judged on (decision D-B12).
+        final_metrics.update(success_panel_metrics)
 
         # ── Quality evaluation (matches Vertex AI's _report_hpt_metrics) ──
         # Collect spinning detection, heading alignment, and reward
@@ -947,6 +982,8 @@ def train_trial(config: dict[str, Any]) -> None:
             "training_duration_seconds": final_metrics["training_duration_seconds"],
             "plant_identity": plant_identity.to_dict(),
         }
+        # The count a task_success/v1 row is judged on (decision D-B12).
+        aux_metrics.update(success_panel_metrics)
         # Include eval_* quality metrics
         for key, value in final_metrics.items():
             if key.startswith("eval_"):
@@ -1058,6 +1095,10 @@ def collect_ray_results(
             "std_forward_vel",
             "mean_distance_traveled",
             "mean_success_rate",
+            "success_count",
+            "n_success_episodes",
+            "selected_mean_reward",
+            "selected_mean_episode_length",
             "training_duration_seconds",
         ):
             row[metric] = rt_row.get(metric)
@@ -1072,6 +1113,7 @@ def collect_ray_results(
         row["ep_length_threshold"] = cur.get("min_avg_episode_length")
         row["forward_vel_threshold"] = cur.get("min_avg_forward_vel")
         row["success_rate_threshold"] = cur.get("min_success_rate")
+        row["success_lcb_threshold"] = cur.get("min_success_lcb")
 
         # Gate evaluation, routed through the stage's declared gate_kind
         row.update(_gate_row_fields(cur, row["best_mean_reward"], row))

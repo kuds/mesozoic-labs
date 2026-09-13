@@ -24,6 +24,22 @@ class TestSuccessMetricApplicable:
         assert success_metric_applicable({"curriculum_kwargs": {}}) is False
         assert success_metric_applicable({}) is False
 
+    def test_task_success_kind_applies_by_kind(self):
+        """task_success/v1 gates on the sample through min_success_lcb, not a rate floor."""
+        assert success_metric_applicable(
+            {"curriculum_kwargs": {"gate_kind": "task_success/v1", "min_success_lcb": 0.5}}
+        )
+
+    def test_the_plateau_follows_the_lcb_bar_for_a_task_success_stage(self):
+        callback, eval_callback = _plateau_callback(
+            {"gate_kind": "task_success/v1", "min_success_lcb": 0.5, "min_eval_episodes": 30, "min_avg_reward": 361.0},
+            stage=3,
+        )
+        eval_callback.evaluations_successes.append([1.0] * 20 + [0.0] * 10)
+        metric = next(m for m in callback._metrics_for_evaluation(0) if m.key == "mean_success_rate")
+        assert metric.label == "success rate (LCB95 bar)"
+        assert metric.threshold == 0.5
+
     @pytest.mark.parametrize("species", ["velociraptor", "trex", "brachiosaurus"])
     def test_real_configs_enable_success_only_for_stage_three(self, species):
         from environments.shared.config import load_all_stages
