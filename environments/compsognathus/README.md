@@ -59,6 +59,11 @@ or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
 
 ## Training
 
+The [September foot-isolation investigation](../../docs/investigations/COMPSOGNATHUS_FOOT_ISOLATION_2026_09.md)
+adds opt-in mechanical builders and replay probes for stable soles, passive
+digits, distal-leg clearance and action filtering. These are research tools;
+their derived XMLs are not registered notebook training plants.
+
 In `notebooks/sb3_training.ipynb`, choose **Compsognathus Longipes** or
 **Compsognathus Longipes (Robot)** and set `ALGORITHM` to `ppo` or `sac`.
 The notebook's normal training, checkpoint, evaluation, graph, video and

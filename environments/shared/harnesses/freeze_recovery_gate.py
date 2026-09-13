@@ -466,7 +466,7 @@ def _quiet_brace_controller(
                     "recalibrate the judge from qualified stance evidence before recovery training"
                 )
         held_action = np.mean(np.stack(actions), axis=0)
-        return constant_action_controller(held_action), {
+        return constant_action_controller(held_action.tolist()), {
             "derivation": "quiet-stance-post-settle-mean/v1",
             "seeds": list(seeds),
             "control_dt_s": float(env.dt),
