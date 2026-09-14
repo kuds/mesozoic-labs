@@ -262,7 +262,8 @@ class TestFootContactSensors:
             for _ in range(200):
                 obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
                 assert not terminated
-            foot_dims = obs[-6:-4]
+            # foot contacts sit before direction (3) + distance (1) + command (3).
+            foot_dims = obs[-9:-7]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
             truth = _true_floor_force_per_foot(env)
             assert foot_dims[0] == pytest.approx(truth["r"], rel=1e-5)

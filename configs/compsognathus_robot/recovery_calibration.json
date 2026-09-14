@@ -64,19 +64,19 @@
     "species": "compsognathus_robot",
     "model_path": "environments/compsognathus/assets/compsognathus_robot.xml",
     "physics_revision": 1,
-    "policy_interface_revision": 1,
+    "policy_interface_revision": 2,
     "visual_revision": 1,
     "source_closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
-    "policy_interface_sha256": "sha256:4debe06fb07181c1cdd8d51c814484c1082880a70cec87750cee3743845cbe60",
+    "policy_interface_sha256": "sha256:0149b68f0c4c085ab029563f57a1f7d92e74a3a2229ef51554073a387e9b3a4d",
     "physics_sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d",
     "visual_sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d",
     "nq": 19,
     "nv": 18,
     "nu": 12,
-    "observation_dim": 43,
+    "observation_dim": 46,
     "action_dim": 12
   },
-  "task_sha256": "sha256:9c9440e1321bc3d4e2728be9df56b7ac2bf5944b973e521ea5e2361519488d4c",
+  "task_sha256": "sha256:84414f4c9c4d3544479c5fe21f7fe5fd56540cfa244a006bc264054d6eb6d98d",
   "derived_push_manifest": {
     "root_body_id": 1.0,
     "subtree_mass_kg": 1.5856000000000003,
@@ -119,5 +119,14 @@
     "nominal_recovery_seconds": 0.8,
     "nominal_dwell_seconds": 0.4,
     "qualification_targets": "Pre-registered pilot engineering targets, not measured policy achievement."
-  }
+  },
+  "restamp_history": [
+    {
+      "restamped_at_commit": "7db7f8e5b37d4f28c40b69197ffb2f5933d90e28",
+      "previous_policy_interface_revision": 1,
+      "previous_policy_interface_sha256": "sha256:4debe06fb07181c1cdd8d51c814484c1082880a70cec87750cee3743845cbe60",
+      "previous_task_sha256": "sha256:9c9440e1321bc3d4e2728be9df56b7ac2bf5944b973e521ea5e2361519488d4c",
+      "reason": "BEHAVIOR_RECIPES_PLAN §4.6 Phase C interface bump; fixed-command nulls do not read the observation and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
+    }
+  ]
 }

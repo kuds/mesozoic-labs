@@ -12,6 +12,7 @@ Observation space:
     - Foot contact states (4 feet)
     - Food relative position
     - Food distance
+    - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none")
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
@@ -104,6 +105,12 @@ class BrachioEnv(BaseDinoEnv):
         perturbation_jitter: float = 0.5,
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
+        command_mode: str = "none",
+        command_speed_range: tuple[float, float] = (0.0, 0.0),
+        command_lateral_range: tuple[float, float] = (0.0, 0.0),
+        command_yaw_rate_max: float = 0.0,
+        command_switch_interval: float = 0.0,
+        command_switch_jitter: float = 0.0,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
@@ -185,6 +192,12 @@ class BrachioEnv(BaseDinoEnv):
             perturbation_jitter=perturbation_jitter,
             perturbation_duration=perturbation_duration,
             perturbation_direction=perturbation_direction,
+            command_mode=command_mode,
+            command_speed_range=command_speed_range,
+            command_lateral_range=command_lateral_range,
+            command_yaw_rate_max=command_yaw_rate_max,
+            command_switch_interval=command_switch_interval,
+            command_switch_jitter=command_switch_jitter,
         )
 
     def _cache_ids(self):
@@ -346,6 +359,7 @@ class BrachioEnv(BaseDinoEnv):
                 foot_contact,  # Foot contacts (4)
                 food_direction,  # Direction to food (unit vector)
                 [food_distance],  # Distance to food (scalar)
+                self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
 

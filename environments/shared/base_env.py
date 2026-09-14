@@ -22,6 +22,8 @@ import numpy as np
 
 from .action_filter import apply_low_pass as _apply_low_pass
 from .action_filter import low_pass_alpha as _low_pass_alpha
+from .command_frame import validate_command_mode as _validate_command_mode
+from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
@@ -141,6 +143,17 @@ class BaseDinoEnv(gym.Env, ABC):
     # species enables it (see environments/shared/action_filter.py).
     action_filter_cutoff_hz: float = 0.0
 
+    # Body-relative command frame (BEHAVIOR_RECIPES_PLAN §4.6).  The hook
+    # contract: ``_command`` (float32[3], pre-scaled to [-1, 1]) is appended
+    # LAST by every species' _get_obs; reset() refreshes it exactly once per
+    # episode through ``_draw_episode_command()``, called after the push
+    # block and before _get_obs.  Phase C implements only command_mode
+    # "none": the hook returns zeros and draws no RNG, so the seeded reset
+    # draw stream is unchanged (pinned by tests/fixtures/phase_c_reset_golden.json).
+    # Phase D replaces the HOOK BODY and never reset() itself, whose source is
+    # fingerprinted as the home_reset policy interface.
+    _command: "np.ndarray"
+
     # Optional zero-argument callable invoked after EVERY physics substep in
     # step().  Exists so stance_duty_validation.py and the aggregation
     # regression tests can record per-substep kinematic ground truth through
@@ -179,6 +192,12 @@ class BaseDinoEnv(gym.Env, ABC):
         perturbation_jitter: float = 0.5,
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
+        command_mode: str = "none",
+        command_speed_range: tuple[float, float] = (0.0, 0.0),
+        command_lateral_range: tuple[float, float] = (0.0, 0.0),
+        command_yaw_rate_max: float = 0.0,
+        command_switch_interval: float = 0.0,
+        command_switch_jitter: float = 0.0,
     ):
         super().__init__()
 
@@ -271,6 +290,21 @@ class BaseDinoEnv(gym.Env, ABC):
             )
             self._push_root_body = int(self._push_params.get("push_body_id", self._push_params["root_body_id"]))
             self._push_force_n = float(self._push_params["force_n"])
+
+        # Body-relative command frame (BEHAVIOR_RECIPES_PLAN §4.6).  Task-level
+        # like perturbation_*: the six kwargs enter the task fingerprint through
+        # the constructor signature, never the plant interface.  Phase C
+        # implements only command_mode "none" -- validate_command_mode refuses
+        # every live mode on this backend until Phase D -- and the segment is
+        # constant zero, appended LAST by each species' _get_obs (see the
+        # _command class attribute for the hook contract).
+        self.command_mode = _validate_command_mode(command_mode, backend="stable-baselines3")
+        self.command_speed_range = command_speed_range
+        self.command_lateral_range = command_lateral_range
+        self.command_yaw_rate_max = command_yaw_rate_max
+        self.command_switch_interval = command_switch_interval
+        self.command_switch_jitter = command_switch_jitter
+        self._command = _zero_command()
 
         # Define action space (normalized to [-1, 1])
         self.action_space = gym.spaces.Box(
@@ -1026,6 +1060,28 @@ class BaseDinoEnv(gym.Env, ABC):
         manifest["direction"] = self.perturbation_direction
         return manifest
 
+    def _draw_episode_command(self) -> np.ndarray:
+        """The per-episode body-relative command (BEHAVIOR_RECIPES_PLAN §4.6).
+
+        Phase C: zeros, no RNG draw, so the seeded reset draw stream is
+        byte-identical to the pre-Phase-C plant (pinned by
+        tests/fixtures/phase_c_reset_golden.json).  Phase D replaces THIS
+        body -- never reset(), whose source is fingerprinted as the
+        home_reset policy interface (plant_contract/policy_layer.py) -- and
+        draws only when command_mode != "none", AFTER every existing draw.
+        """
+        command: np.ndarray = _zero_command()
+        return command
+
+    def command_manifest(self) -> "dict[str, Any] | None":
+        """Command-sampler provenance for run records; ``None`` while command_mode is "none".
+
+        Mirrors :meth:`perturbation_manifest`: Phase D records the sampler
+        ranges and the switch-schedule implementation here so the task
+        fingerprint can carry them (``compute_task_fingerprint(command_manifest=...)``).
+        """
+        return None
+
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
 
@@ -1454,6 +1510,8 @@ class BaseDinoEnv(gym.Env, ABC):
                 interval_steps=self._push_interval_steps,
                 jitter_steps=self._push_jitter_steps,
             )
+
+        self._command = self._draw_episode_command()
 
         obs = self._get_obs()
         info = {"step": 0}

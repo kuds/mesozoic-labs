@@ -24,6 +24,31 @@ claim. The robot's head and tail remain fixed and unpowered.
   and profile hash. A changed plant, task, or profile requires recalibration;
   missing or inconsistent evidence refuses a verdict.
 
+### Interface-only restamp (Phase C)
+
+One exception to "a changed plant requires recalibration" is recorded in
+both calibration files. The Phase C interface revision
+(`BEHAVIOR_RECIPES_PLAN.md` §4.6, `plant_versions.toml` note 12) appended a
+3-dim body-relative command segment to every species observation and moved
+each plant's `policy_interface_sha256`, and with it every stage's
+`task_sha256` — but nothing the calibration measured: the fixed-command
+nulls never read the observation, and the seeded reset draw stream is
+byte-identical (pinned by
+`environments/shared/tests/fixtures/phase_c_reset_golden.json`, captured at
+the pre-bump commit and replayed by `test_phase_c_interface.py`). The two
+profiles were therefore **restamped**, not re-measured, by
+`environments/shared/scripts/restamp_recovery_calibration.py`: it rewrites
+`plant_identity` and `task_sha256` and appends a `restamp_history` entry
+(`restamped_at_commit`, the previous policy-interface revision and hash, the
+previous task hash, and the reason — the Phase C justification by default;
+a later interface-only revision that reuses the tool passes its own
+`--reason`). The tool refuses a changed `recovery_env_kwargs` or a changed
+`physics_sha256` — either needs a real recalibration — and a second run is
+a byte no-op. Because the profile bytes
+changed, `profile_sha256` moved: every compsognathus recovery freeze
+(`gate_resolution.json`) made before this revision is refused by the frozen
+identity check and must be re-frozen from the restamped profile.
+
 ## Disturbance definition
 
 The existing shared scheduler derives a nominal capture-velocity scale:

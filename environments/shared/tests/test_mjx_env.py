@@ -454,7 +454,9 @@ class TestHomeKeyframeActionMapping:
         expected = np.array(
             [pad + sensordata[list(group)].sum() for pad, group in zip(pad_sensors, env.config.sensor_foot_aux_indices)]
         )
-        foot_observation = np.asarray(states.obs[0, -6:-4])
+        # Foot contacts sit before direction (3) + distance (1) + the Phase C
+        # command segment (3).
+        foot_observation = np.asarray(states.obs[0, -9:-7])
 
         assert np.all(pad_sensors > 0.1), f"T-Rex MJX foot sensors are dead at home: {pad_sensors}"
         assert np.all(expected > pad_sensors), (
@@ -534,7 +536,7 @@ class TestHomeKeyframeActionMapping:
         # Same float32 summation tolerance as
         # test_trex_mjx_reset_exposes_live_foot_contacts, and matching the
         # rtol already used for the MJX-vs-CPU sensor comparison above.
-        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), expected_contacts, rtol=1e-5, atol=1e-3)
+        np.testing.assert_allclose(np.asarray(states.obs[0, -9:-7]), expected_contacts, rtol=1e-5, atol=1e-3)
 
     def test_home_reset_requires_named_home_keyframe(self):
         import mujoco

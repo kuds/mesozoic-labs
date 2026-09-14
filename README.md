@@ -87,11 +87,11 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 67 |
+| Observation dimension | 70 |
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
-| Plant contract revisions | policy r9; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r10; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -123,11 +123,11 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 61 |
+| Observation dimension | 64 |
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r12; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r13; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -159,11 +159,11 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 83 |
+| Observation dimension | 86 |
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r7; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r8; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -191,11 +191,11 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 77 |
+| Observation dimension | 80 |
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
 | Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r6; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r7; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -225,11 +225,11 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 53 |
+| Observation dimension | 56 |
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r2; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -259,11 +259,11 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 43 |
+| Observation dimension | 46 |
 | Action dimension / actuators | 12 |
 | Generalized coordinates / velocities | nq=19, nv=18 |
 | Compiled dynamic model mass | 1.6 kg |
-| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r2; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus_robot.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

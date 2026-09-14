@@ -41,7 +41,7 @@ charismatic species. The honest summary:
 - **There is no buildable artifact yet.** The species the roadmap names as the
   physical target — **Compsognathus** — has no MJCF, no environment, and no
   actuator spec. Phase 6 depends on a model that has not been designed.
-- **The deepest technical gap is the observation space.** ~7 of the 67–83
+- **The deepest technical gap is the observation space.** ~7 of the 70–86
   observation dimensions are *privileged simulator state* (world-frame base
   linear velocity and an absolute prey/food beacon) that **no onboard sensor can
   measure**. Closing this needs a legged base-state estimator *and* an onboard
@@ -96,12 +96,18 @@ Additional maturity caveats that matter for hardware:
 ### 3.1 Observation realizability — the deepest gap
 
 All species share one observation builder
-(`environments/shared/obs_functions.py:102-115`):
+(`environments/shared/obs_functions.py`, `build_bipedal_obs`):
 
 ```
 [ joint_pos, joint_vel, root_quat(4), root_gyro(3),
-  root_linvel(3), root_accel(3), foot_contacts, target_dir(3), target_dist(1) ]
+  root_linvel(3), root_accel(3), foot_contacts, target_dir(3), target_dist(1),
+  command(3) ]
 ```
+
+The trailing `command(3)` is the Phase C body-relative command segment
+(`BEHAVIOR_RECIPES_PLAN.md` §4.6): an operator input, pre-scaled to
+`[-1, 1]`, zero under `command_mode = "none"` — trivially realizable on
+hardware, since it is commanded rather than sensed.
 
 ~84–90% of the vector is **realizable** on hardware (joint encoders, IMU
 gyro/accel/orientation, foot contact). The trap is a small, load-bearing

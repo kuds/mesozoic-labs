@@ -62,7 +62,8 @@ def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
         )
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     assert payload["backend_observation_equal"] is None
-    assert payload["observation"]["shape"] == [43 if species.endswith("_robot") else 53]
+    # 43 / 53 before the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6).
+    assert payload["observation"]["shape"] == [46 if species.endswith("_robot") else 56]
 
 
 def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):
@@ -78,7 +79,9 @@ def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize(
     ("species", "observation_dim", "action_dim"),
-    [("velociraptor", 67, 22), ("trex", 61, 15), ("brachiosaurus", 83, 30)],
+    # Widths carry the Phase C 3-dim command segment (BEHAVIOR_RECIPES_PLAN
+    # §4.6): 67/61/83/77 -> 70/64/86/80.
+    [("velociraptor", 70, 22), ("trex", 64, 15), ("brachiosaurus", 86, 30), ("dibothrosuchus", 80, 27)],
 )
 def test_current_identity_matches_each_executable_environment(species, observation_dim, action_dim):
     # Identity generation requires exact SB3/MJX observation parity.

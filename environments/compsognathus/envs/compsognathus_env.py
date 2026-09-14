@@ -1,9 +1,11 @@
 """SB3 environments for the unchanged Compsognathus MuJoCo models.
 
 Actions are normalized residuals about the gravity-preloaded ``home`` controls.
-The 53-dimensional anatomical and 43-dimensional robot observations use the
-repository's privileged bipedal state/target layout. Camera pixels are available
-separately; these MLP policies are simulation baselines, not onboard policies.
+The 56-dimensional anatomical and 46-dimensional robot observations use the
+repository's privileged bipedal state/target layout, followed by the 3-dim
+body-relative command segment (BEHAVIOR_RECIPES_PLAN §4.6; zeros under
+``command_mode = "none"``). Camera pixels are available separately; these MLP
+policies are simulation baselines, not onboard policies.
 """
 
 from __future__ import annotations
@@ -65,6 +67,12 @@ class CompsognathusEnv(BaseDinoEnv):
         perturbation_jitter: float = 0.5,
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
+        command_mode: str = "none",
+        command_speed_range: tuple[float, float] = (0.0, 0.0),
+        command_lateral_range: tuple[float, float] = (0.0, 0.0),
+        command_yaw_rate_max: float = 0.0,
+        command_switch_interval: float = 0.0,
+        command_switch_jitter: float = 0.0,
     ):
         if render_mode not in (None, "human", "rgb_array"):
             raise ValueError(f"Unsupported render mode: {render_mode!r}")
@@ -142,6 +150,12 @@ class CompsognathusEnv(BaseDinoEnv):
             perturbation_jitter=perturbation_jitter,
             perturbation_duration=perturbation_duration,
             perturbation_direction=perturbation_direction,
+            command_mode=command_mode,
+            command_speed_range=command_speed_range,
+            command_lateral_range=command_lateral_range,
+            command_yaw_rate_max=command_yaw_rate_max,
+            command_switch_interval=command_switch_interval,
+            command_switch_jitter=command_switch_jitter,
         )
         self.metadata = {**self.metadata, "render_fps": round(1 / self.dt)}
 
@@ -201,6 +215,7 @@ class CompsognathusEnv(BaseDinoEnv):
                     self._foot_contact_forces(),
                     relative / (distance + 1e-8),
                     [distance],
+                    self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
                 ]
             ),
             dtype=np.float32,

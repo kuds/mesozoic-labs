@@ -41,8 +41,9 @@ class TestBuildBipedalObs:
     def test_output_shape(self, mock_state):
         qpos, qvel, sensordata, pelvis_xpos, target_pos, layout = mock_state
         obs = build_bipedal_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos, layout)
-        # 24 joint_pos + 24 joint_vel + 4 quat + 3 gyro + 3 linvel + 3 accel + 2 feet + 3 dir + 1 dist = 67
-        assert obs.shape == (67,)
+        # 24 joint_pos + 24 joint_vel + 4 quat + 3 gyro + 3 linvel + 3 accel + 2 feet + 3 dir + 1 dist
+        # + 3 command (Phase C, BEHAVIOR_RECIPES_PLAN §4.6) = 70
+        assert obs.shape == (70,)
 
     def test_dtype_is_float32(self, mock_state):
         qpos, qvel, sensordata, pelvis_xpos, target_pos, layout = mock_state
@@ -52,8 +53,35 @@ class TestBuildBipedalObs:
     def test_target_distance_positive(self, mock_state):
         qpos, qvel, sensordata, pelvis_xpos, target_pos, layout = mock_state
         obs = build_bipedal_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos, layout)
-        # Last element is target distance
-        assert obs[-1] > 0.0
+        # Target distance sits right before the trailing 3-dim command segment.
+        assert obs[-4] > 0.0
+
+    @pytest.mark.parametrize("backend", ["numpy", "jax"])
+    def test_command_defaults_to_zeros_and_is_appended_last(self, mock_state, backend):
+        """The Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6): zeros by default, appended LAST."""
+        qpos, qvel, sensordata, pelvis_xpos, target_pos, layout = mock_state
+        if backend == "jax":
+            jnp = pytest.importorskip("jax.numpy")
+            qpos, qvel, sensordata, pelvis_xpos, target_pos = (
+                jnp.asarray(qpos),
+                jnp.asarray(qvel),
+                jnp.asarray(sensordata),
+                jnp.asarray(pelvis_xpos),
+                jnp.asarray(target_pos),
+            )
+        probe = [0.25, -0.5, 0.75]
+
+        default = np.asarray(build_bipedal_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos, layout))
+        commanded = np.asarray(
+            build_bipedal_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos, layout, command=probe)
+        )
+
+        assert default.shape == commanded.shape == (70,)
+        np.testing.assert_array_equal(default[-3:], np.zeros(3, dtype=np.float32))
+        np.testing.assert_array_equal(commanded[-3:], np.asarray(probe, dtype=np.float32))
+        # Only the trailing command dims differ; every existing offset is unchanged.
+        np.testing.assert_array_equal(default[:-3], commanded[:-3])
+        assert commanded.dtype == np.float32
 
 
 class TestBuildQuadrupedObs:
@@ -72,6 +100,7 @@ class TestBuildQuadrupedObs:
         layout = SensorLayout(gyro_start=0, accel_start=3, quat_start=6, foot_indices=(10, 11, 12, 13))
 
         obs = build_quadruped_obs(qpos, qvel, sensordata, torso_xpos, target_pos, layout)
-        # 26 joint_pos + 26 joint_vel + 4 quat + 3 gyro + 3 linvel + 3 accel + 4 feet + 3 dir + 1 dist = 73
-        assert obs.shape == (73,)
+        # 26 joint_pos + 26 joint_vel + 4 quat + 3 gyro + 3 linvel + 3 accel + 4 feet + 3 dir + 1 dist
+        # + 3 command (Phase C, BEHAVIOR_RECIPES_PLAN §4.6) = 76
+        assert obs.shape == (76,)
         assert obs.dtype == np.float32

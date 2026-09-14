@@ -65,12 +65,14 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         )
         for species_id, entry in species.items()
     } == {
-        "velociraptor": (67, 22, 31, 30, 22, 13.5),
-        "trex": (61, 15, 28, 27, 15, 85.72),
-        "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
-        "dibothrosuchus": (77, 27, 35, 34, 27, 8.65),
-        "compsognathus": (53, 14, 24, 23, 14, 1.0),
-        "compsognathus_robot": (43, 12, 19, 18, 12, 1.5856),
+        # Observation widths carry the Phase C 3-dim command segment
+        # (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77/53/43 -> 70/64/86/80/56/46.
+        "velociraptor": (70, 22, 31, 30, 22, 13.5),
+        "trex": (64, 15, 28, 27, 15, 85.72),
+        "brachiosaurus": (86, 30, 38, 37, 30, 175.3),
+        "dibothrosuchus": (80, 27, 35, 34, 27, 8.65),
+        "compsognathus": (56, 14, 24, 23, 14, 1.0),
+        "compsognathus_robot": (46, 12, 19, 18, 12, 1.5856),
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
@@ -167,10 +169,20 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # species. Physics and visual are untouched — no MJCF edit, and with
     # perturbation off (every stage but recovery) the episode is
     # bit-identical to the previous plant.
-    expected_policy_revisions = {"velociraptor": 9, "trex": 12, "brachiosaurus": 7, "dibothrosuchus": 6}
+    # Phase C (BEHAVIOR_RECIPES_PLAN §4.6, plant_versions note 12) bumped
+    # every policy revision once more: the 3-dim command segment is appended
+    # to all six observations. Physics and visual are again untouched.
+    expected_policy_revisions = {
+        "velociraptor": 10,
+        "trex": 13,
+        "brachiosaurus": 8,
+        "dibothrosuchus": 7,
+        "compsognathus": 2,
+        "compsognathus_robot": 2,
+    }
     expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
-    for revisions in (expected_policy_revisions, expected_physics_revisions, expected_visual_revisions):
+    for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update(compsognathus=1, compsognathus_robot=1)
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:

@@ -203,7 +203,8 @@ class TestFootContactSensors:
             obs = None
             for _ in range(200):
                 obs, _, _, _, _ = env.step(np.zeros(env.action_space.shape))
-            foot_dims = obs[-6:-4]  # foot contacts sit before prey direction (3) + distance (1)
+            # foot contacts sit before prey direction (3) + distance (1) + command (3).
+            foot_dims = obs[-9:-7]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
         finally:
             env.close()

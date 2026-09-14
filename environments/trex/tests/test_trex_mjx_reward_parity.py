@@ -166,7 +166,7 @@ def test_mjx_zero_defaults_preserve_p5_p7_policy_dimensions():
     weights = env.config.reward_weights
 
     assert env.action_dim == 15
-    assert state.obs.shape == (1, 61)
+    assert state.obs.shape == (1, 64)  # 61 + the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6)
     assert weights["bilateral_support_weight"] == 0.0
     assert weights["foot_load_balance_weight"] == 0.0
     assert weights["support_conditioned_alive_fraction"] == 0.0
@@ -194,7 +194,7 @@ def test_stage1_factory_enables_stance_terms_without_changing_dimensions():
     weights = env.config.reward_weights
 
     assert env.action_dim == 15
-    assert state.obs.shape == (1, 61)
+    assert state.obs.shape == (1, 64)  # 61 + the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6)
     assert weights["bilateral_support_weight"] == pytest.approx(0.6)
     assert weights["foot_contact_saturation_force"] == pytest.approx(350.0)
     assert weights["foot_load_balance_weight"] == pytest.approx(0.3)

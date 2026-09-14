@@ -70,7 +70,7 @@ register_species_mjlab(
         frame_skip=5,
         episode_length_s=10.0,  # 1000 steps * 0.01s timestep * frame_skip=5 / 5
         num_envs_default=4096,
-        obs_dim=67,
+        obs_dim=70,
         action_dim=22,
         observation_manager_factory=_build_observation_manager,
         reward_manager_factory=_build_reward_manager,

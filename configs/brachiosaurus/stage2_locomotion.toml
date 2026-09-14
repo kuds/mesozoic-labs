@@ -60,13 +60,13 @@ tau = 0.005
 ent_coef = "auto"                # Auto-entropy handles the standing-still exploit naturally —
                                  # maintains exploration when alive_bonus=0.1 could trap the policy
 buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions;
-                                 # Brachiosaurus (75 obs dims) × 1M ≈ 570MB — fits in Colab RAM
+                                 # Brachiosaurus (86 obs dims) × 1M ≈ 650MB — fits in Colab RAM
 learning_starts = 10_000
 train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
 gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
+net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 86 obs dims
 
 [jax]
 num_envs = 2048

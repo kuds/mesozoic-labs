@@ -30,12 +30,14 @@ SPECIES_ENVS = [
     pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
 ]
 
-# Expected observation and action dimensions per species
+# Expected observation and action dimensions per species.  Phase C
+# (BEHAVIOR_RECIPES_PLAN §4.6) appended the 3-dim body-relative command
+# segment to every species: 67/61/83/77 -> 70/64/86/80.
 SPECIES_DIMS = {
-    "velociraptor": {"obs": 67, "act": 22},
-    "trex": {"obs": 61, "act": 15},
-    "brachiosaurus": {"obs": 83, "act": 30},
-    "dibothrosuchus": {"obs": 77, "act": 27},
+    "velociraptor": {"obs": 70, "act": 22},
+    "trex": {"obs": 64, "act": 15},
+    "brachiosaurus": {"obs": 86, "act": 30},
+    "dibothrosuchus": {"obs": 80, "act": 27},
 }
 
 # Expected reward component keys per species

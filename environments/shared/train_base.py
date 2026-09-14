@@ -483,6 +483,7 @@ def _load_vecnorm_into_envs(
     allow_legacy_plant: bool = False,
     task_load_mode: str,
     allow_fresh_vecnorm: bool = False,
+    command_mode: str = "none",
 ) -> None:
     """Carry forward VecNormalize stats from a prior stage or reset eval env.
 
@@ -497,6 +498,21 @@ def _load_vecnorm_into_envs(
     return-normalization statistics are carried forward too — the reward
     distribution is unchanged, so resetting ``ret_rms`` only distorts the
     first post-resume updates (review TC6).
+
+    ``command_mode`` is the target stage's ``[env]`` command mode: a live
+    mode reseeds the trailing command slice of the carried ``obs_rms`` on
+    both envs (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8) through
+    ``load_vecnorm_stats(reseed_command_slice=True)`` — EXCEPT on a
+    same-stage resume.  The reseed exists for a parent whose command slice
+    was constant zero (var ≈ 1e-11 would clip a live command); a
+    ``resume_same_stage`` parent is the same task, so its sidecar already
+    holds the statistics the policy trained under and reseeding them would
+    restart the run under a normaliser it never saw (the ``carry_ret_rms``
+    reasoning above, applied to the command slice).  In Phase C every stage
+    is ``"none"`` — the environments refuse anything else at construction —
+    so this is the Phase D hook, pinned now; a cross-stage load from a
+    parent whose own channel was live is Phase D's to decide when it
+    records the parent's mode.
     """
     from .curriculum import load_vecnorm_stats
 
@@ -512,6 +528,8 @@ def _load_vecnorm_into_envs(
             load_kwargs = {"unsafe_skip_plant_validation": True}
         if task_load_mode == "resume_same_stage":
             load_kwargs["carry_ret_rms"] = True
+        if command_mode != "none" and task_load_mode != "resume_same_stage":
+            load_kwargs["reseed_command_slice"] = True
         if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, **load_kwargs):
             if not allow_fresh_vecnorm:
                 raise FileNotFoundError(
@@ -1169,6 +1187,7 @@ def train(
         allow_legacy_plant=allow_legacy_plant,
         task_load_mode=task_load_mode,
         allow_fresh_vecnorm=allow_fresh_vecnorm,
+        command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
     )
 
     alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
@@ -2401,6 +2420,7 @@ def train_curriculum(
             # complete pairs, so this fires only when the sidecar vanished
             # afterwards (e.g. a lost mount write).
             allow_fresh_vecnorm=allow_fresh_vecnorm,
+            command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
         )
 
         alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(

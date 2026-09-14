@@ -60,13 +60,18 @@ class TestDibothrosuchusSpecific:
         assert info["gait_instability"] >= 0.0
 
     def test_observation_layout_dimensions(self, env):
-        """28 qpos + 28 qvel + quat + gyro + linvel + accel + 4 feet + dir + dist."""
+        """28 qpos + 28 qvel + quat + gyro + linvel + accel + 4 feet + dir + dist + command.
+
+        The trailing 3 dims are the Phase C body-relative command segment
+        (BEHAVIOR_RECIPES_PLAN §4.6), zero under ``command_mode = "none"``.
+        """
         obs, _ = env.reset(seed=0)
-        assert obs.shape == (28 + 28 + 4 + 3 + 3 + 3 + 4 + 3 + 1,)
+        assert obs.shape == (28 + 28 + 4 + 3 + 3 + 3 + 4 + 3 + 1 + 3,)
 
     def test_prey_direction_is_unit_length(self, env):
         obs, _ = env.reset(seed=7)
-        direction = obs[-4:-1]
+        # direction(3) sits before distance(1) + command(3).
+        direction = obs[-7:-4]
         assert np.linalg.norm(direction) == pytest.approx(1.0, abs=1e-5)
 
 

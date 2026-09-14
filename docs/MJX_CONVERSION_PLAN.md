@@ -109,10 +109,12 @@ def reward_approach(prev_distance, curr_distance, dt, max_speed, weight):
 
 ```python
 def build_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos,
-              sensor_layout, root_qpos_dim=7, root_qvel_dim=6):
+              sensor_layout, root_qpos_dim=7, root_qvel_dim=6, command=None):
     """Construct observation vector from raw simulation state.
 
-    Works with both np.ndarray and jnp.ndarray.
+    Works with both np.ndarray and jnp.ndarray.  ``command`` is the Phase C
+    body-relative (v_x, v_y, yaw_rate) segment, appended LAST; None means
+    zeros (command_mode "none").
     """
     joint_pos = qpos[root_qpos_dim:]
     joint_vel = qvel[root_qvel_dim:]
@@ -126,9 +128,11 @@ def build_obs(qpos, qvel, sensordata, pelvis_xpos, target_pos,
     target_dist = norm(target_rel)
     target_dir = target_rel / (target_dist + 1e-8)
 
+    command_segment = zeros(3) if command is None else command
+
     return concatenate([
         joint_pos, joint_vel, quat, gyro, linvel, accel,
-        foot_contacts, target_dir, [target_dist]
+        foot_contacts, target_dir, [target_dist], command_segment
     ])
 ```
 

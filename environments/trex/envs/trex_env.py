@@ -15,6 +15,7 @@ Observation space (total dimension is generated in the public species catalog):
     - Foot contact forces (2 plantar-pad touch sensors) — 2
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
+    - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
 
 Action space (total dimension is generated in the public species catalog):
     - Neck/head: neck pitch, neck yaw, head pitch (3)
@@ -190,6 +191,12 @@ class TRexEnv(BaseDinoEnv):
         perturbation_jitter: float = 0.5,
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
+        command_mode: str = "none",
+        command_speed_range: tuple[float, float] = (0.0, 0.0),
+        command_lateral_range: tuple[float, float] = (0.0, 0.0),
+        command_yaw_rate_max: float = 0.0,
+        command_switch_interval: float = 0.0,
+        command_switch_jitter: float = 0.0,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
 
@@ -312,6 +319,12 @@ class TRexEnv(BaseDinoEnv):
             perturbation_jitter=perturbation_jitter,
             perturbation_duration=perturbation_duration,
             perturbation_direction=perturbation_direction,
+            command_mode=command_mode,
+            command_speed_range=command_speed_range,
+            command_lateral_range=command_lateral_range,
+            command_yaw_rate_max=command_yaw_rate_max,
+            command_switch_interval=command_switch_interval,
+            command_switch_jitter=command_switch_jitter,
         )
 
     def _cache_ids(self):
@@ -567,6 +580,7 @@ class TRexEnv(BaseDinoEnv):
                 foot_contact,  # Foot contacts (2)
                 prey_direction,  # Direction to prey (unit vector)
                 [prey_distance],  # Distance to prey (scalar)
+                self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]
         ).astype(np.float32)
 
