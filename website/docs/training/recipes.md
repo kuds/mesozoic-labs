@@ -233,15 +233,32 @@ refuses when the evidence is missing, and cannot backfill
 
 ## In the notebook
 
-`notebooks/sb3_training.ipynb` exposes four knobs in its configuration cell,
+`notebooks/sb3_training.ipynb` exposes five knobs in its configuration cell,
 committed as:
 
 ```python
 BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable's stage id
 TRUNK_FROM = ""  # optional earlier run whose certified ancestors to reuse
+WIDEN_FROM = ""  # optional earlier run (id or absolute path) whose certified ROOT handoff is widened to this checkout's policy interface into RUN_DIR before the chain runs (BEHAVIOR_RECIPES_PLAN §4.6 Phase C)
+WIDEN_MAX_REVISION_GAP = 1  # how many policy-interface revisions behind WIDEN_FROM's parent may be (D-C17); 1 = the Phase C bump alone; the two certified trex stance parents (r11) need 2 because r11 → r12 was fingerprint-only
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
 ```
+
+`WIDEN_FROM` names an earlier run whose certified root checkpoint was trained
+behind this checkout's policy interface: the widen cell after the chain
+resolution widens its handoff pair into this run's root stage directory (zero
+columns for the new command dims, never re-trained) and the chain loop
+re-judges it; a widen session sets `SEED` to that run's seed before the storage
+cell runs (decisions D-C13/D-C14). `WIDEN_MAX_REVISION_GAP` bounds how many
+policy-interface revisions behind that parent may be (default `1`, the Phase C
+bump alone). The widen tool still checks the physics digest, `nq`/`nv`/`nu`,
+`action_dim` and the observation widths whatever the bound, so a larger value
+only crosses fingerprint-only bumps, and a parent further behind than the
+bound is refused with the gap and the tool's `--max-revision-gap` /
+`max_revision_gap` bound named; the two certified trex
+stance parents are r11 archives, two revisions behind r13, and need `2`
+(decision D-C17).
 
 `TRUNK_FROM` is a run id, resolved under `<LOG_BASE>/<species>/<algorithm>/`,
 or an absolute path to a run directory. It must be a finished bundle (a run

@@ -72,10 +72,82 @@ The writer updates both `configs/plant_manifest.generated.json` and the byte-ide
 data, and the intentional source change together. CI repeats the check with the canonical MuJoCo version, tests revision
 monotonicity against the PR base, and verifies identity/config loading from an installed wheel.
 
+### Widening a checkpoint across a policy-interface bump
+
+A policy-interface revision normally strands every checkpoint minted under the previous one (see "Checkpoints and legacy
+artifacts" below). The Phase C revision (BEHAVIOR_RECIPES_PLAN §4.6 "Widening instead of retraining") is the one
+exception the repo tools: it appended a 3-dim body-relative command segment at the END of every species' observation
+and changed nothing else, so a policy trained one interface-only revision behind is the same function under the new
+interface once the first layer of every network that reads the observation gains three zero columns. That mapping is
+done by `environments/shared/scripts/widen_checkpoint.py`, never by hand and never by re-labelling:
+
+```bash
+python -m environments.shared.scripts.widen_checkpoint --species trex --stage stance \
+    --from-stage-dir <parent run>/01_stance --to-stage-dir <new run>/01_stance \
+    [--label L] [--parent-run-id ID] [--allow-legacy-plant] [--max-revision-gap N]
+# or the explicit pair: --model <zip> --vecnorm <pkl> --algorithm ppo|sac --seed S --n-envs N --timesteps T
+```
+
+- **The identity gate.** The parent archive's recorded plant identity must be the current plant at most
+  `max_revision_gap` interface-only revisions behind (default 1 — exactly r → r+1, the Phase C bump alone;
+  `--max-revision-gap N` on the CLI, `max_revision_gap=N` in the API, the SB3 notebook's `WIDEN_MAX_REVISION_GAP`
+  knob; decision D-C17): same `species`, `physics_sha256`, `nq` / `nv` / `nu` and `action_dim`,
+  `1 <= current - parent.policy_interface_revision <= max_revision_gap` and `observation_dim + 3 == current`.
+  Anything else is refused with every differing field named; a parent further behind than the bound is refused with
+  both revisions, the measured gap, the bound and the flag named. The fields other than the revision apply whatever
+  the bound, so the tool is scoped to the Phase C bump — three appended observation dims with the physics and the
+  action mapping untouched — and a bound above 1 can only cross fingerprint-only intermediate revisions (there is
+  no ladder of intermediate manifests to walk: the widening is applied once, against the checkout's manifest).
+  Setting N > 1 asserts, from `configs/plant_versions.toml`'s numbered notes, that the intermediate bumps changed
+  nothing the widening cannot bridge; the report records `revision_gap` / `max_revision_gap`. The two certified
+  trex stance runs of 2026-08 are r11 archives, two revisions behind r13 across the fingerprint-only r11 → r12 bump
+  (note 11, the perturbation engine): refused under the default, widened under `--max-revision-gap 2`
+  (`docs/KNOWN_ISSUES.md`, the Phase C entry). A bump that changed action meaning at fixed dimensions (the biped
+  home-residual examples above) is not widenable and still needs fresh checkpoints. A parent without an identity is refused unless
+  `--allow-legacy-plant`, which reads its width from the saved observation space. The VecNormalize sidecar must
+  record the parent archive's plant; under the legacy allowance an unstamped sidecar is accepted with a warning,
+  and a stamped sidecar of a legacy (unstamped) archive must record the parent's species and width.
+- **What is written.** Into a fresh stage directory named as the stage's directory (`stage_dir_candidates`), outside
+  the parent's run: `models/<handoff>.zip` + `models/<handoff>_vecnorm.pkl` under the parent's own handoff name
+  (`robust_best_model` or `best_model`, exactly one), byte-identical `models/<stage_label>_final.*` copies (what the
+  SB3 notebook's JUDGE branch fires on), `stage_config.json` whose run block carries the parent's `seed` / `n_envs`
+  / `timesteps` (and `duration_seconds` when recorded), `hyperparameters_sha256`, the optional `label` and the eight
+  `config.WIDEN_LINEAGE_KEYS` (`widened_from_path`, `widened_from_checkpoint_sha256`,
+  `widened_from_normalization_sha256`, `widened_from_task_sha256`, `widened_from_policy_interface_sha256`,
+  `widened_from_policy_interface_revision`, `widened_from_run_id`, `widened_by`) — never the `LOAD_LINEAGE_KEYS`, a
+  widened node is a root — plus `plant_identity.json`, `task_fingerprint.json` and `widen_report.json`. Both
+  artifacts are re-stamped with the CURRENT plant identity and the stage's CURRENT task fingerprint (the parent's
+  `mesozoic_task_lineage` is kept), and the archive gains a `mesozoic_widen_lineage` attribute recording the parent
+  hashes, the parent identity, the padded tensors and the commit.
+- **What is not written.** No `gate_verdict.json`, `provenance.json`, `gate_resolution.json`, `evaluations.npz`,
+  `metrics.json` or periodic checkpoints: a widened checkpoint carries no certificate and is re-paneled under the
+  current gate before it certifies. It is refused into an occupied or non-empty target, and a parent whose
+  `gate_verdict.json` did not pass is refused.
+- **The reseed rule.** The sidecar's `obs_rms` gains the three dims at mean 0 / variance 1 with the count carried
+  (`command_frame.pad_running_stats`) — the values `load_vecnorm_stats(reseed_command_slice=True)` applies to the
+  trailing slice on any load into a node whose `command_mode != "none"`. Under `"none"` the command is zero, so the
+  widened statistics normalise it to exactly zero and the zero columns see exactly zero input.
+- **Self-verification.** Before returning, the tool checks that every padded column is exactly zero, that both
+  widened artifacts validate against the current identity through the ordinary loaders, and that over a seeded
+  200-step rollout of the real environment the widened policy's deterministic actions match the parent's within
+  `1e-6` both with the command slice zero and with `COMMAND_PROBE_VECTOR` in it (the measured deltas are recorded in
+  `widen_report.json`); the files' hashes are unchanged by the verification. Any failure deletes the target directory.
+
+The SB3 notebook brings a widened root in through its `WIDEN_FROM` knob into a NEW run id (BEHAVIOR_RECIPES_PLAN
+§4.6, decision D-C13), where the chain loop judges it; `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this
+applies to. JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint` validates the recorded identity against
+`current_plant` and has no widen path, so a pre-bump JAX checkpoint fails closed.
+
 ## Backend parity and runtime binding
 
 The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes. The
-canonical writer requires SB3 and MJX to produce the same ordered observation for all three species. MJX registration
+canonical writer requires SB3 and MJX to produce the same ordered observation for the four dual-backend species (the two
+compsognathus plants are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the
+environment lists `jax-mjx` among its training backends). Since the Phase C interface revision
+(BEHAVIOR_RECIPES_PLAN §4.6) both probes inject the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the
+trailing 3-dim command segment — the SB3 probe sets `env._command` beside the model/data swap and the MJX probe passes
+`command=` to `build_mjx_observation` — so the parity assertion covers the appended slot rather than three zeros.
+`validate_mjx_environment_plant` also checks the MJX observation width against the identity. MJX registration
 values (root-body IDs, sensor offsets, action mapping, frame skip, and control timestep) are versioned alongside the SB3
 interface. Curriculum configuration may tune rewards and termination rules, but cannot override these plant-level keys.
 

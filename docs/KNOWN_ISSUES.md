@@ -106,6 +106,134 @@ tolerance) remains the standing recommendation for the divergences above.
   0.00 the other) is superseded by the recovery records —
   [STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) and
   [investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md).
+- **MEDIUM (operational)** — **every checkpoint trained before the Phase C
+  interface revision is refused as a trunk, every `gate_resolution.json`
+  frozen before it is stale, and the two recipes below (the D-A22 re-judge
+  and the D-B16 republish) are DEAD for pre-Phase-C runs — the only path is
+  `widen_checkpoint` + `WIDEN_FROM` in a NEW run id; the two certified
+  stance parents are r11 archives, two revisions behind r13, and need
+  `WIDEN_MAX_REVISION_GAP = 2` (decision D-C17)** (BEHAVIOR_RECIPES_PLAN
+  §4.6, decisions D-C8–D-C14 and D-C17; PLANT_CONTRACT.md "Widening a
+  checkpoint across a policy-interface bump"). Phase C appended a 3-dim command segment to every
+  species' observation (`policy_interface_revision` trex 12 → 13, velociraptor
+  9 → 10, brachiosaurus 7 → 8, dibothrosuchus 6 → 7, compsognathus and
+  compsognathus_robot 1 → 2). The task payload carries the plant's
+  `policy_interface_sha256` (`task_fingerprint.py`, the `plant_identity`
+  section), so every stage's `task_sha256` moved with it and reuse rule 3
+  (the verdict's `task_sha256` must equal the fingerprint derived from the
+  CURRENT stage config; `environments/shared/ancestors.py`) refuses every
+  pre-Phase-C verdict; were the hash to match, rule 6 (the checkpoint's
+  recorded plant identity must validate against the current plant, no legacy
+  allowance) refuses the pre-Phase-C archive too (rules are evaluated 1, 2,
+  3, 7, 4, 5, 6, so a pre-Phase-C candidate never reaches 6). As with rule 7
+  the refusal is a
+  log line and the node then TRAINS in the new run. Every existing recovery
+  `gate_resolution.json` — the 2026-08-28 trex freeze included — records a
+  pre-Phase-C `task_sha256`, and `require_gate_resolution` refuses a
+  resolution whose recorded task differs from the current one ("Recalibrate —
+  re-measure the null panels under the current task"), so no recovery run
+  under the new plant can consume one: each is re-frozen from a widened
+  handoff. The two recipes below are dead for pre-Phase-C runs for two
+  concrete reasons: the re-judge path (set `RUN_ID` to the old run, remove
+  the refused verdict, let the JUDGE branch re-panel) dies first in the
+  storage cell — `initialize_result_bundle` compares the existing
+  `provenance.json` against this session's identity, `plant_identity`
+  (now r13) included, and raises `run directory already belongs to a
+  different run: {'plant_identity': …}` before the infra cell exists (the
+  missing `certification_panel` role refuses these two runs the same way,
+  D-B17) — and with `provenance.json` removed to get past that, the JUDGE
+  branch's `evaluate_stage_checkpoints` loads `<stage_label>_final.zip` and
+  calls `validate_model_plant(model, PLANT_IDENTITY, ...)` against the
+  checkout's r13 identity, so the pre-Phase-C archive is refused before any
+  panel rolls (and `backfill_gate_verdict.py --force` could at best mint a
+  verdict under the old task hash, which rule 3 refuses); the republish path
+  (remove
+  `provenance.json`, set `RUN_ID` to the run, re-run the setup and
+  publication cells) dies in the audit, because the storage cell mints the
+  provenance with `current_plant_identity(SPECIES)` (r13) and
+  `validate_result_bundle` compares every stage config's recorded
+  `plant_identity` against it (`stage <N> config plant_identity does not
+  match provenance.json`). The remedy is a NEW run: in the configuration
+  cell set `WIDEN_FROM` to the parent run id and `SEED` to the parent's
+  training seed (the widen cell refuses `SEED != ` the parent's recorded
+  `run.seed`, D-C14 — a widened run's provenance publishes
+  `training_seed = SEED` and replication counts distinct seeds — and set it
+  BEFORE the storage cell runs: a session refused at the widen cell has
+  already minted `RUN_DIR` with the wrong `training_seed`, and
+  `initialize_result_bundle` refuses to re-mint that directory under another
+  seed, so correct `SEED`, restart the runtime (or `del _ACTIVE_RUN_ID`) so a
+  fresh `RUN_ID` is minted, and delete the stray directory, which holds only
+  `provenance.json`); the storage
+  cell mints a fresh `RUN_ID` and an r13 provenance; the widen cell widens
+  the parent's certified stance handoff into `<RUN_DIR>/01_stance` (zero
+  columns for the new dims, the run block's `WIDEN_LINEAGE_KEYS`, the
+  identity and task fingerprint re-stamped, no verdict); and the chain loop
+  refuses — loudly — to reuse the verdict-less directory, finds the
+  `<stage_label>_final.*` pair and JUDGES it: a fresh 40-episode panel
+  (seeds 3042–3081) under the current gate, a `gate_verdict.json` minted
+  under the new task hash. Never by pointing `RUN_ID` at the old run: for a
+  pre-Phase-C run the storage cell refuses the directory outright (above),
+  and for a same-plant run whose verdict rule 3 or 7 refuses the chain loop
+  raises "mint a fresh RUN_ID" (D-C13).
+  Inventory: the two certified stance parents are `20260810_145546` (seed
+  42) and `20260815_205206` (seed 44) — and BOTH are policy-interface **r11**
+  archives (`sha256:96ef13…`;
+  [investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md](investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md),
+  [investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md](investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md)),
+  not r12: trex went r11 → r12 on 2026-08-16 (commit `8795e28`, the
+  perturbation engine entering the interface fingerprint; `observation_dim`
+  stayed 61, physics r7 and `action_dim` 15 unchanged, no tensor moved) after
+  both had trained, and an archive's identity is stamped at training time.
+  `widen_checkpoint`'s gate admits a parent at most `max_revision_gap`
+  interface-only revisions behind (`identity_gate_errors`: `1 <= current -
+  parent.policy_interface_revision <= max_revision_gap`; the default 1 is the
+  Phase C bump alone, fail closed), so under the default it refuses both
+  parents with `policy_interface_revision: parent=11, current=13 (gap 2
+  exceeds max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2
+  …)`, and `--allow-legacy-plant` does not apply (it covers only an archive
+  with NO recorded identity). **The remedy is decision D-C17**: set
+  `WIDEN_MAX_REVISION_GAP = 2` in the notebook's configuration cell (the widen
+  cell threads it into `widen_checkpoint(..., max_revision_gap=)`) or pass
+  `--max-revision-gap 2` on the CLI. Every other gate field is checked
+  whatever the bound — same species, `physics_sha256`, `nq` / `nv` / `nu`,
+  `action_dim` and `observation_dim + 3 == current` — so only fingerprint-only
+  intermediate bumps can be crossed, and opting in asserts, from
+  `configs/plant_versions.toml`'s numbered notes, that the crossed bumps
+  changed nothing the widening cannot bridge (for trex r11 → r13: note 11
+  recorded the perturbation engine, note 12 appended the command segment).
+  The widened stage's `widen_report.json` then records `revision_gap: 2` /
+  `max_revision_gap: 2` and its run block
+  `widened_from_policy_interface_revision: 11`; a hand re-stamp of the archive
+  is never the path. The three r12 stance PASSes on the log tree —
+  `20260816_180603`, `20260817_165515`, `20260818_134249`
+  ([investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md)
+  §2.1) — carry r12 identities and widen under the default bound, but they
+  are not the certified, published parents; widening one is a first
+  certification under the new hash with its own `run.seed`, not a re-panel
+  of a certificate. After the first certified parent is
+  widened and re-paneled trex stance publishes as `1 run of 2 seeds;
+  provisional`
+  (replicates are discovered among siblings judged under the SAME
+  `task_sha256`, so the un-widened sibling does not count), and it reads
+  `2 runs of 2 seeds` only once BOTH are widened and re-paneled in two
+  sessions, each with `SEED` set to its parent's seed (42, then 44). The
+  planned sessions, their exact knobs and the outcome table live in
+  [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
+  (a template until the maintainer runs them; its Sessions 1 and the seed-44
+  repeat set `WIDEN_MAX_REVISION_GAP = 2` and `SEED` per parent). Three neighbours: an
+  in-flight Ray sweep experiment cannot be resumed under the new plant — the
+  sweep notebook validates the recorded `plant_identity.json` of the sweep
+  and experiment directories against the current identity on resume
+  (`validate_recorded_identity`) and trials are not widened (sweeps stay
+  trunk-only, plan A6) — so it restarts under a new experiment directory.
+  JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint`
+  validates the recorded identity against `current_plant` and has no widen
+  path, so a pre-Phase-C JAX checkpoint fails closed (plan A7: SB3 is the
+  evidence backend). The two compsognathus recovery calibrations were
+  restamped, not re-measured, which moved their `profile_sha256`, so every
+  compsognathus / compsognathus_robot recovery freeze made before Phase C is
+  refused and must be re-frozen from the restamped profile
+  (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -115,7 +243,13 @@ tolerance) remains the standing recommendation for the divergences above.
   paths — and then TRAINS the node in the new run (the refusal is only in
   the log: `Not reusing 'stance' from --trunk-from ...: ... Training it in
   this run instead.`), so the inventory below must be done before the first
-  trunked run or the stance retrains for hours. Two re-judge paths exist:
+  trunked run or the stance retrains for hours. **Superseded for every
+  pre-Phase-C run (2026-09-14): the two re-judge paths that follow, and the
+  digest measurement at the end of this entry, are dead for a checkpoint
+  minted under the previous policy interface — see the Phase C entry above;
+  the widened copy is re-paneled under the current gate in a new run, which
+  settles the digest question for it. The text is kept as history.** Two
+  re-judge paths existed:
   the notebook JUDGE branch / `generate_stage_artifacts` for a directory
   holding no verdict (set `RUN_ID` to the run, remove the refused
   `gate_verdict.json` from the stage directory, and the chain loop judges
@@ -161,7 +295,13 @@ tolerance) remains the standing recommendation for the divergences above.
   `20260815_205206` — carries a `seed_roles` without it and fails its next
   audit or republish; `initialize_result_bundle` also refuses to resume such
   a run directory from the new notebook (the seed roles are identity, and
-  the mismatch reads as "already belongs to a different run"). To republish:
+  the mismatch reads as "already belongs to a different run"). **Superseded
+  for every pre-Phase-C run (2026-09-14): the republish recipe that follows
+  is dead for these two runs — the storage cell now mints an r13 provenance
+  the audit rejects against their r12 stage configs; both are widened into
+  new runs instead (the Phase C entry above), whose bundles carry the
+  `certification_panel` role from the start. Kept as history.** To
+  republish a bundle under the SAME plant, one would:
   remove the run's `provenance.json` (a regenerated artifact — the manifest
   may disagree only on those), set `RUN_ID` to the run and re-run the setup
   and publication cells, which re-capture the provenance with the role under
