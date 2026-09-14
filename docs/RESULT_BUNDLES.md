@@ -150,7 +150,14 @@ paths and digests, the from/to observation widths, the padded tensors and
 their columns, the inserted-at map (SAC critics), the optimizer members
 padded, the max |padded column| (0.0), the max action delta on zero and on
 probe commands over the seeded 200-step rollout, the inherited
-`num_timesteps`, the commit and the library versions. The tool writes the
+`num_timesteps`, the commit and the library versions. It also records
+`revision_gap` (how many interface revisions the widening crossed, `current
+- parent`, or `null` for an `--allow-legacy-plant` parent that carries no
+identity; the same value sits in the archive's `mesozoic_widen_lineage`)
+and `max_revision_gap` (the `--max-revision-gap` bound it was admitted
+under, default 1; decision D-C17 — a gap above 1 is only reachable across
+fingerprint-only bumps, since every width and physics field is still
+gated). The tool writes the
 parent's own handoff name plus byte-identical `<stage_label>_final.*` copies
 (so the notebook JUDGE branch fires) and never writes `gate_verdict.json`,
 `provenance.json`, `gate_resolution.json`, `evaluations.npz`, `metrics.json`

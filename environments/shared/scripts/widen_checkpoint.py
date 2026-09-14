@@ -1,4 +1,4 @@
-"""Widen a certified SB3 checkpoint pair from policy-interface revision r to r+1.
+"""Widen a certified SB3 checkpoint pair from policy-interface revision r to r+k (1 <= k <= --max-revision-gap, default 1).
 
 BEHAVIOR_RECIPES_PLAN §4.6 ("Widening instead of retraining", "Exact
 transfer"; invariant 7; decisions D-C8, D-C9, D-C10, D-C12): Phase C appends
@@ -6,16 +6,26 @@ a 3-dim body-relative command segment at the END of every species'
 observation, so a policy trained under the previous interface is the SAME
 function under the new one once its first layers gain zero columns for the
 new dims.  This tool maps one PPO or SAC checkpoint plus its VecNormalize
-sidecar across exactly that bump and writes them into a judge-ready stage
-directory — the policy is widened, never re-labelled, and never re-trained:
+sidecar across that bump — or, under ``--max-revision-gap N``, across up
+to N fingerprint-only bumps ending in it — and writes them into a
+judge-ready stage directory; the policy is widened, never re-labelled, and
+never re-trained:
 
 * **Identity gate** (never hand-edited): the parent's recorded plant
-  identity must be the current plant one interface-only revision behind —
-  same species, physics digest, ``nq``/``nv``/``nu`` and ``action_dim``,
-  ``policy_interface_revision + 1 == current`` and ``observation_dim +
-  COMMAND_WIDTH == current``.  Anything else is refused with the differing
-  fields named.  A parent without an identity is refused unless
-  ``--allow-legacy-plant`` (then the saved observation space is its width).
+  identity must be the current plant a bounded number of interface-only
+  revisions behind — same species, physics digest, ``nq``/``nv``/``nu`` and
+  ``action_dim``, ``1 <= current.policy_interface_revision -
+  parent.policy_interface_revision <= max_revision_gap`` and
+  ``observation_dim + COMMAND_WIDTH == current``.  The bound defaults to 1
+  (fail closed: exactly r -> r+1); ``--max-revision-gap N`` (D-C17) admits a
+  parent up to N revisions behind, which only a chain of fingerprint-only
+  bumps can satisfy since every other field — the widths in particular —
+  is still checked.  Opting in asserts, from ``plant_versions.toml``'s
+  numbered notes, that no intermediate bump changed an observation layout,
+  physics or action field.  Anything else is refused with the differing
+  fields named, the measured gap and the bound.  A parent without an
+  identity is refused unless ``--allow-legacy-plant`` (then the saved
+  observation space is its width).
 * **Archive rewrite** through SB3's own serializer: every 2-D tensor whose
   ``in_features`` equals the parent width gets the zero columns APPENDED
   (PPO ``mlp_extractor.policy_net.0`` / ``value_net.0``, SAC
@@ -33,7 +43,8 @@ directory — the policy is widened, never re-labelled, and never re-trained:
   ``BaseDinoEnv`` builds, ``_last_obs`` / ``_last_original_obs`` are
   cleared, ``num_timesteps`` is kept (D-C12), the plant identity and the
   stage's task fingerprint are re-stamped, and ``mesozoic_widen_lineage``
-  records the parent hashes; the parent's ``mesozoic_task_lineage`` stays.
+  records the parent hashes and the revision gap crossed; the parent's
+  ``mesozoic_task_lineage`` stays.
 * **Sidecar rewrite**: ``obs_rms`` gains the reseeded command slice (mean 0
   / var 1 at the carried count — ``command_frame.pad_running_stats``, the
   reseed rule applied at birth), the observation space is widened, the
@@ -67,14 +78,20 @@ non-empty target directory, one not named as the stage's directory
 explicit ``--model`` that is not a handoff checkpoint; a missing identity
 without ``--allow-legacy-plant``; a missing or unstamped sidecar (or, under
 the legacy allowance, one recording another species / width); any
-identity-gate failure.  A failure after the first write removes the target
-and every directory the tool created above it.
+identity-gate failure (a parent further behind than ``--max-revision-gap``
+named with the gap and the bound); a ``--max-revision-gap`` below 1.  A
+failure after the first write removes the target and every directory the
+tool created above it.
 
 Run: ``python -m environments.shared.scripts.widen_checkpoint --species trex
 --stage stance --from-stage-dir <run>/01_stance --to-stage-dir
-<newrun>/01_stance [--label L] [--parent-run-id ID] [--allow-legacy-plant]``
-or the explicit-pair form ``--model <zip> --vecnorm <pkl> --algorithm ppo|sac
---seed S --n-envs N --timesteps T``.  Prints ``widen_report.json``.
+<newrun>/01_stance [--label L] [--parent-run-id ID] [--allow-legacy-plant]
+[--max-revision-gap N]`` or the explicit-pair form ``--model <zip> --vecnorm
+<pkl> --algorithm ppo|sac --seed S --n-envs N --timesteps T``.
+``--max-revision-gap N`` (default 1, an integer >= 1) bounds how many
+interface revisions behind the parent may be; the report records
+``revision_gap`` (``null`` for an ``--allow-legacy-plant`` parent that
+carries no identity) / ``max_revision_gap``.  Prints ``widen_report.json``.
 
 Stable-Baselines3, torch and gymnasium are imported inside the functions so
 the module stays importable on a bare install (the lint job).
@@ -85,6 +102,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import numbers
 import pickle
 import shutil
 import sys
@@ -110,6 +128,9 @@ FINGERPRINT_BACKEND = "stable-baselines3"
 ALGORITHMS = ("ppo", "sac")
 #: The handoff names ``select_handoff_checkpoint`` recognises, in its order.
 HANDOFF_NAMES = ("robust_best_model", "best_model")
+#: How many interface revisions behind the parent may be by default (D-C17):
+#: exactly one bump, r -> r+1; ``max_revision_gap`` widens the bound.
+DEFAULT_MAX_REVISION_GAP = 1
 #: The seeded verification rollout (plan §4.6 "Exact transfer").
 VERIFICATION_ROLLOUT_SEED = 3042
 VERIFICATION_ROLLOUT_STEPS = 200
@@ -161,6 +182,8 @@ class WidenResult:
     widened_normalization_sha256: str
     from_observation_dim: int
     to_observation_dim: int
+    #: ``current - parent`` interface revisions crossed (``None`` for a legacy parent without an identity).
+    revision_gap: int | None
     max_action_delta_zero_command: float
     max_action_delta_probe_command: float
     report: dict[str, Any] = field(repr=False)
@@ -334,15 +357,60 @@ def _resolve_parent(
     )
 
 
-def identity_gate_errors(parent: Any, current: Any) -> list[str]:
-    """The fields on which *parent* is not the *current* plant one interface-only revision behind."""
+def _check_max_revision_gap(max_revision_gap: Any) -> int:
+    """*max_revision_gap* as a plain ``int >= 1``, or :class:`WidenError`.
+
+    Any integral number except a bool is accepted (a ``numpy`` integer
+    computed from a manifest included) and coerced to a Python ``int`` so
+    the value the gate compares against is the one the JSON report records.
+    """
+    if (
+        isinstance(max_revision_gap, bool)
+        or not isinstance(max_revision_gap, numbers.Integral)
+        or int(max_revision_gap) < 1
+    ):
+        raise WidenError(
+            f"max_revision_gap must be an integer >= 1, not {max_revision_gap!r}: the tool widens forward across "
+            f"at least one interface revision (the default {DEFAULT_MAX_REVISION_GAP} is exactly one, r -> r+1)"
+        )
+    return int(max_revision_gap)
+
+
+def revision_gap_bound_text(max_revision_gap: int) -> str:
+    """How far behind the current plant the gate admits a parent, in words (for refusal messages)."""
+    if max_revision_gap == 1:
+        return "one interface-only revision behind"
+    return f"at most {max_revision_gap} interface-only revisions behind"
+
+
+def identity_gate_errors(parent: Any, current: Any, *, max_revision_gap: int = DEFAULT_MAX_REVISION_GAP) -> list[str]:
+    """The fields on which *parent* is not the *current* plant at most *max_revision_gap* interface-only revisions behind.
+
+    The revision rule (D-C17) is ``1 <= current.policy_interface_revision -
+    parent.policy_interface_revision <= max_revision_gap``; every other field
+    (species, physics digest, ``nq``/``nv``/``nu``, ``observation_dim +
+    COMMAND_WIDTH``, ``action_dim``) is checked regardless of the bound, so a
+    gap above 1 can only be crossed when every intermediate bump was
+    fingerprint-only.  Raises :class:`WidenError` for a bound below 1.
+    """
+    bound = _check_max_revision_gap(max_revision_gap)
     problems: list[str] = []
     if parent.species != current.species:
         problems.append(f"species: parent={parent.species!r}, current={current.species!r}")
-    if parent.policy_interface_revision + 1 != current.policy_interface_revision:
+    gap = int(current.policy_interface_revision) - int(parent.policy_interface_revision)
+    if gap < 1:
         problems.append(
             f"policy_interface_revision: parent={parent.policy_interface_revision}, "
-            f"current={current.policy_interface_revision} (the tool widens across exactly one bump, r -> r+1)"
+            f"current={current.policy_interface_revision} (gap {gap}: the tool widens forward only, "
+            f"r -> r+k with 1 <= k <= max_revision_gap={bound})"
+        )
+    elif gap > bound:
+        problems.append(
+            f"policy_interface_revision: parent={parent.policy_interface_revision}, "
+            f"current={current.policy_interface_revision} (gap {gap} exceeds max_revision_gap={bound}; "
+            f"pass --max-revision-gap {gap} / max_revision_gap={gap} to cross {gap} bumps — opting in asserts, "
+            "from plant_versions.toml's numbered notes, that every intermediate bump changed no observation "
+            "layout, physics or action field; the gate still checks those fields)"
         )
     if parent.physics_sha256 != current.physics_sha256:
         problems.append(f"physics_sha256: parent={parent.physics_sha256!r}, current={current.physics_sha256!r}")
@@ -780,17 +848,21 @@ def widen_checkpoint(
     seed: Any = None,
     n_envs: Any = None,
     timesteps: Any = None,
+    max_revision_gap: int = DEFAULT_MAX_REVISION_GAP,
 ) -> WidenResult:
-    """Widen one SB3 checkpoint pair r -> r+1 into *target_stage_dir* (see the module docstring).
+    """Widen one SB3 checkpoint pair r -> r+k (``1 <= k <= max_revision_gap``) into *target_stage_dir*.
 
     The parent is *parent_stage_dir* (its ``select_handoff_checkpoint`` pair
     and the run facts its ``stage_config.json`` records) or the explicit
     *model_zip* / *vecnorm_pkl* pair, for which *algorithm*, *seed*,
     *n_envs* and *timesteps* are required.  *stage* is any reference the
     species' manifest resolves; the widened artifacts are stamped with that
-    stage's CURRENT task fingerprint.  Raises :class:`WidenError` on every
-    refusal and on any self-verification failure (the target directory is
-    removed first).
+    stage's CURRENT task fingerprint.  *max_revision_gap* (default 1, an
+    ``int >= 1``; D-C17) bounds how many interface revisions behind the
+    parent may be — see :func:`identity_gate_errors`.  Raises
+    :class:`WidenError` on every refusal (a bound below 1 included) and on
+    any self-verification failure (the target directory is removed first).
+    See the module docstring.
     """
     from environments.shared.config import (
         WIDEN_LINEAGE_KEYS,
@@ -823,6 +895,7 @@ def widen_checkpoint(
         read_checkpoint_task_fingerprint,
     )
 
+    max_revision_gap = _check_max_revision_gap(max_revision_gap)
     try:
         entry = load_stage_manifest(species).resolve(stage)
     except (StageManifestError, TypeError, ValueError) as exc:
@@ -868,12 +941,17 @@ def widen_checkpoint(
             parent_identity = PlantIdentity.from_mapping(raw_identity)
         except PlantCompatibilityError as exc:
             raise WidenError(f"{parent.model_zip}: {exc}") from exc
-        problems = identity_gate_errors(parent_identity, current)
+        problems = identity_gate_errors(parent_identity, current, max_revision_gap=max_revision_gap)
         if problems:
             raise WidenError(
-                f"{parent.model_zip} is not the current {species} plant one interface-only revision behind:\n- "
-                + "\n- ".join(problems)
+                f"{parent.model_zip} is not the current {species} plant "
+                f"{revision_gap_bound_text(max_revision_gap)}:\n- " + "\n- ".join(problems)
             )
+    revision_gap: int | None = (
+        int(current.policy_interface_revision) - int(parent_identity.policy_interface_revision)
+        if parent_identity is not None
+        else None
+    )
     new_dim = int(current.observation_dim)
     parent_obs = int(parent_identity.observation_dim) if parent_identity is not None else new_dim - COMMAND_WIDTH
     action_dim = int(current.action_dim)
@@ -944,6 +1022,7 @@ def widen_checkpoint(
         "parent_path": str(parent.model_zip),
         "from_observation_dim": parent_obs,
         "to_observation_dim": new_dim,
+        "revision_gap": revision_gap,
         "padded_tensors": [],
         "inserted_at": {},
         "widened_at_commit": commit,
@@ -1091,6 +1170,8 @@ def widen_checkpoint(
             },
             "from_observation_dim": parent_obs,
             "to_observation_dim": new_dim,
+            "revision_gap": revision_gap,
+            "max_revision_gap": max_revision_gap,
             "command_width": COMMAND_WIDTH,
             "padded_tensors": rewrite["padded_tensors"],
             "inserted_at": rewrite["inserted_at"],
@@ -1114,11 +1195,13 @@ def widen_checkpoint(
         raise WidenError(f"widening {parent.model_zip} failed: {type(exc).__name__}: {exc}") from exc
 
     logger.info(
-        "Widened %s (%s, %d -> %d dims) into %s; max action delta %.3g (zero command) / %.3g (probe command)",
+        "Widened %s (%s, %d -> %d dims, revision gap %s) into %s; max action delta %.3g (zero command) / %.3g "
+        "(probe command)",
         parent.model_zip,
         resolved_algorithm.upper(),
         parent_obs,
         new_dim,
+        revision_gap,
         target,
         verification["max_action_delta_zero_command"],
         verification["max_action_delta_probe_command"],
@@ -1139,6 +1222,7 @@ def widen_checkpoint(
         widened_normalization_sha256=widened_normalization_sha256,
         from_observation_dim=parent_obs,
         to_observation_dim=new_dim,
+        revision_gap=revision_gap,
         max_action_delta_zero_command=verification["max_action_delta_zero_command"],
         max_action_delta_probe_command=verification["max_action_delta_probe_command"],
         report=report,
@@ -1174,8 +1258,27 @@ def main(argv: "list[str] | None" = None) -> int:
         action="store_true",
         help="widen a parent that carries no plant identity (its width is read from its saved observation space)",
     )
+    parser.add_argument(
+        "--max-revision-gap",
+        type=int,
+        default=DEFAULT_MAX_REVISION_GAP,
+        metavar="N",
+        help=(
+            "how many interface revisions behind the parent may be (default 1: exactly r -> r+1; D-C17). "
+            "N > 1 asserts, from plant_versions.toml's numbered notes, that every intermediate bump was "
+            "fingerprint-only; the gate still checks every width and physics field"
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    if args.max_revision_gap < 1:
+        logger.error(
+            "Refusing to widen: --max-revision-gap must be >= 1, not %d (the default %d widens across exactly one "
+            "interface revision, r -> r+1)",
+            args.max_revision_gap,
+            DEFAULT_MAX_REVISION_GAP,
+        )
+        return 1
     stage: "int | str" = int(args.stage) if args.stage.isdigit() else args.stage
     try:
         result = widen_checkpoint(
@@ -1192,6 +1295,7 @@ def main(argv: "list[str] | None" = None) -> int:
             seed=args.seed,
             n_envs=args.n_envs,
             timesteps=args.timesteps,
+            max_revision_gap=args.max_revision_gap,
         )
     except WidenError as exc:
         logger.error("Refusing to widen: %s", exc)

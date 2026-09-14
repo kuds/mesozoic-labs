@@ -8,10 +8,14 @@ stance environment seen through an observation wrapper that drops the
 trailing command dims, stamped with the current plant identity mutated one
 interface revision back, and saved exactly as a certified run directory
 holds its handoff pair.  The ``widened`` fixture runs the tool ONCE per
-algorithm over that parent; both are module-cached and read-only — every
-test that mutates a parent or a widened directory works on a copy
-(``copy_parent`` / ``shutil.copytree``), and ``build_narrow_parent`` /
-``narrow_identity`` / ``NarrowObservation`` stay public for WS-C3.
+algorithm over that parent — and once more over a PPO parent TWO revisions
+back (``revision_gap=2``: the shape of the certified trex r11 stance
+parents, D-C17) under ``max_revision_gap=2``, so every invariant-7 pin is
+asserted on a bounded-gap widening too; all are module-cached and
+read-only — every test that mutates a parent or a widened directory works
+on a copy (``copy_parent`` / ``shutil.copytree``), and
+``build_narrow_parent`` / ``narrow_identity`` / ``NarrowObservation`` stay
+public for WS-C3.
 
 Run with the SB3 interpreter (``JAX_PLATFORMS=cpu``, no ``MUJOCO_GL``).
 """
@@ -65,6 +69,7 @@ from environments.shared.result_bundle import GATE_VERDICT_FILENAME, sha256_file
 from environments.shared.scripts import widen_checkpoint as widen_module  # noqa: E402
 from environments.shared.scripts.widen_checkpoint import (  # noqa: E402
     ACTION_DELTA_ATOL,
+    DEFAULT_MAX_REVISION_GAP,
     FORBIDDEN_OUTPUT_FILES,
     MODEL_WIDEN_LINEAGE_ATTRIBUTE,
     VERIFICATION_ROLLOUT_SEED,
@@ -73,6 +78,8 @@ from environments.shared.scripts.widen_checkpoint import (  # noqa: E402
     WIDEN_REPORT_SCHEMA,
     WIDEN_TOOL_VERSION,
     WidenError,
+    _check_max_revision_gap,
+    identity_gate_errors,
     widen_checkpoint,
 )
 from environments.shared.scripts.widen_checkpoint import main as widen_main  # noqa: E402
@@ -90,6 +97,29 @@ from environments.shared.task_fingerprint import (  # noqa: E402
 SPECIES = "trex"
 STAGE = "stance"
 ALGORITHMS = ("ppo", "sac")
+#: The ``widened`` fixture's parametrisation: one r-1 widening per algorithm
+#: plus a PPO r-2 widening under ``max_revision_gap=2`` (D-C17).
+WIDENED_CASES = ("ppo", "sac", "ppo_r2")
+#: Every key the archive's ``mesozoic_widen_lineage`` attribute carries — the
+#: same set for an identity-bearing parent and a legacy one (``revision_gap``
+#: is then ``None``, never dropped).
+WIDEN_LINEAGE_ATTRIBUTE_KEYS = frozenset(
+    {
+        "schema",
+        "tool",
+        "parent_checkpoint_sha256",
+        "parent_normalization_sha256",
+        "parent_task_sha256",
+        "parent_plant_identity",
+        "parent_path",
+        "from_observation_dim",
+        "to_observation_dim",
+        "revision_gap",
+        "padded_tensors",
+        "inserted_at",
+        "widened_at_commit",
+    }
+)
 PARENT_RUN_NAME = "20260101_000000"
 WIDENED_RUN_NAME = "20260102_000000"
 PARENT_SEED = 7
@@ -132,12 +162,18 @@ class NarrowObservation(gym.ObservationWrapper):
         return np.asarray(observation[:-COMMAND_WIDTH], dtype=np.float32)
 
 
-def narrow_identity(current: PlantIdentity) -> PlantIdentity:
-    """*current* one interface-only revision back: r-1, three dims narrower, another interface digest."""
-    digest = "sha256:" + hashlib.sha256(b"narrow parent policy interface").hexdigest()
+def narrow_identity(current: PlantIdentity, *, revision_gap: int = 1) -> PlantIdentity:
+    """*current* *revision_gap* interface-only revisions back: r-k, three dims narrower, another interface digest.
+
+    Every other field (physics digest, ``nq``/``nv``/``nu``, ``action_dim``)
+    is the current one, so a gap above 1 models a chain of fingerprint-only
+    bumps (the trex r11 -> r12 -> r13 history, D-C17).
+    """
+    seed = b"narrow parent policy interface" if revision_gap == 1 else f"narrow parent r-{revision_gap}".encode()
+    digest = "sha256:" + hashlib.sha256(seed).hexdigest()
     return dataclasses.replace(
         current,
-        policy_interface_revision=current.policy_interface_revision - 1,
+        policy_interface_revision=current.policy_interface_revision - revision_gap,
         observation_dim=current.observation_dim - COMMAND_WIDTH,
         policy_interface_sha256=digest,
     )
@@ -152,8 +188,9 @@ def build_narrow_parent(
     seed: int = PARENT_SEED,
     run_name: str = PARENT_RUN_NAME,
     handoff_name: str = "robust_best_model",
+    revision_gap: int = 1,
 ) -> dict:
-    """A certified-shaped parent run directory holding a narrow (r-1) handoff pair.
+    """A certified-shaped parent run directory holding a narrow (r-*revision_gap*, default r-1) handoff pair.
 
     ``<root>/<run_name>/<stage_dirname>/models/<handoff_name>.zip`` +
     ``_vecnorm.pkl`` (both stamped with the narrow identity; the archive
@@ -163,7 +200,7 @@ def build_narrow_parent(
     action_dim: the tool's tensor rule is width-based.
     """
     current = current_plant_identity(species)
-    narrow = narrow_identity(current)
+    narrow = narrow_identity(current, revision_gap=revision_gap)
     stage_config = load_stage_config(species, stage)
     entry = load_stage_manifest(species).resolve(stage)
     stage_dir = root / run_name / stage_dirname(species, stage)
@@ -238,6 +275,7 @@ def build_narrow_parent(
         "narrow": narrow,
         "task_fingerprint": parent_task,
         "seed": seed,
+        "revision_gap": revision_gap,
     }
 
 
@@ -288,8 +326,15 @@ def rewrite_sidecar(pkl_path: Path, mutate: Callable[[Any], None]) -> None:
         venv.close()
 
 
-def widen_into(parent: dict, root: Path, *, run_name: str = WIDENED_RUN_NAME, label: str = "widen smoke") -> dict:
-    """Run the tool over *parent* into ``<root>/<run_name>/<stage dir>``."""
+def widen_into(
+    parent: dict,
+    root: Path,
+    *,
+    run_name: str = WIDENED_RUN_NAME,
+    label: str = "widen smoke",
+    max_revision_gap: int = DEFAULT_MAX_REVISION_GAP,
+) -> dict:
+    """Run the tool over *parent* into ``<root>/<run_name>/<stage dir>`` (under *max_revision_gap*)."""
     target = root / run_name / stage_dirname(parent["species"], parent["stage"])
     result = widen_checkpoint(
         species=parent["species"],
@@ -297,6 +342,7 @@ def widen_into(parent: dict, root: Path, *, run_name: str = WIDENED_RUN_NAME, la
         target_stage_dir=target,
         parent_stage_dir=parent["stage_dir"],
         label=label,
+        max_revision_gap=max_revision_gap,
     )
     return {
         "parent": parent,
@@ -307,6 +353,8 @@ def widen_into(parent: dict, root: Path, *, run_name: str = WIDENED_RUN_NAME, la
         "current": parent["current"],
         "parent_obs": parent["narrow"].observation_dim,
         "label": label,
+        "revision_gap": parent["revision_gap"],
+        "max_revision_gap": max_revision_gap,
     }
 
 
@@ -347,6 +395,12 @@ def narrow_parent_sac(tmp_path_factory):
     return build_narrow_parent(tmp_path_factory.mktemp("parent_sac"), "sac")
 
 
+@pytest.fixture(scope="module")
+def narrow_parent_ppo_r2(tmp_path_factory):
+    """A PPO parent TWO interface-only revisions back (the certified trex r11 parents' shape, D-C17)."""
+    return build_narrow_parent(tmp_path_factory.mktemp("parent_ppo_r2"), "ppo", revision_gap=2)
+
+
 @pytest.fixture(scope="module", params=ALGORITHMS, ids=ALGORITHMS)
 def narrow_parent(request):
     """One narrow parent per algorithm, built once per module; treat it as read-only."""
@@ -363,9 +417,15 @@ def widened_sac(narrow_parent_sac, tmp_path_factory):
     return widen_into(narrow_parent_sac, tmp_path_factory.mktemp("widened_sac"))
 
 
-@pytest.fixture(scope="module", params=ALGORITHMS, ids=ALGORITHMS)
+@pytest.fixture(scope="module")
+def widened_ppo_r2(narrow_parent_ppo_r2, tmp_path_factory):
+    """The r-2 PPO parent widened under ``max_revision_gap=2`` (the default bound refuses it: ``test_refusals``)."""
+    return widen_into(narrow_parent_ppo_r2, tmp_path_factory.mktemp("widened_ppo_r2"), max_revision_gap=2)
+
+
+@pytest.fixture(scope="module", params=WIDENED_CASES, ids=WIDENED_CASES)
 def widened(request):
-    """The tool's output over ``narrow_parent``, run once per algorithm; read-only."""
+    """The tool's output over each narrow parent (r-1 per algorithm, PPO r-2 under gap 2), run once; read-only."""
     return request.getfixturevalue(f"widened_{request.param}")
 
 
@@ -432,6 +492,13 @@ def test_widen_round_trip(widened):
         current.observation_dim,
     )
     assert report["command_width"] == COMMAND_WIDTH
+    # D-C17: the gap crossed and the bound it was admitted under, on the report and the result.
+    assert report["revision_gap"] == widened["revision_gap"] == result.revision_gap
+    assert report["max_revision_gap"] == widened["max_revision_gap"]
+    assert isinstance(report["revision_gap"], int) and isinstance(report["max_revision_gap"], int)
+    assert 1 <= report["revision_gap"] <= report["max_revision_gap"]
+    assert report["parent"]["policy_interface_revision"] == parent["narrow"].policy_interface_revision
+    assert report["parent"]["policy_interface_revision"] == current.policy_interface_revision - report["revision_gap"]
     assert report["widened"]["checkpoint_sha256"] == sha256_file(result.model_zip)
     assert report["widened"]["normalization_sha256"] == sha256_file(result.vecnorm_pkl)
     assert report["widened"]["policy_interface_revision"] == current.policy_interface_revision
@@ -653,9 +720,16 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
     first_member = next(iter(members))
     stripped = copy_parent(parent, tmp_path / "stripped")
     rewrite_archive(stripped["model_zip"], lambda data, params: params.pop(first_member))
+    bound = widened["max_revision_gap"]
     target = tmp_path / "stripped_out" / stage_dirname(SPECIES, STAGE)
     with pytest.raises(WidenError, match=f"carries no {first_member!r} member"):
-        widen_checkpoint(species=SPECIES, stage=STAGE, target_stage_dir=target, parent_stage_dir=stripped["stage_dir"])
+        widen_checkpoint(
+            species=SPECIES,
+            stage=STAGE,
+            target_stage_dir=target,
+            parent_stage_dir=stripped["stage_dir"],
+            max_revision_gap=bound,
+        )
     assert not target.exists()
 
     # A moment whose shape is not its weight's (an optimizer state from other weights) is refused as stale.
@@ -669,7 +743,13 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
     rewrite_archive(stale["model_zip"], corrupt)
     target = tmp_path / "stale_out" / stage_dirname(SPECIES, STAGE)
     with pytest.raises(WidenError, match="stale moment") as excinfo:
-        widen_checkpoint(species=SPECIES, stage=STAGE, target_stage_dir=target, parent_stage_dir=stale["stage_dir"])
+        widen_checkpoint(
+            species=SPECIES,
+            stage=STAGE,
+            target_stage_dir=target,
+            parent_stage_dir=stale["stage_dir"],
+            max_revision_gap=bound,
+        )
     assert f"{first_member} state[{stale_index}].exp_avg" in str(excinfo.value)
     assert not target.exists()
 
@@ -684,7 +764,13 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
     rewrite_archive(foreign["model_zip"], rmsprop_like)
     target = tmp_path / "foreign_out" / stage_dirname(SPECIES, STAGE)
     with pytest.raises(WidenError, match="the tool does not pad") as excinfo:
-        widen_checkpoint(species=SPECIES, stage=STAGE, target_stage_dir=target, parent_stage_dir=foreign["stage_dir"])
+        widen_checkpoint(
+            species=SPECIES,
+            stage=STAGE,
+            target_stage_dir=target,
+            parent_stage_dir=foreign["stage_dir"],
+            max_revision_gap=bound,
+        )
     assert f"{first_member} state[{stale_index}].square_avg" in str(excinfo.value)
     assert not target.exists()
 
@@ -863,23 +949,13 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
     assert lineage["parent_plant_identity"] == parent["narrow"].to_dict()
     assert lineage["parent_path"] == str(parent["model_zip"])
     assert (lineage["from_observation_dim"], lineage["to_observation_dim"]) == (parent_obs, current.observation_dim)
+    # D-C17: the archive records how many interface revisions the widening crossed.
+    assert lineage["revision_gap"] == widened["revision_gap"] == result.report["revision_gap"]
+    assert lineage["revision_gap"] == current.policy_interface_revision - parent["narrow"].policy_interface_revision
     assert set(lineage["padded_tensors"]) == set(FIRST_LAYER_TENSORS[widened["algorithm"]])
     assert lineage["inserted_at"] == result.report["inserted_at"]
     assert lineage["widened_at_commit"] == result.report["widened_at_commit"]
-    assert set(lineage) == {
-        "schema",
-        "tool",
-        "parent_checkpoint_sha256",
-        "parent_normalization_sha256",
-        "parent_task_sha256",
-        "parent_plant_identity",
-        "parent_path",
-        "from_observation_dim",
-        "to_observation_dim",
-        "padded_tensors",
-        "inserted_at",
-        "widened_at_commit",
-    }
+    assert set(lineage) == WIDEN_LINEAGE_ATTRIBUTE_KEYS
     # The parent recorded no task lineage (a root); none is invented.
     assert read_checkpoint_attribute(parent["model_zip"], "mesozoic_task_lineage") is None
     assert read_checkpoint_attribute(result.model_zip, "mesozoic_task_lineage") is None
@@ -905,7 +981,8 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
     assert run["widened_from_checkpoint_sha256"] == lineage["parent_checkpoint_sha256"]
     assert run["widened_from_normalization_sha256"] == lineage["parent_normalization_sha256"]
     assert run["widened_from_task_sha256"] == parent["task_fingerprint"]["task_sha256"]
-    assert run["widened_from_policy_interface_revision"] == current.policy_interface_revision - 1
+    assert run["widened_from_policy_interface_revision"] == parent["narrow"].policy_interface_revision
+    assert run["widened_from_policy_interface_revision"] == current.policy_interface_revision - widened["revision_gap"]
     assert run["widened_from_policy_interface_sha256"] == parent["narrow"].policy_interface_sha256
     assert run["widened_from_run_id"] == PARENT_RUN_NAME
     assert run["widened_by"] == f"{WIDEN_TOOL_VERSION}@{lineage['widened_at_commit']}"
@@ -919,6 +996,9 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
 
 REFUSAL_CASES = (
     "two_revisions_behind",
+    "three_revisions_behind_under_gap_2",
+    "width_changing_hop_under_gap_2",
+    "max_revision_gap_zero",
     "physics_sha256_differs",
     "action_dim_differs",
     "parent_verdict_failed",
@@ -955,9 +1035,13 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         timesteps=PARENT_TIMESTEPS,
     )
     gate_prefix = f"is not the current {SPECIES} plant one interface-only revision behind"
+    gap_2_prefix = f"is not the current {SPECIES} plant at most 2 interface-only revisions behind"
     fragments: tuple[str, ...]
+    absent: tuple[str, ...] = ()
 
     if case == "two_revisions_behind":
+        # The DEFAULT bound (D-C17): a parent two revisions back — the certified trex r11 parents' shape —
+        # is refused with the gap, the bound and the opt-in flag named.
         restamp_identity(
             parent["model_zip"],
             dataclasses.replace(narrow, policy_interface_revision=narrow.policy_interface_revision - 1).to_dict(),
@@ -966,7 +1050,47 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
             gate_prefix,
             f"policy_interface_revision: parent={current.policy_interface_revision - 2}, "
             f"current={current.policy_interface_revision}",
+            "gap 2 exceeds max_revision_gap=1",
+            "--max-revision-gap 2 / max_revision_gap=2",
+            "plant_versions.toml",
         )
+    elif case == "three_revisions_behind_under_gap_2":
+        # The bound is a bound: r-3 under max_revision_gap=2 is refused the same way.
+        restamp_identity(
+            parent["model_zip"],
+            dataclasses.replace(narrow, policy_interface_revision=narrow.policy_interface_revision - 2).to_dict(),
+        )
+        kwargs["max_revision_gap"] = 2
+        fragments = (
+            gap_2_prefix,
+            f"policy_interface_revision: parent={current.policy_interface_revision - 3}, "
+            f"current={current.policy_interface_revision}",
+            "gap 3 exceeds max_revision_gap=2",
+            "--max-revision-gap 3 / max_revision_gap=3",
+        )
+    elif case == "width_changing_hop_under_gap_2":
+        # A parent two revisions back whose intermediate hop changed the observation width: the revision
+        # rule passes under max_revision_gap=2, the width condition still refuses (D-C17: only
+        # fingerprint-only bumps can be crossed).
+        restamp_identity(
+            parent["model_zip"],
+            dataclasses.replace(
+                narrow,
+                policy_interface_revision=narrow.policy_interface_revision - 1,
+                observation_dim=current.observation_dim - 2 * COMMAND_WIDTH,
+            ).to_dict(),
+        )
+        kwargs["max_revision_gap"] = 2
+        fragments = (
+            gap_2_prefix,
+            f"observation_dim: parent={current.observation_dim - 2 * COMMAND_WIDTH} + {COMMAND_WIDTH} "
+            f"!= current={current.observation_dim}",
+        )
+        absent = ("policy_interface_revision:",)
+    elif case == "max_revision_gap_zero":
+        # A bound below 1 is refused at the API before the parent is even resolved.
+        kwargs["max_revision_gap"] = 0
+        fragments = ("max_revision_gap must be an integer >= 1, not 0",)
     elif case == "physics_sha256_differs":
         other = "sha256:" + hashlib.sha256(b"another physics plant").hexdigest()
         restamp_identity(parent["model_zip"], dataclasses.replace(narrow, physics_sha256=other).to_dict())
@@ -1053,6 +1177,8 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
     message = str(excinfo.value)
     for fragment in fragments:
         assert fragment in message, message
+    for fragment in absent:
+        assert fragment not in message, message
     assert file_digests(parent["run_dir"]) == parent_digests, "the parent run is never touched"
 
     if case == "occupied_target":
@@ -1101,14 +1227,86 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         assert legacy.from_observation_dim == current.observation_dim - COMMAND_WIDTH
         assert legacy.report["parent"]["legacy_plant"] is True
         assert legacy.report["parent"]["policy_interface_revision"] is None
+        # No parent revision, so no gap to measure: revision_gap is None (JSON null) in the report,
+        # the result and the lineage attribute, while the bound it was admitted under is still recorded.
+        assert legacy.revision_gap is None
+        assert "revision_gap" in legacy.report and legacy.report["revision_gap"] is None
+        assert legacy.report["max_revision_gap"] == DEFAULT_MAX_REVISION_GAP == 1
         lineage = read_checkpoint_attribute(legacy.model_zip, MODEL_WIDEN_LINEAGE_ATTRIBUTE)
         assert lineage["parent_plant_identity"] is None
+        assert "revision_gap" in lineage and lineage["revision_gap"] is None
+        assert set(lineage) == WIDEN_LINEAGE_ATTRIBUTE_KEYS
         run = json.loads((target / "stage_config.json").read_text())["run"]
         assert set(WIDEN_LINEAGE_KEYS) <= set(run)
         assert run["widened_from_policy_interface_revision"] is None
         assert run["widened_from_policy_interface_sha256"] is None
         assert run["widened_from_checkpoint_sha256"] == sha256_file(parent["model_zip"])
         assert read_checkpoint_attribute(legacy.model_zip, MODEL_IDENTITY_ATTRIBUTE) == current.to_dict()
+
+
+def test_identity_gate_revision_gap_bound(narrow_parent_ppo_r2):
+    """``identity_gate_errors`` admits ``1 <= current - parent <= max_revision_gap`` and nothing else (D-C17)."""
+    current = narrow_parent_ppo_r2["current"]
+    r2 = narrow_parent_ppo_r2["narrow"]
+    assert current.policy_interface_revision - r2.policy_interface_revision == 2
+    assert r2.observation_dim + COMMAND_WIDTH == current.observation_dim
+    assert (r2.physics_sha256, r2.nq, r2.nv, r2.nu, r2.action_dim) == (
+        current.physics_sha256,
+        current.nq,
+        current.nv,
+        current.nu,
+        current.action_dim,
+    )
+
+    def back(gap: int, **fields: Any) -> PlantIdentity:
+        parent: PlantIdentity = dataclasses.replace(
+            r2, policy_interface_revision=current.policy_interface_revision - gap, **fields
+        )
+        return parent
+
+    assert identity_gate_errors(back(1), current) == []
+    assert identity_gate_errors(back(1), current, max_revision_gap=2) == []
+    assert identity_gate_errors(back(2), current, max_revision_gap=2) == []
+    assert identity_gate_errors(back(2), current, max_revision_gap=3) == []
+    assert identity_gate_errors(back(3), current, max_revision_gap=3) == []
+    (problem,) = identity_gate_errors(back(2), current)
+    assert problem.startswith(
+        f"policy_interface_revision: parent={current.policy_interface_revision - 2}, "
+        f"current={current.policy_interface_revision}"
+    )
+    assert "gap 2 exceeds max_revision_gap=1" in problem
+    assert "--max-revision-gap 2 / max_revision_gap=2" in problem
+    assert "plant_versions.toml" in problem
+    (problem,) = identity_gate_errors(back(3), current, max_revision_gap=2)
+    assert "gap 3 exceeds max_revision_gap=2" in problem
+    # The gate widens forward only: the same or a newer revision is a gap below 1 under every bound.
+    for gap in (0, -1):
+        for bound in (1, 2):
+            (problem,) = identity_gate_errors(back(gap), current, max_revision_gap=bound)
+            assert f"(gap {gap}: the tool widens forward only" in problem
+    # A wider bound never relaxes the other conditions: a width-changing hop stays refused.
+    problems = identity_gate_errors(
+        back(2, observation_dim=current.observation_dim - 2 * COMMAND_WIDTH), current, max_revision_gap=2
+    )
+    assert problems == [
+        f"observation_dim: parent={current.observation_dim - 2 * COMMAND_WIDTH} + {COMMAND_WIDTH} "
+        f"!= current={current.observation_dim}"
+    ]
+    other = "sha256:" + hashlib.sha256(b"another physics plant").hexdigest()
+    problems = identity_gate_errors(back(2, physics_sha256=other), current, max_revision_gap=2)
+    assert problems == [f"physics_sha256: parent={other!r}, current={current.physics_sha256!r}"]
+    # The bound itself is validated: below 1 (or not an integer) is a refusal, never a pass.
+    for bad in (0, -1, True, "2", 1.0, np.int64(0), np.float64(2.0)):
+        with pytest.raises(WidenError, match="max_revision_gap must be an integer >= 1"):
+            identity_gate_errors(back(1), current, max_revision_gap=bad)  # type: ignore[arg-type]
+    # A numpy integer (a bound computed from manifest data) is an integer: admitted, and coerced to
+    # a plain int so the messages and the JSON report carry `2`, not `np.int64(2)`.
+    assert identity_gate_errors(back(2), current, max_revision_gap=np.int64(2)) == []  # type: ignore[arg-type]
+    (problem,) = identity_gate_errors(back(3), current, max_revision_gap=np.int64(2))  # type: ignore[arg-type]
+    assert "gap 3 exceeds max_revision_gap=2;" in problem and "np.int64" not in problem
+    coerced = _check_max_revision_gap(np.int64(2))
+    assert coerced == 2 and type(coerced) is int
+    assert DEFAULT_MAX_REVISION_GAP == 1
 
 
 # ── every repo loader ────────────────────────────────────────────────────────
@@ -1439,3 +1637,75 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
         assert widen_main(mismatch) == 1
     assert "is a PPO archive, not the SAC declared" in caplog.text
     assert not mismatch_target.exists()
+
+    # --max-revision-gap 0 is refused at the argparse boundary before widen_checkpoint() is entered
+    # (exit 1, nothing written, nothing printed).  The exit code and the no-write guarantee are ALSO
+    # given by the API's own _check_max_revision_gap (test_refusals[max_revision_gap_zero]); what this
+    # pins beyond them is the boundary's wording and that the API refusal never had to fire.
+    zero_target = tmp_path / "cli_gap_zero" / stage_dirname(SPECIES, STAGE)
+    zero = [*argv[: argv.index("--to-stage-dir")], "--to-stage-dir", str(zero_target), "--max-revision-gap", "0"]
+    with caplog.at_level(logging.ERROR, logger=widen_module.logger.name):
+        assert widen_main(zero) == 1
+    assert "Refusing to widen: --max-revision-gap must be >= 1, not 0" in caplog.text
+    assert "max_revision_gap must be an integer >= 1" not in caplog.text
+    assert capsys.readouterr().out == ""
+    assert not zero_target.parent.exists()
+    # ... and a non-integer value is argparse's own usage error.
+    with pytest.raises(SystemExit):
+        widen_main([*zero[:-1], "two"])
+    assert not zero_target.parent.exists()
+
+
+def test_main_cli_round_trip_with_max_revision_gap(narrow_parent_ppo_r2, tmp_path, capsys, caplog):
+    """An r-2 parent: the default CLI refuses it naming the gap and the flag; ``--max-revision-gap 2`` widens it."""
+    parent = narrow_parent_ppo_r2
+    current = parent["current"]
+    assert parent["revision_gap"] == 2
+    target = tmp_path / "cli_r2" / stage_dirname(SPECIES, STAGE)
+    argv = [
+        "--species",
+        SPECIES,
+        "--stage",
+        STAGE,
+        "--from-stage-dir",
+        str(parent["stage_dir"]),
+        "--to-stage-dir",
+        str(target),
+        "--label",
+        "cli r-2 round trip",
+    ]
+    with caplog.at_level(logging.ERROR, logger=widen_module.logger.name):
+        assert widen_main(argv) == 1
+    assert "Refusing to widen" in caplog.text
+    assert f"is not the current {SPECIES} plant one interface-only revision behind" in caplog.text
+    assert (
+        f"policy_interface_revision: parent={current.policy_interface_revision - 2}, "
+        f"current={current.policy_interface_revision} (gap 2 exceeds max_revision_gap=1"
+    ) in caplog.text
+    assert "--max-revision-gap 2 / max_revision_gap=2" in caplog.text
+    assert "plant_versions.toml" in caplog.text
+    assert capsys.readouterr().out == ""
+    assert not target.parent.exists()
+
+    assert widen_main([*argv, "--max-revision-gap", "2"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report == json.loads((target / WIDEN_REPORT_FILENAME).read_text())
+    assert (report["revision_gap"], report["max_revision_gap"]) == (2, 2)
+    assert report["parent"]["policy_interface_revision"] == current.policy_interface_revision - 2
+    assert report["parent"]["policy_interface_sha256"] == parent["narrow"].policy_interface_sha256
+    assert report["widened"]["policy_interface_revision"] == current.policy_interface_revision
+    assert (report["from_observation_dim"], report["to_observation_dim"]) == (
+        current.observation_dim - COMMAND_WIDTH,
+        current.observation_dim,
+    )
+    assert report["padded_columns_exactly_zero"] is True
+    assert report["max_action_delta_zero_command"] <= ACTION_DELTA_ATOL
+    assert report["max_action_delta_probe_command"] <= ACTION_DELTA_ATOL
+    run = json.loads((target / "stage_config.json").read_text())["run"]
+    assert run["label"] == "cli r-2 round trip"
+    assert run["widened_from_policy_interface_revision"] == current.policy_interface_revision - 2
+    assert run["widened_from_run_id"] == PARENT_RUN_NAME
+    assert not set(LOAD_LINEAGE_KEYS) & set(run)
+    lineage = read_checkpoint_attribute(Path(report["widened"]["model_path"]), MODEL_WIDEN_LINEAGE_ATTRIBUTE)
+    assert lineage["revision_gap"] == 2
+    assert json.loads((target / "plant_identity.json").read_text()) == current.to_dict()
