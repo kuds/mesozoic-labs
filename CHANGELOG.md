@@ -608,6 +608,85 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   compsognathus README / RECOVERY_CALIBRATION.md, plan §3.2,
   SIM_TO_REAL_PLAN and MJX_CONVERSION_PLAN prose now state the Phase C
   layout.
+- **`widen_checkpoint`: an SB3 PPO/SAC checkpoint pair widened r → r+k
+  (1 ≤ k ≤ `--max-revision-gap`, default 1) into a judge-ready root** (Phase C, WS-C2; plan §4.6 "Widening instead of
+  retraining" / "Exact transfer", invariant 7; decisions D-C8–D-C10, D-C12,
+  amendment A13). `environments/shared/scripts/widen_checkpoint.py`
+  (`widen_checkpoint(...) -> WidenResult`, `python -m ... --species trex
+  --stage stance --from-stage-dir <run>/01_stance --to-stage-dir
+  <newrun>/01_stance`, or the explicit `--model/--vecnorm/--algorithm/--seed/
+  --n-envs/--timesteps` pair) gates the parent's recorded plant identity
+  against the current one (same species / physics digest / nq / nv / nu /
+  action_dim, `1 <= current - parent policy_interface_revision <=
+  max_revision_gap`, `observation_dim + 3`; every differing field named; a
+  missing identity needs `--allow-legacy-plant`),
+  rewrites the archive through SB3's own serializer — three zero columns
+  APPENDED to every first layer that reads the observation (PPO
+  `policy_net.0` / `value_net.0`, SAC `actor.latent_pi.0`) and INSERTED
+  after the observation block of the SAC critics (refused on a PPO archive),
+  the Adam `exp_avg` / `exp_avg_sq` of those tensors padded identically by
+  parameter order with shape assertions (a missing optimizer member or a
+  stale moment is refused), the observation `Box` widened, `_last_obs`
+  cleared, `num_timesteps` kept — and re-pickles the VecNormalize sidecar
+  with `pad_running_stats` (the appended slice born reseeded), the widened
+  `Box`, the current identity and one `set_venv` over the real env. Output:
+  the parent's own handoff name plus byte-identical `<stage_label>_final.*`
+  copies, `stage_config.json` whose run block carries the parent's run facts
+  and the new `config.WIDEN_LINEAGE_KEYS` (never `LOAD_LINEAGE_KEYS` — a
+  widened node is a root), `plant_identity.json`, `task_fingerprint.json`
+  (the stage's CURRENT fingerprint, also re-stamped into the archive with a
+  `mesozoic_widen_lineage` record of the parent hashes) and
+  `widen_report.json` (`mesozoic.widen-report/v1`); never a verdict, an
+  evaluation, provenance or a periodic checkpoint. Before returning, the tool
+  verifies that every padded column is exactly zero and that the widened
+  policy's actions match the parent's within 1e-6 over a seeded 200-step
+  rollout with the command slice zero and with the probe vector in it (the
+  measured delta is recorded), deleting the target directory on any failure.
+  Refusals: a failed parent verdict, an algorithm that disagrees with the
+  archive, an occupied or non-empty target, a target not named as the
+  stage's directory or nested inside the parent's run, an explicit `--model`
+  that is not a handoff checkpoint, a non-Adam optimizer moment the tool
+  cannot pad, a missing or unstamped sidecar; the self-verification asserts
+  every widened width before it inspects a zero block.
+  `docs/RESULT_BUNDLES.md` documents the keys and the report;
+  `test_widen_checkpoint.py` (SB3 job) builds a narrow r-1 PPO and SAC
+  parent on the real trex stance env, widens each once, and pins invariant
+  7: exact-zero padded columns, the SAC critics' inserted block, action
+  equality on zero and probe commands over the seeded rollout, padded Adam
+  moments (a missing member / a stale moment refused), one PPO update under
+  `initialize_next_stage` through `train_base` leaving the columns zero,
+  the lineage in the archive and the run block, the refusal matrix, every
+  repo loader accepting the pair, the widened directory reusable as a root
+  after a passed verdict (rules 3 and 4 still biting), hash stability
+  after the self-verification, and the CLI round trip in both forms.
+  Decision D-C17 (from the PR-C3 review) bounds the revision gap instead of
+  pinning it to one: both certified trex stance parents (20260810_145546
+  seed 42, 20260815_205206 seed 44) carry policy interface r11, and trex
+  went r11 → r12 in 8795e28 as a fingerprint-only bump (observation_dim
+  61 both sides, physics r7, action_dim 15 unchanged) before PR-C1's r12 →
+  r13, so the one-bump gate refused the very parents the "widen, never
+  retrain" premise (D-C14 / D-C15) rests on. `widen_checkpoint(...,
+  max_revision_gap=1)` / `--max-revision-gap N` (an integer >= 1; below 1
+  is refused at the API and exits 1 at the CLI) admits a parent up to N
+  revisions behind while every other gate condition still applies — same
+  species, physics digest, nq / nv / nu, action_dim and `observation_dim +
+  3` — so only a chain of fingerprint-only bumps can be crossed and a
+  width-changing intermediate hop stays refused; a parent further behind
+  than N is refused naming both revisions, the measured gap, the bound and
+  the flag, with the note that opting in asserts from `plant_versions.toml`'s
+  numbered notes that no intermediate bump changed an observation layout,
+  physics or action field. `widen_report.json` records `revision_gap` /
+  `max_revision_gap`, the archive's `mesozoic_widen_lineage` and
+  `WidenResult` carry `revision_gap` (`null` for an `--allow-legacy-plant`
+  parent without an identity, pinned). `test_widen_checkpoint.py` widens a
+  PPO parent two revisions back under `max_revision_gap=2` through every
+  invariant-7 pin (exact-zero columns, action equality on zero and probe
+  commands, lineage gap 2, report fields, every loader, root reuse), keeps
+  the two-revisions-behind refusal as the default (its message naming the
+  gap and the flag), refuses r-3 under gap 2 and a width-changing hop under
+  gap 2, refuses `max_revision_gap=0` at the API and `--max-revision-gap 0`
+  at the CLI, and round-trips the r-2 parent through the CLI with
+  `--max-revision-gap 2`.
 
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with

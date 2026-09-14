@@ -124,6 +124,45 @@ still chains by digest. The run block also always records
 `hyperparameters_sha256` and, when set, a `label`; the notebook's
 `train_stage` adds `duration_seconds` on every exit (decision D-A15).
 
+A stage directory written by `environments/shared/scripts/widen_checkpoint.py`
+(BEHAVIOR_RECIPES_PLAN §4.6 "Widening instead of retraining"; decisions D-C8,
+D-C9) is a ROOT that never trained: its run block carries the parent's `seed`
+/ `n_envs` / `timesteps` (and `duration_seconds` when the parent stage
+directory recorded one), `hyperparameters_sha256`, an optional `label`, and
+the eight `config.WIDEN_LINEAGE_KEYS` —
+`widened_from_path`, `widened_from_checkpoint_sha256`,
+`widened_from_normalization_sha256`, `widened_from_task_sha256`,
+`widened_from_policy_interface_sha256`,
+`widened_from_policy_interface_revision`, `widened_from_run_id` (the parent
+run's provenance `run_id`, else its directory name; in the explicit
+`--model` / `--vecnorm` form the `--parent-run-id` given, else `null`) and
+`widened_by` (tool version and commit) — and NONE of the
+`LOAD_LINEAGE_KEYS`:
+`ancestors._check_chain` refuses a root that entered under
+`initialize_next_stage`, and the audit binds `parent_run_id` to an
+`ancestors/` record, so the widen keys are provenance the audit ignores and
+no reader consumes. The same parent digests sit in the archive's
+`mesozoic_widen_lineage` attribute; both artifacts are re-stamped with the
+current plant identity and the stage's current task fingerprint (the
+parent's `mesozoic_task_lineage`, when present, is kept). `widen_report.json`
+beside `stage_config.json` (`mesozoic.widen-report/v1`) records the parent
+paths and digests, the from/to observation widths, the padded tensors and
+their columns, the inserted-at map (SAC critics), the optimizer members
+padded, the max |padded column| (0.0), the max action delta on zero and on
+probe commands over the seeded 200-step rollout, the inherited
+`num_timesteps`, the commit and the library versions. It also records
+`revision_gap` (how many interface revisions the widening crossed, `current
+- parent`, or `null` for an `--allow-legacy-plant` parent that carries no
+identity; the same value sits in the archive's `mesozoic_widen_lineage`)
+and `max_revision_gap` (the `--max-revision-gap` bound it was admitted
+under, default 1; decision D-C17 — a gap above 1 is only reachable across
+fingerprint-only bumps, since every width and physics field is still
+gated). The tool writes the
+parent's own handoff name plus byte-identical `<stage_label>_final.*` copies
+(so the notebook JUDGE branch fires) and never writes `gate_verdict.json`,
+`provenance.json`, `gate_resolution.json`, `evaluations.npz`, `metrics.json`
+or periodic checkpoints — the widened node is re-paneled before it certifies.
+
 JAX/MJX also writes `stage_result.json` so stages completed in separate Colab
 sessions can be combined idempotently under one run ID.
 
