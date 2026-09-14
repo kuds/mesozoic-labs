@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
 - **Stage manifest v2** (`docs/BEHAVIOR_RECIPES_PLAN.md` Phase A, part 1).
@@ -687,6 +687,117 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   gap 2, refuses `max_revision_gap=0` at the API and `--max-revision-gap 0`
   at the CLI, and round-trips the r-2 parent through the CLI with
   `--max-revision-gap 2`.
+- **Notebook `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen cell,
+  the AST pins, and the Phase C documentation** (Phase C, WS-C3; plan §4.6,
+  decisions D-C13–D-C15 and D-C17, critique amendments A12, A14, A15).
+  `notebooks/sb3_training.ipynb`: the configuration cell gains
+  `WIDEN_FROM = ""` (an earlier run id under `LOG_BASE/<species>/<algo>/` or
+  an absolute run directory whose certified ROOT handoff is widened to this
+  checkout's policy interface) and `WIDEN_MAX_REVISION_GAP = 1` (how many
+  policy-interface revisions behind that parent may be — the tool's
+  fail-closed default; the two certified trex r11 stance parents need 2,
+  D-C17) beside `TRUNK_FROM` / `RETRAIN_FROM` / `RUN_LABEL`, and one new
+  code cell after
+  the RESOLVE cell (not a `# ===== ` section marker; it calls no
+  `train_stage`) that resolves the parent, refuses this run's own directory
+  and a parent without `provenance.json` (`load_provenance` inside `except
+  ResultBundleError`) or of another species / algorithm / backend, refuses
+  a parent stage without a `stage_config.json` or a recorded run seed, and
+  `SEED != ` the parent stage's recorded `run.seed` (a widened run's
+  provenance publishes `training_seed = SEED` and replication counts distinct
+  seeds; D-C14 — the refusal names the remedy: correct `SEED` and restart
+  the runtime, since the storage cell has already minted `RUN_DIR` under the
+  wrong seed and will not re-mint it), locates the parent's root stage
+  directory through `stage_dir_candidates`, refuses an occupied target
+  (`refuse_occupied_stage_dir(task_load_mode=None)`) and calls
+  `widen_checkpoint(...)` into `RUN_DIR / stage_dirname(SPECIES, root)`
+  with `label=RUN_LABEL or None`, the parent's run id and
+  `max_revision_gap=WIDEN_MAX_REVISION_GAP`, printing the widen report's
+  numbers (the revisions crossed included); with `WIDEN_FROM` empty it
+  prints one line and
+  does nothing. It runs before the infra cell, so it imports every name it
+  uses. The chain loop is untouched: it refuses to reuse the verdict-less
+  directory (loudly), finds the `<stage_label>_final.*` pair and JUDGES it
+  under the current gate — a widened checkpoint enters through `WIDEN_FROM`
+  in a NEW run id, never by pointing `RUN_ID` at the old run (D-C13). The
+  infra cell's direct `load_vecnorm_stats` call carries
+  `reseed_command_slice=` derived from the stage's `command_mode` and never
+  set on a `resume_same_stage` load — the rule
+  `train_base._load_vecnorm_into_envs` applies, since the RESUME cell resumes
+  through the same `train_stage` (always false in Phase C; A12). The RESUME
+  markdown says a widened checkpoint comes in through `WIDEN_FROM` in a new
+  `RUN_ID`, bounded by `WIDEN_MAX_REVISION_GAP`, with `SEED` set to the
+  parent's before the storage cell runs.
+  `test_sb3_notebook_pins.py`: the config-cell knob pin covers `WIDEN_FROM`
+  (declared, a string constant, default `""`), `WIDEN_MAX_REVISION_GAP` (an
+  integer constant equal to the tool's default of 1, its comment naming
+  D-C17) and the cell-6 SEED comment;
+  a new `TestWidenCell` pins exactly one widen cell between RESOLVE and
+  CHAIN, no section marker, no `train_stage`, the occupied-target refusal
+  with `task_load_mode=None`, `load_provenance` under `ResultBundleError`,
+  the `RUN_DIR.resolve()` comparison, the SEED-equals-parent check (read
+  from the parent's `stage_config.json` run block, ahead of the
+  occupied-target guard), no `gate_verdict` write and no write of any kind,
+  the `label=RUN_LABEL or None` and `max_revision_gap=WIDEN_MAX_REVISION_GAP`
+  keywords (the exact keyword set) against `widen_checkpoint`'s signature,
+  the printed `policy-interface revisions crossed` line read from the
+  returned result's `revision_gap`, the RESUME prose naming `WIDEN_FROM`,
+  `WIDEN_MAX_REVISION_GAP` and D-C14/D-C17 for a pre-bump checkpoint,
+  every name it loads imported in the cell or bound in the
+  config / storage / resolve cells, and the chain loop's JUDGE precondition
+  on `<stage_label>_final`; `TestCommandSliceReseed` pins the
+  `reseed_command_slice` expression on the infra cell's `load_vecnorm_stats`
+  call (both envs passed; the library keyword stays opt-in) and that every
+  committed stage is `command_mode = "none"`; `TestWidenCellExecution`
+  (SB3-gated) executes the cell's source over a narrow PPO parent and
+  checks the widened root, the refused re-run, the SEED refusal, the empty
+  knob and the provenance-less parent, and over one r-2 parent the refusal
+  under `WIDEN_MAX_REVISION_GAP = 1` (the tool's message naming the gap and
+  the flag, nothing written) and the widening under 2 with `revision_gap` 2
+  in the report, the result and the printed line; the four `# ===== ` cells
+  and three `train_stage` callers are unchanged. Docs:
+  `docs/PLANT_CONTRACT.md` states the parity scope as the four dual-backend
+  species (the compsognathus pair reports `None`), the non-zero
+  `COMMAND_PROBE_VECTOR` in both probes, and a new "Widening a checkpoint
+  across a policy-interface bump" subsection (the identity gate, what is
+  and is not written, `WIDEN_LINEAGE_KEYS`, the reseed rule, the
+  self-verification, the bounded revision gap of D-C17, JAX not widened);
+  `docs/KNOWN_ISSUES.md` gains the Phase C entry beside the D-A22 inventory
+  — every pre-Phase-C checkpoint refused as a trunk by reuse rule 3 (the
+  task hash carries `policy_interface_sha256`) and rule 6, every existing
+  `gate_resolution.json` stale, the D-A22 re-judge and D-B16 republish
+  recipes DEAD for pre-Phase-C runs (the storage cell's
+  `initialize_result_bundle` refuses the old directory on its recorded
+  `plant_identity`; past that the JUDGE branch's `validate_model_plant`
+  refuses the pre-Phase-C archive, and a republish mints an r13 provenance
+  the audit rejects) and superseded in place by `widen_checkpoint` +
+  `WIDEN_FROM` in a new run, the two certified stance parents
+  `20260810_145546` (seed 42) and `20260815_205206` (seed 44) with the
+  `1 run of 2 seeds; provisional` label until both are widened and
+  re-paneled with `SEED` set per parent — and the finding that both are
+  policy-interface r11 archives (trex r11 → r12 landed 2026-08-16, after they
+  trained, as a fingerprint-only bump), two revisions behind r13, which the
+  tool's default bound refuses, so those two sessions set
+  `WIDEN_MAX_REVISION_GAP = 2` (D-C17, the remedy the entry now records in
+  place of a pending decision) — and one sentence each for
+  in-flight Ray sweeps (restart under a new experiment directory), JAX
+  checkpoints (not widened, fail closed) and pre-Phase-C compsognathus
+  recovery freezes (re-freeze; the profile hash moved);
+  `docs/BEHAVIOR_RECIPES_PLAN.md` gains the §4.6 "As implemented (Phase C)"
+  paragraph, the §5 Phase C row as implemented with the maintainer's
+  priority (stance → recovery → walking before hunting), the §6.1 rows
+  D-C1–D-C17 with the amendments folded in (D-C14 records the r11 finding
+  and its D-C17 remedy; D-C17 the bounded gap), and the §10 Phase B owed
+  items deferred on 2026-09-13; `docs/PLANT_CONTRACT.md` states the
+  bounded-gap rule and, with `docs/BEHAVIOR_RECIPES_PLAN.md` §4.6, names the
+  r11 parents and the bound that admits them;
+  `docs/investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md`
+  is the WS-C4 template (header, the sessions' exact knobs and commands,
+  §1–§5 skeleton with placeholders, the two widen sessions under
+  `WIDEN_MAX_REVISION_GAP = 2` with `SEED` per parent),
+  linked from `docs/README.md` together with the eight investigation notes
+  the table lacked; the root `README.md` and `website/docs/training/recipes.md`
+  knob lists gain `WIDEN_FROM` and `WIDEN_MAX_REVISION_GAP`.
 
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with

@@ -380,8 +380,12 @@ them. Across runs:
   about by key.
 
 The SB3 notebook does the same through its `BEHAVIOR` (default `"hunt"`; a
-recipe label or a deliverable's stage id), `TRUNK_FROM`, `RETRAIN_FROM` and
-`RUN_LABEL` knobs and one behavior chain-loop cell. The design, its
+recipe label or a deliverable's stage id), `TRUNK_FROM`, `RETRAIN_FROM`,
+`RUN_LABEL`, `WIDEN_FROM` (an earlier run whose certified root checkpoint
+is widened to this checkout's policy interface in a new run; plan §4.6,
+decisions D-C13/D-C14) and `WIDEN_MAX_REVISION_GAP` (how many policy-interface
+revisions behind that parent may be — default 1; the two certified trex
+stance parents need 2, decision D-C17) knobs and one behavior chain-loop cell. The design, its
 decisions and the phases still to come are in
 [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md); the site's
 [behavior recipes guide](website/docs/training/recipes.md) walks through a
