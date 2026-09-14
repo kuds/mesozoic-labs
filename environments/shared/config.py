@@ -447,6 +447,35 @@ LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "pare
 #: the parent it was trained from (BEHAVIOR_RECIPES_PLAN §4.7 branch 3).
 RESUME_LINEAGE_KEYS = ("resume_load_path", "resume_checkpoint_sha256")
 
+#: Run-block keys a WIDENED root records its parent under
+#: (``environments/shared/scripts/widen_checkpoint.py``; BEHAVIOR_RECIPES_PLAN
+#: §4.6 "Widening instead of retraining", decision D-C8): the parent archive
+#: as given, that file's sha256, its VecNormalize sidecar's sha256, the task
+#: digest the parent recorded (``None`` when it carried none), the parent's
+#: ``policy_interface_sha256`` and ``policy_interface_revision`` (the
+#: interface it was trained under, one revision behind), the parent run's
+#: id (its provenance ``run_id``, else its directory name — ``ancestors
+#: .run_id_for`` semantics) and ``widened_by`` (tool version and the commit
+#: the widening ran at).  A widened root records its parent HERE, NOT under
+#: :data:`LOAD_LINEAGE_KEYS`: ``ancestors._check_chain`` refuses a root that
+#: entered under ``initialize_next_stage``, and the result-bundle audit binds
+#: ``parent_run_id`` to an ``ancestors/`` record — a widened checkpoint is
+#: the same policy under a wider interface, not a warm-start across an edge.
+#: These keys are provenance the audit ignores; no reader consumes them
+#: (``_recorded_load_lineage``, ``_recorded_edge_lineage`` and the audit read
+#: only :data:`LOAD_LINEAGE_KEYS`).  The archive carries the same parent
+#: hashes under its ``mesozoic_widen_lineage`` attribute.
+WIDEN_LINEAGE_KEYS = (
+    "widened_from_path",
+    "widened_from_checkpoint_sha256",
+    "widened_from_normalization_sha256",
+    "widened_from_task_sha256",
+    "widened_from_policy_interface_sha256",
+    "widened_from_policy_interface_revision",
+    "widened_from_run_id",
+    "widened_by",
+)
+
 #: Besides *extra* and the lineage keys, the ``run`` block always records
 #: ``hyperparameters_sha256`` — :func:`hyperparameters_sha256` over the
 #: stage's algorithm block and stage-entry shaping keys — and, when the run
