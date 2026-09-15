@@ -235,7 +235,7 @@ jobs:
           python -m pip install --upgrade pip
           # Keep CPU CI off PyPI's CUDA/Triton dependency stack.
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
-          python -m pip install -e ".[train,ray,test]"
+          python -m pip install -e ".[train,ray,test,viz]"
 
       - name: Verify optional backend imports
         run: |
@@ -279,6 +279,10 @@ jobs:
       - name: Run SB3 integration tests
         run: |
           pytest \
+            environments/shared/tests/test_behavior_checkpoint.py \
+            environments/shared/tests/test_behavior_evaluation.py \
+            environments/shared/tests/test_behavior_replay.py \
+            environments/shared/tests/test_behavior_notebook.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \
@@ -297,6 +301,8 @@ jobs:
             environments/shared/tests/test_sweep_ray_plant_contract.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
+            environments/trex/tests/test_behavior_env.py \
+            environments/trex/tests/test_behavior_training.py \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

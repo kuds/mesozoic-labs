@@ -1,0 +1,29 @@
+[pilot]
+name = "T-Rex T1: randomized gentle terrain"
+timesteps = 2000000
+
+[commands]
+cruise_speed = 1.05
+turn_increment_max = 0.0
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+
+[terrain]
+enabled = true
+mode = "gentle"
+extent = 35.0 # Half-extent: allow a 25-second cruise before the boundary
+nrow = 351
+ncol = 351
+max_slope_degrees = 3.0
+roughness_amplitude = 0.015
+episode_variation = 0.15
+apron_radius = 3.0
+
+[env]
+max_episode_steps = 2500
+flat_probability = 0.25
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

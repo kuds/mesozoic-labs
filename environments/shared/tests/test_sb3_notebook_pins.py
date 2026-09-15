@@ -24,6 +24,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -74,12 +75,25 @@ def _cells(path: Path = NOTEBOOK_PATH) -> list[dict]:
     return cells
 
 
+def _canonical_source(cell: dict) -> str:
+    """Inspect the existing canonical body beneath its opt-in pilot guard.
+
+    All canonical assertions below remain unchanged. The raw notebook guard
+    and executed pilot routing are tested in test_behavior_notebook.py.
+    """
+    source = "".join(cell["source"])
+    guard = 'if not globals().get("BEHAVIOR_PILOT", False):\n'
+    if cell["cell_type"] == "code" and source.startswith(guard):
+        return textwrap.dedent(source[len(guard) :])
+    return source
+
+
 def _code_cells(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return ["".join(cell["source"]) for cell in _cells(path) if cell["cell_type"] == "code"]
+    return [_canonical_source(cell) for cell in _cells(path) if cell["cell_type"] == "code"]
 
 
 def _all_cell_sources(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return ["".join(cell["source"]) for cell in _cells(path)]
+    return [_canonical_source(cell) for cell in _cells(path)]
 
 
 def _cell_index(cells: list[str], marker: str) -> int:

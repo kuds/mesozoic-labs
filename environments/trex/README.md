@@ -61,6 +61,10 @@ reuses are described in [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECI
 the notebook equivalent is `BEHAVIOR` / `TRUNK_FROM` in
 [notebooks/sb3_training.ipynb](../../notebooks/sb3_training.ipynb).
 
+For the opt-in PPO direction-following and randomized gentle-terrain pilots,
+see [Train direction and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md).
+These use a dedicated runner and separate behavior artifacts.
+
 ## Environment Details
 
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and

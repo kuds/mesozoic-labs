@@ -68,6 +68,7 @@ mjlab = [
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
+    "imageio-ffmpeg>=0.5.0",
 ]
 gcp = [
     # Vertex AI sweep orchestration + GCS artifact upload/collection.
@@ -110,6 +111,7 @@ include = ["environments*", "configs*"]
 "*" = ["assets/*.xml", "data/*.json"]
 "environments.compsognathus" = ["assets/meshes/*.stl", "references/*.xml", "references/LICENSE*", "references/*.md"]
 "configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json"]
+"configs.trex.behavior_pilots" = ["*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = [
