@@ -97,13 +97,27 @@ def publish(tmp_path, monkeypatch):
 
 
 def test_default_50_paired_comparison_ties_and_material_improvement(publish, tmp_path):
-    first, _ = publish("first")
+    first, first_output = publish("first")
     assert first["passed"] and first["publication"]["recommended"]
     assert [c["episodes"] for c in publish.calls] == [40, 50]
-    second, _ = publish("second", seed=2)
+    first_report = json.loads(Path(first["comparison_artifacts"]["report"]).read_text())
+    assert first_report["incumbent"] is None
+    assert first_report["head_to_head"]["reason"] == "no_incumbent"
+    assert (first_output / "comparison/summary.md").is_file()
+    second, second_output = publish("second", seed=2)
     assert second["publication"]["recommended_version"] == first["publication"]["version"]
+    cached_report = json.loads(Path(second["comparison_artifacts"]["report"]).read_text())
+    assert cached_report["incumbent"]["source"] == "saved_scores"
+    assert cached_report["incumbent"]["version"] == first["publication"]["version"]
+    assert cached_report["head_to_head"]["reason"] == "equivalent_within_margins"
+    assert cached_report["publication"]["decision"] == second["publication"]["decision"]
+    assert (second_output / "comparison/incumbent.json").is_file()
     third, _ = publish("third", seed=3, tracking=0.95)
     assert third["publication"]["recommended"]
+    promoted_report = json.loads(Path(third["comparison_artifacts"]["report"]).read_text())
+    assert promoted_report["head_to_head"]["reason"] == "paired_improvement"
+    assert len(promoted_report["candidate"]["scores"]["protocol"]["episode_seeds"]) == 50
+    assert len(promoted_report["incumbent"]["scores"]["protocol"]["episode_seeds"]) == 50
     chosen = copy_recommended(publish.library, publish.key, tmp_path / "future")
     assert chosen["version"] == third["publication"]["version"]
     assert Path(chosen["directory"]).is_relative_to(tmp_path / "future")
@@ -128,6 +142,10 @@ def test_changed_episode_count_rebenchmarks_copied_incumbent_on_matching_cases(p
     assert Path(incumbent["model_path"]).is_relative_to(output / "certified_inputs")
     resolved = resolve_recommended(publish.library, publish.key)
     assert len(resolved["comparison"]["protocol"]["episode_seeds"]) == 60
+    report = json.loads(Path(result["comparison_artifacts"]["report"]).read_text())
+    assert report["incumbent"]["source"] == "reevaluated"
+    assert len(report["incumbent"]["scores"]["protocol"]["episode_seeds"]) == 60
+    assert report["candidate"]["scores"]["protocol"] == report["incumbent"]["scores"]["protocol"]
 
 
 @pytest.mark.parametrize("problem", ["failed_skill", "zero_training", "rollout_without_update"])
@@ -142,6 +160,7 @@ def test_failed_or_untrained_candidate_is_retained_without_recommendation(publis
     assert result["publication"]["status"] == "failed"
     assert Path(result["publication"]["directory"]).is_dir()
     assert len(publish.calls) == 1
+    assert result["comparison_artifacts"] is None
 
 
 def test_different_parent_normalization_cannot_count_as_same_training_recipe(publish):

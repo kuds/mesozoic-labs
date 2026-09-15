@@ -473,6 +473,7 @@ def certify_and_publish_behavior(
     key = behavior_library_key(species, behavior, identity)
     comparison = None
     incumbent_comparison = None
+    incumbent = None
     if certificate["passed"]:
         panel = evaluate_saved_panel(
             model_path=model_path,
@@ -536,9 +537,22 @@ def certify_and_publish_behavior(
             "parent_normalization_sha256": parent_norm,
         },
     )
+    comparison_artifacts = None
+    if comparison is not None:
+        from environments.shared.certified_comparison import save_head_to_head
+
+        comparison_artifacts = save_head_to_head(
+            output / "comparison",
+            candidate=comparison,
+            incumbent=incumbent_comparison or (incumbent["comparison"] if incumbent else None),
+            incumbent_version=incumbent["version"] if incumbent else None,
+            incumbent_reused=incumbent is not None and incumbent_comparison is None,
+            publication=publication,
+        )
     return {
         "passed": certificate["passed"],
         "failures": certificate["failures"],
         "gate_path": str(gate_path),
         "publication": publication,
+        "comparison_artifacts": comparison_artifacts,
     }

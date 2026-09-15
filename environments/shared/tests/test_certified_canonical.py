@@ -261,8 +261,24 @@ def test_publish_default_fifty_and_copy_complete_artifacts(fixture):
     assert (copied.stage_dir / "figures" / "evidence.txt").read_bytes() == (
         stage / "figures" / "evidence.txt"
     ).read_bytes()
-    shutil.rmtree(run)
+    comparison = run / "comparison" / "stance"
+    assert report["comparison_artifacts"]["report"] == str(comparison / "head_to_head.json")
+    saved = json.loads((comparison / "head_to_head.json").read_text())
+    assert saved["candidate"]["version"] == report["version"]
+    assert len(saved["candidate"]["scores"]["episodes"]) == 50
+    assert saved["incumbent"] is None
+    assert saved["head_to_head"]["reason"] == "no_incumbent"
+    assert saved["publication"] == {key: value for key, value in report.items() if key != "comparison_artifacts"}
+    assert not (comparison / "incumbent.json").exists()
+    assert not (stage / "comparison").exists()
     shutil.rmtree(f.library)
+    # The report and raw per-episode candidate measurements are independently
+    # readable without the shared library or another run's result files.
+    assert json.loads((comparison / "head_to_head.json").read_text()) == saved
+    assert (comparison / "summary.md").is_file()
+    assert (comparison / "candidate.json").is_file()
+    assert (comparison / "decision.json").is_file()
+    shutil.rmtree(run)
     model, normalizer = canonical._load_pair(copied, species="velociraptor", algorithm="ppo", plant=f.plant)
     assert model.observation_space.shape == (4,)
     normalizer.close()
@@ -273,6 +289,8 @@ def test_no_comparison_never_automatically_recommended(fixture):
     run, _ = f.build()
     report = canonical.publish_canonical_stage(f.library, run_dir=run, benchmark=False, **f.context())
     assert not report["recommended"]
+    assert "comparison_artifacts" not in report
+    assert not (run / "comparison").exists()
     with pytest.raises(LookupError):
         canonical.resolve_canonical_parent(f.library, run_dir=f.tmp / "next", **f.context())
 
@@ -283,6 +301,8 @@ def test_failed_outcome_stored_without_benchmark(fixture, monkeypatch):
     monkeypatch.setattr(canonical, "benchmark_canonical_stage", lambda *a, **k: pytest.fail("failed gate benchmarked"))
     report = canonical.publish_canonical_stage(f.library, run_dir=run, **f.context())
     assert not report["eligible"] and not report["recommended"]
+    assert "comparison_artifacts" not in report
+    assert not (run / "comparison").exists()
     with pytest.raises(LookupError):
         resolve_recommended(f.library, canonical.canonical_library_key(**f.context()))
 
@@ -407,10 +427,58 @@ def test_changed_comparison_count_rebenchmarks_incumbent(fixture, monkeypatch):
         return actual(ancestor, **kwargs)
 
     monkeypatch.setattr(canonical, "benchmark_canonical_stage", tracked)
-    canonical.publish_canonical_stage(f.library, run_dir=second, comparison_episodes=3, **f.context())
+    report = canonical.publish_canonical_stage(f.library, run_dir=second, comparison_episodes=3, **f.context())
     assert calls == [("run-b", 3), ("run-a", 3)]
     selected = resolve_recommended(f.library, canonical.canonical_library_key(**f.context()))
     assert len(selected["comparison"]["protocol"]["episode_seeds"]) == 3
+    saved = json.loads((second / "comparison" / "stance" / "head_to_head.json").read_text())
+    assert saved["incumbent"]["source"] == "reevaluated"
+    assert len(saved["candidate"]["scores"]["episodes"]) == 3
+    assert len(saved["incumbent"]["scores"]["episodes"]) == 3
+    assert saved["candidate"]["scores"]["protocol"] == saved["incumbent"]["scores"]["protocol"]
+    assert saved["publication"]["decision"] == report["decision"]
+    assert saved["selection_snapshot_matches"]
+    # Reuse the refreshed evidence on the next publication, rather than the
+    # original immutable version's now-stale two-episode benchmark.
+    third, _ = f.build("run-c", seed=3)
+    calls.clear()
+    canonical.publish_canonical_stage(f.library, run_dir=third, comparison_episodes=3, **f.context())
+    assert calls == [("run-c", 3)]
+    reused = json.loads((third / "comparison" / "stance" / "head_to_head.json").read_text())
+    assert reused["incumbent"]["source"] == "saved_scores"
+    assert reused["incumbent"]["scores"] == selected["comparison"]
+    assert len(reused["incumbent"]["scores"]["protocol"]["episode_seeds"]) == 3
+
+
+def test_matching_panel_saves_reused_incumbent_scores_inside_training_run(fixture, monkeypatch):
+    f = fixture
+    first, _ = f.build()
+    previous = canonical.publish_canonical_stage(f.library, run_dir=first, comparison_episodes=2, **f.context())
+    selected = resolve_recommended(f.library, canonical.canonical_library_key(**f.context()))
+    second, _ = f.build("run-b", seed=2)
+    actual = canonical.benchmark_canonical_stage
+    calls = []
+
+    def tracked(ancestor, **kwargs):
+        calls.append(ancestor.run_id)
+        return actual(ancestor, **kwargs)
+
+    monkeypatch.setattr(canonical, "benchmark_canonical_stage", tracked)
+    report = canonical.publish_canonical_stage(f.library, run_dir=second, comparison_episodes=2, **f.context())
+    assert calls == ["run-b"]
+    assert report["recommended_version"] == previous["version"]
+    comparison = second / "comparison" / "stance"
+    saved = json.loads((comparison / "head_to_head.json").read_text())
+    assert saved["incumbent"]["version"] == previous["version"]
+    assert saved["incumbent"]["source"] == "saved_scores"
+    assert saved["incumbent"]["scores"] == selected["comparison"]
+    assert saved["candidate"]["scores"]["protocol"] == saved["incumbent"]["scores"]["protocol"]
+    assert saved["publication"]["decision"] == report["decision"]
+    assert saved["selection_snapshot_matches"]
+    shutil.rmtree(first)
+    shutil.rmtree(f.library)
+    assert json.loads((comparison / "head_to_head.json").read_text()) == saved
+    assert json.loads((comparison / "incumbent.json").read_text()) == saved["incumbent"]["scores"]
 
 
 @pytest.mark.parametrize("field", ["r_foot_contact", "l_foot_contact", "tilt_angle"])

@@ -159,6 +159,28 @@ recommendation reason separately from ordinary diagnostic results. Canonical
 publication reports are saved in `certified_publications.json` in the run;
 behavior publication is recorded in `run.json` under `certification`.
 
+### Comparison reports inside each training run
+
+Every passing candidate that receives a comparison benchmark also saves a
+self-contained report in its training folder:
+
+- Direction and terrain behaviors: `comparison/`.
+- Canonical behaviors: `comparison/<stage>/`, so stages keep separate reports.
+
+Open `summary.md` for the side-by-side scores, paired uncertainty intervals,
+and recommendation outcome. `head_to_head.json` retains both scored panels,
+model hashes, exact episode settings, per-episode metric samples and the
+publication decision. `candidate.json`, `incumbent.json` and `decision.json`
+provide those parts separately. The incumbent file is present only when a
+previous recommendation existed.
+
+Reused incumbent scores are copied into the report too. These files remain
+readable after moving the training run or removing access to the shared
+library. A first passing candidate is explicitly marked as having no incumbent;
+it is not reported as winning a head-to-head comparison. A passing candidate
+that still needs independent training seeds retains its report with provisional
+status. Failed gates and quick tests do not produce a comparison report.
+
 ## Practical workflow
 
 1. Keep automatic source selection enabled and choose a species and behavior.

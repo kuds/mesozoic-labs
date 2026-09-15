@@ -686,6 +686,7 @@ def publish_canonical_stage(
         if benchmark and ancestor.verdict["passed"]
         else None
     )
+    incumbent = None
     incumbent_comparison = None
     if comparison is not None:
         try:
@@ -740,7 +741,7 @@ def publish_canonical_stage(
                 json.dumps(incumbent_comparison, indent=2, allow_nan=False) + "\n"
             )
         files = {path.relative_to(staging).as_posix(): path for path in staging.rglob("*") if path.is_file()}
-        return publish_candidate(
+        publication = publish_candidate(
             Path(library),
             key=key,
             recipe_sha256=canonical_json_sha256(
@@ -768,6 +769,20 @@ def publish_canonical_stage(
             required_seeds=declared_certification_seeds(current_gate_config, stage=entry.id),
             metadata={"canonical": metadata, "training_origin": origin},
         )
+    if comparison is not None:
+        from environments.shared.certified_comparison import save_head_to_head
+
+        publication["comparison_artifacts"] = save_head_to_head(
+            Path(run_dir) / "comparison" / entry.id,
+            candidate=comparison,
+            incumbent=incumbent_comparison
+            if incumbent_comparison is not None
+            else (incumbent["comparison"] if incumbent is not None else None),
+            publication=publication,
+            incumbent_version=incumbent["version"] if incumbent is not None else None,
+            incumbent_reused=incumbent is not None and incumbent_comparison is None,
+        )
+    return publication
 
 
 def resolve_canonical_parent(
