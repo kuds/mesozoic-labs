@@ -1,31 +1,38 @@
-"""Notebook routing for opt-in SB3 behavior pilots, using the CLI runner.
+"""Notebook routing for supported species direction and terrain PPO behaviors.
 
-Canonical curriculum training stays in the notebook's existing chain. Pilot
-artifacts live in their own directory and never enter a canonical result bundle.
+Behavior checkpoints, evaluations and replays use the shared CLI runner.
+Canonical curriculum certification remains in the existing training chain.
 """
 
 from __future__ import annotations
 
 import json
 import secrets
+import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-PILOT_RECIPES = {
-    "follow_direction": "trex_follow_direction.toml",
-    "follow_direction_speed": "trex_follow_direction_speed.toml",
-    "terrain_contact": "trex_terrain_contact.toml",
-    "sloped_terrain": "trex_gentle_terrain.toml",
-    "bumps_terrain": "trex_bumps_terrain.toml",
-    "depressions_terrain": "trex_depressions_terrain.toml",
-    "mixed_terrain": "trex_mixed_terrain.toml",
-    "combined_terrain": "trex_combined_terrain.toml",
+from environments.shared.species_names import resolve_species_id, species_display_names
+
+BEHAVIOR_RECIPES = {
+    name: f"{name}.toml"
+    for name in (
+        "follow_direction",
+        "follow_direction_speed",
+        "terrain_contact",
+        "sloped_terrain",
+        "bumps_terrain",
+        "depressions_terrain",
+        "mixed_terrain",
+        "combined_terrain",
+        "combined_mixed_terrain",
+    )
 }
 
 
-def validate_pilot_selection(
+def validate_behavior_selection(
     *,
     species: str,
     algorithm: str,
@@ -38,22 +45,26 @@ def validate_pilot_selection(
     retrain_from: str = "",
 ) -> None:
     """Validate selection before Drive mounts or output-directory creation."""
-    if behavior not in PILOT_RECIPES:
-        raise ValueError(f"Unknown behavior pilot: {behavior!r}")
-    if species != "trex" or algorithm.lower() != "ppo":
-        raise ValueError("Behavior pilots require SPECIES='Tyrannosaurus Rex' and ALGORITHM='ppo'.")
+    if behavior not in BEHAVIOR_RECIPES:
+        raise ValueError(f"Unknown direction or terrain behavior: {behavior!r}")
+    species_id = resolve_species_id(species)
+    if species_id not in species_display_names(backend="stable-baselines3"):
+        raise ValueError(f"Species {species!r} does not support SB3 behavior training.")
+    if algorithm.lower() != "ppo":
+        raise ValueError("Direction and terrain behaviors require ALGORITHM='ppo'.")
     if load_mode not in {"prepare", "resume", "adapt"}:
-        raise ValueError("PILOT_LOAD_MODE must be prepare, resume, or adapt.")
+        raise ValueError("BEHAVIOR_LOAD_MODE must be prepare, resume, or adapt.")
     if not checkpoint.strip() or not vecnormalize.strip():
-        raise ValueError("Set both PILOT_CHECKPOINT and PILOT_VECNORMALIZE to the explicit matched source files.")
+        raise ValueError("Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files.")
     if trunk_from or widen_from or retrain_from:
         raise ValueError(
-            "Clear TRUNK_FROM, WIDEN_FROM and RETRAIN_FROM for a pilot; use PILOT_LOAD_MODE and its source pair."
+            "Clear TRUNK_FROM, WIDEN_FROM and RETRAIN_FROM for direction or terrain training; use BEHAVIOR_LOAD_MODE and its source pair."
         )
 
 
 @dataclass(frozen=True)
-class NotebookPilotPlan:
+class NotebookBehaviorPlan:
+    species: str
     behavior: str
     recipe_path: Path
     checkpoint_path: Path
@@ -69,7 +80,9 @@ class NotebookPilotPlan:
 
     def argv(self) -> list[str]:
         args = [
-            "--config",
+            "--species",
+            self.species,
+            "--recipe",
             str(self.recipe_path),
             "--checkpoint",
             str(self.checkpoint_path),
@@ -95,7 +108,7 @@ class NotebookPilotPlan:
         return args
 
 
-def build_notebook_pilot_plan(
+def build_notebook_behavior_plan(
     *,
     repo_root: Path,
     log_base: Path,
@@ -113,11 +126,11 @@ def build_notebook_pilot_plan(
     record_video: bool = True,
     video_fps: float = 25.0,
     run_id: str = "",
-) -> NotebookPilotPlan:
+) -> NotebookBehaviorPlan:
     """Resolve a recipe/source pair after Drive is mounted, without writing files."""
     import math
 
-    validate_pilot_selection(
+    validate_behavior_selection(
         species=species,
         algorithm=algorithm,
         behavior=behavior,
@@ -125,36 +138,42 @@ def build_notebook_pilot_plan(
         vecnormalize=vecnormalize,
         load_mode=load_mode,
     )
-    for name, value in (("PILOT_SEED", seed), ("PILOT_STEPS", steps), ("PILOT_EVAL_EPISODES", eval_episodes)):
+    for name, value in (("BEHAVIOR_SEED", seed), ("BEHAVIOR_STEPS", steps), ("BEHAVIOR_EVAL_EPISODES", eval_episodes)):
         if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
             raise ValueError(f"{name} must be a nonnegative integer, or None where supported.")
     if seed is not None and seed >= 2**32:
-        raise ValueError("PILOT_SEED must be less than 2**32 (the PPO/NumPy seed range).")
+        raise ValueError("BEHAVIOR_SEED must be less than 2**32 (the PPO/NumPy seed range).")
     if eval_episodes is None or (record_video and eval_episodes == 0):
-        raise ValueError("Recorded pilot replays require at least one evaluation episode.")
+        raise ValueError("Recorded behavior replays require at least one evaluation episode.")
     if isinstance(video_fps, bool) or not math.isfinite(video_fps) or video_fps <= 0:
-        raise ValueError("PILOT_VIDEO_FPS must be finite and positive.")
+        raise ValueError("BEHAVIOR_VIDEO_FPS must be finite and positive.")
     if run_id and (run_id in {".", ".."} or Path(run_id).name != run_id or "\\" in run_id):
-        raise ValueError("PILOT_RUN_ID must be a directory name, not a path.")
+        raise ValueError("BEHAVIOR_RUN_ID must be a directory name, not a path.")
     root = Path(repo_root).resolve()
-    recipe = root / "configs" / "trex" / "behavior_pilots" / PILOT_RECIPES[behavior]
+    species = resolve_species_id(species)
+    recipe = root / "configs" / species / "behaviors" / BEHAVIOR_RECIPES[behavior]
     if not recipe.is_file():
         raise FileNotFoundError(
-            f"Pilot recipe missing in this checkout: {recipe}. Check REPO_REF and restart the runtime after changing code."
+            f"Behavior recipe missing in this checkout: {recipe}. Check REPO_REF and restart the runtime after changing code."
         )
+
+    metadata = tomllib.loads(recipe.read_text()).get("behavior", {})
+    if metadata.get("species") != species or metadata.get("name") != behavior:
+        raise ValueError(f"Behavior recipe does not match selected species/behavior: {recipe}")
 
     def source_path(value: str) -> Path:
         path = Path(value).expanduser()
         path = (root / path).resolve() if not path.is_absolute() else path.resolve()
         if not path.is_file():
-            raise FileNotFoundError(f"Pilot source file not found: {path}. Mount Drive before selecting its files.")
+            raise FileNotFoundError(f"Behavior source file not found: {path}. Mount Drive before selecting its files.")
         return path
 
     model, normalizer = source_path(checkpoint), source_path(vecnormalize)
     actual_seed = secrets.randbelow(2**32) if seed is None else seed
     identifier = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    output = Path(log_base).resolve() / "trex" / "ppo" / "behavior_pilots" / behavior / identifier
-    return NotebookPilotPlan(
+    output = Path(log_base).resolve() / species / "ppo" / "behaviors" / behavior / identifier
+    return NotebookBehaviorPlan(
+        species,
         behavior,
         recipe,
         model,
@@ -170,14 +189,17 @@ def build_notebook_pilot_plan(
     )
 
 
-def run_notebook_pilot(plan: NotebookPilotPlan) -> dict[str, Any]:
+def run_notebook_behavior(plan: NotebookBehaviorPlan) -> dict[str, Any]:
     """Run the shared CLI path, including exact bundle/identity validation."""
-    from environments.trex.scripts.train_behaviors import main
+    from environments.shared.train_behaviors import main
 
     main(plan.argv())
     report = json.loads((plan.output_dir / "run.json").read_text())
-    if report.get("schema") != "mesozoic.behavior-pilot-run/v1" or report.get("canonical_certification") is not False:
-        raise ValueError("Pilot runner did not write the expected diagnostic run manifest.")
+    if (
+        report.get("schema") not in {"mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"}
+        or report.get("canonical_certification") is not False
+    ):
+        raise ValueError("Behavior runner did not write the expected evaluation run manifest.")
     return dict(report)
 
 
@@ -207,13 +229,13 @@ def _replay_display_paths(root: Path, episode: dict[str, Any]) -> dict[str, str]
     return {key: str(path) for key, path in paths.items()}
 
 
-def display_notebook_pilot(output_dir: Path) -> None:
+def display_notebook_behavior(output_dir: Path) -> None:
     """Show saved summaries, videos at their encoded rate, and matching maps."""
     from IPython.display import Image, Video, display
 
     root = Path(output_dir).resolve()
     report = json.loads((root / "run.json").read_text())
-    print(f"Behavior pilot: {report['status']} · seed {report['run_seed']} · {root}")
+    print(f"Behavior: {report['status']} · seed {report['run_seed']} · {root}")
     training = report.get("training", {})
     print(f"Actual additional steps: {training.get('actual_additional_steps', 0):,}")
     print("Artifacts are behavior diagnostics; no canonical certification is claimed.")
@@ -231,3 +253,13 @@ def display_notebook_pilot(output_dir: Path) -> None:
             display(Video(filename=paths["video"], embed=True))
             display(Image(filename=paths["full_map"]))
             display(Image(filename=paths["local_map"]))
+
+
+# Existing notebooks and saved scripts can retain their helper imports while
+# migrating to the supported behavior controls and species-specific recipes.
+PILOT_RECIPES = BEHAVIOR_RECIPES
+NotebookPilotPlan = NotebookBehaviorPlan
+validate_pilot_selection = validate_behavior_selection
+build_notebook_pilot_plan = build_notebook_behavior_plan
+run_notebook_pilot = run_notebook_behavior
+display_notebook_pilot = display_notebook_behavior

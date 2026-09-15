@@ -1,0 +1,43 @@
+# Tyrannosaurus Rex: flat heightfield contact adaptation
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# Speeds follow the species locomotion target; terrain dimensions match its model scale.
+[behavior]
+name = "terrain_contact"
+species = "trex"
+parent = "locomotion"
+timesteps = 300000
+
+[commands]
+cruise_speed = 1.05
+speed_scale = 1.5
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+turn_increment_max = 0.0
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+
+[terrain]
+enabled = true
+mode = "flat"
+template = "sloped"
+extent = 35.0 # Half-extent; fits a 25-second cruise plus the full animal
+nrow = 351
+ncol = 351
+apron_radius = 3.0 # Flat spawn disk contains the model, including its tail
+blend_width = 1.5
+max_height = 2.0
+max_slope_degrees = 3.0
+roughness_amplitude = 0.015
+wavelength_min = 1.5
+wavelength_max = 4.0
+episode_variation = 0.15
+
+[env]
+max_episode_steps = 2500 # 25 seconds at this species control timestep
+course_distance = 10.0 # Radial progress diagnostic, not a success gate
+flat_probability = 0.25 # Original-plane retention among heightfield episodes
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

@@ -76,13 +76,13 @@ def _cells(path: Path = NOTEBOOK_PATH) -> list[dict]:
 
 
 def _canonical_source(cell: dict) -> str:
-    """Inspect the existing canonical body beneath its opt-in pilot guard.
+    """Inspect the existing canonical body beneath its direction/terrain guard.
 
     All canonical assertions below remain unchanged. The raw notebook guard
-    and executed pilot routing are tested in test_behavior_notebook.py.
+    and executed direction/terrain routing are tested in test_behavior_notebook.py.
     """
     source = "".join(cell["source"])
-    guard = 'if not globals().get("BEHAVIOR_PILOT", False):\n'
+    guard = 'if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n'
     if cell["cell_type"] == "code" and source.startswith(guard):
         return textwrap.dedent(source[len(guard) :])
     return source

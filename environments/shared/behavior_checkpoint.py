@@ -1,4 +1,4 @@
-"""Prepare a canonical T-Rex PPO walker for an explicitly separate behavior experiment.
+"""Prepare a canonical PPO walker for direction and terrain behavior training.
 
 This module requires the SB3 training extra. Preparation preserves the walker's
 function on zero commands, clears only the reserved command connections and their
@@ -29,6 +29,7 @@ from environments.shared.plant_contract import (
 )
 from environments.shared.policy_loading import _checkpoint_algorithm
 from environments.shared.result_bundle import sha256_file
+from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, read_checkpoint_attribute
 
 BEHAVIOR_IDENTITY_SCHEMA = "mesozoic.behavior-artifact/v1"
@@ -40,6 +41,18 @@ ACTION_EQUIVALENCE_ATOL = 1e-6
 
 class BehaviorCheckpointError(ValueError):
     """A checkpoint cannot safely initialize or resume this behavior experiment."""
+
+
+def _species(species: str | None, behavior: Mapping[str, Any]) -> str:
+    """Resolve the requested plant, retaining old T-Rex API calls without metadata."""
+    parent = behavior.get("parent_plant", {})
+    recorded = parent.get("species") if isinstance(parent, Mapping) else None
+    resolved = resolve_species_id(species or recorded or "trex")
+    if resolved not in species_display_names(backend="stable-baselines3"):
+        raise BehaviorCheckpointError(f"Species {resolved!r} has no supported SB3 behavior interface")
+    if recorded is not None and recorded != resolved:
+        raise BehaviorCheckpointError("Behavior identity and requested species disagree")
+    return resolved
 
 
 class BehaviorVecNormalize(VecNormalize):
@@ -156,6 +169,7 @@ def prepare_behavior_checkpoint(
     *,
     learning_rate: float = 5e-5,
     behavior_identity: Mapping[str, Any] | None = None,
+    species: str | None = None,
 ) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
     """Initialize a separate behavior task from a canonical current-interface PPO walker.
 
@@ -168,15 +182,14 @@ def prepare_behavior_checkpoint(
     import torch
 
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
-    current = current_plant_identity("trex")
-    if current.policy_interface_revision != 13 or current.observation_dim != 64:
-        raise BehaviorCheckpointError("This preparation supports only the reviewed T-Rex r13, 64-input interface")
+    behavior = _identity(behavior_identity)
+    species = _species(species, behavior)
+    current = current_plant_identity(species)
     raw_plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
     validate_recorded_identity(raw_plant, current, artifact="parent walker checkpoint")
     task = read_checkpoint_attribute(model_path, MODEL_TASK_ATTRIBUTE)
-    if not isinstance(task, Mapping) or task.get("species") != "trex" or task.get("stage") not in (2, "locomotion"):
-        raise BehaviorCheckpointError("The source must record the T-Rex locomotion task")
-    behavior = _identity(behavior_identity)
+    if not isinstance(task, Mapping) or task.get("species") != species or task.get("stage") not in (2, "locomotion"):
+        raise BehaviorCheckpointError(f"The source must record the {species} locomotion task")
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv)
     assert isinstance(normalizer.obs_rms, RunningMeanStd)
@@ -218,7 +231,7 @@ def prepare_behavior_checkpoint(
 
     marker = {
         "schema": BEHAVIOR_IDENTITY_SCHEMA,
-        "species": "trex",
+        "species": species,
         "behavior_identity": behavior,
         "parent_plant_identity": current.to_dict(),
         "parent_checkpoint_sha256": sha256_file(model_path),
@@ -261,6 +274,7 @@ def load_behavior_checkpoint(
     *,
     behavior_identity: Mapping[str, Any],
     learning_rate: float = 5e-5,
+    species: str | None = None,
 ) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
     """Resume an exact behavior task without resetting learned command connections.
 
@@ -275,7 +289,10 @@ def load_behavior_checkpoint(
         raise BehaviorCheckpointError("The checkpoint is not an explicitly marked behavior artifact")
     if marker.get("behavior_identity") != expected_behavior or marker.get("canonical_certification") is not False:
         raise BehaviorCheckpointError("Behavior configuration/source identity differs from the saved task")
-    current = current_plant_identity("trex")
+    species = _species(species, expected_behavior)
+    if marker.get("species") != species:
+        raise BehaviorCheckpointError("Behavior checkpoint and requested species disagree")
+    current = current_plant_identity(species)
     validate_recorded_identity(marker.get("parent_plant_identity"), current, artifact="behavior parent plant")
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv)
@@ -337,8 +354,8 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
     required = {"schema", "backend", "parent_plant", "sources", "commands", "env"}
     if not required <= previous.keys() or not required <= requested.keys():
         raise BehaviorCheckpointError("Behavior transitions require complete source and requested task identities")
-    if previous["schema"] != "mesozoic.trex-command-terrain/v1":
-        raise BehaviorCheckpointError("Only the reviewed T-Rex command/terrain task supports behavior transitions")
+    if previous["schema"] not in {"mesozoic.trex-command-terrain/v1", "mesozoic.command-terrain/v1"}:
+        raise BehaviorCheckpointError("Only supported command/terrain tasks allow behavior transitions")
     for name in ("commands", "env", "sources", "parent_plant"):
         if not isinstance(previous[name], Mapping) or not isinstance(requested[name], Mapping):
             raise BehaviorCheckpointError(f"Behavior identity {name} must be an object")
@@ -366,6 +383,7 @@ def adapt_behavior_checkpoint(
     *,
     behavior_identity: Mapping[str, Any],
     learning_rate: float = 5e-5,
+    species: str | None = None,
 ) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
     """Warm-start another compatible behavior stage without erasing command learning.
 
@@ -381,6 +399,7 @@ def adapt_behavior_checkpoint(
         raise BehaviorCheckpointError("Behavior adaptation requires a marked behavior checkpoint")
     previous = previous_marker.get("behavior_identity")
     requested = _identity(behavior_identity)
+    species = _species(species, requested)
     if not isinstance(previous, Mapping):
         raise BehaviorCheckpointError("Source behavior identity is missing")
     _validate_behavior_transition(previous, requested)
@@ -390,6 +409,7 @@ def adapt_behavior_checkpoint(
         env,
         behavior_identity=previous,
         learning_rate=learning_rate,
+        species=species,
     )
     transition = {
         "schema": "mesozoic.behavior-transition/v1",

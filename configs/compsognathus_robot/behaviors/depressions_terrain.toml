@@ -1,0 +1,47 @@
+# Compsognathus Robot: random shallow solid depressions
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# Speeds follow the species locomotion target; terrain dimensions match its model scale.
+[behavior]
+name = "depressions_terrain"
+species = "compsognathus_robot"
+parent = "locomotion"
+timesteps = 2000000
+
+[commands]
+cruise_speed = 0.04
+speed_scale = 0.06
+lateral_speed_scale = 0.06
+yaw_rate_scale = 0.6
+turn_increment_max = 0.0
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+
+[terrain]
+enabled = true
+mode = "gentle"
+template = "depressions"
+extent = 2.5 # Half-extent; fits a 25-second cruise plus the full animal
+nrow = 251
+ncol = 251
+apron_radius = 0.5 # Flat spawn disk contains the model, including its tail
+blend_width = 0.25
+max_height = 0.2
+max_slope_degrees = 3.0
+roughness_amplitude = 0.003
+wavelength_min = 0.2
+wavelength_max = 0.6
+episode_variation = 0.15
+feature_height = 0.004 # Metres; final physical heights also obey the grade cap
+feature_radius_min = 0.15
+feature_radius_max = 0.25
+feature_density = 10.0 # Planned centers per square metre
+
+[env]
+max_episode_steps = 1250 # 25 seconds at this species control timestep
+course_distance = 0.4 # Radial progress diagnostic, not a success gate
+flat_probability = 0.25 # Original-plane retention among heightfield episodes
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

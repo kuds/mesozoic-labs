@@ -11,8 +11,8 @@ import pytest
 
 pytest.importorskip("stable_baselines3")
 
+from environments.shared import train_behaviors  # noqa: E402
 from environments.trex.envs.behavior_env import TRexBehaviorEnv  # noqa: E402
-from environments.trex.scripts import train_behaviors  # noqa: E402
 
 PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behavior_pilots"
 
@@ -406,7 +406,7 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
             super().__init__(live=True)
             self.behavior_identity = {"schema": "runner-test/v1", "task": "live-commands"}
 
-    monkeypatch.setattr(train_behaviors, "TRexBehaviorEnv", PilotEnv)
+    monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda species: PilotEnv)
     config = tmp_path / "short.toml"
     config.write_text("[pilot]\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n")
     updates = []
