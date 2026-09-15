@@ -207,6 +207,17 @@ def _args(config, checkpoint, normalization, output):
     ]
 
 
+@pytest.mark.parametrize("seed", [-1, 2**32])
+def test_invalid_cli_seed_refuses_before_loading_or_creating_output(tmp_path, capsys, seed):
+    output = tmp_path / "output"
+    args = _args(tmp_path / "missing.toml", tmp_path / "model.zip", tmp_path / "stats.pkl", output)
+    with pytest.raises(SystemExit) as error:
+        train_behaviors.main(args + ["--seed", str(seed)])
+    assert error.value.code == 2
+    assert "--seed must be between 0 and 2**32 - 1" in capsys.readouterr().err
+    assert not output.exists()
+
+
 def test_eval_only_never_learns_or_overwrites_parent(stubbed_cli, tmp_path):
     calls, parent, normalization = stubbed_cli
     original = parent.read_bytes(), normalization.read_bytes()
@@ -307,3 +318,125 @@ def test_periodic_rollout_checkpoints_are_complete_matched_bundles(stubbed_cli, 
     latest = json.loads((output / "latest_checkpoint.json").read_text())
     assert latest["num_timesteps"] == 8_200_000
     assert Path(latest["directory"]) == checkpoints[-1]
+
+
+def test_interrupted_evaluation_keeps_trained_bundle_and_records_status(stubbed_cli, tmp_path, monkeypatch):
+    from environments.shared import behavior_evaluation
+
+    calls, parent, normalization = stubbed_cli
+    output = tmp_path / "interrupted-evaluation"
+    saved = {}
+
+    def interrupt(*args, **kwargs):
+        saved.update({name: (output / name).read_bytes() for name in ("model.zip", "vecnormalize.pkl", "bundle.json")})
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(behavior_evaluation, "evaluate_behavior", interrupt)
+    args = _args(PRESETS / "trex_follow_direction.toml", parent, normalization, output)
+    args[args.index("--eval-episodes") + 1] = "1"
+    train_behaviors.main(args + ["--steps", "100"])
+    assert calls["learn"] == [100]
+    run = json.loads((output / "run.json").read_text())
+    assert run["status"] == "interrupted"
+    assert run["training"]["actual_additional_steps"] == 100
+    assert "evaluation" not in run
+    assert saved == {name: (output / name).read_bytes() for name in saved}
+    train_behaviors._verify_bundle(output / "model.zip", output / "vecnormalize.pkl")
+
+
+def test_interrupted_bundle_save_finishes_a_resumable_pair(stubbed_cli, tmp_path, monkeypatch):
+    _, parent, normalization = stubbed_cli
+    output = tmp_path / "interrupted-save"
+    save = train_behaviors._save_bundle
+    attempts = []
+
+    def interrupt_once(model, normalizer, directory, identity, recipe):
+        attempts.append(directory)
+        if len(attempts) == 1:
+            model.save(str(directory / "model.zip"))
+            raise KeyboardInterrupt
+        save(model, normalizer, directory, identity, recipe)
+
+    monkeypatch.setattr(train_behaviors, "_save_bundle", interrupt_once)
+    train_behaviors.main(
+        _args(PRESETS / "trex_follow_direction.toml", parent, normalization, output) + ["--steps", "100"]
+    )
+    assert attempts == [output, output]
+    assert json.loads((output / "run.json").read_text())["status"] == "interrupted"
+    train_behaviors._verify_bundle(output / "model.zip", output / "vecnormalize.pkl")
+
+
+def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path, monkeypatch):
+    """Actual PPO updates exercise the loader/runner boundary and persisted anchor."""
+    import torch
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+    from environments.shared.tests.test_behavior_checkpoint import CommandEnv
+
+    torch.set_num_threads(1)
+    parent_normalizer = VecNormalize(DummyVecEnv([CommandEnv]), gamma=0.97)
+    parent = PPO(
+        "MlpPolicy",
+        parent_normalizer,
+        n_steps=16,
+        batch_size=8,
+        n_epochs=2,
+        gamma=0.97,
+        gae_lambda=0.91,
+        policy_kwargs={"net_arch": [16, 16]},
+        seed=7,
+        device="cpu",
+    )
+    checkpoint, stats = tmp_path / "parent.zip", tmp_path / "parent.pkl"
+    try:
+        parent.learn(32)
+        for artifact in (parent, parent_normalizer):
+            attach_plant_identity(artifact, current_plant_identity("trex"))
+        setattr(parent, MODEL_TASK_ATTRIBUTE, {"species": "trex", "stage": 2})
+        parent.save(checkpoint)
+        parent_normalizer.save(str(stats))
+    finally:
+        parent_normalizer.close()
+
+    class PilotEnv(CommandEnv):
+        def __init__(self, **kwargs):
+            super().__init__(live=True)
+            self.behavior_identity = {"schema": "runner-test/v1", "task": "live-commands"}
+
+    monkeypatch.setattr(train_behaviors, "TRexBehaviorEnv", PilotEnv)
+    config = tmp_path / "short.toml"
+    config.write_text("[pilot]\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n")
+    updates = []
+    train = PPO.train
+
+    def record_update(model):
+        updates.append((model.num_timesteps, model.clip_range(1.0), model.lr_schedule(1.0), model.ent_coef))
+        return train(model)
+
+    monkeypatch.setattr(PPO, "train", record_update)
+    first, resumed = tmp_path / "first", tmp_path / "resumed"
+    train_behaviors.main(_args(config, checkpoint, stats, first) + ["--steps", "16"])
+    train_behaviors.main(_args(config, first / "model.zip", first / "vecnormalize.pkl", resumed) + ["--resume"])
+    assert updates == [(48, 0.02, 5e-5, 0.005), (64, 0.2, 5e-5, 0.005), (80, 0.2, 5e-5, 0.005)]
+    saved = PPO.load(resumed / "model.zip", device="cpu")
+    assert saved.num_timesteps == 80
+    assert saved.mesozoic_behavior_stage_start == 32
+    assert (saved.n_steps, saved.batch_size, saved.n_epochs) == (16, 8, 2)
+    assert (saved.gamma, saved.gae_lambda) == (0.97, 0.91)
+    assert saved.target_kl == 0.03
+    assert all(torch.isfinite(value).all() for value in saved.policy.state_dict().values())
+    normalizer = VecNormalize.load(str(resumed / "vecnormalize.pkl"), DummyVecEnv([PilotEnv]))
+    try:
+        raw = np.ones((1, 64), dtype=np.float32)
+        raw[:, -3:] = [0.7, -0.2, 0.4]
+        np.testing.assert_array_equal(normalizer.normalize_obs(raw)[:, -3:], raw[:, -3:])
+        assert normalizer.norm_reward and normalizer.gamma == 0.97
+    finally:
+        normalizer.close()
+    run = json.loads((resumed / "run.json").read_text())
+    assert run["training"]["requested_additional_steps"] == 32
+    assert run["training"]["actual_additional_steps"] == 32
+    train_behaviors._verify_bundle(resumed / "model.zip", resumed / "vecnormalize.pkl")

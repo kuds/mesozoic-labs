@@ -144,6 +144,40 @@ def test_snapshot_copies_exact_physics_samples_and_rejects_stale_manifest():
         capture_terrain_snapshot(raw, info)
 
 
+@pytest.mark.parametrize("parameter", ["height_scale", "extent", "vertical_position", "horizontal_position"])
+def test_snapshot_rejects_changed_physical_geometry_even_with_identical_samples(parameter):
+    raw = _RenderEnv()
+    _, info = raw.reset(seed=42)
+    samples = raw.model.hfield_data.copy()
+    if parameter == "height_scale":
+        raw.model.hfield_size[0, 2] *= 2
+    elif parameter == "extent":
+        raw.model.hfield_size[0, 0] *= 2
+    elif parameter == "vertical_position":
+        raw.model.geom_pos[raw.floor_geom_id, 2] += 0.01
+    else:
+        raw.model.geom_pos[raw.floor_geom_id, 0] += 0.01
+    np.testing.assert_array_equal(samples, raw.model.hfield_data)
+    with pytest.raises(ReplayExportError, match="physical geometry"):
+        capture_terrain_snapshot(raw, info)
+
+
+def test_snapshot_does_not_label_a_tilted_plane_as_a_flat_reference():
+    raw = _RenderEnv(terrain=False)
+    _, info = raw.reset(seed=42)
+    raw.model.geom_quat[raw.floor_geom_id] = [math.cos(0.05), math.sin(0.05), 0, 0]
+    with pytest.raises(ReplayExportError, match="horizontal plane"):
+        capture_terrain_snapshot(raw, info)
+
+
+def test_snapshot_rejects_mutated_recipe_metadata_with_an_unchanged_hash():
+    raw = _RenderEnv()
+    _, info = raw.reset(seed=42)
+    info["terrain"]["run_seed"] = 43
+    with pytest.raises(ReplayExportError, match="live terrain recipe"):
+        capture_terrain_snapshot(raw, info)
+
+
 @pytest.mark.parametrize("steps", [1, 4, 6, 8, 10])
 def test_fixed_fps_keeps_terminal_frame_without_stretching_episode(tmp_path, fake_media, steps):
     raw = _RenderEnv(horizon=steps)
@@ -258,6 +292,33 @@ def test_inference_failure_keeps_original_error_and_discards_unpublished_video(t
         assert raw.render_mode is None
         assert vec.training and vec.norm_reward
     finally:
+        vec.close()
+
+
+def test_renderer_cleanup_failure_keeps_original_error_and_still_aborts_replay(tmp_path, fake_media):
+    class BrokenRenderer:
+        def close(self):
+            raise RuntimeError("renderer cleanup failed")
+
+    raw = _RenderEnv()
+
+    class BrokenModel:
+        def predict(self, *args, **kwargs):
+            raw._renderer = BrokenRenderer()
+            raise RuntimeError("original inference failure")
+
+    vec = _vec(raw)
+    original = vec.venv.envs[0]
+    try:
+        with pytest.raises(RuntimeError, match="original inference failure"):
+            evaluate_behavior(BrokenModel(), vec, episode_seeds=[42], output_dir=tmp_path, record_video=True)
+        assert list((tmp_path / "replays").iterdir()) == []
+        assert raw._renderer is None
+        assert raw.render_mode is None
+        assert vec.venv.envs[0] is original
+        assert vec.training and vec.norm_reward
+    finally:
+        raw._renderer = None
         vec.close()
 
 

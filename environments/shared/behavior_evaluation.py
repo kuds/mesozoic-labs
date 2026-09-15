@@ -367,13 +367,20 @@ def evaluate_behavior(
     if not hasattr(vec_env, "training") or not hasattr(vec_env, "norm_reward"):
         raise ValueError("vec_env must be a ready VecNormalize with training and norm_reward flags")
     output_dir = Path(output_dir)
+    reserved_artifacts = ("episodes", "replays", "evaluation_summary.json", "episodes.csv", "command_events.csv")
+    conflicts = [name for name in reserved_artifacts if (output_dir / name).exists()]
+    if conflicts:
+        raise FileExistsError(
+            f"Refusing to overwrite existing evaluation artifacts in {output_dir}: {', '.join(conflicts)}; "
+            "select a fresh evaluation destination"
+        )
     episodes_dir = output_dir / "episodes"
-    episodes_dir.mkdir(parents=True, exist_ok=True)
     raw_env = vec_env.get_attr("unwrapped", indices=0)[0]
     dt = float(raw_env.dt)
     horizon_steps = int(raw_env.max_episode_steps)
     if not math.isfinite(dt) or dt <= 0 or horizon_steps <= 0:
         raise ValueError("environment control timestep and episode horizon must be positive")
+    episodes_dir.mkdir(parents=True)
     original_training, original_norm_reward = vec_env.training, vec_env.norm_reward
     episode_summaries: list[dict[str, Any]] = []
     all_events: list[dict[str, Any]] = []

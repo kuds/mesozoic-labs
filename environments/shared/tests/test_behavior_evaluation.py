@@ -247,6 +247,30 @@ def test_normalization_flags_are_restored_when_inference_raises(tmp_path):
     assert vec.training and not vec.norm_reward
 
 
+@pytest.mark.parametrize(
+    "artifact", ["episodes", "replays", "evaluation_summary.json", "episodes.csv", "command_events.csv"]
+)
+def test_evaluation_refuses_to_mix_existing_evidence_with_a_new_run(tmp_path, artifact):
+    destination = tmp_path / artifact
+    if artifact in ("episodes", "replays"):
+        destination.mkdir()
+        destination /= "existing.json"
+    destination.write_text("previous evidence\n")
+    vec = _FakeVecNormalize()
+    with pytest.raises(FileExistsError, match="existing evaluation artifacts"):
+        evaluate_behavior(_Model(), vec, episode_seeds=[42], output_dir=tmp_path)
+    assert destination.read_text() == "previous evidence\n"
+    assert vec.training and vec.norm_reward
+
+
+def test_evaluation_accepts_existing_training_and_checkpoint_context(tmp_path):
+    (tmp_path / "model.zip").write_bytes(b"checkpoint")
+    (tmp_path / "run_manifest.json").write_text("{}\n")
+    report = evaluate_behavior(_Model(), _FakeVecNormalize(), episode_seeds=[42], output_dir=tmp_path)
+    assert report["episode_count"] == 1
+    assert (tmp_path / "model.zip").read_bytes() == b"checkpoint"
+
+
 @pytest.mark.parametrize("seeds", [[], [-1], [1, 1], [True], [0.5]])
 def test_evaluation_refuses_invalid_or_duplicate_seed_panels(tmp_path, seeds):
     with pytest.raises(ValueError, match="episode_seeds"):

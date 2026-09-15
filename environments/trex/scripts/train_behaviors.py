@@ -176,8 +176,8 @@ def main(argv: list[str] | None = None) -> None:
         "--adapt", action="store_true", help="Adapt a learned behavior to the next compatible pilot recipe"
     )
     args = parser.parse_args(argv)
-    if args.seed is not None and args.seed < 0:
-        parser.error("--seed must be nonnegative")
+    if args.seed is not None and not 0 <= args.seed < 2**32:
+        parser.error("--seed must be between 0 and 2**32 - 1")
     if args.steps is not None and args.steps < 0:
         parser.error("--steps must be nonnegative")
     if args.eval_episodes < 0:
@@ -310,6 +310,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Behavior pilot seed: {run_seed}; output: {args.output}")
     start_steps, started = model.num_timesteps, time.monotonic()
     interrupted = False
+    bundle_saved = False
 
     class SaveCompletedRollout(BaseCallback):
         """Save matched periodic bundles after completed optimizer updates."""
@@ -344,6 +345,7 @@ def main(argv: list[str] | None = None) -> None:
             except KeyboardInterrupt:
                 interrupted = True
         _save_bundle(model, normalizer, args.output, behavior_identity, recipe)
+        bundle_saved = True
         manifest["training"]["actual_additional_steps"] = model.num_timesteps - start_steps
         manifest["training"]["elapsed_seconds"] = time.monotonic() - started
         # Disjoint deterministic streams for evaluation; never select a policy
@@ -364,6 +366,16 @@ def main(argv: list[str] | None = None) -> None:
                 },
             )
         manifest["status"] = "interrupted" if interrupted else "complete"
+        _write(args.output / "run.json", manifest)
+    except KeyboardInterrupt:
+        # Scoring and video export can take longer than a short training run.
+        # Keep their already-saved checkpoint, and finish a save interrupted
+        # before its matched bundle was published, without restarting scoring.
+        if not bundle_saved:
+            _save_bundle(model, normalizer, args.output, behavior_identity, recipe)
+        manifest["training"]["actual_additional_steps"] = model.num_timesteps - start_steps
+        manifest["training"]["elapsed_seconds"] = time.monotonic() - started
+        manifest["status"] = "interrupted"
         _write(args.output / "run.json", manifest)
     except Exception as exc:
         manifest["status"] = "failed"

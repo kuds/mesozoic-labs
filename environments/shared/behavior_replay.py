@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import shutil
+import sys
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -73,12 +74,14 @@ class TerrainReplaySnapshot:
 
 
 def capture_terrain_snapshot(raw_env: Any, reset_info: Mapping[str, Any]) -> TerrainReplaySnapshot:
-    """Copy the actual compiled surface and verify its recorded sample hash."""
+    """Copy the compiled surface and verify its samples and physical geometry."""
     import mujoco
 
     model = raw_env.model
     floor = int(raw_env.floor_geom_id)
     if model.geom_type[floor] == mujoco.mjtGeom.mjGEOM_PLANE:
+        if model.geom_bodyid[floor] != 0 or not np.allclose(model.geom_quat[floor, 1:3], 0, rtol=0, atol=1e-12):
+            raise ReplayExportError("Flat reference maps require a horizontal plane attached to the world")
         # There is no physical heightfield on the infinite flat plane.  The
         # 2x2 reference grid is solely a map extent, explicitly labelled so.
         extent = max(10.0, float(getattr(raw_env, "course_distance", 10.0)) * 2.0)
@@ -117,6 +120,30 @@ def capture_terrain_snapshot(raw_env: Any, reset_info: Mapping[str, Any]) -> Ter
     samples_hash = "sha256:" + hashlib.sha256(normalized.tobytes()).hexdigest()
     if manifest.get("samples_sha256") != samples_hash:
         raise ReplayExportError("The reset terrain manifest does not match the actual physics heightfield samples")
+    # Normalized samples alone cannot identify a physical surface: changing
+    # its scale or translation preserves those bytes while moving the ground.
+    try:
+        config = manifest["config"]
+        extent, max_height = float(config["extent"]), float(config["max_height"])
+        expected_size = [extent, extent, 2 * max_height, float(config["base_thickness"])]
+        geometry_matches = (
+            config["nrow"] == nrow
+            and config["ncol"] == ncol
+            and model.geom_bodyid[floor] == 0
+            and np.isfinite(expected_size).all()
+            and np.allclose(size, expected_size, rtol=0, atol=1e-12)
+            and np.allclose(position, [0, 0, -max_height], rtol=0, atol=1e-12)
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ReplayExportError("The reset terrain manifest lacks valid physical geometry") from exc
+    if not geometry_matches:
+        raise ReplayExportError("The reset terrain manifest does not match the heightfield's physical geometry")
+    live_terrain = getattr(raw_env, "terrain", None)
+    if live_terrain is not None:
+        live_manifest = live_terrain.manifest()
+        recipe_keys = ("schema", "config", "run_seed", "episode_index", "samples_sha256", "terrain_sha256")
+        if any(manifest.get(key) != live_manifest[key] for key in recipe_keys):
+            raise ReplayExportError("The reset terrain manifest does not match the live terrain recipe")
     manifest.update(
         physical_heightfield=True,
         physics_samples_sha256=samples_hash,
@@ -491,9 +518,16 @@ def record_evaluation_replays(
         if recorder._temporary is not None:
             raise ReplayExportError("Evaluation exited before the active replay was finalized")
     finally:
+        active_error = sys.exc_info()[1]
         inner.envs[0] = original
         raw_env.render_mode = original_render_mode
-        if getattr(raw_env, "_renderer", None) is not None:
-            raw_env._renderer.close()
+        try:
+            if getattr(raw_env, "_renderer", None) is not None:
+                raw_env._renderer.close()
+        except Exception as cleanup_error:
+            if active_error is None:
+                raise
+            active_error.add_note(f"Replay renderer cleanup also failed: {cleanup_error}")
+        finally:
             raw_env._renderer = None
-        recorder.abort()
+            recorder.abort()

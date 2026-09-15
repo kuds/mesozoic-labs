@@ -31,9 +31,64 @@ the canonical locomotion, hunting, and MJX environments remain unchanged.
 
 This first increment covers smooth solid terrain. Steps, large obstacles,
 slippery patches, adaptive difficulty promotion, terrain look-ahead sensing, and
-the main training notebook's behavior selector are follow-on work. The recipes
-are runnable through the dedicated command below; their budgets are proposals,
+MJX training are follow-on work. The recipes are available in the SB3 notebook
+and through the dedicated command below; their budgets are proposals,
 not evidence that the behaviors have been learned.
+
+## Use the SB3 training notebook
+
+Open [`notebooks/sb3_training.ipynb`](../notebooks/sb3_training.ipynb). Until
+PR #540 is merged, open the notebook from `codex/direction-and-random-terrain`
+and set its setup parameter `REPO_REF` to that branch so Colab installs the
+matching code. After merge, the default `main` is appropriate.
+
+In the configuration form, select **Tyrannosaurus Rex**, `ALGORITHM = "ppo"`,
+and one of these `BEHAVIOR` values:
+
+| Behavior parameter | Experiment |
+|---|---|
+| `follow_direction` | Fixed-speed heading changes |
+| `follow_direction_speed` | Heading, speed, stop and restart |
+| `terrain_contact` | Flat-heightfield contact adaptation |
+| `sloped_terrain` | The original gently sloped ground |
+| `bumps_terrain` | Random localized bumps |
+| `depressions_terrain` | Random shallow depressions |
+| `mixed_terrain` | Bumps and depressions together |
+| `combined_terrain` | Heading/speed changes on gently sloped ground |
+
+The existing `stand`, `walk`, `hunt`, and explicit stage-ID selections retain
+the notebook's canonical chain workflow. The new pilots use the dedicated
+behavior runner and produce experimental behavior bundles.
+
+Set `PILOT_CHECKPOINT` and `PILOT_VECNORMALIZE` to the matching saved pair.
+Choose the loading mode explicitly:
+
+- `PILOT_LOAD_MODE = "prepare"` starts from the current canonical locomotion
+  walker and activates its command inputs.
+- `"resume"` continues the same behavior recipe from a matched behavior bundle.
+- `"adapt"` transfers a learned behavior to a compatible next recipe.
+
+`PILOT_SEED = None` gives each run a fresh recorded seed; an integer repeats
+the course. `PILOT_STEPS = None` uses the recipe budget, or its remaining budget
+on resume. An explicit step count is additional training. `QUICK_TEST = True`
+uses 4,096 steps when no explicit step count is set. `PILOT_EVAL_ONLY = True`
+evaluates without training.
+Repeating an unchanged selection retains its run ID and seed and refuses to
+overwrite existing output. To start another run with the same settings in the
+same runtime, set a new `PILOT_RUN_ID`. A new selection or runtime with automatic
+IDs/seeds gets a fresh run.
+
+Pilot execution uses one environment on CPU and inherits the checkpoint's PPO
+network and rollout settings; canonical `N_ENVS` does not change those settings.
+Canonical trunk/widen/retrain controls do not apply to pilots.
+
+The notebook saves pilot outputs under
+`logs/trex/ppo/behavior_pilots/<behavior>/<run-id>/`, on Google Drive when mounted
+or locally otherwise. `PILOT_RECORD_VIDEO = True` saves and displays each
+evaluation video with both heat maps. `PILOT_EVAL_EPISODES` and
+`PILOT_VIDEO_FPS` control evaluation count and video rate. New output directories
+prevent accidental replacement of previous evidence. Notebook evaluation,
+replay, and cleanup use the behavior outputs rather than canonical gate reports.
 
 ## Run a short training check
 
