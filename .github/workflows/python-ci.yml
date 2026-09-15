@@ -170,12 +170,15 @@ jobs:
           import environments
           from environments.shared.config import load_stage_config
           from environments.shared.behavior_notebook import BEHAVIOR_RECIPES
+          from environments.shared.behavior_certification import RULES_PATH, load_certification_rules
           from environments.shared.plant_contract import current_plant_identity
           from environments.shared.species_names import species_display_names
           from environments.shared.train_behaviors import REPO_ROOT, read_recipe
 
           assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
           assert current_plant_identity("velociraptor").nu == 22
+          assert RULES_PATH.is_relative_to(REPO_ROOT)
+          assert load_certification_rules()["comparison"]["episodes"] == 50
           assert load_stage_config("velociraptor", 1)["name"]
           for species in species_display_names(backend="stable-baselines3"):
               recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
@@ -303,6 +306,11 @@ jobs:
             environments/shared/tests/test_behavior_evaluation.py \
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_behavior_notebook.py \
+            environments/shared/tests/test_behavior_certification.py \
+            environments/shared/tests/test_behavior_publication.py \
+            environments/shared/tests/test_certified_library.py \
+            environments/shared/tests/test_certified_canonical.py \
+            environments/shared/tests/test_sb3_notebook_certified.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \

@@ -182,6 +182,51 @@ def test_modes_use_the_shared_runner_and_preserve_default_remaining_budget(behav
     assert "--record-video" in args
 
 
+@pytest.mark.parametrize("mode,eval_only", [("prepare", False), ("resume", False), ("prepare", True)])
+def test_automatic_source_is_resolved_by_runner_after_identity_is_known_without_early_outputs(
+    behavior_files, mode, eval_only
+):
+    plan = _plan(behavior_files, checkpoint="", vecnormalize="", load_mode=mode, eval_only=eval_only)
+    assert plan.auto_source
+    assert plan.checkpoint_path is None and plan.vecnormalize_path is None
+    assert plan.certified_library == behavior_files[0] / "certified"
+    args = plan.argv()
+    assert "--auto-source" in args and "--publish-certified" in args
+    assert "--checkpoint" not in args and "--vecnormalize" not in args
+    assert args[args.index("--comparison-episodes") + 1] == "50"
+    assert not plan.output_dir.exists() and not plan.certified_library.exists()
+
+
+@pytest.mark.parametrize("options", [{"source_selection": "manual"}, {"load_mode": "adapt"}])
+def test_manual_selection_and_cross_behavior_adaptation_require_an_explicit_pair(behavior_files, options):
+    with pytest.raises(ValueError, match="both BEHAVIOR_CHECKPOINT"):
+        _plan(behavior_files, checkpoint="", vecnormalize="", **options)
+
+
+def test_explicit_pair_overrides_auto_and_library_publication_can_be_disabled(behavior_files):
+    plan = _plan(behavior_files, source_selection="auto", publish_certified=False)
+    assert not plan.auto_source
+    assert "--auto-source" not in plan.argv()
+    assert "--publish-certified" not in plan.argv()
+    assert "--comparison-episodes" not in plan.argv()
+    assert plan.checkpoint_path == behavior_files[1]
+
+
+@pytest.mark.parametrize("count", [2, 50, 100])
+def test_comparison_panel_size_is_an_explicit_independent_control(behavior_files, count):
+    plan = _plan(behavior_files, comparison_episodes=count, eval_episodes=5)
+    args = plan.argv()
+    assert args[args.index("--comparison-episodes") + 1] == str(count)
+    assert args[args.index("--eval-episodes") + 1] == "5"
+
+
+@pytest.mark.parametrize("count", [0, 1, -1, True, 1.5])
+def test_comparison_panel_size_refuses_invalid_values_before_creating_outputs(behavior_files, count):
+    with pytest.raises(ValueError, match="CERTIFIED_COMPARISON_EPISODES"):
+        _plan(behavior_files, comparison_episodes=count)
+    assert not (behavior_files[0] / "logs").exists()
+
+
 def test_quick_test_explicit_steps_and_eval_only_have_clear_budget_semantics(behavior_files):
     assert _plan(behavior_files, quick_test=True).steps == 4096
     assert _plan(behavior_files, quick_test=True, steps=12).steps == 12
@@ -190,6 +235,27 @@ def test_quick_test_explicit_steps_and_eval_only_have_clear_budget_semantics(beh
     assert args[args.index("--steps") + 1] == "0"
     assert "--eval-only" in args
     assert "--record-video" not in args
+
+
+def test_quick_test_saves_why_certification_was_skipped_without_relaxing_requirements(behavior_files, monkeypatch):
+    from environments.shared import train_behaviors
+
+    plan = _plan(behavior_files, quick_test=True)
+    assert not plan.publish_certified
+    assert "--publish-certified" not in plan.argv()
+    assert "QUICK_TEST" in plan.certification_skip_reason
+
+    def run(args):
+        plan.output_dir.mkdir(parents=True)
+        (plan.output_dir / "run.json").write_text(
+            json.dumps({"schema": "mesozoic.behavior-run/v1", "canonical_certification": False, "status": "complete"})
+        )
+
+    monkeypatch.setattr(train_behaviors, "main", run)
+    report = notebook.run_notebook_behavior(plan)
+    saved = json.loads((plan.output_dir / "run.json").read_text())
+    assert report["certification_skip_reason"] == saved["certification_skip_reason"] == plan.certification_skip_reason
+    assert "gates were not relaxed" in saved["certification_skip_reason"]
 
 
 def test_fresh_seed_default_and_explicit_replay_seed(behavior_files, monkeypatch):
@@ -238,6 +304,35 @@ def test_colab_storage_mounts_drive_and_uses_a_separate_behavior_tree(behavior_f
     assert str(plan.output_dir).startswith("/content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/behaviors/")
     assert "RUN_DIR" not in namespace and "PLANT_IDENTITY" not in namespace
     assert namespace["CHAIN"] == []
+    assert plan.certified_library == Path("/content/drive/MyDrive/mesozoic-labs/certified")
+
+
+def test_notebook_defaults_to_automatic_complete_bundle_selection(behavior_files):
+    namespace = _behavior_namespace(behavior_files, BEHAVIOR_CHECKPOINT="", BEHAVIOR_VECNORMALIZE="")
+    assert namespace["SOURCE_SELECTION"] == "auto"
+    assert namespace["PUBLISH_CERTIFIED"] is True
+    assert namespace["CERTIFIED_COMPARISON_EPISODES"] == 50
+    exec(_cell(STORAGE_MARKER), namespace)
+    plan = namespace["BEHAVIOR_PLAN"]
+    assert plan.auto_source and plan.checkpoint_path is None
+    assert plan.certified_library == behavior_files[0] / "certified"
+    assert not plan.output_dir.exists()
+
+
+def test_source_library_and_comparison_changes_make_a_new_behavior_plan(behavior_files, monkeypatch):
+    seeds = iter((101, 202, 303, 404))
+    monkeypatch.setattr(notebook.secrets, "randbelow", lambda bound: next(seeds))
+    namespace = _behavior_namespace(behavior_files)
+    source = _cell(STORAGE_MARKER)
+    exec(source, namespace)
+    for key, value, seed in (
+        ("CERTIFIED_LIBRARY_ROOT", str(behavior_files[0] / "other-library"), 202),
+        ("CERTIFIED_COMPARISON_EPISODES", 100, 303),
+        ("PUBLISH_CERTIFIED", False, 404),
+    ):
+        namespace[key] = value
+        exec(source, namespace)
+        assert namespace["BEHAVIOR_PLAN"].seed == seed
 
 
 @pytest.mark.parametrize("schema", ["mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"])
@@ -430,6 +525,34 @@ def test_saved_run_without_replays_still_displays_summary(tmp_path, monkeypatch,
     notebook.display_notebook_behavior(tmp_path)
     assert "Behavior: complete" in capsys.readouterr().out
     assert received == []
+
+
+def test_saved_behavior_certification_displays_provisional_status_and_recommendation_reason(
+    tmp_path, monkeypatch, capsys
+):
+    report = {
+        "status": "complete",
+        "run_seed": 24,
+        "certification": {
+            "passed": True,
+            "failures": [],
+            "publication": {
+                "status": "provisional",
+                "version": "v000002",
+                "distinct_seeds": 2,
+                "required_seeds": 3,
+                "decision_reason": "More independent training seeds are required; recommendation unchanged.",
+            },
+        },
+    }
+    (tmp_path / "run.json").write_text(json.dumps(report))
+    _capture_saved_media(monkeypatch)
+    notebook.display_notebook_behavior(tmp_path)
+    output = capsys.readouterr().out
+    assert "Behavior certification: passed" in output
+    assert "Certified library: provisional" in output
+    assert "recommendation unchanged" in output
+    assert "Distinct training seeds: 2/3" in output
 
 
 def test_saved_terrain_summary_distinguishes_missing_families_from_passing_results(tmp_path, monkeypatch, capsys):

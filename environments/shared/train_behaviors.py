@@ -208,6 +208,28 @@ def _save_bundle(model: Any, normalizer: Any, output: Path, identity: dict, reci
     )
 
 
+def _copy_explicit_certified_pair(model: Path, normalizer: Path, library: Path, output: Path) -> dict | None:
+    """Keep a manually pinned library version portable, like automatic sources."""
+    from environments.shared.certified_library import copy_version
+
+    for directory in model.absolute().parents:
+        manifest_path = directory / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        manifest = json.loads(manifest_path.read_text())
+        if manifest.get("schema") != "mesozoic.certified-candidate/v1":
+            continue
+        if (directory / manifest["model_path"]).absolute() != model.absolute() or (
+            directory / manifest["normalization_path"]
+        ).absolute() != normalizer.absolute():
+            raise ValueError("Explicit certified model and normalization must belong to the same version")
+        selected = copy_version(library, manifest["key"], manifest["version"], output)
+        if _sha(model) != _sha(Path(selected["model"])) or _sha(normalizer) != _sha(Path(selected["normalizer"])):
+            raise ValueError("Explicit certified pair differs from its verified library version")
+        return selected
+    return None
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--species", help="Registered species ID or display name (defaults to recipe species)")
@@ -219,8 +241,14 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="Behavior TOML in configs/<species>/behaviors (--config remains an alias)",
     )
-    parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--vecnormalize", type=Path, required=True)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--vecnormalize", type=Path)
+    parser.add_argument("--certified-library", type=Path, help="Shared immutable certified-model library")
+    parser.add_argument("--auto-source", action="store_true", help="Select and copy a compatible certified source")
+    parser.add_argument("--publish-certified", action="store_true", help="Certify and publish the saved behavior")
+    parser.add_argument(
+        "--comparison-episodes", type=int, default=50, help="Paired comparison episodes per model (default: 50)"
+    )
     parser.add_argument("--output", type=Path, required=True, help="New or empty local output directory")
     parser.add_argument("--seed", type=int, help="Omit to generate a fresh recorded run seed")
     parser.add_argument("--steps", type=int, help="Additional adaptation steps (rounded up to a PPO rollout)")
@@ -240,6 +268,18 @@ def main(argv: list[str] | None = None) -> None:
         "--adapt", action="store_true", help="Adapt a learned behavior to the next compatible behavior recipe"
     )
     args = parser.parse_args(argv)
+    if args.auto_source and (args.checkpoint is not None or args.vecnormalize is not None):
+        parser.error("Choose automatic selection or an explicit model/normalization pair")
+    if not args.auto_source and (args.checkpoint is None or args.vecnormalize is None):
+        parser.error("Set both --checkpoint and --vecnormalize, or use --auto-source")
+    if (args.auto_source or args.publish_certified) and args.certified_library is None:
+        parser.error("--auto-source and --publish-certified require --certified-library")
+    if args.auto_source and args.adapt:
+        parser.error("Adapting another behavior requires an explicit source pair")
+    if args.comparison_episodes < 2:
+        parser.error("--comparison-episodes must be at least two")
+    if args.auto_source and args.eval_only:
+        args.resume = True
     if args.seed is not None and not 0 <= args.seed < 2**32:
         parser.error("--seed must be between 0 and 2**32 - 1")
     if args.steps is not None and args.steps < 0:
@@ -256,7 +296,7 @@ def main(argv: list[str] | None = None) -> None:
     metadata_section = "behavior" if "behavior" in recipe else "pilot"
     metadata = recipe[metadata_section]
     species = resolve_species_id(metadata.get("species", "trex"))
-    if args.resume or args.adapt:
+    if not args.auto_source and (args.resume or args.adapt):
         _verify_bundle(args.checkpoint, args.vecnormalize, recipe if args.resume else None)
     run_seed = args.seed if args.seed is not None else secrets.randbelow(2**32)
     steps = args.steps if args.steps is not None else int(metadata["timesteps"])
@@ -292,6 +332,58 @@ def main(argv: list[str] | None = None) -> None:
             env.close()
             raise
     behavior_identity = env.behavior_identity
+    source_selection = None
+    try:
+        if args.auto_source:
+            if args.resume:
+                from environments.shared.behavior_certification import behavior_library_key
+                from environments.shared.certified_library import copy_recommended
+
+                source_selection = copy_recommended(
+                    args.certified_library,
+                    behavior_library_key(species, metadata["name"], behavior_identity),
+                    args.output,
+                )
+                args.checkpoint = Path(source_selection["model"])
+                args.vecnormalize = Path(source_selection["normalizer"])
+                _verify_bundle(args.checkpoint, args.vecnormalize, recipe)
+            else:
+                from environments.shared.certified_canonical import resolve_canonical_locomotion
+
+                source = resolve_canonical_locomotion(
+                    args.certified_library, run_dir=args.output, species=species, algorithm="ppo"
+                )
+                args.checkpoint, args.vecnormalize = source.model_zip, source.normalization_path
+                source_selection = {
+                    "kind": "canonical_locomotion",
+                    "source_run_id": source.run_id,
+                    "model": str(source.model_zip),
+                    "normalizer": str(source.normalization_path),
+                    "directory": str(source.stage_dir),
+                    "model_sha256": source.model_sha256,
+                    "normalization_sha256": source.normalization_sha256,
+                }
+        elif args.certified_library is not None:
+            source_selection = _copy_explicit_certified_pair(
+                args.checkpoint, args.vecnormalize, args.certified_library, args.output
+            )
+            if source_selection is not None:
+                args.checkpoint = Path(source_selection["model"])
+                args.vecnormalize = Path(source_selection["normalizer"])
+        if source_selection is not None:
+            _write(args.output / "certified_source.json", source_selection)
+        if args.publish_certified:
+            from environments.shared.behavior_certification import _panel_env, load_certification_rules
+
+            probe = _panel_env(species, args.config, int(load_certification_rules()["comparison_run_seed"]))
+            try:
+                if args.comparison_episodes < 2 * len(probe.terrain_families):
+                    raise ValueError("Comparison requires at least two episodes per enabled terrain family")
+            finally:
+                probe.close()
+    except BaseException:
+        env.close()
+        raise
     wrapped: gym.Env = Monitor(EpisodeManifestRecorder(env, args.output / "training_episodes.jsonl"))
     learning_rate = float(recipe.get("ppo", {}).get("learning_rate", 5e-5))
     loader = (
@@ -316,11 +408,32 @@ def main(argv: list[str] | None = None) -> None:
     # Explicitly seed action sampling, PPO shuffles and the environment. Model
     # loading otherwise restores the parent's seed, making --seed misleading.
     model.set_random_seed(run_seed)
+    # Continuing one optimization lineage with another sampling seed does not
+    # create an independent training replicate. Adaptation starts a new stage
+    # from its exact immediate parent pair; exact resume retains that stage.
+    if not args.resume:
+        setattr(model, "mesozoic_behavior_training_seed", run_seed)
+        setattr(model, "mesozoic_behavior_training_run_id", args.output.name)
+        setattr(model, "mesozoic_behavior_training_parent_sha256", "sha256:" + _sha(args.checkpoint))
+        setattr(model, "mesozoic_behavior_training_parent_normalization_sha256", "sha256:" + _sha(args.vecnormalize))
+    certification_training_seed = getattr(model, "mesozoic_behavior_training_seed", None)
+    certification_training_parent = getattr(model, "mesozoic_behavior_training_parent_sha256", None)
+    certification_training_parent_normalization = getattr(
+        model, "mesozoic_behavior_training_parent_normalization_sha256", None
+    )
+    if args.publish_certified and (
+        certification_training_seed is None or certification_training_parent_normalization is None
+    ):
+        normalizer.close()
+        raise ValueError(
+            "Certification needs the original training seed and parent pair; this legacy resumed bundle does not record them"
+        )
     normalizer.norm_reward = not args.eval_only
     model.ent_coef = float(recipe.get("ppo", {}).get("ent_coef", 0.005))
     model.target_kl = float(recipe.get("ppo", {}).get("target_kl", 0.03))
     if not args.resume:
         setattr(model, "mesozoic_behavior_stage_start", model.num_timesteps)
+        setattr(model, "mesozoic_behavior_stage_start_updates", model._n_updates)
     stage_start = int(getattr(model, "mesozoic_behavior_stage_start"))
     if args.resume and args.steps is None:
         steps = max(0, int(metadata["timesteps"]) - (model.num_timesteps - stage_start))
@@ -353,6 +466,7 @@ def main(argv: list[str] | None = None) -> None:
         "recipe_sha256": _sha(args.config),
         "behavior_identity": behavior_identity,
         "preparation": preparation,
+        "certified_source": source_selection,
         "git_commit": git.stdout.strip() if git.returncode == 0 else None,
         "git_dirty": bool(dirty.stdout.strip()),
         "versions": {
@@ -382,6 +496,11 @@ def main(argv: list[str] | None = None) -> None:
         },
         "canonical_certification": False,
         "replay": {"record_video": args.record_video, "video_fps": args.video_fps},
+        "certification_requested": args.publish_certified,
+        "comparison_episodes": args.comparison_episodes,
+        "certification_training_seed": certification_training_seed,
+        "certification_training_parent_sha256": certification_training_parent,
+        "certification_training_parent_normalization_sha256": certification_training_parent_normalization,
     }
     _write(args.output / "run.json", manifest)
     print(f"Behavior run seed: {run_seed}; output: {args.output}")
@@ -444,6 +563,21 @@ def main(argv: list[str] | None = None) -> None:
             )
         manifest["status"] = "interrupted" if interrupted else "complete"
         _write(args.output / "run.json", manifest)
+        if args.publish_certified and not interrupted:
+            from environments.shared.behavior_certification import certify_and_publish_behavior
+
+            assert certification_training_seed is not None
+            manifest["certification"] = certify_and_publish_behavior(
+                output=args.output,
+                library=args.certified_library,
+                recipe_path=args.config,
+                species=species,
+                identity=behavior_identity,
+                recipe=recipe,
+                training_seed=int(certification_training_seed),
+                comparison_episodes=args.comparison_episodes,
+            )
+            _write(args.output / "run.json", manifest)
     except KeyboardInterrupt:
         # Scoring and video export can take longer than a short training run.
         # Keep their already-saved checkpoint, and finish a save interrupted

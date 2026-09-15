@@ -131,6 +131,7 @@ def stubbed_cli(monkeypatch, tmp_path):
     class FakeModel:
         def __init__(self, state=None):
             self.num_timesteps = 8_000_000
+            self._n_updates = 1_000
             self.n_steps = 64
             self.batch_size = 16
             self.n_epochs = 1
@@ -159,6 +160,7 @@ def stubbed_cli(monkeypatch, tmp_path):
                     current_callback.model = self
                     current_callback._on_rollout_start()
             self.num_timesteps = start + total_timesteps
+            self._n_updates += 1
             return self
 
         def save(self, path):
