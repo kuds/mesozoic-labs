@@ -24,6 +24,9 @@ PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behavior_pilots"
         "trex_follow_direction_speed",
         "trex_terrain_contact",
         "trex_gentle_terrain",
+        "trex_bumps_terrain",
+        "trex_depressions_terrain",
+        "trex_mixed_terrain",
         "trex_combined_terrain",
     ],
 )
@@ -47,7 +50,10 @@ def test_each_committed_recipe_instantiates_and_steps(name):
         if env.terrain is None:
             assert np.isfinite(env.lowest_ground_clearance())
         else:
-            assert info["terrain"]["schema"] == "mesozoic.gentle-terrain/v1"
+            expected_schema = (
+                "mesozoic.gentle-terrain/v1" if terrain.template == "sloped" else "mesozoic.terrain-templates/v2"
+            )
+            assert info["terrain"]["schema"] == expected_schema
             with pytest.raises(NotImplementedError, match="heightfield"):
                 env.lowest_ground_clearance()
     finally:
@@ -213,6 +219,26 @@ def test_eval_only_never_learns_or_overwrites_parent(stubbed_cli, tmp_path):
     assert run["training"]["actual_additional_steps"] == 0
     assert run["training"]["requested_additional_steps"] == 0
     train_behaviors._verify_bundle(output / "model.zip", output / "vecnormalize.pkl")
+
+
+@pytest.mark.parametrize("problem", ["missing_encoder", "excessive_fps"])
+def test_unavailable_requested_replay_fails_before_loading_or_learning(stubbed_cli, tmp_path, monkeypatch, problem):
+    from environments.shared import behavior_replay
+
+    calls, parent, normalization = stubbed_cli
+
+    def preflight():
+        if problem == "missing_encoder":
+            raise behavior_replay.ReplayExportError("The requested video encoder is unavailable")
+
+    monkeypatch.setattr(behavior_replay, "require_replay_dependencies", preflight)
+    args = _args(PRESETS / "trex_mixed_terrain.toml", parent, normalization, tmp_path / "unavailable-replay")
+    args[args.index("--eval-episodes") + 1] = "1"
+    args += ["--record-video", "--video-fps", "101" if problem == "excessive_fps" else "25"]
+    with pytest.raises((SystemExit, ValueError, behavior_replay.ReplayExportError)):
+        train_behaviors.main(args)
+    assert calls["loads"] == []
+    assert calls["learn"] == []
 
 
 def test_resume_refuses_changed_ppo_recipe_before_loading(stubbed_cli, tmp_path):

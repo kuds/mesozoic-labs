@@ -15,7 +15,9 @@ the canonical locomotion, hunting, and MJX environments remain unchanged.
   Turns begin within ±30°, with a 0.3 rad/s turning cap. Speed recipes include
   stops; zero speed masks the heading objective and checks actual motion.
 - A finite 70 × 70 m heightfield in the recipes, with smooth grades capped at 3° and nominal
-  15 mm roughness. Each run gets a new recorded seed by default. Each episode
+  15 mm roughness in the original sloped template. Localized bumps, shallow
+  depressions, and mixed ground have separate templates with nominal 20 mm
+  features on an otherwise level surface. Each run gets a new recorded seed by default. Each episode
   receives a small variation of that run's course. Explicit seeds replay it.
 - A 3 m flat spawn radius contains the whole animal, including its tail. Terrain
   recipes mix in 25% original-plane episodes. Pelvis/head/skull checks use local ground
@@ -77,7 +79,34 @@ resume. Reward normalization adapts during training and is disabled for scoring.
 | `trex_follow_direction_speed.toml` | Vary speed, stop and resume | 3M |
 | `trex_terrain_contact.toml` | Adapt the gait to flat-heightfield foot contacts | 300k |
 | `trex_gentle_terrain.toml` | Maintain a heading across randomized gentle ground | 2M |
+| `trex_bumps_terrain.toml` | Cross scattered smooth bumps on level ground | 2M |
+| `trex_depressions_terrain.toml` | Cross shallow solid depressions | 2M |
+| `trex_mixed_terrain.toml` | Cross a mixture of bumps and depressions | 2M |
 | `trex_combined_terrain.toml` | Change heading/speed on gentle ground | 3M |
+
+### Terrain templates and randomization
+
+Templates specify the kind and scale of ground, while seeds vary its layout.
+The original `sloped` template combines a broad random grade with small sinusoidal
+ripples. On a full-map heat map, its large overall elevation range can hide the
+centimetre-scale ripples. The new `bumps`, `depressions`, and `mixed` templates
+have no broad slope, so their localized features define the difficulty.
+
+Feature templates start with a nominal 2 cm height or depth and randomized
+0.7–1.2 m radii. These are broad, shallow features suitable for the first contact
+adaptation pilots. Depressions have solid bottoms; they are not gaps through the
+ground. Their positions, sizes, and amplitudes vary by run, with smaller changes
+between episodes. The spawn apron stays flat. The final physical surface is
+limited to the configured maximum grade; its measured heights and grade are
+recorded because overlapping features or grade limiting can change the nominal
+amplitude.
+
+Keep each template as a separate evaluation slice so falls on depressions are
+not hidden by good results on bumps. After contact adaptation, compare the
+individual templates, then the mixed template, before raising feature height or
+adding sharper ground. Reserve fixed seeds for repeatable comparisons and use
+unseen seeds to check whether the behavior transfers to new layouts. The recipes
+do not automatically promote difficulty or establish that any template is mastered.
 
 Start terrain from the learned follower, after checking its flat-ground behavior.
 First use the contact-adaptation recipe: a paired preflight found that the
@@ -143,6 +172,48 @@ the canonical plane under the flat apron and verifies actual hfield contacts.
 
 ## Read the results
 
+### Save video replays and their terrain maps
+
+Install `pip install -e '.[train,viz]'` and add `--record-video` to the training
+command. Each evaluation video automatically saves both terrain heat maps beside
+it. `--video-fps` sets the playback rate (25 by default); it does not change the
+simulation timestep. The bundled encoder does not require a system FFmpeg install.
+
+To record a previously saved behavior bundle from the same compatible source and
+recipe, run evaluation without further training:
+
+```bash
+python -m environments.trex.scripts.train_behaviors \
+  --config configs/trex/behavior_pilots/trex_mixed_terrain.toml \
+  --checkpoint /path/to/runs/mixed/model.zip \
+  --vecnormalize /path/to/runs/mixed/vecnormalize.pkl \
+  --output /path/to/replays/mixed \
+  --eval-only --resume --record-video --eval-episodes 3 --seed 42
+```
+
+Each scored episode receives a directory such as
+`replays/episode_000_seed_12345/` containing:
+
+- `replay.mp4`: the exact trajectory used for that episode's evaluation.
+- `terrain_full_map.png`: the entire physical map with the actual path.
+- `terrain_local_map.png`: an 8 m close-up around the final position, with a
+  local color range to make small height changes visible. Heights are labelled
+  in centimetres; world coordinates are in metres.
+- `terrain_and_path.npz`: the exact physics heightfield samples, height grid,
+  coordinates, trajectory and frame timing.
+- `manifest.json`: template, seeds, terrain hash, episode outcome and file hashes.
+
+The recorder captures the terminal pose and frame before the vectorized
+environment resets. It copies the physical heightfield rather than generating
+a second map for display, and checks that its sample hash matches the episode's
+terrain record. A replay directory is published only once all its files are
+complete. Requested video or map failures fail the export visibly.
+
+Original-plane retention episodes save explicitly labelled
+`flat_plane_full_map.png` and `flat_plane_local_map.png` reference maps. These
+are not presented as sampled heightfields. Video recording remains optional;
+requesting it always includes the matching maps.
+
 The output bundle includes:
 
 - `model.zip`, `vecnormalize.pkl`, and `bundle.json`: matched artifacts and hashes.
@@ -152,6 +223,8 @@ The output bundle includes:
 - `training_episodes.jsonl`: every actual training/evaluation reset recipe.
 - Evaluation summaries and per-episode command/step logs with target heading,
   emitted commands, measured speed/turning, stopping, and terrain information.
+- When `--record-video` is enabled, per-episode replay directories with video,
+  terrain maps and exact saved terrain/path data.
 
 Judge heading acquisition, speed error, sustained stopping, full-horizon
 survival, and terrain exposure together. Radial distance alone is only a course

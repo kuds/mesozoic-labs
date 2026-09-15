@@ -12,7 +12,9 @@ import copy
 import csv
 import json
 import math
+import sys
 from collections import Counter
+from contextlib import ExitStack
 from numbers import Integral
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -335,13 +337,24 @@ def _reset_info(vec_env: Any) -> dict[str, Any]:
     return copy.deepcopy(values[0]) if values else {}
 
 
-def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], output_dir: Path) -> dict[str, Any]:
+def evaluate_behavior(
+    model: Any,
+    vec_env: Any,
+    *,
+    episode_seeds: list[int],
+    output_dir: Path,
+    record_video: bool = False,
+    video_fps: float = 25.0,
+    replay_context: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Evaluate a bound single-environment VecNormalize with frozen statistics.
 
     Seeds explicitly reset every episode.  The caller remains responsible
     for checkpoint/normalization selection and their hashes.  Normalization
     flags are restored even when inference fails.  This function deliberately
     does not save a gate verdict or overwrite a canonical result bundle.
+    ``record_video`` adds a matched video, full/local terrain maps, raw height
+    samples and path for each scored episode, before vectorized auto-reset.
     """
     if getattr(vec_env, "num_envs", None) != 1:
         raise ValueError("behavior evaluation requires exactly one vectorized environment")
@@ -364,10 +377,29 @@ def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], out
     original_training, original_norm_reward = vec_env.training, vec_env.norm_reward
     episode_summaries: list[dict[str, Any]] = []
     all_events: list[dict[str, Any]] = []
+    replay_stack = ExitStack()
+    recorder = None
     vec_env.training = False
     vec_env.norm_reward = False
     try:
+        if record_video:
+            from environments.shared.behavior_replay import record_evaluation_replays
+
+            recorder = replay_stack.enter_context(
+                record_evaluation_replays(
+                    vec_env,
+                    output_dir / "replays",
+                    fps=video_fps,
+                    context={
+                        "evaluation": "same deterministic scored trajectory",
+                        "normalization_statistics_frozen": True,
+                        **dict(replay_context or {}),
+                    },
+                )
+            )
         for episode_index, seed in enumerate(episode_seeds):
+            if recorder is not None:
+                recorder.arm_episode(episode_index, int(seed))
             vec_env.seed(int(seed))
             observation = vec_env.reset()
             reset_info = _reset_info(vec_env)
@@ -423,6 +455,12 @@ def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], out
                 previous_heading = float(row["actual_heading"])
                 if dones[0]:
                     break
+            if recorder is not None:
+                recorder.finish(
+                    terminated=bool(rows[-1]["terminated"]),
+                    truncated=bool(rows[-1]["truncated"]),
+                    terminal_info=rows[-1],
+                )
             summary = summarize_episode(
                 rows,
                 dt,
@@ -432,6 +470,8 @@ def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], out
                 yaw_rate_max=planner.config.yaw_rate_max,
             )
             summary.update(episode=episode_index, episode_seed=int(seed))
+            if recorder is not None:
+                summary["replay"] = copy.deepcopy(recorder.completed[-1])
             _write_csv(episodes_dir / f"{stem}_steps.csv", rows)
             _write_json(episodes_dir / f"{stem}_events.json", summary["events"])
             _write_json(episodes_dir / f"{stem}_summary.json", summary)
@@ -440,8 +480,11 @@ def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], out
                 {"episode": episode_index, "episode_seed": int(seed), **event} for event in summary["events"]
             )
     finally:
-        vec_env.training = original_training
-        vec_env.norm_reward = original_norm_reward
+        try:
+            replay_stack.__exit__(*sys.exc_info())
+        finally:
+            vec_env.training = original_training
+            vec_env.norm_reward = original_norm_reward
 
     count = len(episode_summaries)
     eligible_count = sum(episode["eligible_event_count"] for episode in episode_summaries)
@@ -503,8 +546,18 @@ def evaluate_behavior(model: Any, vec_env: Any, *, episode_seeds: list[int], out
     }
     _write_csv(
         output_dir / "episodes.csv",
-        [{key: value for key, value in episode.items() if key != "events"} for episode in episode_summaries],
+        [
+            {key: value for key, value in episode.items() if key not in ("events", "replay")}
+            for episode in episode_summaries
+        ],
     )
+    if recorder is not None:
+        report["outputs"]["replay_index"] = str(output_dir / "replays" / "index.json")
+        report["outputs"]["replays"] = str(output_dir / "replays")
+        _write_json(
+            output_dir / "replays" / "index.json",
+            {"schema": "mesozoic.behavior-replay-index/v1", "episodes": recorder.completed},
+        )
     _write_csv(output_dir / "command_events.csv", all_events)
     _write_json(output_dir / "evaluation_summary.json", report)
     return report

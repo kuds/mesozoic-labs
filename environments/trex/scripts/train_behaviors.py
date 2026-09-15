@@ -162,6 +162,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steps", type=int, help="Additional adaptation steps (rounded up to a PPO rollout)")
     parser.add_argument("--eval-episodes", type=int, default=5)
     parser.add_argument("--eval-only", action="store_true", help="Prepare/load and evaluate without learning")
+    parser.add_argument(
+        "--record-video",
+        action="store_true",
+        help="Save scored episode videos with matching terrain maps, raw heights and paths",
+    )
+    parser.add_argument("--video-fps", type=float, default=25.0, help="Replay frame rate (default: 25)")
     loading = parser.add_mutually_exclusive_group()
     loading.add_argument(
         "--resume", action="store_true", help="Continue this exact behavior without re-zeroing commands"
@@ -176,6 +182,10 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--steps must be nonnegative")
     if args.eval_episodes < 0:
         parser.error("--eval-episodes must be nonnegative")
+    if not np.isfinite(args.video_fps) or args.video_fps <= 0:
+        parser.error("--video-fps must be finite and positive")
+    if args.record_video and args.eval_episodes == 0:
+        parser.error("--record-video requires at least one evaluation episode")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be new or empty")
     recipe, commands, terrain, env_kwargs = read_recipe(args.config)
@@ -204,6 +214,16 @@ def main(argv: list[str] | None = None) -> None:
 
     torch.set_num_threads(1)
     env = TRexBehaviorEnv(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    if args.record_video:
+        try:
+            from environments.shared.behavior_replay import require_replay_dependencies
+
+            if args.video_fps > 1.0 / env.dt + 1e-9:
+                raise ValueError("--video-fps must not exceed the environment control frequency")
+            require_replay_dependencies()
+        except Exception:
+            env.close()
+            raise
     behavior_identity = env.behavior_identity
     wrapped: gym.Env = Monitor(EpisodeManifestRecorder(env, args.output / "training_episodes.jsonl"))
     learning_rate = float(recipe.get("ppo", {}).get("learning_rate", 5e-5))
@@ -284,6 +304,7 @@ def main(argv: list[str] | None = None) -> None:
             "reward_normalization": bool(normalizer.norm_reward),
         },
         "canonical_certification": False,
+        "replay": {"record_video": args.record_video, "video_fps": args.video_fps},
     }
     _write(args.output / "run.json", manifest)
     print(f"Behavior pilot seed: {run_seed}; output: {args.output}")
@@ -329,7 +350,19 @@ def main(argv: list[str] | None = None) -> None:
         # using these as a training curriculum signal.
         seeds = [int(s) for s in np.random.SeedSequence([run_seed, 0xE7A1]).generate_state(args.eval_episodes)]
         if seeds and not interrupted:
-            manifest["evaluation"] = evaluate_behavior(model, normalizer, episode_seeds=seeds, output_dir=args.output)
+            manifest["evaluation"] = evaluate_behavior(
+                model,
+                normalizer,
+                episode_seeds=seeds,
+                output_dir=args.output,
+                record_video=args.record_video,
+                video_fps=args.video_fps,
+                replay_context={
+                    "model_sha256": "sha256:" + _sha(args.output / "model.zip"),
+                    "normalizer_sha256": "sha256:" + _sha(args.output / "vecnormalize.pkl"),
+                    "behavior_identity": behavior_identity,
+                },
+            )
         manifest["status"] = "interrupted" if interrupted else "complete"
         _write(args.output / "run.json", manifest)
     except Exception as exc:

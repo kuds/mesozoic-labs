@@ -1,5 +1,6 @@
 """Terrain geometry is checked against MuJoCo's own ray/collision queries."""
 
+import json
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 
@@ -222,3 +223,144 @@ def test_invalid_configuration_rejected(kwargs):
 def test_invalid_seed_rejected(seed, small_config):
     with pytest.raises(ValueError, match="run_seed"):
         generate_terrain(small_config, run_seed=seed)
+
+
+def test_original_sloped_samples_and_recipe_hash_remain_compatible():
+    # Frozen output from the shipped v1 implementation, not a second copy of
+    # the generator. Old recorded terrain recipes must still replay exactly.
+    manifest = generate_terrain(TerrainConfig(), run_seed=42).manifest()
+    assert manifest["samples_sha256"] == "sha256:bc0108a462d2d616eeca007b97b5c23f30abfbfff6f4c7bc9e42ac7abc83a2db"
+    assert manifest["terrain_sha256"] == "sha256:c438e649fe70f3233ca40b1fc0c3f997d3398a8021db49bb7ca9b8bc2d983589"
+    assert manifest["schema"] == "mesozoic.gentle-terrain/v1"
+
+
+def test_legacy_small_encoding_height_ignores_unused_feature_defaults():
+    config = TerrainConfig(max_height=0.01, roughness_amplitude=0.005)
+    terrain = generate_terrain(config, run_seed=42)
+    manifest = terrain.manifest()
+    assert manifest["samples_sha256"] == "sha256:e9ba3b46aa1cd11e5fc7853049749e1455fd9948d7c9320d1c7d86983b283709"
+    assert manifest["terrain_sha256"] == "sha256:2467eb6a341b5efb9319a30aad680322af602f9469892d06c32e7c75afcc22d4"
+    recorded = json.loads(json.dumps(manifest, allow_nan=False))
+    replay = generate_terrain(TerrainConfig(**recorded["config"]), run_seed=recorded["run_seed"])
+    np.testing.assert_array_equal(terrain.heights, replay.heights)
+    # Cross-field constraints apply only to the active feature generator.
+    with pytest.raises(ValueError, match="feature_height"):
+        replace(config, template="mixed")
+
+
+@pytest.mark.parametrize("template", ["bumps", "depressions", "mixed"])
+@pytest.mark.parametrize("seed", [0, 42, 43])
+def test_feature_templates_have_bounded_local_relief_on_the_walk_corridor(template, seed):
+    config = TerrainConfig(template=template, extent=16, nrow=161, ncol=161)
+    terrain = generate_terrain(config, run_seed=seed)
+    manifest = terrain.manifest()
+    assert manifest["schema"] == "mesozoic.terrain-templates/v2"
+    assert 0 < manifest["maximum_grade_degrees"] <= config.max_slope_degrees
+    assert np.abs(terrain.heights).max() < 0.05  # Centimetre features, not metre-scale grading.
+    x, y = np.meshgrid(np.linspace(3, 15, 121), np.linspace(-3, 3, 61))
+    sampled = terrain.height_at(x, y)
+    if template == "bumps":
+        assert np.all(sampled >= 0)
+        assert sampled.max() > 0.005
+    elif template == "depressions":
+        assert np.all(sampled <= 0)
+        assert sampled.min() < -0.005
+    else:
+        assert sampled.max() > 0.005
+        assert sampled.min() < -0.005
+    # A plane fit must leave substantial local relief; a tilted flat map
+    # would have negligible residual and cannot satisfy this requirement.
+    design = np.column_stack([x.ravel(), y.ravel(), np.ones(x.size)])
+    fitted_plane = design @ np.linalg.lstsq(design, sampled.ravel(), rcond=None)[0]
+    assert np.sqrt(np.mean((sampled.ravel() - fitted_plane) ** 2)) > 0.002
+    assert len(terrain.features) > 20
+    assert all(abs(feature.height) <= config.feature_height for feature in terrain.features)
+    # Also sample between grid vertices at the circular spawn boundary.
+    angles = np.linspace(-np.pi, np.pi, 361)
+    np.testing.assert_array_equal(
+        terrain.height_at(config.apron_radius * np.cos(angles), config.apron_radius * np.sin(angles)),
+        0,
+    )
+
+
+@pytest.mark.parametrize("template", ["bumps", "depressions", "mixed"])
+def test_local_features_repeat_and_episode_changes_stay_small(template, small_config):
+    config = replace(small_config, template=template)
+    first = generate_terrain(config, run_seed=41, episode_index=4)
+    again = generate_terrain(config, run_seed=41, episode_index=4)
+    later = generate_terrain(config, run_seed=41, episode_index=5)
+    different_run = generate_terrain(config, run_seed=42, episode_index=4)
+    np.testing.assert_array_equal(first.heights, again.heights)
+    assert first.manifest(include_features=True) == again.manifest(include_features=True)
+    assert first.manifest()["samples_sha256"] != later.manifest()["samples_sha256"]
+    assert np.corrcoef(first.heights.ravel(), later.heights.ravel())[0, 1] > 0.9
+    assert first.manifest()["samples_sha256"] != different_run.manifest()["samples_sha256"]
+    no_variation = replace(config, episode_variation=0)
+    np.testing.assert_array_equal(
+        generate_terrain(no_variation, run_seed=41, episode_index=4).heights,
+        generate_terrain(no_variation, run_seed=41, episode_index=5).heights,
+    )
+
+
+def test_feature_manifest_is_compact_and_optional_details_report_post_cap_heights(small_config):
+    terrain = generate_terrain(replace(small_config, template="mixed", feature_height=0.1), run_seed=3)
+    manifest = terrain.manifest()
+    details = terrain.manifest(include_features=True)["localized_features"]
+    assert "features" not in manifest["localized_features"]
+    assert 0 < details["height_scale_after_bounds"] < 1
+    assert details["count"] == details["positive_count"] + details["negative_count"] == len(terrain.features)
+    assert details["positive_count"] > 0 and details["negative_count"] > 0
+    assert len(details["features"]) == len(terrain.features)
+    assert details["scaled_component_height_range_m"][1] < 0.1
+    for feature in details["features"]:
+        assert feature["surface_height_at_center_m"] == terrain.height_at(feature["center_x_m"], feature["center_y_m"])
+
+
+@pytest.mark.parametrize("template", ["sloped", "bumps", "depressions", "mixed"])
+@pytest.mark.parametrize("include_features", [False, True])
+def test_terrain_manifest_is_json_serializable(template, include_features, small_config):
+    terrain = generate_terrain(
+        replace(small_config, template=template, feature_height=np.float32(0.04)),
+        run_seed=np.int64(42),
+        episode_index=np.int64(1),
+    )
+    manifest = terrain.manifest(include_features=include_features)
+    assert json.loads(json.dumps(manifest, allow_nan=False)) == manifest
+
+
+def test_depressions_are_real_solid_surface_in_mujoco(sphere_xml, small_config):
+    terrain = generate_terrain(replace(small_config, template="depressions"), run_seed=17)
+    model = build_terrain_model(sphere_xml, terrain)
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    row, col = np.unravel_index(np.argmin(terrain.heights), terrain.heights.shape)
+    x = -terrain.config.extent + col * terrain.config.dx
+    y = -terrain.config.extent + row * terrain.config.dy
+    assert terrain.height_at(x, y) < -0.005
+    distance = mujoco.mj_rayHfield(model, data, 0, np.array([x, y, 1.0]), np.array([0.0, 0.0, -1.0]))
+    assert distance > 1  # Below the original zero-height plane, still solid.
+    assert 1 - distance == pytest.approx(terrain.height_at(x, y), abs=1e-10)
+    assert not np.any(model.geom_type == mujoco.mjtGeom.mjGEOM_PLANE)
+
+
+def test_feature_template_flat_mode_has_no_features(small_config):
+    terrain = generate_terrain(replace(small_config, template="mixed", mode="flat"), run_seed=3)
+    np.testing.assert_array_equal(terrain.heights, 0)
+    assert terrain.features == ()
+    assert terrain.manifest()["localized_features"]["count"] == 0
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"template": "caverns"},
+        {"template": "mixed", "feature_radius_min": 0.1},
+        {"feature_height": -0.01},
+        {"feature_density": -1},
+        {"template": "mixed", "feature_density": 100},
+        {"template": "mixed", "feature_radius_min": 2, "feature_radius_max": 1},
+    ],
+)
+def test_invalid_feature_settings_are_rejected(kwargs):
+    with pytest.raises(ValueError):
+        TerrainConfig(**kwargs)
