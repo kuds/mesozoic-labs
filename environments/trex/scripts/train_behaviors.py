@@ -154,7 +154,7 @@ def _save_bundle(model: Any, normalizer: Any, output: Path, identity: dict, reci
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True, help="Pilot TOML in configs/behavior_pilots")
+    parser.add_argument("--config", type=Path, required=True, help="Pilot TOML in configs/trex/behavior_pilots")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--vecnormalize", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="New or empty local output directory")

@@ -48,7 +48,7 @@ in the repository.
 
 ```bash
 python -m environments.trex.scripts.train_behaviors \
-  --config configs/behavior_pilots/trex_follow_direction.toml \
+  --config configs/trex/behavior_pilots/trex_follow_direction.toml \
   --checkpoint /path/to/walker.zip \
   --vecnormalize /path/to/walker_vecnormalize.pkl \
   --output /path/to/runs/follow-smoke \
@@ -90,7 +90,7 @@ command connections instead of zeroing them a second time:
 
 ```bash
 python -m environments.trex.scripts.train_behaviors \
-  --config configs/behavior_pilots/trex_terrain_contact.toml \
+  --config configs/trex/behavior_pilots/trex_terrain_contact.toml \
   --checkpoint /path/to/runs/follow/model.zip \
   --vecnormalize /path/to/runs/follow/vecnormalize.pkl \
   --output /path/to/runs/terrain-contact --adapt

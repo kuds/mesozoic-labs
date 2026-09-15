@@ -14,7 +14,7 @@ pytest.importorskip("stable_baselines3")
 from environments.trex.envs.behavior_env import TRexBehaviorEnv  # noqa: E402
 from environments.trex.scripts import train_behaviors  # noqa: E402
 
-PRESETS = Path(__file__).parents[3] / "configs" / "behavior_pilots"
+PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behavior_pilots"
 
 
 @pytest.mark.parametrize(
