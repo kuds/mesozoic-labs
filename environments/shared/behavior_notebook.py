@@ -181,11 +181,37 @@ def run_notebook_pilot(plan: NotebookPilotPlan) -> dict[str, Any]:
     return dict(report)
 
 
+def _replay_display_paths(root: Path, episode: dict[str, Any]) -> dict[str, str]:
+    """Find the matched assets in the supplied run, including relocated runs."""
+    replay = episode["replay"]
+    keys = ("video", "full_map", "local_map")
+    directory = root / "replays" / f"episode_{episode['episode']:03d}_seed_{episode['episode_seed']}"
+    manifest_path = directory / "manifest.json"
+    if "manifest" in replay or manifest_path.is_file():
+        # The index records the original output location, but the episode
+        # manifest already stores portable filenames. Always use this run's
+        # manifest, even when an original copy still exists elsewhere.
+        manifest = json.loads(manifest_path.read_text())
+        paths = {}
+        for key in keys:
+            relative = Path(manifest["files"][key]["path"])
+            if relative.is_absolute() or ".." in relative.parts:
+                raise ValueError(f"Replay {key} must be relative to its episode directory: {relative}")
+            paths[key] = directory / relative
+    else:
+        # Retain support for reports with direct paths and no episode manifest.
+        paths = {key: root / Path(replay[key]) for key in keys}
+    for key, path in paths.items():
+        if not path.is_file():
+            raise FileNotFoundError(f"Replay {key} is missing from saved run: {path}")
+    return {key: str(path) for key, path in paths.items()}
+
+
 def display_notebook_pilot(output_dir: Path) -> None:
     """Show saved summaries, videos at their encoded rate, and matching maps."""
     from IPython.display import Image, Video, display
 
-    root = Path(output_dir)
+    root = Path(output_dir).resolve()
     report = json.loads((root / "run.json").read_text())
     print(f"Behavior pilot: {report['status']} · seed {report['run_seed']} · {root}")
     training = report.get("training", {})
@@ -201,6 +227,7 @@ def display_notebook_pilot(output_dir: Path) -> None:
             if not replay:
                 continue
             print(f"Episode {episode['episode']} · seed {episode['episode_seed']}")
-            display(Video(filename=replay["video"], embed=True))
-            display(Image(filename=replay["full_map"]))
-            display(Image(filename=replay["local_map"]))
+            paths = _replay_display_paths(root, episode)
+            display(Video(filename=paths["video"], embed=True))
+            display(Image(filename=paths["full_map"]))
+            display(Image(filename=paths["local_map"]))

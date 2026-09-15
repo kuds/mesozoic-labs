@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import shutil
 import sys
 import types
 from pathlib import Path
@@ -266,6 +267,8 @@ def test_saved_video_and_matching_maps_are_displayed_without_changing_fps(tmp_pa
             ("local_map", "terrain_local_map.png"),
         )
     }
+    for filename in replay.values():
+        Path(filename).write_bytes(b"saved-media")
     report = {
         "status": "complete",
         "run_seed": 24,
@@ -287,6 +290,135 @@ def test_saved_video_and_matching_maps_are_displayed_without_changing_fps(tmp_pa
         ("image", {"filename": replay["full_map"]}),
         ("image", {"filename": replay["local_map"]}),
     ]
+
+
+def _saved_replay_run(root, *, path_style="absolute"):
+    """Write the production layout with distinct plane/heightfield episode media."""
+    root.mkdir()
+    episodes, assets = [], []
+    recorded_root = root if path_style == "absolute" else Path("../behavior-runs") / root.name
+    for episode, prefix in enumerate(("flat_plane", "terrain")):
+        seed = 25 + episode
+        directory = Path("replays") / f"episode_{episode:03d}_seed_{seed}"
+        (root / directory).mkdir(parents=True)
+        files = {
+            "video": "replay.mp4",
+            "full_map": f"{prefix}_full_map.png",
+            "local_map": f"{prefix}_local_map.png",
+        }
+        for key, name in files.items():
+            relative = directory / name
+            payload = f"episode-{episode}-{key}".encode()
+            (root / relative).write_bytes(payload)
+            assets.append((relative, payload))
+        manifest = {
+            "schema": "mesozoic.behavior-replay/v1",
+            "episode": episode,
+            "episode_seed": seed,
+            "files": {key: {"path": name} for key, name in files.items()},
+        }
+        (root / directory / "manifest.json").write_text(json.dumps(manifest))
+        replay = {
+            "episode": episode,
+            "episode_seed": seed,
+            "directory": str(recorded_root / directory),
+            "manifest": str(recorded_root / directory / "manifest.json"),
+            **{key: str(recorded_root / directory / name) for key, name in files.items()},
+        }
+        episodes.append({"episode": episode, "episode_seed": seed, "replay": replay})
+    report = {
+        "status": "complete",
+        "run_seed": 24,
+        "evaluation": {"full_horizon_count": 2, "episode_count": 2, "fall_count": 0, "episodes": episodes},
+    }
+    (root / "run.json").write_text(json.dumps(report))
+    (root / "replays" / "index.json").write_text(
+        json.dumps({"schema": "mesozoic.behavior-replay-index/v1", "episodes": [e["replay"] for e in episodes]})
+    )
+    return assets
+
+
+def _capture_saved_media(monkeypatch):
+    import IPython.display as ipy
+
+    received = []
+
+    def read_media(**kwargs):
+        path = Path(kwargs["filename"])
+        return path.resolve(), path.read_bytes()
+
+    monkeypatch.setattr(ipy, "Video", read_media)
+    monkeypatch.setattr(ipy, "Image", read_media)
+    monkeypatch.setattr(ipy, "display", received.append)
+    return received
+
+
+def test_copied_run_uses_its_own_matching_episode_media_even_if_original_exists(tmp_path, monkeypatch):
+    original, copied = tmp_path / "original", tmp_path / "downloaded copy"
+    assets = _saved_replay_run(original)
+    shutil.copytree(original, copied)
+    received = _capture_saved_media(monkeypatch)
+    notebook.display_notebook_pilot(copied)
+    assert received == [(copied / relative, payload) for relative, payload in assets]
+    assert all((original / relative).is_file() for relative, _ in assets)
+
+
+@pytest.mark.parametrize("path_style", ["absolute", "legacy_relative"])
+def test_moved_run_displays_after_working_directory_changes(tmp_path, monkeypatch, path_style):
+    original, moved = tmp_path / "original", tmp_path / "renamed"
+    assets = _saved_replay_run(original, path_style=path_style)
+    original.rename(moved)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    received = _capture_saved_media(monkeypatch)
+    notebook.display_notebook_pilot(Path("..") / moved.name)
+    assert received == [(moved / relative, payload) for relative, payload in assets]
+
+
+def test_copied_run_missing_map_does_not_fall_back_to_original_media(tmp_path, monkeypatch):
+    original, copied = tmp_path / "original", tmp_path / "copied"
+    assets = _saved_replay_run(original)
+    shutil.copytree(original, copied)
+    missing = assets[2][0]
+    (copied / missing).unlink()
+    received = _capture_saved_media(monkeypatch)
+    with pytest.raises(FileNotFoundError, match="flat_plane_local_map.png") as error:
+        notebook.display_notebook_pilot(copied)
+    assert str(copied) in str(error.value)
+    assert (original / missing).is_file()
+    assert received == []
+
+
+@pytest.mark.parametrize("unsafe_path", ["/outside.png", "../outside.png", "nested/../../outside.png"])
+def test_replay_manifest_files_must_stay_inside_saved_episode(tmp_path, monkeypatch, unsafe_path):
+    root = tmp_path / "saved"
+    _saved_replay_run(root)
+    manifest_path = root / "replays" / "episode_000_seed_25" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["files"]["local_map"]["path"] = unsafe_path
+    manifest_path.write_text(json.dumps(manifest))
+    received = _capture_saved_media(monkeypatch)
+    with pytest.raises(ValueError):
+        notebook.display_notebook_pilot(root)
+    assert received == []
+
+
+@pytest.mark.parametrize("evaluation_present", [False, True])
+def test_saved_run_without_replays_still_displays_summary(tmp_path, monkeypatch, capsys, evaluation_present):
+    report = {"status": "complete", "run_seed": 24}
+    if evaluation_present:
+        report["evaluation"] = {
+            "full_horizon_count": 1,
+            "episode_count": 1,
+            "fall_count": 0,
+            "episodes": [{"episode": 0, "episode_seed": 25}],
+        }
+    (tmp_path / "run.json").write_text(json.dumps(report))
+    received = _capture_saved_media(monkeypatch)
+    notebook.display_notebook_pilot(tmp_path)
+    assert "Behavior pilot: complete" in capsys.readouterr().out
+    assert received == []
 
 
 def test_canonical_default_and_freeform_stage_resolution_remain_available():

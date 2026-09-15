@@ -90,6 +90,12 @@ evaluation video with both heat maps. `PILOT_EVAL_EPISODES` and
 prevent accidental replacement of previous evidence. Notebook evaluation,
 replay, and cleanup use the behavior outputs rather than canonical gate reports.
 
+To view a downloaded or moved run, keep `run.json` and the complete `replays/`
+directory together and call `display_notebook_pilot(Path("/path/to/saved-run"))`
+from `environments.shared.behavior_notebook`. Video and heatmap filenames are
+resolved from the episode manifests inside that run, including bundles whose
+indexes still record the original machine's paths.
+
 ## Run a short training check
 
 Install the training dependencies from the repository root:
