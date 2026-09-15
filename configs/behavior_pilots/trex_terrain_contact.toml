@@ -1,0 +1,26 @@
+[pilot]
+name = "T-Rex T0: adapt to heightfield foot contacts"
+timesteps = 300000
+
+[commands]
+cruise_speed = 1.05
+turn_increment_max = 0.0
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+
+[terrain]
+enabled = true
+mode = "flat"
+extent = 35.0
+nrow = 351
+ncol = 351
+apron_radius = 3.0
+
+[env]
+max_episode_steps = 2500
+flat_probability = 0.25 # Canonical-plane retention; remaining episodes use a flat heightfield
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03
