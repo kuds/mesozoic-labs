@@ -77,6 +77,11 @@ def test_each_committed_recipe_instantiates_and_steps(name):
         "[ppo]\nlearning_rate=0.0\n",
         "[ppo]\nwarmup_timesteps=1.5\n",
         "[ppo]\nwarmup_clip_range=0.5\n",
+        "[terrain_sampler]\nflat=1\n",
+        '[terrain]\nenabled=true\nmode="flat"\n[terrain_sampler]\nflat=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nbumpps=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=-1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=1\n[env]\nflat_probability=0.25\n',
     ],
 )
 def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, content):

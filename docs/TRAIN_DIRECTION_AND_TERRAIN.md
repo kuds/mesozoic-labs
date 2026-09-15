@@ -3,7 +3,7 @@
 Direction following and difficult-terrain training are supported SB3/PPO behaviors
 for all six registered species: Velociraptor, Tyrannosaurus Rex, Brachiosaurus,
 Dibothrosuchus, Compsognathus, and Compsognathus Robot. Every species has the same
-nine behavior selections and a complete set of TOML recipes under
+eleven behavior selections and a complete set of TOML recipes under
 `configs/<species>/behaviors/`.
 
 These recipes activate the existing three command inputs while preserving the
@@ -20,8 +20,14 @@ repository revision containing this feature, and use the same `REPO_REF` in its
 setup form. Select any registered **SPECIES**, set `ALGORITHM = "ppo"`, and choose
 one of these **BEHAVIOR** values:
 
+For general terrain training, use **`difficult_terrain`** or
+**`follow_direction_difficult_terrain`**. Each trains one policy across all five
+ground families, with a new family and randomized course selected at reset.
+
 | Behavior / TOML filename | Training task | Default additional steps |
 |---|---|---:|
+| **`difficult_terrain`** | Straight locomotion across flat ground, slopes, bumps, depressions, and mixed terrain | 3M |
+| **`follow_direction_difficult_terrain`** | Follow heading/speed commands across all five terrain families | 3M |
 | `follow_direction` | Change heading while retaining cruise speed | 3M |
 | `follow_direction_speed` | Change heading and speed; stop and restart | 3M |
 | `terrain_contact` | Adapt foot contacts to a flat heightfield | 300k |
@@ -32,8 +38,12 @@ one of these **BEHAVIOR** values:
 | `combined_terrain` | Follow heading and speed commands on slopes | 3M |
 | `combined_mixed_terrain` | Follow heading and speed commands over bumps and depressions | 3M |
 
+The nine individual presets remain useful for focused comparisons and staged
+adaptation. The two general terrain behaviors combine those terrain families in
+one training run.
+
 Each filename ends in `.toml`; for example,
-[`configs/compsognathus/behaviors/combined_mixed_terrain.toml`](../configs/compsognathus/behaviors/combined_mixed_terrain.toml).
+[`configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml).
 The existing `stand`, `walk`, `hunt`, and explicit stage-ID selections retain the
 canonical curriculum workflow.
 
@@ -65,6 +75,12 @@ The notebook saves results under
 or locally otherwise. `BEHAVIOR_RECORD_VIDEO = True` saves and displays each
 scored video with both terrain heat maps. `BEHAVIOR_EVAL_EPISODES` controls the
 number of episodes and `BEHAVIOR_VIDEO_FPS` controls video frame rate.
+Use at least five evaluation episodes for the general terrain behaviors to cover
+every enabled family. Results show each family's episode count, survival, falls,
+and command tracking; fewer episodes explicitly mark coverage as incomplete.
+Five episodes provide only one trial per family, which checks coverage rather
+than establishing competence. Use 25 or 50 episodes for a more useful comparison,
+including unseen seeds, and inspect the individual outcomes.
 
 ## Species-specific recipe settings
 
@@ -136,24 +152,26 @@ policy-action/value equivalence. Resume and adaptation verify bundle hashes.
 ## Follow directions on difficult terrain
 
 A practical sequence is locomotion → `follow_direction` →
-`follow_direction_speed` → `terrain_contact` → terrain templates →
-`combined_mixed_terrain`. Check performance at each step; this sequence is a
-training recommendation, not an automatic promotion rule.
+`follow_direction_speed` → `terrain_contact` → `difficult_terrain` →
+`follow_direction_difficult_terrain`. Check performance at each step; this
+sequence is a training recommendation, not an automatic promotion rule. Use the
+individual template presets when diagnosing a particular kind of ground.
 
 Start terrain work with `terrain_contact`. Even a zero-height heightfield changes
-foot contacts compared with the original plane. Terrain recipes include 25%
-original-plane episodes to retain that gait. Then compare slopes, bumps, and
-depressions separately before mixing them and adding direction changes.
+foot contacts compared with the original plane. The general terrain recipes
+include original-plane episodes through their terrain sampler. Focused terrain
+presets retain their existing 25% original-plane episodes. Compare slopes, bumps,
+and depressions separately as well as assessing the combined training run.
 
 Use `--adapt` when transferring a behavior checkpoint to another compatible
-recipe. For example, after contact and mixed-ground training:
+recipe. For example, after contact adaptation and general terrain training:
 
 ```bash
 python -m environments.shared.train_behaviors \
   --species compsognathus \
-  --recipe configs/compsognathus/behaviors/combined_mixed_terrain.toml \
-  --checkpoint /path/to/runs/compsognathus-mixed/model.zip \
-  --vecnormalize /path/to/runs/compsognathus-mixed/vecnormalize.pkl \
+  --recipe configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml \
+  --checkpoint /path/to/runs/compsognathus-terrain/model.zip \
+  --vecnormalize /path/to/runs/compsognathus-terrain/vecnormalize.pkl \
   --output /path/to/runs/compsognathus-combined --adapt
 ```
 
@@ -167,6 +185,31 @@ saves a bundle. Resume preserves learning progress and starts fresh episodes.
 
 ## Terrain templates and randomization
 
+The two general terrain recipes configure a weighted, balanced sampler:
+
+```toml
+[terrain_sampler]
+flat = 1
+sloped = 1
+bumps = 1
+depressions = 1
+mixed = 1
+```
+
+Each shuffled five-episode block visits every family once with these defaults.
+Positive integer weights repeat a family that many times per block; zero disables
+it. The sum must be between 1 and 1,000. The original plane is the `flat` family;
+it is distinct from the flat-heightfield `terrain_contact` adaptation preset.
+`env.flat_probability` is zero in sampler recipes because the sampler already
+controls flat-ground coverage.
+
+At reset, the sampler chooses the episode's family and creates its seeded course.
+**The family and the physical surface stay fixed throughout that episode.**
+Commands can change during the episode, but the ground does not change underneath
+the animal. The next reset advances the seeded family schedule and course
+variation. The TOML's `[terrain]` section supplies the selected species' common
+map dimensions, smoothness limits, spawn apron, and feature sizes.
+
 Templates define the kind and scale of ground; seeds change its layout. The
 `sloped` template combines a broad grade with small smooth ripples. `bumps`,
 `depressions`, and `mixed` have a level base and localized smooth features.
@@ -178,6 +221,10 @@ Terrain and command randomness use independent streams. Explicit reset seeds
 repeat complete resets; resets without a seed advance the episode stream.
 Evaluation uses a separate seed stream. Reserve fixed seeds for comparisons and
 unseen seeds to check whether a learned behavior transfers to new layouts.
+For sampler recipes, evaluation visits enabled families in a balanced sequence
+and reports each family separately. Missing families are listed as unevaluated,
+with no invented survival or tracking result. The family counts and coverage flag
+make small evaluation budgets visible.
 
 Every reset is recorded in `training_episodes.jsonl`. Rebuild an episode from its
 saved terrain manifest:

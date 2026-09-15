@@ -19,12 +19,17 @@ from environments.shared.behavior_checkpoint import (  # noqa: E402
     load_behavior_checkpoint,
     prepare_behavior_checkpoint,
 )
-from environments.shared.behavior_env import get_behavior_env_class  # noqa: E402
 from environments.shared.plant_contract import attach_plant_identity, current_plant_identity  # noqa: E402
 from environments.shared.species_names import species_display_names  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE  # noqa: E402
-from environments.shared.train_behaviors import REPO_ROOT, _verify_bundle, main, read_recipe  # noqa: E402
+from environments.shared.train_behaviors import (  # noqa: E402
+    REPO_ROOT,
+    _verify_bundle,
+    create_behavior_env,
+    main,
+    read_recipe,
+)
 
 
 @pytest.fixture(params=list(species_display_names(backend="stable-baselines3")))
@@ -85,13 +90,13 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
     prepared, resumed, adapted = (tmp_path / name for name in ("prepared", "resumed", "adapted"))
     main(_args(recipe, checkpoint, stats, prepared, species))
     main(_args(recipe, prepared / "model.zip", prepared / "vecnormalize.pkl", resumed, species) + ["--resume"])
-    mixed = REPO_ROOT / "configs" / species / "behaviors" / "combined_mixed_terrain.toml"
+    mixed = REPO_ROOT / "configs" / species / "behaviors" / "follow_direction_difficult_terrain.toml"
     # Short diagnostic horizon keeps this integration test bounded while using
     # the complete real heightfield, normalization, optimizer and CSV scorer.
     short_recipe = tmp_path / "combined.toml"
     short_recipe.write_text(re.sub(r"max_episode_steps = \d+", "max_episode_steps = 4", mixed.read_text()))
     arguments = _args(short_recipe, resumed / "model.zip", resumed / "vecnormalize.pkl", adapted, species)
-    arguments[arguments.index("--eval-episodes") + 1] = "1"
+    arguments[arguments.index("--eval-episodes") + 1] = "5"
     main(arguments + ["--adapt"])
     reports = [json.loads((output / "run.json").read_text()) for output in (prepared, resumed, adapted)]
     for report, output in zip(reports, (prepared, resumed, adapted), strict=True):
@@ -107,9 +112,17 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
     transition = reports[2]["preparation"]["transitions"][-1]
     assert transition["command_weights_preserved"] and transition["optimizer_tensors_preserved"]
     assert reports[2]["evaluation"]
+    scored = json.loads((adapted / "evaluation_summary.json").read_text())
+    assert {episode["terrain_family"] for episode in scored["episodes"]} == {
+        "flat",
+        "sloped",
+        "bumps",
+        "depressions",
+        "mixed",
+    }
     assert source_bytes == (checkpoint.read_bytes(), stats.read_bytes())
     _, commands, terrain, kwargs = read_recipe(short_recipe, species)
-    env = get_behavior_env_class(species)(commands=commands, terrain=terrain, run_seed=17, **kwargs)
+    env = create_behavior_env(species, commands=commands, terrain=terrain, run_seed=17, **kwargs)
     loaded, normalizer, _ = load_behavior_checkpoint(
         adapted / "model.zip",
         adapted / "vecnormalize.pkl",

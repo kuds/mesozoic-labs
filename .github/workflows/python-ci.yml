@@ -169,6 +169,7 @@ jobs:
           from pathlib import Path
           import environments
           from environments.shared.config import load_stage_config
+          from environments.shared.behavior_notebook import BEHAVIOR_RECIPES
           from environments.shared.plant_contract import current_plant_identity
           from environments.shared.species_names import species_display_names
           from environments.shared.train_behaviors import REPO_ROOT, read_recipe
@@ -178,7 +179,7 @@ jobs:
           assert load_stage_config("velociraptor", 1)["name"]
           for species in species_display_names(backend="stable-baselines3"):
               recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
-              assert len(recipes) == 9, (species, recipes)
+              assert {recipe.name for recipe in recipes} == set(BEHAVIOR_RECIPES.values()), (species, recipes)
               for recipe in recipes:
                   assert read_recipe(recipe, species)[0]["behavior"]["species"] == species
           PY
@@ -289,6 +290,7 @@ jobs:
             environments/shared/tests/test_behavior_species_training.py \
             environments/shared/tests/test_behavior_env.py \
             environments/shared/tests/test_behavior_recipes.py \
+            environments/shared/tests/test_terrain_sampling.py \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

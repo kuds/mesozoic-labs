@@ -6,6 +6,7 @@ import copy
 import hashlib
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
 
 import gymnasium as gym
@@ -398,5 +399,75 @@ def test_video_frame_rate_cannot_exceed_control_frequency(tmp_path, fake_media):
         with pytest.raises(ReplayExportError, match="control frequency"):
             with record_evaluation_replays(vec, tmp_path, fps=101):
                 pass
+    finally:
+        vec.close()
+
+
+class _SamplingRenderEnv(_RenderEnv):
+    terrain_families = ("flat", "sloped", "bumps", "depressions", "mixed")
+
+    def __init__(self):
+        super().__init__(horizon=4)
+        self._field_model = self.model
+        self._flat_model = _RenderEnv(terrain=False).model
+
+    def reset(self, *, seed=None, options=None):
+        family = (options or {}).get("terrain_family", "mixed")
+        self.model = self._flat_model if family == "flat" else self._field_model
+        self.data = mujoco.MjData(self.model)
+        self.config = replace(self.config, template="sloped" if family == "flat" else family)
+        self.terrain = None if family == "flat" else generate_terrain(self.config, run_seed=0)
+        observation, info = super().reset(seed=seed, options=options)
+        info["terrain_sampling"] = {"family": family, "mode": "forced" if options else "balanced_shuffle"}
+        return observation, info
+
+
+def test_sampler_replays_keep_each_selected_family_and_its_physics_map_before_autoreset(tmp_path, fake_media):
+    raw = _SamplingRenderEnv()
+    vec = _vec(raw)
+    seeds = [11, 22, 33, 44, 55]
+    try:
+        report = evaluate_behavior(_Model(), vec, episode_seeds=seeds, output_dir=tmp_path, record_video=True)
+        index = json.loads((tmp_path / "replays/index.json").read_text())
+        assert [entry["terrain_family"] for entry in index["episodes"]] == list(raw.terrain_families)
+        for family, seed, episode in zip(raw.terrain_families, seeds, report["episodes"], strict=True):
+            replay = episode["replay"]
+            manifest = json.loads(Path(replay["manifest"]).read_text())
+            assert manifest["terrain_family"] == replay["terrain_family"] == episode["terrain_family"] == family
+            assert manifest["reset_info"]["terrain_sampling"]["family"] == family
+            assert manifest["reset_info"]["episode_seed"] == seed
+            data = np.load(replay["raw_terrain_and_path"])
+            if family == "flat":
+                assert manifest["surface_kind"] == "flat_plane"
+                assert data["normalized_heights"].size == 0
+            else:
+                config = replace(raw.config, template=family)
+                expected = generate_terrain(config, run_seed=seed)
+                np.testing.assert_array_equal(data["normalized_heights"], expected.normalized_heights)
+                assert manifest["terrain"]["config"].get("template", "sloped") == family
+            assert Path(replay["full_map"]).is_file()
+            assert Path(replay["local_map"]).is_file()
+        assert raw.terrain.config.template == "mixed"
+        assert raw._seed == 1055
+    finally:
+        vec.close()
+
+
+def test_replay_rejects_sampler_label_that_disagrees_with_recorded_physics(tmp_path, fake_media, monkeypatch):
+    raw = _RenderEnv(horizon=4, terrain=False)
+    original_reset = raw.reset
+
+    def reset(**kwargs):
+        observation, info = original_reset(**kwargs)
+        info["terrain_sampling"] = {"family": "bumps"}
+        return observation, info
+
+    monkeypatch.setattr(raw, "reset", reset)
+    vec = _vec(raw)
+    try:
+        with pytest.raises(ValueError, match="disagrees with the reset surface"):
+            evaluate_behavior(_Model(), vec, episode_seeds=[42], output_dir=tmp_path, record_video=True)
+        assert not list((tmp_path / "replays").glob("episode_*"))
+        assert vec.training and vec.norm_reward
     finally:
         vec.close()

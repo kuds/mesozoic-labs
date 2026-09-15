@@ -347,7 +347,24 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "idle_velocity_threshold",
     }
 )
-_TRANSITION_TOP_SETTINGS = frozenset({"terrain", "flat_probability", "tracking_weight", "course_distance"})
+_TRANSITION_TOP_SETTINGS = frozenset(
+    {"terrain", "terrain_sampler", "flat_probability", "tracking_weight", "course_distance"}
+)
+
+
+def _validate_sampler_identity(identity: Mapping[str, Any]) -> None:
+    """Only add/remove the known sampling layer; never waive a source mismatch."""
+    if "terrain_sampler" not in identity and "sampler_sources" not in identity:
+        return
+    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+
+    config = identity.get("terrain_sampler")
+    if not isinstance(config, Mapping) or identity.get("sampler_sources") != sampler_source_identity():
+        raise BehaviorCheckpointError("Incompatible terrain sampler configuration/source identity")
+    try:
+        TerrainSamplerConfig(**config)
+    except (TypeError, ValueError) as exc:
+        raise BehaviorCheckpointError("Invalid terrain sampler configuration") from exc
 
 
 def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mapping[str, Any]) -> None:
@@ -359,9 +376,13 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
     for name in ("commands", "env", "sources", "parent_plant"):
         if not isinstance(previous[name], Mapping) or not isinstance(requested[name], Mapping):
             raise BehaviorCheckpointError(f"Behavior identity {name} must be an object")
+    _validate_sampler_identity(previous)
+    _validate_sampler_identity(requested)
     differences = []
     for name in previous.keys() | requested.keys():
-        if name not in _TRANSITION_TOP_SETTINGS | {"commands", "env"} and previous.get(name) != requested.get(name):
+        if name not in _TRANSITION_TOP_SETTINGS | {"commands", "env", "sampler_sources"} and previous.get(
+            name
+        ) != requested.get(name):
             differences.append(name)
     old_commands, new_commands = previous["commands"], requested["commands"]
     for name in old_commands.keys() | new_commands.keys():
@@ -387,7 +408,7 @@ def adapt_behavior_checkpoint(
 ) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
     """Warm-start another compatible behavior stage without erasing command learning.
 
-    Terrain, flat-terrain sampling, command sampling/switch schedules, reward
+    Terrain, balanced family sampling, command sampling/switch schedules, reward
     settings and horizon/course length may change. Input scales and adapters,
     source code, parent plant and all other environment mechanics must match.
     Every transition records immediate parent hashes and the previous full task

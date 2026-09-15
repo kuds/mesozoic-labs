@@ -19,6 +19,8 @@ from environments.shared.species_names import resolve_species_id, species_displa
 BEHAVIOR_RECIPES = {
     name: f"{name}.toml"
     for name in (
+        "difficult_terrain",
+        "follow_direction_difficult_terrain",
         "follow_direction",
         "follow_direction_speed",
         "terrain_contact",
@@ -244,6 +246,32 @@ def display_notebook_behavior(output_dir: Path) -> None:
         print(
             f"Full horizon: {evaluation['full_horizon_count']}/{evaluation['episode_count']}; falls: {evaluation['fall_count']}"
         )
+        coverage = evaluation.get("terrain_coverage", {})
+        if coverage:
+            enabled = coverage["enabled_families"]
+            evaluated = coverage["evaluated_families"]
+            status = "complete" if coverage["complete"] else "incomplete"
+            print(f"Terrain coverage: {status} ({len(evaluated)}/{len(enabled)} families)")
+            if coverage.get("missing_families"):
+                print("Not evaluated: " + ", ".join(coverage["missing_families"]))
+        by_family = evaluation.get("by_terrain_family", {})
+        if by_family:
+            print("Results by terrain family:")
+            for family, metrics in by_family.items():
+                count = metrics["episode_count"]
+                if not count:
+                    print(f"  {family}: not evaluated (0 episodes)")
+                    continue
+
+                def percent(key: str) -> str:
+                    value = metrics.get(key)
+                    return "n/a" if value is None else f"{value:.1%}"
+
+                print(
+                    f"  {family}: {count} episodes; full horizon {metrics['full_horizon_count']}/{count}; "
+                    f"falls {metrics['fall_count']}; tracking {percent('tracking_fraction')}; "
+                    f"commands settled {percent('eligible_event_settle_fraction')}"
+                )
         for episode in evaluation.get("episodes", []):
             replay = episode.get("replay")
             if not replay:

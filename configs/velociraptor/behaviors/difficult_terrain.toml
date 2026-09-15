@@ -1,0 +1,56 @@
+# Velociraptor: straight locomotion across randomized terrain families
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# Speeds follow the species locomotion target; terrain dimensions match its model scale.
+[behavior]
+name = "difficult_terrain"
+species = "velociraptor"
+parent = "locomotion"
+timesteps = 3000000
+
+[commands]
+cruise_speed = 2.0
+speed_scale = 2.5
+lateral_speed_scale = 2.5
+yaw_rate_scale = 0.6
+turn_increment_max = 0.0
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+
+[terrain]
+enabled = true
+mode = "gentle"
+template = "mixed"
+extent = 55.0 # Half-extent; fits a 25-second cruise plus the full animal
+nrow = 801
+ncol = 801
+apron_radius = 1.5 # Flat spawn disk contains the model, including its tail
+blend_width = 0.8
+max_height = 4.4
+max_slope_degrees = 3.0
+roughness_amplitude = 0.0075
+wavelength_min = 0.8
+wavelength_max = 2.0
+episode_variation = 0.15
+feature_height = 0.01 # Metres; final physical heights also obey the grade cap
+feature_radius_min = 0.45
+feature_radius_max = 0.7
+feature_density = 0.6 # Planned centers per square metre
+
+# One shuffled block visits each enabled family according to these weights.
+# The selected family and its randomized physical map stay fixed until reset.
+[terrain_sampler]
+flat = 1
+sloped = 1
+bumps = 1
+depressions = 1
+mixed = 1
+
+[env]
+max_episode_steps = 2500 # 25 seconds at this species control timestep
+course_distance = 10.0 # Radial progress diagnostic, not a success gate
+flat_probability = 0.0 # The sampler controls original-plane coverage
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

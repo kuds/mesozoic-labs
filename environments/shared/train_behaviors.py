@@ -27,6 +27,7 @@ from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig
+from environments.shared.terrain_sampling import TerrainSamplerConfig, get_sampled_behavior_env_class
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -47,7 +48,7 @@ def read_recipe(
     """Load a species behavior recipe; historical T-Rex recipes remain readable."""
     with path.open("rb") as stream:
         recipe = tomllib.load(stream)
-    unknown = set(recipe) - {"behavior", "pilot", "commands", "terrain", "env", "ppo"}
+    unknown = set(recipe) - {"behavior", "pilot", "commands", "terrain", "terrain_sampler", "env", "ppo"}
     if "behavior" in recipe and "pilot" in recipe:
         raise ValueError("Choose one behavior metadata section, not both behavior and pilot")
     section = "behavior" if "behavior" in recipe else "pilot"
@@ -124,6 +125,18 @@ def read_recipe(
     if not isinstance(enabled, bool):
         raise ValueError("terrain.enabled must be a boolean")
     terrain = TerrainConfig(**terrain_values) if enabled else None
+    sampler = None
+    if "terrain_sampler" in recipe:
+        values = recipe["terrain_sampler"]
+        if not isinstance(values, dict):
+            raise ValueError("terrain_sampler must be a table")
+        if unknown := set(values) - {f.name for f in fields(TerrainSamplerConfig)}:
+            raise ValueError(f"Unknown terrain_sampler fields: {sorted(unknown)}")
+        sampler = TerrainSamplerConfig(**values)
+        if terrain is None or terrain.mode != "gentle":
+            raise ValueError("terrain_sampler requires enabled gentle terrain")
+        if recipe.get("env", {}).get("flat_probability", 0.0) != 0:
+            raise ValueError("terrain_sampler owns flat sampling; env.flat_probability must be zero")
     # Keep the measured walker posture/control settings and override only the
     # declared behavior settings. The resolved values enter the task identity.
     parent_stage = load_stage_manifest(species).by_id("locomotion")
@@ -131,7 +144,22 @@ def read_recipe(
     with baseline.open("rb") as stream:
         defaults = tomllib.load(stream)
     env_kwargs = {**defaults["env"], "max_episode_steps": 2500, **recipe.get("env", {})}
+    if sampler is not None:
+        env_kwargs["terrain_sampler"] = sampler
     return recipe, commands, terrain, env_kwargs
+
+
+def create_behavior_env(
+    species: str,
+    *,
+    commands: DirectionCommandConfig,
+    terrain: TerrainConfig | None,
+    run_seed: int,
+    **env_kwargs: Any,
+) -> Any:
+    """Construct the fixed-template or sampled behavior declared by a recipe."""
+    factory = get_sampled_behavior_env_class if "terrain_sampler" in env_kwargs else get_behavior_env_class
+    return factory(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
 
 
 class EpisodeManifestRecorder(gym.Wrapper):
@@ -252,7 +280,7 @@ def main(argv: list[str] | None = None) -> None:
     from environments.shared.curriculum.advancement import StageWarmupCallback
 
     torch.set_num_threads(1)
-    env = get_behavior_env_class(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    env = create_behavior_env(species, commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
     if args.record_video:
         try:
             from environments.shared.behavior_replay import require_replay_dependencies

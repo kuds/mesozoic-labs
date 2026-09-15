@@ -432,6 +432,53 @@ def test_saved_run_without_replays_still_displays_summary(tmp_path, monkeypatch,
     assert received == []
 
 
+def test_saved_terrain_summary_distinguishes_missing_families_from_passing_results(tmp_path, monkeypatch, capsys):
+    report = {
+        "status": "complete",
+        "run_seed": 24,
+        "evaluation": {
+            "full_horizon_count": 1,
+            "episode_count": 2,
+            "fall_count": 1,
+            "terrain_coverage": {
+                "enabled_families": ["flat", "sloped", "bumps", "depressions", "mixed"],
+                "evaluated_families": ["flat", "bumps"],
+                "missing_families": ["sloped", "depressions", "mixed"],
+                "complete": False,
+            },
+            "by_terrain_family": {
+                "flat": {
+                    "episode_count": 1,
+                    "full_horizon_count": 1,
+                    "fall_count": 0,
+                    "tracking_fraction": 0.85,
+                    "eligible_event_settle_fraction": 0.5,
+                },
+                "bumps": {
+                    "episode_count": 1,
+                    "full_horizon_count": 0,
+                    "fall_count": 1,
+                    "tracking_fraction": 0.25,
+                    "eligible_event_settle_fraction": None,
+                },
+                "sloped": {"episode_count": 0},
+                "depressions": {"episode_count": 0},
+                "mixed": {"episode_count": 0},
+            },
+        },
+    }
+    (tmp_path / "run.json").write_text(json.dumps(report))
+    received = _capture_saved_media(monkeypatch)
+    notebook.display_notebook_behavior(tmp_path)
+    output = capsys.readouterr().out
+    assert "Terrain coverage: incomplete (2/5 families)" in output
+    assert "Not evaluated: sloped, depressions, mixed" in output
+    assert "flat: 1 episodes; full horizon 1/1; falls 0; tracking 85.0%; commands settled 50.0%" in output
+    assert "bumps: 1 episodes; full horizon 0/1; falls 1; tracking 25.0%; commands settled n/a" in output
+    assert "mixed: not evaluated (0 episodes)" in output
+    assert received == []
+
+
 def test_canonical_default_and_freeform_stage_resolution_remain_available():
     from environments.shared.config import load_all_stages
     from environments.shared.stage_manifest import load_stage_manifest
@@ -477,8 +524,11 @@ def test_chain_cell_clears_stale_canonical_chain_before_loop():
 
 
 @pytest.mark.parametrize("species", SPECIES_NAMES)
+@pytest.mark.parametrize(
+    "behavior", ["combined_mixed_terrain", "difficult_terrain", "follow_direction_difficult_terrain"]
+)
 def test_all_local_notebook_code_cells_route_a_behavior_without_canonical_artifacts(
-    behavior_files, monkeypatch, species
+    behavior_files, monkeypatch, species, behavior
 ):
     """Only long-running behavior training/display are replaced; all cells execute."""
     from environments.shared import train_behaviors
@@ -513,7 +563,7 @@ def test_all_local_notebook_code_cells_route_a_behavior_without_canonical_artifa
             code = _edited_cell(
                 source,
                 SPECIES=SPECIES_NAMES[species],
-                BEHAVIOR="combined_mixed_terrain",
+                BEHAVIOR=behavior,
                 BEHAVIOR_CHECKPOINT=str(model),
                 BEHAVIOR_VECNORMALIZE=str(stats),
                 BEHAVIOR_SEED=747,

@@ -16,6 +16,8 @@ from environments.shared.terrain import TerrainConfig, generate_terrain
 ROOT = Path(__file__).resolve().parents[3]
 SPECIES = tuple(species_display_names(backend="stable-baselines3"))
 BEHAVIORS = (
+    "difficult_terrain",
+    "follow_direction_difficult_terrain",
     "follow_direction",
     "follow_direction_speed",
     "terrain_contact",
@@ -26,6 +28,7 @@ BEHAVIORS = (
     "combined_terrain",
     "combined_mixed_terrain",
 )
+SAMPLER_BEHAVIORS = {"difficult_terrain", "follow_direction_difficult_terrain"}
 MODEL_PATHS = {
     "velociraptor": "velociraptor/assets/raptor.xml",
     "trex": "trex/assets/trex.xml",
@@ -57,7 +60,10 @@ def test_every_registered_sb3_species_has_all_supported_behaviors(species):
 @pytest.mark.parametrize("behavior", BEHAVIORS)
 def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behavior):
     recipe = _recipe(species, behavior)
-    assert set(recipe) == {"behavior", "commands", "terrain", "env", "ppo"}
+    sections = {"behavior", "commands", "terrain", "env", "ppo"}
+    if behavior in SAMPLER_BEHAVIORS:
+        sections.add("terrain_sampler")
+    assert set(recipe) == sections
     assert recipe["behavior"]["species"] == species
     assert recipe["behavior"]["parent"] == "locomotion"
     assert recipe["behavior"]["timesteps"] > 0
@@ -69,11 +75,16 @@ def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behav
     commands = DirectionCommandConfig(**recipe["commands"])
     turning = behavior.startswith(("follow_", "combined_"))
     assert (commands.turn_increment_max > 0) == turning
-    variable_speed = behavior in {"follow_direction_speed", "combined_terrain", "combined_mixed_terrain"}
+    variable_speed = behavior in {
+        "follow_direction_speed",
+        "combined_terrain",
+        "combined_mixed_terrain",
+        "follow_direction_difficult_terrain",
+    }
     assert (commands.speed_range is not None) == variable_speed
     assert (commands.stop_probability > 0) == variable_speed
 
-    if behavior.startswith("follow_"):
+    if behavior in {"follow_direction", "follow_direction_speed"}:
         assert recipe["terrain"] == {"enabled": False}
     else:
         terrain = _terrain(recipe)
@@ -83,10 +94,28 @@ def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behav
             "depressions_terrain": "depressions",
             "mixed_terrain": "mixed",
             "combined_mixed_terrain": "mixed",
+            "difficult_terrain": "mixed",
+            "follow_direction_difficult_terrain": "mixed",
         }.get(behavior, "sloped")
         assert terrain.template == expected_template
-        assert recipe["env"]["flat_probability"] == 0.25
+        assert recipe["env"]["flat_probability"] == (0.0 if behavior in SAMPLER_BEHAVIORS else 0.25)
         assert terrain.episode_variation > 0
+
+
+@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize(
+    "behavior,diagnostic",
+    [("difficult_terrain", "mixed_terrain"), ("follow_direction_difficult_terrain", "combined_mixed_terrain")],
+)
+def test_unified_terrain_recipes_cover_all_families_and_preserve_species_profiles(species, behavior, diagnostic):
+    recipe = _recipe(species, behavior)
+    focused_recipe = _recipe(species, diagnostic)
+    assert recipe["terrain_sampler"] == {"flat": 1, "sloped": 1, "bumps": 1, "depressions": 1, "mixed": 1}
+    assert recipe["behavior"]["name"] == behavior
+    assert recipe["behavior"]["timesteps"] == 3_000_000
+    assert recipe["commands"] == focused_recipe["commands"]
+    assert recipe["terrain"] == focused_recipe["terrain"]
+    assert recipe["env"] == {**focused_recipe["env"], "flat_probability": 0.0}
 
 
 @pytest.mark.parametrize("species", SPECIES)
