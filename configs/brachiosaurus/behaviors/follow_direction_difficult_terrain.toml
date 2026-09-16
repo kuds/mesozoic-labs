@@ -1,0 +1,60 @@
+# Brachiosaurus: heading and speed commands across randomized terrain families
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# Speeds follow the species locomotion target; terrain dimensions match its model scale.
+[behavior]
+name = "follow_direction_difficult_terrain"
+species = "brachiosaurus"
+parent = "locomotion"
+timesteps = 3000000
+
+[commands]
+cruise_speed = 0.75
+speed_scale = 1.0
+lateral_speed_scale = 1.0
+yaw_rate_scale = 0.6
+speed_range = [0.375, 0.75]
+stop_probability = 0.15
+turn_increment_max = 0.5235987756
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+switch_jitter_s = 1.0
+straight_probability = 0.25
+
+[terrain]
+enabled = true
+mode = "gentle"
+template = "mixed"
+extent = 25.0 # Half-extent; fits a 25-second cruise plus the full animal
+nrow = 251
+ncol = 251
+apron_radius = 3.5 # Flat spawn disk contains the model, including its tail
+blend_width = 1.8
+max_height = 2.0
+max_slope_degrees = 3.0
+roughness_amplitude = 0.01875
+wavelength_min = 2.0
+wavelength_max = 5.0
+episode_variation = 0.15
+feature_height = 0.025 # Metres; final physical heights also obey the grade cap
+feature_radius_min = 0.9
+feature_radius_max = 1.5
+feature_density = 0.16 # Planned centers per square metre
+
+# One shuffled block visits each enabled family according to these weights.
+# The selected family and its randomized physical map stay fixed until reset.
+[terrain_sampler]
+flat = 1
+sloped = 1
+bumps = 1
+depressions = 1
+mixed = 1
+
+[env]
+max_episode_steps = 2500 # 25 seconds at this species control timestep
+course_distance = 7.5 # Radial progress diagnostic, not a success gate
+flat_probability = 0.0 # The sampler controls original-plane coverage
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

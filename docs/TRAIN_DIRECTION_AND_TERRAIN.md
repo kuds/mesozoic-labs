@@ -1,212 +1,233 @@
-# Direction following and randomized terrain pilots
+# Direction following and randomized terrain
 
-These opt-in T. rex experiments add desired-heading/speed commands and gentle
-randomized ground to the current r13 walker. They run on SB3/PPO and retain the
-64-input, 15-action layout. They are pilot tasks with separate artifact identities;
-the canonical locomotion, hunting, and MJX environments remain unchanged.
+Direction following and difficult-terrain training are supported SB3/PPO behaviors
+for all six registered species: Velociraptor, Tyrannosaurus Rex, Brachiosaurus,
+Dibothrosuchus, Compsognathus, and Compsognathus Robot. Every species has the same
+eleven behavior selections and a complete set of TOML recipes under
+`configs/<species>/behaviors/`.
 
-## What is implemented
-
-- A desired world heading and speed become body-relative forward speed and a
-  bounded turning rate. The lateral command starts at zero. Commands change on a
-  seeded schedule or through `env.set_direction(heading_radians, speed_m_per_s)`.
-- Direction-only, direction-and-speed, terrain-contact adaptation, gentle-terrain,
-  and combined recipes.
-  Turns begin within ±30°, with a 0.3 rad/s turning cap. Speed recipes include
-  stops; zero speed masks the heading objective and checks actual motion.
-- A finite 70 × 70 m heightfield in the recipes, with smooth grades capped at 3° and nominal
-  15 mm roughness in the original sloped template. Localized bumps, shallow
-  depressions, and mixed ground have separate templates with nominal 20 mm
-  features on an otherwise level surface. Each run gets a new recorded seed by default. Each episode
-  receives a small variation of that run's course. Explicit seeds replay it.
-- A 3 m flat spawn radius contains the whole animal, including its tail. Terrain
-  recipes mix in 25% original-plane episodes. Pelvis/head/skull checks use local ground
-  height. Neck contact is detected in a separate collision-only model, since the
-  canonical neck cannot support the animal physically.
-- Preparation of the current walker zeros only the newly active command input
-  columns and matching optimizer moments, preserves other weights/statistics,
-  and verifies initial action/value equivalence. Command normalization always
-  passes through its fixed scales. Adaptation between behavior recipes retains
-  the command weights already learned.
-
-This first increment covers smooth solid terrain. Steps, large obstacles,
-slippery patches, adaptive difficulty promotion, terrain look-ahead sensing, and
-MJX training are follow-on work. The recipes are available in the SB3 notebook
-and through the dedicated command below; their budgets are proposals,
-not evidence that the behaviors have been learned.
+These recipes activate the existing three command inputs while preserving the
+species' observation and action dimensions. Terrain scenes retain the animal's
+model and replace its floor. A trained locomotion checkpoint and its matched
+normalization file provide the starting gait. Supported training does not mean a
+new policy has already learned the behavior: saved evaluations report measured
+performance, separately from canonical locomotion certification.
 
 ## Use the SB3 training notebook
 
-Open [`notebooks/sb3_training.ipynb`](../notebooks/sb3_training.ipynb). Until
-PR #540 is merged, open the notebook from `codex/direction-and-random-terrain`
-and set its setup parameter `REPO_REF` to that branch so Colab installs the
-matching code. After merge, the default `main` is appropriate.
+Open [`notebooks/sb3_training.ipynb`](../notebooks/sb3_training.ipynb) from the
+repository revision containing this feature, and use the same `REPO_REF` in its
+setup form. Select any registered **SPECIES**, set `ALGORITHM = "ppo"`, and choose
+one of these **BEHAVIOR** values:
 
-In the configuration form, select **Tyrannosaurus Rex**, `ALGORITHM = "ppo"`,
-and one of these `BEHAVIOR` values:
+For general terrain training, use **`difficult_terrain`** or
+**`follow_direction_difficult_terrain`**. Each trains one policy across all five
+ground families, with a new family and randomized course selected at reset.
 
-| Behavior parameter | Experiment |
-|---|---|
-| `follow_direction` | Fixed-speed heading changes |
-| `follow_direction_speed` | Heading, speed, stop and restart |
-| `terrain_contact` | Flat-heightfield contact adaptation |
-| `sloped_terrain` | The original gently sloped ground |
-| `bumps_terrain` | Random localized bumps |
-| `depressions_terrain` | Random shallow depressions |
-| `mixed_terrain` | Bumps and depressions together |
-| `combined_terrain` | Heading/speed changes on gently sloped ground |
+| Behavior / TOML filename | Training task | Default additional steps |
+|---|---|---:|
+| **`difficult_terrain`** | Straight locomotion across flat ground, slopes, bumps, depressions, and mixed terrain | 3M |
+| **`follow_direction_difficult_terrain`** | Follow heading/speed commands across all five terrain families | 3M |
+| `follow_direction` | Change heading while retaining cruise speed | 3M |
+| `follow_direction_speed` | Change heading and speed; stop and restart | 3M |
+| `terrain_contact` | Adapt foot contacts to a flat heightfield | 300k |
+| `sloped_terrain` | Walk across randomized gentle slopes | 2M |
+| `bumps_terrain` | Cross scattered smooth bumps | 2M |
+| `depressions_terrain` | Cross shallow solid depressions | 2M |
+| `mixed_terrain` | Cross both bumps and depressions | 2M |
+| `combined_terrain` | Follow heading and speed commands on slopes | 3M |
+| `combined_mixed_terrain` | Follow heading and speed commands over bumps and depressions | 3M |
 
-The existing `stand`, `walk`, `hunt`, and explicit stage-ID selections retain
-the notebook's canonical chain workflow. The new pilots use the dedicated
-behavior runner and produce experimental behavior bundles.
+The nine individual presets remain useful for focused comparisons and staged
+adaptation. The two general terrain behaviors combine those terrain families in
+one training run.
 
-Set `PILOT_CHECKPOINT` and `PILOT_VECNORMALIZE` to the matching saved pair.
-Choose the loading mode explicitly:
+Each filename ends in `.toml`; for example,
+[`configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml).
+The existing `stand`, `walk`, `hunt`, and explicit stage-ID selections retain the
+canonical curriculum workflow.
 
-- `PILOT_LOAD_MODE = "prepare"` starts from the current canonical locomotion
-  walker and activates its command inputs.
+Set `BEHAVIOR_CHECKPOINT` and `BEHAVIOR_VECNORMALIZE` to the matching saved pair,
+then choose the loading mode explicitly:
+
+- `BEHAVIOR_LOAD_MODE = "prepare"` starts from that species' current canonical
+  **locomotion** PPO checkpoint and activates its reserved command inputs.
 - `"resume"` continues the same behavior recipe from a matched behavior bundle.
-- `"adapt"` transfers a learned behavior to a compatible next recipe.
+- `"adapt"` transfers a learned behavior to a compatible next recipe for the same
+  species, retaining learned command connections and recording its parent.
 
-`PILOT_SEED = None` gives each run a fresh recorded seed; an integer repeats
-the course. `PILOT_STEPS = None` uses the recipe budget, or its remaining budget
-on resume. An explicit step count is additional training. `QUICK_TEST = True`
-uses 4,096 steps when no explicit step count is set. `PILOT_EVAL_ONLY = True`
-evaluates without training.
-Repeating an unchanged selection retains its run ID and seed and refuses to
-overwrite existing output. To start another run with the same settings in the
-same runtime, set a new `PILOT_RUN_ID`. A new selection or runtime with automatic
-IDs/seeds gets a fresh run.
+`BEHAVIOR_SEED = None` gives each run a fresh recorded seed. An integer repeats
+its course. `BEHAVIOR_STEPS = None` uses the recipe budget, or the remaining
+budget on resume; an explicit step count requests additional training.
+`QUICK_TEST = True` uses 4,096 steps if no explicit step count is set.
+`BEHAVIOR_EVAL_ONLY = True` scores without training.
 
-Pilot execution uses one environment on CPU and inherits the checkpoint's PPO
-network and rollout settings; canonical `N_ENVS` does not change those settings.
-Canonical trunk/widen/retrain controls do not apply to pilots.
+An unchanged selection retains its run ID and seed and refuses to overwrite
+existing output. To repeat the same settings in one runtime, set a new
+`BEHAVIOR_RUN_ID`. Automatic IDs and seeds are refreshed for a new selection or
+runtime. Behavior execution uses one CPU environment and inherits the parent
+checkpoint's PPO network and rollout settings. `N_ENVS`, `TRUNK_FROM`,
+`WIDEN_FROM`, and `RETRAIN_FROM` belong to the canonical curriculum workflow;
+clear the latter three for these behavior runs.
 
-The notebook saves pilot outputs under
-`logs/trex/ppo/behavior_pilots/<behavior>/<run-id>/`, on Google Drive when mounted
-or locally otherwise. `PILOT_RECORD_VIDEO = True` saves and displays each
-evaluation video with both heat maps. `PILOT_EVAL_EPISODES` and
-`PILOT_VIDEO_FPS` control evaluation count and video rate. New output directories
-prevent accidental replacement of previous evidence. Notebook evaluation,
-replay, and cleanup use the behavior outputs rather than canonical gate reports.
+The notebook saves results under
+`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`, on Google Drive when mounted
+or locally otherwise. `BEHAVIOR_RECORD_VIDEO = True` saves and displays each
+scored video with both terrain heat maps. `BEHAVIOR_EVAL_EPISODES` controls the
+number of episodes and `BEHAVIOR_VIDEO_FPS` controls video frame rate.
+Use at least five evaluation episodes for the general terrain behaviors to cover
+every enabled family. Results show each family's episode count, survival, falls,
+and command tracking; fewer episodes explicitly mark coverage as incomplete.
+Five episodes provide only one trial per family, which checks coverage rather
+than establishing competence. Use 25 or 50 episodes for a more useful comparison,
+including unseen seeds, and inspect the individual outcomes.
 
-To view a downloaded or moved run, keep `run.json` and the complete `replays/`
-directory together and call `display_notebook_pilot(Path("/path/to/saved-run"))`
-from `environments.shared.behavior_notebook`. Video and heatmap filenames are
-resolved from the episode manifests inside that run, including bundles whose
-indexes still record the original machine's paths.
+## Species-specific recipe settings
 
-## Run a short training check
+Speeds start from each species' locomotion target. Terrain sizes follow the
+actual simulated animal, including the tail; the two Compsognathus models have
+much smaller ground features and slower commands than T. rex. Each terrain map
+fits a 25-second straight cruise and the animal's full extent. The Compsognathus
+recipes use 1,250 control steps; the other species use 2,500, giving the same
+25-second horizon at their respective control rates.
 
-Install the training dependencies from the repository root:
+| Species ID | Cruise speed (m/s) | Bump height / depression depth (mm) | Feature radius (m) | Flat spawn radius (m) | Map width (m) |
+|---|---:|---:|---|---:|---:|
+| `velociraptor` | 2.00 | 10 | 0.45–0.70 | 1.50 | 110 |
+| `trex` | 1.05 | 20 | 0.70–1.20 | 3.00 | 70 |
+| `brachiosaurus` | 0.75 | 25 | 0.90–1.50 | 3.50 | 50 |
+| `dibothrosuchus` | 0.90 | 6 | 0.32–0.50 | 1.25 | 60 |
+| `compsognathus` | 0.08 | 5 | 0.18–0.32 | 0.80 | 8 |
+| `compsognathus_robot` | 0.04 | 4 | 0.15–0.25 | 0.50 | 5 |
+
+These are initial training settings, not measured competence thresholds.
+Feature heights are nominal maxima: overlapping features and the 3° grade cap
+can change the final physical height. Maps record their measured height range,
+maximum grade, and exact sample hash. Heightfield resolution and smooth feature
+radii are specified in each TOML. Command normalization scales stay fixed across
+one species' recipes so adaptation preserves the meaning of learned inputs.
+
+Every recipe declares `[behavior] species`, its stable behavior `name`, and
+`parent = "locomotion"`. The runner resolves that parent through the species'
+`stages.toml`, loads its locomotion environment settings, and checks the supplied
+checkpoint's species and stage. Parentage is explicit; the notebook does not
+choose a checkpoint automatically or add these behaviors to the canonical
+certification curriculum.
+
+## Run training from the command line
+
+Install training dependencies from the repository root:
 
 ```bash
 pip install -e '.[train,test]'
 ```
 
-Use a canonical current-interface T. rex **locomotion** PPO checkpoint and its
-matching, identity-tagged normalization file. The selected walker from run
-`20260914_123816` is the reviewed starting point. Neither artifact is included
-in the repository.
+Use a current-interface PPO locomotion checkpoint and its matching,
+identity-tagged normalization file for the selected species. Checkpoints are not
+included in the repository.
 
 ```bash
-python -m environments.trex.scripts.train_behaviors \
-  --config configs/trex/behavior_pilots/trex_follow_direction.toml \
-  --checkpoint /path/to/walker.zip \
-  --vecnormalize /path/to/walker_vecnormalize.pkl \
-  --output /path/to/runs/follow-smoke \
+python -m environments.shared.train_behaviors \
+  --species compsognathus \
+  --recipe configs/compsognathus/behaviors/follow_direction.toml \
+  --checkpoint /path/to/compsognathus/walker.zip \
+  --vecnormalize /path/to/compsognathus/walker_vecnormalize.pkl \
+  --output /path/to/runs/compsognathus-follow \
   --steps 4096 --eval-episodes 5 --seed 42
 ```
 
-The output directory must be new or empty. This performs one 4,096-step rollout
-for the reviewed walker, updates PPO, saves a matched bundle, and evaluates it.
-PPO rounds requested training steps up to complete rollouts; `run.json` records
-both requested and actual additional steps. A short check proves the pipeline
-works; use the full recipe budget for an actual learning pilot.
+The output directory must be new or empty. PPO completes full rollouts, so actual
+steps can exceed the requested count; `run.json` records both. A short check
+validates execution, while the recipe budget provides a starting training budget.
+Omit `--seed` for a fresh run seed, saved in the results; omit `--steps` to use the
+recipe budget. `--eval-only` performs no learning. No cloud job is submitted.
 
-Omit `--steps` to use the selected recipe's proposed budget. Omit `--seed` for a
-fresh random run seed; it is printed and saved. `--eval-only` performs no learning.
-The runner uses CPU SB3 and reports measured training time; it submits no cloud
-job. It preserves the parent's network and rollout settings, uses a constant
-learning rate of 5e-5, and limits PPO clipping to 0.02 for the first 100,000
-adaptation steps before restoring 0.2. The warmup anchor survives exact-task
-resume. Reward normalization adapts during training and is disabled for scoring.
+The recipes use a constant learning rate of 5e-5 and PPO clipping of 0.02 for the
+first 100,000 adaptation steps, then 0.2. Exact-task resume retains that warmup
+anchor. Reward normalization adapts during training and is disabled for scoring.
+Preparation zeros only newly activated command columns and their optimizer
+moments, preserving other weights and statistics and checking initial
+policy-action/value equivalence. Resume and adaptation verify bundle hashes.
 
-## Train the next behavior
+## Follow directions on difficult terrain
 
-| Recipe | Purpose | Proposed additional steps |
-|---|---|---:|
-| `trex_follow_direction.toml` | Turn while retaining cruise speed | 3M |
-| `trex_follow_direction_speed.toml` | Vary speed, stop and resume | 3M |
-| `trex_terrain_contact.toml` | Adapt the gait to flat-heightfield foot contacts | 300k |
-| `trex_gentle_terrain.toml` | Maintain a heading across randomized gentle ground | 2M |
-| `trex_bumps_terrain.toml` | Cross scattered smooth bumps on level ground | 2M |
-| `trex_depressions_terrain.toml` | Cross shallow solid depressions | 2M |
-| `trex_mixed_terrain.toml` | Cross a mixture of bumps and depressions | 2M |
-| `trex_combined_terrain.toml` | Change heading/speed on gentle ground | 3M |
+A practical sequence is locomotion → `follow_direction` →
+`follow_direction_speed` → `terrain_contact` → `difficult_terrain` →
+`follow_direction_difficult_terrain`. Check performance at each step; this
+sequence is a training recommendation, not an automatic promotion rule. Use the
+individual template presets when diagnosing a particular kind of ground.
 
-### Terrain templates and randomization
+Start terrain work with `terrain_contact`. Even a zero-height heightfield changes
+foot contacts compared with the original plane. The general terrain recipes
+include original-plane episodes through their terrain sampler. Focused terrain
+presets retain their existing 25% original-plane episodes. Compare slopes, bumps,
+and depressions separately as well as assessing the combined training run.
 
-Templates specify the kind and scale of ground, while seeds vary its layout.
-The original `sloped` template combines a broad random grade with small sinusoidal
-ripples. On a full-map heat map, its large overall elevation range can hide the
-centimetre-scale ripples. The new `bumps`, `depressions`, and `mixed` templates
-have no broad slope, so their localized features define the difficulty.
-
-Feature templates start with a nominal 2 cm height or depth and randomized
-0.7–1.2 m radii. These are broad, shallow features suitable for the first contact
-adaptation pilots. Depressions have solid bottoms; they are not gaps through the
-ground. Their positions, sizes, and amplitudes vary by run, with smaller changes
-between episodes. The spawn apron stays flat. The final physical surface is
-limited to the configured maximum grade; its measured heights and grade are
-recorded because overlapping features or grade limiting can change the nominal
-amplitude.
-
-Keep each template as a separate evaluation slice so falls on depressions are
-not hidden by good results on bumps. After contact adaptation, compare the
-individual templates, then the mixed template, before raising feature height or
-adding sharper ground. Reserve fixed seeds for repeatable comparisons and use
-unseen seeds to check whether the behavior transfers to new layouts. The recipes
-do not automatically promote difficulty or establish that any template is mastered.
-
-Start terrain from the learned follower, after checking its flat-ground behavior.
-First use the contact-adaptation recipe: a paired preflight found that the
-prepared original walker survived 5/5 ten-second original-plane trials but
-0/5 flat-heightfield trials. A heightfield changes foot contacts even with all
-heights zero. Measure and train that transition before adding slopes. Keep
-original-plane retention episodes as a separate control.
-Use `--adapt` when changing to a compatible recipe. This preserves trained
-command connections instead of zeroing them a second time:
+Use `--adapt` when transferring a behavior checkpoint to another compatible
+recipe. For example, after contact adaptation and general terrain training:
 
 ```bash
-python -m environments.trex.scripts.train_behaviors \
-  --config configs/trex/behavior_pilots/trex_terrain_contact.toml \
-  --checkpoint /path/to/runs/follow/model.zip \
-  --vecnormalize /path/to/runs/follow/vecnormalize.pkl \
-  --output /path/to/runs/terrain-contact --adapt
+python -m environments.shared.train_behaviors \
+  --species compsognathus \
+  --recipe configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml \
+  --checkpoint /path/to/runs/compsognathus-terrain/model.zip \
+  --vecnormalize /path/to/runs/compsognathus-terrain/vecnormalize.pkl \
+  --output /path/to/runs/compsognathus-combined --adapt
 ```
 
-Use `--resume` with the same recipe to continue the exact task. With no `--steps`,
-resume trains only the remaining recipe budget. An explicit `--steps` means
-**additional** steps for this invocation. Resume checks PPO settings as well as
-the environment; an explicit short run does not reduce the recipe's stage target.
-Resume and adaptation verify the
-saved `bundle.json` hashes before loading. Configuration changes that alter
-command scaling, the heading adapter, control timing, the animal, or source
-semantics are rejected. Terrain parameters and compatible command schedules can
-change through explicit adaptation.
+Use `--resume` for the same recipe. Without `--steps`, resume trains only the
+remaining recipe budget; explicit steps are additional. Compatible command
+schedules and terrain parameters can change through adaptation, while changes
+to the animal, command scaling, control timing, or source semantics are rejected.
+Matched snapshots are saved about every 100,000 steps after completed updates;
+`latest_checkpoint.json` identifies the newest one. Keyboard interruption also
+saves a bundle. Resume preserves learning progress and starts fresh episodes.
 
-Matched snapshots are saved about every 100,000 steps after completed updates,
-under `checkpoints/`; `latest_checkpoint.json` identifies the newest one. A
-keyboard interruption also saves a bundle. Resume starts fresh episodes; it
-preserves learning progress but does not promise identical interrupted physics
-trajectories or random-number state.
+## Terrain templates and randomization
 
-## Reproduce a terrain episode
+The two general terrain recipes configure a weighted, balanced sampler:
 
-Every reset is recorded in `training_episodes.jsonl`. Each terrain manifest
-contains the generator configuration, run seed, episode index, measured maximum
-grade, height range, and a hash of the actual float32 height samples.
+```toml
+[terrain_sampler]
+flat = 1
+sloped = 1
+bumps = 1
+depressions = 1
+mixed = 1
+```
+
+Each shuffled five-episode block visits every family once with these defaults.
+Positive integer weights repeat a family that many times per block; zero disables
+it. The sum must be between 1 and 1,000. The original plane is the `flat` family;
+it is distinct from the flat-heightfield `terrain_contact` adaptation preset.
+`env.flat_probability` is zero in sampler recipes because the sampler already
+controls flat-ground coverage.
+
+At reset, the sampler chooses the episode's family and creates its seeded course.
+**The family and the physical surface stay fixed throughout that episode.**
+Commands can change during the episode, but the ground does not change underneath
+the animal. The next reset advances the seeded family schedule and course
+variation. The TOML's `[terrain]` section supplies the selected species' common
+map dimensions, smoothness limits, spawn apron, and feature sizes.
+
+Templates define the kind and scale of ground; seeds change its layout. The
+`sloped` template combines a broad grade with small smooth ripples. `bumps`,
+`depressions`, and `mixed` have a level base and localized smooth features.
+Depressions have solid bottoms: they are shallow bowls, not open gaps.
+
+Each run gets its own course. Episodes vary that layout slightly, including
+feature positions, sizes, and amplitudes, while preserving a flat spawn apron.
+Terrain and command randomness use independent streams. Explicit reset seeds
+repeat complete resets; resets without a seed advance the episode stream.
+Evaluation uses a separate seed stream. Reserve fixed seeds for comparisons and
+unseen seeds to check whether a learned behavior transfers to new layouts.
+For sampler recipes, evaluation visits enabled families in a balanced sequence
+and reports each family separately. Missing families are listed as unevaluated,
+with no invented survival or tracking result. The family counts and coverage flag
+make small evaluation budgets visible.
+
+Every reset is recorded in `training_episodes.jsonl`. Rebuild an episode from its
+saved terrain manifest:
 
 ```python
 from environments.shared.terrain import TerrainConfig, generate_terrain
@@ -219,81 +240,59 @@ terrain = generate_terrain(
 assert terrain.manifest()["samples_sha256"] == saved_manifest["samples_sha256"]
 ```
 
-`TRexBehaviorEnv.reset(seed=S)` repeats the complete reset and resets its episode
-counter. `reset()` advances the episode stream. Terrain and command randomness
-use independent streams, so command sampling does not change the map. Run seed
-and reset seed both contribute to the course seed. Evaluation uses a separate
-seed stream and saves each map's replay recipe.
+Surface queries use MuJoCo's triangular heightfield interpolation. Terrain-aware
+clearance and contact checks use the animal's local ground height. This release
+covers smooth solid terrain; steps, large obstacles, slippery patches, automatic
+difficulty promotion, terrain look-ahead sensing, and MJX training are not part
+of these recipes.
 
-The surface query uses MuJoCo's triangular interpolation, verified against
-vertical rays. It does not use bilinear interpolation. MuJoCo's general
-`mj_geomDistance` is unsuitable for heightfield clearance; the environment
-explicitly refuses that generic diagnostic on terrain. Spawn placement uses
-the canonical plane under the flat apron and verifies actual hfield contacts.
+## Save video replays and their heat maps
 
-## Read the results
+Install `pip install -e '.[train,viz]'` and add `--record-video`. To replay a saved
+behavior bundle, use the same compatible recipe and source revision with
+`--eval-only --resume --record-video --eval-episodes 3 --seed 42`, writing to a
+new output directory. `--video-fps` changes playback rate, not physics timing.
+The bundled encoder does not require a system FFmpeg installation.
 
-### Save video replays and their terrain maps
-
-Install `pip install -e '.[train,viz]'` and add `--record-video` to the training
-command. Each evaluation video automatically saves both terrain heat maps beside
-it. `--video-fps` sets the playback rate (25 by default); it does not change the
-simulation timestep. The bundled encoder does not require a system FFmpeg install.
-
-To record a previously saved behavior bundle from the same compatible source and
-recipe, run evaluation without further training:
-
-```bash
-python -m environments.trex.scripts.train_behaviors \
-  --config configs/trex/behavior_pilots/trex_mixed_terrain.toml \
-  --checkpoint /path/to/runs/mixed/model.zip \
-  --vecnormalize /path/to/runs/mixed/vecnormalize.pkl \
-  --output /path/to/replays/mixed \
-  --eval-only --resume --record-video --eval-episodes 3 --seed 42
-```
-
-Each scored episode receives a directory such as
-`replays/episode_000_seed_12345/` containing:
+Each scored episode saves a directory such as `replays/episode_000_seed_12345/`:
 
 - `replay.mp4`: the exact trajectory used for that episode's evaluation.
 - `terrain_full_map.png`: the entire physical map with the actual path.
-- `terrain_local_map.png`: an 8 m close-up around the final position, with a
-  local color range to make small height changes visible. Heights are labelled
-  in centimetres; world coordinates are in metres.
-- `terrain_and_path.npz`: the exact physics heightfield samples, height grid,
-  coordinates, trajectory and frame timing.
-- `manifest.json`: template, seeds, terrain hash, episode outcome and file hashes.
+- `terrain_local_map.png`: a close-up with a local color range for small features.
+- `terrain_and_path.npz`: exact physical height samples, trajectory, and timing.
+- `manifest.json`: template, seeds, sample hash, episode outcome, and file hashes.
 
-The recorder captures the terminal pose and frame before the vectorized
-environment resets. It copies the physical heightfield rather than generating
-a second map for display, and checks that its sample hash matches the episode's
-terrain record. A replay directory is published only once all its files are
-complete. Requested video or map failures fail the export visibly.
+The terminal frame is captured before automatic reset. Maps use the physical
+heightfield that the animal crossed. Exports check the sample hash and publish a
+replay directory only after all files are complete; requested video or map
+failures fail visibly. Original-plane episodes receive clearly labelled
+`flat_plane_full_map.png` and `flat_plane_local_map.png` reference maps.
 
-Original-plane retention episodes save explicitly labelled
-`flat_plane_full_map.png` and `flat_plane_local_map.png` reference maps. These
-are not presented as sampled heightfields. Video recording remains optional;
-requesting it always includes the matching maps.
+To view a downloaded or moved run, keep `run.json` and its complete `replays/`
+directory together and call
+`display_notebook_behavior(Path("/path/to/saved-run"))` from
+`environments.shared.behavior_notebook`. Media filenames resolve from the saved
+episode manifests, including indexes that still contain another machine's
+original paths.
 
-The output bundle includes:
+## Read the results
 
-- `model.zip`, `vecnormalize.pkl`, and `bundle.json`: matched artifacts and hashes.
-- `run.json`: resolved environment identity, source hashes, training settings,
-  starting checkpoint, actual step count, duration, and evaluation summary.
-- `progress.csv`: PPO training diagnostics.
-- `training_episodes.jsonl`: every actual training/evaluation reset recipe.
-- Evaluation summaries and per-episode command/step logs with target heading,
-  emitted commands, measured speed/turning, stopping, and terrain information.
-- When `--record-video` is enabled, per-episode replay directories with video,
-  terrain maps and exact saved terrain/path data.
+The output includes matched `model.zip`, `vecnormalize.pkl`, and `bundle.json`,
+along with `run.json`, `progress.csv`, reset manifests, and per-episode command
+and step logs. Results retain the starting checkpoint, species and parent
+identity, resolved settings, requested and actual steps, duration, and evaluation
+measurements. Video recording adds the matched replay directories above.
 
-Judge heading acquisition, speed error, sustained stopping, full-horizon
-survival, and terrain exposure together. Radial distance alone is only a course
-diagnostic: walking the wrong direction, falling after progress, or remaining on
-the spawn apron does not demonstrate the requested behavior. Planned commands
-that never occur because of an early fall remain visible in evaluation.
+Assess heading acquisition, speed error, sustained stopping, full-horizon
+survival, and exposure to the terrain together. Radial distance is a course
+progress diagnostic, not proof of success: the animal may walk the wrong way,
+fall after progressing, or stay on the flat apron. Planned commands missed after
+an early fall remain visible. Compare flat-ground retention separately from
+terrain exposure and keep a frozen parent for paired checks.
 
-Keep the original walker frozen and compare paired flat-ground evaluations.
-Run left/right turns and unseen terrain seeds before increasing slope or
-roughness. The pilot evaluator reports measurements; it does not mint a
-canonical gate pass or publish a trained capability.
+### Existing T. rex runs
+
+Historical TOMLs under `configs/trex/behavior_pilots/` remain available for their
+original saved run definitions. New training uses `configs/trex/behaviors/` and
+the shared runner. Do not edit old manifests or rename old recipe contents to
+force a resume: bundle identities guard the meaning of the saved evidence.

@@ -1,4 +1,4 @@
-"""Execute notebook pilot routing and its shared CLI handoff without a training budget."""
+"""Execute notebook behavior routing and its shared CLI handoff without a training budget."""
 
 from __future__ import annotations
 
@@ -15,14 +15,16 @@ import pytest
 pytest.importorskip("stable_baselines3")
 
 from environments.shared import behavior_notebook as notebook
+from environments.shared.species_names import species_display_names
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
+SPECIES_NAMES = species_display_names(backend="stable-baselines3")
 CONFIG_MARKER = "# ===== SPECIES SELECTION ====="
-STORAGE_MARKER = "# ===== PILOT STORAGE AND RUN PLAN ====="
-RUN_MARKER = "# ===== RUN DIRECTION OR TERRAIN PILOT ====="
-DISPLAY_MARKER = "# ===== DISPLAY SAVED PILOT EVIDENCE ====="
-CANONICAL_GUARD = 'if not globals().get("BEHAVIOR_PILOT", False):\n'
+STORAGE_MARKER = "# ===== BEHAVIOR STORAGE AND RUN PLAN ====="
+RUN_MARKER = "# ===== RUN DIRECTION OR TERRAIN BEHAVIOR ====="
+DISPLAY_MARKER = "# ===== DISPLAY SAVED BEHAVIOR EVIDENCE ====="
+CANONICAL_GUARD = 'if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n'
 
 
 def _code_cells() -> list[str]:
@@ -52,12 +54,13 @@ def _edited_cell(source: str, **values: Any) -> types.CodeType:
 
 
 @pytest.fixture
-def pilot_files(tmp_path):
+def behavior_files(tmp_path):
     root = tmp_path / "checkout"
-    config_dir = root / "configs" / "trex" / "behavior_pilots"
-    config_dir.mkdir(parents=True)
-    for name in notebook.PILOT_RECIPES.values():
-        (config_dir / name).write_bytes((REPO_ROOT / "configs/trex/behavior_pilots" / name).read_bytes())
+    for species in SPECIES_NAMES:
+        config_dir = root / "configs" / species / "behaviors"
+        config_dir.mkdir(parents=True)
+        for name in notebook.BEHAVIOR_RECIPES.values():
+            (config_dir / name).write_bytes((REPO_ROOT / "configs" / species / "behaviors" / name).read_bytes())
     model = root / "source model.zip"
     stats = root / "source normalization.pkl"
     model.write_bytes(b"source-model-placeholder")
@@ -65,8 +68,8 @@ def pilot_files(tmp_path):
     return root, model, stats
 
 
-def _plan(pilot_files, **overrides):
-    root, model, stats = pilot_files
+def _plan(behavior_files, **overrides):
+    root, model, stats = behavior_files
     values = dict(
         repo_root=root,
         log_base=root / "logs",
@@ -76,20 +79,20 @@ def _plan(pilot_files, **overrides):
         checkpoint=str(model),
         vecnormalize=str(stats),
         seed=42,
-        run_id="pilot-test",
+        run_id="behavior-test",
     )
     values.update(overrides)
-    return notebook.build_notebook_pilot_plan(**values)
+    return notebook.build_notebook_behavior_plan(**values)
 
 
-def _pilot_namespace(pilot_files, **overrides):
-    root, model, stats = pilot_files
+def _behavior_namespace(behavior_files, **overrides):
+    root, model, stats = behavior_files
     namespace: dict[str, Any] = {"Path": Path, "repo_root": root, "IN_COLAB": False}
     values = dict(
         SPECIES="Tyrannosaurus Rex",
         BEHAVIOR="follow_direction",
-        PILOT_CHECKPOINT=str(model),
-        PILOT_VECNORMALIZE=str(stats),
+        BEHAVIOR_CHECKPOINT=str(model),
+        BEHAVIOR_VECNORMALIZE=str(stats),
         USE_GOOGLE_DRIVE=False,
         AUTO_DISCONNECT=False,
     )
@@ -98,34 +101,40 @@ def _pilot_namespace(pilot_files, **overrides):
     return namespace
 
 
-@pytest.mark.parametrize("behavior", notebook.PILOT_RECIPES)
-def test_each_dropdown_pilot_resolves_an_executable_recipe(pilot_files, behavior):
-    from environments.trex.scripts.train_behaviors import read_recipe
+@pytest.mark.parametrize("species", SPECIES_NAMES)
+@pytest.mark.parametrize("behavior", notebook.BEHAVIOR_RECIPES)
+def test_each_dropdown_behavior_resolves_an_executable_recipe(behavior_files, species, behavior):
+    from environments.shared.train_behaviors import read_recipe
 
-    plan = _plan(pilot_files, behavior=behavior)
-    recipe, commands, terrain, _ = read_recipe(plan.recipe_path)
-    assert recipe["pilot"]["timesteps"] > 0
+    plan = _plan(behavior_files, species=species, behavior=behavior)
+    recipe, commands, terrain, _ = read_recipe(plan.recipe_path, species=plan.species)
+    assert recipe["behavior"]["timesteps"] > 0
+    assert recipe["behavior"]["species"] == plan.species == species
+    assert recipe["behavior"]["name"] == behavior
+    assert plan.argv()[plan.argv().index("--species") + 1] == species
+    assert plan.argv()[plan.argv().index("--recipe") + 1] == str(plan.recipe_path)
+    assert plan.output_dir.parts[-5:-3] == (species, "ppo")
     assert commands is not None
     assert (terrain is None) == (behavior in {"follow_direction", "follow_direction_speed"})
-    assert plan.output_dir.parts[-3:] == ("behavior_pilots", behavior, "pilot-test")
+    assert plan.output_dir.parts[-3:] == ("behaviors", behavior, "behavior-test")
     assert not plan.output_dir.exists()
 
 
 @pytest.mark.parametrize(
     "override,match",
     [
-        ({"species": "velociraptor"}, "Tyrannosaurus"),
+        ({"species": "not-a-species"}, "Unknown species"),
         ({"algorithm": "sac"}, "ppo"),
-        ({"behavior": "unknown"}, "Unknown behavior"),
+        ({"behavior": "unknown"}, "Unknown direction or terrain behavior"),
         ({"load_mode": "legacy"}, "prepare, resume, or adapt"),
-        ({"checkpoint": ""}, "both PILOT"),
-        ({"vecnormalize": " "}, "both PILOT"),
+        ({"checkpoint": ""}, "both BEHAVIOR"),
+        ({"vecnormalize": " "}, "both BEHAVIOR"),
         ({"trunk_from": "previous"}, "Clear TRUNK"),
         ({"widen_from": "previous"}, "Clear TRUNK"),
         ({"retrain_from": "stance"}, "Clear TRUNK"),
     ],
 )
-def test_pilot_selection_refuses_ambiguous_or_incompatible_source(override, match):
+def test_behavior_selection_refuses_ambiguous_or_incompatible_source(override, match):
     values = dict(
         species="trex",
         algorithm="ppo",
@@ -136,106 +145,203 @@ def test_pilot_selection_refuses_ambiguous_or_incompatible_source(override, matc
     )
     values.update(override)
     with pytest.raises(ValueError, match=match):
-        notebook.validate_pilot_selection(**values)
+        notebook.validate_behavior_selection(**values)
 
 
 @pytest.mark.parametrize(
     "override,match",
     [
-        ({"seed": -1}, "PILOT_SEED"),
-        ({"seed": True}, "PILOT_SEED"),
-        ({"seed": 2**32}, "PILOT_SEED"),
-        ({"steps": 1.5}, "PILOT_STEPS"),
-        ({"eval_episodes": -1}, "PILOT_EVAL_EPISODES"),
+        ({"seed": -1}, "BEHAVIOR_SEED"),
+        ({"seed": True}, "BEHAVIOR_SEED"),
+        ({"seed": 2**32}, "BEHAVIOR_SEED"),
+        ({"steps": 1.5}, "BEHAVIOR_STEPS"),
+        ({"eval_episodes": -1}, "BEHAVIOR_EVAL_EPISODES"),
         ({"eval_episodes": 0}, "at least one"),
-        ({"video_fps": float("nan")}, "PILOT_VIDEO_FPS"),
-        ({"video_fps": 0}, "PILOT_VIDEO_FPS"),
+        ({"video_fps": float("nan")}, "BEHAVIOR_VIDEO_FPS"),
+        ({"video_fps": 0}, "BEHAVIOR_VIDEO_FPS"),
         ({"run_id": "../escape"}, "directory name"),
         ({"run_id": "a\\b"}, "directory name"),
         ({"checkpoint": "missing.zip"}, "source file not found"),
     ],
 )
-def test_plan_refuses_invalid_inputs_before_creating_outputs(pilot_files, override, match):
+def test_plan_refuses_invalid_inputs_before_creating_outputs(behavior_files, override, match):
     with pytest.raises((ValueError, FileNotFoundError), match=match):
-        _plan(pilot_files, **override)
-    assert not (pilot_files[0] / "logs").exists()
+        _plan(behavior_files, **override)
+    assert not (behavior_files[0] / "logs").exists()
 
 
 @pytest.mark.parametrize("mode", ["prepare", "resume", "adapt"])
-def test_modes_use_the_shared_runner_and_preserve_default_remaining_budget(pilot_files, mode):
-    plan = _plan(pilot_files, load_mode=mode)
+def test_modes_use_the_shared_runner_and_preserve_default_remaining_budget(behavior_files, mode):
+    plan = _plan(behavior_files, load_mode=mode)
     args = plan.argv()
     assert "--steps" not in args
     assert ("--resume" in args) == (mode == "resume")
     assert ("--adapt" in args) == (mode == "adapt")
-    assert args[args.index("--checkpoint") + 1] == str(pilot_files[1])
-    assert args[args.index("--vecnormalize") + 1] == str(pilot_files[2])
+    assert args[args.index("--checkpoint") + 1] == str(behavior_files[1])
+    assert args[args.index("--vecnormalize") + 1] == str(behavior_files[2])
     assert "--record-video" in args
 
 
-def test_quick_test_explicit_steps_and_eval_only_have_clear_budget_semantics(pilot_files):
-    assert _plan(pilot_files, quick_test=True).steps == 4096
-    assert _plan(pilot_files, quick_test=True, steps=12).steps == 12
-    assert _plan(pilot_files, quick_test=True, eval_only=True).steps is None
-    args = _plan(pilot_files, eval_only=True, steps=0, record_video=False, eval_episodes=0).argv()
+@pytest.mark.parametrize("mode,eval_only", [("prepare", False), ("resume", False), ("prepare", True)])
+def test_automatic_source_is_resolved_by_runner_after_identity_is_known_without_early_outputs(
+    behavior_files, mode, eval_only
+):
+    plan = _plan(behavior_files, checkpoint="", vecnormalize="", load_mode=mode, eval_only=eval_only)
+    assert plan.auto_source
+    assert plan.checkpoint_path is None and plan.vecnormalize_path is None
+    assert plan.certified_library == behavior_files[0] / "certified"
+    args = plan.argv()
+    assert "--auto-source" in args and "--publish-certified" in args
+    assert "--checkpoint" not in args and "--vecnormalize" not in args
+    assert args[args.index("--comparison-episodes") + 1] == "50"
+    assert not plan.output_dir.exists() and not plan.certified_library.exists()
+
+
+@pytest.mark.parametrize("options", [{"source_selection": "manual"}, {"load_mode": "adapt"}])
+def test_manual_selection_and_cross_behavior_adaptation_require_an_explicit_pair(behavior_files, options):
+    with pytest.raises(ValueError, match="both BEHAVIOR_CHECKPOINT"):
+        _plan(behavior_files, checkpoint="", vecnormalize="", **options)
+
+
+def test_explicit_pair_overrides_auto_and_library_publication_can_be_disabled(behavior_files):
+    plan = _plan(behavior_files, source_selection="auto", publish_certified=False)
+    assert not plan.auto_source
+    assert "--auto-source" not in plan.argv()
+    assert "--publish-certified" not in plan.argv()
+    assert "--comparison-episodes" not in plan.argv()
+    assert plan.checkpoint_path == behavior_files[1]
+
+
+@pytest.mark.parametrize("count", [2, 50, 100])
+def test_comparison_panel_size_is_an_explicit_independent_control(behavior_files, count):
+    plan = _plan(behavior_files, comparison_episodes=count, eval_episodes=5)
+    args = plan.argv()
+    assert args[args.index("--comparison-episodes") + 1] == str(count)
+    assert args[args.index("--eval-episodes") + 1] == "5"
+
+
+@pytest.mark.parametrize("count", [0, 1, -1, True, 1.5])
+def test_comparison_panel_size_refuses_invalid_values_before_creating_outputs(behavior_files, count):
+    with pytest.raises(ValueError, match="CERTIFIED_COMPARISON_EPISODES"):
+        _plan(behavior_files, comparison_episodes=count)
+    assert not (behavior_files[0] / "logs").exists()
+
+
+def test_quick_test_explicit_steps_and_eval_only_have_clear_budget_semantics(behavior_files):
+    assert _plan(behavior_files, quick_test=True).steps == 4096
+    assert _plan(behavior_files, quick_test=True, steps=12).steps == 12
+    assert _plan(behavior_files, quick_test=True, eval_only=True).steps is None
+    args = _plan(behavior_files, eval_only=True, steps=0, record_video=False, eval_episodes=0).argv()
     assert args[args.index("--steps") + 1] == "0"
     assert "--eval-only" in args
     assert "--record-video" not in args
 
 
-def test_fresh_seed_default_and_explicit_replay_seed(pilot_files, monkeypatch):
+def test_quick_test_saves_why_certification_was_skipped_without_relaxing_requirements(behavior_files, monkeypatch):
+    from environments.shared import train_behaviors
+
+    plan = _plan(behavior_files, quick_test=True)
+    assert not plan.publish_certified
+    assert "--publish-certified" not in plan.argv()
+    assert "QUICK_TEST" in plan.certification_skip_reason
+
+    def run(args):
+        plan.output_dir.mkdir(parents=True)
+        (plan.output_dir / "run.json").write_text(
+            json.dumps({"schema": "mesozoic.behavior-run/v1", "canonical_certification": False, "status": "complete"})
+        )
+
+    monkeypatch.setattr(train_behaviors, "main", run)
+    report = notebook.run_notebook_behavior(plan)
+    saved = json.loads((plan.output_dir / "run.json").read_text())
+    assert report["certification_skip_reason"] == saved["certification_skip_reason"] == plan.certification_skip_reason
+    assert "gates were not relaxed" in saved["certification_skip_reason"]
+
+
+def test_fresh_seed_default_and_explicit_replay_seed(behavior_files, monkeypatch):
     seeds = iter((101, 202))
     monkeypatch.setattr(notebook.secrets, "randbelow", lambda bound: next(seeds))
-    first = _plan(pilot_files, seed=None, run_id="")
-    second = _plan(pilot_files, seed=None, run_id="")
-    replay = _plan(pilot_files, seed=first.seed)
+    first = _plan(behavior_files, seed=None, run_id="")
+    second = _plan(behavior_files, seed=None, run_id="")
+    replay = _plan(behavior_files, seed=first.seed)
     assert (first.seed, second.seed, replay.seed) == (101, 202, 101)
     assert first.output_dir != second.output_dir
 
 
-def test_identical_storage_rerun_retains_plan_and_changed_selection_mints_seed(pilot_files, monkeypatch):
-    seeds = iter((101, 202, 303, 404))
+def test_identical_storage_rerun_retains_plan_and_changed_selection_mints_seed(behavior_files, monkeypatch):
+    seeds = iter((101, 202, 303, 404, 505))
     monkeypatch.setattr(notebook.secrets, "randbelow", lambda bound: next(seeds))
-    namespace = _pilot_namespace(pilot_files)
+    namespace = _behavior_namespace(behavior_files)
     source = _cell(STORAGE_MARKER)
     exec(source, namespace)
-    first = namespace["PILOT_PLAN"]
+    first = namespace["BEHAVIOR_PLAN"]
     exec(source, namespace)
-    assert namespace["PILOT_PLAN"] == first
+    assert namespace["BEHAVIOR_PLAN"] == first
     for key, value, expected_seed in (
-        ("PILOT_RUN_ID", "new-session", 202),
+        ("BEHAVIOR_RUN_ID", "new-session", 202),
         ("BEHAVIOR", "mixed_terrain", 303),
-        ("PILOT_LOAD_MODE", "resume", 404),
+        ("BEHAVIOR_LOAD_MODE", "resume", 404),
+        ("SPECIES", "velociraptor", 505),
     ):
         namespace[key] = value
         exec(source, namespace)
-        assert namespace["PILOT_PLAN"].seed == expected_seed
-    namespace.update(PILOT_SEED=818, PILOT_RUN_ID="explicit-replay")
+        assert namespace["BEHAVIOR_PLAN"].seed == expected_seed
+    namespace.update(BEHAVIOR_SEED=818, BEHAVIOR_RUN_ID="explicit-replay")
     exec(source, namespace)
-    assert namespace["PILOT_PLAN"].seed == 818
+    assert namespace["BEHAVIOR_PLAN"].seed == 818
 
 
-def test_colab_storage_mounts_drive_and_uses_a_separate_pilot_tree(pilot_files, monkeypatch):
+def test_colab_storage_mounts_drive_and_uses_a_separate_behavior_tree(behavior_files, monkeypatch):
     calls = []
     colab = types.ModuleType("google.colab")
     colab.drive = types.SimpleNamespace(mount=lambda location: calls.append(location))
     monkeypatch.setitem(sys.modules, "google.colab", colab)
-    namespace = _pilot_namespace(pilot_files, USE_GOOGLE_DRIVE=True, PILOT_SEED=72)
+    namespace = _behavior_namespace(behavior_files, USE_GOOGLE_DRIVE=True, BEHAVIOR_SEED=72)
     namespace["IN_COLAB"] = True
     exec(_cell(STORAGE_MARKER), namespace)
-    plan = namespace["PILOT_PLAN"]
+    plan = namespace["BEHAVIOR_PLAN"]
     assert calls == ["/content/drive"]
-    assert str(plan.output_dir).startswith("/content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/behavior_pilots/")
+    assert str(plan.output_dir).startswith("/content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/behaviors/")
     assert "RUN_DIR" not in namespace and "PLANT_IDENTITY" not in namespace
     assert namespace["CHAIN"] == []
+    assert plan.certified_library == Path("/content/drive/MyDrive/mesozoic-labs/certified")
 
 
-def test_runner_receives_exact_plan_and_returns_diagnostic_manifest(pilot_files, monkeypatch):
-    from environments.trex.scripts import train_behaviors
+def test_notebook_defaults_to_automatic_complete_bundle_selection(behavior_files):
+    namespace = _behavior_namespace(behavior_files, BEHAVIOR_CHECKPOINT="", BEHAVIOR_VECNORMALIZE="")
+    assert namespace["SOURCE_SELECTION"] == "auto"
+    assert namespace["PUBLISH_CERTIFIED"] is True
+    assert namespace["CERTIFIED_COMPARISON_EPISODES"] == 50
+    exec(_cell(STORAGE_MARKER), namespace)
+    plan = namespace["BEHAVIOR_PLAN"]
+    assert plan.auto_source and plan.checkpoint_path is None
+    assert plan.certified_library == behavior_files[0] / "certified"
+    assert not plan.output_dir.exists()
 
-    plan = _plan(pilot_files, load_mode="adapt", steps=1234, seed=999)
+
+def test_source_library_and_comparison_changes_make_a_new_behavior_plan(behavior_files, monkeypatch):
+    seeds = iter((101, 202, 303, 404))
+    monkeypatch.setattr(notebook.secrets, "randbelow", lambda bound: next(seeds))
+    namespace = _behavior_namespace(behavior_files)
+    source = _cell(STORAGE_MARKER)
+    exec(source, namespace)
+    for key, value, seed in (
+        ("CERTIFIED_LIBRARY_ROOT", str(behavior_files[0] / "other-library"), 202),
+        ("CERTIFIED_COMPARISON_EPISODES", 100, 303),
+        ("PUBLISH_CERTIFIED", False, 404),
+    ):
+        namespace[key] = value
+        exec(source, namespace)
+        assert namespace["BEHAVIOR_PLAN"].seed == seed
+
+
+@pytest.mark.parametrize("schema", ["mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"])
+def test_runner_receives_exact_plan_and_returns_diagnostic_manifest(behavior_files, monkeypatch, schema):
+    from environments.shared import train_behaviors
+
+    plan = _plan(behavior_files, load_mode="adapt", steps=1234, seed=999)
     calls = []
-    expected = {"schema": "mesozoic.behavior-pilot-run/v1", "canonical_certification": False, "status": "complete"}
+    expected = {"schema": schema, "canonical_certification": False, "status": "complete"}
 
     def fake_main(args):
         calls.append(args)
@@ -243,15 +349,15 @@ def test_runner_receives_exact_plan_and_returns_diagnostic_manifest(pilot_files,
         (plan.output_dir / "run.json").write_text(json.dumps(expected))
 
     monkeypatch.setattr(train_behaviors, "main", fake_main)
-    assert notebook.run_notebook_pilot(plan) == expected
+    assert notebook.run_notebook_behavior(plan) == expected
     assert calls == [plan.argv()]
 
 
 @pytest.mark.parametrize("mode", ["resume", "adapt"])
-def test_notebook_uses_actual_runner_bundle_refusal(pilot_files, mode):
-    plan = _plan(pilot_files, load_mode=mode)
+def test_notebook_uses_actual_runner_bundle_refusal(behavior_files, mode):
+    plan = _plan(behavior_files, load_mode=mode)
     with pytest.raises(ValueError, match="bundle.json"):
-        notebook.run_notebook_pilot(plan)
+        notebook.run_notebook_behavior(plan)
     assert not plan.output_dir.exists()
 
 
@@ -284,7 +390,7 @@ def test_saved_video_and_matching_maps_are_displayed_without_changing_fps(tmp_pa
     monkeypatch.setattr(ipy, "Video", lambda **kwargs: ("video", kwargs))
     monkeypatch.setattr(ipy, "Image", lambda **kwargs: ("image", kwargs))
     monkeypatch.setattr(ipy, "display", received.append)
-    notebook.display_notebook_pilot(tmp_path)
+    notebook.display_notebook_behavior(tmp_path)
     assert received == [
         ("video", {"filename": replay["video"], "embed": True}),
         ("image", {"filename": replay["full_map"]}),
@@ -358,7 +464,7 @@ def test_copied_run_uses_its_own_matching_episode_media_even_if_original_exists(
     assets = _saved_replay_run(original)
     shutil.copytree(original, copied)
     received = _capture_saved_media(monkeypatch)
-    notebook.display_notebook_pilot(copied)
+    notebook.display_notebook_behavior(copied)
     assert received == [(copied / relative, payload) for relative, payload in assets]
     assert all((original / relative).is_file() for relative, _ in assets)
 
@@ -372,7 +478,7 @@ def test_moved_run_displays_after_working_directory_changes(tmp_path, monkeypatc
     elsewhere.mkdir()
     monkeypatch.chdir(elsewhere)
     received = _capture_saved_media(monkeypatch)
-    notebook.display_notebook_pilot(Path("..") / moved.name)
+    notebook.display_notebook_behavior(Path("..") / moved.name)
     assert received == [(moved / relative, payload) for relative, payload in assets]
 
 
@@ -384,7 +490,7 @@ def test_copied_run_missing_map_does_not_fall_back_to_original_media(tmp_path, m
     (copied / missing).unlink()
     received = _capture_saved_media(monkeypatch)
     with pytest.raises(FileNotFoundError, match="flat_plane_local_map.png") as error:
-        notebook.display_notebook_pilot(copied)
+        notebook.display_notebook_behavior(copied)
     assert str(copied) in str(error.value)
     assert (original / missing).is_file()
     assert received == []
@@ -400,7 +506,7 @@ def test_replay_manifest_files_must_stay_inside_saved_episode(tmp_path, monkeypa
     manifest_path.write_text(json.dumps(manifest))
     received = _capture_saved_media(monkeypatch)
     with pytest.raises(ValueError):
-        notebook.display_notebook_pilot(root)
+        notebook.display_notebook_behavior(root)
     assert received == []
 
 
@@ -416,8 +522,83 @@ def test_saved_run_without_replays_still_displays_summary(tmp_path, monkeypatch,
         }
     (tmp_path / "run.json").write_text(json.dumps(report))
     received = _capture_saved_media(monkeypatch)
-    notebook.display_notebook_pilot(tmp_path)
-    assert "Behavior pilot: complete" in capsys.readouterr().out
+    notebook.display_notebook_behavior(tmp_path)
+    assert "Behavior: complete" in capsys.readouterr().out
+    assert received == []
+
+
+def test_saved_behavior_certification_displays_provisional_status_and_recommendation_reason(
+    tmp_path, monkeypatch, capsys
+):
+    report = {
+        "status": "complete",
+        "run_seed": 24,
+        "certification": {
+            "passed": True,
+            "failures": [],
+            "publication": {
+                "status": "provisional",
+                "version": "v000002",
+                "distinct_seeds": 2,
+                "required_seeds": 3,
+                "decision_reason": "More independent training seeds are required; recommendation unchanged.",
+            },
+        },
+    }
+    (tmp_path / "run.json").write_text(json.dumps(report))
+    _capture_saved_media(monkeypatch)
+    notebook.display_notebook_behavior(tmp_path)
+    output = capsys.readouterr().out
+    assert "Behavior certification: passed" in output
+    assert "Certified library: provisional" in output
+    assert "recommendation unchanged" in output
+    assert "Distinct training seeds: 2/3" in output
+
+
+def test_saved_terrain_summary_distinguishes_missing_families_from_passing_results(tmp_path, monkeypatch, capsys):
+    report = {
+        "status": "complete",
+        "run_seed": 24,
+        "evaluation": {
+            "full_horizon_count": 1,
+            "episode_count": 2,
+            "fall_count": 1,
+            "terrain_coverage": {
+                "enabled_families": ["flat", "sloped", "bumps", "depressions", "mixed"],
+                "evaluated_families": ["flat", "bumps"],
+                "missing_families": ["sloped", "depressions", "mixed"],
+                "complete": False,
+            },
+            "by_terrain_family": {
+                "flat": {
+                    "episode_count": 1,
+                    "full_horizon_count": 1,
+                    "fall_count": 0,
+                    "tracking_fraction": 0.85,
+                    "eligible_event_settle_fraction": 0.5,
+                },
+                "bumps": {
+                    "episode_count": 1,
+                    "full_horizon_count": 0,
+                    "fall_count": 1,
+                    "tracking_fraction": 0.25,
+                    "eligible_event_settle_fraction": None,
+                },
+                "sloped": {"episode_count": 0},
+                "depressions": {"episode_count": 0},
+                "mixed": {"episode_count": 0},
+            },
+        },
+    }
+    (tmp_path / "run.json").write_text(json.dumps(report))
+    received = _capture_saved_media(monkeypatch)
+    notebook.display_notebook_behavior(tmp_path)
+    output = capsys.readouterr().out
+    assert "Terrain coverage: incomplete (2/5 families)" in output
+    assert "Not evaluated: sloped, depressions, mixed" in output
+    assert "flat: 1 episodes; full horizon 1/1; falls 0; tracking 85.0%; commands settled 50.0%" in output
+    assert "bumps: 1 episodes; full horizon 0/1; falls 1; tracking 25.0%; commands settled n/a" in output
+    assert "mixed: not evaluated (0 episodes)" in output
     assert received == []
 
 
@@ -428,7 +609,7 @@ def test_canonical_default_and_freeform_stage_resolution_remain_available():
     namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
     exec(_cell(CONFIG_MARKER), namespace)
     assert namespace["BEHAVIOR"] == "hunt"
-    assert namespace["BEHAVIOR_PILOT"] is False
+    assert namespace["COMMAND_TERRAIN_BEHAVIOR"] is False
     assert namespace["SPECIES"] == "velociraptor"
     assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
     namespace["BEHAVIOR"] = "stance"
@@ -441,7 +622,7 @@ def test_dropdown_has_free_input_and_valid_json_annotations():
     config = _cell(CONFIG_MARKER)
     behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
     options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
-    assert set(notebook.PILOT_RECIPES) <= set(options)
+    assert set(notebook.BEHAVIOR_RECIPES) <= set(options)
     assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
     for source in (_cell("REPO_REF ="), config):
         for line in source.splitlines():
@@ -449,28 +630,34 @@ def test_dropdown_has_free_input_and_valid_json_annotations():
                 assert "type" in json.loads(line.split("# @param ", 1)[1])
 
 
-def test_every_guarded_canonical_cell_is_inert_during_pilots():
+def test_every_guarded_canonical_cell_is_inert_during_behaviors():
     guarded = [source for source in _code_cells() if source.startswith(CANONICAL_GUARD)]
     assert len(guarded) == 12
     for source in guarded:
-        namespace = {"BEHAVIOR_PILOT": True}
+        namespace = {"COMMAND_TERRAIN_BEHAVIOR": True}
         exec(source, namespace)
-        assert set(namespace) == {"BEHAVIOR_PILOT", "__builtins__"}
+        assert set(namespace) == {"COMMAND_TERRAIN_BEHAVIOR", "__builtins__"}
 
 
 def test_chain_cell_clears_stale_canonical_chain_before_loop():
-    namespace = {"BEHAVIOR_PILOT": True, "CHAIN": [object()]}
+    namespace = {"COMMAND_TERRAIN_BEHAVIOR": True, "CHAIN": [object()]}
     exec(_cell("# ===== BEHAVIOR CHAIN LOOP ====="), namespace)
     assert namespace["CHAIN"] == []
     assert "NODE" not in namespace
 
 
-def test_all_local_notebook_code_cells_route_a_pilot_without_canonical_artifacts(pilot_files, monkeypatch):
-    """Only long-running pilot training/display are replaced; all cells execute."""
-    from environments.trex.scripts import train_behaviors
+@pytest.mark.parametrize("species", SPECIES_NAMES)
+@pytest.mark.parametrize(
+    "behavior", ["combined_mixed_terrain", "difficult_terrain", "follow_direction_difficult_terrain"]
+)
+def test_all_local_notebook_code_cells_route_a_behavior_without_canonical_artifacts(
+    behavior_files, monkeypatch, species, behavior
+):
+    """Only long-running behavior training/display are replaced; all cells execute."""
+    from environments.shared import train_behaviors
 
     monkeypatch.chdir(REPO_ROOT)
-    root, model, stats = pilot_files
+    root, model, stats = behavior_files
     recorded_args = []
     displays = []
 
@@ -481,7 +668,7 @@ def test_all_local_notebook_code_cells_route_a_pilot_without_canonical_artifacts
         (output / "run.json").write_text(
             json.dumps(
                 {
-                    "schema": "mesozoic.behavior-pilot-run/v1",
+                    "schema": "mesozoic.behavior-run/v1",
                     "canonical_certification": False,
                     "status": "complete",
                     "run_seed": 747,
@@ -490,7 +677,7 @@ def test_all_local_notebook_code_cells_route_a_pilot_without_canonical_artifacts
         )
 
     monkeypatch.setattr(train_behaviors, "main", fake_main)
-    monkeypatch.setattr(notebook, "display_notebook_pilot", displays.append)
+    monkeypatch.setattr(notebook, "display_notebook_behavior", displays.append)
     namespace: dict[str, Any] = {}
     for source in _code_cells():
         if "REPO_REF =" in source:
@@ -498,11 +685,11 @@ def test_all_local_notebook_code_cells_route_a_pilot_without_canonical_artifacts
         elif CONFIG_MARKER in source:
             code = _edited_cell(
                 source,
-                SPECIES="Tyrannosaurus Rex",
-                BEHAVIOR="mixed_terrain",
-                PILOT_CHECKPOINT=str(model),
-                PILOT_VECNORMALIZE=str(stats),
-                PILOT_SEED=747,
+                SPECIES=SPECIES_NAMES[species],
+                BEHAVIOR=behavior,
+                BEHAVIOR_CHECKPOINT=str(model),
+                BEHAVIOR_VECNORMALIZE=str(stats),
+                BEHAVIOR_SEED=747,
                 QUICK_TEST=True,
                 USE_GOOGLE_DRIVE=False,
                 AUTO_DISCONNECT=False,
@@ -512,10 +699,11 @@ def test_all_local_notebook_code_cells_route_a_pilot_without_canonical_artifacts
         exec(code, namespace)
         if "Repo root:" in source:
             namespace["repo_root"] = root
+    assert namespace["BEHAVIOR_PLAN"].species == species
     assert len(recorded_args) == 1
-    assert recorded_args[0] == namespace["PILOT_PLAN"].argv()
-    assert displays == [namespace["PILOT_PLAN"].output_dir]
-    assert namespace["PILOT_RESULT"]["status"] == "complete"
+    assert recorded_args[0] == namespace["BEHAVIOR_PLAN"].argv()
+    assert displays == [namespace["BEHAVIOR_PLAN"].output_dir]
+    assert namespace["BEHAVIOR_RESULT"]["status"] == "complete"
     assert namespace["completed_stages"] == [] and namespace["NODE_HANDOFF"] == {}
     assert "RUN_DIR" not in namespace and "PLANT_IDENTITY" not in namespace
     assert not list(root.rglob("result_bundle.json"))
@@ -574,3 +762,31 @@ def test_colab_ref_change_is_explicit_and_preserves_edits(tmp_path, monkeypatch,
         assert ["git", "checkout", "--detach", "new-commit"] in commands
     assert commands[0] == ["git", "fetch", "origin", "codex/direction-and-random-terrain"]
     assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
+
+
+@pytest.mark.parametrize("species", SPECIES_NAMES)
+def test_helper_resolves_species_display_names_to_stable_paths(behavior_files, species):
+    plan = _plan(behavior_files, species=SPECIES_NAMES[species])
+    assert plan.species == species
+    assert plan.recipe_path.parent.parent.name == species
+
+
+@pytest.mark.parametrize("field,value", [("species", "velociraptor"), ("name", "mixed_terrain")])
+def test_recipe_metadata_cannot_route_a_different_species_or_behavior(behavior_files, field, value):
+    root, _, _ = behavior_files
+    recipe = root / "configs" / "trex" / "behaviors" / "follow_direction.toml"
+    original = 'species = "trex"' if field == "species" else 'name = "follow_direction"'
+    contents = recipe.read_text()
+    assert original in contents
+    recipe.write_text(contents.replace(original, f'{field} = "{value}"'))
+    with pytest.raises(ValueError, match="does not match selected species/behavior"):
+        _plan(behavior_files)
+    assert not (root / "logs").exists()
+
+
+def test_notebook_has_supported_controls_without_pilot_or_trex_only_label():
+    text = NOTEBOOK_PATH.read_text()
+    assert "Direction and terrain behaviors (all species, PPO)" in text
+    assert "PILOT_" not in text
+    assert "T-Rex PPO only" not in text
+    assert "Before PR 540" not in text

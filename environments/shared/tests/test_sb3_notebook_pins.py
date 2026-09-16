@@ -76,13 +76,13 @@ def _cells(path: Path = NOTEBOOK_PATH) -> list[dict]:
 
 
 def _canonical_source(cell: dict) -> str:
-    """Inspect the existing canonical body beneath its opt-in pilot guard.
+    """Inspect the existing canonical body beneath its direction/terrain guard.
 
     All canonical assertions below remain unchanged. The raw notebook guard
-    and executed pilot routing are tested in test_behavior_notebook.py.
+    and executed direction/terrain routing are tested in test_behavior_notebook.py.
     """
     source = "".join(cell["source"])
-    guard = 'if not globals().get("BEHAVIOR_PILOT", False):\n'
+    guard = 'if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n'
     if cell["cell_type"] == "code" and source.startswith(guard):
         return textwrap.dedent(source[len(guard) :])
     return source
@@ -313,11 +313,13 @@ class TestBehaviorKnob:
             assert isinstance(assigns[name], ast.Constant) and isinstance(assigns[name].value, str), (
                 f"{name} is a plain string constant an operator edits"
             )
-        # The optional knobs are OFF by default: an unattended Run-all trains
-        # the chain here, reuses nothing from another run, widens nothing
-        # (D-C13), and labels nothing.
+        # Manual overrides remain off. Automatic selection can reuse certified
+        # ancestors; the target still trains here and widening stays opt-in.
         for name in ("TRUNK_FROM", "WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
             assert assigns[name].value == "", f"{name} must default to the empty string (off)"
+        assert assigns["SOURCE_SELECTION"].value == "auto"
+        assert assigns["PUBLISH_CERTIFIED"].value is True
+        assert assigns["CERTIFIED_COMPARISON_EPISODES"].value == 50
         # D-C17: the revision-gap bound is an integer constant defaulting to the tool's fail-closed 1 (the Phase C
         # bump alone); a widen session for an r11 trex stance parent raises it to 2 by hand.
         from environments.shared.scripts.widen_checkpoint import DEFAULT_MAX_REVISION_GAP
@@ -566,7 +568,16 @@ class TestReuseRule:
         assert isinstance(parent_digest.orelse, ast.Constant) and parent_digest.orelse.value is None
         handoffs = _handoff_assigns(loop)
         assert len(handoffs) == 2, "one NODE_HANDOFF entry for a reused node, one for a trained/judged node"
-        expected_keys = ["model", "vecnorm", "stage_dir", "run_dir", "run_id", "model_sha256", "reused"]
+        expected_keys = [
+            "model",
+            "vecnorm",
+            "stage_dir",
+            "run_dir",
+            "run_id",
+            "model_sha256",
+            "normalization_sha256",
+            "reused",
+        ]
         by_reused: dict[bool, ast.Dict] = {}
         for assign in handoffs:
             assert ast.unparse(assign.targets[0]) == "NODE_HANDOFF[NODE.id]"
@@ -662,7 +673,7 @@ class TestReuseRule:
         )
         assert ast.unparse(same_run.value) == "candidate == RUN_DIR"
 
-    def test_cross_run_reuse_records_ancestors_and_never_copies_checkpoints(self):
+    def test_cross_run_reuse_records_ancestors_and_loads_complete_copies(self):
         src, loop = _chain_loop()
         record = _call(loop, "record_ancestor")
         assert [ast.unparse(arg) for arg in record.args] == ["RUN_DIR", "ancestor"]
@@ -675,7 +686,13 @@ class TestReuseRule:
         )
         assert "NODE_RESULTS[NODE.id]" in _branch_source(src, same_run_if.body)
         assert 'ancestor.verdict.get("stage_result")' in _branch_source(src, same_run_if.body)
-        # Never a copy: the checkpoint is loaded from where it lives (A10).
+        # Copies are delegated to verified adapters; the notebook itself does
+        # not reconstruct or partially copy their artifact bundles.
+        manual_copy = _call(reuse_if, "copy_canonical_ancestor")
+        assert [ast.unparse(arg) for arg in manual_copy.args] == ["ancestor", "RUN_DIR"]
+        assert manual_copy.lineno < record.lineno
+        automatic_copy = _call(loop, "resolve_canonical_parent")
+        assert _keyword_source(src, automatic_copy, "run_dir") == "RUN_DIR"
         assert "shutil" not in src
         copy_calls = [
             node
@@ -684,9 +701,9 @@ class TestReuseRule:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in {"copy", "copy2", "copyfile", "copytree", "replace", "rename"}
         ]
-        assert not copy_calls, "a reused ancestor's checkpoint is never copied into this run"
+        assert not copy_calls, "artifact materialization belongs to the verified copy adapters"
         assert ".zip" not in ast.unparse(_dict_value(_handoff_assigns(reuse_if)[0].value, "model")), (
-            "the handoff is the ancestor's own stem, in its own run"
+            "SB3 receives the copied ancestor's model stem without a duplicate extension"
         )
 
     def test_the_library_rule_the_notebook_relies_on(self, tmp_path):
@@ -1224,7 +1241,11 @@ class TestPublication:
         reuse_nodes = list(ast.walk(_reuse_if(src, loop)))
         trained_handoffs = [assign for assign in _handoff_assigns(loop) if assign not in reuse_nodes]
         assert len(trained_handoffs) == 1 and trained_handoffs[0].lineno > gate_if.end_lineno
-        assert len(_calls(loop, "disconnect_runtime")) == 1
+        assert len(_calls(gate_if, "disconnect_runtime")) == 1
+        # A failed certified-library write also releases the paid runtime;
+        # the stage's original gate-failure path still disconnects once.
+        publication_if = _the_if(loop, src, lambda test: test == "PUBLISH_CERTIFIED", "publishing candidates")
+        assert len(_calls(publication_if, "disconnect_runtime")) == 1
         # The results dict recorded is the gated one (generate_stage_artifacts returns the verdict).
         results_assign = next(
             node

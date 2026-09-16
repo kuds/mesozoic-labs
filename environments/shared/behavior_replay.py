@@ -24,6 +24,8 @@ from typing import Any, Iterator, Mapping
 import gymnasium as gym
 import numpy as np
 
+from environments.shared.behavior_evaluation import terrain_family_from_reset
+
 _REPLAY_LIGHTING = {"ambient": [0.35, 0.35, 0.35], "diffuse": [0.8, 0.8, 0.8], "specular": [0.1, 0.1, 0.1]}
 
 
@@ -322,6 +324,7 @@ class BehaviorReplayRecorder(gym.Wrapper):
         self._path_times: list[float] = []
         self._snapshot: TerrainReplaySnapshot | None = None
         self._reset_info: dict[str, Any] = {}
+        self._terrain_family = "unknown"
         self._episode = 0
         self._seed = 0
         self.completed: list[dict[str, Any]] = []
@@ -338,6 +341,9 @@ class BehaviorReplayRecorder(gym.Wrapper):
             self._armed = None  # An automatic reset must never begin another recording.
             self._snapshot = capture_terrain_snapshot(self.raw_env, info)
             self._reset_info = copy.deepcopy(info)
+            # Use the captured physics surface, so sampler metadata cannot
+            # silently mislabel an otherwise valid video and height map.
+            self._terrain_family = terrain_family_from_reset({**info, "terrain": self._snapshot.manifest})
             self.output_dir.mkdir(parents=True, exist_ok=True)
             stem = f"episode_{self._episode:03d}_seed_{self._seed}"
             if (self.output_dir / stem).exists():
@@ -437,6 +443,7 @@ class BehaviorReplayRecorder(gym.Wrapper):
             "status": "complete",
             "episode": self._episode,
             "episode_seed": self._seed,
+            "terrain_family": self._terrain_family,
             "same_scored_trajectory": True,
             "context": self.context,
             "reset_info": self._reset_info,
@@ -465,6 +472,7 @@ class BehaviorReplayRecorder(gym.Wrapper):
             {
                 "episode": self._episode,
                 "episode_seed": self._seed,
+                "terrain_family": self._terrain_family,
                 "directory": str(destination),
                 "manifest": str(destination / "manifest.json"),
                 **{key: str(destination / name) for key, name in files.items()},

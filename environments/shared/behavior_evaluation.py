@@ -337,6 +337,67 @@ def _reset_info(vec_env: Any) -> dict[str, Any]:
     return copy.deepcopy(values[0]) if values else {}
 
 
+def terrain_family_from_reset(reset_info: Mapping[str, Any]) -> str:
+    """Name the scored surface from its reset evidence, before automatic reset.
+
+    A flat heightfield contact diagnostic stays separate from a physical flat
+    plane. Sampler labels must agree with the selected surface's own recipe.
+    """
+    terrain = reset_info.get("terrain", {"family": "flat_plane"})
+    config = terrain.get("config", {})
+    if config:
+        family = "terrain_contact" if config.get("mode") == "flat" else config.get("template", "sloped")
+    else:
+        family = terrain.get("family", "unknown")
+        if family == "flat_plane":
+            family = "flat"
+    selected = reset_info.get("terrain_sampling", {}).get("family")
+    if selected is not None and selected != family:
+        raise ValueError(f"Terrain sampling family {selected!r} disagrees with the reset surface {family!r}")
+    return str(family)
+
+
+def _aggregate_episodes(episodes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Use the same diagnostic metrics for the entire run and each terrain."""
+    count = len(episodes)
+    eligible_count = sum(episode["eligible_event_count"] for episode in episodes)
+    settled_count = sum(episode["settled_event_count"] for episode in episodes)
+    full_horizon_count = sum(episode["full_horizon"] for episode in episodes)
+    fall_count = sum(episode["fall"] for episode in episodes)
+    return {
+        "episode_count": count,
+        "full_horizon_count": full_horizon_count,
+        "full_horizon_fraction": _fraction(full_horizon_count, count),
+        "fall_count": fall_count,
+        "fall_fraction": _fraction(fall_count, count),
+        "early_termination_count": sum(episode["early_termination"] for episode in episodes),
+        "termination_reasons": dict(
+            Counter(episode["termination_reason"] for episode in episodes if episode["terminated"])
+        ),
+        "mean_actual_speed": _mean([episode["mean_actual_speed"] for episode in episodes]),
+        "mean_actual_speed_after_1s": _mean([episode["mean_actual_speed_after_1s"] for episode in episodes]),
+        "active_heading_mae_deg_after_1s": _mean([episode["active_heading_mae_deg_after_1s"] for episode in episodes]),
+        "active_heading_mae_deg_after_settle": _mean(
+            [episode["active_heading_mae_deg_after_settle"] for episode in episodes]
+        ),
+        "tracking_fraction": _mean([episode["tracking_fraction"] for episode in episodes]),
+        "eligible_event_count": eligible_count,
+        "settled_event_count": settled_count,
+        "eligible_event_settle_fraction": _fraction(settled_count, eligible_count),
+        "unobserved_event_count": sum(episode["unobserved_event_count"] for episode in episodes),
+        "short_window_event_count": sum(episode["short_window_event_count"] for episode in episodes),
+        "stop_event_count": sum(episode["stop_event_count"] for episode in episodes),
+        "eligible_stop_event_count": sum(episode["eligible_stop_event_count"] for episode in episodes),
+        "settled_stop_event_count": sum(episode["settled_stop_event_count"] for episode in episodes),
+        "stop_mean_speed": _mean([episode["stop_mean_speed"] for episode in episodes]),
+        "stop_mean_abs_yaw_rate": _mean([episode["stop_mean_abs_yaw_rate"] for episode in episodes]),
+        "course_reached_fraction_radial_diagnostic": _fraction(
+            sum(episode["course_reached_radial_diagnostic"] for episode in episodes), count
+        ),
+        "mean_max_course_progress_m": _mean([episode["max_course_progress_m"] for episode in episodes]),
+    }
+
+
 def evaluate_behavior(
     model: Any,
     vec_env: Any,
@@ -355,6 +416,9 @@ def evaluate_behavior(
     does not save a gate verdict or overwrite a canonical result bundle.
     ``record_video`` adds a matched video, full/local terrain maps, raw height
     samples and path for each scored episode, before vectorized auto-reset.
+    A terrain sampler is evaluated round-robin across its enabled families,
+    independent of its training proportions. Every requested episode retains
+    its own seed; short panels explicitly report untested terrain families.
     """
     if getattr(vec_env, "num_envs", None) != 1:
         raise ValueError("behavior evaluation requires exactly one vectorized environment")
@@ -376,6 +440,7 @@ def evaluate_behavior(
         )
     episodes_dir = output_dir / "episodes"
     raw_env = vec_env.get_attr("unwrapped", indices=0)[0]
+    terrain_families = tuple(getattr(raw_env, "terrain_families", ()))
     dt = float(raw_env.dt)
     horizon_steps = int(raw_env.max_episode_steps)
     if not math.isfinite(dt) or dt <= 0 or horizon_steps <= 0:
@@ -407,9 +472,17 @@ def evaluate_behavior(
         for episode_index, seed in enumerate(episode_seeds):
             if recorder is not None:
                 recorder.arm_episode(episode_index, int(seed))
+            requested_family = terrain_families[episode_index % len(terrain_families)] if terrain_families else None
+            if requested_family is not None:
+                vec_env.set_options({"terrain_family": requested_family})
             vec_env.seed(int(seed))
             observation = vec_env.reset()
             reset_info = _reset_info(vec_env)
+            terrain_family = terrain_family_from_reset(reset_info)
+            if requested_family is not None and requested_family != terrain_family:
+                raise ValueError(
+                    f"Evaluation requested terrain {requested_family!r} but reset selected {terrain_family!r}"
+                )
             controller = raw_env.direction_controller
             initial_heading = float(controller.events[0]["desired_heading"])
             planner = copy.deepcopy(controller)
@@ -418,6 +491,7 @@ def evaluate_behavior(
             reset_record = {
                 "episode": episode_index,
                 "episode_seed": int(seed),
+                "terrain_family": terrain_family,
                 "reset_info": reset_info,
                 "terrain": copy.deepcopy(reset_info.get("terrain", {"family": "flat_plane"})),
                 "command_manifest": controller.manifest(),
@@ -446,6 +520,7 @@ def evaluate_behavior(
                 row.update(
                     episode=episode_index,
                     episode_seed=int(seed),
+                    terrain_family=terrain_family,
                     step=step + 1,
                     time_s=(step + 1) * dt,
                     reward=float(rewards[0]),
@@ -476,7 +551,7 @@ def evaluate_behavior(
                 initial_heading=initial_heading,
                 yaw_rate_max=planner.config.yaw_rate_max,
             )
-            summary.update(episode=episode_index, episode_seed=int(seed))
+            summary.update(episode=episode_index, episode_seed=int(seed), terrain_family=terrain_family)
             if recorder is not None:
                 summary["replay"] = copy.deepcopy(recorder.completed[-1])
             _write_csv(episodes_dir / f"{stem}_steps.csv", rows)
@@ -484,7 +559,8 @@ def evaluate_behavior(
             _write_json(episodes_dir / f"{stem}_summary.json", summary)
             episode_summaries.append(summary)
             all_events.extend(
-                {"episode": episode_index, "episode_seed": int(seed), **event} for event in summary["events"]
+                {"episode": episode_index, "episode_seed": int(seed), "terrain_family": terrain_family, **event}
+                for event in summary["events"]
             )
     finally:
         try:
@@ -493,9 +569,16 @@ def evaluate_behavior(
             vec_env.training = original_training
             vec_env.norm_reward = original_norm_reward
 
-    count = len(episode_summaries)
-    eligible_count = sum(episode["eligible_event_count"] for episode in episode_summaries)
-    settled_count = sum(episode["settled_event_count"] for episode in episode_summaries)
+    observed_families = list(dict.fromkeys(episode["terrain_family"] for episode in episode_summaries))
+    enabled_families = list(terrain_families) if terrain_families else observed_families
+    legacy_terrain = getattr(raw_env, "terrain_config", None)
+    if not terrain_families and legacy_terrain is not None:
+        configured_family = "terrain_contact" if legacy_terrain.mode == "flat" else legacy_terrain.template
+        flat_probability = float(getattr(raw_env, "flat_probability", 0.0))
+        enabled_families = (["flat"] if flat_probability > 0 else []) + (
+            [configured_family] if flat_probability < 1 else []
+        )
+    missing_families = [family for family in enabled_families if family not in observed_families]
     report = {
         "schema": "mesozoic.behavior-evaluation-diagnostics/v1",
         "purpose": "diagnostic evaluation; no acceptance or certification verdict",
@@ -511,38 +594,27 @@ def evaluate_behavior(
             "dwell_s": 1.0,
             "heading_summary_initial_exclusion_s": 1.0,
             "event_statistics": "descriptive; events within an episode are correlated",
+            "mean_metric_weighting": "equal weight per observed episode",
+            "terrain_selection": "balanced_round_robin" if terrain_families else "seeded_recipe",
+            "terrain_family_order": enabled_families,
+            "terrain_evaluation_weights": "equal coverage of enabled families, independent of training proportions"
+            if terrain_families
+            else "recipe selection for each seeded episode",
             "course_reached": "radial displacement diagnostic, separate from tracking and survival",
         },
-        "episode_count": count,
-        "full_horizon_count": sum(episode["full_horizon"] for episode in episode_summaries),
-        "full_horizon_fraction": sum(episode["full_horizon"] for episode in episode_summaries) / count,
-        "fall_count": sum(episode["fall"] for episode in episode_summaries),
-        "early_termination_count": sum(episode["early_termination"] for episode in episode_summaries),
-        "termination_reasons": dict(
-            Counter(episode["termination_reason"] for episode in episode_summaries if episode["terminated"])
-        ),
-        "mean_actual_speed": _mean([episode["mean_actual_speed"] for episode in episode_summaries]),
-        "mean_actual_speed_after_1s": _mean([episode["mean_actual_speed_after_1s"] for episode in episode_summaries]),
-        "active_heading_mae_deg_after_1s": _mean(
-            [episode["active_heading_mae_deg_after_1s"] for episode in episode_summaries]
-        ),
-        "active_heading_mae_deg_after_settle": _mean(
-            [episode["active_heading_mae_deg_after_settle"] for episode in episode_summaries]
-        ),
-        "eligible_event_count": eligible_count,
-        "settled_event_count": settled_count,
-        "eligible_event_settle_fraction": _fraction(settled_count, eligible_count),
-        "unobserved_event_count": sum(episode["unobserved_event_count"] for episode in episode_summaries),
-        "short_window_event_count": sum(episode["short_window_event_count"] for episode in episode_summaries),
-        "stop_event_count": sum(episode["stop_event_count"] for episode in episode_summaries),
-        "eligible_stop_event_count": sum(episode["eligible_stop_event_count"] for episode in episode_summaries),
-        "settled_stop_event_count": sum(episode["settled_stop_event_count"] for episode in episode_summaries),
-        "stop_mean_speed": _mean([episode["stop_mean_speed"] for episode in episode_summaries]),
-        "stop_mean_abs_yaw_rate": _mean([episode["stop_mean_abs_yaw_rate"] for episode in episode_summaries]),
-        "course_reached_fraction_radial_diagnostic": sum(
-            episode["course_reached_radial_diagnostic"] for episode in episode_summaries
-        )
-        / count,
+        **_aggregate_episodes(episode_summaries),
+        "terrain_coverage": {
+            "enabled_families": enabled_families,
+            "evaluated_families": observed_families,
+            "missing_families": missing_families,
+            "complete": not missing_families,
+        },
+        "by_terrain_family": {
+            family: _aggregate_episodes(
+                [episode for episode in episode_summaries if episode["terrain_family"] == family]
+            )
+            for family in enabled_families
+        },
         "episodes": episode_summaries,
         "outputs": {
             "summary": str(output_dir / "evaluation_summary.json"),

@@ -11,8 +11,8 @@ import pytest
 
 pytest.importorskip("stable_baselines3")
 
+from environments.shared import train_behaviors  # noqa: E402
 from environments.trex.envs.behavior_env import TRexBehaviorEnv  # noqa: E402
-from environments.trex.scripts import train_behaviors  # noqa: E402
 
 PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behavior_pilots"
 
@@ -77,6 +77,11 @@ def test_each_committed_recipe_instantiates_and_steps(name):
         "[ppo]\nlearning_rate=0.0\n",
         "[ppo]\nwarmup_timesteps=1.5\n",
         "[ppo]\nwarmup_clip_range=0.5\n",
+        "[terrain_sampler]\nflat=1\n",
+        '[terrain]\nenabled=true\nmode="flat"\n[terrain_sampler]\nflat=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nbumpps=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=-1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=1\n[env]\nflat_probability=0.25\n',
     ],
 )
 def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, content):
@@ -126,6 +131,7 @@ def stubbed_cli(monkeypatch, tmp_path):
     class FakeModel:
         def __init__(self, state=None):
             self.num_timesteps = 8_000_000
+            self._n_updates = 1_000
             self.n_steps = 64
             self.batch_size = 16
             self.n_epochs = 1
@@ -154,6 +160,7 @@ def stubbed_cli(monkeypatch, tmp_path):
                     current_callback.model = self
                     current_callback._on_rollout_start()
             self.num_timesteps = start + total_timesteps
+            self._n_updates += 1
             return self
 
         def save(self, path):
@@ -406,7 +413,7 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
             super().__init__(live=True)
             self.behavior_identity = {"schema": "runner-test/v1", "task": "live-commands"}
 
-    monkeypatch.setattr(train_behaviors, "TRexBehaviorEnv", PilotEnv)
+    monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda species: PilotEnv)
     config = tmp_path / "short.toml"
     config.write_text("[pilot]\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n")
     updates = []

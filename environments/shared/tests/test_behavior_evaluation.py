@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from environments.shared.behavior_evaluation import evaluate_behavior, summarize_episode
+from environments.shared.behavior_evaluation import evaluate_behavior, summarize_episode, terrain_family_from_reset
 from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
 
 
@@ -275,3 +275,123 @@ def test_evaluation_accepts_existing_training_and_checkpoint_context(tmp_path):
 def test_evaluation_refuses_invalid_or_duplicate_seed_panels(tmp_path, seeds):
     with pytest.raises(ValueError, match="episode_seeds"):
         evaluate_behavior(_Model(), _FakeVecNormalize(), episode_seeds=seeds, output_dir=tmp_path)
+
+
+class _SamplerVecNormalize(_FakeVecNormalize):
+    """A forced evaluation course followed by a different unforced auto-reset."""
+
+    def __init__(self):
+        self._options = {}
+        self.requested_families = []
+        super().__init__()
+        self.raw.terrain_families = ("flat", "sloped", "bumps", "depressions", "mixed")
+
+    def set_options(self, options):
+        self._options = dict(options)
+        self.requested_families.append(options["terrain_family"])
+
+    def reset(self):
+        result = super().reset()
+        self.family = self._options.pop("terrain_family", "mixed")
+        terrain = (
+            {"family": "flat_plane"}
+            if self.family == "flat"
+            else {"config": {"mode": "gentle", "template": self.family}}
+        )
+        self.venv.reset_infos[0].update(terrain=terrain, terrain_sampling={"family": self.family})
+        self.fall_step = 5 if self.family in ("bumps", "mixed") else None
+        return result
+
+    def step(self, action):
+        family = self.family
+        observation, rewards, dones, infos = super().step(action)
+        if family == "depressions":
+            infos[0].update(tracking_in_tolerance=False, tracking_error_v=0.65)
+        return observation, rewards, dones, infos
+
+
+def test_sampler_evaluation_balances_families_and_groups_the_scored_episode_before_autoreset(tmp_path):
+    vec = _SamplerVecNormalize()
+    report = evaluate_behavior(_Model(), vec, episode_seeds=list(range(7)), output_dir=tmp_path)
+    expected = ["flat", "sloped", "bumps", "depressions", "mixed", "flat", "sloped"]
+    assert vec.requested_families == expected
+    assert [episode["terrain_family"] for episode in report["episodes"]] == expected
+    assert vec.family == "mixed"  # Every automatic reset selected a different course.
+    assert report["protocol"]["terrain_selection"] == "balanced_round_robin"
+    assert report["terrain_coverage"]["complete"]
+    assert report["terrain_coverage"]["missing_families"] == []
+    grouped = report["by_terrain_family"]
+    assert {family: values["episode_count"] for family, values in grouped.items()} == {
+        "flat": 2,
+        "sloped": 2,
+        "bumps": 1,
+        "depressions": 1,
+        "mixed": 1,
+    }
+    assert grouped["flat"]["full_horizon_fraction"] == 1.0
+    assert grouped["flat"]["fall_count"] == 0
+    assert grouped["bumps"]["full_horizon_fraction"] == 0.0
+    assert grouped["bumps"]["fall_count"] == 1
+    assert grouped["bumps"]["termination_reasons"] == {"fallen": 1}
+    assert grouped["depressions"]["tracking_fraction"] == 0.0
+    assert grouped["depressions"]["eligible_event_settle_fraction"] == 0.0
+    assert grouped["mixed"]["fall_count"] == 1
+    with (tmp_path / "episodes.csv").open() as source:
+        assert [episode["terrain_family"] for episode in csv.DictReader(source)] == expected
+    with (tmp_path / "episodes/episode_000_seed_0_steps.csv").open() as source:
+        assert {row["terrain_family"] for row in csv.DictReader(source)} == {"flat"}
+    reset = json.loads((tmp_path / "episodes/episode_000_seed_0_reset.json").read_text())
+    assert reset["terrain_family"] == "flat"
+    assert reset["reset_info"]["terrain_sampling"]["family"] == "flat"
+    assert not vec._options  # Forcing a course did not persist after the reset.
+
+
+def test_short_sampler_panel_reports_missing_families_without_success_metrics(tmp_path):
+    report = evaluate_behavior(_Model(), _SamplerVecNormalize(), episode_seeds=[1, 2], output_dir=tmp_path)
+    assert not report["terrain_coverage"]["complete"]
+    assert report["terrain_coverage"]["missing_families"] == ["bumps", "depressions", "mixed"]
+    for family in report["terrain_coverage"]["missing_families"]:
+        missing = report["by_terrain_family"][family]
+        assert missing["episode_count"] == 0
+        assert missing["full_horizon_fraction"] is None
+        assert missing["fall_fraction"] is None
+        assert missing["tracking_fraction"] is None
+        assert missing["mean_actual_speed"] is None
+
+
+def test_evaluation_rejects_ignored_forced_terrain_before_scoring(tmp_path):
+    vec = _SamplerVecNormalize()
+    vec.set_options = lambda options: None
+    with pytest.raises(ValueError, match="requested terrain 'flat'.*selected 'mixed'"):
+        evaluate_behavior(_Model(), vec, episode_seeds=[1], output_dir=tmp_path)
+    assert vec.training and vec.norm_reward
+
+
+@pytest.mark.parametrize(
+    "terrain, expected",
+    [
+        ({"family": "flat_plane"}, "flat"),
+        ({"config": {"mode": "flat", "template": "sloped"}}, "terrain_contact"),
+        ({"config": {"mode": "gentle", "template": "mixed"}}, "mixed"),
+    ],
+)
+def test_legacy_surface_family_is_derived_from_actual_terrain_recipe(terrain, expected):
+    assert terrain_family_from_reset({"terrain": terrain}) == expected
+
+
+def test_sampling_metadata_cannot_override_a_different_actual_surface_family():
+    with pytest.raises(ValueError, match="disagrees with the reset surface"):
+        terrain_family_from_reset({"terrain": {"family": "flat_plane"}, "terrain_sampling": {"family": "bumps"}})
+
+
+def test_legacy_random_flat_episodes_do_not_hide_untested_configured_terrain(tmp_path):
+    vec = _SamplerVecNormalize()
+    del vec.raw.terrain_families
+    vec.raw.terrain_config = SimpleNamespace(mode="gentle", template="mixed")
+    vec.raw.flat_probability = 0.25
+    vec.set_options({"terrain_family": "flat"})
+    report = evaluate_behavior(_Model(), vec, episode_seeds=[42], output_dir=tmp_path)
+    assert report["protocol"]["terrain_selection"] == "seeded_recipe"
+    assert report["terrain_coverage"]["enabled_families"] == ["flat", "mixed"]
+    assert report["terrain_coverage"]["missing_families"] == ["mixed"]
+    assert not report["terrain_coverage"]["complete"]

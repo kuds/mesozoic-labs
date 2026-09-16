@@ -1,0 +1,33 @@
+# Dibothrosuchus: heading, speed, stop and restart
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# Speeds follow the species locomotion target; terrain dimensions match its model scale.
+[behavior]
+name = "follow_direction_speed"
+species = "dibothrosuchus"
+parent = "locomotion"
+timesteps = 3000000
+
+[commands]
+cruise_speed = 0.9
+speed_scale = 1.25
+lateral_speed_scale = 1.25
+yaw_rate_scale = 0.6
+speed_range = [0.45, 0.9]
+stop_probability = 0.15
+turn_increment_max = 0.5235987756
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+switch_jitter_s = 1.0
+straight_probability = 0.25
+
+[terrain]
+enabled = false
+
+[env]
+max_episode_steps = 2500 # 25 seconds at this species control timestep
+course_distance = 9.0 # Radial progress diagnostic, not a success gate
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

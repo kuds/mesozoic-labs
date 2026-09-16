@@ -280,8 +280,12 @@ def learned_behavior(parent, tmp_path_factory):
     normalizer.close()
 
 
-def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, tmp_path):
+@pytest.mark.parametrize("sample_terrain", [False, True])
+def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, tmp_path, sample_terrain):
+    from dataclasses import asdict
+
     from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
+    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
 
     model_path, vecnorm_path, parent_model, parent_stats, previous = learned_behavior
     requested = copy.deepcopy(previous)
@@ -289,6 +293,10 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
     requested["commands"]["switch_interval_s"] = 2.0
     requested["terrain"] = {"mode": "gentle", "max_slope_degrees": 3.0}
     requested["flat_probability"] = 0.25
+    if sample_terrain:
+        requested["flat_probability"] = 0.0
+        requested["terrain_sampler"] = asdict(TerrainSamplerConfig())
+        requested["sampler_sources"] = sampler_source_identity()
     requested["tracking_weight"] = 3.0
     requested["env"]["height_weight"] = 0.6
     adapted, normalizer, report = adapt_behavior_checkpoint(
@@ -340,6 +348,52 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
             CommandEnv(live=True),
             behavior_identity=previous,
         )
+
+
+@pytest.mark.parametrize("change", ["stale_source", "unknown_source", "missing_source", "missing_config", "bad_weight"])
+@pytest.mark.parametrize("source_side", [False, True])
+def test_sampler_transition_refuses_unverified_sources_and_invalid_weights(learned_behavior, change, source_side):
+    from dataclasses import asdict
+
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    sampled = copy.deepcopy(previous)
+    sampled["terrain_sampler"] = asdict(TerrainSamplerConfig())
+    sampled["sampler_sources"] = sampler_source_identity()
+    if change == "stale_source":
+        key = next(iter(sampled["sampler_sources"]))
+        sampled["sampler_sources"][key] = "stale"
+    elif change == "unknown_source":
+        sampled["sampler_sources"]["unknown.py"] = "unverified"
+    elif change == "missing_source":
+        del sampled["sampler_sources"]
+    elif change == "missing_config":
+        del sampled["terrain_sampler"]
+    else:
+        sampled["terrain_sampler"]["flat"] = -1
+    with pytest.raises(BehaviorCheckpointError, match="terrain sampler"):
+        _validate_behavior_transition(sampled, previous) if source_side else _validate_behavior_transition(
+            previous, sampled
+        )
+
+
+def test_sampler_transition_allows_verified_reweighting_and_return_to_fixed_terrain(learned_behavior):
+    from dataclasses import asdict
+
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+
+    fixed = copy.deepcopy(learned_behavior[-1])
+    sampled = {
+        **fixed,
+        "terrain_sampler": asdict(TerrainSamplerConfig()),
+        "sampler_sources": sampler_source_identity(),
+    }
+    reweighted = {**sampled, "terrain_sampler": asdict(TerrainSamplerConfig(flat=2, mixed=0))}
+    _validate_behavior_transition(sampled, reweighted)
+    _validate_behavior_transition(sampled, fixed)
 
 
 @pytest.mark.parametrize(

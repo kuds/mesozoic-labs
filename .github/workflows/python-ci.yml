@@ -169,11 +169,22 @@ jobs:
           from pathlib import Path
           import environments
           from environments.shared.config import load_stage_config
+          from environments.shared.behavior_notebook import BEHAVIOR_RECIPES
+          from environments.shared.behavior_certification import RULES_PATH, load_certification_rules
           from environments.shared.plant_contract import current_plant_identity
+          from environments.shared.species_names import species_display_names
+          from environments.shared.train_behaviors import REPO_ROOT, read_recipe
 
           assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
           assert current_plant_identity("velociraptor").nu == 22
+          assert RULES_PATH.is_relative_to(REPO_ROOT)
+          assert load_certification_rules()["comparison"]["episodes"] == 50
           assert load_stage_config("velociraptor", 1)["name"]
+          for species in species_display_names(backend="stable-baselines3"):
+              recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
+              assert {recipe.name for recipe in recipes} == set(BEHAVIOR_RECIPES.values()), (species, recipes)
+              for recipe in recipes:
+                  assert read_recipe(recipe, species)[0]["behavior"]["species"] == species
           PY
 
   # One matrix over per-directory suites, including the Compsognathus model prototypes: the previous five jobs
@@ -276,6 +287,28 @@ jobs:
           print(ray.__version__, stable_baselines3.__version__, torch.__version__)
           PY
 
+      - name: Validate canonical notebook training
+        run: |
+          pytest \
+            environments/shared/tests/test_compsognathus_training.py \
+            -k test_actual_notebook_training_stance_and_recovery_reports \
+            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        env:
+          MUJOCO_GL: osmesa
+          COVERAGE_FILE: .coverage.sb3-notebook
+
+      - name: Validate all-species direction and terrain training
+        run: |
+          pytest \
+            environments/shared/tests/test_behavior_species_training.py \
+            environments/shared/tests/test_behavior_env.py \
+            environments/shared/tests/test_behavior_recipes.py \
+            environments/shared/tests/test_terrain_sampling.py \
+            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        env:
+          MUJOCO_GL: osmesa
+          COVERAGE_FILE: .coverage.sb3-behaviors
+
       - name: Run SB3 integration tests
         run: |
           pytest \
@@ -283,6 +316,12 @@ jobs:
             environments/shared/tests/test_behavior_evaluation.py \
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_behavior_notebook.py \
+            environments/shared/tests/test_behavior_certification.py \
+            environments/shared/tests/test_behavior_publication.py \
+            environments/shared/tests/test_certified_library.py \
+            environments/shared/tests/test_certified_comparison.py \
+            environments/shared/tests/test_certified_canonical.py \
+            environments/shared/tests/test_sb3_notebook_certified.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \
@@ -303,6 +342,7 @@ jobs:
             environments/shared/tests/test_widen_checkpoint.py \
             environments/trex/tests/test_behavior_env.py \
             environments/trex/tests/test_behavior_training.py \
+            -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

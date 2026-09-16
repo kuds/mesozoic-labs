@@ -1,0 +1,26 @@
+# Initial versioned acceptance rules for direction and terrain skills.
+# Certification and head-to-head comparison use separate, fixed seed panels.
+version = "direction-terrain-certification/v1"
+episodes_per_family = 20
+minimum_horizon_s = 20.0
+minimum_survival_lcb = 0.80
+minimum_success_lcb = 0.60
+minimum_tracking_fraction = 0.60
+minimum_event_settle_fraction = 0.60
+minimum_stop_settle_fraction = 0.60
+minimum_turn_settle_fraction = 0.60
+minimum_course_fraction = 0.50
+minimum_command_episodes = 5
+certification_seeds = 1
+certification_run_seed = 810001
+certification_seed_start = 820001
+comparison_run_seed = 910001
+comparison_seed_start = 920001
+
+[comparison]
+version = "direction-terrain-comparison/v1"
+episodes = 50
+survival_margin = 0.02
+tracking_margin = 0.03
+settling_margin = 0.03
+progress_margin = 0.05
