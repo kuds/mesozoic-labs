@@ -287,6 +287,16 @@ jobs:
           print(ray.__version__, stable_baselines3.__version__, torch.__version__)
           PY
 
+      - name: Validate canonical notebook training
+        run: |
+          pytest \
+            environments/shared/tests/test_compsognathus_training.py \
+            -k test_actual_notebook_training_stance_and_recovery_reports \
+            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        env:
+          MUJOCO_GL: osmesa
+          COVERAGE_FILE: .coverage.sb3-notebook
+
       - name: Validate all-species direction and terrain training
         run: |
           pytest \
@@ -332,6 +342,7 @@ jobs:
             environments/shared/tests/test_widen_checkpoint.py \
             environments/trex/tests/test_behavior_env.py \
             environments/trex/tests/test_behavior_training.py \
+            -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

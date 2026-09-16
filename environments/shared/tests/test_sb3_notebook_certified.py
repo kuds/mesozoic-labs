@@ -7,6 +7,7 @@ import json
 import shutil
 import sys
 import types
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,59 @@ def _chain_source():
         for cell in json.loads(NOTEBOOK.read_text())["cells"]
         if "# ===== BEHAVIOR CHAIN LOOP =====" in "".join(cell["source"])
     )
+
+
+@pytest.mark.parametrize("custom_library", [False, True])
+def test_canonical_storage_initializes_certified_library_before_training(tmp_path, monkeypatch, custom_library):
+    """Execute the storage cell that initializes the chain's shared-library path."""
+    from environments.shared import plant_contract
+
+    source = next(
+        "".join(cell["source"])
+        for cell in json.loads(NOTEBOOK.read_text())["cells"]
+        if cell["cell_type"] == "code" and "# Storage Configuration" in "".join(cell["source"])
+    )
+    repository = tmp_path / "checkout"
+    repository.mkdir()
+    library_root = str(tmp_path / "custom" / ".." / "shared-certified") if custom_library else ""
+    identity = {"species": "trex", "test_identity": True}
+    provenance_calls = []
+    monkeypatch.setattr(
+        plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
+    )
+
+    def initialize(directory, **kwargs):
+        provenance_calls.append((directory, kwargs))
+        return directory / "provenance.json"
+
+    monkeypatch.setattr(result_bundle, "initialize_result_bundle", initialize)
+    namespace = {
+        "Path": Path,
+        "datetime": datetime,
+        "repo_root": repository,
+        "IN_COLAB": False,
+        "USE_GOOGLE_DRIVE": False,
+        "COMMAND_TERRAIN_BEHAVIOR": False,
+        "CERTIFIED_LIBRARY_ROOT": library_root,
+        "SOURCE_SELECTION": "auto",
+        "PUBLISH_CERTIFIED": True,
+        "SPECIES": "trex",
+        "ALGORITHM": "ppo",
+        "SEED": 42,
+        "N_ENVS": 1,
+        "TRUNK_FROM": "",
+    }
+    exec(compile(source, "sb3_storage", "exec"), namespace)
+    expected = Path(library_root).resolve() if custom_library else repository / "certified"
+    assert namespace["CERTIFIED_LIBRARY"] == expected
+    assert namespace["RUN_DIR"].is_dir()
+    assert namespace["RUN_DIR"].is_relative_to(repository / "logs")
+    assert namespace["TRUNK_DIR"] is None
+    assert provenance_calls[0][1]["plant_identity"] == identity
+    original_run = namespace["RUN_DIR"]
+    exec(compile(source, "sb3_storage_rerun", "exec"), namespace)
+    assert namespace["CERTIFIED_LIBRARY"] == expected
+    assert namespace["RUN_DIR"] == original_run
 
 
 def _session(
