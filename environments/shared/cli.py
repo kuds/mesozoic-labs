@@ -352,9 +352,11 @@ def main(species_cfg):
         "--trunk-from",
         type=str,
         default=None,
-        metavar="RUN_DIR",
+        metavar="RUN_DIR|auto",
         help=(
-            "Earlier run directory whose certified ancestors (gate_verdict.json passed under the current gate "
+            "Earlier run directory, or the literal 'auto' (the sibling run beside --output-dir / the log directory "
+            "whose certified ancestors cover the most of the chain root-first, newest on a tie; the selection and "
+            "every refusal are logged), whose certified ancestors (gate_verdict.json passed under the current gate "
             "configuration — its gate_sha256 equals the digest of the node's [curriculum] thresholds, so a verdict "
             "judged before that digest existed or under an edited threshold is refused until re-judged — plant "
             "and task hash matching the current config, each child recorded as trained from the very parent "
@@ -517,9 +519,13 @@ def main(species_cfg):
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
         _apply_overrides(stage_configs, args.override, species_cfg.species)
+        from .ancestors import AUTO_TRUNK
+
         trunk_from = getattr(args, "trunk_from", None)
-        if trunk_from is not None and not Path(trunk_from).is_dir():
-            parser.error(f"--trunk-from {trunk_from!r} is not a directory")
+        # D-A25: the literal "auto" asks train_curriculum to select the trunk
+        # among the run's siblings; anything else names a run directory.
+        if trunk_from is not None and trunk_from != AUTO_TRUNK and not Path(trunk_from).is_dir():
+            parser.error(f"--trunk-from {trunk_from!r} is not a directory (or the literal {AUTO_TRUNK!r})")
         retrain_from = getattr(args, "retrain_from", None)
         target = getattr(args, "target", None)
         # D-A19: the retrain knob only means something against a trunk.

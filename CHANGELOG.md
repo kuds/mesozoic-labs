@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Automatic trunk selection** (`docs/BEHAVIOR_RECIPES_PLAN.md` decision
+  D-A25). `environments/shared/ancestors.select_trunk` scans the runs beside a
+  new run (the notebook's `logs/<species>/<algo>/`; on the command line the
+  siblings of the run directory), applies the §4.2 reuse rule node by node
+  root-first (following ancestor records), and picks the run whose certified
+  ancestors cover the most of the chain, newest on a tie. A run whose
+  `provenance.json` or root `stage_config.json` names another species,
+  algorithm or backend is refused first, and no unreadable neighbour aborts
+  the scan. It reports the runs it refused with the rule that refused them
+  (the first 20 printed; every run scanned is in the selection), the
+  replication each reused node rests on (a provisional ancestor is reused and
+  labelled, never refused) and any run whose root passed under an older
+  policy interface that `widen_checkpoint` can bridge as a `WIDEN_FROM`
+  candidate. The SB3 notebook's `TRUNK_FROM` defaults to `"auto"`
+  (a run id still pins one; `""` trains every node here) and the chain loop no
+  longer consults the certified library for canonical ancestors;
+  `curriculum --trunk-from auto` does the same on the command line.
 - **Stage manifest v2** (`docs/BEHAVIOR_RECIPES_PLAN.md` Phase A, part 1).
   `environments/shared/stage_manifest.py` reads `mesozoic.stage-manifest/v2`
   beside v1: per-stage `warm_start_from` (an EARLIER entry; self and forward

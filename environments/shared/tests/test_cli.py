@@ -132,6 +132,13 @@ class TestMainDispatch:
         mock = self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path)])
         assert mock.call_args.kwargs["retrain_from"] is None
 
+    def test_curriculum_accepts_auto_as_the_trunk(self, species_cfg):
+        """Decision D-A25: the literal ``auto`` is not a directory and reaches train_curriculum verbatim,
+        with ``--retrain-from`` allowed beside it."""
+        mock = self._run_curriculum(species_cfg, ["--trunk-from", "auto", "--retrain-from", "locomotion"])
+        assert mock.call_args.kwargs["trunk_from"] == "auto"
+        assert mock.call_args.kwargs["retrain_from"] == "locomotion"
+
     def test_retrain_from_without_a_trunk_is_a_usage_error(self, species_cfg, capsys):
         """Without --trunk-from every stage is trained here already; the knob is refused rather
         than silently ignored."""

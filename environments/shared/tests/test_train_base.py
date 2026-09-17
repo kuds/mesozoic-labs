@@ -1170,6 +1170,91 @@ class TestTrainCurriculumWalksTheManifest:
         assert "'locomotion'" in not_reused[0].message and "no gate_verdict.json" in not_reused[0].message
         assert "'behavior'" in not_reused[1].message and "it is this run's target" in not_reused[1].message
 
+    def test_trunk_from_auto_selects_the_trunk_among_the_run_siblings(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A25: ``trunk_from="auto"`` hands the choice to ``select_trunk`` over the run's
+        siblings (the parent of the run directory), excluding the run itself and passing the chain
+        and ``retrain_from``; the selected run then serves as the trunk exactly as an explicit one."""
+        from environments.shared import ancestors as ancestors_module
+        from environments.shared.ancestors import AncestorReuseError, TrunkCandidate, TrunkSelection
+
+        runs = tmp_path / "runs"
+        run_dir = runs / "20260917_000000"
+        trunk = runs / "20260910_000000"
+        trunk.mkdir(parents=True)
+        ancestor = self._certified_ancestor(trunk)
+        asked: list[dict] = []
+
+        def select(log_dir, **kwargs):
+            asked.append({"log_dir": Path(log_dir), **kwargs})
+            candidate = TrunkCandidate(run_dir=trunk, run_id="trunk-run-id", covered=(ancestor,), refusal=None)
+            return TrunkSelection(
+                log_dir=Path(log_dir),
+                considered=("stance", "locomotion"),
+                candidates=(candidate,),
+                selected=candidate,
+                support=(),
+                older_interface=(),
+            )
+
+        monkeypatch.setattr(ancestors_module, "select_trunk", select)
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            assert Path(run_dir) == trunk, "the selected run is the trunk the loop consults"
+            if entry.id == "stance":
+                return ancestor
+            raise AncestorReuseError(f"{entry.id}: no gate_verdict.json in the trunk")
+
+        record = self._run(
+            "velociraptor",
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from="auto",
+            find_ancestor=find_ancestor,
+            output_dir=run_dir,
+        )
+
+        assert len(asked) == 1
+        assert asked[0]["log_dir"] == runs.resolve(), "the siblings of the run directory are scanned"
+        assert [Path(path).resolve() for path in asked[0]["exclude"]] == [run_dir.resolve()]
+        assert asked[0]["species"] == "velociraptor" and asked[0]["retrain_from"] is None
+        assert asked[0]["algorithm"] == "ppo", "a SAC sibling never trunks a PPO curriculum"
+        assert [entry.id for entry in asked[0]["chain"]] == ["stance", "locomotion", "behavior"]
+        assert asked[0]["plant_identity"] is not None
+        # From here on the run behaves as with --trunk-from <that run>.
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
+        assert [(directory, a.stage_id) for directory, a in record["ancestors"]] == [(run_dir, "stance")]
+
+    def test_trunk_from_auto_with_no_usable_sibling_trains_every_node(self, tmp_path, monkeypatch, caplog):
+        from environments.shared import ancestors as ancestors_module
+        from environments.shared.ancestors import TrunkSelection
+
+        monkeypatch.setattr(
+            ancestors_module,
+            "select_trunk",
+            lambda log_dir, **kwargs: TrunkSelection(
+                log_dir=Path(log_dir),
+                considered=("stance", "locomotion"),
+                candidates=(),
+                selected=None,
+                support=(),
+                older_interface=(),
+            ),
+        )
+        asked: list[str] = []
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            asked.append(entry.id)
+            raise AssertionError("no trunk was selected, so the rule must not be consulted")
+
+        record = self._run(
+            "velociraptor", tmp_path, monkeypatch, caplog, trunk_from="auto", find_ancestor=find_ancestor
+        )
+        assert asked == []
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        assert record["ancestors"] == []
+
     def test_a_child_of_a_node_trained_here_is_not_looked_up(self, tmp_path, monkeypatch, caplog):
         """Once a node is trained in this run the trunk is not consulted for its children: no earlier
         run's checkpoint descends from a checkpoint this run just produced, so the chain (rule 4)

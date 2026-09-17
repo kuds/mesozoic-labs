@@ -111,7 +111,18 @@ root-first. At each node it does exactly one of three things:
 1. **Reuse** a certified checkpoint that already exists — in this run, or,
    for an ancestor, in the trunk run — when the reuse rule below holds. A
    cross-run ancestor is recorded under `ancestors/<stage_id>/` (its JSON
-   records copied, never its checkpoint pair) and loaded from where it lives.
+   records copied, never its checkpoint pair); the CLI loads it from where
+   it lives, the notebook first copies the complete stage directory under
+   `certified_inputs/` and loads the copy.
+   The trunk run is the one `TRUNK_FROM` / `--trunk-from` names, or, under
+   `"auto"` (the notebook default, decision D-A25), the run beside this one
+   (under the species/algorithm log directory in the notebook; the siblings
+   of the run directory on the command line) whose certified ancestors cover
+   the most of the chain root-first, newest on a tie. The selection prints
+   the run it chose, the replication each reused node rests on, the runs it
+   refused with the rule that refused them (the first 20; the selection
+   object holds every run scanned), and any run whose root passed under an
+   older policy interface as a `WIDEN_FROM` candidate.
 2. **Judge** a node that was trained but never gated (the notebook only:
    its final checkpoint exists but `gate_verdict.json` does not, because the
    resume cell spent its budget).
@@ -238,7 +249,7 @@ committed as:
 
 ```python
 BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable's stage id
-TRUNK_FROM = ""  # optional earlier run whose certified ancestors to reuse
+TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
 WIDEN_FROM = ""  # optional earlier run (id or absolute path) whose certified ROOT handoff is widened to this checkout's policy interface into RUN_DIR before the chain runs (BEHAVIOR_RECIPES_PLAN §4.6 Phase C)
 WIDEN_MAX_REVISION_GAP = 1  # how many policy-interface revisions behind WIDEN_FROM's parent may be (D-C17); 1 = the Phase C bump alone; the two certified trex stance parents (r11) need 2 because r11 → r12 was fingerprint-only
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
@@ -260,7 +271,11 @@ bound is refused with the gap and the tool's `--max-revision-gap` /
 stance parents are r11 archives, two revisions behind r13, and need `2`
 (decision D-C17).
 
-`TRUNK_FROM` is a run id, resolved under `<LOG_BASE>/<species>/<algorithm>/`,
+`TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
+cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
+certified ancestors cover the most of the chain root-first (newest on a tie)
+and prints the choice, what it rests on and every refusal; `""` turns reuse
+off. A pinned `TRUNK_FROM` is a run id, resolved under the same directory,
 or an absolute path to a run directory. It must be a finished bundle (a run
 with a `provenance.json`) of the same species, algorithm and backend, and it
 must not be this run — certified nodes of an earlier run come in through
@@ -416,8 +431,10 @@ A CLI curriculum run writes `curriculum_results.csv` and a `gate_verdict.json`
 per trained node but no `provenance.json` or `summary.json`; the result
 bundle described below is written by the notebook. A CLI run can still serve
 as a later CLI run's `--trunk-from` (it is named by its directory), and a
-notebook run can serve as a CLI trunk, but the notebook's `TRUNK_FROM`
-requires a run with a `provenance.json`.
+notebook run can serve as a CLI trunk. A pinned notebook `TRUNK_FROM`
+requires a run with a `provenance.json`; `"auto"` judges siblings by their
+stage records and refuses one whose `provenance.json` names another species,
+algorithm or backend.
 
 ## What a run directory holds
 

@@ -9,7 +9,7 @@ behavior as usual; model paths are optional in automatic mode.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `SOURCE_SELECTION` | `"auto"` | Select compatible recommended ancestors or behavior sources automatically. Use `"manual"` to require explicit behavior paths and disable automatic canonical ancestor selection. |
+| `SOURCE_SELECTION` | `"auto"` | Direction and terrain behaviors only: select a compatible recommended source automatically; `"manual"` requires explicit behavior paths. Canonical chains select their trunk through `TRUNK_FROM` (below), never through the library. |
 | `CERTIFIED_LIBRARY_ROOT` | `""` | Use the `certified` directory beside `logs`; set another path to share a different library. |
 | `PUBLISH_CERTIFIED` | `False` | Off by default (a `WIDEN_FROM` root handoff carries no training-origin stamp, so publication would refuse it after it passes and disconnect the runtime). When on: preserve candidates and their evidence in the shared version history and consider eligible candidates for recommendation. |
 | `CERTIFIED_COMPARISON_EPISODES` | `50` | Number of paired comparison episodes **per model**. Both models run the same cases. |
@@ -25,19 +25,26 @@ Source resolution happens after the runner knows the exact task identity.
 The chain resolves root first. For each ancestor it tries:
 
 1. A valid checkpoint already trained in the current run.
-2. The explicitly selected `TRUNK_FROM`, when provided.
-3. A compatible shared recommendation, when automatic selection is enabled and
-   no explicit trunk was provided.
+2. The trunk run: the run `TRUNK_FROM` names, or, under the default
+   `TRUNK_FROM = "auto"`, the run beside this one under
+   `logs/<species>/<algorithm>/` whose certified ancestors cover the most of
+   the chain root-first, newest on a tie (decision D-A25 in
+   `docs/BEHAVIOR_RECIPES_PLAN.md`). The resolve cell prints the selection,
+   the replication each reused node rests on and the runs it refused (the
+   first 20; the selection object holds every run scanned). A run whose
+   `provenance.json` names another species, algorithm or backend is refused
+   before the reuse rules run.
 
+The shared library's recommendation is not consulted for canonical ancestors;
+`SOURCE_SELECTION` applies to the direction and terrain behaviors below.
 The selected target still trains in the new run. `RETRAIN_FROM` continues to
 force training of that node and its descendants; `WIDEN_FROM` retains its
-existing validation and re-judging requirements. An ancestor recommendation
-must match the exact parent model and normalization pair selected earlier in the chain. A
-recommended child of a different parent is not silently substituted.
+existing validation and re-judging requirements. A reused ancestor must
+descend from the exact parent checkpoint resolved earlier in the chain; a
+certified child of a different parent is not silently substituted.
 
-If no compatible recommendation exists, the canonical chain trains that
-ancestor here. Invalid or tampered evidence is refused. Manual trunk selection
-does not silently fall back to an unrelated library source.
+If no run covers an ancestor, the canonical chain trains it here. Invalid or
+tampered evidence is refused. A pinned trunk never falls back to another run.
 
 ### Direction and terrain behaviors
 

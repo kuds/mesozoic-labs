@@ -68,7 +68,8 @@ existing output. To repeat the same settings in one runtime, set a new
 runtime. Behavior execution uses one CPU environment and inherits the parent
 checkpoint's PPO network and rollout settings. `N_ENVS`, `TRUNK_FROM`,
 `WIDEN_FROM`, and `RETRAIN_FROM` belong to the canonical curriculum workflow;
-clear the latter three for these behavior runs.
+leave `TRUNK_FROM` at its `"auto"` default or clear it, and clear the other
+two for these behavior runs.
 
 The notebook saves results under
 `logs/<species>/ppo/behaviors/<behavior>/<run-id>/`, on Google Drive when mounted

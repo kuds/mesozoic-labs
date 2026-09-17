@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from environments.shared.ancestors import AUTO_TRUNK
 from environments.shared.species_names import resolve_species_id, species_display_names
 
 BEHAVIOR_RECIPES = {
@@ -64,9 +65,14 @@ def validate_behavior_selection(
         raise ValueError("Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files.")
     if not has_model and (source_selection == "manual" or load_mode == "adapt"):
         raise ValueError("Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE for manual selection or adaptation.")
+    # TRUNK_FROM's default "auto" (decision D-A25) selects a CANONICAL trunk and
+    # means nothing here; only a pinned run is a conflicting selection.
+    if trunk_from == AUTO_TRUNK:
+        trunk_from = ""
     if trunk_from or widen_from or retrain_from:
         raise ValueError(
-            "Clear TRUNK_FROM, WIDEN_FROM and RETRAIN_FROM for direction or terrain training; use BEHAVIOR_LOAD_MODE and its source pair."
+            'Clear TRUNK_FROM (or leave it "auto"), WIDEN_FROM and RETRAIN_FROM for direction or terrain training; '
+            "use BEHAVIOR_LOAD_MODE and its source pair."
         )
 
 

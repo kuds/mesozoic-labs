@@ -122,7 +122,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
@@ -716,3 +716,548 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
         f" (resolved via {' -> '.join(str(hop) for hop in ancestor.via)})" if ancestor.via else "",
     )
     return target
+
+
+# ---------------------------------------------------------------------------
+# Automatic trunk selection (decision D-A25)
+# ---------------------------------------------------------------------------
+
+#: The ``TRUNK_FROM`` / ``--trunk-from`` value that asks for :func:`select_trunk`
+#: instead of naming a run.
+AUTO_TRUNK = "auto"
+
+#: How many refused runs :meth:`TrunkSelection.describe` names before it counts the rest;
+#: every run scanned is in :attr:`TrunkSelection.candidates` whatever the count.
+_DESCRIBE_REFUSALS = 20
+
+
+@dataclass(frozen=True)
+class TrunkCandidate:
+    """One run under the log directory and how much of the chain it satisfies root-first."""
+
+    run_dir: Path
+    run_id: str
+    #: The ancestors the run satisfied, root-first, each chained onto the one before.
+    covered: tuple[CertifiedAncestor, ...]
+    #: ``(stage_id, reason)`` for the first considered node the run could not
+    #: satisfy; None when it covered every considered node.
+    refusal: "tuple[str, str] | None"
+
+    @property
+    def coverage(self) -> int:
+        return len(self.covered)
+
+
+@dataclass(frozen=True)
+class NodeSupport:
+    """What a selected trunk's covered node rests on: its handoff, seed and replication."""
+
+    stage_id: str
+    run_id: str
+    handoff_name: str
+    training_seed: "int | None"
+    judged_at: "str | None"
+    #: Distinct passing training seeds of this node's task and gate among the
+    #: source run's siblings, this run included (decision D-B16).
+    distinct_seeds: int
+    #: The ``certification_seeds`` the node's current ``[curriculum]`` block declares.
+    required_seeds: int
+
+    @property
+    def provisional(self) -> bool:
+        return self.distinct_seeds < self.required_seeds
+
+
+@dataclass(frozen=True)
+class OlderInterfaceParent:
+    """A run whose ROOT node passed its gate under an older policy interface.
+
+    Never a trunk (rule 3 refuses it: its task digest carries the old plant),
+    but the run ``WIDEN_FROM`` / ``widen_checkpoint`` can widen into a new
+    run's root (BEHAVIOR_RECIPES_PLAN §4.6, decisions D-C13 and D-C17).
+    """
+
+    run_dir: Path
+    run_id: str
+    stage_id: str
+    policy_interface_revision: int
+    current_policy_interface_revision: int
+
+    @property
+    def revision_gap(self) -> int:
+        return self.current_policy_interface_revision - self.policy_interface_revision
+
+
+@dataclass(frozen=True)
+class TrunkSelection:
+    """The outcome of :func:`select_trunk`: which run, if any, the chain reuses its ancestors from."""
+
+    log_dir: Path
+    #: The chain nodes consulted: the target's ancestors root-first, above ``retrain_from``.
+    considered: tuple[str, ...]
+    #: Every run scanned, newest first (by directory name), with its coverage.
+    candidates: tuple[TrunkCandidate, ...]
+    selected: "TrunkCandidate | None"
+    support: tuple[NodeSupport, ...]
+    older_interface: tuple[OlderInterfaceParent, ...]
+    #: Why no run was consulted at all (a widen session, nothing to reuse), else None.
+    skipped: "str | None" = None
+
+    @property
+    def run_dir(self) -> "Path | None":
+        """The trunk run to reuse from — what the notebook's ``TRUNK_DIR`` / the CLI's ``trunk_from`` become."""
+        return None if self.selected is None else self.selected.run_dir
+
+    def describe(self) -> str:
+        """The operator-facing account: the choice, what it rests on, and what was refused and why."""
+        nodes = ", ".join(self.considered) or "nothing (the root is trained here)"
+        lines = [f"Trunk (auto) under {self.log_dir}: scanned {len(self.candidates)} run(s) for {nodes}"]
+        if self.skipped:
+            lines.append(f"  skipped: {self.skipped}")
+            return "\n".join(lines)
+        if self.selected is not None:
+            covered = [ancestor.stage_id for ancestor in self.selected.covered]
+            rest = [stage_id for stage_id in self.considered if stage_id not in covered]
+            trained = f"; {', '.join(rest)} train here" if rest else ""
+            lines.append(
+                f"  selected run {self.selected.run_id} ({self.selected.run_dir}): covers {', '.join(covered)}{trained}"
+            )
+            for node in self.support:
+                seed = f"seed {node.training_seed}" if node.training_seed is not None else "seed unrecorded"
+                judged = f" judged {node.judged_at}" if node.judged_at else ""
+                state = " - provisional" if node.provisional else ""
+                lines.append(
+                    f"    {node.stage_id}: {node.handoff_name} from run {node.run_id} ({seed}{judged}); "
+                    f"replication {node.distinct_seeds} of {node.required_seeds} required seed(s){state}"
+                )
+            if self.selected.refusal is not None:
+                stage_id, reason = self.selected.refusal
+                lines.append(f"    {stage_id}: not covered: {reason}")
+            others = [c for c in self.candidates if c is not self.selected and c.coverage]
+            for candidate in others:
+                covered_ids = ", ".join(ancestor.stage_id for ancestor in candidate.covered)
+                lines.append(f"  also usable: run {candidate.run_id} ({candidate.run_dir.name}) covers {covered_ids}")
+        elif self.considered:
+            lines.append(f"  no run covers the root {self.considered[0]!r}: every node trains here")
+        refused = [c for c in self.candidates if not c.coverage]
+        for candidate in refused[:_DESCRIBE_REFUSALS]:
+            stage_id, reason = candidate.refusal or ("?", "no node consulted")
+            lines.append(f"  refused {candidate.run_dir.name}: {stage_id}: {reason}")
+        if len(refused) > _DESCRIBE_REFUSALS:
+            lines.append(
+                f"  ... and {len(refused) - _DESCRIBE_REFUSALS} more refused run(s); TRUNK_SELECTION.candidates lists every run"
+            )
+        for parent in self.older_interface:
+            lines.append(
+                f"  older-interface parent: run {parent.run_id} ({parent.run_dir.name}) passed {parent.stage_id!r} under "
+                f"policy interface r{parent.policy_interface_revision}; this checkout is "
+                f"r{parent.current_policy_interface_revision}. WIDEN_FROM = {parent.run_dir.name!r} "
+                f"(WIDEN_MAX_REVISION_GAP >= {parent.revision_gap}) widens it instead of retraining the root."
+            )
+        lines.append("  Pin another run with TRUNK_FROM = '<run id>'; TRUNK_FROM = '' trains every node here.")
+        return "\n".join(lines)
+
+
+def _read_json_mapping(path: Path) -> "dict[str, Any] | None":
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return dict(value) if isinstance(value, Mapping) else None
+
+
+def _recorded_seed(stage_config: "Mapping[str, Any] | None") -> "int | None":
+    run_block = stage_config.get("run") if isinstance(stage_config, Mapping) else None
+    seed = run_block.get("seed") if isinstance(run_block, Mapping) else None
+    return seed if isinstance(seed, int) and not isinstance(seed, bool) else None
+
+
+def _recorded_plant_identity(stage_dir: Path, run_dir: Path) -> "dict[str, Any] | None":
+    """The plant identity a stage recorded: its sidecar, the run's, else the handoff checkpoint's attribute."""
+    identity = _read_json_mapping(stage_dir / "plant_identity.json") or _read_json_mapping(
+        run_dir / "plant_identity.json"
+    )
+    if identity is not None:
+        return identity
+    from .curriculum.checkpoints import select_handoff_checkpoint
+    from .plant_contract import MODEL_IDENTITY_ATTRIBUTE
+    from .task_fingerprint import read_checkpoint_attribute
+
+    try:
+        handoff = select_handoff_checkpoint(stage_dir / "models")
+    except OSError:
+        return None
+    if handoff is None:
+        return None
+    attribute = read_checkpoint_attribute(Path(handoff[1] + ".zip"), MODEL_IDENTITY_ATTRIBUTE)
+    return dict(attribute) if isinstance(attribute, Mapping) else None
+
+
+def _older_interface_root(
+    run_dir: Path, run_id: str, *, species: str, root: "StageEntry", plant_identity: "PlantIdentity"
+) -> "OlderInterfaceParent | None":
+    """*run_dir*'s root node passed under an older policy interface that ``widen_checkpoint`` can bridge, else None.
+
+    The hint is only offered when every field the widen tool's identity gate
+    checks besides the revision agrees with the current plant: same species,
+    ``physics_sha256``, ``nq``/``nv``/``nu`` and ``action_dim``, and an
+    observation exactly ``COMMAND_WIDTH`` narrower (decision D-C17).  A run
+    behind a physics bump is an older plant, not a widen candidate.
+    """
+    from .command_frame import COMMAND_WIDTH
+    from .plant_contract import PlantIdentity
+    from .result_bundle import GateVerdictError, read_gate_verdict
+    from .stage_manifest import stage_dir_candidates
+
+    stage_dir = next(
+        (run_dir / name for name in stage_dir_candidates(species, root.reference) if (run_dir / name).is_dir()), None
+    )
+    if stage_dir is None:
+        return None
+    try:
+        verdict = read_gate_verdict(stage_dir)
+    except (GateVerdictError, OSError):
+        return None
+    if verdict is None or verdict.get("passed") is not True or verdict.get("stage_id") != root.id:
+        return None
+    identity = _recorded_plant_identity(stage_dir, run_dir)
+    if identity is None:
+        return None
+    try:
+        recorded = PlantIdentity.from_mapping(identity)
+    except (KeyError, TypeError, ValueError):
+        return None
+    current = int(plant_identity.policy_interface_revision)
+    if (
+        recorded.species != plant_identity.species
+        or int(recorded.policy_interface_revision) >= current
+        or recorded.physics_sha256 != plant_identity.physics_sha256
+        or (recorded.nq, recorded.nv, recorded.nu) != (plant_identity.nq, plant_identity.nv, plant_identity.nu)
+        or recorded.action_dim != plant_identity.action_dim
+        or recorded.observation_dim + COMMAND_WIDTH != plant_identity.observation_dim
+    ):
+        return None
+    return OlderInterfaceParent(
+        run_dir=run_dir,
+        run_id=run_id,
+        stage_id=root.id,
+        policy_interface_revision=int(recorded.policy_interface_revision),
+        current_policy_interface_revision=current,
+    )
+
+
+def _node_support(
+    ancestor: CertifiedAncestor,
+    *,
+    species: str,
+    entry: "StageEntry",
+    plant_identity: "PlantIdentity",
+    current_gate_config: "Mapping[str, Any]",
+) -> NodeSupport:
+    """Replication of a covered node among its SOURCE run's siblings (decision D-B16), this run counted."""
+    from .config import recorded_hyperparameters_sha256
+    from .curriculum.gate_schema import declared_certification_seeds
+    from .replication import discover_replicates
+
+    stage_config = _read_json_mapping(ancestor.stage_dir / "stage_config.json")
+    seed = _recorded_seed(stage_config)
+    recipe = recorded_hyperparameters_sha256(stage_config) if stage_config is not None else None
+    distinct = 1
+    if recipe is not None:
+        # Siblings are counted in the LOGS tree: for an ancestor reached through a
+        # followed record (D-A23) that is the outermost followed run, not the
+        # source, which may be a snapshot under another run's certified_inputs/.
+        sibling_of = ancestor.via[0] if ancestor.via else ancestor.source_run_dir
+        replicates = discover_replicates(
+            sibling_of,
+            species=species,
+            entry=entry,
+            task_sha256=ancestor.task_sha256,
+            plant_identity=plant_identity,
+            gate_sha256=ancestor.gate_sha256,
+            hyperparameters_sha256=recipe,
+            training_seed=seed,
+        )
+        distinct = 1 + len(replicates)
+    judged_at = ancestor.verdict.get("judged_at")
+    return NodeSupport(
+        stage_id=ancestor.stage_id,
+        run_id=ancestor.run_id,
+        handoff_name=ancestor.handoff_name,
+        training_seed=seed,
+        judged_at=judged_at if isinstance(judged_at, str) else None,
+        distinct_seeds=distinct,
+        required_seeds=declared_certification_seeds(current_gate_config, stage=entry.id),
+    )
+
+
+def _canonical_algorithm_label(value: Any) -> "str | None":
+    from .result_bundle import ResultBundleError, canonical_algorithm
+
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return canonical_algorithm(value)
+    except ResultBundleError:
+        return value.strip().lower()
+
+
+def _identity_mismatch(
+    run_dir: Path, *, root: "StageEntry", species: str, algorithm: "str | None", backend: str
+) -> "str | None":
+    """Why *run_dir* is another species', algorithm's or backend's run, from its own records; None when it is not.
+
+    ``provenance.json`` (a notebook run) names all three; a CLI curriculum run
+    has none, so its root ``stage_config.json`` ``algorithm`` is read instead.
+    Records that are missing or unreadable decide nothing: the seven rules
+    still apply.
+    """
+    from .result_bundle import DEFAULT_PROVENANCE_NAME, ResultBundleError, load_provenance
+    from .stage_manifest import stage_dir_candidates
+
+    wanted = _canonical_algorithm_label(algorithm)
+    if (run_dir / DEFAULT_PROVENANCE_NAME).is_file():
+        try:
+            provenance = load_provenance(run_dir)
+        except (ResultBundleError, OSError, ValueError):
+            provenance = None
+        if provenance is not None:
+            recorded_species = provenance.get("species")
+            if isinstance(recorded_species, str) and recorded_species != species:
+                return f"{run_dir} was trained as species {recorded_species!r}, not {species!r}"
+            recorded_backend = provenance.get("backend")
+            if isinstance(recorded_backend, str) and recorded_backend != backend:
+                return f"{run_dir} was trained on backend {recorded_backend!r}, not {backend!r}"
+            recorded = _canonical_algorithm_label(provenance.get("algorithm"))
+            if wanted is not None and recorded is not None and recorded != wanted:
+                return f"{run_dir} was trained with {recorded}, not {wanted}"
+    if wanted is None:
+        return None
+    stage_dir = next(
+        (run_dir / name for name in stage_dir_candidates(species, root.reference) if (run_dir / name).is_dir()), None
+    )
+    if stage_dir is None:
+        return None
+    stage_config = _read_json_mapping(stage_dir / "stage_config.json")
+    recorded = _canonical_algorithm_label(stage_config.get("algorithm")) if stage_config else None
+    if recorded is not None and recorded != wanted:
+        return f"{stage_dir} records algorithm {recorded}, not {wanted}"
+    return None
+
+
+def select_trunk(
+    log_dir: "str | Path",
+    *,
+    species: str,
+    chain: "Sequence[StageEntry]",
+    stage_configs: "Mapping[Any, Mapping[str, Any]]",
+    plant_identity: "PlantIdentity",
+    exclude: "Sequence[str | Path]" = (),
+    retrain_from: "StageEntry | None" = None,
+    widen_from: "str | None" = None,
+    algorithm: "str | None" = None,
+    backend: str = "stable-baselines3",
+    limit: "int | None" = None,
+) -> TrunkSelection:
+    """Choose the trunk run for *chain* from the runs under *log_dir* (decision D-A25).
+
+    *chain* is the target's chain root-first, target last (``StageManifest.chain_for``);
+    *stage_configs* is keyed by each entry's ``reference`` (``load_all_stages``).  The
+    nodes consulted are the target's ancestors — the target is never reused
+    across runs (D-A18) — above *retrain_from* when given (D-A19: it and its
+    descendants train here).  For every run directory under *log_dir* except
+    *exclude* (the run being started), newest first by directory name (run ids
+    are timestamps), the §4.2 rule is applied node by node root-first with
+    ``follow_records=True`` (another run's record is followed to the run that
+    certified the node, D-A23), each child chained onto the ancestor found
+    for its parent; the run stops at its first refusal.  The run covering the
+    MOST consecutive nodes wins, the newest on a tie: a whole coherent trunk,
+    never one node from one run and its child from another, which rule 4
+    would refuse anyway.  The task digest and gate block per node are
+    derived exactly as the chain loop and ``train_stage`` derive them, so a
+    run this selects is one the loop's own ``find_certified_ancestor`` call
+    accepts as ``TRUNK_DIR``.
+
+    Nothing is copied or written.  The result names every run scanned with
+    its coverage or first refusal, the replication each covered node rests
+    on (informative — a provisional ancestor is reused and labelled, never
+    refused; §4.5 makes replication provenance, not a gate), and any run
+    whose root passed under an older policy interface (a ``WIDEN_FROM``
+    candidate, D-C13).  With *widen_from* set no run is consulted: the
+    widened root is judged in the new run and nothing elsewhere descends
+    from it, so a trunk would only bypass the widened directory; with
+    *retrain_from* naming the root there is nothing to reuse either.
+
+    A run whose ``provenance.json`` names another species, *algorithm* or
+    *backend*, or whose root ``stage_config.json`` records another
+    algorithm, is refused before the rules run (the identity check a pinned
+    ``TRUNK_FROM`` makes; the seven rules never read the algorithm, and the
+    CLI's default layout keeps PPO and SAC curricula side by side).  A run
+    without ``provenance.json`` is named by its directory and judged by its
+    stage records alone.  No malformed or unreadable neighbour raises out of
+    the scan: it is listed as refused with the error, so one bad folder on a
+    mounted drive never blocks a session.
+    """
+    from .curriculum.gate_schema import declared_certification_seeds
+    from .task_fingerprint import derive_stage_task_fingerprint
+
+    chain = tuple(chain)
+    if not chain:
+        raise ValueError("select_trunk needs the target's chain (root-first, target last)")
+    root_dir = Path(log_dir)
+    considered = list(chain[:-1])
+    if retrain_from is not None:
+        ids = [entry.id for entry in chain]
+        if retrain_from.id not in ids:
+            raise ValueError(f"retrain_from {retrain_from.id!r} is not on the chain {ids}")
+        considered = considered[: ids.index(retrain_from.id)]
+    considered_ids = tuple(entry.id for entry in considered)
+    skipped = None
+    if widen_from:
+        skipped = (
+            f"WIDEN_FROM={widen_from!r}: the widened root is judged in this run and every node below it "
+            "descends from that handoff, which no earlier run's checkpoint does"
+        )
+    elif not considered:
+        skipped = (
+            f"RETRAIN_FROM={retrain_from.id!r} covers the root: every node trains here"
+            if retrain_from is not None
+            else "the target is the root of its chain and is never reused across runs: it trains here"
+        )
+    if skipped is not None:
+        return TrunkSelection(
+            log_dir=root_dir,
+            considered=considered_ids,
+            candidates=(),
+            selected=None,
+            support=(),
+            older_interface=(),
+            skipped=skipped,
+        )
+
+    context: list[tuple[StageEntry, str, Mapping[str, Any]]] = []
+    for entry in considered:
+        config = stage_configs[entry.reference]
+        fingerprint = derive_stage_task_fingerprint(
+            species=species,
+            stage=entry.reference,
+            backend=backend,
+            env_kwargs=config.get("env_kwargs", {}),
+            plant_identity=plant_identity.to_dict(),
+        )
+        context.append((entry, fingerprint["task_sha256"], config.get("curriculum_kwargs", {})))
+
+    excluded = {Path(path).resolve() for path in exclude}
+    runs: list[Path] = []
+    try:
+        if root_dir.is_dir():
+            runs = sorted(
+                (path for path in root_dir.iterdir() if path.is_dir() and not path.name.startswith(".")),
+                key=lambda path: path.name,
+                reverse=True,
+            )
+            runs = [path for path in runs if path.resolve() not in excluded]
+    except OSError as exc:
+        return TrunkSelection(
+            log_dir=root_dir,
+            considered=considered_ids,
+            candidates=(),
+            selected=None,
+            support=(),
+            older_interface=(),
+            skipped=f"{root_dir} could not be listed: {exc}",
+        )
+    if limit is not None:
+        runs = runs[:limit]
+    root_entry = context[0][0] if context else None
+
+    candidates: list[TrunkCandidate] = []
+    older: list[OlderInterfaceParent] = []
+    for run_dir in runs:
+        try:
+            run_id = run_id_for(run_dir)
+        except AncestorReuseError:
+            run_id = run_dir.name
+        covered: list[CertifiedAncestor] = []
+        refusal: "tuple[str, str] | None" = None
+        parent_sha256: "str | None" = None
+        mismatch = (
+            _identity_mismatch(run_dir, root=root_entry, species=species, algorithm=algorithm, backend=backend)
+            if root_entry is not None
+            else None
+        )
+        if mismatch is not None:
+            refusal = (context[0][0].id, mismatch)
+        else:
+            for entry, task_sha256, gate_config in context:
+                try:
+                    ancestor = find_certified_ancestor(
+                        run_dir,
+                        species=species,
+                        entry=entry,
+                        current_task_sha256=task_sha256,
+                        plant_identity=plant_identity,
+                        current_gate_config=gate_config,
+                        parent_model_sha256=parent_sha256,
+                        follow_records=True,
+                    )
+                except AncestorReuseError as exc:
+                    refusal = (entry.id, str(exc))
+                    break
+                except OSError as exc:
+                    # Rule 5 hashes the handoff pair; a checkpoint the mount cannot
+                    # read (a half-synced upload, a placeholder) refuses this run only.
+                    refusal = (entry.id, f"unreadable: {exc}")
+                    break
+                covered.append(ancestor)
+                parent_sha256 = ancestor.model_sha256
+        candidates.append(TrunkCandidate(run_dir=run_dir, run_id=run_id, covered=tuple(covered), refusal=refusal))
+        if not covered and root_entry is not None and mismatch is None:
+            try:
+                hint = _older_interface_root(
+                    run_dir, run_id, species=species, root=root_entry, plant_identity=plant_identity
+                )
+            except OSError:
+                hint = None
+            if hint is not None:
+                older.append(hint)
+
+    selected = max(
+        (candidate for candidate in candidates if candidate.coverage),
+        key=lambda candidate: (candidate.coverage, candidate.run_dir.name),
+        default=None,
+    )
+    support: list[NodeSupport] = []
+    if selected is not None:
+        for ancestor, (entry, _, gate_config) in zip(selected.covered, context):
+            try:
+                node = _node_support(
+                    ancestor,
+                    species=species,
+                    entry=entry,
+                    plant_identity=plant_identity,
+                    current_gate_config=gate_config,
+                )
+            except OSError as exc:
+                # Replication is informative; an unreadable neighbour costs the count, never the trunk.
+                logger.info("replication of %r from %s not counted: %s", entry.id, ancestor.run_id, exc)
+                node = NodeSupport(
+                    stage_id=ancestor.stage_id,
+                    run_id=ancestor.run_id,
+                    handoff_name=ancestor.handoff_name,
+                    training_seed=None,
+                    judged_at=None,
+                    distinct_seeds=1,
+                    required_seeds=declared_certification_seeds(gate_config, stage=entry.id),
+                )
+            support.append(node)
+    selection = TrunkSelection(
+        log_dir=root_dir,
+        considered=considered_ids,
+        candidates=tuple(candidates),
+        selected=selected,
+        support=tuple(support),
+        older_interface=tuple(older),
+    )
+    logger.info("%s", selection.describe())
+    return selection
