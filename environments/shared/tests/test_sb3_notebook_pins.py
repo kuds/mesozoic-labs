@@ -318,7 +318,7 @@ class TestBehaviorKnob:
         for name in ("TRUNK_FROM", "WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
             assert assigns[name].value == "", f"{name} must default to the empty string (off)"
         assert assigns["SOURCE_SELECTION"].value == "auto"
-        assert assigns["PUBLISH_CERTIFIED"].value is True
+        assert assigns["PUBLISH_CERTIFIED"].value is False
         assert assigns["CERTIFIED_COMPARISON_EPISODES"].value == 50
         # D-C17: the revision-gap bound is an integer constant defaulting to the tool's fail-closed 1 (the Phase C
         # bump alone); a widen session for an r11 trex stance parent raises it to 2 by hand.
