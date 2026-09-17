@@ -11,7 +11,7 @@ behavior as usual; model paths are optional in automatic mode.
 | --- | --- | --- |
 | `SOURCE_SELECTION` | `"auto"` | Select compatible recommended ancestors or behavior sources automatically. Use `"manual"` to require explicit behavior paths and disable automatic canonical ancestor selection. |
 | `CERTIFIED_LIBRARY_ROOT` | `""` | Use the `certified` directory beside `logs`; set another path to share a different library. |
-| `PUBLISH_CERTIFIED` | `True` | Preserve candidates and their evidence in the shared version history and consider eligible candidates for recommendation. |
+| `PUBLISH_CERTIFIED` | `False` | Off by default (a `WIDEN_FROM` root handoff carries no training-origin stamp, so publication would refuse it after it passes and disconnect the runtime). When on: preserve candidates and their evidence in the shared version history and consider eligible candidates for recommendation. |
 | `CERTIFIED_COMPARISON_EPISODES` | `50` | Number of paired comparison episodes **per model**. Both models run the same cases. |
 
 With Google Drive, the default library is

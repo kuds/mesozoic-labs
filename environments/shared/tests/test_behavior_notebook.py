@@ -310,7 +310,7 @@ def test_colab_storage_mounts_drive_and_uses_a_separate_behavior_tree(behavior_f
 def test_notebook_defaults_to_automatic_complete_bundle_selection(behavior_files):
     namespace = _behavior_namespace(behavior_files, BEHAVIOR_CHECKPOINT="", BEHAVIOR_VECNORMALIZE="")
     assert namespace["SOURCE_SELECTION"] == "auto"
-    assert namespace["PUBLISH_CERTIFIED"] is True
+    assert namespace["PUBLISH_CERTIFIED"] is False
     assert namespace["CERTIFIED_COMPARISON_EPISODES"] == 50
     exec(_cell(STORAGE_MARKER), namespace)
     plan = namespace["BEHAVIOR_PLAN"]
@@ -328,7 +328,7 @@ def test_source_library_and_comparison_changes_make_a_new_behavior_plan(behavior
     for key, value, seed in (
         ("CERTIFIED_LIBRARY_ROOT", str(behavior_files[0] / "other-library"), 202),
         ("CERTIFIED_COMPARISON_EPISODES", 100, 303),
-        ("PUBLISH_CERTIFIED", False, 404),
+        ("PUBLISH_CERTIFIED", True, 404),
     ):
         namespace[key] = value
         exec(source, namespace)
