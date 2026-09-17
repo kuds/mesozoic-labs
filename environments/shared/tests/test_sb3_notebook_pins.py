@@ -315,8 +315,10 @@ class TestBehaviorKnob:
             )
         # Manual overrides remain off. Automatic selection can reuse certified
         # ancestors; the target still trains here and widening stays opt-in.
-        for name in ("TRUNK_FROM", "WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
+        for name in ("WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
             assert assigns[name].value == "", f"{name} must default to the empty string (off)"
+        # D-A25: the trunk is selected automatically unless a run is pinned or "" turns reuse off.
+        assert assigns["TRUNK_FROM"].value == "auto"
         assert assigns["SOURCE_SELECTION"].value == "auto"
         assert assigns["PUBLISH_CERTIFIED"].value is False
         assert assigns["CERTIFIED_COMPARISON_EPISODES"].value == 50
@@ -691,8 +693,8 @@ class TestReuseRule:
         manual_copy = _call(reuse_if, "copy_canonical_ancestor")
         assert [ast.unparse(arg) for arg in manual_copy.args] == ["ancestor", "RUN_DIR"]
         assert manual_copy.lineno < record.lineno
-        automatic_copy = _call(loop, "resolve_canonical_parent")
-        assert _keyword_source(src, automatic_copy, "run_dir") == "RUN_DIR"
+        # D-A25: the loop consults no library; its only cross-run candidate is TRUNK_DIR.
+        assert "resolve_canonical_parent" not in src and "SOURCE_SELECTION" not in src
         assert "shutil" not in src
         copy_calls = [
             node
@@ -754,6 +756,106 @@ class TestReuseRule:
         build_trunk_run(unjudged, verdict=False)
         with pytest.raises(AncestorReuseError, match="no gate_verdict.json"):
             find(unjudged)
+
+
+class TestAutoTrunk:
+    """Decision D-A25: ``TRUNK_FROM = "auto"`` selects the trunk run in the resolve cell."""
+
+    def test_the_storage_cell_defers_auto_to_the_resolve_cell(self):
+        src = _cell(STORAGE_CELL_MARKER)
+        assigns = _top_level_assigns(src)
+        assert isinstance(assigns["AUTO_TRUNK"], ast.Constant) and assigns["AUTO_TRUNK"].value is False
+        tree = ast.parse(src)
+        trunk_if = _the_if(tree, src, lambda test: test == "TRUNK_FROM", "resolving TRUNK_FROM")
+        auto_if = _the_if(trunk_if, src, lambda test: test == 'TRUNK_FROM == "auto"', "on the auto sentinel")
+        auto_body = _branch_source(src, auto_if.body)
+        assert "AUTO_TRUNK = True" in auto_body
+        assert "TRUNK_DIR" not in auto_body, "auto resolves no directory here: the chain is not known yet"
+        # The explicit path is the else branch, unchanged: provenance, own-directory and identity refusals.
+        explicit = _branch_source(src, auto_if.orelse)
+        assert "load_provenance(TRUNK_DIR)" in explicit and "RUN_DIR.resolve()" in explicit
+
+    def test_the_resolve_cell_selects_the_trunk_after_the_chain_and_before_the_loop(self):
+        cells = _code_cells()
+        storage_at = _cell_index(cells, STORAGE_CELL_MARKER)
+        resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
+        assert storage_at < resolve_at < _cell_index(cells, CHAIN_CELL_MARKER)
+        src = cells[resolve_at]
+        tree = ast.parse(src)
+        auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "selecting the trunk")
+        assert auto_if in tree.body, "the selection runs at the top level of the resolve cell"
+        select = _call(auto_if, "select_trunk")
+        assert ast.unparse(select.args[0]) == "LOG_BASE / SPECIES / ALGORITHM.lower()", (
+            "the siblings under this species/algorithm log directory are scanned"
+        )
+        assert _keyword_source(src, select, "chain") == "CHAIN"
+        assert _keyword_source(src, select, "stage_configs") == "STAGE_CONFIGS"
+        assert _keyword_source(src, select, "plant_identity") == "PLANT_IDENTITY"
+        assert _keyword_source(src, select, "exclude") == "(RUN_DIR,)", "this run is never its own trunk"
+        assert _keyword_source(src, select, "retrain_from") == "RETRAIN_NODE", "D-A19 bounds what is consulted"
+        assert _keyword_source(src, select, "widen_from") == "WIDEN_FROM", "a widen session selects nothing"
+        assert _keyword_source(src, select, "algorithm") == "ALGORITHM", "a SAC run never trunks a PPO chain"
+        body = _branch_source(src, auto_if.body)
+        assert "TRUNK_DIR = TRUNK_SELECTION.run_dir" in body
+        assert "TRUNK_SELECTION.describe()" in body, "the choice and every refusal are printed"
+        # The chain and RETRAIN_NODE the selection reads are bound earlier in the same cell.
+        assigns = _top_level_assigns(src)
+        assert "CHAIN" in assigns and "RETRAIN_NODE" in assigns
+        assert assigns["CHAIN"].lineno < auto_if.lineno and assigns["RETRAIN_NODE"].lineno < auto_if.lineno
+
+    def test_the_chain_loop_rederives_the_auto_trunk_from_the_selection(self):
+        """A storage-cell rerun resets TRUNK_DIR to None (only a pinned TRUNK_FROM fills it there), so
+        under "auto" the loop takes TRUNK_DIR from the resolve cell's selection for THIS log directory,
+        refuses a missing or foreign selection, and uses no trunk at all in a widen session."""
+        src, loop = _chain_loop()
+        tree = ast.parse(src)
+        auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "re-deriving the trunk")
+        assert auto_if in tree.body and auto_if.lineno < loop.lineno, "before the loop, at the top level"
+        widen_if = _the_if(auto_if, src, lambda test: test == "WIDEN_FROM", "on a widen session")
+        assert "TRUNK_DIR = None" in _branch_source(src, widen_if.body)
+        rest = _branch_source(src, widen_if.orelse)
+        assert 'globals().get("TRUNK_SELECTION")' in rest
+        assert "LOG_BASE / SPECIES / ALGORITHM.lower()" in rest, "a selection for another log directory is refused"
+        assert "TRUNK_DIR = _selection.run_dir" in rest
+        assert len(_raises(widen_if, "RuntimeError")) == 1
+
+    def test_the_selection_it_delegates_to(self, tmp_path, monkeypatch):
+        """Invariant, thin: the selector prefers coverage, then recency, and reuses the seven-rule check."""
+        from environments.shared import task_fingerprint as task_fingerprint_module
+        from environments.shared.ancestors import select_trunk
+
+        from .test_ancestors import (
+            LOCOMOTION_CURRICULUM,
+            LOCOMOTION_TASK,
+            STANCE_CURRICULUM,
+            STANCE_TASK,
+            build_chained_trunk,
+            build_trunk_run,
+            trunk_plant,
+        )
+
+        build_trunk_run(tmp_path / "20260910_000000")
+        build_chained_trunk(tmp_path / "20260905_000000")
+        digests = {1: STANCE_TASK, 2: LOCOMOTION_TASK}
+        monkeypatch.setattr(
+            task_fingerprint_module,
+            "derive_stage_task_fingerprint",
+            lambda **kwargs: {"task_sha256": digests[kwargs["stage"]]},
+        )
+        manifest = load_stage_manifest("trex")
+        selection = select_trunk(
+            tmp_path,
+            species="trex",
+            chain=tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior")),
+            stage_configs={
+                1: {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM},
+                2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
+                3: {"env_kwargs": {}, "curriculum_kwargs": {}},
+            },
+            plant_identity=trunk_plant(),
+        )
+        assert selection.run_dir == tmp_path / "20260905_000000"
+        assert [candidate.coverage for candidate in selection.candidates] == [1, 2]
 
 
 class TestLoadModeByEdge:

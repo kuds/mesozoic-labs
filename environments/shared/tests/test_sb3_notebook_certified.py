@@ -84,8 +84,6 @@ def _session(
     monkeypatch,
     *,
     manual=False,
-    source_selection="auto",
-    missing=False,
     failed=False,
     quick=False,
     retrain="",
@@ -142,12 +140,6 @@ def _session(
             return source_ancestors[kwargs["entry"].id]
         raise ancestors.AncestorReuseError("no certified stage in this run")
 
-    def resolve(library, **kwargs):
-        events.append(("auto", kwargs["entry"].id, kwargs))
-        if missing:
-            raise LookupError("no recommendation")
-        return copied(source_ancestors[kwargs["entry"].id])
-
     def copy_manual(ancestor, destination):
         assert destination == run
         events.append(("manual_copy", ancestor.stage_id))
@@ -164,7 +156,6 @@ def _session(
 
     adapter = types.ModuleType("environments.shared.certified_canonical")
     adapter.CanonicalLibraryError = type("CanonicalLibraryError", (RuntimeError,), {})
-    adapter.resolve_canonical_parent = resolve
     adapter.copy_canonical_ancestor = copy_manual
     adapter.publish_canonical_stage = publish
     monkeypatch.setitem(sys.modules, adapter.__name__, adapter)
@@ -206,7 +197,6 @@ def _session(
         "RETRAIN_NODE": manifest.by_id(retrain) if retrain else None,
         "RETRAIN_FROM": retrain,
         "TRUNK_DIR": source if manual else None,
-        "SOURCE_SELECTION": source_selection,
         "CERTIFIED_LIBRARY": tmp_path / "certified",
         "PUBLISH_CERTIFIED": True,
         "CERTIFIED_COMPARISON_EPISODES": 77,
@@ -236,56 +226,25 @@ def _session(
     return namespace, events, source_ancestors
 
 
-def test_auto_ancestors_use_full_local_copies_and_exact_parent_hash_while_target_trains(tmp_path, monkeypatch):
-    namespace, events, sources = _session(tmp_path, monkeypatch)
-    exec(_chain_source(), namespace)
-    assert [(event[0], event[1]) for event in events if event[0] in {"auto", "train"}] == [
-        ("auto", "stance"),
-        ("auto", "locomotion"),
-        ("train", "behavior"),
-    ]
-    lookups = [event for event in events if event[0] == "auto"]
-    assert lookups[0][2]["parent_model_sha256"] is None
-    assert lookups[0][2]["parent_normalization_sha256"] is None
-    assert lookups[1][2]["parent_model_sha256"] == sources["stance"].model_sha256
-    assert lookups[1][2]["parent_normalization_sha256"] == sources["stance"].normalization_sha256
-    for stage_id in ("stance", "locomotion"):
-        handoff = namespace["NODE_HANDOFF"][stage_id]
-        assert Path(handoff["model"]).is_relative_to(namespace["RUN_DIR"] / "certified_inputs")
-        assert (handoff["stage_dir"] / "videos/replay.mp4").read_bytes() == b"complete-source-video"
-        assert (handoff["stage_dir"] / "terrain_map.png").read_bytes() == b"complete-source-map"
-    training = next(event[2] for event in events if event[0] == "train")
-    assert training["load_path"] == namespace["NODE_HANDOFF"]["locomotion"]["model"]
-    publication = next(event[2] for event in events if event[0] == "publish")
-    assert publication["comparison_episodes"] == 77 and publication["benchmark"]
-    assert publication["parent_normalization_sha256"] == sources["locomotion"].normalization_sha256
-    assert (namespace["RUN_DIR"] / "certified_publications.json").is_file()
-
-
 def test_manual_trunk_takes_priority_and_copies_its_complete_artifacts(tmp_path, monkeypatch):
     namespace, events, _ = _session(tmp_path, monkeypatch, manual=True)
     exec(_chain_source(), namespace)
-    assert not any(event[0] == "auto" for event in events)
     assert [event[1] for event in events if event[0] == "manual_copy"] == ["stance", "locomotion"]
     assert Path(namespace["NODE_HANDOFF"]["locomotion"]["model"]).is_relative_to(namespace["RUN_DIR"])
 
 
-@pytest.mark.parametrize("options", [{"source_selection": "manual"}, {"missing": True}])
-def test_absent_automatic_source_or_manual_mode_trains_the_chain(tmp_path, monkeypatch, options):
-    namespace, events, _ = _session(tmp_path, monkeypatch, **options)
+def test_no_trunk_trains_every_node(tmp_path, monkeypatch):
+    """Without a TRUNK_DIR (no pinned run, nothing selected under "auto") the loop consults only RUN_DIR."""
+    namespace, events, _ = _session(tmp_path, monkeypatch)
     exec(_chain_source(), namespace)
     assert [event[1] for event in events if event[0] == "train"] == ["stance", "locomotion", "behavior"]
-
-
-def test_retrain_from_prevents_automatic_reuse_of_that_node_and_descendants(tmp_path, monkeypatch):
-    namespace, events, _ = _session(tmp_path, monkeypatch, retrain="locomotion")
-    exec(_chain_source(), namespace)
-    assert [event[1] for event in events if event[0] == "auto"] == ["stance"]
-    assert [event[1] for event in events if event[0] == "train"] == ["locomotion", "behavior"]
+    assert {event[2] for event in events if event[0] == "find"} == {namespace["RUN_DIR"]}
 
 
 def test_failed_target_is_recorded_after_artifacts_and_before_gate_disconnect(tmp_path, monkeypatch):
-    namespace, events, _ = _session(tmp_path, monkeypatch, failed=True)
+    # The ancestors come from a pinned trunk (D-A25 moved automatic selection out of the loop),
+    # so the target is the node that trains and fails.
+    namespace, events, _ = _session(tmp_path, monkeypatch, failed=True, manual=True)
     with pytest.raises(RuntimeError, match="failed its curriculum gate"):
         exec(_chain_source(), namespace)
     tags = [event[0] for event in events]

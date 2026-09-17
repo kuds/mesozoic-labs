@@ -148,6 +148,23 @@ def test_behavior_selection_refuses_ambiguous_or_incompatible_source(override, m
         notebook.validate_behavior_selection(**values)
 
 
+def test_behavior_selection_accepts_the_auto_trunk_default_and_nothing_pinned(behavior_files):
+    """Decision D-A25: TRUNK_FROM's "auto" default selects a CANONICAL trunk and means nothing here."""
+    values = dict(
+        species="trex",
+        algorithm="ppo",
+        behavior="follow_direction",
+        checkpoint="model.zip",
+        vecnormalize="model.pkl",
+        load_mode="prepare",
+    )
+    notebook.validate_behavior_selection(**values, trunk_from="auto")
+    with pytest.raises(ValueError, match="Clear TRUNK"):
+        notebook.validate_behavior_selection(**values, trunk_from="auto", retrain_from="stance")
+    with pytest.raises(ValueError, match="Clear TRUNK"):
+        notebook.validate_behavior_selection(**values, trunk_from="20260901_120000")
+
+
 @pytest.mark.parametrize(
     "override,match",
     [

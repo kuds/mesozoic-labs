@@ -1112,3 +1112,376 @@ class TestTrunksCompose:
             AncestorReuseError, match="no stage directory for 'stance'.*and no ancestors/stance/ancestor.json to follow"
         ):
             _follow(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Automatic trunk selection (decision D-A25)
+# ---------------------------------------------------------------------------
+
+BEHAVIOR_TASK = "sha256:" + "4" * 64
+
+
+def _trex_chain():
+    manifest = load_stage_manifest("trex")
+    return tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior"))
+
+
+def _trex_stage_configs(**stance_curriculum_overrides):
+    return {
+        1: {"env_kwargs": {}, "curriculum_kwargs": {**STANCE_CURRICULUM, **stance_curriculum_overrides}},
+        2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
+        3: {"env_kwargs": {}, "curriculum_kwargs": {"gate_kind": "task_success/v1", "timesteps": 10}},
+    }
+
+
+@pytest.fixture
+def fixture_tasks(monkeypatch):
+    """Derive each chain node's task digest as the trunk fixtures were judged under."""
+    from environments.shared import task_fingerprint as task_fingerprint_module
+
+    digests = {1: STANCE_TASK, 2: LOCOMOTION_TASK, 3: BEHAVIOR_TASK}
+    monkeypatch.setattr(
+        task_fingerprint_module,
+        "derive_stage_task_fingerprint",
+        lambda **kwargs: {"task_sha256": digests[kwargs["stage"]]},
+    )
+
+
+def _select(log_dir, **overrides):
+    from environments.shared.ancestors import select_trunk
+
+    kwargs: dict[str, Any] = dict(
+        species="trex",
+        chain=_trex_chain(),
+        stage_configs=_trex_stage_configs(),
+        plant_identity=trunk_plant(),
+    )
+    kwargs.update(overrides)
+    return select_trunk(log_dir, **kwargs)
+
+
+class TestSelectTrunk:
+    """Decision D-A25: ``TRUNK_FROM = "auto"`` picks the sibling run covering the most of the chain."""
+
+    def test_the_run_covering_the_most_of_the_chain_wins_over_a_newer_shallower_one(self, tmp_path, fixture_tasks):
+        older = tmp_path / "20260901_000000"
+        deeper = tmp_path / "20260905_000000"
+        newest = tmp_path / "20260910_000000"
+        build_trunk_run(older)
+        build_chained_trunk(deeper)
+        build_trunk_run(newest)
+
+        selection = _select(tmp_path)
+
+        assert selection.considered == ("stance", "locomotion")
+        assert [candidate.run_dir.name for candidate in selection.candidates] == [
+            "20260910_000000",
+            "20260905_000000",
+            "20260901_000000",
+        ], "scanned newest first by directory name"
+        assert [candidate.coverage for candidate in selection.candidates] == [1, 2, 1]
+        assert selection.run_dir == deeper and selection.selected is selection.candidates[1]
+        assert [ancestor.stage_id for ancestor in selection.selected.covered] == ["stance", "locomotion"]
+        # Each child was chained onto the ancestor found for its parent (rule 4).
+        stance_sha256 = sha256_file(deeper / "01_stance" / "models" / "robust_best_model.zip")
+        assert selection.selected.covered[0].model_sha256 == stance_sha256
+        assert selection.selected.refusal is None
+        # The shallower runs name the node they could not satisfy and why.
+        newest_candidate = selection.candidates[0]
+        assert newest_candidate.refusal is not None
+        assert newest_candidate.refusal[0] == "locomotion" and "no stage directory" in newest_candidate.refusal[1]
+        # Replication is reported per covered node (the fixtures record no recipe digest: counted alone).
+        assert [(node.stage_id, node.distinct_seeds, node.required_seeds) for node in selection.support] == [
+            ("stance", 1, 1),
+            ("locomotion", 1, 1),
+        ]
+        assert not any(node.provisional for node in selection.support)
+        text = selection.describe()
+        assert "selected run 20260905_000000" in text and "covers stance, locomotion" in text
+        assert "also usable: run 20260910_000000" in text and "also usable: run 20260901_000000" in text
+        assert "TRUNK_FROM = '<run id>'" in text
+
+    def test_the_newest_run_wins_a_tie(self, tmp_path, fixture_tasks):
+        build_trunk_run(tmp_path / "20260901_000000")
+        build_trunk_run(tmp_path / "20260910_000000")
+
+        selection = _select(tmp_path)
+
+        assert selection.run_dir == tmp_path / "20260910_000000"
+        assert [candidate.coverage for candidate in selection.candidates] == [1, 1]
+
+    def test_this_run_is_excluded_and_every_refusal_is_named(self, tmp_path, fixture_tasks):
+        this_run = tmp_path / "20260917_000000"
+        build_trunk_run(this_run)
+        usable = tmp_path / "20260901_000000"
+        build_trunk_run(usable)
+        failed = tmp_path / "20260905_000000"
+        build_trunk_run(failed, passed=False)
+        other_task = tmp_path / "20260906_000000"
+        build_trunk_run(other_task, task_sha256=OTHER_TASK)
+        (tmp_path / "behaviors").mkdir()  # the direction/terrain output tree: no stage directory at all
+
+        selection = _select(tmp_path, exclude=(this_run,))
+
+        assert selection.run_dir == usable
+        assert this_run not in [candidate.run_dir for candidate in selection.candidates]
+        refusals = {candidate.run_dir.name: candidate.refusal for candidate in selection.candidates}
+        # The usable run covers stance and names locomotion as the node it could not satisfy.
+        assert refusals["20260901_000000"][0] == "locomotion"
+        assert refusals["20260905_000000"][0] == "stance" and "FAILED gate" in refusals["20260905_000000"][1]
+        assert "judged under task" in refusals["20260906_000000"][1]
+        assert "no stage directory" in refusals["behaviors"][1]
+        text = selection.describe()
+        assert "refused 20260905_000000: stance: " in text and "FAILED gate" in text
+        assert "refused behaviors: stance: " in text
+        assert "    locomotion: not covered: " in text, "the selected run names the node it could not satisfy"
+
+    def test_no_usable_run_selects_nothing_and_says_so(self, tmp_path, fixture_tasks):
+        build_trunk_run(tmp_path / "20260905_000000", passed=False)
+
+        selection = _select(tmp_path)
+
+        assert selection.run_dir is None and selection.selected is None and selection.support == ()
+        assert "no run covers the root 'stance': every node trains here" in selection.describe()
+        empty = _select(tmp_path / "missing")
+        assert empty.run_dir is None and empty.candidates == ()
+
+    def test_retrain_from_limits_the_nodes_consulted(self, tmp_path, fixture_tasks):
+        deeper = tmp_path / "20260905_000000"
+        build_chained_trunk(deeper)
+        stance, locomotion, _ = _trex_chain()
+
+        selection = _select(tmp_path, retrain_from=locomotion)
+        assert selection.considered == ("stance",)
+        assert selection.run_dir == deeper and [a.stage_id for a in selection.selected.covered] == ["stance"]
+
+        selection = _select(tmp_path, retrain_from=stance)
+        assert selection.considered == () and selection.run_dir is None
+        assert "nothing (the root is trained here)" in selection.describe()
+
+    def test_a_widen_session_consults_no_run(self, tmp_path, fixture_tasks):
+        build_trunk_run(tmp_path / "20260905_000000")
+
+        selection = _select(tmp_path, widen_from="20260815_205206")
+
+        assert selection.run_dir is None and selection.candidates == ()
+        assert selection.skipped is not None and "WIDEN_FROM='20260815_205206'" in selection.skipped
+        assert "skipped: WIDEN_FROM" in selection.describe()
+
+    def test_a_run_that_reused_its_stance_is_followed_to_the_source(self, tmp_path, fixture_tasks):
+        source = tmp_path / "20260901_000000"
+        build_trunk_run(source)
+        middle = tmp_path / "20260910_000000"
+        build_middle_run(middle, source)
+
+        selection = _select(tmp_path)
+
+        # Both cover stance; the newer (middle) run wins the tie and resolves to the source (D-A23).
+        assert selection.run_dir == middle
+        ancestor = selection.selected.covered[0]
+        assert ancestor.source_run_dir == source and ancestor.via == (middle,)
+        assert selection.support[0].run_id == run_id_for(source)
+
+    def test_replication_of_a_covered_node_is_counted_among_the_source_siblings(self, tmp_path, fixture_tasks):
+        recipe = dict(algorithm="ppo", hyperparameters={"n_steps": 8}, record_recipe_digest=True)
+        build_trunk_run(tmp_path / "20260901_000000", seed=7, **recipe)
+        build_trunk_run(tmp_path / "20260905_000000", seed=9, **recipe)
+        build_trunk_run(tmp_path / "20260906_000000", seed=9, **recipe)  # repeats a seed: not a replicate
+
+        selection = _select(tmp_path, stage_configs=_trex_stage_configs(certification_seeds=3))
+
+        assert selection.run_dir == tmp_path / "20260906_000000"
+        (support,) = selection.support
+        assert (support.training_seed, support.distinct_seeds, support.required_seeds) == (9, 2, 3)
+        assert support.provisional
+        assert "replication 2 of 3 required seed(s) - provisional" in selection.describe()
+
+    def test_an_older_interface_parent_is_reported_as_a_widen_candidate(self, tmp_path, fixture_tasks):
+        from environments.shared.command_frame import COMMAND_WIDTH
+
+        current = trunk_plant()
+        older_plant = make_plant_identity(
+            species="trex",
+            model_path="environments/trex/assets/trex.xml",
+            policy_interface_revision=current.policy_interface_revision - 2,
+            observation_dim=current.observation_dim - COMMAND_WIDTH,
+        )
+        older = tmp_path / "20260815_205206"
+        # Judged under its own (older) task, as a real pre-bump run is: rule 3 refuses it.
+        build_trunk_run(older, plant=older_plant, task_sha256=OTHER_TASK)
+        failed_older = tmp_path / "20260810_000000"
+        build_trunk_run(failed_older, plant=older_plant, task_sha256=OTHER_TASK, passed=False)
+        # Older interface but behind a physics bump: the widen gate would refuse it, so no hint.
+        physics_bumped = make_plant_identity(
+            species="trex",
+            model_path="environments/trex/assets/trex.xml",
+            policy_interface_revision=current.policy_interface_revision - 2,
+            observation_dim=current.observation_dim - COMMAND_WIDTH,
+            physics_sha256="sha256:" + "f" * 64,
+        )
+        build_trunk_run(tmp_path / "20260601_000000", plant=physics_bumped, task_sha256=OTHER_TASK)
+        # Older interface but not exactly COMMAND_WIDTH narrower: not widenable either.
+        wrong_width = make_plant_identity(
+            species="trex",
+            model_path="environments/trex/assets/trex.xml",
+            policy_interface_revision=current.policy_interface_revision - 1,
+            observation_dim=current.observation_dim - 7,
+        )
+        build_trunk_run(tmp_path / "20260501_000000", plant=wrong_width, task_sha256=OTHER_TASK)
+
+        selection = _select(tmp_path, plant_identity=current)
+
+        assert selection.run_dir is None
+        assert [
+            (parent.run_dir.name, parent.stage_id, parent.revision_gap) for parent in selection.older_interface
+        ] == [("20260815_205206", "stance", 2)]
+        text = selection.describe()
+        assert "older-interface parent: run 20260815_205206" in text
+        assert f"policy interface r{current.policy_interface_revision - 2}" in text
+        assert "WIDEN_FROM = '20260815_205206' (WIDEN_MAX_REVISION_GAP >= 2)" in text
+
+    def test_an_older_interface_parent_identified_only_by_its_checkpoint_is_still_reported(
+        self, tmp_path, fixture_tasks
+    ):
+        from environments.shared.command_frame import COMMAND_WIDTH
+
+        current = trunk_plant()
+        older_plant = make_plant_identity(
+            species="trex",
+            model_path="environments/trex/assets/trex.xml",
+            policy_interface_revision=current.policy_interface_revision - 1,
+            observation_dim=current.observation_dim - COMMAND_WIDTH,
+        )
+        older = tmp_path / "20260815_205206"
+        stage_dir = build_trunk_run(older, plant=older_plant, task_sha256=OTHER_TASK)
+        (stage_dir / "plant_identity.json").unlink()  # the archive's own identity attribute remains
+
+        selection = _select(tmp_path, plant_identity=current)
+
+        assert [parent.run_dir.name for parent in selection.older_interface] == ["20260815_205206"]
+
+    def test_an_unreadable_checkpoint_refuses_that_run_only(self, tmp_path, fixture_tasks):
+        """No neighbour aborts the scan: rule 5 hashes the handoff pair, and a checkpoint the mount cannot
+        read is listed as refused while a usable sibling is still selected."""
+        usable = tmp_path / "20260901_000000"
+        build_trunk_run(usable)
+        broken = tmp_path / "20260910_000000"
+        stage_dir = build_trunk_run(broken)
+        archive = stage_dir / "models" / "robust_best_model.zip"
+        archive.unlink()
+        archive.mkdir()  # exists, so the handoff selector offers it; hashing it raises IsADirectoryError
+
+        selection = _select(tmp_path)
+
+        assert selection.run_dir == usable
+        refusal = next(c.refusal for c in selection.candidates if c.run_dir == broken)
+        assert refusal[0] == "stance" and refusal[1].startswith("unreadable:")
+        assert "refused 20260910_000000: stance: unreadable:" in selection.describe()
+
+    def test_a_run_of_another_algorithm_species_or_backend_is_refused_before_the_rules(self, tmp_path, fixture_tasks):
+        ppo = tmp_path / "20260901_000000"
+        build_trunk_run(ppo, algorithm="ppo", hyperparameters={"n_steps": 8})
+        sac = tmp_path / "20260910_000000"
+        build_trunk_run(sac, algorithm="sac", hyperparameters={"batch_size": 8})
+        jax = tmp_path / "20260911_000000"
+        build_trunk_run(jax)
+        (jax / "provenance.json").write_text(
+            json.dumps({"run_id": "jax-run", "species": "trex", "algorithm": "PPO", "backend": "jax-mjx"})
+        )
+        other_species = tmp_path / "20260912_000000"
+        build_trunk_run(other_species)
+        (other_species / "provenance.json").write_text(
+            json.dumps(
+                {"run_id": "raptor", "species": "velociraptor", "algorithm": "PPO", "backend": "stable-baselines3"}
+            )
+        )
+
+        selection = _select(tmp_path, algorithm="ppo")
+
+        assert selection.run_dir == ppo, "the newest SAC run is refused although every rule would accept it"
+        refusals = {c.run_dir.name: c.refusal for c in selection.candidates}
+        assert "records algorithm SAC, not PPO" in refusals["20260910_000000"][1]
+        assert "backend 'jax-mjx'" in refusals["20260911_000000"][1]
+        assert "species 'velociraptor'" in refusals["20260912_000000"][1]
+        # Without an algorithm to compare, the SAC run's records decide nothing and it wins on recency
+        # among the same-species, same-backend runs.
+        assert _select(tmp_path).run_dir == sac
+
+    def test_retrain_from_at_the_root_consults_no_run(self, tmp_path, fixture_tasks):
+        build_trunk_run(tmp_path / "20260905_000000")
+        stance, _, _ = _trex_chain()
+
+        selection = _select(tmp_path, retrain_from=stance)
+
+        assert selection.candidates == () and selection.run_dir is None
+        assert selection.skipped == "RETRAIN_FROM='stance' covers the root: every node trains here"
+        assert "refused" not in selection.describe()
+
+    def test_limit_bounds_the_scan_and_bad_inputs_are_refused_loudly(self, tmp_path, fixture_tasks):
+        build_trunk_run(tmp_path / "20260901_000000")
+        newest = tmp_path / "20260910_000000"
+        build_trunk_run(newest, passed=False)
+        (newest / "provenance.json").write_text("{not json")  # unreadable: named by its directory
+
+        selection = _select(tmp_path, limit=1)
+        assert [c.run_dir.name for c in selection.candidates] == ["20260910_000000"]
+        assert selection.candidates[0].run_id == "20260910_000000"
+        assert selection.run_dir is None
+
+        with pytest.raises(ValueError, match="needs the target's chain"):
+            _select(tmp_path, chain=())
+        manifest = load_stage_manifest("trex")
+        with pytest.raises(ValueError, match="is not on the chain"):
+            _select(tmp_path, retrain_from=manifest.by_id("recovery"))
+
+    def test_describe_caps_the_refusals_it_prints_but_keeps_every_candidate(self, tmp_path, fixture_tasks):
+        for index in range(23):
+            build_trunk_run(tmp_path / f"202608{index + 1:02d}_000000", passed=False)
+
+        selection = _select(tmp_path)
+
+        assert len(selection.candidates) == 23 and selection.run_dir is None
+        text = selection.describe()
+        assert text.count("  refused 202608") == 20
+        assert "... and 3 more refused run(s); TRUNK_SELECTION.candidates lists every run" in text
+
+    def test_replication_of_a_followed_ancestor_is_counted_in_the_logs_tree(self, tmp_path, fixture_tasks):
+        recipe = dict(algorithm="ppo", hyperparameters={"n_steps": 8}, record_recipe_digest=True)
+        source = tmp_path / "20260901_000000"
+        build_trunk_run(source, seed=7, **recipe)
+        build_trunk_run(tmp_path / "20260905_000000", seed=9, **recipe)  # a distinct-seed sibling in the logs tree
+        middle = tmp_path / "20260910_000000"
+        build_middle_run(middle, source)
+
+        selection = _select(tmp_path)
+
+        assert selection.run_dir == middle
+        (support,) = selection.support
+        assert support.run_id == run_id_for(source) and support.distinct_seeds == 2
+
+    def test_the_selection_derives_each_node_exactly_as_the_loop_does(self, tmp_path, monkeypatch):
+        """The task digest handed to the rule comes from the current stage config through the shared
+        derivation with the plant identity — the sources ``train_stage`` records it from."""
+        from environments.shared import task_fingerprint as task_fingerprint_module
+
+        derived: list[dict[str, Any]] = []
+
+        def derive(**kwargs):
+            derived.append(kwargs)
+            return {"task_sha256": {1: STANCE_TASK, 2: LOCOMOTION_TASK}[kwargs["stage"]]}
+
+        monkeypatch.setattr(task_fingerprint_module, "derive_stage_task_fingerprint", derive)
+        configs = _trex_stage_configs()
+        configs[1]["env_kwargs"] = {"push_prob": 0.25}
+        build_trunk_run(tmp_path / "20260901_000000")
+
+        _select(tmp_path, stage_configs=configs)
+
+        assert [d["stage"] for d in derived] == [1, 2]
+        assert derived[0] == {
+            "species": "trex",
+            "stage": 1,
+            "backend": "stable-baselines3",
+            "env_kwargs": {"push_prob": 0.25},
+            "plant_identity": trunk_plant().to_dict(),
+        }
