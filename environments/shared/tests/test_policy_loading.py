@@ -210,6 +210,10 @@ def test_schedule_members_from_hyperparameters_mirrors_prepare_alg_kwargs(tmp_pa
     assert schedule_members_from_hyperparameters("sac", {"learning_rate": 1e-3, "clip_range": 0.2}) == {
         "learning_rate": 1e-3
     }
+    # The trainer applies no decay mapping to a [sac] table; neither does the helper.
+    assert schedule_members_from_hyperparameters("sac", {"learning_rate": 1e-3, "learning_rate_end": 1e-4}) == {
+        "learning_rate": 1e-3
+    }
     assert schedule_members_from_hyperparameters("sac", None) == {}
 
 

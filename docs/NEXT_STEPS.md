@@ -30,7 +30,9 @@ file in place when the state changes; it is not a dated investigation.
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
-`COMMAND_TERRAIN_BEHAVIOR` mode switch. Configuration-cell defaults:
+`COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
+guarded code cell, the SB3 archive-load preflight before the widen cell:
+41 cells, 23 code, about 2,560 lines). Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
 `WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `PUBLISH_CERTIFIED = False`,
@@ -179,7 +181,10 @@ Notes:
   `num_timesteps inherited` line names `report: .../01_stance/widen_report.json`
   and which closes with `The chain loop will JUDGE this node (no verdict yet);
   parent run '20260815_205206' is untouched.` (the two dead sessions never
-  reached it); the chain loop's `JUDGE` branch
+  reached it; that report's `schedule_members_source` will most likely read
+  `current_stage_config`, because the parent's `stage_config.json` predates
+  the `hyperparameters` block by a day, and its `schedule_members_restated`
+  names the three re-stated members); the chain loop's `JUDGE` branch
   rolling the 40-episode panel (seeds 3042–3081) and writing
   `01_stance/gate_verdict.json`; then the recovery node's freeze and 3M
   training. The settings are unchanged: `BEHAVIOR="stand"`,

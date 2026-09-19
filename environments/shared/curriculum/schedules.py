@@ -105,27 +105,31 @@ def schedule_members_from_hyperparameters(
     """The schedule members a stage's recorded algorithm block trains under, as picklable-by-reference objects.
 
     Mirrors the mapping ``train_base._prepare_alg_kwargs`` applies to a
-    stage TOML's ``[ppo]`` / ``[sac]`` table: ``learning_rate`` with
+    stage TOML's algorithm table. For PPO, ``learning_rate`` with
     ``learning_rate_end`` becomes a :class:`LinearSchedule` (or
     :class:`CosineSchedule` when ``lr_schedule = "cosine"``), ``clip_range``
-    with ``clip_range_end`` a :class:`LinearSchedule`; a value without an
-    end stays a float, and an absent key is absent from the result.
-    ``clip_range_vf`` is passed through for PPO. This is what the widen tool
-    stamps into a widened archive in place of the parent's cloudpickled
-    closures, read from the parent's ``stage_config.json``
-    ``"hyperparameters"`` block (the block ``save_stage_config`` records).
+    with ``clip_range_end`` a :class:`LinearSchedule`, and ``clip_range_vf``
+    is passed through; the trainer applies no decay mapping to a ``[sac]``
+    table, so neither does this (a SAC ``learning_rate`` stays a float). A
+    value without an end stays a float, and an absent key is absent from the
+    result. This is what the widen tool stamps into a widened archive in
+    place of the parent's cloudpickled closures, read from the parent's
+    ``stage_config.json`` ``"hyperparameters"`` block (the block
+    ``save_stage_config`` records), or from the current stage config's block
+    when the parent recorded none.
     """
     block: dict[str, Any] = dict(hyperparameters or {})
     members: dict[str, Any] = {}
+    is_ppo = algorithm.lower() == "ppo"
     if block.get("learning_rate") is not None:
-        lr_end = block.get("learning_rate_end")
+        lr_end = block.get("learning_rate_end") if is_ppo else None
         if lr_end is None:
             members["learning_rate"] = float(block["learning_rate"])
         elif block.get("lr_schedule", "linear") == "cosine":
             members["learning_rate"] = CosineSchedule(block["learning_rate"], lr_end)
         else:
             members["learning_rate"] = LinearSchedule(block["learning_rate"], lr_end)
-    if algorithm.lower() == "ppo":
+    if is_ppo:
         if block.get("clip_range") is not None:
             clip_end = block.get("clip_range_end")
             members["clip_range"] = (

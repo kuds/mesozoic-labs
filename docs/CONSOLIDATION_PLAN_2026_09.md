@@ -757,9 +757,12 @@ Carried from the review, with the 2026-09-17 additions.
   is a fresh trex stance with SEED = 45.
 - The `ConstantSchedule` `custom_objects` guard in `_load_ppo`
   (behavior_checkpoint.py:108-121, for cloudpickled py3.13 schedule bytecode) is
-  deleted with PR-12; the canonical `alg_cls.load(load_path, env=train_env,
-  **alg_kwargs)` path has resumed r11 parents in Colab without it, but this was
-  not exercised in the review; check once in the Colab image before PR-12.
+  deleted with PR-12. Settled 2026-09-19: the canonical `alg_cls.load` path had
+  never crossed an interpreter boundary, the first cross-interpreter load (the
+  widen tool's self-verification of the r11 parent on the Python 3.13 image)
+  killed the kernel, and every load now goes through
+  `policy_loading.load_sb3_model`, which makes the guard redundant (KNOWN_ISSUES,
+  "SB3 archives are bound to the interpreter that saved them").
 - Not verified during the review (flagged, unverified): (i) the two dated
   task-fingerprint valves (`allow_unfingerprinted=True`, train_base.py:593-604;
   the schema-v1 valve in `validate_recorded_task`) may already be dead because

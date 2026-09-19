@@ -1326,10 +1326,13 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     picklable-by-reference `curriculum.schedules.LinearSchedule` /
     `CosineSchedule` (same values), so archives saved from now on carry no
     bytecode at all; `widen_checkpoint` re-states a parent's schedule
-    members from its recorded `hyperparameters` block
-    (`schedule_members_from_hyperparameters`) when the parent archive
-    stores them as bytecode, so a widened archive is bytecode-free instead
-    of a 3.13-labelled zip full of 3.12 code.
+    members from its recorded `hyperparameters` block, or from the current
+    stage config's algorithm block when the parent's `stage_config.json`
+    predates that block (the r11 trex parent's does), through
+    `schedule_members_from_hyperparameters` when the parent archive stores
+    them as bytecode, so a widened archive is bytecode-free instead of a
+    3.13-labelled zip full of 3.12 code; `widen_report.json` records the
+    members re-stated and their source.
   - The SB3 notebook's load preflight moved from the infrastructure cell
     (which ran AFTER the widen cell and loaded a throwaway model saved by
     the same interpreter, so it could never see a cross-interpreter fault)

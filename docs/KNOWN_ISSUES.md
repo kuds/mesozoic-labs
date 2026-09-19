@@ -294,7 +294,9 @@ tolerance) remains the standing recommendation for the divergences above.
   interpreter's bytecode; `linear_schedule` / `cosine_schedule` are
   picklable-by-reference classes, so archives saved from now on carry no
   bytecode; the widen tool re-states a parent's schedules from its recorded
-  `hyperparameters` block; and the notebook's load preflight runs right
+  `hyperparameters` block, or from the current stage config's block when the
+  parent's `stage_config.json` predates that block, as the r11 parent's does
+  (`widen_report.json` names the source); and the notebook's load preflight runs right
   before the widen cell on the `WIDEN_FROM` parent's real handoff
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
