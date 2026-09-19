@@ -25,6 +25,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (a run id still pins one; `""` trains every node here) and the chain loop no
   longer consults the certified library for canonical ancestors;
   `curriculum --trunk-from auto` does the same on the command line.
+- **Direction-following and randomized-terrain pilots** (#540, #541;
+  2026-09-15). A world-direction command controller
+  (`environments/shared/direction_commands.py`: requests mapped onto the
+  three reserved command inputs as heading-frame forward/lateral speed and a
+  turn rate, episode schedules drawn from their own seeded generator), a
+  deterministic opt-in heightfield terrain generator and a balanced
+  terrain-family sampler (`terrain.py`, `terrain_sampling.py`: one finite
+  heightfield replaces the floor with a flat spawn apron, every shuffled
+  block holds the configured number of episodes per family), a behavior env
+  mixin for every registered species (`environments/shared/behavior_env.py`)
+  and the original T-Rex subclass (`environments/trex/envs/behavior_env.py`,
+  retained beside it), a behavior trainer and notebook
+  router (`train_behaviors.py`, `behavior_notebook.py`: one CPU env, its own
+  recipe dialect), a behavior checkpoint preparer
+  (`behavior_checkpoint.py`: clears a canonical walker's reserved command
+  connections and carries its observation statistics), a behavior
+  certification certificate (`behavior_certification.py` with
+  `configs/behavior_certification.toml`: 20 episodes per terrain family,
+  20 s minimum horizon, survival LCB 0.80, success LCB 0.60, tracking and
+  settle fractions 0.60; written as `certification/certificate.json`, never
+  a `gate_verdict.json`), a replay recorder with terrain maps
+  (`behavior_replay.py`), 66 recipe TOMLs under
+  `configs/<species>/behaviors/` (11 templates × 6 species) plus 8 T-Rex
+  pilot recipes under `configs/trex/behavior_pilots/`, the certified library
+  trio (`certified_library.py`, `certified_canonical.py`,
+  `certified_comparison.py`) and the guides
+  `docs/TRAIN_DIRECTION_AND_TERRAIN.md` and `docs/CERTIFIED_MODELS.md`. This
+  is a separate pipeline beside the recipes machinery: it bypasses the
+  reserved `BaseDinoEnv._draw_episode_command` hook (writing `self._command`
+  directly), judges outside `GATE_KINDS`, reuses outside
+  `find_certified_ancestor` and keys checkpoint identity on source-file
+  hashes. `docs/CONSOLIDATION_PLAN_2026_09.md` folds it back into manifest
+  nodes (decisions D-D1–D-D10).
+- **`PUBLISH_CERTIFIED` defaults to `False`** (#542, 2026-09-16; the
+  consolidation plan's PR-1). Library publication required a training-origin
+  stamp that a widened root handoff lacks, so a `WIDEN_FROM` session under
+  the old default would have disconnected the Colab runtime right after the
+  stance passed its gate.
+- **Documentation handoff (2026-09-19)**: `docs/NEXT_STEPS.md` (the living
+  entry point for the program state, the Drive state, the run plan and the
+  open items), `docs/CONSOLIDATION_PLAN_2026_09.md` (the fifteen-PR sequence
+  folding the pilots back; PR-1 = #542 and the auto-trunk PR = #543 landed,
+  PR-2 is this documentation pass, PR-3–PR-15 on hold pending the
+  maintainer's review), `docs/investigations/DRIVE_RUN_SURVEY_2026_09.md`
+  (which Drive runs are certified under the Phase C interface, surveyed
+  2026-09-17) and `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 (decisions D-D1–D-D12
+  and G1–G4 from the 2026-09-17 review).
 - **Stage manifest v2** (`docs/BEHAVIOR_RECIPES_PLAN.md` Phase A, part 1).
   `environments/shared/stage_manifest.py` reads `mesozoic.stage-manifest/v2`
   beside v1: per-stage `warm_start_from` (an EARLIER entry; self and forward
@@ -815,6 +862,21 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   linked from `docs/README.md` together with the eight investigation notes
   the table lacked; the root `README.md` and `website/docs/training/recipes.md`
   knob lists gain `WIDEN_FROM` and `WIDEN_MAX_REVISION_GAP`.
+
+### Migration
+- **Two new Drive directories from #540/#541.** Pilot output goes to
+  `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (`bundle.json`,
+  `run.json`, `certification/certificate.json`; never a `gate_verdict.json`)
+  and the certified library to `mesozoic-labs/certified` beside `logs`.
+  Nothing canonical reads either (canonical chains stopped consulting the
+  library in #543); leave them in place.
+- **Pilot bundles are evaluation-only** (decision D-D9): no #540/#541
+  behavior bundle is carried forward as a training parent. With
+  `PUBLISH_CERTIFIED = False`, `SOURCE_SELECTION = "auto"` finds no library
+  entry, so a pilot run needs explicit `BEHAVIOR_CHECKPOINT` /
+  `BEHAVIOR_VECNORMALIZE` paths.
+- **`imageio-ffmpeg` joined the `viz` extra** (the replay recorder's video
+  encoder); reinstall the extra to pick it up.
 
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with

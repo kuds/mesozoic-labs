@@ -33,6 +33,12 @@ The hunting node keeps its id `behavior` for every species; its recipe
 label is `hunt`, and the task name (strike, bite proxy, food reach, snap,
 target reach) comes from the stage TOML's `[stage] name`.
 
+Direction-following and terrain traversal exist today as a separate pilot
+pipeline (see `docs/TRAIN_DIRECTION_AND_TERRAIN.md` in the repository) and
+are planned as manifest nodes under `locomotion` — `follow_direction` and
+`follow_direction_difficult_terrain`, with their own gate kind — so the leaf
+set on this page will grow; nothing on this page changes until then.
+
 ## The stage manifest
 
 Each species declares its graph in `configs/<species>/stages.toml` under
@@ -244,7 +250,7 @@ refuses when the evidence is missing, and cannot backfill
 
 ## In the notebook
 
-`notebooks/sb3_training.ipynb` exposes five knobs in its configuration cell,
+`notebooks/sb3_training.ipynb` exposes six knobs in its configuration cell,
 committed as:
 
 ```python

@@ -1,5 +1,13 @@
 # Shared certified models
 
+**Status (2026-09-19): scheduled for removal.** Canonical chains stopped
+reading the library on 2026-09-16 (#543, automatic trunk selection, decision
+D-A25) and `PUBLISH_CERTIFIED` defaults to `False` (#542). The consolidation
+plan ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md),
+PR-4/PR-5) deletes the library modules and this document; until then
+`SOURCE_SELECTION` applies to the direction and terrain behaviors only, and
+nothing canonical depends on a certified directory on Drive.
+
 The SB3 notebook can select a compatible certified parent automatically, save
 the complete selected bundle inside the new training run, and compare newly
 trained candidates with the current recommendation. Select the species and
@@ -117,8 +125,8 @@ files and the evidence supporting its replication again.
 training seeds, or turn a short replay panel into certification. Canonical
 quick tests skip recommendation benchmarking. Behavior quick tests skip the
 separate certification panel and shared publication, and save that reason in
-their run record. Use `PUBLISH_CERTIFIED=False`
-when only local diagnostic artifacts are wanted.
+their run record. `PUBLISH_CERTIFIED` is `False` by default (#542); set it
+`True` only to publish into the shared library.
 
 ## Comparing with the current recommendation
 

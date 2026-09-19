@@ -1,7 +1,8 @@
 # T-Rex Stance Widened to the Phase C Interface — 2026-09 (template)
 
 **Status: TEMPLATE — pending the maintainer's Colab sessions (BEHAVIOR_RECIPES_PLAN
-§4.6 Phase C, WS-C4).** Every `<to be filled after Session N>` below is a
+§4.6 Phase C, WS-C4).** See section 6 (appended 2026-09-19) for which
+sessions are superseded. Every `<to be filled after Session N>` below is a
 placeholder; the commands, knobs and seeds are exact for the Phase C tree
 and are the only parts written in advance. Fill each section from the run's
 shipped artifacts, never from memory, and delete this status line when the
@@ -178,3 +179,35 @@ widens under the default 1) — and, for recovery, a fresh
 freeze from the widened handoff (Session 1b). The pre-bump directories stay
 on the log tree as history. Record here which log-tree directories were
 inventoried and what each now is (`<…>`).
+
+## 6. Status 2026-09-19 (appended)
+
+No session of this note has run. The Drive survey of 2026-09-17
+([DRIVE_RUN_SURVEY_2026_09.md](DRIVE_RUN_SURVEY_2026_09.md)) changed what is
+still needed; the table and placeholders above are kept as written.
+
+- **Sessions 1 and 2 are superseded.** The fresh r13 run `20260914_123816`
+  (seed 42, commit `35dd44c`, `01_stance` + `03_locomotion`) certified stance
+  and locomotion from scratch on 2026-09-15 (stance `gate_verdict.json` PASS at
+  01:57 UTC, final eval 3460.6 ± 19.2; locomotion PASS at 11:39 UTC, 1.07 m/s,
+  mean episode length 1000). Its `task_sha256` / `gate_sha256` match the
+  current stage TOMLs at `22c1fc8`, so `TRUNK_FROM = "auto"` selects it for any
+  trex session. Seed 42 therefore needs no widen (Session 1) and the C½ walker
+  exists without one (Session 2).
+- **Seed 43 failed at r13.** The fresh replicate `20260915_160239` (11M steps,
+  13h17m, final eval 3209.7 ± 284.3) failed the duty rail on its 40-episode
+  panel: mean unsupported duty 0.0323, UCB 0.0350 against 0.02; reward and
+  full-horizon fraction passed.
+- **The seed-44 widen (the "1 repeat" row) is the one session still owed.** It
+  now runs with `BEHAVIOR = "stand"` instead of `"stance"` (`WIDEN_FROM =
+  "20260815_205206"`, `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44` set before the
+  storage cell mints `RUN_ID`), so that after the widen and the 40-episode
+  re-panel the chain loop freezes the recovery resolution from the widened
+  handoff and trains recovery (3M) in the same run. That covers Sessions 1b
+  and 3. Fill the seed-44 columns of §1–§3 from that run's `widen_report.json`,
+  `gate_verdict.json`, `stance_gate_report.json` and
+  `02_recovery/gate_resolution.json`; the seed-42 columns stay empty with a
+  pointer to `20260914_123816`. If the re-panel fails the duty rail as seed 43
+  did, the fallback is a fresh trex stance with `SEED = 45`.
+- Numbers and the per-run evidence: the survey note. The run plan and the
+  session status: [../NEXT_STEPS.md](../NEXT_STEPS.md) §3.

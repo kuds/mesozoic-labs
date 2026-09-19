@@ -68,7 +68,9 @@ independent ladders:
 
 Sequencing (§5): the manifest edges and per-deliverable publication first
 (no env change, no checkpoint invalidation), then the hunting-gate and
-seed-provenance fixes, then the one interface bump, then the follow leaf.
+seed-provenance fixes, then the one interface bump, then the follow leaf
+(pilots landed 2026-09-15 as a separate pipeline; consolidation pending,
+§6.2).
 
 ---
 
@@ -692,7 +694,7 @@ because `task_sha256` carries `policy_interface_sha256`
 under the new task hash; Phase C runs one such freeze from the widened
 checkpoint to record how the statue and brace nulls re-roll.
 
-**As implemented (Phase C, 2026-09-13/14; decisions D-C1–D-C16, §6.1).**
+**As implemented (Phase C, 2026-09-13/14; decisions D-C1–D-C17, §6.1).**
 The scope is all six plants, not the four above: compsognathus (53 → 56,
 policy interface r1 → 2) and compsognathus_robot (43 → 46, r1 → 2) took the
 segment beside trex 61 → 64 (r12 → 13), velociraptor 67 → 70 (r9 → 10),
@@ -750,17 +752,22 @@ into this run's root stage directory in a NEW run id — never by pointing
 `RUN_ID` at the old run (D-C13) — and refuses `SEED != ` the parent's
 recorded `run.seed` (D-C14); the chain loop then refuses the verdict-less
 directory and judges it. The re-panel of the two certified stance parents,
-the recovery-freeze re-roll and the C½ walker are maintainer sessions still
-owed (WS-C4): `docs/investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md`
-is their template, and KNOWN_ISSUES lists what the bump strands. The two
-certified parents themselves are r11 archives (trex r11 → r12 landed
-2026-08-16 after they trained, a fingerprint-only bump with
-`observation_dim` 61 on both sides), two revisions behind r13: the tool's
+the recovery-freeze re-roll and the C½ walker were the maintainer sessions
+owed at that point (WS-C4;
+`docs/investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md` is their
+template, and KNOWN_ISSUES lists what the bump strands). As of 2026-09-19
+the C½ walker exists (`20260914_123816`, a fresh r13 stance, §5), the
+seed-42 widen is superseded by it, the recovery freeze is covered by the
+recovery node the seed-44 session trains, and only that seed-44 widen +
+re-panel of `20260815_205206` is still owed (`docs/NEXT_STEPS.md`
+session 1). The two certified parents themselves are r11 archives (trex
+r11 → r12 landed 2026-08-16 after they trained, a fingerprint-only bump
+with `observation_dim` 61 on both sides), two revisions behind r13: the tool's
 gate admits a bounded revision gap (D-C17 — `max_revision_gap`, default 1,
 with every other identity field still checked so only fingerprint-only
 bumps can be crossed, and the gap recorded in the report), the notebook
-threads its `WIDEN_MAX_REVISION_GAP` knob into the call, and both stance
-sessions set it to 2.
+threads its `WIDEN_MAX_REVISION_GAP` knob into the call, and the seed-44
+session sets it to 2.
 
 **Normalization of the command slice.** `[probe]` A constant-zero dim
 accumulates running variance ≈ 1e-11 over 8M samples; a live command of 1.0
@@ -922,11 +929,21 @@ and integer-keyed until a recipe sweep is needed).
 |---|---|---|---|---|
 | **Doc** | this | This plan; docs index and changelog entries | Reviewed; decisions §6 confirmed or vetoed | — |
 | **A** | manifest edges + publication + notebook | §4.1 manifest v2 (loader, validators, v1/synthesized compatibility); §4.2 retargets, `gate_verdict.json`, `--trunk-from`; §4.3 schema v4, per-deliverable status, catalog and TSX; §4.7 chain loop | v1 manifests read bit-identically (pinned); v2 manifests committed for all four species; a run with a failed leaf publishes its certified trunk (pinned); notebook AST pins; full suite green | ~1.5 weeks |
-| **B** | **landed 2026-09-13** — #533 (gate-configuration digest, reuse rule 7, backfill `--gate`; WS-B3), #534 (the `task_success/v1` hunting gate and `behavior.toml`; WS-B1 + WS-B2), #535 (seed replication; WS-B4); this docs pass is WS-B5 | §4.4 `task_success/v1`, `behavior.toml` edits, measured statue floor; §4.5 provenance fields, `certification_panel` role, provisional labels; decisions D-B1–D-B17 (§6.1) | Met: fail-closed dispatch test for the new kind (`test_gate_dispatch_fail_closed.py`); `load_all_stages("trex")` accepts `behavior.toml` under `task_success/v1` and the gate-schema tests pass; the catalog and the site render `N run(s) of M seed(s); provisional` identically (`test_species_catalog.py::test_website_replication_formatter_mirrors_python`); trex stance will read `1 run of 2 seeds; provisional` once its Drive bundles are republished (no stance bundle is committed; KNOWN_ISSUES) | 2–3 days |
-| **C** | **implemented 2026-09-13/14** in three PRs — PR-C1 (the one interface revision on all six species, `command_frame.py`, the command-slice reseed plumbing, the non-zero probes, the restamped compsognathus calibrations; WS-C0 + WS-C1), PR-C2 (`widen_checkpoint`; WS-C2), PR-C3 (the notebook `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen cell, the AST pins, this docs pass; WS-C3); the maintainer Colab sessions (WS-C4: widen + re-panel both stance parents, one recovery freeze re-rolled, the C½ walker) are pending against the template note `investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md` | §4.6 command dims across SB3 and MJX, plant revisions, `widen_checkpoint`, command-slice reseed, MJX fail-closed; decisions D-C1–D-C17 (§6.1) | Met: zero-column and action-equality pins (on zero and probe commands) and one PPO update from the widened checkpoint (`test_widen_checkpoint.py`); the regenerated manifests pass `plant_contract --check` with SB3/MJX parity on the non-zero probe; the seeded reset stream is pinned by the golden fixture. Owed: the widened stance re-panel and the recovery-freeze re-roll, outcomes to be recorded in the investigation note — runnable as written (both certified parents are r11 archives, two revisions behind r13, and widen under `WIDEN_MAX_REVISION_GAP = 2`, D-C17), pending the maintainer's Colab time (KNOWN_ISSUES lists what the bump strands) | ~1 week |
-| **C½** | walker under the new interface | Locomotion re-run warm-started from the widened stance checkpoint (8M, one seed), or the seed-replicate retrain fallback if the re-panel failed | A walking checkpoint certified by `reward_and_length/v1` (≥ 1.0 m/s, ≥ 750 steps) under the new interface; recorded in the same investigation note | ~9 h of Colab per attempt |
-| **D** | follow leaf | §4.6 env sampler, tracking reward, `command_tracking/v1`, the two mini-stage TOMLs, notebook command video; T-Rex pilot | Pilot run from the C½ walker with frozen thresholds recorded; MJX fail-closed raise test; gate consulted-test (live-command SB3/MJX parity is a Phase E criterion, when MJX command mode lands) | ~1.5–2 weeks + one pilot run |
+| **B** | **landed 2026-09-13** — #533 (gate-configuration digest, reuse rule 7, backfill `--gate`; WS-B3), #534 (the `task_success/v1` hunting gate and `behavior.toml`; WS-B1 + WS-B2), #535 (seed replication; WS-B4); this docs pass is WS-B5 | §4.4 `task_success/v1`, `behavior.toml` edits, measured statue floor; §4.5 provenance fields, `certification_panel` role, provisional labels; decisions D-B1–D-B17 (§6.1) | Met: fail-closed dispatch test for the new kind (`test_gate_dispatch_fail_closed.py`); `load_all_stages("trex")` accepts `behavior.toml` under `task_success/v1` and the gate-schema tests pass; the catalog and the site render `N run(s) of M seed(s); provisional` identically (`test_species_catalog.py::test_website_replication_formatter_mirrors_python`); trex stance reads `1 run of 2 seeds; provisional` on the r13 run `20260914_123816` (one certified seed against the two-seed bar) until the seed-44 parent is widened and re-paneled (§7, `docs/NEXT_STEPS.md` session 1); the pre-Phase-C stance bundles are never republished and none is committed (§10, KNOWN_ISSUES) | 2–3 days |
+| **C** | **implemented 2026-09-13/14** in three PRs — PR-C1 (the one interface revision on all six species, `command_frame.py`, the command-slice reseed plumbing, the non-zero probes, the restamped compsognathus calibrations; WS-C0 + WS-C1), PR-C2 (`widen_checkpoint`; WS-C2), PR-C3 (the notebook `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen cell, the AST pins, this docs pass; WS-C3); of the maintainer Colab sessions (WS-C4: widen + re-panel both stance parents, one recovery freeze re-rolled, the C½ walker) only the seed-44 widen + re-panel of `20260815_205206` is still owed as of 2026-09-19, with the recovery node trained in the same run (`docs/NEXT_STEPS.md` session 1; template note `investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md`); the seed-42 widen and the C½ walker are superseded by the fresh r13 run `20260914_123816` (the C½ row) | §4.6 command dims across SB3 and MJX, plant revisions, `widen_checkpoint`, command-slice reseed, MJX fail-closed; decisions D-C1–D-C17 (§6.1) | Met: zero-column and action-equality pins (on zero and probe commands) and one PPO update from the widened checkpoint (`test_widen_checkpoint.py`); the regenerated manifests pass `plant_contract --check` with SB3/MJX parity on the non-zero probe; the seeded reset stream is pinned by the golden fixture. Owed: the seed-44 widen + re-panel of `20260815_205206` (an r11 archive, two revisions behind r13, so `WIDEN_MAX_REVISION_GAP = 2`, D-C17) with the recovery node trained in the same session, outcome to be recorded in the investigation note; the seed-42 parent no longer needs widening (`docs/NEXT_STEPS.md` session 1; KNOWN_ISSUES lists what the bump strands) | ~1 week |
+| **C½** | **landed 2026-09-15** as run `20260914_123816` (a maintainer Colab session on the merged Phase C tree, commit 35dd44c; no PR): the certified r13 walker exists | A from-scratch r13 stance (seed 42, 11M steps, 13h13m, final eval 3460.6 ± 19.2, `stance_quality/v1` PASS) followed by locomotion (8M, 8h46m, 1.07 m/s mean forward velocity, 1000-step episodes, mean reward 1940.8, `reward_and_length/v1` PASS judged 2026-09-15): the walker came from a fresh r13 stance, not from the widened r11 stance this row planned (no widen session has run) | Met: both nodes carry a passed `gate_verdict.json` whose `task_sha256` (stance 82528a2e…, locomotion 31383192…) and `gate_sha256` equal the digests derived from the current stage TOMLs, verified at 22c1fc8, so `TRUNK_FROM = "auto"` selects this run and reuses BOTH nodes for any trex session. Cosmetic gap: the run-level `summary.json`, `provenance.json` and `artifact_manifest.json` were written after the stance and never refreshed after the locomotion verdict (reuse reads per-node files, so nothing breaks; re-run the bundle cell to refresh them). Still owed on the trunk: the second stance seed (§7) | 13 h + 9 h of Colab (measured) |
+| **D** | **landed 2026-09-15 as a separate pipeline** (#540 T. rex pilots, #541 all species + certified library); consolidation into the reserved hook pending (`docs/CONSOLIDATION_PLAN_2026_09.md`, PR-9..PR-13; on hold until the maintainer's review of that plan) | Designed: §4.6 env sampler, tracking reward, `command_tracking/v1`, the two mini-stage TOMLs, notebook command video; T-Rex pilot. Shipped: a direction controller, tracking reward, heightfield terrain generator and replay recorder (kept), built beside the canonical machinery: two behavior env classes that refuse the reserved `command_mode` and write `self._command` directly instead of filling `_draw_episode_command` (D-C5), a second trainer (`environments/shared/train_behaviors.py`) with its own recipe dialect, 66 behavior TOMLs (11 templates × 6 species) plus 8 trex pilot TOMLs, a certificate outside `GATE_KINDS`, a checkpoint identity keyed on source-file hashes, a certified library and a notebook mode switch; §6.2 (D-D1..D-D10, G1..G4) folds them back into manifest nodes under `locomotion` | Not met in the canonical machinery: the pilots write no `gate_verdict.json`, are not reusable through `find_certified_ancestor`, and their Drive bundles are evaluation-only (D-D9). The original criteria (pilot from the C½ walker with frozen thresholds recorded; MJX fail-closed raise test; gate consulted-test; live-command SB3/MJX parity a Phase E criterion) transfer to PR-9..PR-13 with G4's first thresholds | ~1.5–2 weeks + one pilot run (as designed); the consolidation PRs are sized individually in the consolidation plan |
 | **E** | follow-on | Other species' follow leaves after preflight; cruise-window walk gate; manager re-keying; sweep re-keying | as needed | — |
+
+Two PRs landed 2026-09-16 outside the phase table: #542 flipped the
+notebook's `PUBLISH_CERTIFIED` default to `False` (the consolidation plan's
+PR-1: library publication required a training-origin stamp that a widened
+root handoff lacks, so a `WIDEN_FROM` session would have disconnected the
+Colab runtime right after the stance passed its gate), and #543 landed
+automatic trunk selection, D-A25 (`ancestors.select_trunk`, the notebook
+default `TRUNK_FROM = "auto"`, CLI `curriculum --trunk-from auto`;
+canonical chains no longer consult the certified library, and a widen
+session selects no trunk).
 
 Each PR follows the established process: adversarial pre-PR review with
 lensed finders, three refuters per finding, a completeness audit; ruff, mypy
@@ -937,7 +954,11 @@ Session order after Phase C follows the maintainer's priority (2026-09-13,
 decision D-C15): **stance → recovery → walking before hunting** — widen and
 re-panel the certified stance (both seeds), re-freeze one recovery
 resolution from the widened handoff, then the C½ walker; the hunting set-up
-comes after a walker is certified under the new interface.
+comes after a walker is certified under the new interface. As of
+2026-09-19 the walker exists (the C½ row) and the seed-42 widen is
+superseded by it; what remains of that order is the seed-44 widen +
+re-panel with the recovery node trained in the same session
+(`docs/NEXT_STEPS.md` session 1), and hunting stays after it.
 
 ---
 
@@ -974,8 +995,9 @@ Assumptions (state an objection and the plan changes):
 
 ### 6.1 Decisions taken during Phases A, B and C (the D-A, D-B and D-C series)
 
-Taken while implementing Phase A (2026-09-06 to 2026-09-12, D-A1–D-A24),
-Phase B (2026-09-13, D-B1–D-B17) and Phase C (2026-09-13/14, D-C1–D-C16);
+Taken while implementing Phase A (2026-09-06 to 2026-09-12, D-A1–D-A24;
+D-A25 landed 2026-09-16 in #543), Phase B (2026-09-13, D-B1–D-B17) and
+Phase C (2026-09-13/14, D-C1–D-C17);
 the pull requests, CHANGELOG and code comments cite them by number. Each
 D-B and D-C row states the decision as taken and as implemented; where the
 implementation deviated from the design's wording, the row says what the
@@ -1009,7 +1031,7 @@ A1–A10 above — which override the original wording where they conflict).
 | D-A22 | `gate_verdict.json` records the gate configuration it was judged under (kind, schema version, every threshold, and a `gate_sha256` over them) and reuse gains rule 7: a candidate judged under a different gate configuration is refused, naming the differing thresholds. Landed in #533 (the payload is D-B7's threshold projection, not literally every key). |
 | D-A23 | Trunks compose: reuse rule 1 prefers the candidate's stage directory and otherwise follows its `ancestors/<stage_id>/ancestor.json` to the `source_run_dir` it names (as recorded, else the sibling of the same name beside the candidate; else refused naming both paths), applying every rule at the source and requiring the source's handoff pair to hash to the record's `handoff` digests. At most 8 records are followed, a cycle is refused, and refusals on the followed path are prefixed with the hop taken. The result describes the source (`via` lists the followed runs; logged, never persisted), so a child's `parent_run_id` names the run that certified the node. Following is opt-in (`follow_records=True`): `train_curriculum --trunk-from` passes it (the trunk is another run by construction); the notebook loop does not, because it tries its own `RUN_DIR` first and reads `same_run` off the candidate — a followed record there would present the trunk's node as this run's own on a re-run — so the loop passes `follow_records=candidate is not RUN_DIR`: `TRUNK_FROM` composes, this run's own directory never follows (pinned). `ancestor.json`'s schema is unchanged; `source_run_dir` / `source_stage_dir` are written as absolute paths so a record made from a relative `--trunk-from` follows from any working directory. |
 | D-A24 | `curriculum --target BEHAVIOR` (a recipe label, a deliverable's stage id or a legacy number; `train_curriculum(target=)`) walks the target's chain (`chain_for`) and stops at the target, so a walk-only certified run exists on the command line as through the notebook's `BEHAVIOR`. A label or id resolves as the notebook's `BEHAVIOR` does; a legacy number as `--stage` does. Every node of an explicit target's chain must be advancing and the chain a prefix of the advancing ladder — a chain through a non-advancing node (`stand` on T-Rex / Compsognathus) or one that skips a ladder node (an edge rewired past it, which the loader accepts) is refused before any directory is written, naming the notebook, since the integer-keyed manager would judge the node after the gap against the skipped stage's thresholds — and `--retrain-from` must name a chain node. The default (the last advancing stage) walks the whole advancing ladder unchanged. The manager stays integer-keyed over the full ladder and is never advanced past the target. |
-| D-A25 | Automatic trunk selection (adopted 2026-09-17). `TRUNK_FROM = "auto"` (the notebook default) and `curriculum --trunk-from auto` call `ancestors.select_trunk`: every run beside the new one under `LOG_BASE/<species>/<algo>/`, newest first by directory name, is tried against the target's ancestors root-first (above `RETRAIN_FROM`; the target is never reused, D-A18) under the §4.2 rule with `follow_records=True`, each child chained onto the ancestor found for its parent; the run covering the most consecutive nodes wins, the newest on a tie — one coherent trunk, never one node from one run and its child from another (rule 4 refuses that anyway). The selection copies and writes nothing; the loop then reuses from the selected `TRUNK_DIR` exactly as from a hand-picked run, and the chain loop re-derives `TRUNK_DIR` from that selection (a storage-cell rerun resets nothing it relies on; a widen session uses no trunk). A run whose `provenance.json` or root `stage_config.json` names another species, algorithm or backend is refused before the rules run (the identity check a pinned trunk makes; the rules never read the algorithm), and no unreadable neighbour aborts the scan. It prints the choice, the replication each covered node rests on (informative: a provisional ancestor is reused and labelled, never refused — §4.5 makes replication provenance, not a gate), the refused runs with the rule that refused them (the first 20; the selection holds every run scanned), and any run whose root passed under an older policy interface that the widen gate can bridge (a `WIDEN_FROM` candidate, D-C13/D-C17). A `WIDEN_FROM` session selects nothing: its widened root is judged in the new run and no earlier checkpoint descends from it. The certified library's recommendation (PRs #540/#541) no longer feeds canonical chains: it read a separate store none of the certified runs had been published into, refused a single-seed stance as provisional under trex's two-seed publication bar, and its publish step disconnected the runtime on a widened root. |
+| D-A25 | Automatic trunk selection (landed 2026-09-16 in #543). `TRUNK_FROM = "auto"` (the notebook default) and `curriculum --trunk-from auto` call `ancestors.select_trunk`: every run beside the new one under `LOG_BASE/<species>/<algo>/`, newest first by directory name, is tried against the target's ancestors root-first (above `RETRAIN_FROM`; the target is never reused, D-A18) under the §4.2 rule with `follow_records=True`, each child chained onto the ancestor found for its parent; the run covering the most consecutive nodes wins, the newest on a tie — one coherent trunk, never one node from one run and its child from another (rule 4 refuses that anyway). The selection copies and writes nothing; the loop then reuses from the selected `TRUNK_DIR` exactly as from a hand-picked run, and the chain loop re-derives `TRUNK_DIR` from that selection (a storage-cell rerun resets nothing it relies on; a widen session uses no trunk). A run whose `provenance.json` or root `stage_config.json` names another species, algorithm or backend is refused before the rules run (the identity check a pinned trunk makes; the rules never read the algorithm), and no unreadable neighbour aborts the scan. It prints the choice, the replication each covered node rests on (informative: a provisional ancestor is reused and labelled, never refused — §4.5 makes replication provenance, not a gate), the refused runs with the rule that refused them (the first 20; the selection holds every run scanned), and any run whose root passed under an older policy interface that the widen gate can bridge (a `WIDEN_FROM` candidate, D-C13/D-C17). A `WIDEN_FROM` session selects nothing: its widened root is judged in the new run and no earlier checkpoint descends from it. The certified library's recommendation (PRs #540/#541) no longer feeds canonical chains: it read a separate store none of the certified runs had been published into, refused a single-seed stance as provisional under trex's two-seed publication bar, and its publish step disconnected the runtime on a widened root. |
 | D-B1 | The declared hunting panel is n = 30 (`min_eval_episodes = 30`), matching every existing panel; the coupled knobs (the notebook's selected panel, the provenance `evaluation_episodes`, `train_base`'s velocity episodes, the Ray Tune worker) are untouched and `test_trex_behavior_gates_on_task_success` pins the coupling. n was not sized up, so the bar separates ≥ 0.67 from 0.5, not 0.45 from 0.60. |
 | D-B2 | `min_success_lcb = 0.5` (20/30 needed, LCB 0.5006; 19/30 → 0.4669 fails). PROVISIONAL: frozen before any Phase-B pilot on the committed 2026-03 row alone (29/30 → 0.8514, a recomputation from a rounded mean with no per-episode evidence), to be re-frozen from the first pilot's `evaluation_selected.csv`; the TOML comment, §4.4, KNOWN_ISSUES and the catalog say so. A verdict minted under the provisional bar is re-judged, never retrained, when the bar moves (D-B7/D-B8). |
 | D-B3 | `required_consecutive` is an ALLOWED, not required, key of `task_success/v1`: scheduler hysteresis for the in-training manager only, in the digest like every advancing kind's copy of it. The certifying verdict is one post-stage panel judged once; re-running a deterministic panel is not replication. |
@@ -1031,7 +1053,7 @@ A1–A10 above — which override the original wording where they conflict).
 | D-C2 | The two compsognathus recovery calibrations are RESTAMPED (plant identity + task hash + a `restamp_history` entry) by `scripts/restamp_recovery_calibration.py`, not re-measured: fixed-command nulls never read the observation and the reset draw stream is pinned by the golden fixture (`tests/fixtures/phase_c_reset_golden.json`). The `profile_sha256` moves, so every pre-Phase-C compsognathus recovery freeze must be re-frozen (RECOVERY_CALIBRATION.md, CHANGELOG, note 12; amendment A10). |
 | D-C3 | The six command kwargs (`command_mode`, `command_speed_range`, `command_lateral_range`, `command_yaw_rate_max`, `command_switch_interval`, `command_switch_jitter`) land on `BaseDinoEnv` / `MJXEnvConfig` now with inert defaults. As amended (A1): while the effective `command_mode == "none"` the six keys are carved out of the task-fingerprint env section for EVERY species (the compsognathus perturbation carve-out's pattern), so off-configs keep their pre-Phase-C env encoding, a stage's `task_sha256` moves only through the plant's `policy_interface_sha256`, and `test_compsognathus_task_compatibility` stays green. |
 | D-C4 | A non-zero plant-contract probe: `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` is injected on both backends (`env._command` in the SB3 probe, `command=` in the MJX probe) so SB3/MJX parity is non-vacuous on the new slot; SB3-only species keep `backend_observation_equal = None`. |
-| D-C5 | The per-episode command comes from a `BaseDinoEnv._draw_episode_command()` hook called once in `reset()` after the push block and before `_get_obs()`; it draws nothing under `"none"`, and Phase D replaces the hook body, never `reset()`. |
+| D-C5 | The per-episode command comes from a `BaseDinoEnv._draw_episode_command()` hook called once in `reset()` after the push block and before `_get_obs()`; it draws nothing under `"none"`, and Phase D replaces the hook body, never `reset()`. (As found 2026-09-17: the #540/#541 pilots bypass this hook — their env classes refuse `command_mode != "none"` on `BaseDinoEnv` and assign `self._command` directly after `super().reset()`; decision D-D1 folds them back through it, PR-9.) |
 | D-C6 | No Box bounds change (stays `(-inf, inf)` float32) and no `observation_schema` rename. |
 | D-C7 | SB3 also refuses `command_mode != "none"` in Phase C (`validate_command_mode` raises the "reserved for … Phase D" text in `BaseDinoEnv.__init__`); MJX refuses every live mode in `canonicalize_env_kwargs` and `MJXDinoEnv.__init__` until an MJX command path lands (A7); an unknown mode is refused on every backend naming the valid set. |
 | D-C8 | Widened checkpoints record the eight `config.WIDEN_LINEAGE_KEYS` in the run block (never the `LOAD_LINEAGE_KEYS` — a widened node is a root; `ancestors._check_chain` refuses a root that entered from a parent and the audit binds `parent_run_id` to an `ancestors/` record) and re-stamp the current plant identity and the stage's CURRENT task fingerprint on BOTH artifacts, with the parent hashes also in the archive's `mesozoic_widen_lineage` attribute. |
@@ -1040,10 +1062,45 @@ A1–A10 above — which override the original wording where they conflict).
 | D-C11 | SUPERSEDED by A1/A9: the task payload carries a `command` section only when a command manifest is passed (`command_manifest: Mapping \| None = None` on `compute_task_fingerprint` / `derive_stage_task_fingerprint`; both backends expose `command_manifest() -> None`); `"command"` is still added to the differing-sections tuple and the v1 valve list; the schema string stays `mesozoic.task-fingerprint/v2`. |
 | D-C12 | `num_timesteps` is preserved on widen (recorded in `widen_report.json`). |
 | D-C13 | Notebook knob `WIDEN_FROM` (configuration cell; a run id under `LOG_BASE/<species>/<algo>/` or an absolute run directory) plus ONE widen cell after the RESOLVE cell, which widens the parent's certified ROOT handoff into `RUN_DIR`'s root stage directory (refusing an occupied target, this run's own directory, a parent without `provenance.json`, and a parent of another species / algorithm / backend) and trains nothing; the chain loop then refuses the verdict-less directory and JUDGES its `<stage_label>_final.*` pair. Never via `RUN_ID` pointing at the old run — for a pre-Phase-C run the storage cell's `initialize_result_bundle` refuses the directory first (the recorded `plant_identity` is not this checkout's), and for a same-plant run the chain loop raises "mint a fresh RUN_ID" on a refused verdict. The cell imports every name it uses (it runs before the infra cell; A14a), refuses a parent stage without a `stage_config.json` or a recorded run seed before the tool runs, and its `SEED` refusal names the remedy (correct `SEED`, restart the runtime so a fresh `RUN_ID` is minted — the storage cell will not re-mint the directory under another seed). |
-| D-C14 | Both certified stance parents (`20260810_145546` seed 42, `20260815_205206` seed 44) are widened and re-paneled in two sessions so trex stance reads `2 runs of 2 seeds` instead of `1 run of 2 seeds; provisional` (replicates need distinct `run.seed` values, which the copied run blocks provide, and the same `task_sha256`, which only widened siblings share); each session sets `SEED` to its parent's seed — the widen cell refuses `SEED != ` the parent's recorded `run.seed`, because the minted provenance publishes `training_seed = SEED` (A14b). **As found at implementation (2026-09-14):** both parents are policy-interface r11 archives — trex r11 → r12 (commit `8795e28`, 2026-08-16, fingerprint-only: `observation_dim` 61 on both sides) landed after they trained, and an archive's identity is stamped at training time — and `widen_checkpoint`'s default bound is one revision, so it refuses them at r13 (`policy_interface_revision: parent=11, current=13 (gap 2 exceeds max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2 …)`; `--allow-legacy-plant` covers only an archive with no identity). Remedy, D-C17: the gate takes a bounded gap — both sessions set `WIDEN_MAX_REVISION_GAP = 2` (the CLI's `--max-revision-gap 2`), under which every other gate field is still checked and the report records `revision_gap` 2; the r12 stance PASSes of 2026-08-16..18 widen under the default bound but are not the certified parents (KNOWN_ISSUES, the Phase C entry). |
+| D-C14 | Both certified stance parents (`20260810_145546` seed 42, `20260815_205206` seed 44) are widened and re-paneled in two sessions so trex stance reads `2 runs of 2 seeds` instead of `1 run of 2 seeds; provisional` (replicates need distinct `run.seed` values, which the copied run blocks provide, and the same `task_sha256`, which only widened siblings share); each session sets `SEED` to its parent's seed — the widen cell refuses `SEED != ` the parent's recorded `run.seed`, because the minted provenance publishes `training_seed = SEED` (A14b). **As found at implementation (2026-09-14):** both parents are policy-interface r11 archives — trex r11 → r12 (commit `8795e28`, 2026-08-16, fingerprint-only: `observation_dim` 61 on both sides) landed after they trained, and an archive's identity is stamped at training time — and `widen_checkpoint`'s default bound is one revision, so it refuses them at r13 (`policy_interface_revision: parent=11, current=13 (gap 2 exceeds max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2 …)`; `--allow-legacy-plant` covers only an archive with no identity). Remedy, D-C17: the gate takes a bounded gap — both sessions set `WIDEN_MAX_REVISION_GAP = 2` (the CLI's `--max-revision-gap 2`), under which every other gate field is still checked and the report records `revision_gap` 2; the r12 stance PASSes of 2026-08-16..18 widen under the default bound but are not the certified parents (KNOWN_ISSUES, the Phase C entry). **Status 2026-09-19:** seed 42 is certified at r13 by the fresh run `20260914_123816` (stance and locomotion PASS, selected by `TRUNK_FROM = "auto"`), which supersedes the Session 1 widen of `20260810_145546`; only the seed-44 widen of `20260815_205206` (`WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44`) is still owed for the two-seed bar. Seed 43 (`20260915_160239`, a fresh r13 stance) failed the duty rail (mean 0.0323, UCB 0.0350 against 0.02). No widen session has run yet. |
 | D-C15 | Session order follows the maintainer's priority: stance (widen + re-panel) → recovery freeze re-roll → walk (C½); hunting later. |
 | D-C16 | `validate_mjx_environment_plant` gains an observation-width check against the plant identity (`_deterministic_probe_data` imported lazily inside it, A8). |
 | D-C17 | The widen gate takes a bounded revision gap (adopted 2026-09-14, from the PR-C3 review): `widen_checkpoint(..., max_revision_gap: int = 1)`, the CLI's `--max-revision-gap N` and the notebook's `WIDEN_MAX_REVISION_GAP` (threaded into the widen cell's call) admit a parent `1 <= current - parent.policy_interface_revision <= N` revisions behind; the default stays 1 (fail closed: the Phase C bump alone). Every other field is checked whatever the bound — same species, `physics_sha256`, `nq` / `nv` / `nu`, `action_dim`, `observation_dim + COMMAND_WIDTH == current` — so only fingerprint-only intermediate bumps can be crossed; a parent further behind than N is refused with both revisions, the measured gap, the bound and the flag named. `widen_report.json` records `revision_gap` / `max_revision_gap`, the archive's `mesozoic_widen_lineage` carries `revision_gap`, and the run block's `widened_from_policy_interface_revision` names the parent's revision. Opting in asserts, from `plant_versions.toml`'s numbered notes, that the intermediate bumps changed nothing the widening cannot bridge — for trex r11 → r13, note 11 recorded the perturbation engine and note 12 appended the command segment. The two r11 stance parents widen under `WIDEN_MAX_REVISION_GAP = 2` (WS-C4 Sessions 1 and the seed-44 repeat); a hand re-stamp is never the path. |
+
+### 6.2 Decisions taken at the 2026-09-17 consolidation review (the D-D and G series)
+
+Taken by the maintainer on 2026-09-17 at the review of the direction/terrain
+pilots (#540/#541) against this design; the review's working labels D1..D12
+map one-to-one onto D-D1..D-D12, and nothing in §6 or §6.1 is renumbered.
+The sequence of consolidation PRs each row unblocks — fifteen in all, with
+sizes, per-PR file lists and acceptance tests — is
+`docs/CONSOLIDATION_PLAN_2026_09.md` (§3 the sequence, §6 and §7 the same
+decisions with the questions they answered). Of that sequence PR-1 (#542)
+and the auto-trunk PR (#543) landed 2026-09-16, PR-2 is the 2026-09-19
+documentation pass that records these rows, and **PR-3..PR-15 are on hold
+until the maintainer has reviewed that plan: no consolidation code moves
+before then.** Training is not on hold (G3): the walker sessions in
+`docs/NEXT_STEPS.md` run on the current notebook in parallel. D-D11 and
+D-D12 are recommended, not yet confirmed.
+
+| # | Decision |
+|---|---|
+| D-D1 | Direction-following and terrain traversal are ordinary manifest nodes under `locomotion` (this plan's Phase D shape: stage TOMLs, registered gate kinds, reuse through `find_certified_ancestor`), not a standalone pipeline. Consequence accepted: a follow/terrain node needs a certified locomotion ancestor at the current policy interface (r13 for trex, each other species at its own revision) — trex has one (`20260914_123816`); the other five species get theirs from the walker sessions (G3); the manual single-node cell is the escape hatch until then. Unblocks PR-9 to PR-15. |
+| D-D2 | One `command_config: DirectionCommandConfig \| None` kwarg replaces the five numeric reserved kwargs (`command_speed_range`, `command_lateral_range`, `command_yaw_rate_max`, `command_switch_interval`, `command_switch_jitter` — none has a reader anywhere, and the pilots' dataclass is already validated and JSON-able); the task-fingerprint carve-out is extended so no canonical `task_sha256` moves while `command_mode` is `"none"`. Amends D-C3. Unblocks PR-9. |
+| D-D3 | Command-slice normalisation follows invariant 8 (§8: reseed to mean 0 / variance 1, statistics keep updating); the pilots' `BehaviorVecNormalize` passthrough subclass (a pickled class in every sidecar) is deleted; #540/#541-trained policies saw different inputs and are not continuations. Unblocks PR-8 and PR-10. |
+| D-D4 | Automatic parent selection is kept and is `ancestors.select_trunk` (D-A25, landed as #543 before PR-4/PR-5 delete the library trio, so the capability never lapses); the certified library is deleted outright and no recommendation pointer survives. Unblocks PR-4 and PR-5. |
+| D-D5 | Four base stage TOMLs per species (`follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain`, and the existing `locomotion` as the `extends` parent) with a ~20-line `extends` key in `load_stage_config`; the terrain templates become a `terrain_families` list inside `difficult_terrain`; single-template runs are documented `[env]` overrides, not files. Refined by G1: three new files per species, `follow_direction_speed` folded into `follow_direction`. Unblocks PR-11 and PR-12. |
+| D-D6 | Honest gate name first: the pilots run `none/v1` (recorded, not enforced); then the certificate's per-episode statistic is registered as `terrain_command/v1` with one shared threshold block (first values from G4). This plan's `command_tracking/v1` (§4.6: per-event settle/dwell, the worst-of-heading-bins floor, the paired null against the command-blind walker) is a later second kind — new work outside the sequence; no implementation of it exists anywhere. Unblocks PR-13. |
+| D-D7 | Notebook depth: only the `train_stage` wrapper over `train_base.train` now (PR-14; the §4.7 AST pins on the chain loop stay); whether to move the chain loop / widen / resume cells into a package module is decided after PR-14 has settled. Fixes PR-14's scope. |
+| D-D8 | No interim behaviors notebook; the `COMMAND_TERRAIN_BEHAVIOR` mode switch (19 code cells at 22c1fc8) is tolerated until PR-12 deletes it — #542 already removed the dangerous default. Unblocks PR-12. |
+| D-D9 | The #540/#541 behavior bundles on Drive are evaluation-only; none is carried forward as a training parent (their checkpoint identity hashes source files, so any edit to `behavior_env.py` strands exact resume anyway). Unblocks PR-6, PR-7 and PR-9, and is PR-12's acceptance basis. |
+| D-D10 | Terrain stays an opt-in env subclass; no r14 interface bump to move the model swap into `reset()` (the reset source is fingerprinted; the queued height-channel removal stays queued, D3). Unblocks PR-7 and PR-9. |
+| D-D11 | Recommended, not yet confirmed: CLI runs may record stage duration and seed model construction like the notebook does (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line). PR-14. |
+| D-D12 | Recommended, not yet confirmed: the dead `lateral_speed_scale` field (it always divides a zero) is dropped when the TOMLs are rewritten. PR-11 / PR-12. |
+| G1 | Chain shape `walk → follow_direction` (the full command set on flat ground) `→ follow_direction_difficult_terrain` (the target deliverable: every species follows a direction on difficult terrain); a commands-free `difficult_terrain` node stays as an optional diagnostic sibling; the recipe label `follow` resolves to the deepest deliverable; `follow_direction_speed` is folded into `follow_direction` (this supersedes the `follow_direction_speed` node in §4.1's manifest sketch and assumption A1); three new stage files per species; the final node is SB3-only (MJX fails closed on live commands and has no terrain). Shapes PR-11's node set. |
+| G2 | Command set = heading, speed (half to full cruise), stops and restarts, switching every few seconds — the pilots' combined recipe: `follow_direction` carries the full set from the start (`command_config` with `speed_range = [0.5, 1.0]` of the cruise speed) and `follow_direction_difficult_terrain` inherits it. PR-11. |
+| G3 | Walker sessions start now on the current notebook, trex first (its r13 chain `20260914_123816` is selected automatically under `TRUNK_FROM = "auto"`), the other five species one at a time, in parallel with the consolidation PRs; the sessions are `docs/NEXT_STEPS.md` §3, and every consolidation PR keeps the chain loop, `TRUNK_FROM`, `WIDEN_FROM`, `RETRAIN_FROM` and the resume cell working so those sessions run on whatever `main` is at the time. Changes nothing in the PR order. |
+| G4 | The first `terrain_command/v1` gate adopts the pilots' certificate thresholds (20 episodes per terrain family, 20 s minimum horizon, survival LCB 0.80, success LCB 0.60, tracking and settle fractions 0.60; today `configs/behavior_certification.toml`), carried once into PR-13's `[curriculum]` block — never 66 copies — and tightened after the first certified species; a tightening is a gate-digest change (rule 7), so a node certified under the first values is re-judged, not silently reused. PR-13. |
 
 ---
 
@@ -1056,12 +1113,23 @@ A1–A10 above — which override the original wording where they conflict).
 - **The interface bump invalidates every checkpoint for warm-start.**
   Mitigation: D3 — once, early, with the widening tool and recorded
   lineage; the re-panel is budgeted as a real roll with a retrain fallback.
-- **No certified walking parent exists yet**: the 20260821 locomotion leg
-  was interrupted at 5.49M of 8M with 0/109 gate passes at 0.55 m/s
-  (`docs/reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md`). The follow
-  leaf cannot branch until a walker certifies under the new interface, which
-  is why Phase C½ (the locomotion re-run from the widened checkpoint, with
-  its own failure branch) sits between the bump and the leaf.
+- **The certified walker exists; the remaining trunk risk is the stance
+  two-seed bar.** The 20260821 locomotion leg was interrupted at 5.49M of
+  8M with 0/109 gate passes at 0.55 m/s
+  (`docs/reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md`); the
+  September run `20260914_123816` (a fresh r13 stance, seed 42, then
+  locomotion 8M at 1.07 m/s over 1000-step episodes, `reward_and_length/v1`
+  PASS) closed Phase C½ and is what `TRUNK_FROM = "auto"` selects, so
+  the follow leaf can branch. What remains: trex stance declares
+  `certification_seeds = 2` and only seed 42 certifies at r13 — seed 43
+  (`20260915_160239`) passed reward and full horizon but failed the
+  unsupported-duty rail (mean 0.0323, UCB 0.0350 against 0.02), and seed
+  44 exists only as the r11 parent `20260815_205206`, whose widen and
+  re-panel (`WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44`; about 1 h) is owed.
+  Until a second seed certifies, every trex deliverable publishes as
+  `1 run of 2 seeds; provisional`. A failed panel is a measured deficit —
+  re-rolling it does not help, another seed does — so the fallback is a
+  fresh r13 stance at `SEED = 45` (about 13 h).
 - **LCB gates change the meaning of thresholds** (20/30, not 15/30, for
   0.5). Mitigation: freeze thresholds attainable-not-aspirational from the
   first pilot, as recovery did.
@@ -1137,8 +1205,9 @@ A1–A10 above — which override the original wording where they conflict).
 - **SS1** (seed multiplicity): resolved by §4.5. Landed 2026-09-13 in the
   seed-replication PR #535 (WS-B4); the review carries its
   Status line. Trex stance publishes at 1 of 2 seeds — provisional — until
-  the seed-44 run is re-backfilled under D-A22 and the certified run is
-  republished with it present.
+  the seed-44 parent `20260815_205206` is widened and re-paneled under r13
+  (the r11 verdicts cannot be re-backfilled into reuse; `docs/KNOWN_ISSUES.md`,
+  the Phase C entry).
 - **DU1's open question** (SAC warm-up in the notebook): closed by §4.7.
 - **ROADMAP "Turning and steering"** (`docs/ROADMAP.md:253`) is the
   follow-direction leaf; **"Hierarchical RL architecture"** (`:320`) and
@@ -1156,6 +1225,17 @@ A1–A10 above — which override the original wording where they conflict).
   already pins a 0.0 max |padded column| and an action delta ≤ 1e-6 over a
   seeded rollout; the panel itself is verified by the WS-C4 re-panel of both
   stance parents, owed: `investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md`.)
+  Still unanswered on 2026-09-19: no widen session has run; the seed-44
+  session answers it (`docs/NEXT_STEPS.md` session 1, `WIDEN_FROM =
+  "20260815_205206"`; the seed-42 re-panel is no longer needed, since
+  seed 42 certified from scratch at r13 in `20260914_123816`).
+- Which direction/terrain thresholds survive contact with a certified
+  species? G4 adopts the pilots' certificate thresholds (20 episodes per
+  terrain family, 20 s minimum horizon, survival LCB 0.80, success LCB
+  0.60, tracking and settle fractions 0.60) for the first
+  `terrain_command/v1` gate and tightens after the first certified species;
+  a tightening moves the gate digest (rule 7), so nodes certified under the
+  first values are re-judged, never silently reused.
 - What tracking tolerances and settle/dwell windows does the walker-derived
   follower reach at 3M steps? (Frozen from the Phase D pilot.)
 - Does the command-blind walker's paired null show forgetting of straight
@@ -1193,8 +1273,10 @@ maintainer log-tree actions — re-backfill verdicts with `--force`, republish
 stance bundles with the panel role. The log-tree actions changed shape under
 Phase C: for every pre-Phase-C run the re-backfill and the republish are
 dead (KNOWN_ISSUES), and their replacement is widening both stance parents
-into new runs and re-paneling them there (WS-C4 Sessions 1 and the seed-44
-repeat), whose bundles carry the `certification_panel` role from the start;
+into new runs and re-paneling them there (WS-C4 Session 1 and the seed-44
+repeat — as of 2026-09-19 only the seed-44 repeat is still needed, seed 42
+having certified from scratch at r13 in `20260914_123816`), whose bundles
+carry the `certification_panel` role from the start;
 the pre-Phase-C directories stay on the log tree as history. Both certified
 parents are r11 archives, two revisions behind r13, so those sessions set
 `WIDEN_MAX_REVISION_GAP = 2` (D-C17: the gate's default bound of 1 refuses
