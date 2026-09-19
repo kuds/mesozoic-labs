@@ -29,6 +29,7 @@ from environments.shared.plant_contract import (
     validate_recorded_identity,
     write_plant_identity,
 )
+from environments.shared.policy_loading import load_sb3_model
 
 logger = logging.getLogger(__name__)
 
@@ -67,18 +68,27 @@ def _load_and_validate_promotion_artifacts(
     algorithm: str,
     current_plant: PlantIdentity,
     allow_legacy_plant: bool,
+    hyperparameters: "dict[str, Any] | None" = None,
 ) -> dict[Path, Any]:
-    """Deserialize, validate, and retag model/VecNormalize promotion inputs."""
-    from stable_baselines3 import PPO, SAC
+    """Deserialize, validate, and retag model/VecNormalize promotion inputs.
+
+    *hyperparameters* is the promoted trial's sampled configuration: its
+    schedule members (``learning_rate`` with ``learning_rate_end``,
+    ``clip_range`` with ``clip_range_end``) are re-stated over the archive
+    through :func:`load_sb3_model`, so the promoted copy records the
+    schedules the trial trained under as picklable classes rather than the
+    trial archive's cloudpickled closures or an inference placeholder.
+    """
     from stable_baselines3.common.save_util import load_from_pkl
 
+    from environments.shared.curriculum.schedules import schedule_members_from_hyperparameters
     from environments.shared.plant_contract import attach_plant_identity, validate_model_plant
 
-    alg_cls = SAC if algorithm == "sac" else PPO
+    schedule_kwargs = schedule_members_from_hyperparameters(algorithm, hyperparameters)
     loaded: dict[Path, Any] = {}
     for source in source_files:
         if source.suffix == ".zip":
-            artifact = alg_cls.load(str(source), device="cpu")
+            artifact = load_sb3_model(str(source), algorithm=algorithm, device="cpu", **schedule_kwargs)
         elif source.suffix == ".pkl":
             # VecNormalize.load() requires a live VecEnv. Its implementation
             # first unpickles the same object and then attaches that env, so
@@ -615,7 +625,7 @@ def _quick_rank_trials(
             )
             ev.training = False
             ev.norm_reward = False
-        m = alg_cls.load(model_dir, env=ev)
+        m = load_sb3_model(model_dir, algorithm=alg_cls, env=ev)
         validate_model_plant(
             m,
             current_plant,
@@ -772,7 +782,7 @@ def evaluate_trials_parallel(
             eval_env.training = False
             eval_env.norm_reward = False
 
-        model = alg_cls.load(model_path, env=eval_env)
+        model = load_sb3_model(model_path, algorithm=alg_cls, env=eval_env)
         validate_model_plant(
             model,
             current_plant,
@@ -928,6 +938,7 @@ def export_best_trial(
             algorithm=algorithm,
             current_plant=current_plant,
             allow_legacy_plant=allow_legacy_plant,
+            hyperparameters={k: v for k, v in best_result.config.items() if not k.startswith("_")},
         )
 
     # Save config JSON

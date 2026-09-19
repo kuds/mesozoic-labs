@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .plant_contract import PlantIdentity
+from .policy_loading import load_sb3_model
 from .stage_manifest import stage_label
 
 
@@ -504,7 +505,7 @@ def evaluate(
 
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     try:
-        model = alg_cls.load(model_path, env=vec_env)
+        model = load_sb3_model(model_path, algorithm=alg_cls, env=vec_env)
         validate_model_plant(
             model,
             plant_identity,

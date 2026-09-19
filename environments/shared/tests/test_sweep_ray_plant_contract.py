@@ -34,7 +34,7 @@ def _install_fake_promotion_loaders(monkeypatch, current: PlantIdentity) -> dict
 
     class FakeAlgorithm:
         @classmethod
-        def load(cls, _path, device="auto"):
+        def load(cls, _path, env=None, device="auto", **_load_kwargs):
             assert device == "cpu"
             return FakeArtifact(identities["model"], b"model")
 

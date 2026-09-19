@@ -99,7 +99,7 @@ class _StubModel:
     """Stands in for a loaded PPO so the loader's sidecar branches run without a checkpoint."""
 
     @classmethod
-    def load(cls, path, device):  # noqa: ARG003 - signature matches PPO.load
+    def load(cls, path, device=None, **kwargs):  # noqa: ARG003 - signature matches PPO.load (custom_objects included)
         return cls()
 
 

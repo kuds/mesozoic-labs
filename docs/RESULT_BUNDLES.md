@@ -145,7 +145,10 @@ no reader consumes. The same parent digests sit in the archive's
 `mesozoic_widen_lineage` attribute; both artifacts are re-stamped with the
 current plant identity and the stage's current task fingerprint (the
 parent's `mesozoic_task_lineage`, when present, is kept). `widen_report.json`
-beside `stage_config.json` (`mesozoic.widen-report/v1`) records the parent
+beside `stage_config.json` (`mesozoic.widen-report/v1`; since 2026-09-19 also
+`schedule_members_restated`, the parent's cloudpickled schedule members the
+tool re-stated from its recorded hyperparameters so the widened archive
+carries no interpreter-specific bytecode) records the parent
 paths and digests, the from/to observation widths, the padded tensors and
 their columns, the inserted-at map (SAC critics), the optimizer members
 padded, the max |padded column| (0.0), the max action delta on zero and on

@@ -556,19 +556,26 @@ def _load_widened_archive(
     parent_obs: int,
     action_dim: int,
     new_dim: int,
+    custom_objects: "Mapping[str, Any] | None" = None,
 ) -> tuple[dict[str, Any], dict[str, Any], Any, dict[str, Any]]:
     """The parent archive read through SB3's serializer with its parameters widened.
 
     Returns ``(data, params, pytorch_variables, rewrite)`` ready for
     :func:`_save_archive`; *rewrite* names the padded tensors and columns,
     the inserted-at map, the optimizer members padded, ``num_timesteps``
-    and the widened shape of every padded tensor.
+    and the widened shape of every padded tensor. *custom_objects* replace
+    ``data`` members before they are deserialized (SB3's ``custom_objects``):
+    the parent's schedule members when they are cloudpickled bytecode, so
+    the widened archive carries none of the saving interpreter's code
+    (:func:`~environments.shared.policy_loading.schedule_custom_objects`).
     """
     from stable_baselines3.common.save_util import load_from_zip_file
 
     artifact = str(parent_zip)
     try:
-        data, params, pytorch_variables = load_from_zip_file(artifact, device="cpu")
+        data, params, pytorch_variables = load_from_zip_file(
+            artifact, device="cpu", custom_objects=dict(custom_objects) if custom_objects else None
+        )
     except Exception as exc:  # noqa: BLE001 - any serializer failure is a refusal, never a partial write
         raise WidenError(f"cannot read {artifact} through the SB3 serializer: {type(exc).__name__}: {exc}") from exc
     if not isinstance(data, dict) or not params:
@@ -598,6 +605,43 @@ def _load_widened_archive(
         "widened_shapes": new_shapes,
     }
     return data, params, pytorch_variables, rewrite
+
+
+def _parent_schedule_objects(parent: _ParentSource, algorithm: str) -> dict[str, Any]:
+    """The schedule members to stamp into the widened archive in place of the parent's cloudpickled ones.
+
+    Rebuilt from the parent stage's recorded ``"hyperparameters"`` block
+    (``stage_config.json``) through
+    :func:`~environments.shared.curriculum.schedules.schedule_members_from_hyperparameters`;
+    the explicit ``--model`` / ``--vecnorm`` form has no such block and gets
+    the inference defaults. Only members the archive stores as bytecode are
+    replaced (:func:`~environments.shared.policy_loading.schedule_custom_objects`).
+    """
+    from environments.shared.curriculum.schedules import schedule_members_from_hyperparameters
+    from environments.shared.policy_loading import inspect_sb3_archive, schedule_custom_objects
+
+    hyperparameters: Any = {}
+    if parent.stage_dir is not None:
+        record = _load_json(parent.stage_dir / "stage_config.json", what="stage_config.json")
+        hyperparameters = record.get("hyperparameters") if isinstance(record, Mapping) else {}
+    if not isinstance(hyperparameters, Mapping):
+        hyperparameters = {}
+    inspection = inspect_sb3_archive(parent.model_zip)
+    replacements = schedule_custom_objects(
+        inspection,
+        algorithm,
+        training_kwargs=schedule_members_from_hyperparameters(algorithm, hyperparameters),
+    )
+    if replacements:
+        logger.info(
+            "%s stores %s as bytecode compiled by Python %s; the widened archive re-states them from the parent's "
+            "recorded hyperparameters as %s",
+            parent.model_zip,
+            ", ".join(sorted(replacements)),
+            inspection.saved_python_text,
+            {key: repr(value) for key, value in sorted(replacements.items())},
+        )
+    return replacements
 
 
 def _save_archive(
@@ -705,12 +749,11 @@ def _verify(
 ) -> dict[str, Any]:
     """The self-verification pass (plan §4.6 pins; amendment A13b); read-only."""
     import torch
-    from stable_baselines3 import PPO, SAC
     from stable_baselines3.common.save_util import load_from_zip_file
 
     from environments.shared.config import build_env
     from environments.shared.plant_contract import validate_model_plant
-    from environments.shared.policy_loading import load_sb3_checkpoint
+    from environments.shared.policy_loading import load_sb3_checkpoint, load_sb3_model
 
     # (a) the padded columns are exactly zero — a weight property, pinned
     # exact.  Each width is asserted BEFORE the block is sliced: a slice past
@@ -745,8 +788,7 @@ def _verify(
                     raise WidenError(f"widened {member} state[{index}].{key} columns {columns} are not exactly zero")
 
     # (c) both widened artifacts validate against the current plant.
-    alg_cls = PPO if algorithm == "ppo" else SAC
-    parent_model = alg_cls.load(str(parent_zip), device="cpu")
+    parent_model = load_sb3_model(str(parent_zip), algorithm=algorithm, device="cpu")
     with open(parent_pkl, "rb") as handle:
         parent_norm = pickle.load(handle)
     model, normalizer, _ = load_sb3_checkpoint(
@@ -1056,13 +1098,19 @@ def widen_checkpoint(
 
     try:
         # The archive first: its padded-tensor names complete the lineage
-        # record stamped into it before it is written.
+        # record stamped into it before it is written. The parent's schedule
+        # members are re-stated from its recorded hyperparameters block (or
+        # inference defaults) whenever the archive stores them as bytecode:
+        # cloudpickled closures run only on the interpreter that saved them,
+        # and a widened archive must load on whatever image judges it.
+        schedule_objects = _parent_schedule_objects(parent, resolved_algorithm)
         data, params, pytorch_variables, rewrite = _load_widened_archive(
             parent.model_zip,
             algorithm=resolved_algorithm,
             parent_obs=parent_obs,
             action_dim=action_dim,
             new_dim=new_dim,
+            custom_objects=schedule_objects,
         )
         lineage["padded_tensors"] = list(rewrite["padded_tensors"])
         lineage["inserted_at"] = dict(rewrite["inserted_at"])
@@ -1179,6 +1227,11 @@ def widen_checkpoint(
             "num_timesteps": rewrite["num_timesteps"],
             "widened_at_commit": commit,
             "widened_by": widened_by,
+            # The parent's schedule members that were cloudpickled bytecode and
+            # were re-stated (from its recorded hyperparameters, or the inference
+            # defaults) so the widened archive carries none; empty when the
+            # parent stored them by reference.
+            "schedule_members_restated": {key: repr(value) for key, value in sorted(schedule_objects.items())},
             "versions": _library_versions(),
             **verification,
         }

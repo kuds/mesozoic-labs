@@ -31,7 +31,7 @@ class _StubModel:
     """Stands in for a loaded PPO so the tests exercise the vecnorm branch."""
 
     @classmethod
-    def load(cls, path, device):  # noqa: ARG003 - signature matches PPO.load
+    def load(cls, path, device=None, **kwargs):  # noqa: ARG003 - signature matches PPO.load (custom_objects included)
         return cls()
 
     def predict(self, obs, deterministic=True):  # noqa: ARG002

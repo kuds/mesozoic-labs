@@ -253,6 +253,63 @@ tolerance) remains the standing recommendation for the divergences above.
   compsognathus / compsognathus_robot recovery freeze made before Phase C is
   refused and must be re-frozen from the restamped profile
   (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
+- **MEDIUM (operational)** — **SB3 archives are bound to the interpreter that
+  saved them; only `policy_loading.load_sb3_model` opens one safely, and the
+  Colab image moves without notice.** SB3 stores a model's `learning_rate`,
+  `lr_schedule` and `clip_range` members through cloudpickle. A closure — the
+  `linear_schedule` every stage TOML with `learning_rate_end` produced before
+  2026-09-19, and SB3's own `constant_fn` lambdas before 2.7 — is pickled by
+  value with its code object, and `PPO.load` / `SAC.load` execute it while
+  rebuilding the optimizer (`_setup_model` → `lr_schedule(1)`). Bytecode
+  compiled by Python 3.12 run by 3.13, or the reverse, segfaults the process
+  with no Python traceback: reproduced both ways in the review container
+  with torch held constant at 2.14 (`faulthandler` places the crash in the
+  closure body, `train_base.py` `linear_schedule.<locals>.schedule`, called
+  from SB3's `FloatSchedule.__call__` inside `policies._build`), so torch is
+  not the cause the 2026-08-28 note
+  ([investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md)
+  §9, "Python 3.13 / torch 2.11") took it for. Merely unpickling the data
+  (what the widen tool's archive read does) does not crash; calling the
+  schedule does. **The incident:** Colab's L4 image moved from Python 3.12.13
+  / numpy 2.0.2 / jax 0.7.2 (the runs of 2026-09-14/15, `20260914_123816`
+  and `20260915_160239`) to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1
+  (2026-09-19), and both first attempts at NEXT_STEPS.md session 1 (runs
+  `20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`,
+  `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`,
+  `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`) died with
+  `AsyncIOLoopKernelRestarter: restarting kernel` right after the widen tool
+  wrote `robust_best_model.zip`, `robust_best_model_vecnorm.pkl`,
+  `stage1_final.zip` and `stage1_final_vecnorm.pkl` into `01_stance/models/`
+  and before `widen_report.json`, `plant_identity.json`,
+  `task_fingerprint.json` or `stage_config.json`: the self-verification's
+  first load of the r11 parent, saved under an earlier image, was a bare
+  `alg_cls.load`. The notebook's `PPO.load` preflight of the time ran in the
+  infrastructure cell, after the widen cell, on a throwaway model saved by
+  the same interpreter, so it protected nothing. **Fixed on 2026-09-19 (the
+  loader change; CHANGELOG "Fixed"):** every archive load in the repository
+  and both notebooks goes through `load_sb3_model`, which supplies the
+  schedule members through SB3's `custom_objects` instead of unpickling
+  them and refuses an archive whose other members carry another
+  interpreter's bytecode; `linear_schedule` / `cosine_schedule` are
+  picklable-by-reference classes, so archives saved from now on carry no
+  bytecode; the widen tool re-states a parent's schedules from its recorded
+  `hyperparameters` block; and the notebook's load preflight runs right
+  before the widen cell on the `WIDEN_FROM` parent's real handoff
+  (`test_policy_loading.py`, with fixture archives saved under 3.12 and
+  3.13). **What stays true and is why this entry stands:** every archive on
+  Drive trained before that date — every trex and compsognathus stage
+  checkpoint, both r11 stance parents and the compsognathus r1 parent
+  included — embeds its saving interpreter's bytecode in those three
+  members for good, so any path outside the loader (an ad-hoc `PPO.load` in
+  a notebook cell, the SB3 CLI, a third-party tool, an older checkout) still
+  dies on a foreign image with no traceback; a run's `provenance.json`
+  `python_version` names the interpreter its archives belong to, and the
+  image will move again. The two stray run directories `20260919_170528`
+  and `20260919_190251` hold only `provenance.json` and four unverified
+  model files whose archives re-pickled the parent's 3.12 bytecode under a
+  3.13 `system_info.txt`, with no report, identity or fingerprint; nothing
+  can reuse them (`select_trunk` lists them as refused) and they should be
+  deleted before session 1 is re-run.
 - **MEDIUM (operational)** — **run-level records go stale when a run is
   continued in a later session.** The certified r13 trex walker
   `20260914_123816` shows it: its run-level `summary.json`,

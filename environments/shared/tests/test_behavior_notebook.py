@@ -649,7 +649,8 @@ def test_dropdown_has_free_input_and_valid_json_annotations():
 
 def test_every_guarded_canonical_cell_is_inert_during_behaviors():
     guarded = [source for source in _code_cells() if source.startswith(CANONICAL_GUARD)]
-    assert len(guarded) == 12
+    # Twelve since #540/#541 plus the SB3 archive-load preflight cell (right before the widen cell).
+    assert len(guarded) == 13
     for source in guarded:
         namespace = {"COMMAND_TERRAIN_BEHAVIOR": True}
         exec(source, namespace)
@@ -725,8 +726,9 @@ def test_all_local_notebook_code_cells_route_a_behavior_without_canonical_artifa
     assert "RUN_DIR" not in namespace and "PLANT_IDENTITY" not in namespace
     assert not list(root.rglob("result_bundle.json"))
     assert not list(root.rglob("gate_verdict.json"))
-    Path(namespace["_preflight_zip"]).unlink()
-    Path(namespace["_preflight_zip"]).parent.rmdir()
+    # The SB3 archive-load preflight is a guarded canonical cell now (right before the widen cell), so a
+    # direction/terrain session never saves or loads a throwaway model.
+    assert "_preflight_archive" not in namespace
 
 
 @pytest.mark.parametrize(

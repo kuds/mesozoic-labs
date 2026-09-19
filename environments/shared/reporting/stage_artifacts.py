@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Mapping
 from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
+from ..policy_loading import load_sb3_model
 from . import bundles, csv_output, stage_layout, text_summaries
 
 if TYPE_CHECKING:
@@ -424,7 +425,7 @@ def _write_task_success_evidence(
             plant_identity=plant_identity,
         )
         try:
-            model = alg_cls.load(selected_path, env=eval_env)
+            model = load_sb3_model(selected_path, algorithm=alg_cls, env=eval_env)
             validate_model_plant(model, plant_identity, artifact=str(selected_zip), allow_legacy=allow_legacy_plant)
             load_vecnorm_stats(
                 selected_vecnorm,
@@ -1386,7 +1387,7 @@ def _record_stage_replays(
         else:
             selected_name, selected_path, selected_vecnorm = handoff
             logger.info("Stage %s selected checkpoint for replay: %s", stage, selected_name)
-            selected_model = alg_cls.load(selected_path)
+            selected_model = load_sb3_model(selected_path, algorithm=alg_cls)
             validate_model_plant(
                 selected_model,
                 plant_identity,
@@ -1412,7 +1413,7 @@ def _record_stage_replays(
             )
 
         if (Path(str(final_path) + ".zip")).exists():
-            final_model = alg_cls.load(str(final_path))
+            final_model = load_sb3_model(str(final_path), algorithm=alg_cls)
             validate_model_plant(
                 final_model,
                 plant_identity,

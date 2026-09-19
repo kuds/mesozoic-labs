@@ -591,6 +591,7 @@ def train_trial(config: dict[str, Any]) -> None:
         validate_model_plant,
         write_plant_identity,
     )
+    from environments.shared.policy_loading import load_sb3_model
     from environments.shared.species_registry import get_species_config
     from environments.shared.stage_manifest import load_stage_manifest
     from environments.shared.train_base import (
@@ -742,7 +743,7 @@ def train_trial(config: dict[str, Any]) -> None:
             ):
                 eval_env.training = False
                 eval_env.norm_reward = False
-            model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
+            model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
             validate_model_plant(
                 model,
                 plant_identity,
@@ -866,7 +867,7 @@ def train_trial(config: dict[str, Any]) -> None:
         evaluated_handoff = select_handoff_checkpoint(model_dir)
         if evaluated_handoff is not None:
             _handoff_name, handoff_stem, handoff_vecnorm = evaluated_handoff
-            eval_model = alg_cls.load(handoff_stem, env=eval_env)
+            eval_model = load_sb3_model(handoff_stem, algorithm=alg_cls, env=eval_env)
             validate_model_plant(
                 eval_model,
                 plant_identity,
@@ -880,7 +881,7 @@ def train_trial(config: dict[str, Any]) -> None:
                 allow_legacy_plant=allow_legacy_plant,
             )
         elif best_model_zip.exists():
-            eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+            eval_model = load_sb3_model(str(model_dir / "best_model"), algorithm=alg_cls, env=eval_env)
             validate_model_plant(
                 eval_model,
                 plant_identity,
