@@ -110,9 +110,11 @@ tolerance) remains the standing recommendation for the divergences above.
   interface revision is refused as a trunk, every `gate_resolution.json`
   frozen before it is stale, and the two recipes below (the D-A22 re-judge
   and the D-B16 republish) are DEAD for pre-Phase-C runs — the only path is
-  `widen_checkpoint` + `WIDEN_FROM` in a NEW run id; the two certified
-  stance parents are r11 archives, two revisions behind r13, and need
-  `WIDEN_MAX_REVISION_GAP = 2` (decision D-C17)** (BEHAVIOR_RECIPES_PLAN
+  `widen_checkpoint` + `WIDEN_FROM` in a NEW run id; the one certified
+  stance parent still to widen (`20260815_205206`, seed 44) is an r11
+  archive, two revisions behind r13, and needs `WIDEN_MAX_REVISION_GAP = 2`
+  (decision D-C17); seed 42 is already certified at r13 by
+  `20260914_123816`** (BEHAVIOR_RECIPES_PLAN
   §4.6, decisions D-C8–D-C14 and D-C17; PLANT_CONTRACT.md "Widening a
   checkpoint across a policy-interface bump"). Phase C appended a 3-dim command segment to every
   species' observation (`policy_interface_revision` trex 12 → 13, velociraptor
@@ -184,6 +186,18 @@ tolerance) remains the standing recommendation for the divergences above.
   perturbation engine entering the interface fingerprint; `observation_dim`
   stayed 61, physics r7 and `action_dim` 15 unchanged, no tensor moved) after
   both had trained, and an archive's identity is stamped at training time.
+  The 2026-09-17 Drive survey
+  ([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md))
+  adds two facts: neither r11 parent holds a `gate_verdict.json` in its
+  `stage1/` directory (the 2026-08 verdicts live only in the run-level
+  records), and widening does not need one — `widen_checkpoint` reads the
+  parent's `stage_config.json` run block, its handoff pair and the stamped
+  VecNormalize sidecar, and a parent verdict is optional (it must record
+  `passed = true` only if present), so no backfill precedes a widen; and
+  seed 42 no longer needs widening at all, because the fresh r13 run
+  `20260914_123816` certified its stance (and its locomotion) on
+  2026-09-15, which leaves the seed-44 parent `20260815_205206` as the one
+  remaining widen candidate.
   `widen_checkpoint`'s gate admits a parent at most `max_revision_gap`
   interface-only revisions behind (`identity_gate_errors`: `1 <= current -
   parent.policy_interface_revision <= max_revision_gap`; the default 1 is the
@@ -216,11 +230,16 @@ tolerance) remains the standing recommendation for the divergences above.
   (replicates are discovered among siblings judged under the SAME
   `task_sha256`, so the un-widened sibling does not count), and it reads
   `2 runs of 2 seeds` only once BOTH are widened and re-paneled in two
-  sessions, each with `SEED` set to its parent's seed (42, then 44). The
-  planned sessions, their exact knobs and the outcome table live in
+  sessions, each with `SEED` set to its parent's seed (42, then 44) —
+  since the 2026-09-17 survey the seed-42 slot is already filled by
+  `20260914_123816`, so one widen session (`SEED = 44`) closes the bar. That
+  remaining session and its exact knobs are session 1 of
+  [NEXT_STEPS.md](NEXT_STEPS.md) §3; the outcome table lives in
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
-  (a template until the maintainer runs them; its Sessions 1 and the seed-44
-  repeat set `WIDEN_MAX_REVISION_GAP = 2` and `SEED` per parent). Three neighbours: an
+  (a template until the maintainer runs it; its §6, appended 2026-09-19,
+  marks Session 1 (the seed-42 widen) and Session 2 superseded by
+  `20260914_123816`, and its seed-44 repeat sets `WIDEN_MAX_REVISION_GAP = 2`
+  and `SEED = 44`). Three neighbours: an
   in-flight Ray sweep experiment cannot be resumed under the new plant — the
   sweep notebook validates the recorded `plant_identity.json` of the sweep
   and experiment directories against the current identity on resume
@@ -234,6 +253,41 @@ tolerance) remains the standing recommendation for the divergences above.
   compsognathus / compsognathus_robot recovery freeze made before Phase C is
   refused and must be re-frozen from the restamped profile
   (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
+- **MEDIUM (operational)** — **run-level records go stale when a run is
+  continued in a later session.** The certified r13 trex walker
+  `20260914_123816` shows it: its run-level `summary.json`,
+  `provenance.json` and `artifact_manifest.json` were written 2026-09-15
+  02:08 UTC, after the stance verdict (judged 01:57 UTC), and the
+  locomotion verdict judged 11:39 UTC the same day was never folded in
+  (only `training_summary.txt` was refreshed), so the run-level records
+  under-report the run as stance-only. Nothing canonical breaks: reuse
+  reads the per-node files (`gate_verdict.json`, `task_fingerprint.json`,
+  `plant_identity.json`, `stage_config.json`), which are written the moment
+  a node is judged, so `TRUNK_FROM = "auto"` still selects the run and
+  reuses both nodes (2026-09-17 Drive survey,
+  [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md)).
+  Remedy for that run: re-run the notebook's bundle/summary cell
+  (`write_training_summary` + `save_run_bundle`) for it. Remedy in
+  general: the same operator step after every session that adds a node to
+  an existing run; consolidation PR-14's single storage path does not
+  change this ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
+- **LOW** — **trex stance two-seed bar: seed 43 failed the duty rail.** Trex
+  stance is the only node declaring `certification_seeds = 2`, and at r13
+  only seed 42 has certified (`20260914_123816`). The seed-43 replicate
+  `20260915_160239` (r13, 11M steps, 13h17m; training final eval
+  3209.7 ± 284.3, best eval 3335.1) passed the reward rail
+  (`min_avg_reward` 2100) and the full-horizon rail on its 40-episode
+  panel, and failed `stance_quality/v1` on unsupported duty: mean 0.0323 and
+  UCB 0.0350 against the 0.02 rail (`max_unsupported_duty`,
+  `max_unsupported_duty_ucb`); its provenance records `certified false,
+  provisional true, replication count 1`. A failed panel is a measured
+  deficit of the policy, not panel noise, so re-rolling the panel does not
+  help; another seed does. Cheapest path: widen the seed-44 r11 parent
+  `20260815_205206` (`WIDEN_FROM = "20260815_205206"`,
+  `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44` set before the storage cell
+  runs; re-panel about 1 h) — session 1 in [NEXT_STEPS.md](NEXT_STEPS.md)
+  §3. Fallback if that panel fails the same rail: a fresh r13 stance with
+  `SEED = 45` (about 13 h).
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -625,6 +679,37 @@ tolerance) remains the standing recommendation for the divergences above.
   bias before suspecting rewards; possible mitigations (smaller
   `log_std_init`, a smoothed mapping) are interface experiments and must be
   run in isolation. (Stage-1 basin investigation follow-up)
+- **MEDIUM** — **the direction/terrain pilots are a second pipeline
+  (#540/#541).** The 2026-09-17 review found that the pilots delivered new
+  content (a direction controller, a tracking reward, a heightfield terrain
+  generator, a replay recorder with terrain maps) beside every canonical
+  concept instead of through it: two behavior env classes that bypass the
+  reserved `BaseDinoEnv._draw_episode_command` hook and write
+  `self._command` directly; a second PPO trainer
+  (`environments/shared/train_behaviors.py`, one CPU env) with its own
+  recipe dialect; 66 behavior TOMLs under `configs/<species>/behaviors/`
+  (11 templates × 6 species) plus 8 under `configs/trex/behavior_pilots/`;
+  a second gate outside `GATE_KINDS` (`configs/behavior_certification.toml`,
+  writing `certification/certificate.json`, never a `gate_verdict.json`); a
+  checkpoint identity keyed on source-file hashes (any edit to
+  `behavior_env.py` strands exact resume); a certified library that
+  re-verifies what `find_certified_ancestor` verifies and recounts what
+  `discover_replicates` counts; and the notebook `COMMAND_TERRAIN_BEHAVIOR`
+  mode switch, referenced by 19 of the 22 code cells — about 7,000 lines of
+  modules, tests excluded. Pilot outputs
+  (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
+  (decision D-D9): none is reusable through `find_certified_ancestor` or
+  carried forward as a training parent. The fold-back — manifest nodes
+  under `locomotion`, the controller as the body of the reserved hook, one
+  generic opt-in terrain env subclass, a registered gate kind, the library
+  and the mode switch deleted — is
+  [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
+  PR-3..PR-15, **on hold** until the maintainer reviews that plan; PR-1
+  (#542) and the auto-trunk PR (#543) landed 2026-09-16. Until then
+  [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
+  operator guide, and with `PUBLISH_CERTIFIED = False` the pilots need
+  explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths
+  (`SOURCE_SELECTION = "auto"` finds no library entry).
 
 ## Sweeps / infrastructure
 
@@ -885,6 +970,21 @@ Still open:
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)
 - The four CI test jobs are near-identical — a matrix would halve the YAML.
+- **MEDIUM** — **the `test-sb3` CI job grew to 69 minutes at #541 (43 at
+  #539).** #540/#541 added their suites to the SB3 job's lists in
+  `.github/workflows/python-ci.yml` (the "Validate all-species direction
+  and terrain training" and "Run SB3 integration tests" steps), several of
+  which import no SB3 and already run in the `test` matrix, so every PR run
+  pays for them again. Remedy: consolidation PR-3
+  ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)): drop the
+  SB3-free suites from the SB3 lists, keep one real-PPO smoke per body of
+  work in the PR gate, run the full six-species / four-notebook-param set
+  only on a schedule or a `full-ci` label inside the same job (the
+  required-check name stays), and make the `walker` fixture in
+  `environments/shared/tests/test_behavior_species_training.py`
+  module-scoped (6 PPO builds instead of 18). Coverage `fail_under=70` may
+  need one re-baseline afterwards. On hold with the rest of the sequence;
+  it has no prerequisites and is first when the hold lifts.
 
 ## Open questions
 
