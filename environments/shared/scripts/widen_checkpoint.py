@@ -607,41 +607,54 @@ def _load_widened_archive(
     return data, params, pytorch_variables, rewrite
 
 
-def _parent_schedule_objects(parent: _ParentSource, algorithm: str) -> dict[str, Any]:
+def _parent_schedule_objects(
+    parent: _ParentSource, algorithm: str, current_hyperparameters: "Mapping[str, Any] | None"
+) -> "tuple[dict[str, Any], str | None]":
     """The schedule members to stamp into the widened archive in place of the parent's cloudpickled ones.
 
-    Rebuilt from the parent stage's recorded ``"hyperparameters"`` block
-    (``stage_config.json``) through
-    :func:`~environments.shared.curriculum.schedules.schedule_members_from_hyperparameters`;
-    the explicit ``--model`` / ``--vecnorm`` form has no such block and gets
-    the inference defaults. Only members the archive stores as bytecode are
-    replaced (:func:`~environments.shared.policy_loading.schedule_custom_objects`).
+    Returns ``(replacements, source)``. The values are rebuilt through
+    :func:`~environments.shared.curriculum.schedules.schedule_members_from_hyperparameters`
+    from the parent stage's recorded ``"hyperparameters"`` block
+    (``stage_config.json``; source ``"parent_stage_config"``) or, when the
+    parent records none (a stage saved before the block existed, or the
+    explicit ``--model`` / ``--vecnorm`` form), from *current_hyperparameters*,
+    the current stage config's algorithm block that every child of the
+    widened root trains under anyway (source ``"current_stage_config"``).
+    Only members the archive stores as bytecode are replaced
+    (:func:`~environments.shared.policy_loading.schedule_custom_objects`);
+    ``source`` is ``None`` when nothing is.
     """
     from environments.shared.curriculum.schedules import schedule_members_from_hyperparameters
     from environments.shared.policy_loading import inspect_sb3_archive, schedule_custom_objects
 
-    hyperparameters: Any = {}
+    recorded: Any = None
     if parent.stage_dir is not None:
         record = _load_json(parent.stage_dir / "stage_config.json", what="stage_config.json")
-        hyperparameters = record.get("hyperparameters") if isinstance(record, Mapping) else {}
-    if not isinstance(hyperparameters, Mapping):
-        hyperparameters = {}
+        recorded = record.get("hyperparameters") if isinstance(record, Mapping) else None
+    if isinstance(recorded, Mapping) and recorded:
+        block: Mapping[str, Any] = recorded
+        source = "parent_stage_config"
+    else:
+        block = current_hyperparameters or {}
+        source = "current_stage_config"
     inspection = inspect_sb3_archive(parent.model_zip)
     replacements = schedule_custom_objects(
         inspection,
         algorithm,
-        training_kwargs=schedule_members_from_hyperparameters(algorithm, hyperparameters),
+        training_kwargs=schedule_members_from_hyperparameters(algorithm, block),
     )
-    if replacements:
-        logger.info(
-            "%s stores %s as bytecode compiled by Python %s; the widened archive re-states them from the parent's "
-            "recorded hyperparameters as %s",
-            parent.model_zip,
-            ", ".join(sorted(replacements)),
-            inspection.saved_python_text,
-            {key: repr(value) for key, value in sorted(replacements.items())},
-        )
-    return replacements
+    if not replacements:
+        return {}, None
+    logger.info(
+        "%s stores %s as cloudpickled bytecode (saving Python: %s); the widened archive re-states them from the %s "
+        "as %s",
+        parent.model_zip,
+        ", ".join(sorted(replacements)),
+        inspection.saved_python_text,
+        "parent's recorded hyperparameters" if source == "parent_stage_config" else "current stage config",
+        {key: repr(value) for key, value in sorted(replacements.items())},
+    )
+    return replacements, source
 
 
 def _save_archive(
@@ -1103,7 +1116,9 @@ def widen_checkpoint(
         # inference defaults) whenever the archive stores them as bytecode:
         # cloudpickled closures run only on the interpreter that saved them,
         # and a widened archive must load on whatever image judges it.
-        schedule_objects = _parent_schedule_objects(parent, resolved_algorithm)
+        schedule_objects, schedule_source = _parent_schedule_objects(
+            parent, resolved_algorithm, stage_config.get(f"{resolved_algorithm}_kwargs")
+        )
         data, params, pytorch_variables, rewrite = _load_widened_archive(
             parent.model_zip,
             algorithm=resolved_algorithm,
@@ -1228,10 +1243,12 @@ def widen_checkpoint(
             "widened_at_commit": commit,
             "widened_by": widened_by,
             # The parent's schedule members that were cloudpickled bytecode and
-            # were re-stated (from its recorded hyperparameters, or the inference
-            # defaults) so the widened archive carries none; empty when the
-            # parent stored them by reference.
+            # were re-stated so the widened archive carries none (empty when the
+            # parent stored them by reference), and where the values came from:
+            # the parent's recorded hyperparameters block, else the current
+            # stage config's algorithm block.
             "schedule_members_restated": {key: repr(value) for key, value in sorted(schedule_objects.items())},
+            "schedule_members_source": schedule_source,
             "versions": _library_versions(),
             **verification,
         }

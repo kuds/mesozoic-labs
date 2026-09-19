@@ -1573,6 +1573,7 @@ def test_widening_a_closure_schedule_parent_yields_a_bytecode_free_archive(narro
     block = load_stage_config(SPECIES, STAGE)["ppo_kwargs"]
     expected_lr = LinearSchedule(block["learning_rate"], block["learning_rate_end"])
     restated = result.report["schedule_members_restated"]
+    assert result.report["schedule_members_source"] == "parent_stage_config"
     assert set(restated) == {"learning_rate", "lr_schedule", "clip_range"}
     assert restated["learning_rate"] == restated["lr_schedule"] == repr(expected_lr)
     assert restated["clip_range"] == repr(float(block["clip_range"]))
@@ -1588,6 +1589,7 @@ def test_widening_a_closure_schedule_parent_yields_a_bytecode_free_archive(narro
     # A by-reference parent has nothing to re-state.
     plain = widen_into(narrow_parent_ppo_for_contrast(tmp_path), tmp_path / "widened_plain")
     assert plain["result"].report["schedule_members_restated"] == {}
+    assert plain["result"].report["schedule_members_source"] is None
 
 
 def narrow_parent_ppo_for_contrast(root: Path) -> dict:

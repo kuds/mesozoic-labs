@@ -6,8 +6,10 @@ Each archive is a tiny PPO or SAC model trained for a few steps on a 2-obs /
 range for PPO), so its ``learning_rate`` / ``lr_schedule`` / ``clip_range``
 members are cloudpickled closures carrying the SAVING interpreter's
 bytecode -- the shape of every trex / compsognathus stage archive on Drive
-trained before the loader PR. Run it once
-per interpreter the fixtures should cover::
+trained before the loader PR. Run it once per interpreter the fixtures
+should cover; the 3.12 / 3.13 pair is the one the bare-load crash was
+reproduced on and ``test_policy_loading`` requires both, further interpreters
+may be added beside them::
 
     MUJOCO_GL= python3.12 -m environments.shared.tests.fixtures.sb3_archives.make_fixtures
     MUJOCO_GL= python3.13 -m environments.shared.tests.fixtures.sb3_archives.make_fixtures

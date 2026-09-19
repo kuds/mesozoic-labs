@@ -1562,8 +1562,12 @@ class TestArchiveLoadPreflightCell:
         )
         printed = ast.get_source_segment(src, last)
         assert "saved_python_text" in printed and "bytecode_members" in printed and "kernel death HERE" in printed
-        # The archive is the WIDEN_FROM parent's root handoff first, the trunk's second, a throwaway last.
+        # The archive is the WIDEN_FROM parent's root handoff first, the trunk's second, a throwaway last; a widen
+        # session with no complete handoff pair RAISES rather than passing on a throwaway.
         assert "if WIDEN_FROM:" in src and "elif TRUNK_DIR is not None:" in src
+        widen_if = _the_if(tree, src, lambda test: test == "WIDEN_FROM", "on a set WIDEN_FROM")
+        missing = _the_if(widen_if, src, lambda test: test == "_preflight_archive is None", "on a missing handoff")
+        assert _raises(missing, "RuntimeError"), "a set WIDEN_FROM without a root handoff pair refuses the preflight"
         assert "select_handoff_checkpoint(" in src and "stage_dir_candidates(SPECIES, CHAIN[0].reference)" in src
         assert "tempfile.TemporaryDirectory(" in src, (
             "the throwaway model lives in a temporary directory the cell removes"

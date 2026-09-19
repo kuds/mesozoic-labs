@@ -172,10 +172,14 @@ Notes:
   to look for, in order: the preflight line `SB3 archive load preflight: loading
   the WIDEN_FROM parent's root handoff .../20260815_205206/stage1/models/robust_best_model.zip
   (saved by Python 3.x; this runtime is Python 3.13; bytecode members:
-  clip_range, learning_rate, lr_schedule) ...` followed by `SB3 archive load
-  preflight passed`; the widen cell's `Widened 'stance' (PPO) into
-  .../01_stance` block ending in `report: .../01_stance/widen_report.json`
-  (the two dead sessions never reached it); the chain loop's `JUDGE` branch
+  clip_range, learning_rate, lr_schedule) ... a kernel death HERE means this
+  image cannot load SB3 archives` followed by `SB3 archive load preflight
+  passed: archives load back on this runtime through load_sb3_model.`; the
+  widen cell's `Widened 'stance' (PPO) into .../01_stance` block, whose
+  `num_timesteps inherited` line names `report: .../01_stance/widen_report.json`
+  and which closes with `The chain loop will JUDGE this node (no verdict yet);
+  parent run '20260815_205206' is untouched.` (the two dead sessions never
+  reached it); the chain loop's `JUDGE` branch
   rolling the 40-episode panel (seeds 3042–3081) and writing
   `01_stance/gate_verdict.json`; then the recovery node's freeze and 3M
   training. The settings are unchanged: `BEHAVIOR="stand"`,

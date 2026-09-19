@@ -258,7 +258,8 @@ tolerance) remains the standing recommendation for the divergences above.
   Colab image moves without notice.** SB3 stores a model's `learning_rate`,
   `lr_schedule` and `clip_range` members through cloudpickle. A closure — the
   `linear_schedule` every stage TOML with `learning_rate_end` produced before
-  2026-09-19, and SB3's own `constant_fn` lambdas before 2.7 — is pickled by
+  2026-09-19, and the nested schedule functions older SB3 releases built for a
+  float learning rate — is pickled by
   value with its code object, and `PPO.load` / `SAC.load` execute it while
   rebuilding the optimizer (`_setup_model` → `lr_schedule(1)`). Bytecode
   compiled by Python 3.12 run by 3.13, or the reverse, segfaults the process

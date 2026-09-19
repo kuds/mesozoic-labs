@@ -149,6 +149,37 @@ def test_trial_metadata_sync_includes_plant_identity_by_default(tmp_path):
     assert json.loads((destination / ray_tune.PLANT_IDENTITY_FILENAME).read_text()) == _plant_identity().to_dict()
 
 
+def test_trial_hyperparameters_prefer_the_recorded_block_over_the_sampled_keys(tmp_path):
+    """The promotion re-states a trial archive's schedule members from the block the trial trained under.
+
+    A Ray trial's sampled config carries algorithm-prefixed keys only (``ppo_learning_rate``) and never the
+    TOML-only ``learning_rate_end``; the trial's ``stage_config.json`` records the effective ``[ppo]`` block,
+    so it is read first and the un-prefixed sampled keys are the fallback.
+    """
+    from environments.shared.curriculum.schedules import LinearSchedule, schedule_members_from_hyperparameters
+
+    trial_dir = tmp_path / "trial-1"
+    model_dir = trial_dir / "models"
+    model_dir.mkdir(parents=True)
+    sampled = {"ppo_learning_rate": 3e-4, "ppo_batch_size": 128, "_species": "velociraptor", "env_alive_bonus": 2.5}
+    assert ray_orchestration._trial_hyperparameters(model_dir, "ppo", sampled) == {
+        "learning_rate": 3e-4,
+        "batch_size": 128,
+    }
+    (trial_dir / "stage_config.json").write_text(
+        json.dumps({"hyperparameters": {"learning_rate": 3e-4, "learning_rate_end": 1e-5, "clip_range": 0.2}})
+    )
+    block = ray_orchestration._trial_hyperparameters(model_dir, "ppo", sampled)
+    assert block == {"learning_rate": 3e-4, "learning_rate_end": 1e-5, "clip_range": 0.2}
+    members = schedule_members_from_hyperparameters("ppo", block)
+    assert isinstance(members["learning_rate"], LinearSchedule) and members["clip_range"] == 0.2
+    (trial_dir / "stage_config.json").write_text("not json")
+    assert ray_orchestration._trial_hyperparameters(model_dir, "ppo", sampled) == {
+        "learning_rate": 3e-4,
+        "batch_size": 128,
+    }
+
+
 def test_export_best_trial_validates_source_and_writes_promoted_identity(tmp_path, monkeypatch):
     current = _plant_identity()
     monkeypatch.setattr(ray_orchestration, "current_plant_identity", lambda _species: current)

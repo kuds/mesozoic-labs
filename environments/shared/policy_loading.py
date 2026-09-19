@@ -19,7 +19,9 @@ source of truth for the schedules: a training load passes them in and an
 inference load never needs them.
 
 :func:`load_sb3_checkpoint` is the one loading path the offline report
-scripts and the stance gate report share.  Four copies of this block had drifted apart -- in how they found the
+scripts and the stance gate report share.
+
+Four copies of this block had drifted apart -- in how they found the
 sidecar, in what they did when it was missing, and in whether they checked
 the plant -- and every one of those differences changes *which policy* gets
 scored: a policy evaluated on raw observations is a different policy, and
@@ -56,7 +58,7 @@ UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to train
 
 #: The archive members SB3 stores as callables, per algorithm: every one may
 #: hold a cloudpickled closure (the repository's LR / clip-range decays, or
-#: SB3's own ``constant_fn`` lambdas before 2.7), and ``PPO.load`` calls
+#: the nested functions older SB3 releases built for a float value), and ``PPO.load`` calls
 #: ``lr_schedule`` while building the policy. ``clip_range_vf`` is a float or
 #: ``None`` in every stage TOML but SB3 accepts a schedule there too.
 SCHEDULE_MEMBERS: dict[str, tuple[str, ...]] = {

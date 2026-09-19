@@ -1312,13 +1312,14 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     unpickled, and refuses — `PolicyLoadError`, naming the members — an
     archive whose OTHER members carry bytecode from another Python minor
     version. `load_sb3_checkpoint` and every former bare load call it:
-    `train_base` (the warm-start and both HPT evaluation loads),
+    `train_base` (the warm-start load and both post-training eval-panel
+    loads, handoff and legacy `best_model`),
     `evaluation.evaluate`, `reporting/stage_artifacts` (task-success
     evidence and both replays), `harnesses/freeze_recovery_gate`,
     `scripts/widen_checkpoint._verify`, `behavior_checkpoint._load_ppo`,
     `certified_canonical._load_pair`, the Ray sweep worker and
     orchestration, the SB3 notebook's `evaluate_stage_checkpoints` and the
-    Ray sweep notebook's evaluation cell. `test_policy_loading.py` pins that
+    Ray sweep notebook's standalone-reload ranking and evaluation cells. `test_policy_loading.py` pins that
     no bare `PPO.load` / `SAC.load` / `alg_cls.load` exists outside the
     loader, in `environments/**` or any notebook.
   - `linear_schedule` / `cosine_schedule` return instances of the new

@@ -75,7 +75,7 @@ def _legacy_linear_schedule(initial_lr: float, final_lr: float):
 
 def test_the_fixture_set_covers_both_verified_interpreters_and_both_algorithms():
     saved = {tuple(entry["python_minor"]) for entry in MANIFEST.values()}
-    assert saved == VERIFIED_CRASHING_PAIR, "one closure-bearing fixture per interpreter of the reproduced pair"
+    assert VERIFIED_CRASHING_PAIR <= saved, "one closure-bearing fixture per interpreter of the reproduced pair"
     for minor in VERIFIED_CRASHING_PAIR:
         algorithms = {entry["algorithm"] for entry in MANIFEST.values() if tuple(entry["python_minor"]) == minor}
         assert algorithms == {"ppo", "sac"}
@@ -433,7 +433,9 @@ def test_the_widen_tool_restates_a_parents_schedules_from_its_recorded_hyperpara
         run_id="20260815_205206",
         stage_dir=stage_dir,
     )
-    objects = widen._parent_schedule_objects(parent, "ppo")
+    current_block = {"learning_rate": 9e-5, "learning_rate_end": 2e-5, "clip_range": 0.15}
+    objects, source = widen._parent_schedule_objects(parent, "ppo", current_block)
+    assert source == "parent_stage_config"
     assert set(objects) == {"learning_rate", "lr_schedule", "clip_range"}
     assert isinstance(objects["learning_rate"], LinearSchedule)
     assert (objects["learning_rate"].initial, objects["learning_rate"].final) == (3e-5, 1e-5)
@@ -445,21 +447,51 @@ def test_the_widen_tool_restates_a_parents_schedules_from_its_recorded_hyperpara
     out = tmp_path / "widened.zip"
     save_to_zip_file(str(out), data=data, params=params, pytorch_variables=pytorch_variables)
     assert inspect_sb3_archive(out).bytecode_members == frozenset()
-    # The explicit --model/--vecnorm form has no recorded block: inference defaults, still bytecode-free.
+    # The explicit --model/--vecnorm form (or a parent recorded before the hyperparameters block existed) falls
+    # back to the CURRENT stage config's algorithm block, never to an inference placeholder.
     bare = widen._ParentSource(**{**parent.__dict__, "stage_dir": None})
-    objects = widen._parent_schedule_objects(bare, "ppo")
-    assert objects["learning_rate"] == 0.0 and objects["clip_range"] == 0.2
+    objects, source = widen._parent_schedule_objects(bare, "ppo", current_block)
+    assert source == "current_stage_config"
+    assert isinstance(objects["learning_rate"], LinearSchedule)
+    assert (objects["learning_rate"].initial, objects["learning_rate"].final) == (9e-5, 2e-5)
+    assert objects["clip_range"] == 0.15
+    (stage_dir / "stage_config.json").write_text(json.dumps({"run": {"seed": 44, "n_envs": 4, "timesteps": 1}}))
+    objects, source = widen._parent_schedule_objects(parent, "ppo", current_block)
+    assert source == "current_stage_config" and objects["clip_range"] == 0.15
+    # Nothing to re-state when the archive stores its schedules by reference.
+    resaved = tmp_path / "by_reference.zip"
+    model = load_sb3_model(FIXTURES / name, algorithm="ppo", device="cpu", learning_rate=LinearSchedule(1e-3, 1e-4))
+    model.save(str(resaved))
+    clean = widen._ParentSource(**{**parent.__dict__, "model_zip": resaved})
+    assert widen._parent_schedule_objects(clean, "ppo", current_block) == ({}, None)
 
 
 # ── the pin: no bare algorithm-class load anywhere but the loader ───────────
 
-#: Receivers whose ``.load(...)`` is an SB3 algorithm load: the classes themselves, ``cls`` inside a classmethod,
-#: and every ``alg_cls`` / ``AlgoClass`` / ``_alg_cls_rank`` style alias (``sb3["PPO"].load`` is a Subscript, matched
-#: below; ``sb3["VecNormalize"].load`` is a plain pickle of statistics and stays where it is).
-_ALGORITHM_RECEIVER_RE = re.compile(r"^(ppo|sac|cls)$|(alg|algo|algorithm|model)_?cls|algoclass", re.IGNORECASE)
+#: Receivers whose ``.load(...)`` is an SB3 algorithm load: the classes themselves (also as attributes, as in
+#: ``sb3.PPO.load``), ``cls`` / ``klass`` inside a classmethod, and every ``alg_cls`` / ``AlgoClass`` /
+#: ``_alg_cls_rank`` / ``ppo_cls`` / ``model_class`` style alias, plus any name bound by ``from stable_baselines3
+#: import PPO as <alias>`` (``sb3["PPO"].load`` is a Subscript, matched below; ``sb3["VecNormalize"].load`` is a
+#: plain pickle of statistics and stays where it is).
+_ALGORITHM_RECEIVER_RE = re.compile(
+    r"^(ppo|sac|cls|klass|algorithm|algo)$|(alg|algo|algorithm|model|policy)_?(cls|class)|algoclass|(ppo|sac)_(cls|class)",
+    re.IGNORECASE,
+)
+
+
+def _algorithm_aliases(tree: ast.AST) -> set[str]:
+    """Names bound to PPO / SAC by ``from stable_baselines3 import PPO as <alias>`` (and plain imports)."""
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("stable_baselines3"):
+            for alias in node.names:
+                if alias.name in ("PPO", "SAC"):
+                    aliases.add(alias.asname or alias.name)
+    return aliases
 
 
 def _bare_algorithm_loads(tree: ast.AST) -> list[str]:
+    aliases = _algorithm_aliases(tree)
     hits: list[str] = []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "load"):
@@ -471,7 +503,14 @@ def _bare_algorithm_loads(tree: ast.AST) -> list[str]:
             and receiver.slice.value in ("PPO", "SAC")
         )
         bare = (
-            (isinstance(receiver, ast.Name) and _ALGORITHM_RECEIVER_RE.search(receiver.id) is not None)
+            (
+                isinstance(receiver, ast.Name)
+                and (receiver.id in aliases or _ALGORITHM_RECEIVER_RE.search(receiver.id) is not None)
+            )
+            or (
+                isinstance(receiver, ast.Attribute)
+                and (receiver.attr in ("PPO", "SAC") or _ALGORITHM_RECEIVER_RE.search(receiver.attr) is not None)
+            )
             or subscript_algorithm
             or isinstance(receiver, ast.IfExp)
             or (isinstance(receiver, ast.Call) and getattr(receiver.func, "id", "") == "_checkpoint_algorithm")
@@ -479,6 +518,40 @@ def _bare_algorithm_loads(tree: ast.AST) -> list[str]:
         if bare:
             hits.append(f"{node.lineno}: {ast.unparse(node)[:80]}")
     return hits
+
+
+def test_the_bare_load_detector_catches_the_alias_and_attribute_forms():
+    caught = [
+        "PPO.load(p)",
+        "SAC.load(p, device='cpu')",
+        "alg_cls.load(p, env=e)",
+        "AlgoClass.load(p)",
+        "_alg_cls_rank.load(p)",
+        "ppo_cls.load(p)",
+        "model_class.load(p)",
+        "self.algorithm_cls.load(p)",
+        "sb3.PPO.load(p)",
+        "stable_baselines3.SAC.load(p)",
+        "sb3['PPO'].load(p)",
+        "(PPO if a else SAC).load(p)",
+        "_checkpoint_algorithm(p).load(p)",
+        "from stable_baselines3 import PPO as _Alias\n_Alias.load(p)",
+        "klass.load(p)",
+    ]
+    ignored = [
+        "VecNormalize.load(p, venv)",
+        "sb3['VecNormalize'].load(p, venv)",
+        "json.load(f)",
+        "pickle.load(f)",
+        "torch.load(f)",
+        "np.load(f)",
+        "load_sb3_model(p, algorithm=alg_cls)",
+        "tomllib.load(f)",
+    ]
+    for snippet in caught:
+        assert _bare_algorithm_loads(ast.parse(snippet)), snippet
+    for snippet in ignored:
+        assert not _bare_algorithm_loads(ast.parse(snippet)), snippet
 
 
 def _python_sources() -> list[tuple[str, str]]:
@@ -510,8 +583,6 @@ def test_every_sb3_archive_load_goes_through_the_loader():
             hits = _bare_algorithm_loads(ast.parse(stripped))
             if hits:
                 offenders[f"{path.relative_to(REPO_ROOT)}[cell {index}]"] = hits
-            if re.search(r"\b(PPO|SAC)\.load\(", source):
-                offenders.setdefault(f"{path.relative_to(REPO_ROOT)}[cell {index}]", []).append("PPO/SAC.load text")
     assert not offenders, f"bare SB3 archive loads outside policy_loading.load_sb3_model: {offenders}"
     # The loader itself is where the one real call lives.
     loader_source = (REPO_ROOT / "environments/shared/policy_loading.py").read_text(encoding="utf-8")

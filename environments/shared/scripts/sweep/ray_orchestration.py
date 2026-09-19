@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 
@@ -62,22 +62,47 @@ def _validate_plant_identity_sidecar(
     )
 
 
+def _trial_hyperparameters(source_model_dir: Path, algorithm: str, sampled_config: Mapping[str, Any]) -> dict[str, Any]:
+    """The algorithm block a Ray trial trained under, for re-stating its archive's schedule members.
+
+    The trial's ``stage_config.json`` (written beside its ``models/`` by
+    ``save_stage_config`` after ``apply_sampled_config``) records the
+    effective block under ``"hyperparameters"``; when it is missing, the
+    sampled keys are un-prefixed (``ppo_learning_rate`` -> ``learning_rate``)
+    as a fallback, which lacks the TOML-only ``*_end`` keys.
+    """
+    record_path = source_model_dir.parent / "stage_config.json"
+    if record_path.is_file():
+        try:
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("Cannot read %s (%s); re-stating schedules from the sampled config", record_path, exc)
+        else:
+            block = record.get("hyperparameters") if isinstance(record, dict) else None
+            if isinstance(block, dict) and block:
+                return dict(block)
+    prefix = f"{algorithm.lower()}_"
+    return {key[len(prefix) :]: value for key, value in sampled_config.items() if key.startswith(prefix)}
+
+
 def _load_and_validate_promotion_artifacts(
     source_files: list[Path],
     *,
     algorithm: str,
     current_plant: PlantIdentity,
     allow_legacy_plant: bool,
-    hyperparameters: "dict[str, Any] | None" = None,
+    hyperparameters: "Mapping[str, Any] | None" = None,
 ) -> dict[Path, Any]:
     """Deserialize, validate, and retag model/VecNormalize promotion inputs.
 
-    *hyperparameters* is the promoted trial's sampled configuration: its
-    schedule members (``learning_rate`` with ``learning_rate_end``,
-    ``clip_range`` with ``clip_range_end``) are re-stated over the archive
-    through :func:`load_sb3_model`, so the promoted copy records the
-    schedules the trial trained under as picklable classes rather than the
-    trial archive's cloudpickled closures or an inference placeholder.
+    *hyperparameters* is the promoted trial's effective algorithm block (the
+    stage TOML's ``[ppo]`` / ``[sac]`` table with the sampled values applied,
+    as :func:`_trial_hyperparameters` reads it): its schedule members
+    (``learning_rate`` with ``learning_rate_end``, ``clip_range`` with
+    ``clip_range_end``) are re-stated over the archive through
+    :func:`load_sb3_model`, so the promoted copy records the schedules the
+    trial trained under as picklable classes rather than the trial archive's
+    cloudpickled closures or an inference placeholder.
     """
     from stable_baselines3.common.save_util import load_from_pkl
 
@@ -938,7 +963,7 @@ def export_best_trial(
             algorithm=algorithm,
             current_plant=current_plant,
             allow_legacy_plant=allow_legacy_plant,
-            hyperparameters={k: v for k, v in best_result.config.items() if not k.startswith("_")},
+            hyperparameters=_trial_hyperparameters(source_model_dir, algorithm, best_result.config),
         )
 
     # Save config JSON
