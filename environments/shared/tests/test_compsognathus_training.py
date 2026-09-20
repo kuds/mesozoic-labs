@@ -410,11 +410,6 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         EVALUATION_SEED=3042,
         USE_GOOGLE_DRIVE=False,
         AUTO_DISCONNECT=False,
-        CERTIFIED_LIBRARY=tmp_path / "certified",
-        # This rehearsal shortens the task and deliberately uses an unpassed
-        # stance parent. Exercise real training and gate refusal without
-        # attempting to publish that invalid evidence to the shared library.
-        PUBLISH_CERTIFIED=False,
     )
     exec(compile(cell("def train_stage("), "sb3_training_infrastructure", "exec"), namespace)
     # The load mode is declared, never inferred (Phase A WS5): a root that
@@ -596,4 +591,3 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     assert namespace["completed_stages"] == [("recovery", tmp_path / stage_dirname(species, "recovery"))]
     assert "recovery" not in namespace["NODE_HANDOFF"]  # a failed node never feeds the chain
     assert namespace["NODE_HANDOFF"]["stance"]["model"] == selected  # the chain still starts from stance
-    assert not namespace["CERTIFIED_LIBRARY"].exists()

@@ -327,29 +327,39 @@ def test_colab_storage_mounts_drive_and_uses_a_separate_behavior_tree(behavior_f
 def test_notebook_defaults_to_automatic_complete_bundle_selection(behavior_files):
     namespace = _behavior_namespace(behavior_files, BEHAVIOR_CHECKPOINT="", BEHAVIOR_VECNORMALIZE="")
     assert namespace["SOURCE_SELECTION"] == "auto"
-    assert namespace["PUBLISH_CERTIFIED"] is False
-    assert namespace["CERTIFIED_COMPARISON_EPISODES"] == 50
+    # Consolidation PR-4: the library knobs left the configuration cell with the canonical publish wrapper.
+    for name in ("CERTIFIED_LIBRARY_ROOT", "PUBLISH_CERTIFIED", "CERTIFIED_COMPARISON_EPISODES"):
+        assert name not in namespace
     exec(_cell(STORAGE_MARKER), namespace)
     plan = namespace["BEHAVIOR_PLAN"]
     assert plan.auto_source and plan.checkpoint_path is None
     assert plan.certified_library == behavior_files[0] / "certified"
+    # The notebook never publishes to the library (#542 kept: the storage cell passes the literal False).
+    assert plan.publish_certified is False and "--publish-certified" not in plan.argv()
     assert not plan.output_dir.exists()
 
 
-def test_source_library_and_comparison_changes_make_a_new_behavior_plan(behavior_files, monkeypatch):
-    seeds = iter((101, 202, 303, 404))
+def test_source_selection_change_makes_a_new_behavior_plan(behavior_files, monkeypatch):
+    seeds = iter((101, 202, 303))
     monkeypatch.setattr(notebook.secrets, "randbelow", lambda bound: next(seeds))
     namespace = _behavior_namespace(behavior_files)
     source = _cell(STORAGE_MARKER)
     exec(source, namespace)
-    for key, value, seed in (
-        ("CERTIFIED_LIBRARY_ROOT", str(behavior_files[0] / "other-library"), 202),
-        ("CERTIFIED_COMPARISON_EPISODES", 100, 303),
-        ("PUBLISH_CERTIFIED", True, 404),
+    assert namespace["BEHAVIOR_PLAN"].seed == 101
+    # SOURCE_SELECTION is part of the plan's identity (the namespace sets an explicit pair, so "manual" is valid).
+    namespace["SOURCE_SELECTION"] = "manual"
+    exec(source, namespace)
+    assert namespace["BEHAVIOR_PLAN"].seed == 202
+    # The library knobs deleted by consolidation PR-4 are no longer read: setting them changes nothing.
+    for key, value in (
+        ("CERTIFIED_LIBRARY_ROOT", str(behavior_files[0] / "other-library")),
+        ("CERTIFIED_COMPARISON_EPISODES", 100),
+        ("PUBLISH_CERTIFIED", True),
     ):
         namespace[key] = value
         exec(source, namespace)
-        assert namespace["BEHAVIOR_PLAN"].seed == seed
+        assert namespace["BEHAVIOR_PLAN"].seed == 202
+        assert namespace["BEHAVIOR_PLAN"].publish_certified is False
 
 
 @pytest.mark.parametrize("schema", ["mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"])

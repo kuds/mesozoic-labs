@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-20)
 
-**Status**: living reference — updated 2026-09-20; `main` = `ac409f8` (2026-09-20).
+**Status**: living reference — updated 2026-09-20; `main` = `a5ed12f` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -28,16 +28,21 @@ file in place when the state changes; it is not a dated investigation.
 | #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
 | #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
 | #545 | 2026-09-20 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
+| #546 | 2026-09-20 | Consolidation PR-3: the bounded `test-sb3` job (one real-PPO smoke per body of work on pull requests and pushes; the six-species and four-notebook-parameter sets nightly at 05:17 UTC, on `workflow_dispatch` and under the `full-ci` label, which now starts a run when added); the widened-root bundle-write fix (a null `best_eval_reward` for a stage whose deliverable record names `widened_from_run_id`); decisions D-D11..D-D14 recorded. Measured on its CI: lean SB3 job 48:02, labelled full job 45:21, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
 `COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
 guarded code cell, the SB3 archive-load preflight before the widen cell:
-41 cells, 23 code, about 2,560 lines). Configuration-cell defaults:
+41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
+about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23).
+Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
-`WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `PUBLISH_CERTIFIED = False`,
-`SEED = 42`; `SOURCE_SELECTION` survives for the direction/terrain path only.
+`WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `SEED = 42`; the library
+knobs (`CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED`,
+`CERTIFIED_COMPARISON_EPISODES`) left with PR-4 and `SOURCE_SELECTION` survives
+for the direction/terrain path only, until PR-5.
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
@@ -53,9 +58,11 @@ plus 8 under `configs/trex/behavior_pilots/`, a second gate outside `GATE_KINDS`
 never a `gate_verdict.json`), a third identity keyed on source-file hashes (any
 edit to `behavior_env.py` strands exact resume), a certified library, and the
 notebook mode switch — about 7,000 lines of modules, tests excluded. Outputs go
-to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; with
-`PUBLISH_CERTIFIED = False`, `SOURCE_SELECTION = "auto"` finds no library entry,
-so a pilot needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths.
+to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; the notebook
+never publishes to the library (its library knobs left with PR-4), so
+`SOURCE_SELECTION = "auto"` finds an entry only if a command-line run published
+one with `--publish-certified` (removed in PR-5), and a pilot needs explicit
+`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths.
 Guides: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md),
 [CERTIFIED_MODELS.md](CERTIFIED_MODELS.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
@@ -153,7 +160,7 @@ once that bundle exists and the seed-42 run's bundle cell is re-run beside it
 ## 3. Recommended training sessions
 
 All on `main`, `notebooks/sb3_training.ipynb`, notebook defaults unless stated
-(`N_ENVS = 4`, `TRUNK_FROM = "auto"`, `PUBLISH_CERTIFIED = False`). Times are
+(`N_ENVS = 4`, `TRUNK_FROM = "auto"`). Times are
 the measured Colab wall clock of the section 2 runs or scaled from them.
 
 | # | Species | Settings | What happens | Rough time |
@@ -207,8 +214,8 @@ Notes:
   `evaluations.npz` curve for `best_eval_reward` to summarize (the JUDGE
   branch leaves it unmeasured). The result schema now accepts that null for a
   stage whose deliverable record names `widened_from_run_id` (CHANGELOG
-  2026-09-20, "A widened root's run bundle writes"); until the fix is on
-  `main`, set `REPO_REF` to the session branch. To finish the run in place,
+  2026-09-20, "A widened root's run bundle writes"; on `main` since #546, so
+  `REPO_REF = "main"` carries it). To finish the run in place,
   in a fresh runtime: `SEED = 44`, `BEHAVIOR = "stand"`, `WIDEN_FROM = ""`
   (the widened stance already exists; the widen cell must not run again),
   `TRUNK_FROM = ""` (the reuse candidate is this run itself), and in the
@@ -231,7 +238,7 @@ Notes:
   widened root trains in that run (trex `stand` = widen + re-panel stance, then
   recovery 3M; trex `walk` would train locomotion 8M instead). For velociraptor,
   brachiosaurus and dibothrosuchus `stand` is stance only (no recovery node).
-- Leave `TRUNK_FROM = "auto"`; `PUBLISH_CERTIFIED` stays `False`.
+- Leave `TRUNK_FROM = "auto"`.
 - A parent `gate_verdict.json` is optional for widening (the r11 and r1 parents
   have none; backfilling first is NOT needed); the parent stage directory must
   hold `stage_config.json` with a run block and a stamped VecNormalize sidecar.
@@ -256,7 +263,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544; PR-3 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546 (2026-09-20); PR-4 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their

@@ -879,7 +879,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **The `test-sb3` CI job is bounded** (consolidation PR-3, 2026-09-20). It
+- **The `test-sb3` CI job is bounded** (consolidation PR-3, #546, 2026-09-20). It
   ran 52 minutes on the #544 merge (notebook smoke 6, behaviors 14,
   integration 31; 69 at #541) because #540/#541 added their suites to its
   lists, ten of which import no SB3 and already run three times in the
@@ -900,8 +900,11 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   the run that reads it; the label itself is created once on the repository).
   The `walker` fixture of
   `test_behavior_species_training.py` is module-scoped (6 PPO builds instead
-  of 18). The union coverage gate (`fail_under = 70`) is re-measured on the
-  first CI run of the change.
+  of 18). Measured on #546's two CI runs: the lean job 48:02 (smoke 2:56,
+  behaviors 4:59, integration 38:00 for 1,384 tests), the labelled full job
+  45:21 (5:51, 9:01, 28:39); the union coverage gate (`fail_under = 70`) read
+  90 percent. The integration step is now the whole cost and the JAX job (39
+  to 51 minutes) the longest pull-request job; both are follow-up candidates.
   The same change records the maintainer's 2026-09-20 decisions in the plan
   documents: the consolidation hold lifted in a notebook-first order (D-D13),
   D-D11 and D-D12 confirmed, and the widen path kept for the two pending
@@ -1294,6 +1297,31 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The canonical certified-library wrapper and the notebook's library hooks**
+  (consolidation PR-4, 2026-09-20). `environments/shared/certified_canonical.py`
+  (the training-origin stamp, the `certified_inputs/` copy of a reused trunk
+  ancestor, canonical publication and benchmarking), its test and
+  `test_sb3_notebook_certified.py` are deleted. The SB3 notebook loses the
+  `CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED` and
+  `CERTIFIED_COMPARISON_EPISODES` knobs, the stamp block of `train_stage`, the
+  reuse branch's copy call and the publish block of the chain loop (about 90
+  cell lines: 99 removed, 13 added); a reused trunk ancestor is loaded from the
+  run that certified it, as
+  the CLI always did (plan A10), and the gate refusal is the loop's only runtime
+  release. The behavior storage cell passes `publish_certified=False`
+  explicitly, so the notebook never publishes (#542 kept);
+  `train_behaviors --auto-source` without `--resume`, which selected a
+  canonical locomotion parent through the deleted module, now refuses with a
+  message naming the explicit `--checkpoint` / `--vecnormalize` pair.
+  `certified_comparison.py` stays until PR-5 (its only importer,
+  `behavior_certification.py`, goes there). Runs made between #543 and this
+  change that hold `certified_inputs/` copies stay valid: their `ancestors/`
+  records point at the copy, reuse rule 1 follows it and their
+  `artifact_manifest.json` hashes the copies, so leave those directories in
+  place. `test_sb3_notebook_pins.py` regains the A10
+  `..._never_copies_checkpoints` pin, gains the seed-at-construction and
+  storage-cell-rerun pins the deleted file held, and asserts the knobs and
+  blocks are gone.
 - **`min_avg_forward_vel`, `min_success_rate` and the absolute
   `collapse_peak_floor` leave `configs/trex/behavior.toml`** (Phase B,
   WS-B2; 2026-08 review CF2, SS2, CF3; plan D1, decisions D-B2, D-B4). The
@@ -1317,7 +1345,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
-- **A widened root's run bundle writes** (2026-09-20). The first widen session
+- **A widened root's run bundle writes** (#546, 2026-09-20). The first widen session
   on the fixed loader (`20260920_010912`, the seed-44 trex stance widened
   r11 → r13 and re-paneled: PASS, reward 3408.3 ± 88.5, duty 0.0069, UCB
   0.0117) died right after its gate verdict, in the chain loop's
