@@ -32,8 +32,10 @@ corrected on re-reading during the review, the corrected figure is used.
 | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
 
-Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7);
-D-D11 and D-D12 are recommended and unconfirmed. Ids follow the series recorded
+Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7)
+and confirmed D-D11 and D-D12 on 2026-09-20, when D-D13 (the notebook-first
+order) and D-D14 (the widen path becomes CLI-only after sessions 1 and 2) were
+taken. Ids follow the series recorded
 in BEHAVIOR_RECIPES_PLAN.md §6.2; the review's working labels D1..D12 map
 one-to-one onto D-D1..D-D12.
 
@@ -43,8 +45,7 @@ and PR-5 in that order (the canonical wrapper imports the library, not the
 reverse), PR-6, the notebook-only slice of PR-12 (pulled ahead of PR-11 so the
 notebook shrinks first), PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13
 and PR-15. Every later PR names its prerequisites and the decisions it rests
-on; none of the decisions it needs is still open except D-D11/D-D12, which are
-minor.
+on; none of the decisions it needs is still open.
 
 ## 1. Headline
 
@@ -577,7 +578,10 @@ r11 parents and 20260914_123816 unaffected; every live knob keeps its name.
 Validation: notebook parse and pins,
 `test_compsognathus_training.py::test_actual_notebook_training_stance_and_recovery_reports`
 (all four params once), shared suite. Prerequisites: PR-4 (stamp block gone),
-PR-12 (guards gone); D-D7 (taken: wrapper now).
+PR-12 (guards gone); D-D7 (taken: wrapper now); D-D11 (confirmed 2026-09-20).
+Under D-D14 the widen cell and its two knobs leave the notebook in this PR
+when sessions 1 and 2 of NEXT_STEPS.md are both decided by then, otherwise in
+a PR right after it.
 
 ### PR-15. Docs fold, CHANGELOG Changed/Removed, test helpers and pin budget (M, about -290)
 Goal: docs/README.md gains the operator guide under Living reference;
@@ -721,8 +725,9 @@ unconfirmed.
 | D-D8 | Build an interim behaviors notebook now, or tolerate the mode switch until PR-12? | Taken: tolerate. #542 removed the dangerous default; the switch is deleted in PR-12. | PR-12 |
 | D-D9 | Are any #540/#541 behavior bundles on Drive worth carrying forward? Their identity hashes environments/shared/behavior_env.py itself, so exact resume already breaks on any edit; #540 calls them pilots. | Taken: none. The bundles are evaluation-only; no bundle is carried forward as a training parent. | PR-6, PR-7, PR-9, PR-12 acceptance |
 | D-D10 | Terrain in the env: one generic opt-in subclass, or an r14 interface bump that puts the model swap into `reset()`, batched with the queued height-channel removal (plan:668-673)? | Taken: opt-in subclass; no r14 bump (the reset source is fingerprinted). | PR-7, PR-9 |
-| D-D11 | May CLI runs record stage duration and seed model construction like the notebook does? | Recommended, unconfirmed: yes (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line). | PR-14 |
-| D-D12 | Drop the dead `lateral_speed_scale` field (always divides a zero) when the TOMLs are rewritten? | Recommended, unconfirmed: drop in PR-11/PR-12 (PR-8 item (d)). | PR-11, PR-12 |
+| D-D11 | May CLI runs record stage duration and seed model construction like the notebook does? | Confirmed 2026-09-20: yes (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line and its duration recording). | PR-14 |
+| D-D12 | Drop the dead `lateral_speed_scale` field (always divides a zero) when the TOMLs are rewritten? | Confirmed 2026-09-20: drop in PR-11/PR-12 (PR-8 item (d)). | PR-11, PR-12 |
+| D-D14 | What happens to the widen path (`WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP`, the widen cell, `widen_checkpoint`) after the two pending parents are widened? | Taken 2026-09-20: keep it for NEXT_STEPS.md sessions 1 and 2, then CLI-only — the notebook refactor (PR-14, or a PR right after it once both sessions are decided) deletes the widen cell and both knobs; `widen_checkpoint` stays a command-line tool for the next interface bump. Amends the §4 "knobs kept" list. | PR-14 or its follow-up |
 | D-D13 | In which order do PR-3 .. PR-15 land now that the hold is lifted? | Taken 2026-09-20: notebook-first. PR-3, PR-4, PR-5, PR-6, then a notebook-only slice of PR-12 (the `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, cells 7/19/20/33/34/39 and the guard sites, `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays a CLI-only path) pulled ahead of PR-11, then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13, PR-15. Amends D-D8: the switch is tolerated only until that slice, and the direction/terrain pilots have no notebook path between the slice and PR-11 (evaluation-only under D-D9). | the whole sequence |
 
 ## 7. Goal decisions G1–G4 (taken 2026-09-17)

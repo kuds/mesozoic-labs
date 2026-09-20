@@ -1082,7 +1082,9 @@ documentation pass that records these rows, and **PR-3..PR-15 are on hold
 until the maintainer has reviewed that plan: no consolidation code moves
 before then.** Training is not on hold (G3): the walker sessions in
 `docs/NEXT_STEPS.md` run on the current notebook in parallel. D-D11 and
-D-D12 are recommended, not yet confirmed.
+D-D12 were recommended on 2026-09-17 and confirmed by the maintainer on
+2026-09-20, when the hold lifted (D-D13) and the widen path's future was
+fixed (D-D14).
 
 | # | Decision |
 |---|---|
@@ -1096,8 +1098,9 @@ D-D12 are recommended, not yet confirmed.
 | D-D8 | No interim behaviors notebook; the `COMMAND_TERRAIN_BEHAVIOR` mode switch (19 code cells at 22c1fc8) is tolerated until PR-12 deletes it — #542 already removed the dangerous default. Unblocks PR-12. |
 | D-D9 | The #540/#541 behavior bundles on Drive are evaluation-only; none is carried forward as a training parent (their checkpoint identity hashes source files, so any edit to `behavior_env.py` strands exact resume anyway). Unblocks PR-6, PR-7 and PR-9, and is PR-12's acceptance basis. |
 | D-D10 | Terrain stays an opt-in env subclass; no r14 interface bump to move the model swap into `reset()` (the reset source is fingerprinted; the queued height-channel removal stays queued, D3). Unblocks PR-7 and PR-9. |
-| D-D11 | Recommended, not yet confirmed: CLI runs may record stage duration and seed model construction like the notebook does (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line). PR-14. |
-| D-D12 | Recommended, not yet confirmed: the dead `lateral_speed_scale` field (it always divides a zero) is dropped when the TOMLs are rewritten. PR-11 / PR-12. |
+| D-D11 | Confirmed 2026-09-20: CLI runs record stage duration and seed model construction like the notebook does (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line and its duration recording). PR-14. |
+| D-D12 | Confirmed 2026-09-20: the dead `lateral_speed_scale` field (it always divides a zero) is dropped when the TOMLs are rewritten. PR-11 / PR-12. |
+| D-D14 | Taken 2026-09-20: the widen path stays for the two pending parents (NEXT_STEPS.md sessions 1 and 2: the trex seed-44 r11 stance and the compsognathus seed-42 r1 stance) and is then demoted to CLI-only — the notebook refactor (PR-14, or a PR right after it once both sessions are decided) deletes the widen cell and the `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs, while `widen_checkpoint` stays a command-line tool for the next interface bump. Amends the "knobs kept" list of the consolidation plan §4: those two knobs leave once sessions 1 and 2 are decided. The 2026-09-19 kernel deaths were the cross-interpreter archive fault (KNOWN_ISSUES), not the widening; the alternative (deleting the path now) would cost about a day of Colab retraining for the two parents. |
 | D-D13 | Taken 2026-09-20 (the maintainer released the consolidation hold): the sequence lands notebook-first — PR-3, PR-4, PR-5, PR-6, then a notebook-only slice of PR-12 (the `COMMAND_TERRAIN_BEHAVIOR` mode switch, the ten `BEHAVIOR_*` knobs, the direction/terrain cells and their guard sites, and `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays a CLI-only path) pulled ahead of PR-11, then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15. Amends D-D8: the mode switch is tolerated only until that slice, and between the slice and PR-11 the direction/terrain pilots have no notebook path (they are evaluation-only under D-D9). |
 | G1 | Chain shape `walk → follow_direction` (the full command set on flat ground) `→ follow_direction_difficult_terrain` (the target deliverable: every species follows a direction on difficult terrain); a commands-free `difficult_terrain` node stays as an optional diagnostic sibling; the recipe label `follow` resolves to the deepest deliverable; `follow_direction_speed` is folded into `follow_direction` (this supersedes the `follow_direction_speed` node in §4.1's manifest sketch and assumption A1); three new stage files per species; the final node is SB3-only (MJX fails closed on live commands and has no terrain). Shapes PR-11's node set. |
 | G2 | Command set = heading, speed (half to full cruise), stops and restarts, switching every few seconds — the pilots' combined recipe: `follow_direction` carries the full set from the start (`command_config` with `speed_range = [0.5, 1.0]` of the cruise speed) and `follow_direction_difficult_terrain` inherits it. PR-11. |

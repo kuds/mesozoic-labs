@@ -899,6 +899,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `test_behavior_species_training.py` is module-scoped (6 PPO builds instead
   of 18). The union coverage gate (`fail_under = 70`) is re-measured on the
   first CI run of the change.
+  The same change records the maintainer's 2026-09-20 decisions in the plan
+  documents: the consolidation hold lifted in a notebook-first order (D-D13),
+  D-D11 and D-D12 confirmed, and the widen path kept for the two pending
+  parents then demoted to CLI-only (D-D14).
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with
   no alias** (Phase A, WS1). Ids are an open vocabulary
   (`^[a-z][a-z0-9_]*$`); the four historical ids stay reserved, `stage{N}`

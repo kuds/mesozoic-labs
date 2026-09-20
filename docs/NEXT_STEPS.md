@@ -70,8 +70,8 @@ PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
 mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
 PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D10 and D-D13 are taken and recorded, D-D11/D-D12 recommended but
-unconfirmed ([section 5](#5-decisions-taken-2026-09-17)). Training sessions
+D-D1..D-D14 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20; [section 5](#5-decisions-taken-2026-09-17)). Training sessions
 run in parallel (G3).
 
 ### The final goal and the goal decisions
@@ -250,7 +250,7 @@ reorders the widen-seed check and edits the resume cell's prose.
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
 | PR-12 | Delete the parallel trainer, router, checkpoint module, the 66 TOMLs, the notebook mode switch and their tests; `BEHAVIOR` dropdown becomes `stand \| walk \| hunt \| follow \| terrain` | XL (about −5,300) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
-| PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, PR-12; D-D7 (D-D11 if confirmed) |
+| PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, PR-12; D-D7, D-D11; the widen cell and knobs leave here or right after (D-D14) |
 | PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14 |
 
 ---
@@ -288,12 +288,30 @@ G series; the D-A/D-B/D-C series keep their numbers). Confirmed by the maintaine
 - **D-D10** Terrain stays an opt-in env subclass; no r14 interface bump to move
   the model swap into `reset()` (the reset source is fingerprinted).
 
-Recommended, not yet confirmed:
+Confirmed by the maintainer on 2026-09-20 (recommended on 2026-09-17):
 
-- **D-D11** CLI runs may record stage duration and seed model construction like
-  the notebook does (PR-14).
+- **D-D11** CLI runs record stage duration and seed model construction like the
+  notebook does (PR-14).
 - **D-D12** The dead `lateral_speed_scale` field is dropped when the TOMLs are
   rewritten (PR-11/PR-12).
+
+Taken on 2026-09-20, when the consolidation hold lifted:
+
+- **D-D13** The sequence lands notebook-first: PR-3, PR-4, PR-5, PR-6, a
+  notebook-only slice of PR-12, PR-14, then PR-7 .. PR-11, the rest of PR-12,
+  PR-13, PR-15 (amends D-D8; between the slice and PR-11 the direction/terrain
+  pilots have no notebook path).
+- **D-D14** The widen path stays for sessions 1 and 2 of [section 3](#3-recommended-training-sessions),
+  then becomes CLI-only: the notebook refactor deletes the widen cell and the
+  `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs, and `widen_checkpoint` stays a
+  command-line tool for the next interface bump.
+- Operational choices taken the same day: the full six-species and
+  four-notebook-parameter SB3 sets run nightly and under the `full-ci` label
+  (PR-3); if a PR run drops the union coverage gate below 70, the measured
+  number and a proposed floor are reported rather than the floor lowered; the
+  session results (`gate_verdict.json`, `widen_report.json`,
+  `stance_gate_report.json`) are read from Drive through the maintainer's Drive
+  connector when a session ends.
 
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
@@ -387,9 +405,11 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    if touching code, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §4–§6
    for the design and decision ids, and the Phase C entry of
    [KNOWN_ISSUES.md](KNOWN_ISSUES.md) ("Training / RL") before any widen session.
-2. Check whether the maintainer has released the consolidation hold; until then
-   the only code work is what a training session needs.
-3. Check Drive for run directories newer than 2026-09-17 and update
+2. The consolidation hold lifted on 2026-09-20 (D-D13 order): continue with the
+   next PR of [section 4](#4-consolidation-the-remaining-prs) on the session
+   branch, one PR at a time, restarting the branch from `main` after each merge.
+3. Check Drive for run directories newer than 2026-09-17 (through the Drive
+   connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
 4. The docs that were stale at `22c1fc8` (the `README.md` roadmap bullet that
    read "only the command-interface bump and the follow-direction leaf remain
@@ -423,7 +443,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D13, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D14, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note
