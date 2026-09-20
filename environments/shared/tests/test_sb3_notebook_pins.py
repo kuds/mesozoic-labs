@@ -778,9 +778,13 @@ class TestStorageCellRerun:
         monkeypatch.setattr(
             plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
         )
-        monkeypatch.setattr(
-            result_bundle, "initialize_result_bundle", lambda directory, **kwargs: directory / "provenance.json"
-        )
+        provenance_calls = []
+
+        def initialize(directory, **kwargs):
+            provenance_calls.append((directory, kwargs))
+            return directory / "provenance.json"
+
+        monkeypatch.setattr(result_bundle, "initialize_result_bundle", initialize)
         namespace = {
             "Path": Path,
             "datetime": datetime,
@@ -798,6 +802,8 @@ class TestStorageCellRerun:
         first = namespace["RUN_DIR"]
         assert first.is_dir() and first.is_relative_to(tmp_path / "logs")
         assert namespace["TRUNK_DIR"] is None
+        # The current plant identity is handed to the bundle initializer (as the deleted test pinned).
+        assert provenance_calls[0][0] == first and provenance_calls[0][1]["plant_identity"] == identity
         exec(compile(src, "sb3_storage_rerun", "exec"), namespace)
         assert namespace["RUN_DIR"] == first
         assert namespace["_ACTIVE_RUN_ID"] == first.name

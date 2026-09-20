@@ -1301,8 +1301,9 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `test_sb3_notebook_certified.py` are deleted. The SB3 notebook loses the
   `CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED` and
   `CERTIFIED_COMPARISON_EPISODES` knobs, the stamp block of `train_stage`, the
-  reuse branch's copy call and the publish block of the chain loop (about 130
-  lines); a reused trunk ancestor is loaded from the run that certified it, as
+  reuse branch's copy call and the publish block of the chain loop (about 90
+  cell lines: 99 removed, 13 added); a reused trunk ancestor is loaded from the
+  run that certified it, as
   the CLI always did (plan A10), and the gate refusal is the loop's only runtime
   release. The behavior storage cell passes `publish_certified=False`
   explicitly, so the notebook never publishes (#542 kept);

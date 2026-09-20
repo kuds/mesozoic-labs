@@ -33,9 +33,9 @@ The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_train
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
 `COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
 guarded code cell, the SB3 archive-load preflight before the widen cell:
-41 cells, 23 code, about 2,560 lines; consolidation PR-4 removes the library
-hooks, about 130 lines: 41 cells, 23 code, about 2,480 lines, the chain loop at
-index 23). Configuration-cell defaults:
+41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
+about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23).
+Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
 `WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `SEED = 42`; the library
@@ -262,7 +262,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544; PR-3 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544; PR-3 and PR-4 are in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their

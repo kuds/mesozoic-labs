@@ -766,7 +766,8 @@ tolerance) remains the standing recommendation for the divergences above.
   and the mode switch deleted — is
   [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
   PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
-  (PR-3, bounding the SB3 CI job, in review); PR-1 (#542), the auto-trunk PR
+  (PR-3, bounding the SB3 CI job, and PR-4, the canonical library wrapper and
+  the notebook's library knobs, in review); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
   operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /

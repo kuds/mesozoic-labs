@@ -244,7 +244,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--vecnormalize", type=Path)
     parser.add_argument("--certified-library", type=Path, help="Shared immutable certified-model library")
-    parser.add_argument("--auto-source", action="store_true", help="Select and copy a compatible certified source")
+    parser.add_argument(
+        "--auto-source",
+        action="store_true",
+        help="Select and copy the exact behavior's certified recommendation (with --resume or --eval-only)",
+    )
     parser.add_argument("--publish-certified", action="store_true", help="Certify and publish the saved behavior")
     parser.add_argument(
         "--comparison-episodes", type=int, default=50, help="Paired comparison episodes per model (default: 50)"

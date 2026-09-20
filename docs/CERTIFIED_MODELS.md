@@ -58,23 +58,24 @@ tampered evidence is refused. A pinned trunk never falls back to another run.
 ### Direction and terrain behaviors
 
 Leave **both** `BEHAVIOR_CHECKPOINT` and `BEHAVIOR_VECNORMALIZE` blank to use
-automatic selection:
+automatic selection of an existing behavior:
 
-- `BEHAVIOR_LOAD_MODE="prepare"` selects a compatible certified locomotion
-  parent for the chosen species.
 - `BEHAVIOR_LOAD_MODE="resume"` selects the exact behavior's recommended
   bundle and continues its remaining training budget.
 - `BEHAVIOR_EVAL_ONLY=True` selects the exact behavior for scoring.
+- `BEHAVIOR_LOAD_MODE="prepare"` (a fresh pilot) needs an explicit locomotion
+  checkpoint pair: the canonical wrapper that selected one left with
+  consolidation PR-4, and the runner refuses blank paths in this mode with a
+  message naming the pair.
 
 Provide both paths to override automatic selection. Resume and adaptation
 still require a matched `bundle.json`; selecting only one source path is an
 error. `BEHAVIOR_LOAD_MODE="adapt"` requires an explicit source pair because
 changing from another behavior is an intentional task change.
 
-A missing behavior recommendation or locomotion parent stops the behavior
-runner with a reason. Train and certify the required source, or explicitly
-select a compatible matched pair. Automatic preparation does not launch a
-hidden locomotion training run.
+A missing behavior recommendation stops the behavior runner with a reason.
+Train and certify the required source, or explicitly select a compatible
+matched pair. Nothing launches a hidden locomotion training run.
 
 ## Complete copies in each training run
 
