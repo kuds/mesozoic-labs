@@ -92,9 +92,12 @@ DELIVERABLE_RECORD_FIELDS = (
 #: block (decision D-A21): the recipe digest (``sha256:<hex>``, which the
 #: audit cross-checks) and the run's free-text label (non-empty).  Written
 #: when the stage recorded them; absent for stages recorded before D-A21.
-RUN_BLOCK_DELIVERABLE_RECORD_FIELDS = ("hyperparameters_sha256", "label")
+RUN_BLOCK_DELIVERABLE_RECORD_FIELDS = ("hyperparameters_sha256", "label", "widened_from_run_id")
 #: Fields a ``provenance.deliverables`` record MAY carry beyond the required
-#: set: the run-block pair above, plus the seed-replication pair of decisions
+#: set: the run-block fields above (``widened_from_run_id`` marks a root that
+#: ``widen_checkpoint`` wrote and the chain loop judged: it never trained in
+#: this run, so its training curve is the parent run's), plus the
+#: seed-replication pair of decisions
 #: D-B11/D-B16 — ``provisional`` (bool) and ``certification_seeds`` (positive
 #: int), which the writer records together and which must agree with the
 #: record's ``replication.count`` (``provisional == count < N``).
@@ -652,6 +655,10 @@ def _validate_deliverable_records(
             )
         if "label" in record:
             records[key]["label"] = _require_nonempty_string(record["label"], field=f"{prefix}.label")
+        if "widened_from_run_id" in record:
+            records[key]["widened_from_run_id"] = _require_nonempty_string(
+                record["widened_from_run_id"], field=f"{prefix}.widened_from_run_id"
+            )
         # The seed-replication pair (D-B11/D-B16): each type-checked when
         # present, and the label must be the count's own reading of the
         # declared N — a "certified, not provisional" flag beside n < N is
@@ -1344,6 +1351,26 @@ def validate_captured_provenance(
     }
 
 
+def _widened_root_stage_ids(provenance: Any, *, species: str) -> set[str]:
+    """Manifest ids of the stages whose deliverable record names ``widened_from_run_id`` (a widened root)."""
+    if not isinstance(provenance, Mapping):
+        return set()
+    deliverables = provenance.get("deliverables")
+    if not isinstance(deliverables, Mapping):
+        return set()
+    try:
+        entries = ordered_stage_entries(deliverables, species=species, field="provenance.deliverables")
+    except ResultSchemaError:
+        return set()
+    widened: set[str] = set()
+    for key, entry in entries:
+        record = deliverables[key]
+        parent = record.get("widened_from_run_id") if isinstance(record, Mapping) else None
+        if isinstance(parent, str) and parent.strip():
+            widened.add(entry.id)
+    return widened
+
+
 def validate_result_summary(
     summary: Any,
     *,
@@ -1441,6 +1468,15 @@ def validate_result_summary(
                 f"missing {[entry.key for entry in missing_advancing]}"
             )
 
+    # A widened root (``scripts/widen_checkpoint.py``; RESULT_BUNDLES.md) never
+    # trained in this run: its training curve, and so the best EvalCallback
+    # panel ``best_eval_reward`` summarizes, is the parent run's, and its
+    # deliverable record names that run. It is the one canonical stage whose
+    # ``best_eval_reward`` may be null; every other null is missing evidence.
+    # The judged panel numbers (``selected_model_*``, ``final_eval_*``) stay
+    # required for it. Read leniently here — the records are shape-checked
+    # with the provenance below — and a malformed record grants no exemption.
+    widened_roots = _widened_root_stage_ids(summary.get("provenance"), species=species)
     stage_timesteps = 0
     for stage_key, stage_entry in stage_entries:
         raw_stage = _require_mapping(raw_stages[stage_key], field=f"stage {stage_key} in {label}")
@@ -1458,7 +1494,14 @@ def validate_result_summary(
                 raise ResultSchemaError(f"{metric_key} is required for {prefix}")
             metric_value = _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
             if canonical_provenance and metric_value is None:
-                raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}")
+                if metric_key == "best_eval_reward" and stage_entry.id in widened_roots:
+                    continue
+                hint = (
+                    " (null only for a widened root whose provenance.deliverables record names widened_from_run_id)"
+                    if metric_key == "best_eval_reward"
+                    else ""
+                )
+                raise ResultSchemaError(f"{metric_key} must be a finite number for canonical {prefix}{hint}")
         for metric_key in (
             "selected_model_reward",
             "selected_model_reward_std",

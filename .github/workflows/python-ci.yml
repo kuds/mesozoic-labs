@@ -29,6 +29,12 @@ on:
       - ".github/actions/**"
   pull_request:
     branches: [main]
+    # `labeled` so that adding the `full-ci` label to an open pull request
+    # starts a run that sees it: the SB3 job's depth step reads the labels
+    # from the triggering event's payload, and a re-run replays the original
+    # payload (consolidation PR-3). Any label added to a pull request that
+    # touches the paths below re-runs the workflow on its head once.
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "README.md"
       - "environments/**"
@@ -53,6 +59,12 @@ on:
       - "conftest.py"
       - ".github/workflows/**"
       - ".github/actions/**"
+  # Nightly run of the whole workflow on `main`; in it the SB3 job runs the
+  # six-species and four-notebook-parameter sets that pull-request and push
+  # runs leave out (the SB3 job's "Decide the SB3 depth" step; consolidation
+  # PR-3). GitHub pauses scheduled workflows after 60 days without a commit.
+  schedule:
+    - cron: "17 5 * * *"
   workflow_dispatch:
 
 jobs:
@@ -287,41 +299,63 @@ jobs:
           print(ray.__version__, stable_baselines3.__version__, torch.__version__)
           PY
 
+      # Consolidation PR-3: this job ran 52 minutes on the #544 merge (notebook
+      # smoke 6, behaviors 14, integration 31; 69 at #541) because #540/#541
+      # added their suites here, several of which import no SB3 and already run
+      # three times in the `test` matrix, and because every real-PPO smoke ran
+      # for all six species and all four notebook parameters on every PR. Pull
+      # requests and pushes now keep ONE real-PPO smoke per body of work (the
+      # compsognathus_robot parameter, the smallest plant); the nightly schedule,
+      # a manual dispatch and the `full-ci` label on a pull request run the full
+      # sets. The step names and the required-check name are unchanged.
+      # (`cond && value || ''` puts the non-empty string on the selecting
+      # condition: GitHub's ternary idiom falls through to the right operand
+      # whenever the middle one is falsy, and '' is falsy.)
+      - name: Decide the SB3 depth
+        id: depth
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" || "${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}" == "true" ]]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "SB3 depth: full (every species and notebook parameter)"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"
+            echo "SB3 depth: one real-PPO smoke per body of work (schedule, workflow_dispatch or the full-ci label runs the full sets)"
+          fi
+
       - name: Validate canonical notebook training
         run: |
           pytest \
             environments/shared/tests/test_compsognathus_training.py \
-            -k test_actual_notebook_training_stance_and_recovery_reports \
+            -k "test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and ppo and robot' || '' }}" \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3-notebook
 
+      # test_behavior_env.py, test_behavior_recipes.py and test_terrain_sampling.py
+      # import no SB3 and run in the `test` matrix; only the real-PPO species
+      # smoke needs this job.
       - name: Validate all-species direction and terrain training
         run: |
           pytest \
             environments/shared/tests/test_behavior_species_training.py \
-            environments/shared/tests/test_behavior_env.py \
-            environments/shared/tests/test_behavior_recipes.py \
-            environments/shared/tests/test_terrain_sampling.py \
+            ${{ steps.depth.outputs.full != 'true' && '-k compsognathus_robot' || '' }} \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3-behaviors
 
+      # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
+      # test_behavior_publication, test_certified_library, test_certified_comparison,
+      # test_sb3_notebook_certified, trex/test_behavior_env) run in the `test`
+      # matrix and are not repeated here.
       - name: Run SB3 integration tests
         run: |
           pytest \
             environments/shared/tests/test_behavior_checkpoint.py \
-            environments/shared/tests/test_behavior_evaluation.py \
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_behavior_notebook.py \
-            environments/shared/tests/test_behavior_certification.py \
-            environments/shared/tests/test_behavior_publication.py \
-            environments/shared/tests/test_certified_library.py \
-            environments/shared/tests/test_certified_comparison.py \
             environments/shared/tests/test_certified_canonical.py \
-            environments/shared/tests/test_sb3_notebook_certified.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \
@@ -341,7 +375,6 @@ jobs:
             environments/shared/tests/test_sweep_ray_plant_contract.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
-            environments/trex/tests/test_behavior_env.py \
             environments/trex/tests/test_behavior_training.py \
             -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0

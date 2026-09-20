@@ -1,10 +1,10 @@
-# Next steps and program state (2026-09-19)
+# Next steps and program state (2026-09-20)
 
-**Status**: living reference — updated 2026-09-19 (evening); `main` = `ab35dbd` (2026-09-19).
+**Status**: living reference — updated 2026-09-20; `main` = `ac409f8` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
-has landed, what is certified on Drive, which training sessions to run next, which
-code PRs are on hold, and which decisions bind. Repository facts were verified at
+has landed, what is certified on Drive, which training sessions to run next, where
+the consolidation stands, and which decisions bind. Repository facts were verified at
 `22c1fc8`; Drive facts and the maintainer's decisions date from 2026-09-17
 ([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md)).
 Companions: [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) (design of
@@ -27,6 +27,7 @@ file in place when the state changes; it is not a dated investigation.
 | #542 | 2026-09-16 | `PUBLISH_CERTIFIED` notebook default flipped to `False` (consolidation PR-1): library publication required a training-origin stamp a widened root handoff lacks, so a `WIDEN_FROM` session would have disconnected the Colab runtime right after the stance passed its gate |
 | #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
 | #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
+| #545 | 2026-09-20 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -59,14 +60,19 @@ Guides: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md),
 [CERTIFIED_MODELS.md](CERTIFIED_MODELS.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
 
-### On hold: the consolidation (PR-3 .. PR-15)
+### The consolidation (PR-3 .. PR-15): released 2026-09-20, notebook-first
 
 The 2026-09-17 review produced a fifteen-PR sequence folding the pilot pipeline
 back into the recipes machinery ([section 4](#4-consolidation-the-remaining-prs)).
-PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544, this documentation
-pass) landed, and **PR-3 .. PR-15 are ON HOLD until the maintainer says go**; D-D1..D-D10
-are taken and recorded, D-D11/D-D12 recommended but unconfirmed
-([section 5](#5-decisions-taken-2026-09-17)). Training sessions are not on hold.
+PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544) landed. On 2026-09-20 the
+maintainer released the hold with a **notebook-first order** (decision D-D13):
+PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
+mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
+sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
+PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
+D-D1..D-D14 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20; [section 5](#5-decisions-taken-2026-09-17)). Training sessions
+run in parallel (G3).
 
 ### The final goal and the goal decisions
 
@@ -113,7 +119,8 @@ run-level summaries.
 |---|---|---|---|---|---|---|
 | trex | `20260914_123816` | 42 | r13 (commit `35dd44c`) | **PASS** — `01_stance`, 11,001,856 steps, 13h13m, final eval 3460.6 ± 19.2, `gate_verdict.json` judged 2026-09-15 01:57 UTC, `gate_sha256 ff2494ba…`, handoff `robust_best_model.zip` | **PASS** — `03_locomotion`, 8,011,776 steps, 8h46m, 1.07 m/s, mean length 1000, reward 1940.8, verdict 2026-09-15 11:39 UTC, `gate_sha256 02602cb0…`, `task_sha256 31383192…` | A second stance seed at r13 (`certification_seeds = 2`; session 1); the recovery node (never trained at r13; session 1 trains one from the widened seed-44 stance; a `BEHAVIOR="stand"` session under `TRUNK_FROM = "auto"` would train one on this run's stance); follow nodes once PR-11 exists |
 | trex | `20260915_160239` | 43 | r13 (`35dd44c`) | **FAIL** — `01_stance` only, 11M steps (13h17m), final eval 3209.7 ± 284.3, best 3335.1; the 40-episode panel failed unsupported duty (mean 0.0323, UCB 0.0350, rail 0.02), reward and full-horizon passed; provenance `certified false`, `provisional true` | none | Nothing; a measured deficit, kept as history |
-| trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Widen to r13 with `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44`, re-panel (session 1) |
+| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none | The recovery node and the run bundle: the session died at the stance node's bundle write (fixed 2026-09-20, section 3 "Continuing session 1"); `summary.json` / `artifact_manifest.json` are absent until the continuation writes them |
+| trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Nothing: widened to r13 and re-paneled as `20260920_010912` (session 1, 2026-09-20) |
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Widen r1 → r2 under the default gap 1 (53 + 3 = 56), `SEED = 42`, re-panel, then locomotion 3M (session 2) |
 | velociraptor | `20260723_005740` (July) | 42 | r3 (obs 67); physics r2 = current | stage1 balance 6M, 3h41m, final eval 1767, 1000-step episodes; run-level `publication_gate_passed` only, no per-node verdict; sidecar predates identity stamping | stage2 8M, 4h50m, 3.29 m/s; stage3 strike 12M | **Not a widen candidate**: seven revisions behind r10 and the crossed revisions include the reset-settling change (`plant_versions.toml` note 6). Fresh chain (session 3) |
@@ -134,10 +141,12 @@ per-node files, so nothing breaks, but the run-level records under-report the
 run until the bundle cell is re-run in a later session.
 
 Trex stance seed inventory at r13: seed 42 certified, seed 43 failed, seed 44
-exists only as the r11 parent. The `certification_seeds = 2` bar (trex stance
-alone declares it) is met when a second seed certifies at r13: widening seed 44
-is the cheapest route (re-panel about 1 h), a fresh seed-45 stance the fallback
-(about 13 h). Nothing relies on a `mesozoic-labs/certified` library directory.
+certified on 2026-09-20 by the widened run `20260920_010912` (its
+`gate_verdict.json` is written; its run bundle is not yet, see section 3). The
+`certification_seeds = 2` bar (trex stance alone declares it) is therefore met
+once that bundle exists and the seed-42 run's bundle cell is re-run beside it
+(the replication count reads its siblings' verdicts). Nothing relies on a
+`mesozoic-labs/certified` library directory.
 
 ---
 
@@ -149,7 +158,7 @@ the measured Colab wall clock of the section 2 runs or scaled from them.
 
 | # | Species | Settings | What happens | Rough time |
 |---|---|---|---|---|
-| 1 | trex | `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44` | widens the seed-44 r11 stance to r13, re-panels it (40 episodes), then trains recovery 3M | panel ~1 h, recovery ~3.5 h |
+| 1 | trex | `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44` | widens the seed-44 r11 stance to r13, re-panels it (40 episodes), then trains recovery 3M. **Ran 2026-09-20 as `20260920_010912`**: widen and re-panel PASSED in 15 minutes, then the session died at the stance node's bundle write (fixed the same day); the recovery node is owed by the continuation below | panel ~1 h (measured 15 min), recovery ~3.5 h |
 | 2 | compsognathus | `BEHAVIOR="walk"`, `WIDEN_FROM="20260909_162812"`, `WIDEN_MAX_REVISION_GAP=1`, `SEED=42` | widens the r1 stance to r2, re-panels it, trains locomotion 3M | panel ~1 h, walk ~4 h |
 | 3 | velociraptor | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 6M then locomotion 8M | ~4 h + ~5 h |
 | 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 6M then locomotion 12M | ~4 h + ~7 h |
@@ -190,6 +199,29 @@ Notes:
   training. The settings are unchanged: `BEHAVIOR="stand"`,
   `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`,
   `REPO_REF="main"` once the loader change has merged.
+- **Continuing session 1 (2026-09-20).** Run `20260920_010912` holds the
+  widened seed-44 stance with a passed `gate_verdict.json` and no bundle: the
+  chain loop's `save_run_bundle` raised `ResultBundleError: best_eval_reward
+  must be a finite number for canonical stage 1` right after the verdict,
+  because a widened root never trained in its run and so has no
+  `evaluations.npz` curve for `best_eval_reward` to summarize (the JUDGE
+  branch leaves it unmeasured). The result schema now accepts that null for a
+  stage whose deliverable record names `widened_from_run_id` (CHANGELOG
+  2026-09-20, "A widened root's run bundle writes"); until the fix is on
+  `main`, set `REPO_REF` to the session branch. To finish the run in place,
+  in a fresh runtime: `SEED = 44`, `BEHAVIOR = "stand"`, `WIDEN_FROM = ""`
+  (the widened stance already exists; the widen cell must not run again),
+  `TRUNK_FROM = ""` (the reuse candidate is this run itself), and in the
+  storage cell `RUN_ID = "20260920_010912"` in place of `""`, so the storage
+  cell re-enters the run directory. The chain loop then prints `Reusing this
+  run's certified 'stance': robust_best_model (...)`, freezes the recovery
+  resolution from that handoff (`Freezing the recovery_success/v1 resolution
+  for 'recovery' ...`), trains recovery 3M, rolls its panel and writes the
+  bundle with the stance's `best_eval_reward` as `null`. A fresh run with
+  `TRUNK_FROM = "20260920_010912"` instead would reuse the stance across runs
+  and record it under `ancestors/`, leaving `20260920_010912` without a
+  bundle; prefer the in-place continuation. Session 2 (compsognathus widen)
+  would have died at the same line; it needs the fix as well.
 - Sessions 1 and 2 must set `SEED` to the parent's seed **before the storage cell
   mints `RUN_ID`**: the widen cell refuses `SEED != ` the parent's recorded
   `run.seed` (D-C14) and a directory minted under the wrong seed is not
@@ -218,12 +250,13 @@ re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ## 4. Consolidation: the remaining PRs
 
-**Status: ON HOLD** pending the maintainer's review of
-[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md), which carries the
+**Status: released 2026-09-20 in the notebook-first order of decision D-D13**
+(PR-3, PR-4, PR-5, PR-6, the notebook-only PR-12 slice, PR-14, then PR-7 .. PR-11,
+the rest of PR-12, PR-13, PR-15).
+[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
-architecture table. PR-1 landed as #542 and automatic trunk selection as #543;
-**PR-2 (record the decisions, fix the stale docs) is executed by this
-documentation pass.** Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+architecture table. PR-1 landed as #542, automatic trunk selection as #543,
+PR-2 as #544; PR-3 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their
@@ -243,7 +276,7 @@ reorders the widen-seed check and edits the resume cell's prose.
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
 | PR-12 | Delete the parallel trainer, router, checkpoint module, the 66 TOMLs, the notebook mode switch and their tests; `BEHAVIOR` dropdown becomes `stand \| walk \| hunt \| follow \| terrain` | XL (about −5,300) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
-| PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, PR-12; D-D7 (D-D11 if confirmed) |
+| PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, PR-12; D-D7, D-D11; the widen cell and knobs leave here or right after (D-D14) |
 | PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14 |
 
 ---
@@ -281,12 +314,30 @@ G series; the D-A/D-B/D-C series keep their numbers). Confirmed by the maintaine
 - **D-D10** Terrain stays an opt-in env subclass; no r14 interface bump to move
   the model swap into `reset()` (the reset source is fingerprinted).
 
-Recommended, not yet confirmed:
+Confirmed by the maintainer on 2026-09-20 (recommended on 2026-09-17):
 
-- **D-D11** CLI runs may record stage duration and seed model construction like
-  the notebook does (PR-14).
+- **D-D11** CLI runs record stage duration and seed model construction like the
+  notebook does (PR-14).
 - **D-D12** The dead `lateral_speed_scale` field is dropped when the TOMLs are
   rewritten (PR-11/PR-12).
+
+Taken on 2026-09-20, when the consolidation hold lifted:
+
+- **D-D13** The sequence lands notebook-first: PR-3, PR-4, PR-5, PR-6, a
+  notebook-only slice of PR-12, PR-14, then PR-7 .. PR-11, the rest of PR-12,
+  PR-13, PR-15 (amends D-D8; between the slice and PR-11 the direction/terrain
+  pilots have no notebook path).
+- **D-D14** The widen path stays for sessions 1 and 2 of [section 3](#3-recommended-training-sessions),
+  then becomes CLI-only: the notebook refactor deletes the widen cell and the
+  `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs, and `widen_checkpoint` stays a
+  command-line tool for the next interface bump.
+- Operational choices taken the same day: the full six-species and
+  four-notebook-parameter SB3 sets run nightly and under the `full-ci` label
+  (PR-3); if a PR run drops the union coverage gate below 70, the measured
+  number and a proposed floor are reported rather than the floor lowered; the
+  session results (`gate_verdict.json`, `widen_report.json`,
+  `stance_gate_report.json`) are read from Drive through the maintainer's Drive
+  connector when a session ends.
 
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
@@ -349,8 +400,11 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   (`test_phase_c_interface.py`) and `plant_contract --check` reports no interface
   change, on every species. MJX reward kernels stay world-z after PR-7 (MJX has
   no terrain and fails closed on live commands); note the divergence in `mjx_env`.
-- CI: test-sb3 runs 69 minutes at #541 (43 at #539) until PR-3 lands; coverage
-  `fail_under = 70` needs re-measuring after PR-3 and after PR-12/PR-13.
+- CI: PR-3 drops the SB3-free suites from the `test-sb3` job (the `test` matrix
+  already runs them) and moves the full six-species and four-notebook-parameter
+  sets to the nightly schedule and the `full-ci` label, keeping one real-PPO
+  smoke per body of work on every PR; the union coverage gate `fail_under = 70`
+  is re-measured on its first CI run and again after PR-12/PR-13.
 - Test-to-test coupling to untangle in order: trex `test_behavior_training`
   imports `CommandEnv` from `test_behavior_checkpoint`;
   `test_behavior_publication` imports from `test_behavior_certification`.
@@ -377,9 +431,11 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    if touching code, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §4–§6
    for the design and decision ids, and the Phase C entry of
    [KNOWN_ISSUES.md](KNOWN_ISSUES.md) ("Training / RL") before any widen session.
-2. Check whether the maintainer has released the consolidation hold; until then
-   the only code work is what a training session needs.
-3. Check Drive for run directories newer than 2026-09-17 and update
+2. The consolidation hold lifted on 2026-09-20 (D-D13 order): continue with the
+   next PR of [section 4](#4-consolidation-the-remaining-prs) on the session
+   branch, one PR at a time, restarting the branch from `main` after each merge.
+3. Check Drive for run directories newer than 2026-09-17 (through the Drive
+   connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
 4. The docs that were stale at `22c1fc8` (the `README.md` roadmap bullet that
    read "only the command-interface bump and the follow-direction leaf remain
@@ -413,7 +469,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D12, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D14, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note

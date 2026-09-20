@@ -879,6 +879,33 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **The `test-sb3` CI job is bounded** (consolidation PR-3, 2026-09-20). It
+  ran 52 minutes on the #544 merge (notebook smoke 6, behaviors 14,
+  integration 31; 69 at #541) because #540/#541 added their suites to its
+  lists, ten of which import no SB3 and already run three times in the
+  `test` matrix (`test_behavior_env`, `test_behavior_recipes`,
+  `test_terrain_sampling`, `test_behavior_evaluation`,
+  `test_behavior_certification`, `test_behavior_publication`,
+  `test_certified_library`, `test_certified_comparison`,
+  `test_sb3_notebook_certified`, trex `test_behavior_env`; verified locally
+  with SB3, torch and ray blocked), and because every real-PPO smoke ran for
+  all six species and all four notebook parameters on every pull request.
+  Those suites leave the SB3 lists; pull-request and push runs keep one
+  real-PPO smoke per body of work (the `compsognathus_robot` parameter of the
+  notebook training smoke and of the species training smoke); the full sets
+  run on a new nightly schedule (`05:17` UTC), on `workflow_dispatch`, and on
+  any pull request carrying the `full-ci` label, all inside the same job so
+  the required-check name is unchanged (the `pull_request` trigger gains the
+  `labeled` activity type, so adding the label to an open pull request starts
+  the run that reads it; the label itself is created once on the repository).
+  The `walker` fixture of
+  `test_behavior_species_training.py` is module-scoped (6 PPO builds instead
+  of 18). The union coverage gate (`fail_under = 70`) is re-measured on the
+  first CI run of the change.
+  The same change records the maintainer's 2026-09-20 decisions in the plan
+  documents: the consolidation hold lifted in a notebook-first order (D-D13),
+  D-D11 and D-D12 confirmed, and the widen path kept for the two pending
+  parents then demoted to CLI-only (D-D14).
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with
   no alias** (Phase A, WS1). Ids are an open vocabulary
   (`^[a-z][a-z0-9_]*$`); the four historical ids stay reserved, `stage{N}`
@@ -1290,6 +1317,22 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A widened root's run bundle writes** (2026-09-20). The first widen session
+  on the fixed loader (`20260920_010912`, the seed-44 trex stance widened
+  r11 → r13 and re-paneled: PASS, reward 3408.3 ± 88.5, duty 0.0069, UCB
+  0.0117) died right after its gate verdict, in the chain loop's
+  `save_run_bundle`: `ResultBundleError: best_eval_reward must be a finite
+  number for canonical stage 1`. A widened root never trains in its run, so
+  the JUDGE branch finds no `evaluations.npz` and
+  `build_stage_results_from_eval_data` leaves `best_eval_*` unmeasured (`""`),
+  which the canonical summary rule rejected. `validate_result_summary` now
+  accepts a null `best_eval_reward` for exactly the stage whose
+  `provenance.deliverables` record names `widened_from_run_id` (copied from
+  the widen tool's run block by the bundle writer, new in
+  `RUN_BLOCK_DELIVERABLE_RECORD_FIELDS`); the judged panel and final
+  evaluation stay required, and a root that trained here still needs its
+  curve. The run's `01_stance/gate_verdict.json` is valid as written; the
+  session continues in the same run directory (NEXT_STEPS.md §3).
 - **SB3 archives load on whatever Python the Colab image ships; the widen
   session no longer kills the kernel** (2026-09-19). SB3 stores a model's
   `learning_rate` / `lr_schedule` / `clip_range` members through cloudpickle,
