@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-19)
 
-**Status**: living reference — updated 2026-09-19 (evening); `main` = `ab35dbd` (2026-09-19).
+**Status**: living reference — updated 2026-09-20; `main` = `ac409f8` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, which
@@ -27,6 +27,7 @@ file in place when the state changes; it is not a dated investigation.
 | #542 | 2026-09-16 | `PUBLISH_CERTIFIED` notebook default flipped to `False` (consolidation PR-1): library publication required a training-origin stamp a widened root handoff lacks, so a `WIDEN_FROM` session would have disconnected the Colab runtime right after the stance passed its gate |
 | #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
 | #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
+| #545 | 2026-09-20 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -59,14 +60,19 @@ Guides: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md),
 [CERTIFIED_MODELS.md](CERTIFIED_MODELS.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
 
-### On hold: the consolidation (PR-3 .. PR-15)
+### The consolidation (PR-3 .. PR-15): released 2026-09-20, notebook-first
 
 The 2026-09-17 review produced a fifteen-PR sequence folding the pilot pipeline
 back into the recipes machinery ([section 4](#4-consolidation-the-remaining-prs)).
-PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544, this documentation
-pass) landed, and **PR-3 .. PR-15 are ON HOLD until the maintainer says go**; D-D1..D-D10
-are taken and recorded, D-D11/D-D12 recommended but unconfirmed
-([section 5](#5-decisions-taken-2026-09-17)). Training sessions are not on hold.
+PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544) landed. On 2026-09-20 the
+maintainer released the hold with a **notebook-first order** (decision D-D13):
+PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
+mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
+sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
+PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
+D-D1..D-D10 and D-D13 are taken and recorded, D-D11/D-D12 recommended but
+unconfirmed ([section 5](#5-decisions-taken-2026-09-17)). Training sessions
+run in parallel (G3).
 
 ### The final goal and the goal decisions
 
@@ -218,12 +224,13 @@ re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ## 4. Consolidation: the remaining PRs
 
-**Status: ON HOLD** pending the maintainer's review of
-[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md), which carries the
+**Status: released 2026-09-20 in the notebook-first order of decision D-D13**
+(PR-3, PR-4, PR-5, PR-6, the notebook-only PR-12 slice, PR-14, then PR-7 .. PR-11,
+the rest of PR-12, PR-13, PR-15).
+[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
-architecture table. PR-1 landed as #542 and automatic trunk selection as #543;
-**PR-2 (record the decisions, fix the stale docs) is executed by this
-documentation pass.** Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+architecture table. PR-1 landed as #542, automatic trunk selection as #543,
+PR-2 as #544; PR-3 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their
@@ -349,8 +356,11 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   (`test_phase_c_interface.py`) and `plant_contract --check` reports no interface
   change, on every species. MJX reward kernels stay world-z after PR-7 (MJX has
   no terrain and fails closed on live commands); note the divergence in `mjx_env`.
-- CI: test-sb3 runs 69 minutes at #541 (43 at #539) until PR-3 lands; coverage
-  `fail_under = 70` needs re-measuring after PR-3 and after PR-12/PR-13.
+- CI: PR-3 drops the SB3-free suites from the `test-sb3` job (the `test` matrix
+  already runs them) and moves the full six-species and four-notebook-parameter
+  sets to the nightly schedule and the `full-ci` label, keeping one real-PPO
+  smoke per body of work on every PR; the union coverage gate `fail_under = 70`
+  is re-measured on its first CI run and again after PR-12/PR-13.
 - Test-to-test coupling to untangle in order: trex `test_behavior_training`
   imports `CommandEnv` from `test_behavior_checkpoint`;
   `test_behavior_publication` imports from `test_behavior_certification`.
@@ -413,7 +423,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D12, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D13, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note

@@ -1030,21 +1030,6 @@ Still open:
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)
 - The four CI test jobs are near-identical — a matrix would halve the YAML.
-- **MEDIUM** — **the `test-sb3` CI job grew to 69 minutes at #541 (43 at
-  #539).** #540/#541 added their suites to the SB3 job's lists in
-  `.github/workflows/python-ci.yml` (the "Validate all-species direction
-  and terrain training" and "Run SB3 integration tests" steps), several of
-  which import no SB3 and already run in the `test` matrix, so every PR run
-  pays for them again. Remedy: consolidation PR-3
-  ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)): drop the
-  SB3-free suites from the SB3 lists, keep one real-PPO smoke per body of
-  work in the PR gate, run the full six-species / four-notebook-param set
-  only on a schedule or a `full-ci` label inside the same job (the
-  required-check name stays), and make the `walker` fixture in
-  `environments/shared/tests/test_behavior_species_training.py`
-  module-scoped (6 PPO builds instead of 18). Coverage `fail_under=70` may
-  need one re-baseline afterwards. On hold with the rest of the sequence;
-  it has no prerequisites and is first when the hold lifts.
 
 ## Open questions
 

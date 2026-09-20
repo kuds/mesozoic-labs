@@ -36,11 +36,17 @@ from environments.shared.train_behaviors import (  # noqa: E402
 )
 
 
-@pytest.fixture(params=list(species_display_names(backend="stable-baselines3")))
-def walker(request, tmp_path):
-    """A short optimizer smoke fixture, explicitly not a trained locomotion policy."""
+@pytest.fixture(scope="module", params=list(species_display_names(backend="stable-baselines3")))
+def walker(request, tmp_path_factory):
+    """A short optimizer smoke fixture, explicitly not a trained locomotion policy.
+
+    Module-scoped: the three tests below only READ the saved pair (each writes its
+    own output under its own ``tmp_path``), so one PPO build per species serves all
+    of them instead of one per test (consolidation PR-3; 6 builds instead of 18).
+    """
     torch.set_num_threads(1)
     species = request.param
+    tmp_path = tmp_path_factory.mktemp(f"walker_{species}")
     identity = current_plant_identity(species)
     normalizer = VecNormalize(DummyVecEnv([get_species_config(species).env_class]))
     model = PPO(

@@ -1071,7 +1071,8 @@ A1–A10 above — which override the original wording where they conflict).
 
 Taken by the maintainer on 2026-09-17 at the review of the direction/terrain
 pilots (#540/#541) against this design; the review's working labels D1..D12
-map one-to-one onto D-D1..D-D12, and nothing in §6 or §6.1 is renumbered.
+map one-to-one onto D-D1..D-D12 (D-D13 was added on 2026-09-20 when the hold
+lifted), and nothing in §6 or §6.1 is renumbered.
 The sequence of consolidation PRs each row unblocks — fifteen in all, with
 sizes, per-PR file lists and acceptance tests — is
 `docs/CONSOLIDATION_PLAN_2026_09.md` (§3 the sequence, §6 and §7 the same
@@ -1097,6 +1098,7 @@ D-D12 are recommended, not yet confirmed.
 | D-D10 | Terrain stays an opt-in env subclass; no r14 interface bump to move the model swap into `reset()` (the reset source is fingerprinted; the queued height-channel removal stays queued, D3). Unblocks PR-7 and PR-9. |
 | D-D11 | Recommended, not yet confirmed: CLI runs may record stage duration and seed model construction like the notebook does (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line). PR-14. |
 | D-D12 | Recommended, not yet confirmed: the dead `lateral_speed_scale` field (it always divides a zero) is dropped when the TOMLs are rewritten. PR-11 / PR-12. |
+| D-D13 | Taken 2026-09-20 (the maintainer released the consolidation hold): the sequence lands notebook-first — PR-3, PR-4, PR-5, PR-6, then a notebook-only slice of PR-12 (the `COMMAND_TERRAIN_BEHAVIOR` mode switch, the ten `BEHAVIOR_*` knobs, the direction/terrain cells and their guard sites, and `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays a CLI-only path) pulled ahead of PR-11, then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15. Amends D-D8: the mode switch is tolerated only until that slice, and between the slice and PR-11 the direction/terrain pilots have no notebook path (they are evaluation-only under D-D9). |
 | G1 | Chain shape `walk → follow_direction` (the full command set on flat ground) `→ follow_direction_difficult_terrain` (the target deliverable: every species follows a direction on difficult terrain); a commands-free `difficult_terrain` node stays as an optional diagnostic sibling; the recipe label `follow` resolves to the deepest deliverable; `follow_direction_speed` is folded into `follow_direction` (this supersedes the `follow_direction_speed` node in §4.1's manifest sketch and assumption A1); three new stage files per species; the final node is SB3-only (MJX fails closed on live commands and has no terrain). Shapes PR-11's node set. |
 | G2 | Command set = heading, speed (half to full cruise), stops and restarts, switching every few seconds — the pilots' combined recipe: `follow_direction` carries the full set from the start (`command_config` with `speed_range = [0.5, 1.0]` of the cruise speed) and `follow_direction_difficult_terrain` inherits it. PR-11. |
 | G3 | Walker sessions start now on the current notebook, trex first (its r13 chain `20260914_123816` is selected automatically under `TRUNK_FROM = "auto"`), the other five species one at a time, in parallel with the consolidation PRs; the sessions are `docs/NEXT_STEPS.md` §3, and every consolidation PR keeps the chain loop, `TRUNK_FROM`, `WIDEN_FROM`, `RETRAIN_FROM` and the resume cell working so those sessions run on whatever `main` is at the time. Changes nothing in the PR order. |
