@@ -45,26 +45,20 @@ def _write(path: Path, value: dict[str, Any]) -> None:
 def read_recipe(
     path: Path, species: str | None = None
 ) -> tuple[dict[str, Any], DirectionCommandConfig, TerrainConfig | None, dict[str, Any]]:
-    """Load a species behavior recipe; historical T-Rex recipes remain readable."""
+    """Load a species behavior recipe."""
     with path.open("rb") as stream:
         recipe = tomllib.load(stream)
-    unknown = set(recipe) - {"behavior", "pilot", "commands", "terrain", "terrain_sampler", "env", "ppo"}
-    if "behavior" in recipe and "pilot" in recipe:
-        raise ValueError("Choose one behavior metadata section, not both behavior and pilot")
-    section = "behavior" if "behavior" in recipe else "pilot"
-    metadata = recipe.get(section, {})
+    unknown = set(recipe) - {"behavior", "commands", "terrain", "terrain_sampler", "env", "ppo"}
+    metadata = recipe.get("behavior", {})
     if not isinstance(metadata, dict):
-        raise ValueError(f"{section} must be a table")
-    if section == "behavior":
-        if not {"species", "name", "parent"} <= metadata.keys():
-            raise ValueError("behavior requires species, name and parent")
-        if not isinstance(metadata["name"], str) or not metadata["name"].strip():
-            raise ValueError("behavior.name must be a nonempty string")
-        if metadata["parent"] != "locomotion":
-            raise ValueError("behavior.parent must be locomotion")
-        declared_species = resolve_species_id(metadata["species"])
-    else:
-        declared_species = "trex"
+        raise ValueError("behavior must be a table")
+    if not {"species", "name", "parent"} <= metadata.keys():
+        raise ValueError("behavior requires species, name and parent")
+    if not isinstance(metadata["name"], str) or not metadata["name"].strip():
+        raise ValueError("behavior.name must be a nonempty string")
+    if metadata["parent"] != "locomotion":
+        raise ValueError("behavior.parent must be locomotion")
+    declared_species = resolve_species_id(metadata["species"])
     species = resolve_species_id(species) if species is not None else declared_species
     if species != declared_species:
         raise ValueError("Recipe species differs from the requested species")
@@ -73,7 +67,6 @@ def read_recipe(
     if unknown:
         raise ValueError(f"Unknown recipe sections: {sorted(unknown)}")
     for section, allowed in (
-        ("pilot", {"name", "timesteps"}),
         ("behavior", {"species", "name", "parent", "timesteps"}),
         ("ppo", {"learning_rate", "ent_coef", "target_kl", "warmup_timesteps", "warmup_clip_range"}),
     ):
@@ -109,8 +102,7 @@ def read_recipe(
             raise ValueError(f"Invalid ppo.{key}")
     if recipe["ppo"]["warmup_clip_range"] > 0.2:
         raise ValueError("ppo.warmup_clip_range must not exceed 0.2")
-    metadata_section = "behavior" if "behavior" in recipe else "pilot"
-    for section, key, default in ((metadata_section, "timesteps", 3_000_000), ("ppo", "warmup_timesteps", 100_000)):
+    for section, key, default in (("behavior", "timesteps", 3_000_000), ("ppo", "warmup_timesteps", 100_000)):
         value = recipe.setdefault(section, {}).setdefault(key, default)
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise ValueError(f"{section}.{key} must be a nonnegative integer")
@@ -258,15 +250,14 @@ def main(argv: list[str] | None = None) -> None:
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be new or empty")
     recipe, commands, terrain, env_kwargs = read_recipe(args.config, species=args.species)
-    metadata_section = "behavior" if "behavior" in recipe else "pilot"
-    metadata = recipe[metadata_section]
-    species = resolve_species_id(metadata.get("species", "trex"))
+    metadata = recipe["behavior"]
+    species = resolve_species_id(metadata["species"])
     if args.resume or args.adapt:
         _verify_bundle(args.checkpoint, args.vecnormalize, recipe if args.resume else None)
     run_seed = args.seed if args.seed is not None else secrets.randbelow(2**32)
     steps = args.steps if args.steps is not None else int(metadata["timesteps"])
     if steps < 0:
-        parser.error(f"{metadata_section}.timesteps must be nonnegative")
+        parser.error("behavior.timesteps must be nonnegative")
     args.output.mkdir(parents=True, exist_ok=True)
 
     import mujoco

@@ -211,10 +211,7 @@ def run_notebook_behavior(plan: NotebookBehaviorPlan) -> dict[str, Any]:
 
     main(plan.argv())
     report = json.loads((plan.output_dir / "run.json").read_text())
-    if (
-        report.get("schema") not in {"mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"}
-        or report.get("canonical_certification") is not False
-    ):
+    if report.get("schema") != "mesozoic.behavior-run/v1" or report.get("canonical_certification") is not False:
         raise ValueError("Behavior runner did not write the expected evaluation run manifest.")
     return dict(report)
 
@@ -295,13 +292,3 @@ def display_notebook_behavior(output_dir: Path) -> None:
             display(Video(filename=paths["video"], embed=True))
             display(Image(filename=paths["full_map"]))
             display(Image(filename=paths["local_map"]))
-
-
-# Existing notebooks and saved scripts can retain their helper imports while
-# migrating to the supported behavior controls and species-specific recipes.
-PILOT_RECIPES = BEHAVIOR_RECIPES
-NotebookPilotPlan = NotebookBehaviorPlan
-validate_pilot_selection = validate_behavior_selection
-build_notebook_pilot_plan = build_notebook_behavior_plan
-run_notebook_pilot = run_notebook_behavior
-display_notebook_pilot = display_notebook_behavior

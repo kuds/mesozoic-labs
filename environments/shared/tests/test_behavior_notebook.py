@@ -355,13 +355,12 @@ def test_deleted_library_knobs_do_not_change_the_behavior_plan(behavior_files, m
         assert namespace["BEHAVIOR_PLAN"] == first
 
 
-@pytest.mark.parametrize("schema", ["mesozoic.behavior-run/v1", "mesozoic.behavior-pilot-run/v1"])
-def test_runner_receives_exact_plan_and_returns_diagnostic_manifest(behavior_files, monkeypatch, schema):
+def test_runner_receives_exact_plan_and_returns_diagnostic_manifest(behavior_files, monkeypatch):
     from environments.shared import train_behaviors
 
     plan = _plan(behavior_files, load_mode="adapt", steps=1234, seed=999)
     calls = []
-    expected = {"schema": schema, "canonical_certification": False, "status": "complete"}
+    expected = {"schema": "mesozoic.behavior-run/v1", "canonical_certification": False, "status": "complete"}
 
     def fake_main(args):
         calls.append(args)
@@ -812,3 +811,5 @@ def test_notebook_has_supported_controls_without_pilot_or_trex_only_label():
     assert "PILOT_" not in text
     assert "T-Rex PPO only" not in text
     assert "Before PR 540" not in text
+    # Consolidation PR-6: the pilot-named aliases left behavior_notebook with the [pilot] dialect.
+    assert not any(name.startswith("PILOT_") or "Pilot" in name or "_pilot" in name for name in dir(notebook))

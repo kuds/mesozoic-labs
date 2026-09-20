@@ -14,25 +14,26 @@ pytest.importorskip("stable_baselines3")
 from environments.shared import train_behaviors  # noqa: E402
 from environments.trex.envs.behavior_env import TRexBehaviorEnv  # noqa: E402
 
-PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behavior_pilots"
+PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behaviors"
 
 
 @pytest.mark.parametrize(
     "name",
     [
-        "trex_follow_direction",
-        "trex_follow_direction_speed",
-        "trex_terrain_contact",
-        "trex_gentle_terrain",
-        "trex_bumps_terrain",
-        "trex_depressions_terrain",
-        "trex_mixed_terrain",
-        "trex_combined_terrain",
+        "follow_direction",
+        "follow_direction_speed",
+        "terrain_contact",
+        "sloped_terrain",
+        "bumps_terrain",
+        "depressions_terrain",
+        "mixed_terrain",
+        "combined_terrain",
     ],
 )
 def test_each_committed_recipe_instantiates_and_steps(name):
     recipe, commands, terrain, kwargs = train_behaviors.read_recipe(PRESETS / f"{name}.toml")
-    assert recipe["pilot"]["timesteps"] > 0
+    assert recipe["behavior"]["species"] == "trex" and recipe["behavior"]["name"] == name
+    assert recipe["behavior"]["timesteps"] > 0
     env = TRexBehaviorEnv(commands=commands, terrain=terrain, run_seed=42, **kwargs)
     try:
         obs, info = env.reset(seed=42)
@@ -60,6 +61,11 @@ def test_each_committed_recipe_instantiates_and_steps(name):
         env.close()
 
 
+# Every bad-recipe case sits under a valid [behavior] header: since consolidation PR-6 a recipe without one is
+# refused for that reason alone, which would let every case below pass without testing its named defect.
+_BEHAVIOR_HEADER = '[behavior]\nspecies = "trex"\nname = "bad"\nparent = "locomotion"\n'
+
+
 @pytest.mark.parametrize(
     "content",
     [
@@ -69,8 +75,8 @@ def test_each_committed_recipe_instantiates_and_steps(name):
         "[ppo]\nlearn_rate=0.0001\n",
         "[env]\nmax_episode_step=1000\n",
         "[terrain]\nenabled=1\n",
-        "[pilot]\ntimesteps=1.5\n",
-        "[pilot]\ntimesteps=-1\n",
+        "timesteps=1.5\n",
+        "timesteps=-1\n",
         "[ppo]\nent_coef=nan\n",
         "[ppo]\nent_coef=-0.1\n",
         "[ppo]\ntarget_kl=-0.1\n",
@@ -86,8 +92,25 @@ def test_each_committed_recipe_instantiates_and_steps(name):
 )
 def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, content):
     path = tmp_path / "bad.toml"
-    path.write_text(content)
+    path.write_text(_BEHAVIOR_HEADER + content)
     with pytest.raises((ValueError, TypeError)):
+        train_behaviors.read_recipe(path)
+
+
+@pytest.mark.parametrize(
+    "content,message",
+    [
+        ("", "behavior requires species, name and parent"),
+        ("[commands]\ncruise_speed = 1.0\n", "behavior requires species, name and parent"),
+        ('[pilot]\nname = "T-Rex F1"\ntimesteps = 100\n', "behavior requires species, name and parent"),
+        (_BEHAVIOR_HEADER + "[pilot]\ntimesteps = 100\n", "Unknown recipe sections"),
+    ],
+)
+def test_recipe_without_behavior_table_is_refused_instead_of_defaulting_to_trex(tmp_path, content, message):
+    """Consolidation PR-6: the [pilot] dialect is gone; a recipe names its species in [behavior] or is refused."""
+    path = tmp_path / "recipe.toml"
+    path.write_text(content)
+    with pytest.raises(ValueError, match=message):
         train_behaviors.read_recipe(path)
 
 
@@ -229,7 +252,7 @@ def test_eval_only_never_learns_or_overwrites_parent(stubbed_cli, tmp_path):
     calls, parent, normalization = stubbed_cli
     original = parent.read_bytes(), normalization.read_bytes()
     output = tmp_path / "evaluation"
-    train_behaviors.main(_args(PRESETS / "trex_follow_direction.toml", parent, normalization, output) + ["--eval-only"])
+    train_behaviors.main(_args(PRESETS / "follow_direction.toml", parent, normalization, output) + ["--eval-only"])
     assert calls["learn"] == []
     assert (parent.read_bytes(), normalization.read_bytes()) == original
     run = json.loads((output / "run.json").read_text())
@@ -250,7 +273,7 @@ def test_unavailable_requested_replay_fails_before_loading_or_learning(stubbed_c
             raise behavior_replay.ReplayExportError("The requested video encoder is unavailable")
 
     monkeypatch.setattr(behavior_replay, "require_replay_dependencies", preflight)
-    args = _args(PRESETS / "trex_mixed_terrain.toml", parent, normalization, tmp_path / "unavailable-replay")
+    args = _args(PRESETS / "mixed_terrain.toml", parent, normalization, tmp_path / "unavailable-replay")
     args[args.index("--eval-episodes") + 1] = "1"
     args += ["--record-video", "--video-fps", "101" if problem == "excessive_fps" else "25"]
     with pytest.raises((SystemExit, ValueError, behavior_replay.ReplayExportError)):
@@ -262,7 +285,7 @@ def test_unavailable_requested_replay_fails_before_loading_or_learning(stubbed_c
 def test_resume_refuses_changed_ppo_recipe_before_loading(stubbed_cli, tmp_path):
     calls, parent, normalization = stubbed_cli
     source = tmp_path / "first"
-    config = PRESETS / "trex_follow_direction.toml"
+    config = PRESETS / "follow_direction.toml"
     train_behaviors.main(_args(config, parent, normalization, source) + ["--steps", "0"])
     changed = tmp_path / "changed.toml"
     changed.write_text(config.read_text().replace("ent_coef = 0.005", "ent_coef = 0.1"))
@@ -279,9 +302,7 @@ def test_resume_finishes_original_budget_without_repeating_full_training(stubbed
     calls, parent, normalization = stubbed_cli
     source, resumed = tmp_path / "interrupted", tmp_path / "resumed"
     config = tmp_path / "short_recipe.toml"
-    config.write_text(
-        (PRESETS / "trex_follow_direction.toml").read_text().replace("timesteps = 3000000", "timesteps = 100")
-    )
+    config.write_text((PRESETS / "follow_direction.toml").read_text().replace("timesteps = 3000000", "timesteps = 100"))
     calls["interrupt_after"] = 40
     train_behaviors.main(_args(config, parent, normalization, source))
     first = json.loads((source / "run.json").read_text())
@@ -296,7 +317,7 @@ def test_resume_finishes_original_budget_without_repeating_full_training(stubbed
 
 def test_cli_rejects_conflicting_load_modes_and_nonempty_output(stubbed_cli, tmp_path):
     calls, parent, normalization = stubbed_cli
-    args = _args(PRESETS / "trex_follow_direction.toml", parent, normalization, tmp_path / "unused")
+    args = _args(PRESETS / "follow_direction.toml", parent, normalization, tmp_path / "unused")
     with pytest.raises(SystemExit):
         train_behaviors.main(args + ["--resume", "--adapt"])
     occupied = tmp_path / "occupied"
@@ -304,7 +325,7 @@ def test_cli_rejects_conflicting_load_modes_and_nonempty_output(stubbed_cli, tmp
     sentinel = occupied / "keep.txt"
     sentinel.write_text("preserved")
     with pytest.raises(SystemExit):
-        train_behaviors.main(_args(PRESETS / "trex_follow_direction.toml", parent, normalization, occupied))
+        train_behaviors.main(_args(PRESETS / "follow_direction.toml", parent, normalization, occupied))
     assert sentinel.read_text() == "preserved"
     assert calls["loads"] == [] and calls["learn"] == []
 
@@ -314,7 +335,7 @@ def test_periodic_rollout_checkpoints_are_complete_matched_bundles(stubbed_cli, 
     calls["rollout_starts"] = [100_000, 200_000]
     output = tmp_path / "periodic"
     train_behaviors.main(
-        _args(PRESETS / "trex_follow_direction.toml", parent, normalization, output) + ["--steps", "250000"]
+        _args(PRESETS / "follow_direction.toml", parent, normalization, output) + ["--steps", "250000"]
     )
     checkpoints = sorted((output / "checkpoints").iterdir())
     assert [path.name for path in checkpoints] == ["step-8100000", "step-8200000"]
@@ -339,7 +360,7 @@ def test_interrupted_evaluation_keeps_trained_bundle_and_records_status(stubbed_
         raise KeyboardInterrupt
 
     monkeypatch.setattr(behavior_evaluation, "evaluate_behavior", interrupt)
-    args = _args(PRESETS / "trex_follow_direction.toml", parent, normalization, output)
+    args = _args(PRESETS / "follow_direction.toml", parent, normalization, output)
     args[args.index("--eval-episodes") + 1] = "1"
     train_behaviors.main(args + ["--steps", "100"])
     assert calls["learn"] == [100]
@@ -365,9 +386,7 @@ def test_interrupted_bundle_save_finishes_a_resumable_pair(stubbed_cli, tmp_path
         save(model, normalizer, directory, identity, recipe)
 
     monkeypatch.setattr(train_behaviors, "_save_bundle", interrupt_once)
-    train_behaviors.main(
-        _args(PRESETS / "trex_follow_direction.toml", parent, normalization, output) + ["--steps", "100"]
-    )
+    train_behaviors.main(_args(PRESETS / "follow_direction.toml", parent, normalization, output) + ["--steps", "100"])
     assert attempts == [output, output]
     assert json.loads((output / "run.json").read_text())["status"] == "interrupted"
     train_behaviors._verify_bundle(output / "model.zip", output / "vecnormalize.pkl")
@@ -415,7 +434,9 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
 
     monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda species: PilotEnv)
     config = tmp_path / "short.toml"
-    config.write_text("[pilot]\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n")
+    config.write_text(
+        '[behavior]\nspecies = "trex"\nname = "short"\nparent = "locomotion"\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n'
+    )
     updates = []
     train = PPO.train
 
