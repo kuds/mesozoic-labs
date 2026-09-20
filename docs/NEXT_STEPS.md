@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-19)
 
-**Status**: living reference — updated 2026-09-19; `main` = `22c1fc8` (2026-09-16).
+**Status**: living reference — updated 2026-09-19 (evening); `main` = `ab35dbd` (2026-09-19).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, which
@@ -26,10 +26,13 @@ file in place when the state changes; it is not a dated investigation.
 | #540, #541 | 2026-09-15 | T. rex direction-following and randomized-terrain pilots; all-species terrain behaviors and the certified library — a **separate pipeline** beside the recipes machinery (next paragraph) |
 | #542 | 2026-09-16 | `PUBLISH_CERTIFIED` notebook default flipped to `False` (consolidation PR-1): library publication required a training-origin stamp a widened root handoff lacks, so a `WIDEN_FROM` session would have disconnected the Colab runtime right after the stance passed its gate |
 | #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
+| #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
-`COMMAND_TERRAIN_BEHAVIOR` mode switch. Configuration-cell defaults:
+`COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
+guarded code cell, the SB3 archive-load preflight before the widen cell:
+41 cells, 23 code, about 2,560 lines). Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
 `WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `PUBLISH_CERTIFIED = False`,
@@ -60,8 +63,8 @@ Drive is evaluation-only; none is a training parent.
 
 The 2026-09-17 review produced a fifteen-PR sequence folding the pilot pipeline
 back into the recipes machinery ([section 4](#4-consolidation-the-remaining-prs)).
-PR-1 (#542) and the auto-trunk PR (#543) landed, PR-2 is this documentation
-pass, and **PR-3 .. PR-15 are ON HOLD until the maintainer says go**; D-D1..D-D10
+PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544, this documentation
+pass) landed, and **PR-3 .. PR-15 are ON HOLD until the maintainer says go**; D-D1..D-D10
 are taken and recorded, D-D11/D-D12 recommended but unconfirmed
 ([section 5](#5-decisions-taken-2026-09-17)). Training sessions are not on hold.
 
@@ -155,6 +158,38 @@ the measured Colab wall clock of the section 2 runs or scaled from them.
 
 Notes:
 
+- **The runtime image moved (2026-09-19).** Colab's L4 image went from Python
+  3.12.13 / numpy 2.0.2 / jax 0.7.2 (the 2026-09-14/15 runs) to Python 3.13.15 /
+  numpy 2.1.3 / jax 0.11.1, and both first attempts at session 1
+  (`20260919_170528`, `20260919_190251`) died with a kernel restart inside the
+  widen tool's self-verification: an SB3 archive's schedule members embed the
+  saving interpreter's bytecode and a bare `PPO.load` executes it (KNOWN_ISSUES,
+  "SB3 archives are bound to the interpreter that saved them"). Since the
+  loader change of 2026-09-19 every load goes through
+  `policy_loading.load_sb3_model`, and a preflight cell right before the widen
+  cell loads the `WIDEN_FROM` parent's real root handoff first. Before re-running
+  session 1 delete the two stray run directories (each holds only
+  `provenance.json` and four unverified model files under `01_stance/models/`;
+  `select_trunk` would list them as refused, which is harmless but noisy). What
+  to look for, in order: the preflight line `SB3 archive load preflight: loading
+  the WIDEN_FROM parent's root handoff .../20260815_205206/stage1/models/robust_best_model.zip
+  (saved by Python 3.x; this runtime is Python 3.13; bytecode members:
+  clip_range, learning_rate, lr_schedule) ... a kernel death HERE means this
+  image cannot load SB3 archives` followed by `SB3 archive load preflight
+  passed: archives load back on this runtime through load_sb3_model.`; the
+  widen cell's `Widened 'stance' (PPO) into .../01_stance` block, whose
+  `num_timesteps inherited` line names `report: .../01_stance/widen_report.json`
+  and which closes with `The chain loop will JUDGE this node (no verdict yet);
+  parent run '20260815_205206' is untouched.` (the two dead sessions never
+  reached it; that report's `schedule_members_source` will most likely read
+  `current_stage_config`, because the parent's `stage_config.json` predates
+  the `hyperparameters` block by a day, and its `schedule_members_restated`
+  names the three re-stated members); the chain loop's `JUDGE` branch
+  rolling the 40-episode panel (seeds 3042–3081) and writing
+  `01_stance/gate_verdict.json`; then the recovery node's freeze and 3M
+  training. The settings are unchanged: `BEHAVIOR="stand"`,
+  `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`,
+  `REPO_REF="main"` once the loader change has merged.
 - Sessions 1 and 2 must set `SEED` to the parent's seed **before the storage cell
   mints `RUN_ID`**: the widen cell refuses `SEED != ` the parent's recorded
   `run.seed` (D-C14) and a directory minted under the wrong seed is not
@@ -293,9 +328,13 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 
 - Does a widened stance reproduce its panel under r13? Unanswered (no widen
   session has run yet); sessions 1 and 2 answer it for trex and compsognathus.
-- The `ConstantSchedule` `custom_objects` guard in `behavior_checkpoint._load_ppo`
-  (py3.13 cloudpickle) goes with PR-12; the canonical `alg_cls.load` path resumed
-  r11 parents in Colab without it but was not re-exercised: check before PR-12.
+- Settled 2026-09-19: the canonical `alg_cls.load` path had never crossed an
+  interpreter boundary (the r13 run warm-started from its own stance under one
+  image), and the first cross-interpreter load — the widen tool's
+  self-verification of the r11 parent under the 3.13 image — killed the
+  kernel. Every load now goes through `policy_loading.load_sb3_model`;
+  `behavior_checkpoint._load_ppo`'s own `custom_objects` guard is redundant
+  with it and goes with PR-12 as planned.
 - Two dated task-fingerprint valves (`allow_unfingerprinted`, the schema-v1 valve)
   may be dead on r13 species (~60-line follow-up after the r11 parents are
   widened); task lineage may need `parent_normalization_sha256` (~15 lines).

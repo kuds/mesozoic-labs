@@ -1290,6 +1290,63 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **SB3 archives load on whatever Python the Colab image ships; the widen
+  session no longer kills the kernel** (2026-09-19). SB3 stores a model's
+  `learning_rate` / `lr_schedule` / `clip_range` members through cloudpickle,
+  and the closure `train_base.linear_schedule` returned (every stage TOML
+  with `learning_rate_end`) was pickled by value with its code object;
+  `PPO.load` / `SAC.load` execute it while rebuilding the optimizer, so an
+  archive saved under Python 3.12 loaded under 3.13 (or the reverse)
+  segfaulted the process with no traceback — reproduced both ways with
+  torch held constant, and the mechanism behind the two dead widen
+  sessions of NEXT_STEPS.md session 1 (runs `20260919_170528` and
+  `20260919_190251`: the widen tool wrote the four widened artifacts, then
+  its self-verification's bare `alg_cls.load` of the r11 parent died) and
+  behind the 2026-08-28 "PPO.load segfaults on Colab's current image" note.
+  - `environments/shared/policy_loading.load_sb3_model` is now the one way
+    an SB3 archive is opened: it reads the archive's `data` JSON and
+    `system_info.txt` without unpickling, finds the members whose payload
+    embeds function bytecode, supplies the algorithm's schedule members
+    through SB3's `custom_objects` (the stage config's schedules on a
+    training load, inference placeholders otherwise) so they are never
+    unpickled, and refuses — `PolicyLoadError`, naming the members — an
+    archive whose OTHER members carry bytecode from another Python minor
+    version. `load_sb3_checkpoint` and every former bare load call it:
+    `train_base` (the warm-start load and both post-training eval-panel
+    loads, handoff and legacy `best_model`),
+    `evaluation.evaluate`, `reporting/stage_artifacts` (task-success
+    evidence and both replays), `harnesses/freeze_recovery_gate`,
+    `scripts/widen_checkpoint._verify`, `behavior_checkpoint._load_ppo`,
+    `certified_canonical._load_pair`, the Ray sweep worker and
+    orchestration, the SB3 notebook's `evaluate_stage_checkpoints` and the
+    Ray sweep notebook's standalone-reload ranking and evaluation cells. `test_policy_loading.py` pins that
+    no bare `PPO.load` / `SAC.load` / `alg_cls.load` exists outside the
+    loader, in `environments/**` or any notebook.
+  - `linear_schedule` / `cosine_schedule` return instances of the new
+    picklable-by-reference `curriculum.schedules.LinearSchedule` /
+    `CosineSchedule` (same values), so archives saved from now on carry no
+    bytecode at all; `widen_checkpoint` re-states a parent's schedule
+    members from its recorded `hyperparameters` block, or from the current
+    stage config's algorithm block when the parent's `stage_config.json`
+    predates that block (the r11 trex parent's does), through
+    `schedule_members_from_hyperparameters` when the parent archive stores
+    them as bytecode, so a widened archive is bytecode-free instead of a
+    3.13-labelled zip full of 3.12 code; `widen_report.json` records the
+    members re-stated and their source.
+  - The SB3 notebook's load preflight moved from the infrastructure cell
+    (which ran AFTER the widen cell and loaded a throwaway model saved by
+    the same interpreter, so it could never see a cross-interpreter fault)
+    to a cell right before the widen cell that loads the `WIDEN_FROM`
+    parent's real root handoff through `load_sb3_model` (else the trunk
+    run's, else a throwaway), printing what it loads and which Python
+    saved it, flushed, before the load.
+  - Fixture archives saved under Python 3.12 and 3.13 with the legacy
+    closure (`environments/shared/tests/fixtures/sb3_archives/`, regenerated
+    by `make_fixtures.py`) pin the inspector, the round trip through the
+    loader on whichever interpreter runs the suite, the training-keyword
+    override, the refusal, the widen re-statement, and — in a subprocess —
+    that the bare load of the foreign archive still dies where the loader
+    survives.
 - **The JAX/MJX backend evaluates, trains and resumes on the same plant as
   SB3** (gap review Phase J, `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md`
   findings JX1–JX9, EP3). Mechanical parity fixes only; the recovery gate

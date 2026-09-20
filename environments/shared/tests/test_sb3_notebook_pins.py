@@ -45,6 +45,10 @@ CHAIN_CELL_MARKER = "# ===== BEHAVIOR CHAIN LOOP ====="
 MANUAL_CELL_MARKER = "# ===== MANUAL SINGLE NODE"
 RESUME_CELL_MARKER = "# ===== RESUME AN INTERRUPTED STAGE"
 COMPLETION_CELL_MARKER = 'print("Training complete!")'
+#: The archive-load preflight cell: its FIRST line, deliberately not a `# ===== ` marker. It sits between the
+#: RESOLVE cell and the widen cell and loads the WIDEN_FROM parent's real handoff through `load_sb3_model`
+#: before anything is widened (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
+PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / RL": SB3 archives are bound to the interpreter that saved them)'
 #: The Phase C widen cell (D-C13): its FIRST line, deliberately not a `# ===== ` marker.
 WIDEN_CELL_MARKER = "# Widen an earlier run's certified root checkpoint (BEHAVIOR_RECIPES_PLAN §4.6)"
 #: The names the widen cell may take from the cells that run before it (amendment A14a).
@@ -1078,7 +1082,9 @@ class TestJudgeBranch:
         # model=None loads the final zip back and validates its plant before any rollout.
         load_if = _the_if(judge, src, lambda test: test == "model is None", "loading the final model")
         load_src = _branch_source(src, load_if.body)
-        assert ".load(" in load_src and "validate_model_plant(" in load_src
+        # Through policy_loading.load_sb3_model: never a bare AlgoClass.load (KNOWN_ISSUES, interpreter-bound archives).
+        assert "load_sb3_model(" in load_src and "validate_model_plant(" in load_src
+        assert "AlgoClass.load(" not in load_src
         assert load_if.lineno < _calls(judge, "_eval_forward_vel")[0].lineno
         # The evidence writers live in the split-out tail only.
         train_stage = _top_level_def(src, "train_stage")
@@ -1511,6 +1517,100 @@ class TestResumeCell:
         assert "**new** `RUN_ID`" in prose and "never by pointing `RUN_ID` at the old run" in prose
 
 
+def _preflight_cell() -> tuple[str, ast.Module]:
+    src = _cell(PREFLIGHT_CELL_MARKER)
+    return src, ast.parse(src)
+
+
+class TestArchiveLoadPreflightCell:
+    """The cell that proves SB3 archives load on this runtime BEFORE the widen cell touches the parent.
+
+    Two Colab sessions on 2026-09-19 died inside the widen tool's self-verification because the runtime image had
+    moved to another Python minor version and a bare ``PPO.load`` executed the parent archive's cloudpickled
+    schedule bytecode. The preflight used to live in the infrastructure cell, AFTER the widen cell, and loaded a
+    throwaway model saved by the same interpreter, so it could never see the fault. It now runs right before the
+    widen cell, on the WIDEN_FROM parent's real root handoff (else the trunk's, else a throwaway), through
+    ``policy_loading.load_sb3_model`` -- the one loader every repository load goes through -- with the print
+    flushed first so a kernel death is attributable."""
+
+    def test_the_preflight_sits_between_resolve_and_widen_under_the_same_guard(self):
+        src, tree = _preflight_cell()
+        assert src.splitlines()[0] == PREFLIGHT_CELL_MARKER
+        assert not src.startswith("# ===== "), "not one of the four `# ===== ` cells"
+        cells = _code_cells()
+        assert _cell_index(cells, PREFLIGHT_CELL_MARKER) == _cell_index(cells, RESOLVE_CELL_MARKER) + 1
+        assert _cell_index(cells, PREFLIGHT_CELL_MARKER) + 1 == _cell_index(cells, WIDEN_CELL_MARKER)
+        raw = next(
+            cell for cell in _cells() if "".join(cell["source"]).splitlines()[1:2] == ["    " + PREFLIGHT_CELL_MARKER]
+        )
+        assert "".join(raw["source"]).startswith('if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n')
+
+    def test_the_preflight_loads_a_real_archive_through_the_loader_with_the_print_flushed_first(self):
+        src, tree = _preflight_cell()
+        assert "from environments.shared.policy_loading import inspect_sb3_archive, load_sb3_model" in src
+        loads = _calls(tree, "load_sb3_model")
+        assert len(loads) == 1, "exactly one load, the one being proven"
+        (load,) = loads
+        # No bare algorithm load anywhere in the cell: the loader is the path under test.
+        assert not re.search(r"\b(PPO|SAC|AlgoClass|alg_cls)\.load\(", src)
+        # The flushed print immediately precedes the load, and names what is loaded and by which Python it was saved.
+        prints = [node for node in _calls(tree, "print") if node.lineno < load.lineno]
+        assert prints, "a print precedes the load"
+        last = prints[-1]
+        assert any(keyword.arg == "flush" and ast.literal_eval(keyword.value) is True for keyword in last.keywords), (
+            "the print before the load is flushed so a kernel death is attributable to the load"
+        )
+        printed = ast.get_source_segment(src, last)
+        assert "saved_python_text" in printed and "bytecode_members" in printed and "kernel death HERE" in printed
+        # The archive is the WIDEN_FROM parent's root handoff first, the trunk's second, a throwaway last; a widen
+        # session with no complete handoff pair RAISES rather than passing on a throwaway.
+        assert "if WIDEN_FROM:" in src and "elif TRUNK_DIR is not None:" in src
+        widen_if = _the_if(tree, src, lambda test: test == "WIDEN_FROM", "on a set WIDEN_FROM")
+        missing = _the_if(widen_if, src, lambda test: test == "_preflight_archive is None", "on a missing handoff")
+        assert _raises(missing, "RuntimeError"), "a set WIDEN_FROM without a root handoff pair refuses the preflight"
+        assert "select_handoff_checkpoint(" in src and "stage_dir_candidates(SPECIES, CHAIN[0].reference)" in src
+        assert "tempfile.TemporaryDirectory(" in src, (
+            "the throwaway model lives in a temporary directory the cell removes"
+        )
+        assert 'load_sb3_model(_preflight_archive, device="cpu")' in src
+
+    def test_the_preflight_trains_nothing_writes_nothing_and_reads_only_earlier_names(self):
+        import builtins
+
+        src, tree = _preflight_cell()
+        for name in (
+            "train_stage",
+            "widen_checkpoint",
+            "evaluate_stage_checkpoints",
+            "generate_stage_artifacts",
+            "learn",
+            "initialize_result_bundle",
+            "save_stage_config",
+            "write_gate_verdict",
+            "disconnect_runtime",
+            "open",
+        ):
+            assert not _calls(tree, name), f"the preflight cell calls {name}"
+        for name in ("NODE_HANDOFF", "NODE_RESULTS", "completed_stages", "RUN_DIR"):
+            assert name not in _names(tree), f"the preflight cell touches {name}"
+        bound = _bound_names(tree)
+        earlier: set[str] = set()
+        for marker in ("# Add repo root to path", CONFIG_CELL_MARKER, STORAGE_CELL_MARKER, RESOLVE_CELL_MARKER):
+            earlier |= _bound_names(ast.parse(_cell(marker)))
+        # The cell defines a helper and a throwaway env class: their parameters are bound locally, not read.
+        parameters = {
+            argument.arg
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef)
+            for argument in (*node.args.args, *node.args.kwonlyargs, *node.args.posonlyargs)
+        }
+        free = _loaded_names(tree) - bound - parameters - set(dir(builtins))
+        assert free <= earlier, f"the preflight cell reads names no earlier cell binds: {sorted(free - earlier)}"
+        assert free <= {"SPECIES", "ALGORITHM", "CHAIN", "LOG_BASE", "TRUNK_DIR", "WIDEN_FROM", "gym", "np", "sys"}, (
+            sorted(free)
+        )
+
+
 def _widen_cell() -> tuple[str, ast.Module]:
     src = _cell(WIDEN_CELL_MARKER)
     return src, ast.parse(src)
@@ -1544,11 +1644,16 @@ class TestWidenCell:
         src = cells[widen_at]
         assert src.splitlines()[0] == WIDEN_CELL_MARKER, "the widen cell is identified by its first line"
         resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
-        assert widen_at == resolve_at + 1, "the widen cell is the code cell right after the RESOLVE cell (CHAIN exists)"
+        preflight_at = _cell_index(cells, PREFLIGHT_CELL_MARKER)
+        assert preflight_at == resolve_at + 1, (
+            "the load preflight is the code cell right after the RESOLVE cell (CHAIN exists)"
+        )
+        assert widen_at == preflight_at + 1, "the widen cell is the code cell right after the load preflight"
         assert widen_at < _cell_index(cells, INFRA_CELL_MARKER) < _cell_index(cells, CHAIN_CELL_MARKER)
-        # Immediately after in the full cell list too: no markdown or other cell sits between them.
+        # Immediately after in the full cell list too: no markdown or other cell sits between the three.
         every = _all_cell_sources()
-        assert every.index(src) == every.index(cells[resolve_at]) + 1
+        assert every.index(cells[preflight_at]) == every.index(cells[resolve_at]) + 1
+        assert every.index(src) == every.index(cells[preflight_at]) + 1
         # The tool is imported from the scripts module, the way the zero-action baseline cell imports its script.
         assert "from environments.shared.scripts.widen_checkpoint import" in src
         # With WIDEN_FROM empty the cell prints one line and does nothing else; everything else sits under the else.

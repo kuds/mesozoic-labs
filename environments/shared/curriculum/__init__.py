@@ -35,8 +35,8 @@ training loop can drive the curriculum without importing SB3 at all:
   ``_SB3_AVAILABLE``
 * :mod:`~environments.shared.curriculum.manager` — ``StageThreshold`` and the
   backend-independent ``CurriculumManager``
-* :mod:`~environments.shared.curriculum.schedules` — constant schedules and
-  entropy-coefficient decay
+* :mod:`~environments.shared.curriculum.schedules` — constant, linear and
+  cosine schedules (picklable by reference) and entropy-coefficient decay
 * :mod:`~environments.shared.curriculum.advancement` — stage entry, reward
   ramping, and gate evaluation
 * :mod:`~environments.shared.curriculum.gate_schema` — the versioned,
@@ -86,7 +86,13 @@ from .gate_schema import (
     validate_gate_configs,
 )
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
-from .schedules import EntCoefDecayCallback, _ConstantSchedule
+from .schedules import (
+    CosineSchedule,
+    EntCoefDecayCallback,
+    LinearSchedule,
+    _ConstantSchedule,
+    schedule_members_from_hyperparameters,
+)
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 __all__ = [
@@ -97,7 +103,9 @@ __all__ = [
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
     "CurriculumManager",
+    "CosineSchedule",
     "EntCoefDecayCallback",
+    "LinearSchedule",
     "EvalCollapseEarlyStopCallback",
     "GateSchemaError",
     "CheckpointRetentionCallback",
@@ -111,6 +119,7 @@ __all__ = [
     "StageWarmupCallback",
     "TASK_SUCCESS_GATE_KIND",
     "_ConstantSchedule",
+    "schedule_members_from_hyperparameters",
     "build_baseline_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",

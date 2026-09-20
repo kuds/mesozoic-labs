@@ -1207,7 +1207,7 @@ class TestTaskSuccessEvidence:
 
         class _Alg:
             @staticmethod
-            def load(path, env=None):
+            def load(path, env=None, **_load_kwargs):
                 seen["loaded"] = path
                 return object()
 

@@ -213,7 +213,7 @@ def _load_pair(ancestor: CertifiedAncestor, *, species: str, algorithm: str, pla
     """Load both actual artifacts, with safe constant evaluation schedules."""
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-    from environments.shared.policy_loading import _checkpoint_algorithm
+    from environments.shared.policy_loading import _checkpoint_algorithm, load_sb3_model
 
     config = _read(ancestor.stage_dir / "stage_config.json")
     if config.get("species") != species:
@@ -257,7 +257,9 @@ def _load_pair(ancestor: CertifiedAncestor, *, species: str, algorithm: str, pla
         custom = {"learning_rate": 0.0, "lr_schedule": lambda _: 0.0}
         if algorithm == "ppo":
             custom.update(clip_range=lambda _: 0.2, clip_range_vf=None)
-        model = cls.load(str(ancestor.model_zip), env=normalizer, device="cpu", custom_objects=custom)
+        model = load_sb3_model(
+            str(ancestor.model_zip), algorithm=cls, env=normalizer, device="cpu", custom_objects=custom
+        )
         validate_model_plant(model, plant, artifact="certified checkpoint", allow_legacy=False)
         if normalizer.observation_space.shape != (plant.observation_dim,) or model.action_space.shape != (
             plant.action_dim,

@@ -300,9 +300,9 @@ def policy_controller(
 
     if inference in ("auto", "sb3"):
         try:
-            from stable_baselines3 import PPO, SAC
+            from environments.shared.policy_loading import load_sb3_model
 
-            model = (PPO if algorithm == "ppo" else SAC).load(str(policy_zip), device="cpu")
+            model = load_sb3_model(str(policy_zip), algorithm=algorithm, device="cpu")
         except Exception as exc:  # noqa: BLE001 — any failure means "use the other path"
             if inference == "sb3" or algorithm == "sac":
                 raise

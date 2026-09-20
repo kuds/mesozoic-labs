@@ -46,6 +46,7 @@ from .constants import (
     PUBLICATION_SEED_START,
 )
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
+from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .plant_contract import (
     PlantIdentity,
@@ -54,6 +55,7 @@ from .plant_contract import (
     validate_environment_plant,
     validate_model_plant,
 )
+from .policy_loading import load_sb3_model
 from .stage_manifest import StageEntry, StageManifest, stage_label
 from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
@@ -134,29 +136,27 @@ class SpeciesConfig:
 # ── Utility helpers ──────────────────────────────────────────────────────
 
 
-def linear_schedule(initial_lr: float, final_lr: float):
-    """Return a callable that linearly decays learning rate."""
+def linear_schedule(initial_lr: float, final_lr: float) -> LinearSchedule:
+    """Return a callable that linearly decays learning rate.
 
-    def schedule(progress_remaining: float) -> float:
-        return final_lr + progress_remaining * (initial_lr - final_lr)
+    A :class:`~environments.shared.curriculum.schedules.LinearSchedule`
+    instance, never a closure: SB3 cloudpickles the model's schedules into
+    the archive, and a closure is pickled by value with its bytecode, which
+    only the saving interpreter can run (KNOWN_ISSUES, "SB3 archives are
+    bound to the interpreter that saved them").
+    """
+    return LinearSchedule(initial_lr, final_lr)
 
-    return schedule
 
-
-def cosine_schedule(initial_lr: float, final_lr: float):
+def cosine_schedule(initial_lr: float, final_lr: float) -> CosineSchedule:
     """Return a callable that decays learning rate on a cosine curve.
 
     Decays faster in mid-training than linear, then flattens near the end.
     This better protects converged policies from late-training destabilisation.
+    A :class:`~environments.shared.curriculum.schedules.CosineSchedule`
+    instance for the reason :func:`linear_schedule` gives.
     """
-    import math
-
-    def schedule(progress_remaining: float) -> float:
-        # progress_remaining goes from 1.0 → 0.0
-        cosine_decay = 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining)))
-        return final_lr + cosine_decay * (initial_lr - final_lr)
-
-    return schedule
+    return CosineSchedule(initial_lr, final_lr)
 
 
 # TensorBoard local-buffer helpers live in ``tb_sync.py`` (re-exported above).
@@ -581,7 +581,7 @@ def _create_or_load_model(
     task_lineage = None
     if load_path:
         logger.info("Loading model from: %s", load_path)
-        model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
+        model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
         if plant_identity is not None:
             validate_model_plant(
                 model,
@@ -1721,7 +1721,7 @@ def _post_training_eval_panels(
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
         evaluated_handoff = handoff
-        eval_model = alg_cls.load(ckpt_path, env=eval_env)
+        eval_model = load_sb3_model(ckpt_path, algorithm=alg_cls, env=eval_env)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
         load_kwargs: dict[str, Any]
@@ -1737,7 +1737,7 @@ def _post_training_eval_panels(
     elif best_model_zip.exists():
         # Legacy fallback: a best_model saved without matched VecNormalize
         # stats. Evaluate it rather than nothing, but flag the mismatch.
-        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+        eval_model = load_sb3_model(str(model_dir / "best_model"), algorithm=alg_cls, env=eval_env)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
         eval_env.training = False

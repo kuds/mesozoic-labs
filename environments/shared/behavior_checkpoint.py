@@ -27,7 +27,7 @@ from environments.shared.plant_contract import (
     validate_model_plant,
     validate_recorded_identity,
 )
-from environments.shared.policy_loading import _checkpoint_algorithm
+from environments.shared.policy_loading import _checkpoint_algorithm, load_sb3_model
 from environments.shared.result_bundle import sha256_file
 from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, read_checkpoint_attribute
@@ -109,16 +109,20 @@ def _load_ppo(model_path: Path, env: VecNormalize, learning_rate: float) -> PPO:
     # SB3 custom_objects replaces these values BEFORE deserialization. Only
     # training settings are replaced; network and optimizer tensors are loaded.
     schedule = ConstantSchedule(float(learning_rate))
-    model = PPO.load(
-        str(model_path),
-        env=env,
-        device="cpu",
-        custom_objects={
-            "learning_rate": float(learning_rate),
-            "lr_schedule": schedule,
-            "clip_range": ConstantSchedule(0.2),
-            "clip_range_vf": None,
-        },
+    model = cast(
+        PPO,
+        load_sb3_model(
+            str(model_path),
+            algorithm=PPO,
+            env=env,
+            device="cpu",
+            custom_objects={
+                "learning_rate": float(learning_rate),
+                "lr_schedule": schedule,
+                "clip_range": ConstantSchedule(0.2),
+                "clip_range_vf": None,
+            },
+        ),
     )
     for group in model.policy.optimizer.param_groups:
         group["lr"] = float(learning_rate)

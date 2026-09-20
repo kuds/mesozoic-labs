@@ -6,7 +6,7 @@ import logging
 import math
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -607,9 +607,18 @@ class TestCreateOrLoadModel:
         env = MagicMock()
         kwargs = {"batch_size": 64, "policy_kwargs": {"net_arch": [128]}}
         _create_or_load_model(sb3, "ppo", kwargs, env, load_path="/path/model")
-        sb3["PPO"].load.assert_called_once_with("/path/model", env=env, batch_size=64)
-        # policy_kwargs should NOT be passed to .load()
+        # Through policy_loading.load_sb3_model: the archive's schedule members are
+        # supplied as custom_objects, never unpickled (an unreadable path replaces
+        # them all), so SB3 executes no bytecode another interpreter compiled.
+        sb3["PPO"].load.assert_called_once_with("/path/model", env=env, custom_objects=ANY, batch_size=64)
         call_kwargs = sb3["PPO"].load.call_args
+        assert set(call_kwargs.kwargs["custom_objects"]) == {
+            "learning_rate",
+            "lr_schedule",
+            "clip_range",
+            "clip_range_vf",
+        }
+        # policy_kwargs should NOT be passed to .load()
         assert "policy_kwargs" not in call_kwargs.kwargs
 
     def test_pops_policy_kwargs_even_on_load(self):

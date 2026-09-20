@@ -29,6 +29,7 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-3 .. PR-15 | **ON HOLD** pending the maintainer's review of this plan. Nothing starts until they say so. |
 | Net removal from here | about 9,500 lines. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
 | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). |
+| Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
 
 Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7);
 D-D11 and D-D12 are recommended and unconfirmed. Ids follow the series recorded
@@ -756,9 +757,12 @@ Carried from the review, with the 2026-09-17 additions.
   is a fresh trex stance with SEED = 45.
 - The `ConstantSchedule` `custom_objects` guard in `_load_ppo`
   (behavior_checkpoint.py:108-121, for cloudpickled py3.13 schedule bytecode) is
-  deleted with PR-12; the canonical `alg_cls.load(load_path, env=train_env,
-  **alg_kwargs)` path has resumed r11 parents in Colab without it, but this was
-  not exercised in the review; check once in the Colab image before PR-12.
+  deleted with PR-12. Settled 2026-09-19: the canonical `alg_cls.load` path had
+  never crossed an interpreter boundary, the first cross-interpreter load (the
+  widen tool's self-verification of the r11 parent on the Python 3.13 image)
+  killed the kernel, and every load now goes through
+  `policy_loading.load_sb3_model`, which makes the guard redundant (KNOWN_ISSUES,
+  "SB3 archives are bound to the interpreter that saved them").
 - Not verified during the review (flagged, unverified): (i) the two dated
   task-fingerprint valves (`allow_unfingerprinted=True`, train_base.py:593-604;
   the schema-v1 valve in `validate_recorded_task`) may already be dead because

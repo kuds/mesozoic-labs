@@ -179,6 +179,15 @@ def narrow_identity(current: PlantIdentity, *, revision_gap: int = 1) -> PlantId
     )
 
 
+def legacy_closure_schedule(initial: float, final: float):
+    """The closure ``train_base.linear_schedule`` returned before the loader change: pickled by value, bytecode and all."""
+
+    def schedule(progress_remaining: float) -> float:
+        return final + progress_remaining * (initial - final)
+
+    return schedule
+
+
 def build_narrow_parent(
     root: Path,
     algorithm: str,
@@ -189,8 +198,15 @@ def build_narrow_parent(
     run_name: str = PARENT_RUN_NAME,
     handoff_name: str = "robust_best_model",
     revision_gap: int = 1,
+    schedule_closures: bool = False,
 ) -> dict:
     """A certified-shaped parent run directory holding a narrow (r-*revision_gap*, default r-1) handoff pair.
+
+    With *schedule_closures* the PPO parent trains under the CLOSURE schedules
+    ``train_base.linear_schedule`` returned before the loader change (every
+    Drive stage archive with a ``learning_rate_end`` holds them), so its
+    archive's ``learning_rate`` / ``lr_schedule`` / ``clip_range`` members
+    are cloudpickled bytecode.
 
     ``<root>/<run_name>/<stage_dirname>/models/<handoff_name>.zip`` +
     ``_vecnorm.pkl`` (both stamped with the narrow identity; the archive
@@ -210,6 +226,12 @@ def build_narrow_parent(
     venv = VecNormalize(DummyVecEnv([lambda: NarrowObservation(build_env(species, stage))]))
     try:
         if algorithm == "ppo":
+            schedules: dict = {}
+            if schedule_closures:
+                schedules = {
+                    "learning_rate": legacy_closure_schedule(3e-4, 1e-5),
+                    "clip_range": legacy_closure_schedule(0.2, 0.1),
+                }
             model = PPO(
                 "MlpPolicy",
                 venv,
@@ -219,6 +241,7 @@ def build_narrow_parent(
                 seed=seed,
                 device="cpu",
                 verbose=0,
+                **schedules,
             )
         elif algorithm == "sac":
             model = SAC(
@@ -393,6 +416,12 @@ def narrow_parent_ppo(tmp_path_factory):
 @pytest.fixture(scope="module")
 def narrow_parent_sac(tmp_path_factory):
     return build_narrow_parent(tmp_path_factory.mktemp("parent_sac"), "sac")
+
+
+@pytest.fixture(scope="module")
+def narrow_parent_ppo_closures(tmp_path_factory):
+    """A PPO parent whose archive stores its schedules as cloudpickled closures (the Drive parents' shape)."""
+    return build_narrow_parent(tmp_path_factory.mktemp("parent_ppo_closures"), "ppo", schedule_closures=True)
 
 
 @pytest.fixture(scope="module")
@@ -1517,6 +1546,55 @@ def test_widened_pair_hashes_are_stable_after_self_verification(widened):
     finally:
         normalizer.close()
     assert file_digests(widened["target"]) == digests
+
+
+# ── a parent whose schedules are bytecode (every pre-loader Drive archive) ───
+
+
+def test_widening_a_closure_schedule_parent_yields_a_bytecode_free_archive(narrow_parent_ppo_closures, tmp_path):
+    """The parent's cloudpickled schedule members are re-stated from its recorded hyperparameters, never re-pickled.
+
+    The two dead widen sessions of 2026-09-19 re-pickled the r11 parent's Python 3.12 closures into a zip whose
+    ``system_info.txt`` said 3.13, then died loading the parent bare (KNOWN_ISSUES, "SB3 archives are bound to the
+    interpreter that saved them"). Widened archives now carry no bytecode at all, the report says what was
+    re-stated, and the exact-transfer verification is unchanged.
+    """
+    from environments.shared.curriculum.schedules import LinearSchedule
+    from environments.shared.policy_loading import inspect_sb3_archive, load_sb3_model
+
+    parent = narrow_parent_ppo_closures
+    parent_inspection = inspect_sb3_archive(parent["model_zip"])
+    assert parent_inspection.bytecode_members == {"learning_rate", "lr_schedule", "clip_range"}
+    widened = widen_into(parent, tmp_path / "widened_closures")
+    result = widened["result"]
+    assert inspect_sb3_archive(result.model_zip).bytecode_members == frozenset()
+    assert inspect_sb3_archive(result.final_zip).bytecode_members == frozenset()
+    # The recorded [ppo] block (the stage TOML's, saved by save_stage_config) is the source of the re-statement.
+    block = load_stage_config(SPECIES, STAGE)["ppo_kwargs"]
+    expected_lr = LinearSchedule(block["learning_rate"], block["learning_rate_end"])
+    restated = result.report["schedule_members_restated"]
+    assert result.report["schedule_members_source"] == "parent_stage_config"
+    assert set(restated) == {"learning_rate", "lr_schedule", "clip_range"}
+    assert restated["learning_rate"] == restated["lr_schedule"] == repr(expected_lr)
+    assert restated["clip_range"] == repr(float(block["clip_range"]))
+    model = load_sb3_model(str(result.model_zip), algorithm="ppo", device="cpu")
+    assert isinstance(model.learning_rate, LinearSchedule)
+    assert (model.learning_rate.initial, model.learning_rate.final) == (expected_lr.initial, expected_lr.final)
+    assert model.lr_schedule(1.0) == pytest.approx(expected_lr.initial)
+    assert model.clip_range(1.0) == pytest.approx(float(block["clip_range"]))
+    # Exact transfer held through the re-statement: the tool's own verification pinned it before writing the report.
+    assert result.report["padded_columns_exactly_zero"] is True
+    assert result.max_action_delta_zero_command <= ACTION_DELTA_ATOL
+    assert result.max_action_delta_probe_command <= ACTION_DELTA_ATOL
+    # A by-reference parent has nothing to re-state.
+    plain = widen_into(narrow_parent_ppo_for_contrast(tmp_path), tmp_path / "widened_plain")
+    assert plain["result"].report["schedule_members_restated"] == {}
+    assert plain["result"].report["schedule_members_source"] is None
+
+
+def narrow_parent_ppo_for_contrast(root: Path) -> dict:
+    """A by-reference (float-schedule) PPO parent built beside the closure one, for the empty-report contrast."""
+    return build_narrow_parent(root / "contrast_parent", "ppo")
 
 
 # ── the CLI ──────────────────────────────────────────────────────────────────

@@ -640,7 +640,7 @@ class TestEvaluateSeeding:
         _two_step_episode(mock_vec_env)
         mock_sb3["DummyVecEnv"].return_value = mock_vec_env
 
-        def load_like_sb3(path, env=None):
+        def load_like_sb3(path, env=None, **_load_kwargs):
             env.seed(42)  # the checkpoint's saved training seed
             return _tagged_model()
 
@@ -691,7 +691,7 @@ class TestEvaluateSeeding:
 
         class FakePPO:
             @staticmethod
-            def load(path, env=None):
+            def load(path, env=None, **_load_kwargs):
                 return _tagged_model()
 
         sb3 = {
@@ -827,7 +827,7 @@ class TestPostEvalEpisodes:
 
         class _Alg:
             @staticmethod
-            def load(path, env=None):
+            def load(path, env=None, **_load_kwargs):
                 return object()
 
         eval_env = MagicMock()
