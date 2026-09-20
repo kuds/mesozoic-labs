@@ -1327,7 +1327,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   configuration lines removed. A `mesozoic-labs/certified` directory on Drive,
   if one exists, is left in place; nothing reads it.
 - **The canonical certified-library wrapper and the notebook's library hooks**
-  (consolidation PR-4, 2026-09-20). `environments/shared/certified_canonical.py`
+  (consolidation PR-4, #547, 2026-09-20). `environments/shared/certified_canonical.py`
   (the training-origin stamp, the `certified_inputs/` copy of a reused trunk
   ancestor, canonical publication and benchmarking), its test and
   `test_sb3_notebook_certified.py` are deleted. The SB3 notebook loses the
