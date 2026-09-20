@@ -347,15 +347,13 @@ jobs:
 
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
       # test_behavior_publication, test_certified_library, test_certified_comparison,
-      # test_sb3_notebook_certified, trex/test_behavior_env) run in the `test`
-      # matrix and are not repeated here.
+      # trex/test_behavior_env) run in the `test` matrix and are not repeated here.
       - name: Run SB3 integration tests
         run: |
           pytest \
             environments/shared/tests/test_behavior_checkpoint.py \
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_behavior_notebook.py \
-            environments/shared/tests/test_certified_canonical.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \

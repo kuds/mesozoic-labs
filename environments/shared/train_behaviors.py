@@ -348,21 +348,14 @@ def main(argv: list[str] | None = None) -> None:
                 args.vecnormalize = Path(source_selection["normalizer"])
                 _verify_bundle(args.checkpoint, args.vecnormalize, recipe)
             else:
-                from environments.shared.certified_canonical import resolve_canonical_locomotion
-
-                source = resolve_canonical_locomotion(
-                    args.certified_library, run_dir=args.output, species=species, algorithm="ppo"
+                # The canonical library wrapper that selected a certified locomotion
+                # parent for a fresh behavior left with consolidation PR-4.
+                raise ValueError(
+                    "Automatic canonical parent selection left with the certified library wrapper "
+                    "(consolidation PR-4): give an explicit locomotion checkpoint pair with --checkpoint and "
+                    "--vecnormalize (BEHAVIOR_CHECKPOINT / BEHAVIOR_VECNORMALIZE in the notebook), or use "
+                    "--auto-source with --resume for the exact behavior's recommendation."
                 )
-                args.checkpoint, args.vecnormalize = source.model_zip, source.normalization_path
-                source_selection = {
-                    "kind": "canonical_locomotion",
-                    "source_run_id": source.run_id,
-                    "model": str(source.model_zip),
-                    "normalizer": str(source.normalization_path),
-                    "directory": str(source.stage_dir),
-                    "model_sha256": source.model_sha256,
-                    "normalization_sha256": source.normalization_sha256,
-                }
         elif args.certified_library is not None:
             source_selection = _copy_explicit_certified_pair(
                 args.checkpoint, args.vecnormalize, args.certified_library, args.output

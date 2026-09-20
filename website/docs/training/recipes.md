@@ -117,9 +117,8 @@ root-first. At each node it does exactly one of three things:
 1. **Reuse** a certified checkpoint that already exists — in this run, or,
    for an ancestor, in the trunk run — when the reuse rule below holds. A
    cross-run ancestor is recorded under `ancestors/<stage_id>/` (its JSON
-   records copied, never its checkpoint pair); the CLI loads it from where
-   it lives, the notebook first copies the complete stage directory under
-   `certified_inputs/` and loads the copy.
+   records copied, never its checkpoint pair) and loaded from where it
+   lives, by the CLI and the notebook alike.
    The trunk run is the one `TRUNK_FROM` / `--trunk-from` names, or, under
    `"auto"` (the notebook default, decision D-A25), the run beside this one
    (under the species/algorithm log directory in the notebook; the siblings

@@ -32,8 +32,9 @@ past a couple of files get their own subdirectory with a short README index
   evaluation-only (D-D9) until the nodes are re-homed as manifest nodes
   (consolidation PR-11).
 - [CERTIFIED_MODELS.md](CERTIFIED_MODELS.md) — the certified-library guide
-  from #540/#541 (2026-09-15); scheduled for removal (consolidation
-  PR-4/PR-5), and canonical chains no longer read the library since #543.
+  from #540/#541 (2026-09-15); scheduled for removal in consolidation PR-5
+  (PR-4 deleted the canonical publish wrapper and the notebook's library
+  knobs), and canonical chains no longer read the library since #543.
 
 ## Plans & designs
 

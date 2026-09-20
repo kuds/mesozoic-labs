@@ -602,7 +602,6 @@ def test_the_known_load_sites_call_the_loader():
         "environments/shared/harnesses/freeze_recovery_gate.py": 1,
         "environments/shared/scripts/widen_checkpoint.py": 1,
         "environments/shared/behavior_checkpoint.py": 1,
-        "environments/shared/certified_canonical.py": 1,
         "environments/shared/scripts/sweep/ray_tune.py": 3,
         "environments/shared/scripts/sweep/ray_orchestration.py": 3,
     }

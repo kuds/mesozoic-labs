@@ -1294,6 +1294,30 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The canonical certified-library wrapper and the notebook's library hooks**
+  (consolidation PR-4, 2026-09-20). `environments/shared/certified_canonical.py`
+  (the training-origin stamp, the `certified_inputs/` copy of a reused trunk
+  ancestor, canonical publication and benchmarking), its test and
+  `test_sb3_notebook_certified.py` are deleted. The SB3 notebook loses the
+  `CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED` and
+  `CERTIFIED_COMPARISON_EPISODES` knobs, the stamp block of `train_stage`, the
+  reuse branch's copy call and the publish block of the chain loop (about 130
+  lines); a reused trunk ancestor is loaded from the run that certified it, as
+  the CLI always did (plan A10), and the gate refusal is the loop's only runtime
+  release. The behavior storage cell passes `publish_certified=False`
+  explicitly, so the notebook never publishes (#542 kept);
+  `train_behaviors --auto-source` without `--resume`, which selected a
+  canonical locomotion parent through the deleted module, now refuses with a
+  message naming the explicit `--checkpoint` / `--vecnormalize` pair.
+  `certified_comparison.py` stays until PR-5 (its only importer,
+  `behavior_certification.py`, goes there). Runs made between #543 and this
+  change that hold `certified_inputs/` copies stay valid: their `ancestors/`
+  records point at the copy, reuse rule 1 follows it and their
+  `artifact_manifest.json` hashes the copies, so leave those directories in
+  place. `test_sb3_notebook_pins.py` regains the A10
+  `..._never_copies_checkpoints` pin, gains the seed-at-construction and
+  storage-cell-rerun pins the deleted file held, and asserts the knobs and
+  blocks are gone.
 - **`min_avg_forward_vel`, `min_success_rate` and the absolute
   `collapse_peak_floor` leave `configs/trex/behavior.toml`** (Phase B,
   WS-B2; 2026-08 review CF2, SS2, CF3; plan D1, decisions D-B2, D-B4). The

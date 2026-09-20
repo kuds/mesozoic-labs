@@ -754,7 +754,8 @@ tolerance) remains the standing recommendation for the divergences above.
   checkpoint identity keyed on source-file hashes (any edit to
   `behavior_env.py` strands exact resume); a certified library that
   re-verifies what `find_certified_ancestor` verifies and recounts what
-  `discover_replicates` counts; and the notebook `COMMAND_TERRAIN_BEHAVIOR`
+  `discover_replicates` counts (its canonical publish wrapper left with
+  PR-4; `certified_library.py` goes with PR-5); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
   mode switch, referenced by 19 of the 22 code cells — about 7,000 lines of
   modules, tests excluded. Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
@@ -768,9 +769,10 @@ tolerance) remains the standing recommendation for the divergences above.
   (PR-3, bounding the SB3 CI job, in review); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
-  operator guide, and with `PUBLISH_CERTIFIED = False` the pilots need
-  explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths
-  (`SOURCE_SELECTION = "auto"` finds no library entry).
+  operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /
+  `BEHAVIOR_VECNORMALIZE` paths (the notebook never publishes to the library
+  since PR-4 removed its library knobs, so `SOURCE_SELECTION = "auto"` finds an
+  entry only if a command-line run published one).
 
 ## Sweeps / infrastructure
 

@@ -324,8 +324,9 @@ class TestBehaviorKnob:
         # D-A25: the trunk is selected automatically unless a run is pinned or "" turns reuse off.
         assert assigns["TRUNK_FROM"].value == "auto"
         assert assigns["SOURCE_SELECTION"].value == "auto"
-        assert assigns["PUBLISH_CERTIFIED"].value is False
-        assert assigns["CERTIFIED_COMPARISON_EPISODES"].value == 50
+        # Consolidation PR-4: the certified-library knobs left with the canonical publish wrapper.
+        for name in ("CERTIFIED_LIBRARY_ROOT", "PUBLISH_CERTIFIED", "CERTIFIED_COMPARISON_EPISODES"):
+            assert name not in assigns, f"{name} left with the canonical library wrapper (consolidation PR-4)"
         # D-C17: the revision-gap bound is an integer constant defaulting to the tool's fail-closed 1 (the Phase C
         # bump alone); a widen session for an r11 trex stance parent raises it to 2 by hand.
         from environments.shared.scripts.widen_checkpoint import DEFAULT_MAX_REVISION_GAP
@@ -679,7 +680,7 @@ class TestReuseRule:
         )
         assert ast.unparse(same_run.value) == "candidate == RUN_DIR"
 
-    def test_cross_run_reuse_records_ancestors_and_loads_complete_copies(self):
+    def test_cross_run_reuse_records_ancestors_and_never_copies_checkpoints(self):
         src, loop = _chain_loop()
         record = _call(loop, "record_ancestor")
         assert [ast.unparse(arg) for arg in record.args] == ["RUN_DIR", "ancestor"]
@@ -692,13 +693,12 @@ class TestReuseRule:
         )
         assert "NODE_RESULTS[NODE.id]" in _branch_source(src, same_run_if.body)
         assert 'ancestor.verdict.get("stage_result")' in _branch_source(src, same_run_if.body)
-        # Copies are delegated to verified adapters; the notebook itself does
-        # not reconstruct or partially copy their artifact bundles.
-        manual_copy = _call(reuse_if, "copy_canonical_ancestor")
-        assert [ast.unparse(arg) for arg in manual_copy.args] == ["ancestor", "RUN_DIR"]
-        assert manual_copy.lineno < record.lineno
+        # Never a copy: the checkpoint is loaded from where it lives (A10). The canonical
+        # library wrapper that copied it under certified_inputs/ left with consolidation PR-4.
         # D-A25: the loop consults no library; its only cross-run candidate is TRUNK_DIR.
         assert "resolve_canonical_parent" not in src and "SOURCE_SELECTION" not in src
+        assert "copy_canonical_ancestor" not in src and "certified_canonical" not in src
+        assert "certified_inputs" not in src
         assert "shutil" not in src
         copy_calls = [
             node
@@ -707,9 +707,9 @@ class TestReuseRule:
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in {"copy", "copy2", "copyfile", "copytree", "replace", "rename"}
         ]
-        assert not copy_calls, "artifact materialization belongs to the verified copy adapters"
+        assert not copy_calls, "a reused ancestor's checkpoint is never copied into this run (A10)"
         assert ".zip" not in ast.unparse(_dict_value(_handoff_assigns(reuse_if)[0].value, "model")), (
-            "SB3 receives the copied ancestor's model stem without a duplicate extension"
+            "the handoff is the ancestor's own stem, in its own run (A10), without a duplicate extension"
         )
 
     def test_the_library_rule_the_notebook_relies_on(self, tmp_path):
@@ -760,6 +760,49 @@ class TestReuseRule:
         build_trunk_run(unjudged, verdict=False)
         with pytest.raises(AncestorReuseError, match="no gate_verdict.json"):
             find(unjudged)
+
+
+class TestStorageCellRerun:
+    """A storage-cell rerun in the same kernel keeps ``RUN_DIR`` (the ``_ACTIVE_RUN_ID`` memo): certified
+    nodes of an EARLIER run come in through ``TRUNK_FROM``, never by pointing ``RUN_ID`` at that run.
+    Ported from the deleted certified-library notebook test (consolidation PR-4)."""
+
+    def test_a_rerun_keeps_the_run_directory(self, tmp_path, monkeypatch):
+        import types
+        from datetime import datetime
+
+        from environments.shared import plant_contract, result_bundle
+
+        src = _cell(STORAGE_CELL_MARKER)
+        identity = {"species": "trex", "test_identity": True}
+        monkeypatch.setattr(
+            plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
+        )
+        monkeypatch.setattr(
+            result_bundle, "initialize_result_bundle", lambda directory, **kwargs: directory / "provenance.json"
+        )
+        namespace = {
+            "Path": Path,
+            "datetime": datetime,
+            "repo_root": tmp_path,
+            "IN_COLAB": False,
+            "USE_GOOGLE_DRIVE": False,
+            "COMMAND_TERRAIN_BEHAVIOR": False,
+            "SPECIES": "trex",
+            "ALGORITHM": "ppo",
+            "SEED": 42,
+            "N_ENVS": 1,
+            "TRUNK_FROM": "",
+        }
+        exec(compile(src, "sb3_storage", "exec"), namespace)
+        first = namespace["RUN_DIR"]
+        assert first.is_dir() and first.is_relative_to(tmp_path / "logs")
+        assert namespace["TRUNK_DIR"] is None
+        exec(compile(src, "sb3_storage_rerun", "exec"), namespace)
+        assert namespace["RUN_DIR"] == first
+        assert namespace["_ACTIVE_RUN_ID"] == first.name
+        # The certified-library path the cell used to derive left with consolidation PR-4.
+        assert "CERTIFIED_LIBRARY" not in namespace and "CERTIFIED_LIBRARY" not in src
 
 
 class TestAutoTrunk:
@@ -1065,6 +1108,52 @@ class TestTrainStageRecordKeeping:
             "the judged results carry the recorded value"
         )
 
+    def test_policy_construction_receives_the_recorded_seed(self, tmp_path):
+        """``alg_kwargs["seed"] = SEED`` sits between ``_prepare_alg_kwargs`` and the model's construction, so
+        fresh policy weights are initialized under the seed the stage records. Ported from the deleted
+        certified-library notebook test when the training-origin stamp left (consolidation PR-4)."""
+        src = _cell(INFRA_CELL_MARKER)
+        function = _top_level_def(src, "train_stage")
+        preparation = next(
+            i
+            for i, node in enumerate(function.body)
+            if isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Call)
+            and ast.unparse(node.value.func) == "_prepare_alg_kwargs"
+        )
+        construction = next(
+            i
+            for i, node in enumerate(function.body)
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "model"
+        )
+        received = []
+
+        def create(sb3, algorithm, kwargs, train_env, load_path, **options):
+            received.append(dict(kwargs))
+            return object()
+
+        namespace = {
+            "config": {},
+            "ALGORITHM": "ppo",
+            "VERBOSE": 0,
+            "stage_dir": tmp_path,
+            "SEED": 8675309,
+            "load_path": None,
+            "sb3": {},
+            "train_env": object(),
+            "PLANT_IDENTITY": object(),
+            "task_fingerprint": {"task_sha256": "task"},
+            "task_load_mode": "resume_same_stage",
+            "_prepare_alg_kwargs": lambda *args, **kwargs: ({"learning_rate": 0.001}, None, None),
+            "_create_or_load_model": create,
+        }
+        block = ast.Module(body=function.body[preparation : construction + 1], type_ignores=[])
+        exec(compile(ast.fix_missing_locations(block), "notebook-construction", "exec"), namespace)
+        assert received == [{"learning_rate": 0.001, "seed": 8675309}]
+        # No training-origin stamp follows construction any more, and stage_config.json is
+        # written by save_stage_config alone (consolidation PR-4).
+        assert "stamp_canonical_training" not in src and "canonical_training_origin" not in src
+
 
 class TestJudgeBranch:
     """The evaluation tail is a top-level function the JUDGE branch can call without training."""
@@ -1350,10 +1439,11 @@ class TestPublication:
         trained_handoffs = [assign for assign in _handoff_assigns(loop) if assign not in reuse_nodes]
         assert len(trained_handoffs) == 1 and trained_handoffs[0].lineno > gate_if.end_lineno
         assert len(_calls(gate_if, "disconnect_runtime")) == 1
-        # A failed certified-library write also releases the paid runtime;
-        # the stage's original gate-failure path still disconnects once.
-        publication_if = _the_if(loop, src, lambda test: test == "PUBLISH_CERTIFIED", "publishing candidates")
-        assert len(_calls(publication_if, "disconnect_runtime")) == 1
+        # The gate refusal is the loop's only runtime release: the certified-library
+        # publish block and its own disconnect left with consolidation PR-4.
+        assert len(_calls(loop, "disconnect_runtime")) == 1
+        assert "PUBLISH_CERTIFIED" not in src and "publish_canonical_stage" not in src
+        assert "CERTIFIED_LIBRARY" not in src and "certified_publications" not in src
         # The results dict recorded is the gated one (generate_stage_artifacts returns the verdict).
         results_assign = next(
             node

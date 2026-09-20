@@ -9,8 +9,9 @@ follows a direction on difficult terrain) is reached by re-homing
 under `locomotion`, trained by `train_base` and judged by a registered gate kind
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) PR-9..PR-13;
 goal decisions G1-G4 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
-§6.2). Until then this page is the operator guide for the pilots; with
-`PUBLISH_CERTIFIED` off the automatic source selection finds nothing, so give
+§6.2). Until then this page is the operator guide for the pilots; the notebook
+never publishes to the certified library (its library knobs left with
+consolidation PR-4) and a fresh pilot needs an explicit locomotion pair, so give
 explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths (for the
 certified trex walker `20260914_123816`, the handoff pair that
 `logs/trex/ppo/20260914_123816/03_locomotion/gate_verdict.json` names in its
@@ -128,8 +129,9 @@ Every recipe declares `[behavior] species`, its stable behavior `name`, and
 `parent = "locomotion"`. The runner resolves that parent through the species'
 `stages.toml`, loads its locomotion environment settings, and checks the supplied
 checkpoint's species and stage. Parentage is explicit: the notebook picks a
-source only through `SOURCE_SELECTION = "auto"` (which finds no library entry
-while `PUBLISH_CERTIFIED` stays off, the default) or through an explicit
+source only through `SOURCE_SELECTION = "auto"` (resume or evaluation of the
+exact behavior's library recommendation, which exists only if a command-line run
+published one with `--publish-certified`) or through an explicit
 `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` pair, and it never adds these
 behaviors to the canonical certification curriculum.
 

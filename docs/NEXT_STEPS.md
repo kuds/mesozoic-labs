@@ -33,11 +33,15 @@ The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_train
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
 `COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
 guarded code cell, the SB3 archive-load preflight before the widen cell:
-41 cells, 23 code, about 2,560 lines). Configuration-cell defaults:
+41 cells, 23 code, about 2,560 lines; consolidation PR-4 removes the library
+hooks, about 130 lines: 41 cells, 23 code, about 2,480 lines, the chain loop at
+index 23). Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
-`WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `PUBLISH_CERTIFIED = False`,
-`SEED = 42`; `SOURCE_SELECTION` survives for the direction/terrain path only.
+`WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `SEED = 42`; the library
+knobs (`CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED`,
+`CERTIFIED_COMPARISON_EPISODES`) left with PR-4 and `SOURCE_SELECTION` survives
+for the direction/terrain path only, until PR-5.
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
@@ -53,9 +57,11 @@ plus 8 under `configs/trex/behavior_pilots/`, a second gate outside `GATE_KINDS`
 never a `gate_verdict.json`), a third identity keyed on source-file hashes (any
 edit to `behavior_env.py` strands exact resume), a certified library, and the
 notebook mode switch — about 7,000 lines of modules, tests excluded. Outputs go
-to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; with
-`PUBLISH_CERTIFIED = False`, `SOURCE_SELECTION = "auto"` finds no library entry,
-so a pilot needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths.
+to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; the notebook
+never publishes to the library (its library knobs left with PR-4), so
+`SOURCE_SELECTION = "auto"` finds an entry only if a command-line run published
+one with `--publish-certified` (removed in PR-5), and a pilot needs explicit
+`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths.
 Guides: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md),
 [CERTIFIED_MODELS.md](CERTIFIED_MODELS.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
@@ -153,7 +159,7 @@ once that bundle exists and the seed-42 run's bundle cell is re-run beside it
 ## 3. Recommended training sessions
 
 All on `main`, `notebooks/sb3_training.ipynb`, notebook defaults unless stated
-(`N_ENVS = 4`, `TRUNK_FROM = "auto"`, `PUBLISH_CERTIFIED = False`). Times are
+(`N_ENVS = 4`, `TRUNK_FROM = "auto"`). Times are
 the measured Colab wall clock of the section 2 runs or scaled from them.
 
 | # | Species | Settings | What happens | Rough time |
@@ -231,7 +237,7 @@ Notes:
   widened root trains in that run (trex `stand` = widen + re-panel stance, then
   recovery 3M; trex `walk` would train locomotion 8M instead). For velociraptor,
   brachiosaurus and dibothrosuchus `stand` is stance only (no recovery node).
-- Leave `TRUNK_FROM = "auto"`; `PUBLISH_CERTIFIED` stays `False`.
+- Leave `TRUNK_FROM = "auto"`.
 - A parent `gate_verdict.json` is optional for widening (the r11 and r1 parents
   have none; backfilling first is NOT needed); the parent stage directory must
   hold `stage_config.json` with a run block and a stamped VecNormalize sidecar.

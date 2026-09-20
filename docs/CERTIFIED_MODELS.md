@@ -1,26 +1,27 @@
 # Shared certified models
 
-**Status (2026-09-19): scheduled for removal.** Canonical chains stopped
+**Status (2026-09-20): scheduled for removal.** Canonical chains stopped
 reading the library on 2026-09-16 (#543, automatic trunk selection, decision
-D-A25) and `PUBLISH_CERTIFIED` defaults to `False` (#542). The consolidation
-plan ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md),
-PR-4/PR-5) deletes the library modules and this document; until then
-`SOURCE_SELECTION` applies to the direction and terrain behaviors only, and
-nothing canonical depends on a certified directory on Drive.
+D-A25). Consolidation PR-4 deleted the canonical publish wrapper
+(`certified_canonical.py`), the notebook's `CERTIFIED_LIBRARY_ROOT` /
+`PUBLISH_CERTIFIED` / `CERTIFIED_COMPARISON_EPISODES` knobs, its stamp, copy
+and publish blocks and the `certified_inputs/` copies of canonical ancestors;
+PR-5 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)) deletes
+`certified_library.py`, the command-line consumers and this document. Until
+then `SOURCE_SELECTION` applies to the direction and terrain behaviors only,
+and nothing canonical depends on a certified directory on Drive.
 
-The SB3 notebook can select a compatible certified parent automatically, save
-the complete selected bundle inside the new training run, and compare newly
-trained candidates with the current recommendation. Select the species and
-behavior as usual; model paths are optional in automatic mode.
+The library is reached from the command line only: `train_behaviors
+--auto-source --resume` selects the exact behavior's recommendation and
+`--publish-certified` records candidates. The SB3 notebook's direction/terrain
+path selects (`SOURCE_SELECTION`) but never publishes or compares; a fresh
+pilot needs an explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` pair.
 
 ## Notebook controls
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `SOURCE_SELECTION` | `"auto"` | Direction and terrain behaviors only: select a compatible recommended source automatically; `"manual"` requires explicit behavior paths. Canonical chains select their trunk through `TRUNK_FROM` (below), never through the library. |
-| `CERTIFIED_LIBRARY_ROOT` | `""` | Use the `certified` directory beside `logs`; set another path to share a different library. |
-| `PUBLISH_CERTIFIED` | `False` | Off by default (a `WIDEN_FROM` root handoff carries no training-origin stamp, so publication would refuse it after it passes and disconnect the runtime). When on: preserve candidates and their evidence in the shared version history and consider eligible candidates for recommendation. |
-| `CERTIFIED_COMPARISON_EPISODES` | `50` | Number of paired comparison episodes **per model**. Both models run the same cases. |
 
 With Google Drive, the default library is
 `/content/drive/MyDrive/mesozoic-labs/certified`. Local runs use
@@ -77,12 +78,15 @@ hidden locomotion training run.
 
 ## Complete copies in each training run
 
-Automatic selection copies the **complete selected version** beneath the new
-run's `certified_inputs/`, including its model, normalization, saved evidence,
-configuration, manifests, and available videos and maps. Canonical manual
-trunk selection also makes a complete local copy of the selected stage and
-its required ancestry evidence. Training handoffs use those copied paths.
-An explicitly pinned shared-library version is copied in the same way.
+Automatic selection on the command line (`--auto-source --resume`) copies the
+**complete selected version** beneath the new behavior run's
+`certified_inputs/`, including its model, normalization, saved evidence,
+configuration, manifests, and available videos and maps; an explicitly pinned
+shared-library version is copied in the same way. Canonical chains copy
+nothing since consolidation PR-4: a reused trunk ancestor is recorded under
+`ancestors/` and loaded from the run that certified it (plan A10), and runs
+made between #543 and PR-4 that hold `certified_inputs/` copies stay valid
+because their `ancestors/` records point at the copy.
 
 The copy retains the source identity and selection record. Evidence hashes
 are checked again after copying. The original run and shared version remain
@@ -103,14 +107,6 @@ evaluations of one checkpoint do not create independent training runs.
 Duplicate seeds and duplicate model evidence cannot manufacture replication.
 Failed attempts remain visible in the candidate history.
 
-Canonical checkpoints record the original stage seed, exact parent pair, and
-the optimizer update count at stage entry. A same-stage resume preserves that
-origin; changing its requested seed cannot create another independent
-replica. A newly trained stage must complete optimizer updates before it can
-be published. Legacy checkpoints without a verifiable origin remain available
-for explicit manual training and reuse; automatic publication refuses to
-invent their training history.
-
 Exact continuation retains the original training seed and parent model and
 normalization pair. A new sampling seed during continuation cannot count as
 another independent training run. A model must also have completed optimizer
@@ -122,11 +118,11 @@ group cannot qualify a candidate. Resolving a recommendation verifies its
 files and the evidence supporting its replication again.
 
 `QUICK_TEST` does not lower a gate, reduce the required number of independent
-training seeds, or turn a short replay panel into certification. Canonical
-quick tests skip recommendation benchmarking. Behavior quick tests skip the
-separate certification panel and shared publication, and save that reason in
-their run record. `PUBLISH_CERTIFIED` is `False` by default (#542); set it
-`True` only to publish into the shared library.
+training seeds, or turn a short replay panel into certification. Behavior
+quick tests skip the separate certification panel and shared publication, and
+save that reason in their run record. The notebook never publishes into the
+shared library (its publication knob left with consolidation PR-4);
+`train_behaviors --publish-certified` is the command-line option.
 
 ## Comparing with the current recommendation
 
@@ -135,8 +131,8 @@ incumbent**, using the same fixed seeds and task cases. For the general
 difficult-terrain behaviors, five enabled terrain families therefore receive
 ten cases each per model. A different episode count is configurable; the
 recorded protocol identifies the exact panel and terrain coverage.
-The minimum is two episodes for canonical comparison and two per enabled
-terrain family for behavior comparison (ten for all five families).
+The minimum is two episodes per enabled terrain family (ten for all five
+families).
 
 This setting is separate from `BEHAVIOR_EVAL_EPISODES`, which controls the
 diagnostic replay panel, and from the distinct training seeds needed for
@@ -170,9 +166,8 @@ species must demonstrate that terrain exposure too.
 
 The library records the comparison and decision reason. The notebook shows
 the behavior certificate, candidate status, replication count and
-recommendation reason separately from ordinary diagnostic results. Canonical
-publication reports are saved in `certified_publications.json` in the run;
-behavior publication is recorded in `run.json` under `certification`.
+recommendation reason separately from ordinary diagnostic results. Behavior
+publication is recorded in `run.json` under `certification`.
 
 ### Comparison reports inside each training run
 
@@ -180,7 +175,6 @@ Every passing candidate that receives a comparison benchmark also saves a
 self-contained report in its training folder:
 
 - Direction and terrain behaviors: `comparison/`.
-- Canonical behaviors: `comparison/<stage>/`, so stages keep separate reports.
 
 Open `summary.md` for the side-by-side scores, paired uncertainty intervals,
 and recommendation outcome. `head_to_head.json` retains both scored panels,
