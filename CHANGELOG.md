@@ -1319,7 +1319,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   and `bundle.json` hold the recipe inline) and are evaluation-only under D-D9.
   Measured: 256 net code and configuration lines removed.
 - **The certified library and the behavior trainer's library path**
-  (consolidation PR-5, 2026-09-20). `environments/shared/certified_library.py`,
+  (consolidation PR-5, #548, 2026-09-20). `environments/shared/certified_library.py`,
   `certified_comparison.py`, their tests, `test_behavior_publication.py` and
   `docs/CERTIFIED_MODELS.md` are deleted with the `.gitignore` `/certified/`
   line. `train_behaviors` loses `--auto-source`, `--publish-certified`,

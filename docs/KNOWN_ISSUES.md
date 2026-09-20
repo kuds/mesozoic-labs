@@ -768,7 +768,7 @@ tolerance) remains the standing recommendation for the divergences above.
   PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
   (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
   wrapper and the notebook's library knobs, landed as #547; PR-5, the
-  certified library and the trainer's library path, in review; PR-6, the T. rex
+  certified library and the trainer's library path, landed as #548; PR-6, the T. rex
   pilot recipes, the `[pilot]` dialect and the trex shim, in review); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
