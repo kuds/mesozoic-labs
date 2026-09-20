@@ -82,20 +82,20 @@ parent's `gate_verdict.json`:
 
 | field | seed-42 parent `20260810_145546` | seed-44 parent `20260815_205206` |
 |---|---|---|
-| widened run id | `<Session 1>` | `<seed-44 repeat>` |
-| parent handoff (`handoff_name`) | `<robust_best_model / best_model>` | `<…>` |
-| parent `checkpoint_sha256` / `normalization_sha256` | `<…>` | `<…>` |
-| parent `task_sha256` (r11) → widened `task_sha256` (r13) | `<…>` → `<…>` | `<…>` → `<…>` |
-| widened `checkpoint_sha256` / `normalization_sha256` | `<…>` | `<…>` |
-| `from_observation_dim` → `to_observation_dim` | 61 → 64 (expected) | 61 → 64 (expected) |
-| `revision_gap` / `max_revision_gap` (r11 → r13 under `WIDEN_MAX_REVISION_GAP = 2`) | 2 / 2 (expected) | 2 / 2 (expected) |
-| run block `widened_from_policy_interface_revision` (`stage_config.json`) | 11 (expected) | 11 (expected) |
-| `padded_tensors` | `mlp_extractor.policy_net.0.weight`, `mlp_extractor.value_net.0.weight` (expected; columns 61–63) | same |
-| `optimizer_members_padded` | `policy.optimizer` (expected) | same |
-| `max_padded_column_abs` (pin: exactly 0) | `<…>` | `<…>` |
-| `max_action_delta_zero_command` / `max_action_delta_probe_command` (tolerance 1e-6, seed 3042, 200 steps) | `<…>` / `<…>` | `<…>` / `<…>` |
-| `num_timesteps` inherited | 10,002,432 (expected) | 10,002,432 (expected) |
-| `widened_by` (tool@commit) | `<…>` | `<…>` |
+| widened run id | superseded (seed 42 is certified at r13 by `20260914_123816`) | `20260920_010912` (2026-09-20 01:09 UTC, Colab L4, Python 3.13.15) |
+| parent handoff (`handoff_name`) | — | `robust_best_model` |
+| parent `checkpoint_sha256` / `normalization_sha256` | — | `ca1a17a7…` / `51838dde…` |
+| parent `task_sha256` (r11) → widened `task_sha256` (r13) | — | `null` (the r11 `stage_config.json` predates task fingerprints) → `82528a2e…` (= the seed-42 r13 stance digest) |
+| widened `checkpoint_sha256` / `normalization_sha256` | — | `7f4284ad…` / `963ac712…` |
+| `from_observation_dim` → `to_observation_dim` | 61 → 64 (expected) | 61 → 64 |
+| `revision_gap` / `max_revision_gap` (r11 → r13 under `WIDEN_MAX_REVISION_GAP = 2`) | 2 / 2 (expected) | 2 / 2 |
+| run block `widened_from_policy_interface_revision` (`stage_config.json`) | 11 (expected) | 11 (`widened_from_run_id 20260815_205206`; run block seed 44, n_envs 4, timesteps 10,000,000, `hyperparameters_sha256 8c8b9ab3…`) |
+| `padded_tensors` | `mlp_extractor.policy_net.0.weight`, `mlp_extractor.value_net.0.weight` (expected; columns 61–63) | as expected: both tensors, columns 61, 62, 63 |
+| `optimizer_members_padded` | `policy.optimizer` (expected) | `policy.optimizer` (states 1 and 5) |
+| `max_padded_column_abs` (pin: exactly 0) | — | 0.0 (`padded_columns_exactly_zero true`, `hashes_stable_after_verification true`) |
+| `max_action_delta_zero_command` / `max_action_delta_probe_command` (tolerance 1e-6, seed 3042, 200 steps) | — | 0.0 / 0.0 |
+| `num_timesteps` inherited | 10,002,432 (expected) | 10,000,000 (the parent's run block records 10,000,000, not the 10,002,432 this template expected) |
+| `widened_by` (tool@commit) | — | `widen_checkpoint/v1@ac409f8`; `schedule_members_restated` `learning_rate` and `lr_schedule` = `LinearSchedule(3e-05, 1e-05)` from `parent_stage_config` (the parent's `clip_range` is a constant); torch 2.11.0+cu128, stable-baselines3 2.9.0, gymnasium 1.3.0, mujoco 3.10.0 |
 
 ## 2. The re-panel: widened stance vs its pre-bump certificate
 
@@ -109,12 +109,12 @@ KNOWN_ISSUES update 3); the widened columns from each run's
 
 | criterion | seed 42 pre-bump (r11 certificate) | seed 42 widened (r13) | seed 44 pre-bump | seed 44 widened (r13) | required |
 |---|---|---|---|---|---|
-| full-horizon fraction | 1.0000 (40/40) | `<…>` | 1.0000 (40/40) | `<…>` | ≥ 0.95 |
-| mean unsupported duty | 0.0048 | `<…>` | 0.0069 | `<…>` | ≤ 0.02 |
-| duty UCB (95%) | 0.0080 | `<…>` | 0.0117 | `<…>` | ≤ 0.02 |
-| panel reward | 3368.7 ± 46.7 | `<…>` | 3408.3 ± 88.5 | `<…>` | ≥ 2100 (rail) |
-| bilateral support | 0.9938 | `<…>` | `<from the seed-44 report>` | `<…>` | (statue 0.998, not gated) |
-| verdict | PASS | `<PASS / FAIL>` | PASS | `<PASS / FAIL>` | — |
+| full-horizon fraction | 1.0000 (40/40) | — (superseded) | 1.0000 (40/40) | 1.0000 (40/40) | ≥ 0.95 |
+| mean unsupported duty | 0.0048 | — | 0.0069 | 0.0069 | ≤ 0.02 |
+| duty UCB (95%) | 0.0080 | — | 0.0117 | 0.0117 | ≤ 0.02 |
+| panel reward | 3368.7 ± 46.7 | — | 3408.3 ± 88.5 | 3408.3 ± 88.5 | ≥ 2100 (rail) |
+| bilateral support | 0.9938 | — | 0.9904 (single support 0.0027) | 0.9904 (single support 0.0027) | (statue 0.998, not gated) |
+| verdict | PASS | — | PASS | **PASS** (`gate_verdict.json` judged 2026-09-20 01:15:02 UTC by `reporting.stage_artifacts.generate_stage_artifacts`; `gate_sha256 ff2494ba…`; `task_sha256 82528a2e…` = the widened digest of §1; final eval 3418.22 ± 87.88 over 30 episodes) | — |
 
 Acceptance for this section: `gate_verdict.json` with `passed = true`,
 `judged_by = "generate_stage_artifacts"` and `task_sha256` equal to the
@@ -211,3 +211,30 @@ still needed; the table and placeholders above are kept as written.
   did, the fallback is a fresh trex stance with `SEED = 45`.
 - Numbers and the per-run evidence: the survey note. The run plan and the
   session status: [../NEXT_STEPS.md](../NEXT_STEPS.md) §3.
+
+## 7. Status 2026-09-20 (appended)
+
+- **The seed-44 widen ran** as `20260920_010912` (`BEHAVIOR = "stand"`,
+  `WIDEN_FROM = "20260815_205206"`, `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44`,
+  `REPO_REF = "main"` at `ac409f8`, Python 3.13.15): the preflight and the
+  widen passed, and the 40-episode re-panel reproduced the r11 certificate
+  exactly (the widened policy is the parent's under zero command columns; the
+  §2 seed-44 column equals the pre-bump column to every printed digit). The
+  seed-44 columns of §1 and §2 above are filled from the run's
+  `widen_report.json`, `stage_config.json`, `stance_gate_report.txt` and
+  `gate_verdict.json`.
+- **The session died after the verdict.** The chain loop's `save_run_bundle`
+  raised `ResultBundleError: best_eval_reward must be a finite number for
+  canonical stage 1`: a widened root never trained in its run, so the JUDGE
+  branch found no `evaluations.npz` and left `best_eval_*` unmeasured, which
+  the canonical summary rule rejected. Fixed the same day (CHANGELOG, "A
+  widened root's run bundle writes": the schema accepts the null for a stage
+  whose deliverable record names `widened_from_run_id`). The §2 acceptance
+  ("a `complete` stance bundle") and §3 (the recovery freeze and 3M training)
+  are owed by the in-place continuation described in
+  [../NEXT_STEPS.md](../NEXT_STEPS.md) §3 ("Continuing session 1").
+- Two template expectations were off: `num_timesteps` inherited is
+  10,000,000 (the parent's run block), not 10,002,432; and the parent's
+  `task_sha256` is `null` because its `stage_config.json` predates task
+  fingerprints, so the widen report's parent block records `null` and the
+  widened node's digest comes from the current stage TOML.

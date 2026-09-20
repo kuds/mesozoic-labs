@@ -473,10 +473,12 @@ def test_v4_deliverable_record_optional_fields_validate_and_are_kept() -> None:
     """Decision D-A21: a deliverable record may carry ``hyperparameters_sha256`` and ``label`` —
     any subset of OPTIONAL_DELIVERABLE_RECORD_FIELDS on top of exactly the required fields — and
     the validated summary keeps them (type-checked; writers record the label already stripped).
-    Decisions D-B11/D-B16 add ``provisional`` and ``certification_seeds`` to the optional set."""
+    Decisions D-B11/D-B16 add ``provisional`` and ``certification_seeds`` to the optional set;
+    ``widened_from_run_id`` marks a widened root (its training curve is the parent run's)."""
     assert OPTIONAL_DELIVERABLE_RECORD_FIELDS == (
         "hyperparameters_sha256",
         "label",
+        "widened_from_run_id",
         "provisional",
         "certification_seeds",
     )
@@ -633,3 +635,37 @@ def test_task_success_stage_keys_are_fail_closed(updates: dict[str, Any], messag
     summary["stages"]["3"].update(updates)
     with pytest.raises(ResultSchemaError, match=message):
         validate_result_summary(summary, canonical_provenance=True)
+
+
+def test_v4_canonical_best_eval_reward_is_null_only_for_a_widened_root() -> None:
+    """A widened root (widen_checkpoint) never trained in its run, so its training curve — the best
+    EvalCallback panel ``best_eval_reward`` summarizes — is the parent run's. The 2026-09-20 widen
+    session died at its first bundle write on exactly this rule (the judged stance had no
+    evaluations.npz), so the exemption is keyed on the deliverable record naming the parent run."""
+    summary = _canonical_summary_v4()
+    for key in ("best_eval_reward", "best_eval_std", "best_eval_step"):
+        summary["stages"]["1"][key] = None
+    with pytest.raises(ResultSchemaError, match="best_eval_reward must be a finite number.*widened_from_run_id"):
+        validate_result_summary(summary, canonical_provenance=True)
+
+    summary["provenance"]["deliverables"]["1"]["widened_from_run_id"] = "20260815_205206"
+    validate_result_summary(summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True)
+
+    # Per stage: a null on a stage that trained here is still missing evidence.
+    trained_null = deepcopy(summary)
+    trained_null["stages"]["2"]["best_eval_reward"] = None
+    with pytest.raises(ResultSchemaError, match="best_eval_reward must be a finite number for canonical stage 2"):
+        validate_result_summary(trained_null, canonical_provenance=True)
+
+    # best_eval_reward alone: the judged panel and the final evaluation stay required for the widened root.
+    for metric in ("final_eval_reward", "selected_model_reward"):
+        unjudged = deepcopy(summary)
+        unjudged["stages"]["1"][metric] = None
+        with pytest.raises(ResultSchemaError, match=f"{metric} must be a finite number for canonical stage 1"):
+            validate_result_summary(unjudged, canonical_provenance=True)
+
+    # The marker is a non-empty run id; an empty one is malformed and grants nothing.
+    blank = deepcopy(summary)
+    blank["provenance"]["deliverables"]["1"]["widened_from_run_id"] = ""
+    with pytest.raises(ResultSchemaError, match="widened_from_run_id"):
+        validate_result_summary(blank, canonical_provenance=True)

@@ -137,7 +137,14 @@ the eight `config.WIDEN_LINEAGE_KEYS` —
 run's provenance `run_id`, else its directory name; in the explicit
 `--model` / `--vecnorm` form the `--parent-run-id` given, else `null`) and
 `widened_by` (tool version and commit) — and NONE of the
-`LOAD_LINEAGE_KEYS`:
+`LOAD_LINEAGE_KEYS`. The chain loop JUDGES such a root, so its stage result
+carries the 30-episode final evaluation and the selected-checkpoint panel but
+no `evaluations.npz` curve: `summary.json` records its `best_eval_reward` /
+`best_eval_std` / `best_eval_step` as `null`, and the `provenance.deliverables`
+record copies `widened_from_run_id` from the run block, which is the one case
+`validate_result_summary` accepts a null canonical `best_eval_reward` for (the
+curve is the parent run's; a root that trained here still needs its own).
+The `LOAD_LINEAGE_KEYS` rule:
 `ancestors._check_chain` refuses a root that entered under
 `initialize_next_stage`, and the audit binds `parent_run_id` to an
 `ancestors/` record, so the widen keys are provenance the audit ignores and

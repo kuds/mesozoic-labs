@@ -1317,6 +1317,22 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A widened root's run bundle writes** (2026-09-20). The first widen session
+  on the fixed loader (`20260920_010912`, the seed-44 trex stance widened
+  r11 → r13 and re-paneled: PASS, reward 3408.3 ± 88.5, duty 0.0069, UCB
+  0.0117) died right after its gate verdict, in the chain loop's
+  `save_run_bundle`: `ResultBundleError: best_eval_reward must be a finite
+  number for canonical stage 1`. A widened root never trains in its run, so
+  the JUDGE branch finds no `evaluations.npz` and
+  `build_stage_results_from_eval_data` leaves `best_eval_*` unmeasured (`""`),
+  which the canonical summary rule rejected. `validate_result_summary` now
+  accepts a null `best_eval_reward` for exactly the stage whose
+  `provenance.deliverables` record names `widened_from_run_id` (copied from
+  the widen tool's run block by the bundle writer, new in
+  `RUN_BLOCK_DELIVERABLE_RECORD_FIELDS`); the judged panel and final
+  evaluation stay required, and a root that trained here still needs its
+  curve. The run's `01_stance/gate_verdict.json` is valid as written; the
+  session continues in the same run directory (NEXT_STEPS.md §3).
 - **SB3 archives load on whatever Python the Colab image ships; the widen
   session no longer kills the kernel** (2026-09-19). SB3 stores a model's
   `learning_rate` / `lr_schedule` / `clip_range` members through cloudpickle,

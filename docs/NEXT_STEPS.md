@@ -119,7 +119,8 @@ run-level summaries.
 |---|---|---|---|---|---|---|
 | trex | `20260914_123816` | 42 | r13 (commit `35dd44c`) | **PASS** — `01_stance`, 11,001,856 steps, 13h13m, final eval 3460.6 ± 19.2, `gate_verdict.json` judged 2026-09-15 01:57 UTC, `gate_sha256 ff2494ba…`, handoff `robust_best_model.zip` | **PASS** — `03_locomotion`, 8,011,776 steps, 8h46m, 1.07 m/s, mean length 1000, reward 1940.8, verdict 2026-09-15 11:39 UTC, `gate_sha256 02602cb0…`, `task_sha256 31383192…` | A second stance seed at r13 (`certification_seeds = 2`; session 1); the recovery node (never trained at r13; session 1 trains one from the widened seed-44 stance; a `BEHAVIOR="stand"` session under `TRUNK_FROM = "auto"` would train one on this run's stance); follow nodes once PR-11 exists |
 | trex | `20260915_160239` | 43 | r13 (`35dd44c`) | **FAIL** — `01_stance` only, 11M steps (13h17m), final eval 3209.7 ± 284.3, best 3335.1; the 40-episode panel failed unsupported duty (mean 0.0323, UCB 0.0350, rail 0.02), reward and full-horizon passed; provenance `certified false`, `provisional true` | none | Nothing; a measured deficit, kept as history |
-| trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Widen to r13 with `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44`, re-panel (session 1) |
+| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none | The recovery node and the run bundle: the session died at the stance node's bundle write (fixed 2026-09-20, section 3 "Continuing session 1"); `summary.json` / `artifact_manifest.json` are absent until the continuation writes them |
+| trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Nothing: widened to r13 and re-paneled as `20260920_010912` (session 1, 2026-09-20) |
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Widen r1 → r2 under the default gap 1 (53 + 3 = 56), `SEED = 42`, re-panel, then locomotion 3M (session 2) |
 | velociraptor | `20260723_005740` (July) | 42 | r3 (obs 67); physics r2 = current | stage1 balance 6M, 3h41m, final eval 1767, 1000-step episodes; run-level `publication_gate_passed` only, no per-node verdict; sidecar predates identity stamping | stage2 8M, 4h50m, 3.29 m/s; stage3 strike 12M | **Not a widen candidate**: seven revisions behind r10 and the crossed revisions include the reset-settling change (`plant_versions.toml` note 6). Fresh chain (session 3) |
@@ -140,10 +141,12 @@ per-node files, so nothing breaks, but the run-level records under-report the
 run until the bundle cell is re-run in a later session.
 
 Trex stance seed inventory at r13: seed 42 certified, seed 43 failed, seed 44
-exists only as the r11 parent. The `certification_seeds = 2` bar (trex stance
-alone declares it) is met when a second seed certifies at r13: widening seed 44
-is the cheapest route (re-panel about 1 h), a fresh seed-45 stance the fallback
-(about 13 h). Nothing relies on a `mesozoic-labs/certified` library directory.
+certified on 2026-09-20 by the widened run `20260920_010912` (its
+`gate_verdict.json` is written; its run bundle is not yet, see section 3). The
+`certification_seeds = 2` bar (trex stance alone declares it) is therefore met
+once that bundle exists and the seed-42 run's bundle cell is re-run beside it
+(the replication count reads its siblings' verdicts). Nothing relies on a
+`mesozoic-labs/certified` library directory.
 
 ---
 
@@ -155,7 +158,7 @@ the measured Colab wall clock of the section 2 runs or scaled from them.
 
 | # | Species | Settings | What happens | Rough time |
 |---|---|---|---|---|
-| 1 | trex | `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44` | widens the seed-44 r11 stance to r13, re-panels it (40 episodes), then trains recovery 3M | panel ~1 h, recovery ~3.5 h |
+| 1 | trex | `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44` | widens the seed-44 r11 stance to r13, re-panels it (40 episodes), then trains recovery 3M. **Ran 2026-09-20 as `20260920_010912`**: widen and re-panel PASSED in 15 minutes, then the session died at the stance node's bundle write (fixed the same day); the recovery node is owed by the continuation below | panel ~1 h (measured 15 min), recovery ~3.5 h |
 | 2 | compsognathus | `BEHAVIOR="walk"`, `WIDEN_FROM="20260909_162812"`, `WIDEN_MAX_REVISION_GAP=1`, `SEED=42` | widens the r1 stance to r2, re-panels it, trains locomotion 3M | panel ~1 h, walk ~4 h |
 | 3 | velociraptor | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 6M then locomotion 8M | ~4 h + ~5 h |
 | 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 6M then locomotion 12M | ~4 h + ~7 h |
@@ -196,6 +199,29 @@ Notes:
   training. The settings are unchanged: `BEHAVIOR="stand"`,
   `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`,
   `REPO_REF="main"` once the loader change has merged.
+- **Continuing session 1 (2026-09-20).** Run `20260920_010912` holds the
+  widened seed-44 stance with a passed `gate_verdict.json` and no bundle: the
+  chain loop's `save_run_bundle` raised `ResultBundleError: best_eval_reward
+  must be a finite number for canonical stage 1` right after the verdict,
+  because a widened root never trained in its run and so has no
+  `evaluations.npz` curve for `best_eval_reward` to summarize (the JUDGE
+  branch leaves it unmeasured). The result schema now accepts that null for a
+  stage whose deliverable record names `widened_from_run_id` (CHANGELOG
+  2026-09-20, "A widened root's run bundle writes"); until the fix is on
+  `main`, set `REPO_REF` to the session branch. To finish the run in place,
+  in a fresh runtime: `SEED = 44`, `BEHAVIOR = "stand"`, `WIDEN_FROM = ""`
+  (the widened stance already exists; the widen cell must not run again),
+  `TRUNK_FROM = ""` (the reuse candidate is this run itself), and in the
+  storage cell `RUN_ID = "20260920_010912"` in place of `""`, so the storage
+  cell re-enters the run directory. The chain loop then prints `Reusing this
+  run's certified 'stance': robust_best_model (...)`, freezes the recovery
+  resolution from that handoff (`Freezing the recovery_success/v1 resolution
+  for 'recovery' ...`), trains recovery 3M, rolls its panel and writes the
+  bundle with the stance's `best_eval_reward` as `null`. A fresh run with
+  `TRUNK_FROM = "20260920_010912"` instead would reuse the stance across runs
+  and record it under `ancestors/`, leaving `20260920_010912` without a
+  bundle; prefer the in-place continuation. Session 2 (compsognathus widen)
+  would have died at the same line; it needs the fix as well.
 - Sessions 1 and 2 must set `SEED` to the parent's seed **before the storage cell
   mints `RUN_ID`**: the widen cell refuses `SEED != ` the parent's recorded
   `run.seed` (D-C14) and a directory minted under the wrong seed is not
