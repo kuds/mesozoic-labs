@@ -1297,6 +1297,35 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The certified library and the behavior trainer's library path**
+  (consolidation PR-5, 2026-09-20). `environments/shared/certified_library.py`,
+  `certified_comparison.py`, their tests, `test_behavior_publication.py` and
+  `docs/CERTIFIED_MODELS.md` are deleted with the `.gitignore` `/certified/`
+  line. `train_behaviors` loses `--auto-source`, `--publish-certified`,
+  `--certified-library` and `--comparison-episodes`,
+  `_copy_explicit_certified_pair`, `certified_source.json` and the run.json keys
+  `certified_source`, `certification_requested`, `comparison_episodes` and
+  `certification` (the schema string is unchanged; the
+  `certification_training_*` lineage keys stay); every mode takes an explicit
+  `--checkpoint` / `--vecnormalize` pair. `behavior_certification.py` loses
+  `certify_and_publish_behavior` (and with it the `certification/certificate.json`
+  writer: no run produces a behavior certificate until PR-13 registers the gate
+  kind; `judge_behavior_panel` stays, reached from tests only),
+  `comparison_from_panel` and `behavior_library_key`;
+  `configs/behavior_certification.toml` loses `certification_seeds`, the
+  comparison seeds and the `[comparison]` table. The SB3 notebook loses
+  `SOURCE_SELECTION` and its prose (2,477 to 2,463 lines): blank
+  `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` are refused in the
+  configuration cell in every mode, before Drive mounts; the plan drops its
+  `certified_library` / `auto_source` / `publish_certified` /
+  `comparison_episodes` / `certification_skip_reason` fields; and the display
+  cell shows saved diagnostics only, so a pre-PR-5 run made with
+  `--publish-certified` no longer prints its certificate or library lines. The
+  CI wheel step drops the `RULES_PATH` and `["comparison"]["episodes"]` asserts
+  (its species-manifest read still exercises the top-level `configs/*.toml`
+  package data). Measured: 1,602 whole-file lines and about 1,880 net code and
+  configuration lines removed. A `mesozoic-labs/certified` directory on Drive,
+  if one exists, is left in place; nothing reads it.
 - **The canonical certified-library wrapper and the notebook's library hooks**
   (consolidation PR-4, 2026-09-20). `environments/shared/certified_canonical.py`
   (the training-origin stamp, the `certified_inputs/` copy of a reused trunk

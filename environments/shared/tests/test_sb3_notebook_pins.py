@@ -323,10 +323,15 @@ class TestBehaviorKnob:
             assert assigns[name].value == "", f"{name} must default to the empty string (off)"
         # D-A25: the trunk is selected automatically unless a run is pinned or "" turns reuse off.
         assert assigns["TRUNK_FROM"].value == "auto"
-        assert assigns["SOURCE_SELECTION"].value == "auto"
-        # Consolidation PR-4: the certified-library knobs left with the canonical publish wrapper.
-        for name in ("CERTIFIED_LIBRARY_ROOT", "PUBLISH_CERTIFIED", "CERTIFIED_COMPARISON_EPISODES"):
-            assert name not in assigns, f"{name} left with the canonical library wrapper (consolidation PR-4)"
+        # Consolidation PR-4 took the certified-library knobs with the canonical publish wrapper; PR-5 took
+        # SOURCE_SELECTION with the library itself. A direction/terrain session names its pair explicitly.
+        for name in (
+            "CERTIFIED_LIBRARY_ROOT",
+            "PUBLISH_CERTIFIED",
+            "CERTIFIED_COMPARISON_EPISODES",
+            "SOURCE_SELECTION",
+        ):
+            assert name not in assigns, f"{name} left with the certified library (consolidation PR-4/PR-5)"
         # D-C17: the revision-gap bound is an integer constant defaulting to the tool's fail-closed 1 (the Phase C
         # bump alone); a widen session for an r11 trex stance parent raises it to 2 by hand.
         from environments.shared.scripts.widen_checkpoint import DEFAULT_MAX_REVISION_GAP
@@ -358,6 +363,30 @@ class TestBehaviorKnob:
             assert "RUN_RECOVERY_STAGE" not in src, (
                 f"cell {index} mentions RUN_RECOVERY_STAGE: recovery is a chain node under BEHAVIOR, not an opt-in pilot"
             )
+
+    def test_the_certified_library_knobs_and_prose_are_gone_from_every_cell(self):
+        """Consolidation PR-5: no cell, markdown included, names the deleted library, its knobs or its CLI flags.
+
+        No structural pin reads the markdown cells, so a stale sentence telling the operator that blank source
+        paths select a library recommendation would otherwise survive every test."""
+        for index, src in enumerate(_all_cell_sources()):
+            for token in (
+                "SOURCE_SELECTION",
+                "CERTIFIED_LIBRARY_ROOT",
+                "PUBLISH_CERTIFIED",
+                "CERTIFIED_COMPARISON_EPISODES",
+                "certified_library",
+                "certified library recommendation",
+                "library recommendation",
+                "--auto-source",
+                "--publish-certified",
+                "--certified-library",
+                "--comparison-episodes",
+                "auto_source",
+                "publish_certified",
+                "certification_skip_reason",
+            ):
+                assert token not in src, f"cell {index} still names {token!r}: the certified library left with PR-5"
 
     def test_the_label_knob_reaches_every_training_call(self):
         """D-A21: every ``train_stage`` call outside the definition threads ``label=RUN_LABEL or None``."""

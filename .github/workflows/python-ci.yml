@@ -182,15 +182,12 @@ jobs:
           import environments
           from environments.shared.config import load_stage_config
           from environments.shared.behavior_notebook import BEHAVIOR_RECIPES
-          from environments.shared.behavior_certification import RULES_PATH, load_certification_rules
           from environments.shared.plant_contract import current_plant_identity
           from environments.shared.species_names import species_display_names
           from environments.shared.train_behaviors import REPO_ROOT, read_recipe
 
           assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
           assert current_plant_identity("velociraptor").nu == 22
-          assert RULES_PATH.is_relative_to(REPO_ROOT)
-          assert load_certification_rules()["comparison"]["episodes"] == 50
           assert load_stage_config("velociraptor", 1)["name"]
           for species in species_display_names(backend="stable-baselines3"):
               recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
@@ -346,7 +343,6 @@ jobs:
           COVERAGE_FILE: .coverage.sb3-behaviors
 
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
-      # test_behavior_publication, test_certified_library, test_certified_comparison,
       # trex/test_behavior_env) run in the `test` matrix and are not repeated here.
       - name: Run SB3 integration tests
         run: |

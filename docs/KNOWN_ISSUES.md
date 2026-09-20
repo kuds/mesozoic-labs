@@ -750,12 +750,10 @@ tolerance) remains the standing recommendation for the divergences above.
   recipe dialect; 66 behavior TOMLs under `configs/<species>/behaviors/`
   (11 templates × 6 species) plus 8 under `configs/trex/behavior_pilots/`;
   a second gate outside `GATE_KINDS` (`configs/behavior_certification.toml`,
-  writing `certification/certificate.json`, never a `gate_verdict.json`); a
-  checkpoint identity keyed on source-file hashes (any edit to
-  `behavior_env.py` strands exact resume); a certified library that
-  re-verifies what `find_certified_ancestor` verifies and recounts what
-  `discover_replicates` counts (its canonical publish wrapper left with
-  PR-4; `certified_library.py` goes with PR-5); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
+  judged by `judge_behavior_panel` and reached only from tests since PR-5
+  deleted its `certification/certificate.json` writer; never a
+  `gate_verdict.json`); a checkpoint identity keyed on source-file hashes (any
+  edit to `behavior_env.py` strands exact resume); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
   mode switch, referenced by 19 of the 22 code cells — about 7,000 lines of
   modules, tests excluded. Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
@@ -767,13 +765,13 @@ tolerance) remains the standing recommendation for the divergences above.
   [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
   PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
   (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
-  wrapper and the notebook's library knobs, in review); PR-1 (#542), the auto-trunk PR
+  wrapper and the notebook's library knobs, in review as #547; PR-5, the
+  certified library and the trainer's library path, in review); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
   operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /
-  `BEHAVIOR_VECNORMALIZE` paths (the notebook never publishes to the library
-  since PR-4 removed its library knobs, so `SOURCE_SELECTION = "auto"` finds an
-  entry only if a command-line run published one).
+  `BEHAVIOR_VECNORMALIZE` paths in every load mode and for evaluation (the
+  certified library and `SOURCE_SELECTION` left with PR-5).
 
 ## Sweeps / infrastructure
 

@@ -43,7 +43,6 @@ def validate_behavior_selection(
     checkpoint: str,
     vecnormalize: str,
     load_mode: str,
-    source_selection: str = "auto",
     trunk_from: str = "",
     widen_from: str = "",
     retrain_from: str = "",
@@ -58,13 +57,14 @@ def validate_behavior_selection(
         raise ValueError("Direction and terrain behaviors require ALGORITHM='ppo'.")
     if load_mode not in {"prepare", "resume", "adapt"}:
         raise ValueError("BEHAVIOR_LOAD_MODE must be prepare, resume, or adapt.")
-    if source_selection not in {"auto", "manual"}:
-        raise ValueError("SOURCE_SELECTION must be auto or manual.")
-    has_model, has_normalizer = bool(checkpoint.strip()), bool(vecnormalize.strip())
-    if has_model != has_normalizer:
-        raise ValueError("Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files.")
-    if not has_model and (source_selection == "manual" or load_mode == "adapt"):
-        raise ValueError("Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE for manual selection or adaptation.")
+    if not (checkpoint.strip() and vecnormalize.strip()):
+        # Every mode takes an explicit pair: the certified library and its automatic
+        # selection left with consolidation PR-5.
+        raise ValueError(
+            "Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files: "
+            "a locomotion handoff pair for prepare, or a saved behavior's model.zip and vecnormalize.pkl for "
+            "resume, adapt and evaluation. Nothing is selected automatically."
+        )
     # TRUNK_FROM's default "auto" (decision D-A25) selects a CANONICAL trunk and
     # means nothing here; only a pinned run is a conflicting selection.
     if trunk_from == AUTO_TRUNK:
@@ -81,8 +81,8 @@ class NotebookBehaviorPlan:
     species: str
     behavior: str
     recipe_path: Path
-    checkpoint_path: Path | None
-    vecnormalize_path: Path | None
+    checkpoint_path: Path
+    vecnormalize_path: Path
     output_dir: Path
     load_mode: str
     seed: int
@@ -91,11 +91,6 @@ class NotebookBehaviorPlan:
     eval_episodes: int
     record_video: bool
     video_fps: float
-    certified_library: Path | None = None
-    auto_source: bool = False
-    publish_certified: bool = False
-    comparison_episodes: int = 50
-    certification_skip_reason: str | None = None
 
     def argv(self) -> list[str]:
         args = [
@@ -111,16 +106,11 @@ class NotebookBehaviorPlan:
             str(self.eval_episodes),
             "--video-fps",
             str(self.video_fps),
+            "--checkpoint",
+            str(self.checkpoint_path),
+            "--vecnormalize",
+            str(self.vecnormalize_path),
         ]
-        if self.checkpoint_path is not None and self.vecnormalize_path is not None:
-            args.extend(("--checkpoint", str(self.checkpoint_path), "--vecnormalize", str(self.vecnormalize_path)))
-        if self.certified_library is not None:
-            args.extend(("--certified-library", str(self.certified_library)))
-        if self.auto_source:
-            args.append("--auto-source")
-        if self.publish_certified:
-            args.append("--publish-certified")
-            args.extend(("--comparison-episodes", str(self.comparison_episodes)))
         if self.load_mode != "prepare":
             args.append("--" + self.load_mode)
         if self.steps is not None:
@@ -150,10 +140,6 @@ def build_notebook_behavior_plan(
     record_video: bool = True,
     video_fps: float = 25.0,
     run_id: str = "",
-    source_selection: str = "auto",
-    certified_library: Path | None = None,
-    publish_certified: bool = True,
-    comparison_episodes: int = 50,
 ) -> NotebookBehaviorPlan:
     """Resolve a recipe/source pair after Drive is mounted, without writing files."""
     import math
@@ -165,7 +151,6 @@ def build_notebook_behavior_plan(
         checkpoint=checkpoint,
         vecnormalize=vecnormalize,
         load_mode=load_mode,
-        source_selection=source_selection,
     )
     for name, value in (("BEHAVIOR_SEED", seed), ("BEHAVIOR_STEPS", steps), ("BEHAVIOR_EVAL_EPISODES", eval_episodes)):
         if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
@@ -174,8 +159,6 @@ def build_notebook_behavior_plan(
         raise ValueError("BEHAVIOR_SEED must be less than 2**32 (the PPO/NumPy seed range).")
     if eval_episodes is None or (record_video and eval_episodes == 0):
         raise ValueError("Recorded behavior replays require at least one evaluation episode.")
-    if isinstance(comparison_episodes, bool) or not isinstance(comparison_episodes, int) or comparison_episodes < 2:
-        raise ValueError("CERTIFIED_COMPARISON_EPISODES must be an integer of at least 2.")
     if isinstance(video_fps, bool) or not math.isfinite(video_fps) or video_fps <= 0:
         raise ValueError("BEHAVIOR_VIDEO_FPS must be finite and positive.")
     if run_id and (run_id in {".", ".."} or Path(run_id).name != run_id or "\\" in run_id):
@@ -199,38 +182,25 @@ def build_notebook_behavior_plan(
             raise FileNotFoundError(f"Behavior source file not found: {path}. Mount Drive before selecting its files.")
         return path
 
-    auto_source = source_selection == "auto" and not checkpoint.strip()
-    model = None if auto_source else source_path(checkpoint)
-    normalizer = None if auto_source else source_path(vecnormalize)
-    library = (
-        Path(certified_library).expanduser().resolve()
-        if certified_library is not None
-        else Path(log_base).resolve().parent / "certified"
-    )
+    model = source_path(checkpoint)
+    normalizer = source_path(vecnormalize)
     actual_seed = secrets.randbelow(2**32) if seed is None else seed
     identifier = run_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
     output = Path(log_base).resolve() / species / "ppo" / "behaviors" / behavior / identifier
     return NotebookBehaviorPlan(
-        species,
-        behavior,
-        recipe,
-        model,
-        normalizer,
-        output,
-        load_mode,
-        actual_seed,
-        steps if steps is not None else 4096 if quick_test and not eval_only else None,
-        eval_only,
-        eval_episodes,
-        record_video,
-        float(video_fps),
-        library,
-        auto_source,
-        publish_certified and not quick_test,
-        comparison_episodes,
-        "QUICK_TEST: certification and shared publication were skipped; gates were not relaxed."
-        if quick_test
-        else None,
+        species=species,
+        behavior=behavior,
+        recipe_path=recipe,
+        checkpoint_path=model,
+        vecnormalize_path=normalizer,
+        output_dir=output,
+        load_mode=load_mode,
+        seed=actual_seed,
+        steps=steps if steps is not None else 4096 if quick_test and not eval_only else None,
+        eval_only=eval_only,
+        eval_episodes=eval_episodes,
+        record_video=record_video,
+        video_fps=float(video_fps),
     )
 
 
@@ -245,9 +215,6 @@ def run_notebook_behavior(plan: NotebookBehaviorPlan) -> dict[str, Any]:
         or report.get("canonical_certification") is not False
     ):
         raise ValueError("Behavior runner did not write the expected evaluation run manifest.")
-    if plan.certification_skip_reason is not None:
-        report["certification_skip_reason"] = plan.certification_skip_reason
-        (plan.output_dir / "run.json").write_text(json.dumps(report, indent=2) + "\n")
     return dict(report)
 
 
@@ -286,25 +253,7 @@ def display_notebook_behavior(output_dir: Path) -> None:
     print(f"Behavior: {report['status']} · seed {report['run_seed']} · {root}")
     training = report.get("training", {})
     print(f"Actual additional steps: {training.get('actual_additional_steps', 0):,}")
-    if report.get("certification_skip_reason"):
-        print(report["certification_skip_reason"])
-    certification = report.get("certification")
-    if certification is not None:
-        print("Behavior certification: " + ("passed" if certification.get("passed") else "not passed"))
-        for reason in certification.get("failures", []):
-            print(f"  {reason}")
-        publication = certification.get("publication")
-        if publication:
-            print(
-                f"Certified library: {publication.get('status', 'recorded')} · version {publication.get('version', 'n/a')}"
-            )
-            print(f"Recommendation: {publication.get('decision_reason', 'unchanged')}")
-            print(
-                f"Distinct training seeds: {publication.get('distinct_seeds', 0)}/{publication.get('required_seeds', '?')}"
-            )
-    else:
-        print("No behavior certification is recorded; saved diagnostics remain available below.")
-    print("Behavior certification is separate from canonical curriculum certification.")
+    print("Saved diagnostics only: a behavior run is not a canonical certification.")
     evaluation = report.get("evaluation", {})
     if evaluation:
         print(
