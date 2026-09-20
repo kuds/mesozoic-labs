@@ -748,7 +748,8 @@ tolerance) remains the standing recommendation for the divergences above.
   `self._command` directly; a second PPO trainer
   (`environments/shared/train_behaviors.py`, one CPU env) with its own
   recipe dialect; 66 behavior TOMLs under `configs/<species>/behaviors/`
-  (11 templates × 6 species) plus 8 under `configs/trex/behavior_pilots/`;
+  (11 templates × 6 species; the 8 trex `[pilot]` twins under
+  `configs/trex/behavior_pilots/` and the `[pilot]` dialect left with PR-6);
   a second gate outside `GATE_KINDS` (`configs/behavior_certification.toml`,
   judged by `judge_behavior_panel` and reached only from tests since PR-5
   deleted its `certification/certificate.json` writer; never a
@@ -767,7 +768,8 @@ tolerance) remains the standing recommendation for the divergences above.
   PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
   (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
   wrapper and the notebook's library knobs, landed as #547; PR-5, the
-  certified library and the trainer's library path, in review); PR-1 (#542), the auto-trunk PR
+  certified library and the trainer's library path, in review; PR-6, the T. rex
+  pilot recipes, the `[pilot]` dialect and the trex shim, in review); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
   operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /

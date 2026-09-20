@@ -54,7 +54,8 @@ the reserved `BaseDinoEnv._draw_episode_command` hook and write `self._command`
 directly, a second checkpoint preparer, a second PPO trainer
 (`environments/shared/train_behaviors.py`, one CPU env, its own recipe dialect),
 66 behavior TOMLs under `configs/<species>/behaviors/` (11 templates x 6 species)
-plus 8 under `configs/trex/behavior_pilots/`, a second gate outside `GATE_KINDS`
+(the 8 trex `[pilot]` twins under `configs/trex/behavior_pilots/` and the
+`[pilot]` dialect left with PR-6), a second gate outside `GATE_KINDS`
 (`configs/behavior_certification.toml`, judged by `judge_behavior_panel`; its
 `certification/certificate.json` writer left with PR-5, so it is reached only
 from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
@@ -263,7 +264,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546 and PR-4 as #547 (2026-09-20); PR-5 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546 and PR-4 as #547 (2026-09-20); PR-5 is in review on the session branch, PR-6 in review on top of it. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their
@@ -275,7 +276,7 @@ reorders the widen-seed check and edits the resume cell's prose.
 | PR-3 | Bound the SB3 CI job: drop the SB3-free suites the shared/trex matrix already runs, keep one real-PPO smoke per body of work, move the full six-species set to a schedule (test-sb3 went 43 → 69 min from #539 to #541) | S (+10..+40) | none; land before PR-4 so later deletions edit one list; coverage `fail_under = 70` may need a re-baseline |
 | PR-4 | Delete `certified_canonical.py`, `certified_comparison.py`, their tests and the notebook library hooks (stamp block, the `copy_canonical_ancestor` branch of the chain loop, publish block, and three of the four library knobs; `SOURCE_SELECTION` goes with PR-5) | L (about −2,400) | #542 landed; D-D4; land before PR-5 |
 | PR-5 | Delete `certified_library.py`, its consumers in the behavior trainer (`--auto-source`, `--publish-certified`, `--certified-library`), `docs/CERTIFIED_MODELS.md`, the `.gitignore` line | M/L (about −1,400; measured about −1,880) | PR-4 (#547); in review 2026-09-20 |
-| PR-6 | Delete the T. rex pilots (`configs/trex/behavior_pilots/`), the `[pilot]` recipe dialect and the trex shim script | S (about −275) | none; D-D9 |
+| PR-6 | Delete the T. rex pilots (`configs/trex/behavior_pilots/`), the `[pilot]` recipe dialect and the trex shim script | S (about −275; measured −256 code and configuration lines) | none; D-D9; in review 2026-09-20 |
 | PR-7 | One behavior env, part 1: `BaseDinoEnv._ground_height_at` / `_clearance`, species rewards and terminations terrain-relative, delete `TRexBehaviorEnv` | M (about −600) | PR-6; D-D10 |
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |

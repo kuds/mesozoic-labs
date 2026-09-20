@@ -311,7 +311,17 @@ terrain exposure and keep a frozen parent for paired checks.
 
 ### Existing T. rex runs
 
-Historical TOMLs under `configs/trex/behavior_pilots/` remain available for their
-original saved run definitions. New training uses `configs/trex/behaviors/` and
-the shared runner. Do not edit old manifests or rename old recipe contents to
-force a resume: bundle identities guard the meaning of the saved evidence.
+The eight `[pilot]` recipes that #540 shipped under `configs/trex/behavior_pilots/`
+left with consolidation PR-6 (2026-09-20), together with the `[pilot]` recipe
+dialect and the `environments/trex/scripts/train_behaviors.py` entry point. Six
+of them were the `configs/trex/behaviors/` recipes with the defaults left
+unwritten (`trex_gentle_terrain` was `sloped_terrain`); `trex_combined_terrain`
+and `trex_follow_direction_speed` commanded a minimum speed of 0.5 where the
+supported recipes command 0.525 (half the 1.05 cruise speed). A 2026-09-15 pilot
+run stays self-describing, because its `run.json` `recipe` and `bundle.json`
+`training_recipe` hold the recipe inline, and its outputs are evaluation-only
+(decision D-D9); no recipe in the repository reproduces it for `--resume` or
+`--adapt`. T. rex training uses `configs/trex/behaviors/` and
+`python -m environments.shared.train_behaviors`. Do not edit old manifests or
+rename old recipe contents to force a resume: bundle identities guard the
+meaning of the saved evidence.

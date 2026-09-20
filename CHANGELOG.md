@@ -1297,6 +1297,27 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior
+  shim** (consolidation PR-6, 2026-09-20). `configs/trex/behavior_pilots/` (8
+  TOMLs, 239 lines), its `pyproject.toml` package-data line and
+  `environments/trex/scripts/train_behaviors.py` are deleted. Six of the eight
+  were the `configs/trex/behaviors/` recipes with a `[pilot]` header and the
+  defaults left unwritten (`trex_gentle_terrain` was `sloped_terrain`);
+  `trex_combined_terrain` and `trex_follow_direction_speed` commanded a minimum
+  speed of 0.5 where the supported recipes command 0.525. `read_recipe` reads
+  `[behavior]` only: a recipe without `[behavior] species`, `name` and `parent`
+  is refused instead of defaulting to trex, and a `[pilot]` table is an unknown
+  section; every committed `[behavior]` recipe reads unchanged, so exact resume
+  of behaviors-trained bundles is unaffected. `behavior_notebook` loses the
+  `PILOT_RECIPES`, `NotebookPilotPlan`, `validate_pilot_selection`,
+  `build_notebook_pilot_plan`, `run_notebook_pilot` and `display_notebook_pilot`
+  aliases (nothing imported them) and stops accepting the
+  `mesozoic.behavior-pilot-run/v1` run-manifest schema (nothing has written it
+  since #541; saved runs still display). `mesozoic.trex-command-terrain/v1`
+  stays accepted for `--adapt` because `TRexBehaviorEnv` still writes it; PR-7
+  deletes both. Saved #540 pilot runs stay readable as evidence (their `run.json`
+  and `bundle.json` hold the recipe inline) and are evaluation-only under D-D9.
+  Measured: 256 net code and configuration lines removed.
 - **The certified library and the behavior trainer's library path**
   (consolidation PR-5, 2026-09-20). `environments/shared/certified_library.py`,
   `certified_comparison.py`, their tests, `test_behavior_publication.py` and
