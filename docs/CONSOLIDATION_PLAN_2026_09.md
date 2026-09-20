@@ -18,7 +18,7 @@ at 723f58f while the plan was written and drifts after it (two merges
 already: #542 and #543); read them as anchors, not contracts. Where a first estimate was
 corrected on re-reading during the review, the corrected figure is used.
 
-## Status (2026-09-19)
+## Status (2026-09-20)
 
 | Item | State |
 |---|---|
@@ -174,7 +174,7 @@ Breaks: nothing; python-ci `docs/**` filter runs the workflow once. Validation:
 none beyond the workflow.
 Prerequisites: none; every later PR cites the decision numbers.
 
-### PR-3. Bound the SB3 CI job (S, about +10 to +40 workflow lines; about 40 minutes off every PR run)
+### PR-3. Bound the SB3 CI job (S, about +10 to +40 workflow lines; about 40 minutes off every PR run) — IN REVIEW (2026-09-20)
 Goal: measured test-sb3 went 43 -> 69 minutes (#539 -> #541; steps 7.8 / 18.3 /
 40.8 min). Remove from the test-sb3 lists (python-ci.yml:302-305, 313-343) every
 suite with no SB3 import that the `test (shared|trex)` matrix already runs three
@@ -193,6 +193,16 @@ suites are not large contributors).
 Breaks: coverage `fail_under=70` may need one re-baseline. Validation: a CI run
 on the branch. Prerequisites: none; do before PR-4 so later suite deletions edit
 one list.
+As executed (2026-09-20, the session branch): ten suites leave the lists, the
+nine above plus test_behavior_certification.py, which imports no SB3 either
+(all ten verified locally with stable_baselines3, torch, cloudpickle and ray
+blocked); the `pull_request` trigger gains the `labeled` activity type so that
+adding the `full-ci` label to an open pull request starts the run that reads
+it (a re-run replays the original event payload); the `full-ci` label has to
+be created once on the repository before the label path can be used; the
+nightly schedule runs the whole workflow on `main`, with the SB3 job at full
+depth. Measured before the change on the #544 merge run: 52 minutes
+(notebook smoke 5:50, behaviors 13:34, integration 30:31).
 
 ### PR-4. Delete certified_canonical.py, certified_comparison.py and the notebook library hooks (L by count, mostly file deletion; about -2,400)
 Goal: remove the wrapper that publishes canonical stages into the library and
@@ -710,8 +720,9 @@ a whole):
 
 Recorded in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 under the
 same ids. Ordered by how many PRs each blocks, as the review posed them. "Taken"
-means decided by the maintainer on 2026-09-17; the last two are recommended and
-unconfirmed.
+means decided by the maintainer on 2026-09-17; the last two of that day (D-D11,
+D-D12) were recommended then and confirmed on 2026-09-20, when D-D13 and D-D14
+were taken.
 
 | Id | Question | Decision | Unblocks |
 |---|---|---|---|
@@ -748,7 +759,8 @@ recorded in BEHAVIOR_RECIPES_PLAN.md §6.2 beside the D-D series.
 Carried from the review, with the 2026-09-17 additions.
 
 - The stop-gap in PR-1 (#542) is the only change that protected the maintainer's
-  next Colab session; everything else can wait for the hold to lift. Since #543
+  next Colab session; everything else waited for the hold, which lifted on
+  2026-09-20. Since #543
   canonical chains never consult the library; `SOURCE_SELECTION = "auto"`
   applies only to the direction/terrain path (`train_behaviors --auto-source`,
   deleted in PR-5), which would copy a library version into the pilot bundle's

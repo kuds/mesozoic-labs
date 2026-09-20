@@ -764,8 +764,9 @@ tolerance) remains the standing recommendation for the divergences above.
   generic opt-in terrain env subclass, a registered gate kind, the library
   and the mode switch deleted — is
   [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
-  PR-3..PR-15, **on hold** until the maintainer reviews that plan; PR-1
-  (#542) and the auto-trunk PR (#543) landed 2026-09-16. Until then
+  PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
+  (PR-3, bounding the SB3 CI job, in review); PR-1 (#542), the auto-trunk PR
+  (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
   operator guide, and with `PUBLISH_CERTIFIED = False` the pilots need
   explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths
@@ -1029,7 +1030,6 @@ Still open:
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)
-- The four CI test jobs are near-identical — a matrix would halve the YAML.
 
 ## Open questions
 

@@ -1,10 +1,10 @@
-# Next steps and program state (2026-09-19)
+# Next steps and program state (2026-09-20)
 
 **Status**: living reference — updated 2026-09-20; `main` = `ac409f8` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
-has landed, what is certified on Drive, which training sessions to run next, which
-code PRs are on hold, and which decisions bind. Repository facts were verified at
+has landed, what is certified on Drive, which training sessions to run next, where
+the consolidation stands, and which decisions bind. Repository facts were verified at
 `22c1fc8`; Drive facts and the maintainer's decisions date from 2026-09-17
 ([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md)).
 Companions: [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) (design of

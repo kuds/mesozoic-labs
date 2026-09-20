@@ -29,6 +29,12 @@ on:
       - ".github/actions/**"
   pull_request:
     branches: [main]
+    # `labeled` so that adding the `full-ci` label to an open pull request
+    # starts a run that sees it: the SB3 job's depth step reads the labels
+    # from the triggering event's payload, and a re-run replays the original
+    # payload (consolidation PR-3). Any label added to a pull request that
+    # touches the paths below re-runs the workflow on its head once.
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "README.md"
       - "environments/**"
@@ -53,9 +59,10 @@ on:
       - "conftest.py"
       - ".github/workflows/**"
       - ".github/actions/**"
-  # Nightly full run: the six-species and four-notebook-parameter SB3 sets that
-  # pull-request and push runs leave out (the SB3 job's "Decide the SB3 depth"
-  # step; consolidation PR-3).
+  # Nightly run of the whole workflow on `main`; in it the SB3 job runs the
+  # six-species and four-notebook-parameter sets that pull-request and push
+  # runs leave out (the SB3 job's "Decide the SB3 depth" step; consolidation
+  # PR-3). GitHub pauses scheduled workflows after 60 days without a commit.
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:

@@ -882,7 +882,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 - **The `test-sb3` CI job is bounded** (consolidation PR-3, 2026-09-20). It
   ran 52 minutes on the #544 merge (notebook smoke 6, behaviors 14,
   integration 31; 69 at #541) because #540/#541 added their suites to its
-  lists, seven of which import no SB3 and already run three times in the
+  lists, ten of which import no SB3 and already run three times in the
   `test` matrix (`test_behavior_env`, `test_behavior_recipes`,
   `test_terrain_sampling`, `test_behavior_evaluation`,
   `test_behavior_certification`, `test_behavior_publication`,
@@ -895,7 +895,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   notebook training smoke and of the species training smoke); the full sets
   run on a new nightly schedule (`05:17` UTC), on `workflow_dispatch`, and on
   any pull request carrying the `full-ci` label, all inside the same job so
-  the required-check name is unchanged. The `walker` fixture of
+  the required-check name is unchanged (the `pull_request` trigger gains the
+  `labeled` activity type, so adding the label to an open pull request starts
+  the run that reads it; the label itself is created once on the repository).
+  The `walker` fixture of
   `test_behavior_species_training.py` is module-scoped (6 PPO builds instead
   of 18). The union coverage gate (`fail_under = 70`) is re-measured on the
   first CI run of the change.
