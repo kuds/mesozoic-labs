@@ -1298,7 +1298,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior
-  shim** (consolidation PR-6, 2026-09-20). `configs/trex/behavior_pilots/` (8
+  shim** (consolidation PR-6, #549, 2026-09-20). `configs/trex/behavior_pilots/` (8
   TOMLs, 239 lines), its `pyproject.toml` package-data line and
   `environments/trex/scripts/train_behaviors.py` are deleted. Six of the eight
   were the `configs/trex/behaviors/` recipes with a `[pilot]` header and the

@@ -769,7 +769,7 @@ tolerance) remains the standing recommendation for the divergences above.
   (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
   wrapper and the notebook's library knobs, landed as #547; PR-5, the
   certified library and the trainer's library path, landed as #548; PR-6, the T. rex
-  pilot recipes, the `[pilot]` dialect and the trex shim, in review); PR-1 (#542), the auto-trunk PR
+  pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549); PR-1 (#542), the auto-trunk PR
   (#543) and PR-2 (#544) landed. Until the pilots are folded back,
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
   operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /
