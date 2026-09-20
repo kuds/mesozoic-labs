@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-20)
 
-**Status**: living reference — updated 2026-09-20; `main` = `ac409f8` (2026-09-20).
+**Status**: living reference — updated 2026-09-20; `main` = `a5ed12f` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -28,6 +28,7 @@ file in place when the state changes; it is not a dated investigation.
 | #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
 | #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
 | #545 | 2026-09-20 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
+| #546 | 2026-09-20 | Consolidation PR-3: the bounded `test-sb3` job (one real-PPO smoke per body of work on pull requests and pushes; the six-species and four-notebook-parameter sets nightly at 05:17 UTC, on `workflow_dispatch` and under the `full-ci` label, which now starts a run when added); the widened-root bundle-write fix (a null `best_eval_reward` for a stage whose deliverable record names `widened_from_run_id`); decisions D-D11..D-D14 recorded. Measured on its CI: lean SB3 job 48:02, labelled full job 45:21, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -213,8 +214,8 @@ Notes:
   `evaluations.npz` curve for `best_eval_reward` to summarize (the JUDGE
   branch leaves it unmeasured). The result schema now accepts that null for a
   stage whose deliverable record names `widened_from_run_id` (CHANGELOG
-  2026-09-20, "A widened root's run bundle writes"); until the fix is on
-  `main`, set `REPO_REF` to the session branch. To finish the run in place,
+  2026-09-20, "A widened root's run bundle writes"; on `main` since #546, so
+  `REPO_REF = "main"` carries it). To finish the run in place,
   in a fresh runtime: `SEED = 44`, `BEHAVIOR = "stand"`, `WIDEN_FROM = ""`
   (the widened stance already exists; the widen cell must not run again),
   `TRUNK_FROM = ""` (the reuse candidate is this run itself), and in the
@@ -262,7 +263,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544; PR-3 and PR-4 are in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546 (2026-09-20); PR-4 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their

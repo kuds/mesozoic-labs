@@ -27,8 +27,8 @@ corrected on re-reading during the review, the corrected figure is used.
 | Automatic trunk selection (D-A25; settles D-D4) | **Landed** as #543 on 2026-09-16: `environments/shared/ancestors.select_trunk`, notebook default `TRUNK_FROM = "auto"`, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk. |
 | PR-2 (record the decisions, fix the stale docs) | **Executed by the 2026-09-19 documentation pass**: this document, the D-D and G rows in BEHAVIOR_RECIPES_PLAN.md §6.2, the docs index, the README roadmap bullet, the CHANGELOG, NEXT_STEPS.md, the Drive survey note (investigations/DRIVE_RUN_SURVEY_2026_09.md), four KNOWN_ISSUES.md entries, the template note's appended §6 and one paragraph in website/docs/training/recipes.md. |
 | PR-3 .. PR-15 | **Released 2026-09-20** in the notebook-first order of decision D-D13 (§6): PR-3, PR-4, PR-5, PR-6, a notebook-only slice of PR-12, PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13, PR-15. |
-| PR-3 (bound the SB3 CI job) | **In review** (2026-09-20, the session branch): the SB3-free suites leave the `test-sb3` lists (the `test` matrix runs them; verified locally with SB3, torch and ray blocked), the full six-species and four-notebook-parameter sets run on the nightly schedule and under the `full-ci` label, one real-PPO smoke per body of work stays on every PR, `walker` is module-scoped. Measured on the #544 merge run: the job took 52 minutes (notebook smoke 6, behaviors 14, integration 31). |
-| PR-4 (delete the canonical library wrapper and the notebook hooks) | **In review** (2026-09-20, the session branch, after PR-3): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
+| PR-3 (bound the SB3 CI job) | **Landed** as #546 on 2026-09-20, together with the widened-root bundle-write fix: the SB3-free suites leave the `test-sb3` lists (the `test` matrix runs them; verified locally with SB3, torch and ray blocked), the full six-species and four-notebook-parameter sets run on the nightly schedule and under the `full-ci` label, one real-PPO smoke per body of work stays on every PR, `walker` is module-scoped. Measured on the #544 merge run: the job took 52 minutes (notebook smoke 6, behaviors 14, integration 31); measured on #546's two CI runs: the lean job 48:02 (smoke 2:56, behaviors 4:59, integration 38:00 for 1,384 tests), the labelled full job 45:21 (5:51, 9:01, 28:39), coverage 90 percent against the 70 gate. The integration step is now the whole cost and swung by ten minutes between two runs of the same commit, and the JAX job (39 to 51 minutes) is the longest pull-request job: both are follow-up candidates, not PR-3's. |
+| PR-4 (delete the canonical library wrapper and the notebook hooks) | **In review** (2026-09-20, the session branch; PR-3 landed as #546): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
 | Net removal from here | about 9,500 lines. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
 | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
@@ -175,7 +175,7 @@ Breaks: nothing; python-ci `docs/**` filter runs the workflow once. Validation:
 none beyond the workflow.
 Prerequisites: none; every later PR cites the decision numbers.
 
-### PR-3. Bound the SB3 CI job (S, about +10 to +40 workflow lines; about 40 minutes off every PR run) — IN REVIEW (2026-09-20)
+### PR-3. Bound the SB3 CI job (S, about +10 to +40 workflow lines; about 40 minutes off every PR run) — LANDED as #546, 2026-09-20
 Goal: measured test-sb3 went 43 -> 69 minutes (#539 -> #541; steps 7.8 / 18.3 /
 40.8 min). Remove from the test-sb3 lists (python-ci.yml:302-305, 313-343) every
 suite with no SB3 import that the `test (shared|trex)` matrix already runs three
@@ -203,7 +203,17 @@ it (a re-run replays the original event payload); the `full-ci` label has to
 be created once on the repository before the label path can be used; the
 nightly schedule runs the whole workflow on `main`, with the SB3 job at full
 depth. Measured before the change on the #544 merge run: 52 minutes
-(notebook smoke 5:50, behaviors 13:34, integration 30:31).
+(notebook smoke 5:50, behaviors 13:34, integration 30:31). Measured on #546's
+two CI runs (2026-09-20): the lean job 48:02 (smoke 2:56, behaviors 4:59,
+integration 38:00 for 1,384 tests), the labelled full job 45:21 (5:51, 9:01,
+28:39), coverage 90 percent. The bounding delivered less than the "about 40
+minutes off" above: the ten removed suites were 91 of the integration step's
+1,475 tests, that step is now the whole cost and swung by ten minutes between
+two runs of the same commit, and the JAX job (39 to 51 minutes) is the
+longest pull-request job. Follow-up candidates (a PR-3b, not started):
+profile the integration step with pytest durations, put the real-training
+parametrisations of test_compsognathus_training.py behind the same depth
+switch, and look at the JAX job the same way.
 
 ### PR-4. Delete certified_canonical.py, certified_comparison.py and the notebook library hooks (L by count, mostly file deletion; about -2,400) — IN REVIEW (2026-09-20)
 Goal: remove the wrapper that publishes canonical stages into the library and
