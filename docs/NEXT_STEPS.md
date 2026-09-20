@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-20)
 
-**Status**: living reference — updated 2026-09-20; `main` = `a5ed12f` (2026-09-20).
+**Status**: living reference — updated 2026-09-20; `main` = `f1eff74` (2026-09-20).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -29,20 +29,21 @@ file in place when the state changes; it is not a dated investigation.
 | #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
 | #545 | 2026-09-20 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
 | #546 | 2026-09-20 | Consolidation PR-3: the bounded `test-sb3` job (one real-PPO smoke per body of work on pull requests and pushes; the six-species and four-notebook-parameter sets nightly at 05:17 UTC, on `workflow_dispatch` and under the `full-ci` label, which now starts a run when added); the widened-root bundle-write fix (a null `best_eval_reward` for a stage whose deliverable record names `widened_from_run_id`); decisions D-D11..D-D14 recorded. Measured on its CI: lean SB3 job 48:02, labelled full job 45:21, coverage 90 percent |
+| #547 | 2026-09-20 | Consolidation PR-4: `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (2,563 → 2,477 lines) and never publishes; a reused trunk ancestor is loaded from the run that certified it (A10); `certified_comparison.py` deferred to PR-5; `train_behaviors --auto-source` without `--resume` refuses |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
 `COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
 guarded code cell, the SB3 archive-load preflight before the widen cell:
 41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
-about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23).
+about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
+PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
 values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
 `WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `SEED = 42`; the library
 knobs (`CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED`,
-`CERTIFIED_COMPARISON_EPISODES`) left with PR-4 and `SOURCE_SELECTION` survives
-for the direction/terrain path only, until PR-5.
+`CERTIFIED_COMPARISON_EPISODES`) left with PR-4 and `SOURCE_SELECTION` with PR-5.
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
@@ -54,17 +55,16 @@ directly, a second checkpoint preparer, a second PPO trainer
 (`environments/shared/train_behaviors.py`, one CPU env, its own recipe dialect),
 66 behavior TOMLs under `configs/<species>/behaviors/` (11 templates x 6 species)
 plus 8 under `configs/trex/behavior_pilots/`, a second gate outside `GATE_KINDS`
-(`configs/behavior_certification.toml`, writing `certification/certificate.json`,
-never a `gate_verdict.json`), a third identity keyed on source-file hashes (any
-edit to `behavior_env.py` strands exact resume), a certified library, and the
-notebook mode switch — about 7,000 lines of modules, tests excluded. Outputs go
-to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; the notebook
-never publishes to the library (its library knobs left with PR-4), so
-`SOURCE_SELECTION = "auto"` finds an entry only if a command-line run published
-one with `--publish-certified` (removed in PR-5), and a pilot needs explicit
-`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths.
-Guides: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md),
-[CERTIFIED_MODELS.md](CERTIFIED_MODELS.md). Under D-D9 every pilot bundle on
+(`configs/behavior_certification.toml`, judged by `judge_behavior_panel`; its
+`certification/certificate.json` writer left with PR-5, so it is reached only
+from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
+source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
+notebook mode switch — about 7,000 lines of modules at 22c1fc8, tests excluded
+(the certified library left with PR-4/PR-5). Outputs go
+to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; the certified
+library left with PR-5, so a pilot needs explicit `BEHAVIOR_CHECKPOINT` /
+`BEHAVIOR_VECNORMALIZE` paths in every load mode and for evaluation.
+Guide: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
 
 ### The consolidation (PR-3 .. PR-15): released 2026-09-20, notebook-first
@@ -263,7 +263,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546 (2026-09-20); PR-4 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546 and PR-4 as #547 (2026-09-20); PR-5 is in review on the session branch. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here about 9,500 lines (band 9,000–12,000). No PR changes the
 on-disk format or the reuse of the canonical chain, both r11 parents or the r13
 run `20260914_123816`; `WIDEN_FROM` / `TRUNK_FROM` / `RETRAIN_FROM` keep their
@@ -274,7 +274,7 @@ reorders the widen-seed check and edits the resume cell's prose.
 |---|---|---|---|
 | PR-3 | Bound the SB3 CI job: drop the SB3-free suites the shared/trex matrix already runs, keep one real-PPO smoke per body of work, move the full six-species set to a schedule (test-sb3 went 43 → 69 min from #539 to #541) | S (+10..+40) | none; land before PR-4 so later deletions edit one list; coverage `fail_under = 70` may need a re-baseline |
 | PR-4 | Delete `certified_canonical.py`, `certified_comparison.py`, their tests and the notebook library hooks (stamp block, the `copy_canonical_ancestor` branch of the chain loop, publish block, and three of the four library knobs; `SOURCE_SELECTION` goes with PR-5) | L (about −2,400) | #542 landed; D-D4; land before PR-5 |
-| PR-5 | Delete `certified_library.py`, its consumers in the behavior trainer (`--auto-source`, `--publish-certified`, `--certified-library`), `docs/CERTIFIED_MODELS.md`, the `.gitignore` line | M/L (about −1,400) | PR-4 |
+| PR-5 | Delete `certified_library.py`, its consumers in the behavior trainer (`--auto-source`, `--publish-certified`, `--certified-library`), `docs/CERTIFIED_MODELS.md`, the `.gitignore` line | M/L (about −1,400; measured about −1,880) | PR-4 (#547); in review 2026-09-20 |
 | PR-6 | Delete the T. rex pilots (`configs/trex/behavior_pilots/`), the `[pilot]` recipe dialect and the trex shim script | S (about −275) | none; D-D9 |
 | PR-7 | One behavior env, part 1: `BaseDinoEnv._ground_height_at` / `_clearance`, species rewards and terminations terrain-relative, delete `TRexBehaviorEnv` | M (about −600) | PR-6; D-D10 |
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
@@ -413,8 +413,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   smoke per body of work on every PR; the union coverage gate `fail_under = 70`
   is re-measured on its first CI run and again after PR-12/PR-13.
 - Test-to-test coupling to untangle in order: trex `test_behavior_training`
-  imports `CommandEnv` from `test_behavior_checkpoint`;
-  `test_behavior_publication` imports from `test_behavior_certification`.
+  imports `CommandEnv` from `test_behavior_checkpoint` (the
+  `test_behavior_publication` import left with PR-5).
 - `notebooks/jax_training.ipynb` carries the same Drive-mount block and
   `_ACTIVE_RUN_ID` memo; take D-D7-style moves for both notebooks.
 - The plan's per-event `command_tracking/v1` statistic and the

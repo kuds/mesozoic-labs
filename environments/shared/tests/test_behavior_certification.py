@@ -1,8 +1,7 @@
-"""Skill gates, comparable seeded panels, and per-terrain promotion evidence."""
+"""Skill gates and comparable seeded panels for command/terrain behaviors."""
 
 from __future__ import annotations
 
-import copy
 from pathlib import Path
 
 import numpy as np
@@ -10,8 +9,6 @@ import pytest
 
 from environments.shared.behavior_certification import (
     _panel_env,
-    behavior_library_key,
-    comparison_from_panel,
     judge_behavior_panel,
     load_certification_rules,
 )
@@ -106,26 +103,18 @@ def test_incomplete_or_bad_evidence_cannot_be_certified(problem):
     assert not judge_behavior_panel(report, _identity())["passed"]
 
 
-def test_comparison_default_is_50_and_has_separate_per_family_constraints():
-    assert load_certification_rules()["comparison"]["episodes"] == 50
-    report = _report(("flat", "sloped", "bumps", "depressions", "mixed"), per_family=10)
-    comparison = comparison_from_panel(report, _identity())
-    assert len(comparison["protocol"]["episode_seeds"]) == 50
-    assert len(comparison["metrics"]) == 30
-    assert all(len(metric["values"]) == 10 for metric in comparison["metrics"])
-    assert [m["name"] for m in comparison["metrics"]][:5] == [
-        f"survival:{f}" for f in report["terrain_coverage"]["enabled_families"]
-    ]
-    assert comparison["model_sha256"] == report["model_sha256"]
-
-
-def test_library_key_binds_species_behavior_task_and_judging_rules():
-    identity = _identity()
-    key = behavior_library_key("trex", "difficult_terrain", identity)
-    changed = copy.deepcopy(identity)
-    changed["course_distance"] = 5
-    assert key != behavior_library_key("trex", "difficult_terrain", changed)
-    assert key != behavior_library_key("trex", "follow_direction", identity)
+def test_gate_rules_pin_the_documented_thresholds_and_hold_no_comparison_table():
+    """The certificate rules are the documented gate; the paired-comparison table left with consolidation PR-5."""
+    rules = load_certification_rules()
+    assert rules["version"] == "direction-terrain-certification/v1"
+    assert rules["episodes_per_family"] == 20
+    assert rules["minimum_horizon_s"] == 20.0
+    assert rules["minimum_survival_lcb"] == 0.80
+    assert rules["minimum_success_lcb"] == 0.60
+    assert "comparison" not in rules
+    assert not any(key.startswith("comparison") for key in rules)
+    assert "certification_seeds" not in rules
+    assert judge_behavior_panel(_report(), _identity(), rules)["rules"] == rules
 
 
 @pytest.mark.parametrize("behavior", ["follow_direction", "mixed_terrain", "difficult_terrain"])

@@ -12,8 +12,8 @@ run in parallel with this sequence, and the Drive state they rest on),
 (the 2026-09-17 Drive survey, the note of record for every run fact cited
 here),
 [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) and
-[CERTIFIED_MODELS.md](CERTIFIED_MODELS.md) (the pilots' own guides; the sequence
-shortens the first and deletes the second). Every `file:line` below was re-read
+`CERTIFIED_MODELS.md` (the pilots' own guides; the sequence
+shortens the first and PR-5 deleted the second on 2026-09-20). Every `file:line` below was re-read
 at 723f58f while the plan was written and drifts after it (two merges
 already: #542 and #543); read them as anchors, not contracts. Where a first estimate was
 corrected on re-reading during the review, the corrected figure is used.
@@ -28,7 +28,8 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-2 (record the decisions, fix the stale docs) | **Executed by the 2026-09-19 documentation pass**: this document, the D-D and G rows in BEHAVIOR_RECIPES_PLAN.md §6.2, the docs index, the README roadmap bullet, the CHANGELOG, NEXT_STEPS.md, the Drive survey note (investigations/DRIVE_RUN_SURVEY_2026_09.md), four KNOWN_ISSUES.md entries, the template note's appended §6 and one paragraph in website/docs/training/recipes.md. |
 | PR-3 .. PR-15 | **Released 2026-09-20** in the notebook-first order of decision D-D13 (§6): PR-3, PR-4, PR-5, PR-6, a notebook-only slice of PR-12, PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13, PR-15. |
 | PR-3 (bound the SB3 CI job) | **Landed** as #546 on 2026-09-20, together with the widened-root bundle-write fix: the SB3-free suites leave the `test-sb3` lists (the `test` matrix runs them; verified locally with SB3, torch and ray blocked), the full six-species and four-notebook-parameter sets run on the nightly schedule and under the `full-ci` label, one real-PPO smoke per body of work stays on every PR, `walker` is module-scoped. Measured on the #544 merge run: the job took 52 minutes (notebook smoke 6, behaviors 14, integration 31); measured on #546's two CI runs: the lean job 48:02 (smoke 2:56, behaviors 4:59, integration 38:00 for 1,384 tests), the labelled full job 45:21 (5:51, 9:01, 28:39), coverage 90 percent against the 70 gate. The integration step is now the whole cost and swung by ten minutes between two runs of the same commit, and the JAX job (39 to 51 minutes) is the longest pull-request job: both are follow-up candidates, not PR-3's. |
-| PR-4 (delete the canonical library wrapper and the notebook hooks) | **In review** (2026-09-20, the session branch; PR-3 landed as #546): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
+| PR-4 (delete the canonical library wrapper and the notebook hooks) | **Landed** as #547 on 2026-09-20 (PR-3 landed as #546): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
+| PR-5 (delete the certified library and the trainer's library path) | **In review** (2026-09-20, the session branch; PR-4 landed as #547): `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted (1,602 whole-file lines); `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; `certify_and_publish_behavior` and the behavior certificate writer gone (no run writes `certification/certificate.json` until PR-13); the notebook loses `SOURCE_SELECTION` and its prose (2,463 lines); about 1,880 net code and configuration lines removed. |
 | Net removal from here | about 9,500 lines. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
 | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
@@ -215,7 +216,7 @@ profile the integration step with pytest durations, put the real-training
 parametrisations of test_compsognathus_training.py behind the same depth
 switch, and look at the JAX job the same way.
 
-### PR-4. Delete certified_canonical.py, certified_comparison.py and the notebook library hooks (L by count, mostly file deletion; about -2,400) — IN REVIEW (2026-09-20)
+### PR-4. Delete certified_canonical.py, certified_comparison.py and the notebook library hooks (L by count, mostly file deletion; about -2,400) — LANDED as #547, 2026-09-20
 Goal: remove the wrapper that publishes canonical stages into the library and
 every notebook hook. Delete environments/shared/certified_canonical.py (917),
 certified_comparison.py (153), tests test_certified_canonical.py (699),
@@ -279,7 +280,7 @@ source lines); the stamp's post-construction
 `set_random_seed` call leaves with it, so a run is seeded once, at model
 construction, and is not bit-reproducible against a pre-PR-4 run.
 
-### PR-5. Delete certified_library.py and its consumers in the behavior trainer (M/L, about -1,400)
+### PR-5. Delete certified_library.py and its consumers in the behavior trainer (M/L, about -1,400) — IN REVIEW (2026-09-20)
 Goal: delete environments/shared/certified_library.py (671),
 certified_comparison.py (153) and test_certified_comparison.py (97) (moved here
 from PR-4; see its as-executed note),
@@ -305,6 +306,41 @@ Drive exists only if #541's notebook ran with `PUBLISH_CERTIFIED=True` (the
 leave it, nothing reads it.
 Validation: shared suite; SB3 job (`test_behavior_species_training` smoke).
 Prerequisites: PR-4.
+
+As executed (2026-09-20, the session branch, after PR-4 landed as #547): the six
+whole files went (1,602 lines; CERTIFIED_MODELS.md was 208, not 198) and the PR
+nets about -1,880 code and configuration lines against the -1,400 estimate. Two
+test files this section did not name imported deleted symbols and were edited in
+the same commit so the `test` matrix and the SB3 job stay green:
+test_behavior_species_training.py (`publish_candidate`, `behavior_library_key`
+and its auto-source test; 18 -> 12 tests, still 2 on a pull request) and
+test_behavior_certification.py (`behavior_library_key`, `comparison_from_panel`;
+23 -> 22, the comparison test re-pointed to the documented gate thresholds).
+`certify_and_publish_behavior` went whole, and with it the only writer of
+`certification/certificate.json`: `judge_behavior_panel`, `evaluate_saved_panel`
+and `_panel_env` are reached from tests alone until PR-13 registers the gate
+kind. `configs/behavior_certification.toml` lost `certification_seeds`, the two
+comparison seeds and the `[comparison]` table (26 -> 15 lines) and kept the
+certificate panel's seeds. `train_behaviors` lost the four flags,
+`_copy_explicit_certified_pair`, `certified_source.json` and the run.json keys
+`certified_source`, `certification_requested`, `comparison_episodes` and
+`certification` without a schema-string bump (nothing outside the trainer and
+the deleted test read them; the `certification_training_*` lineage keys stay);
+every mode takes an explicit `--checkpoint` / `--vecnormalize` pair. The
+notebook lost `SOURCE_SELECTION` and its prose (2,477 -> 2,463 lines; 41 cells,
+23 code): blank source paths are refused in the configuration cell in every
+mode, before Drive mounts, where the runner used to refuse prepare and would
+have failed on an empty library for resume; `NotebookBehaviorPlan` lost
+`certified_library`, `auto_source`, `publish_certified`, `comparison_episodes`
+and `certification_skip_reason` (the QUICK_TEST note said certification was
+skipped, which no longer describes any run) and is built by keyword; the display
+cell prints saved diagnostics only, so a pre-PR-5 run made with the CLI's
+publish flag no longer prints its certificate lines (D-D9). test_behavior_notebook.py
+161 -> 162 tests, test_sb3_notebook_pins.py 67 -> 68 (a token pin over every
+cell, markdown included, since no structural pin reads the markdown). Already
+gone from later sections' file lists: `_evaluation_contract` (PR-9) and
+`certified_library._hash_file` (PR-13); the CI wheel step's asserts sat at
+:192-193, not :180-181.
 
 ### PR-6. Delete the T. rex pilots, the `[pilot]` dialect and the shim (S, about -275)
 Goal: delete configs/trex/behavior_pilots/ (8 files, 239 lines; twins of
@@ -426,7 +462,7 @@ mixin's `command_manifest` override, `behavior_identity`
 (behavior_env.py:194-221), `BEHAVIOR_IDENTITY_SCHEMA`, `PREPARATION_ATTRIBUTE`,
 the source-hash `sources` block, `sampler_source_identity`
 (terrain_sampling.py:83-86) and `_evaluation_contract`
-(behavior_certification.py:40-48) in favour of versioned strings like
+(behavior_certification.py:40-48; deleted by PR-5 on 2026-09-20) in favour of versioned strings like
 `SCHEDULE_IMPLEMENTATION` (task_fingerprint.py:71). Terrain kwargs
 (`TerrainConfig`, `TerrainSamplerConfig`) enter the fingerprint's `env` section
 as constructor kwargs of the opt-in subclass. The mixin's zeroing of 20 species
@@ -573,7 +609,7 @@ test_behavior_certification.py (212; panel-judging cases re-homed as gate cases
 in test_gate_dispatch_fail_closed.py / test_reporting_gates.py),
 `evaluate_saved_panel`, the `evaluate_behavior` wrapper layers, the three `_sha`
 helpers (`train_behaviors._sha` is gone; `behavior_replay._sha` :50 and
-`certified_library._hash_file` are replaced by
+`certified_library._hash_file` (left with PR-5 on 2026-09-20) are replaced by
 `result_bundle.hashing.sha256_file`) and the second `_json_value`
 (behavior_replay.py:36-47 vs behavior_evaluation.py:301-314). Keep
 `BehaviorReplayRecorder`, `capture_terrain_snapshot`, `write_terrain_maps` (keep
@@ -801,11 +837,12 @@ Carried from the review, with the 2026-09-17 additions.
   next Colab session; everything else waited for the hold, which lifted on
   2026-09-20. Since #543
   canonical chains never consult the library; `SOURCE_SELECTION = "auto"`
-  applies only to the direction/terrain path (`train_behaviors --auto-source`,
-  deleted in PR-5), which would copy a library version into the pilot bundle's
-  `certified_inputs/` (certified_library.py:613; that tree writes bundle.json,
-  never `artifact_manifest.json`); the survey did not inspect the library
-  directory and nothing relies on one, so that half is dormant today. What
+  applied only to the direction/terrain path (`train_behaviors --auto-source`;
+  both left with PR-5 on 2026-09-20), which would have copied a library version
+  into the pilot bundle's `certified_inputs/` (certified_library.py:613 at
+  723f58f; that tree wrote bundle.json, never `artifact_manifest.json`); the
+  survey did not inspect the library directory and nothing relies on one, so
+  that half is gone. What
   canonical chains did until PR-4 (2026-09-20, the session branch) was copy a cross-run trunk ancestor's
   bundle into `certified_inputs/` through `copy_canonical_ancestor` (cell 22;
   certified_canonical.py:882), and `artifact_manifest.json` hashes those copies
@@ -854,7 +891,8 @@ Carried from the review, with the 2026-09-17 additions.
 - Test-to-test coupling must be untangled in order:
   environments/trex/tests/test_behavior_training.py imports `CommandEnv` from
   test_behavior_checkpoint.py (:384); test_behavior_publication.py imports
-  `_identity`/`_report` from test_behavior_certification.py (:14).
+  `_identity`/`_report` from test_behavior_certification.py (:14) (resolved:
+  the file left with PR-5 on 2026-09-20).
 - jax_training.ipynb carries the same Drive-mount block and `_ACTIVE_RUN_ID`
   memo (:250, :296); if the D-D7 package move or the memo removal is taken, take
   it for both notebooks so the two Colab drivers do not diverge on the same

@@ -1,6 +1,6 @@
 # Direction following and randomized terrain
 
-**Status (2026-09-19): pilot pipeline, evaluation-only outputs.** The behaviors
+**Status (2026-09-20): pilot pipeline, evaluation-only outputs.** The behaviors
 below train through a separate runner (`train_behaviors.py`) beside the
 canonical chain loop; their bundles are not certified deliverables and are not
 reused as training parents (decision D-D9). The final goal (every species
@@ -9,10 +9,10 @@ follows a direction on difficult terrain) is reached by re-homing
 under `locomotion`, trained by `train_base` and judged by a registered gate kind
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) PR-9..PR-13;
 goal decisions G1-G4 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
-§6.2). Until then this page is the operator guide for the pilots; the notebook
-never publishes to the certified library (its library knobs left with
-consolidation PR-4) and a fresh pilot needs an explicit locomotion pair, so give
-explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths (for the
+§6.2). Until then this page is the operator guide for the pilots; every pilot
+session, in every load mode and for evaluation, takes an explicit pair (the
+certified library left with consolidation PR-5), so give explicit
+`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths (for the
 certified trex walker `20260914_123816`, the handoff pair that
 `logs/trex/ppo/20260914_123816/03_locomotion/gate_verdict.json` names in its
 `checkpoint` and `normalization` fields, under that node's `models/`).
@@ -128,12 +128,10 @@ one species' recipes so adaptation preserves the meaning of learned inputs.
 Every recipe declares `[behavior] species`, its stable behavior `name`, and
 `parent = "locomotion"`. The runner resolves that parent through the species'
 `stages.toml`, loads its locomotion environment settings, and checks the supplied
-checkpoint's species and stage. Parentage is explicit: the notebook picks a
-source only through `SOURCE_SELECTION = "auto"` (resume or evaluation of the
-exact behavior's library recommendation, which exists only if a command-line run
-published one with `--publish-certified`) or through an explicit
-`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` pair, and it never adds these
-behaviors to the canonical certification curriculum.
+checkpoint's species and stage. Parentage is explicit: the notebook takes its
+source only from an explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE`
+pair, in every load mode and for evaluation, and it never adds these behaviors
+to the canonical certification curriculum.
 
 ## Run training from the command line
 
