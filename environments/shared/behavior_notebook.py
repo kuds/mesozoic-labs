@@ -61,9 +61,10 @@ def validate_behavior_selection(
         # Every mode takes an explicit pair: the certified library and its automatic
         # selection left with consolidation PR-5.
         raise ValueError(
-            "Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files: "
-            "a locomotion handoff pair for prepare, or a saved behavior's model.zip and vecnormalize.pkl for "
-            "resume, adapt and evaluation. Nothing is selected automatically."
+            "Set both BEHAVIOR_CHECKPOINT and BEHAVIOR_VECNORMALIZE to the explicit matched source files. The pair "
+            "follows BEHAVIOR_LOAD_MODE: a locomotion handoff pair for prepare, a saved behavior's model.zip and "
+            "vecnormalize.pkl for resume and adapt; BEHAVIOR_EVAL_ONLY scores whichever pair the mode loads (set "
+            "resume to score a saved behavior). Nothing is selected automatically."
         )
     # TRUNK_FROM's default "auto" (decision D-A25) selects a CANONICAL trunk and
     # means nothing here; only a pinned run is a conflicting selection.

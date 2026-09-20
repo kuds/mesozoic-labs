@@ -837,11 +837,12 @@ Carried from the review, with the 2026-09-17 additions.
   next Colab session; everything else waited for the hold, which lifted on
   2026-09-20. Since #543
   canonical chains never consult the library; `SOURCE_SELECTION = "auto"`
-  applies only to the direction/terrain path (`train_behaviors --auto-source`,
-  deleted by PR-5 on 2026-09-20), which would copy a library version into the pilot bundle's
-  `certified_inputs/` (certified_library.py:613; that tree writes bundle.json,
-  never `artifact_manifest.json`); the survey did not inspect the library
-  directory and nothing relies on one, so that half is dormant today. What
+  applied only to the direction/terrain path (`train_behaviors --auto-source`;
+  both left with PR-5 on 2026-09-20), which would have copied a library version
+  into the pilot bundle's `certified_inputs/` (certified_library.py:613 at
+  723f58f; that tree wrote bundle.json, never `artifact_manifest.json`); the
+  survey did not inspect the library directory and nothing relies on one, so
+  that half is gone. What
   canonical chains did until PR-4 (2026-09-20, the session branch) was copy a cross-run trunk ancestor's
   bundle into `certified_inputs/` through `copy_canonical_ancestor` (cell 22;
   certified_canonical.py:882), and `artifact_manifest.json` hashes those copies

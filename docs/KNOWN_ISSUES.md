@@ -755,7 +755,8 @@ tolerance) remains the standing recommendation for the divergences above.
   `gate_verdict.json`); a checkpoint identity keyed on source-file hashes (any
   edit to `behavior_env.py` strands exact resume); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
   mode switch, referenced by 19 of the 22 code cells — about 7,000 lines of
-  modules, tests excluded. Pilot outputs
+  modules at 22c1fc8, tests excluded (the certified library left with
+  PR-4/PR-5). Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
   (decision D-D9): none is reusable through `find_certified_ancestor` or
   carried forward as a training parent. The fold-back — manifest nodes
