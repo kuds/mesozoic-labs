@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Training sessions 1–3 recorded** (2026-09-20 .. 2026-09-23;
+  `docs/NEXT_STEPS.md` §2–§3 and the widened-interface note's §3, §7 and §8).
+  Trex seed 44: the r11 stance `20260815_205206` widened to r13 as
+  `20260920_010912` (`WIDEN_MAX_REVISION_GAP = 2`), re-paneled identically to
+  its 2026-08 certificate (3408.3 ± 88.5, duty 0.0069 / UCB 0.0117), then a
+  recovery node trained 3M in place and PASSED `recovery_quality/v1` (28/40,
+  LCB 0.56; paired delta against the statue null 0.70, LCB 0.58); the bundle
+  records trex stance at replication 2 with `20260914_123816`, so the
+  `certification_seeds = 2` bar is met. Compsognathus seed 42: the r1 stance
+  `20260909_162812` widened to r2 as `20260921_203149` (gap 1), re-paneled
+  identically (2801.6 ± 51.2, duty 0.0131 / UCB 0.0141), then locomotion 3M
+  PASSED (3308.6 ± 13.0, 0.34 m/s, length 1000). Velociraptor seed 42: a fresh
+  r10 chain `20260922_125248`, stance 6M PASSED (certified checkpoint
+  1740.03 ± 301.5, length 970.3 against rails 1050 / 950) and locomotion 8M
+  PASSED (2683.64 ± 8.56, 3.30 m/s, length 1000). All three bundles are
+  `complete`; the widened roots carry a null `best_eval_reward` under the rule
+  of #546. The open question "does a widened stance reproduce its panel?" is
+  answered yes for both parents, and decision D-D14's condition for retiring
+  the notebook widen path is met.
 - **Automatic trunk selection** (`docs/BEHAVIOR_RECIPES_PLAN.md` decision
   D-A25). `environments/shared/ancestors.select_trunk` scans the runs beside a
   new run (the notebook's `logs/<species>/<algo>/`; on the command line the
@@ -1298,7 +1317,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior
-  shim** (consolidation PR-6, 2026-09-20). `configs/trex/behavior_pilots/` (8
+  shim** (consolidation PR-6, #549, 2026-09-20). `configs/trex/behavior_pilots/` (8
   TOMLs, 239 lines), its `pyproject.toml` package-data line and
   `environments/trex/scripts/train_behaviors.py` are deleted. Six of the eight
   were the `configs/trex/behaviors/` recipes with a `[pilot]` header and the

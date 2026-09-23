@@ -27,7 +27,7 @@ session's `N_ENVS`, which only the nodes trained here used.
 **Run**: `<to be filled after Session 1: RUN_ID, e.g. 202609DD_HHMMSS>` (Colab, SB3
 PPO, 4 envs, seed 42 — the widened copy of `20260810_145546`; no training
 steps of its own, `num_timesteps` inherited: 10,002,432) and
-`<to be filled after the seed-44 repeat: RUN_ID>` (seed 44 — the widened copy
+`20260920_010912` (seed 44 — the widened copy
 of `20260815_205206`; both parents were trained under policy interface r11,
 `sha256:96ef13…`, and are widened under `WIDEN_MAX_REVISION_GAP = 2` —
 `revision_gap` 2 in each `widen_report.json`). **Plant**: physics r7 (`sha256:72c662…`), policy
@@ -125,18 +125,24 @@ re-panel failed, say so here and record the retrain decision in §4.
 
 ## 3. The recovery freeze re-roll
 
-`<to be filled after Session 1b>`
+Filled 2026-09-23 from `20260920_010912/02_recovery/gate_resolution.json`,
+frozen 2026-09-20 21:42 UTC by the chain loop from the widened handoff (the
+`stand` chain of §6, in place of the stand-alone Session 1b freeze;
+`resolution_sha256 b0e34bab…`, `task_sha256 2c6f4a47…`, `panel_seed_start`
+3042, success bound Clopper-Pearson one-sided, paired bound Student-t
+one-sided, alpha 0.05).
 
 From `<RUN_DIR>/02_recovery/gate_resolution.json` (`null_manifest`,
 `task_sha256`, `decision_procedure.panel_seed_start = 3042`) against the
 2026-08-28 freeze (`TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md`; KNOWN_ISSUES,
 the stance-gate LOW entry):
 
-| null controller | 2026-08-28 freeze (pre-bump task hash `<…>`) | re-roll (Phase C task hash `<…>`) |
+| null controller | 2026-08-28 freeze (pre-bump task hash `97c28f29…`, r12) | re-roll (Phase C task hash `2c6f4a47…`, r13) |
 |---|---|---|
-| statue (`zero_action`) recovery rate | `<…>` | `<…>` |
-| brace recovery rate | `<…>` | `<…>` |
-| brace source (`checkpoint_sha256`) | `<pre-bump handoff>` | `<widened handoff, §1>` |
+| statue (`zero_action`) recovery rate | 0/40 (0/40 full horizon, 26/50 per-shove, mean length 360) | 0/40 (`success_ucb95` 0.0722; every seed 3042–3081 `false`) |
+| brace recovery rate | 0/40 (0/40 full horizon, 8/35 per-shove, mean length 260) | 0/40 (`success_ucb95` 0.0722; every seed `false`) |
+| brace source (`checkpoint_sha256`) | the pre-bump stance handoff the 2026-08 recovery runs warm-started from (that note, §3) | the widened seed-44 handoff of §1, `7f4284ad…` |
+| safe set (height error / tilt / planar speed) | 0.0168 m / 0.0825 rad / 0.3203 m/s (the P3 calibration) | 0.0168 m / 0.0825 rad / 0.3203 m/s (identical) |
 
 Expected: the statue null is identical up to the reset stream (the golden
 fixture pins the seeded reset draws; `command_mode = "none"` draws nothing),
@@ -238,3 +244,44 @@ still needed; the table and placeholders above are kept as written.
   `task_sha256` is `null` because its `stage_config.json` predates task
   fingerprints, so the widen report's parent block records `null` and the
   widened node's digest comes from the current stage TOML.
+
+## 8. Status 2026-09-23 (appended)
+
+- **Session 1 is complete.** The in-place continuation of `20260920_010912`
+  (2026-09-20 from 21:38 UTC, `REPO_REF = "main"` at `25132fc`, the same
+  Python 3.13.15 image; provenance `sessions[1]` records the commit drift
+  `ac409f8` → `25132fc`) reused the widened stance, froze the recovery
+  resolution from its handoff (§3, filled above), trained recovery for
+  3,006,464 steps (3h30m) and PASSED `recovery_quality/v1` at 01:16:47 UTC on
+  2026-09-21: 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56
+  against `min_recovery_success_lcb` 0.3), paired success delta against the
+  0/40 statue null 0.70 (Student-t one-sided LCB 0.58 against
+  `min_paired_success_delta_lcb` 0.2), 140 of 155 pushes recovered, 34/40
+  full horizon, panel reward 2925.4 ± 404.8 (`evidence/policy.csv`);
+  training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M;
+  `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…` (= the resolution's),
+  checkpoint `a8e41b98…`. The bundle is `complete`: the stance deliverable
+  records `widened_from_run_id 20260815_205206`, `best_eval_reward` null (the
+  rule of #546), `certified true`, `provisional false` and `replication count
+  2` (`20260920_010912` seed 44, `20260914_123816` seed 42); the recovery
+  deliverable is certified at replication 1. The §2 acceptance ("a `complete`
+  stance bundle") is met, and trex stance reads 2 runs of 2 seeds in this
+  run's records (the seed-42 run's own records read 1 until its bundle cell
+  is re-run beside this sibling).
+- **§3 holds the chain loop's freeze, not a stand-alone Session 1b run**: the
+  `stand` chain froze `02_recovery/gate_resolution.json` from the widened
+  handoff before training (the 2026-09-19 re-scoping of §6). Both nulls
+  reproduce the 2026-08-28 freeze's 0/40 exactly and the safe set is the P3
+  calibration to every digit, so the §3 expectation holds; the r12-hashed
+  freeze of the 2026-08 note stays on the log tree as history.
+- **The same question was answered for compsognathus** on 2026-09-21: the
+  r1 → r2 widen of `20260909_162812` (gap 1, run `20260921_203149`)
+  re-paneled to 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131 / UCB
+  0.0141, the parent's report to every printed digit, and then trained a
+  certified locomotion node (3,002,368 steps, 3308.6 ± 13.0, 0.34 m/s). With
+  both widen sessions decided, decision D-D14's condition for retiring the
+  notebook widen path is met.
+- §4 stays superseded (`20260914_123816` is the walker) and §5's log-tree
+  inventory is not done here; the template status line at the top stays
+  until §5 is filled. The run plan and what remains:
+  [../NEXT_STEPS.md](../NEXT_STEPS.md) §3.
