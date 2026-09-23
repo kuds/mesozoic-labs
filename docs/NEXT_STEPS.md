@@ -199,7 +199,12 @@ statue-level stance PASS and a stand-still locomotion FAIL (section 2). The
 backstop settings of dibothrosuchus and brachiosaurus stages 1–2 were fixed the
 same day (`collapse_peak_warmup_timesteps`; CHANGELOG "Fixed"), so session 4 is
 re-run, then sessions 5 and 6 follow, in that order, plus the optional session
-7. Housekeeping: delete the four stray trex directories `20260918_230155`,
+7. Sessions 1–3 each ended at the cleanup cell, not the auto-disconnect: the
+curves cell wrote three undeclared PNGs into every trained stage directory
+after the bundle was sealed (CHANGELOG "Fixed"; the 18 files went to Drive's
+trash on 2026-09-23 and the three trees match their manifests again). The fix
+rides with the notebook-only PR-12 slice; on a `main` without it, run the
+auto-disconnect cell by hand after the cleanup cell raises. Housekeeping: delete the four stray trex directories `20260918_230155`,
 `20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
 seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
 run-level records, is dropped: with every node reused the chain loop writes no

@@ -1474,7 +1474,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   stopped before the auto-disconnect cell. Every completed session run
   (`20260920_010912`, `20260921_203149`, `20260922_125248`) ended there, left
   its runtime connected, and carried three undeclared PNGs per trained stage
-  directory, byte-size duplicates of the declared `figures/` copies. The cell
+  directory, byte-size duplicates of the declared `figures/` copies; an audit
+  of the three run trees found nothing else undeclared, missing or resized,
+  and the 18 PNGs went to Drive's trash on 2026-09-23, so each tree matches
+  its manifest by path and size again. The cell
   now only displays; `test_sb3_notebook_pins.py` executes it over a stage
   directory and pins that it writes nothing. Reuse was never affected: trunk
   selection reads the per-node files, not the manifest.
