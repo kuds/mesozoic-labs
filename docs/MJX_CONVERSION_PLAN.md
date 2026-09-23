@@ -3,7 +3,7 @@
 > **Status:** Implemented design record. Sections 1–8 describe the original
 > target architecture, not a parity guarantee. For current behavior, use the
 > [JAX/MJX guide](../website/docs/training/jax.md) and
-> [known-divergence list](KNOWN_ISSUES.md#known-sb3--jax-divergences).
+> [known-divergence list](KNOWN_ISSUES.md#known-sb3--jax-divergences-documented-deliberate-for-now).
 
 Detailed plan for adding MuJoCo MJX (JAX-accelerated GPU simulation) support to
 Mesozoic Labs while preserving the existing Stable Baselines 3 (SB3) CPU training

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Training session 4 recorded; living docs corrected** (2026-09-23;
+  `docs/NEXT_STEPS.md` §2–§4, `docs/KNOWN_ISSUES.md`). Dibothrosuchus seed
+  42, run `20260923_020654`: the collapse backstop stopped both nodes at
+  1,450,000 steps (see Fixed); the stance PASSED `reward_and_length/v1` on
+  the 50k statue-level checkpoint (2597.49 ± 1.95 against a 2598.29
+  statue), the locomotion FAILED on forward velocity (0.0012 m/s against
+  0.9, a stand-still checkpoint at 2249.86); bundle `partial`. The session
+  is re-run with `RETRAIN_FROM = "stance"`, because the fix moves no digest
+  and `TRUNK_FROM = "auto"` would otherwise reuse the statue-level stance.
+  KNOWN_ISSUES gains three entries (a complete run cannot take a new node in
+  place, so NEXT_STEPS session 7 becomes a fresh run and the seed-42
+  bundle-rebuild step is dropped; an early stop is invisible in the run
+  records; the quadruped gait-symmetry reward pays a motionless statue).
+  A docs truth pass corrects what the living docs said about
+  `TRUNK_FROM`'s default and what `"auto"` selects for trex, the
+  pre-session-1 status rows of the recipes plan, the date of the Colab
+  image move (the 2026-09-14/15 runs already ran Python 3.13.15; 3.12.13
+  was the August parent's image), the r11 labels and backfill claims of
+  two KNOWN_ISSUES entries, and adds the missing `docs/README.md` rows.
+  The consolidation sequence, paused after PR-6, resumes with the
+  notebook-only PR-12 slice.
 - **Training sessions 1–3 recorded** (2026-09-20 .. 2026-09-23;
   `docs/NEXT_STEPS.md` §2–§3 and the widened-interface note's §3, §7 and §8).
   Trex seed 44: the r11 stance `20260815_205206` widened to r13 as
@@ -890,10 +911,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   Nothing canonical reads either (canonical chains stopped consulting the
   library in #543); leave them in place.
 - **Pilot bundles are evaluation-only** (decision D-D9): no #540/#541
-  behavior bundle is carried forward as a training parent. With
-  `PUBLISH_CERTIFIED = False`, `SOURCE_SELECTION = "auto"` finds no library
-  entry, so a pilot run needs explicit `BEHAVIOR_CHECKPOINT` /
-  `BEHAVIOR_VECNORMALIZE` paths.
+  behavior bundle is carried forward as a training parent. A pilot run
+  needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths: the
+  configuration cell refuses a blank pair in every mode (`PUBLISH_CERTIFIED`
+  left with PR-4, `SOURCE_SELECTION` and the certified library with PR-5).
 - **`imageio-ffmpeg` joined the `viz` extra** (the replay recorder's video
   encoder); reinstall the extra to pick it up.
 
@@ -1414,6 +1435,35 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **The collapse backstop no longer arms on the untrained or the standing
+  policy on dibothrosuchus and brachiosaurus** (2026-09-23). Under
+  `home-keyframe-residual/v1` action 0 commands the nominal stance, so an
+  untrained stance policy scores the statue, above the absolute floors of
+  0.75 x the statue (1950 / 1300); and `EvalCallback` scores locomotion at
+  the full forward weight from step 0, so a warm-started policy that is
+  still standing scores about 22x the locomotion floor of 100. Run
+  `20260923_020654` (dibothrosuchus, NEXT_STEPS session 4) armed on both at
+  its first eligible evaluation (1.0M) and stopped each node at 1.45M of
+  6M / 12M, the failure `EvalCollapseEarlyStopCallback`'s docstring records
+  for trex run `20260803_012355`. `collapse_peak_warmup_timesteps` now keeps
+  early evaluations from setting the peak: 1,000,000 on both species' stage
+  1 (the trex stance value; on that run's series any warm-up of 400k or
+  more never arms), and `warmup_timesteps + ramp_timesteps` on stage 2
+  (3,300,000 dibothrosuchus, 4,000,000 brachiosaurus): the D-B5 bound of trex
+  behavior, conservative because the clip/entropy warm-up and the forward
+  ramp both run from stage step 0. On that run's locomotion series a
+  0.8-1.05M warm-up arms on the fallen plateau under the floor of 100 and
+  anything past 1.05M stays disarmed, so the replay bounds the warm-up
+  below at 1.1M; the committed values are the D-B5 bound, not a replay
+  result. Replayed through the real
+  callback on the six series that trained to budget (velociraptor stance
+  and locomotion, compsognathus locomotion, trex stance, locomotion and
+  recovery), no candidate setting stops any of them. Collapse keys enter no
+  digest, so no `task_sha256`, `gate_sha256` or `hyperparameters_sha256`
+  moves and certified nodes stay reusable. New replay tests in
+  `test_curriculum_early_stopping.py` pin the stop without the warm-up and
+  its absence with it. The floors stay absolute until the planned plant
+  updates of both species (KNOWN_ISSUES).
 - **A widened root's run bundle writes** (#546, 2026-09-20). The first widen session
   on the fixed loader (`20260920_010912`, the seed-44 trex stance widened
   r11 → r13 and re-paneled: PASS, reward 3408.3 ± 88.5, duty 0.0069, UCB
@@ -1468,7 +1518,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     bytecode at all; `widen_checkpoint` re-states a parent's schedule
     members from its recorded `hyperparameters` block, or from the current
     stage config's algorithm block when the parent's `stage_config.json`
-    predates that block (the r11 trex parent's does), through
+    predates that block (the r11 trex parent's does not; the widen report of
+    `20260920_010912` names `parent_stage_config`), through
     `schedule_members_from_hyperparameters` when the parent archive stores
     them as bytecode, so a widened archive is bytecode-free instead of a
     3.13-labelled zip full of 3.12 code; `widen_report.json` records the

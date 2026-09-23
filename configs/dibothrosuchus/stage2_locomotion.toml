@@ -108,6 +108,20 @@ required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop: wait ~1M steps (20 evals x 50k) before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5
+collapse_peak_warmup_timesteps = 3300000 # Evaluations before this step cannot SET the peak: the D-B5 bound
+                                         # warmup_timesteps + ramp_timesteps (800k + 2.5M) trex behavior uses,
+                                         # conservative because the clip/entropy warm-up and the forward-weight
+                                         # ramp both run from stage step 0, so shaping ends at 2.5M. EvalCallback scores at the full forward_vel_weight from
+                                         # step 0, so a warm-started policy still standing evals at the locomotion
+                                         # statue (2196.9 +/- 217.7, 40 episodes, seed 3042; median 2245.7), 22x
+                                         # the floor above: run 20260923_020654 armed at 1.0M on that standing peak
+                                         # (2246.9), and the lunge-and-fall after the clip release at 800k stopped
+                                         # it at 1.45M of 12M. On its 29 evaluations a warm-up <= 750k still
+                                         # stops there, a 0.8-1.05M one arms on the fallen plateau itself (peak
+                                         # 107-192) under this floor, and anything past 1.05M stays disarmed
+                                         # through 1.45M: the replay bounds the warm-up below at 1.1M; 3.3M is
+                                         # the D-B5 bound and leaves 8.7M protected. The floor stays absolute until the plant
+                                         # settles (KNOWN_ISSUES, the collapse-floor entry).
 warmup_timesteps = 800000               # Give the critic time to adapt to the new reward landscape before the policy moves fast
 warmup_clip_range = 0.035
 warmup_ent_coef = 0.018
