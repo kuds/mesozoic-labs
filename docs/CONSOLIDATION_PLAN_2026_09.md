@@ -14,11 +14,11 @@ here),
 [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) and
 `CERTIFIED_MODELS.md` (the pilots' own guides; the sequence
 shortens the first and PR-5 deleted the second on 2026-09-20). Every `file:line` below was re-read
-at 723f58f while the plan was written and drifts after it (two merges
-already: #542 and #543); read them as anchors, not contracts. Where a first estimate was
+at 723f58f while the plan was written and drifts after it (with every merge
+from #542 on); read them as anchors, not contracts. Where a first estimate was
 corrected on re-reading during the review, the corrected figure is used.
 
-## Status (2026-09-20)
+## Status (2026-09-23)
 
 | Item | State |
 |---|---|
@@ -31,9 +31,10 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-4 (delete the canonical library wrapper and the notebook hooks) | **Landed** as #547 on 2026-09-20 (PR-3 landed as #546): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
 | PR-5 (delete the certified library and the trainer's library path) | **Landed** as #548 on 2026-09-20 (PR-4 landed as #547): `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted (1,602 whole-file lines); `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; `certify_and_publish_behavior` and the behavior certificate writer gone (no run writes `certification/certificate.json` until PR-13); the notebook loses `SOURCE_SELECTION` and its prose (2,463 lines); about 1,880 net code and configuration lines removed. |
 | PR-6 (delete the T. rex pilots, the `[pilot]` dialect and the shim) | **Landed** as #549 on 2026-09-20 (PR-5 landed as #548): `configs/trex/behavior_pilots/` (8 TOMLs, 239 lines), pyproject.toml's package-data line and `environments/trex/scripts/train_behaviors.py` deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one instead of defaulting to trex; `behavior_notebook` loses the six pilot aliases and the dead `mesozoic.behavior-pilot-run/v1` reader; the trex suite reads `configs/trex/behaviors/`; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter with `TRexBehaviorEnv`; measured −256 code and configuration lines. |
-| Net removal from here | about 9,500 lines. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. The maintainer paused the PR sequence after PR-6 on 2026-09-20; sessions 4–6 remain. |
-| Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
+| Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice is next. |
+| Collapse-backstop fix (2026-09-23, outside this sequence) | `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; the stage-entry window `warmup_timesteps + ramp_timesteps` on locomotion, 3.3M and 4.0M), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
+| Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
 
 Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7)
 and confirmed D-D11 and D-D12 on 2026-09-20, when D-D13 (the notebook-first
@@ -158,7 +159,7 @@ Breaks: nothing. Mitigation: none needed. Validation: notebook parse step;
 `pytest environments/shared/tests/test_sb3_notebook_pins.py`.
 Prerequisites: none. Landed as #542 on 2026-09-16.
 
-### PR-2. Record the decisions in the design of record (S, docs only; net about +100 lines) — THIS PASS (2026-09-19)
+### PR-2. Record the decisions in the design of record (S, docs only; net about +100 lines) — LANDED as #544, 2026-09-19
 Goal: take decisions D-D1..D-D10 (§6; D-D11/D-D12 recorded as recommended)
 in docs/BEHAVIOR_RECIPES_PLAN.md before code moves, and fix the stale claims: §5 Phase D row (plan:925) "landed
 2026-09-15 as a separate pipeline (#540/#541), consolidation pending"; D-C5
@@ -896,7 +897,9 @@ Carried from the review, with the 2026-09-17 additions.
   task-fingerprint valves (`allow_unfingerprinted=True`, train_base.py:593-604;
   the schema-v1 valve in `validate_recorded_task`) may already be dead because
   the plant check runs first on r13 species; deleting them is a ~60-line
-  follow-up after both r11 parents are widened; (ii) `EpisodeManifestRecorder`
+  follow-up once the r11 parents are widened or superseded (both are: seed
+  44's ran 2026-09-20 as `20260920_010912`, seed 42's was superseded by
+  `20260914_123816`); (ii) `EpisodeManifestRecorder`
   (train_behaviors.py:165-176) becomes an info key for the existing
   Monitor/DiagnosticsCallback under train_base, so per-episode terrain manifests
   must be checked to survive PR-12; (iii) `canonical_env_parameters`
@@ -917,9 +920,9 @@ Carried from the review, with the 2026-09-17 additions.
 - MJX reward kernels stay world-z after PR-7 (MJX has no terrain and fails
   closed on live command modes); note the divergence in mjx_env's comment block.
   Under G1 the final node is SB3-only for the same reason.
-- CI coverage `fail_under=70` after PR-3 and after the large deletions in
-  PR-12/PR-13 will need re-measuring; the excluded trainings mostly cover code
-  that is deleted.
+- CI coverage `fail_under=70` will need re-measuring after the large deletions
+  in PR-12/PR-13 (after PR-3 it read 90 percent on #546's CI runs); the
+  excluded trainings mostly cover code that is deleted.
 - Test-to-test coupling must be untangled in order:
   environments/trex/tests/test_behavior_training.py imports `CommandEnv` from
   test_behavior_checkpoint.py (:384); test_behavior_publication.py imports

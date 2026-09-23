@@ -3,8 +3,8 @@
 The docs fall into a few categories with different lifecycles. Knowing which
 category a document belongs to tells you whether to trust it as current,
 read it as history, or update it when things change. Multi-doc topics that grow
-past a couple of files get their own subdirectory with a short README index
-(the pattern used by `investigations/`, `reviews/`, and `hardware/`).
+past a couple of files get their own subdirectory (`investigations/`,
+`reviews/`, `hardware/`), indexed below; `hardware/` also has a short README.
 
 | Category | Lifecycle | Where |
 |---|---|---|
@@ -31,6 +31,9 @@ past a couple of files get their own subdirectory with a short README index
   guide for the #540/#541 pilot pipeline (2026-09-15); pilot outputs are
   evaluation-only (D-D9) until the nodes are re-homed as manifest nodes
   (consolidation PR-11).
+- [SPECIES_NAMING.md](SPECIES_NAMING.md) — the display names that
+  `configs/species_manifest.toml` owns, the stable IDs and the accepted
+  aliases of the six species selections.
 
 ## Plans & designs
 
@@ -45,8 +48,9 @@ past a couple of files get their own subdirectory with a short README index
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
 | [PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md](PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md) | 2026-07-31 | Active — **read before any stage-1 work.** Why every reset was geometrically invalid, why the stage-1 objective's optimum is the zero-action policy, and what replaces the reward gate |
 | [STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) | 2026-07-31 | Active (rev 5) — design proposal splitting balance into 1a stance / 1b recovery |
-| [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) | 2026-09-05 | Active — adopted design turning the stage ladder into a DAG of behavior recipes (stand / walk / hunt / follow direction), each a separately certified, separately published policy. Phase A (manifest v2, per-node gate verdicts, cross-run ancestor reuse, per-deliverable publication, the notebook chain loop) merged 2026-09-12 in #528–#531; Phase B (the measured hunting gate `task_success/v1`, gate-configuration digests with reuse rule 7, seed replication as provenance) merged 2026-09-13 in #532–#535 (#532 trunk composition through ancestor records and `curriculum --target`, #533 the gate-configuration digest and rule 7, #534 the hunting gate, #535 seed replication); Phase C (the 3-dim command segment on all six species, `widen_checkpoint`, the notebook `WIDEN_FROM` knob) implemented 2026-09-13/14 in #536–#539, of its maintainer sessions only the seed-44 widen + re-panel is still owed against the template note; Phase C½ walker certified 2026-09-15 by the fresh r13 run `20260914_123816`; Phase D landed 2026-09-15 as a separate pilot pipeline (#540/#541), to be folded back through the reserved hook by the consolidation plan; #542 (publication default off) and #543 (automatic trunk selection, D-A25) landed 2026-09-16; §6.1 records decisions D-A1–D-A25, D-B1–D-B17 and D-C1–D-C17; §6.2 records decisions D-D1–D-D14 and G1–G4 (2026-09-17, D-D11..D-D14 confirmed or taken 2026-09-20 when the consolidation hold lifted); Phase E (follow-on) pending |
-| [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) | 2026-09-17 | Active — fifteen-PR sequence folding the #540/#541 pilots and the certified library into the recipes machinery; PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544, the 2026-09-19 docs pass) landed; PR-3–PR-15 released 2026-09-20 in the notebook-first order of D-D13, PR-3 (bound the SB3 CI job) landed as #546 on 2026-09-20, PR-4 (the canonical library wrapper and the notebook's library knobs) landed as #547 on 2026-09-20, PR-5 (the certified library and the behavior trainer's library path) landed as #548 on 2026-09-20, PR-6 (the T. rex pilot recipes, the `[pilot]` dialect and the trex shim) landed as #549 on 2026-09-20; the sequence is paused after PR-6 while the training sessions run |
+| [STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) | 2026-08-15 | Dated planning snapshot (updates 2026-08-22, 2026-08-23 and 2026-08-28) — companion to STAGE1_SPLIT_PLAN.md mapping the recovery stage (1b) onto the tree; W1–W5 landed 2026-08-16 and P5 froze `recovery_quality/v1` on 2026-08-28 |
+| [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) | 2026-09-05 | Active — adopted design turning the stage ladder into a DAG of behavior recipes (stand / walk / hunt / follow direction), each a separately certified, separately published policy. Phase A (manifest v2, per-node gate verdicts, cross-run ancestor reuse, per-deliverable publication, the notebook chain loop) merged 2026-09-12 in #528–#531; Phase B (the measured hunting gate `task_success/v1`, gate-configuration digests with reuse rule 7, seed replication as provenance) merged 2026-09-13 in #532–#536 (#532 trunk composition through ancestor records and `curriculum --target`, #533 the gate-configuration digest and rule 7, #534 the hunting gate, #535 seed replication, #536 the Phase B docs pass with decisions D-B1–D-B17); Phase C (the 3-dim command segment on all six species, `widen_checkpoint`, the notebook `WIDEN_FROM` knob) implemented 2026-09-13/14 in #537–#539, its last owed maintainer session, the seed-44 widen + re-panel, ran 2026-09-20 as `20260920_010912` (re-panel identical, recovery certified 2026-09-21); Phase C½ walker certified 2026-09-15 by the fresh r13 run `20260914_123816`; Phase D landed 2026-09-15 as a separate pilot pipeline (#540/#541), to be folded back through the reserved hook by the consolidation plan; #542 (publication default off) and #543 (automatic trunk selection, D-A25) landed 2026-09-16; §6.1 records decisions D-A1–D-A25, D-B1–D-B17 and D-C1–D-C17; §6.2 records decisions D-D1–D-D14 and G1–G4 (2026-09-17, D-D11..D-D14 confirmed or taken 2026-09-20 when the consolidation hold lifted); Phase E (follow-on) pending |
+| [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) | 2026-09-17 | Active — fifteen-PR sequence folding the #540/#541 pilots and the certified library into the recipes machinery; PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544, the 2026-09-19 docs pass) landed; PR-3–PR-15 released 2026-09-20 in the notebook-first order of D-D13, PR-3 (bound the SB3 CI job) landed as #546 on 2026-09-20, PR-4 (the canonical library wrapper and the notebook's library knobs) landed as #547 on 2026-09-20, PR-5 (the certified library and the behavior trainer's library path) landed as #548 on 2026-09-20, PR-6 (the T. rex pilot recipes, the `[pilot]` dialect and the trex shim) landed as #549 on 2026-09-20; the sequence paused after PR-6 while the training sessions ran and resumed on 2026-09-23 with the notebook-only PR-12 slice next |
 | [REFACTORING.md](REFACTORING.md) | 2026-03-19 | **Complete** — v0.3.0 consolidation plan |
 | [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) | 2026-03-19 | **Complete** — v0.3.0 implementation record |
 
@@ -107,6 +111,11 @@ Archived point-in-time reviews in [`reviews/`](reviews/) —
 clears stages 1–3),
 [REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md),
 [REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md),
+[TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md](reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md)
+(2026-08-23, run `20260821_142144` and merges #506–#510),
+[RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md)
+(2026-08-28, pipeline gaps and cleanup findings at `ea0d339`; dated status
+lines under each finding record what has since been fixed),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not here.
 

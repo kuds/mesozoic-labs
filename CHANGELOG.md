@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Training session 4 recorded; living docs corrected** (2026-09-23;
+  `docs/NEXT_STEPS.md` §2–§4, `docs/KNOWN_ISSUES.md`). Dibothrosuchus seed
+  42, run `20260923_020654`: the collapse backstop stopped both nodes at
+  1,450,000 steps (see Fixed); the stance PASSED `reward_and_length/v1` on
+  the 50k statue-level checkpoint (2597.49 ± 1.95 against a 2598.29
+  statue), the locomotion FAILED on forward velocity (0.0012 m/s against
+  0.9, a stand-still checkpoint at 2249.86); bundle `partial`. The session
+  is re-run with `RETRAIN_FROM = "stance"`, because the fix moves no digest
+  and `TRUNK_FROM = "auto"` would otherwise reuse the statue-level stance.
+  KNOWN_ISSUES gains three entries (a complete run cannot take a new node in
+  place, so NEXT_STEPS session 7 becomes a fresh run and the seed-42
+  bundle-rebuild step is dropped; an early stop is invisible in the run
+  records; the quadruped gait-symmetry reward pays a motionless statue).
+  A docs truth pass corrects what the living docs said about
+  `TRUNK_FROM`'s default and what `"auto"` selects for trex, the
+  pre-session-1 status rows of the recipes plan, the date of the Colab
+  image move (the 2026-09-14/15 runs already ran Python 3.13.15; 3.12.13
+  was the August parent's image), the r11 labels and backfill claims of
+  two KNOWN_ISSUES entries, and adds the missing `docs/README.md` rows.
+  The consolidation sequence, paused after PR-6, resumes with the
+  notebook-only PR-12 slice.
 - **Training sessions 1–3 recorded** (2026-09-20 .. 2026-09-23;
   `docs/NEXT_STEPS.md` §2–§3 and the widened-interface note's §3, §7 and §8).
   Trex seed 44: the r11 stance `20260815_205206` widened to r13 as
@@ -890,10 +911,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   Nothing canonical reads either (canonical chains stopped consulting the
   library in #543); leave them in place.
 - **Pilot bundles are evaluation-only** (decision D-D9): no #540/#541
-  behavior bundle is carried forward as a training parent. With
-  `PUBLISH_CERTIFIED = False`, `SOURCE_SELECTION = "auto"` finds no library
-  entry, so a pilot run needs explicit `BEHAVIOR_CHECKPOINT` /
-  `BEHAVIOR_VECNORMALIZE` paths.
+  behavior bundle is carried forward as a training parent. A pilot run
+  needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths: the
+  configuration cell refuses a blank pair in every mode (`PUBLISH_CERTIFIED`
+  left with PR-4, `SOURCE_SELECTION` and the certified library with PR-5).
 - **`imageio-ffmpeg` joined the `viz` extra** (the replay recorder's video
   encoder); reinstall the extra to pick it up.
 
@@ -1493,7 +1514,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     bytecode at all; `widen_checkpoint` re-states a parent's schedule
     members from its recorded `hyperparameters` block, or from the current
     stage config's algorithm block when the parent's `stage_config.json`
-    predates that block (the r11 trex parent's does), through
+    predates that block (the r11 trex parent's does not; the widen report of
+    `20260920_010912` names `parent_stage_config`), through
     `schedule_members_from_hyperparameters` when the parent archive stores
     them as bytecode, so a widened archive is bytecode-free instead of a
     3.13-labelled zip full of 3.12 code; `widen_report.json` records the

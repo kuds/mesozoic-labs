@@ -111,10 +111,10 @@ tolerance) remains the standing recommendation for the divergences above.
   frozen before it is stale, and the two recipes below (the D-A22 re-judge
   and the D-B16 republish) are DEAD for pre-Phase-C runs — the only path is
   `widen_checkpoint` + `WIDEN_FROM` in a NEW run id; the one certified
-  stance parent still to widen (`20260815_205206`, seed 44) is an r11
-  archive, two revisions behind r13, and needs `WIDEN_MAX_REVISION_GAP = 2`
-  (decision D-C17); seed 42 is already certified at r13 by
-  `20260914_123816`** (BEHAVIOR_RECIPES_PLAN
+  stance parent that needed widening (`20260815_205206`, seed 44, an r11
+  archive two revisions behind r13, hence `WIDEN_MAX_REVISION_GAP = 2`,
+  decision D-C17) was widened on 2026-09-20 as `20260920_010912`; seed 42
+  is already certified at r13 by `20260914_123816`** (BEHAVIOR_RECIPES_PLAN
   §4.6, decisions D-C8–D-C14 and D-C17; PLANT_CONTRACT.md "Widening a
   checkpoint across a policy-interface bump"). Phase C appended a 3-dim command segment to every
   species' observation (`policy_interface_revision` trex 12 → 13, velociraptor
@@ -273,9 +273,11 @@ tolerance) remains the standing recommendation for the divergences above.
   §9, "Python 3.13 / torch 2.11") took it for. Merely unpickling the data
   (what the widen tool's archive read does) does not crash; calling the
   schedule does. **The incident:** Colab's L4 image moved from Python 3.12.13
-  / numpy 2.0.2 / jax 0.7.2 (the runs of 2026-09-14/15, `20260914_123816`
-  and `20260915_160239`) to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1
-  (2026-09-19), and both first attempts at NEXT_STEPS.md session 1 (runs
+  / numpy 2.0.2 / jax 0.7.2 (the r11 parent `20260815_205206`, 2026-08-15)
+  to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1 (already the image of the
+  runs of 2026-09-14/15, `20260914_123816` and `20260915_160239`); the
+  2026-09-19 sessions were the first to load an archive saved under the
+  older image, and both first attempts at NEXT_STEPS.md session 1 (runs
   `20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`,
   `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`,
   `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`) died with
@@ -296,8 +298,9 @@ tolerance) remains the standing recommendation for the divergences above.
   picklable-by-reference classes, so archives saved from now on carry no
   bytecode; the widen tool re-states a parent's schedules from its recorded
   `hyperparameters` block, or from the current stage config's block when the
-  parent's `stage_config.json` predates that block, as the r11 parent's does
-  (`widen_report.json` names the source); and the notebook's load preflight runs right
+  parent's `stage_config.json` predates that block (`widen_report.json`
+  names the source; the r11 parent's carries the block, and its 2026-09-20
+  widen report reads `parent_stage_config`); and the notebook's load preflight runs right
   before the widen cell on the `WIDEN_FROM` parent's real handoff
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
@@ -326,16 +329,46 @@ tolerance) remains the standing recommendation for the divergences above.
   reads the per-node files (`gate_verdict.json`, `task_fingerprint.json`,
   `plant_identity.json`, `stage_config.json`), which are written the moment
   a node is judged, so `TRUNK_FROM = "auto"` still selects the run and
-  reuses both nodes (2026-09-17 Drive survey,
-  [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md)).
-  Remedy for that run: re-run the notebook's bundle/summary cell
-  (`write_training_summary` + `save_run_bundle`) for it; since 2026-09-21
-  the seed-44 sibling `20260920_010912` exists with a `complete` bundle that
-  counts this run (trex stance replication 2), so the re-run also lifts this
-  run's own stance record from replication 1 to 2. Remedy in
-  general: the same operator step after every session that adds a node to
-  an existing run; consolidation PR-14's single storage path does not
-  change this ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
+  reuses both nodes for a hunt session, whose chain runs through both
+  (2026-09-17 Drive survey,
+  [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md));
+  a stand or walk session considers stance only, which the newer
+  `20260920_010912` also covers since 2026-09-20, so the tie goes to it.
+  Remedy for that run: none in place (corrected 2026-09-23). Its bundle is
+  `complete` under a stance target (`target_deliverable "1"`), not
+  `partial`; a re-entry that reuses every node never reaches the chain
+  loop's `save_run_bundle`, and a direct save is refused because
+  `03_locomotion/` appeared after the publication (the next entry). The
+  records stay stance-only, with stance at replication 1, although the
+  seed-44 sibling `20260920_010912` counts this run at 2; nothing reads them
+  for reuse. Remedy in general: a `partial` bundle is rebuilt by the next
+  session that trains or judges a node in the run; consolidation PR-14's
+  single storage path does not change this
+  ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
+- **MEDIUM (operational)** — **a complete run cannot take a new node in
+  place: the bundle write fails after the node has trained (verified
+  2026-09-23).** `save_result_bundle` treats a `complete` bundle as
+  immutable: when its manifest no longer verifies, it rebuilds only if
+  every disagreement is a file it regenerates itself
+  (`reporting/bundles.py`, `_REGENERATED_ARTIFACTS`: `provenance.json`,
+  `plant_identity.json`, `collected_results.csv`, `summary.json`), and
+  `result_bundle.manifest_disagreements` counts every file the manifest does
+  not declare. A node trained into such a run (the in-place recipe of
+  NEXT_STEPS.md "Continuing session 1", `RUN_ID` set to the run) writes its
+  stage directory and, through `generate_stage_artifacts`, its
+  `gate_verdict.json`, then the chain loop's `save_run_bundle` raises
+  `completed result bundle is immutable, but certified artifact(s) changed
+  after publication`; the raise halts "Run all" before the auto-disconnect
+  cell, so the runtime is not released either. Exposed: the trex seed-44 run
+  `20260920_010912` (bundle `complete` since 2026-09-21), so NEXT_STEPS.md
+  session 7 (a second r13 walker seed) now runs as a fresh run with
+  `TRUNK_FROM = "20260920_010912"`, which reuses the stance across runs
+  under `ancestors/`; the seed-42 walker `20260914_123816` (the entry above).
+  The per-node verdict survives, so reuse is unaffected. Fix candidates: the
+  storage cell refusing an in-place session whose target is not yet in a
+  complete bundle before any training, or a bundle writer that extends a
+  complete bundle by new nodes without touching its certified files; both
+  fall in consolidation PR-14's storage and disconnect path.
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -358,9 +391,11 @@ tolerance) remains the standing recommendation for the divergences above.
   the held checkpoints under this session's gate, measuring a fresh stance
   panel), and `backfill_gate_verdict.py --force` for one that holds a
   pre-D-A22 verdict. This covers the certified trex stance run `20260810_145546` and the
-  seed-44 replicate `20260815_205206` (backfilled under decision D-A6 before
-  the digest existed), and every other backfilled or Phase-A-judged stage
-  directory. Inventory the log tree with
+  seed-44 replicate `20260815_205206` (assumed backfilled under decision D-A6
+  before the digest existed; the 2026-09-17 Drive survey found no
+  `gate_verdict.json` in either `stage1/`, see the Phase C entry above), and
+  every other backfilled or Phase-A-judged stage directory. Inventory the
+  log tree with
   `find <LOG_BASE> -name gate_verdict.json -exec grep -L gate_sha256 {} +`
   and re-backfill each hit with
   `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir> --force`;
@@ -400,8 +435,9 @@ tolerance) remains the standing recommendation for the divergences above.
   the mismatch reads as "already belongs to a different run"). **Superseded
   for every pre-Phase-C run (2026-09-14): the republish recipe that follows
   is dead for these two runs — the storage cell now mints an r13 provenance
-  the audit rejects against their r12 stage configs; both are widened into
-  new runs instead (the Phase C entry above), whose bundles carry the
+  the audit rejects against their r11 stage configs; the seed-44 run is
+  widened into a new run instead and the seed-42 widen is superseded by the
+  fresh r13 run `20260914_123816` (the Phase C entry above), whose bundles carry the
   `certification_panel` role from the start. Kept as history.** To
   republish a bundle under the SAME plant, one would:
   remove the run's `provenance.json` (a regenerated artifact — the manifest
@@ -505,7 +541,52 @@ tolerance) remains the standing recommendation for the divergences above.
   `dibothrosuchus` `stage1_balance.toml` still carry absolute floors
   (1300 / 1300 / 1950, each commented "Absolute pending §14 item 3") derived
   from their statues' standing reward; re-derive them as fractions the same
-  way. (PLANT_VALIDATION §11.4)
+  way. (PLANT_VALIDATION §11.4) **Update 2026-09-23:** an absolute floor at
+  0.75 x the statue also sits below the UNTRAINED policy (action 0 is the
+  nominal stance under home-keyframe-residual/v1), so without a peak
+  warm-up the backstop arms on initialisation: dibothrosuchus run
+  `20260923_020654` stopped both nodes at 1.45M (stance armed on the 2592.9
+  statue plateau; locomotion on the 2246.9 standing level, 22x its absolute
+  floor of 100). `collapse_peak_warmup_timesteps` now separates the two on
+  dibothrosuchus and brachiosaurus stages 1-2 (1.0M on stance; on
+  locomotion the stage-entry window `warmup_timesteps + ramp_timesteps`,
+  3.3M and 4.0M), replayed on that run's series in
+  `test_curriculum_early_stopping.py`. Still open: the four floors stay
+  absolute (convert them to the relative pair, with the
+  `statue_constants_physics_revision` pin, once the planned dibothrosuchus
+  and brachiosaurus plant updates have settled; the locomotion statues
+  re-measured 2026-09-23 are 2196.9 +/- 217.7 and 2242.7 +/- 7.8,
+  `zero_action_baseline.py <species>:2 --episodes 40 --seed 3042`), and
+  velociraptor stage 1 has the same shape with no warm-up (its session-3 run
+  `20260922_125248` trained the full 6M by its trajectory, not by protection).
+- **LOW** — **an early stop by the collapse backstop is invisible in the run
+  records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
+  at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
+  (6,000,000 / 12,000,000), `gate_verdict.json` records
+  `stage_result.timesteps = 1450000`, and no field names a stop or its
+  reason (`collected_results.csv`'s `gate_reason` / `gate_evaluable` are
+  empty). The callback logs the arming and the stop, but only to the
+  session log; the cause was established by replaying `evaluations.npz`
+  through `EvalCollapseEarlyStopCallback`. Fix: record `early_stopped`,
+  the stop step and the armed peak in the stage result.
+- **MEDIUM** — **the quadruped gait-symmetry reward pays a motionless
+  statue its full weight on every step (verified 2026-09-23).**
+  `BaseDinoEnv._compute_quadruped_gait_symmetry` (`base_env.py`) scores the
+  alternation ratio of a touchdown history that never decays: a statue logs
+  one touchdown per diagonal pair at reset, the ratio is 1.0 from then on,
+  and `weight x 1.0` is paid every step. On the locomotion stages it is
+  most of a typical do-nothing episode: dibothrosuchus 1994.0 of 2244.2
+  (`gait_symmetry_weight` 2.0 x 997 steps, 89 percent), brachiosaurus
+  2200.0 of 2244.0 (2.2 x 1000, 98 percent), measured with
+  `zero_action_baseline.py <species>:2`. Standing still is therefore a
+  strong local optimum of the walk stage, and dibothrosuchus run
+  `20260923_020654` judged a stand-still locomotion checkpoint
+  (2249.86, 0.0012 m/s; gate FAIL on the forward rail). In two of 40
+  dibothrosuchus statue episodes one pair re-touches mid-episode, the ratio
+  halves and the episode scores about 1248. The biped `_compute_gait_symmetry` shares the
+  history-ratio shape (not measured here). A reward change moves the
+  task fingerprint, so it belongs with the planned plant and reward work on
+  these species, not with a backstop setting.
 
 - **LOW** — **contact-switch rate conflates bilateral↔single with
   bilateral↔airborne.** The PR #479 plant repair moved T-Rex's raw switch count
@@ -748,7 +829,8 @@ tolerance) remains the standing recommendation for the divergences above.
   deleted its `certification/certificate.json` writer; never a
   `gate_verdict.json`); a checkpoint identity keyed on source-file hashes (any
   edit to `behavior_env.py` strands exact resume); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
-  mode switch, referenced by 19 of the 22 code cells — about 7,000 lines of
+  mode switch, referenced by 20 of the 23 code cells (19 of 22 at 22c1fc8;
+  the loader change added a guarded preflight cell) — about 7,000 lines of
   modules at 22c1fc8, tests excluded (the certified library left with
   PR-4/PR-5). Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
