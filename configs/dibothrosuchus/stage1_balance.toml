@@ -115,3 +115,12 @@ required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count.
+collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the trex stance
+                                         # precedent; early_stopping.py). Under home-keyframe-residual/v1 action
+                                         # 0 commands the nominal stance, so the UNTRAINED policy is the statue
+                                         # (2598.3), above the 1950 floor: run 20260923_020654 armed at eval 20
+                                         # (1.0M) on the median of evals 1-5 (2592.9), the exploration dip that
+                                         # followed read as a collapse, and it stopped at 1.45M of 6M, certifying
+                                         # the statue-level 50k checkpoint. Replayed on that run's 29 evaluations,
+                                         # any warm-up >= 400k never arms (the statue plateau lasts to 450k); 1.0M
+                                         # keeps that margin 2.5x and leaves 5M of the budget protected.

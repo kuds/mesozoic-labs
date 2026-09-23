@@ -106,3 +106,11 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
+collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the trex stance
+                                         # precedent; early_stopping.py). Same shape as dibothrosuchus stage 1:
+                                         # under home-keyframe-residual/v1 the UNTRAINED policy is the statue
+                                         # (1739.1 +/- 1.2, re-measured 2026-09-23), above the 1300 floor, so
+                                         # without a warm-up the backstop arms at eval 20 (1.0M) on the
+                                         # initialisation peak and an exploration dip stops the run -- what
+                                         # dibothrosuchus run 20260923_020654 did at 1.45M of 6M. 1.0M is carried
+                                         # over from that replay; no current-plant brachiosaurus series exists.

@@ -1414,6 +1414,31 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **The collapse backstop no longer arms on the untrained or the standing
+  policy on dibothrosuchus and brachiosaurus** (2026-09-23). Under
+  `home-keyframe-residual/v1` action 0 commands the nominal stance, so an
+  untrained stance policy scores the statue, above the absolute floors of
+  0.75 x the statue (1950 / 1300); and `EvalCallback` scores locomotion at
+  the full forward weight from step 0, so a warm-started policy that is
+  still standing scores about 22x the locomotion floor of 100. Run
+  `20260923_020654` (dibothrosuchus, NEXT_STEPS session 4) armed on both at
+  its first eligible evaluation (1.0M) and stopped each node at 1.45M of
+  6M / 12M, the failure `EvalCollapseEarlyStopCallback`'s docstring records
+  for trex run `20260803_012355`. `collapse_peak_warmup_timesteps` now keeps
+  early evaluations from setting the peak: 1,000,000 on both species' stage
+  1 (the trex stance value; on that run's series any warm-up of 400k or
+  more never arms), and the stage-entry window `warmup_timesteps +
+  ramp_timesteps` on stage 2 (3,300,000 dibothrosuchus, 4,000,000
+  brachiosaurus; the D-B5 bound of trex behavior), since a shorter one arms
+  on the fallen plateau under the floor of 100. Replayed through the real
+  callback on the six series that trained to budget (velociraptor stance
+  and locomotion, compsognathus locomotion, trex stance, locomotion and
+  recovery), no candidate setting stops any of them. Collapse keys enter no
+  digest, so no `task_sha256`, `gate_sha256` or `hyperparameters_sha256`
+  moves and certified nodes stay reusable. New replay tests in
+  `test_curriculum_early_stopping.py` pin the stop without the warm-up and
+  its absence with it. The floors stay absolute until the planned plant
+  updates of both species (KNOWN_ISSUES).
 - **A widened root's run bundle writes** (#546, 2026-09-20). The first widen session
   on the fixed loader (`20260920_010912`, the seed-44 trex stance widened
   r11 → r13 and re-paneled: PASS, reward 3408.3 ± 88.5, duty 0.0069, UCB

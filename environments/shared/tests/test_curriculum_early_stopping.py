@@ -808,6 +808,127 @@ class TestPeakWarmup:
                 )
 
 
+class TestDibothrosuchusAndBrachiosaurusWarmups:
+    """The peak warm-ups on dibothrosuchus and brachiosaurus stages 1-2.
+
+    Regression for run `20260923_020654` (dibothrosuchus, seed 42), which hit
+    both shapes of the `TestPeakWarmup` failure and stopped each node at 1.45M.
+    Stance: the untrained policy is the statue (2598.3), above the absolute
+    0.75x-statue floor of 1950, so the backstop armed on initialisation and
+    the exploration dip read as a collapse. Locomotion: EvalCallback scores the
+    full forward weight from step 0, so the warm-started policy, still
+    standing, evaluated at ~22x the absolute floor of 100 until the clip
+    release at 800k; the lunge-and-fall that followed read as a collapse.
+    Brachiosaurus has the same two shapes and no current-plant series, so
+    only its configuration is pinned.
+    """
+
+    # The REAL per-evaluation mean rewards of run 20260923_020654, read from
+    # its two evaluations.npz files: 29 evaluations of 30 episodes each at 50k
+    # spacing, ending at the 1.45M step where the backstop stopped each node.
+    # Stance: the statue plateau lasts to 450k (2514.0), then the policy falls
+    # (mean episode length 116.8 at the stop). Locomotion: the standing level
+    # holds to 800k (1857.5, the clip release), then 557.6 at 850k and 39.3 at
+    # the stop (mean episode length 28.4).
+    STANCE_20260923 = [
+        2597.6, 2596.7, 2592.9, 2285.4, 2588.2,
+        2581.2, 2591.0, 2516.1, 2514.0, 1655.2,
+        1395.8, 1355.8, 424.1, 334.8, 663.3,
+        231.5, 444.7, 618.5, 318.7, 551.0,
+        113.6, 115.3, 64.3, 52.9, 59.6,
+        177.1, 44.7, 134.2, 158.1,
+    ]  # fmt: skip
+    LOCOMOTION_20260923 = [
+        2182.9, 2182.3, 2248.9, 2248.8, 2246.8,
+        2246.7, 2246.9, 2214.1, 2178.4, 2148.3,
+        2082.6, 2201.0, 2157.0, 2181.5, 1842.4,
+        1857.5, 557.6, 192.4, 165.8, 134.6,
+        150.2, 114.8, 106.8, 82.3, 78.9,
+        47.9, 66.6, 48.9, 39.3,
+    ]  # fmt: skip
+
+    @staticmethod
+    def _settings(species, stage, **overrides):
+        from environments.shared.config import load_all_stages
+
+        settings = collapse_settings_from_config(dict(load_all_stages(species)[stage]["curriculum_kwargs"]))
+        settings.update(overrides)
+        return settings
+
+    @staticmethod
+    def _drive(trace, settings, *, eval_freq=50_000):
+        """`TestPeakWarmup._drive`, parameterised by resolved settings."""
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = settings["min_evals"]
+        cb.patience = settings["patience"]
+        cb.drop_fraction = settings["drop_fraction"]
+        cb.smoothing_window = settings["smoothing_window"]
+        cb.peak_floor = settings["peak_floor"]
+        cb.peak_warmup_timesteps = settings["peak_warmup_timesteps"]
+        for i in range(len(trace)):
+            cb.eval_callback.evaluations_results = [[m] for m in trace[: i + 1]]
+            cb.eval_callback.evaluations_timesteps = [(j + 1) * eval_freq for j in range(i + 1)]
+            cb.num_timesteps = (i + 1) * eval_freq
+            if cb._on_step() is False:
+                return cb.num_timesteps, cb
+        return None, cb
+
+    @pytest.mark.parametrize(
+        ("stage", "trace_name", "peak"),
+        [(1, "STANCE_20260923", 2592.9), (2, "LOCOMOTION_20260923", 2246.9)],
+    )
+    def test_without_the_warmup_the_committed_config_reproduces_the_stop(self, stage, trace_name, peak):
+        """Not an approximation of the failure — the failure itself, on both nodes."""
+        settings = self._settings("dibothrosuchus", stage, peak_warmup_timesteps=0.0)
+        stopped_at, cb = self._drive(getattr(self, trace_name), settings)
+        assert stopped_at == 1_450_000
+        assert cb._peak_score == pytest.approx(peak)
+
+    @pytest.mark.parametrize(("stage", "trace_name"), [(1, "STANCE_20260923"), (2, "LOCOMOTION_20260923")])
+    def test_the_committed_warmup_lets_the_real_run_continue(self, stage, trace_name):
+        settings = self._settings("dibothrosuchus", stage)
+        stopped_at, cb = self._drive(getattr(self, trace_name), settings)
+        assert stopped_at is None
+        # Never armed: no window past the warm-up reaches the floor.
+        assert not cb._peak_score >= settings["peak_floor"]
+
+    def test_a_shorter_locomotion_warmup_arms_on_the_fallen_plateau(self):
+        """Why stage 2's warm-up spans the whole stage-entry window.
+
+        Just past the clip release, the eligible windows are the lunge-and-fall
+        regime itself (peak ~115), which clears the absolute floor of 100 and
+        arms the backstop on a level that was never good.
+        """
+        settings = self._settings("dibothrosuchus", 2, peak_warmup_timesteps=1_000_000)
+        _, cb = self._drive(self.LOCOMOTION_20260923, settings)
+        assert settings["peak_floor"] <= cb._peak_score < 200.0
+
+    def test_a_genuine_collapse_after_the_locomotion_warmup_still_stops(self):
+        """The warm-up delays the peak; it must not disarm the backstop."""
+        settings = self._settings("dibothrosuchus", 2)
+        trace = [2245.0] * 66 + [2500.0] * 10 + [300.0] * 12
+        stopped_at, cb = self._drive(trace, settings)
+        assert stopped_at is not None
+        assert cb._peak_score == pytest.approx(2500.0)
+
+    @pytest.mark.parametrize("species", ["dibothrosuchus", "brachiosaurus"])
+    def test_stance_warmup_is_the_trex_value(self, species):
+        assert self._settings(species, 1)["peak_warmup_timesteps"] == 1_000_000
+
+    @pytest.mark.parametrize("species", ["dibothrosuchus", "brachiosaurus"])
+    def test_locomotion_warmup_covers_the_stage_entry_window(self, species):
+        """The D-B5 bound trex behavior already carries, applied to locomotion."""
+        from environments.shared.config import load_all_stages
+
+        cur = load_all_stages(species)[2]["curriculum_kwargs"]
+        warmup = collapse_settings_from_config(dict(cur))["peak_warmup_timesteps"]
+        assert warmup >= cur["warmup_timesteps"] + cur["ramp_timesteps"]
+
+
 class TestTrexBehaviorCollapseFloor:
     """The hunting stage's backstop is the measured relative pair (WS-B2; review CF3).
 

@@ -109,6 +109,15 @@ required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (20 evals x 50k) before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops (~500k steps) so a transient dip won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives until entropy decay (floor ~6M) stabilises the gait.
+collapse_peak_warmup_timesteps = 4000000 # Evaluations before this step cannot SET the peak: the stage-entry window
+                                         # warmup_timesteps + ramp_timesteps (1M + 3M), the D-B5 bound trex
+                                         # behavior uses. EvalCallback scores at the full forward_vel_weight from
+                                         # step 0, so a warm-started policy still standing evals at the locomotion
+                                         # statue (2242.7 +/- 7.8, 40 episodes, seed 3042, re-measured 2026-09-23),
+                                         # 22x the floor above, and the backstop would arm at 1.0M on it -- the
+                                         # shape that stopped dibothrosuchus run 20260923_020654 at 1.45M of 12M.
+                                         # 4.0M leaves 12M of the 16M budget protected. The floor stays absolute
+                                         # until the plant settles (KNOWN_ISSUES, the collapse-floor entry).
 warmup_timesteps = 1000000              # Sweep winner: 1M — 3x longer warmup was the biggest signal. Gives critic much more time to adapt to new reward landscape before policy changes accelerate.
 warmup_clip_range = 0.035               # Sweep winner: 0.0335 — more clip room during warmup lets policy adjust faster once critic is ready.
 warmup_ent_coef = 0.018                 # Sweep winner: 0.0175 — slightly lower than 0.02, less random during warmup since critic has longer to stabilize.
