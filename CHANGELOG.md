@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
-- **Training session 4 recorded; living docs corrected** (2026-09-23;
+- **Training session 4 recorded; living docs corrected** (#551, 2026-09-23;
   `docs/NEXT_STEPS.md` §2–§4, `docs/KNOWN_ISSUES.md`). Dibothrosuchus seed
   42, run `20260923_020654`: the collapse backstop stopped both nodes at
   1,450,000 steps (see Fixed); the stance PASSED `reward_and_length/v1` on
@@ -1436,7 +1436,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Fixed
 - **The collapse backstop no longer arms on the untrained or the standing
-  policy on dibothrosuchus and brachiosaurus** (2026-09-23). Under
+  policy on dibothrosuchus and brachiosaurus** (#551, 2026-09-23). Under
   `home-keyframe-residual/v1` action 0 commands the nominal stance, so an
   untrained stance policy scores the statue, above the absolute floors of
   0.75 x the statue (1950 / 1300); and `EvalCallback` scores locomotion at

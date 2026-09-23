@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-23)
 
-**Status**: living reference — updated 2026-09-23; `main` = `c1175c3` (merged 2026-09-23 04:07 UTC).
+**Status**: living reference — updated 2026-09-23; `main` = `2e77150` (merged 2026-09-23 19:54 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -34,6 +34,7 @@ file in place when the state changes; it is not a dated investigation.
 | #547 | 2026-09-20 | Consolidation PR-4: `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (2,563 → 2,477 lines) and never publishes; a reused trunk ancestor is loaded from the run that certified it (A10); `certified_comparison.py` deferred to PR-5; `train_behaviors --auto-source` without `--resume` refuses |
 | #548 | 2026-09-20 | Consolidation PR-5: `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted; `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; the behavior certificate writer gone until PR-13 registers the gate kind; the notebook loses `SOURCE_SELECTION` (2,477 → 2,463 lines) and refuses blank source paths in the configuration cell; about −1,880 net code and configuration lines. Measured on its CI: SB3 job 46:12, JAX job 53:46, coverage 90 percent |
 | #549 | 2026-09-20 | Consolidation PR-6: `configs/trex/behavior_pilots/` (8 `[pilot]` TOMLs), its package-data line and the trex shim deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one; the six pilot aliases and the dead pilot-run schema reader gone; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter; −256 net code and configuration lines. Measured on its CI: SB3 job 34:49, JAX job 52:42, coverage 90 percent |
+| #551 | 2026-09-23 | The collapse-backstop fix outside the consolidation sequence: `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M), with replay tests on session 4's evaluation series and no digest moved; session 4 recorded; KNOWN_ISSUES gains three entries (a complete run cannot take a new node in place, an invisible early stop, the gait-symmetry statue payment); a truth pass over the living docs; the consolidation pause lifted. Measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -313,7 +314,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day. The next PR is the notebook-only PR-12 slice, then PR-14, whose D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The next PR is the notebook-only PR-12 slice, then PR-14, whose D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines;
 the plan's about 9,500 (band 9,000–12,000) was counted from `22c1fc8`, before
 PR-3 .. PR-6. No PR changes the on-disk format or the reuse of the canonical
