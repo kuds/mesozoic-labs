@@ -904,17 +904,20 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   knob lists gain `WIDEN_FROM` and `WIDEN_MAX_REVISION_GAP`.
 
 ### Migration
-- **Two new Drive directories from #540/#541.** Pilot output goes to
+- **Two new Drive directories from #540/#541.** Notebook pilot output went to
   `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (`bundle.json`,
   `run.json`, `certification/certificate.json`; never a `gate_verdict.json`)
   and the certified library to `mesozoic-labs/certified` beside `logs`.
   Nothing canonical reads either (canonical chains stopped consulting the
-  library in #543); leave them in place.
+  library in #543; since the notebook-only PR-12 slice a pilot is a
+  command-line run writing to its `--output` directory); leave them in place.
 - **Pilot bundles are evaluation-only** (decision D-D9): no #540/#541
-  behavior bundle is carried forward as a training parent. A pilot run
-  needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths: the
-  configuration cell refuses a blank pair in every mode (`PUBLISH_CERTIFIED`
-  left with PR-4, `SOURCE_SELECTION` and the certified library with PR-5).
+  behavior bundle is carried forward as a training parent. A pilot run is a
+  command-line run (`python -m environments.shared.train_behaviors`; the
+  notebook's direction/terrain mode left with the notebook-only PR-12 slice)
+  and takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode
+  (`PUBLISH_CERTIFIED` left with PR-4, `SOURCE_SELECTION` and the certified
+  library with PR-5).
 - **`imageio-ffmpeg` joined the `viz` extra** (the replay recorder's video
   encoder); reinstall the extra to pick it up.
 
@@ -1337,6 +1340,30 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The SB3 notebook's direction/terrain mode and `behavior_notebook.py`**
+  (consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
+  `notebooks/sb3_training.ipynb` loses `COMMAND_TERRAIN_BEHAVIOR`, the ten
+  `BEHAVIOR_*` knobs (`BEHAVIOR_LOAD_MODE`, `BEHAVIOR_CHECKPOINT`,
+  `BEHAVIOR_VECNORMALIZE`, `BEHAVIOR_SEED`, `BEHAVIOR_STEPS`,
+  `BEHAVIOR_EVAL_ONLY`, `BEHAVIOR_EVAL_EPISODES`, `BEHAVIOR_RECORD_VIDEO`,
+  `BEHAVIOR_VIDEO_FPS`, `BEHAVIOR_RUN_ID`), the eleven direction/terrain values
+  of the `BEHAVIOR` dropdown (now `stand`, `walk`, `hunt`, stage ids by free
+  input), its six behavior cells (storage and run plan, run, saved-evidence
+  display, the behavior disconnect) and the 15 guard sites; the guarded
+  canonical cells are dedented unchanged but for two lint fixes the dedent
+  exposed to `ruff check .` (41 cells, 23 code, 2,463 lines → 35
+  cells, 19 code, 2,329 lines). `environments/shared/behavior_notebook.py` (294
+  lines) and `test_behavior_notebook.py` (815) are deleted; the configuration
+  defaults, free-form stage ids, the dropdown annotations and the setup cell's
+  `REPO_REF` safety keep their tests in `test_sb3_notebook_pins.py`, whose
+  guard-stripping helper goes. The CI wheel step names the eleven recipe files
+  itself and still checks that all 66 ship and parse. Until the rest of PR-12,
+  the pilots run from the command line only (`python -m
+  environments.shared.train_behaviors`, an explicit `--checkpoint` /
+  `--vecnormalize` pair in every mode); `docs/TRAIN_DIRECTION_AND_TERRAIN.md`
+  loses its notebook walkthrough. Every canonical knob keeps its name and
+  default; notebook pilot runs already on Drive stay evaluation-only (D-D9).
+  Measured: −996 code, test and CI lines, −134 notebook source lines.
 - **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior
   shim** (consolidation PR-6, #549, 2026-09-20). `configs/trex/behavior_pilots/` (8
   TOMLs, 239 lines), its `pyproject.toml` package-data line and

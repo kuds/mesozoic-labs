@@ -24,7 +24,6 @@ from __future__ import annotations
 import ast
 import json
 import re
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -79,25 +78,12 @@ def _cells(path: Path = NOTEBOOK_PATH) -> list[dict]:
     return cells
 
 
-def _canonical_source(cell: dict) -> str:
-    """Inspect the existing canonical body beneath its direction/terrain guard.
-
-    All canonical assertions below remain unchanged. The raw notebook guard
-    and executed direction/terrain routing are tested in test_behavior_notebook.py.
-    """
-    source = "".join(cell["source"])
-    guard = 'if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n'
-    if cell["cell_type"] == "code" and source.startswith(guard):
-        return textwrap.dedent(source[len(guard) :])
-    return source
-
-
 def _code_cells(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return [_canonical_source(cell) for cell in _cells(path) if cell["cell_type"] == "code"]
+    return ["".join(cell["source"]) for cell in _cells(path) if cell["cell_type"] == "code"]
 
 
 def _all_cell_sources(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return [_canonical_source(cell) for cell in _cells(path)]
+    return ["".join(cell["source"]) for cell in _cells(path)]
 
 
 def _cell_index(cells: list[str], marker: str) -> int:
@@ -324,7 +310,7 @@ class TestBehaviorKnob:
         # D-A25: the trunk is selected automatically unless a run is pinned or "" turns reuse off.
         assert assigns["TRUNK_FROM"].value == "auto"
         # Consolidation PR-4 took the certified-library knobs with the canonical publish wrapper; PR-5 took
-        # SOURCE_SELECTION with the library itself. A direction/terrain session names its pair explicitly.
+        # SOURCE_SELECTION with the library itself.
         for name in (
             "CERTIFIED_LIBRARY_ROOT",
             "PUBLISH_CERTIFIED",
@@ -820,7 +806,6 @@ class TestStorageCellRerun:
             "repo_root": tmp_path,
             "IN_COLAB": False,
             "USE_GOOGLE_DRIVE": False,
-            "COMMAND_TERRAIN_BEHAVIOR": False,
             "SPECIES": "trex",
             "ALGORITHM": "ppo",
             "SEED": 42,
@@ -1658,17 +1643,15 @@ class TestArchiveLoadPreflightCell:
     ``policy_loading.load_sb3_model`` -- the one loader every repository load goes through -- with the print
     flushed first so a kernel death is attributable."""
 
-    def test_the_preflight_sits_between_resolve_and_widen_under_the_same_guard(self):
+    def test_the_preflight_sits_between_resolve_and_widen(self):
         src, tree = _preflight_cell()
         assert src.splitlines()[0] == PREFLIGHT_CELL_MARKER
         assert not src.startswith("# ===== "), "not one of the four `# ===== ` cells"
         cells = _code_cells()
         assert _cell_index(cells, PREFLIGHT_CELL_MARKER) == _cell_index(cells, RESOLVE_CELL_MARKER) + 1
         assert _cell_index(cells, PREFLIGHT_CELL_MARKER) + 1 == _cell_index(cells, WIDEN_CELL_MARKER)
-        raw = next(
-            cell for cell in _cells() if "".join(cell["source"]).splitlines()[1:2] == ["    " + PREFLIGHT_CELL_MARKER]
-        )
-        assert "".join(raw["source"]).startswith('if not globals().get("COMMAND_TERRAIN_BEHAVIOR", False):\n')
+        # The notebook-only PR-12 slice removed the direction/terrain guard: the marker is the raw first line.
+        assert "COMMAND_TERRAIN_BEHAVIOR" not in src
 
     def test_the_preflight_loads_a_real_archive_through_the_loader_with_the_print_flushed_first(self):
         src, tree = _preflight_cell()
@@ -2440,6 +2423,128 @@ def test_no_f_string_stage_n_in_any_code_cell():
         assert 'f"stage{' not in src and "f'stage{" not in src, (
             f"code cell {index} rebuilds a stage{{N}} directory name; use stage_dirname / stage_label"
         )
+
+
+class TestNotebookWithoutTheDirectionTerrainMode:
+    """The notebook-only PR-12 slice (decision D-D13) removed the direction/terrain mode.
+
+    The canonical halves of the deleted test_behavior_notebook.py live on here: the configuration
+    defaults, free-form stage ids, the dropdown's JSON annotations and the setup cell's ``REPO_REF``
+    safety. The pilots run from the command line only (``environments.shared.train_behaviors``)
+    until PR-11 gives them manifest nodes.
+    """
+
+    PILOT_BEHAVIORS = (
+        "difficult_terrain",
+        "follow_direction_difficult_terrain",
+        "follow_direction",
+        "follow_direction_speed",
+        "terrain_contact",
+        "sloped_terrain",
+        "bumps_terrain",
+        "depressions_terrain",
+        "mixed_terrain",
+        "combined_terrain",
+        "combined_mixed_terrain",
+    )
+
+    def test_the_configuration_defaults_and_a_free_form_stage_resolve(self):
+        from environments.shared.config import load_all_stages
+
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        assert namespace["BEHAVIOR"] == "hunt"
+        assert namespace["SPECIES"] == "velociraptor"
+        assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
+        assert "COMMAND_TERRAIN_BEHAVIOR" not in namespace
+        assert not [name for name in namespace if name.startswith("BEHAVIOR_")]
+        namespace["BEHAVIOR"] = "stance"
+        exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
+        assert namespace["TARGET_NODE"].id == "stance"
+        assert [node.id for node in namespace["CHAIN"]] == ["stance"]
+
+    def test_the_behavior_dropdown_allows_free_input_and_every_param_annotation_is_json(self):
+        config = _cell(CONFIG_CELL_MARKER)
+        behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
+        options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
+        assert {"stand", "walk", "hunt"} <= set(options)
+        assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
+        assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
+        for source in (_cell("REPO_REF ="), config):
+            for line in source.splitlines():
+                if "# @param {" in line:
+                    assert "type" in json.loads(line.split("# @param ", 1)[1])
+
+    def test_the_direction_terrain_mode_is_gone_from_every_cell(self):
+        knobs = r"\bBEHAVIOR_(LOAD_MODE|CHECKPOINT|VECNORMALIZE|SEED|STEPS|EVAL_ONLY|EVAL_EPISODES|RECORD_VIDEO|VIDEO_FPS|RUN_ID)\b"
+        for index, src in enumerate(_all_cell_sources()):
+            for token in (
+                "COMMAND_TERRAIN_BEHAVIOR",
+                "behavior_notebook",
+                "BEHAVIOR_PLAN",
+                "BEHAVIOR_RESULT",
+                "PILOT_",
+            ):
+                assert token not in src, f"cell {index} names {token}"
+            assert not re.search(knobs, src), f"cell {index} names a direction/terrain knob"
+
+    @pytest.mark.parametrize(
+        "dirty,loaded,expected", [(True, False, "local edits"), (False, True, "Restart"), (False, False, None)]
+    )
+    def test_colab_ref_change_is_explicit_and_preserves_edits(self, tmp_path, monkeypatch, dirty, loaded, expected):
+        """Execute the notebook's actual Git setup block with controlled Git replies."""
+        import subprocess
+        import types
+
+        checkout = tmp_path / "checkout"
+        (checkout / ".git").mkdir(parents=True)
+        source = _cell("REPO_REF =")
+        tree = ast.parse(source)
+        colab_block = next(node for node in tree.body if isinstance(node, ast.If))
+        start = next(
+            i
+            for i, node in enumerate(colab_block.body)
+            if isinstance(node, ast.Import) and node.names[0].name == "pathlib"
+        )
+        body = colab_block.body[start:]
+        for node in body:
+            if (
+                isinstance(node, ast.Assign)
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "repo_dir"
+            ):
+                node.value = ast.Call(
+                    func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
+                )
+        commands = []
+
+        def fake_output(command, **kwargs):
+            if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
+                return "new-commit\n"
+            if command[1:3] == ["rev-parse", "HEAD"]:
+                return "old-commit\n"
+            if command[1:3] == ["status", "--porcelain"]:
+                return " M notebook.ipynb\n" if dirty else ""
+            raise AssertionError(command)
+
+        monkeypatch.setattr(subprocess, "check_output", fake_output)
+        monkeypatch.setattr(subprocess, "run", lambda command, **kwargs: commands.append(command))
+        namespace = {
+            "Path": Path,
+            "REPO_REF": "feature-branch",
+            "sys": types.SimpleNamespace(modules={"environments": object()} if loaded else {}),
+            "importlib": types.SimpleNamespace(util=types.SimpleNamespace(find_spec=lambda name: object())),
+        }
+        code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
+        if expected:
+            with pytest.raises(RuntimeError, match=expected):
+                exec(code, namespace)
+            assert not any(command[1] == "checkout" for command in commands)
+        else:
+            exec(code, namespace)
+            assert ["git", "checkout", "--detach", "new-commit"] in commands
+        assert commands[0] == ["git", "fetch", "origin", "feature-branch"]
+        assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
 
 
 @pytest.mark.parametrize("path", [NOTEBOOK_PATH, JAX_NOTEBOOK_PATH], ids=["sb3", "jax"])
