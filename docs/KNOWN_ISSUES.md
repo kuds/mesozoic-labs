@@ -232,14 +232,15 @@ tolerance) remains the standing recommendation for the divergences above.
   `2 runs of 2 seeds` only once BOTH are widened and re-paneled in two
   sessions, each with `SEED` set to its parent's seed (42, then 44) —
   since the 2026-09-17 survey the seed-42 slot is already filled by
-  `20260914_123816`, so one widen session (`SEED = 44`) closes the bar. That
-  remaining session and its exact knobs are session 1 of
-  [NEXT_STEPS.md](NEXT_STEPS.md) §3; the outcome table lives in
+  `20260914_123816`, so one widen session (`SEED = 44`) closes the bar, and
+  it did: session 1 of [NEXT_STEPS.md](NEXT_STEPS.md) §3 ran on 2026-09-20 as
+  `20260920_010912` (re-panel identical to the r11 certificate, recovery
+  certified 2026-09-21, bundle `complete` with trex stance at replication 2).
+  The outcome table is
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
-  (a template until the maintainer runs it; its §6, appended 2026-09-19,
-  marks Session 1 (the seed-42 widen) and Session 2 superseded by
-  `20260914_123816`, and its seed-44 repeat sets `WIDEN_MAX_REVISION_GAP = 2`
-  and `SEED = 44`). Three neighbours: an
+  (its §1–§3 seed-44 columns filled, §7 and §8 appended; its §6, appended
+  2026-09-19, marks Session 1 (the seed-42 widen) and Session 2 superseded by
+  `20260914_123816`). Three neighbours: an
   in-flight Ray sweep experiment cannot be resumed under the new plant — the
   sweep notebook validates the recorded `plant_identity.json` of the sweep
   and experiment directories against the current identity on resume
@@ -311,8 +312,9 @@ tolerance) remains the standing recommendation for the divergences above.
   and `20260919_190251` hold only `provenance.json` and four unverified
   model files whose archives re-pickled the parent's 3.12 bytecode under a
   3.13 `system_info.txt`, with no report, identity or fingerprint; nothing
-  can reuse them (`select_trunk` lists them as refused) and they should be
-  deleted before session 1 is re-run.
+  can reuse them (`select_trunk` lists them as refused); session 1 re-ran
+  beside them on 2026-09-20 without harm, and they are still to be deleted
+  (housekeeping in [NEXT_STEPS.md](NEXT_STEPS.md) §3).
 - **MEDIUM (operational)** — **run-level records go stale when a run is
   continued in a later session.** The certified r13 trex walker
   `20260914_123816` shows it: its run-level `summary.json`,
@@ -327,27 +329,13 @@ tolerance) remains the standing recommendation for the divergences above.
   reuses both nodes (2026-09-17 Drive survey,
   [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md)).
   Remedy for that run: re-run the notebook's bundle/summary cell
-  (`write_training_summary` + `save_run_bundle`) for it. Remedy in
+  (`write_training_summary` + `save_run_bundle`) for it; since 2026-09-21
+  the seed-44 sibling `20260920_010912` exists with a `complete` bundle that
+  counts this run (trex stance replication 2), so the re-run also lifts this
+  run's own stance record from replication 1 to 2. Remedy in
   general: the same operator step after every session that adds a node to
   an existing run; consolidation PR-14's single storage path does not
   change this ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
-- **LOW** — **trex stance two-seed bar: seed 43 failed the duty rail.** Trex
-  stance is the only node declaring `certification_seeds = 2`, and at r13
-  only seed 42 has certified (`20260914_123816`). The seed-43 replicate
-  `20260915_160239` (r13, 11M steps, 13h17m; training final eval
-  3209.7 ± 284.3, best eval 3335.1) passed the reward rail
-  (`min_avg_reward` 2100) and the full-horizon rail on its 40-episode
-  panel, and failed `stance_quality/v1` on unsupported duty: mean 0.0323 and
-  UCB 0.0350 against the 0.02 rail (`max_unsupported_duty`,
-  `max_unsupported_duty_ucb`); its provenance records `certified false,
-  provisional true, replication count 1`. A failed panel is a measured
-  deficit of the policy, not panel noise, so re-rolling the panel does not
-  help; another seed does. Cheapest path: widen the seed-44 r11 parent
-  `20260815_205206` (`WIDEN_FROM = "20260815_205206"`,
-  `WIDEN_MAX_REVISION_GAP = 2`, `SEED = 44` set before the storage cell
-  runs; re-panel about 1 h) — session 1 in [NEXT_STEPS.md](NEXT_STEPS.md)
-  §3. Fallback if that panel fails the same rail: a fresh r13 stance with
-  `SEED = 45` (about 13 h).
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -430,7 +418,12 @@ tolerance) remains the standing recommendation for the divergences above.
   then trex stance
   publishes at n = 1 against `certification_seeds = 2` and the catalog
   labels it provisional — which is the honest reading of KNOWN_ISSUES'
-  own 2 pass / 1 fail record.
+  own 2 pass / 1 fail record. Overtaken for the r13 pair on 2026-09-21: the
+  widened seed-44 run `20260920_010912` and the fresh seed-42 run
+  `20260914_123816` share the r13 stance `task_sha256`, the seed-44 bundle
+  records replication 2, and the seed-42 bundle reads 2 once its bundle cell
+  is re-run beside the sibling (the operator step of the MEDIUM entry
+  "run-level records go stale" above).
 - **MEDIUM (provisional threshold)** — **the trex hunting bar
   `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,

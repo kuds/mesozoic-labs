@@ -32,7 +32,7 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-5 (delete the certified library and the trainer's library path) | **Landed** as #548 on 2026-09-20 (PR-4 landed as #547): `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted (1,602 whole-file lines); `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; `certify_and_publish_behavior` and the behavior certificate writer gone (no run writes `certification/certificate.json` until PR-13); the notebook loses `SOURCE_SELECTION` and its prose (2,463 lines); about 1,880 net code and configuration lines removed. |
 | PR-6 (delete the T. rex pilots, the `[pilot]` dialect and the shim) | **Landed** as #549 on 2026-09-20 (PR-5 landed as #548): `configs/trex/behavior_pilots/` (8 TOMLs, 239 lines), pyproject.toml's package-data line and `environments/trex/scripts/train_behaviors.py` deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one instead of defaulting to trex; `behavior_notebook` loses the six pilot aliases and the dead `mesozoic.behavior-pilot-run/v1` reader; the trex suite reads `configs/trex/behaviors/`; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter with `TRexBehaviorEnv`; measured −256 code and configuration lines. |
 | Net removal from here | about 9,500 lines. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. The maintainer paused the PR sequence after PR-6 on 2026-09-20; sessions 4–6 remain. |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has two disconnect-before-raise sites left (cell 22's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
 
 Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7)
@@ -80,7 +80,7 @@ chains `find_certified_ancestor` already verifies, recounts replication
 `discover_replicates` already counts, copies every parent checkpoint into every
 child run, and, under the default `PUBLISH_CERTIFIED = True` that #542 has since
 flipped, would have disconnected the Colab runtime the moment a widened stance
-passed its gate (no widen session has run; #542 closed the path first; cell
+passed its gate (no widen session had run by then; #542 closed the path first; cell
 22:298-321; environments/shared/certified_canonical.py:103-107). The
 notebook grew to 40 cells and 2,500 lines with a `COMMAND_TERRAIN_BEHAVIOR`
 switch guarding 12 whole cells and two partial ones.
@@ -697,9 +697,8 @@ Validation: notebook parse and pins,
 `test_compsognathus_training.py::test_actual_notebook_training_stance_and_recovery_reports`
 (all four params once), shared suite. Prerequisites: PR-4 (stamp block gone),
 PR-12 (guards gone); D-D7 (taken: wrapper now); D-D11 (confirmed 2026-09-20).
-Under D-D14 the widen cell and its two knobs leave the notebook in this PR
-when sessions 1 and 2 of NEXT_STEPS.md are both decided by then, otherwise in
-a PR right after it.
+Under D-D14 the widen cell and its two knobs leave the notebook in this PR:
+sessions 1 and 2 of NEXT_STEPS.md were both decided (PASS) by 2026-09-21.
 
 ### PR-15. Docs fold, CHANGELOG Changed/Removed, test helpers and pin budget (M, about -290)
 Goal: docs/README.md gains the operator guide under Living reference;
@@ -846,7 +845,7 @@ were taken.
 | D-D10 | Terrain in the env: one generic opt-in subclass, or an r14 interface bump that puts the model swap into `reset()`, batched with the queued height-channel removal (plan:668-673)? | Taken: opt-in subclass; no r14 bump (the reset source is fingerprinted). | PR-7, PR-9 |
 | D-D11 | May CLI runs record stage duration and seed model construction like the notebook does? | Confirmed 2026-09-20: yes (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line and its duration recording). | PR-14 |
 | D-D12 | Drop the dead `lateral_speed_scale` field (always divides a zero) when the TOMLs are rewritten? | Confirmed 2026-09-20: drop in PR-11/PR-12 (PR-8 item (d)). | PR-11, PR-12 |
-| D-D14 | What happens to the widen path (`WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP`, the widen cell, `widen_checkpoint`) after the two pending parents are widened? | Taken 2026-09-20: keep it for NEXT_STEPS.md sessions 1 and 2, then CLI-only — the notebook refactor (PR-14, or a PR right after it once both sessions are decided) deletes the widen cell and both knobs; `widen_checkpoint` stays a command-line tool for the next interface bump. Amends the §4 "knobs kept" list. | PR-14 or its follow-up |
+| D-D14 | What happens to the widen path (`WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP`, the widen cell, `widen_checkpoint`) after the two pending parents are widened? | Taken 2026-09-20: keep it for NEXT_STEPS.md sessions 1 and 2, then CLI-only — the notebook refactor (PR-14, or a PR right after it once both sessions are decided) deletes the widen cell and both knobs; `widen_checkpoint` stays a command-line tool for the next interface bump. Amends the §4 "knobs kept" list. Both sessions decided PASS by 2026-09-21 (`20260920_010912`, `20260921_203149`), so PR-14 deletes them. | PR-14 |
 | D-D13 | In which order do PR-3 .. PR-15 land now that the hold is lifted? | Taken 2026-09-20: notebook-first. PR-3, PR-4, PR-5, PR-6, then a notebook-only slice of PR-12 (the `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, cells 7/19/20/33/34/39 and the guard sites, `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays a CLI-only path) pulled ahead of PR-11, then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13, PR-15. Amends D-D8: the switch is tolerated only until that slice, and the direction/terrain pilots have no notebook path between the slice and PR-11 (evaluation-only under D-D9). | the whole sequence |
 
 ## 7. Goal decisions G1–G4 (taken 2026-09-17)
@@ -880,11 +879,11 @@ Carried from the review, with the 2026-09-17 additions.
   bundle into `certified_inputs/` through `copy_canonical_ancestor` (cell 22;
   certified_canonical.py:882), and `artifact_manifest.json` hashes those copies
   into every bundle write (manifest.py:89, 158).
-- Does a widened stance reproduce its panel under r13? Unanswered: no widen
-  session has run yet. NEXT_STEPS.md sessions 1 (trex seed 44, gap 2) and 2
-  (compsognathus seed 42, gap 1) answer it; if the widened seed-44 panel fails
-  the duty rail as seed 43 did (0.0323 / UCB 0.0350 against 0.02), the fallback
-  is a fresh trex stance with SEED = 45.
+- Does a widened stance reproduce its panel under r13? Answered 2026-09-20/21,
+  yes to every printed digit, by NEXT_STEPS.md sessions 1 (trex seed 44, gap 2:
+  3408.3 ± 88.5, duty 0.0069 / UCB 0.0117) and 2 (compsognathus seed 42, gap
+  1: 2801.6 ± 51.2, duty 0.0131 / UCB 0.0141); the SEED = 45 fallback was not
+  needed.
 - The `ConstantSchedule` `custom_objects` guard in `_load_ppo`
   (behavior_checkpoint.py:108-121, for cloudpickled py3.13 schedule bytecode) is
   deleted with PR-12. Settled 2026-09-19: the canonical `alg_cls.load` path had
