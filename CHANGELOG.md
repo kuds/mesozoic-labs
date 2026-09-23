@@ -1357,11 +1357,12 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   defaults, free-form stage ids, the dropdown annotations and the setup cell's
   `REPO_REF` safety keep their tests in `test_sb3_notebook_pins.py`, whose
   guard-stripping helper goes. The CI wheel step names the eleven recipe files
-  itself and still checks that all 66 ship and parse. Until the rest of PR-12,
-  the pilots run from the command line only (`python -m
+  itself and still checks that all 66 ship and parse. The pilots have no
+  notebook path until PR-11 adds the follow and terrain manifest nodes; until
+  then they run from the command line (`python -m
   environments.shared.train_behaviors`, an explicit `--checkpoint` /
-  `--vecnormalize` pair in every mode); `docs/TRAIN_DIRECTION_AND_TERRAIN.md`
-  loses its notebook walkthrough. Every canonical knob keeps its name and
+  `--vecnormalize` pair in every mode), a runner the rest of PR-12 deletes;
+  `docs/TRAIN_DIRECTION_AND_TERRAIN.md` loses its notebook walkthrough. Every canonical knob keeps its name and
   default; notebook pilot runs already on Drive stay evaluation-only (D-D9).
   Measured: −996 code, test and CI lines, −134 notebook source lines.
 - **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior

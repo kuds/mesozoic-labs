@@ -149,8 +149,9 @@ episodes for a more useful comparison, including unseen seeds, and inspect the
 individual outcomes.
 
 Runs made from the notebook before the PR-12 slice stay under
-`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Google Drive as
-evaluation-only pilot output (decision D-D9); leave them in place.
+`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Google Drive when it
+was mounted, otherwise in that checkout's `logs/`) as evaluation-only pilot
+output (decision D-D9); leave them in place.
 
 The recipes use a constant learning rate of 5e-5 and PPO clipping of 0.02 for the
 first 100,000 adaptation steps, then 0.2. Exact-task resume retains that warmup

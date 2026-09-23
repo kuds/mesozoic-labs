@@ -73,7 +73,8 @@ source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
 notebook mode switch (leaving with the notebook-only PR-12 slice, in review) —
 about 7,000 lines of modules at 22c1fc8, tests excluded (the certified library
 left with PR-4/PR-5). Notebook pilot runs wrote to
-`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; from the slice on a
+`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Drive when it was mounted,
+otherwise in the checkout's `logs/`); from the slice on a
 pilot runs from the command line only (`python -m environments.shared.train_behaviors`,
 D-D13) and, the certified library having left with PR-5, takes an explicit
 `--checkpoint` / `--vecnormalize` pair in every load mode and for evaluation.
