@@ -2399,6 +2399,59 @@ class TestDeliverableAwareCells:
         assert cells_after and "BEHAVIOR" in _names(ast.parse(cells_after[-1]))
         assert _calls(ast.parse(cells_after[-1]), "disconnect_runtime")
 
+    def test_the_curves_cell_writes_nothing_into_the_sealed_bundle(self, tmp_path):
+        """The chain loop seals the bundle with each node's declared ``figures/`` set; the curves
+        cell runs after that, so any file it wrote would be undeclared and the cleanup cell's
+        ``validate_result_bundle`` would raise before the auto-disconnect (the flat PNGs every
+        completed Run all left in its stage directories until 2026-09-23)."""
+        matplotlib = pytest.importorskip("matplotlib")
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname
+
+        cells = _code_cells()
+        visualization = [src for src in cells if "def plot_training_curves(" in src]
+        curves = [
+            src
+            for src in cells
+            if any(
+                isinstance(node, ast.For) and ast.unparse(node.iter) == "completed_stages"
+                for node in ast.parse(src).body
+            )
+        ]
+        assert len(visualization) == 1 and len(curves) == 1
+        species = "velociraptor"
+        run_dir = tmp_path / "run"
+        stage_dir = run_dir / stage_dirname(species, 2)
+        stage_dir.mkdir(parents=True)
+        np.savez(
+            stage_dir / "evaluations.npz",
+            timesteps=np.array([50_000, 100_000]),
+            results=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            ep_lengths=np.array([[500, 600], [700, 800]]),
+        )
+        before = sorted(path.relative_to(run_dir) for path in run_dir.rglob("*"))
+        namespace = {
+            "SPECIES": species,
+            "ALGORITHM": "PPO",
+            "STAGE_CONFIGS": load_all_stages(species),
+            "MANIFEST": load_stage_manifest(species),
+            "completed_stages": [(2, str(stage_dir))],
+            "plt": plt,
+            "Path": Path,
+        }
+        figures = len(plt.get_fignums())
+        try:
+            exec(visualization[0], namespace)
+            exec(curves[0], namespace)
+            assert len(plt.get_fignums()) > figures, "the cell still draws the curves inline"
+        finally:
+            plt.close("all")
+        assert sorted(path.relative_to(run_dir) for path in run_dir.rglob("*")) == before
+
     def test_no_hand_threaded_stage_variables_remain(self):
         forbidden = [
             r"\bresults_[123]\b",

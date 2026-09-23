@@ -1463,6 +1463,21 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A completed "Run all" of the SB3 notebook reaches the auto-disconnect
+  again** (2026-09-23). The training-curves cell re-plotted every node of the
+  run with `save_path` / `save_dir`, which wrote `training_curves.png`,
+  `locomotion_health.png` and `behavioral_metrics.png` straight into each
+  stage directory after the chain loop had sealed the bundle; the manifest
+  declares only the node's `figures/` set (written by
+  `generate_stage_artifacts`), so the cleanup cell's `validate_result_bundle`
+  raised `undeclared bundle artifacts` from its fallback branch and "Run all"
+  stopped before the auto-disconnect cell. Every completed session run
+  (`20260920_010912`, `20260921_203149`, `20260922_125248`) ended there, left
+  its runtime connected, and carried three undeclared PNGs per trained stage
+  directory, byte-size duplicates of the declared `figures/` copies. The cell
+  now only displays; `test_sb3_notebook_pins.py` executes it over a stage
+  directory and pins that it writes nothing. Reuse was never affected: trunk
+  selection reads the per-node files, not the manifest.
 - **The collapse backstop no longer arms on the untrained or the standing
   policy on dibothrosuchus and brachiosaurus** (#551, 2026-09-23). Under
   `home-keyframe-residual/v1` action 0 commands the nominal stance, so an

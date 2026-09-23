@@ -45,7 +45,8 @@ about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
 PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
 the notebook-only PR-12 slice, in review 2026-09-23, removes the mode switch, its
 six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
-35 cells, 19 code, 2,329 lines, the chain loop at index 20).
+35 cells, 19 code, 2,329 lines, the chain loop at index 20; 2,330 with the
+curves-cell fix that rides along, CHANGELOG "Fixed").
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -457,6 +458,12 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    (dibothrosuchus `20260923_020654`, 2026-09-23). Replay the shipped
    `evaluations.npz` through `EvalCollapseEarlyStopCallback` before reading an
    early stop as a collapse.
+10. A cell that runs after the bundle is sealed must not write under
+   `RUN_DIR`. The curves cell's saved PNGs stopped every completed "Run all" of
+   sessions 1–3 at the cleanup cell's bundle check, so no runtime was
+   auto-released and the three bundles stopped validating, unnoticed for three
+   sessions (found 2026-09-23 while mapping PR-14). The pin that executes the
+   curves cell covers it; a new post-seal cell needs the same.
 
 ---
 
