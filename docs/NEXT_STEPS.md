@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-23)
 
-**Status**: living reference — updated 2026-09-23; `main` = `c1175c3` (2026-09-23).
+**Status**: living reference — updated 2026-09-23; `main` = `c1175c3` (merged 2026-09-23 04:07 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -134,7 +134,7 @@ run-level summaries.
 |---|---|---|---|---|---|---|
 | trex | `20260914_123816` | 42 | r13 (commit `35dd44c`) | **PASS** — `01_stance`, 11,001,856 steps, 13h13m, final eval 3460.6 ± 19.2, `gate_verdict.json` judged 2026-09-15 01:57 UTC, `gate_sha256 ff2494ba…`, handoff `robust_best_model.zip` | **PASS** — `03_locomotion`, 8,011,776 steps, 8h46m, 1.07 m/s, mean length 1000, reward 1940.8, verdict 2026-09-15 11:39 UTC, `gate_sha256 02602cb0…`, `task_sha256 31383192…` | Nothing for the two-seed bar: the second stance seed is `20260920_010912` (seed 44, certified 2026-09-20), whose bundle counts this run (replication 2 of 2). Its own run-level records stay stance-only (bundle `complete` under a stance target, replication 1): a complete bundle is not rebuilt in place (KNOWN_ISSUES, "A complete run cannot take a new node in place"), and reuse reads the per-node files, so nothing depends on them. A recovery node on this run's stance would be a `BEHAVIOR="stand"` session under `TRUNK_FROM = "20260914_123816"` (`"auto"` now picks the newer seed-44 run for a stand or walk session, whose chain consults stance alone; optional: the seed-44 run already certified recovery at r13); follow nodes once PR-11 exists |
 | trex | `20260915_160239` | 43 | r13 (`35dd44c`) | **FAIL** — `01_stance` only, 11M steps (13h17m), final eval 3209.7 ± 284.3, best 3335.1; the 40-episode panel failed unsupported duty (mean 0.0323, UCB 0.0350, rail 0.02), reward and full-horizon passed; provenance `certified false`, `provisional true` | none | Nothing; a measured deficit, kept as history |
-| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none; **recovery PASS** instead — `02_recovery`, 3,006,464 steps, 3h30m (2026-09-20 21:42 → 2026-09-21 01:12 UTC, the in-place continuation), 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56 ≥ 0.30), paired success delta against the 0/40 statue null 0.70 (Student-t one-sided LCB 0.58 ≥ 0.20), 140/155 pushes recovered, 34/40 full horizon, panel reward 2925.4 ± 404.8; training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M; verdict 2026-09-21 01:16 UTC, `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…`, checkpoint `a8e41b98…` | A locomotion node, optionally (session 7: `BEHAVIOR="walk"`, `SEED=44`, in place, section 3); otherwise nothing: bundle `complete` (written after the recovery verdict), stance deliverable `certified true, provisional false`, `replication count 2` (`20260920_010912` seed 44, `20260914_123816` seed 42), recovery certified at replication 1 |
+| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none; **recovery PASS** instead — `02_recovery`, 3,006,464 steps, 3h30m (2026-09-20 21:42 → 2026-09-21 01:12 UTC, the in-place continuation), 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56 ≥ 0.30), paired success delta against the 0/40 statue null 0.70 (Student-t one-sided LCB 0.58 ≥ 0.20), 140/155 pushes recovered, 34/40 full horizon, panel reward 2925.4 ± 404.8; training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M; verdict 2026-09-21 01:16 UTC, `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…`, checkpoint `a8e41b98…` | A locomotion node, optionally (session 7: `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"`, a fresh run, section 3; not in place, because this run's bundle is `complete`: KNOWN_ISSUES, "A complete run cannot take a new node in place"); otherwise nothing: bundle `complete` (written after the recovery verdict), stance deliverable `certified true, provisional false`, `replication count 2` (`20260920_010912` seed 44, `20260914_123816` seed 42), recovery certified at replication 1 |
 | trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Nothing: widened to r13 and re-paneled as `20260920_010912` (session 1, 2026-09-20) |
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Nothing: widened to r2 and re-paneled as `20260921_203149` (session 2, 2026-09-21); stays on the log tree as history |
@@ -188,8 +188,8 @@ statue-level stance PASS and a stand-still locomotion FAIL (section 2). The
 backstop settings of dibothrosuchus and brachiosaurus stages 1–2 were fixed the
 same day (`collapse_peak_warmup_timesteps`; CHANGELOG "Fixed"), so session 4 is
 re-run, then sessions 5 and 6 follow, in that order, plus the optional session
-7. Housekeeping: delete the stray trex directories `20260919_170528` and
-`20260919_190251` (first note below). The earlier second step, re-entering the
+7. Housekeeping: delete the four stray trex directories `20260918_230155`,
+`20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
 seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
 run-level records, is dropped: with every node reused the chain loop writes no
 bundle, and the run's `complete` stance-target bundle (not `partial`) refuses a
@@ -213,15 +213,18 @@ Notes:
   3.12.13 / numpy 2.0.2 / jax 0.7.2 (the r11 parent `20260815_205206`, 2026-08-15)
   to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1 (already the image of the
   2026-09-14/15 runs `20260914_123816` and `20260915_160239`), and both first
-  attempts at session 1 (`20260919_170528`, `20260919_190251`), the first sessions
-  to load an archive saved under the older image, died with a kernel restart
+  attempts at session 1 (`20260919_170528`, `20260919_190251`) died with a kernel
+  restart
   inside the widen tool's self-verification: an SB3 archive's schedule members
   embed the saving interpreter's bytecode and a bare `PPO.load` executes it
   (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
   Since the loader change of 2026-09-19 every load goes through
   `policy_loading.load_sb3_model`, and a preflight cell right before the widen
-  cell loads the `WIDEN_FROM` parent's real root handoff first. The two stray
-  run directories are still on Drive (2026-09-23; each holds only
+  cell loads the `WIDEN_FROM` parent's real root handoff first. Two earlier
+  trex seed-44 widen sessions of 2026-09-18 at `22c1fc8` (`20260918_230155`,
+  `20260918_230335`) were the first to load the older-image archive and left
+  the same stray. The four stray run directories are still on Drive
+  (2026-09-23; each holds only
   `provenance.json` and four unverified model files under `01_stance/models/`)
   and should be deleted: `select_trunk` lists them as refused, which is
   harmless but noisy (session 1 re-ran beside them without harm). What the
@@ -423,10 +426,13 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    ignored `BaseDinoEnv._draw_episode_command`, `GATE_KINDS`,
    `find_certified_ancestor` and the stage TOML loader) costs more to fold back
    than it saved; the design of record had already named hook, kwargs and gate.
-7. A run continued in a later Colab session leaves the run-level
-   summary/provenance stale unless the bundle cell is re-run before the bundle
-   is `complete` (a complete bundle is not rewritten in place, 2026-09-23);
-   per-node artifacts are written immediately.
+7. A node added in place to a run whose bundle is already `complete` never
+   reaches the run-level records: the chain loop's bundle write refuses it
+   after the node has trained and halts "Run all" (2026-09-23). Train later
+   nodes in a fresh run whose `TRUNK_FROM` names that run. A `partial` bundle
+   is rebuilt by the next node trained or judged in it, a session that only
+   reuses nodes writes no bundle, and per-node artifacts are written
+   immediately.
 8. Two seeds at a stance bar of two is reachable only by widening the r11
    parents or training fresh r13 seeds; backfilling the r11 verdicts does
    nothing for reuse (rules 3 and 6 refuse pre-Phase-C archives).

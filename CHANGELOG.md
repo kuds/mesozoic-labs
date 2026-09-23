@@ -1448,10 +1448,14 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   for trex run `20260803_012355`. `collapse_peak_warmup_timesteps` now keeps
   early evaluations from setting the peak: 1,000,000 on both species' stage
   1 (the trex stance value; on that run's series any warm-up of 400k or
-  more never arms), and the stage-entry window `warmup_timesteps +
-  ramp_timesteps` on stage 2 (3,300,000 dibothrosuchus, 4,000,000
-  brachiosaurus; the D-B5 bound of trex behavior), since a shorter one arms
-  on the fallen plateau under the floor of 100. Replayed through the real
+  more never arms), and `warmup_timesteps + ramp_timesteps` on stage 2
+  (3,300,000 dibothrosuchus, 4,000,000 brachiosaurus): the D-B5 bound of trex
+  behavior, conservative because the clip/entropy warm-up and the forward
+  ramp both run from stage step 0. On that run's locomotion series a
+  0.8-1.05M warm-up arms on the fallen plateau under the floor of 100 and
+  anything past 1.05M stays disarmed, so the replay bounds the warm-up
+  below at 1.1M; the committed values are the D-B5 bound, not a replay
+  result. Replayed through the real
   callback on the six series that trained to budget (velociraptor stance
   and locomotion, compsognathus locomotion, trex stance, locomotion and
   recovery), no candidate setting stops any of them. Collapse keys enter no

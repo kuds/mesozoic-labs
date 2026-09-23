@@ -897,7 +897,7 @@ class TestDibothrosuchusAndBrachiosaurusWarmups:
         assert not cb._peak_score >= settings["peak_floor"]
 
     def test_a_shorter_locomotion_warmup_arms_on_the_fallen_plateau(self):
-        """Why stage 2's warm-up spans the whole stage-entry window.
+        """Why stage 2's warm-up must clear 1.05M (the committed value is the D-B5 bound).
 
         Just past the clip release, the eligible windows are the lunge-and-fall
         regime itself (peak ~115), which clears the absolute floor of 100 and

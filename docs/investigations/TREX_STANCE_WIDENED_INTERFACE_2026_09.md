@@ -285,3 +285,19 @@ still needed; the table and placeholders above are kept as written.
   inventory is not done here; the template status line at the top stays
   until §5 is filled. The run plan and what remains:
   [../NEXT_STEPS.md](../NEXT_STEPS.md) §3.
+
+## §9 Correction 2026-09-23 (appended)
+
+§8's "until its bundle cell is re-run beside this sibling" does not hold, and
+the seed-42 rebuild step it implies is dropped from
+[../NEXT_STEPS.md](../NEXT_STEPS.md) §3. `20260914_123816`'s bundle is
+`complete` under a stance target (`summary.json` written 2026-09-15 02:08
+UTC; `03_locomotion/` created later), a re-entry that reuses every node
+writes no bundle, and a direct save is refused as immutable because files
+appeared after publication. Its run-level records stay stance-only at
+replication 1, while this run's bundle counts it at 2; reuse reads the
+per-node files, so nothing depends on them. The same rule sends a locomotion
+node for this run (NEXT_STEPS.md session 7) to a fresh run with
+`TRUNK_FROM = "20260920_010912"`, since this run's bundle is `complete` too
+([../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), "A complete run cannot take a new
+node in place").

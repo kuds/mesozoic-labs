@@ -275,9 +275,11 @@ tolerance) remains the standing recommendation for the divergences above.
   schedule does. **The incident:** Colab's L4 image moved from Python 3.12.13
   / numpy 2.0.2 / jax 0.7.2 (the r11 parent `20260815_205206`, 2026-08-15)
   to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1 (already the image of the
-  runs of 2026-09-14/15, `20260914_123816` and `20260915_160239`); the
-  2026-09-19 sessions were the first to load an archive saved under the
-  older image, and both first attempts at NEXT_STEPS.md session 1 (runs
+  runs of 2026-09-14/15, `20260914_123816` and `20260915_160239`). Two
+  trex seed-44 widen sessions of 2026-09-18 at `22c1fc8` (runs
+  `20260918_230155` and `20260918_230335`, on Drive, recorded 2026-09-23)
+  were the first to load an archive saved under the older image and left
+  the same four-file stray, and both first attempts at NEXT_STEPS.md session 1 (runs
   `20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`,
   `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`,
   `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`) died with
@@ -311,8 +313,9 @@ tolerance) remains the standing recommendation for the divergences above.
   a notebook cell, the SB3 CLI, a third-party tool, an older checkout) still
   dies on a foreign image with no traceback; a run's `provenance.json`
   `python_version` names the interpreter its archives belong to, and the
-  image will move again. The two stray run directories `20260919_170528`
-  and `20260919_190251` hold only `provenance.json` and four unverified
+  image will move again. The four stray run directories `20260918_230155`,
+  `20260918_230335`, `20260919_170528` and `20260919_190251` hold only
+  `provenance.json` and four unverified
   model files whose archives re-pickled the parent's 3.12 bytecode under a
   3.13 `system_info.txt`, with no report, identity or fingerprint; nothing
   can reuse them (`select_trunk` lists them as refused); session 1 re-ran
@@ -457,9 +460,10 @@ tolerance) remains the standing recommendation for the divergences above.
   own 2 pass / 1 fail record. Overtaken for the r13 pair on 2026-09-21: the
   widened seed-44 run `20260920_010912` and the fresh seed-42 run
   `20260914_123816` share the r13 stance `task_sha256`, the seed-44 bundle
-  records replication 2, and the seed-42 bundle reads 2 once its bundle cell
-  is re-run beside the sibling (the operator step of the MEDIUM entry
-  "run-level records go stale" above).
+  records replication 2, and the seed-42 run's own records stay at
+  replication 1: its `complete` bundle cannot be rewritten in place (the
+  MEDIUM entries "run-level records go stale" and "a complete run cannot
+  take a new node in place" above).
 - **MEDIUM (provisional threshold)** — **the trex hunting bar
   `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
@@ -549,8 +553,9 @@ tolerance) remains the standing recommendation for the divergences above.
   statue plateau; locomotion on the 2246.9 standing level, 22x its absolute
   floor of 100). `collapse_peak_warmup_timesteps` now separates the two on
   dibothrosuchus and brachiosaurus stages 1-2 (1.0M on stance; on
-  locomotion the stage-entry window `warmup_timesteps + ramp_timesteps`,
-  3.3M and 4.0M), replayed on that run's series in
+  locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and
+  4.0M, conservative since the two shaping schedules run concurrently),
+  replayed on that run's series in
   `test_curriculum_early_stopping.py`. Still open: the four floors stay
   absolute (convert them to the relative pair, with the
   `statue_constants_physics_revision` pin, once the planned dibothrosuchus
@@ -582,8 +587,10 @@ tolerance) remains the standing recommendation for the divergences above.
   strong local optimum of the walk stage, and dibothrosuchus run
   `20260923_020654` judged a stand-still locomotion checkpoint
   (2249.86, 0.0012 m/s; gate FAIL on the forward rail). In two of 40
-  dibothrosuchus statue episodes one pair re-touches mid-episode, the ratio
-  halves and the episode scores about 1248. The biped `_compute_gait_symmetry` shares the
+  dibothrosuchus statue episodes (seeds 3045, 3056) one diagonal pair touches
+  down twice while the statue settles after reset (by step 3-4), the history
+  freezes at AAB / BBA, the ratio is 0.5 for the whole episode and it scores
+  about 1248. The biped `_compute_gait_symmetry` shares the
   history-ratio shape (not measured here). A reward change moves the
   task fingerprint, so it belongs with the planned plant and reward work on
   these species, not with a backstop setting.

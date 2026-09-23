@@ -270,3 +270,11 @@ the interrupted 2026-08-21 locomotion leg were not read, so whoever runs
 session 1 fills that inventory from the log-tree listing. The template's
 session table is not rewritten; its own §6 (appended 2026-09-19) records the
 supersessions.
+
+**Correction 2026-09-23 (appended):** finding 2's "until the bundle cell is
+re-run in a later session" does not hold for `20260914_123816`: its bundle is
+`complete` under a stance target, a re-entry that reuses every node writes no
+bundle, and a direct save is refused because `03_locomotion/` appeared after
+publication, so its run-level records stay stance-only
+([../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), "A complete run cannot take a new
+node in place"; [../NEXT_STEPS.md](../NEXT_STEPS.md) §3).
