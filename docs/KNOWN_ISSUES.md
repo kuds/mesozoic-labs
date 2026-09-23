@@ -835,28 +835,32 @@ tolerance) remains the standing recommendation for the divergences above.
   judged by `judge_behavior_panel` and reached only from tests since PR-5
   deleted its `certification/certificate.json` writer; never a
   `gate_verdict.json`); a checkpoint identity keyed on source-file hashes (any
-  edit to `behavior_env.py` strands exact resume); and the notebook `COMMAND_TERRAIN_BEHAVIOR`
-  mode switch, referenced by 20 of the 23 code cells (19 of 22 at 22c1fc8;
-  the loader change added a guarded preflight cell) — about 7,000 lines of
-  modules at 22c1fc8, tests excluded (the certified library left with
-  PR-4/PR-5). Pilot outputs
+  edit to `behavior_env.py` strands exact resume) — about 7,000 lines of
+  modules at 22c1fc8, tests excluded, with the notebook `COMMAND_TERRAIN_BEHAVIOR`
+  mode switch that 19 of the notebook's 22 code cells referenced (the certified library
+  left with PR-4/PR-5, the mode switch, its ten `BEHAVIOR_*` knobs and
+  `behavior_notebook.py` with the notebook-only PR-12 slice). Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
   (decision D-D9): none is reusable through `find_certified_ancestor` or
   carried forward as a training parent. The fold-back — manifest nodes
   under `locomotion`, the controller as the body of the reserved hook, one
-  generic opt-in terrain env subclass, a registered gate kind, the library
-  and the mode switch deleted — is
+  generic opt-in terrain env subclass, a registered gate kind, the library,
+  the mode switch and the second trainer deleted — is
   [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
   PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
   (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
   wrapper and the notebook's library knobs, landed as #547; PR-5, the
   certified library and the trainer's library path, landed as #548; PR-6, the T. rex
-  pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549); PR-1 (#542), the auto-trunk PR
-  (#543) and PR-2 (#544) landed. Until the pilots are folded back,
-  [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) is the
-  operator guide, and the pilots need explicit `BEHAVIOR_CHECKPOINT` /
-  `BEHAVIOR_VECNORMALIZE` paths in every load mode and for evaluation (the
-  certified library and `SOURCE_SELECTION` left with PR-5).
+  pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549;
+  the notebook-only PR-12 slice, the notebook's direction/terrain mode and
+  `behavior_notebook.py`, followed in review on 2026-09-23); PR-1 (#542), the
+  auto-trunk PR (#543) and PR-2 (#544) landed. Until PR-11 adds the follow and
+  terrain manifest nodes, the pilots run from the command line only
+  (`python -m environments.shared.train_behaviors`, D-D13), with
+  [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) as the
+  operator guide and an explicit `--checkpoint` / `--vecnormalize` pair in
+  every load mode and for evaluation (the certified library and
+  `SOURCE_SELECTION` left with PR-5).
 
 ## Sweeps / infrastructure
 

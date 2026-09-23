@@ -42,13 +42,18 @@ has 40 cells (22 code), 2,526 lines; 19 code cells reference the
 guarded code cell, the SB3 archive-load preflight before the widen cell:
 41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
 about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
-PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines).
+PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
+the notebook-only PR-12 slice, in review 2026-09-23, removes the mode switch, its
+six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
+35 cells, 19 code, 2,329 lines, the chain loop at index 20).
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, eleven direction/terrain
-values, stage ids by free input), `TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`,
-`WIDEN_MAX_REVISION_GAP = 1`, `RETRAIN_FROM = ""`, `SEED = 42`; the library
-knobs (`CERTIFIED_LIBRARY_ROOT`, `PUBLISH_CERTIFIED`,
-`CERTIFIED_COMPARISON_EPISODES`) left with PR-4 and `SOURCE_SELECTION` with PR-5.
+`BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
+the eleven direction/terrain values leave with the PR-12 slice),
+`TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`, `WIDEN_MAX_REVISION_GAP = 1`,
+`RETRAIN_FROM = ""`, `SEED = 42`; the library knobs (`CERTIFIED_LIBRARY_ROOT`,
+`PUBLISH_CERTIFIED`, `CERTIFIED_COMPARISON_EPISODES`) left with PR-4,
+`SOURCE_SELECTION` with PR-5, and `COMMAND_TERRAIN_BEHAVIOR` with the ten
+`BEHAVIOR_*` knobs leave with the PR-12 slice.
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
@@ -65,11 +70,13 @@ directly, a second checkpoint preparer, a second PPO trainer
 `certification/certificate.json` writer left with PR-5, so it is reached only
 from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
 source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
-notebook mode switch — about 7,000 lines of modules at 22c1fc8, tests excluded
-(the certified library left with PR-4/PR-5). Outputs go
-to `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; the certified
-library left with PR-5, so a pilot needs explicit `BEHAVIOR_CHECKPOINT` /
-`BEHAVIOR_VECNORMALIZE` paths in every load mode and for evaluation.
+notebook mode switch (leaving with the notebook-only PR-12 slice, in review) —
+about 7,000 lines of modules at 22c1fc8, tests excluded (the certified library
+left with PR-4/PR-5). Notebook pilot runs wrote to
+`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` on Drive; from the slice on a
+pilot runs from the command line only (`python -m environments.shared.train_behaviors`,
+D-D13) and, the certified library having left with PR-5, takes an explicit
+`--checkpoint` / `--vecnormalize` pair in every load mode and for evaluation.
 Guide: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md). Under D-D9 every pilot bundle on
 Drive is evaluation-only; none is a training parent.
 
@@ -82,12 +89,13 @@ maintainer released the hold with a **notebook-first order** (decision D-D13):
 PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
 mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
-PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
+the rest of PR-12, after PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
 D-D1..D-D14 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
 on 2026-09-20; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
-training sessions ran (G3) and lifted the pause on 2026-09-23: the next PR is
-the notebook-only PR-12 slice ([section 4](#4-consolidation-the-remaining-prs)).
+training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
+PR-12 slice is in review on the session branch, and PR-14 follows it
+([section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
 
@@ -299,9 +307,11 @@ Notes:
   (0.0069 / UCB 0.0117), so the fresh trex stance with `SEED = 45` held in
   reserve (about 13 h for the stance alone) is not run.
 
-Not recommended yet: direction/terrain pilots (evaluation only, D-D9; one trex
-`follow_direction` pilot pointed at the September walker's locomotion checkpoint
-pair is harmless but disposable) and trex hunting (off the direction path). Never
+Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
+line only from the notebook-only PR-12 slice on, with `--checkpoint` /
+`--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);
+one trex `follow_direction` pilot pointed at the September walker's locomotion
+checkpoint pair is harmless but disposable) and trex hunting (off the direction path). Never
 re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 ---
@@ -314,8 +324,10 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The next PR is the notebook-only PR-12 slice, then PR-14, whose D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
-Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines;
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice is in review on the session branch (2026-09-23); PR-14 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
+of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
+test and CI lines, −134 notebook source lines);
 the plan's about 9,500 (band 9,000–12,000) was counted from `22c1fc8`, before
 PR-3 .. PR-6. No PR changes the on-disk format or the reuse of the canonical
 chain, both r11 parents or the r13 run `20260914_123816`; `TRUNK_FROM` (default
@@ -335,7 +347,8 @@ check and edits the resume cell's prose.
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
-| PR-12 | Delete the parallel trainer, router, checkpoint module, the 66 TOMLs, the notebook mode switch and their tests; `BEHAVIOR` dropdown becomes `stand \| walk \| hunt \| follow \| terrain` | XL (about −5,300) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
+| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; in review 2026-09-23 |
+| PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, the notebook-only PR-12 slice (guards gone, D-D13); D-D7, D-D11; the widen cell and knobs leave here (D-D14: sessions 1 and 2 both decided PASS by 2026-09-21) |
 | PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14 |
@@ -519,8 +532,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (the
-   notebook-only PR-12 slice) on the session branch, one PR at a time,
+   [section 4](#4-consolidation-the-remaining-prs) (PR-14 once the
+   notebook-only PR-12 slice has merged) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
@@ -542,9 +555,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   in chunks; `pytest environments/<species>/tests/`; the notebook checks (every
   code cell parses, as `.github/workflows/python-ci.yml` does; an edited notebook
   round-trips through `json.dump` with `indent=1`, the plan's §5 PR process); the
-  SB3 job for trainer changes. IPython is absent in the review container (a venv
-  with SB3 2.9.0, torch, jax, mujoco 3.10.0, `JAX_PLATFORMS=cpu`), so 12
-  `test_behavior_notebook` display tests fail there identically on `main`.
+  SB3 job for trainer changes. The review container is a venv with SB3 2.9.0,
+  torch, jax, mujoco 3.10.0 and `JAX_PLATFORMS=cpu`, without IPython; since the
+  notebook-only PR-12 slice deleted `test_behavior_notebook.py` no test needs it.
 - Never write an AI model or vendor name into repository files; cite PR numbers,
   branch names or "the maintainer".
 
