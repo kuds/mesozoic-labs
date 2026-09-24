@@ -1076,7 +1076,7 @@ def select_trunk(
     MOST consecutive nodes wins, the newest on a tie: a whole coherent trunk,
     never one node from one run and its child from another, which rule 4
     would refuse anyway.  The task digest and gate block per node are
-    derived exactly as the chain loop and ``train_stage`` derive them, so a
+    derived exactly as the chain loop and ``train_base.train`` derive them, so a
     run this selects is one the loop's own ``find_certified_ancestor`` call
     accepts as ``TRUNK_DIR``.
 

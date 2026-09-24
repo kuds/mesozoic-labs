@@ -492,7 +492,7 @@ The `run` block of each `stage_config.json` records:
 | `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint a same-stage resume continued from; the edge keys above are kept. |
 | `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs or gate thresholds. Always written. |
 | `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
-| `duration_seconds` | How long the stage actually trained, accumulated across every session that trained it. Written by the notebook's `train_stage` on every exit (D-A15); absent on CLI runs. |
+| `duration_seconds` | Seconds from `train_base.train`'s start to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` subcommand, Vertex sweep trials and the notebook's `train_stage`; not by `curriculum` runs or Ray Tune trials. |
 
 `gate_verdict.json` (schema `mesozoic.gate-verdict/v1`) records the species,
 stage and stage id, the gate kind and schema version, `passed` and the list

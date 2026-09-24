@@ -677,9 +677,11 @@ def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> No
         source = cell.get("source", "")
         chunks.append("".join(source) if isinstance(source, list) else source)
     source_text = "\n".join(chunks)
+    # The notebook's evaluation is reporting.evaluate_stage_checkpoints (consolidation PR-14c).
+    library = (REPOSITORY_ROOT / "environments/shared/reporting/stage_artifacts.py").read_text(encoding="utf-8")
 
-    assert "refusing to evaluate or export a hybrid checkpoint" in source_text
-    assert "using final VecNormalize for best model" not in source_text
+    assert library.count("refusing to evaluate or export a hybrid checkpoint") == 2
+    assert "using final VecNormalize for best model" not in source_text + library
 
 
 def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:

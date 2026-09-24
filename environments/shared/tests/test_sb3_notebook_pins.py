@@ -32,6 +32,8 @@ from environments.shared.stage_manifest import StageManifestError, load_stage_ma
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
+#: ``train_stage`` trains through ``train_base.train`` (consolidation PR-14c); pins on what it records read its source.
+TRAIN_BASE_PATH = REPO_ROOT / "environments" / "shared" / "train_base.py"
 JAX_NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "jax_training.ipynb"
 
 # Unique markers that identify the cells under test (not their positions —
@@ -480,14 +482,20 @@ class TestReuseRule:
         # block save_stage_config records as 'curriculum' — the same source.
         assert _keyword_source(src, find, "current_gate_config") == 'config.get("curriculum_kwargs", {})'
         # The task digest comes from the CURRENT config through the shared derivation, for this backend,
-        # from exactly the sources train_stage records it from: a drift (env_kwargs={} here, say) would
-        # silently refuse every reuse with "judged under task".
+        # from exactly the sources train_base.train records it from (train_stage trains through it with
+        # SPECIES_CFG and STAGE_CONFIGS): a drift (env_kwargs={} here, say) would silently refuse every
+        # reuse with "judged under task".
+        train_src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        recorded = _call(_top_level_def(train_src, "train"), "derive_stage_task_fingerprint")
+        assert {kw.arg: ast.get_source_segment(train_src, kw.value) for kw in recorded.keywords} == {
+            "species": "species",
+            "stage": "stage",
+            "backend": '"stable-baselines3"',
+            "env_kwargs": 'config.get("env_kwargs", {})',
+            "plant_identity": "plant_identity.to_dict()",
+        }
         fingerprint = _call(loop, "derive_stage_task_fingerprint")
         loop_sources = {kw.arg: ast.get_source_segment(src, kw.value) for kw in fingerprint.keywords}
-        infra_src = _cell(INFRA_CELL_MARKER)
-        infra_fingerprint = _call(_top_level_def(infra_src, "train_stage"), "derive_stage_task_fingerprint")
-        infra_sources = {kw.arg: ast.get_source_segment(infra_src, kw.value) for kw in infra_fingerprint.keywords}
-        assert loop_sources == infra_sources, "the loop derives the task digest exactly as train_stage records it"
         assert loop_sources == {
             "species": "SPECIES",
             "stage": "stage",
@@ -1181,17 +1189,17 @@ class TestLoadModeByEdge:
             assert not position_compares, f"{marker!r} decides something by comparing a `.position`"
 
     def test_shaping_is_keyed_on_the_edge_and_applied_to_sac(self):
-        src = _cell(INFRA_CELL_MARKER)
-        train_stage = _top_level_def(src, "train_stage")
-        shaping = _call(train_stage, "_stage_entry_shaping_callbacks")
+        """train_stage trains through train_base.train (consolidation PR-14c), whose shaping this pins."""
+        src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        train = _top_level_def(src, "train")
+        shaping = _call(train, "_stage_entry_shaping_callbacks")
         assert _keyword_names(shaping) == {"task_load_mode", "parent_id", "load_path"}
-        assert _keyword_source(src, shaping, "parent_id") == "NODE.warm_start_from", (
+        assert _keyword_source(src, shaping, "parent_id") == "entry.warm_start_from", (
             "shaping fires on the declared EDGE (warm_start_from), verbatim like every CLI caller"
         )
         assert _keyword_source(src, shaping, "task_load_mode") == "task_load_mode"
-        extend = _call(train_stage, "extend")
-        assert ast.unparse(extend.func) == "callbacks.extend"
-        assert len(extend.args) == 1 and isinstance(extend.args[0], ast.Name) and extend.args[0].id == "shaping", (
+        extend = next(call for call in _calls(train, "extend") if shaping in call.args)
+        assert ast.unparse(extend.func) == "callbacks.extend" and len(extend.args) == 1, (
             "the shaping callbacks are applied unfiltered — SAC gets the same warm-up the CLI gives it (DU1)"
         )
         for index, cell in enumerate(_code_cells()):
@@ -1223,8 +1231,8 @@ class TestLoadModeByEdge:
                 "each refusal is an unconditional raise"
             )
             assert _raises(guard, "ValueError")
-            assert guard.lineno < _call(train_stage, "refuse_occupied_stage_dir").lineno, (
-                "argument refusals happen before the stage directory is touched"
+            assert guard.lineno < _call(train_stage, "train").lineno, (
+                "argument refusals happen before train_base.train touches the stage directory"
             )
         # The chain loop declares the edge from the parent's presence, never from a number.
         chain_src, loop = _chain_loop()
@@ -1244,194 +1252,93 @@ class TestLoadModeByEdge:
         assert _keyword_source(chain_src, train, "vecnorm_path") == "vecnorm_path"
         assert _keyword_source(chain_src, train, "run_dir") == "RUN_DIR"
 
-    def test_declared_parent_mismatch_refuses(self):
-        src = _cell(INFRA_CELL_MARKER)
-        train_stage = _top_level_def(src, "train_stage")
-        validate = _call(train_stage, "validate_declared_parent")
-        assert ast.unparse(validate.args[0]) == "read_checkpoint_task_fingerprint(load_path)"
-        assert {"declared_parent", "species", "child_stage", "artifact"} <= _keyword_names(validate)
-        assert "parent_of(stage)" in _branch_source(src, [train_stage]).split("validate_declared_parent(")[0], (
-            "the declared parent is the manifest's parent_of(stage)"
-        )
-        assert _keyword_source(src, validate, "child_stage") == "NODE.reference"
-        guard = next(node for node in ast.walk(train_stage) if isinstance(node, ast.If) and validate in ast.walk(node))
-        assert ast.get_source_segment(src, guard.test) == "entering_from_parent"
-        assert validate.lineno < _call(train_stage, "save_stage_config").lineno, (
-            "the parent is validated BEFORE the stage record is written"
-        )
-
 
 class TestTrainStageRecordKeeping:
-    """D-A20 and D-A15 inside ``train_stage``: no silent overwrite; the real duration is recorded."""
+    """``train_stage`` trains through ``train_base.train`` (consolidation PR-14c): D-A20, the declared-parent check,
+    the stage record, D-D11's seed and D-A15's duration are train()'s (pinned in test_train_base.py)."""
 
-    def test_an_occupied_stage_dir_is_refused_before_the_config_is_written(self):
+    def test_train_stage_trains_through_train_base(self):
         src = _cell(INFRA_CELL_MARKER)
         train_stage = _top_level_def(src, "train_stage")
-        refuse = _call(train_stage, "refuse_occupied_stage_dir")
-        assert ast.unparse(refuse.args[0]) == "stage_dir"
-        assert _keyword_source(src, refuse, "task_load_mode") == "task_load_mode if load_path else None", (
-            "the guard sees the EFFECTIVE mode — the one save_stage_config records"
-        )
-        mkdir_calls = [node for node in _calls(train_stage, "mkdir") if ast.unparse(node.func) == "stage_dir.mkdir"]
-        assert mkdir_calls and refuse.lineno < min(node.lineno for node in mkdir_calls)
-        assert refuse.lineno < _call(train_stage, "save_stage_config").lineno
-        assert "refuse_occupied_stage_dir" in _cell(INFRA_CELL_MARKER).split("def ")[0], (
-            "refuse_occupied_stage_dir is imported from environments.shared.config, not redefined"
-        )
-
-    def test_the_resume_re_save_keeps_the_edge_the_node_entered_on(self, tmp_path):
-        """A RESUME-cell load (``task_load_mode="resume_same_stage"`` of the node's own periodic
-        checkpoint) re-saves stage_config.json through ``save_stage_config`` with the EFFECTIVE mode,
-        and the library keeps the ``initialize_next_stage`` edge the node entered on (recording the
-        resume under ``RESUME_LINEAGE_KEYS``), so a resumed-then-judged node still chains by digest
-        (ancestors rule 4) for a later same-run pass or as a TRUNK_FROM ancestor."""
-        import zipfile
-
-        from environments.shared.config import LOAD_LINEAGE_KEYS, RESUME_LINEAGE_KEYS, save_stage_config
-
-        src = _cell(INFRA_CELL_MARKER)
-        train_stage = _top_level_def(src, "train_stage")
-        save = _call(train_stage, "save_stage_config")
-        assert ast.unparse(save.args[0]) == "stage_dir"
-        assert _keyword_source(src, save, "load_path") == "load_path"
-        assert _keyword_source(src, save, "load_mode") == "task_load_mode if load_path else None"
-        resume_src = _cell(RESUME_CELL_MARKER)
-        resume_train = _call(ast.parse(resume_src), "train_stage")
-        assert _keyword_source(resume_src, resume_train, "task_load_mode") == '"resume_same_stage"'
-        assert _keyword_source(resume_src, resume_train, "load_path") == "str(ckpt_res)"
-
-        def zipped(path):
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(path, "w") as archive:
-                archive.writestr("data", "{}")
-                archive.writestr("policy.pth", b"w")
-            return path
-
-        stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {}}
-        stage_dir = tmp_path / "02_locomotion"
-        parent = zipped(tmp_path / "01_stance" / "models" / "stance_final.zip")
-        save_stage_config(stage_dir, 2, stage_config, "PPO", load_path=str(parent), load_mode="initialize_next_stage")
-        entered = json.loads((stage_dir / "stage_config.json").read_text())["run"]
-        periodic = zipped(stage_dir / "models" / "locomotion_100_steps.zip")
-        save_stage_config(stage_dir, 2, stage_config, "PPO", load_path=str(periodic), load_mode="resume_same_stage")
-        resumed = json.loads((stage_dir / "stage_config.json").read_text())["run"]
-        assert {key: resumed.get(key) for key in LOAD_LINEAGE_KEYS} == {
-            key: entered.get(key) for key in LOAD_LINEAGE_KEYS
+        call = _call(train_stage, "train")
+        assert ast.unparse(call.func) == "train_base.train"
+        assert [ast.unparse(arg) for arg in call.args] == ["SPECIES_CFG", "STAGE_CONFIGS", "stage", "timesteps"]
+        assert {keyword.arg: ast.get_source_segment(src, keyword.value) for keyword in call.keywords} == {
+            "n_envs": "N_ENVS",
+            "seed": "SEED",
+            "load_path": "load_path",
+            "vecnorm_path": "vecnorm_path",
+            "eval_freq": "eval_freq",
+            "save_freq": "save_freq",
+            "verbose": "VERBOSE",
+            "algorithm": "ALGORITHM.lower()",
+            "output_dir": "str(stage_dir)",
+            "task_load_mode": "task_load_mode",
+            "parent_run_id": "parent_run_id",
+            "label": "label",
+            # evaluate_stage_checkpoints replaces the HPT report and metrics.json, and a stop propagates before
+            # the final save: the node keeps its periodic checkpoints for the RESUME cell and is never judged on
+            # a truncated final.
+            "report_metrics": "False",
+            "save_on_interrupt": "False",
         }
-        assert resumed["load_mode"] == "initialize_next_stage"
-        assert resumed["resume_load_path"] == str(periodic) and set(RESUME_LINEAGE_KEYS) <= set(resumed)
-
-    def test_the_stage_duration_is_recorded_on_exit(self):
-        src = _cell(INFRA_CELL_MARKER)
-        train_stage = _top_level_def(src, "train_stage")
-        record = _call(train_stage, "record_stage_duration")
-        assert ast.unparse(record.args[0]) == "stage_dir"
-        learn = _call(train_stage, "learn")
-        evaluate = _call(train_stage, "evaluate_stage_checkpoints")
-        assert learn.lineno < record.lineno < evaluate.lineno, (
-            "the duration is recorded after learn() returns and BEFORE evaluation, so a judged node reports it"
-        )
-        # A same-stage resume accumulates on the record read BEFORE the config re-save.
-        prior = _call(train_stage, "read_stage_duration")
-        assert prior.lineno < _call(train_stage, "save_stage_config").lineno
-        recorded = ast.unparse(record.args[1])
-        duration_assign = next(
-            node
-            for node in ast.walk(train_stage)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == recorded
-        )
-        assert "prior_duration" in ast.unparse(duration_assign.value), (
-            "a resume's duration accumulates on the prior one"
-        )
-        assert _keyword_source(src, evaluate, "duration_seconds") == recorded, (
-            "the judged results carry the recorded value"
-        )
-
-    def test_policy_construction_receives_the_recorded_seed(self, tmp_path):
-        """``alg_kwargs["seed"] = SEED`` sits between ``_prepare_alg_kwargs`` and the model's construction, so
-        fresh policy weights are initialized under the seed the stage records. Ported from the deleted
-        certified-library notebook test when the training-origin stamp left (consolidation PR-4)."""
-        src = _cell(INFRA_CELL_MARKER)
-        function = _top_level_def(src, "train_stage")
-        preparation = next(
-            i
-            for i, node in enumerate(function.body)
-            if isinstance(node, ast.Assign)
-            and isinstance(node.value, ast.Call)
-            and ast.unparse(node.value.func) == "_prepare_alg_kwargs"
-        )
-        construction = next(
-            i
-            for i, node in enumerate(function.body)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "model"
-        )
-        received = []
-
-        def create(sb3, algorithm, kwargs, train_env, load_path, **options):
-            received.append(dict(kwargs))
-            return object()
-
-        namespace = {
-            "config": {},
-            "ALGORITHM": "ppo",
-            "VERBOSE": 0,
-            "stage_dir": tmp_path,
-            "SEED": 8675309,
-            "load_path": None,
-            "sb3": {},
-            "train_env": object(),
-            "PLANT_IDENTITY": object(),
-            "task_fingerprint": {"task_sha256": "task"},
-            "task_load_mode": "resume_same_stage",
-            "_prepare_alg_kwargs": lambda *args, **kwargs: ({"learning_rate": 0.001}, None, None),
-            "_create_or_load_model": create,
-        }
-        block = ast.Module(body=function.body[preparation : construction + 1], type_ignores=[])
-        exec(compile(ast.fix_missing_locations(block), "notebook-construction", "exec"), namespace)
-        assert received == [{"learning_rate": 0.001, "seed": 8675309}]
-        # No training-origin stamp follows construction any more, and stage_config.json is
-        # written by save_stage_config alone (consolidation PR-4).
+        tree = ast.parse(src)
+        for name in ("save_stage_config", "refuse_occupied_stage_dir", "validate_declared_parent", "learn"):
+            assert not _calls(tree, name), f"the infrastructure cell calls {name} itself instead of through train()"
         assert "stamp_canonical_training" not in src and "canonical_training_origin" not in src
+
+    def test_the_evaluation_reports_the_recorded_duration(self):
+        """D-A15: train() records the duration at its final save (test_train_base.py); the evaluation reads the
+        record back, as the chain loop's JUDGE branch does."""
+        src = _cell(INFRA_CELL_MARKER)
+        train_stage = _top_level_def(src, "train_stage")
+        evaluate = _call(train_stage, "evaluate_stage_checkpoints")
+        assert _call(train_stage, "train").lineno < evaluate.lineno
+        assert _keyword_source(src, evaluate, "duration_seconds") == "read_stage_duration(stage_dir)"
+        assert _keyword_source(src, evaluate, "timesteps") == "int(model.num_timesteps)"
 
 
 class TestJudgeBranch:
     """The evaluation tail is a top-level function the JUDGE branch can call without training."""
 
-    def test_evaluate_stage_checkpoints_is_split_out_and_train_stage_returns_its_tuple(self):
+    def test_evaluate_stage_checkpoints_is_the_librarys_and_train_stage_returns_its_tuple(self):
+        """The evaluation tail is ``reporting.evaluate_stage_checkpoints`` (consolidation PR-14c; its internals are
+        pinned in test_reporting_stage_artifacts.py), called with this session's species, plant and seeds."""
         src = _cell(INFRA_CELL_MARKER)
-        judge = _top_level_def(src, "evaluate_stage_checkpoints")
-        assert [arg.arg for arg in judge.args.args] == ["stage", "stage_dir"]
-        kwonly = [arg.arg for arg in judge.args.kwonlyargs]
-        assert kwonly == ["final_path", "final_vecnorm_path", "timesteps", "duration_seconds", "model"]
-        defaults = dict(zip(kwonly, judge.args.kw_defaults))
-        for name in ("final_path", "final_vecnorm_path", "timesteps", "duration_seconds"):
-            assert defaults[name] is None, f"{name} has no default"
-        assert isinstance(defaults["model"], ast.Constant) and defaults["model"].value is None
-        # model=None loads the final zip back and validates its plant before any rollout.
-        load_if = _the_if(judge, src, lambda test: test == "model is None", "loading the final model")
-        load_src = _branch_source(src, load_if.body)
-        # Through policy_loading.load_sb3_model: never a bare AlgoClass.load (KNOWN_ISSUES, interpreter-bound archives).
-        assert "load_sb3_model(" in load_src and "validate_model_plant(" in load_src
-        assert "AlgoClass.load(" not in load_src
-        assert load_if.lineno < _calls(judge, "_eval_forward_vel")[0].lineno
-        # The evidence writers live in the split-out tail only.
+        assert "from environments.shared.reporting import evaluate_stage_checkpoints, generate_stage_artifacts" in src
+        assert "def evaluate_stage_checkpoints(" not in src
+        for name in ("_eval_forward_vel", "save_evaluation_episodes", "load_sb3_model", "eval_policy"):
+            assert name not in src, f"the infrastructure cell evaluates by itself ({name})"
         train_stage = _top_level_def(src, "train_stage")
-        assert len(_calls(judge, "_lib_save_evaluation_episodes")) == 3
-        assert not _calls(train_stage, "_lib_save_evaluation_episodes")
-        assert not _calls(train_stage, "_eval_forward_vel")
-        # train_stage delegates and returns the unchanged 6-tuple.
         delegate = _call(train_stage, "evaluate_stage_checkpoints")
+        assert [ast.unparse(arg) for arg in delegate.args] == [
+            "SPECIES_CFG",
+            "config",
+            "stage",
+            "ALGORITHM",
+            "stage_dir",
+        ]
+        assert _keyword_source(src, delegate, "plant_identity") == "PLANT_IDENTITY"
+        # SEED + 3000: it equals the library's PUBLICATION_SEED_START only for SEED 42.
+        assert _keyword_source(src, delegate, "evaluation_seed") == "EVALUATION_SEED"
         assert _keyword_source(src, delegate, "model") == "model", "the in-memory model is passed after training"
+        # train_stage returns the unchanged 6-tuple.
         returns = [node for node in ast.walk(train_stage) if isinstance(node, ast.Return)]
         assert len(returns) == 1 and isinstance(returns[0].value, ast.Tuple) and len(returns[0].value.elts) == 6
-        judge_returns = [node for node in ast.walk(judge) if isinstance(node, ast.Return)]
-        assert len(judge_returns) == 1 and isinstance(judge_returns[0].value, ast.Tuple)
-        assert len(judge_returns[0].value.elts) == 5
 
     def test_the_loop_judges_from_disk_with_the_recorded_duration(self):
         src, loop = _chain_loop()
         judge_if = _judge_if(src, loop)
         call = _call(judge_if, "evaluate_stage_checkpoints")
+        assert [ast.unparse(arg) for arg in call.args] == [
+            "SPECIES_CFG",
+            "STAGE_CONFIGS[stage]",
+            "stage",
+            "ALGORITHM",
+            "stage_dir",
+        ]
+        assert _keyword_source(src, call, "plant_identity") == "PLANT_IDENTITY"
+        assert _keyword_source(src, call, "evaluation_seed") == "EVALUATION_SEED"
         assert "model" not in _keyword_names(call), "the JUDGE branch has no in-memory model: it loads the final zip"
         assert _keyword_source(src, call, "final_path") == "final_stem"
         assert _keyword_source(src, call, "final_vecnorm_path") == "final_vecnorm"
@@ -1924,6 +1831,18 @@ class TestSeedReplication:
             assert {"training", "checkpoint_selection_evaluation", "publication_evaluation"} <= set(by_key)
         assert "from environments.shared.constants import PUBLICATION_SEED_START" in _cell(self.PROVENANCE_CELL_MARKER)
 
+    def test_the_checkpoint_selection_seed_role_is_the_seed_train_evaluates_on(self):
+        """``train_stage`` trains through ``train_base.train`` (consolidation PR-14c), whose eval env is seeded
+        ``seed + 1000``; the storage cell records the same value as the checkpoint-selection seed role."""
+        assert ast.unparse(_top_level_assigns(_cell(STORAGE_CELL_MARKER))["CHECKPOINT_SELECTION_SEED"]) == "SEED + 1000"
+        train_src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        eval_env = next(
+            node.value
+            for node in ast.walk(_top_level_def(train_src, "train"))
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "eval_env"
+        )
+        assert _func_name(eval_env) == "create_vec_env" and ast.unparse(eval_env.args[4]) == "seed + 1000"
+
     def test_the_bundle_write_passes_discovered_replicates(self):
         """save_run_bundle hands the sibling replicates to the writer (D-B10/D-B16)."""
         src = _cell(INFRA_CELL_MARKER)
@@ -2039,7 +1958,8 @@ class TestResumeCell:
         train = _call(tree, "train_stage")
         mode = next(kw.value for kw in train.keywords if kw.arg == "task_load_mode")
         assert isinstance(mode, ast.Constant) and mode.value == "resume_same_stage"
-        assert "load_path" in _keyword_names(train) and "vecnorm_path" in _keyword_names(train)
+        assert _keyword_source(src, train, "load_path") == "str(ckpt_res)", "the node's OWN periodic checkpoint"
+        assert "vecnorm_path" in _keyword_names(train)
         assert _keyword_source(src, train, "run_dir") == "RUN_DIR"
         assert "parent_run_id" not in _keyword_names(train), "a same-stage resume has no parent run"
         assert "stage_position" not in _names(tree)
@@ -2197,32 +2117,31 @@ class TestArchiveLoadPreflightCell:
 
 
 class TestCommandSliceReseed:
-    """Amendment A12 / invariant 8 (BEHAVIOR_RECIPES_PLAN §4.6): the notebook's direct ``load_vecnorm_stats`` call
-    reseeds the command slice whenever the node's command_mode is not "none" — EXCEPT on a same-stage resume, whose
-    sidecar already holds the statistics the policy trained under (the rule ``train_base._load_vecnorm_into_envs``
-    applies, and the RESUME cell calls ``train_stage`` with ``task_load_mode="resume_same_stage"``) — always False in
-    Phase C."""
+    """Amendment A12 / invariant 8 (BEHAVIOR_RECIPES_PLAN §4.6): the loaded statistics' command slice is reseeded
+    whenever the node's command_mode is not "none" — EXCEPT on a same-stage resume, whose sidecar already holds the
+    statistics the policy trained under. ``train_base._load_vecnorm_into_envs`` applies the rule
+    (test_command_frame.py) and ``train_base.train``, which ``train_stage`` trains through (consolidation PR-14c),
+    feeds it the stage config's mode and the notebook's sidecar — always False in Phase C."""
 
-    def test_train_stage_reseeds_the_command_slice_from_the_stage_config(self):
+    def test_train_feeds_the_rule_the_stage_config_and_the_sidecar(self):
         import inspect
 
         from environments.shared.curriculum import load_vecnorm_stats
 
-        src = _cell(INFRA_CELL_MARKER)
-        train_stage = _top_level_def(src, "train_stage")
-        load = _call(train_stage, "load_vecnorm_stats")
-        assert " ".join(_keyword_source(src, load, "reseed_command_slice").split()) == (
-            'config.get("env_kwargs", {}).get("command_mode", "none") != "none" '
-            'and task_load_mode != "resume_same_stage"'
-        ), (
-            "the flag derives from the stage config's command_mode and is never set on a same-stage resume, exactly "
-            "as train_base._load_vecnorm_into_envs"
+        src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        load = _call(_top_level_def(src, "train"), "_load_vecnorm_into_envs")
+        assert _keyword_source(src, load, "command_mode") == (
+            'str(config.get("env_kwargs", {}).get("command_mode", "none"))'
         )
-        assert _keyword_source(src, load, "carry_ret_rms") == 'task_load_mode == "resume_same_stage"'
-        assert _keyword_source(src, load, "current_plant") == "PLANT_IDENTITY"
-        assert [ast.unparse(arg) for arg in load.args] == ["vecnorm_path", "train_env", "eval_env"], (
+        assert _keyword_source(src, load, "task_load_mode") == "task_load_mode"
+        assert _keyword_source(src, load, "vecnorm_path") == "vecnorm_path"
+        # Without it a sidecar loads with plant validation skipped (the notebook's manual cell names any sidecar).
+        assert _keyword_source(src, load, "plant_identity") == "plant_identity"
+        assert [ast.unparse(arg) for arg in load.args] == ["load_path", "train_env", "eval_env"], (
             "both destinations are passed, so the reseed reaches the train AND the eval wrapper"
         )
+        rule = ast.get_source_segment(src, _top_level_def(src, "_load_vecnorm_into_envs")) or ""
+        assert 'if command_mode != "none" and task_load_mode != "resume_same_stage":' in rule
         parameters = inspect.signature(load_vecnorm_stats).parameters
         assert parameters["reseed_command_slice"].kind is inspect.Parameter.KEYWORD_ONLY
         assert parameters["reseed_command_slice"].default is False, "reseeding stays opt-in in the library"

@@ -743,6 +743,9 @@ def train_trial(config: dict[str, Any]) -> None:
             ):
                 eval_env.training = False
                 eval_env.norm_reward = False
+            # Keep this trial's seed: an archive that recorded its training seed
+            # (every train() run since D-D11) would re-seed the trial with it on load.
+            alg_kwargs.setdefault("seed", None)
             model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
             validate_model_plant(
                 model,

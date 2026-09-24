@@ -425,7 +425,9 @@ def _write_task_success_evidence(
             plant_identity=plant_identity,
         )
         try:
-            model = load_sb3_model(selected_path, algorithm=alg_cls, env=eval_env)
+            # seed=None: a seeded archive would re-seed eval_env with its TRAINING seed on
+            # load, and the rows below record PUBLICATION_SEED_START.
+            model = load_sb3_model(selected_path, algorithm=alg_cls, env=eval_env, seed=None)
             validate_model_plant(model, plant_identity, artifact=str(selected_zip), allow_legacy=allow_legacy_plant)
             load_vecnorm_stats(
                 selected_vecnorm,
@@ -1133,6 +1135,281 @@ def _apply_stage_gate(
             )
         except Exception:  # noqa: BLE001 - the verdict file must never cost the artifacts
             logger.warning("Stage %s gate verdict could not be written to %s", stage, stage_dir, exc_info=True)
+
+
+def evaluate_stage_checkpoints(
+    species_cfg,
+    stage_config,
+    stage,
+    algorithm,
+    stage_dir,
+    *,
+    final_path,
+    final_vecnorm_path,
+    timesteps,
+    duration_seconds,
+    plant_identity,
+    evaluation_seed,
+    model=None,
+):
+    """Evaluate a trained node's final and selected checkpoints and build its stage_results.
+
+    The notebook's evaluation of a node, after ``train_stage`` trains it or
+    when the chain loop's JUDGE branch judges a node whose budget the
+    RESUME cell spent but whose gate was never judged (no
+    ``gate_verdict.json``). ``model`` is the in-memory final model right
+    after training; ``None`` loads ``<final_path>.zip`` back, validates its
+    plant and takes its cumulative step counter as ``timesteps``. Each
+    checkpoint is rolled for 30 episodes on ``evaluation_seed`` under the
+    VecNormalize sidecar it is paired with, and each panel is written as
+    evidence bound to that checkpoint and sidecar; the handoff is the shared
+    selector's (:func:`select_handoff_checkpoint`). Prints the report the
+    notebook shows. Moved verbatim from the notebook's infrastructure cell
+    with its globals as parameters, and unannotated like it (its ``""``
+    placeholders become floats), so mypy leaves its body alone.
+
+    Returns (model, handoff_stem, final_model_path, handoff_vecnorm_path, stage_results).
+    """
+    import numpy as np
+
+    from ..curriculum import load_vecnorm_stats
+    from ..evaluation import eval_policy
+    from ..plant_contract import validate_model_plant
+    from ..train_base import create_vec_env
+
+    algorithm = algorithm.lower()
+
+    def _eval_forward_vel(model, vecnorm_path, n_episodes):
+        """Roll ``model`` on a fresh evaluation env under ``vecnorm_path``'s statistics."""
+        eval_env = create_vec_env(
+            species_cfg,
+            {stage: stage_config},
+            stage,
+            1,
+            evaluation_seed,
+            algorithm=algorithm,
+            gamma=stage_config.get(f"{algorithm}_kwargs", {}).get("gamma"),
+            plant_identity=plant_identity,
+        )
+        if vecnorm_path and Path(vecnorm_path).exists():
+            load_vecnorm_stats(vecnorm_path, eval_env, current_plant=plant_identity)
+        eval_env.training = False
+        eval_env.norm_reward = False
+        try:
+            return eval_policy(model, eval_env, species_cfg.success_keys, n_episodes=n_episodes)
+        finally:
+            eval_env.close()
+
+    stage_dir = Path(stage_dir)
+    model_dir = stage_dir / "models"
+    final_path = Path(final_path)
+    final_vecnorm_path = str(final_vecnorm_path)
+    vecnorm_save_path = final_vecnorm_path
+    if model is None:
+        model = load_sb3_model(str(final_path), algorithm=algorithm)
+        validate_model_plant(model, plant_identity, artifact=f"{final_path}.zip")
+        timesteps = int(getattr(model, "num_timesteps", 0)) or timesteps
+
+    # Evaluate the final model with its matching VecNormalize stats.
+    episode_rewards, episode_lengths, episode_fwd_vels, episode_successes, episode_distances = _eval_forward_vel(
+        model,
+        final_vecnorm_path,
+        n_episodes=30,
+    )
+    final_eval_path = csv_output.save_evaluation_episodes(
+        stage_dir,
+        rewards=episode_rewards,
+        lengths=episode_lengths,
+        forward_velocities=episode_fwd_vels,
+        distances=episode_distances,
+        successes=episode_successes,
+        evaluation_seed=evaluation_seed,
+        checkpoint_label="final",
+        checkpoint_path=f"{final_path}.zip",
+        normalization_path=final_vecnorm_path,
+    )
+    print(f"Final-model episode evidence saved to: {final_eval_path}")
+    mean_reward = float(np.mean(episode_rewards))
+    std_reward = float(np.std(episode_rewards))
+    mean_length = float(np.mean(episode_lengths))
+    std_length = float(np.std(episode_lengths))
+    mean_fwd_vel = float(np.mean(episode_fwd_vels))
+    std_fwd_vel = float(np.std(episode_fwd_vels))
+    mean_distance = float(np.mean(episode_distances))
+    # The training envs are closed by now: a bare env of this node's task
+    # answers for its control timestep.
+    _probe_env = species_cfg.env_class(**stage_config.get("env_kwargs", {}))
+    sim_dt = float(_probe_env.dt)
+    _probe_env.close()
+    mean_success_rate = float(np.mean(episode_successes))
+    print(f"Eval (final model): mean_reward={mean_reward:.2f} +/- {std_reward:.2f}")
+    print(f"Eval: mean_length={mean_length:.1f} +/- {std_length:.1f} steps ({mean_length * sim_dt:.2f}s sim time)")
+    print(f"Eval: mean_forward_vel={mean_fwd_vel:.2f} +/- {std_fwd_vel:.2f} m/s")
+    print(f"Eval: mean_distance_traveled={mean_distance:.2f} m")
+    print(f"Eval: success_rate={mean_success_rate:.0%}")
+
+    # Build base results dict from on-disk eval data (evaluations.npz),
+    # then enrich with the live 30-episode evaluation metrics above.
+    stage_results = build_stage_results_from_eval_data(
+        stage_dir,
+        stage,
+        stage_config,
+        timesteps=timesteps,
+        duration_seconds=duration_seconds,
+    )
+    best_eval_reward = stage_results["best_eval_reward"]
+    best_eval_std = stage_results["best_eval_std"]
+    best_eval_timestep = stage_results["best_eval_timestep"]
+    if best_eval_reward != "":
+        print(f"Best model eval:  mean_reward={best_eval_reward} +/- {best_eval_std} (at {best_eval_timestep:,} steps)")
+
+    # Override with richer live-eval metrics
+    stage_results.update(
+        {
+            "mean_reward": mean_reward,
+            "std_reward": std_reward,
+            "mean_episode_length": mean_length,
+            "std_episode_length": std_length,
+            "mean_forward_vel": mean_fwd_vel,
+            "std_forward_vel": std_fwd_vel,
+            "mean_distance_traveled": mean_distance,
+            "mean_success_rate": mean_success_rate,
+            "sim_dt": sim_dt,
+        }
+    )
+
+    # The SELECTED checkpoint: next-stage loading, the evidence CSV below, the
+    # replay video, and the stance gate report must all describe the same
+    # policy. `select_handoff_checkpoint` is the one selector they share --
+    # the notebook used to carry a private copy of the preference order, which
+    # is how the replay ended up showing `best_model` while
+    # `evaluation_selected.csv` was evidence for `robust_best_model`.
+    #
+    # It prefers the risk-adjusted robust_best_model (highest mean - std eval)
+    # over SB3's mean-reward best_model: a high mean can be propped up by a good
+    # mode while a fat failure tail is already growing (run 20260709_185946).
+    # It requires the matched VecNormalize stats, so it cannot return a hybrid.
+    _handoff = select_handoff_checkpoint(model_dir)
+    if _handoff is None:
+        best_model_zip = model_dir / "best_model.zip"
+        best_vecnorm_candidate = str(model_dir / "best_model_vecnorm.pkl")
+        if best_model_zip.exists():
+            raise FileNotFoundError(
+                f"Selected checkpoint {best_model_zip} is missing its matched VecNormalize state "
+                f"{best_vecnorm_candidate}; refusing to evaluate or export a hybrid checkpoint."
+            )
+    else:
+        _selected_name, _selected_path, best_vecnorm_candidate = _handoff
+        best_model_zip = model_dir / f"{_selected_name}.zip"
+        print(f"Selected checkpoint: {_selected_name}")
+    best_model_reward, best_model_std_reward = "", ""
+    best_model_length, best_model_std_length = "", ""
+    best_model_fwd_vel, best_model_std_fwd_vel = "", ""
+    best_model_distance = ""
+    best_model_success_rate = ""
+    if best_model_zip.exists():
+        best_path = model_dir / best_model_zip.stem
+        model = load_sb3_model(str(best_path), algorithm=algorithm)
+        validate_model_plant(model, plant_identity, artifact=str(best_model_zip))
+        output_path = str(best_path)
+        print(f"Loaded best model for next-stage: {best_path}.zip")
+
+        # Guaranteed by select_handoff_checkpoint, which only returns a
+        # candidate whose matched statistics exist. Kept as an assertion
+        # because exporting a hybrid checkpoint is silent and unrecoverable.
+        if not Path(best_vecnorm_candidate).exists():
+            raise FileNotFoundError(
+                f"Selected checkpoint {best_model_zip} is missing its matched VecNormalize state "
+                f"{best_vecnorm_candidate}; refusing to evaluate or export a hybrid checkpoint."
+            )
+        vecnorm_save_path = best_vecnorm_candidate
+        print(f"Using matched VecNormalize for selected checkpoint: {vecnorm_save_path}")
+
+        # Evaluate the best model over 30 episodes
+        print("Evaluating best model (30 episodes)...")
+        bm_rewards, bm_lengths, bm_fwd_vels, bm_successes, bm_distances = _eval_forward_vel(
+            model,
+            vecnorm_save_path,
+            n_episodes=30,
+        )
+        selected_eval_path = csv_output.save_evaluation_episodes(
+            stage_dir,
+            rewards=bm_rewards,
+            lengths=bm_lengths,
+            forward_velocities=bm_fwd_vels,
+            distances=bm_distances,
+            successes=bm_successes,
+            evaluation_seed=evaluation_seed,
+            checkpoint_label="selected",
+            checkpoint_path=best_model_zip,
+            normalization_path=vecnorm_save_path,
+        )
+        print(f"Selected-model episode evidence saved to: {selected_eval_path}")
+        best_model_reward = round(float(np.mean(bm_rewards)), 2)
+        best_model_std_reward = round(float(np.std(bm_rewards)), 2)
+        best_model_length = round(float(np.mean(bm_lengths)), 1)
+        best_model_std_length = round(float(np.std(bm_lengths)), 1)
+        best_model_fwd_vel = round(float(np.mean(bm_fwd_vels)), 2)
+        best_model_std_fwd_vel = round(float(np.std(bm_fwd_vels)), 2)
+        best_model_distance = round(float(np.mean(bm_distances)), 2)
+        best_model_success_rate = round(float(np.mean(bm_successes)), 2)
+        print(f"Best model eval:  mean_reward={best_model_reward} +/- {best_model_std_reward}")
+        print(f"Best model eval:  mean_length={best_model_length} +/- {best_model_std_length}")
+        print(f"Best model eval:  mean_fwd_vel={best_model_fwd_vel} +/- {best_model_std_fwd_vel} m/s")
+        print(f"Best model eval:  mean_distance={best_model_distance} m")
+        print(f"Best model eval:  success_rate={best_model_success_rate:.0%}")
+    else:
+        output_path = str(final_path)
+        selected_eval_path = csv_output.save_evaluation_episodes(
+            stage_dir,
+            rewards=episode_rewards,
+            lengths=episode_lengths,
+            forward_velocities=episode_fwd_vels,
+            distances=episode_distances,
+            successes=episode_successes,
+            evaluation_seed=evaluation_seed,
+            checkpoint_label="selected",
+            checkpoint_path=f"{final_path}.zip",
+            normalization_path=final_vecnorm_path,
+        )
+        print(f"Selected-model episode evidence saved to: {selected_eval_path}")
+        best_model_reward = round(float(np.mean(episode_rewards)), 2)
+        best_model_std_reward = round(float(np.std(episode_rewards)), 2)
+        best_model_length = round(float(np.mean(episode_lengths)), 1)
+        best_model_std_length = round(float(np.std(episode_lengths)), 1)
+        best_model_fwd_vel = round(float(np.mean(episode_fwd_vels)), 3)
+        best_model_std_fwd_vel = round(float(np.std(episode_fwd_vels)), 3)
+        best_model_distance = round(float(np.mean(episode_distances)), 3)
+        best_model_success_rate = round(float(np.mean(episode_successes)), 4)
+
+    # The curriculum gate is NOT evaluated here: `generate_stage_artifacts`
+    # judges it through the one shared `reporting.gates.evaluate_stage_gate`
+    # and records `gate_passed` / `publication_gate_passed` / `gate_failures`
+    # onto this dict; the chain loop enforces it. The notebook's own checklist
+    # knew nothing about `gate_kind`, so when Tyrannosaurus Rex stage 1 moved
+    # to stance_quality/v1 it quietly degraded to a reward comparison, which
+    # the zero-action statue clears by 68% (run 20260802_203215 advanced to
+    # stage 2 beside a stance_gate_report.txt reading GATE: FAIL).
+
+    # Update stage_results with model paths and best-model eval
+    stage_results.update(
+        {
+            "model_path": output_path,
+            "final_model_path": str(final_path),
+            "vecnorm_path": vecnorm_save_path,
+            "final_vecnorm_path": final_vecnorm_path,
+            "best_model_reward": best_model_reward,
+            "best_model_std_reward": best_model_std_reward,
+            "best_model_length": best_model_length,
+            "best_model_std_length": best_model_std_length,
+            "best_model_fwd_vel": best_model_fwd_vel,
+            "best_model_std_fwd_vel": best_model_std_fwd_vel,
+            "best_model_distance": best_model_distance,
+            "best_model_success_rate": best_model_success_rate,
+        }
+    )
+
+    return model, output_path, str(final_path), vecnorm_save_path, stage_results
 
 
 def generate_stage_artifacts(

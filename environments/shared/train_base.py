@@ -484,8 +484,13 @@ def _load_vecnorm_into_envs(
     task_load_mode: str,
     allow_fresh_vecnorm: bool = False,
     command_mode: str = "none",
+    vecnorm_path: str | None = None,
 ) -> None:
     """Carry forward VecNormalize stats from a prior stage or reset eval env.
+
+    The statistics come from ``vecnorm_path`` when the caller names the
+    loaded checkpoint's sidecar, else from the sidecar
+    :func:`_resolve_vecnorm_sidecar` works out from ``load_path``.
 
     A ``load_path`` whose VecNormalize sidecar is missing **fails closed**:
     training the loaded policy under fresh mean-0/var-1 statistics feeds it
@@ -517,7 +522,7 @@ def _load_vecnorm_into_envs(
     from .curriculum import load_vecnorm_stats
 
     if load_path:
-        _vecnorm_path = _resolve_vecnorm_sidecar(load_path)
+        _vecnorm_path = vecnorm_path or _resolve_vecnorm_sidecar(load_path)
         load_kwargs: dict[str, Any]
         if plant_identity is not None:
             load_kwargs = {
@@ -804,8 +809,8 @@ def _build_core_callbacks(
     # never fired. The comparison costs one float already on disk. See
     # `curriculum.baseline_watch` for why this warns rather than stops.
     # `species` is optional so the existing positional callers keep working,
-    # but a caller that omits it silently loses the watch -- so the notebook
-    # passes it and a test pins that it still does.
+    # but a caller that omits it silently loses the watch -- so every caller
+    # in this module passes it and a test pins that they do.
     baseline_cb = (
         build_baseline_progress_callback(
             eval_callback,
@@ -999,6 +1004,10 @@ def train(
     allow_fresh_vecnorm: bool = False,
     post_eval_episodes: int | None = None,
     label: str | None = None,
+    parent_run_id: str | None = None,
+    vecnorm_path: str | None = None,
+    report_metrics: bool = True,
+    save_on_interrupt: bool = True,
 ):
     """Train a single stage of the curriculum.
 
@@ -1049,10 +1058,24 @@ def train(
     the stage config's ``run`` block beside the ``hyperparameters_sha256``
     digest every stage records, and both reach the W&B run as tags
     (``label:<label>``, ``hp:<digest prefix>``; decision D-A21).
+
+    ``parent_run_id`` (a reused certified ancestor's run) is recorded with
+    the load lineage; ``vecnorm_path`` names the loaded checkpoint's
+    VecNormalize sidecar instead of deriving it from ``load_path``.  Model
+    construction is seeded with ``seed`` unless the algorithm block names its
+    own (decision D-D11), and the time from this call to the final save is
+    recorded as ``run.duration_seconds`` (decision D-A15), added to the value
+    already recorded in ``log_path`` on a same-stage resume.  The notebook
+    passes ``report_metrics=False`` (no HPT report, panels or
+    ``metrics.json``: it evaluates the node itself) and
+    ``save_on_interrupt=False`` (a ``KeyboardInterrupt`` in training
+    propagates before the final save, recording nothing, so its RESUME cell
+    finishes the stage from the periodic checkpoints).
     """
+    stage_start = time.monotonic()
     _validate_post_eval_episodes(post_eval_episodes)
 
-    from .config import refuse_occupied_stage_dir, save_stage_config
+    from .config import read_stage_duration, record_stage_duration, refuse_occupied_stage_dir, save_stage_config
     from .stage_manifest import load_stage_manifest
     from .task_fingerprint import (
         derive_stage_task_fingerprint,
@@ -1125,6 +1148,9 @@ def train(
 
     logger.info("Log directory: %s", log_path)
     logger.info("Model directory: %s", model_dir)
+    # D-A15: a same-stage resume continues a recorded stage, so its duration
+    # accumulates on the record's, read before the re-save below rewrites it.
+    prior_duration = read_stage_duration(log_path) if (load_path and task_load_mode == "resume_same_stage") else None
 
     save_stage_config(
         log_path,
@@ -1141,8 +1167,12 @@ def train(
         # that provenance becomes readable (no keys at all from scratch).
         load_path=load_path,
         load_mode=task_load_mode if load_path else None,
+        parent_run_id=parent_run_id,
         label=label,
     )
+    if prior_duration is not None:
+        # Keep the earlier sessions' sum on disk: this session may stop before its final save.
+        record_stage_duration(log_path, prior_duration)
 
     # Create environments
     # SAC benefits from SubprocVecEnv: MuJoCo is CPU-bound and SAC's off-policy
@@ -1188,6 +1218,7 @@ def train(
         task_load_mode=task_load_mode,
         allow_fresh_vecnorm=allow_fresh_vecnorm,
         command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
+        vecnorm_path=vecnorm_path,
     )
 
     alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
@@ -1197,6 +1228,9 @@ def train(
         log_path,
         use_tensorboard,
     )
+    # D-D11: the policy is built (or a warm start re-seeded) under the seed the
+    # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
+    alg_kwargs.setdefault("seed", seed)
 
     wandb_run = None
     if use_wandb:
@@ -1350,6 +1384,8 @@ def train(
             reset_num_timesteps=not resuming,
         )
     except KeyboardInterrupt:
+        if not save_on_interrupt:
+            raise
         logger.warning("Training interrupted by user.")
     training_duration = time.monotonic() - train_start
 
@@ -1378,24 +1414,26 @@ def train(
         local_tb_dir,
         gcs_tb_path,
     )
+    record_stage_duration(log_path, (prior_duration or 0.0) + (time.monotonic() - stage_start))
 
-    # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
-    _report_hpt_metrics(
-        species_cfg,
-        model,
-        eval_env,
-        eval_callback,
-        log_path,
-        model_dir,
-        stage,
-        actual_timesteps,
-        algorithm,
-        training_duration_seconds=training_duration,
-        stage_config=config,
-        seed=seed,
-        plant_identity=plant_identity,
-        post_eval_episodes=post_eval_episodes,
-    )
+    if report_metrics:
+        # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
+        _report_hpt_metrics(
+            species_cfg,
+            model,
+            eval_env,
+            eval_callback,
+            log_path,
+            model_dir,
+            stage,
+            actual_timesteps,
+            algorithm,
+            training_duration_seconds=training_duration,
+            stage_config=config,
+            seed=seed,
+            plant_identity=plant_identity,
+            post_eval_episodes=post_eval_episodes,
+        )
 
     train_env.close()
     eval_env.close()
@@ -1721,7 +1759,9 @@ def _post_training_eval_panels(
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
         evaluated_handoff = handoff
-        eval_model = load_sb3_model(ckpt_path, algorithm=alg_cls, env=eval_env)
+        # seed=None: an archive that recorded its training seed (every train()
+        # run, D-D11) would otherwise re-seed eval_env with it on load.
+        eval_model = load_sb3_model(ckpt_path, algorithm=alg_cls, env=eval_env, seed=None)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
         load_kwargs: dict[str, Any]
@@ -1737,7 +1777,7 @@ def _post_training_eval_panels(
     elif best_model_zip.exists():
         # Legacy fallback: a best_model saved without matched VecNormalize
         # stats. Evaluate it rather than nothing, but flag the mismatch.
-        eval_model = load_sb3_model(str(model_dir / "best_model"), algorithm=alg_cls, env=eval_env)
+        eval_model = load_sb3_model(str(model_dir / "best_model"), algorithm=alg_cls, env=eval_env, seed=None)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
         eval_env.training = False

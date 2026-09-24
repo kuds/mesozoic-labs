@@ -922,8 +922,45 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **The SB3 notebook trains through `train_base.train`** (consolidation PR-14c,
+  decisions D-D7 and D-D11). `train_stage` keeps its signature and 6-tuple and
+  becomes its argument refusals, the node banner, one
+  `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call
+  and the evaluation, instead of a 384-line copy of `train()`'s body.
+  `train()` now seeds model construction with `seed` unless the stage's
+  algorithm block names one (`--override ppo.seed=N` still wins), so CLI
+  `train` runs and Vertex sweep trials (`sweep/trial.py`) start from other
+  initial weights than before and their archives record the seed; it also
+  records `run.duration_seconds` at the final save, added to the value the
+  stage directory already records on a same-stage resume (D-A15). `curriculum`
+  runs and Ray Tune trials neither seed model construction nor record a duration. Four
+  loads pass `seed=None` so SB3 does not re-seed their env with a seeded
+  archive's training seed: the CLI's post-training panels (`metrics.json`) and
+  the `task_success/v1` evidence re-roll keep their evaluation seeds (the
+  re-roll's rows record the publication seed, which a notebook archive's load
+  used to replace), and a Ray trial warm-started from a seeded archive keeps
+  its own seed. `train()` takes `parent_run_id`, an explicit `vecnorm_path`,
+  `report_metrics` and `save_on_interrupt`, whose defaults keep the CLI's
+  behaviour; the notebook's interrupt still propagates before the final save,
+  so a stopped node is finished by the RESUME cell, and a missing named
+  VecNormalize sidecar is still refused, now before anything is written. `evaluate_stage_checkpoints`
+  moves into `environments.shared.reporting` with the notebook's globals as
+  parameters, which `train_stage` and the chain loop's JUDGE branch pass. What
+  the notebook writes changes in three places: a node entered from its parent
+  no longer copies six warmup/ramp values into its run block (no code reads
+  them; a value its TOML declares stays in the `curriculum` block, and
+  `forward_vel_weight` in `reward_weights`, while an undeclared key's resolved
+  default is no longer written out); on Drive, TensorBoard events sync on
+  the checkpoint cadence, so an interrupted node's events up to its last
+  checkpoint reach the stage directory and a RESUME on a fresh runtime
+  continues that session's run directory (`PPO_1`) instead of opening `PPO_0`;
+  a refused declared parent no longer leaves an empty `models/` directory.
+  Every other file a node writes is unchanged apart from the recorded
+  duration's timing (old and new paths compared under a frozen clock, on and
+  off a simulated Drive mount). The notebook goes from 2,079 to 1,492 source
+  lines.
 - **The SB3 notebook has one disconnect path, in
-  `environments/shared/notebook_runtime.py`** (consolidation PR-14b, decision
+  `environments/shared/notebook_runtime.py`** (#554, consolidation PR-14b, decision
   D-D15). `disconnect_runtime(reason, *, in_colab, auto, flush_drive)` moves out
   of the infrastructure cell, where it read the globals `IN_COLAB`,
   `AUTO_DISCONNECT` and `USE_GOOGLE_DRIVE`; the auto-disconnect cell passes the
@@ -938,7 +975,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   inside the calls, so the module is tested in the shared matrix
   (`test_notebook_runtime.py`, with fake modules). mediapy stays installed for
   `record_stage_video`.
-- **The zero-action cell is its knobs and one call** (PR-14b). Its measure and
+- **The zero-action cell is its knobs and one call** (#554, PR-14b). Its measure and
   verdict loop, table and saves move into
   `environments/shared/scripts/zero_action_baseline.py` as `preflight(...)`
   (`report()` stays the command-line printer). The
@@ -1408,7 +1445,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The SB3 notebook's random-baseline cell and its `_HAS_MEDIAPY` probe**
-  (consolidation PR-14b). The cell rolled five random-action episodes that any
+  (#554, consolidation PR-14b). The cell rolled five random-action episodes that any
   trained policy beats; the zero-action cell after it measures the floor that
   decides whether stage 1 learned anything, and its markdown loses the sentence
   that pointed at the random cell. No later cell read its names (a symtable

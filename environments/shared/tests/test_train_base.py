@@ -570,6 +570,22 @@ class TestLoadVecnormIntoEnvs:
             allow_legacy_plant=True,
         )
 
+    def test_an_explicit_sidecar_is_loaded_instead_of_the_derived_one(self):
+        """The notebook's manual cell names its sidecar free-form (``MANUAL_VECNORM_PATH``)."""
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
+            _load_vecnorm_into_envs(
+                "/path/model.zip",
+                train_env,
+                eval_env,
+                task_load_mode="initialize_next_stage",
+                vecnorm_path="/elsewhere/stats.pkl",
+            )
+        mock_load.assert_called_once_with(
+            "/elsewhere/stats.pkl", train_env, eval_env, unsafe_skip_plant_validation=True
+        )
+
 
 # ── _create_or_load_model ────────────────────────────────────────────────
 
@@ -2061,6 +2077,12 @@ class TestTrainRecordsTheLabel:
         assert self._save_config_kwargs(tmp_path, monkeypatch, label="lr-sweep-a")["label"] == "lr-sweep-a"
         assert self._save_config_kwargs(tmp_path, monkeypatch)["label"] is None
 
+    def test_the_parent_run_id_is_passed_through_and_defaults_to_none(self, tmp_path, monkeypatch):
+        """The notebook names the run a reused certified ancestor came from (consolidation PR-14c)."""
+        recorded = self._save_config_kwargs(tmp_path, monkeypatch, parent_run_id="20260901_120000")
+        assert recorded["parent_run_id"] == "20260901_120000"
+        assert self._save_config_kwargs(tmp_path, monkeypatch)["parent_run_id"] is None
+
     def test_the_wandb_tags_carry_the_digest_prefix_and_the_label(self):
         from environments.shared.config import hyperparameters_sha256, load_all_stages
         from environments.shared.train_base import _wandb_run_tags
@@ -2250,8 +2272,8 @@ class TestTrainResumeKeepsTheEdge:
     entered from its parent re-saves ``stage_config.json`` through the real ``save_stage_config``
     and keeps the edge (``parent_checkpoint_sha256``, ``parent_run_id`` ...), recording the periodic
     checkpoint under ``RESUME_LINEAGE_KEYS`` — so a resumed node still chains for reuse (ancestors
-    rule 4; BEHAVIOR_RECIPES_PLAN §4.7 branch 3). The notebook's ``train_stage`` re-saves through the
-    same function with the same ``load_mode`` argument (pinned in test_sb3_notebook_pins)."""
+    rule 4; BEHAVIOR_RECIPES_PLAN §4.7 branch 3). The notebook's ``train_stage`` trains through
+    ``train`` itself (consolidation PR-14c), so its RESUME cell's re-save is this one."""
 
     class EnvsReached(RuntimeError):
         """The stage config was written; train() went on to build its environments."""
@@ -2324,3 +2346,129 @@ class TestTrainResumeKeepsTheEdge:
             "resume_load_path": str(periodic),
             "resume_checkpoint_sha256": sha256_file(periodic),
         }
+
+
+class TestTrainSeedsRecordsDurationAndServesTheNotebook:
+    """Decisions D-D11 and D-A15 at the single-stage launch path, and the two switches the notebook's
+    ``train_stage`` passes (consolidation PR-14c): model construction is seeded; the duration from entry to
+    the final save is recorded, accumulating on a same-stage resume into the same directory;
+    ``report_metrics=False`` skips the HPT report (the only ``metrics.json`` writer); and
+    ``save_on_interrupt=False`` lets a KeyboardInterrupt from ``learn`` propagate before the final save."""
+
+    def _run(self, tmp_path, monkeypatch, *, interrupt=False, ppo_seed=None, **train_kwargs):
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages, read_stage_duration
+
+        self.record = record = {"alg_kwargs": [], "vecnorm_paths": [], "vecnorm_plants": [], "finals": [], "hpt": []}
+        clock = [1000.0]
+
+        def learn(**kwargs):
+            clock[0] += 7.0  # the only time that passes
+            if interrupt:
+                raise KeyboardInterrupt
+
+        model = MagicMock(num_timesteps=10)
+        model.learn.side_effect = learn
+
+        def create_or_load(sb3, algorithm, alg_kwargs, train_env, load_path, **kwargs):
+            record["alg_kwargs"].append(dict(alg_kwargs))
+            return model
+
+        def save_final(model, train_env, model_dir, stage, *rest):
+            (model_dir / "stage1_final.zip").write_bytes(b"final")
+            record["finals"].append(model_dir / "stage1_final")
+            return model_dir / "stage1_final"
+
+        monkeypatch.setattr(train_base, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
+        monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
+
+        def load_vecnorm(*args, **kwargs):
+            record["vecnorm_paths"].append(kwargs["vecnorm_path"])
+            record["vecnorm_plants"].append(kwargs.get("plant_identity"))
+
+        monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", load_vecnorm)
+        monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load)
+        monkeypatch.setattr(train_base, "_build_core_callbacks", lambda *args, **kwargs: ([], MagicMock(), None))
+        monkeypatch.setattr(train_base, "_maybe_ent_coef_decay_callback", lambda *args, **kwargs: None)
+        monkeypatch.setattr(train_base, "_stage_entry_shaping_callbacks", lambda *args, **kwargs: [])
+        monkeypatch.setattr(train_base, "_save_final_and_sync_tb", save_final)
+
+        def report(*args, **kwargs):
+            # What the stage directory records when the report starts; the report's own panels take time too.
+            record["hpt"].append(read_stage_duration(args[4]))
+            clock[0] += 100.0
+
+        monkeypatch.setattr(train_base, "_report_hpt_metrics", report)
+        stages = load_all_stages("velociraptor")
+        if ppo_seed is not None:
+            stages[1]["ppo_kwargs"]["seed"] = ppo_seed  # what `--override ppo.seed=N` leaves in the config
+        train_base.train(
+            SimpleNamespace(species="velociraptor", env_class=object),
+            stages,
+            1,
+            total_timesteps=10,
+            seed=8675309,
+            output_dir=str(tmp_path / "01_stance"),
+            use_tensorboard=False,
+            verbose=0,
+            **train_kwargs,
+        )
+        return record
+
+    def test_construction_is_seeded_and_the_duration_is_recorded_before_the_report(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        record = self._run(tmp_path, monkeypatch)
+        assert record["alg_kwargs"] == [ANY] and record["alg_kwargs"][0]["seed"] == 8675309
+        assert record["hpt"] == [7.0], "recorded at the final save, before the report starts"
+        assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the report's time is not the stage's"
+        assert record["vecnorm_paths"] == [None]
+
+    def test_a_seed_the_algorithm_block_names_is_kept(self, tmp_path, monkeypatch):
+        """``--override ppo.seed=N`` is recorded in the stage's algorithm block and seeds construction."""
+        record = self._run(tmp_path, monkeypatch, ppo_seed=7)
+        assert record["alg_kwargs"][0]["seed"] == 7
+
+    def test_a_same_stage_resume_accumulates_the_recorded_duration(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        self._run(tmp_path, monkeypatch)
+        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
+        self._run(tmp_path, monkeypatch, load_path=str(final), task_load_mode="resume_same_stage")
+        assert read_stage_duration(tmp_path / "01_stance") == 14.0
+
+    def test_a_session_that_stops_before_its_final_save_keeps_the_earlier_sum(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        self._run(tmp_path, monkeypatch)
+        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
+        resume = {"load_path": str(final), "task_load_mode": "resume_same_stage"}
+        with pytest.raises(KeyboardInterrupt):
+            self._run(tmp_path, monkeypatch, interrupt=True, save_on_interrupt=False, **resume)
+        assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the re-saved config keeps the recorded sum"
+        self._run(tmp_path, monkeypatch, **resume)
+        assert read_stage_duration(tmp_path / "01_stance") == 14.0
+
+    def test_the_notebook_skips_the_report_and_names_its_sidecar(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        record = self._run(tmp_path, monkeypatch, report_metrics=False, vecnorm_path="stats.pkl")
+        assert record["hpt"] == [] and record["finals"] and record["vecnorm_paths"] == ["stats.pkl"]
+        # A named sidecar is still checked against the plant: never loaded with plant validation skipped.
+        assert record["vecnorm_plants"] == [_plant_identity()]
+        assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the notebook's evaluation reads this record"
+
+    def test_an_interrupt_propagates_before_the_final_save_when_asked(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        with pytest.raises(KeyboardInterrupt):
+            self._run(tmp_path / "notebook", monkeypatch, interrupt=True, save_on_interrupt=False)
+        assert self.record["finals"] == [] and self.record["hpt"] == []
+        assert read_stage_duration(tmp_path / "notebook" / "01_stance") is None
+        # The CLI default: the interrupt is logged, then the stage is saved, recorded and reported.
+        record = self._run(tmp_path / "cli", monkeypatch, interrupt=True)
+        assert record["finals"] and record["hpt"] == [7.0]
+        assert read_stage_duration(tmp_path / "cli" / "01_stance") == 7.0
