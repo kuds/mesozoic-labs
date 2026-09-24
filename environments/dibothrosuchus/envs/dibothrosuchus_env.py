@@ -471,7 +471,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["reward_nosedive"] = reward_nosedive
 
         # 10. Trunk height (for LocomotionMetrics tracking) and maintenance reward
-        torso_height = float(torso_pos[2])
+        torso_height = self._clearance(torso_pos)
         info["torso_height"] = torso_height
         info["pelvis_height"] = torso_height  # alias for LocomotionMetrics
         min_z = self.healthy_z_range[0]
@@ -571,9 +571,9 @@ class DibothrosuchusEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info = {}
+        info: dict[str, Any] = {}
 
-        torso_z = self.data.xpos[self.torso_id, 2]
+        torso_z = self._clearance(self.data.xpos[self.torso_id])
         info["torso_height"] = torso_z
 
         torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -599,7 +599,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         # Catches snout-propping that geom contact detection may miss.  Reads
         # the substep MIN so a dip that recovers between control-boundary
         # samples still terminates; the info key keeps the boundary sample.
-        snout_tip_z = self.data.site_xpos[self.snout_tip_site_id, 2]
+        snout_tip_z = self._clearance(self.data.site_xpos[self.snout_tip_site_id])
         info["snout_tip_z"] = snout_tip_z
         if self._aggregated_min_height(0, snout_tip_z) < 0.04:
             info["termination_reason"] = "head_contact"

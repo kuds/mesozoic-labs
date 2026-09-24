@@ -115,7 +115,8 @@ class LocomotionMetrics:
             info: The info dict from env.step(). Expected keys:
                 - ``forward_vel``: scalar forward velocity
                 - ``reward_energy``: energy penalty (negative)
-                - ``pelvis_height``: pelvis z-position
+                - ``pelvis_height``: pelvis height above the ground under it
+                  (world z on the plane)
                 - ``prey_distance``: distance to target (optional)
                 - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
                 - ``rr_foot_contact`` / ``rl_foot_contact``: rear feet for

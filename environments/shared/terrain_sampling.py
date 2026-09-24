@@ -149,7 +149,7 @@ class TerrainSamplingMixin:
         base_terrain, base_flat_probability = self.terrain_config, self.flat_probability
         try:
             # Reuse the species' original plane/heightfield pools, including
-            # T. rex's matching neck-contact probe. Only samples change.
+            # its matching contact-probe pool. Only samples change.
             self.terrain_config = (
                 base_terrain if family == "flat" else replace(base_terrain, template=cast(TerrainTemplate, family))
             )

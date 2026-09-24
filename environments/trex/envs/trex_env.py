@@ -103,6 +103,9 @@ class TRexEnv(BaseDinoEnv):
     _camera_azimuth = 135
     _camera_elevation = -20
     _camera_track_body = "pelvis"
+    # The neck never collides (contype/conaffinity 0); the behavior env ends an
+    # episode when it penetrates the terrain.  Inert in this env.
+    _terrain_contact_probe_geoms = ("neck_geom",)
 
     def __init__(
         self,
@@ -707,11 +710,11 @@ class TRexEnv(BaseDinoEnv):
         # zero one configured tolerance below the target and saturated at the
         # target so lifting the head ever higher cannot farm reward.  The neck
         # target is the authored home keyframe, not a duplicated angle list.
-        head_tip_z = float(head_tip_pos[2])
+        head_tip_z = self._clearance(head_tip_pos)
         head_clearance_quality = self._head_clearance_quality(head_tip_z)
         reward_head_clearance = self.head_clearance_weight * head_clearance_quality
         info["head_tip_z"] = head_tip_z
-        info["head_pelvis_rel_z"] = head_tip_z - float(pelvis_pos[2])
+        info["head_pelvis_rel_z"] = float(head_tip_pos[2]) - float(pelvis_pos[2])
         info["head_clearance_quality"] = head_clearance_quality
         info["reward_head_clearance"] = reward_head_clearance
 
@@ -752,7 +755,7 @@ class TRexEnv(BaseDinoEnv):
         info["reward_nosedive"] = reward_nosedive
 
         # 8b. Pelvis height (for LocomotionMetrics tracking)
-        pelvis_height = float(self.data.xpos[self.pelvis_id, 2])
+        pelvis_height = self._clearance(self.data.xpos[self.pelvis_id])
         info["pelvis_height"] = pelvis_height
 
         # 8c. Height maintenance reward (smooth gradient toward staying upright)
@@ -907,9 +910,9 @@ class TRexEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info = {}
+        info: dict[str, Any] = {}
 
-        pelvis_z = self.data.xpos[self.pelvis_id, 2]
+        pelvis_z = self._clearance(self.data.xpos[self.pelvis_id])
         info["pelvis_height"] = pelvis_z
 
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
@@ -935,14 +938,14 @@ class TRexEnv(BaseDinoEnv):
         # _substep_height_checks declaration) so a dip that recovers between
         # control-boundary samples still terminates; the info key keeps the
         # boundary sample.
-        head_tip_z = self.data.site_xpos[self.head_tip_site_id, 2]
+        head_tip_z = self._clearance(self.data.site_xpos[self.head_tip_site_id])
         info["head_tip_z"] = head_tip_z
         if self._aggregated_min_height(0, head_tip_z) < 0.12:
             info["termination_reason"] = "head_contact"
             return True, info
 
         # Body-height termination: skull origin must stay above threshold
-        skull_z = self.data.xpos[self.skull_body_id, 2]
+        skull_z = self._clearance(self.data.xpos[self.skull_body_id])
         if self._aggregated_min_height(1, skull_z) < 0.45:
             info["termination_reason"] = "skull_low"
             return True, info

@@ -127,13 +127,21 @@ class BaseDinoEnv(gym.Env, ABC):
 
     # Site/body height checks aggregated per substep, declared per species in
     # _cache_ids as ("site" | "body", entity_id) pairs; () means "none".  The
-    # step loop records each entity's MINIMUM z across the substeps so the
+    # step loop records each entity's MINIMUM clearance (z minus
+    # _ground_height_at, which is z on the plane) across the substeps so the
     # species' height terminations (trex head_tip/skull, dibothrosuchus
     # snout_tip) fire on a between-samples dip exactly like the MJX
     # height-emulation checks, which became any-substep with the contact
     # aggregation.  Info keys keep reporting the boundary sample.
     _substep_height_checks: "tuple[tuple[str, int], ...]" = ()
     _substep_min_heights: "np.ndarray | None" = None
+
+    # Non-colliding geoms whose penetration into the terrain ends a behavior
+    # episode (T. rex's neck).  Read only by the behavior env, which checks
+    # them on a separately compiled collision-only copy of the model; the
+    # canonical env never collides them.  Declared here, not on the behavior
+    # mixin, because the mixin precedes the species class in the MRO.
+    _terrain_contact_probe_geoms: "tuple[str, ...]" = ()
 
     # First-order low-pass on the commanded action, in Hz; 0.0 disables it
     # and preserves the exact legacy step arithmetic.  Part of the PLANT
@@ -868,6 +876,20 @@ class BaseDinoEnv(gym.Env, ABC):
     # Consolidated termination helpers
     # ------------------------------------------------------------------
 
+    def _ground_height_at(self, xy: np.ndarray) -> float:
+        """World z of the ground under ``xy``: the authored plane is z = 0.
+
+        Species height rewards, head/snout clearance and height terminations
+        read heights through :meth:`_clearance`, so the behavior env's
+        heightfield overrides only this.  MJX has no terrain and reads world
+        z, which is the same number on the plane.
+        """
+        return 0.0
+
+    def _clearance(self, xyz: np.ndarray) -> float:
+        """Height of a world point above the ground under it (``z - 0.0`` on the plane)."""
+        return float(xyz[2] - self._ground_height_at(xyz[:2]))
+
     def _check_height_tilt_termination(self, body_z: float, tilt_angle: float) -> "tuple[bool, str | None]":
         """Check common height and tilt termination conditions.
 
@@ -906,7 +928,7 @@ class BaseDinoEnv(gym.Env, ABC):
         return tuple(float(value) for value in self._substep_min_foot_forces)
 
     def _aggregated_min_height(self, check_index: int, instantaneous: float) -> float:
-        """MIN z of a ``_substep_height_checks`` entry across the last step.
+        """MIN clearance of a ``_substep_height_checks`` entry across the last step.
 
         Returns ``min(aggregate, instantaneous)`` when a fresh aggregate
         exists so a hand-posed-lower state can still terminate, and the bare
@@ -1163,7 +1185,7 @@ class BaseDinoEnv(gym.Env, ABC):
             if height_checks:
                 heights = np.fromiter(
                     (
-                        self.data.site_xpos[entity_id, 2] if kind == "site" else self.data.xpos[entity_id, 2]
+                        self._clearance(self.data.site_xpos[entity_id] if kind == "site" else self.data.xpos[entity_id])
                         for kind, entity_id in height_checks
                     ),
                     dtype=np.float64,

@@ -73,7 +73,8 @@ code).
 
 The pilots delivered genuinely new content (a direction controller, a tracking
 reward, a heightfield terrain generator, a replay recorder with terrain maps) but
-as a second copy of every canonical concept: two behavior env classes that bypass
+as a second copy of every canonical concept: behavior env classes (two until
+PR-7 deleted `TRexBehaviorEnv`) that bypass
 the reserved `BaseDinoEnv._draw_episode_command` hook and write `self._command`
 directly, a second checkpoint preparer, a second PPO trainer
 (`environments/shared/train_behaviors.py`, one CPU env, its own recipe dialect),
@@ -110,8 +111,8 @@ D-D1..D-D15 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
 on 2026-09-20, D-D15 on 2026-09-24; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
-PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is in
-review on the session branch ([section 4](#4-consolidation-the-remaining-prs)).
+PR-12 slice landed as #552 and PR-14 as #553, #554 and #555, all on 2026-09-24;
+PR-7 is in review on the session branch ([section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
 
@@ -360,7 +361,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24, which completes PR-14 (split into PR-14a, PR-14b and PR-14c by D-D15); PR-7 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24, which completes PR-14 (split into PR-14a, PR-14b and PR-14c by D-D15); PR-7 is in review on the session branch, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
 of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
 test and CI lines, −134 notebook source lines);
@@ -380,7 +381,7 @@ before training; the old widen-seed reorder is dropped (D-D15).
 | PR-4 | Delete `certified_canonical.py`, `certified_comparison.py`, their tests and the notebook library hooks (stamp block, the `copy_canonical_ancestor` branch of the chain loop, publish block, and three of the four library knobs; `SOURCE_SELECTION` goes with PR-5) | L (about −2,400) | #542 landed; D-D4; land before PR-5; landed as #547 on 2026-09-20, `certified_comparison.py` and its test moved to PR-5 |
 | PR-5 | Delete `certified_library.py`, its consumers in the behavior trainer (`--auto-source`, `--publish-certified`, `--certified-library`), `docs/CERTIFIED_MODELS.md`, the `.gitignore` line | M/L (about −1,400; measured about −1,880) | PR-4 (#547); landed as #548 on 2026-09-20 |
 | PR-6 | Delete the T. rex pilots (`configs/trex/behavior_pilots/`), the `[pilot]` recipe dialect and the trex shim script | S (about −275; measured −256 code and configuration lines) | none; D-D9; landed as #549 on 2026-09-20 |
-| PR-7 | One behavior env, part 1: `BaseDinoEnv._ground_height_at` / `_clearance`, species rewards and terminations terrain-relative, delete `TRexBehaviorEnv` | M (about −600) | PR-6; D-D10 |
+| PR-7 | One behavior env, part 1: `BaseDinoEnv._ground_height_at` / `_clearance`, species rewards and terminations terrain-relative, delete `TRexBehaviorEnv` | M (about −600; measured: code +192 / −595, tests +1,016 / −1,039, CI +1 / −2, docs +186 / −25) | PR-6; D-D10; in review on the session branch (canonical plane rollouts bit-identical, `plant_contract --check` current) |
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
@@ -552,16 +553,14 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   carve-out; acceptance = no committed `task_sha256` moves
   (`test_phase_c_interface.py`) and `plant_contract --check` reports no interface
   change, on every species. MJX reward kernels stay world-z after PR-7 (MJX has
-  no terrain and fails closed on live commands); note the divergence in `mjx_env`.
+  no terrain and fails closed on live commands); PR-7 notes the divergence in
+  `mjx_env`'s step-loop comment.
 - CI: PR-3 (#546) dropped the SB3-free suites from the `test-sb3` job (the `test`
   matrix already runs them) and moved the full six-species and
   four-notebook-parameter sets to the nightly schedule and the `full-ci` label,
   keeping one real-PPO smoke per body of work on every PR; the union coverage
   gate `fail_under = 70` read 90 percent on its CI runs and is re-measured again
   after PR-12/PR-13.
-- Test-to-test coupling to untangle in order: trex `test_behavior_training`
-  imports `CommandEnv` from `test_behavior_checkpoint` (the
-  `test_behavior_publication` import left with PR-5).
 - `notebooks/jax_training.ipynb` carries the same Drive-mount block and
   `_ACTIVE_RUN_ID` memo; since consolidation PR-14a the SB3 notebook's `RUN_ID`
   is a configuration-cell knob while the JAX notebook keeps it in its storage
@@ -598,7 +597,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-7 next; the notebook-only PR-12 slice landed
+   [section 4](#4-consolidation-the-remaining-prs) (PR-7 in review, then PR-8; the notebook-only PR-12 slice landed
    as #552 and PR-14 as #553, #554 and #555) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive

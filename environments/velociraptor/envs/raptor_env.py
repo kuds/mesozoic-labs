@@ -450,7 +450,7 @@ class RaptorEnv(BaseDinoEnv):
         info["reward_nosedive"] = reward_nosedive
 
         # 8b. Pelvis height (for LocomotionMetrics tracking)
-        info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
+        info["pelvis_height"] = self._clearance(self.data.xpos[self.pelvis_id])
 
         # 8c. Pelvis angular velocity (for spinning detection in eval metrics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
@@ -538,9 +538,9 @@ class RaptorEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info = {}
+        info: dict[str, Any] = {}
 
-        pelvis_z = self.data.xpos[self.pelvis_id, 2]
+        pelvis_z = self._clearance(self.data.xpos[self.pelvis_id])
         info["pelvis_height"] = pelvis_z
 
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
