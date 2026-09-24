@@ -923,7 +923,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Changed
 - **The SB3 notebook has one disconnect path, in
-  `environments/shared/notebook_runtime.py`** (consolidation PR-14b, decision
+  `environments/shared/notebook_runtime.py`** (#554, consolidation PR-14b, decision
   D-D15). `disconnect_runtime(reason, *, in_colab, auto, flush_drive)` moves out
   of the infrastructure cell, where it read the globals `IN_COLAB`,
   `AUTO_DISCONNECT` and `USE_GOOGLE_DRIVE`; the auto-disconnect cell passes the
@@ -938,7 +938,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   inside the calls, so the module is tested in the shared matrix
   (`test_notebook_runtime.py`, with fake modules). mediapy stays installed for
   `record_stage_video`.
-- **The zero-action cell is its knobs and one call** (PR-14b). Its measure and
+- **The zero-action cell is its knobs and one call** (#554, PR-14b). Its measure and
   verdict loop, table and saves move into
   `environments/shared/scripts/zero_action_baseline.py` as `preflight(...)`
   (`report()` stays the command-line printer). The
@@ -1408,7 +1408,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The SB3 notebook's random-baseline cell and its `_HAS_MEDIAPY` probe**
-  (consolidation PR-14b). The cell rolled five random-action episodes that any
+  (#554, consolidation PR-14b). The cell rolled five random-action episodes that any
   trained policy beats; the zero-action cell after it measures the floor that
   decides whether stage 1 learned anything, and its markdown loses the sentence
   that pointed at the random cell. No later cell read its names (a symtable
