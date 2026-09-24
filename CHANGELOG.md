@@ -922,7 +922,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **The SB3 notebook trains through `train_base.train`** (consolidation PR-14c,
+- **The SB3 notebook trains through `train_base.train`** (#555, consolidation PR-14c,
   decisions D-D7 and D-D11). `train_stage` keeps its signature and 6-tuple and
   becomes its argument refusals, the node banner, one
   `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call

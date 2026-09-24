@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-24)
 
-**Status**: living reference — updated 2026-09-24; `main` = `450913c` (merged 2026-09-24 15:04 UTC).
+**Status**: living reference — updated 2026-09-24; `main` = `24f46c9` (merged 2026-09-24 19:56 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -38,6 +38,7 @@ file in place when the state changes; it is not a dated investigation.
 | #552 | 2026-09-24 | Consolidation PR-12, the notebook-only slice (D-D13): the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, six behavior cells and 15 guard sites gone (2,463 → 2,329 lines), `behavior_notebook.py` and its test deleted, `train_behaviors.py` the pilots' command-line path until PR-11; −996 code, test and CI lines. It carried the curves-cell fix (a completed "Run all" reaches the auto-disconnect again; 2,330 lines) and recorded the Drive cleanup of the three session bundles. Measured on its CI: SB3 job 47:56, JAX job 31:40, coverage 90 percent |
 | #553 | 2026-09-24 | Consolidation PR-14a, the storage path (D-D15): the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` gone (D-D14), the widen seed and trunk rules kept as on-disk refusals in the storage and resolve cells; `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the chain loop, manual and resume cells guarding the same write; notebook 2,330 → 2,271 source lines; code +380 / −20 and tests +894 / −680, most of it the new SB3-free `result_bundle/reentry.py` and its tests. Measured on its CI: SB3 job 41:45, JAX job 51:40, coverage 90 percent |
 | #554 | 2026-09-24 | Consolidation PR-14b (D-D15): `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the notebook into the SB3-free `environments/shared/notebook_runtime.py` with explicit knobs (the chain loop's gate refusal calls `halt`); videos play through IPython's `Video`, embedded, autoplaying and looping as before; the random-baseline cell is deleted; the zero-action cell's body moves into `zero_action_baseline.preflight()` (payload and run copy byte-identical); notebook 2,271 → 2,079 source lines; code +183 / −1, tests +245 / −50. Measured on its CI: SB3 job 47:15, JAX job 53:07, coverage 90 percent |
+| #555 | 2026-09-24 | Consolidation PR-14c (D-D7, D-D11, D-D15): the notebook's `train_stage` becomes a 105-line wrapper over `train_base.train` (was a 384-line copy), which gains `parent_run_id`, `vecnorm_path`, `report_metrics` and `save_on_interrupt`, seeds model construction and records the D-A15 stage duration; `evaluate_stage_checkpoints` moves into `reporting/stage_artifacts.py`; the CLI panels, the task-success re-roll and Ray warm starts keep their seeds; notebook 2,079 → 1,492 source lines, code +356 / −31, tests +402 / −278 (code, tests and notebook net −138). PR-14 is complete. Measured on its CI: SB3 job 47:32, JAX job 35:43, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -53,8 +54,8 @@ curves-cell fix that rode along, CHANGELOG "Fixed"; PR-14a (#553) removed the
 widen cell: 34 cells, 18 code, 2,271 lines; PR-14b (#554) removed the
 random-baseline cell and moved the disconnect and video helpers and the
 zero-action cell's body into the package: 33 cells, 17 code, 2,079 lines, the
-chain loop at index 18; PR-14c, in review, turns `train_stage` into a wrapper
-over `train_base.train` and moves `evaluate_stage_checkpoints` into the
+chain loop at index 18; PR-14c (#555) turned `train_stage` into a wrapper
+over `train_base.train` and moved `evaluate_stage_checkpoints` into the
 package: 33 cells, 17 code, 1,492 lines, the chain loop at index 18).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
@@ -359,7 +360,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554, all on 2026-09-24; PR-14c is in review on the session branch; PR-14 lands as PR-14a, PR-14b and PR-14c (D-D15), and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24, which completes PR-14 (split into PR-14a, PR-14b and PR-14c by D-D15); PR-7 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
 of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
 test and CI lines, −134 notebook source lines);
@@ -389,7 +390,7 @@ before training; the old widen-seed reorder is dropped (D-D15).
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-14a | Notebook storage path: the widen cell and `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` go (D-D14; `widen_checkpoint` stays a command-line tool, its seed and verdict guards become on-disk refusals in the storage and resolve cells), `RUN_ID` becomes a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo, and a session that would judge or train a node into a complete run is refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the zero-action cell's run copy skipped on such a run | L by count (measured: code +380 / −20, tests +894 / −680, notebook 2,330 → 2,271 source lines) | the notebook-only PR-12 slice; D-D14, D-D15; landed as #553 on 2026-09-24 |
 | PR-14b | Notebook: one disconnect path (`halt`, explicit-parameter `disconnect_runtime`) and `display_stage_videos` on IPython Video in `environments/shared/notebook_runtime.py`, the random-baseline cell deleted and the zero-action cell's body folded into its script as `preflight` | M by count (measured: code +183 / −1, tests +245 / −50, notebook 2,271 → 2,079 source lines) | PR-14a; D-D15; landed as #554 on 2026-09-24 |
-| PR-14c | Notebook: `train_stage` becomes a wrapper over `train_base.train` (which gains the seed line, duration recording, `parent_run_id`, an explicit sidecar and the notebook's two switches; four loads of seeded archives pass `seed=None`), `evaluate_stage_checkpoints` beside `generate_stage_artifacts` | L by count (measured: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) | PR-14a, PR-14b; D-D7, D-D11, D-D15; in review on the session branch |
+| PR-14c | Notebook: `train_stage` becomes a wrapper over `train_base.train` (which gains the seed line, duration recording, `parent_run_id`, an explicit sidecar and the notebook's two switches; four loads of seeded archives pass `seed=None`), `evaluate_stage_checkpoints` beside `generate_stage_artifacts` | L by count (measured: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) | PR-14a, PR-14b; D-D7, D-D11, D-D15; landed as #555 on 2026-09-24 |
 | PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14c |
 
 ---
@@ -597,8 +598,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-14c in review; the notebook-only PR-12 slice
-   landed as #552, PR-14a as #553 and PR-14b as #554) on the session branch, one PR at a time,
+   [section 4](#4-consolidation-the-remaining-prs) (PR-7 next; the notebook-only PR-12 slice landed
+   as #552 and PR-14 as #553, #554 and #555) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
