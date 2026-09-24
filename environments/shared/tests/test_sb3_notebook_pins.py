@@ -49,6 +49,9 @@ COMPLETION_CELL_MARKER = 'print("Training complete!")'
 #: before anything is trained (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
 PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / RL": SB3 archives are bound to the interpreter that saved them)'
 
+#: The knobs every ``halt`` / ``disconnect_runtime`` call passes by name, read when it runs (consolidation PR-14b).
+DISCONNECT_KNOBS = (("in_colab", "IN_COLAB"), ("auto", "AUTO_DISCONNECT"), ("flush_drive", "USE_GOOGLE_DRIVE"))
+
 #: Every species with a committed stage manifest (the notebook's SPECIES menu).
 SPECIES_WITH_MANIFESTS = sorted(path.parent.name for path in (REPO_ROOT / "configs").glob("*/stages.toml"))
 
@@ -1055,8 +1058,8 @@ class TestAutoTrunk:
                 ("trunk_dir", "TRUNK_DIR"),
             ):
                 assert _keyword_source(src, call, keyword) == value, keyword
-        # A plain refusal: no disconnect (the helper is defined later), and the loop has not run yet.
-        assert not _calls(tree, "disconnect_runtime")
+        # A plain refusal: no disconnect (imported later, by the infrastructure cell), and the loop has not run yet.
+        assert not _calls(tree, "disconnect_runtime") and not _calls(tree, "halt")
         assert resolve_at < _cell_index(cells, CHAIN_CELL_MARKER)
 
     def test_the_resolve_cell_refuses_a_complete_run_before_anything_is_written(self, tmp_path):
@@ -1823,19 +1826,22 @@ class TestPublication:
             "chain_results() is NODE_RESULTS in manifest order"
         )
 
-    def test_gate_failure_writes_the_bundle_then_disconnects_then_raises(self):
+    def test_gate_failure_writes_the_bundle_then_halts(self):
         src, loop = _chain_loop()
         gate_if = _the_if(
             loop, src, lambda test: test == 'not results["publication_gate_passed"]', "enforcing the verdict"
         )
         assert gate_if in loop.body, "the gate check is a top-level statement of the loop body"
         kinds = [type(stmt) for stmt in gate_if.body]
-        assert kinds == [ast.Assign, ast.Expr, ast.Raise], "message, disconnect, raise — in that order"
+        assert kinds == [ast.Assign, ast.Expr], "the message, then halt (release the runtime, then raise)"
         assert ast.unparse(gate_if.body[0].targets[0]) == "_gate_msg"
         assert '"; ".join(results["gate_failures"])' in ast.get_source_segment(src, gate_if.body[0])
-        assert isinstance(gate_if.body[1].value, ast.Call) and _func_name(gate_if.body[1].value) == "disconnect_runtime"
-        assert ast.unparse(gate_if.body[1].value.args[0]) == "_gate_msg"
-        assert ast.unparse(gate_if.body[2]) == "raise RuntimeError(_gate_msg)"
+        halt = gate_if.body[1].value
+        assert isinstance(halt, ast.Call) and _func_name(halt) == "halt"
+        assert [ast.unparse(arg) for arg in halt.args] == ["_gate_msg"]
+        # The knobs are read when the gate refuses (consolidation PR-14b), never bound earlier.
+        for keyword, value in DISCONNECT_KNOBS:
+            assert _keyword_source(src, halt, keyword) == value, keyword
         # Publication before enforcement: summary and bundle are written before the check.
         assert _call(loop, "write_training_summary").lineno < _call(loop, "save_run_bundle").lineno < gate_if.lineno
         assert _call(loop, "generate_stage_artifacts").lineno < _call(loop, "write_training_summary").lineno
@@ -1844,10 +1850,9 @@ class TestPublication:
         reuse_nodes = list(ast.walk(_reuse_if(src, loop)))
         trained_handoffs = [assign for assign in _handoff_assigns(loop) if assign not in reuse_nodes]
         assert len(trained_handoffs) == 1 and trained_handoffs[0].lineno > gate_if.end_lineno
-        assert len(_calls(gate_if, "disconnect_runtime")) == 1
         # The gate refusal is the loop's only runtime release: the certified-library
         # publish block and its own disconnect left with consolidation PR-4.
-        assert len(_calls(loop, "disconnect_runtime")) == 1
+        assert len(_calls(loop, "halt")) == 1 and not _calls(loop, "disconnect_runtime")
         assert "PUBLISH_CERTIFIED" not in src and "publish_canonical_stage" not in src
         assert "CERTIFIED_LIBRARY" not in src and "certified_publications" not in src
         # The results dict recorded is the gated one (generate_stage_artifacts returns the verdict).
@@ -1861,6 +1866,38 @@ class TestPublication:
         )
         assert results_assign.lineno < gate_if.lineno
         assert "NODE_RESULTS[NODE.id] = results" in _branch_source(src, loop.body)
+
+    def test_one_disconnect_path(self):
+        """The helpers live in ``environments.shared.notebook_runtime`` (consolidation PR-14b): the infrastructure
+        cell's one import binds them, no cell rebinds one, and every call passes what the signatures take."""
+        helpers = {"disconnect_runtime", "halt", "display_stage_videos"}
+        cells = _code_cells()
+        infra = _cell_index(cells, INFRA_CELL_MARKER)
+        for index, src in enumerate(cells):
+            tree = ast.parse(src)
+            if index == infra:
+                imports = [
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.ImportFrom) and node.module == "environments.shared.notebook_runtime"
+                ]
+                assert len(imports) == 1 and {alias.name for alias in imports[0].names} == helpers
+                tree.body.remove(imports[0])
+            assert not _bound_names(tree) & helpers, f"cell {index} rebinds a helper"
+            assert "unassign(" not in src and "import mediapy" not in src, f"cell {index}"
+            for call in _calls(tree, "display_stage_videos"):
+                assert len(call.args) == 1 and not call.keywords, f"cell {index}: display_stage_videos(stage_dir)"
+            for call in _calls(tree, "halt") + _calls(tree, "disconnect_runtime"):
+                assert len(call.args) == 1, f"cell {index}: the reason is the one positional argument"
+                for keyword, value in DISCONNECT_KNOBS:
+                    assert _keyword_source(src, call, keyword) == value, f"cell {index}: {keyword}"
+
+    def test_no_random_baseline_cell(self):
+        """The random-action baseline cell and the markdown sentence pointing at it left with consolidation PR-14b:
+        the zero-action cell measures the floor that decides whether stage 1 learned anything."""
+        for index, src in enumerate(_code_cells()):
+            assert not _calls(ast.parse(src), "sample"), f"cell {index} rolls random actions"
+        assert not [src for src in _all_cell_sources() if "**random** policy" in src]
 
 
 class TestSeedReplication:
@@ -1931,7 +1968,9 @@ class TestEscapeHatch:
         assert not [node for node in ast.walk(tree) if isinstance(node, ast.Raise)], (
             "the manual cell never raises on a verdict (its one refusal, a complete run, is a helper call before any write)"
         )
-        assert not _calls(tree, "disconnect_runtime"), "the manual cell never releases the runtime"
+        assert not _calls(tree, "disconnect_runtime") and not _calls(tree, "halt"), (
+            "the manual cell never releases the runtime"
+        )
         assert _calls(tree, "generate_stage_artifacts"), "the verdict is still judged and written"
         assert "NODE_RESULTS[_manual_entry.id]" in src or re.search(r"NODE_RESULTS\[[^\]]+\] =", src)
         assert "completed_stages.append(" in src
@@ -2135,6 +2174,7 @@ class TestArchiveLoadPreflightCell:
             "save_stage_config",
             "write_gate_verdict",
             "disconnect_runtime",
+            "halt",
             "open",
         ):
             assert not _calls(tree, name), f"the preflight cell calls {name}"
@@ -2239,7 +2279,7 @@ class TestDeliverableAwareCells:
         assert len(replay) == 1, "exactly one cell besides the loop replays the chain's videos"
         loop = _top_level_for(replay[0], "entry", "CHAIN")
         videos = _call(loop, "display_stage_videos")
-        assert [ast.unparse(arg) for arg in videos.args] == ["entry.reference", "handoff['stage_dir']"], (
+        assert [ast.unparse(arg) for arg in videos.args] == ["handoff['stage_dir']"], (
             "a reused ancestor plays from its OWN run's stage directory"
         )
         assert "NODE_HANDOFF.get(entry.id)" in replay[0]
@@ -2264,10 +2304,12 @@ class TestDeliverableAwareCells:
         assert "require_publishable=True" in completion
         _top_level_for(completion, "entry", "CHAIN")
         assert "NODE_HANDOFF.get(entry.id)" in completion
-        # The disconnect names the behavior.
+        # The disconnect names the behavior and reads the knobs when it runs (consolidation PR-14b).
         cells_after = cells[_cell_index(cells, COMPLETION_CELL_MARKER) + 1 :]
         assert cells_after and "BEHAVIOR" in _names(ast.parse(cells_after[-1]))
-        assert _calls(ast.parse(cells_after[-1]), "disconnect_runtime")
+        disconnect = _call(ast.parse(cells_after[-1]), "disconnect_runtime")
+        for keyword, value in DISCONNECT_KNOBS:
+            assert _keyword_source(cells_after[-1], disconnect, keyword) == value, keyword
 
     def test_the_curves_cell_writes_nothing_into_the_sealed_bundle(self, tmp_path):
         """The chain loop seals the bundle with each node's declared ``figures/`` set; the curves

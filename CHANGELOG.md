@@ -922,8 +922,40 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **`RUN_ID` is a configuration-cell knob of the SB3 notebook** (consolidation
-  PR-14a, decision D-D15). `RUN_ID = ""` keeps the run this runtime's storage
+- **The SB3 notebook has one disconnect path, in
+  `environments/shared/notebook_runtime.py`** (consolidation PR-14b, decision
+  D-D15). `disconnect_runtime(reason, *, in_colab, auto, flush_drive)` moves out
+  of the infrastructure cell, where it read the globals `IN_COLAB`,
+  `AUTO_DISCONNECT` and `USE_GOOGLE_DRIVE`; the auto-disconnect cell passes the
+  three knobs when it runs. The chain loop's gate refusal, the one
+  disconnect-then-raise site left, calls the new `halt` with the same knobs,
+  which releases the runtime and then raises the same `RuntimeError`.
+  `display_stage_videos(stage_dir)` moves beside them and plays each replay
+  mp4 through IPython's `Video(..., embed=True)` instead of decoding and
+  re-encoding it with mediapy (still muted, autoplaying and looping, as
+  mediapy's player was); it loses the `stage` parameter that only the
+  mediapy-missing message read. `google.colab` and `IPython` are imported only
+  inside the calls, so the module is tested in the shared matrix
+  (`test_notebook_runtime.py`, with fake modules). mediapy stays installed for
+  `record_stage_video`.
+- **The zero-action cell is its knobs and one call** (PR-14b). Its measure and
+  verdict loop, table and saves move into
+  `environments/shared/scripts/zero_action_baseline.py` as `preflight(...)`
+  (`report()` stays the command-line printer). The
+  `mesozoic.zero-action-baseline/v1` payload, the table, the file paths, the
+  run copy that `curriculum.baseline_watch` reads and PR-14a's skip of that
+  copy on a complete bundle are byte-identical (compared under a frozen clock
+  for all five verdicts, one and five species, and each bundle state).
+  `test_zero_action_baseline.py` still executes the cell by its marker, now
+  patches `preflight`'s module and also calls `preflight` on two species under
+  a frozen clock (the table, each file and the run copy). With the Removed
+  entry below, the notebook goes
+  from 34 cells (18 code), 2,271 source lines to 33 cells (17 code), 2,079.
+  Measured with `git diff --numstat` against `3571b24` (new files counted
+  whole): code +183 / −1, tests +245 / −50, notebook JSON +27 / −229, docs
+  +131 / −37.
+- **`RUN_ID` is a configuration-cell knob of the SB3 notebook** (#553,
+  consolidation PR-14a, decision D-D15). `RUN_ID = ""` keeps the run this runtime's storage
   cell resolved last (a fresh timestamped run on the first pass), a new id
   starts a fresh run, and an existing run's id re-enters it in place (a run
   id, never a path: a path, `.`, `..` or surrounding whitespace refuses). The
@@ -942,7 +974,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   second minted the same id and the test could not tell), and pins that an
   explicit id beats the memo and that a refused id never reaches it.
 - **A root widened on the command line keeps the widen cell's guards on
-  disk** (PR-14a; decisions D-C13, D-C14, D-D14). The storage cell refuses a
+  disk** (#553, PR-14a; decisions D-C13, D-C14, D-D14). The storage cell refuses a
   `SEED` other than the recorded `run.seed` of a stage directory whose run
   block names `widened_from_run_id` (and a `provenance.json` minted under
   another seed before the widen, which no `SEED` can fix: the refusal says to
@@ -1375,8 +1407,14 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The SB3 notebook's random-baseline cell and its `_HAS_MEDIAPY` probe**
+  (consolidation PR-14b). The cell rolled five random-action episodes that any
+  trained policy beats; the zero-action cell after it measures the floor that
+  decides whether stage 1 learned anything, and its markdown loses the sentence
+  that pointed at the random cell. No later cell read its names (a symtable
+  scan). The mediapy probe left with the video display it guarded (Changed).
 - **The SB3 notebook's widen cell and its `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
-  knobs** (consolidation PR-14a, decisions D-D14 and D-D15). Both pending
+  knobs** (#553, consolidation PR-14a, decisions D-D14 and D-D15). Both pending
   parents were widened and re-paneled (`20260920_010912`, `20260921_203149`),
   so widening is a command-line step: `python -m
   environments.shared.scripts.widen_checkpoint ... --to-stage-dir
@@ -1524,8 +1562,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
-- **A complete run can no longer take a new node in place** (consolidation
-  PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
+- **A complete run can no longer take a new node in place** (#553,
+  consolidation PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
   node trained into a run whose `artifact_manifest.json` records `complete`
   (the in-place recipe, `RUN_ID` set to the run) wrote its stage directory and
   verdict, then the chain loop's `save_run_bundle` raised `completed result

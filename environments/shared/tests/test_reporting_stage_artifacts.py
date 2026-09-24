@@ -873,7 +873,7 @@ class TestApplyStageGate:
 class TestStageSummaryRecordsTheVerdict:
     """The reasons must outlive the Colab cell that raised them.
 
-    On gate failure the notebook calls `disconnect_runtime` and then raises,
+    On gate failure the notebook calls `halt`, which releases the runtime and raises,
     so the failure text is the first thing lost. `collected_results.csv`
     carries the boolean but not the criteria, and before this the stage
     summary carried neither.

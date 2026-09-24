@@ -26,7 +26,9 @@ Usage::
 """
 
 import argparse
+import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -35,8 +37,11 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.config import SPECIES_NAMES, build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.plant_contract import current_plant_identity
+from environments.shared.result_bundle import read_bundle_status
+from environments.shared.species_names import resolve_species_id, species_display_name
 
 #: Legacy stage numbers this script accepts; files resolve via the manifest.
 KNOWN_STAGES = frozenset({1, 2, 3})
@@ -149,6 +154,124 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         print("  and 'reward standing' is what it must beat to have learned more than 'do not fall'")
     finally:
         env.close()
+
+
+def preflight(species_names, *, stage: int, episodes: int, seed: int, species: str, log_base, run_dir) -> None:
+    """The notebook's pre-flight: judge each species' stage gate against its zero-action floor and print the table.
+
+    Saves one record per species under ``<log_base>/<species>/zero_action_baselines/`` and the table beside the
+    record of *species* (the species the notebook trains), whose record is also copied into *run_dir* (what
+    ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.
+    """
+    results = {}
+    for species_input in species_names:
+        name = resolve_species_id(species_input)
+        env = build_env(name, stage)
+        try:
+            result = score(env, episodes, seed)
+        finally:
+            env.close()
+
+        stage_cfg = load_stage_config(name, stage)
+        gate = stage_cfg["curriculum_kwargs"].get("min_avg_reward")
+
+        # A gate only means something if it sits above the floor a statue reaches.
+        if gate is None:
+            verdict = "NO GATE"
+        elif gate <= result["reward_mean"]:
+            verdict = "FAILS — a statue clears this gate"
+        elif result["n_standing"] == 0:
+            # The statue never reaches the horizon, so there is no standing floor to
+            # compare against.  That is its own problem: a plant that falls over under
+            # its own home controller is not ready for a balance stage.
+            verdict = "CHECK PLANT — the statue never survives a full episode"
+        elif gate <= result["reward_mean_standing"]:
+            verdict = "WEAK — binds only against a falling statue"
+        else:
+            verdict = "OK"
+
+        result.update(
+            {
+                "species": name,
+                "display_name": species_display_name(name),
+                "stage": stage,
+                "min_avg_reward": gate,
+                "verdict": verdict,
+                "margin_over_mean": gate_margin(gate, result["reward_mean"]),
+                "margin_over_standing": gate_margin(gate, result["reward_mean_standing"]),
+                "env_kwargs": stage_cfg["env_kwargs"],
+                "plant_identity": current_plant_identity(name).to_dict(),
+            }
+        )
+        results[name] = result
+
+    # ---- table ----------------------------------------------------------------
+    header = f"{'species':<30}{'reward':>10}{'mean-std':>10}{'standing':>10}{'full-hz':>9}{'gate':>9}  verdict"
+    lines = [
+        f"zero-action baseline — stage {stage}, {episodes} episodes, seed {seed}",
+        "",
+        header,
+        "-" * len(header),
+    ]
+    for name, r in results.items():
+        gate_text = "—" if r["min_avg_reward"] is None else f"{r['min_avg_reward']:.0f}"
+        standing_text = "—" if r["n_standing"] == 0 else f"{r['reward_mean_standing']:.1f}"
+        lines.append(
+            f"{species_display_name(name):<30}{r['reward_mean']:>10.1f}{r['reward_mean_minus_std']:>10.1f}"
+            f"{standing_text:>10}{r['full_horizon_share']:>8.0%}"
+            f"{gate_text:>9}  {r['verdict']}"
+        )
+    lines += [
+        "",
+        "A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have",
+        "learned to balance at all, and 'standing' to have learned more than 'do not fall'.",
+    ]
+    report_text = "\n".join(lines)
+    print(report_text)
+
+    # ---- save to the log directory --------------------------------------------
+    if log_base is None:
+        print("\nLOG_BASE not defined — run the storage-configuration cell to save results.")
+        return
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    captured_at = datetime.now().isoformat()
+
+    def payload_for(names):
+        return {
+            "schema": "mesozoic.zero-action-baseline/v1",
+            "captured_at": captured_at,
+            "stage": stage,
+            "episodes": episodes,
+            "seed": seed,
+            "results": {name: results[name] for name in names},
+        }
+
+    for name in results:
+        species_dir = Path(log_base) / name / "zero_action_baselines"
+        species_dir.mkdir(parents=True, exist_ok=True)
+        (species_dir / f"{stamp}.json").write_text(
+            json.dumps(payload_for([name]), indent=2, sort_keys=True, allow_nan=False)
+        )
+        print(f"\nSaved: {species_dir / (stamp + '.json')}")
+
+    # The human-readable table covers every species measured, so it belongs with
+    # the one this notebook is training.
+    table_dir = Path(log_base) / species / "zero_action_baselines"
+    table_dir.mkdir(parents=True, exist_ok=True)
+    (table_dir / f"{stamp}.txt").write_text(report_text + "\n")
+
+    # Drop a copy in the run directory too, so this run carries the calibration
+    # its own gate was judged against — except in a run whose bundle is complete:
+    # that bundle is immutable and keeps the copy it was sealed with (a rewrite,
+    # with its new captured_at, would stop the bundle verifying).
+    if run_dir is not None and species in results:
+        if read_bundle_status(run_dir) == "complete":
+            print(f"Not copied to run: {run_dir} holds a complete bundle, which keeps the copy it was sealed with")
+        else:
+            (Path(run_dir) / "zero_action_baseline.json").write_text(
+                json.dumps(payload_for([species]), indent=2, sort_keys=True, allow_nan=False)
+            )
+            print(f"Copied to run: {Path(run_dir) / 'zero_action_baseline.json'}")
 
 
 def main(argv: list[str]) -> None:
