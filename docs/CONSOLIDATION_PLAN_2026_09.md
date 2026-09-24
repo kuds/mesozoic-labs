@@ -31,9 +31,10 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-4 (delete the canonical library wrapper and the notebook hooks) | **Landed** as #547 on 2026-09-20 (PR-3 landed as #546): `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (about 90 cell lines; 41 cells, chain loop at index 23) and never publishes; `certified_comparison.py` moves to PR-5 (its only importer is PR-5 code); pins re-pointed, two ported; `train_behaviors --auto-source` without `--resume` refuses with an explicit message. |
 | PR-5 (delete the certified library and the trainer's library path) | **Landed** as #548 on 2026-09-20 (PR-4 landed as #547): `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted (1,602 whole-file lines); `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; `certify_and_publish_behavior` and the behavior certificate writer gone (no run writes `certification/certificate.json` until PR-13); the notebook loses `SOURCE_SELECTION` and its prose (2,463 lines); about 1,880 net code and configuration lines removed. |
 | PR-6 (delete the T. rex pilots, the `[pilot]` dialect and the shim) | **Landed** as #549 on 2026-09-20 (PR-5 landed as #548): `configs/trex/behavior_pilots/` (8 TOMLs, 239 lines), pyproject.toml's package-data line and `environments/trex/scripts/train_behaviors.py` deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one instead of defaulting to trex; `behavior_notebook` loses the six pilot aliases and the dead `mesozoic.behavior-pilot-run/v1` reader; the trex suite reads `configs/trex/behaviors/`; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter with `TRexBehaviorEnv`; measured −256 code and configuration lines. |
-| Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice is next. |
-| Collapse-backstop fix (2026-09-23, outside this sequence) | `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
+| PR-12, notebook-only slice (D-D13) | **In review** on the session branch (2026-09-23): the notebook loses `COMMAND_TERRAIN_BEHAVIOR`, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells (7/19/20/33/34/39 in the 22c1fc8 numbering, 7/20/21/34/35/40 at 2e77150) and the 15 guard sites (the plan's 14 plus the guarded archive-load preflight; the guarded code dedented, two lint fixes aside): 41 cells, 23 code, 2,463 lines → 35 cells, 19 code, 2,329 lines; `behavior_notebook.py` (294 lines) and `test_behavior_notebook.py` (815) deleted, their canonical halves ported to `test_sb3_notebook_pins.py` (the configuration defaults and free-form stage ids, the dropdown's JSON annotations, the setup cell's `REPO_REF` safety) with `_canonical_source` removed; CI drops the deleted test from the SB3 list and the wheel step names the eleven recipe files itself. `train_behaviors.py` stays the pilots' command-line path until the rest of PR-12. Measured: −996 code, test and CI lines, −134 notebook source lines. The same PR carries one bug fix found while mapping PR-14: the training-curves cell no longer writes PNGs into the sealed bundle, which had stopped every completed "Run all" at the cleanup cell before the auto-disconnect (CHANGELOG "Fixed"; +1 notebook line, one executed pin). |
+| Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed), of which the notebook-only PR-12 slice removes about 1,130 (measured). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice is in review, PR-14 next. |
+| Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) between rows 7 and 8, right before the widen row (it reads `TRUNK_DIR`, which the storage row binds); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
 
 Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7)
@@ -587,7 +588,7 @@ tests; one real-PPO smoke `train --stage follow_direction` for
 compsognathus_robot and trex through the SB3 job. Prerequisites: PR-9, PR-10;
 D-D1, D-D5, G1, G2.
 
-### PR-12. Delete the parallel trainer, router, checkpoint module, 66 TOMLs, notebook mode and their tests (XL by count, almost all deletion; about -5,300)
+### PR-12. Delete the parallel trainer, router, checkpoint module, 66 TOMLs, notebook mode and their tests (XL by count, almost all deletion; about -5,300) — notebook-only slice in review 2026-09-23 (D-D13)
 Goal: delete environments/shared/train_behaviors.py (601), behavior_notebook.py
 (351), behavior_checkpoint.py (457), configs/*/behaviors/ (66 files, 3,030
 lines), pyproject.toml:113 glob; tests test_behavior_checkpoint.py (420),
@@ -617,6 +618,47 @@ output (leave it). The canonical chain, both r11 parents, the r13 run,
 WIDEN_FROM/TRUNK_FROM/RETRAIN_FROM and the resume cell are untouched.
 Validation: full shared and species suites, notebook parse and pins, the SB3 job
 with the new smoke, wheel step. Prerequisites: PR-11.
+
+As executed, the notebook-only slice (2026-09-23, the session branch; D-D13 pulls
+it ahead of PR-11): the notebook items of the Goal went, at the current cell
+numbering. Cells 7, 20, 21, 34, 35 and 40 (the plan's 7, 19, 20, 33, 34, 39) are
+deleted. The guard sites number 15, not 14: 13 whole cells (the plan's twelve
+plus the archive-load preflight the 2026-09-19 loader change added under the
+same guard) are dedented, AST-identical to their guarded bodies except for two
+lint fixes the dedent exposed to `ruff check .` (a second blank line after the
+preflight's imports; the widen cell's standalone re-import of `stage_dirname`
+marked `# noqa: F811`, as the chain loop's re-import is), and
+the two partials (the infrastructure cell's ready print, the chain loop's chain
+print and stale-chain reset) keep one print each. Cell 6 loses the ten
+`BEHAVIOR_*` knobs, `COMMAND_TERRAIN_BEHAVIOR`, the `ModuleNotFoundError` shim
+and the N_ENVS/SEED caveat comments (restored to their pre-#540 wording); the
+`BEHAVIOR` dropdown becomes `stand | walk | hunt` with free input for stage ids
+(`follow` and `terrain` arrive with PR-11 and the rest of PR-12); the markdown
+loses the direction/terrain paragraph and settings subsection; cell 3's stale
+`# For PR 540` comment goes. Result: 35 cells, 19 code, 2,329 lines (from 41,
+23, 2,463), round-tripping through `json.dump(indent=1)`. `behavior_notebook.py`
+(294 lines) and `test_behavior_notebook.py` (815) are deleted; four canonical
+tests move to `test_sb3_notebook_pins.py` (configuration defaults and a free-form
+stage id, the dropdown's JSON annotations with no pilot value left, no
+direction/terrain token in any cell, the setup cell's `REPO_REF` safety), whose
+`_canonical_source` helper and three guard leftovers go; the plan's "46 pin
+lines" had already shrunk to those with PR-4/PR-5. CI: the SB3 integration list
+drops the deleted test, and the wheel step names the eleven recipe files itself
+instead of importing them from the deleted module, so it still proves that all
+66 recipes ship and parse. Kept for the rest of PR-12: `train_behaviors.py`,
+`behavior_checkpoint.py`, the 66 TOMLs, pyproject.toml's `*/behaviors/*.toml`
+glob, the CLI suites and the all-species direction/terrain CI step. The operator
+guide lost its notebook walkthrough and reads command line only. Measured: −996
+code, test and CI lines, −134 notebook source lines.
+
+Carried by the same PR (2026-09-23, found while mapping PR-14): the
+training-curves cell passed `save_path` / `save_dir`, so after the chain loop
+sealed the bundle it wrote three PNGs into every trained stage directory that
+the manifest does not declare (the declared copies live under `figures/`), and
+the cleanup cell's `validate_result_bundle` raised before the auto-disconnect
+on every completed "Run all" (sessions 1–3). The cell now only displays, and a
+pin executes it over a stage directory and asserts it writes nothing. PR-14's
+one-disconnect-path item inherits no curves-cell work.
 
 ### PR-13. The gate kind, its evidence writer, and the end of the second gate system (L, about -400 net)
 Goal: register `terrain_command/v1` (D-D6) in `GATE_KINDS` and
@@ -697,7 +739,7 @@ r11 parents and 20260914_123816 unaffected; every live knob keeps its name.
 Validation: notebook parse and pins,
 `test_compsognathus_training.py::test_actual_notebook_training_stance_and_recovery_reports`
 (all four params once), shared suite. Prerequisites: PR-4 (stamp block gone),
-PR-12 (guards gone); D-D7 (taken: wrapper now); D-D11 (confirmed 2026-09-20).
+the notebook-only PR-12 slice (guards gone, D-D13); D-D7 (taken: wrapper now); D-D11 (confirmed 2026-09-20).
 Under D-D14 the widen cell and its two knobs leave the notebook in this PR:
 sessions 1 and 2 of NEXT_STEPS.md were both decided (PASS) by 2026-09-21.
 
@@ -709,9 +751,9 @@ the landed node description and fix the Leaf row (still "today behavior
 canonical layout stays as is (no `certified_inputs/` after PR-4); CHANGELOG `###
 Changed` / `### Removed` filled from PR-4..PR-14; one
 `environments/shared/tests/notebook_cells.py` (`code_cells()`, `cell(marker)`)
-replacing the four extractor copies (test_sb3_notebook_pins.py:75-97,
-test_behavior_notebook.py:30-38 if still present,
-test_compsognathus_training.py:386-392); layout literals that survive become
+replacing the extractor copies (test_sb3_notebook_pins.py:75-97,
+test_compsognathus_training.py:386-392; test_behavior_notebook.py's left with
+the notebook-only PR-12 slice); layout literals that survive become
 named constants next to `result_bundle.constants.ANCESTORS_DIRNAME`; the exact
 PPO update tuple and `mesozoic_behavior_stage_start` pins are replaced by the
 invariants they encode. Keep the D-C17 `DEFAULT_MAX_REVISION_GAP == 1` pin (test_widen_checkpoint.py; the
@@ -737,7 +779,9 @@ package). From 22c1fc8, with PR-1 landed and #543's ~1,200 lines added, about
 Before: 40 cells, 2,500 lines (2,294 code, 206 markdown; 22 code cells; 12 whole
 cells and 2 partial cells behind `COMMAND_TERRAIN_BEHAVIOR`). After PR-12 and
 PR-14 (the taken form under D-D7: chain loop and widen/resume logic still in
-cells as the plan §4.7 pins them): 33 cells, about 1,400 lines. Under the full
+cells as the plan §4.7 pins them): 33 cells, about 1,400 lines. The
+notebook-only PR-12 slice is the intermediate state: 35 cells (19 code), 2,329
+lines (2,330 with the curves-cell fix it carries), no switch. Under the full
 package move that D-D7 defers until after PR-14, the same notebook is about 700
 lines in 19 sections.
 
@@ -763,7 +807,9 @@ lines in 19 sections.
 | 18 | Cleanup | code | 1+31 | 35, 36 | guard removed |
 | 19 | Auto-disconnect | md+code | 3+2 | 37, 38 | one cell |
 
-Deleted outright: cells 7, 12, 19, 20, 33, 34, 39 and all 14 guard sites. Every
+Deleted outright: cells 7, 12, 19, 20, 33, 34, 39 and all 14 guard sites (the
+notebook-only PR-12 slice took all but cell 12, the random baseline that PR-14
+still deletes, and found 15 guard sites with the preflight). Every
 knob the maintainer uses keeps its name and meaning; `BEHAVIOR` gains `follow`
 and `terrain`.
 

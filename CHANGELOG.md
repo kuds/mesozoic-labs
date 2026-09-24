@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
-- **Training session 4 recorded; living docs corrected** (2026-09-23;
+- **Training session 4 recorded; living docs corrected** (#551, 2026-09-23;
   `docs/NEXT_STEPS.md` §2–§4, `docs/KNOWN_ISSUES.md`). Dibothrosuchus seed
   42, run `20260923_020654`: the collapse backstop stopped both nodes at
   1,450,000 steps (see Fixed); the stance PASSED `reward_and_length/v1` on
@@ -904,17 +904,20 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   knob lists gain `WIDEN_FROM` and `WIDEN_MAX_REVISION_GAP`.
 
 ### Migration
-- **Two new Drive directories from #540/#541.** Pilot output goes to
+- **Two new Drive directories from #540/#541.** Notebook pilot output went to
   `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (`bundle.json`,
   `run.json`, `certification/certificate.json`; never a `gate_verdict.json`)
   and the certified library to `mesozoic-labs/certified` beside `logs`.
   Nothing canonical reads either (canonical chains stopped consulting the
-  library in #543); leave them in place.
+  library in #543; since the notebook-only PR-12 slice a pilot is a
+  command-line run writing to its `--output` directory); leave them in place.
 - **Pilot bundles are evaluation-only** (decision D-D9): no #540/#541
-  behavior bundle is carried forward as a training parent. A pilot run
-  needs explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths: the
-  configuration cell refuses a blank pair in every mode (`PUBLISH_CERTIFIED`
-  left with PR-4, `SOURCE_SELECTION` and the certified library with PR-5).
+  behavior bundle is carried forward as a training parent. A pilot run is a
+  command-line run (`python -m environments.shared.train_behaviors`; the
+  notebook's direction/terrain mode left with the notebook-only PR-12 slice)
+  and takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode
+  (`PUBLISH_CERTIFIED` left with PR-4, `SOURCE_SELECTION` and the certified
+  library with PR-5).
 - **`imageio-ffmpeg` joined the `viz` extra** (the replay recorder's video
   encoder); reinstall the extra to pick it up.
 
@@ -1337,6 +1340,31 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The SB3 notebook's direction/terrain mode and `behavior_notebook.py`**
+  (consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
+  `notebooks/sb3_training.ipynb` loses `COMMAND_TERRAIN_BEHAVIOR`, the ten
+  `BEHAVIOR_*` knobs (`BEHAVIOR_LOAD_MODE`, `BEHAVIOR_CHECKPOINT`,
+  `BEHAVIOR_VECNORMALIZE`, `BEHAVIOR_SEED`, `BEHAVIOR_STEPS`,
+  `BEHAVIOR_EVAL_ONLY`, `BEHAVIOR_EVAL_EPISODES`, `BEHAVIOR_RECORD_VIDEO`,
+  `BEHAVIOR_VIDEO_FPS`, `BEHAVIOR_RUN_ID`), the eleven direction/terrain values
+  of the `BEHAVIOR` dropdown (now `stand`, `walk`, `hunt`, stage ids by free
+  input), its six behavior cells (storage and run plan, run, saved-evidence
+  display, the behavior disconnect) and the 15 guard sites; the guarded
+  canonical cells are dedented unchanged but for two lint fixes the dedent
+  exposed to `ruff check .` (41 cells, 23 code, 2,463 lines → 35
+  cells, 19 code, 2,329 lines). `environments/shared/behavior_notebook.py` (294
+  lines) and `test_behavior_notebook.py` (815) are deleted; the configuration
+  defaults, free-form stage ids, the dropdown annotations and the setup cell's
+  `REPO_REF` safety keep their tests in `test_sb3_notebook_pins.py`, whose
+  guard-stripping helper goes. The CI wheel step names the eleven recipe files
+  itself and still checks that all 66 ship and parse. The pilots have no
+  notebook path until PR-11 adds the follow and terrain manifest nodes; until
+  then they run from the command line (`python -m
+  environments.shared.train_behaviors`, an explicit `--checkpoint` /
+  `--vecnormalize` pair in every mode), a runner the rest of PR-12 deletes;
+  `docs/TRAIN_DIRECTION_AND_TERRAIN.md` loses its notebook walkthrough. Every canonical knob keeps its name and
+  default; notebook pilot runs already on Drive stay evaluation-only (D-D9).
+  Measured: −996 code, test and CI lines, −134 notebook source lines.
 - **The T. rex pilot recipes, the `[pilot]` recipe dialect and the trex behavior
   shim** (consolidation PR-6, #549, 2026-09-20). `configs/trex/behavior_pilots/` (8
   TOMLs, 239 lines), its `pyproject.toml` package-data line and
@@ -1435,8 +1463,26 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A completed "Run all" of the SB3 notebook reaches the auto-disconnect
+  again** (2026-09-23). The training-curves cell re-plotted every node of the
+  run with `save_path` / `save_dir`, which wrote `training_curves.png`,
+  `locomotion_health.png` and `behavioral_metrics.png` straight into each
+  stage directory after the chain loop had sealed the bundle; the manifest
+  declares only the node's `figures/` set (written by
+  `generate_stage_artifacts`), so the cleanup cell's `validate_result_bundle`
+  raised `undeclared bundle artifacts` from its fallback branch and "Run all"
+  stopped before the auto-disconnect cell. Every completed session run
+  (`20260920_010912`, `20260921_203149`, `20260922_125248`) ended there, left
+  its runtime connected, and carried three undeclared PNGs per trained stage
+  directory, byte-size duplicates of the declared `figures/` copies; an audit
+  of the three run trees found nothing else undeclared, missing or resized,
+  and the 18 PNGs went to Drive's trash on 2026-09-23, so each tree matches
+  its manifest by path and size again. The cell
+  now only displays; `test_sb3_notebook_pins.py` executes it over a stage
+  directory and pins that it writes nothing. Reuse was never affected: trunk
+  selection reads the per-node files, not the manifest.
 - **The collapse backstop no longer arms on the untrained or the standing
-  policy on dibothrosuchus and brachiosaurus** (2026-09-23). Under
+  policy on dibothrosuchus and brachiosaurus** (#551, 2026-09-23). Under
   `home-keyframe-residual/v1` action 0 commands the nominal stance, so an
   untrained stance policy scores the statue, above the absolute floors of
   0.75 x the statue (1950 / 1300); and `EvalCallback` scores locomotion at

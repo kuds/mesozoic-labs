@@ -181,17 +181,26 @@ jobs:
           from pathlib import Path
           import environments
           from environments.shared.config import load_stage_config
-          from environments.shared.behavior_notebook import BEHAVIOR_RECIPES
           from environments.shared.plant_contract import current_plant_identity
           from environments.shared.species_names import species_display_names
           from environments.shared.train_behaviors import REPO_ROOT, read_recipe
 
+          # The eleven direction/terrain recipes every species ships (the notebook's list left with the
+          # notebook-only PR-12 slice; the command-line runner reads these files until the rest of PR-12).
+          BEHAVIOR_RECIPE_FILES = {
+              f"{name}.toml"
+              for name in (
+                  "difficult_terrain", "follow_direction_difficult_terrain", "follow_direction",
+                  "follow_direction_speed", "terrain_contact", "sloped_terrain", "bumps_terrain",
+                  "depressions_terrain", "mixed_terrain", "combined_terrain", "combined_mixed_terrain",
+              )
+          }
           assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
           assert current_plant_identity("velociraptor").nu == 22
           assert load_stage_config("velociraptor", 1)["name"]
           for species in species_display_names(backend="stable-baselines3"):
               recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
-              assert {recipe.name for recipe in recipes} == set(BEHAVIOR_RECIPES.values()), (species, recipes)
+              assert {recipe.name for recipe in recipes} == BEHAVIOR_RECIPE_FILES, (species, recipes)
               for recipe in recipes:
                   assert read_recipe(recipe, species)[0]["behavior"]["species"] == species
           PY
@@ -349,7 +358,6 @@ jobs:
           pytest \
             environments/shared/tests/test_behavior_checkpoint.py \
             environments/shared/tests/test_behavior_replay.py \
-            environments/shared/tests/test_behavior_notebook.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \

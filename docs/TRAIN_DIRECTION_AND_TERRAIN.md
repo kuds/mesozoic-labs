@@ -1,9 +1,13 @@
 # Direction following and randomized terrain
 
-**Status (2026-09-20): pilot pipeline, evaluation-only outputs.** The behaviors
-below train through a separate runner (`train_behaviors.py`) beside the
-canonical chain loop; their bundles are not certified deliverables and are not
-reused as training parents (decision D-D9). The final goal (every species
+**Status (2026-09-23): pilot pipeline, command line only, evaluation-only
+outputs.** The behaviors below train through a separate runner
+(`python -m environments.shared.train_behaviors`) beside the canonical chain
+loop; their bundles are not certified deliverables and are not reused as
+training parents (decision D-D9). The SB3 training notebook has no
+direction/terrain path since the consolidation's notebook-only PR-12 slice
+(decision D-D13): its `BEHAVIOR` takes `stand`, `walk`, `hunt` or a stage id, and
+its `BEHAVIOR_*` knobs are gone. The final goal (every species
 follows a direction on difficult terrain) is reached by re-homing
 `follow_direction` and `follow_direction_difficult_terrain` as manifest nodes
 under `locomotion`, trained by `train_base` and judged by a registered gate kind
@@ -12,15 +16,14 @@ goal decisions G1-G4 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
 §6.2). Until then this page is the operator guide for the pilots; every pilot
 session, in every load mode and for evaluation, takes an explicit pair (the
 certified library left with consolidation PR-5), so give explicit
-`BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE` paths (for the
-certified trex walker `20260914_123816`, the handoff pair that
+`--checkpoint` / `--vecnormalize` paths (for the certified trex walker `20260914_123816`, the handoff pair that
 `logs/trex/ppo/20260914_123816/03_locomotion/gate_verdict.json` names in its
 `checkpoint` and `normalization` fields, under that node's `models/`).
 
 Direction following and difficult-terrain training are supported SB3/PPO behaviors
 for all six registered species: Velociraptor, Tyrannosaurus Rex, Brachiosaurus,
 Dibothrosuchus, Compsognathus, and Compsognathus Robot. Every species has the same
-eleven behavior selections and a complete set of TOML recipes under
+eleven behavior recipes, a complete set of TOML files under
 `configs/<species>/behaviors/`.
 
 These recipes activate the existing three command inputs while preserving the
@@ -30,12 +33,11 @@ normalization file provide the starting gait. Supported training does not mean a
 new policy has already learned the behavior: saved evaluations report measured
 performance, separately from canonical locomotion certification.
 
-## Use the SB3 training notebook
+## The eleven behaviors
 
-Open [`notebooks/sb3_training.ipynb`](../notebooks/sb3_training.ipynb) from the
-repository revision containing this feature, and use the same `REPO_REF` in its
-setup form. Select any registered **SPECIES**, set `ALGORITHM = "ppo"`, and choose
-one of these **BEHAVIOR** values:
+Each behavior is a recipe that the command-line runner below takes as
+`--recipe configs/<species>/behaviors/<behavior>.toml`, for any registered
+species, with PPO.
 
 For general terrain training, use **`difficult_terrain`** or
 **`follow_direction_difficult_terrain`**. Each trains one policy across all five
@@ -61,44 +63,9 @@ one training run.
 
 Each filename ends in `.toml`; for example,
 [`configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml).
-The existing `stand`, `walk`, `hunt`, and explicit stage-ID selections retain the
-canonical curriculum workflow.
-
-Set `BEHAVIOR_CHECKPOINT` and `BEHAVIOR_VECNORMALIZE` to the matching saved pair,
-then choose the loading mode explicitly:
-
-- `BEHAVIOR_LOAD_MODE = "prepare"` starts from that species' current canonical
-  **locomotion** PPO checkpoint and activates its reserved command inputs.
-- `"resume"` continues the same behavior recipe from a matched behavior bundle.
-- `"adapt"` transfers a learned behavior to a compatible next recipe for the same
-  species, retaining learned command connections and recording its parent.
-
-`BEHAVIOR_SEED = None` gives each run a fresh recorded seed. An integer repeats
-its course. `BEHAVIOR_STEPS = None` uses the recipe budget, or the remaining
-budget on resume; an explicit step count requests additional training.
-`QUICK_TEST = True` uses 4,096 steps if no explicit step count is set.
-`BEHAVIOR_EVAL_ONLY = True` scores without training.
-
-An unchanged selection retains its run ID and seed and refuses to overwrite
-existing output. To repeat the same settings in one runtime, set a new
-`BEHAVIOR_RUN_ID`. Automatic IDs and seeds are refreshed for a new selection or
-runtime. Behavior execution uses one CPU environment and inherits the parent
-checkpoint's PPO network and rollout settings. `N_ENVS`, `TRUNK_FROM`,
-`WIDEN_FROM`, and `RETRAIN_FROM` belong to the canonical curriculum workflow;
-leave `TRUNK_FROM` at its `"auto"` default or clear it, and clear the other
-two for these behavior runs.
-
-The notebook saves results under
-`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`, on Google Drive when mounted
-or locally otherwise. `BEHAVIOR_RECORD_VIDEO = True` saves and displays each
-scored video with both terrain heat maps. `BEHAVIOR_EVAL_EPISODES` controls the
-number of episodes and `BEHAVIOR_VIDEO_FPS` controls video frame rate.
-Use at least five evaluation episodes for the general terrain behaviors to cover
-every enabled family. Results show each family's episode count, survival, falls,
-and command tracking; fewer episodes explicitly mark coverage as incomplete.
-Five episodes provide only one trial per family, which checks coverage rather
-than establishing competence. Use 25 or 50 episodes for a more useful comparison,
-including unseen seeds, and inspect the individual outcomes.
+None of these names is a notebook `BEHAVIOR` value: the notebook's `stand`,
+`walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
+PR-11 adds the direction and terrain nodes to the species' manifests.
 
 ## Species-specific recipe settings
 
@@ -128,10 +95,10 @@ one species' recipes so adaptation preserves the meaning of learned inputs.
 Every recipe declares `[behavior] species`, its stable behavior `name`, and
 `parent = "locomotion"`. The runner resolves that parent through the species'
 `stages.toml`, loads its locomotion environment settings, and checks the supplied
-checkpoint's species and stage. Parentage is explicit: the notebook takes its
-source only from an explicit `BEHAVIOR_CHECKPOINT` / `BEHAVIOR_VECNORMALIZE`
-pair, in every load mode and for evaluation, and it never adds these behaviors
-to the canonical certification curriculum.
+checkpoint's species and stage. Parentage is explicit: the runner takes its
+source only from an explicit `--checkpoint` / `--vecnormalize` pair, in every
+load mode and for evaluation (it refuses a missing one), and it never adds these
+behaviors to the canonical certification curriculum.
 
 ## Run training from the command line
 
@@ -158,8 +125,33 @@ python -m environments.shared.train_behaviors \
 The output directory must be new or empty. PPO completes full rollouts, so actual
 steps can exceed the requested count; `run.json` records both. A short check
 validates execution, while the recipe budget provides a starting training budget.
-Omit `--seed` for a fresh run seed, saved in the results; omit `--steps` to use the
-recipe budget. `--eval-only` performs no learning. No cloud job is submitted.
+Omit `--seed` for a fresh run seed, saved in the results (an integer repeats the
+course); omit `--steps` to use the recipe budget, or the remaining budget on
+resume; `--steps 4096` is a quick pipeline check. `--eval-only` performs no
+learning. No cloud job is submitted. A run uses one CPU environment and inherits
+the parent checkpoint's PPO network and rollout settings.
+
+The loading mode follows from the flags, always with the matching saved pair in
+`--checkpoint` / `--vecnormalize`:
+
+- no flag (preparation) starts from that species' current canonical
+  **locomotion** PPO checkpoint and activates its reserved command inputs;
+- `--resume` continues the same behavior recipe from a matched behavior bundle;
+- `--adapt` transfers a learned behavior to a compatible next recipe for the same
+  species, retaining learned command connections and recording its parent.
+
+Use at least five evaluation episodes (`--eval-episodes`, default 5) for the
+general terrain behaviors to cover every enabled family. Results show each
+family's episode count, survival, falls, and command tracking; fewer episodes
+explicitly mark coverage as incomplete. Five episodes provide only one trial per
+family, which checks coverage rather than establishing competence. Use 25 or 50
+episodes for a more useful comparison, including unseen seeds, and inspect the
+individual outcomes.
+
+Runs made from the notebook before the PR-12 slice stay under
+`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Google Drive when it
+was mounted, otherwise in that checkout's `logs/`) as evaluation-only pilot
+output (decision D-D9); leave them in place.
 
 The recipes use a constant learning rate of 5e-5 and PPO clipping of 0.02 for the
 first 100,000 adaptation steps, then 0.2. Exact-task resume retains that warmup
@@ -287,12 +279,11 @@ replay directory only after all files are complete; requested video or map
 failures fail visibly. Original-plane episodes receive clearly labelled
 `flat_plane_full_map.png` and `flat_plane_local_map.png` reference maps.
 
-To view a downloaded or moved run, keep `run.json` and its complete `replays/`
-directory together and call
-`display_notebook_behavior(Path("/path/to/saved-run"))` from
-`environments.shared.behavior_notebook`. Media filenames resolve from the saved
-episode manifests, including indexes that still contain another machine's
-original paths.
+To inspect a downloaded or moved run, keep `run.json` and its complete
+`replays/` directory together: each `replays/<episode>/manifest.json` names its
+`replay.mp4` and map images relative to that directory, so a moved run stays
+readable even where the run-level index still records another machine's
+original paths. (The notebook's display helper left with the PR-12 slice.)
 
 ## Read the results
 
