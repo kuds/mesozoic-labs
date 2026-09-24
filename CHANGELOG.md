@@ -922,8 +922,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **`RUN_ID` is a configuration-cell knob of the SB3 notebook** (consolidation
-  PR-14a, decision D-D15). `RUN_ID = ""` keeps the run this runtime's storage
+- **`RUN_ID` is a configuration-cell knob of the SB3 notebook** (#553,
+  consolidation PR-14a, decision D-D15). `RUN_ID = ""` keeps the run this runtime's storage
   cell resolved last (a fresh timestamped run on the first pass), a new id
   starts a fresh run, and an existing run's id re-enters it in place (a run
   id, never a path: a path, `.`, `..` or surrounding whitespace refuses). The
@@ -942,7 +942,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   second minted the same id and the test could not tell), and pins that an
   explicit id beats the memo and that a refused id never reaches it.
 - **A root widened on the command line keeps the widen cell's guards on
-  disk** (PR-14a; decisions D-C13, D-C14, D-D14). The storage cell refuses a
+  disk** (#553, PR-14a; decisions D-C13, D-C14, D-D14). The storage cell refuses a
   `SEED` other than the recorded `run.seed` of a stage directory whose run
   block names `widened_from_run_id` (and a `provenance.json` minted under
   another seed before the widen, which no `SEED` can fix: the refusal says to
@@ -1376,7 +1376,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The SB3 notebook's widen cell and its `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
-  knobs** (consolidation PR-14a, decisions D-D14 and D-D15). Both pending
+  knobs** (#553, consolidation PR-14a, decisions D-D14 and D-D15). Both pending
   parents were widened and re-paneled (`20260920_010912`, `20260921_203149`),
   so widening is a command-line step: `python -m
   environments.shared.scripts.widen_checkpoint ... --to-stage-dir
@@ -1524,8 +1524,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
-- **A complete run can no longer take a new node in place** (consolidation
-  PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
+- **A complete run can no longer take a new node in place** (#553,
+  consolidation PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
   node trained into a run whose `artifact_manifest.json` records `complete`
   (the in-place recipe, `RUN_ID` set to the run) wrote its stage directory and
   verdict, then the chain loop's `save_run_bundle` raised `completed result
