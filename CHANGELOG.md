@@ -922,6 +922,41 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **`RUN_ID` is a configuration-cell knob of the SB3 notebook** (consolidation
+  PR-14a, decision D-D15). `RUN_ID = ""` keeps the run this runtime's storage
+  cell resolved last (a fresh timestamped run on the first pass), a new id
+  starts a fresh run, and an existing run's id re-enters it in place (a run
+  id, never a path: a path, `.`, `..` or surrounding whitespace refuses). The
+  storage cell resolves it into the `_ACTIVE_RUN_ID` memo (the knob, else the
+  run this runtime resolved last, else a timestamp; an explicit id beats the
+  memo and is memoised in turn once `initialize_result_bundle` accepts it, so
+  an id whose provenance refuses the session never becomes the memo), no
+  longer rebinds `RUN_ID`, and prints whether it minted a new run or
+  re-entered one (its directories and bundle status);
+  `initialize_result_bundle` takes the resolved id and `save_run_bundle` reads
+  `_ACTIVE_RUN_ID`, so re-running the configuration cell, which now resets the
+  knob to `""`, never hands `run_id=""` to a bundle write. A `TRUNK_FROM`
+  naming the run `RUN_ID` resolved to names `RUN_ID` as the knob to change.
+  `TestStorageCellRerun` now runs the cell under a clock that ticks per call,
+  so only the memo can keep a run (at 2ebed89 two executions in the same
+  second minted the same id and the test could not tell), and pins that an
+  explicit id beats the memo and that a refused id never reaches it.
+- **A root widened on the command line keeps the widen cell's guards on
+  disk** (PR-14a; decisions D-C13, D-C14, D-D14). The storage cell refuses a
+  `SEED` other than the recorded `run.seed` of a stage directory whose run
+  block names `widened_from_run_id` (and a `provenance.json` minted under
+  another seed before the widen, which no `SEED` can fix: the refusal says to
+  widen again into a new run id) before it binds `RUN_DIR` or the memo and
+  before `initialize_result_bundle` writes anything
+  (`result_bundle.refuse_widened_seed_mismatch`). The resolve cell refuses a
+  resolved trunk until that root holds a verdict
+  (`refuse_trunk_over_unjudged_widened_root`), so the chain loop judges the
+  widened copy instead of reusing the root from another run.
+  `TrunkSelection.describe()` names the command-line tool and the
+  `--max-revision-gap` an older-interface root needs instead of the deleted
+  knobs (the CLI's `--trunk-from auto` prints it too), and
+  `widen_checkpoint`'s docstring and `--to-stage-dir` help give the recipe the
+  notebook then judges.
 - **The `test-sb3` CI job is bounded** (consolidation PR-3, #546, 2026-09-20). It
   ran 52 minutes on the #544 merge (notebook smoke 6, behaviors 14,
   integration 31; 69 at #541) because #540/#541 added their suites to its
@@ -1340,8 +1375,34 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **The SB3 notebook's widen cell and its `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
+  knobs** (consolidation PR-14a, decisions D-D14 and D-D15). Both pending
+  parents were widened and re-paneled (`20260920_010912`, `20260921_203149`),
+  so widening is a command-line step: `python -m
+  environments.shared.scripts.widen_checkpoint ... --to-stage-dir
+  <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>
+  [--max-revision-gap N] [--label L]` with a new timestamp id
+  (`YYYYMMDD_HHMMSS`), run before the notebook opens that run id (on Colab,
+  the three steps in the tool's module docstring: section 1, a scratch cell
+  that mounts Drive, never the storage cell, then the tool), then
+  the notebook with `RUN_ID` set to the new run id, `SEED` to the parent's
+  recorded `run.seed` and `TRUNK_FROM = ""`. Gone with the cell: the
+  widen-seed comment of the configuration cell, the load preflight's
+  `WIDEN_FROM` branch (it proves the trunk run's root handoff, else a
+  throwaway), the chain loop's widen branch, `select_trunk`'s caller-less
+  `widen_from` parameter, and the living copies of the "restart the runtime
+  (or `del _ACTIVE_RUN_ID`) and delete the stray directory" remedy. What the
+  cell guarded is kept on disk (Changed). `TestWidenCell`,
+  `TestWidenCellExecution` and the notebook's D-C17 knob pin are deleted;
+  `DEFAULT_MAX_REVISION_GAP == 1` stays pinned in `test_widen_checkpoint.py`
+  and, for the shared matrix, in the configuration-knob pin, and
+  `TestJudgeBranch` keeps the JUDGE-branch contract the tool relies on. The
+  notebook goes from 35 cells (19 code), 2,330 source lines to 34 cells (18
+  code), 2,271. Measured with `git diff --numstat` against `2ebed89`: code
+  +380 / −20 (`result_bundle/reentry.py` is 293 new lines), tests +894 / −680,
+  notebook JSON +163 / −230, docs +543 / −217.
 - **The SB3 notebook's direction/terrain mode and `behavior_notebook.py`**
-  (consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
+  (#552, consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
   `notebooks/sb3_training.ipynb` loses `COMMAND_TERRAIN_BEHAVIOR`, the ten
   `BEHAVIOR_*` knobs (`BEHAVIOR_LOAD_MODE`, `BEHAVIOR_CHECKPOINT`,
   `BEHAVIOR_VECNORMALIZE`, `BEHAVIOR_SEED`, `BEHAVIOR_STEPS`,
@@ -1463,8 +1524,36 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A complete run can no longer take a new node in place** (consolidation
+  PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
+  node trained into a run whose `artifact_manifest.json` records `complete`
+  (the in-place recipe, `RUN_ID` set to the run) wrote its stage directory and
+  verdict, then the chain loop's `save_run_bundle` raised `completed result
+  bundle is immutable, but certified artifact(s) changed after publication`
+  and "Run all" stopped before the auto-disconnect. The resolve cell now ends
+  with `result_bundle.refuse_complete_run_session`, which refuses such a
+  session before anything is trained or written: on a complete run,
+  `RETRAIN_FROM` or any chain node whose loop directory holds no
+  `gate_verdict.json` (a non-target node held only as an `ancestors/` record
+  passes while a trunk is resolved) raises `ResultBundleError`, naming a fresh
+  `RUN_ID` and `TRUNK_FROM` set to the complete run. What that prediction
+  cannot see without applying the reuse rule, the chain loop refuses before
+  the write (`refuse_write_into_complete_run`): a node held only as an
+  `ancestors/` record that the trunk no longer certifies (it would be judged
+  or trained into the run), and a trunk's copy of a node whose own verdict the
+  reuse rule refused (its `ancestors/` record would be written into the run).
+  The manual cell (before its freeze) and the resume cell (before
+  `train_stage`) refuse the same write. The zero-action cell rewrote
+  `RUN_DIR/zero_action_baseline.json` with a new `captured_at` on every run,
+  so a re-entry that ran it left a complete bundle that no longer verified; it
+  now keeps a complete bundle's copy. A reuse-only session in a complete run
+  (the same or a shallower `BEHAVIOR`) passes and writes nothing into the run
+  (a reuse-only re-entry of a `partial` or `failed` run still stops at the
+  cleanup cell, now a KNOWN_ISSUES LOW entry).
+  `test_result_bundle_reentry.py`, `test_zero_action_baseline.py` and
+  `test_sb3_notebook_pins.py` cover it in the shared matrix.
 - **A completed "Run all" of the SB3 notebook reaches the auto-disconnect
-  again** (2026-09-23). The training-curves cell re-plotted every node of the
+  again** (#552, 2026-09-23). The training-curves cell re-plotted every node of the
   run with `save_path` / `save_dir`, which wrote `training_curves.png`,
   `locomotion_health.png` and `behavioral_metrics.png` straight into each
   stage directory after the chain loop had sealed the bundle; the manifest

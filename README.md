@@ -381,11 +381,15 @@ them. Across runs:
 
 The SB3 notebook does the same through its `BEHAVIOR` (default `"hunt"`; a
 recipe label or a deliverable's stage id), `TRUNK_FROM`, `RETRAIN_FROM`,
-`RUN_LABEL`, `WIDEN_FROM` (an earlier run whose certified root checkpoint
-is widened to this checkout's policy interface in a new run; plan §4.6,
-decisions D-C13/D-C14) and `WIDEN_MAX_REVISION_GAP` (how many policy-interface
-revisions behind that parent may be — default 1; the two certified trex
-stance parents need 2, decision D-C17) knobs and one behavior chain-loop cell. The design, its
+`RUN_LABEL` and `RUN_ID` (empty keeps the run the runtime resolved last, a
+fresh timestamped run on the first pass; a new id starts a fresh run; an
+existing run's id re-enters it in place to finish an interrupted or partial
+run, and a run whose bundle is complete takes no new node) knobs and one
+behavior chain-loop cell. A
+checkpoint trained behind the current policy interface is widened with the
+command-line `widen_checkpoint` (`--max-revision-gap N`) into a new run that
+the notebook then judges (plan §4.6, decisions D-C13, D-C14, D-C17 and
+D-D14). The design, its
 decisions and the phases still to come are in
 [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md); the site's
 [behavior recipes guide](website/docs/training/recipes.md) walks through a

@@ -93,6 +93,32 @@ interface revisions behind the parent may be; the report records
 ``revision_gap`` (``null`` for an ``--allow-legacy-plant`` parent that
 carries no identity) / ``max_revision_gap``.  Prints ``widen_report.json``.
 
+Judging a widened root in the SB3 notebook (decision D-D14 removed the
+notebook's widen cell and knobs, so this tool is the widen path): widen into a
+NEW run id, one no run uses and the notebook has not opened yet, written as a
+timestamp ``YYYYMMDD_HHMMSS`` like the ids the storage cell mints
+(``TRUNK_FROM = "auto"`` breaks a coverage tie by the newest directory name,
+so an id in another format would outrank every later run), with
+``--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>``
+(``01_stance`` for every current root: the chain loop judges the
+``<stage_label>_final`` pair in that directory only) and ``--label`` set to
+the session's ``RUN_LABEL`` when it sets one.  On Colab, in three steps:
+
+1. run the notebook's section 1 (it checks the repository out at
+   ``/content/mesozoic-labs``), then a scratch cell
+   ``from google.colab import drive; drive.mount("/content/drive")``, never
+   the storage cell, which would mint a run directory and its provenance;
+2. take ``LOG_BASE`` = ``/content/drive/MyDrive/mesozoic-labs/logs``, the
+   storage cell's Drive log directory (``<repository>/logs`` locally);
+3. run ``!cd /content/mesozoic-labs && python -m
+   environments.shared.scripts.widen_checkpoint ... --to-stage-dir ...``.
+
+Then run the notebook with ``RUN_ID = "<new run id>"``, ``SEED`` = the
+parent's recorded ``run.seed`` (the storage cell refuses any other value
+before it writes anything, D-C14) and ``TRUNK_FROM = ""`` (the resolve cell
+refuses a trunk while the widened root has no verdict, D-C13; nothing below a
+widened root is reusable from another run anyway).
+
 Stable-Baselines3, torch and gymnasium are imported inside the functions so
 the module stays importable on a bare install (the lint job).
 """
@@ -1306,7 +1332,15 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument("--species", required=True, choices=SPECIES_NAMES)
     parser.add_argument("--stage", required=True, help="the stage reference (a legacy number or a stage id)")
     parser.add_argument(
-        "--to-stage-dir", required=True, help="the fresh stage directory to write the widened pair into"
+        "--to-stage-dir",
+        required=True,
+        help=(
+            "the fresh stage directory to write the widened pair into; for the SB3 notebook to judge it, "
+            "<LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)> (01_stance) in a run the "
+            "notebook has not opened yet, <new run id> being a new timestamp id (YYYYMMDD_HHMMSS, the format the "
+            'storage cell mints) that no run uses yet, then the notebook with RUN_ID = "<new run id>", SEED = the '
+            'parent\'s run seed and TRUNK_FROM = "" (decision D-D14; the module docstring has the Colab steps)'
+        ),
     )
     parser.add_argument(
         "--from-stage-dir", default=None, help="the parent stage directory (its handoff pair and run block)"

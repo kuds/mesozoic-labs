@@ -1,6 +1,6 @@
-# Next steps and program state (2026-09-23)
+# Next steps and program state (2026-09-24)
 
-**Status**: living reference — updated 2026-09-23; `main` = `2e77150` (merged 2026-09-23 19:54 UTC).
+**Status**: living reference — updated 2026-09-24; `main` = `03d3a54` (merged 2026-09-24 02:39 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -35,6 +35,7 @@ file in place when the state changes; it is not a dated investigation.
 | #548 | 2026-09-20 | Consolidation PR-5: `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted; `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; the behavior certificate writer gone until PR-13 registers the gate kind; the notebook loses `SOURCE_SELECTION` (2,477 → 2,463 lines) and refuses blank source paths in the configuration cell; about −1,880 net code and configuration lines. Measured on its CI: SB3 job 46:12, JAX job 53:46, coverage 90 percent |
 | #549 | 2026-09-20 | Consolidation PR-6: `configs/trex/behavior_pilots/` (8 `[pilot]` TOMLs), its package-data line and the trex shim deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one; the six pilot aliases and the dead pilot-run schema reader gone; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter; −256 net code and configuration lines. Measured on its CI: SB3 job 34:49, JAX job 52:42, coverage 90 percent |
 | #551 | 2026-09-23 | The collapse-backstop fix outside the consolidation sequence: `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M), with replay tests on session 4's evaluation series and no digest moved; session 4 recorded; KNOWN_ISSUES gains three entries (a complete run cannot take a new node in place, an invisible early stop, the gait-symmetry statue payment); a truth pass over the living docs; the consolidation pause lifted. Measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent |
+| #552 | 2026-09-24 | Consolidation PR-12, the notebook-only slice (D-D13): the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, six behavior cells and 15 guard sites gone (2,463 → 2,329 lines), `behavior_notebook.py` and its test deleted, `train_behaviors.py` the pilots' command-line path until PR-11; −996 code, test and CI lines. It carried the curves-cell fix (a completed "Run all" reaches the auto-disconnect again; 2,330 lines) and recorded the Drive cleanup of the three session bundles. Measured on its CI: SB3 job 47:56, JAX job 31:40, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -43,18 +44,21 @@ guarded code cell, the SB3 archive-load preflight before the widen cell:
 41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
 about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
 PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
-the notebook-only PR-12 slice, in review 2026-09-23, removes the mode switch, its
+the notebook-only PR-12 slice (#552, 2026-09-24) removed the mode switch, its
 six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
 35 cells, 19 code, 2,329 lines, the chain loop at index 20; 2,330 with the
-curves-cell fix that rides along, CHANGELOG "Fixed").
+curves-cell fix that rode along, CHANGELOG "Fixed").
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
-`TRUNK_FROM = "auto"`, `WIDEN_FROM = ""`, `WIDEN_MAX_REVISION_GAP = 1`,
-`RETRAIN_FROM = ""`, `SEED = 42`; the library knobs (`CERTIFIED_LIBRARY_ROOT`,
+`TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
+(a configuration-cell knob since consolidation PR-14a; it was hard-coded in the
+storage cell), `SEED = 42`; the library knobs (`CERTIFIED_LIBRARY_ROOT`,
 `PUBLISH_CERTIFIED`, `CERTIFIED_COMPARISON_EPISODES`) left with PR-4,
-`SOURCE_SELECTION` with PR-5, and `COMMAND_TERRAIN_BEHAVIOR` with the ten
-`BEHAVIOR_*` knobs leave with the PR-12 slice.
+`SOURCE_SELECTION` with PR-5, `COMMAND_TERRAIN_BEHAVIOR` with the ten
+`BEHAVIOR_*` knobs with the PR-12 slice, and `WIDEN_FROM` /
+`WIDEN_MAX_REVISION_GAP` with the widen cell in PR-14a (D-D14; 34 cells, 18
+code).
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
@@ -71,7 +75,7 @@ directly, a second checkpoint preparer, a second PPO trainer
 `certification/certificate.json` writer left with PR-5, so it is reached only
 from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
 source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
-notebook mode switch (leaving with the notebook-only PR-12 slice, in review) —
+notebook mode switch (removed by the notebook-only PR-12 slice, #552) —
 about 7,000 lines of modules at 22c1fc8, tests excluded (the certified library
 left with PR-4/PR-5). Notebook pilot runs wrote to
 `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Drive when it was mounted,
@@ -91,12 +95,13 @@ maintainer released the hold with a **notebook-first order** (decision D-D13):
 PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
 mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
-the rest of PR-12, after PR-11), then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D14 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
-on 2026-09-20; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
+the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24 into PR-14a,
+PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
+D-D1..D-D15 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20, D-D15 on 2026-09-24; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
-PR-12 slice is in review on the session branch, and PR-14 follows it
+PR-12 slice landed as #552 on 2026-09-24, and PR-14a is in review on the session branch
 ([section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
@@ -143,9 +148,9 @@ run-level summaries.
 
 | Species | Run id | Seed | Interface | Stance | Locomotion | What it needs next |
 |---|---|---|---|---|---|---|
-| trex | `20260914_123816` | 42 | r13 (commit `35dd44c`) | **PASS** — `01_stance`, 11,001,856 steps, 13h13m, final eval 3460.6 ± 19.2, `gate_verdict.json` judged 2026-09-15 01:57 UTC, `gate_sha256 ff2494ba…`, handoff `robust_best_model.zip` | **PASS** — `03_locomotion`, 8,011,776 steps, 8h46m, 1.07 m/s, mean length 1000, reward 1940.8, verdict 2026-09-15 11:39 UTC, `gate_sha256 02602cb0…`, `task_sha256 31383192…` | Nothing for the two-seed bar: the second stance seed is `20260920_010912` (seed 44, certified 2026-09-20), whose bundle counts this run (replication 2 of 2). Its own run-level records stay stance-only (bundle `complete` under a stance target, replication 1): a complete bundle is not rebuilt in place (KNOWN_ISSUES, "A complete run cannot take a new node in place"), and reuse reads the per-node files, so nothing depends on them. A recovery node on this run's stance would be a `BEHAVIOR="stand"` session under `TRUNK_FROM = "20260914_123816"` (`"auto"` now picks the newer seed-44 run for a stand or walk session, whose chain consults stance alone; optional: the seed-44 run already certified recovery at r13); follow nodes once PR-11 exists |
+| trex | `20260914_123816` | 42 | r13 (commit `35dd44c`) | **PASS** — `01_stance`, 11,001,856 steps, 13h13m, final eval 3460.6 ± 19.2, `gate_verdict.json` judged 2026-09-15 01:57 UTC, `gate_sha256 ff2494ba…`, handoff `robust_best_model.zip` | **PASS** — `03_locomotion`, 8,011,776 steps, 8h46m, 1.07 m/s, mean length 1000, reward 1940.8, verdict 2026-09-15 11:39 UTC, `gate_sha256 02602cb0…`, `task_sha256 31383192…` | Nothing for the two-seed bar: the second stance seed is `20260920_010912` (seed 44, certified 2026-09-20), whose bundle counts this run (replication 2 of 2). Its own run-level records stay stance-only (bundle `complete` under a stance target, replication 1): a complete bundle is immutable and not rebuilt in place ([RESULT_BUNDLES.md](RESULT_BUNDLES.md)), and reuse reads the per-node files, so nothing depends on them. A recovery node on this run's stance would be a `BEHAVIOR="stand"` session under `TRUNK_FROM = "20260914_123816"` (`"auto"` now picks the newer seed-44 run for a stand or walk session, whose chain consults stance alone; optional: the seed-44 run already certified recovery at r13); follow nodes once PR-11 exists |
 | trex | `20260915_160239` | 43 | r13 (`35dd44c`) | **FAIL** — `01_stance` only, 11M steps (13h17m), final eval 3209.7 ± 284.3, best 3335.1; the 40-episode panel failed unsupported duty (mean 0.0323, UCB 0.0350, rail 0.02), reward and full-horizon passed; provenance `certified false`, `provisional true` | none | Nothing; a measured deficit, kept as history |
-| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none; **recovery PASS** instead — `02_recovery`, 3,006,464 steps, 3h30m (2026-09-20 21:42 → 2026-09-21 01:12 UTC, the in-place continuation), 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56 ≥ 0.30), paired success delta against the 0/40 statue null 0.70 (Student-t one-sided LCB 0.58 ≥ 0.20), 140/155 pushes recovered, 34/40 full horizon, panel reward 2925.4 ± 404.8; training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M; verdict 2026-09-21 01:16 UTC, `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…`, checkpoint `a8e41b98…` | A locomotion node, optionally (session 7: `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"`, a fresh run, section 3; not in place, because this run's bundle is `complete`: KNOWN_ISSUES, "A complete run cannot take a new node in place"); otherwise nothing: bundle `complete` (written after the recovery verdict), stance deliverable `certified true, provisional false`, `replication count 2` (`20260920_010912` seed 44, `20260914_123816` seed 42), recovery certified at replication 1 |
+| trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest) | none; **recovery PASS** instead — `02_recovery`, 3,006,464 steps, 3h30m (2026-09-20 21:42 → 2026-09-21 01:12 UTC, the in-place continuation), 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56 ≥ 0.30), paired success delta against the 0/40 statue null 0.70 (Student-t one-sided LCB 0.58 ≥ 0.20), 140/155 pushes recovered, 34/40 full horizon, panel reward 2925.4 ± 404.8; training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M; verdict 2026-09-21 01:16 UTC, `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…`, checkpoint `a8e41b98…` | A locomotion node, optionally (session 7: `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"`, a fresh run, section 3; not in place, because this run's bundle is `complete` and a complete bundle is immutable: since consolidation PR-14a the notebook refuses such a session before training); otherwise nothing: bundle `complete` (written after the recovery verdict), stance deliverable `certified true, provisional false`, `replication count 2` (`20260920_010912` seed 44, `20260914_123816` seed 42), recovery certified at replication 1 |
 | trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Nothing: widened to r13 and re-paneled as `20260920_010912` (session 1, 2026-09-20) |
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Nothing: widened to r2 and re-paneled as `20260921_203149` (session 2, 2026-09-21); stays on the log tree as history |
@@ -203,14 +208,15 @@ re-run, then sessions 5 and 6 follow, in that order, plus the optional session
 curves cell wrote three undeclared PNGs into every trained stage directory
 after the bundle was sealed (CHANGELOG "Fixed"; the 18 files went to Drive's
 trash on 2026-09-23 and the three trees match their manifests again). The fix
-rides with the notebook-only PR-12 slice; on a `main` without it, run the
-auto-disconnect cell by hand after the cleanup cell raises. Housekeeping: delete the four stray trex directories `20260918_230155`,
+landed with the notebook-only PR-12 slice (#552), so a `main` at `03d3a54` or
+later releases the runtime at the end of a completed "Run all". Session 6 started
+first, on 2026-09-24 at 03:18 UTC, as `20260924_031815` on `main` = `03d3a54`. Housekeeping: delete the four stray trex directories `20260918_230155`,
 `20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
 seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
 run-level records, is dropped: with every node reused the chain loop writes no
 bundle, and the run's `complete` stance-target bundle (not `partial`) refuses a
-rebuild because `03_locomotion/` appeared after its publication (KNOWN_ISSUES,
-"A complete run cannot take a new node in place"). Reuse reads the per-node files, so nothing depends
+rebuild because `03_locomotion/` appeared after its publication (a complete
+bundle is immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)). Reuse reads the per-node files, so nothing depends
 on those records.
 
 | # | Species | Settings | What happens | Rough time |
@@ -220,8 +226,8 @@ on those records.
 | 3 | velociraptor | `BEHAVIOR="walk"`, `SEED=42` | **Done.** Ran 2026-09-22 as `20260922_125248`: stance 6M PASSED (17:42 UTC; thin length margin, section 2), locomotion 8M PASSED (00:15 UTC on 2026-09-23); bundle `complete` | 4h46m + 6h30m (measured) |
 | 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42`, `RETRAIN_FROM="stance"` | **Ran 2026-09-23 as `20260923_020654`, cut short**: the collapse backstop stopped both nodes at 1.45M (statue-level stance PASS, locomotion FAIL at 0.0012 m/s; section 2). Re-run on a `main` carrying the backstop fix; `RETRAIN_FROM = "stance"` keeps auto-trunk from reusing the statue-level stance (the resolve cell prints `RETRAIN_FROM 'stance': it and every node below it train here (no reuse)`): fresh stance 6M then locomotion 12M. Risk: the locomotion reward pays a motionless statue about 2200, 89 percent of it gait symmetry (KNOWN_ISSUES), the optimum the first run's locomotion settled on | ~4.2 h + ~8.1 h (scaled from the measured 399 and 414 steps/s) |
 | 5 | brachiosaurus | `BEHAVIOR="stand"` then, in a second session, `BEHAVIOR="walk"` | stance 6M; the walk session reuses the certified stance through auto-trunk and trains locomotion 16M (both stages carry the 2026-09-23 backstop fix: peak warm-ups of 1.0M and 4.0M). Risk: the locomotion reward pays a motionless statue 2242.7, 98 percent of it gait symmetry (KNOWN_ISSUES) | ~4.5 h then ~10 h |
-| 6 | compsognathus_robot | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 11M then locomotion 3M | ~13 h + ~4 h |
-| 7 (optional) | trex | `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"` (a fresh run) | reuses the seed-44 run's certified stance across runs (recorded under `ancestors/`), trains locomotion 8M and rolls its gate: a second r13 walker seed beside `20260914_123816`. Not in place: `20260920_010912`'s bundle is `complete`, so a node trained into it would fail the bundle write after training (KNOWN_ISSUES, "A complete run cannot take a new node in place") | ~8h46m (the seed-42 walker's measured time) |
+| 6 | compsognathus_robot | `BEHAVIOR="walk"`, `SEED=42` | **Running** since 2026-09-24 03:18 UTC as `20260924_031815` (`main` = `03d3a54`): fresh stance 11M then locomotion 3M | ~13 h + ~4 h |
+| 7 (optional) | trex | `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"` (a fresh run) | reuses the seed-44 run's certified stance across runs (recorded under `ancestors/`), trains locomotion 8M and rolls its gate: a second r13 walker seed beside `20260914_123816`. Not in place: `20260920_010912`'s bundle is `complete`, and a complete bundle is immutable, so the notebook refuses an in-place session that would train into it before anything is trained (consolidation PR-14a; before it, the bundle write failed after training) | ~8h46m (the seed-42 walker's measured time) |
 
 Notes:
 
@@ -235,8 +241,10 @@ Notes:
   embed the saving interpreter's bytecode and a bare `PPO.load` executes it
   (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
   Since the loader change of 2026-09-19 every load goes through
-  `policy_loading.load_sb3_model`, and a preflight cell right before the widen
-  cell loads the `WIDEN_FROM` parent's real root handoff first. Two earlier
+  `policy_loading.load_sb3_model`, and a preflight cell loads a real archive
+  before anything is trained (at the time right before the widen cell, on the
+  `WIDEN_FROM` parent's root handoff; since consolidation PR-14a right after the
+  resolve cell, on the trunk run's root handoff when there is one). Two earlier
   trex seed-44 widen sessions of 2026-09-18 at `22c1fc8` (`20260918_230155`,
   `20260918_230335`) were the first to load the older-image archive and left
   the same stray. The four stray run directories are still on Drive
@@ -279,7 +287,8 @@ Notes:
   `BEHAVIOR = "stand"`, `WIDEN_FROM = ""`
   (the widened stance already exists; the widen cell must not run again),
   `TRUNK_FROM = ""` (the reuse candidate is this run itself), and in the
-  storage cell `RUN_ID = "20260920_010912"` in place of `""`, so the storage
+  storage cell `RUN_ID = "20260920_010912"` in place of `""` (a
+  configuration-cell knob since consolidation PR-14a), so the storage
   cell re-enters the run directory. The chain loop then printed `Reusing this
   run's certified 'stance': robust_best_model (...)`, froze the recovery
   resolution from that handoff (`Freezing the recovery_quality/v1 resolution
@@ -290,20 +299,31 @@ Notes:
   and record it under `ancestors/`, leaving `20260920_010912` without a
   bundle; prefer the in-place continuation while the run has no `complete`
   bundle. Once it has one, a later node goes in a fresh run whose `TRUNK_FROM`
-  names it (the optional session 7; KNOWN_ISSUES,
-  "A complete run cannot take a new node in place"). Session 2 (compsognathus widen)
+  names it (the optional session 7; since consolidation PR-14a the notebook
+  refuses an in-place session into a complete run before training). Session 2 (compsognathus widen)
   ran on `25132fc`, which carries the fix, and wrote its bundle in one pass.
-- A widen session (sessions 1 and 2 were the two) must set `SEED` to the
-  parent's seed **before the storage cell mints `RUN_ID`**: the widen cell
-  refuses `SEED != ` the parent's recorded
-  `run.seed` (D-C14) and a directory minted under the wrong seed is not
-  re-minted (correct `SEED`, restart the runtime or `del _ACTIVE_RUN_ID`, delete
-  the stray directory, which holds only `provenance.json`).
-- With `WIDEN_FROM` set the chain loop uses no trunk: every node below the
-  widened root trains in that run (trex `stand` = widen + re-panel stance, then
-  recovery 3M; trex `walk` would train locomotion 8M instead). For velociraptor,
-  brachiosaurus and dibothrosuchus `stand` is stance only (no recovery node).
-- Leave `TRUNK_FROM = "auto"`.
+- Sessions 1 and 2 widened through the notebook's `WIDEN_FROM` knob and widen
+  cell, which left with consolidation PR-14a (D-D14). A widen is now a
+  command-line step into a run id the notebook has not opened yet: `python -m
+  environments.shared.scripts.widen_checkpoint ... --to-stage-dir
+  <LOG_BASE>/<species>/<algo>/<new run id>/01_stance` (`<new run id>` a new
+  timestamp id `YYYYMMDD_HHMMSS` that no run uses yet, `--max-revision-gap N`
+  for a parent more than one revision behind, `--label` when the session sets
+  `RUN_LABEL`; on Colab, the three steps of
+  [PLANT_CONTRACT.md](PLANT_CONTRACT.md#widening-a-checkpoint-across-a-policy-interface-bump)
+  — section 1, a scratch cell that mounts Drive, never the storage cell, then
+  the tool from `/content/mesozoic-labs` — before the storage cell runs for
+  that id), then the notebook with `RUN_ID` set to that new run id, `SEED` to the
+  parent's recorded `run.seed` and `TRUNK_FROM = ""`. The storage cell
+  refuses any other `SEED` before it writes anything (D-C14), so nothing is
+  minted under a wrong seed, and its `Run directory:` line reads "re-entering
+  run" with the widened root's directory; the resolve cell refuses a trunk
+  until the widened root holds a verdict (D-C13).
+- A widened root is judged in its new run and every node below it trains
+  there (trex `stand` = re-panel stance, then recovery 3M; trex `walk` would
+  train locomotion 8M instead). For velociraptor, brachiosaurus and
+  dibothrosuchus `stand` is stance only (no recovery node).
+- Otherwise leave `TRUNK_FROM = "auto"`.
 - A parent `gate_verdict.json` is optional for widening (the r11 and r1 parents
   have none; backfilling first is NOT needed); the parent stage directory must
   hold `stage_config.json` with a run block and a stamped VecNormalize sidecar.
@@ -331,7 +351,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice is in review on the session branch (2026-09-23); PR-14 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 on 2026-09-24, and PR-14a (2026-09-24) is in review on the session branch; PR-14 lands as PR-14a, PR-14b and PR-14c (D-D15), and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
 of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
 test and CI lines, −134 notebook source lines);
@@ -339,9 +359,10 @@ the plan's about 9,500 (band 9,000–12,000) was counted from `22c1fc8`, before
 PR-3 .. PR-6. No PR changes the on-disk format or the reuse of the canonical
 chain, both r11 parents or the r13 run `20260914_123816`; `TRUNK_FROM` (default
 `"auto"`) and `RETRAIN_FROM` (empty default) keep their names and defaults
-(PR-12 Breaks, PR-14 Breaks), while `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
-leave with the widen cell in PR-14 (D-D14); PR-14 also reorders the widen-seed
-check and edits the resume cell's prose.
+(PR-12 Breaks, PR-14a Breaks), while `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
+leave with the widen cell in PR-14a (D-D14), which also makes `RUN_ID` a
+configuration-cell knob and refuses an in-place session into a complete run
+before training; the old widen-seed reorder is dropped (D-D15).
 
 | PR | One-line goal | Size (net) | Prerequisites / decision |
 |---|---|---|---|
@@ -354,11 +375,13 @@ check and edits the resume cell's prose.
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
-| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; in review 2026-09-23 |
+| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; landed as #552 on 2026-09-24 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
-| PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, the notebook-only PR-12 slice (guards gone, D-D13); D-D7, D-D11; the widen cell and knobs leave here (D-D14: sessions 1 and 2 both decided PASS by 2026-09-21) |
-| PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14 |
+| PR-14a | Notebook storage path: the widen cell and `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` go (D-D14; `widen_checkpoint` stays a command-line tool, its seed and verdict guards become on-disk refusals in the storage and resolve cells), `RUN_ID` becomes a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo, and a session that would judge or train a node into a complete run is refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the zero-action cell's run copy skipped on such a run | L by count (measured: code +380 / −20, tests +894 / −680, notebook 2,330 → 2,271 source lines) | the notebook-only PR-12 slice; D-D14, D-D15; in review 2026-09-24 |
+| PR-14b | Notebook: one disconnect path (`halt`, explicit-parameter `disconnect_runtime`), `display_stage_videos` on IPython Video, the random-baseline cell deleted and the zero-action table folded into its script | sized when planned | PR-14a; D-D15 |
+| PR-14c | Notebook: `train_stage` becomes a wrapper over `train_base.train` (seed line, `parent_run_id`, eval seed, duration), `evaluate_stage_checkpoints` beside `generate_stage_artifacts` | sized when planned (the old PR-14's about −450 was mostly this) | PR-14a; D-D7, D-D11, D-D15 |
+| PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14c |
 
 ---
 
@@ -420,6 +443,16 @@ Taken on 2026-09-20, when the consolidation hold lifted:
   `stance_gate_report.json`) are read from Drive through the maintainer's Drive
   connector when a session ends.
 
+Taken on 2026-09-24:
+
+- **D-D15** PR-14 lands as three PRs, in the order PR-14a (the storage path:
+  D-D14's widen deletion, `RUN_ID` as a knob, the complete-run refusal), PR-14b
+  (the one disconnect path, videos and the baseline cells) and PR-14c
+  (`train_stage` over `train_base.train`). The old item (b)'s
+  resolve-before-storage reorder is dropped: no widen-seed read is left to
+  move, and a root widened on the command line keeps D-C14 and D-C13 through
+  on-disk refusals in the storage and resolve cells (amends D-D13's order).
+
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
 
@@ -448,12 +481,18 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    `find_certified_ancestor` and the stage TOML loader) costs more to fold back
    than it saved; the design of record had already named hook, kwargs and gate.
 7. A node added in place to a run whose bundle is already `complete` never
-   reaches the run-level records: the chain loop's bundle write refuses it
-   after the node has trained and halts "Run all" (2026-09-23). Train later
+   reaches the run-level records: the chain loop's bundle write refused it
+   after the node had trained and halted "Run all" (2026-09-23); since
+   consolidation PR-14a the resolve cell (or, for a node it cannot predict,
+   the chain loop) refuses such a session before anything is trained or
+   written, and names the fix. Train later
    nodes in a fresh run whose `TRUNK_FROM` names that run. A `partial` bundle
-   is rebuilt by the next node trained or judged in it, a session that only
-   reuses nodes writes no bundle, and per-node artifacts are written
-   immediately.
+   is rebuilt by the next node trained or judged in it; a session that only
+   reuses a complete run's nodes writes nothing into it (the zero-action cell
+   no longer rewrites a complete run's copy either), while one that only
+   reuses a `partial` run's nodes in a new runtime records a session in its
+   `provenance.json` and stops at the cleanup cell (KNOWN_ISSUES, LOW); and
+   per-node artifacts are written immediately.
 8. Two seeds at a stance bar of two is reachable only by widening the r11
    parents or training fresh r13 seeds; backfilling the r11 verdicts does
    nothing for reuse (rules 3 and 6 refuse pre-Phase-C archives).
@@ -512,7 +551,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   imports `CommandEnv` from `test_behavior_checkpoint` (the
   `test_behavior_publication` import left with PR-5).
 - `notebooks/jax_training.ipynb` carries the same Drive-mount block and
-  `_ACTIVE_RUN_ID` memo; take D-D7-style moves for both notebooks.
+  `_ACTIVE_RUN_ID` memo; since consolidation PR-14a the SB3 notebook's `RUN_ID`
+  is a configuration-cell knob while the JAX notebook keeps it in its storage
+  cell; take D-D7-style moves for both notebooks.
 - The plan's per-event `command_tracking/v1` statistic and the
   worst-of-heading-bins floor have no implementation anywhere (D-D6's second
   kind is new work).
@@ -545,8 +586,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-14 once the
-   notebook-only PR-12 slice has merged) on the session branch, one PR at a time,
+   [section 4](#4-consolidation-the-remaining-prs) (PR-14a is in review; then PR-14b and PR-14c;
+   the notebook-only PR-12 slice landed as #552) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
@@ -582,7 +623,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D14, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D15, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note

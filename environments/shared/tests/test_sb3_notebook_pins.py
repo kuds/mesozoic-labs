@@ -44,26 +44,10 @@ CHAIN_CELL_MARKER = "# ===== BEHAVIOR CHAIN LOOP ====="
 MANUAL_CELL_MARKER = "# ===== MANUAL SINGLE NODE"
 RESUME_CELL_MARKER = "# ===== RESUME AN INTERRUPTED STAGE"
 COMPLETION_CELL_MARKER = 'print("Training complete!")'
-#: The archive-load preflight cell: its FIRST line, deliberately not a `# ===== ` marker. It sits between the
-#: RESOLVE cell and the widen cell and loads the WIDEN_FROM parent's real handoff through `load_sb3_model`
-#: before anything is widened (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
+#: The archive-load preflight cell: its FIRST line, deliberately not a `# ===== ` marker. It sits right after the
+#: RESOLVE cell and loads a real archive (the trunk run's root handoff, else a throwaway) through `load_sb3_model`
+#: before anything is trained (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
 PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / RL": SB3 archives are bound to the interpreter that saved them)'
-#: The Phase C widen cell (D-C13): its FIRST line, deliberately not a `# ===== ` marker.
-WIDEN_CELL_MARKER = "# Widen an earlier run's certified root checkpoint (BEHAVIOR_RECIPES_PLAN §4.6)"
-#: The names the widen cell may take from the cells that run before it (amendment A14a).
-WIDEN_CELL_INHERITED_NAMES = frozenset(
-    {
-        "SPECIES",
-        "ALGORITHM",
-        "RUN_DIR",
-        "RUN_LABEL",
-        "LOG_BASE",
-        "CHAIN",
-        "SEED",
-        "WIDEN_FROM",
-        "WIDEN_MAX_REVISION_GAP",
-    }
-)
 
 #: Every species with a committed stage manifest (the notebook's SPECIES menu).
 SPECIES_WITH_MANIFESTS = sorted(path.parent.name for path in (REPO_ROOT / "configs").glob("*/stages.toml"))
@@ -298,14 +282,15 @@ class TestBehaviorKnob:
 
     def test_behavior_and_trunk_from_are_declared_in_the_config_cell(self):
         assigns = _top_level_assigns(_cell(CONFIG_CELL_MARKER))
-        for name in ("BEHAVIOR", "TRUNK_FROM", "WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
+        for name in ("BEHAVIOR", "TRUNK_FROM", "RETRAIN_FROM", "RUN_LABEL", "RUN_ID"):
             assert name in assigns, f"the config cell must declare {name}"
             assert isinstance(assigns[name], ast.Constant) and isinstance(assigns[name].value, str), (
                 f"{name} is a plain string constant an operator edits"
             )
         # Manual overrides remain off. Automatic selection can reuse certified
-        # ancestors; the target still trains here and widening stays opt-in.
-        for name in ("WIDEN_FROM", "RETRAIN_FROM", "RUN_LABEL"):
+        # ancestors; the target still trains here, and RUN_ID = "" mints a fresh run
+        # (consolidation PR-14a moved the knob here from the storage cell).
+        for name in ("RETRAIN_FROM", "RUN_LABEL", "RUN_ID"):
             assert assigns[name].value == "", f"{name} must default to the empty string (off)"
         # D-A25: the trunk is selected automatically unless a run is pinned or "" turns reuse off.
         assert assigns["TRUNK_FROM"].value == "auto"
@@ -318,22 +303,14 @@ class TestBehaviorKnob:
             "SOURCE_SELECTION",
         ):
             assert name not in assigns, f"{name} left with the certified library (consolidation PR-4/PR-5)"
-        # D-C17: the revision-gap bound is an integer constant defaulting to the tool's fail-closed 1 (the Phase C
-        # bump alone); a widen session for an r11 trex stance parent raises it to 2 by hand.
+        # D-D14: widening is the command-line tool's job; the notebook's widen knobs left with the widen cell
+        # (consolidation PR-14a). D-C17's fail-closed bound of 1 stays the tool's default (--max-revision-gap),
+        # pinned here for the shared matrix too: test_widen_checkpoint.py is SB3-gated at module level.
         from environments.shared.scripts.widen_checkpoint import DEFAULT_MAX_REVISION_GAP
 
-        assert "WIDEN_MAX_REVISION_GAP" in assigns, "the config cell must declare WIDEN_MAX_REVISION_GAP"
-        gap = assigns["WIDEN_MAX_REVISION_GAP"]
-        assert isinstance(gap, ast.Constant) and type(gap.value) is int, "an integer constant (not a bool)"
-        assert gap.value == 1 == DEFAULT_MAX_REVISION_GAP, "WIDEN_MAX_REVISION_GAP defaults to the tool's bound of 1"
-        assert re.search(r"WIDEN_MAX_REVISION_GAP = 1\s+#.*D-C17", _cell(CONFIG_CELL_MARKER)), (
-            "the knob's comment names decision D-C17"
-        )
-        # A14b: the config cell tells the operator a widen session sets SEED to the parent's seed.
-        config_src = _cell(CONFIG_CELL_MARKER)
-        assert re.search(r"#.*widen.*SEED.*parent", config_src, re.IGNORECASE), (
-            "the config cell must say a widen session sets SEED to the parent run's seed (D-C14)"
-        )
+        for name in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP"):
+            assert name not in assigns, f"{name} left the notebook with the widen cell (D-D14)"
+        assert DEFAULT_MAX_REVISION_GAP == 1
         # The default behavior resolves on every committed manifest to the
         # terminal deliverable, so a Run-all still walks stance -> ... -> behavior.
         behavior = assigns["BEHAVIOR"].value
@@ -373,6 +350,25 @@ class TestBehaviorKnob:
                 "certification_skip_reason",
             ):
                 assert token not in src, f"cell {index} still names {token!r}: the certified library left with PR-5"
+
+    def test_the_widen_cell_and_its_knobs_are_gone_from_every_cell(self):
+        """Decision D-D14 (consolidation PR-14a): widening is the command-line tool's job. No cell, markdown
+        included, names the deleted knobs or calls the tool, and no copy of the old widen-seed remedy (restart the
+        runtime or delete the memo, then delete the stray directory) survives."""
+        for index, src in enumerate(_all_cell_sources()):
+            for token in (
+                "WIDEN_FROM",
+                "WIDEN_MAX_REVISION_GAP",
+                "widen_checkpoint(",
+                "del _ACTIVE_RUN_ID",
+                "stray directory",
+                "restart the runtime (or",
+            ):
+                assert token not in src, f"cell {index} still names {token!r}"
+        for index, src in enumerate(_code_cells()):
+            assert "environments.shared.scripts.widen_checkpoint" not in src, (
+                f"code cell {index} imports the widen tool"
+            )
 
     def test_the_label_knob_reaches_every_training_call(self):
         """D-A21: every ``train_stage`` call outside the definition threads ``label=RUN_LABEL or None``."""
@@ -777,52 +773,205 @@ class TestReuseRule:
             find(unjudged)
 
 
-class TestStorageCellRerun:
-    """A storage-cell rerun in the same kernel keeps ``RUN_DIR`` (the ``_ACTIVE_RUN_ID`` memo): certified
-    nodes of an EARLIER run come in through ``TRUNK_FROM``, never by pointing ``RUN_ID`` at that run.
-    Ported from the deleted certified-library notebook test (consolidation PR-4)."""
+class _Clock:
+    """Stands in for ``datetime`` in the storage cell: every ``now()`` is one second later, so two executions
+    never mint the same timestamp and only the ``_ACTIVE_RUN_ID`` memo can keep a run."""
 
-    def test_a_rerun_keeps_the_run_directory(self, tmp_path, monkeypatch):
-        import types
+    def __init__(self):
+        self.ticks = 0
+
+    def now(self):
         from datetime import datetime
 
-        from environments.shared import plant_contract, result_bundle
+        self.ticks += 1
+        return datetime(2026, 1, 1, 0, 0, self.ticks)
 
+
+def _storage_namespace(tmp_path, monkeypatch, **knobs):
+    """Execute-ready namespace for the storage cell, with ``initialize_result_bundle`` recorded instead of run."""
+    import types
+
+    from environments.shared import plant_contract, result_bundle
+
+    identity = {"species": "trex", "test_identity": True}
+    monkeypatch.setattr(
+        plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
+    )
+    calls: list = []
+
+    def initialize(directory, **kwargs):
+        calls.append((directory, kwargs))
+        return directory / "provenance.json"
+
+    monkeypatch.setattr(result_bundle, "initialize_result_bundle", initialize)
+    namespace = {
+        "Path": Path,
+        "datetime": _Clock(),
+        "repo_root": tmp_path,
+        "IN_COLAB": False,
+        "USE_GOOGLE_DRIVE": False,
+        "SPECIES": "trex",
+        "ALGORITHM": "ppo",
+        "SEED": 42,
+        "N_ENVS": 1,
+        "TRUNK_FROM": "",
+        "RUN_ID": "",
+        **knobs,
+    }
+    return namespace, calls, identity
+
+
+class TestStorageCellRerun:
+    """``RUN_ID`` is a configuration-cell knob (consolidation PR-14a). The storage cell resolves it into
+    ``_ACTIVE_RUN_ID`` -- the memo every later cell reads as the run's id -- and never rebinds the knob, so a rerun in
+    the same kernel keeps ``RUN_DIR`` even after the configuration cell reset ``RUN_ID`` to ``""``: certified nodes of
+    an EARLIER run come in through ``TRUNK_FROM``, never by pointing ``RUN_ID`` at that run.
+    Ported from the deleted certified-library notebook test (consolidation PR-4)."""
+
+    def test_a_rerun_keeps_the_run_directory(self, tmp_path, monkeypatch, capsys):
+        """The clock ticks a second per call, so only the memo can keep the run: a cell that dropped the memo would
+        mint a second timestamp here (at 2ebed89 two executions in the same second minted the same id, so this
+        test could not tell)."""
         src = _cell(STORAGE_CELL_MARKER)
-        identity = {"species": "trex", "test_identity": True}
-        monkeypatch.setattr(
-            plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
-        )
-        provenance_calls = []
-
-        def initialize(directory, **kwargs):
-            provenance_calls.append((directory, kwargs))
-            return directory / "provenance.json"
-
-        monkeypatch.setattr(result_bundle, "initialize_result_bundle", initialize)
-        namespace = {
-            "Path": Path,
-            "datetime": datetime,
-            "repo_root": tmp_path,
-            "IN_COLAB": False,
-            "USE_GOOGLE_DRIVE": False,
-            "SPECIES": "trex",
-            "ALGORITHM": "ppo",
-            "SEED": 42,
-            "N_ENVS": 1,
-            "TRUNK_FROM": "",
-        }
+        namespace, provenance_calls, identity = _storage_namespace(tmp_path, monkeypatch)
         exec(compile(src, "sb3_storage", "exec"), namespace)
         first = namespace["RUN_DIR"]
-        assert first.is_dir() and first.is_relative_to(tmp_path / "logs")
+        assert first.name == "20260101_000001" and first.is_dir() and first.is_relative_to(tmp_path / "logs")
         assert namespace["TRUNK_DIR"] is None
+        assert namespace["RUN_ID"] == "", "the storage cell never rebinds the knob"
+        assert f"Run directory: {first} (new run)" in capsys.readouterr().out
         # The current plant identity is handed to the bundle initializer (as the deleted test pinned).
         assert provenance_calls[0][0] == first and provenance_calls[0][1]["plant_identity"] == identity
+        assert provenance_calls[0][1]["run_id"] == first.name
+        # Re-running the configuration cell resets the knob to ""; the memo keeps the run.
+        namespace["RUN_ID"] = ""
         exec(compile(src, "sb3_storage_rerun", "exec"), namespace)
         assert namespace["RUN_DIR"] == first
         assert namespace["_ACTIVE_RUN_ID"] == first.name
+        assert provenance_calls[1][1]["run_id"] == first.name, "never an empty run_id into the provenance"
+        assert "(re-entering run '20260101_000001': holds no directory; bundle status none)" in capsys.readouterr().out
         # The certified-library path the cell used to derive left with consolidation PR-4.
         assert "CERTIFIED_LIBRARY" not in namespace and "CERTIFIED_LIBRARY" not in src
+
+    def test_an_explicit_run_id_beats_the_memo_and_a_path_is_refused(self, tmp_path, monkeypatch, capsys):
+        src = _cell(STORAGE_CELL_MARKER)
+        namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch)
+        exec(compile(src, "sb3_storage", "exec"), namespace)
+        assert namespace["_ACTIVE_RUN_ID"] == "20260101_000001"
+        # An explicit id beats the memo: the remedy every refusal names (a fresh RUN_ID) takes effect ...
+        namespace["RUN_ID"] = "20260924_120000"
+        exec(compile(src, "sb3_storage_explicit", "exec"), namespace)
+        assert namespace["RUN_DIR"] == tmp_path / "logs" / "trex" / "ppo" / "20260924_120000"
+        assert namespace["_ACTIVE_RUN_ID"] == "20260924_120000"
+        assert "(new run: RUN_ID names no existing run)" in capsys.readouterr().out
+        # ... and is memoised in turn (D-D15): RUN_ID = "" now re-enters it.
+        namespace["RUN_ID"] = ""
+        exec(compile(src, "sb3_storage_after_explicit", "exec"), namespace)
+        assert namespace["RUN_DIR"].name == namespace["_ACTIVE_RUN_ID"] == "20260924_120000"
+        assert [call[1]["run_id"] for call in provenance_calls] == [
+            "20260101_000001",
+            "20260924_120000",
+            "20260924_120000",
+        ]
+        # A path, "." / ".." or surrounding whitespace is not a run id: refused before anything moves.
+        for bad in ("..", ".", "../20260101_000000", str(tmp_path / "elsewhere"), " 20260101_000000", "x "):
+            namespace["RUN_ID"] = bad
+            with pytest.raises(ValueError, match="is not a run id"):
+                exec(compile(src, "sb3_storage_bad", "exec"), namespace)
+        assert len(provenance_calls) == 3 and not (tmp_path / "elsewhere").exists()
+        assert namespace["_ACTIVE_RUN_ID"] == "20260924_120000"
+
+    def test_a_widened_root_under_another_seed_refuses_before_anything_is_written(self, tmp_path, monkeypatch):
+        """D-C14 without the widen cell: a root widened on the command line keeps its parent's seed, and the storage
+        cell refuses another SEED before ``initialize_result_bundle`` and before it moves RUN_DIR or the memo."""
+        from environments.shared.result_bundle import ResultBundleError
+
+        run_dir = tmp_path / "logs" / "trex" / "ppo" / "20260924_000000"
+        stage_dir = run_dir / "01_stance"
+        stage_dir.mkdir(parents=True)
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps({"run": {"seed": 44, "n_envs": 4, "widened_from_run_id": "20260815_205206"}})
+        )
+        src = _cell(STORAGE_CELL_MARKER)
+        namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch)
+        exec(compile(src, "sb3_storage_earlier_run", "exec"), namespace)  # this runtime's earlier run
+        earlier = namespace["RUN_DIR"]
+        namespace["RUN_ID"] = run_dir.name
+        with pytest.raises(ResultBundleError, match="SEED = 42.*20260815_205206.*seed 44"):
+            exec(compile(src, "sb3_storage", "exec"), namespace)
+        assert len(provenance_calls) == 1 and sorted(p.name for p in run_dir.iterdir()) == ["01_stance"]
+        assert namespace["RUN_DIR"] == earlier and namespace["_ACTIVE_RUN_ID"] == earlier.name
+        namespace["SEED"] = 44
+        exec(compile(src, "sb3_storage", "exec"), namespace)
+        assert provenance_calls[1][1]["seed"] == 44 and provenance_calls[1][1]["run_id"] == run_dir.name
+        assert namespace["RUN_DIR"] == run_dir
+
+    def test_a_refused_run_id_never_reaches_the_memo(self, tmp_path, monkeypatch):
+        """An explicit RUN_ID whose provenance refuses this session (another run's seed or plant) leaves the memo and
+        RUN_DIR where they were, so ``RUN_ID = ""`` goes back to this runtime's run instead of re-entering the refused
+        one; and a TRUNK_FROM naming the run RUN_ID resolved to names RUN_ID as the knob to change."""
+        from environments.shared import result_bundle
+        from environments.shared.result_bundle import ResultBundleError
+
+        src = _cell(STORAGE_CELL_MARKER)
+        namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch)
+        exec(compile(src, "sb3_storage", "exec"), namespace)
+        earlier = namespace["RUN_DIR"]
+        other = tmp_path / "logs" / "trex" / "ppo" / "20260815_205206"
+        other.mkdir(parents=True)
+
+        def initialize(directory, **kwargs):
+            provenance_calls.append((directory, kwargs))
+            if directory == other:
+                raise ResultBundleError("run directory already belongs to a different run: {'training_seed': (44, 42)}")
+            return directory / "provenance.json"
+
+        monkeypatch.setattr(result_bundle, "initialize_result_bundle", initialize)
+        namespace["RUN_ID"] = other.name
+        with pytest.raises(ResultBundleError, match="belongs to a different run"):
+            exec(compile(src, "sb3_storage_refused", "exec"), namespace)
+        assert namespace["_ACTIVE_RUN_ID"] == earlier.name and namespace["RUN_DIR"] == earlier
+        namespace["RUN_ID"] = ""
+        exec(compile(src, "sb3_storage_back", "exec"), namespace)
+        assert namespace["RUN_DIR"] == earlier and provenance_calls[-1][1]["run_id"] == earlier.name
+        # RUN_ID and TRUNK_FROM both naming one run: the refusal names RUN_ID, the knob that was wrong.
+        namespace.update(RUN_ID=earlier.name, TRUNK_FROM=earlier.name)
+        with pytest.raises(RuntimeError, match=r"is the run RUN_ID resolved to .*set RUN_ID to a new id"):
+            exec(compile(src, "sb3_storage_own_trunk", "exec"), namespace)
+
+    def test_later_cells_read_the_resolved_run_id_never_the_knob(self):
+        cells = _code_cells()
+        config_at = _cell_index(cells, CONFIG_CELL_MARKER)
+        storage_at = _cell_index(cells, STORAGE_CELL_MARKER)
+        for index, src in enumerate(cells):
+            tree = ast.parse(src)
+            if index != config_at:
+                assert "RUN_ID" not in _bound_names(tree), f"code cell {index} rebinds the RUN_ID knob"
+            if index not in (config_at, storage_at):
+                assert "RUN_ID" not in _loaded_names(tree), f"code cell {index} reads RUN_ID; read _ACTIVE_RUN_ID"
+        storage = cells[storage_at]
+        tree = ast.parse(storage)
+        initialize = _call(tree, "initialize_result_bundle")
+        assert [ast.unparse(arg) for arg in initialize.args] == ["_run_dir"]
+        assert _keyword_source(storage, initialize, "run_id") == "_run_id"
+        infra = cells[_cell_index(cells, INFRA_CELL_MARKER)]
+        forwarded = _call(_top_level_def(infra, "save_run_bundle"), "_lib_save_result_bundle")
+        assert _keyword_source(infra, forwarded, "run_id") == "_ACTIVE_RUN_ID"
+        # The widened-root seed check runs on the resolved directory before the cell creates the directory or mints
+        # the provenance, and RUN_DIR and the memo are bound only once the provenance accepted the run.
+        seed_check = _call(tree, "refuse_widened_seed_mismatch")
+        assert [ast.unparse(arg) for arg in seed_check.args] == ["_run_dir"]
+        assert _keyword_source(storage, seed_check, "seed") == "SEED"
+        (bind,) = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "(_ACTIVE_RUN_ID, RUN_DIR)"
+        ]
+        assert ast.unparse(bind.value) == "(_run_id, _run_dir)"
+        mkdir = next(call for call in _calls(tree, "mkdir") if ast.unparse(call.func) == "_run_dir.mkdir")
+        assert seed_check.lineno < mkdir.lineno < initialize.lineno < bind.lineno
+        own_trunk = _call(tree, "load_provenance")  # the TRUNK_FROM block reads RUN_DIR, bound above it
+        assert bind.lineno < own_trunk.lineno
 
 
 class TestAutoTrunk:
@@ -860,7 +1009,7 @@ class TestAutoTrunk:
         assert _keyword_source(src, select, "plant_identity") == "PLANT_IDENTITY"
         assert _keyword_source(src, select, "exclude") == "(RUN_DIR,)", "this run is never its own trunk"
         assert _keyword_source(src, select, "retrain_from") == "RETRAIN_NODE", "D-A19 bounds what is consulted"
-        assert _keyword_source(src, select, "widen_from") == "WIDEN_FROM", "a widen session selects nothing"
+        assert "widen_from" not in _keyword_names(select), "D-D14: no widen session is special-cased"
         assert _keyword_source(src, select, "algorithm") == "ALGORITHM", "a SAC run never trunks a PPO chain"
         body = _branch_source(src, auto_if.body)
         assert "TRUNK_DIR = TRUNK_SELECTION.run_dir" in body
@@ -872,19 +1021,86 @@ class TestAutoTrunk:
 
     def test_the_chain_loop_rederives_the_auto_trunk_from_the_selection(self):
         """A storage-cell rerun resets TRUNK_DIR to None (only a pinned TRUNK_FROM fills it there), so
-        under "auto" the loop takes TRUNK_DIR from the resolve cell's selection for THIS log directory,
-        refuses a missing or foreign selection, and uses no trunk at all in a widen session."""
+        under "auto" the loop takes TRUNK_DIR from the resolve cell's selection for THIS log directory
+        and refuses a missing or foreign selection."""
         src, loop = _chain_loop()
         tree = ast.parse(src)
         auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "re-deriving the trunk")
         assert auto_if in tree.body and auto_if.lineno < loop.lineno, "before the loop, at the top level"
-        widen_if = _the_if(auto_if, src, lambda test: test == "WIDEN_FROM", "on a widen session")
-        assert "TRUNK_DIR = None" in _branch_source(src, widen_if.body)
-        rest = _branch_source(src, widen_if.orelse)
-        assert 'globals().get("TRUNK_SELECTION")' in rest
-        assert "LOG_BASE / SPECIES / ALGORITHM.lower()" in rest, "a selection for another log directory is refused"
-        assert "TRUNK_DIR = _selection.run_dir" in rest
-        assert len(_raises(widen_if, "RuntimeError")) == 1
+        body = _branch_source(src, auto_if.body)
+        assert 'globals().get("TRUNK_SELECTION")' in body
+        assert "LOG_BASE / SPECIES / ALGORITHM.lower()" in body, "a selection for another log directory is refused"
+        assert "TRUNK_DIR = _selection.run_dir" in body
+        assert len(_raises(auto_if, "RuntimeError")) == 1
+        assert "WIDEN_FROM" not in src, "D-D14: widening is the command-line tool's; no widen session is special-cased"
+
+    def test_the_resolve_cell_ends_with_the_complete_run_and_widened_root_refusals(self):
+        cells = _code_cells()
+        resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
+        src = cells[resolve_at]
+        tree = ast.parse(src)
+        auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "selecting the trunk")
+        guard = _the_if(tree, src, lambda test: test == 'globals().get("RUN_DIR") is not None', "on a bound RUN_DIR")
+        assert guard is tree.body[-1] and guard.lineno > auto_if.end_lineno, "last, once TRUNK_DIR is final"
+        complete = _call(guard, "refuse_complete_run_session")
+        widened = _call(guard, "refuse_trunk_over_unjudged_widened_root")
+        assert complete.lineno < widened.lineno
+        for call in (complete, widened):
+            assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR"]
+            for keyword, value in (
+                ("species", "SPECIES"),
+                ("chain", "CHAIN"),
+                ("target", "TARGET_NODE"),
+                ("retrain_from", "RETRAIN_NODE"),
+                ("trunk_dir", "TRUNK_DIR"),
+            ):
+                assert _keyword_source(src, call, keyword) == value, keyword
+        # A plain refusal: no disconnect (the helper is defined later), and the loop has not run yet.
+        assert not _calls(tree, "disconnect_runtime")
+        assert resolve_at < _cell_index(cells, CHAIN_CELL_MARKER)
+
+    def test_the_resolve_cell_refuses_a_complete_run_before_anything_is_written(self, tmp_path):
+        """Executed: a complete run re-entered for a node it lacks refuses; a reuse-only session passes."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.result_bundle import DEFAULT_MANIFEST_NAME, ResultBundleError
+        from environments.shared.stage_manifest import stage_dirname
+
+        run_dir = tmp_path / "20260920_010912"
+        stance_dir = run_dir / stage_dirname("velociraptor", 1)
+        stance_dir.mkdir(parents=True)
+        (stance_dir / "gate_verdict.json").write_text("{}")
+        (run_dir / DEFAULT_MANIFEST_NAME).write_text(json.dumps({"status": "complete"}))
+        before = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)  # stance is reused in place: nothing to refuse
+        namespace["BEHAVIOR"] = "walk"
+        with pytest.raises(ResultBundleError, match="would judge or train 'locomotion' here") as excinfo:
+            exec(_cell(RESOLVE_CELL_MARKER), namespace)
+        assert 'TRUNK_FROM = "20260920_010912"' in str(excinfo.value)
+        assert {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()} == before
+
+    def test_the_resolve_cell_refuses_a_trunk_over_an_unjudged_widened_root(self, tmp_path):
+        """Executed, D-C13 without the widen cell's ``TRUNK_DIR = None``: a root widened into this run on the command
+        line is judged by the chain loop before any trunk may stand in for it."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.result_bundle import ResultBundleError
+        from environments.shared.stage_manifest import stage_dirname
+
+        run_dir = tmp_path / "20260924_000000"
+        stance_dir = run_dir / stage_dirname("velociraptor", 1)
+        stance_dir.mkdir(parents=True)
+        (stance_dir / "stage_config.json").write_text(
+            json.dumps({"run": {"seed": 42, "n_envs": 4, "widened_from_run_id": "20260815_205206"}})
+        )
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="walk")
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)  # no trunk: the loop judges the widened root
+        namespace["TRUNK_DIR"] = tmp_path / "20260914_123816"
+        with pytest.raises(ResultBundleError, match="never judge the widened root"):
+            exec(_cell(RESOLVE_CELL_MARKER), namespace)
 
     def test_the_selection_it_delegates_to(self, tmp_path, monkeypatch):
         """Invariant, thin: the selector prefers coverage, then recency, and reuses the seven-rule check."""
@@ -1225,6 +1441,66 @@ class TestJudgeBranch:
             "JUDGE needs the final checkpoint AND its sidecar"
         )
 
+    def test_the_loop_judges_a_root_widened_on_the_command_line(self):
+        """What the command-line widen tool relies on downstream (decision D-D14): the loop REUSE-refuses a
+        verdict-less directory (printed, never silent), reads no verdict, and takes the JUDGE branch on the
+        ``<stage_label>_final`` pair the tool wrote."""
+        from environments.shared.scripts.widen_checkpoint import FORBIDDEN_OUTPUT_FILES
+
+        assert "gate_verdict.json" in FORBIDDEN_OUTPUT_FILES, "the tool never mints a verdict: the loop must judge"
+        src, loop = _chain_loop()
+        judge_if = _judge_if(src, loop)
+        test = ast.get_source_segment(src, judge_if.test) or ""
+        assert "verdict is None" in test and "final_stem" in test and "final_vecnorm" in test
+        final_assign = next(
+            node for node in loop.body if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "final_stem"
+        )
+        assert "stage_label(stage)" in ast.unparse(final_assign.value) and "_final" in ast.unparse(
+            final_assign.value
+        ), "JUDGE keys on <stage_label>_final — the byte-identical copies widen_checkpoint writes (D-C9)"
+        # Reuse of the widened directory is refused by the library (no verdict) and the loop prints the reason.
+        handler = next(
+            node
+            for node in ast.walk(loop)
+            if isinstance(node, ast.ExceptHandler)
+            and node.type is not None
+            and ast.unparse(node.type) == "AncestorReuseError"
+        )
+        assert _calls(handler, "print")
+
+    def test_the_widen_tool_documents_how_the_notebook_judges_its_output(self, capsys):
+        """D-D14 made the command line the widen path: ``--to-stage-dir``'s help names the run directory the storage
+        cell resolves for ``RUN_ID`` and the knobs the judging session sets."""
+        from environments.shared.scripts import widen_checkpoint as widen_module
+
+        with pytest.raises(SystemExit) as excinfo:
+            widen_module.main(["--help"])
+        assert excinfo.value.code == 0
+        help_text = " ".join(capsys.readouterr().out.split())
+        for phrase in (
+            "<LOG_BASE>/<species>/<algo>/<new run",
+            "<stage_dirname(species, root)>",
+            "has not opened yet",
+            'RUN_ID = "<new run id>"',
+            "SEED = the parent's run seed",
+            'TRUNK_FROM = ""',
+            "YYYYMMDD_HHMMSS",
+        ):
+            assert phrase in help_text, phrase
+        doc = " ".join((widen_module.__doc__ or "").split())
+        for phrase in (
+            "D-D14",
+            "--label",
+            "/content/mesozoic-labs",
+            "D-C13",
+            "D-C14",
+            "YYYYMMDD_HHMMSS",
+            'drive.mount("/content/drive")',
+            "never the storage cell",
+            "/content/drive/MyDrive/mesozoic-labs/logs",
+        ):
+            assert phrase in doc, phrase
+
 
 class TestChainLoop:
     """The loop walks CHAIN root-first and does exactly one of REUSE / JUDGE / TRAIN per node."""
@@ -1340,6 +1616,116 @@ class TestChainLoop:
         assert "verdict is None" in test and '.glob("*.zip")' in test
         assert len(interrupted.body) == 1 and isinstance(interrupted.body[0], ast.Raise)
         assert "RESUME_STAGE" in ast.unparse(interrupted.body[0]), "the message names the RESUME cell's knob"
+
+    def test_a_write_into_a_complete_run_is_refused_before_it_happens(self):
+        """A complete bundle is immutable (consolidation PR-14a). The resolve cell predicts from the directory alone;
+        what it cannot see without the reuse rule -- a node held only as an ``ancestors/`` record that the trunk no
+        longer certifies, or a trunk's copy recorded into a run that lacks the record -- is refused here, before
+        the write."""
+        src, loop = _chain_loop()
+        record_guard, backstop = sorted(_calls(loop, "refuse_write_into_complete_run"), key=lambda call: call.lineno)
+        for call in (record_guard, backstop):
+            assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR"]
+        # The record guard: in REUSE, only for a record the run does not hold yet (record_ancestor is a no-op for
+        # the same record and refuses a different one), before record_ancestor writes it.
+        reuse_if = _reuse_if(src, loop)
+        record_if = _the_if(
+            reuse_if,
+            src,
+            lambda test: test == "not (Path(RUN_DIR) / ANCESTORS_DIRNAME / NODE.id / ANCESTOR_RECORD_NAME).is_file()",
+            "on a record the run does not hold",
+        )
+        assert record_if.body[0].value is record_guard
+        assert record_if.end_lineno < _call(reuse_if, "record_ancestor").lineno
+        # The backstop: a top-level statement after the verdict refusals, before JUDGE, RESUME's refusal and TRAIN.
+        assert any(isinstance(stmt, ast.Expr) and stmt.value is backstop for stmt in loop.body)
+        assert _verdict_if(src, loop).end_lineno < backstop.lineno < _judge_if(src, loop).lineno
+
+    @staticmethod
+    def _complete_run_loop(tmp_path, monkeypatch, *, find, prepare):
+        """Execute the configuration, resolve and chain-loop cells for a complete velociraptor run under
+        ``BEHAVIOR = "walk"`` with a pinned trunk run; ``find`` stands in for ``find_certified_ancestor`` (the reuse
+        rule) and ``prepare(run_dir)`` adds what the run holds beside its judged locomotion. Returns the run
+        directory, its files before the loop, and the ``train_stage`` / ``record_ancestor`` calls made."""
+        from environments.shared import ancestors
+        from environments.shared.config import load_all_stages
+        from environments.shared.plant_contract import current_plant_identity
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        run_dir = tmp_path / "20260920_010912"
+        locomotion = run_dir / stage_dirname("velociraptor", "locomotion")
+        locomotion.mkdir(parents=True)
+        (locomotion / "gate_verdict.json").write_text("{}")
+        (run_dir / "artifact_manifest.json").write_text(json.dumps({"status": "complete"}))
+        prepare(run_dir)
+        before = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=tmp_path / "20260921_000000", BEHAVIOR="walk")
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)  # the directory alone predicts a reuse-only session
+        trained: list = []
+        recorded: list = []
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
+        monkeypatch.setattr(ancestors, "record_ancestor", lambda directory, ancestor: recorded.append(ancestor))
+        namespace.update(
+            Path=Path,
+            stage_dirname=stage_dirname,
+            stage_label=stage_label,
+            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            NODE_RESULTS={},
+            completed_stages=[],
+            NODE_HANDOFF={},
+            train_stage=lambda **kwargs: trained.append(kwargs),
+            QUICK_TEST=True,
+        )
+        try:
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        finally:
+            after = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+            assert after == before, "nothing is written into the complete run"
+            assert not trained and not recorded, "nothing is trained or recorded into the complete run"
+
+    def test_executed_a_record_the_trunk_no_longer_certifies_is_never_trained_into_a_complete_run(
+        self, tmp_path, monkeypatch
+    ):
+        from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.result_bundle import ResultBundleError
+
+        def refuse(candidate, **kwargs):
+            raise AncestorReuseError("not certified here")
+
+        def record_stance(run_dir):
+            record = run_dir / "ancestors" / "stance" / "ancestor.json"
+            record.parent.mkdir(parents=True)
+            record.write_text("{}")
+
+        with pytest.raises(ResultBundleError, match="Judging or training 'stance' would write into run") as excinfo:
+            self._complete_run_loop(tmp_path, monkeypatch, find=refuse, prepare=record_stance)
+        assert 'TRUNK_FROM = "20260920_010912"' in str(excinfo.value)
+
+    def test_executed_a_trunk_copy_is_never_recorded_into_a_complete_run(self, tmp_path, monkeypatch):
+        """The run's own stance verdict is refused by the reuse rule while the trunk's copy is accepted."""
+        import types
+
+        from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.result_bundle import ResultBundleError
+        from environments.shared.stage_manifest import stage_dirname
+
+        trunk = tmp_path / "20260921_000000"
+        copy = types.SimpleNamespace(stage_id="stance", run_id=trunk.name, stage_dir=trunk / "01_stance")
+
+        def find(candidate, **kwargs):
+            if candidate == trunk and kwargs["entry"].id == "stance":
+                return copy
+            raise AncestorReuseError("refused by the reuse rule")
+
+        def judge_stance(run_dir):
+            stance = run_dir / stage_dirname("velociraptor", "stance")
+            stance.mkdir(parents=True)
+            (stance / "gate_verdict.json").write_text("{}")
+
+        with pytest.raises(ResultBundleError, match="Recording 'stance' from run 20260921_000000 would write into"):
+            self._complete_run_loop(tmp_path, monkeypatch, find=find, prepare=judge_stance)
 
 
 class TestFrozenNullFlow:
@@ -1542,7 +1928,9 @@ class TestEscapeHatch:
     def test_the_manual_cell_records_but_never_enforces_the_verdict(self):
         src = _cell(MANUAL_CELL_MARKER)
         tree = ast.parse(src)
-        assert not [node for node in ast.walk(tree) if isinstance(node, ast.Raise)], "the manual cell never raises"
+        assert not [node for node in ast.walk(tree) if isinstance(node, ast.Raise)], (
+            "the manual cell never raises on a verdict (its one refusal, a complete run, is a helper call before any write)"
+        )
         assert not _calls(tree, "disconnect_runtime"), "the manual cell never releases the runtime"
         assert _calls(tree, "generate_stage_artifacts"), "the verdict is still judged and written"
         assert "NODE_RESULTS[_manual_entry.id]" in src or re.search(r"NODE_RESULTS\[[^\]]+\] =", src)
@@ -1560,6 +1948,23 @@ class TestEscapeHatch:
         assert _call(tree, "train_stage").lineno < _call(tree, "roll_policy_panel").lineno
         artifacts = _call(tree, "generate_stage_artifacts")
         assert "recovery_successes_by_seed" in _keyword_names(artifacts)
+
+    def test_the_manual_cell_refuses_a_complete_run_before_it_writes(self):
+        """A complete bundle is immutable (consolidation PR-14a): refused before the freeze or the training."""
+        src = _cell(MANUAL_CELL_MARKER)
+        tree = ast.parse(src)
+        gate = next(node for node in tree.body if isinstance(node, ast.If))
+        guard = _call(gate, "refuse_write_into_complete_run")
+        assert [ast.unparse(arg) for arg in guard.args] == ["RUN_DIR"]
+        assert any(isinstance(node, ast.Expr) and node.value is guard for node in gate.body), "a top-level statement"
+        entry = next(
+            node
+            for node in gate.body
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "_manual_entry"
+        )
+        assert (
+            entry.lineno < guard.lineno < _call(tree, "freeze_recovery_gate").lineno < _call(tree, "train_stage").lineno
+        )
 
     def test_the_manual_cell_never_feeds_the_chain(self):
         src = _cell(MANUAL_CELL_MARKER)
@@ -1616,15 +2021,44 @@ class TestResumeCell:
         assert train in [node for stmt in spent.orelse for node in ast.walk(stmt)]
         assert "stage_dirname(SPECIES, RESUME_STAGE)" in src and "stage_label(RESUME_STAGE)" in src
 
-    def test_the_resume_prose_routes_old_checkpoints_to_the_widen_knobs(self):
-        """The markdown right before the RESUME cell sends a pre-bump checkpoint to ``WIDEN_FROM`` in a new run,
-        under the ``WIDEN_MAX_REVISION_GAP`` bound (D-C17) and the parent's seed (D-C14), never to ``RUN_ID``."""
+    def test_the_resume_cell_refuses_a_complete_run_before_it_trains(self):
+        """A complete bundle is immutable (consolidation PR-14a): nothing is resumed into it; the spent-budget branch
+        and the checkpoint scan stay read-only."""
+        src = _cell(RESUME_CELL_MARKER)
+        tree = ast.parse(src)
+        spent = _the_if(tree, src, lambda test: test == "remaining_res == 0", "on a spent budget")
+        guard = _call(tree, "refuse_write_into_complete_run")
+        assert [ast.unparse(arg) for arg in guard.args] == ["RUN_DIR"]
+        first = spent.orelse[0]
+        assert isinstance(first, ast.Expr) and first.value is guard, "the first statement of the resuming branch"
+        assert guard.lineno < _call(tree, "train_stage").lineno
+
+    def test_the_resume_prose_routes_old_checkpoints_to_the_command_line_widen(self):
+        """The markdown right before the RESUME cell: ``RUN_ID`` is set in the configuration cell, never into a
+        complete run; an earlier run's certified nodes come in through ``TRUNK_FROM`` in a new run; a pre-bump
+        checkpoint is widened on the command line (D-C17's bound as the tool's flag) into a new run judged here
+        under the parent's seed (D-C14, D-D14). No copy of the old restart / memo-reset remedy survives."""
         every = _all_cell_sources()
         prose = every[every.index(_cell(RESUME_CELL_MARKER)) - 1]
         assert prose.startswith("## "), "a markdown section header sits right before the RESUME cell"
-        for phrase in ("`WIDEN_FROM`", "`WIDEN_MAX_REVISION_GAP`", "default 1", "D-C17", "D-C14", "`SEED`"):
+        for phrase in (
+            "`RUN_ID` in the configuration cell",
+            "`complete`",
+            "`TRUNK_FROM`",
+            "environments.shared.scripts.widen_checkpoint",
+            "--max-revision-gap",
+            "--label",
+            "D-C17",
+            "D-C14",
+            "D-D14",
+            "`SEED`",
+            'TRUNK_FROM = ""',
+            "re-entering run",
+        ):
             assert phrase in prose, f"the RESUME prose no longer names {phrase}"
         assert "**new** `RUN_ID`" in prose and "never by pointing `RUN_ID` at the old run" in prose
+        for gone in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP", "restart the runtime", "_ACTIVE_RUN_ID", "stray"):
+            assert gone not in prose, f"the RESUME prose still names {gone!r}"
 
 
 def _preflight_cell() -> tuple[str, ast.Module]:
@@ -1633,23 +2067,28 @@ def _preflight_cell() -> tuple[str, ast.Module]:
 
 
 class TestArchiveLoadPreflightCell:
-    """The cell that proves SB3 archives load on this runtime BEFORE the widen cell touches the parent.
+    """The cell that proves SB3 archives load on this runtime before anything is trained.
 
     Two Colab sessions on 2026-09-19 died inside the widen tool's self-verification because the runtime image had
     moved to another Python minor version and a bare ``PPO.load`` executed the parent archive's cloudpickled
-    schedule bytecode. The preflight used to live in the infrastructure cell, AFTER the widen cell, and loaded a
-    throwaway model saved by the same interpreter, so it could never see the fault. It now runs right before the
-    widen cell, on the WIDEN_FROM parent's real root handoff (else the trunk's, else a throwaway), through
-    ``policy_loading.load_sb3_model`` -- the one loader every repository load goes through -- with the print
-    flushed first so a kernel death is attributable."""
+    schedule bytecode. The preflight used to live in the infrastructure cell and loaded a throwaway model saved by
+    the same interpreter, so it could never see the fault. It runs right after the RESOLVE cell, on the trunk run's
+    real root handoff (else a throwaway), through ``policy_loading.load_sb3_model`` -- the one loader every
+    repository load goes through -- with the print flushed first so a kernel death is attributable. (Until
+    consolidation PR-14a it loaded the WIDEN_FROM parent's handoff first; D-D14 moved widening to the command
+    line.)"""
 
-    def test_the_preflight_sits_between_resolve_and_widen(self):
+    def test_the_preflight_follows_the_resolve_cell(self):
         src, tree = _preflight_cell()
         assert src.splitlines()[0] == PREFLIGHT_CELL_MARKER
         assert not src.startswith("# ===== "), "not one of the four `# ===== ` cells"
         cells = _code_cells()
-        assert _cell_index(cells, PREFLIGHT_CELL_MARKER) == _cell_index(cells, RESOLVE_CELL_MARKER) + 1
-        assert _cell_index(cells, PREFLIGHT_CELL_MARKER) + 1 == _cell_index(cells, WIDEN_CELL_MARKER)
+        preflight_at = _cell_index(cells, PREFLIGHT_CELL_MARKER)
+        resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
+        assert preflight_at == resolve_at + 1, "right after the RESOLVE cell (CHAIN and TRUNK_DIR exist)"
+        assert preflight_at < _cell_index(cells, INFRA_CELL_MARKER) < _cell_index(cells, CHAIN_CELL_MARKER)
+        every = _all_cell_sources()
+        assert every.index(cells[preflight_at]) == every.index(cells[resolve_at]) + 1
         # The notebook-only PR-12 slice removed the direction/terrain guard: the marker is the raw first line.
         assert "COMMAND_TERRAIN_BEHAVIOR" not in src
 
@@ -1670,12 +2109,12 @@ class TestArchiveLoadPreflightCell:
         )
         printed = ast.get_source_segment(src, last)
         assert "saved_python_text" in printed and "bytecode_members" in printed and "kernel death HERE" in printed
-        # The archive is the WIDEN_FROM parent's root handoff first, the trunk's second, a throwaway last; a widen
-        # session with no complete handoff pair RAISES rather than passing on a throwaway.
-        assert "if WIDEN_FROM:" in src and "elif TRUNK_DIR is not None:" in src
-        widen_if = _the_if(tree, src, lambda test: test == "WIDEN_FROM", "on a set WIDEN_FROM")
-        missing = _the_if(widen_if, src, lambda test: test == "_preflight_archive is None", "on a missing handoff")
-        assert _raises(missing, "RuntimeError"), "a set WIDEN_FROM without a root handoff pair refuses the preflight"
+        # The archive is the trunk run's root handoff when there is one, else a throwaway (D-D14 took the
+        # WIDEN_FROM parent's branch with the widen cell); a trunk without a complete pair falls back, never raises.
+        assert "WIDEN_FROM" not in src
+        trunk_if = _the_if(tree, src, lambda test: test == "TRUNK_DIR is not None", "on a trunk run")
+        assert trunk_if in tree.body and "_preflight_root_handoff(TRUNK_DIR)" in _branch_source(src, trunk_if.body)
+        assert not _raises(tree, "RuntimeError")
         assert "select_handoff_checkpoint(" in src and "stage_dir_candidates(SPECIES, CHAIN[0].reference)" in src
         assert "tempfile.TemporaryDirectory(" in src, (
             "the throwaway model lives in a temporary directory the cell removes"
@@ -1714,323 +2153,7 @@ class TestArchiveLoadPreflightCell:
         }
         free = _loaded_names(tree) - bound - parameters - set(dir(builtins))
         assert free <= earlier, f"the preflight cell reads names no earlier cell binds: {sorted(free - earlier)}"
-        assert free <= {"SPECIES", "ALGORITHM", "CHAIN", "LOG_BASE", "TRUNK_DIR", "WIDEN_FROM", "gym", "np", "sys"}, (
-            sorted(free)
-        )
-
-
-def _widen_cell() -> tuple[str, ast.Module]:
-    src = _cell(WIDEN_CELL_MARKER)
-    return src, ast.parse(src)
-
-
-def _root_name(tree: ast.AST) -> str:
-    """The name the widen cell binds to ``CHAIN[0]`` — the chain's root, the node it widens."""
-    roots = [
-        target
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Assign) and ast.unparse(node.value) == "CHAIN[0]"
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    ]
-    assert len(roots) == 1, "the widen cell binds the chain's root exactly once, from CHAIN[0]"
-    return roots[0].id
-
-
-class TestWidenCell:
-    """Phase C (BEHAVIOR_RECIPES_PLAN §4.6; decisions D-C13, D-C14; amendment A14): ``WIDEN_FROM`` widens an
-    earlier run's certified ROOT handoff into THIS run's root stage directory — before the chain loop, in a fresh
-    RUN_ID — as a judge-ready node the loop then REUSE-refuses (no verdict) and JUDGES from its ``<stage_label>_final``
-    pair.  The cell never trains, never certifies, never writes into the parent, and refuses a re-run in the same
-    RUN_DIR."""
-
-    def test_exactly_one_widen_cell_between_resolve_and_chain(self):
-        cells = _code_cells()
-        hits = [index for index, src in enumerate(cells) if "widen_checkpoint(" in src]
-        assert len(hits) == 1, "exactly one code cell calls widen_checkpoint(...)"
-        widen_at = hits[0]
-        src = cells[widen_at]
-        assert src.splitlines()[0] == WIDEN_CELL_MARKER, "the widen cell is identified by its first line"
-        resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
-        preflight_at = _cell_index(cells, PREFLIGHT_CELL_MARKER)
-        assert preflight_at == resolve_at + 1, (
-            "the load preflight is the code cell right after the RESOLVE cell (CHAIN exists)"
-        )
-        assert widen_at == preflight_at + 1, "the widen cell is the code cell right after the load preflight"
-        assert widen_at < _cell_index(cells, INFRA_CELL_MARKER) < _cell_index(cells, CHAIN_CELL_MARKER)
-        # Immediately after in the full cell list too: no markdown or other cell sits between the three.
-        every = _all_cell_sources()
-        assert every.index(cells[preflight_at]) == every.index(cells[resolve_at]) + 1
-        assert every.index(src) == every.index(cells[preflight_at]) + 1
-        # The tool is imported from the scripts module, the way the zero-action baseline cell imports its script.
-        assert "from environments.shared.scripts.widen_checkpoint import" in src
-        # With WIDEN_FROM empty the cell prints one line and does nothing else; everything else sits under the else.
-        tree = ast.parse(src)
-        guard = _the_if(tree, src, lambda test: test == "not WIDEN_FROM", "on an empty WIDEN_FROM")
-        assert guard in tree.body, "the WIDEN_FROM guard is a top-level statement of the cell"
-        assert len(guard.body) == 1 and isinstance(guard.body[0], ast.Expr)
-        assert isinstance(guard.body[0].value, ast.Call) and _func_name(guard.body[0].value) == "print"
-        widen = _call(tree, "widen_checkpoint")
-        assert widen in [node for stmt in guard.orelse for node in ast.walk(stmt)], (
-            "the widening happens under the else"
-        )
-
-    def test_widen_cell_is_not_an_escape_hatch_and_trains_nothing(self):
-        src, tree = _widen_cell()
-        assert not src.startswith("# ===== "), "the widen cell is not one of the four `# ===== ` cells"
-        for name in (
-            "train_stage",
-            "evaluate_stage_checkpoints",
-            "generate_stage_artifacts",
-            "save_run_bundle",
-            "write_training_summary",
-            "freeze_recovery_gate",
-            "roll_policy_panel",
-            "learn",
-            "find_certified_ancestor",
-            "record_ancestor",
-        ):
-            assert not _calls(tree, name), f"the widen cell calls {name}"
-        for name in ("NODE_HANDOFF", "NODE_RESULTS", "completed_stages", "TRUNK_DIR"):
-            assert name not in _names(tree), f"the widen cell touches {name}: it feeds the chain only through the disk"
-        # The four `# ===== ` cells and the three train_stage callers are exactly as before (A23).
-        cells = _code_cells()
-        assert sum(cell.startswith("# ===== ") for cell in cells) == 4
-        callers = [index for index, cell in enumerate(cells) if _calls(ast.parse(cell), "train_stage")]
-        assert len(callers) == 3 and cells.index(src) not in callers
-        # It never certifies or records the node itself: no verdict, no provenance, no resolution, no write of any
-        # kind — the tool writes the judge-ready root; the chain loop's JUDGE branch mints the verdict.
-        assert "gate_verdict" not in src
-        for name in (
-            "write_gate_verdict",
-            "initialize_result_bundle",
-            "update_provenance",
-            "save_stage_config",
-            "open",
-        ):
-            assert not _calls(tree, name), f"the widen cell calls {name}"
-        writers = [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr
-            in {
-                "write_text",
-                "write_bytes",
-                "mkdir",
-                "copy",
-                "copy2",
-                "copyfile",
-                "copytree",
-                "rename",
-                "replace",
-                "unlink",
-                "rmtree",
-                "touch",
-            }
-        ]
-        assert not writers, f"the widen cell writes or moves files itself: {[ast.unparse(node) for node in writers]}"
-        assert "shutil" not in _names(tree)
-
-    def test_widen_cell_refuses_occupied_target_and_requires_provenance(self):
-        src, tree = _widen_cell()
-        root = _root_name(tree)
-        widen = _call(tree, "widen_checkpoint")
-        # D-A20 / D-C13: the target is refused when it already records a stage, BEFORE the tool runs, with the
-        # effective mode None (nothing is loaded into it) — so a re-run in the same RUN_DIR refuses, never overwrites.
-        refuse = _call(tree, "refuse_occupied_stage_dir")
-        mode = next(keyword.value for keyword in refuse.keywords if keyword.arg == "task_load_mode")
-        assert isinstance(mode, ast.Constant) and mode.value is None
-        assert refuse.lineno < widen.lineno, "the occupied-directory guard runs before the widening"
-        target = ast.unparse(refuse.args[0])
-        assert target == _keyword_source(src, widen, "target_stage_dir"), (
-            "the guard checks the directory the tool writes"
-        )
-        target_assign = next(
-            node for node in ast.walk(tree) if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == target
-        )
-        assert ast.unparse(target_assign.value) == f"RUN_DIR / stage_dirname(SPECIES, {root}.reference)", (
-            "the widened root lands in THIS run under the stage's directory name — where the chain loop looks"
-        )
-        # The tool's own refusals (WidenError) are never caught: a refusal halts Run-all with the tool's message.
-        assert not [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Try) and widen in [n for s in node.body for n in ast.walk(s)]
-        ], "widen_checkpoint(...) is not wrapped in a try"
-        assert "WidenError" not in _names(tree)
-        # A parent is a run WITH a provenance.json: load_provenance inside try/except ResultBundleError, refusing.
-        load = _call(tree, "load_provenance")
-        tries = [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Try) and load in [n for s in node.body for n in ast.walk(s)]
-        ]
-        assert len(tries) == 1
-        handlers = tries[0].handlers
-        assert [ast.unparse(handler.type) for handler in handlers if handler.type is not None] == ["ResultBundleError"]
-        assert _raises(handlers[0], "RuntimeError") and "provenance.json" in _branch_source(src, handlers[0].body)
-        # Never this run's own directory.
-        own = _the_if(tree, src, lambda test: "RUN_DIR.resolve()" in test, "refusing this run's own directory")
-        assert _raises(own, "RuntimeError") and own.lineno < load.lineno
-        # Same species, algorithm and backend as this run — mirrored from the TRUNK_FROM block.
-        assert "canonical_algorithm(ALGORITHM)" in src and '"stable-baselines3"' in src
-        identity_ifs = [
-            node
-            for node in _ifs(tree, src, lambda test: "!=" in test)
-            if _raises(node, "RuntimeError") and "species, algorithm and backend" in _branch_source(src, node.body)
-        ]
-        assert len(identity_ifs) == 1, "a species/algorithm/backend mismatch refuses"
-        assert identity_ifs[0].lineno < widen.lineno
-        # The source stage directory is located under the PARENT run through stage_dir_candidates (any layout
-        # generation), and a parent without that stage refuses instead of widening something else.
-        source_name = _keyword_source(src, widen, "parent_stage_dir")
-        source_assign = next(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == source_name
-        )
-        candidates = _calls(source_assign, "stage_dir_candidates")
-        assert candidates and [ast.unparse(arg) for arg in candidates[0].args] == ["SPECIES", f"{root}.reference"]
-        assert ".is_dir()" in ast.unparse(source_assign.value)
-        missing = _the_if(
-            tree, src, lambda test: test == f"{source_name} is None", "on a parent without the root stage"
-        )
-        assert _raises(missing, "RuntimeError") and missing.lineno < widen.lineno
-        # Every refusal is a raise, never a print-and-continue.
-        assert len(_raises(tree, "RuntimeError")) >= 4 and len(_raises(tree, "ValueError")) == 1
-
-    def test_widen_cell_threads_the_label_knob(self):
-        """D-A21 mirrored: the widen call records ``RUN_LABEL or None``; every other keyword is the run's own."""
-        import inspect
-
-        from environments.shared.scripts.widen_checkpoint import widen_checkpoint
-
-        src, tree = _widen_cell()
-        root = _root_name(tree)
-        widen = _call(tree, "widen_checkpoint")
-        assert not widen.args, "widen_checkpoint is keyword-only; the cell passes keywords"
-        keywords = {keyword.arg: ast.get_source_segment(src, keyword.value) for keyword in widen.keywords}
-        assert keywords["label"] == "RUN_LABEL or None"
-        assert keywords["species"] == "SPECIES"
-        assert keywords["stage"] == f"{root}.reference"
-        assert keywords["algorithm"] == "ALGORITHM"
-        assert "run_id" in (keywords.get("parent_run_id") or ""), "the parent is named by its provenance run_id"
-        assert keywords["max_revision_gap"] == "WIDEN_MAX_REVISION_GAP", "the cell-6 bound is threaded as-is (D-C17)"
-        assert set(keywords) == {
-            "species",
-            "stage",
-            "parent_stage_dir",
-            "target_stage_dir",
-            "algorithm",
-            "label",
-            "parent_run_id",
-            "max_revision_gap",
-        }, "the notebook never passes the explicit-pair form, invents run facts, or allows a legacy plant"
-        parameters = inspect.signature(widen_checkpoint).parameters
-        assert set(keywords) <= set(parameters)
-        assert parameters["allow_legacy_plant"].default is False
-        assert parameters["max_revision_gap"].default == 1, "the tool fails closed at one revision without the knob"
-        assert (
-            'print(f"  policy-interface revisions crossed: {_widen_result.revision_gap} '
-            '(WIDEN_MAX_REVISION_GAP={WIDEN_MAX_REVISION_GAP})")' in src
-        ), "the revisions crossed are printed from the returned result, next to the bound they were checked against"
-        assert all(parameter.kind is inspect.Parameter.KEYWORD_ONLY for parameter in parameters.values())
-        # The report numbers are printed from the returned result, not re-read from disk.
-        assert _calls(tree, "print") and "max_action_delta" in src and "observation_dim" in src
-
-    def test_widen_cell_imports_every_name_it_uses(self):
-        """A14a: the cell runs BEFORE the infrastructure cell, so it imports its own names; the only free names are the
-        knobs and constants the config, storage and resolve cells bind before it."""
-        import builtins
-
-        src, tree = _widen_cell()
-        bound = _bound_names(tree)
-        assert {
-            "Path",
-            "refuse_occupied_stage_dir",
-            "load_provenance",
-            "ResultBundleError",
-            "canonical_algorithm",
-            "widen_checkpoint",
-            "stage_dir_candidates",
-            "stage_dirname",
-        } <= bound, "the widen cell imports the tool and every helper it calls itself"
-        earlier: set[str] = set()
-        for marker in (CONFIG_CELL_MARKER, STORAGE_CELL_MARKER, RESOLVE_CELL_MARKER):
-            earlier |= _bound_names(ast.parse(_cell(marker)))
-        free = _loaded_names(tree) - bound - set(dir(builtins))
-        assert free <= earlier, f"the widen cell reads names no earlier cell binds: {sorted(free - earlier)}"
-        assert free <= WIDEN_CELL_INHERITED_NAMES, (
-            f"the widen cell leans on more than the documented knobs and constants: {sorted(free - WIDEN_CELL_INHERITED_NAMES)}"
-        )
-        # It relies on nothing the infrastructure cell defines (it has not run yet).
-        infra_defs = {
-            node.name for node in ast.parse(_cell(INFRA_CELL_MARKER)).body if isinstance(node, ast.FunctionDef)
-        }
-        assert not (_loaded_names(tree) & infra_defs)
-
-    def test_widen_cell_refuses_a_seed_other_than_the_parents(self):
-        """A14b / D-C14: the parent stage's recorded run.seed must equal SEED — this run's provenance publishes
-        training_seed = SEED, and seed replication counts distinct seeds; a mismatch raises naming both values."""
-        src, tree = _widen_cell()
-        widen = _call(tree, "widen_checkpoint")
-        seed_ifs = _ifs(tree, src, lambda test: re.fullmatch(r"(\w+) != SEED|SEED != (\w+)", test) is not None)
-        assert len(seed_ifs) == 1, "exactly one `if <parent seed> != SEED:` guard"
-        seed_if = seed_ifs[0]
-        match = re.fullmatch(r"(\w+) != SEED|SEED != (\w+)", ast.get_source_segment(src, seed_if.test) or "")
-        assert match is not None
-        parent_seed = match.group(1) or match.group(2)
-        assert len(seed_if.body) == 1 and isinstance(seed_if.body[0], ast.Raise), "an unconditional raise"
-        assert _raises(seed_if, "ValueError")
-        message = _names(seed_if.body[0])
-        assert {"SEED", parent_seed} <= message, "the message names BOTH the notebook SEED and the parent's seed"
-        # The parent's seed is read from the parent stage's stage_config.json run block, never from this run.
-        seed_assign = next(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == parent_seed
-        )
-        seed_src = ast.get_source_segment(src, seed_assign.value) or ""
-        assert '"seed"' in seed_src
-        run_block = seed_src.split(".get")[0].split("[")[0]
-        run_assign = next(
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == run_block
-        )
-        run_src = ast.get_source_segment(src, run_assign.value) or ""
-        assert "stage_config.json" in run_src and '"run"' in run_src
-        assert _keyword_source(src, widen, "parent_stage_dir") in run_src, "read from the PARENT's stage directory"
-        # Refused before anything is touched: the seed check precedes the occupied-target guard and the widening.
-        assert seed_if.lineno < _call(tree, "refuse_occupied_stage_dir").lineno < widen.lineno
-
-    def test_the_chain_loop_judges_a_widened_root(self):
-        """What the widen cell relies on downstream: the loop REUSE-refuses a verdict-less directory (printed, never
-        silent), reads no verdict, and takes the JUDGE branch on the ``<stage_label>_final`` pair the tool wrote."""
-        from environments.shared.scripts.widen_checkpoint import FORBIDDEN_OUTPUT_FILES
-
-        assert "gate_verdict.json" in FORBIDDEN_OUTPUT_FILES, "the tool never mints a verdict: the loop must judge"
-        src, loop = _chain_loop()
-        judge_if = _judge_if(src, loop)
-        test = ast.get_source_segment(src, judge_if.test) or ""
-        assert "verdict is None" in test and "final_stem" in test and "final_vecnorm" in test
-        final_assign = next(
-            node for node in loop.body if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "final_stem"
-        )
-        assert "stage_label(stage)" in ast.unparse(final_assign.value) and "_final" in ast.unparse(
-            final_assign.value
-        ), "JUDGE keys on <stage_label>_final — the byte-identical copies widen_checkpoint writes (D-C9)"
-        # Reuse of the widened directory is refused by the library (no verdict) and the loop prints the reason.
-        handler = next(
-            node
-            for node in ast.walk(loop)
-            if isinstance(node, ast.ExceptHandler)
-            and node.type is not None
-            and ast.unparse(node.type) == "AncestorReuseError"
-        )
-        assert _calls(handler, "print")
+        assert free <= {"SPECIES", "CHAIN", "TRUNK_DIR", "gym", "np", "sys"}, sorted(free)
 
 
 class TestCommandSliceReseed:
@@ -2071,259 +2194,6 @@ class TestCommandSliceReseed:
         for species in SPECIES_WITH_MANIFESTS:
             for reference, config in load_all_stages(species).items():
                 assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (species, reference)
-
-
-def _widen_cell_namespace(
-    log_base: Path,
-    run_dir: Path,
-    chain,
-    *,
-    seed: int,
-    widen_from: str,
-    max_revision_gap: int = 1,
-) -> dict:
-    """What the config, storage and resolve cells bind before the widen cell runs (``WIDEN_CELL_INHERITED_NAMES``)."""
-    run_dir.mkdir(parents=True, exist_ok=True)
-    namespace = {
-        "SPECIES": "trex",
-        "ALGORITHM": "ppo",
-        "LOG_BASE": log_base,
-        "RUN_DIR": run_dir,
-        "RUN_LABEL": None,
-        "SEED": seed,
-        "CHAIN": chain,
-        "WIDEN_FROM": widen_from,
-        "WIDEN_MAX_REVISION_GAP": max_revision_gap,
-    }
-    assert set(namespace) == WIDEN_CELL_INHERITED_NAMES
-    return namespace
-
-
-class TestWidenCellExecution:
-    """The widen cell's SOURCE executed over a real narrow (r-1) parent — the fixture ``test_widen_checkpoint`` builds —
-    with the namespace the config, storage and resolve cells would have bound.  SB3-bound (~40 s, plus one r-2 parent
-    for the D-C17 case)."""
-
-    def test_the_widen_cell_widens_a_narrow_parent_and_refuses_a_rerun(self, tmp_path, capsys):
-        pytest.importorskip("stable_baselines3")
-        pytest.importorskip("torch")
-        from environments.shared.ancestors import AncestorReuseError, find_certified_ancestor
-        from environments.shared.config import (
-            LOAD_LINEAGE_KEYS,
-            WIDEN_LINEAGE_KEYS,
-            StageDirectoryOccupiedError,
-            load_stage_config,
-        )
-        from environments.shared.plant_contract import current_plant_identity
-        from environments.shared.result_bundle import initialize_result_bundle, read_gate_verdict
-        from environments.shared.scripts.widen_checkpoint import FORBIDDEN_OUTPUT_FILES
-        from environments.shared.task_fingerprint import derive_stage_task_fingerprint
-
-        from .test_widen_checkpoint import PARENT_RUN_NAME, PARENT_SEED, build_narrow_parent
-
-        src = _cell(WIDEN_CELL_MARKER)
-        code = compile(src, "sb3_training.ipynb[widen cell]", "exec")
-        log_base = tmp_path / "logs"
-        parent = build_narrow_parent(log_base / "trex" / "ppo", "ppo")
-        # The parent is a run WITH a provenance.json, minted by the repository's own writer (as cell 7 does).
-        initialize_result_bundle(
-            parent["run_dir"],
-            species="trex",
-            algorithm="ppo",
-            backend="stable-baselines3",
-            seed=PARENT_SEED,
-            plant_identity=parent["narrow"].to_dict(),
-            run_id=PARENT_RUN_NAME,
-            repository_root=REPO_ROOT,
-        )
-        manifest = load_stage_manifest("trex")
-        chain = manifest.chain_for("behavior")
-        assert chain[0].id == "stance"
-
-        def namespace(run_dir: Path, *, seed: int = PARENT_SEED, widen_from: str = PARENT_RUN_NAME) -> dict:
-            return _widen_cell_namespace(log_base, run_dir, chain, seed=seed, widen_from=widen_from)
-
-        # (1) The widening: a judge-ready root under this run's stage directory name.
-        run_dir = log_base / "trex" / "ppo" / "20260914_000000"
-        exec(code, namespace(run_dir))  # noqa: S102 - the notebook cell under test
-        out = capsys.readouterr().out
-        widths = f"{parent['narrow'].observation_dim} -> {parent['current'].observation_dim}"
-        assert widths in out and "robust_best_model" in out and "max action delta" in out
-        target = run_dir / "01_stance"
-        for name in (
-            "models/robust_best_model.zip",
-            "models/robust_best_model_vecnorm.pkl",
-            "models/stage1_final.zip",
-            "models/stage1_final_vecnorm.pkl",
-            "stage_config.json",
-            "plant_identity.json",
-            "task_fingerprint.json",
-            "widen_report.json",
-        ):
-            assert (target / name).is_file(), name
-        for name in FORBIDDEN_OUTPUT_FILES:
-            assert not (target / name).exists(), f"the widen cell left {name} behind"
-        run_block = json.loads((target / "stage_config.json").read_text(encoding="utf-8"))["run"]
-        assert run_block["seed"] == PARENT_SEED
-        assert run_block["widened_from_run_id"] == PARENT_RUN_NAME
-        assert set(WIDEN_LINEAGE_KEYS) <= set(run_block) and not (set(LOAD_LINEAGE_KEYS) & set(run_block)), (
-            "a widened node is a root (D-C8): widen lineage, never load lineage"
-        )
-        assert run_block.get("label") is None, "RUN_LABEL=None reaches the run block as no label"
-        assert (parent["stage_dir"] / "models" / "robust_best_model.zip").read_bytes() != (
-            target / "models" / "robust_best_model.zip"
-        ).read_bytes()
-        assert not any(path.name in FORBIDDEN_OUTPUT_FILES for path in parent["stage_dir"].iterdir())
-
-        # (2) What the chain loop then sees: REUSE is refused (no verdict), and JUDGE's precondition holds.
-        entry = manifest.resolve("stance")
-        stance_config = load_stage_config("trex", "stance")
-        task_sha256 = derive_stage_task_fingerprint(
-            species="trex",
-            stage="stance",
-            backend="stable-baselines3",
-            env_kwargs=stance_config.get("env_kwargs", {}),
-            plant_identity=current_plant_identity("trex").to_dict(),
-        )["task_sha256"]
-        with pytest.raises(AncestorReuseError, match="no gate_verdict.json"):
-            find_certified_ancestor(
-                run_dir,
-                species="trex",
-                entry=entry,
-                current_task_sha256=task_sha256,
-                plant_identity=current_plant_identity("trex"),
-                current_gate_config=stance_config.get("curriculum_kwargs", {}),
-                parent_model_sha256=None,
-            )
-        assert read_gate_verdict(target) is None
-        assert (target / "models" / "stage1_final.zip").exists() and (
-            target / "models" / "stage1_final_vecnorm.pkl"
-        ).exists()
-
-        # (3) A second run of the cell in the same RUN_DIR refuses (D-A20 / D-C13) and changes nothing.
-        before = sorted(path.relative_to(target) for path in target.rglob("*"))
-        with pytest.raises(StageDirectoryOccupiedError, match="already records a stage"):
-            exec(code, namespace(run_dir))  # noqa: S102
-        assert sorted(path.relative_to(target) for path in target.rglob("*")) == before
-
-        # (4) SEED != parent run.seed refuses BEFORE anything is written, naming both values (D-C14 / A14b).
-        other = log_base / "trex" / "ppo" / "20260914_000001"
-        with pytest.raises(ValueError, match=rf"SEED={PARENT_SEED + 1}.*seed {PARENT_SEED}"):
-            exec(code, namespace(other, seed=PARENT_SEED + 1))  # noqa: S102
-        assert not (other / "01_stance").exists()
-
-        # (5) WIDEN_FROM empty: one line, nothing written.
-        idle = log_base / "trex" / "ppo" / "20260914_000002"
-        capsys.readouterr()
-        exec(code, namespace(idle, widen_from=""))  # noqa: S102
-        assert capsys.readouterr().out.count("\n") == 1 and not (idle / "01_stance").exists()
-
-        # (6) A parent without provenance.json, or this run's own directory, refuses with the reason.
-        bare = log_base / "trex" / "ppo" / "bare_parent"
-        (bare / "01_stance").mkdir(parents=True)
-        with pytest.raises(RuntimeError, match="not a run with a provenance.json"):
-            exec(code, namespace(log_base / "trex" / "ppo" / "20260914_000003", widen_from="bare_parent"))  # noqa: S102
-        with pytest.raises(RuntimeError, match="this run's own directory"):
-            exec(code, namespace(run_dir, widen_from=str(run_dir)))  # noqa: S102
-
-        # (7) A parent stage without a stage_config.json, or without a recorded run seed, refuses BEFORE the tool
-        # runs and before the SEED comparison (otherwise a raw FileNotFoundError, or a SEED mismatch against None,
-        # would mask the tool's own refusal); nothing is written.
-        import shutil
-
-        def _drop_config(config_path: Path) -> None:
-            config_path.unlink()
-
-        def _drop_seed(config_path: Path) -> None:
-            record = json.loads(config_path.read_text(encoding="utf-8"))
-            record["run"] = {}
-            config_path.write_text(json.dumps(record), encoding="utf-8")
-
-        for name, damage, reason in (
-            ("no_config", _drop_config, "records no stage_config.json"),
-            ("no_seed", _drop_seed, "records no run seed"),
-        ):
-            damaged = log_base / "trex" / "ppo" / f"parent_{name}"
-            shutil.copytree(parent["run_dir"], damaged)
-            damage(damaged / parent["stage_dir"].name / "stage_config.json")
-            fresh = log_base / "trex" / "ppo" / f"20260914_{name}"
-            with pytest.raises(RuntimeError, match=reason):
-                exec(code, namespace(fresh, widen_from=damaged.name))  # noqa: S102
-            assert not (fresh / "01_stance").exists()
-
-    def test_the_knob_bounds_the_revision_gap(self, tmp_path, capsys):
-        """D-C17: an r-2 parent — the shape of the certified trex r11 stance parents at r13 — is refused under the
-        default ``WIDEN_MAX_REVISION_GAP = 1`` with the tool's own message naming the gap and the flag, and widens under
-        ``2`` with the report and the result recording ``revision_gap`` 2.  One r-2 parent is built for both halves."""
-        pytest.importorskip("stable_baselines3")
-        pytest.importorskip("torch")
-        from environments.shared.config import WIDEN_LINEAGE_KEYS
-        from environments.shared.result_bundle import initialize_result_bundle
-        from environments.shared.scripts.widen_checkpoint import WidenError
-
-        from .test_widen_checkpoint import PARENT_SEED, build_narrow_parent
-
-        src = _cell(WIDEN_CELL_MARKER)
-        code = compile(src, "sb3_training.ipynb[widen cell]", "exec")
-        log_base = tmp_path / "logs"
-        parent_run = "20260101_000002"
-        parent = build_narrow_parent(log_base / "trex" / "ppo", "ppo", run_name=parent_run, revision_gap=2)
-        current = parent["current"]
-        narrow = parent["narrow"]
-        assert narrow.policy_interface_revision == current.policy_interface_revision - 2
-        assert narrow.policy_interface_sha256 != current.policy_interface_sha256
-        initialize_result_bundle(
-            parent["run_dir"],
-            species="trex",
-            algorithm="ppo",
-            backend="stable-baselines3",
-            seed=PARENT_SEED,
-            plant_identity=narrow.to_dict(),
-            run_id=parent_run,
-            repository_root=REPO_ROOT,
-        )
-        chain = load_stage_manifest("trex").chain_for("behavior")
-
-        def namespace(run_dir: Path, *, max_revision_gap: int) -> dict:
-            return _widen_cell_namespace(
-                log_base, run_dir, chain, seed=PARENT_SEED, widen_from=parent_run, max_revision_gap=max_revision_gap
-            )
-
-        # Under the default bound the tool refuses (the cell never catches WidenError): the message names both
-        # revisions, the measured gap, the bound and the opt-in flag; nothing is written into the run.
-        refused = log_base / "trex" / "ppo" / "20260914_000010"
-        with pytest.raises(WidenError) as info:
-            exec(code, namespace(refused, max_revision_gap=1))  # noqa: S102 - the notebook cell under test
-        message = str(info.value)
-        for fragment in (
-            "is not the current trex plant one interface-only revision behind",
-            f"policy_interface_revision: parent={narrow.policy_interface_revision}, "
-            f"current={current.policy_interface_revision}",
-            "gap 2 exceeds max_revision_gap=1",
-            "--max-revision-gap 2 / max_revision_gap=2",
-            "plant_versions.toml",
-        ):
-            assert fragment in message, fragment
-        assert not (refused / "01_stance").exists()
-
-        # Under WIDEN_MAX_REVISION_GAP = 2 the same parent widens; the gap is recorded everywhere the tool writes it.
-        widened = log_base / "trex" / "ppo" / "20260914_000011"
-        capsys.readouterr()
-        bound = namespace(widened, max_revision_gap=2)
-        exec(code, bound)  # noqa: S102
-        out = capsys.readouterr().out
-        assert "policy-interface revisions crossed: 2 (WIDEN_MAX_REVISION_GAP=2)" in out
-        target = widened / "01_stance"
-        result = bound["_widen_result"]
-        assert result.revision_gap == 2 and result.target_stage_dir == target
-        report = json.loads((target / "widen_report.json").read_text(encoding="utf-8"))
-        assert report["revision_gap"] == 2 and report["max_revision_gap"] == 2
-        assert result.report["revision_gap"] == 2 and result.report["max_revision_gap"] == 2
-        run_block = json.loads((target / "stage_config.json").read_text(encoding="utf-8"))["run"]
-        assert run_block["widened_from_policy_interface_revision"] == narrow.policy_interface_revision
-        assert run_block["widened_from_run_id"] == parent_run and run_block["seed"] == PARENT_SEED
-        assert set(WIDEN_LINEAGE_KEYS) <= set(run_block)
-        assert (target / "models" / "stage1_final.zip").is_file() and not (target / "gate_verdict.json").exists()
 
 
 class TestDeliverableAwareCells:
@@ -2509,6 +2379,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert namespace["BEHAVIOR"] == "hunt"
         assert namespace["SPECIES"] == "velociraptor"
         assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
+        assert namespace["RUN_ID"] == "", "a fresh run by default (consolidation PR-14a)"
+        assert "WIDEN_FROM" not in namespace and "WIDEN_MAX_REVISION_GAP" not in namespace
         assert "COMMAND_TERRAIN_BEHAVIOR" not in namespace
         assert not [name for name in namespace if name.startswith("BEHAVIOR_")]
         namespace["BEHAVIOR"] = "stance"

@@ -73,8 +73,8 @@ def test_score_contains_only_json_native_scalars():
         assert not isinstance(value, np.generic), f"{key} is a numpy scalar"
 
 
-def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
-    """Execute the production notebook cell for a statue that never stands."""
+def _exec_preflight_cell(tmp_path, monkeypatch, run_dir):
+    """Execute the production notebook cell for a statue that never stands, with the stage-1 config stubbed."""
     import environments.shared.config as config_module
     import environments.shared.plant_contract as plant_contract_module
     import environments.shared.scripts.zero_action_baseline as baseline_module
@@ -112,8 +112,6 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
     ]
     assert len(preflight_cells) == 1
 
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
     namespace = {
         "SPECIES": "brachiosaurus",
         "LOG_BASE": tmp_path / "logs",
@@ -122,8 +120,14 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
         "datetime": datetime,
     }
     exec(compile(preflight_cells[0], str(notebook_path), "exec"), namespace)
+    return next((tmp_path / "logs" / "brachiosaurus" / "zero_action_baselines").glob("*.json"))
 
-    saved_path = next((tmp_path / "logs" / "brachiosaurus" / "zero_action_baselines").glob("*.json"))
+
+def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
+    """Execute the production notebook cell for a statue that never stands."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    saved_path = _exec_preflight_cell(tmp_path, monkeypatch, run_dir)
     saved_text = saved_path.read_text()
     saved_result = json.loads(saved_text)["results"]["brachiosaurus"]
 
@@ -132,3 +136,24 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
     assert saved_result["reward_std_standing"] is None
     assert saved_result["margin_over_standing"] is None
     assert json.loads((run_dir / "zero_action_baseline.json").read_text()) == json.loads(saved_text)
+
+
+@pytest.mark.parametrize("status", ["partial", "failed", "complete"])
+def test_notebook_preflight_leaves_a_complete_bundle_untouched(tmp_path, monkeypatch, status):
+    """A complete bundle is immutable (consolidation PR-14a): the run keeps the copy it was sealed with, and the
+    per-species record outside the run is still written. A ``partial`` or ``failed`` bundle is rebuilt by the
+    next node trained or judged in it, so its copy is refreshed as before."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "artifact_manifest.json").write_text(json.dumps({"status": status}))
+    sealed = run_dir / "zero_action_baseline.json"
+    sealed.write_text('{"captured_at": "sealed"}')
+    before = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+
+    saved_path = _exec_preflight_cell(tmp_path, monkeypatch, run_dir)
+
+    assert json.loads(saved_path.read_text())["results"]["brachiosaurus"]["verdict"]
+    if status == "complete":
+        assert {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()} == before
+    else:
+        assert json.loads(sealed.read_text()) == json.loads(saved_path.read_text())

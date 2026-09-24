@@ -301,3 +301,19 @@ node for this run (NEXT_STEPS.md session 7) to a fresh run with
 `TRUNK_FROM = "20260920_010912"`, since this run's bundle is `complete` too
 ([../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), "A complete run cannot take a new
 node in place").
+
+## §10 Note 2026-09-24 (appended)
+
+The session tables above name the notebook's `WIDEN_FROM` and
+`WIDEN_MAX_REVISION_GAP` knobs and its widen cell, which consolidation PR-14a
+removed (decision D-D14, once both widen sessions had run), together with the
+restart-the-runtime remedy the widen cell's `SEED` refusal named. They stay as
+the record of how these sessions ran. A new widen is a command-line step into
+a new run id that the notebook then judges with `RUN_ID`, `SEED` and
+`TRUNK_FROM = ""` set: the recipe is in
+[../PLANT_CONTRACT.md](../PLANT_CONTRACT.md) and in `python -m
+environments.shared.scripts.widen_checkpoint --help`. The KNOWN_ISSUES entry
+§9 cites ("A complete run cannot take a new node in place") was fixed by the
+same PR and left that list for the CHANGELOG ("Fixed"): the notebook now
+refuses a session that would train into a complete run before anything is
+trained or written.

@@ -90,8 +90,8 @@ python -m environments.shared.scripts.widen_checkpoint --species trex --stage st
 
 - **The identity gate.** The parent archive's recorded plant identity must be the current plant at most
   `max_revision_gap` interface-only revisions behind (default 1 — exactly r → r+1, the Phase C bump alone;
-  `--max-revision-gap N` on the CLI, `max_revision_gap=N` in the API, the SB3 notebook's `WIDEN_MAX_REVISION_GAP`
-  knob; decision D-C17): same `species`, `physics_sha256`, `nq` / `nv` / `nu` and `action_dim`,
+  `--max-revision-gap N` on the CLI, `max_revision_gap=N` in the API; decision D-C17): same `species`,
+  `physics_sha256`, `nq` / `nv` / `nu` and `action_dim`,
   `1 <= current - parent.policy_interface_revision <= max_revision_gap` and `observation_dim + 3 == current`.
   Anything else is refused with every differing field named; a parent further behind than the bound is refused with
   both revisions, the measured gap, the bound and the flag named. The fields other than the revision apply whatever
@@ -133,9 +133,20 @@ python -m environments.shared.scripts.widen_checkpoint --species trex --stage st
   `1e-6` both with the command slice zero and with `COMMAND_PROBE_VECTOR` in it (the measured deltas are recorded in
   `widen_report.json`); the files' hashes are unchanged by the verification. Any failure deletes the target directory.
 
-The SB3 notebook brings a widened root in through its `WIDEN_FROM` knob into a NEW run id (BEHAVIOR_RECIPES_PLAN
-§4.6, decision D-C13), where the chain loop judges it; `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this
-applies to. JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint` validates the recorded identity against
+This command-line tool is the only widen path (decision D-D14 removed the SB3 notebook's widen cell and knobs). Widen
+into a NEW run id, one no run uses and the notebook has not opened yet, written as a timestamp `YYYYMMDD_HHMMSS` like
+the ids the storage cell mints (`TRUNK_FROM = "auto"` breaks a coverage tie by the newest directory name, so an id in
+another format would outrank every later run), with
+`--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>` and `--label` when the
+session sets `RUN_LABEL`. On Colab: (1) run the notebook's section 1, then a scratch cell
+`from google.colab import drive; drive.mount("/content/drive")`, never the storage cell, which would mint a run
+directory and its provenance; (2) `LOG_BASE` is `/content/drive/MyDrive/mesozoic-labs/logs`; (3) run
+`!cd /content/mesozoic-labs && python -m environments.shared.scripts.widen_checkpoint ...` (the tool's module docstring
+lists the same steps). Then run the notebook with `RUN_ID` set to that id, `SEED` to the parent's recorded
+`run.seed` and `TRUNK_FROM = ""`, and its chain loop judges the widened root (BEHAVIOR_RECIPES_PLAN §4.6, decision
+D-C13). The storage cell refuses any other `SEED` before it writes anything (D-C14), and the resolve cell refuses a
+trunk until the widened root holds a verdict. `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this applies
+to. JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint` validates the recorded identity against
 `current_plant` and has no widen path, so a pre-bump JAX checkpoint fails closed.
 
 ## Backend parity and runtime binding

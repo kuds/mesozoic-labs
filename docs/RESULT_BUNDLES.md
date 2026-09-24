@@ -180,7 +180,17 @@ JAX/MJX also writes `stage_result.json` so stages completed in separate Colab
 sessions can be combined idempotently under one run ID.
 
 Completed bundles are immutable. Start a new run ID rather than replacing a
-checkpoint, stage result, seed role, or other captured experiment setting.
+checkpoint, stage result, seed role, or other captured experiment setting. The
+SB3 notebook enforces this before training: a session whose `RUN_ID` names a
+run with a `complete` bundle and which would judge or train a node there is
+refused at the end of the resolve cell, before anything is written, with the
+remedy (a fresh `RUN_ID` whose `TRUNK_FROM` names that run); the chain loop
+refuses, before the write, what the resolve cell cannot predict without the
+reuse rule (a node held only as an `ancestors/` record that the trunk no
+longer certifies, or a trunk's copy recorded into a run that lacks the
+record), and the manual and resume cells refuse the same write
+(`environments.shared.result_bundle.reentry`);
+the zero-action cell leaves such a run's `zero_action_baseline.json` as sealed.
 Repeating an identical export is a write-free no-op, so a transient Drive
 failure cannot remove the completion marker from an already valid bundle. A
 partial marker — a chain whose target has not certified yet — is rebuilt
