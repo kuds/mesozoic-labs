@@ -2359,7 +2359,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         from environments.shared import task_fingerprint, train_base
         from environments.shared.config import load_all_stages, read_stage_duration
 
-        self.record = record = {"alg_kwargs": [], "vecnorm_paths": [], "finals": [], "hpt": []}
+        self.record = record = {"alg_kwargs": [], "vecnorm_paths": [], "vecnorm_plants": [], "finals": [], "hpt": []}
         clock = [1000.0]
 
         def learn(**kwargs):
@@ -2384,9 +2384,12 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
         monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
-        monkeypatch.setattr(
-            train_base, "_load_vecnorm_into_envs", lambda *a, **k: record["vecnorm_paths"].append(k["vecnorm_path"])
-        )
+
+        def load_vecnorm(*args, **kwargs):
+            record["vecnorm_paths"].append(kwargs["vecnorm_path"])
+            record["vecnorm_plants"].append(kwargs.get("plant_identity"))
+
+        monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", load_vecnorm)
         monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load)
         monkeypatch.setattr(train_base, "_build_core_callbacks", lambda *args, **kwargs: ([], MagicMock(), None))
         monkeypatch.setattr(train_base, "_maybe_ent_coef_decay_callback", lambda *args, **kwargs: None)
@@ -2437,11 +2440,25 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         self._run(tmp_path, monkeypatch, load_path=str(final), task_load_mode="resume_same_stage")
         assert read_stage_duration(tmp_path / "01_stance") == 14.0
 
+    def test_a_session_that_stops_before_its_final_save_keeps_the_earlier_sum(self, tmp_path, monkeypatch):
+        from environments.shared.config import read_stage_duration
+
+        self._run(tmp_path, monkeypatch)
+        final = tmp_path / "01_stance" / "models" / "stage1_final.zip"
+        resume = {"load_path": str(final), "task_load_mode": "resume_same_stage"}
+        with pytest.raises(KeyboardInterrupt):
+            self._run(tmp_path, monkeypatch, interrupt=True, save_on_interrupt=False, **resume)
+        assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the re-saved config keeps the recorded sum"
+        self._run(tmp_path, monkeypatch, **resume)
+        assert read_stage_duration(tmp_path / "01_stance") == 14.0
+
     def test_the_notebook_skips_the_report_and_names_its_sidecar(self, tmp_path, monkeypatch):
         from environments.shared.config import read_stage_duration
 
         record = self._run(tmp_path, monkeypatch, report_metrics=False, vecnorm_path="stats.pkl")
         assert record["hpt"] == [] and record["finals"] and record["vecnorm_paths"] == ["stats.pkl"]
+        # A named sidecar is still checked against the plant: never loaded with plant validation skipped.
+        assert record["vecnorm_plants"] == [_plant_identity()]
         assert read_stage_duration(tmp_path / "01_stance") == 7.0, "the notebook's evaluation reads this record"
 
     def test_an_interrupt_propagates_before_the_final_save_when_asked(self, tmp_path, monkeypatch):

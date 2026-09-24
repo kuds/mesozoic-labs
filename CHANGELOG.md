@@ -933,7 +933,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   initial weights than before and their archives record the seed; it also
   records `run.duration_seconds` at the final save, added to the value the
   stage directory already records on a same-stage resume (D-A15). `curriculum`
-  runs and Ray Tune trials are neither seeded nor record a duration. Four
+  runs and Ray Tune trials neither seed model construction nor record a duration. Four
   loads pass `seed=None` so SB3 does not re-seed their env with a seeded
   archive's training seed: the CLI's post-training panels (`metrics.json`) and
   the `task_success/v1` evidence re-roll keep their evaluation seeds (the
@@ -942,19 +942,22 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   its own seed. `train()` takes `parent_run_id`, an explicit `vecnorm_path`,
   `report_metrics` and `save_on_interrupt`, whose defaults keep the CLI's
   behaviour; the notebook's interrupt still propagates before the final save,
-  so a stopped node is finished by the RESUME cell. `evaluate_stage_checkpoints`
+  so a stopped node is finished by the RESUME cell, and a missing named
+  VecNormalize sidecar is still refused, now before anything is written. `evaluate_stage_checkpoints`
   moves into `environments.shared.reporting` with the notebook's globals as
   parameters, which `train_stage` and the chain loop's JUDGE branch pass. What
   the notebook writes changes in three places: a node entered from its parent
-  no longer copies six warmup/ramp values into its run block (its `curriculum`
-  block and `reward_weights` hold them); on Drive, TensorBoard events sync on
+  no longer copies six warmup/ramp values into its run block (no code reads
+  them; a value its TOML declares stays in the `curriculum` block, and
+  `forward_vel_weight` in `reward_weights`, while an undeclared key's resolved
+  default is no longer written out); on Drive, TensorBoard events sync on
   the checkpoint cadence, so an interrupted node's events up to its last
   checkpoint reach the stage directory and a RESUME on a fresh runtime
   continues that session's run directory (`PPO_1`) instead of opening `PPO_0`;
   a refused declared parent no longer leaves an empty `models/` directory.
   Every other file a node writes is unchanged apart from the recorded
   duration's timing (old and new paths compared under a frozen clock, on and
-  off a simulated Drive mount). The notebook goes from 2,079 to 1,486 source
+  off a simulated Drive mount). The notebook goes from 2,079 to 1,492 source
   lines.
 - **The SB3 notebook has one disconnect path, in
   `environments/shared/notebook_runtime.py`** (#554, consolidation PR-14b, decision

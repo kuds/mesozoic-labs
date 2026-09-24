@@ -2135,6 +2135,8 @@ class TestCommandSliceReseed:
         )
         assert _keyword_source(src, load, "task_load_mode") == "task_load_mode"
         assert _keyword_source(src, load, "vecnorm_path") == "vecnorm_path"
+        # Without it a sidecar loads with plant validation skipped (the notebook's manual cell names any sidecar).
+        assert _keyword_source(src, load, "plant_identity") == "plant_identity"
         assert [ast.unparse(arg) for arg in load.args] == ["load_path", "train_env", "eval_env"], (
             "both destinations are passed, so the reseed reaches the train AND the eval wrapper"
         )

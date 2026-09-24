@@ -1170,6 +1170,9 @@ def train(
         parent_run_id=parent_run_id,
         label=label,
     )
+    if prior_duration is not None:
+        # Keep the earlier sessions' sum on disk: this session may stop before its final save.
+        record_stage_duration(log_path, prior_duration)
 
     # Create environments
     # SAC benefits from SubprocVecEnv: MuJoCo is CPU-bound and SAC's off-policy

@@ -1485,3 +1485,29 @@ def test_evaluate_stage_checkpoints_loads_a_missing_model_through_the_loader_bef
     assert len(rolls) == 2 and load_if.lineno < min(node.lineno for node in rolls)
     returned = function.body[-1]
     assert isinstance(returned, ast.Return) and isinstance(returned.value, ast.Tuple) and len(returned.value.elts) == 5
+
+
+def test_evaluate_stage_checkpoints_takes_every_session_fact_explicitly():
+    """Only ``model`` has a default (``None``: the JUDGE branch loads the final checkpoint); the plant and the
+    publication seed are required, because ``EVALUATION_SEED`` equals ``PUBLICATION_SEED_START`` only at SEED 42."""
+    import inspect
+
+    from environments.shared.reporting import stage_artifacts
+
+    parameters = inspect.signature(stage_artifacts.evaluate_stage_checkpoints).parameters
+    assert list(parameters) == [
+        "species_cfg",
+        "stage_config",
+        "stage",
+        "algorithm",
+        "stage_dir",
+        "final_path",
+        "final_vecnorm_path",
+        "timesteps",
+        "duration_seconds",
+        "plant_identity",
+        "evaluation_seed",
+        "model",
+    ]
+    assert parameters["model"].default is None
+    assert all(p.default is inspect.Parameter.empty for name, p in parameters.items() if name != "model")

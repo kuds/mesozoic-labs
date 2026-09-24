@@ -34,7 +34,7 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-12, notebook-only slice (D-D13) | **Landed** as #552 on 2026-09-24: the notebook loses `COMMAND_TERRAIN_BEHAVIOR`, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells (7/19/20/33/34/39 in the 22c1fc8 numbering, 7/20/21/34/35/40 at 2e77150) and the 15 guard sites (the plan's 14 plus the guarded archive-load preflight; the guarded code dedented, two lint fixes aside): 41 cells, 23 code, 2,463 lines → 35 cells, 19 code, 2,329 lines; `behavior_notebook.py` (294 lines) and `test_behavior_notebook.py` (815) deleted, their canonical halves ported to `test_sb3_notebook_pins.py` (the configuration defaults and free-form stage ids, the dropdown's JSON annotations, the setup cell's `REPO_REF` safety) with `_canonical_source` removed; CI drops the deleted test from the SB3 list and the wheel step names the eleven recipe files itself. `train_behaviors.py` stays the pilots' command-line path until the rest of PR-12. Measured: −996 code, test and CI lines, −134 notebook source lines. The same PR carries one bug fix found while mapping PR-14: the training-curves cell no longer writes PNGs into the sealed bundle, which had stopped every completed "Run all" at the cleanup cell before the auto-disconnect (CHANGELOG "Fixed"; +1 notebook line, one executed pin). |
 | PR-14a (the storage path, D-D15) | **Landed** as #553 on 2026-09-24: the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` deleted (D-D14; `widen_checkpoint` stays the command-line widen path, and its seed and verdict guards become on-disk refusals in the storage and resolve cells); `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused at the end of the resolve cell, before anything is trained or written (the KNOWN_ISSUES bug of 2026-09-23, CHANGELOG "Fixed"), with the chain loop refusing, before the write, what the resolve cell cannot predict, the manual and resume cells refusing the same write and the zero-action cell no longer rewriting a complete run's copy: 35 cells, 19 code, 2,330 lines → 34 cells, 18 code, 2,271 lines. Measured (`git diff --numstat` against `2ebed89`): code +380 / −20, tests +894 / −680, notebook JSON +163 / −230, docs +543 / −217. |
 | PR-14b (one disconnect path, videos, the baseline cells; D-D15) | **Landed** as #554 on 2026-09-24: `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the infrastructure cell into `environments/shared/notebook_runtime.py` with the knobs passed at call time; the chain loop's gate refusal calls `halt`; videos play through IPython's `Video` (the `_HAS_MEDIAPY` probe gone); the random-baseline cell is deleted; the zero-action cell becomes its knobs and one call to `zero_action_baseline.preflight` (payload, run copy and complete-bundle skip byte-identical): 34 cells, 18 code, 2,271 lines → 33 cells, 17 code, 2,079 lines. Measured (`git diff --numstat` against `3571b24`, new files counted whole): code +183 / −1, tests +245 / −50, notebook JSON +27 / −229, docs +131 / −37. |
-| PR-14c (`train_stage` over `train_base.train`; D-D7, D-D11, D-D15) | **In review** on the session branch (2026-09-24; PR-14b landed as #554): `train_stage` becomes its argument refusals, the node banner, one `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call and the evaluation; `train()` seeds construction (an algorithm-block seed kept), records `run.duration_seconds` at the final save and takes `parent_run_id` and an explicit `vecnorm_path`; four loads of seeded archives pass `seed=None` (the CLI's two panel loads, the task-success re-roll, the Ray warm start); `evaluate_stage_checkpoints` moves beside `generate_stage_artifacts`: 33 cells, 17 code, 2,079 lines → 33 cells, 17 code, 1,486 lines. Measured (`git diff --numstat` against `d63faff`): code +353 / −31, tests +358 / −278, notebook JSON +39 / −632, docs +159 / −44. |
+| PR-14c (`train_stage` over `train_base.train`; D-D7, D-D11, D-D15) | **In review** on the session branch (2026-09-24; PR-14b landed as #554): `train_stage` becomes its argument refusals, the node banner, one `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call and the evaluation; `train()` seeds construction (an algorithm-block seed kept), records `run.duration_seconds` at the final save and takes `parent_run_id` and an explicit `vecnorm_path`; four loads of seeded archives pass `seed=None` (the CLI's two panel loads, the task-success re-roll, the Ray warm start); `evaluate_stage_checkpoints` moves beside `generate_stage_artifacts`: 33 cells, 17 code, 2,079 lines → 33 cells, 17 code, 1,492 lines. Measured (`git diff --numstat` against `d63faff`): code +356 / −31, tests +402 / −278, notebook JSON +45 / −632, docs +168 / −46. |
 | Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed), of which the notebook-only PR-12 slice removes about 1,130 (measured). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
 | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554, all on 2026-09-24; PR-14c is in review. |
 | Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
@@ -882,7 +882,7 @@ Validation: notebook parse and JSON round-trip, `ruff check .`, `ruff format
 suites that name the moved code, and `test_compsognathus_training.py`'s
 notebook tests. Prerequisites: PR-14a.
 
-#### PR-14c. `train_stage` over `train_base.train` (L by count: code +353 / −31, tests +358 / −278, notebook 2,079 → 1,486 source lines) — IN REVIEW on the session branch, 2026-09-24
+#### PR-14c. `train_stage` over `train_base.train` (L by count: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) — IN REVIEW on the session branch, 2026-09-24
 Goal: the old item (a), at post-PR-14b numbers (infrastructure cell 14,
 `train_stage` at 14:100-483). `train_base.train` gains, for every caller, the
 notebook's seed line as `alg_kwargs.setdefault("seed", seed)` (D-D11: CLI
@@ -911,16 +911,20 @@ chain loop would judge, fail and disconnect on). It still returns the model.
 refusals (the root refusal stays here: `train()` accepts a root loading its own
 checkpoint), the node banner, one `train_base.train(...,
 report_metrics=False, save_on_interrupt=False)` call and the evaluation
-(14:38-136); it reads no storage-cell name. The other differences between the
+(14:38-142); of the storage cell's names it reads only `PLANT_IDENTITY` and
+`EVALUATION_SEED`, which it passes to the evaluation (never
+`CHECKPOINT_SELECTION_SEED`, `RUN_ID`, `_ACTIVE_RUN_ID` or `RUN_DIR`). The other differences between the
 two bodies: the eval env's `CHECKPOINT_SELECTION_SEED` is `SEED + 1000` by the
 storage cell's definition, `train()`'s value, so there is no eval-seed
 parameter (a pin keeps the two equal); the six warmup/ramp values a node
 entered from its parent wrote into its run block are dropped (no code reads
 them: the bundle copies only string run fields and the audit only lineage keys;
-its `curriculum` block and `reward_weights` hold them, the RESUME re-save
+a value the TOML declares stays in its `curriculum` block, and
+`forward_vel_weight` in `reward_weights`, while an undeclared key's resolved
+default is no longer written out; the RESUME re-save
 already dropped them and the CLI never wrote them); on Drive the notebook gains
 `train()`'s periodic TensorBoard sync; a refused declared parent leaves no
-empty stage directory. `evaluate_stage_checkpoints` moves into
+stage directory (the old path left `<stage>/models/` behind, empty). `evaluate_stage_checkpoints` moves into
 `reporting/stage_artifacts.py` beside `generate_stage_artifacts`, its notebook
 globals as parameters (`evaluation_seed` is required: `EVALUATION_SEED` is
 `PUBLICATION_SEED_START` only for `SEED` 42); `train_stage` and the chain
@@ -1003,9 +1007,9 @@ Running totals (net, using the corrected figures; moves between files count
 zero): PR-1 0; PR-2 +100; PR-3 +20; PR-4 -2,400; PR-5 -1,400; PR-6 -275; PR-7
 -600; PR-8 -170; PR-9 -150; PR-10 +180; PR-11 +370; PR-12 -5,300; PR-13 -400;
 PR-14 -450 (the pre-split estimate; PR-14a measures about +290 net code, test and notebook lines, since it adds the complete-run
-refusal, the on-disk widen guards and their tests while deleting the widen cell; PR-14b measures +101 (code +182,
-tests +111, notebook −192 source lines), since it moves the notebook's helpers and zero-action body into the
-package with new tests; PR-14c measures −191 (code +322, tests +80, notebook −593 source lines)); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
+refusal, the on-disk widen guards and their tests while deleting the widen cell; PR-14b measures +185 (code +182,
+tests +195, notebook −192 source lines), since it moves the notebook's helpers and zero-action body into the
+package with new tests; PR-14c measures −138 (code +325, tests +124, notebook −587 source lines)); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
 with a plausible band of 9,000-12,000 (D-D5's TOML form is worth ~700 either
 way; D-D7 could remove ~700 more notebook lines while adding them to the
 package). From 22c1fc8, with PR-1 landed and #543's ~1,200 lines added, about
