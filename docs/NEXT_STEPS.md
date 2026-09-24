@@ -209,7 +209,8 @@ curves cell wrote three undeclared PNGs into every trained stage directory
 after the bundle was sealed (CHANGELOG "Fixed"; the 18 files went to Drive's
 trash on 2026-09-23 and the three trees match their manifests again). The fix
 landed with the notebook-only PR-12 slice (#552), so a `main` at `03d3a54` or
-later releases the runtime at the end of a completed "Run all". Housekeeping: delete the four stray trex directories `20260918_230155`,
+later releases the runtime at the end of a completed "Run all". Session 6 started
+first, on 2026-09-24 at 03:18 UTC, as `20260924_031815` on `main` = `03d3a54`. Housekeeping: delete the four stray trex directories `20260918_230155`,
 `20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
 seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
 run-level records, is dropped: with every node reused the chain loop writes no
@@ -225,7 +226,7 @@ on those records.
 | 3 | velociraptor | `BEHAVIOR="walk"`, `SEED=42` | **Done.** Ran 2026-09-22 as `20260922_125248`: stance 6M PASSED (17:42 UTC; thin length margin, section 2), locomotion 8M PASSED (00:15 UTC on 2026-09-23); bundle `complete` | 4h46m + 6h30m (measured) |
 | 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42`, `RETRAIN_FROM="stance"` | **Ran 2026-09-23 as `20260923_020654`, cut short**: the collapse backstop stopped both nodes at 1.45M (statue-level stance PASS, locomotion FAIL at 0.0012 m/s; section 2). Re-run on a `main` carrying the backstop fix; `RETRAIN_FROM = "stance"` keeps auto-trunk from reusing the statue-level stance (the resolve cell prints `RETRAIN_FROM 'stance': it and every node below it train here (no reuse)`): fresh stance 6M then locomotion 12M. Risk: the locomotion reward pays a motionless statue about 2200, 89 percent of it gait symmetry (KNOWN_ISSUES), the optimum the first run's locomotion settled on | ~4.2 h + ~8.1 h (scaled from the measured 399 and 414 steps/s) |
 | 5 | brachiosaurus | `BEHAVIOR="stand"` then, in a second session, `BEHAVIOR="walk"` | stance 6M; the walk session reuses the certified stance through auto-trunk and trains locomotion 16M (both stages carry the 2026-09-23 backstop fix: peak warm-ups of 1.0M and 4.0M). Risk: the locomotion reward pays a motionless statue 2242.7, 98 percent of it gait symmetry (KNOWN_ISSUES) | ~4.5 h then ~10 h |
-| 6 | compsognathus_robot | `BEHAVIOR="walk"`, `SEED=42` | fresh stance 11M then locomotion 3M | ~13 h + ~4 h |
+| 6 | compsognathus_robot | `BEHAVIOR="walk"`, `SEED=42` | **Running** since 2026-09-24 03:18 UTC as `20260924_031815` (`main` = `03d3a54`): fresh stance 11M then locomotion 3M | ~13 h + ~4 h |
 | 7 (optional) | trex | `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"` (a fresh run) | reuses the seed-44 run's certified stance across runs (recorded under `ancestors/`), trains locomotion 8M and rolls its gate: a second r13 walker seed beside `20260914_123816`. Not in place: `20260920_010912`'s bundle is `complete`, and a complete bundle is immutable, so the notebook refuses an in-place session that would train into it before anything is trained (consolidation PR-14a; before it, the bundle write failed after training) | ~8h46m (the seed-42 walker's measured time) |
 
 Notes:
