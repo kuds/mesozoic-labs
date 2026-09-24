@@ -33,10 +33,11 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-6 (delete the T. rex pilots, the `[pilot]` dialect and the shim) | **Landed** as #549 on 2026-09-20 (PR-5 landed as #548): `configs/trex/behavior_pilots/` (8 TOMLs, 239 lines), pyproject.toml's package-data line and `environments/trex/scripts/train_behaviors.py` deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one instead of defaulting to trex; `behavior_notebook` loses the six pilot aliases and the dead `mesozoic.behavior-pilot-run/v1` reader; the trex suite reads `configs/trex/behaviors/`; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter with `TRexBehaviorEnv`; measured −256 code and configuration lines. |
 | PR-12, notebook-only slice (D-D13) | **Landed** as #552 on 2026-09-24: the notebook loses `COMMAND_TERRAIN_BEHAVIOR`, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells (7/19/20/33/34/39 in the 22c1fc8 numbering, 7/20/21/34/35/40 at 2e77150) and the 15 guard sites (the plan's 14 plus the guarded archive-load preflight; the guarded code dedented, two lint fixes aside): 41 cells, 23 code, 2,463 lines → 35 cells, 19 code, 2,329 lines; `behavior_notebook.py` (294 lines) and `test_behavior_notebook.py` (815) deleted, their canonical halves ported to `test_sb3_notebook_pins.py` (the configuration defaults and free-form stage ids, the dropdown's JSON annotations, the setup cell's `REPO_REF` safety) with `_canonical_source` removed; CI drops the deleted test from the SB3 list and the wheel step names the eleven recipe files itself. `train_behaviors.py` stays the pilots' command-line path until the rest of PR-12. Measured: −996 code, test and CI lines, −134 notebook source lines. The same PR carries one bug fix found while mapping PR-14: the training-curves cell no longer writes PNGs into the sealed bundle, which had stopped every completed "Run all" at the cleanup cell before the auto-disconnect (CHANGELOG "Fixed"; +1 notebook line, one executed pin). |
 | PR-14a (the storage path, D-D15) | **Landed** as #553 on 2026-09-24: the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` deleted (D-D14; `widen_checkpoint` stays the command-line widen path, and its seed and verdict guards become on-disk refusals in the storage and resolve cells); `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused at the end of the resolve cell, before anything is trained or written (the KNOWN_ISSUES bug of 2026-09-23, CHANGELOG "Fixed"), with the chain loop refusing, before the write, what the resolve cell cannot predict, the manual and resume cells refusing the same write and the zero-action cell no longer rewriting a complete run's copy: 35 cells, 19 code, 2,330 lines → 34 cells, 18 code, 2,271 lines. Measured (`git diff --numstat` against `2ebed89`): code +380 / −20, tests +894 / −680, notebook JSON +163 / −230, docs +543 / −217. |
+| PR-14b (one disconnect path, videos, the baseline cells; D-D15) | **In review** on the session branch (2026-09-24; PR-14a landed as #553): `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the infrastructure cell into `environments/shared/notebook_runtime.py` with the knobs passed at call time; the chain loop's gate refusal calls `halt`; videos play through IPython's `Video` (the `_HAS_MEDIAPY` probe gone); the random-baseline cell is deleted; the zero-action cell becomes its knobs and one call to `zero_action_baseline.preflight` (payload, run copy and complete-bundle skip byte-identical): 34 cells, 18 code, 2,271 lines → 33 cells, 17 code, 2,079 lines. Measured (`git diff --numstat` against `3571b24`, new files counted whole): code +183 / −1, tests +245 / −50, notebook JSON +27 / −229, docs +131 / −37. |
 | Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed), of which the notebook-only PR-12 slice removes about 1,130 (measured). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is next. |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is in review. |
 | Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
-| Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) right after the resolve cell, where the widen row PR-14a deletes used to follow it (it reads `TRUNK_DIR`, which the storage row binds for a pinned trunk and the resolve cell under `"auto"`); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering. |
+| Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) right after the resolve cell, where the widen row PR-14a deletes used to follow it (it reads `TRUNK_DIR`, which the storage row binds for a pinned trunk and the resolve cell under `"auto"`); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering, and PR-14b turns that one site (cell 18 after it) into a `halt` call (§3). |
 
 Decisions: the maintainer took D-D1..D-D10 and G1..G4 on 2026-09-17 (§6, §7)
 and confirmed D-D11 and D-D12 on 2026-09-20, when D-D13 (the notebook-first
@@ -709,8 +710,12 @@ cell numbers and `723f58f` pin lines, and its item (b) contradicted D-D14; the
 numbers here are at `2ebed89` (35 cells, 19 code; the notebook is unchanged
 since `1798224`) for PR-14a and after PR-14a for PR-14b and PR-14c (34 cells,
 18 code: every cell after the deleted widen cell moves up one, so the
-infrastructure cell is 15, the chain loop 19, manual 21, resume 23). Pins are
-named by test, because each PR moves the pin file's lines.
+infrastructure cell is 15, the chain loop 19, manual 21, resume 23). PR-14b
+then deletes cell 11 and 58 infrastructure-cell lines above `train_stage`: after
+it every cell from 12 on moves up one (infrastructure 14, chain loop 18, manual
+20, resume 22) and PR-14c's infrastructure-cell line numbers drop by 58
+(`train_stage` at 14:100). Pins are named by test, because each PR moves the pin
+file's lines.
 
 #### PR-14a. The storage path: the widen cell out (D-D14), `RUN_ID` as a knob, complete runs refused before training (L by count: code +380 / −20, tests +894 / −680, notebook 2,330 → 2,271 source lines) — LANDED as #553, 2026-09-24
 Goal: (1) D-D14: delete the widen cell (cell 11, 127 lines), the
@@ -812,24 +817,69 @@ runs it on the PR for `website/**`).
 Prerequisites: the notebook-only PR-12 slice (merged first); D-D14 (both widen
 sessions decided PASS by 2026-09-21); D-D15.
 
-#### PR-14b. One disconnect path, video display and the baseline cells (sized when planned)
-Goal: the old item (d), at post-PR-14a numbers.
-`disconnect_runtime(reason, *, in_colab, auto, flush_drive)` with explicit
-parameters (cell 15:43-66 reads the globals `IN_COLAB`, `AUTO_DISCONNECT` and
-`USE_GOOGLE_DRIVE`) and one `halt(reason)` for the one disconnect-before-raise
-site left, the chain loop's gate refusal (cell 19:278-279; the 16:104
-preflight site went with the 2026-09-19 loader change and the publish site
-with PR-4); `display_stage_videos` (cell 15:134-155) on IPython Video, dropping
-only the `_HAS_MEDIAPY` probe (cell 15:69-75; mediapy stays installed for
-`record_stage_video`); the random-baseline cell (cell 11, 25 lines) deleted
-with the sentence at cell 12:3 that refers to it; the zero-action cell's table
-(cell 13:70-95) folded into `environments/shared/scripts/zero_action_baseline.py`
-under a new name (`report()` is the CLI printer's, :116, called by `main()` at
-:179), keeping the `mesozoic.zero-action-baseline/v1` payload, the run copy
-that `curriculum.baseline_watch` reads, and PR-14a's skip of that copy on a
-complete bundle (`test_zero_action_baseline.py` executes the cell by its
-"Pre-flight: zero-action baseline" marker). The curves-cell fix is done (it
-rode with the notebook-only PR-12 slice). Prerequisites: PR-14a.
+#### PR-14b. One disconnect path, video display and the baseline cells (M by count: code +183 / −1, tests +245 / −50, notebook 2,271 → 2,079 source lines) — IN REVIEW on the session branch, 2026-09-24
+Goal: the old item (d), at post-PR-14a numbers. (1) One disconnect path:
+`disconnect_runtime` (cell 15:43-66, which read the globals `IN_COLAB`,
+`AUTO_DISCONNECT` and `USE_GOOGLE_DRIVE`) moves into a new
+`environments/shared/notebook_runtime.py` as `disconnect_runtime(reason, *,
+in_colab, auto, flush_drive)`, keyword-only without defaults, beside
+`halt(reason, *, in_colab, auto, flush_drive)`, which releases the runtime and
+then raises `RuntimeError(reason)` (the message the compsognathus notebook test
+matches). `halt` serves the one disconnect-before-raise site left, the chain
+loop's gate refusal (cell 19:291-294; the 16:104 preflight site went with the
+2026-09-19 loader change and the publish site with PR-4), and the
+auto-disconnect cell calls `disconnect_runtime`; both pass the three knobs at
+call time, so a knob changed after the infrastructure cell ran still counts. The
+module imports `google.colab` and `IPython` only inside the calls, so it imports
+and is tested in the shared matrix; it is a package module rather than a
+`scripts/` one (coverage omits `scripts/`) and not `visualization.py`
+(matplotlib figures the sweep workers import). (2) `display_stage_videos`
+(cell 15:134-155) moves beside it on `IPython.display.Video(path, embed=True)`
+(Colab's output frame cannot fetch a non-embedded local path; muted,
+autoplaying and looping, as mediapy's player was), without the
+`_HAS_MEDIAPY` probe (cell 15:69-75) and without the `stage` parameter only the
+probe's message read; mediapy stays installed for `record_stage_video` (the
+setup cell and the `viz` extra). The infrastructure cell imports the three
+names. (3) The random-baseline cell (cell 11, 25 lines) is deleted with the
+sentence of cell 12 that referred to it (a symtable scan finds no later cell
+reading its names); the same cell's pointer to the Drive mount now names the
+storage cell of section 2. (4) The zero-action cell's body after its knobs
+(cell 13:28-144: the measure and verdict loop, the table and the saves) becomes
+`zero_action_baseline.preflight(species_names, *, stage, episodes, seed,
+species, log_base, run_dir)` in
+`environments/shared/scripts/zero_action_baseline.py` (`report()` stays the
+CLI printer), so the cell is its knobs and one call (144 → 32 lines; folding
+the table alone, 13:70-95, would have left about 120). The
+`mesozoic.zero-action-baseline/v1` payload, the table, the file paths, the run
+copy that `curriculum.baseline_watch` reads and PR-14a's skip of that copy on a
+complete bundle are unchanged: under a frozen clock the cell at `3571b24` and
+the new call wrote byte-identical files and output for all five verdicts, one
+and five species, no bundle, a `partial` and a `complete` bundle, and no
+`LOG_BASE`.
+Breaks: `display_stage_videos` loses its first parameter (three notebook call
+sites; nothing else calls it). Nothing on disk; every knob keeps its name.
+Pins: `test_gate_failure_writes_the_bundle_then_disconnects_then_raises`
+becomes `test_gate_failure_writes_the_bundle_then_halts` (the message, then
+`halt(_gate_msg, ...)` with the three knobs by name); `test_one_disconnect_path`
+is new (the infrastructure cell's one import binds the helpers, no cell rebinds
+one, every `display_stage_videos` call passes one argument and every `halt` or
+`disconnect_runtime` call the three knobs by name), and so is
+`test_no_random_baseline_cell` (no cell samples random actions or points at
+them); the manual, resolve and preflight cells' pins also refuse `halt`; the
+replay pin takes `handoff['stage_dir']` alone; the auto-disconnect pin checks
+the knobs; `test_species_catalog.py`'s gate pin reads `halt(_gate_msg,`;
+`test_zero_action_baseline.py` patches `preflight`'s module, checks the
+payload's canonical JSON and calls `preflight` directly on two species under a
+frozen clock (the table as the cell at `3571b24` printed it, each species'
+record, the table beside the trained species' record, the run copy, no
+`LOG_BASE`); `test_notebook_runtime.py` (new) covers the module
+with fake `google.colab` and `IPython.display` modules. All run in the shared
+matrix (no SB3, torch or IPython).
+Validation: notebook parse and JSON round-trip, `ruff check .`, `ruff format
+--check environments/`, the pins, `test_notebook_runtime.py` and
+`test_zero_action_baseline.py` with SB3, torch and IPython blocked, the other
+suites that name the moved code, and `test_compsognathus_training.py`'s
+notebook tests. Prerequisites: PR-14a.
 
 #### PR-14c. `train_stage` over `train_base.train` (sized when planned)
 Goal: the old item (a), at post-PR-14a numbers. `train_base.train`
@@ -883,8 +933,9 @@ Running totals (net, using the corrected figures; moves between files count
 zero): PR-1 0; PR-2 +100; PR-3 +20; PR-4 -2,400; PR-5 -1,400; PR-6 -275; PR-7
 -600; PR-8 -170; PR-9 -150; PR-10 +180; PR-11 +370; PR-12 -5,300; PR-13 -400;
 PR-14 -450 (the pre-split estimate; PR-14a measures about +290 net code, test and notebook lines, since it adds the complete-run
-refusal, the on-disk widen guards and their tests while deleting the widen cell, and PR-14b / PR-14c are
-re-estimated when planned); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
+refusal, the on-disk widen guards and their tests while deleting the widen cell; PR-14b measures +101 (code +182,
+tests +111, notebook −192 source lines), since it moves the notebook's helpers and zero-action body into the
+package with new tests; PR-14c is re-estimated when planned); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
 with a plausible band of 9,000-12,000 (D-D5's TOML form is worth ~700 either
 way; D-D7 could remove ~700 more notebook lines while adding them to the
 package). From 22c1fc8, with PR-1 landed and #543's ~1,200 lines added, about
@@ -898,7 +949,8 @@ PR-14 (the taken form under D-D7: chain loop and resume logic still in
 cells as the plan §4.7 pins them): 33 cells, about 1,400 lines. The
 notebook-only PR-12 slice is the intermediate state: 35 cells (19 code), 2,329
 lines (2,330 with the curves-cell fix it carried), no switch; PR-14a leaves 34
-cells (18 code), 2,271 lines, no widen cell. Under the full
+cells (18 code), 2,271 lines, no widen cell; PR-14b leaves 33 cells (17 code),
+2,079 lines, no random-baseline cell. Under the full
 package move that D-D7 defers until after PR-14, the same notebook is about 700
 lines in 19 sections.
 
@@ -912,21 +964,21 @@ lines in 19 sections.
 | 6 | Storage, provenance, trunk | code | 131 | 8 | `CERTIFIED_LIBRARY` line gone; `RUN_ID` resolved into `_ACTIVE_RUN_ID` (a path or surrounding whitespace refused; new run or re-entry printed); a command-line-widened root's seed checked before `initialize_result_bundle` runs, and `RUN_DIR` and the memo bound only once it accepted the run (PR-14a) |
 | 7 | Resolve chain, table, trunk selection | code | 89 | 10 | stays after storage (its auto-trunk half reads `LOG_BASE`, `PLANT_IDENTITY`, `RUN_DIR`); ends with the complete-run and widened-root refusals (PR-14a) |
 | 8 | Archive-load preflight | code | 65 | (2026-09-19) | the `WIDEN_FROM` branch gone: the trunk's root handoff, else a throwaway (PR-14a); the widen cell (old 11) deleted, D-D14 |
-| 9 | Explore + zero-action baseline | md+code | 1+65+40 | 9, 13, 14 | table folded into zero_action_baseline.py under a new name (PR-14b); cell 12 deleted |
-| 10 | Training infrastructure | code | 250 | 16 | `train_stage` -> 30-line wrapper over `train_base.train`; `evaluate_stage_checkpoints` -> reporting/stage_artifacts; stamp block and mediapy probe deleted; `disconnect_runtime` explicit parameters |
+| 9 | Explore + zero-action baseline | md+code | 1+65+40 | 9, 13, 14 | the zero-action body after its knobs folded into `zero_action_baseline.preflight` (PR-14b); cell 12, the random baseline, deleted (PR-14b) |
+| 10 | Training infrastructure | code | 250 | 16 | `train_stage` -> 30-line wrapper over `train_base.train`; `evaluate_stage_checkpoints` -> reporting/stage_artifacts; stamp block and mediapy probe deleted; `disconnect_runtime` (explicit parameters), `halt` and `display_stage_videos` in `notebook_runtime` (PR-14b) |
 | 11 | Visualization | code | 46 | 18 | - |
 | 12 | Chain loop | md+code | 10+270 | 21, 22 | guard, library lookup and publish block deleted (-70); refuses a write into a complete run the resolve cell could not predict (PR-14a); loop stays AST-pinned |
 | 13 | Manual single node | md+code | 3+98 | 23, 24 | guard removed |
 | 14 | Resume interrupted node | md+code | 45+106 | 25, 26 | remedy prose deleted; guard removed |
 | 15 | Evaluate | code | 1+20 | 27, 28 | guard removed |
 | 16 | Training curves | code | 1+12 | 29, 30 | guard removed |
-| 17 | Replay videos | md+code | 5+11 | 31, 32 | guard removed; IPython Video |
+| 17 | Replay videos | md+code | 5+11 | 31, 32 | guard removed; IPython Video (PR-14b) |
 | 18 | Cleanup | code | 1+31 | 35, 36 | guard removed |
 | 19 | Auto-disconnect | md+code | 3+2 | 37, 38 | one cell |
 
 Deleted outright: cells 7, 12, 19, 20, 33, 34, 39 and all 14 guard sites (the
 notebook-only PR-12 slice took all but cell 12, the random baseline that PR-14b
-still deletes, and found 15 guard sites with the preflight). Every
+deletes, and found 15 guard sites with the preflight). Every
 knob the maintainer uses keeps its name and meaning; `BEHAVIOR` gains `follow`
 and `terrain`.
 

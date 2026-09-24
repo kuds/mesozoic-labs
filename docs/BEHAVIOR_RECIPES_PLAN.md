@@ -1098,7 +1098,7 @@ were released on 2026-09-20 in the notebook-first order of D-D13** (PR-3,
 bounding the SB3 CI job, landed first as #546, and PR-4..PR-6 as
 #547..#549 the same day; the maintainer paused the sequence after PR-6
 and lifted the pause on 2026-09-23; the notebook-only PR-12 slice
-landed as #552 and PR-14a as #553 on 2026-09-24, PR-14b next; PR-14 lands as PR-14a, PR-14b and PR-14c, D-D15). Training runs in parallel
+landed as #552 and PR-14a as #553 on 2026-09-24, PR-14b in review; PR-14 lands as PR-14a, PR-14b and PR-14c, D-D15). Training runs in parallel
 (G3): the walker sessions in `docs/NEXT_STEPS.md` use the current notebook.
 D-D11 and D-D12 were recommended on 2026-09-17 and confirmed by the
 maintainer on 2026-09-20, when the hold lifted (D-D13) and the widen path's

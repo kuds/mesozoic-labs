@@ -48,7 +48,11 @@ PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
 the notebook-only PR-12 slice (#552, 2026-09-24) removed the mode switch, its
 six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
 35 cells, 19 code, 2,329 lines, the chain loop at index 20; 2,330 with the
-curves-cell fix that rode along, CHANGELOG "Fixed").
+curves-cell fix that rode along, CHANGELOG "Fixed"; PR-14a (#553) removed the
+widen cell: 34 cells, 18 code, 2,271 lines; PR-14b, in review, removes the
+random-baseline cell and moves the disconnect and video helpers and the
+zero-action cell's body into the package: 33 cells, 17 code, 2,079 lines, the
+chain loop at index 18).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -102,8 +106,8 @@ D-D1..D-D15 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
 on 2026-09-20, D-D15 on 2026-09-24; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
-PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is next
-([section 4](#4-consolidation-the-remaining-prs)).
+PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is in
+review on the session branch ([section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
 
@@ -352,7 +356,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is next; PR-14 lands as PR-14a, PR-14b and PR-14c (D-D15), and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553, both on 2026-09-24; PR-14b is in review on the session branch; PR-14 lands as PR-14a, PR-14b and PR-14c (D-D15), and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
 of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
 test and CI lines, −134 notebook source lines);
@@ -380,7 +384,7 @@ before training; the old widen-seed reorder is dropped (D-D15).
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-14a | Notebook storage path: the widen cell and `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` go (D-D14; `widen_checkpoint` stays a command-line tool, its seed and verdict guards become on-disk refusals in the storage and resolve cells), `RUN_ID` becomes a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo, and a session that would judge or train a node into a complete run is refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the zero-action cell's run copy skipped on such a run | L by count (measured: code +380 / −20, tests +894 / −680, notebook 2,330 → 2,271 source lines) | the notebook-only PR-12 slice; D-D14, D-D15; landed as #553 on 2026-09-24 |
-| PR-14b | Notebook: one disconnect path (`halt`, explicit-parameter `disconnect_runtime`), `display_stage_videos` on IPython Video, the random-baseline cell deleted and the zero-action table folded into its script | sized when planned | PR-14a; D-D15 |
+| PR-14b | Notebook: one disconnect path (`halt`, explicit-parameter `disconnect_runtime`) and `display_stage_videos` on IPython Video in `environments/shared/notebook_runtime.py`, the random-baseline cell deleted and the zero-action cell's body folded into its script as `preflight` | M by count (measured: code +183 / −1, tests +245 / −50, notebook 2,271 → 2,079 source lines) | PR-14a; D-D15; in review on the session branch |
 | PR-14c | Notebook: `train_stage` becomes a wrapper over `train_base.train` (seed line, `parent_run_id`, eval seed, duration), `evaluate_stage_checkpoints` beside `generate_stage_artifacts` | sized when planned (the old PR-14's about −450 was mostly this) | PR-14a; D-D7, D-D11, D-D15 |
 | PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14c |
 
@@ -587,7 +591,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-14b next, then PR-14c; the notebook-only
+   [section 4](#4-consolidation-the-remaining-prs) (PR-14b in review, then PR-14c; the notebook-only
    PR-12 slice landed as #552 and PR-14a as #553) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive

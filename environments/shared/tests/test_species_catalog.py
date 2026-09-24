@@ -698,8 +698,8 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
 
     Re-pinned for the behavior-chain loop (Phase A WS5): the three per-stage
     artifact cells collapsed into ONE chain cell whose enforcement runs for
-    every node (recovery included), writes the bundle BEFORE releasing the
-    runtime BEFORE raising (invariant 5), and ONE manual single-node cell that
+    every node (recovery included), writes the bundle BEFORE `halt` releases
+    the runtime and raises (invariant 5), and ONE manual single-node cell that
     records a verdict without ever enforcing it.
     """
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
@@ -716,17 +716,14 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
     )
     assert 'if not results["publication_gate_passed"]:' in chain, "the chain loop does not halt on the recorded verdict"
     assert '"; ".join(results["gate_failures"])' in chain, "the chain loop does not report which criteria failed"
-    assert "raise RuntimeError(_gate_msg)" in chain, "the chain loop warns about gate failure without halting"
-    assert (
-        chain.index("save_run_bundle(chain_results()")
-        < chain.index("disconnect_runtime(")
-        < chain.index("raise RuntimeError(_gate_msg)")
-    ), "on a failed gate the bundle is written, then the runtime released, then the loop raises"
+    assert "halt(_gate_msg," in chain, "the chain loop warns about gate failure without halting"
+    assert chain.index("save_run_bundle(chain_results()") < chain.index("halt(_gate_msg,"), (
+        "on a failed gate the bundle is written, then halt releases the runtime and raises"
+    )
     manual = manual_cells[0]
     assert "generate_stage_artifacts(" in manual, "the manual cell must still judge and record the node's verdict"
-    assert "raise RuntimeError(_gate_msg)" not in manual and "disconnect_runtime(" not in manual, (
-        "the manual single-node cell records its verdict but never enforces it"
-    )
+    for token in ("halt(", "disconnect_runtime(", "raise RuntimeError(_gate_msg)"):
+        assert token not in manual, f"the manual single-node cell records its verdict but never enforces it ({token})"
 
     # The deleted checklist must not creep back: a second implementation that
     # knows nothing about `gate_kind` is the exact defect that let a stance-
