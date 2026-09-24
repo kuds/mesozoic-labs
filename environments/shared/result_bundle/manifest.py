@@ -65,6 +65,31 @@ def _discard_stale_temporaries(run_path: Path) -> list[Path]:
     return removed
 
 
+def read_bundle_status(run_dir: str | Path, *, manifest_name: str = DEFAULT_MANIFEST_NAME) -> str | None:
+    """The status *run_dir*'s artifact manifest records, read without verifying the bundle.
+
+    ``None`` when the run holds no manifest (a fresh run, or one that stopped
+    before its first bundle write); otherwise ``"partial"``, ``"failed"`` or
+    ``"complete"``.  A manifest that exists but cannot be read (the bundle
+    writer, ``reporting.bundles.save_result_bundle``, refuses to rebuild over
+    one too), or records any other status, raises :class:`ResultBundleError`:
+    its status is unknown, so no caller may treat the run as writable.
+    Nothing is hashed or written; a ``complete`` marker that no longer
+    verifies still reads ``"complete"``.
+    """
+    manifest_path = Path(run_dir) / manifest_name
+    if not manifest_path.exists():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ResultBundleError(f"cannot read artifact manifest {manifest_path}: {exc}") from exc
+    status = manifest.get("status") if isinstance(manifest, dict) else None
+    if status not in {"partial", "failed", "complete"}:
+        raise ResultBundleError(f"invalid artifact manifest status in {manifest_path}: {status!r}")
+    return str(status)
+
+
 def build_artifact_manifest(
     run_dir: str | Path,
     *,

@@ -110,10 +110,12 @@ tolerance) remains the standing recommendation for the divergences above.
   interface revision is refused as a trunk, every `gate_resolution.json`
   frozen before it is stale, and the two recipes below (the D-A22 re-judge
   and the D-B16 republish) are DEAD for pre-Phase-C runs — the only path is
-  `widen_checkpoint` + `WIDEN_FROM` in a NEW run id; the one certified
+  the command-line `widen_checkpoint` into a NEW run id that the notebook then
+  judges (decision D-D14; the notebook's widen cell and knobs, which the two
+  widen sessions used, left with consolidation PR-14a); the one certified
   stance parent that needed widening (`20260815_205206`, seed 44, an r11
-  archive two revisions behind r13, hence `WIDEN_MAX_REVISION_GAP = 2`,
-  decision D-C17) was widened on 2026-09-20 as `20260920_010912`; seed 42
+  archive two revisions behind r13, hence a revision gap of 2, decision
+  D-C17) was widened on 2026-09-20 as `20260920_010912`; seed 42
   is already certified at r13 by `20260914_123816`** (BEHAVIOR_RECIPES_PLAN
   §4.6, decisions D-C8–D-C14 and D-C17; PLANT_CONTRACT.md "Widening a
   checkpoint across a policy-interface bump"). Phase C appended a 3-dim command segment to every
@@ -155,25 +157,29 @@ tolerance) remains the standing recommendation for the divergences above.
   provenance with `current_plant_identity(SPECIES)` (r13) and
   `validate_result_bundle` compares every stage config's recorded
   `plant_identity` against it (`stage <N> config plant_identity does not
-  match provenance.json`). The remedy is a NEW run: in the configuration
-  cell set `WIDEN_FROM` to the parent run id and `SEED` to the parent's
-  training seed (the widen cell refuses `SEED != ` the parent's recorded
-  `run.seed`, D-C14 — a widened run's provenance publishes
-  `training_seed = SEED` and replication counts distinct seeds — and set it
-  BEFORE the storage cell runs: a session refused at the widen cell has
-  already minted `RUN_DIR` with the wrong `training_seed`, and
-  `initialize_result_bundle` refuses to re-mint that directory under another
-  seed, so correct `SEED`, restart the runtime (or `del _ACTIVE_RUN_ID`) so a
-  fresh `RUN_ID` is minted, and delete the stray directory, which holds only
-  `provenance.json`); the storage
-  cell mints a fresh `RUN_ID` and an r13 provenance; the widen cell widens
-  the parent's certified stance handoff into `<RUN_DIR>/01_stance` (zero
-  columns for the new dims, the run block's `WIDEN_LINEAGE_KEYS`, the
-  identity and task fingerprint re-stamped, no verdict); and the chain loop
-  refuses — loudly — to reuse the verdict-less directory, finds the
-  `<stage_label>_final.*` pair and JUDGES it: a fresh 40-episode panel
-  (seeds 3042–3081) under the current gate, a `gate_verdict.json` minted
-  under the new task hash. Never by pointing `RUN_ID` at the old run: for a
+  match provenance.json`). The remedy is a NEW run, widened on the command
+  line and judged in the notebook (decision D-D14): `python -m
+  environments.shared.scripts.widen_checkpoint --species <species> --stage
+  stance --from-stage-dir <parent run>/<its stance directory> --to-stage-dir
+  <LOG_BASE>/<species>/<algo>/<new run id>/01_stance [--max-revision-gap N]
+  [--label L]`, with `<new run id>` a new timestamp id `YYYYMMDD_HHMMSS`, run
+  before the notebook's storage cell has opened that run id (on Colab, the
+  three steps of
+  [PLANT_CONTRACT.md](PLANT_CONTRACT.md#widening-a-checkpoint-across-a-policy-interface-bump):
+  section 1, a scratch cell that mounts Drive, never the storage cell, then
+  the tool from `/content/mesozoic-labs`), widens the parent's certified stance handoff
+  into the new run's root stage directory (zero columns for the new dims, the
+  run block's `WIDEN_LINEAGE_KEYS` with the parent's `run.seed`, the identity
+  and task fingerprint re-stamped, no verdict, no `provenance.json`); then the
+  notebook, with `RUN_ID` set to the new run id, `SEED` to the parent's
+  recorded `run.seed` and `TRUNK_FROM = ""`, mints an r13 provenance for it
+  (the storage cell refuses any other `SEED` before it writes anything,
+  D-C14: the provenance publishes `training_seed = SEED` and replication
+  counts distinct seeds; the resolve cell refuses a trunk until the widened
+  root holds a verdict, D-C13), and the chain loop refuses — loudly — to
+  reuse the verdict-less directory, finds the `<stage_label>_final.*` pair
+  and JUDGES it: a fresh 40-episode panel (seeds 3042–3081) under the
+  current gate, a `gate_verdict.json` minted under the new task hash. Never by pointing `RUN_ID` at the old run: for a
   pre-Phase-C run the storage cell refuses the directory outright (above),
   and for a same-plant run whose verdict rule 3 or 7 refuses the chain loop
   raises "mint a fresh RUN_ID" (D-C13).
@@ -205,10 +211,10 @@ tolerance) remains the standing recommendation for the divergences above.
   parents with `policy_interface_revision: parent=11, current=13 (gap 2
   exceeds max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2
   …)`, and `--allow-legacy-plant` does not apply (it covers only an archive
-  with NO recorded identity). **The remedy is decision D-C17**: set
-  `WIDEN_MAX_REVISION_GAP = 2` in the notebook's configuration cell (the widen
-  cell threads it into `widen_checkpoint(..., max_revision_gap=)`) or pass
-  `--max-revision-gap 2` on the CLI. Every other gate field is checked
+  with NO recorded identity). **The remedy is decision D-C17**: pass
+  `--max-revision-gap 2` to the command-line tool (`max_revision_gap=2` in
+  the API; session 1 set the notebook's revision-gap knob to 2, a knob that
+  left with consolidation PR-14a, D-D14). Every other gate field is checked
   whatever the bound — same species, `physics_sha256`, `nq` / `nv` / `nu`,
   `action_dim` and `observation_dim + 3 == current` — so only fingerprint-only
   intermediate bumps can be crossed, and opting in asserts, from
@@ -303,7 +309,9 @@ tolerance) remains the standing recommendation for the divergences above.
   parent's `stage_config.json` predates that block (`widen_report.json`
   names the source; the r11 parent's carries the block, and its 2026-09-20
   widen report reads `parent_stage_config`); and the notebook's load preflight runs right
-  before the widen cell on the `WIDEN_FROM` parent's real handoff
+  after the resolve cell on a real archive, the trunk run's root handoff when
+  there is one (until consolidation PR-14a moved widening to the command line,
+  the notebook's widen parent's handoff first)
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
   Drive trained before that date — every trex and compsognathus stage
@@ -341,37 +349,33 @@ tolerance) remains the standing recommendation for the divergences above.
   `complete` under a stance target (`target_deliverable "1"`), not
   `partial`; a re-entry that reuses every node never reaches the chain
   loop's `save_run_bundle`, and a direct save is refused because
-  `03_locomotion/` appeared after the publication (the next entry). The
+  `03_locomotion/` appeared after the publication (a complete bundle is
+  immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md); since consolidation
+  PR-14a the notebook refuses, before anything is trained or written, a
+  session that would judge or train a node into a complete run). The
   records stay stance-only, with stance at replication 1, although the
   seed-44 sibling `20260920_010912` counts this run at 2; nothing reads them
   for reuse. Remedy in general: a `partial` bundle is rebuilt by the next
-  session that trains or judges a node in the run; consolidation PR-14's
-  single storage path does not change this
+  session that trains or judges a node in the run; PR-14a's complete-run
+  refusal does not change this
   ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
-- **MEDIUM (operational)** — **a complete run cannot take a new node in
-  place: the bundle write fails after the node has trained (verified
-  2026-09-23).** `save_result_bundle` treats a `complete` bundle as
-  immutable: when its manifest no longer verifies, it rebuilds only if
-  every disagreement is a file it regenerates itself
-  (`reporting/bundles.py`, `_REGENERATED_ARTIFACTS`: `provenance.json`,
-  `plant_identity.json`, `collected_results.csv`, `summary.json`), and
-  `result_bundle.manifest_disagreements` counts every file the manifest does
-  not declare. A node trained into such a run (the in-place recipe of
-  NEXT_STEPS.md "Continuing session 1", `RUN_ID` set to the run) writes its
-  stage directory and, through `generate_stage_artifacts`, its
-  `gate_verdict.json`, then the chain loop's `save_run_bundle` raises
-  `completed result bundle is immutable, but certified artifact(s) changed
-  after publication`; the raise halts "Run all" before the auto-disconnect
-  cell, so the runtime is not released either. Exposed: the trex seed-44 run
-  `20260920_010912` (bundle `complete` since 2026-09-21), so NEXT_STEPS.md
-  session 7 (a second r13 walker seed) now runs as a fresh run with
-  `TRUNK_FROM = "20260920_010912"`, which reuses the stance across runs
-  under `ancestors/`; the seed-42 walker `20260914_123816` (the entry above).
-  The per-node verdict survives, so reuse is unaffected. Fix candidates: the
-  storage cell refusing an in-place session whose target is not yet in a
-  complete bundle before any training, or a bundle writer that extends a
-  complete bundle by new nodes without touching its certified files; both
-  fall in consolidation PR-14's storage and disconnect path.
+- **LOW (operational)** — **a re-entry that only reuses a `partial` or
+  `failed` run's nodes stops at the cleanup cell (verified 2026-09-24).** In
+  a new runtime the storage cell's `initialize_result_bundle` appends the
+  session to the run's `provenance.json` (`sessions`), and the zero-action
+  cell refreshes the run's `zero_action_baseline.json`; the run's
+  `artifact_manifest.json` declares `provenance.json`. With every chain node
+  reused in place nothing rebuilds the bundle (only a node trained or judged
+  in the run does), so the cleanup cell's `validate_result_bundle` raises
+  (`artifact size mismatch: provenance.json; summary provenance does not
+  match provenance.json`) and "Run all" stops before the auto-disconnect.
+  Verified against the library: `initialize_result_bundle` from a new
+  process on a run sealed `partial` makes `validate_result_bundle` refuse
+  it, while on a run sealed `complete` it records no session and the bundle
+  still verifies (and since consolidation PR-14a the zero-action cell keeps
+  a complete run's copy). Nothing certified is touched, and the next node
+  trained or judged in the run rebuilds the bundle over both files. Remedy:
+  run the auto-disconnect cell by hand.
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -462,8 +466,8 @@ tolerance) remains the standing recommendation for the divergences above.
   `20260914_123816` share the r13 stance `task_sha256`, the seed-44 bundle
   records replication 2, and the seed-42 run's own records stay at
   replication 1: its `complete` bundle cannot be rewritten in place (the
-  MEDIUM entries "run-level records go stale" and "a complete run cannot
-  take a new node in place" above).
+  MEDIUM entry "run-level records go stale" above; a complete bundle is
+  immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)).
 - **MEDIUM (provisional threshold)** — **the trex hunting bar
   `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,

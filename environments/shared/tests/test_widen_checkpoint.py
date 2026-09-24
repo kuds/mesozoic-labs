@@ -65,7 +65,14 @@ from environments.shared.plant_contract import (  # noqa: E402
     current_plant_identity,
 )
 from environments.shared.policy_loading import load_sb3_checkpoint  # noqa: E402
-from environments.shared.result_bundle import GATE_VERDICT_FILENAME, sha256_file, write_gate_verdict  # noqa: E402
+from environments.shared.result_bundle import (  # noqa: E402
+    GATE_VERDICT_FILENAME,
+    ResultBundleError,
+    refuse_trunk_over_unjudged_widened_root,
+    refuse_widened_seed_mismatch,
+    sha256_file,
+    write_gate_verdict,
+)
 from environments.shared.scripts import widen_checkpoint as widen_module  # noqa: E402
 from environments.shared.scripts.widen_checkpoint import (  # noqa: E402
     ACTION_DELTA_ATOL,
@@ -1643,6 +1650,18 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     assert run["duration_seconds"] == PARENT_DURATION_SECONDS
     assert not set(LOAD_LINEAGE_KEYS) & set(run)
     assert json.loads((target / "plant_identity.json").read_text()) == current.to_dict()
+
+    # Decision D-D14 moved the widen cell's guards onto disk; they read what this tool really writes: D-C14's
+    # seed check in the notebook's storage cell and D-C13's trunk refusal in its resolve cell.
+    manifest = load_stage_manifest(SPECIES)
+    walk = (manifest.resolve("stance"), manifest.resolve("locomotion"))
+    refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED)
+    with pytest.raises(ResultBundleError, match=f"SEED = {PARENT_SEED + 1}.*seed {PARENT_SEED}"):
+        refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED + 1)
+    with pytest.raises(ResultBundleError, match="never judge the widened root"):
+        refuse_trunk_over_unjudged_widened_root(
+            target.parent, species=SPECIES, chain=walk, target=walk[1], retrain_from=None, trunk_dir=tmp_path / "trunk"
+        )
 
     # The second invocation on the same target is refused as occupied; nothing changes, nothing is printed.
     digests = file_digests(target)

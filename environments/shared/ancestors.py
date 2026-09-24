@@ -773,8 +773,10 @@ class OlderInterfaceParent:
     """A run whose ROOT node passed its gate under an older policy interface.
 
     Never a trunk (rule 3 refuses it: its task digest carries the old plant),
-    but the run ``WIDEN_FROM`` / ``widen_checkpoint`` can widen into a new
-    run's root (BEHAVIOR_RECIPES_PLAN §4.6, decisions D-C13 and D-C17).
+    but the run the command-line ``python -m
+    environments.shared.scripts.widen_checkpoint`` (with ``--max-revision-gap``
+    set to :attr:`revision_gap`) can widen into a new run's root
+    (BEHAVIOR_RECIPES_PLAN §4.6, decisions D-C13, D-C17 and D-D14).
     """
 
     run_dir: Path
@@ -800,7 +802,7 @@ class TrunkSelection:
     selected: "TrunkCandidate | None"
     support: tuple[NodeSupport, ...]
     older_interface: tuple[OlderInterfaceParent, ...]
-    #: Why no run was consulted at all (a widen session, nothing to reuse), else None.
+    #: Why no run was consulted at all (nothing to reuse, or the log directory could not be listed), else None.
     skipped: "str | None" = None
 
     @property
@@ -851,8 +853,9 @@ class TrunkSelection:
             lines.append(
                 f"  older-interface parent: run {parent.run_id} ({parent.run_dir.name}) passed {parent.stage_id!r} under "
                 f"policy interface r{parent.policy_interface_revision}; this checkout is "
-                f"r{parent.current_policy_interface_revision}. WIDEN_FROM = {parent.run_dir.name!r} "
-                f"(WIDEN_MAX_REVISION_GAP >= {parent.revision_gap}) widens it instead of retraining the root."
+                f"r{parent.current_policy_interface_revision}. Widen it into a new run instead of retraining the "
+                f"root: python -m environments.shared.scripts.widen_checkpoint --max-revision-gap {parent.revision_gap} "
+                "(its --help gives the recipe)."
             )
         lines.append("  Pin another run with TRUNK_FROM = '<run id>'; TRUNK_FROM = '' trains every node here.")
         return "\n".join(lines)
@@ -1054,7 +1057,6 @@ def select_trunk(
     plant_identity: "PlantIdentity",
     exclude: "Sequence[str | Path]" = (),
     retrain_from: "StageEntry | None" = None,
-    widen_from: "str | None" = None,
     algorithm: "str | None" = None,
     backend: str = "stable-baselines3",
     limit: "int | None" = None,
@@ -1082,11 +1084,9 @@ def select_trunk(
     its coverage or first refusal, the replication each covered node rests
     on (informative — a provisional ancestor is reused and labelled, never
     refused; §4.5 makes replication provenance, not a gate), and any run
-    whose root passed under an older policy interface (a ``WIDEN_FROM``
-    candidate, D-C13).  With *widen_from* set no run is consulted: the
-    widened root is judged in the new run and nothing elsewhere descends
-    from it, so a trunk would only bypass the widened directory; with
-    *retrain_from* naming the root there is nothing to reuse either.
+    whose root passed under an older policy interface (a candidate for the
+    command-line ``widen_checkpoint``, D-C13/D-C17/D-D14).  With
+    *retrain_from* naming the root there is nothing to reuse.
 
     A run whose ``provenance.json`` names another species, *algorithm* or
     *backend*, or whose root ``stage_config.json`` records another
@@ -1112,19 +1112,12 @@ def select_trunk(
             raise ValueError(f"retrain_from {retrain_from.id!r} is not on the chain {ids}")
         considered = considered[: ids.index(retrain_from.id)]
     considered_ids = tuple(entry.id for entry in considered)
-    skipped = None
-    if widen_from:
-        skipped = (
-            f"WIDEN_FROM={widen_from!r}: the widened root is judged in this run and every node below it "
-            "descends from that handoff, which no earlier run's checkpoint does"
-        )
-    elif not considered:
+    if not considered:
         skipped = (
             f"RETRAIN_FROM={retrain_from.id!r} covers the root: every node trains here"
             if retrain_from is not None
             else "the target is the root of its chain and is never reused across runs: it trains here"
         )
-    if skipped is not None:
         return TrunkSelection(
             log_dir=root_dir,
             considered=considered_ids,

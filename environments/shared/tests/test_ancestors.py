@@ -1259,14 +1259,16 @@ class TestSelectTrunk:
         assert selection.considered == () and selection.run_dir is None
         assert "nothing (the root is trained here)" in selection.describe()
 
-    def test_a_widen_session_consults_no_run(self, tmp_path, fixture_tasks):
-        build_trunk_run(tmp_path / "20260905_000000")
+    def test_the_widen_parameter_left_with_the_notebook_knob(self):
+        """Decision D-D14: the notebook's WIDEN_FROM was select_trunk's only ``widen_from`` caller; both are gone.
 
-        selection = _select(tmp_path, widen_from="20260815_205206")
+        A root widened on the command line is judged in its new run, and the notebook's resolve cell refuses a
+        resolved trunk until it holds a verdict (``result_bundle.refuse_trunk_over_unjudged_widened_root``)."""
+        import inspect
 
-        assert selection.run_dir is None and selection.candidates == ()
-        assert selection.skipped is not None and "WIDEN_FROM='20260815_205206'" in selection.skipped
-        assert "skipped: WIDEN_FROM" in selection.describe()
+        from environments.shared.ancestors import select_trunk
+
+        assert "widen_from" not in inspect.signature(select_trunk).parameters
 
     def test_a_run_that_reused_its_stance_is_followed_to_the_source(self, tmp_path, fixture_tasks):
         source = tmp_path / "20260901_000000"
@@ -1338,7 +1340,9 @@ class TestSelectTrunk:
         text = selection.describe()
         assert "older-interface parent: run 20260815_205206" in text
         assert f"policy interface r{current.policy_interface_revision - 2}" in text
-        assert "WIDEN_FROM = '20260815_205206' (WIDEN_MAX_REVISION_GAP >= 2)" in text
+        # D-D14: the hint names the command-line tool and the bound this parent needs, never the deleted knobs.
+        assert "python -m environments.shared.scripts.widen_checkpoint --max-revision-gap 2" in text
+        assert "WIDEN_FROM" not in text and "WIDEN_MAX_REVISION_GAP" not in text
 
     def test_an_older_interface_parent_identified_only_by_its_checkpoint_is_still_reported(
         self, tmp_path, fixture_tasks

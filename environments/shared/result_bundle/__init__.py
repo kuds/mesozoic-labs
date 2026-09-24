@@ -33,6 +33,9 @@ them:
   ``gate_verdict.json`` record a stage directory carries beside its handoff
 * :mod:`~environments.shared.result_bundle.ancestors` — the reader of the
   ``ancestors/<stage_id>/`` records of nodes reused from another run
+* :mod:`~environments.shared.result_bundle.reentry` — what a notebook session
+  that re-enters an existing run directory is refused before it writes
+  anything (a complete bundle, a widened root's seed and verdict)
 """
 
 from __future__ import annotations
@@ -62,11 +65,18 @@ from .hashing import _write_json, aggregate_file_hash, canonical_json_sha256, sh
 from .manifest import (
     build_artifact_manifest,
     manifest_disagreements,
+    read_bundle_status,
     verify_artifact_manifest,
     write_artifact_manifest,
 )
 from .naming import _normalize_plant_identity, canonical_algorithm, canonical_backend
 from .provenance import initialize_result_bundle, load_provenance, update_provenance
+from .reentry import (
+    refuse_complete_run_session,
+    refuse_trunk_over_unjudged_widened_root,
+    refuse_widened_seed_mismatch,
+    refuse_write_into_complete_run,
+)
 
 __all__ = [
     "ANCESTOR_RECORD_NAME",
@@ -94,7 +104,12 @@ __all__ = [
     "load_provenance",
     "manifest_disagreements",
     "project_ancestor_records",
+    "read_bundle_status",
     "read_gate_verdict",
+    "refuse_complete_run_session",
+    "refuse_trunk_over_unjudged_widened_root",
+    "refuse_widened_seed_mismatch",
+    "refuse_write_into_complete_run",
     "sha256_file",
     "update_provenance",
     "validate_evaluation_evidence",

@@ -127,10 +127,12 @@ root-first. At each node it does exactly one of three things:
    the run it chose, the replication each reused node rests on, the runs it
    refused with the rule that refused them (the first 20; the selection
    object holds every run scanned), and any run whose root passed under an
-   older policy interface as a `WIDEN_FROM` candidate.
+   older policy interface as a candidate for the command-line widen tool
+   (`widen_checkpoint --max-revision-gap N`).
 2. **Judge** a node that was trained but never gated (the notebook only:
    its final checkpoint exists but `gate_verdict.json` does not, because the
-   resume cell spent its budget).
+   resume cell spent its budget or the command-line widen tool wrote a
+   widened root into the run).
 3. **Train** it otherwise, warm-started from its parent's handoff checkpoint
    and VecNormalize sidecar along the declared edge, then judge its gate and
    write `gate_verdict.json` beside the handoff.
@@ -249,32 +251,49 @@ refuses when the evidence is missing, and cannot backfill
 
 ## In the notebook
 
-`notebooks/sb3_training.ipynb` exposes six knobs in its configuration cell,
+`notebooks/sb3_training.ipynb` exposes five knobs in its configuration cell,
 committed as:
 
 ```python
 BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable's stage id
 TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
-WIDEN_FROM = ""  # optional earlier run (id or absolute path) whose certified ROOT handoff is widened to this checkout's policy interface into RUN_DIR before the chain runs (BEHAVIOR_RECIPES_PLAN §4.6 Phase C)
-WIDEN_MAX_REVISION_GAP = 1  # how many policy-interface revisions behind WIDEN_FROM's parent may be (D-C17); 1 = the Phase C bump alone; the two certified trex stance parents (r11) need 2 because r11 → r12 was fingerprint-only
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 6)
 ```
 
-`WIDEN_FROM` names an earlier run whose certified root checkpoint was trained
-behind this checkout's policy interface: the widen cell after the chain
-resolution widens its handoff pair into this run's root stage directory (zero
-columns for the new command dims, never re-trained) and the chain loop
-re-judges it; a widen session sets `SEED` to that run's seed before the storage
-cell runs (decisions D-C13/D-C14). `WIDEN_MAX_REVISION_GAP` bounds how many
-policy-interface revisions behind that parent may be (default `1`, the Phase C
-bump alone). The widen tool still checks the physics digest, `nq`/`nv`/`nu`,
-`action_dim` and the observation widths whatever the bound, so a larger value
-only crosses fingerprint-only bumps, and a parent further behind than the
-bound is refused with the gap and the tool's `--max-revision-gap` /
-`max_revision_gap` bound named; the two certified trex
-stance parents are r11 archives, two revisions behind r13, and need `2`
-(decision D-C17).
+`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<algorithm>/`:
+`""` keeps the run this runtime's storage cell resolved last and mints a
+fresh timestamped run only when there is none (the first pass in a runtime),
+a new id starts a fresh run, and an existing run's id re-enters that run in
+place, to resume an interrupted node or finish a `partial` run; the storage
+cell prints whether it minted a new run or re-entered one. To start a fresh
+run in a runtime that already resolved one, set a new id (a timestamp such
+as `"20260924_120000"`, the format the storage cell mints). A run whose bundle
+is `complete` is immutable: a session that would judge or train a node into
+it is refused before anything is trained or written (in the resolve cell, or
+in the chain loop for what the resolve cell cannot predict, such as a node
+held only as an `ancestors/` record that the trunk no longer certifies), and
+the refusal names the remedy — a fresh
+`RUN_ID` with `TRUNK_FROM` set to the complete run, which reuses its
+certified nodes across runs.
+
+A checkpoint trained behind this checkout's policy interface is widened on the
+command line into a new run, one the notebook has not opened yet (`python -m
+environments.shared.scripts.widen_checkpoint ... --to-stage-dir
+<LOG_BASE>/<species>/<algorithm>/<new run id>/01_stance`, where `<new run id>`
+is a new timestamp id `YYYYMMDD_HHMMSS` that no run uses yet, with
+`--max-revision-gap N` for a parent more than one revision behind, decision
+D-C17, and `--label` when the session sets `RUN_LABEL`; on Colab, the three
+steps in the tool's module docstring: the notebook's section 1, a scratch
+cell that mounts Drive, never the storage cell, then the tool from
+`/content/mesozoic-labs`), which the notebook then re-enters
+with `RUN_ID` set to that id, `SEED` set to the parent's seed and
+`TRUNK_FROM = ""`: the storage cell refuses any other seed before it writes
+anything (D-C14), the resolve cell refuses a trunk until the widened root
+holds a verdict, and the chain loop judges the widened root (decisions D-C13,
+D-D14). The notebook's `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen
+cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
 cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
