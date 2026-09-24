@@ -406,7 +406,6 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         ALGORITHM=algorithm,
         N_ENVS=1,
         PLANT_IDENTITY=current_plant_identity(species),
-        CHECKPOINT_SELECTION_SEED=1042,
         EVALUATION_SEED=3042,
         USE_GOOGLE_DRIVE=False,
         AUTO_DISCONNECT=False,

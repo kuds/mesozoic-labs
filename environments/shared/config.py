@@ -323,12 +323,15 @@ def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
     return digest if isinstance(digest, str) and digest else None
 
 
-#: Run-block key recording how long a stage actually trained, in seconds,
-#: across every session that trained it (decision D-A15).  Written by
-#: :func:`record_stage_duration` on every ``train_stage`` exit rather than by
-#: :func:`save_stage_config`, which runs BEFORE training: a node resumed by
-#: the notebook's resume cell and judged later would otherwise report the
-#: judge session's 0.0 seconds.  Not a lineage key — the audit ignores it.
+#: Run-block key recording how long a stage trained, in seconds, summed over
+#: the sessions that reached a final save in this stage directory (decision
+#: D-A15; a session stopped before its final save records nothing, and a CLI
+#: resume into a fresh directory records only its own session).  Written by
+#: :func:`record_stage_duration` when ``train_base.train`` saves the final
+#: model rather than by :func:`save_stage_config`, which runs BEFORE
+#: training: a node resumed by the notebook's resume cell and judged later
+#: would otherwise report the judge session's 0.0 seconds.  Not a lineage
+#: key — the audit ignores it.
 STAGE_DURATION_KEY = "duration_seconds"
 
 

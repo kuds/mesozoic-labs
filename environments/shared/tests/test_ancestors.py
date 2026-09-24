@@ -1465,7 +1465,7 @@ class TestSelectTrunk:
 
     def test_the_selection_derives_each_node_exactly_as_the_loop_does(self, tmp_path, monkeypatch):
         """The task digest handed to the rule comes from the current stage config through the shared
-        derivation with the plant identity — the sources ``train_stage`` records it from."""
+        derivation with the plant identity — the sources ``train_base.train`` records it from."""
         from environments.shared import task_fingerprint as task_fingerprint_module
 
         derived: list[dict[str, Any]] = []

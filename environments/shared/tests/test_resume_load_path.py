@@ -16,7 +16,6 @@ Two defects are pinned here:
 """
 
 import inspect
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -314,28 +313,31 @@ class TestShapingIsWired:
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
-    def test_the_notebook_and_the_sweep_route_through_the_helper_too(self):
+    def test_the_sweep_routes_through_the_helper_too(self):
         # The notebook's train_stage cell is where the inline copy grew (and
-        # lost the ramp guard). The Ray sweep worker had a third copy. Since
-        # the behavior-chain loop (Phase A WS5, gap-review DU1) the notebook
-        # uses the helper's output UNFILTERED: its former PPO-only warm-up
-        # filter (`isinstance(cb, StageWarmupCallback)`) is pinned absent.
+        # lost the ramp guard); it trains through train() since consolidation
+        # PR-14c (test_sb3_notebook_pins pins that no cell names the warm-up).
+        # The Ray sweep worker had a third copy.
         repo_root = Path(__file__).resolve().parents[3]
-        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-        cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
-        (cell,) = [c for c in cells if "def train_stage(" in c]
         sweep = (repo_root / "environments" / "shared" / "scripts" / "sweep" / "ray_tune.py").read_text(
             encoding="utf-8"
         )
-        for src in (cell, sweep):
-            assert "_stage_entry_shaping_callbacks(" in src
-            assert "parent_id=" in src
-            assert "stage_position" not in src
-            assert "StageWarmupCallback(" not in src
-            assert "RewardRampCallback(" not in src
-        assert "task_load_mode=task_load_mode" in cell
-        assert "isinstance(cb, StageWarmupCallback)" not in cell
+        assert "_stage_entry_shaping_callbacks(" in sweep
+        assert "parent_id=" in sweep
+        assert "stage_position" not in sweep
+        assert "StageWarmupCallback(" not in sweep
+        assert "RewardRampCallback(" not in sweep
         assert 'task_load_mode="initialize_next_stage"' in sweep
+
+    def test_a_ray_trial_keeps_its_own_seed_on_a_warm_start(self):
+        # ray_tune seeds each trial on its own; a train() archive records its training seed (D-D11, consolidation
+        # PR-14c), which SB3's load would re-apply to the trial's env and global RNGs without seed=None.
+        repo_root = Path(__file__).resolve().parents[3]
+        sweep = (repo_root / "environments" / "shared" / "scripts" / "sweep" / "ray_tune.py").read_text(
+            encoding="utf-8"
+        )
+        load = sweep.index("model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)")
+        assert 'alg_kwargs.setdefault("seed", None)' in sweep[sweep.rindex("if load_path:", 0, load) : load]
 
     def test_train_resolves_the_sidecar_from_its_load_path(self):
         # _load_vecnorm_into_envs owns the resolution for both launch paths.

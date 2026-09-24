@@ -34,8 +34,9 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-12, notebook-only slice (D-D13) | **Landed** as #552 on 2026-09-24: the notebook loses `COMMAND_TERRAIN_BEHAVIOR`, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells (7/19/20/33/34/39 in the 22c1fc8 numbering, 7/20/21/34/35/40 at 2e77150) and the 15 guard sites (the plan's 14 plus the guarded archive-load preflight; the guarded code dedented, two lint fixes aside): 41 cells, 23 code, 2,463 lines → 35 cells, 19 code, 2,329 lines; `behavior_notebook.py` (294 lines) and `test_behavior_notebook.py` (815) deleted, their canonical halves ported to `test_sb3_notebook_pins.py` (the configuration defaults and free-form stage ids, the dropdown's JSON annotations, the setup cell's `REPO_REF` safety) with `_canonical_source` removed; CI drops the deleted test from the SB3 list and the wheel step names the eleven recipe files itself. `train_behaviors.py` stays the pilots' command-line path until the rest of PR-12. Measured: −996 code, test and CI lines, −134 notebook source lines. The same PR carries one bug fix found while mapping PR-14: the training-curves cell no longer writes PNGs into the sealed bundle, which had stopped every completed "Run all" at the cleanup cell before the auto-disconnect (CHANGELOG "Fixed"; +1 notebook line, one executed pin). |
 | PR-14a (the storage path, D-D15) | **Landed** as #553 on 2026-09-24: the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` deleted (D-D14; `widen_checkpoint` stays the command-line widen path, and its seed and verdict guards become on-disk refusals in the storage and resolve cells); `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused at the end of the resolve cell, before anything is trained or written (the KNOWN_ISSUES bug of 2026-09-23, CHANGELOG "Fixed"), with the chain loop refusing, before the write, what the resolve cell cannot predict, the manual and resume cells refusing the same write and the zero-action cell no longer rewriting a complete run's copy: 35 cells, 19 code, 2,330 lines → 34 cells, 18 code, 2,271 lines. Measured (`git diff --numstat` against `2ebed89`): code +380 / −20, tests +894 / −680, notebook JSON +163 / −230, docs +543 / −217. |
 | PR-14b (one disconnect path, videos, the baseline cells; D-D15) | **Landed** as #554 on 2026-09-24: `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the infrastructure cell into `environments/shared/notebook_runtime.py` with the knobs passed at call time; the chain loop's gate refusal calls `halt`; videos play through IPython's `Video` (the `_HAS_MEDIAPY` probe gone); the random-baseline cell is deleted; the zero-action cell becomes its knobs and one call to `zero_action_baseline.preflight` (payload, run copy and complete-bundle skip byte-identical): 34 cells, 18 code, 2,271 lines → 33 cells, 17 code, 2,079 lines. Measured (`git diff --numstat` against `3571b24`, new files counted whole): code +183 / −1, tests +245 / −50, notebook JSON +27 / −229, docs +131 / −37. |
+| PR-14c (`train_stage` over `train_base.train`; D-D7, D-D11, D-D15) | **In review** on the session branch (2026-09-24; PR-14b landed as #554): `train_stage` becomes its argument refusals, the node banner, one `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call and the evaluation; `train()` seeds construction (an algorithm-block seed kept), records `run.duration_seconds` at the final save and takes `parent_run_id` and an explicit `vecnorm_path`; four loads of seeded archives pass `seed=None` (the CLI's two panel loads, the task-success re-roll, the Ray warm start); `evaluate_stage_checkpoints` moves beside `generate_stage_artifacts`: 33 cells, 17 code, 2,079 lines → 33 cells, 17 code, 1,486 lines. Measured (`git diff --numstat` against `d63faff`): code +353 / −31, tests +358 / −278, notebook JSON +39 / −632, docs +159 / −44. |
 | Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed), of which the notebook-only PR-12 slice removes about 1,130 (measured). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554, all on 2026-09-24; PR-14c is next. |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554, all on 2026-09-24; PR-14c is in review. |
 | Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) right after the resolve cell, where the widen row PR-14a deletes used to follow it (it reads `TRUNK_DIR`, which the storage row binds for a pinned trunk and the resolve cell under `"auto"`); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering, and PR-14b turns that one site (cell 18 after it) into a `halt` call (§3). |
 
@@ -122,7 +123,7 @@ consequences noted under PR-4, PR-11 and D-D1 below.
 | Env command source | Reserved hook `BaseDinoEnv._draw_episode_command` returns zeros, `command_manifest()` returns None (environments/shared/base_env.py:1063-1083), called at base_env.py:1514 after every reset draw; six `command_*` kwargs stored but never read (base_env.py:195-200, 301-306); `command_frame.validate_command_mode` fails closed on SB3 (command_frame.py:77-94) | `DirectionCommandController` (environments/shared/direction_commands.py, 442 lines) driven from `SpeciesBehaviorMixin.reset/step/set_direction`, which refuse `command_mode != "none"` (behavior_env.py:86-87) and assign `self._command` directly (397, 417, 443); `command_manifest()` overridden (308) but never fed to `compute_task_fingerprint` | `BaseDinoEnv` owns the controller under `command_mode in {"heading","heading_and_speed"}` with one `command_config` kwarg replacing the five dead numeric kwargs (D-D2); hook body = `controller.reset(...)`, new `_update_command()` at the end of `step`, `command_manifest()` = `controller.manifest()` into the task fingerprint. Deleted: the refusals, the three direct writes, the SB3 branch of `validate_command_mode`, the five numeric kwargs in five species constructors and `MJXEnvConfig`. direction_commands.py survives unchanged in substance (imports `COMMAND_WIDTH`/`COMMAND_COMPONENTS`/`COMMAND_RANGE` from command_frame). |
 | Terrain | None (base_env.py:1332-1344 documents plane-only settling) | terrain.py (522) + terrain_sampling.py (183) + two model/data pools swapped by `_select_contact_model` (behavior_env.py:177-193); four stacked layers decide an episode's ground: `flat_probability` draw (373-378), `TerrainSamplingMixin.reset` try/finally mutation (terrain_sampling.py:148-163), `_sampled_behavior_env_class` (171-183), `_PanelTerrainMixin` in behavior_certification.py:63-107 | terrain.py kept as the single injection point (`build_terrain_model`, plane named `floor`). One generic opt-in subclass (the surviving `SpeciesBehaviorMixin` minus its command half, built by `make_env` when `[env]` carries terrain keys) holds the two pools, the terrain settle, and ONE per-episode family selector (`select_terrain_family` with a `terrain_contact` family and a `terrain_family` reset option) (D-D10). Deleted: environments/trex/envs/behavior_env.py (497), `TerrainSamplingMixin`, `_sampled_behavior_env_class`, `get_sampled_behavior_env_class`, `_PanelTerrainMixin`, `flat_probability`. `BaseDinoEnv` gains `_ground_height_at(xy)` so species rewards/terminations are terrain-relative without re-derivation. |
 | Checkpoint preparation | widen_checkpoint.py (1308): inserts zero columns into an r11/r12 archive, pads Adam moments, `pad_running_stats`, restamps, self-verifies with seed 3042 / atol 1e-6; `load_vecnorm_stats(reseed_command_slice=...)`; `_create_or_load_model` under `resume_same_stage` / `initialize_next_stage` (train_base.py:552-637), which does NOT zero existing command columns | behavior_checkpoint.py (457): `_zero_command_connections` on the same two layers and moments (145-162), same probe (208-231), `BehaviorVecNormalize` passthrough installed by `__class__` swap (58-75, 214) while still calling `reseed_command_slice` (216), `load_behavior_checkpoint` = resume, `adapt_behavior_checkpoint` + three hand-listed frozensets = initialize_next_stage (315-457); marker written into both `MODEL_IDENTITY_ATTRIBUTE` and `MODEL_TASK_ATTRIBUTE` (259-261) | `policy_loading.neutralize_command_columns(model, observation_dim)` (~35 lines) + `assert_command_blind(...)` (~25) sharing widen's probe constants; called by `_create_or_load_model` on `initialize_next_stage` when the parent fingerprint has no `command` section and the child's mode is live; resume = `resume_same_stage`, adapt = `initialize_next_stage` with lineage; command-slice normalisation follows the reseed rule (D-D3). Deleted: behavior_checkpoint.py and its 420-line test. widen_checkpoint.py unchanged. |
-| Training entry point | `train_base.train` (980), `train_curriculum` (1999), `make_env` builds `species_cfg.env_class(**env_kwargs)` (204-228); notebook cell 16 `train_stage` (410 lines) re-runs train()'s body | `train_behaviors.main` (601 lines): own `read_recipe`, own env factory, own `model.learn` (540), own run.json/bundle.json, one CPU env; `behavior_notebook.NotebookBehaviorPlan.argv` (94-128) serialises 15 knobs into argv and calls `main()` in-process; trex shim (16) | `train_base.train` for everything; the notebook `train_stage` becomes a ~30-line wrapper over `train()` (which gains the seed line, `parent_run_id`, an eval-seed parameter, duration recording and a richer return) (D-D7). Deleted: train_behaviors.py, behavior_notebook.py, the shim, cells 7/20/34/39. |
+| Training entry point | `train_base.train` (980), `train_curriculum` (1999), `make_env` builds `species_cfg.env_class(**env_kwargs)` (204-228); notebook cell 16 `train_stage` (410 lines) re-runs train()'s body | `train_behaviors.main` (601 lines): own `read_recipe`, own env factory, own `model.learn` (540), own run.json/bundle.json, one CPU env; `behavior_notebook.NotebookBehaviorPlan.argv` (94-128) serialises 15 knobs into argv and calls `main()` in-process; trex shim (16) | `train_base.train` for everything; the notebook `train_stage` becomes a wrapper over `train()` (D-D7; as built by PR-14c, about 100 lines: its four argument refusals, the node banner, one `train()` call and the evaluation; `train()` gains the seed line, duration recording, `parent_run_id`, an explicit `vecnorm_path` and the `report_metrics` / `save_on_interrupt` switches and still returns the model; no eval-seed parameter, since the notebook's checkpoint-selection seed is `train()`'s `seed + 1000`). Deleted: train_behaviors.py, behavior_notebook.py, the shim, cells 7/20/34/39. |
 | Recipe / stage configuration | Stage TOMLs via `load_stage_config` (config.py:184), `stages.toml` v2 edges, `StageEntry.warm_start_from/deliverable/recipe` (stage_manifest.py:108-128) | 66 `configs/<species>/behaviors/*.toml` (3,030 lines) whose only cross-species differences are 20 keys with one value per species, and whose within-species differences are 7 keys; 8 `configs/trex/behavior_pilots/*.toml` (239) with a `[pilot]` dialect branch in `read_recipe` (train_behaviors.py:51-66, 76, 112) referenced only by pyproject.toml:114, environments/trex/tests/test_behavior_training.py:17 and one doc line (deleted by PR-6 on 2026-09-20) | Per species three new stage TOMLs (`follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain`; the assessment listed a fourth, `follow_direction_speed`, which G1 folds into `follow_direction`) with `[env] command_mode`, `command_config`, `terrain_*` scalars, `[ppo]`, `[curriculum]`, plus `[[stages]]` entries after `behavior`; the nine single-template variants become documented `[env]` overrides for the manual cell. `load_stage_config` gains a ~20-line `extends` key (D-D5). Deleted: all 74 TOMLs, the `[pilot]` branch, the pyproject globs. |
 | Gate / certificate | Closed `GATE_KINDS` + `_REQUIRED_THRESHOLD_KEYS` (curriculum/gate_schema.py:53-191), `evaluate_stage_gate` (reporting/gates.py:688-778), `_apply_stage_gate` -> `gate_verdict.json` (stage_artifacts.py:1022-1134), `binomial_lcb`/`paired_difference_lcb` | `judge_behavior_panel` (behavior_certification.py:227-338) reading configs/behavior_certification.toml, its own `gate_sha256` from source-file hashes and package versions (35-61), output `certification/certificate.json`, never `gate_verdict.json`; imports only `binomial_lcb` | One new gate kind, `terrain_command/v1` (D-D6), registered in `GATE_KINDS` with an evidence writer in the `write_recovery_evidence` pattern, judged by `evaluate_stage_gate`, written as `gate_verdict.json` so reuse rules 1-7 apply, first thresholds from G4; first pilots run `none/v1` recorded-not-enforced (gate_schema.py:128). Deleted: behavior_certification.py, the TOML, the certificate schema. |
 | Publication and reuse | `gate_verdict.json` hash-bound to the handoff pair, `provenance.deliverables[*].replication/provisional`, `ancestors/` records that never copy checkpoints (ancestors.py:678-686, plan A10), `find_certified_ancestor` rules 1-7, `discover_replicates` | certified_library.py (671), certified_canonical.py (917), certified_comparison.py (153): immutable store re-hashed on every read, second replication counter (258-289), second paired statistic (291-346), flock, complete copies into `certified_inputs/`, `copy_canonical_ancestor` reversing A10, `stamp_canonical_training` written only by the notebook | The recipes publication as it stands, with automatic parent selection provided by `ancestors.select_trunk` (D-A25, landed as #543). Deleted: all three modules, four test files, test_behavior_publication.py, docs/CERTIFIED_MODELS.md, the four notebook knobs and three notebook blocks, `--auto-source/--publish-certified/--certified-library`. No recommendation pointer survives (D-D4). |
@@ -881,31 +882,100 @@ Validation: notebook parse and JSON round-trip, `ruff check .`, `ruff format
 suites that name the moved code, and `test_compsognathus_training.py`'s
 notebook tests. Prerequisites: PR-14a.
 
-#### PR-14c. `train_stage` over `train_base.train` (sized when planned)
-Goal: the old item (a), at post-PR-14a numbers. `train_base.train`
-(train_base.py:980-1409) gains the notebook's `alg_kwargs["seed"] = SEED`
-line (cell 15:396; D-D11), a `parent_run_id` passthrough, an eval-env seed
-parameter (cell 15:334 `CHECKPOINT_SELECTION_SEED` against
-train_base.py:1175's `seed + 1000`; `train_curriculum` repeats it at :2431),
-`read/record_stage_duration` (D-A15; cell 15:246 and 15:526-527; the recipes
-guide's "absent on CLI runs" sentence becomes false for `train`, and for the
-`curriculum` subcommand only if `train_curriculum` is aligned too), a switch
-that skips the HPT report entirely (`post_eval_episodes=0` still writes
-`metrics.json`, train_base.py:1570-1573) and a way to obtain the paths that
-leaves `train()`'s return value alone (test_compsognathus_training.py uses the
-returned model). Cell 15's `train_stage` (15:158-541, "mirrors
-train_base.train()" at 342, 417 and 467) becomes a wrapper with the same
-signature and 6-tuple, so the chain loop, manual and resume cells are
-unchanged; it must not read `RUN_ID`, `_ACTIVE_RUN_ID` or any other
-storage-cell name, because the notebook smoke test never executes the storage
-cell. `evaluate_stage_checkpoints` (15:544-787) moves beside
-`generate_stage_artifacts`. Its pins move with it: in
-test_sb3_notebook_pins.py (`TestLoadModeByEdge`,
-`TestTrainStageRecordKeeping`, `TestJudgeBranch`, the loop fingerprint pin of
-`TestReuseRule`, `TestCommandSliceReseed`), test_config.py,
-test_resume_load_path.py, test_train_wiring.py, test_curriculum_baseline_watch.py,
-test_species_catalog.py and test_policy_loading.py. Prerequisites: PR-14a;
-D-D7, D-D11.
+#### PR-14c. `train_stage` over `train_base.train` (L by count: code +353 / −31, tests +358 / −278, notebook 2,079 → 1,486 source lines) — IN REVIEW on the session branch, 2026-09-24
+Goal: the old item (a), at post-PR-14b numbers (infrastructure cell 14,
+`train_stage` at 14:100-483). `train_base.train` gains, for every caller, the
+notebook's seed line as `alg_kwargs.setdefault("seed", seed)` (D-D11: CLI
+`train` runs and Vertex sweep trials start from other initial weights, a warm
+start is re-seeded with the run's seed and their archives record it; a seed the
+algorithm block names, `--override ppo.seed=N`, is kept) and the D-A15
+duration, from the call to the final save, recorded right after that save and
+added to the value the stage directory records on a same-stage resume. Because
+SB3's `load()` re-seeds the env it is given with an archive's recorded seed,
+four loads pass `seed=None`: the CLI's two post-training panel loads
+(`_post_training_eval_panels`, else `metrics.json` would be rolled on the
+training seed), the `task_success/v1` evidence re-roll
+(`_write_task_success_evidence`, whose rows record `PUBLICATION_SEED_START`;
+a notebook archive's load already replaced it, though the notebook's own bound
+evidence keeps that re-roll from running) and the Ray Tune worker's warm start
+(whose per-trial seed a seeded archive replaced). `train()` gains four keyword
+arguments whose defaults keep the CLI's behaviour: `parent_run_id` (to
+`save_stage_config`), `vecnorm_path` (an explicit sidecar through
+`_load_vecnorm_into_envs`; the manual cell's `MANUAL_VECNORM_PATH` is
+free-form), `report_metrics` (False: no HPT report, panels or `metrics.json`;
+`post_eval_episodes=0` still wrote it) and `save_on_interrupt` (False: a
+`KeyboardInterrupt` in `learn` propagates before the final save, so a Colab
+stop leaves periodic checkpoints for the RESUME cell instead of a final the
+chain loop would judge, fail and disconnect on). It still returns the model.
+`train_stage` keeps its signature and 6-tuple and becomes its four argument
+refusals (the root refusal stays here: `train()` accepts a root loading its own
+checkpoint), the node banner, one `train_base.train(...,
+report_metrics=False, save_on_interrupt=False)` call and the evaluation
+(14:38-136); it reads no storage-cell name. The other differences between the
+two bodies: the eval env's `CHECKPOINT_SELECTION_SEED` is `SEED + 1000` by the
+storage cell's definition, `train()`'s value, so there is no eval-seed
+parameter (a pin keeps the two equal); the six warmup/ramp values a node
+entered from its parent wrote into its run block are dropped (no code reads
+them: the bundle copies only string run fields and the audit only lineage keys;
+its `curriculum` block and `reward_weights` hold them, the RESUME re-save
+already dropped them and the CLI never wrote them); on Drive the notebook gains
+`train()`'s periodic TensorBoard sync; a refused declared parent leaves no
+empty stage directory. `evaluate_stage_checkpoints` moves into
+`reporting/stage_artifacts.py` beside `generate_stage_artifacts`, its notebook
+globals as parameters (`evaluation_seed` is required: `EVALUATION_SEED` is
+`PUBLICATION_SEED_START` only for `SEED` 42); `train_stage` and the chain
+loop's JUDGE branch pass it `SPECIES_CFG`, the stage config, `ALGORITHM`,
+`PLANT_IDENTITY` and `EVALUATION_SEED` at call time (no cell shim; a partial
+would freeze the last two when the infrastructure cell runs). The manual and
+resume code cells are unchanged; the RESUME markdown's duration sentence now
+says the record is the resumed session's; the setup cell drops the three
+imports only the old body read.
+Breaks: a notebook node entered from its parent records six fewer run-block
+keys; on Drive an interrupted node's TensorBoard events up to its last
+checkpoint reach the stage directory, and a RESUME on a fresh runtime continues
+that session's run directory (`PPO_1`, two event files) instead of opening
+`PPO_0`; CLI `train` runs and Vertex sweep trials change initial weights and
+gain `run.duration_seconds`; a Ray trial warm-started from a notebook archive
+is no longer re-seeded with that archive's training seed; `train()`'s INFO
+lines are not shown in the notebook (its warnings are). Not aligned, outside
+this PR (D-D7):
+`train_curriculum` (the `curriculum` subcommand) and the Ray Tune worker neither
+seed construction nor record a duration, and a CLI resume into a fresh
+`--output-dir` records only its own session.
+Pins: the train_stage-body pins become pins on `train()` (the fingerprint
+sources of `TestReuseRule`, the shaping pin, `TestCommandSliceReseed`, TC9 in
+test_train_wiring.py, the lineage keys in test_config.py) or behavioural tests
+in test_train_base.py (the seed and a kept algorithm-block seed, the duration
+recorded before the report starts and under `report_metrics=False`, its resume
+accumulation, `parent_run_id`, the explicit sidecar, both switches);
+`TestTrainStageRecordKeeping` pins the one `train_base.train` call's arguments;
+`TestJudgeBranch` pins both calls of the library function, and the library
+function's own pins (test_reporting_stage_artifacts.py, test_config.py,
+test_train_wiring.py, test_curriculum_manager.py, test_species_catalog.py,
+test_policy_loading.py) read its source; `TestSeedReplication` pins the storage
+cell's `CHECKPOINT_SELECTION_SEED` to `train()`'s `seed + 1000`;
+test_evaluation.py, test_reporting_stage_artifacts.py and
+test_resume_load_path.py pin the four `seed=None` loads. The notebook pins
+that other tests now cover are deleted: the declared-parent and
+occupied-directory refusals, the seed line, the baseline watch's `species=`
+(every `train_base` call site is pinned) and the RESUME re-save's lineage
+(test_train_base.py's `TestTrainResumeKeepsTheEdge`; its `load_path` check
+moves to `TestResumeCell`).
+Validation: the old and new notebook paths on `compsognathus_robot` under a
+frozen clock (stage 1 from scratch under PPO and SAC, stage 2 from its
+handoff, a RESUME of stage 1, the JUDGE branch, an explicit mismatched
+sidecar, an interrupt, a refused parent, and with the remote-mount test
+patched to true, SEED 7: a complete node, an interrupted node and its RESUME
+on a fresh runtime) wrote the same files with the same contents except the
+duration (timing), the six keys, the refused parent's empty directory and the
+Drive TensorBoard layout above; SB3 archives differ only in object addresses,
+as between two runs of the same code. CLI `train` with the construction seed
+popped matches the old code apart from the new duration key, timing and that
+address noise; seeded, its post-training panels reset on the unseeded eval
+stream as before (without `seed=None` they differed in 37 `metrics.json`
+keys), the task-success re-roll continues the publication-seed stream its rows
+record and a Ray-style warm start keeps the trial's seed. Prerequisites: PR-14a,
+PR-14b; D-D7, D-D11.
 
 ### PR-15. Docs fold, CHANGELOG Changed/Removed, test helpers and pin budget (M, about -290)
 Goal: docs/README.md gains the operator guide under Living reference;
@@ -935,7 +1005,7 @@ zero): PR-1 0; PR-2 +100; PR-3 +20; PR-4 -2,400; PR-5 -1,400; PR-6 -275; PR-7
 PR-14 -450 (the pre-split estimate; PR-14a measures about +290 net code, test and notebook lines, since it adds the complete-run
 refusal, the on-disk widen guards and their tests while deleting the widen cell; PR-14b measures +101 (code +182,
 tests +111, notebook −192 source lines), since it moves the notebook's helpers and zero-action body into the
-package with new tests; PR-14c is re-estimated when planned); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
+package with new tests; PR-14c measures −191 (code +322, tests +80, notebook −593 source lines)); PR-15 -290. Net about -10,750 from 723f58f; stated as about 10,500
 with a plausible band of 9,000-12,000 (D-D5's TOML form is worth ~700 either
 way; D-D7 could remove ~700 more notebook lines while adding them to the
 package). From 22c1fc8, with PR-1 landed and #543's ~1,200 lines added, about
@@ -965,7 +1035,7 @@ lines in 19 sections.
 | 7 | Resolve chain, table, trunk selection | code | 89 | 10 | stays after storage (its auto-trunk half reads `LOG_BASE`, `PLANT_IDENTITY`, `RUN_DIR`); ends with the complete-run and widened-root refusals (PR-14a) |
 | 8 | Archive-load preflight | code | 65 | (2026-09-19) | the `WIDEN_FROM` branch gone: the trunk's root handoff, else a throwaway (PR-14a); the widen cell (old 11) deleted, D-D14 |
 | 9 | Explore + zero-action baseline | md+code | 1+65+40 | 9, 13, 14 | the zero-action body after its knobs folded into `zero_action_baseline.preflight` (PR-14b); cell 12, the random baseline, deleted (PR-14b) |
-| 10 | Training infrastructure | code | 250 | 16 | `train_stage` -> 30-line wrapper over `train_base.train`; `evaluate_stage_checkpoints` -> reporting/stage_artifacts; stamp block and mediapy probe deleted; `disconnect_runtime` (explicit parameters), `halt` and `display_stage_videos` in `notebook_runtime` (PR-14b) |
+| 10 | Training infrastructure | code | 211 | 16 | `train_stage` -> a wrapper over `train_base.train` (refusals, banner, one `train()` call, the evaluation; about 100 lines, PR-14c); `evaluate_stage_checkpoints` -> reporting/stage_artifacts, called with the session's globals (PR-14c); stamp block and mediapy probe deleted; `disconnect_runtime` (explicit parameters), `halt` and `display_stage_videos` in `notebook_runtime` (PR-14b) |
 | 11 | Visualization | code | 46 | 18 | - |
 | 12 | Chain loop | md+code | 10+270 | 21, 22 | guard, library lookup and publish block deleted (-70); refuses a write into a complete run the resolve cell could not predict (PR-14a); loop stays AST-pinned |
 | 13 | Manual single node | md+code | 3+98 | 23, 24 | guard removed |
@@ -1061,7 +1131,7 @@ were taken; D-D15 was taken on 2026-09-24.
 | D-D8 | Build an interim behaviors notebook now, or tolerate the mode switch until PR-12? | Taken: tolerate. #542 removed the dangerous default; the switch is deleted in PR-12. | PR-12 |
 | D-D9 | Are any #540/#541 behavior bundles on Drive worth carrying forward? Their identity hashes environments/shared/behavior_env.py itself, so exact resume already breaks on any edit; #540 calls them pilots. | Taken: none. The bundles are evaluation-only; no bundle is carried forward as a training parent. | PR-6, PR-7, PR-9, PR-12 acceptance |
 | D-D10 | Terrain in the env: one generic opt-in subclass, or an r14 interface bump that puts the model swap into `reset()`, batched with the queued height-channel removal (plan:668-673)? | Taken: opt-in subclass; no r14 bump (the reset source is fingerprinted). | PR-7, PR-9 |
-| D-D11 | May CLI runs record stage duration and seed model construction like the notebook does? | Confirmed 2026-09-20: yes (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line and its duration recording). | PR-14 |
+| D-D11 | May CLI runs record stage duration and seed model construction like the notebook does? | Confirmed 2026-09-20: yes (PR-14 aligns `train()` with the notebook's `alg_kwargs["seed"]` line and its duration recording). Amended by PR-14c: implemented in `train()`, so for the `train` subcommand and Vertex sweep trials (`sweep/trial.py`), with a seed the algorithm block names kept; `train_curriculum` (`curriculum`) and the Ray Tune worker are not aligned (neither seeds construction nor records a duration), outside PR-14c's scope (D-D7). | PR-14 |
 | D-D12 | Drop the dead `lateral_speed_scale` field (always divides a zero) when the TOMLs are rewritten? | Confirmed 2026-09-20: drop in PR-11/PR-12 (PR-8 item (d)). | PR-11, PR-12 |
 | D-D14 | What happens to the widen path (`WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP`, the widen cell, `widen_checkpoint`) after the two pending parents are widened? | Taken 2026-09-20: keep it for NEXT_STEPS.md sessions 1 and 2, then CLI-only — the notebook refactor (PR-14, or a PR right after it once both sessions are decided) deletes the widen cell and both knobs; `widen_checkpoint` stays a command-line tool for the next interface bump. Amends the §4 "knobs kept" list. Both sessions decided PASS by 2026-09-21 (`20260920_010912`, `20260921_203149`), so PR-14 deletes them. **Scheduled by D-D15:** PR-14a is the PR that deletes them. | PR-14 |
 | D-D13 | In which order do PR-3 .. PR-15 land now that the hold is lifted? | Taken 2026-09-20: notebook-first. PR-3, PR-4, PR-5, PR-6, then a notebook-only slice of PR-12 (the `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, cells 7/19/20/33/34/39 and the guard sites, `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays a CLI-only path) pulled ahead of PR-11, then PR-14, then PR-7 .. PR-11, the rest of PR-12, PR-13, PR-15. Amends D-D8: the switch is tolerated only until that slice, and the direction/terrain pilots have no notebook path between the slice and PR-11 (evaluation-only under D-D9). | the whole sequence |

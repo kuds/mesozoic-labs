@@ -1030,7 +1030,8 @@ class TestSaveStageConfigLoadLineage:
         assert len(problems) == 1 and "parent_checkpoint_sha256" in problems[0]
 
     def test_the_notebook_records_lineage_from_a_resolved_load_mode(self):
-        """The notebook saves its config itself; it must pass the same keys.
+        """The notebook's ``train_stage`` trains through ``train_base.train`` (consolidation PR-14c), whose
+        config save must pass the lineage keys, the notebook's ``parent_run_id`` included.
 
         Re-pinned for the behavior-chain loop (Phase A WS5): the load mode is
         DECLARED by every caller — the chain loop passes the node's edge, the
@@ -1043,11 +1044,13 @@ class TestSaveStageConfigLoadLineage:
         notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
         cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
         cell = next(c for c in cells if "def train_stage(" in c)
-        save_call = cell.index("cfg_path = save_stage_config(")
-        call_text = cell[save_call : cell.index(")", save_call)]
+        train_src = (repo_root / "environments" / "shared" / "train_base.py").read_text(encoding="utf-8")
+        save_call = train_src.index("    save_stage_config(\n        log_path,")
+        call_text = train_src[save_call : train_src.index("\n    )\n", save_call)]
         assert "load_path=load_path" in call_text
         assert "load_mode=task_load_mode if load_path else None" in call_text
         assert "parent_run_id=parent_run_id" in call_text
+        assert "parent_run_id=parent_run_id" in cell and "task_load_mode=task_load_mode" in cell
         assert "if task_load_mode is None:" not in cell
         tree = ast.parse(cell)
         train_stage = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "train_stage")
@@ -1057,19 +1060,21 @@ class TestSaveStageConfigLoadLineage:
         assert not any(isinstance(n, ast.Name) and n.id == "stage_position" for n in ast.walk(tree))
 
     def test_the_notebook_binds_evidence_to_the_vecnormalize_it_ran_under(self):
-        """Every evidence write names the sidecar ``_eval_forward_vel`` evaluated with.
+        """Every evidence write names the sidecar ``_eval_forward_vel`` evaluated with (in
+        ``reporting.evaluate_stage_checkpoints``, the notebook's evaluation since consolidation PR-14c).
 
         The binding used to cover the model file only, so a sidecar write
         landing between evaluation and bundle save was hashed into
         provenance unbound: final and fallback evaluate under the final
         model's statistics, the selected checkpoint under its matched ones.
         """
-        repo_root = Path(__file__).resolve().parents[3]
-        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-        cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
-        cell = next(c for c in cells if "def train_stage(" in c)
+        import inspect
+
+        from environments.shared.reporting import evaluate_stage_checkpoints
+
+        cell = inspect.getsource(evaluate_stage_checkpoints)
         bindings = []
-        for match in re.finditer(r"_lib_save_evaluation_episodes\(", cell):
+        for match in re.finditer(r"save_evaluation_episodes\(", cell):
             call_text = cell[match.start() : cell.index(")", match.start())]
             label = re.search(r'checkpoint_label="(\w+)"', call_text)
             checkpoint = re.search(r"checkpoint_path=(.+),", call_text)
@@ -1082,8 +1087,8 @@ class TestSaveStageConfigLoadLineage:
             ("selected", 'f"{final_path}.zip"', "final_vecnorm_path"),
         ]
         # The sidecars named are the ones the rollouts were run with.
-        assert "_eval_forward_vel(\n        model,\n        stage,\n        final_vecnorm_path," in cell
-        assert "_eval_forward_vel(\n            model,\n            stage,\n            vecnorm_save_path," in cell
+        assert "_eval_forward_vel(\n        model,\n        final_vecnorm_path," in cell
+        assert "_eval_forward_vel(\n            model,\n            vecnorm_save_path," in cell
 
 
 class TestHyperparameterDigestAndLabel:

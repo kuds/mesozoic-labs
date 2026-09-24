@@ -598,7 +598,7 @@ def test_the_known_load_sites_call_the_loader():
     expected = {
         "environments/shared/train_base.py": 3,
         "environments/shared/evaluation.py": 1,
-        "environments/shared/reporting/stage_artifacts.py": 3,
+        "environments/shared/reporting/stage_artifacts.py": 5,
         "environments/shared/harnesses/freeze_recovery_gate.py": 1,
         "environments/shared/scripts/widen_checkpoint.py": 1,
         "environments/shared/behavior_checkpoint.py": 1,
@@ -615,4 +615,4 @@ def test_the_known_load_sites_call_the_loader():
         assert len(calls) == count, (name, len(calls))
     notebook = json.loads((REPO_ROOT / "notebooks/sb3_training.ipynb").read_text(encoding="utf-8"))
     cells = ["".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "code"]
-    assert sum(cell.count("load_sb3_model(") for cell in cells) >= 3, "the preflight and the two evaluation loads"
+    assert sum(cell.count("load_sb3_model(") for cell in cells) == 1, "the preflight (evaluation loads in the library)"

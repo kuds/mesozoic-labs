@@ -814,6 +814,7 @@ class TestPostEvalEpisodes:
     def test_the_panel_records_the_success_count_and_writes_task_success_evidence(self, tmp_path, monkeypatch):
         """D-B12: the count a task_success/v1 row is judged on, and the same panel as the on-disk evidence."""
         import csv
+        import inspect
 
         pytest.importorskip("stable_baselines3")
         from environments.shared import curriculum as curriculum_package
@@ -824,10 +825,12 @@ class TestPostEvalEpisodes:
         models.mkdir()
         (models / "robust_best_model.zip").write_bytes(b"weights")
         (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        load_seeds = []
 
         class _Alg:
             @staticmethod
-            def load(path, env=None, **_load_kwargs):
+            def load(path, env=None, **load_kwargs):
+                load_seeds.append(load_kwargs.get("seed", "absent"))
                 return object()
 
         eval_env = MagicMock()
@@ -869,6 +872,11 @@ class TestPostEvalEpisodes:
         )
         assert seen["n_episodes"] == 30
         assert panel["quality_eval_checkpoint"] == "robust_best_model"
+        # A train() archive records its training seed (D-D11); loading it with seed=None keeps SB3 from
+        # re-seeding eval_env with it, on the handoff and on the legacy best_model load alike.
+        assert load_seeds == [None]
+        source = inspect.getsource(train_base._post_training_eval_panels)
+        assert source.count("load_sb3_model(") == source.count("env=eval_env, seed=None)") == 2
         assert (panel["success_count"], panel["n_success_episodes"]) == (20, 30)
         assert panel["mean_success_rate"] == pytest.approx(20 / 30)
         # The same panel's aggregates, so the sweep row rails on the panel the count came from.

@@ -1207,8 +1207,9 @@ class TestTaskSuccessEvidence:
 
         class _Alg:
             @staticmethod
-            def load(path, env=None, **_load_kwargs):
+            def load(path, env=None, **load_kwargs):
                 seen["loaded"] = path
+                seen["load_seed"] = load_kwargs.get("seed", "absent")
                 return object()
 
         def eval_policy(model, env, success_keys, n_episodes):
@@ -1257,6 +1258,7 @@ class TestTaskSuccessEvidence:
         assert written == tmp_path / "evaluation_selected.csv"
         assert seen["seed"] == 3042 and seen["n_envs"] == 1 and seen["episodes"] == 30
         assert seen["loaded"] == str(models / "robust_best_model") and seen["closed"] is True
+        assert seen["load_seed"] is None, "a seeded archive would re-seed the env with its training seed on load"
         with written.open(newline="") as handle:
             rows = list(csv.DictReader(handle))
         assert len(rows) == 30
@@ -1458,3 +1460,28 @@ class TestTaskSuccessEvidence:
         assert verdict is not None and verdict["passed"] is True
         assert verdict["stage_result"]["best_model_success_count"] == 29
         assert verdict["stage_result"]["best_model_success_lcb"] == pytest.approx(0.851, abs=1e-3)
+
+
+def test_evaluate_stage_checkpoints_loads_a_missing_model_through_the_loader_before_any_rollout():
+    """The notebook's evaluation (its infrastructure cell's until consolidation PR-14c): ``model=None`` (the chain
+    loop's JUDGE branch) loads ``<final_path>.zip`` through ``load_sb3_model`` and validates its plant before any
+    rollout, and the function returns the 5-tuple the chain loop's JUDGE branch unpacks."""
+    import ast
+    import inspect
+
+    from environments.shared.reporting import stage_artifacts
+
+    function = ast.parse(inspect.getsource(stage_artifacts.evaluate_stage_checkpoints)).body[0]
+    assert isinstance(function, ast.FunctionDef)
+    load_if = next(
+        node for node in function.body if isinstance(node, ast.If) and ast.unparse(node.test) == "model is None"
+    )
+    assert "load_sb3_model(" in ast.unparse(load_if) and "validate_model_plant(" in ast.unparse(load_if)
+    rolls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call) and ast.unparse(node.func) == "_eval_forward_vel"
+    ]
+    assert len(rolls) == 2 and load_if.lineno < min(node.lineno for node in rolls)
+    returned = function.body[-1]
+    assert isinstance(returned, ast.Return) and isinstance(returned.value, ast.Tuple) and len(returned.value.elts) == 5

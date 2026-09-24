@@ -250,31 +250,15 @@ def test_the_config_key_is_accepted_by_the_gate_schema():
     )
 
 
-def test_the_notebook_passes_species_so_the_watch_is_not_dead_code():
+def test_every_trainer_call_site_passes_species():
     """`species` is optional, so omitting it silently disables the watch.
 
-    That is the failure mode this repository keeps rediscovering — a
-    mechanism wired into the library but never reached from the trainer.
-    """
-    repo_root = Path(__file__).resolve().parents[3]
-    notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-    cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
-    calls = [c for c in cells if "_build_core_callbacks(" in c]
-    assert len(calls) == 1, "expected exactly one _build_core_callbacks call"
-    assert "species=SPECIES," in calls[0], (
-        "sb3_training.ipynb must pass species= to _build_core_callbacks, or the "
-        "zero-action baseline watch is never constructed"
-    )
-
-
-def test_every_trainer_call_site_passes_species():
-    """The notebook is not the only caller, and pinning only it missed two.
-
     `train_stage` and `train_curriculum` both shipped omitting `species`,
-    which left the watch dead on both library entry points while the
-    notebook test above passed — the *same* dead-code failure that test was
-    written to prevent, one call site over. So this asserts over every call
-    site in `train_base.py` rather than a hand-listed one.
+    which left the watch dead on both library entry points while a pin on
+    the notebook's own call passed — the same dead-code failure one call
+    site over. So this asserts over every call site in `train_base.py`
+    rather than a hand-listed one; the notebook trains through `train()`
+    (consolidation PR-14c) and builds no callbacks itself.
     """
     import ast
 

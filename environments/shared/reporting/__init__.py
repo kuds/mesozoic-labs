@@ -47,6 +47,7 @@ from .formatting import format_duration, format_duration_hms, parse_optional_boo
 from .gates import evaluate_recorded_gate, evaluate_stage_gate
 from .stage_artifacts import (
     build_stage_results_from_eval_data,
+    evaluate_stage_checkpoints,
     generate_stage_artifacts,
     save_jax_stage_artifacts,
 )
@@ -59,6 +60,7 @@ __all__ = [
     "build_results_csv_rows",
     "build_stage_results_from_eval_data",
     "evaluate_recorded_gate",
+    "evaluate_stage_checkpoints",
     "evaluate_stage_gate",
     "format_duration",
     "format_duration_hms",

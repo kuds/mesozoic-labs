@@ -535,9 +535,15 @@ class TestThresholdsFromConfigs:
         assert declared == {curriculum["min_eval_episodes"]}, declared
         # The number the judge actually counts is the ROW COUNT of
         # evaluation_selected.csv, which the notebook's selected-checkpoint
-        # panels roll with a literal n_episodes=; raising min_eval_episodes
+        # panels (reporting.evaluate_stage_checkpoints since consolidation
+        # PR-14c) roll with a literal n_episodes=; raising min_eval_episodes
         # without moving these would make every notebook hunt verdict refuse.
-        rolled = {int(n) for n in re.findall(r"n_episodes=(\d+)", notebook_text)}
+        import inspect
+
+        from environments.shared.reporting import evaluate_stage_checkpoints
+
+        evaluation = inspect.getsource(evaluate_stage_checkpoints)
+        rolled = {int(n) for n in re.findall(r"n_episodes=(\d+)", notebook_text + evaluation)}
         assert rolled == {curriculum["min_eval_episodes"]}, rolled
         # The scheduler's hysteresis stays as an allowed key (D-B3); the
         # thresholds the manager extracts carry the bar.
