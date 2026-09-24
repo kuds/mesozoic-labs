@@ -853,7 +853,7 @@ tolerance) remains the standing recommendation for the divergences above.
   certified library and the trainer's library path, landed as #548; PR-6, the T. rex
   pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549;
   the notebook-only PR-12 slice, the notebook's direction/terrain mode and
-  `behavior_notebook.py`, followed in review on 2026-09-23); PR-1 (#542), the
+  `behavior_notebook.py`, landed as #552 on 2026-09-24); PR-1 (#542), the
   auto-trunk PR (#543) and PR-2 (#544) landed. Until PR-11 adds the follow and
   terrain manifest nodes, the pilots run from the command line only
   (`python -m environments.shared.train_behaviors`, D-D13), with

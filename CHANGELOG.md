@@ -1341,7 +1341,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **The SB3 notebook's direction/terrain mode and `behavior_notebook.py`**
-  (consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
+  (#552, consolidation PR-12, notebook-only slice, 2026-09-23; decision D-D13).
   `notebooks/sb3_training.ipynb` loses `COMMAND_TERRAIN_BEHAVIOR`, the ten
   `BEHAVIOR_*` knobs (`BEHAVIOR_LOAD_MODE`, `BEHAVIOR_CHECKPOINT`,
   `BEHAVIOR_VECNORMALIZE`, `BEHAVIOR_SEED`, `BEHAVIOR_STEPS`,
@@ -1464,7 +1464,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Fixed
 - **A completed "Run all" of the SB3 notebook reaches the auto-disconnect
-  again** (2026-09-23). The training-curves cell re-plotted every node of the
+  again** (#552, 2026-09-23). The training-curves cell re-plotted every node of the
   run with `save_path` / `save_dir`, which wrote `training_curves.png`,
   `locomotion_health.png` and `behavioral_metrics.png` straight into each
   stage directory after the chain loop had sealed the bundle; the manifest

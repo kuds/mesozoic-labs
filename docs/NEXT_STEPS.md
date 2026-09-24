@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-23)
 
-**Status**: living reference — updated 2026-09-23; `main` = `2e77150` (merged 2026-09-23 19:54 UTC).
+**Status**: living reference — updated 2026-09-24; `main` = `03d3a54` (merged 2026-09-24 02:39 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -35,6 +35,7 @@ file in place when the state changes; it is not a dated investigation.
 | #548 | 2026-09-20 | Consolidation PR-5: `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted; `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; the behavior certificate writer gone until PR-13 registers the gate kind; the notebook loses `SOURCE_SELECTION` (2,477 → 2,463 lines) and refuses blank source paths in the configuration cell; about −1,880 net code and configuration lines. Measured on its CI: SB3 job 46:12, JAX job 53:46, coverage 90 percent |
 | #549 | 2026-09-20 | Consolidation PR-6: `configs/trex/behavior_pilots/` (8 `[pilot]` TOMLs), its package-data line and the trex shim deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one; the six pilot aliases and the dead pilot-run schema reader gone; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter; −256 net code and configuration lines. Measured on its CI: SB3 job 34:49, JAX job 52:42, coverage 90 percent |
 | #551 | 2026-09-23 | The collapse-backstop fix outside the consolidation sequence: `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M), with replay tests on session 4's evaluation series and no digest moved; session 4 recorded; KNOWN_ISSUES gains three entries (a complete run cannot take a new node in place, an invisible early stop, the gait-symmetry statue payment); a truth pass over the living docs; the consolidation pause lifted. Measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent |
+| #552 | 2026-09-24 | Consolidation PR-12, the notebook-only slice (D-D13): the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, six behavior cells and 15 guard sites gone (2,463 → 2,329 lines), `behavior_notebook.py` and its test deleted, `train_behaviors.py` the pilots' command-line path until PR-11; −996 code, test and CI lines. It carried the curves-cell fix (a completed "Run all" reaches the auto-disconnect again; 2,330 lines) and recorded the Drive cleanup of the three session bundles. Measured on its CI: SB3 job 47:56, JAX job 31:40, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -43,10 +44,10 @@ guarded code cell, the SB3 archive-load preflight before the widen cell:
 41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
 about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
 PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
-the notebook-only PR-12 slice, in review 2026-09-23, removes the mode switch, its
+the notebook-only PR-12 slice (#552, 2026-09-24) removed the mode switch, its
 six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
 35 cells, 19 code, 2,329 lines, the chain loop at index 20; 2,330 with the
-curves-cell fix that rides along, CHANGELOG "Fixed").
+curves-cell fix that rode along, CHANGELOG "Fixed").
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -71,7 +72,7 @@ directly, a second checkpoint preparer, a second PPO trainer
 `certification/certificate.json` writer left with PR-5, so it is reached only
 from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
 source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
-notebook mode switch (leaving with the notebook-only PR-12 slice, in review) —
+notebook mode switch (removed by the notebook-only PR-12 slice, #552) —
 about 7,000 lines of modules at 22c1fc8, tests excluded (the certified library
 left with PR-4/PR-5). Notebook pilot runs wrote to
 `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Drive when it was mounted,
@@ -96,7 +97,7 @@ D-D1..D-D14 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
 on 2026-09-20; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
-PR-12 slice is in review on the session branch, and PR-14 follows it
+PR-12 slice landed as #552 on 2026-09-24, and PR-14 follows it
 ([section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
@@ -203,8 +204,8 @@ re-run, then sessions 5 and 6 follow, in that order, plus the optional session
 curves cell wrote three undeclared PNGs into every trained stage directory
 after the bundle was sealed (CHANGELOG "Fixed"; the 18 files went to Drive's
 trash on 2026-09-23 and the three trees match their manifests again). The fix
-rides with the notebook-only PR-12 slice; on a `main` without it, run the
-auto-disconnect cell by hand after the cleanup cell raises. Housekeeping: delete the four stray trex directories `20260918_230155`,
+landed with the notebook-only PR-12 slice (#552), so a `main` at `03d3a54` or
+later releases the runtime at the end of a completed "Run all". Housekeeping: delete the four stray trex directories `20260918_230155`,
 `20260918_230335`, `20260919_170528` and `20260919_190251` (first note below). The earlier second step, re-entering the
 seed-42 walker `20260914_123816` in place so its bundle cell rebuilds the
 run-level records, is dropped: with every node reused the chain loop writes no
@@ -331,7 +332,7 @@ the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks and the target
 architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice is in review on the session branch (2026-09-23); PR-14 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
+PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 on 2026-09-24; PR-14 is next, and its D-D14 condition (sessions 1 and 2 decided) is met. Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
 Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
 of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
 test and CI lines, −134 notebook source lines);
@@ -354,7 +355,7 @@ check and edits the resume cell's prose.
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
-| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; in review 2026-09-23 |
+| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; landed as #552 on 2026-09-24 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
 | PR-14 | Notebook: `train_stage` becomes a ~30-line wrapper over `train_base.train`, widen-seed check before minting, one storage and one disconnect path, `RUN_ID` as a knob | M (about −450) | PR-4, the notebook-only PR-12 slice (guards gone, D-D13); D-D7, D-D11; the widen cell and knobs leave here (D-D14: sessions 1 and 2 both decided PASS by 2026-09-21) |
@@ -545,8 +546,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
    paused the sequence after PR-6 the same day and lifted the pause on
    2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-14 once the
-   notebook-only PR-12 slice has merged) on the session branch, one PR at a time,
+   [section 4](#4-consolidation-the-remaining-prs) (PR-14 next; the
+   notebook-only PR-12 slice landed as #552) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
