@@ -922,7 +922,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **Species heights are measured above the ground under them** (consolidation
+- **Species heights are measured above the ground under them** (#556, consolidation
   PR-7). `BaseDinoEnv` gains `_ground_height_at(xy)`, the authored plane's 0.0,
   and `_clearance(xyz)`, `z` minus it. Every species height reward,
   head/snout clearance and height termination reads through it, as do the step
@@ -1486,7 +1486,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **`TRexBehaviorEnv` and the `mesozoic.trex-command-terrain/v1` identity
-  schema** (consolidation PR-7). `environments/trex/envs/behavior_env.py` (497
+  schema** (#556, consolidation PR-7). `environments/trex/envs/behavior_env.py` (497
   lines) is deleted. T. rex behaviors use the generic `SpeciesBehaviorMixin`
   subclass like every other species (Changed). The mixin gains the model-pool
   checks that it used to borrow, and it builds the collision-only probe pool

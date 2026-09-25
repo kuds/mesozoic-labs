@@ -672,7 +672,7 @@ tolerance) remains the standing recommendation for the divergences above.
   cosmetic geoms should stay non-collidable permanently; they are already
   excluded from the ground-settle probe. On behavior terrain, T. rex's
   non-colliding neck is probed through `_terrain_contact_probe_geoms`
-  (consolidation PR-7) and ends the episode as `neck_ground_contact`;
+  (#556, consolidation PR-7) and ends the episode as `neck_ground_contact`;
   brachiosaurus and dibothrosuchus can opt in by declaring their neck geoms
   there, without changing canonical physics.
 
@@ -865,7 +865,7 @@ tolerance) remains the standing recommendation for the divergences above.
   `behavior_notebook.py`, landed as #552 on 2026-09-24; PR-14, split into
   PR-14a, PR-14b and PR-14c (D-D15), landed as #553, #554 and #555 on
   2026-09-24; PR-7, the ground-height hook and the deletion of
-  `TRexBehaviorEnv`, is in review); PR-1 (#542), the
+  `TRexBehaviorEnv`, landed as #556 on 2026-09-25); PR-1 (#542), the
   auto-trunk PR (#543) and PR-2 (#544) landed. Until PR-11 adds the follow and
   terrain manifest nodes, the pilots run from the command line only
   (`python -m environments.shared.train_behaviors`, D-D13), with

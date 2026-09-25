@@ -317,7 +317,7 @@ run stays self-describing, because its `run.json` `recipe` and `bundle.json`
 rename old recipe contents to force a resume: bundle identities guard the
 meaning of the saved evidence.
 
-Consolidation PR-7 deleted the separate T. rex behavior class
+Consolidation PR-7 (#556) deleted the separate T. rex behavior class
 (`environments/trex/envs/behavior_env.py`); T. rex now uses the same behavior
 environment as every species. Its bundles carried the
 `mesozoic.trex-command-terrain/v1` identity, which `--adapt` no longer accepts,
