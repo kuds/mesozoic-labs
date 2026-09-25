@@ -62,8 +62,10 @@ or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
 In `notebooks/sb3_training.ipynb`, choose **Compsognathus Longipes** or
 **Compsognathus Longipes (Robot)** and set `ALGORITHM` to `ppo` or `sac`.
 The notebook's normal training, checkpoint, evaluation, graph, video and
-curriculum-gate cells apply to both variants. `QUICK_TEST` reduces the budget;
-a short run may fail the advancement gate and stop, as intended.
+curriculum-gate cells apply to both variants. `QUICK_TEST` reduces the budget
+to 50,000 steps a node and writes the run under `ppo_quick_test/` (or
+`sac_quick_test/`), where it is never selected as a trunk; a short run may fail
+the advancement gate and stop, as intended.
 
 | Contract | Anatomical proxy | Robot |
 |---|---|---|

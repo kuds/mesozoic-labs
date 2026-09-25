@@ -133,7 +133,7 @@ root-first. At each node it does exactly one of three things:
    (`widen_checkpoint --max-revision-gap N`).
 2. **Judge** a node that was trained but never gated (the notebook only:
    its final checkpoint exists but `gate_verdict.json` does not, because the
-   resume cell spent its budget or the command-line widen tool wrote a
+   resume cell finished its budget or the command-line widen tool wrote a
    widened root into the run).
 3. **Train** it otherwise, warm-started from its parent's handoff checkpoint
    and VecNormalize sidecar along the declared edge, then judge its gate and
@@ -261,10 +261,12 @@ BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable
 TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 6)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
 ```
 
-`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<algorithm>/`:
+`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<algorithm>/`
+(`<algorithm>_quick_test/` when `QUICK_TEST` is on, so a 50,000-step quick
+test is never selected as a trunk or counted as a seed replicate):
 `""` keeps the run this runtime's storage cell resolved last and mints a
 fresh timestamped run only when there is none (the first pass in a runtime),
 a new id starts a fresh run, and an existing run's id re-enters that run in
@@ -364,7 +366,12 @@ interrupted node from its newest intact periodic checkpoint under
 `resume_same_stage`; the re-saved `stage_config.json` keeps the edge's
 lineage keys and records the continued-from checkpoint under
 `resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
-node still chains by digest and stays reusable.
+node still chains by digest and stays reusable. It sits ahead of the chain
+loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
+to its node, then Run all; the loop judges the node after the resume trains
+it. A node that already holds `gate_verdict.json` or its final checkpoint
+pair is never retrained: the cell trains nothing and the loop reuses,
+refuses or judges it (decision D-D16).
 
 ## On the command line
 
