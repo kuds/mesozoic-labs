@@ -1999,6 +1999,11 @@ class TestResumeCell:
         (models / f"{label}_vecnormalize_100000_steps.pkl").write_bytes(pickle.dumps({}))
         manifest = load_stage_manifest(species)
         calls: list[dict] = []
+
+        def train_stage(**kwargs):
+            calls.append(kwargs)
+            return (None,) * 6
+
         namespace = {
             "SPECIES": species,
             "BEHAVIOR": behavior,
@@ -2008,7 +2013,7 @@ class TestResumeCell:
             "QUICK_TEST": False,
             "RUN_DIR": tmp_path,
             "RUN_LABEL": "",
-            "train_stage": lambda **kwargs: calls.append(kwargs) or (None,) * 6,
+            "train_stage": train_stage,
         }
         src = _cell(RESUME_CELL_MARKER).replace("RESUME_STAGE = None", f"RESUME_STAGE = {resume_stage!r}", 1)
         exec(compile(src, "sb3_resume", "exec"), namespace)
