@@ -922,6 +922,21 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **Resuming an interrupted node is "set `RUN_ID` and `RESUME_STAGE`, then Run
+  all"** (the notebook-safety PR, decision D-D16). The RESUME cell moved ahead
+  of the chain loop, after the helpers that define `train_stage`, so it
+  finishes the node's budget before the loop judges it. It used to sit after
+  the loop, whose interrupted-node refusal stopped Run all first, so a resume
+  took three hand-run steps. The sections regroup around the run: 3 "Open the
+  run and resolve the chain" (the storage and resolve cells; the old "Explore
+  the Environment" header covered chain resolution and trunk selection), 4
+  "Preflights" (the archive load and the zero-action baseline), the helpers
+  without a number, 5 Resume, 6 Train the chain, 7 Manual node, 8 Report
+  (evaluation, curves, videos and the bundle check under one header) and 9
+  Auto-disconnect. The section references in the cells, their messages, the
+  knob comments and the website recipes page follow. Measured: 33 cells (17
+  code) before and after; 1,515 lines before, 1,557 after (the guards below
+  and their prose).
 - **The auto-trunk tie-break is described as it runs** (#557, the notebook
   follow-up to PR-7). `select_trunk` breaks a coverage tie by the greatest
   run directory name, which is the newest run only among names of one
@@ -1668,6 +1683,38 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **The RESUME cell never retrains a finished or judged node** (the
+  notebook-safety PR, decision D-D16). The cell measured what was left against
+  the node's newest periodic checkpoint only. A node that an early stop ended
+  short of its budget (session 4 stopped both of its nodes at 1.45M of 6M and
+  12M, and both were judged), or one trained with an `N_ENVS` that does not
+  divide the 100k checkpoint cadence (3 envs leave 2,999,970 of 3M), trained
+  the rest of that budget when `RESUME_STAGE` named it: `train()` accepts
+  `resume_same_stage` into a directory that holds `gate_verdict.json`, so the
+  final pair the verdict hashes was rewritten and the chain loop then refused
+  the node, leaving the partial run stuck. The cell now reads the node's
+  verdict and its final pair (`<stage_label>_final.zip` and its
+  `_vecnorm.pkl`) before the checkpoint scan; either one prints "Nothing to
+  resume" and trains nothing, and the chain loop reuses, refuses or judges the
+  node, so a `RESUME_STAGE` left set no longer stops a later Run all. A spent
+  budget without the final pair (a runtime stopped between the last periodic
+  save and the final one) is refused with the fresh-`RUN_ID` remedy; the cell
+  used to point at the chain loop's JUDGE branch, which needs that pair.
+  Executed tests cover a passed and a failed verdict, a final pair beside
+  periodic steps of 1.45M and 2,999,970, a half-written final pair (resumed)
+  and the spent budget.
+- **A `QUICK_TEST` run can no longer become a trunk or a seed replicate** (the
+  notebook-safety PR, decision D-D16). A quick test trained 50,000 steps a node
+  into the same `LOG_BASE/<species>/<algo>/` tree as real runs, under the same
+  task, gate and hyperparameter digests (the budget enters none of them). The
+  zero-action statue clears the stance gate of velociraptor, brachiosaurus and
+  dibothrosuchus, so a quick-test stance could certify, win a
+  `TRUNK_FROM = "auto"` coverage tie as the newest run, and count as a seed
+  replicate under another `SEED`. Quick tests now live under
+  `<algo>_quick_test/`, beside the `<algo>/` tree that the trunk selection and
+  replicate discovery scan; a quick test can still reuse real certified
+  ancestors. No digest or provenance field changes, and a real session's paths
+  are unchanged.
 - **The RESUME cell takes a stage's id as well as its number** (#557, the
   notebook follow-up to PR-7). `RESUME_STAGE = "locomotion"` raised
   `KeyError: 'locomotion'` at `STAGE_CONFIGS[RESUME_STAGE]`: the stage
