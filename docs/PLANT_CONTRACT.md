@@ -135,7 +135,7 @@ python -m environments.shared.scripts.widen_checkpoint --species trex --stage st
 
 This command-line tool is the only widen path (decision D-D14 removed the SB3 notebook's widen cell and knobs). Widen
 into a NEW run id, one no run uses and the notebook has not opened yet, written as a timestamp `YYYYMMDD_HHMMSS` like
-the ids the storage cell mints (`TRUNK_FROM = "auto"` breaks a coverage tie by the newest directory name, so an id in
+the ids the storage cell mints (`TRUNK_FROM = "auto"` breaks a coverage tie by the greatest directory name, so an id in
 another format would outrank every later run), with
 `--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>` and `--label` when the
 session sets `RUN_LABEL`. On Colab: (1) run the notebook's section 1, then a scratch cell

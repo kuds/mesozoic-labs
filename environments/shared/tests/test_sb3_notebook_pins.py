@@ -1978,36 +1978,33 @@ class TestResumeCell:
         )
         assert _calls(spent, "print") and not [node for node in ast.walk(spent) if isinstance(node, ast.Raise)]
         assert train in [node for stmt in spent.orelse for node in ast.walk(stmt)]
-        assert "stage_res = MANIFEST.resolve(RESUME_STAGE).reference" in src
+        assert "entry_res = MANIFEST.resolve(RESUME_STAGE)" in src and "stage_res = entry_res.reference" in src
         assert "stage_dirname(SPECIES, stage_res)" in src and "stage_label(stage_res)" in src
 
-    @pytest.mark.parametrize(
-        ("resume_stage", "reference"),
-        [("locomotion", 2), (2, 2), ("recovery", "recovery")],
-    )
-    def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, resume_stage, reference):
-        """Executed: ``RESUME_STAGE = "locomotion"`` resumes the same node as ``2`` (it used to raise ``KeyError``),
-        finding the ``stage2_*`` checkpoints the chain loop wrote; a stage without a number keeps its id."""
+    @staticmethod
+    def _run_resume_cell(tmp_path, species: str, behavior: str, resume_stage, reference) -> list[dict]:
+        """Execute the RESUME cell against one intact periodic pair of *reference*; return the train_stage calls."""
         import pickle
         import zipfile
 
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
-        species = "compsognathus_robot"
         models = tmp_path / stage_dirname(species, reference) / "models"
-        models.mkdir(parents=True)
+        models.mkdir(parents=True, exist_ok=True)
         label = stage_label(reference)
         with zipfile.ZipFile(models / f"{label}_100000_steps.zip", "w") as archive:
             archive.writestr("data", "{}")
             archive.writestr("policy.pth", b"")
         (models / f"{label}_vecnormalize_100000_steps.pkl").write_bytes(pickle.dumps({}))
+        manifest = load_stage_manifest(species)
         calls: list[dict] = []
-        stages = load_all_stages(species)
         namespace = {
             "SPECIES": species,
-            "MANIFEST": load_stage_manifest(species),
-            "STAGE_CONFIGS": stages,
+            "BEHAVIOR": behavior,
+            "MANIFEST": manifest,
+            "CHAIN": manifest.chain_for(manifest.resolve_behavior(behavior).id),
+            "STAGE_CONFIGS": load_all_stages(species),
             "QUICK_TEST": False,
             "RUN_DIR": tmp_path,
             "RUN_LABEL": "",
@@ -2015,10 +2012,32 @@ class TestResumeCell:
         }
         src = _cell(RESUME_CELL_MARKER).replace("RESUME_STAGE = None", f"RESUME_STAGE = {resume_stage!r}", 1)
         exec(compile(src, "sb3_resume", "exec"), namespace)
-        [call] = calls
+        return calls
+
+    @pytest.mark.parametrize(
+        ("behavior", "resume_stage", "reference"),
+        [("walk", "locomotion", 2), ("walk", 2, 2), ("stand", "recovery", "recovery")],
+    )
+    def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, behavior, resume_stage, reference):
+        """Executed: ``RESUME_STAGE = "locomotion"`` resumes the same node as ``2`` (it used to raise ``KeyError``),
+        finding the ``stage2_*`` checkpoints the chain loop wrote; a stage without a number keeps its id."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        species = "compsognathus_robot"
+        [call] = self._run_resume_cell(tmp_path, species, behavior, resume_stage, reference)
+        models = tmp_path / stage_dirname(species, reference) / "models"
         assert call["stage"] == reference
-        assert call["load_path"] == str(models / f"{label}_100000_steps.zip")
-        assert call["timesteps"] == stages[reference]["curriculum_kwargs"]["timesteps"] - 100_000
+        assert call["load_path"] == str(models / f"{stage_label(reference)}_100000_steps.zip")
+        budget = load_all_stages(species)[reference]["curriculum_kwargs"]["timesteps"]
+        assert call["timesteps"] == budget - 100_000
+
+    def test_the_resume_cell_refuses_a_node_off_the_chain_before_it_trains(self, tmp_path):
+        """Executed: the chain loop visits only CHAIN, so a node off it would train and never be judged — a
+        ``stand`` run's recovery reopened under ``walk`` is refused with the knobs to restore."""
+        with pytest.raises(RuntimeError, match=r"'recovery', which is not on the chain of behavior 'walk'") as refused:
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "recovery", "recovery")
+        assert "BEHAVIOR" in str(refused.value) and "re-run sections 2-3" in str(refused.value)
 
     def test_the_resume_cell_refuses_a_complete_run_before_it_trains(self):
         """A complete bundle is immutable (consolidation PR-14a): nothing is resumed into it; the spent-budget branch

@@ -797,7 +797,7 @@ class TrunkSelection:
     log_dir: Path
     #: The chain nodes consulted: the target's ancestors root-first, above ``retrain_from``.
     considered: tuple[str, ...]
-    #: Every run scanned, newest first (by directory name), with its coverage.
+    #: Every run scanned, greatest directory name first (the newest for timestamp run ids), with its coverage.
     candidates: tuple[TrunkCandidate, ...]
     selected: "TrunkCandidate | None"
     support: tuple[NodeSupport, ...]
@@ -1068,8 +1068,8 @@ def select_trunk(
     nodes consulted are the target's ancestors — the target is never reused
     across runs (D-A18) — above *retrain_from* when given (D-A19: it and its
     descendants train here).  For every run directory under *log_dir* except
-    *exclude* (the run being started), newest first by directory name (run ids
-    are timestamps), the §4.2 rule is applied node by node root-first with
+    *exclude* (the run being started), greatest directory name first (the
+    newest for timestamp run ids), the §4.2 rule is applied node by node root-first with
     ``follow_records=True`` (another run's record is followed to the run that
     certified the node, D-A23), each child chained onto the ancestor found
     for its parent; the run stops at its first refusal.  The run covering the

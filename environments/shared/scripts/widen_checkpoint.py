@@ -97,7 +97,7 @@ Judging a widened root in the SB3 notebook (decision D-D14 removed the
 notebook's widen cell and knobs, so this tool is the widen path): widen into a
 NEW run id, one no run uses and the notebook has not opened yet, written as a
 timestamp ``YYYYMMDD_HHMMSS`` like the ids the storage cell mints
-(``TRUNK_FROM = "auto"`` breaks a coverage tie by the newest directory name,
+(``TRUNK_FROM = "auto"`` breaks a coverage tie by the greatest directory name,
 so an id in another format would outrank every later run), with
 ``--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>``
 (``01_stance`` for every current root: the chain loop judges the
