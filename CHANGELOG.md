@@ -922,7 +922,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **The auto-trunk tie-break is described as it runs** (the notebook
+- **The auto-trunk tie-break is described as it runs** (#557, the notebook
   follow-up to PR-7). `select_trunk` breaks a coverage tie by the greatest
   run directory name, which is the newest run only among names of one
   timestamp form; a custom `RUN_ID` such as `my_run` sorts after every
@@ -1668,7 +1668,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
-- **The RESUME cell takes a stage's id as well as its number** (the
+- **The RESUME cell takes a stage's id as well as its number** (#557, the
   notebook follow-up to PR-7). `RESUME_STAGE = "locomotion"` raised
   `KeyError: 'locomotion'` at `STAGE_CONFIGS[RESUME_STAGE]`: the stage
   configs, the `stage2_*` checkpoint names and the chain loop key a numbered
