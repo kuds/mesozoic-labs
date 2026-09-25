@@ -316,3 +316,11 @@ run stays self-describing, because its `run.json` `recipe` and `bundle.json`
 `python -m environments.shared.train_behaviors`. Do not edit old manifests or
 rename old recipe contents to force a resume: bundle identities guard the
 meaning of the saved evidence.
+
+Consolidation PR-7 deleted the separate T. rex behavior class
+(`environments/trex/envs/behavior_env.py`); T. rex now uses the same behavior
+environment as every species. Its bundles carried the
+`mesozoic.trex-command-terrain/v1` identity, which `--adapt` no longer accepts,
+and every species' identity hashes the behavior sources that PR-7 changed. A
+behavior bundle trained before PR-7, for any species, therefore cannot be
+resumed, adapted or re-paneled; keep it as evaluation-only evidence (D-D9).

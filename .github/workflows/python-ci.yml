@@ -352,7 +352,7 @@ jobs:
           COVERAGE_FILE: .coverage.sb3-behaviors
 
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
-      # trex/test_behavior_env) run in the `test` matrix and are not repeated here.
+      # test_behavior_env) run in the `test` matrix and are not repeated here.
       - name: Run SB3 integration tests
         run: |
           pytest \
@@ -377,7 +377,6 @@ jobs:
             environments/shared/tests/test_sweep_ray_plant_contract.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
-            environments/trex/tests/test_behavior_training.py \
             -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:

@@ -1,8 +1,9 @@
 """Direction and terrain behavior environments for every registered species.
 
 The canonical animal, observation ordering and action mapping remain unchanged.
-Task rewards and safety clearances use the actual surface under each body/site.
-The original T. rex implementation is retained for saved-bundle compatibility.
+Task rewards and safety clearances use the actual surface under each body/site:
+the species code reads heights through ``BaseDinoEnv._clearance`` and this env
+overrides only ``_ground_height_at``.
 """
 
 from __future__ import annotations
@@ -38,7 +39,6 @@ from environments.shared.terrain import (
     build_terrain_model,
     generate_terrain,
 )
-from environments.trex.envs.behavior_env import TRexBehaviorEnv
 
 
 def canonical_env_parameters(species: str) -> dict[str, Any]:
@@ -60,8 +60,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     species: str
     _canonical_env_class: type[BaseDinoEnv]
     floor_geom_id: int
-    target_standing_z: float
-    height_weight: float
     _initial_pos_2d: np.ndarray
 
     def __init__(
@@ -94,8 +92,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self.course_distance = float(course_distance)
         self.flat_probability = float(flat_probability)
         self.terrain: TerrainRealization | None = None
-        self._clearance_min: np.ndarray | None = None
-        self._clearance_max: np.ndarray | None = None
+        self._probe_hit_geom: int | None = None
         self._heading_before = 0.0
         self._command_state: DirectionCommandState | None = None
         self._command_metrics: dict[str, Any] = {}
@@ -133,6 +130,9 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             "snap_snout_proximity_weight",
             "target_reach_bonus",
             "target_approach_weight",
+            "bite_bonus",
+            "bite_approach_weight",
+            "bite_head_proximity_weight",
         ):
             if name in parameters:
                 env_kwargs[name] = 0.0
@@ -147,6 +147,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self._terrain_model: mujoco.MjModel | None = None
         self._terrain_data: mujoco.MjData | None = None
         path = REPOSITORY_ROOT / self.parent_plant_identity.model_path
+        initial = None
         if terrain is not None:
             initial = generate_terrain(terrain, run_seed=self.run_seed, episode_index=0)
             self._terrain_model = build_terrain_model(path, initial)
@@ -164,23 +165,97 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             if model is not None:
                 model.geom_contype[prop_geoms] = 0
                 model.geom_conaffinity[prop_geoms] = 0
+        if self._terrain_contact_probe_geoms:
+            # A separate collision-only model detects probe-geom/surface
+            # intersections without letting the non-colliding geom support the
+            # trained animal; mj_geomDistance does not return surface distance
+            # for hfields. Masks are set on the spec before compiling: flipping
+            # them on a compiled copy misses bodies that had no colliding geoms
+            # in the canonical broad-phase caches.
+            probe_spec = mujoco.MjSpec.from_file(str(path))
+            for name in self._terrain_contact_probe_geoms:
+                probe_spec.geom(name).contype = 1
+                probe_spec.geom(name).conaffinity = 1
+            self._plane_probe_model = probe_spec.compile()
+            self._assert_matching_ids(self._plane_model, self._plane_probe_model)
+            self._plane_probe_data = mujoco.MjData(self._plane_probe_model)
+            self._terrain_probe_model: mujoco.MjModel | None = None
+            self._terrain_probe_data: mujoco.MjData | None = None
+            if initial is not None:
+                self._terrain_probe_model = build_terrain_model(probe_spec, initial)
+                self._assert_matching_ids(self._plane_model, self._terrain_probe_model)
+                self._terrain_probe_data = mujoco.MjData(self._terrain_probe_model)
+            self._probe_model, self._probe_data = self._plane_probe_model, self._plane_probe_data
+            self._probe_geom_ids = np.array(
+                [
+                    mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, name)
+                    for name in self._terrain_contact_probe_geoms
+                ]
+            )
+            self._substep_probe_hook = self._probe_terrain_contacts
         free = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
         self._behavior_root_id = int(self.model.jnt_bodyid[free[0]])
-        self._substep_probe_hook = self._probe_ground_clearance
         parameters.update(env_kwargs)
         parameters.pop("render_mode", None)
         self._behavior_parameters = parameters
 
-    _assert_matching_ids = staticmethod(TRexBehaviorEnv._assert_matching_ids)
-    _assert_same_animal = staticmethod(TRexBehaviorEnv._assert_same_animal)
+    @staticmethod
+    def _assert_matching_ids(parent: mujoco.MjModel, child: mujoco.MjModel) -> None:
+        """Pools share all IDs consumed by state, sensor and contact code."""
+        for field in ("nq", "nv", "nmocap", "nsensordata"):
+            if getattr(parent, field) != getattr(child, field):
+                raise ValueError(f"Behavior model pool changed {field}")
+        for field, kind in (
+            ("nbody", mujoco.mjtObj.mjOBJ_BODY),
+            ("njnt", mujoco.mjtObj.mjOBJ_JOINT),
+            ("ngeom", mujoco.mjtObj.mjOBJ_GEOM),
+            ("nsite", mujoco.mjtObj.mjOBJ_SITE),
+            ("nsensor", mujoco.mjtObj.mjOBJ_SENSOR),
+            ("nu", mujoco.mjtObj.mjOBJ_ACTUATOR),
+            ("nkey", mujoco.mjtObj.mjOBJ_KEY),
+        ):
+            count = getattr(parent, field)
+            if count != getattr(child, field) or any(
+                mujoco.mj_id2name(parent, kind, i) != mujoco.mj_id2name(child, kind, i) for i in range(count)
+            ):
+                raise ValueError(f"Behavior model pool changed {field} IDs")
+
+    @staticmethod
+    def _assert_same_animal(parent: mujoco.MjModel, child: mujoco.MjModel) -> None:
+        """Reject accidental changes outside the declared static floor asset."""
+        if (parent.nq, parent.nv, parent.nu, parent.ngeom) != (child.nq, child.nv, child.nu, child.ngeom):
+            raise ValueError("Terrain changed the articulated model layout")
+        # Compare all exposed model arrays for the animal's kinematics,
+        # dynamics, actuation, sensing, constraints and reset keyframes.
+        prefixes = ("body_", "jnt_", "dof_", "actuator_", "sensor_", "site_", "key_", "eq_", "pair_", "exclude_")
+        for name in dir(parent):
+            if name.startswith(prefixes):
+                a, b = getattr(parent, name), getattr(child, name)
+                if isinstance(a, np.ndarray) and not np.array_equal(a, b):
+                    raise ValueError(f"Terrain changed animal field {name}")
+        floor = mujoco.mj_name2id(parent, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+        animal = np.arange(parent.ngeom) != floor
+        for name in dir(parent):
+            if name.startswith("geom_"):
+                a, b = getattr(parent, name), getattr(child, name)
+                if isinstance(a, np.ndarray) and a.shape and a.shape[0] == parent.ngeom:
+                    if not np.array_equal(a[animal], b[animal]):
+                        raise ValueError(f"Terrain changed animal field {name}")
+        for name in dir(parent.opt):
+            if not name.startswith("_") and not callable(value := getattr(parent.opt, name)):
+                if not np.array_equal(value, getattr(child.opt, name)):
+                    raise ValueError(f"Terrain changed physics option {name}")
 
     def _select_contact_model(self, *, use_terrain: bool) -> None:
+        """Select a precompiled scene and discard episode-dependent caches."""
         if use_terrain:
             assert self._terrain_model is not None and self._terrain_data is not None
             model, data = self._terrain_model, self._terrain_data
         else:
             model, data = self._plane_model, self._plane_data
         if self.model is not model:
+            # Renderer/viewer instances retain model pointers. Recreate them
+            # lazily on render, never retarget a live instance or geom type.
             self.close()
             self._camera = None
         self.model, self.data = model, data
@@ -190,13 +265,19 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self._ground_geom_array = None
         self._invalidate_substep_aggregates()
         self._action_filter_state = None
+        if self._terrain_contact_probe_geoms:
+            if use_terrain:
+                assert self._terrain_probe_model is not None and self._terrain_probe_data is not None
+                self._probe_model, self._probe_data = self._terrain_probe_model, self._terrain_probe_data
+            else:
+                self._probe_model, self._probe_data = self._plane_probe_model, self._plane_probe_data
+            mujoco.mj_resetData(self._probe_model, self._probe_data)
 
     @property
     def behavior_identity(self) -> dict[str, Any]:
         source_paths = (
             Path(__file__),
             Path(inspect.getfile(self._canonical_env_class)),
-            Path(inspect.getfile(TRexBehaviorEnv)),
             Path(inspect.getfile(DirectionCommandController)),
             Path(inspect.getfile(TerrainConfig)),
         )
@@ -224,36 +305,34 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         rotation = self.data.xmat[self._behavior_root_id].reshape(3, 3)
         return float(np.arctan2(rotation[1, 0], rotation[0, 0]))
 
-    def _current_clearances(self) -> np.ndarray:
-        points = [self.data.xpos[self._behavior_root_id]]
-        for kind, index in self._substep_height_checks:
-            points.append(self.data.site_xpos[index] if kind == "site" else self.data.xpos[index])
-        return np.array([self._clearance(point) for point in points])
-
-    def _probe_ground_clearance(self) -> None:
-        clearances = self._current_clearances()
-        self._clearance_min = clearances if self._clearance_min is None else np.minimum(self._clearance_min, clearances)
-        self._clearance_max = clearances if self._clearance_max is None else np.maximum(self._clearance_max, clearances)
-
-    def _check_height_tilt_termination(self, body_z: float, tilt_angle: float) -> tuple[bool, str | None]:
-        clearances = self._current_clearances()
-        minimum = clearances[0] if self._clearance_min is None else self._clearance_min[0]
-        maximum = clearances[0] if self._clearance_max is None else self._clearance_max[0]
-        terminated, reason = super()._check_height_tilt_termination(float(minimum), tilt_angle)
-        if not terminated:
-            terminated, reason = super()._check_height_tilt_termination(float(maximum), tilt_angle)
-        return terminated, reason
-
-    def _aggregated_min_height(self, check_index: int, instantaneous: float) -> float:
-        clearances = self._current_clearances() if self._clearance_min is None else self._clearance_min
-        return float(clearances[check_index + 1])
+    def _probe_terrain_contacts(self) -> None:
+        """Substep hook: latch the first probe geom that penetrates the floor."""
+        self._probe_data.qpos[:] = self.data.qpos
+        self._probe_data.mocap_pos[:] = self.data.mocap_pos
+        self._probe_data.mocap_quat[:] = self.data.mocap_quat
+        mujoco.mj_kinematics(self._probe_model, self._probe_data)
+        mujoco.mj_collision(self._probe_model, self._probe_data)
+        pairs = self._probe_data.contact.geom
+        if self._probe_hit_geom is None and len(pairs):
+            g1, g2 = pairs[:, 0], pairs[:, 1]
+            hits = ((g2 == self.floor_geom_id) & np.isin(g1, self._probe_geom_ids)) | (
+                (g1 == self.floor_geom_id) & np.isin(g2, self._probe_geom_ids)
+            )
+            hit_indices = np.flatnonzero(hits & (self._probe_data.contact.dist < 0.0))
+            if hit_indices.size:
+                first = int(hit_indices[0])
+                self._probe_hit_geom = int(g1[first] if g2[first] == self.floor_geom_id else g2[first])
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
-        # Keep each canonical species' non-finite, tilt, nosedive, snout and
-        # categorized contact checks. The two helpers above only change the
-        # height reference from world zero to the measured terrain surface.
+        # Keep each canonical species' non-finite, height/tilt, nosedive,
+        # snout and categorized contact checks; their heights are clearances
+        # above the surface through _ground_height_at below.
         terminated, info = self._canonical_env_class._is_terminated(self)
         info["pelvis_clearance"] = self._clearance(self.data.xpos[self._behavior_root_id])
+        if not terminated and self._probe_hit_geom is not None:
+            name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, self._probe_hit_geom)
+            terminated = True
+            info["termination_reason"] = f"{name.removesuffix('_geom')}_ground_contact"
         if not terminated and self.terrain is not None:
             geoms = self._root_subtree_geoms()
             bounds = np.abs(self.data.geom_xpos[geoms, :2]) + self.model.geom_rbound[geoms, None]
@@ -264,21 +343,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         reward, info = self._canonical_env_class._get_reward_info(self, action)
-        clearance = self._clearance(self.data.xpos[self._behavior_root_id])
-        info["pelvis_clearance"] = clearance
-        if "reward_height" in info:
-            if self.species.startswith("compsognathus"):
-                target = self.target_standing_z
-                error = (clearance - target) / target
-                contacts = self._aggregated_foot_contact_forces()
-                support = float(sum(contacts) > self._contact_threshold)
-                height = self.height_weight * float(np.exp(-np.square(error / 0.15))) * support
-            else:
-                target = 1.2 if self.species == "brachiosaurus" else 0.3129
-                minimum = self.healthy_z_range[0]
-                height = self.height_weight * float(np.clip((clearance - minimum) / (target - minimum), 0, 1))
-            reward += height - info["reward_height"]
-            info["reward_height"] = height
         if self._command_state is not None:
             yaw_rate = float(wrap_angle(self._heading() - self._heading_before) / self.dt)
             metrics = tracking_metrics(
@@ -308,13 +372,13 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def command_manifest(self) -> dict[str, Any]:
         return self.direction_controller.manifest()
 
-    def _clearance(self, xyz: np.ndarray) -> float:
-        ground = 0.0 if self.terrain is None else self.terrain.height_at(float(xyz[0]), float(xyz[1]))
-        if not np.isfinite(ground):
-            # The boundary check terminates this state; avoid propagating NaN
-            # into reward/observation before it runs.
-            ground = 0.0
-        return float(xyz[2] - ground)
+    def _ground_height_at(self, xy: np.ndarray) -> float:
+        if self.terrain is None:
+            return 0.0
+        ground = float(self.terrain.height_at(float(xy[0]), float(xy[1])))
+        # Off the map: the boundary check terminates this state; avoid
+        # propagating NaN into reward/observation before it runs.
+        return ground if np.isfinite(ground) else 0.0
 
     def _settle_root_on_ground(self, clearance: float | None = None) -> float:
         # Every generated surface is exactly flat under the complete spawn
@@ -383,13 +447,14 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 self.terrain_config, run_seed=terrain_seed, episode_index=self._episode_index
             )
             apply_terrain(self.model, self.terrain, self.data)
+            if self._terrain_contact_probe_geoms:
+                apply_terrain(self._probe_model, self.terrain, self._probe_data)
             if self._renderer is not None:
                 self._renderer.close()
                 self._renderer = None
             if self._viewer is not None:
                 self._viewer.update_hfield(0)
-        self._clearance_min = None
-        self._clearance_max = None
+        self._probe_hit_geom = None
         self._tracking_dwell_s = 0.0
         self._max_radius = 0.0
         _, info = super().reset(seed=seed, options=options)
@@ -422,8 +487,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         if self._command_state is None:
             raise RuntimeError("reset must be called before step")
         self._heading_before = self._heading()
-        self._clearance_min = None
-        self._clearance_max = None
+        self._probe_hit_geom = None
         _, reward, terminated, truncated, info = super().step(action)
         info.update(self._command_metrics)
         radius = float(np.linalg.norm(self.data.qpos[:2] - self._initial_pos_2d))
@@ -433,9 +497,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         info["course_progress_m"] = radius
         info["course_reached"] = bool(self._max_radius >= self.course_distance)
         info["tracking_dwell_s"] = self._tracking_dwell_s
-        info["terrain_height_m"] = float(
-            self.data.xpos[self._behavior_root_id, 2] - self._clearance(self.data.xpos[self._behavior_root_id])
-        )
+        info["terrain_height_m"] = self._ground_height_at(self.data.xpos[self._behavior_root_id, :2])
         # Keep the base is_success=False: radial displacement alone cannot
         # certify command following or a terrain route.
         previous_event = self._command_state.event_id
@@ -447,14 +509,15 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
 
 
 @lru_cache(maxsize=None)
-def get_behavior_env_class(species: str) -> type[Any]:
-    """Return a behavior subclass of the selected canonical species environment."""
-    species = resolve_species_id(species)
-    if species == "trex":
-        return TRexBehaviorEnv
+def _behavior_env_class(species: str) -> type[Any]:
     canonical = get_species_config(species).env_class
     return type(
         f"{canonical.__name__.removesuffix('Env')}BehaviorEnv",
         (SpeciesBehaviorMixin, canonical),
         {"species": species, "_canonical_env_class": canonical, "__module__": __name__},
     )
+
+
+def get_behavior_env_class(species: str) -> type[Any]:
+    """Return a behavior subclass of the selected canonical species environment."""
+    return _behavior_env_class(resolve_species_id(species))

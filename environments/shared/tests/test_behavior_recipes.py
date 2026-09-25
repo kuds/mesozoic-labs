@@ -1,4 +1,4 @@
-"""Keep the supported behavior recipes complete and physically species-scaled."""
+"""Keep the supported behavior recipes complete and physically species-scaled, and refuse malformed ones."""
 
 from __future__ import annotations
 
@@ -177,3 +177,60 @@ def test_mixed_recipe_repeats_exactly_but_varies_between_runs_and_episodes(speci
     assert any(feature.height > 0 for feature in first.features)
     assert any(feature.height < 0 for feature in first.features)
     assert first.height_at(0, 0) == pytest.approx(0, abs=1e-6)
+
+
+# Every bad-recipe case sits under a valid [behavior] header: since consolidation PR-6 a recipe without one is
+# refused for that reason alone, which would let every case below pass without testing its named defect.
+_BEHAVIOR_HEADER = '[behavior]\nspecies = "trex"\nname = "bad"\nparent = "locomotion"\n'
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "[unknown]\nx=1\n",
+        "[commands]\nswitch_inteval_s=1.0\n",
+        "[terrain]\nroughnes_amplitude=0.01\n",
+        "[ppo]\nlearn_rate=0.0001\n",
+        "[env]\nmax_episode_step=1000\n",
+        "[terrain]\nenabled=1\n",
+        "timesteps=1.5\n",
+        "timesteps=-1\n",
+        "[ppo]\nent_coef=nan\n",
+        "[ppo]\nent_coef=-0.1\n",
+        "[ppo]\ntarget_kl=-0.1\n",
+        "[ppo]\nlearning_rate=0.0\n",
+        "[ppo]\nwarmup_timesteps=1.5\n",
+        "[ppo]\nwarmup_clip_range=0.5\n",
+        "[terrain_sampler]\nflat=1\n",
+        '[terrain]\nenabled=true\nmode="flat"\n[terrain_sampler]\nflat=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nbumpps=1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=-1\n',
+        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=1\n[env]\nflat_probability=0.25\n',
+    ],
+)
+def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, content):
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "bad.toml"
+    path.write_text(_BEHAVIOR_HEADER + content)
+    with pytest.raises((ValueError, TypeError)):
+        read_recipe(path)
+
+
+@pytest.mark.parametrize(
+    "content,message",
+    [
+        ("", "behavior requires species, name and parent"),
+        ("[commands]\ncruise_speed = 1.0\n", "behavior requires species, name and parent"),
+        ('[pilot]\nname = "T-Rex F1"\ntimesteps = 100\n', "behavior requires species, name and parent"),
+        (_BEHAVIOR_HEADER + "[pilot]\ntimesteps = 100\n", "Unknown recipe sections"),
+    ],
+)
+def test_recipe_without_behavior_table_is_refused_instead_of_defaulting_to_trex(tmp_path, content, message):
+    """Consolidation PR-6: the [pilot] dialect is gone; a recipe names its species in [behavior] or is refused."""
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "recipe.toml"
+    path.write_text(content)
+    with pytest.raises(ValueError, match=message):
+        read_recipe(path)

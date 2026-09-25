@@ -1026,7 +1026,11 @@ class MJXDinoEnv:
             # sample in 5).  The carry accumulates the per-foot MIN touch
             # force and an any-substep OR of the height-emulated floor-strike
             # checks; both backends read sensors at the same per-substep
-            # phase, so the five snapshots match the SB3 loop's.
+            # phase, so the five snapshots match the SB3 loop's.  MJX has no
+            # terrain, so these height checks, the height and head-clearance
+            # rewards and the root height termination below all compare world
+            # z, while the SB3 env reads BaseDinoEnv._clearance, which is the
+            # same number on the plane.
             def _foot_force_totals(d):
                 totals = []
                 for sensor_group in foot_sensor_groups:

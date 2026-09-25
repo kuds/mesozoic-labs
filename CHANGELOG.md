@@ -922,7 +922,48 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **The SB3 notebook trains through `train_base.train`** (consolidation PR-14c,
+- **Species heights are measured above the ground under them** (consolidation
+  PR-7). `BaseDinoEnv` gains `_ground_height_at(xy)`, the authored plane's 0.0,
+  and `_clearance(xyz)`, `z` minus it. Every species height reward,
+  head/snout clearance and height termination reads through it, as do the step
+  loop's substep minima of the trex head tip and skull and the dibothrosuchus
+  snout; velociraptor's pelvis termination is included (the plan's list missed
+  it). On the plane nothing changes: 16 seeded episodes per species, compared
+  observation, reward, termination and every info value, are bit-identical to
+  the previous commit, and `plant_contract --check` reports the manifest
+  current. The behavior env overrides only `_ground_height_at` (off the map, 0.0
+  as before) and loses its four height overrides and its re-derived height
+  reward. That block repeated the formula of each species it served
+  (brachiosaurus, dibothrosuchus, compsognathus); it would have used 0.3129 m
+  for trex, which had its own class and never reached it. No other species'
+  behavior reward or termination moves: six seeded episodes per species, moved
+  8-12 m onto 6° slopes or 0.08 m bumps, score and end as before
+  (compsognathus's reward within 4.4e-16). On heightfield episodes every
+  species' `pelvis_height` and `torso_height` info (and the dibothrosuchus
+  `snout_tip_z`), and with it the behavior env's `mean_pelvis_height` metric,
+  is now a clearance rather than world z. The behavior env's root height
+  check is now the step's final sample, as in the canonical envs and MJX,
+  instead of the substep minimum, then maximum. T. rex joins the generic
+  behavior class: its floor-contact reasons become categorized
+  (`tail_contact`, `head_contact`, `torso_contact` rather than
+  `body_contact`), the terrain boundary is the
+  geom-bounds rule every species uses (it was `|x|` or `|y|` ≥ extent − 3 m),
+  `head_clearance_m` leaves the step info (`head_tip_z` and `pelvis_height` are
+  the clearances), and the neck probe ends an episode as `neck_ground_contact`
+  after the canonical checks. The mixin also zeroes `bite_bonus`,
+  `bite_approach_weight` and `bite_head_proximity_weight`, as the trex class
+  did. `get_behavior_env_class` caches by resolved species id, so a display
+  name and its id return one class, as `get_sampled_behavior_env_class`
+  already did. Behavior identities change for every species (the trex source
+  digest leaves `sources`; trex gains `species`, the tracking tolerances and
+  repository-relative source keys), so exact resume, `--adapt` and saved-panel
+  evaluation refuse bundles trained before this change. Those bundles were
+  already evaluation-only (decision D-D9). Over 60 seeded
+  random-action episodes per species, a canonical env built from the behavior
+  env's own parameters and the behavior env with `terrain=None` agree on every
+  state, reward term, termination and reason; reward minus tracking agrees
+  within 1.4e-14.
+- **The SB3 notebook trains through `train_base.train`** (#555, consolidation PR-14c,
   decisions D-D7 and D-D11). `train_stage` keeps its signature and 6-tuple and
   becomes its argument refusals, the node banner, one
   `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call
@@ -1444,6 +1485,21 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   probe did.
 
 ### Removed
+- **`TRexBehaviorEnv` and the `mesozoic.trex-command-terrain/v1` identity
+  schema** (consolidation PR-7). `environments/trex/envs/behavior_env.py` (497
+  lines) is deleted. T. rex behaviors use the generic `SpeciesBehaviorMixin`
+  subclass like every other species (Changed). The mixin gains the model-pool
+  checks that it used to borrow, and it builds the collision-only probe pool
+  for any species class that declares `_terrain_contact_probe_geoms`, which
+  `TRexEnv` sets to `("neck_geom",)`. `--adapt` now accepts only
+  `mesozoic.command-terrain/v1`. `environments/trex/tests/test_behavior_env.py`
+  and `test_behavior_training.py` are deleted. Their environment cases run
+  across all six species in `environments/shared/tests/test_behavior_env.py`,
+  with the neck-probe cases kept for trex. The recipe refusals moved to
+  `test_behavior_recipes.py`, and the command-line cases moved to
+  `test_behavior_checkpoint.py` beside the `CommandEnv` they import. This
+  removes the test-to-test import that the consolidation plan still listed as
+  open. CI drops the trex file from the SB3 list.
 - **The SB3 notebook's random-baseline cell and its `_HAS_MEDIAPY` probe**
   (#554, consolidation PR-14b). The cell rolled five random-action episodes that any
   trained policy beats; the zero-action cell after it measures the floor that

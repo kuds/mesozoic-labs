@@ -429,7 +429,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_nosedive"] = reward_nosedive
 
         # 8. Height maintenance reward
-        torso_height = float(torso_pos[2])
+        torso_height = self._clearance(torso_pos)
         info["pelvis_height"] = torso_height
         min_z = self.healthy_z_range[0]
         target_z = 1.2  # Brachiosaurus natural standing torso height (from XML keyframe)
@@ -561,9 +561,9 @@ class BrachioEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info = {}
+        info: dict[str, Any] = {}
 
-        torso_z = self.data.xpos[self.torso_id, 2]
+        torso_z = self._clearance(self.data.xpos[self.torso_id])
         info["torso_height"] = torso_z
 
         torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]

@@ -375,7 +375,7 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
     required = {"schema", "backend", "parent_plant", "sources", "commands", "env"}
     if not required <= previous.keys() or not required <= requested.keys():
         raise BehaviorCheckpointError("Behavior transitions require complete source and requested task identities")
-    if previous["schema"] not in {"mesozoic.trex-command-terrain/v1", "mesozoic.command-terrain/v1"}:
+    if previous["schema"] != "mesozoic.command-terrain/v1":
         raise BehaviorCheckpointError("Only supported command/terrain tasks allow behavior transitions")
     for name in ("commands", "env", "sources", "parent_plant"):
         if not isinstance(previous[name], Mapping) or not isinstance(requested[name], Mapping):

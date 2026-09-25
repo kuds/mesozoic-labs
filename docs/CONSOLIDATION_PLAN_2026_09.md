@@ -34,9 +34,10 @@ corrected on re-reading during the review, the corrected figure is used.
 | PR-12, notebook-only slice (D-D13) | **Landed** as #552 on 2026-09-24: the notebook loses `COMMAND_TERRAIN_BEHAVIOR`, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells (7/19/20/33/34/39 in the 22c1fc8 numbering, 7/20/21/34/35/40 at 2e77150) and the 15 guard sites (the plan's 14 plus the guarded archive-load preflight; the guarded code dedented, two lint fixes aside): 41 cells, 23 code, 2,463 lines → 35 cells, 19 code, 2,329 lines; `behavior_notebook.py` (294 lines) and `test_behavior_notebook.py` (815) deleted, their canonical halves ported to `test_sb3_notebook_pins.py` (the configuration defaults and free-form stage ids, the dropdown's JSON annotations, the setup cell's `REPO_REF` safety) with `_canonical_source` removed; CI drops the deleted test from the SB3 list and the wheel step names the eleven recipe files itself. `train_behaviors.py` stays the pilots' command-line path until the rest of PR-12. Measured: −996 code, test and CI lines, −134 notebook source lines. The same PR carries one bug fix found while mapping PR-14: the training-curves cell no longer writes PNGs into the sealed bundle, which had stopped every completed "Run all" at the cleanup cell before the auto-disconnect (CHANGELOG "Fixed"; +1 notebook line, one executed pin). |
 | PR-14a (the storage path, D-D15) | **Landed** as #553 on 2026-09-24: the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` deleted (D-D14; `widen_checkpoint` stays the command-line widen path, and its seed and verdict guards become on-disk refusals in the storage and resolve cells); `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused at the end of the resolve cell, before anything is trained or written (the KNOWN_ISSUES bug of 2026-09-23, CHANGELOG "Fixed"), with the chain loop refusing, before the write, what the resolve cell cannot predict, the manual and resume cells refusing the same write and the zero-action cell no longer rewriting a complete run's copy: 35 cells, 19 code, 2,330 lines → 34 cells, 18 code, 2,271 lines. Measured (`git diff --numstat` against `2ebed89`): code +380 / −20, tests +894 / −680, notebook JSON +163 / −230, docs +543 / −217. |
 | PR-14b (one disconnect path, videos, the baseline cells; D-D15) | **Landed** as #554 on 2026-09-24: `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the infrastructure cell into `environments/shared/notebook_runtime.py` with the knobs passed at call time; the chain loop's gate refusal calls `halt`; videos play through IPython's `Video` (the `_HAS_MEDIAPY` probe gone); the random-baseline cell is deleted; the zero-action cell becomes its knobs and one call to `zero_action_baseline.preflight` (payload, run copy and complete-bundle skip byte-identical): 34 cells, 18 code, 2,271 lines → 33 cells, 17 code, 2,079 lines. Measured (`git diff --numstat` against `3571b24`, new files counted whole): code +183 / −1, tests +245 / −50, notebook JSON +27 / −229, docs +131 / −37. |
-| PR-14c (`train_stage` over `train_base.train`; D-D7, D-D11, D-D15) | **In review** on the session branch (2026-09-24; PR-14b landed as #554): `train_stage` becomes its argument refusals, the node banner, one `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call and the evaluation; `train()` seeds construction (an algorithm-block seed kept), records `run.duration_seconds` at the final save and takes `parent_run_id` and an explicit `vecnorm_path`; four loads of seeded archives pass `seed=None` (the CLI's two panel loads, the task-success re-roll, the Ray warm start); `evaluate_stage_checkpoints` moves beside `generate_stage_artifacts`: 33 cells, 17 code, 2,079 lines → 33 cells, 17 code, 1,492 lines. Measured (`git diff --numstat` against `d63faff`): code +356 / −31, tests +402 / −278, notebook JSON +45 / −632, docs +168 / −46. |
+| PR-14c (`train_stage` over `train_base.train`; D-D7, D-D11, D-D15) | **Landed** as #555 on 2026-09-24: `train_stage` becomes its argument refusals, the node banner, one `train_base.train(..., report_metrics=False, save_on_interrupt=False)` call and the evaluation; `train()` seeds construction (an algorithm-block seed kept), records `run.duration_seconds` at the final save and takes `parent_run_id` and an explicit `vecnorm_path`; four loads of seeded archives pass `seed=None` (the CLI's two panel loads, the task-success re-roll, the Ray warm start); `evaluate_stage_checkpoints` moves beside `generate_stage_artifacts`: 33 cells, 17 code, 2,079 lines → 33 cells, 17 code, 1,492 lines. Measured (`git diff --numstat` against `d63faff`): code +356 / −31, tests +402 / −278, notebook JSON +45 / −632, docs +168 / −46. |
+| PR-7 (one behavior env, part 1: the ground-height hook; `TRexBehaviorEnv` deleted) | **In review** on the session branch (2026-09-24; PR-14c landed as #555): `BaseDinoEnv._ground_height_at` / `_clearance`, every species height reward, head/snout clearance and height termination and the step loop's substep head/snout minima read through it (velociraptor's root termination added to the plan's list); the mixin's four height overrides and re-derived height reward go; the step loop aggregates no root min/max (the plan's text asked for one; see the PR-7 section); `environments/trex/envs/behavior_env.py` (497 lines) and the `mesozoic.trex-command-terrain/v1` schema deleted, the neck probe behind `TRexEnv._terrain_contact_probe_geoms`; the trex behavior tests fold into the shared suites, parametrised over the six species. Canonical plane rollouts bit-identical, `plant_contract --check` current. Measured (`git diff --numstat` against `d1b8120`): code +192 / −595, tests +1,016 / −1,039, CI +1 / −2, docs +186 / −25. |
 | Net removal from here | about 6,800 lines by the per-PR estimates for PR-7 .. PR-15 (§3 running totals; §3's about 9,500 is counted from 22c1fc8, before PR-3 .. PR-6 landed), of which the notebook-only PR-12 slice removes about 1,130 (measured). The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
-| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554, all on 2026-09-24; PR-14c is in review. |
+| Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes and is re-run after the backstop fix below; sessions 5–6 remain. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24 (PR-14 complete); PR-7 is in review. |
 | Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
 | Loader change (2026-09-19, outside this sequence) | The Colab image moved to Python 3.13 and both first attempts at NEXT_STEPS.md session 1 died inside the widen tool's self-verification (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them"). `policy_loading.load_sb3_model` is now the one archive loader, `linear_schedule` / `cosine_schedule` are picklable classes, and the notebook's load preflight is a cell right before the widen cell. Consequences for this plan: PR-14 item (d) has one disconnect-before-raise site left (cell 22's gate refusal; PR-4 then removed the publish block's), not three, and the notebook target of §4 gains one ~75-line code cell (preflight) right after the resolve cell, where the widen row PR-14a deletes used to follow it (it reads `TRUNK_DIR`, which the storage row binds for a pinned trunk and the resolve cell under `"auto"`); the disconnect-site numbers are in the plan's `22c1fc8` cell numbering, and PR-14b turns that one site (cell 18 after it) into a `halt` call (§3). |
 
@@ -403,7 +404,7 @@ runs still display); test_behavior_notebook.py 162 -> 161. The `--config` alias
 of `--recipe`, the `_species` trex fallback in behavior_checkpoint.py and the
 pilot-era `[env]` keys are not this section's and stay for PR-7 to PR-12.
 
-### PR-7. One behavior env, part 1: ground-height hook and delete TRexBehaviorEnv (M, about -600)
+### PR-7. One behavior env, part 1: ground-height hook and delete TRexBehaviorEnv (M, about -600; measured −427 net code, test and CI lines) — IN REVIEW on the session branch, 2026-09-24
 Goal: (a) add `BaseDinoEnv._ground_height_at(xy) -> 0.0` and `_clearance(xyz)`;
 route the species height reward / head-or-snout clearance reward / height
 terminations through it (trex_env.py ~770-775, 938-947; brachio_env.py ~435;
@@ -443,6 +444,90 @@ reward/termination equality between a plane env and a behavior env with
 `terrain=None`. Canonical artifacts unaffected. Validation: species suites,
 shared suite, `plant_contract --check` (must report no interface change), golden
 reset fixture (test_phase_c_interface.py). Prerequisites: PR-6.
+
+As executed (2026-09-24, the session branch, after PR-14c landed as #555;
+anchors re-derived at d1b8120): `_ground_height_at(xy)` returns 0.0 and
+`_clearance(xyz)` is `float(z - _ground_height_at(xy))`. The reads it serves are
+wider than the plan's list: trex's head-clearance reward (`head_pelvis_rel_z`
+stays a world difference), pelvis-height reward and its pelvis, head-tip and
+skull terminations; the brachiosaurus and dibothrosuchus torso reward and
+termination and the dibothrosuchus snout check; the compsognathus height reward,
+`pelvis_height` and termination; and velociraptor's pelvis termination and
+`pelvis_height`, which the list missed (its root check was terrain-relative only
+through the override this PR deletes). The step loop takes the substep minima
+of `_substep_height_checks` through `_clearance`. On the plane every
+canonical number is unchanged: 16 seeded episodes per species (10,429 steps;
+observation, reward, termination, qpos and every info value compared by float
+hex) are bit-identical to d1b8120, `plant_contract --check` reports the manifest
+current, and the four species' termination `info` dicts gain a `dict[str, Any]`
+annotation because a clearance is a `float` (CI's mypy inferred `dict[str,
+float]`). One plan point was not built: the step loop aggregates no free-joint
+root min/max clearance. A canonical consumer would change terminations with no
+digest moving and break SB3/MJX parity (MJX compares the boundary sample,
+mjx_env.py:1310-1311); a behavior-only consumer would keep the override the plan
+deletes. The behavior env's root height check therefore became the canonical
+boundary sample of the root clearance instead of the substep minimum, then
+maximum (behavior-only; D-D9), which is also what makes the mitigation test
+exact. The mixin lost `_current_clearances`, `_probe_ground_clearance`,
+`_check_height_tilt_termination`, `_aggregated_min_height`, the re-derived height
+block and `_clearance`, now a `_ground_height_at` override (off the map, 0.0 as
+before). The height block repeated the formula of each species it served
+(brachiosaurus, dibothrosuchus, compsognathus); it would have used 0.3129 m for
+trex, which had its own class and never reached it. No other species' behavior
+reward or termination moves: six seeded episodes per species moved 8-12 m onto
+6° slopes or 0.08 m bumps score and end as at d1b8120 (compsognathus's reward
+within 4.4e-16). On heightfield episodes every species' `pelvis_height` and
+`torso_height` info (and the dibothrosuchus `snout_tip_z`), and so the behavior
+env's `mean_pelvis_height`, become clearances.
+TRexBehaviorEnv's `_settle_root_on_ground` and `lowest_ground_clearance` were
+byte-identical to the mixin's (trex 292-329, shared 319-356). Its
+`_assert_matching_ids`/`_assert_same_animal` moved verbatim. The probe pool is
+built for any class that declares `_terrain_contact_probe_geoms`; the `()`
+default sits on `BaseDinoEnv`, because a mixin default would hide
+`TRexEnv`'s `("neck_geom",)` in the MRO. The probe attributes exist only for
+such a species (test_terrain_sampling.py:148 branches on them). The probe
+latches the first penetrating geom and ends the episode as
+`neck_ground_contact` after the canonical chain, before the geom-bounds
+boundary rule. Two points the plan did not name: the mixin now zeroes
+`bite_bonus`, `bite_approach_weight` and `bite_head_proximity_weight` (trex's
+class zeroed them; a directly constructed trex env would otherwise pay the
+1.0-weight bite approach), and `get_behavior_env_class` caches by resolved
+species id, as `get_sampled_behavior_env_class` already did (the trex branch
+had kept `"Tyrannosaurus Rex"` and `"trex"` one class; for the other species,
+display name and id had returned two classes). Trex behavior episodes change
+in what they report (behavior-only): categorized floor-contact reasons,
+`head_clearance_m` gone, `head_tip_z`/`pelvis_height` as clearances, and
+identity keys `species`, the tracking tolerances and repository-relative
+sources. The tracking tolerances equal the old fixed ones at every committed
+trex `speed_scale` (1.5).
+Measured over 60 seeded random-action episodes per species (22,714 steps): the
+canonical env built from the behavior env's own parameters and the behavior env
+with `terrain=None` agree on qpos, every reward term, done flags and every
+termination reason. Reward minus tracking agrees within 1.4e-14 (at d1b8120, 25
+of trex's 60 reasons differed: `body_contact` against `tail_contact`). The new
+test `test_plane_and_terrain_free_behavior_env_score_identically` asserts the
+same over four episodes per species. The per-substep `_clearance` calls cost
+trex about 7 µs of a 1.65 ms control step. Tests: trex test_behavior_env.py
+(17) and test_behavior_training.py (46; 470 lines at d1b8120, not 449) are
+deleted. Their env cases fold into shared test_behavior_env.py parametrised
+over the six species (31 -> 151 tests). The neck-probe pair, the renderer case
+and the brachiosaurus-boundary and wrong-animal cases stay single-species. The
+translated-surface case raises and lowers the surface (+0.8 m and −1.5 m; only
+the lowered one fails if a head, skull or snout check goes back to world z), the
+pool case checks the target props are non-colliding on both pools, the seeded
+replay compares reset info, and the mixed-reset replay checks that the trex
+probe copy carries each episode's surface.
+Trex's and the shared file's substep root-latch cases go with the semantics;
+velociraptor's plane-retention case is covered by the flat-retention case; the
+eight recipe instantiations run for every species. Each species' plant identity
+is computed once per module, which saves 1.7 s per construction (11 s for
+`compsognathus_robot`); the file runs in 108 s against 128 s for the two old
+files. The SB3-free recipe refusals move to test_behavior_recipes.py (102 ->
+125). The command-line cases, `_verify_bundle` and the invalid-seed cases move
+to test_behavior_checkpoint.py (25 -> 41) beside `CommandEnv`, which the SB3 job
+already runs. That file also gains a refusal case for the retired schema.
+test_terrain_sampling.py:78-85 needed no change. Measured (`git diff --numstat`
+against d1b8120): code +192 / −595, tests +1,016 / −1,039, CI +1 / −2, docs +186 / −25.
 
 ### PR-8. One behavior env, part 2: one terrain selector, one command-constant source, one normalisation (M, about -170)
 Goal: (a) fold `TerrainSamplingMixin` (terrain_sampling.py:89-168),
@@ -504,9 +589,10 @@ the source-hash `sources` block, `sampler_source_identity`
 (behavior_certification.py:40-48; deleted by PR-5 on 2026-09-20) in favour of versioned strings like
 `SCHEDULE_IMPLEMENTATION` (task_fingerprint.py:71). Terrain kwargs
 (`TerrainConfig`, `TerrainSamplerConfig`) enter the fingerprint's `env` section
-as constructor kwargs of the opt-in subclass. The mixin's zeroing of 20 species
-reward weights (behavior_env.py:101-137) becomes explicit `[env]` keys in the
-PR-11 TOMLs. `_heading()` (behavior_env.py:223-225) moves to `BaseDinoEnv`.
+as constructor kwargs of the opt-in subclass. The mixin's zeroing of 23 species
+reward weights (behavior_env.py:101-137; 20 until PR-7 folded in trex's three
+bite weights) becomes explicit `[env]` keys in the PR-11 TOMLs. `_heading()`
+(behavior_env.py:223-225) moves to `BaseDinoEnv`.
 Folds in: the reserved-hook finding (corrected), the third-identity finding, and
 parts (a)-(c) of the cross-cutting identity proposal (part (d), terrain into
 `reset()`, is rejected: `home_reset` fingerprints
@@ -882,7 +968,7 @@ Validation: notebook parse and JSON round-trip, `ruff check .`, `ruff format
 suites that name the moved code, and `test_compsognathus_training.py`'s
 notebook tests. Prerequisites: PR-14a.
 
-#### PR-14c. `train_stage` over `train_base.train` (L by count: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) — IN REVIEW on the session branch, 2026-09-24
+#### PR-14c. `train_stage` over `train_base.train` (L by count: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) — LANDED as #555, 2026-09-24
 Goal: the old item (a), at post-PR-14b numbers (infrastructure cell 14,
 `train_stage` at 14:100-483). `train_base.train` gains, for every caller, the
 notebook's seed line as `alg_kwargs.setdefault("seed", seed)` (D-D11: CLI
@@ -1005,7 +1091,8 @@ Breaks: nothing at runtime. Validation: workflow run. Prerequisites: PR-14c.
 
 Running totals (net, using the corrected figures; moves between files count
 zero): PR-1 0; PR-2 +100; PR-3 +20; PR-4 -2,400; PR-5 -1,400; PR-6 -275; PR-7
--600; PR-8 -170; PR-9 -150; PR-10 +180; PR-11 +370; PR-12 -5,300; PR-13 -400;
+-600 (measures −427 net code, test and CI lines: code −403, tests −23, CI −1, since
+the trex env cases now run for all six species); PR-8 -170; PR-9 -150; PR-10 +180; PR-11 +370; PR-12 -5,300; PR-13 -400;
 PR-14 -450 (the pre-split estimate; PR-14a measures about +290 net code, test and notebook lines, since it adds the complete-run
 refusal, the on-disk widen guards and their tests while deleting the widen cell; PR-14b measures +185 (code +182,
 tests +195, notebook −192 source lines), since it moves the notebook's helpers and zero-action body into the
@@ -1210,16 +1297,19 @@ Carried from the review, with the 2026-09-17 additions.
   (test_phase_c_interface.py:348) and that `plant_contract --check` reports no
   interface change, run on every species, not only trex.
 - MJX reward kernels stay world-z after PR-7 (MJX has no terrain and fails
-  closed on live command modes); note the divergence in mjx_env's comment block.
+  closed on live command modes); PR-7 notes the divergence in the comment block
+  above mjx_env's `_height_strike`.
   Under G1 the final node is SB3-only for the same reason.
 - CI coverage `fail_under=70` will need re-measuring after the large deletions
   in PR-12/PR-13 (after PR-3 it read 90 percent on #546's CI runs); the
   excluded trainings mostly cover code that is deleted.
 - Test-to-test coupling must be untangled in order:
   environments/trex/tests/test_behavior_training.py imports `CommandEnv` from
-  test_behavior_checkpoint.py (:384); test_behavior_publication.py imports
-  `_identity`/`_report` from test_behavior_certification.py (:14) (resolved:
-  the file left with PR-5 on 2026-09-20).
+  test_behavior_checkpoint.py (:384) (resolved: PR-7 moved its command-line
+  cases into test_behavior_checkpoint.py beside `CommandEnv`);
+  test_behavior_publication.py imports `_identity`/`_report` from
+  test_behavior_certification.py (:14) (resolved: the file left with PR-5 on
+  2026-09-20).
 - jax_training.ipynb carries the same Drive-mount block and `_ACTIVE_RUN_ID`
   memo (:250, :296); if the D-D7 package move or the memo removal is taken, take
   it for both notebooks so the two Colab drivers do not diverge on the same

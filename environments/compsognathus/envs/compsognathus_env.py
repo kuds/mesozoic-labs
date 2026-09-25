@@ -229,7 +229,8 @@ class CompsognathusEnv(BaseDinoEnv):
         quaternion = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt = self._quat_to_tilt(quaternion)
         heading = float(np.dot(self._quat_to_forward_2d(quaternion), self._initial_prey_dir_2d))
-        height_error = (float(position[2]) - self.target_standing_z) / self.target_standing_z
+        height = self._clearance(position)
+        height_error = (height - self.target_standing_z) / self.target_standing_z
         joint_error = self.data.qpos[self._actuated_qpos] - self._home_qpos[self._actuated_qpos]
         distance = float(np.linalg.norm(self.data.mocap_pos[self._target_mocap_id, :2] - position[:2]))
         progress = 0.0 if self._prev_prey_distance is None else (self._prev_prey_distance - distance) / self.dt
@@ -263,7 +264,7 @@ class CompsognathusEnv(BaseDinoEnv):
             **components,
             "reward_total": reward,
             "forward_vel": forward,
-            "pelvis_height": float(position[2]),
+            "pelvis_height": height,
             "tilt_angle": tilt,
             "prey_distance": distance,
             "heading_alignment": heading,
@@ -281,7 +282,7 @@ class CompsognathusEnv(BaseDinoEnv):
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         if not np.all(np.isfinite(self.data.qpos)) or not np.all(np.isfinite(self.data.qvel)):
             return True, {"termination_reason": "nonfinite_state", "success": False}
-        height = float(self.data.xpos[self.pelvis_id, 2])
+        height = self._clearance(self.data.xpos[self.pelvis_id])
         quaternion = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         terminated, reason = self._check_height_tilt_termination(height, self._quat_to_tilt(quaternion))
         if terminated:

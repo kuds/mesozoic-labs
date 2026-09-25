@@ -670,7 +670,11 @@ tolerance) remains the standing recommendation for the divergences above.
   and newly-colliding long neck capsules must be checked for home-pose
   self-collision (the defect class fixed twice in the PR #480 series). The
   cosmetic geoms should stay non-collidable permanently; they are already
-  excluded from the ground-settle probe.
+  excluded from the ground-settle probe. On behavior terrain, T. rex's
+  non-colliding neck is probed through `_terrain_contact_probe_geoms`
+  (consolidation PR-7) and ends the episode as `neck_ground_contact`;
+  brachiosaurus and dibothrosuchus can opt in by declaring their neck geoms
+  there, without changing canonical physics.
 
 - **LOW** — **the reset's root-height jitter channel is state-inert but still
   present.** The PR #479 ground settle overwrites the root height as a pure
@@ -828,7 +832,8 @@ tolerance) remains the standing recommendation for the divergences above.
   (#540/#541).** The 2026-09-17 review found that the pilots delivered new
   content (a direction controller, a tracking reward, a heightfield terrain
   generator, a replay recorder with terrain maps) beside every canonical
-  concept instead of through it: two behavior env classes that bypass the
+  concept instead of through it: behavior env classes (two until PR-7 deleted
+  `TRexBehaviorEnv`) that bypass the
   reserved `BaseDinoEnv._draw_episode_command` hook and write
   `self._command` directly; a second PPO trainer
   (`environments/shared/train_behaviors.py`, one CPU env) with its own
@@ -857,7 +862,10 @@ tolerance) remains the standing recommendation for the divergences above.
   certified library and the trainer's library path, landed as #548; PR-6, the T. rex
   pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549;
   the notebook-only PR-12 slice, the notebook's direction/terrain mode and
-  `behavior_notebook.py`, landed as #552 on 2026-09-24); PR-1 (#542), the
+  `behavior_notebook.py`, landed as #552 on 2026-09-24; PR-14, split into
+  PR-14a, PR-14b and PR-14c (D-D15), landed as #553, #554 and #555 on
+  2026-09-24; PR-7, the ground-height hook and the deletion of
+  `TRexBehaviorEnv`, is in review); PR-1 (#542), the
   auto-trunk PR (#543) and PR-2 (#544) landed. Until PR-11 adds the follow and
   terrain manifest nodes, the pilots run from the command line only
   (`python -m environments.shared.train_behaviors`, D-D13), with
