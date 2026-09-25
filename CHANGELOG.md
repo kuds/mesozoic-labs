@@ -923,7 +923,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Changed
 - **Resuming an interrupted node is "set `RUN_ID` and `RESUME_STAGE`, then Run
-  all"** (the notebook-safety PR, decision D-D16). The RESUME cell moved ahead
+  all"** (#558, the notebook-safety PR, decision D-D16). The RESUME cell moved ahead
   of the chain loop, after the helpers that define `train_stage`, so it
   finishes the node's budget before the loop judges it. It used to sit after
   the loop, whose interrupted-node refusal stopped Run all first, so a resume
@@ -1683,7 +1683,39 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
-- **The RESUME cell never retrains a finished or judged node** (the
+- **Follow-up to #558: the RESUME cell checks the final pair like a periodic
+  one; the run memo stays in its tree** (decision D-D16, amended). A review of
+  #558 after it merged found these, each reproduced:
+  - **A final pair cut short counted as a finished node.** The final pair is
+    the one checkpoint `train()` writes straight to the mount, so a reclaim
+    during the final save can truncate it. #558 skipped such a node ("Nothing
+    to resume"), and the chain loop's JUDGE branch then failed loading it on
+    every Run all. The cell now runs one integrity check (the zip's SB3
+    members, the sidecar unpickles) over the final pair and every periodic
+    candidate: a broken final pair is resumed over from the newest intact
+    periodic pair, with a warning, and a spent budget names the broken file.
+  - **A `QUICK_TEST` toggle reused the memo's id in the other tree.** With
+    `RUN_ID = ""`, a quick test followed by the real session in one runtime
+    opened the real run as `ppo/<the quick test's timestamp>`. The memo now
+    counts only in the tree `SPECIES`, `ALGORITHM` and `QUICK_TEST` select;
+    after one of them changes, `""` mints a fresh run.
+  - **A node `RETRAIN_FROM` covers is refused before it is resumed.** The chain
+    loop trains such a node from its parent instead of judging it, and D-A20
+    refuses its occupied directory, so the resume could never be judged. The
+    resume recipe also says to clear `TRUNK_FROM` when the resumed node is an
+    ancestor a trunk run certifies, or the loop reuses the trunk's copy first.
+  - The chain loop's interrupted-node message names the refused spent-budget
+    case; the storage-cell comment and the recipes page say quick tests may
+    count one another as replicates (never a real run's); decision D-D16 is
+    carried into NEXT_STEPS and the consolidation plan's decision lists.
+
+  Tests: the final pair cut short (zip and sidecar), a spent budget with a
+  broken final pair, a verdict or final pair with no periodic pair (a widened
+  root), the memo across a `QUICK_TEST` toggle, the `RETRAIN_FROM` refusal, and
+  a pin that the checkpoint scan runs only for an unfinished node. Four
+  mutants of the new guards each fail a test. The notebook goes from 1,557 to
+  1,585 lines (33 cells, 17 code).
+- **The RESUME cell never retrains a finished or judged node** (#558, the
   notebook-safety PR, decision D-D16). The cell measured what was left against
   the node's newest periodic checkpoint only. A node that an early stop ended
   short of its budget (session 4 stopped both of its nodes at 1.45M of 6M and
@@ -1691,8 +1723,11 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   divide the 100k checkpoint cadence (3 envs leave 2,999,970 of 3M), trained
   the rest of that budget when `RESUME_STAGE` named it: `train()` accepts
   `resume_same_stage` into a directory that holds `gate_verdict.json`, so the
-  final pair the verdict hashes was rewritten and the chain loop then refused
-  the node, leaving the partial run stuck. The cell now reads the node's
+  judged directory's final pair, `stage_config.json` and evaluation evidence
+  were rewritten after judging. Whenever a post-resume evaluation beat the
+  seeded best, the handoff pair the verdict hashes (`robust_best_model` /
+  `best_model`) was rewritten too, and the chain loop's reuse rule then
+  refused the node, leaving the partial run stuck. The cell now reads the node's
   verdict and its final pair (`<stage_label>_final.zip` and its
   `_vecnorm.pkl`) before the checkpoint scan; either one prints "Nothing to
   resume" and trains nothing, and the chain loop reuses, refuses or judges the
@@ -1703,17 +1738,18 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   Executed tests cover a passed and a failed verdict, a final pair beside
   periodic steps of 1.45M and 2,999,970, a half-written final pair (resumed)
   and the spent budget.
-- **A `QUICK_TEST` run can no longer become a trunk or a seed replicate** (the
-  notebook-safety PR, decision D-D16). A quick test trained 50,000 steps a node
+- **A `QUICK_TEST` run can no longer become a trunk or a seed replicate of a
+  real run** (#558, the notebook-safety PR, decision D-D16). A quick test trained 50,000 steps a node
   into the same `LOG_BASE/<species>/<algo>/` tree as real runs, under the same
   task, gate and hyperparameter digests (the budget enters none of them). The
   zero-action statue clears the stance gate of velociraptor, brachiosaurus and
   dibothrosuchus, so a quick-test stance could certify, win a
   `TRUNK_FROM = "auto"` coverage tie as the newest run, and count as a seed
   replicate under another `SEED`. Quick tests now live under
-  `<algo>_quick_test/`, beside the `<algo>/` tree that the trunk selection and
-  replicate discovery scan; a quick test can still reuse real certified
-  ancestors. No digest or provenance field changes, and a real session's paths
+  `<algo>_quick_test/`, beside the real `<algo>/` tree: the trunk selection
+  scans `<algo>/` and replicate discovery scans each run's own tree, so quick
+  tests may count one another but never a real run; a quick test can still
+  reuse real certified ancestors. No digest or provenance field changes, and a real session's paths
   are unchanged.
 - **The RESUME cell takes a stage's id as well as its number** (#557, the
   notebook follow-up to PR-7). `RESUME_STAGE = "locomotion"` raised
