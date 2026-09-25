@@ -922,6 +922,17 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **The auto-trunk tie-break is described as it runs** (the notebook
+  follow-up to PR-7). `select_trunk` breaks a coverage tie by the greatest
+  run directory name, which is the newest run only among timestamp ids; a
+  custom `RUN_ID` such as `my_run` sorts after every one of them. The
+  notebook's configuration prose and knob comment, the resolve-cell comment,
+  the `--trunk-from` help and the `select_trunk` / `train_curriculum`
+  docstrings said "newest on a tie"; they now name the rule (decision D-A25
+  gains a clarification). The storage cell's trunk comment no longer says a
+  trunk must be a "finished bundle": any run of the same species, algorithm
+  and backend is scanned, and each node is reused only when the reuse rule
+  certifies it, whatever the run's bundle status. No selection changes.
 - **Species heights are measured above the ground under them** (#556, consolidation
   PR-7). `BaseDinoEnv` gains `_ground_height_at(xy)`, the authored plane's 0.0,
   and `_clearance(xyz)`, `z` minus it. Every species height reward,
@@ -1655,6 +1666,17 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **The RESUME cell takes a stage's id as well as its number** (the
+  notebook follow-up to PR-7). `RESUME_STAGE = "locomotion"` raised
+  `KeyError: 'locomotion'` at `STAGE_CONFIGS[RESUME_STAGE]`: the stage
+  configs, the `stage2_*` checkpoint names and the chain loop key a numbered
+  stage by its number, while the section 6 prose invited a "semantic id".
+  The cell now resolves `RESUME_STAGE` through the manifest to the stage's
+  reference, as the manual cell already did, so `"locomotion"` and `2`
+  resume the same node and `"recovery"` keeps its id. The section 6 prose
+  names both forms and adds the missing step: run the chain loop afterwards,
+  since the RESUME cell only trains. An executed test resumes a
+  `compsognathus_robot` run by id and by number.
 - **A complete run can no longer take a new node in place** (#553,
   consolidation PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
   node trained into a run whose `artifact_manifest.json` records `complete`

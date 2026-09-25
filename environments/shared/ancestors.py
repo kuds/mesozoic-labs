@@ -1073,9 +1073,11 @@ def select_trunk(
     ``follow_records=True`` (another run's record is followed to the run that
     certified the node, D-A23), each child chained onto the ancestor found
     for its parent; the run stops at its first refusal.  The run covering the
-    MOST consecutive nodes wins, the newest on a tie: a whole coherent trunk,
-    never one node from one run and its child from another, which rule 4
-    would refuse anyway.  The task digest and gate block per node are
+    MOST consecutive nodes wins, the greatest directory name on a tie (the
+    newest for timestamp run ids; a custom name such as ``my_run`` sorts after
+    every timestamp): a whole coherent trunk, never one node from one run and
+    its child from another, which rule 4 would refuse anyway.  The task
+    digest and gate block per node are
     derived exactly as the chain loop and ``train_base.train`` derive them, so a
     run this selects is one the loop's own ``find_certified_ancestor`` call
     accepts as ``TRUNK_DIR``.

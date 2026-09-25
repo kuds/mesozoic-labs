@@ -1978,7 +1978,47 @@ class TestResumeCell:
         )
         assert _calls(spent, "print") and not [node for node in ast.walk(spent) if isinstance(node, ast.Raise)]
         assert train in [node for stmt in spent.orelse for node in ast.walk(stmt)]
-        assert "stage_dirname(SPECIES, RESUME_STAGE)" in src and "stage_label(RESUME_STAGE)" in src
+        assert "stage_res = MANIFEST.resolve(RESUME_STAGE).reference" in src
+        assert "stage_dirname(SPECIES, stage_res)" in src and "stage_label(stage_res)" in src
+
+    @pytest.mark.parametrize(
+        ("resume_stage", "reference"),
+        [("locomotion", 2), (2, 2), ("recovery", "recovery")],
+    )
+    def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, resume_stage, reference):
+        """Executed: ``RESUME_STAGE = "locomotion"`` resumes the same node as ``2`` (it used to raise ``KeyError``),
+        finding the ``stage2_*`` checkpoints the chain loop wrote; a stage without a number keeps its id."""
+        import pickle
+        import zipfile
+
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        species = "compsognathus_robot"
+        models = tmp_path / stage_dirname(species, reference) / "models"
+        models.mkdir(parents=True)
+        label = stage_label(reference)
+        with zipfile.ZipFile(models / f"{label}_100000_steps.zip", "w") as archive:
+            archive.writestr("data", "{}")
+            archive.writestr("policy.pth", b"")
+        (models / f"{label}_vecnormalize_100000_steps.pkl").write_bytes(pickle.dumps({}))
+        calls: list[dict] = []
+        stages = load_all_stages(species)
+        namespace = {
+            "SPECIES": species,
+            "MANIFEST": load_stage_manifest(species),
+            "STAGE_CONFIGS": stages,
+            "QUICK_TEST": False,
+            "RUN_DIR": tmp_path,
+            "RUN_LABEL": "",
+            "train_stage": lambda **kwargs: calls.append(kwargs) or (None,) * 6,
+        }
+        src = _cell(RESUME_CELL_MARKER).replace("RESUME_STAGE = None", f"RESUME_STAGE = {resume_stage!r}", 1)
+        exec(compile(src, "sb3_resume", "exec"), namespace)
+        [call] = calls
+        assert call["stage"] == reference
+        assert call["load_path"] == str(models / f"{label}_100000_steps.zip")
+        assert call["timesteps"] == stages[reference]["curriculum_kwargs"]["timesteps"] - 100_000
 
     def test_the_resume_cell_refuses_a_complete_run_before_it_trains(self):
         """A complete bundle is immutable (consolidation PR-14a): nothing is resumed into it; the spent-budget branch

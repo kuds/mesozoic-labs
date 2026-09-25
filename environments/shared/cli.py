@@ -355,8 +355,9 @@ def main(species_cfg):
         metavar="RUN_DIR|auto",
         help=(
             "Earlier run directory, or the literal 'auto' (the sibling run beside --output-dir / the log directory "
-            "whose certified ancestors cover the most of the chain root-first, newest on a tie; the selection and "
-            "every refusal are logged), whose certified ancestors (gate_verdict.json passed under the current gate "
+            "whose certified ancestors cover the most of the chain root-first, the greatest run directory name on a "
+            "tie (the newest timestamp id); the selection and every refusal are logged), whose certified ancestors "
+            "(gate_verdict.json passed under the current gate "
             "configuration — its gate_sha256 equals the digest of the node's [curriculum] thresholds, so a verdict "
             "judged before that digest existed or under an edited threshold is refused until re-judged — plant "
             "and task hash matching the current config, each child recorded as trained from the very parent "
