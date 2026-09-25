@@ -922,7 +922,20 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
-- **Species heights are measured above the ground under them** (consolidation
+- **The auto-trunk tie-break is described as it runs** (the notebook
+  follow-up to PR-7). `select_trunk` breaks a coverage tie by the greatest
+  run directory name, which is the newest run only among names of one
+  timestamp form; a custom `RUN_ID` such as `my_run` sorts after every
+  timestamp id. The notebook's configuration prose and knob comment, the
+  resolve-cell comment, the `--trunk-from` help, the `select_trunk` /
+  `train_curriculum` docstrings and the website recipes page said "newest on
+  a tie"; they now name the rule (decision D-A25 gains a clarification). The
+  storage cell's trunk comment and the recipes page no longer say a trunk must
+  be a "finished bundle": a pinned trunk needs a `provenance.json` naming the
+  same species, algorithm and backend, neither a pinned nor an automatic trunk
+  is gated on its bundle status, and each node is reused only when the reuse
+  rule certifies it. No selection changes.
+- **Species heights are measured above the ground under them** (#556, consolidation
   PR-7). `BaseDinoEnv` gains `_ground_height_at(xy)`, the authored plane's 0.0,
   and `_clearance(xyz)`, `z` minus it. Every species height reward,
   head/snout clearance and height termination reads through it, as do the step
@@ -1486,7 +1499,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Removed
 - **`TRexBehaviorEnv` and the `mesozoic.trex-command-terrain/v1` identity
-  schema** (consolidation PR-7). `environments/trex/envs/behavior_env.py` (497
+  schema** (#556, consolidation PR-7). `environments/trex/envs/behavior_env.py` (497
   lines) is deleted. T. rex behaviors use the generic `SpeciesBehaviorMixin`
   subclass like every other species (Changed). The mixin gains the model-pool
   checks that it used to borrow, and it builds the collision-only probe pool
@@ -1655,6 +1668,23 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **The RESUME cell takes a stage's id as well as its number** (the
+  notebook follow-up to PR-7). `RESUME_STAGE = "locomotion"` raised
+  `KeyError: 'locomotion'` at `STAGE_CONFIGS[RESUME_STAGE]`: the stage
+  configs, the `stage2_*` checkpoint names and the chain loop key a numbered
+  stage by its number, while the section 6 prose invited a "semantic id".
+  The cell now resolves `RESUME_STAGE` through the manifest to the stage's
+  reference, as the manual cell already did, so `"locomotion"` and `2`
+  resume the same node and `"recovery"` keeps its id; it prints what it
+  resolved to, and its no-checkpoint error names that node beside `RUN_ID`.
+  A node off `BEHAVIOR`'s chain is refused before anything is trained: the
+  chain loop visits only the chain, so it would never have judged it. The
+  section 6 prose says which number is meant (the N of the `stageN_*`
+  checkpoints, not the resolve table's position or the `NN_` directory
+  prefix), asks for the interrupted session's `SPECIES`, `BEHAVIOR` and
+  `SEED`, and numbers the chain-loop run that judges the node (the RESUME cell
+  writes no gate verdict). Executed tests resume a `compsognathus_robot` run
+  by id and by number and refuse an off-chain node.
 - **A complete run can no longer take a new node in place** (#553,
   consolidation PR-14a, decision D-D15; moved from KNOWN_ISSUES, verified 2026-09-23). A
   node trained into a run whose `artifact_manifest.json` records `complete`

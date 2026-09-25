@@ -1178,7 +1178,7 @@ class TestSelectTrunk:
             "20260910_000000",
             "20260905_000000",
             "20260901_000000",
-        ], "scanned newest first by directory name"
+        ], "scanned greatest directory name first (the newest timestamp id)"
         assert [candidate.coverage for candidate in selection.candidates] == [1, 2, 1]
         assert selection.run_dir == deeper and selection.selected is selection.candidates[1]
         assert [ancestor.stage_id for ancestor in selection.selected.covered] == ["stance", "locomotion"]

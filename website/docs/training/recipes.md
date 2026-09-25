@@ -123,7 +123,9 @@ root-first. At each node it does exactly one of three things:
    `"auto"` (the notebook default, decision D-A25), the run beside this one
    (under the species/algorithm log directory in the notebook; the siblings
    of the run directory on the command line) whose certified ancestors cover
-   the most of the chain root-first, newest on a tie. The selection prints
+   the most of the chain root-first, the greatest run directory name on a
+   tie (the newest timestamp id; a custom `RUN_ID` such as `my_run` sorts
+   after every timestamp). The selection prints
    the run it chose, the replication each reused node rests on, the runs it
    refused with the rule that refused them (the first 20; the selection
    object holds every run scanned), and any run whose root passed under an
@@ -297,11 +299,13 @@ cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
 cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
-certified ancestors cover the most of the chain root-first (newest on a tie)
+certified ancestors cover the most of the chain root-first (the greatest run
+directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
 off. A pinned `TRUNK_FROM` is a run id, resolved under the same directory,
-or an absolute path to a run directory. It must be a finished bundle (a run
-with a `provenance.json`) of the same species, algorithm and backend, and it
+or an absolute path to a run directory. It must be a run whose
+`provenance.json` names the same species, algorithm and backend, whatever its
+bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
 `TRUNK_FROM`, never by pointing `RUN_ID` at that run. `RETRAIN_FROM` must name
 a node on the chosen behavior's chain.

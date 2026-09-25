@@ -2104,7 +2104,8 @@ def train_curriculum(
     ``"auto"`` (:data:`~environments.shared.ancestors.AUTO_TRUNK`, decision
     D-A25), under which :func:`~environments.shared.ancestors.select_trunk`
     picks the sibling run beside ``base_dir`` whose certified ancestors cover
-    the most of the chain root-first, newest on a tie, and logs every run it
+    the most of the chain root-first, the greatest directory name on a tie
+    (the newest timestamp id), and logs every run it
     refused with the rule that refused it — whose certified ancestors
     satisfy nodes instead of training them, under the reuse rule
     :func:`~environments.shared.ancestors.find_certified_ancestor` applies
@@ -2215,7 +2216,8 @@ def train_curriculum(
 
     # D-A25: ``--trunk-from auto`` picks the trunk among this run's siblings
     # (the runs beside ``base_dir``): the one whose certified ancestors cover
-    # the most of the chain root-first under the §4.2 rule, newest on a tie.
+    # the most of the chain root-first under the §4.2 rule, the greatest
+    # directory name on a tie (the newest timestamp id).
     # Printed in full; a run it refuses is named with the rule that refused it.
     if isinstance(trunk_from, str) and trunk_from == AUTO_TRUNK:
         selection = select_trunk(
