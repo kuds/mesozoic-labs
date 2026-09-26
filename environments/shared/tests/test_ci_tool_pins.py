@@ -7,8 +7,12 @@ rejects (it did, with ruff 0.4.4 against CI's unpinned ruff), or a tool
 release turns an unrelated pull request red. The SB3 job's stable-baselines3
 pin is the SB3 notebook's, so its mypy step checks the SB3 the notebook trains
 with. Every file read here is in both of the workflow's path filters, so a PR
-that edits only one of them still runs these checks, and pre-commit never
-rewrites a file whose bytes enter a digest.
+that edits only one of them still runs these checks. Pre-commit's hooks never
+touch the digest data files (the MJCF plant sources and meshes the plant
+manifest records, the recipe TOMLs, the plant manifests, plant_versions.toml,
+the recovery calibrations), and they still see every Python file; the
+byte-hashed Python modules stay under the hooks, which CI's pinned ruff keeps
+from changing them.
 """
 
 from __future__ import annotations
@@ -29,12 +33,12 @@ _HOOK_REPOS = {
     "mypy": "https://github.com/pre-commit/mirrors-mypy",
 }
 _SB3_PIN = re.compile(r"stable-baselines3\[extra\]==([0-9][0-9.]*)")
-#: Files whose bytes enter a digest (the plant identity's MJCF sources and
-#: meshes, recipe_sha256, the generated manifests, the recovery calibrations),
-#: as globs under the repository root, each expected to match at least once.
-_DIGEST_INPUT_GLOBS = (
-    "environments/*/assets/**/*",
-    "environments/*/references/*",
+PLANT_MANIFEST = REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json"
+#: Digest data files besides the plant sources (which come from the committed
+#: plant manifest): recipe_sha256's TOMLs, the manifests, plant_versions.toml
+#: and the recovery calibrations, as globs under the repository root, each
+#: expected to match at least once.
+_DIGEST_DATA_GLOBS = (
     "environments/*/data/*.json",
     "configs/plant_manifest.generated.json",
     "configs/plant_versions.toml",
@@ -152,14 +156,52 @@ def test_every_file_these_checks_read_triggers_the_workflow() -> None:
             )
 
 
-def test_pre_commit_never_rewrites_a_digest_input() -> None:
+def _pre_commit_exclude() -> re.Pattern[str]:
     text = PRE_COMMIT_CONFIG.read_text(encoding="utf-8")
     match = re.search(r"^exclude:\s*'([^']+)'\s*$", text, flags=re.MULTILINE)
-    assert match is not None, f"{PRE_COMMIT_CONFIG.name} needs a top-level exclude for the digest inputs"
-    exclude = re.compile(match.group(1))
-    for pattern in _DIGEST_INPUT_GLOBS:
+    assert match is not None, f"{PRE_COMMIT_CONFIG.name} needs a top-level exclude for the digest data files"
+    return re.compile(match.group(1))
+
+
+def _plant_source_paths() -> set[str]:
+    """Every MJCF source and asset the committed plant manifest hashes (kept current by plant_contract --check)."""
+    paths: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if isinstance(node.get("logical_path"), str):
+                paths.add(node["logical_path"])
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(json.loads(PLANT_MANIFEST.read_text(encoding="utf-8")))
+    return paths
+
+
+def test_pre_commit_never_rewrites_a_digest_data_file() -> None:
+    exclude = _pre_commit_exclude()
+    plant_sources = _plant_source_paths()
+    assert any(path.endswith(".xml") for path in plant_sources), "the plant manifest records no MJCF source"
+    for relative in sorted(plant_sources):
+        assert exclude.search(relative), f"pre-commit hooks may rewrite the plant source {relative}"
+    for pattern in _DIGEST_DATA_GLOBS:
         files = [path for path in REPOSITORY_ROOT.glob(pattern) if path.is_file()]
-        assert files, f"no file matches {pattern}; update _DIGEST_INPUT_GLOBS"
+        assert files, f"no file matches {pattern}; update _DIGEST_DATA_GLOBS"
         for path in files:
             relative = path.relative_to(REPOSITORY_ROOT).as_posix()
-            assert exclude.search(relative), f"pre-commit hooks may rewrite the digest input {relative}"
+            assert exclude.search(relative), f"pre-commit hooks may rewrite the digest data file {relative}"
+
+
+def test_pre_commit_exclude_leaves_every_python_file_to_the_hooks() -> None:
+    # The ruff and mypy hooks mirror CI's checks of environments/; an exclude
+    # that caught Python files would switch them off there silently.
+    exclude = _pre_commit_exclude()
+    caught = [
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in (REPOSITORY_ROOT / "environments").rglob("*.py")
+        if exclude.search(path.relative_to(REPOSITORY_ROOT).as_posix())
+    ]
+    assert not caught, f"the pre-commit exclude hides Python files from the ruff and mypy hooks: {caught[:5]}"

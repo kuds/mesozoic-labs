@@ -1,9 +1,13 @@
-# No hook may touch a file whose bytes enter a digest: the MJCF plant sources
-# and their meshes (the plant identity hashes them), the behavior recipe TOMLs
+# No hook may touch the digest data files: the MJCF plant sources and their
+# meshes (the plant identity hashes their bytes), the behavior recipe TOMLs
 # (recipe_sha256), the generated plant manifests, plant_versions.toml and the
 # recovery calibrations. end-of-file-fixer would append a newline to three
 # compsognathus MJCF files and move both compsognathus plant identities.
-# test_ci_tool_pins.py checks that this pattern covers every such file.
+# test_ci_tool_pins.py checks this pattern against the sources the plant
+# manifest records and the other data files, and that it catches no Python
+# file. The Python modules a digest hashes stay under the ruff and whitespace
+# hooks: CI's pinned ruff keeps them from changing, and any edit to them moves
+# the behavior identities anyway.
 exclude: '^(environments/[^/]+/(assets|references|data)/|configs/(plant_manifest\.generated\.json|plant_versions\.toml|[^/]+/recovery_calibration\.json|[^/]+/behaviors/))'
 
 repos:

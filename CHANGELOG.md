@@ -994,9 +994,10 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   pre-commit ruff hooks cover `environments/` only, as CI does, because this
   ruff also formats notebooks and the Python blocks in Markdown files. The
   new `test_ci_tool_pins.py` keeps the pins, and the SB3 pin, in agreement.
-  Pre-commit now excludes every file whose bytes enter a digest (the MJCF
-  plant sources and meshes, the recipe TOMLs, the plant manifests,
-  `plant_versions.toml`, the recovery calibrations): `end-of-file-fixer`
+  Pre-commit now excludes the digest data files (the MJCF plant sources and
+  meshes, the recipe TOMLs, the plant manifests, `plant_versions.toml`, the
+  recovery calibrations; the byte-hashed Python modules stay under the hooks,
+  which CI's pinned ruff keeps from changing them): `end-of-file-fixer`
   under `pre-commit run --all-files` would have appended a newline to three
   compsognathus MJCF files and moved both compsognathus plant identities.
   `.pre-commit-config.yaml` joins the workflow's path filters, so a

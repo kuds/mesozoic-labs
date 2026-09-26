@@ -57,10 +57,12 @@ mypy environments/ --ignore-missing-imports
 Pre-commit hooks run both automatically on `git commit`. The `dev` extra, the
 hooks and CI pin one ruff version and one mypy version
 (`environments/shared/tests/test_ci_tool_pins.py` keeps them in agreement),
-and the ruff hooks cover `environments/`, as CI's ruff does. No hook touches a
-file whose bytes enter a digest (the plant MJCF sources and meshes, the recipe
-TOMLs, the plant manifests, `plant_versions.toml` and the recovery
-calibrations): a whitespace fix there would move a plant identity.
+and the ruff hooks cover `environments/`, as CI's ruff does. No hook touches
+the digest data files (the plant MJCF sources and meshes, the recipe TOMLs, the
+plant manifests, `plant_versions.toml` and the recovery calibrations): a
+whitespace fix there would move a digest. The Python modules whose bytes a
+digest hashes stay under the hooks; CI's pinned ruff keeps them from changing,
+and any edit to them moves the behavior identities anyway.
 
 ## Running Tests
 
