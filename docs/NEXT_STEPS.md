@@ -539,7 +539,7 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   `0.3.9.dev0`, and the maintainer tags `v0.3.8`.
 - **D-D20** (its row 7) A Colab reclaim may not leave the final pair or a
   handoff pair (best, robust-best) truncated, nor mixed with the previous
-  pair: on a Drive/GCS mount `train()` stages them locally and publishes them
+  pair in a way the pair's checks accept: on a Drive/GCS mount `train()` stages them locally and publishes them
   like the periodic pairs, and an empty placeholder takes the final zip's place
   before the final save begins, so a reclaim leaves at worst an incomplete pair
   its readers reject (a handoff sidecar without its zip, or a final zip

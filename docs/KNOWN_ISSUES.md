@@ -413,7 +413,7 @@ tolerance) remains the standing recommendation for the divergences above.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:403-427`, called at
-  `train_base.py:1176`) lets any same-stage resume through. Against a
+  `train_base.py:1190`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the

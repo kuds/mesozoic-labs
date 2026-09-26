@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
   maintainer took the cleanup plan's decision 7 as D-D20: a Colab reclaim
   may not leave the final pair or a handoff pair truncated, nor mixed with
-  the previous pair (carried out by CU-3; Fixed, below). D-D17 is amended:
+  the previous pair in a way the pair's checks accept (carried out by CU-3;
+  Fixed, below). D-D17 is amended:
   PR-A is split in two, each with its own review, so D-D17 lands as PR-A,
   PR-A2 and PR-B. PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2 removes the single-job Vertex AI route
   and GCS upload, with an end-to-end test of the command-line curriculum path
