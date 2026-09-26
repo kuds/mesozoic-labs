@@ -371,9 +371,13 @@ lineage keys and records the continued-from checkpoint under
 `resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
 node still chains by digest and stays reusable. It sits ahead of the chain
 loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
-to its node, with `RETRAIN_FROM` empty (and `TRUNK_FROM = ""` when the
-resumed node is an ancestor a trunk run also certifies), then Run all; the
-loop judges the node after the resume trains it. A node that already holds
+to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` pinned to the run the
+interrupted session resolved (`""` only when it trained every node itself),
+then Run all; the loop judges the node after the resume trains it. A node that
+was trained here although that trunk run certifies it (one `RETRAIN_FROM`
+covered) is resumed with `BEHAVIOR` set to it, because the loop looks for its
+target only in this run; the deeper chain then continues in a fresh `RUN_ID`
+trunked from this run. A node that already holds
 `gate_verdict.json` or an intact final checkpoint pair is never retrained: the
 cell trains nothing and the loop reuses, refuses or judges it (decision
 D-D16).

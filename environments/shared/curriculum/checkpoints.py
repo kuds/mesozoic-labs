@@ -7,6 +7,7 @@ load statistics whose plant identity does not match the current plant."""
 from __future__ import annotations
 
 import logging
+import pickle
 import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -106,6 +107,42 @@ def select_handoff_checkpoint(model_dir: Path) -> tuple[str, str, str] | None:
         cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
         if cand_zip.exists() and cand_vecnorm.exists():
             return candidate, str(model_dir / candidate), str(cand_vecnorm)
+    return None
+
+
+def checkpoint_pair_problem(zip_path: Path, vecnorm_path: Path) -> str | None:
+    """``None`` when an SB3 checkpoint zip and its VecNormalize sidecar can be loaded, else why not.
+
+    A runtime reclaimed mid-write leaves a truncated or orphaned pair, and a pair
+    written straight to a Drive mount can be cut short in its sync window. This is
+    the check the notebook's RESUME cell runs over every periodic candidate and the
+    final pair, and the chain loop over the final pair before its JUDGE branch loads
+    it. A zip whose sidecar is missing is never trusted: a loaded policy under fresh
+    normalization statistics collapses silently.
+    """
+    zip_path, vecnorm_path = Path(zip_path), Path(vecnorm_path)
+    if not vecnorm_path.exists():
+        return f"missing matched VecNormalize sidecar {vecnorm_path.name}"
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            bad_member = archive.testzip()
+            names = archive.namelist()
+        if bad_member is not None:
+            raise zipfile.BadZipFile(f"corrupt archive member {bad_member!r}")
+        # A truncated SB3 checkpoint can still open: zipfile locks onto a nested
+        # torch archive's end-of-directory record, so testzip alone passes.
+        # Require SB3's own members in the OUTER archive.
+        if "data" not in names or not any(name.endswith("policy.pth") for name in names):
+            raise zipfile.BadZipFile(
+                f"outer archive lacks SB3 members (truncated checkpoint; found {sorted(names)[:5]})"
+            )
+    except Exception as exc:
+        return f"bad/truncated checkpoint zip {zip_path.name} ({exc})"
+    try:
+        with open(vecnorm_path, "rb") as handle:
+            pickle.load(handle)
+    except Exception as exc:
+        return f"VecNormalize sidecar {vecnorm_path.name} does not unpickle ({exc})"
     return None
 
 

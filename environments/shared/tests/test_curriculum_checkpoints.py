@@ -589,3 +589,73 @@ class TestCheckpointRetentionCallback:
 
         with pytest.raises(ValueError, match="save_freq"):
             CheckpointRetentionCallback(model_dir=tmp_path, name_prefix="stage1", save_freq=0)
+
+
+class TestCheckpointPairProblem:
+    """``checkpoint_pair_problem``: the one check the notebook's RESUME cell and chain loop run before trusting a
+    checkpoint pair a reclaimed runtime may have left truncated or orphaned (decision D-D16, amended)."""
+
+    @staticmethod
+    def _pair(tmp_path, *, members=("data", "policy.pth")):
+        import pickle
+        import zipfile
+
+        zip_path, vecnorm_path = tmp_path / "stage2_final.zip", tmp_path / "stage2_final_vecnorm.pkl"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            for member in members:
+                archive.writestr(member, b"x" * 64)
+        vecnorm_path.write_bytes(pickle.dumps({"obs_rms": list(range(20))}))
+        return zip_path, vecnorm_path
+
+    def test_an_intact_pair_has_no_problem(self, tmp_path):
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        assert checkpoint_pair_problem(*self._pair(tmp_path)) is None
+
+    def test_a_missing_sidecar_is_never_trusted(self, tmp_path):
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        zip_path, vecnorm_path = self._pair(tmp_path)
+        vecnorm_path.unlink()
+        assert checkpoint_pair_problem(zip_path, vecnorm_path) == (
+            "missing matched VecNormalize sidecar stage2_final_vecnorm.pkl"
+        )
+
+    def test_a_truncated_zip_is_refused(self, tmp_path):
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        zip_path, vecnorm_path = self._pair(tmp_path)
+        zip_path.write_bytes(zip_path.read_bytes()[:40])
+        assert checkpoint_pair_problem(zip_path, vecnorm_path).startswith(
+            "bad/truncated checkpoint zip stage2_final.zip"
+        )
+
+    def test_a_zip_without_sb3_members_is_refused(self, tmp_path):
+        """A truncated SB3 archive can open on a nested torch archive's directory, so SB3's own outer members are
+        required, not just a readable zip."""
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        problem = checkpoint_pair_problem(*self._pair(tmp_path, members=("data", "pytorch_variables.pth")))
+        assert problem is not None and "outer archive lacks SB3 members" in problem
+
+    def test_a_truncated_sidecar_is_refused(self, tmp_path):
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        zip_path, vecnorm_path = self._pair(tmp_path)
+        vecnorm_path.write_bytes(vecnorm_path.read_bytes()[:10])
+        problem = checkpoint_pair_problem(zip_path, vecnorm_path)
+        assert problem is not None and problem.startswith(
+            "VecNormalize sidecar stage2_final_vecnorm.pkl does not unpickle"
+        )
+
+    def test_a_member_whose_crc_does_not_match_is_refused(self, tmp_path):
+        """A zip whose directory is intact but whose member bytes were cut or rewritten fails ``testzip``."""
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        zip_path, vecnorm_path = self._pair(tmp_path)
+        data = bytearray(zip_path.read_bytes())
+        at = data.index(b"x" * 64)
+        data[at] = ord("y")
+        zip_path.write_bytes(bytes(data))
+        problem = checkpoint_pair_problem(zip_path, vecnorm_path)
+        assert problem is not None and "corrupt archive member 'data'" in problem
