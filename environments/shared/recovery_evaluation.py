@@ -144,7 +144,7 @@ def zero_action_controller(action_dim: int) -> Callable[[Any], np.ndarray]:
     return predict
 
 
-def constant_action_controller(action: Sequence[float]) -> Callable[[Any], np.ndarray]:
+def constant_action_controller(action: Sequence[float] | np.ndarray) -> Callable[[Any], np.ndarray]:
     """A brace: holds one fixed command (e.g. the policy's post-settle mean)."""
     held = np.asarray(action, dtype=np.float64).ravel()
 

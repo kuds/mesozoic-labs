@@ -144,6 +144,7 @@ def pad_running_stats(obs_rms: Any, width: int = COMMAND_WIDTH) -> "RunningMeanS
     if width < 1:
         raise ValueError("width must be a positive number of dims")
     padded_shape = (mean.shape[0] + int(width),)
+    padded: RunningMeanStd
     try:
         padded = type(obs_rms)(shape=padded_shape)
     except TypeError:

@@ -29,7 +29,7 @@ import logging
 import pickle
 import shutil
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 import pytest
@@ -231,6 +231,7 @@ def build_narrow_parent(
     models_dir.mkdir(parents=True)
 
     venv = VecNormalize(DummyVecEnv([lambda: NarrowObservation(build_env(species, stage))]))
+    model: PPO | SAC
     try:
         if algorithm == "ppo":
             schedules: dict = {}
@@ -327,7 +328,7 @@ def copy_parent(parent: dict, root: Path) -> dict:
 def rewrite_archive(zip_path: Path, mutate: Callable[[dict, dict], None]) -> None:
     """Rewrite an SB3 archive in place through its own serializer after *mutate(data, params)*."""
     data, params, pytorch_variables = load_from_zip_file(str(zip_path), device="cpu")
-    mutate(data, params)
+    mutate(cast(dict, data), params)  # None only for an archive without a "data" member; SB3 always writes one
     save_to_zip_file(str(zip_path), data=data, params=params, pytorch_variables=pytorch_variables)
 
 

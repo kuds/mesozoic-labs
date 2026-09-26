@@ -1,13 +1,20 @@
 repos:
+  # ruff and mypy use the versions the CI lint job pins
+  # (.github/workflows/python-ci.yml; test_ci_tool_pins.py checks they agree).
+  # The ruff hooks cover environments/ only, as CI does: this ruff also
+  # formats notebooks and the Python blocks in Markdown files, which CI never
+  # checks.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.16.9
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
+        files: ^environments/
       - id: ruff-format
+        files: ^environments/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v2.3.1
     hooks:
       - id: mypy
         additional_dependencies: [gymnasium, numpy]
