@@ -582,9 +582,8 @@ class TestReuseRule:
         # so a dropped `not` (an UNcovered failed node skipping the never-retrained raise, a covered node
         # raising instead of training) fails here.
         assert ast.get_source_segment(src, _verdict_if(src, loop).test) == "verdict is not None and not covered"
-        assert (ast.get_source_segment(src, _judge_if(src, loop).test) or "").startswith(
-            "not covered and verdict is None and "
-        )
+        judge_test = " ".join((ast.get_source_segment(src, _judge_if(src, loop).test) or "").split())
+        assert judge_test.startswith("not covered and verdict is None and ")
 
     def test_reuse_chains_by_digest_onto_the_parent_resolved_here(self):
         """D-A17: a non-root node passes its parent's handoff digest; every NODE_HANDOFF entry carries one."""
@@ -977,6 +976,32 @@ class TestStorageCellRerun:
         namespace.update(QUICK_TEST=True, RUN_ID="../x")
         with pytest.raises(ValueError, match=r"names a run directory under .*ppo_quick_test"):
             exec(compile(src, "sb3_storage_bad_quick", "exec"), namespace)
+
+    def test_the_memo_counts_only_in_the_tree_it_was_opened_in(self, tmp_path, monkeypatch, capsys):
+        """With ``RUN_ID = ""`` the memo re-enters this runtime's run only in the tree SPECIES, ALGORITHM and
+        QUICK_TEST select: a quick test first and then the real session (the usual order in one runtime) gives the
+        real run its own timestamp, instead of opening ``ppo/<the quick test's id>``; a rerun in one tree keeps its
+        run as before."""
+        src = _cell(STORAGE_CELL_MARKER)
+        namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch, QUICK_TEST=True)
+        exec(compile(src, "sb3_storage_quick", "exec"), namespace)
+        quick = namespace["RUN_DIR"]
+        assert quick == tmp_path / "logs" / "trex" / "ppo_quick_test" / "20260101_000001"
+        namespace.update(QUICK_TEST=False, RUN_ID="")
+        exec(compile(src, "sb3_storage_real", "exec"), namespace)
+        real = namespace["RUN_DIR"]
+        assert real == tmp_path / "logs" / "trex" / "ppo" / "20260101_000002", "a fresh timestamp, not the memo's id"
+        assert namespace["_ACTIVE_RUN_ID"] == real.name and "(new run)" in capsys.readouterr().out
+        exec(compile(src, "sb3_storage_real_rerun", "exec"), namespace)
+        assert namespace["RUN_DIR"] == real, "a rerun in the same tree keeps the run"
+        assert [call[1]["run_id"] for call in provenance_calls] == [quick.name, real.name, real.name]
+        # The same for the other two knobs that pick the tree.
+        namespace.update(ALGORITHM="sac")
+        exec(compile(src, "sb3_storage_sac", "exec"), namespace)
+        assert namespace["RUN_DIR"] == tmp_path / "logs" / "trex" / "sac" / "20260101_000003"
+        namespace.update(SPECIES="velociraptor")
+        exec(compile(src, "sb3_storage_species", "exec"), namespace)
+        assert namespace["RUN_DIR"] == tmp_path / "logs" / "velociraptor" / "sac" / "20260101_000004"
 
     def test_the_trunk_and_replicate_scans_never_follow_run_dir_into_the_quick_test_tree(self):
         """The two scans the quick-test tree hides from: the auto-trunk selection names the real ``<algo>/`` tree (not
@@ -1636,6 +1661,77 @@ class TestChainLoop:
             assert after == before, "nothing is written into the complete run"
             assert not trained and not recorded, "nothing is trained or recorded into the complete run"
 
+    @pytest.mark.parametrize("broken", ["zip", "sidecar", "missing sidecar", None])
+    def test_executed_a_final_pair_cut_short_is_an_interrupted_node_never_judged(self, tmp_path, monkeypatch, broken):
+        """The JUDGE branch loads the final pair, so a pair a reclaim cut short during the final save would fail
+        there on every Run all with a bare load error. The loop runs the RESUME cell's check first and sends such a
+        node to the interrupted-node refusal, which names what is wrong and RESUME_STAGE (decision D-D16, amended)."""
+        import pickle
+
+        from environments.shared import ancestors
+        from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.config import load_all_stages
+        from environments.shared.plant_contract import current_plant_identity
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        run_dir = tmp_path / "20260925_000000"
+        reference = load_stage_manifest("velociraptor").resolve("stance").reference
+        models = run_dir / stage_dirname("velociraptor", reference) / "models"
+        final = models / f"{stage_label(reference)}_final"
+        TestResumeCell._write_pair(Path(f"{final}.zip"), Path(f"{final}_vecnorm.pkl"))
+        if broken == "zip":
+            Path(f"{final}.zip").write_bytes(Path(f"{final}.zip").read_bytes()[:30])
+        elif broken == "sidecar":
+            Path(f"{final}_vecnorm.pkl").write_bytes(pickle.dumps({"obs_rms": list(range(20))})[:12])
+        elif broken == "missing sidecar":
+            Path(f"{final}_vecnorm.pkl").unlink()
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)
+
+        def refuse(candidate, **kwargs):
+            raise AncestorReuseError("no gate_verdict.json")
+
+        def never(*args, **kwargs):
+            raise AssertionError("a final pair cut short must never reach the JUDGE branch or be trained over")
+
+        class Judged(Exception):
+            pass
+
+        judged: list[dict] = []
+
+        def judge(*args, **kwargs):
+            judged.append(kwargs)
+            raise Judged  # stop the loop here: what follows JUDGE is pinned elsewhere
+
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", refuse)
+        namespace.update(
+            Path=Path,
+            stage_dirname=stage_dirname,
+            stage_label=stage_label,
+            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            NODE_RESULTS={},
+            completed_stages=[],
+            NODE_HANDOFF={},
+            evaluate_stage_checkpoints=never if broken else judge,
+            train_stage=never,
+            QUICK_TEST=False,
+            SPECIES_CFG=None,
+            ALGORITHM="ppo",
+            EVALUATION_SEED=3042,
+            read_stage_duration=lambda stage_dir: None,
+        )
+        if broken is None:  # an intact final pair is judged exactly as before
+            with pytest.raises(Judged):
+                exec(_cell(CHAIN_CELL_MARKER), namespace)
+            assert [call["final_path"] for call in judged] == [final]
+            return
+        with pytest.raises(
+            RuntimeError, match=r"no completed stage \((bad/truncated|VecNormalize sidecar|missing matched)"
+        ):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+
     def test_executed_a_record_the_trunk_no_longer_certifies_is_never_trained_into_a_complete_run(
         self, tmp_path, monkeypatch
     ):
@@ -2021,7 +2117,9 @@ class TestResumeCell:
         finished = _the_if(
             tree,
             src,
-            lambda test: test == "verdict_res is not None or all(path.is_file() for path in final_pair_res)",
+            lambda test: (
+                test == "verdict_res is not None or (final_pair_res[0].exists() and final_problem_res is None)"
+            ),
             "on a finished node",
         )
         finished_src = _branch_source(src, finished.body)
@@ -2031,7 +2129,20 @@ class TestResumeCell:
             node for node in ast.walk(finished_body) if isinstance(node, ast.Raise)
         ]
         assert train in [node for stmt in finished.orelse for node in ast.walk(stmt)]
+        # ... and the checkpoint scan (with its no-checkpoint refusal) runs only for an unfinished node.
+        scans = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.For) and "model_dir_res.glob" in ast.unparse(node.iter)
+        ]
+        assert len(scans) == 1 and scans[0] in [node for stmt in finished.orelse for node in ast.walk(stmt)]
         assert "read_gate_verdict(stage_dir_res)" in src
+        # One integrity check for every pair: the final pair and each periodic candidate.
+        checks = _calls(tree, "checkpoint_pair_problem")
+        assert [ast.unparse(call) for call in checks] == [
+            "checkpoint_pair_problem(*final_pair_res)",
+            "checkpoint_pair_problem(cand_ckpt, cand_vecnorm)",
+        ]
         # A spent budget WITHOUT the final pair (the runtime stopped between the last periodic save and the final
         # one) is refused: the JUDGE branch needs the final pair, and there is nothing left to train.
         spent = _the_if(tree, src, lambda test: test == "remaining_res == 0", "on a spent budget")
@@ -2044,29 +2155,46 @@ class TestResumeCell:
         assert "stage_dirname(SPECIES, stage_res)" in src and "stage_label(stage_res)" in src
 
     @staticmethod
-    def _run_resume_cell(
-        tmp_path, species: str, behavior: str, resume_stage, reference, *, steps: int = 100_000
-    ) -> list[dict]:
-        """Execute the RESUME cell against one intact periodic pair of *reference* at *steps*; return the
-        train_stage calls. Whatever else the stage directory holds (a verdict, a final pair) is the caller's."""
+    def _write_pair(zip_path: Path, vecnorm_path: Path) -> None:
+        """An intact checkpoint pair as the RESUME cell checks one: SB3's outer members and an unpickling sidecar."""
         import pickle
         import zipfile
 
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("data", "{}")
+            archive.writestr("policy.pth", b"")
+        vecnorm_path.write_bytes(pickle.dumps({}))
+
+    @classmethod
+    def _run_resume_cell(
+        cls,
+        tmp_path,
+        species: str,
+        behavior: str,
+        resume_stage,
+        reference,
+        *,
+        steps: int | None = 100_000,
+        retrain_from: str | None = None,
+        calls: list[dict] | None = None,
+    ) -> list[dict]:
+        """Execute the RESUME cell against one intact periodic pair of *reference* at *steps* (none when *steps* is
+        None: a widened root holds only its handoff and final pairs); return the train_stage calls. Whatever else the
+        stage directory holds (a verdict, a final pair) is the caller's."""
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
         models = tmp_path / stage_dirname(species, reference) / "models"
         models.mkdir(parents=True, exist_ok=True)
         label = stage_label(reference)
-        with zipfile.ZipFile(models / f"{label}_{steps}_steps.zip", "w") as archive:
-            archive.writestr("data", "{}")
-            archive.writestr("policy.pth", b"")
-        (models / f"{label}_vecnormalize_{steps}_steps.pkl").write_bytes(pickle.dumps({}))
+        if steps is not None:
+            cls._write_pair(models / f"{label}_{steps}_steps.zip", models / f"{label}_vecnormalize_{steps}_steps.pkl")
         manifest = load_stage_manifest(species)
-        calls: list[dict] = []
+        made: list[dict] = [] if calls is None else calls
 
-        def train_stage(**kwargs):
-            calls.append(kwargs)
+        def train_stage(save_freq=100_000, **kwargs):  # the notebook's default checkpoint cadence
+            made.append(kwargs)
             return (None,) * 6
 
         namespace = {
@@ -2078,17 +2206,18 @@ class TestResumeCell:
             "QUICK_TEST": False,
             "RUN_DIR": tmp_path,
             "RUN_LABEL": "",
+            "RETRAIN_NODE": manifest.resolve(retrain_from) if retrain_from else None,
             "train_stage": train_stage,
         }
         src = _cell(RESUME_CELL_MARKER).replace("RESUME_STAGE = None", f"RESUME_STAGE = {resume_stage!r}", 1)
         exec(compile(src, "sb3_resume", "exec"), namespace)
-        return calls
+        return made
 
     @pytest.mark.parametrize(
         ("behavior", "resume_stage", "reference"),
         [("walk", "locomotion", 2), ("walk", 2, 2), ("stand", "recovery", "recovery")],
     )
-    def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, behavior, resume_stage, reference):
+    def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, capsys, behavior, resume_stage, reference):
         """Executed: ``RESUME_STAGE = "locomotion"`` resumes the same node as ``2`` (it used to raise ``KeyError``),
         finding the ``stage2_*`` checkpoints the chain loop wrote; a stage without a number keeps its id."""
         from environments.shared.config import load_all_stages
@@ -2101,6 +2230,7 @@ class TestResumeCell:
         assert call["load_path"] == str(models / f"{stage_label(reference)}_100000_steps.zip")
         budget = load_all_stages(species)[reference]["curriculum_kwargs"]["timesteps"]
         assert call["timesteps"] == budget - 100_000
+        assert "WARNING" not in capsys.readouterr().out, "an ordinary resume warns about nothing"
 
     def test_the_resume_cell_refuses_a_node_off_the_chain_before_it_trains(self, tmp_path):
         """Executed: the chain loop visits only CHAIN, so a node off it would train and never be judged — a
@@ -2109,12 +2239,14 @@ class TestResumeCell:
             self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "recovery", "recovery")
         assert "BEHAVIOR" in str(refused.value) and "re-run sections 2-3" in str(refused.value)
 
+    @pytest.mark.parametrize("steps", [100_000, None])
     @pytest.mark.parametrize("passed", [True, False])
-    def test_a_judged_node_is_never_resumed(self, tmp_path, capsys, passed):
+    def test_a_judged_node_is_never_resumed(self, tmp_path, capsys, passed, steps):
         """Executed: a node holding ``gate_verdict.json`` -- passed or failed -- trains nothing, whatever its periodic
-        checkpoints say; the chain loop reuses or refuses it. Before D-D16 an early-stopped node's short periodic
-        step (1.45M of 6M in session 4) trained the rest of the budget into the judged directory, overwriting the
-        pair its verdict hashes."""
+        checkpoints say, and before the checkpoint scan (a judged widened root holds no periodic pair); the chain loop
+        reuses or refuses it. Before D-D16 an early-stopped node's short periodic step (1.45M of 6M in session 4)
+        trained the rest of the budget into the judged directory, rewriting its final pair and, whenever a
+        post-resume evaluation beat the seeded best, the handoff pair its verdict hashes."""
         from environments.shared.result_bundle import GATE_VERDICT_SCHEMA
         from environments.shared.stage_manifest import stage_dirname
 
@@ -2123,34 +2255,128 @@ class TestResumeCell:
         (stage_dir / "gate_verdict.json").write_text(
             json.dumps({"schema": GATE_VERDICT_SCHEMA, "passed": passed, "failures": [] if passed else ["too slow"]})
         )
-        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2) == []
+        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=steps) == []
         out = capsys.readouterr().out
         assert "Nothing to resume: 'locomotion' already holds a gate verdict" in out and "JUDGE" in out
 
-    @pytest.mark.parametrize("steps", [1_450_000, 2_999_970])
+    @pytest.mark.parametrize("steps", [1_450_000, 2_999_970, None])
     def test_a_finished_node_is_never_resumed_whatever_its_periodic_steps(self, tmp_path, capsys, steps):
-        """Executed: the final pair decides that a node's training finished, not periodic arithmetic. An early stop
-        (1.45M) or ``N_ENVS = 3`` (a 33,333-call cadence whose newest save is 2,999,970 of 3M) leaves the newest
-        periodic step short of the budget; the loop's JUDGE branch judges the final pair instead."""
+        """Executed: an intact final pair decides that a node's training finished, not periodic arithmetic. An early
+        stop (1.45M) or ``N_ENVS = 3`` (a 33,333-call cadence whose newest save is 2,999,970 of 3M) leaves the newest
+        periodic step short of the budget, and a widened root holds no periodic pair at all (``None``); the loop's
+        JUDGE branch judges the final pair instead."""
         from environments.shared.stage_manifest import stage_dirname
 
         models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
-        models.mkdir(parents=True)
-        (models / "stage2_final.zip").write_bytes(b"final")
-        (models / "stage2_final_vecnorm.pkl").write_bytes(b"final")
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
         assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=steps) == []
         assert "already holds its final pair stage2_final.zip" in capsys.readouterr().out
 
     def test_a_half_written_final_pair_is_resumed_from_the_periodic_checkpoint(self, tmp_path):
         """Executed: only the whole pair marks a finished node, as in the chain loop's JUDGE test; a final zip without
-        its sidecar is an interrupted save, resumed from the newest intact periodic pair."""
+        its sidecar is an interrupted save, resumed from the newest intact periodic pair (here within one checkpoint
+        cadence of the budget, the state a reclaim during the final save leaves)."""
         from environments.shared.stage_manifest import stage_dirname
 
         models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
         models.mkdir(parents=True)
         (models / "stage2_final.zip").write_bytes(b"truncated")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_800_000)
-        assert call["timesteps"] == 200_000 and call["load_path"].endswith("stage2_2800000_steps.zip")
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
+
+    @pytest.mark.parametrize("broken", ["zip", "sidecar"])
+    def test_a_final_pair_cut_short_is_resumed_over(self, tmp_path, capsys, broken):
+        """Executed: ``train()`` writes the final pair straight to the mount (only periodic pairs are staged and
+        published atomically), so a reclaim during the final save can truncate it. It is checked like a periodic pair; a broken one is not a finished node
+        (the JUDGE branch could not load it), so the cell resumes from the newest intact periodic pair and warns."""
+        import pickle
+
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
+        if broken == "zip":
+            data = (models / "stage2_final.zip").read_bytes()
+            (models / "stage2_final.zip").write_bytes(data[: len(data) // 2])
+        else:
+            (models / "stage2_final_vecnorm.pkl").write_bytes(pickle.dumps({"obs_rms": list(range(50))})[:20])
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
+        assert "WARNING: the final pair of 'locomotion' is incomplete" in capsys.readouterr().out
+
+    def test_a_final_pair_cut_short_after_an_early_stop_is_refused(self, tmp_path):
+        """Executed: a broken final pair means learn() returned; its newest intact periodic pair 200k short of the
+        budget (beyond the 100k cadence) says the node stopped early, and training it further is a new attempt
+        (D-D16), never the rest of the budget in place."""
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
+        (models / "stage2_final_vecnorm.pkl").unlink()
+        calls: list[dict] = []
+        with pytest.raises(RuntimeError, match=r"200,000 steps short .* early stop .* fresh RUN_ID"):
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=2_800_000, calls=calls)
+        assert calls == []
+
+    def test_a_spent_budget_with_a_final_pair_cut_short_names_it(self, tmp_path):
+        """Executed: with nothing left to train, the refusal names the broken final pair and why, not "never saved"."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
+        (models / "stage2_final_vecnorm.pkl").write_bytes(b"\x80\x04truncated")
+        budget = load_all_stages("compsognathus_robot")[2]["curriculum_kwargs"]["timesteps"]
+        with pytest.raises(
+            RuntimeError, match=r"stage2_final\.zip is incomplete \(VecNormalize sidecar .* fresh RUN_ID"
+        ):
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=budget)
+
+    @pytest.mark.parametrize("retrain_from", ["stance", "locomotion"])
+    def test_a_node_retrain_from_covers_is_refused_before_it_trains(self, tmp_path, retrain_from):
+        """Executed: the chain loop trains a node ``RETRAIN_FROM`` covers from its parent instead of judging it, and
+        D-A20 refuses its occupied directory, so a resume under it could never be judged."""
+        calls: list[dict] = []
+        with pytest.raises(RuntimeError, match=r"which RETRAIN_FROM .* covers.*Set RETRAIN_FROM = \"\""):
+            self._run_resume_cell(
+                tmp_path, "compsognathus_robot", "walk", "locomotion", 2, retrain_from=retrain_from, calls=calls
+            )
+        assert calls == [], "refused before anything trains"
+
+    def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path):
+        """Executed: RETRAIN_FROM covers the named node and its descendants only; resuming an ancestor of it
+        trains as usual."""
+        [call] = self._run_resume_cell(
+            tmp_path, "compsognathus_robot", "hunt", "locomotion", 2, retrain_from="behavior"
+        )
+        assert call["stage"] == 2
+
+    def test_a_broken_newest_periodic_pair_falls_back_to_the_next_intact_one(self, tmp_path, capsys):
+        """Executed: every periodic candidate goes through the same check; a newest pair a reclaim cut short is
+        skipped with a warning and the next older intact step-point is resumed."""
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
+        (models / "stage2_2800000_steps.zip").write_bytes(b"PK\x03\x04 truncated")
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_700_000)
+        assert call["load_path"].endswith("stage2_2700000_steps.zip") and call["timesteps"] == 300_000
+        assert "WARNING: skipping stage2_2800000_steps.zip: bad/truncated checkpoint zip" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("members", [("data",), ("policy.pth",)])
+    def test_a_final_zip_without_sb3_members_is_resumed_over(self, tmp_path, members):
+        """Executed: a readable zip is not enough; SB3's outer ``data`` and ``policy.pth`` members are required."""
+        import zipfile
+
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
+        with zipfile.ZipFile(models / "stage2_final.zip", "w") as archive:
+            for member in members:
+                archive.writestr(member, b"x")
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        assert call["timesteps"] == 100_000
 
     def test_a_spent_budget_without_the_final_pair_is_refused(self, tmp_path):
         """Executed: a runtime stopped between the last periodic save (at the budget) and the final save leaves

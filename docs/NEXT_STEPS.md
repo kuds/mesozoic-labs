@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-25)
 
-**Status**: living reference — updated 2026-09-25; `main` = `9d729e8` (merged 2026-09-25 03:27 UTC).
+**Status**: living reference — updated 2026-09-25; `main` = `f850815` (#558 merged 2026-09-25 22:44 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -40,6 +40,7 @@ file in place when the state changes; it is not a dated investigation.
 | #554 | 2026-09-24 | Consolidation PR-14b (D-D15): `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the notebook into the SB3-free `environments/shared/notebook_runtime.py` with explicit knobs (the chain loop's gate refusal calls `halt`); videos play through IPython's `Video`, embedded, autoplaying and looping as before; the random-baseline cell is deleted; the zero-action cell's body moves into `zero_action_baseline.preflight()` (payload and run copy byte-identical); notebook 2,271 → 2,079 source lines; code +183 / −1, tests +245 / −50. Measured on its CI: SB3 job 47:15, JAX job 53:07, coverage 90 percent |
 | #555 | 2026-09-24 | Consolidation PR-14c (D-D7, D-D11, D-D15): the notebook's `train_stage` becomes a 105-line wrapper over `train_base.train` (was a 384-line copy), which gains `parent_run_id`, `vecnorm_path`, `report_metrics` and `save_on_interrupt`, seeds model construction and records the D-A15 stage duration; `evaluate_stage_checkpoints` moves into `reporting/stage_artifacts.py`; the CLI panels, the task-success re-roll and Ray warm starts keep their seeds; notebook 2,079 → 1,492 source lines, code +356 / −31, tests +402 / −278 (code, tests and notebook net −138). PR-14 is complete. Measured on its CI: SB3 job 47:32, JAX job 35:43, coverage 90 percent |
 | #556 | 2026-09-25 | Consolidation PR-7 (D-D10): `BaseDinoEnv._ground_height_at` (the plane's 0.0) and `_clearance`, through which every species height reward, head/snout clearance and height termination reads (canonical plane rollouts bit-identical, `plant_contract --check` current); the behavior mixin overrides only `_ground_height_at`; `TRexBehaviorEnv` (497 lines) and the `mesozoic.trex-command-terrain/v1` schema deleted, the neck probe behind `TRexEnv._terrain_contact_probe_geoms`; the trex behavior tests fold into the shared suites over six species; behavior bundles trained before it are evaluation-only (D-D9); code +192 / −595, tests +1,016 / −1,039 (code, tests and CI net −427). Measured on its CI: SB3 job 47:09, JAX job 49:05, coverage 90 percent |
+| #558 | 2026-09-25 | The notebook-safety PR, outside the consolidation sequence (D-D16): the RESUME cell trains nothing for a node that holds a gate verdict or its final pair and refuses a spent budget without the final pair; `QUICK_TEST` runs move to `<algo>_quick_test/`, out of the trunk selection and a real run's replicate scan; the RESUME cell moves ahead of the chain loop, so a resume is `RUN_ID` + `RESUME_STAGE` + Run all, and the sections regroup. A follow-up (D-D16 amended) checks the final pair like a periodic one in the RESUME cell and the chain loop (`curriculum.checkpoint_pair_problem`), keeps the run memo in its tree and refuses a resume `RETRAIN_FROM` covers. |
 | #557 | 2026-09-25 | The notebook follow-up to PR-7, outside the consolidation sequence: the RESUME cell resolves `RESUME_STAGE` through the manifest, so `"locomotion"` (which raised `KeyError`) and `2` resume the same node, and refuses a node off `BEHAVIOR`'s chain before training (the chain loop would never judge it); section 6 says which number it takes and adds the chain-loop step; the auto-trunk tie-break is described as the greatest run directory name (notebook, `--trunk-from` help, docstrings, website recipes page; D-A25 clarified) and the storage cell no longer calls a trunk a "finished bundle"; no selection or training change for a resume by number; notebook 1,492 → 1,515 source lines. Measured on its CI: SB3 job 30:24, JAX job 47:26, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
@@ -63,7 +64,9 @@ follow-up to PR-7 (#557) resolves `RESUME_STAGE` through the manifest and
 rewords the trunk prose: 1,515 lines; the notebook-safety PR (D-D16) moves
 the RESUME cell ahead of the chain loop, guards it against finished and judged
 nodes, moves `QUICK_TEST` runs to `<algo>_quick_test/` and regroups the
-sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20).
+sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20; its
+follow-up checks the final pair like a periodic one in both the RESUME cell and
+the chain loop: 1,599 lines).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -114,8 +117,8 @@ mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
 the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24 into PR-14a,
 PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D15 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
-on 2026-09-20, D-D15 on 2026-09-24; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
+D-D1..D-D16 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
 PR-12 slice landed as #552 and PR-14 as #553, #554 and #555, all on 2026-09-24;
@@ -474,6 +477,20 @@ Taken on 2026-09-24:
   move, and a root widened on the command line keeps D-C14 and D-C13 through
   on-disk refusals in the storage and resolve cells (amends D-D13's order).
 
+Taken on 2026-09-25:
+
+- **D-D16** (#558, the notebook-safety PR, outside the numbered sequence) The
+  SB3 notebook's RESUME cell trains nothing for a node holding
+  `gate_verdict.json` or an intact final pair and refuses a spent budget
+  without one (a further attempt after an early stop is a fresh `RUN_ID`), and
+  refuses a node `RETRAIN_FROM` covers (a node trained here although the trunk
+  certifies it is resumed as `BEHAVIOR`'s target); the chain loop judges only
+  an intact final pair, and a broken one is resumed over only within one
+  checkpoint cadence of the budget; `QUICK_TEST` runs live under
+  `<algo>_quick_test/`, outside the trunk selection and a real run's replicate
+  scan, and the run memo counts only in the tree it was opened in; the RESUME
+  cell moves ahead of the chain loop and the sections regroup.
+
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
 
@@ -642,7 +659,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D15, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D16, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note
