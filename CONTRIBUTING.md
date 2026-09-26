@@ -40,7 +40,15 @@ We use **mypy** for static type checking:
 mypy environments/
 ```
 
-Pre-commit hooks run both automatically on `git commit`.
+CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and
+in the SB3 job, with both installed (`stable-baselines3[extra]==2.9.0` and the
+CPU `torch==2.13.0` wheel), where it must report no errors. The `.[all]`
+install above includes both, so a local run sees the same types as the SB3 job.
+
+Pre-commit hooks run both automatically on `git commit`. The `dev` extra, the
+hooks and CI pin one ruff version and one mypy version
+(`environments/shared/tests/test_ci_tool_pins.py` keeps them in agreement),
+and the ruff hooks cover `environments/`, as CI's ruff does.
 
 ## Running Tests
 
