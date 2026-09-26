@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Cleanup and backend retirement plan, and the digest-snapshot harness**
+  (2026-09-26; `docs/CLEANUP_PLAN_2026_09.md`, `docs/KNOWN_ISSUES.md`,
+  `environments/shared/harnesses/digest_snapshot.py`). A living plan for the
+  cleanup left after #558 and the #558 follow-up (#559). It orders a
+  CI-signal PR (mypy with SB3 installed, where 21 type-only errors show
+  today), the retirement of Ray Tune, the Vertex AI tuning sweeps and mjlab
+  (PR-A) and of JAX/MJX (PR-B) behind a 473-line frozen MJX interface core,
+  so that no plant, task, gate, hyperparameter, stage-config, recipe,
+  behavior-identity or recovery digest moves, and sixteen smaller cleanup
+  PRs, with the prerequisites each consolidation PR from PR-8 on needs. It
+  lists the decisions they need (the retirement as proposed D-D17, not yet
+  taken; the archive tags; the release cut), the 2026-09-25 eval-only check
+  of the three certified walkers on the direction/terrain recipes (each
+  survived the plane in every episode; 1 of 39 flat-heightfield episodes
+  reached full horizon), and the lessons of the #558 reviews. The new
+  hand-run tool `environments/shared/harnesses/digest_snapshot.py`
+  (coverage-omitted, like the other harnesses) prints every plant identity,
+  policy-interface sub-digest, per-stage task, gate, hyperparameter and
+  stage-config digest, recovery calibration and behavior identity, one
+  tab-separated line each, so a change that claims to move no digest is
+  checked by diffing its output on the base and the head (run it by file
+  path with `PYTHONPATH` set to the checkout; `--block-optional-backends`
+  proves the digests compute without JAX, Ray or the cloud packages,
+  `--skip-behaviors` cuts a run from about 3.6 min to about 50 s). On
+  `be63a58` it prints 848 lines with no errors, byte-identical to the
+  `f850815` snapshot, so #559 moved no digest. KNOWN_ISSUES gains twelve
+  entries (among them the heightfield falls, the unchecked best and
+  robust-best handoff pairs, `train --load` resuming into a judged stage
+  directory, the `render_mode="human"` crash, the Ray PPO `ent_coef_end`
+  crash and CI's mypy without SB3 types) and corrects seven, including the
+  stage-3 sweep-key count (18 keys in 7 files). The docs index, NEXT_STEPS
+  and the consolidation plan's status table point to the plan, and #559 is
+  recorded as landed. The harness is the only code change, one new
+  coverage-omitted tool; no library, training or digest changes.
 - **Training session 4 recorded; living docs corrected** (#551, 2026-09-23;
   `docs/NEXT_STEPS.md` §2–§4, `docs/KNOWN_ISSUES.md`). Dibothrosuchus seed
   42, run `20260923_020654`: the collapse backstop stopped both nodes at
@@ -1684,7 +1718,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Fixed
 - **Follow-up to #558: a final pair cut short is never judged; the run memo
-  stays in its tree** (decision D-D16, amended). Two reviews of #558 after it
+  stays in its tree** (#559, decision D-D16, amended). Two reviews of #558 after it
   merged found these, each reproduced:
   - **A final pair cut short counted as a finished node.** `train()` writes
     the final pair straight to the mount (as it does the best pairs; only the

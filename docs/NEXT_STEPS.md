@@ -1,6 +1,6 @@
-# Next steps and program state (2026-09-25)
+# Next steps and program state (2026-09-26)
 
-**Status**: living reference — updated 2026-09-25; `main` = `f850815` (#558 merged 2026-09-25 22:44 UTC).
+**Status**: living reference — updated 2026-09-26; `main` = `be63a58` (#559 merged 2026-09-26 03:42 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -40,8 +40,9 @@ file in place when the state changes; it is not a dated investigation.
 | #554 | 2026-09-24 | Consolidation PR-14b (D-D15): `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the notebook into the SB3-free `environments/shared/notebook_runtime.py` with explicit knobs (the chain loop's gate refusal calls `halt`); videos play through IPython's `Video`, embedded, autoplaying and looping as before; the random-baseline cell is deleted; the zero-action cell's body moves into `zero_action_baseline.preflight()` (payload and run copy byte-identical); notebook 2,271 → 2,079 source lines; code +183 / −1, tests +245 / −50. Measured on its CI: SB3 job 47:15, JAX job 53:07, coverage 90 percent |
 | #555 | 2026-09-24 | Consolidation PR-14c (D-D7, D-D11, D-D15): the notebook's `train_stage` becomes a 105-line wrapper over `train_base.train` (was a 384-line copy), which gains `parent_run_id`, `vecnorm_path`, `report_metrics` and `save_on_interrupt`, seeds model construction and records the D-A15 stage duration; `evaluate_stage_checkpoints` moves into `reporting/stage_artifacts.py`; the CLI panels, the task-success re-roll and Ray warm starts keep their seeds; notebook 2,079 → 1,492 source lines, code +356 / −31, tests +402 / −278 (code, tests and notebook net −138). PR-14 is complete. Measured on its CI: SB3 job 47:32, JAX job 35:43, coverage 90 percent |
 | #556 | 2026-09-25 | Consolidation PR-7 (D-D10): `BaseDinoEnv._ground_height_at` (the plane's 0.0) and `_clearance`, through which every species height reward, head/snout clearance and height termination reads (canonical plane rollouts bit-identical, `plant_contract --check` current); the behavior mixin overrides only `_ground_height_at`; `TRexBehaviorEnv` (497 lines) and the `mesozoic.trex-command-terrain/v1` schema deleted, the neck probe behind `TRexEnv._terrain_contact_probe_geoms`; the trex behavior tests fold into the shared suites over six species; behavior bundles trained before it are evaluation-only (D-D9); code +192 / −595, tests +1,016 / −1,039 (code, tests and CI net −427). Measured on its CI: SB3 job 47:09, JAX job 49:05, coverage 90 percent |
-| #558 | 2026-09-25 | The notebook-safety PR, outside the consolidation sequence (D-D16): the RESUME cell trains nothing for a node that holds a gate verdict or its final pair and refuses a spent budget without the final pair; `QUICK_TEST` runs move to `<algo>_quick_test/`, out of the trunk selection and a real run's replicate scan; the RESUME cell moves ahead of the chain loop, so a resume is `RUN_ID` + `RESUME_STAGE` + Run all, and the sections regroup. A follow-up (D-D16 amended) checks the final pair like a periodic one in the RESUME cell and the chain loop (`curriculum.checkpoint_pair_problem`), keeps the run memo in its tree and refuses a resume `RETRAIN_FROM` covers. |
+| #558 | 2026-09-25 | The notebook-safety PR, outside the consolidation sequence (D-D16): the RESUME cell trains nothing for a node that holds a gate verdict or its final pair and refuses a spent budget without the final pair; `QUICK_TEST` runs move to `<algo>_quick_test/`, out of the trunk selection and a real run's replicate scan; the RESUME cell moves ahead of the chain loop, so a resume is `RUN_ID` + `RESUME_STAGE` + Run all, and the sections regroup. Its follow-up (D-D16 amended) landed as #559 (below). |
 | #557 | 2026-09-25 | The notebook follow-up to PR-7, outside the consolidation sequence: the RESUME cell resolves `RESUME_STAGE` through the manifest, so `"locomotion"` (which raised `KeyError`) and `2` resume the same node, and refuses a node off `BEHAVIOR`'s chain before training (the chain loop would never judge it); section 6 says which number it takes and adds the chain-loop step; the auto-trunk tie-break is described as the greatest run directory name (notebook, `--trunk-from` help, docstrings, website recipes page; D-A25 clarified) and the storage cell no longer calls a trunk a "finished bundle"; no selection or training change for a resume by number; notebook 1,492 → 1,515 source lines. Measured on its CI: SB3 job 30:24, JAX job 47:26, coverage 90 percent |
+| #559 | 2026-09-26 | The #558 follow-up, outside the consolidation sequence (D-D16 amended): the RESUME cell and the chain loop check the final pair like a periodic one through `curriculum.checkpoint_pair_problem`, so a final pair cut short is never judged (within one checkpoint cadence of the budget the RESUME cell resumes over it; further short, the node had stopped early and the cell refuses it as a new attempt); the run memo counts only in the tree `SPECIES`, `ALGORITHM` and `QUICK_TEST` select; a resume `RETRAIN_FROM` covers is refused and the route to resume such a node (`BEHAVIOR` set to it, then a fresh `RUN_ID` trunked from this run) is documented; the docs the post-merge reviews of #558 found wrong are corrected; notebook 1,557 → 1,599 source lines (33 cells, 17 code); no digest moves. Measured on its CI: SB3 job 46:51, JAX job 48:10 |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -65,8 +66,8 @@ rewords the trunk prose: 1,515 lines; the notebook-safety PR (D-D16) moves
 the RESUME cell ahead of the chain loop, guards it against finished and judged
 nodes, moves `QUICK_TEST` runs to `<algo>_quick_test/` and regroups the
 sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20; its
-follow-up checks the final pair like a periodic one in both the RESUME cell and
-the chain loop: 1,599 lines).
+follow-up (#559) checks the final pair like a periodic one in both the RESUME
+cell and the chain loop: 1,599 lines).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -386,6 +387,20 @@ leave with the widen cell in PR-14a (D-D14), which also makes `RUN_ID` a
 configuration-cell knob and refuses an in-place session into a complete run
 before training; the old widen-seed reorder is dropped (D-D15).
 
+**Cleanup outside the sequence (2026-09-26).**
+[CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) orders the cleanup left
+after #558 and its follow-up (#559): a CI-signal PR (mypy with SB3
+installed), then the retirement of Ray Tune, the Vertex AI tuning sweeps and
+mjlab (PR-A) and of JAX/MJX (PR-B) behind a frozen MJX interface core, so no
+digest moves (proposed D-D17, not yet taken), then sixteen smaller PRs. Within
+this sequence PR-8 is still next; the cleanup plan proposes landing its CI PR,
+PR-A, PR-B and the reward/termination golden trace before PR-8, and names the
+cleanup each later PR needs first (its §3.4). Its §2 lists the decisions the
+maintainer has to take. Its §5.1 records the 2026-09-25 eval-only check of the
+three certified walkers: each survived the plane in every episode, but only 1
+of 39 flat-heightfield episodes reached full horizon, so no terrain pilot or
+terrain node should start before the heightfield-contact investigation.
+
 | PR | One-line goal | Size (net) | Prerequisites / decision |
 |---|---|---|---|
 | PR-3 | Bound the SB3 CI job: drop the SB3-free suites the shared/trex matrix already runs, keep one real-PPO smoke per body of work, move the full six-species set to a schedule (test-sb3 went 43 → 69 min from #539 to #541) | S (+10..+40) | none; land before PR-4 so later deletions edit one list; coverage `fail_under = 70` may need a re-baseline; landed as #546 on 2026-09-20 (coverage 90 percent, the floor unchanged) |
@@ -529,7 +544,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    reuses a complete run's nodes writes nothing into it (the zero-action cell
    no longer rewrites a complete run's copy either), while one that only
    reuses a `partial` run's nodes in a new runtime records a session in its
-   `provenance.json` and stops at the cleanup cell (KNOWN_ISSUES, LOW); and
+   `provenance.json` and stops at the bundle-verification cell (§8, "Verify the
+  result bundle"; KNOWN_ISSUES, LOW); and
    per-node artifacts are written immediately.
 8. Two seeds at a stance bar of two is reachable only by widening the r11
    parents or training fresh r13 seeds; backfilling the r11 verdicts does
@@ -634,6 +650,15 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    `CERTIFIED_MODELS.md` / `TRAIN_DIRECTION_AND_TERRAIN.md`, the plan's §5 rows
    C½ / D / E, §7, §9 SS1 and §10, the CHANGELOG entry for #540/#541, and the
    KNOWN_ISSUES gaps) were corrected by the PR-2 docs pass (#544, 2026-09-19).
+5. Before any cleanup or backend-retirement PR, read
+   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the open
+   decisions (proposed D-D17 first), §3 for the PR order and §3.5 for the
+   KNOWN_ISSUES entries each PR closes, §4 for the frozen MJX interface core
+   and the retirement's acceptance checks, and §7 for the do-not-do list. Run
+   `environments/shared/harnesses/digest_snapshot.py` by file path, with
+   `PYTHONPATH` set to the checkout it measures, on the base and the head of
+   any change that claims to move no digest, and `diff` the two outputs (its
+   §4.4).
 
 ### Branch and validation rules
 
@@ -685,6 +710,8 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 |---|---|
 | Design of record, decision series | [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) |
 | Consolidation sequence, per-PR file lists, target architecture | [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) |
+| Remaining cleanup, the backend retirement and its frozen core, open cleanup decisions | [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) |
+| Digest snapshot (every plant, policy, stage, recovery and behavior digest, one per line) | `environments/shared/harnesses/digest_snapshot.py` |
 | Drive state as surveyed 2026-09-17 | [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md) |
 | Bundle layout, `gate_verdict.json`, `ancestors/` records | [RESULT_BUNDLES.md](RESULT_BUNDLES.md) |
 | Plant identities and the widen contract | [PLANT_CONTRACT.md](PLANT_CONTRACT.md), `configs/plant_versions.toml` |

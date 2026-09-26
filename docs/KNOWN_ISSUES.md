@@ -33,9 +33,13 @@ robustness, **LOW** = cosmetic / QoL.
   The generated species catalog documents both definitions; parity is still
   open.
 - **Curriculum gates** — SB3 can advance early after consecutive passing
-  evaluations. The JAX CLI evaluates reward once after a full stage; the JAX
-  notebook checks reward, episode length, velocity, and success once. These
-  paths are documented but not behaviorally equivalent.
+  evaluations. The JAX CLI checks reward and episode length once after a full
+  stage and ignores `min_avg_forward_vel` (a defect, not a deliberate
+  divergence: see "the JAX command-line curriculum advances a stage without
+  checking..." under Training / RL); it never evaluates the final stage's
+  gate, so `min_success_rate` is never consulted. The JAX notebook checks
+  reward, episode length, velocity and success once on a CPU evaluation.
+  These paths are documented but not behaviorally equivalent.
 - **PPO advantage normalization** — per-minibatch in JAX vs per-batch in
   SB3; acceptable, documented in `jax_ppo.py`. (June §2.7)
 
@@ -360,13 +364,15 @@ tolerance) remains the standing recommendation for the divergences above.
   refusal does not change this
   ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §8).
 - **LOW (operational)** — **a re-entry that only reuses a `partial` or
-  `failed` run's nodes stops at the cleanup cell (verified 2026-09-24).** In
-  a new runtime the storage cell's `initialize_result_bundle` appends the
-  session to the run's `provenance.json` (`sessions`), and the zero-action
-  cell refreshes the run's `zero_action_baseline.json`; the run's
-  `artifact_manifest.json` declares `provenance.json`. With every chain node
-  reused in place nothing rebuilds the bundle (only a node trained or judged
-  in the run does), so the cleanup cell's `validate_result_bundle` raises
+  `failed` run's nodes stops at the bundle-verification cell (verified
+  2026-09-24).** In a new runtime the storage cell's
+  `initialize_result_bundle` appends the session to the run's
+  `provenance.json` (`sessions`), and the zero-action cell refreshes the
+  run's `zero_action_baseline.json`; the run's `artifact_manifest.json`
+  declares `provenance.json`. With every chain node reused in place nothing
+  rebuilds the bundle (only a node trained or judged in the run does), so the
+  verification cell's (§8, "Verify the result bundle"; §10 "Cleanup" before
+  #558) `validate_result_bundle` raises
   (`artifact size mismatch: provenance.json; summary provenance does not
   match provenance.json`) and "Run all" stops before the auto-disconnect.
   Verified against the library: `initialize_result_bundle` from a new
@@ -375,7 +381,85 @@ tolerance) remains the standing recommendation for the divergences above.
   still verifies (and since consolidation PR-14a the zero-action cell keeps
   a complete run's copy). Nothing certified is touched, and the next node
   trained or judged in the run rebuilds the bundle over both files. Remedy:
-  run the auto-disconnect cell by hand.
+  run the auto-disconnect cell (§9) by hand.
+- **MEDIUM (operational)** — **the best and robust-best handoff pairs are
+  written straight to the mount, and one a reclaim cuts short leaves the node
+  unjudgeable (reproduced 2026-09-26 at the #558 follow-up, #559).**
+  On a Drive/GCS mount `train()` stages only the periodic pairs locally and
+  publishes them atomically (`_build_core_callbacks`, `train_base.py:726-760`).
+  SB3's `EvalCallback` saves `best_model.zip` into `models/` directly
+  (`best_model_save_path`, :710) and `SaveVecNormalizeCallback` then its
+  sidecar; `RobustBestModelCallback` saves `robust_best_model.zip`, then its
+  sidecar, the same way (`curriculum/checkpoints.py:80-84`). The final pair is
+  written the same way (`_save_final_and_sync_tb`, `train_base.py:918-932`),
+  but since #559 the RESUME cell and the chain loop check it with
+  `curriculum.checkpoint_pair_problem`. Nothing checks the handoff pairs:
+  `select_handoff_checkpoint` (`curriculum/checkpoints.py:96`) tests only
+  that both files exist, and the JUDGE branch's `evaluate_stage_checkpoints`
+  loads the selected pair after evaluating the final one
+  (`reporting/stage_artifacts.py:1292-1312`). With an intact final pair and
+  `robust_best_model.zip` cut in half, the RESUME cell prints "Nothing to
+  resume", the selector still returns `robust_best_model`, and
+  `load_sb3_model` raises `AssertionError: No data found in the saved file`,
+  so every Run all fails in JUDGE with a bare load error. A resume does not
+  repair it: `seed_resume_eval_state` (`train_base.py:1344`) seeds the best
+  trackers from `evaluations.npz`, so the pair is rewritten only when a later
+  evaluation beats the old best. A reclaim between a zip and its sidecar can
+  also pair a new zip with the previous best's sidecar, which no integrity
+  check can see (read from the write order, not reproduced). Workaround:
+  before judging, run `checkpoint_pair_problem` over `robust_best_model.*` and
+  `best_model.*`; moving a broken pair aside lets the selector fall back to
+  the other (the verdict then binds that checkpoint), otherwise train the node
+  again in a fresh `RUN_ID`. Plan: stage the final and best pairs like the
+  periodic ones (CU-3 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md);
+  names and bytes are unchanged, so no digest moves). (#558 reviews)
+- **LOW (operational)** — **nothing on disk records the trunk a session
+  resolved, so a resume must re-supply it by hand, and a wrong one fails late
+  or discards the resumed node (read from the code at the #558 follow-up,
+  #559).** `TRUNK_FROM = "auto"` is resolved in the kernel (`select_trunk` in
+  the resolve cell, D-A25) and only printed. Each reused
+  node leaves `ancestors/<id>/ancestor.json`, but that names the run that
+  certified the node after following records (`_ancestor_record`,
+  `ancestors.py:648-671`), not the trunk, and the chain loop never follows
+  this run's own records (`follow_records=candidate is not RUN_DIR`). So the
+  resume recipe (section 5) has the operator pin `TRUNK_FROM` to the trunk the
+  interrupted session printed, or derive it from the nearest ancestor record.
+  A wrong trunk goes one of three ways. (a) `"auto"` picks a newer run
+  holding a different certified copy of a reused ancestor: `record_ancestor`
+  refuses ("a run cannot reuse two parents for one node",
+  `ancestors.py:694-704`), but only in the chain loop, after the RESUME cell
+  has trained the remaining budget; re-running with the right trunk then
+  judges the node. (b) `"auto"` picks a newer run that certifies the resumed
+  node itself (an ancestor of `BEHAVIOR`'s target, since the target is looked
+  for only in this run): the loop reuses that copy, prints it as a reuse, and
+  never judges the resumed node. (c) `TRUNK_FROM = ""`: ancestors this run
+  holds only as records are trained again here (found by the review of
+  #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4). A node `RETRAIN_FROM` covered has the shape of (b); #559
+  refuses its resume and names the route (`BEHAVIOR` set to that node, then a
+  fresh `RUN_ID` trunked from this run). Plan: two
+  pending decisions in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2,
+  a run-level record of the resolved trunk that the RESUME cell reads, and
+  judging an unjudged `RUN_DIR` node before any trunk reuse. (#558 reviews)
+- **MEDIUM (operational)** — **`train --load <checkpoint>` (default
+  `--load-mode resume_same_stage`) writes into a stage directory that already
+  holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
+  `config.refuse_occupied_stage_dir` (`config.py:403-427`, called at
+  `train_base.py:1143`) lets any same-stage resume through. Against a
+  directory holding `stage_config.json` and a passed `gate_verdict.json`, it
+  returns for `resume_same_stage` and raises only for `initialize_next_stage`
+  or no load. `train()` has no complete-bundle refusal either. Read from the
+  code, such a resume re-saves `stage_config.json` and always rewrites the
+  final pair. It rewrites the handoff pair the verdict hashes whenever a
+  post-resume evaluation beats the seeded best. When that happens the verdict
+  no longer matches its checkpoint, reuse rule 5 refuses the node, and a
+  `complete` bundle stops verifying. The SB3 notebook refuses this since D-D16
+  (its RESUME cell trains nothing for a node that holds a verdict); the CLI
+  and the library do not, and the website's recipes and quick-start pages
+  state the resume exception without the judged case. Workaround: never point
+  `--output-dir` at a judged stage directory; a new attempt is a new run
+  directory. Plan: D-D16 left the library guard open because it amends D-A20;
+  pending in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2. (#558
+  reviews)
 - **MEDIUM (operational)** — **every `gate_verdict.json` written before the
   gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
   trunk until it is re-judged.** Reuse rule 7 compares the verdict's
@@ -656,6 +740,47 @@ tolerance) remains the standing recommendation for the divergences above.
   auditor reads. Note the quadruped restriction above applies to that
   reconstruction too.
 
+- **MEDIUM (JAX)** — **the JAX command-line curriculum advances a stage
+  without checking `min_avg_forward_vel` (verified 2026-09-26).** The
+  `reward_and_length/v1` arm of `jax_curriculum.check_stage_gate`
+  (`jax_curriculum.py:455-486`) checks `min_avg_reward` and
+  `min_avg_episode_length` only. The SB3
+  `CurriculumManager` enforces both further thresholds when they are set
+  (`curriculum/manager.py:340-348`), and so does the JAX notebook's CPU
+  evaluation. Executed with a huge return and length and no velocity or
+  success metric, it passes locomotion for velociraptor (bar 2.0 m/s),
+  brachiosaurus (0.75), dibothrosuchus (0.9) and trex (1.0). It would also pass
+  the stage-3 success bar (0.5) of the first three, but its one caller,
+  `run_curriculum` (reached by `python -m environments.shared.jax_training
+  --curriculum`), never checks the final stage's gate (`if stage !=
+  stages[-1]`, `jax_curriculum.py:654`), so only the missing velocity check
+  bites; the missing success check is latent in `check_stage_gate`. Every
+  stage of velociraptor, brachiosaurus and dibothrosuchus is
+  `reward_and_length/v1`, so that command can advance a standing policy to
+  stage 3; trex's is refused up front (D-B13). No certified run comes from
+  this path. Plan: retired with the JAX runtime (PR-B in
+  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), proposed D-D17); until
+  then read a JAX CLI stage advance as reward and length only. (2026-09
+  cleanup survey)
+
+- **MEDIUM (JAX)** — **MJX training never pays dibothrosuchus
+  `snap_snout_proximity_weight`, while the JAX CPU evaluation that gates the
+  stage does (verified 2026-09-26).** The MJX step kernel looks the proximity
+  weight up under `bite_head_proximity_weight`,
+  `strike_claw_proximity_weight` and `food_head_proximity_weight` only
+  (`mjx_env.py:1303-1306`). `compute_total_reward`, which the CPU evaluation
+  uses, also reads `snap_snout_proximity_weight`
+  (`jax_reward_termination.py:348-356`). For dibothrosuchus stage 3
+  (`stage3_snap.toml:21`, weight 2.0) the built MJX env's config carries 2.0
+  while the kernel's lookup returns 0.0. `_KNOWN_REWARD_KEYS`
+  (`mjx_env.py:61-111`) lists the key as read by the MJX step, so no
+  unknown-key warning fires. MJX training therefore never optimises a term
+  that the stage's `min_avg_reward = 100.0` is judged on. Neither JAX side
+  matches SB3, which pays it over a fixed 1.5 m range
+  (`dibothrosuchus_env.py:453-456`) where the composer uses `forward_vel_max`.
+  Plan: retired with the JAX runtime (PR-B); a re-add builds one reward
+  composition for the kernel and the evaluation. (2026-09 cleanup survey)
+
 - **LOW** — **collidable necks are deferred until terrain lands.** Velociraptor
   is the reference: its neck geom collides *and* sits in `_body_ground_geoms`,
   so hitting the ground with it terminates the episode. The other three carry
@@ -770,6 +895,25 @@ tolerance) remains the standing recommendation for the divergences above.
   study stands, no `min_avg_reward` gate needs re-deriving, and no historical
   reward comparison is invalidated. (2026-07 T-Rex telemetry review)
 
+- **MEDIUM** — **`render_mode="human"` crashes on the first step, so
+  `train_sb3.py eval` without `--no-render` fails (reproduced 2026-09-26).**
+  `BaseDinoEnv.render` calls `mujoco.viewer.launch_passive`
+  (`base_env.py:1558`), but `base_env.py` imports only `mujoco` (:19-21). After
+  importing `cli`, `evaluation` and `train_base` under mujoco 3.10.0 the
+  `mujoco.viewer` submodule is still absent, and
+  `TRexEnv(render_mode="human")` raises `AttributeError: module 'mujoco' has no
+  attribute 'viewer'` from `step` (:1249). `evaluate()` defaults to
+  `render=True` (`evaluation.py:415-463`), and the documented eval commands
+  (`environments/velociraptor/README.md:102`, the website quick start and API
+  overview) omit `--no-render`; `test_env.py --render` (`harnesses/env_smoke.py`)
+  takes the same path. Only standalone scripts (`harnesses/viewer.py`,
+  `harnesses/actuators.py`, `compsognathus/scripts/view_model.py`) import the
+  viewer; nothing on the env or evaluation path does. Workaround: pass `--no-render`, or `import mujoco.viewer`
+  before creating the env. Fix: a lazy import in the human branch that shares
+  `_make_camera`'s camera setup (CU-2 in
+  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); `render` enters no
+  digest. (2026-09 cleanup survey)
+
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
   velocity (rad/s) and joint velocities (rad/s). This is the same
@@ -873,24 +1017,84 @@ tolerance) remains the standing recommendation for the divergences above.
   operator guide and an explicit `--checkpoint` / `--vecnormalize` pair in
   every load mode and for evaluation (the certified library and
   `SOURCE_SELECTION` left with PR-5).
+- **HIGH (terrain blocker)** — **every certified walker survives the plane and
+  falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
+  1, nothing trained or written under `logs/`) of the `robust_best_model` pair
+  each node's `gate_verdict.json` names — trex `20260914_123816/03_locomotion`,
+  velociraptor `20260922_125248/02_locomotion`, compsognathus
+  `20260921_203149/03_locomotion` — on four direction/terrain recipes kept all
+  23 plane episodes per walker at full horizon. On the `terrain_contact`
+  family, an all-zero heightfield (`mode = "flat"`, `terrain.py:391`) with the
+  plane's geometry, full horizon fell to 1/13 for trex (fallen 11,
+  head_contact 1), 0/13 for velociraptor (tail_contact 3, fallen 1; the other
+  9 left the map) and 0/13 for compsognathus (excessive_tilt 12, body_contact
+  1); the sloped, bumps, depressions and mixed families gave 3/24, 0/24 and
+  0/24. Cells are the committed 200 mm (trex), 137.5 mm (velociraptor) and
+  20 mm (compsognathus); trex at 100 mm fell 7/7, although its zero-action
+  statue survives 3/4 there, so statue results do not predict the walker. The
+  cause is open. The two precompiled scenes
+  (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:249`) give
+  the `floor` geom the same `solref`, `solimp`, friction, margin, gap and
+  condim and differ only in its type (plane vs hfield; checked 2026-09-26).
+  That leaves the hfield collision and the terrain spawn settle
+  (`behavior_env.py:395-413`, which reproduces velociraptor's authored −44.6 mm
+  toe penetration) as the suspects. Compsognathus-pair foot contact also
+  flickers on a heightfield (a statue measurement from the 2026-09-25 readiness
+  review). Velociraptor's map exits are a separate mismatch: its recipes cruise
+  at 2.0 m/s, the walker runs at 3.64–3.66 m/s, and the maps fit 25 s at
+  cruise. No terrain pilot or terrain node should start from these parents,
+  and consolidation PR-11 copies the terrain keys verbatim. Plan: a dated
+  heightfield-contact investigation before PR-11, decided together with the
+  recipe speeds and map sizes
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1).
 
 ## Sweeps / infrastructure
 
-- **MEDIUM** — `env_*_range_min` / `env_*_range_max` sweep parameters crash
-  the trial runner. `configs/brachiosaurus/sweep_{ppo,sac}.json` sweep
-  `env_food_distance_range_min` / `_max` (and `env_food_height_range_*`), and
-  `configs/dibothrosuchus/sweep_ppo.json` copies the pattern with
-  `env_prey_distance_range_*`. Nothing in `scripts/sweep/` reassembles the
-  `_min`/`_max` suffix into the tuple the constructor wants, so each becomes
-  `env_kwargs["food_distance_range_min"]` and the env raises
-  `TypeError: unexpected keyword argument` (verified for both species). Either
-  implement suffix pairing in `_apply_overrides`, or drop those six keys.
-  (2026-07 Dibothrosuchus review)
+- **MEDIUM** — **every Ray Tune PPO trial raises `TypeError` before it trains
+  (reproduced 2026-09-26).** `ray_tune.train_trial` copies
+  `stage_config["ppo_kwargs"]` (`scripts/sweep/ray_tune.py:714`) and pops only
+  `learning_rate_end`, `lr_schedule`, `clip_range_end` and `policy_kwargs`
+  (:718-733) before `PPO("MlpPolicy", ..., **alg_kwargs)` (:759). The
+  canonical builder also pops the callback-driven `ent_coef_end` and
+  `ent_coef_decay_timesteps` (`train_base._prepare_alg_kwargs`,
+  `train_base.py:354-355`) and adds the decay callback
+  (`_maybe_ent_coef_decay_callback`, :841). All 21 PPO stage configs carry
+  `ent_coef_end` (20 also carry `ent_coef_decay_timesteps`), and replaying
+  :714-733 for each against SB3 2.9.0 raised `PPO.__init__() got an unexpected
+  keyword argument 'ent_coef_end'` 21 times out of 21. The sweep notebook's
+  default `ALGORITHM = "ppo"` hits it. A warm-started trial (:749) does not
+  raise, but SB3's `load` stores the keys as plain attributes, so entropy
+  never decays (read from the code). SAC configs carry no such keys, and the
+  Vertex trial trains through `train()`, unaffected. No test builds the
+  trial's model. The 2026-09 survey found the defect already present at the
+  oldest reachable commit (2026-08-09). Plan: PR-A of the backend retirement
+  (proposed D-D17, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md))
+  deletes the Ray worker; a re-add wraps `train_base.train()` instead of
+  copying it. (2026-09 cleanup survey)
 
-- **MEDIUM (cleanup)** — `ray_orchestration.py` (759 lines) has zero
-  callers; `ray_tune_sweep.ipynb` re-implements it inline and the copies
-  have already diverged once. Wire the notebook to the module or delete the
-  module. (July §4)
+- **MEDIUM** — **7 of the 12 sweep configs crash every stage-3 trial: they
+  sample 18 env keys that no constructor accepts (re-counted 2026-09-26).**
+  brachiosaurus `sweep_{ppo,sac}.json` sample `env_food_distance_range_min` /
+  `_max` and `env_food_height_range_min` / `_max` (the constructor takes the
+  tuples `food_distance_range` / `food_height_range`); dibothrosuchus
+  `sweep_ppo.json` samples `env_prey_distance_range_min` / `_max`; trex and
+  velociraptor `sweep_{ppo,sac}.json` sample `env_prey_distance_min` / `_max`,
+  which match no constructor parameter at all. Both sweep paths put the
+  prefix-stripped name into `env_kwargs` (Ray: `scripts/sweep/ray_tune.py:499-517`;
+  Vertex: `scripts/sweep/trial.py:16-31`, then `_apply_overrides`), and each
+  of the 18 raised `TypeError: ... unexpected keyword argument` when its
+  stage-3 env was constructed. Suffix pairing in the override code would fix
+  only the brachiosaurus and dibothrosuchus keys; the trex and velociraptor
+  keys must go. Plan: PR-A of the backend retirement deletes the sweep JSONs;
+  a re-add regenerates them from the constructor signatures. (2026-07
+  Dibothrosuchus review; 2026-09 cleanup survey)
+
+- **MEDIUM (cleanup)** — `ray_orchestration.py` (1,006 lines) is wired to
+  `ray_tune_sweep.ipynb` only through `export_best_trial`; `create_ray_tuner`,
+  `run_ray_sweep`, `discover_and_rank_trials` and `evaluate_trials_parallel`
+  (about 740 lines) have no production caller, and the notebook keeps its
+  inline Tuner and ranking copies, which have already diverged once. PR-A of
+  the backend retirement deletes both. (July §4)
 - **LOW** — quality scoring weights `cost_of_transport` / `vel_consistency`
   that only the notebook path exports, so scores aren't comparable across
   paths; a single trial missing a metric drops that metric for the whole
@@ -908,6 +1112,27 @@ tolerance) remains the standing recommendation for the divergences above.
 - **LOW** — JAX `TrainingCSVLogger` flushes per update directly to the
   output path — one network write per update on `/gcs` FUSE; buffer locally
   like `tb_sync` when `_is_gcs_path(path)`. (July §1)
+- **LOW** — **stage summaries built from `evaluations.npz` assume a 0.01 s
+  control step, so both compsognathus species report half their sim time
+  (reproduced 2026-09-26).** `build_stage_results_from_eval_data` records
+  `sim_dt = stage_config["env_kwargs"].get("sim_dt", 0.01)`
+  (`reporting/stage_artifacts.py:151`), and no stage config sets `sim_dt`.
+  compsognathus and compsognathus_robot step at 0.02 s, the other four
+  species at 0.01 s. `write_stage_summary` and `write_training_summary`
+  multiply episode length by it, printing 1,000 steps as "10.00s sim time"
+  instead of 20 s. It shows where `generate_stage_artifacts` builds its own
+  results (`stage_results=None`, :1463): the Ray and Vertex sweep trials
+  (`ray_tune.py:1025`, `trial.py:233`); `ray_tune_sweep.ipynb` also keeps its
+  own copy of the default (`_sim_dt`, passed as `stage_results`) beside a
+  `LocomotionMetrics()` that defaults to the same 0.01 s. The notebook's TRAIN and JUDGE paths
+  overwrite `sim_dt` with the env's `dt` (`evaluate_stage_checkpoints`,
+  :1242, :1277). `backfill_gate_verdict.py:293` builds these results, but no
+  field it persists uses `sim_dt` (the verdict's `stage_result` projection
+  omits it). No gate, verdict or digest reads it. Plan: take `dt` from a probe
+  env (CU-2 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); once PR-A
+  retires the sweep trials and that notebook, nothing in the repository shows
+  it, and the default is latent until CU-2.
+  (2026-09 cleanup survey)
 
 ## Post-training artifacts (recommended additions)
 
@@ -1107,18 +1332,44 @@ Still open:
 
 - Brachio stage-2 `natural_pitch = -0.15` while stages 1/3 use 0.0 —
   intentional? (June §4)
-- `pyproject.toml` gymnasium entry-point groups are likely dead config
-  (envs self-register at import); `[all]` omits `[mjlab]`. (June §4)
+- `pyproject.toml`'s gymnasium entry-point groups (`gymnasium.envs.__root__`,
+  `gymnasium.envs.MesozoicLabs`) are dead: gymnasium 1.3.0 has no plugin
+  loader, so `gym.make("MesozoicLabs/Raptor-v0")` without `import
+  environments` raises `NamespaceNotFound` even with the groups installed
+  (verified 2026-09-26); the envs self-register on `import environments`.
+  Delete the block (CU-7). `[all]` omits `[mjlab]` (moot once PR-A removes
+  `[mjlab]`). (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)
 
 ## Notebooks
 
 - `ray_tune_sweep.ipynb` duplicates `ray_orchestration.py` (see above); its
-  `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count. (July §5)
-- The notebooks now pin the plant compiler (`mujoco`/`mujoco-mjx`) and Ray
-  Tune compatibility range, but still use broad `stable-baselines3`, `jax`,
-  Flax, and Optax ranges; pin complete lockfiles for reproducible training.
+  `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count; and its
+  post-sweep analysis writes the sweep's `training_summary.txt` from the
+  last-ranked of the top-`TOP_K` trials (default 5), not rank 1: the loop runs
+  ranks 1..`TOP_K` and the summary takes the last iteration (cell 23; gap
+  review NB3). PR-A deletes the notebook. (July §5)
+- **LOW** — **the Drive summary skips every sweep folder written under the
+  current naming (verified 2026-09-26; gap review NB2).** `ray_tune_sweep.ipynb`
+  names a sweep `<species>/sweeps/<algorithm>_<YYYYMMDD_HHMMSS>` (cell 7;
+  present at the oldest reachable commit, 2026-08-09), while
+  `google_drive_summary.ipynb`'s `parse_sweep_dir_name` (cell 8) matches only
+  `^stage(\d+)_(.+?)_(\d{8}_\d{6})$`, and `discover_runs` (cell 11) keeps only
+  matching children of `sweeps/` without recursing. A current sweep is
+  dropped with no warning. A read-only listing of the project Drive
+  (2026-09-26) found three `sweeps/` folders, created 2026-03-25..28, holding
+  only ten legacy `stage<N>_<algo>_<ts>` folders, which the summary reads, and
+  no current-layout sweep. Plan: PR-A stops all sweep writes and keeps this
+  reader for the March folders; drop the entry then, and fix the pattern only
+  if a current-layout folder turns up.
+  ([reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md)
+  NB2)
+- The notebooks pin the plant compiler (`mujoco==3.10.0`, `mujoco-mjx`),
+  `stable-baselines3[extra]==2.9.0` (SB3 and Ray notebooks) and
+  `jax[cuda12]==0.10.2` / `flax==0.12.8` / `optax==0.2.8` (JAX notebook), but
+  torch is unpinned, Ray is a range (`>=2.55.0,<3`), and the `pyproject.toml`
+  extras stay ranges; pin complete lockfiles for reproducible training.
   (July §5)
 
 ## Testing / CI
@@ -1129,6 +1380,40 @@ Still open:
   as "not a configuration discriminator"; the ab/ad conclusions are unaffected
   (that joint is driven at 0.25x and does discriminate).
   (2026-07 Dibothrosuchus review)
+- **LOW** — **pre-commit pins ruff 0.4.4 while CI installs the latest ruff,
+  and the two disagree on 22 files (verified 2026-09-26).**
+  `.pre-commit-config.yaml` pins `ruff-pre-commit` `v0.4.4` (and
+  `mirrors-mypy` `v1.15.0`), while the CI lint job runs `pip install ruff mypy
+  gymnasium numpy` unpinned (`.github/workflows/python-ci.yml:82`). On
+  `be63a58`, as on `f850815`, ruff 0.4.4 `format --check environments/`
+  would reformat 22 files, and its `ruff check` reports E721 at
+  `shared/tests/test_widen_checkpoint.py:1344`. Ruff 0.16.8 passes both.
+  Formatting the tree with 0.4.4, as the hook does, leaves 22 files that
+  0.16.8's `ruff format --check` then rejects. `CONTRIBUTING.md` tells
+  contributors to install and pass the hooks. Workaround: skip the ruff hooks
+  (`SKIP=ruff,ruff-format`) and run a current ruff as CI does. Plan: pin one
+  ruff version for both (CU-1 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)).
+  (2026-09 cleanup survey)
+- **LOW** — **CI's mypy never sees Stable-Baselines3 or torch types; with
+  them installed the tree has 21 type errors (measured 2026-09-26).** The
+  lint job installs only `ruff mypy gymnasium numpy`
+  (`.github/workflows/python-ci.yml:82`) and runs `mypy environments/
+  --ignore-missing-imports` (:91). That reports no issues in 358 files,
+  because SB3 and torch resolve to `Any`, and the pre-commit mypy hook has
+  the same blind spot. With stable-baselines3 2.9.0 and torch 2.14.0+cpu
+  installed, the same command finds 21 errors in 6 files, both on `f850815`
+  and on `be63a58` (#559): `curriculum/advancement.py` 7,
+  `scripts/widen_checkpoint.py` 5, `diagnostics.py` 4,
+  `curriculum/schedules.py` 2, `tests/test_widen_checkpoint.py` 2,
+  `command_frame.py` 1. All are type-only. `BaseAlgorithm` lacks `ent_coef`,
+  `clip_range` and `log_ent_coef`; the SB3-absent fallback assigns read-only
+  `BaseCallback` properties (`diagnostics.py:222-223`); state dicts are typed
+  as `Tensor`; and some Optional values go unchecked. A new type error in
+  SB3-facing code passes CI unseen. Plan: fix the 21 with casts and
+  annotations (in `advancement.py`, casts rather than runtime guards), then
+  add a mypy step to the SB3 job with `stable-baselines3==2.9.0` and
+  `torch==2.13.0` pinned, so an upstream release cannot turn an unrelated PR
+  red (CU-1 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)).
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)

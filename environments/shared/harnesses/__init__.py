@@ -18,6 +18,10 @@ them.
   sinusoid in the viewer to eyeball joint ranges and gains
 * :mod:`~environments.shared.harnesses.viewer` — passive viewer for MJCF
   iteration
+* :mod:`~environments.shared.harnesses.digest_snapshot` — print every plant,
+  policy, stage, recovery and behavior digest, one per line, to ``diff`` a
+  change that claims to move no digest (run it by file path; see its
+  ``--help``)
 """
 
 from __future__ import annotations
