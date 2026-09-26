@@ -759,7 +759,7 @@ tolerance) remains the standing recommendation for the divergences above.
   `reward_and_length/v1`, so that command can advance a standing policy to
   stage 3; trex's is refused up front (D-B13). No certified run comes from
   this path. Plan: retired with the JAX runtime (PR-B in
-  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), proposed D-D17); until
+  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D17); until
   then read a JAX CLI stage advance as reward and length only. (2026-09
   cleanup survey)
 
@@ -1068,7 +1068,7 @@ tolerance) remains the standing recommendation for the divergences above.
   Vertex trial trains through `train()`, unaffected. No test builds the
   trial's model. The 2026-09 survey found the defect already present at the
   oldest reachable commit (2026-08-09). Plan: PR-A of the backend retirement
-  (proposed D-D17, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md))
+  (D-D17, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md))
   deletes the Ray worker; a re-add wraps `train_base.train()` instead of
   copying it. (2026-09 cleanup survey)
 
@@ -1380,40 +1380,6 @@ Still open:
   as "not a configuration discriminator"; the ab/ad conclusions are unaffected
   (that joint is driven at 0.25x and does discriminate).
   (2026-07 Dibothrosuchus review)
-- **LOW** — **pre-commit pins ruff 0.4.4 while CI installs the latest ruff,
-  and the two disagree on 22 files (verified 2026-09-26).**
-  `.pre-commit-config.yaml` pins `ruff-pre-commit` `v0.4.4` (and
-  `mirrors-mypy` `v1.15.0`), while the CI lint job runs `pip install ruff mypy
-  gymnasium numpy` unpinned (`.github/workflows/python-ci.yml:82`). On
-  `be63a58`, as on `f850815`, ruff 0.4.4 `format --check environments/`
-  would reformat 22 files, and its `ruff check` reports E721 at
-  `shared/tests/test_widen_checkpoint.py:1344`. Ruff 0.16.8 passes both.
-  Formatting the tree with 0.4.4, as the hook does, leaves 22 files that
-  0.16.8's `ruff format --check` then rejects. `CONTRIBUTING.md` tells
-  contributors to install and pass the hooks. Workaround: skip the ruff hooks
-  (`SKIP=ruff,ruff-format`) and run a current ruff as CI does. Plan: pin one
-  ruff version for both (CU-1 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)).
-  (2026-09 cleanup survey)
-- **LOW** — **CI's mypy never sees Stable-Baselines3 or torch types; with
-  them installed the tree has 21 type errors (measured 2026-09-26).** The
-  lint job installs only `ruff mypy gymnasium numpy`
-  (`.github/workflows/python-ci.yml:82`) and runs `mypy environments/
-  --ignore-missing-imports` (:91). That reports no issues in 358 files,
-  because SB3 and torch resolve to `Any`, and the pre-commit mypy hook has
-  the same blind spot. With stable-baselines3 2.9.0 and torch 2.14.0+cpu
-  installed, the same command finds 21 errors in 6 files, both on `f850815`
-  and on `be63a58` (#559): `curriculum/advancement.py` 7,
-  `scripts/widen_checkpoint.py` 5, `diagnostics.py` 4,
-  `curriculum/schedules.py` 2, `tests/test_widen_checkpoint.py` 2,
-  `command_frame.py` 1. All are type-only. `BaseAlgorithm` lacks `ent_coef`,
-  `clip_range` and `log_ent_coef`; the SB3-absent fallback assigns read-only
-  `BaseCallback` properties (`diagnostics.py:222-223`); state dicts are typed
-  as `Tensor`; and some Optional values go unchecked. A new type error in
-  SB3-facing code passes CI unseen. Plan: fix the 21 with casts and
-  annotations (in `advancement.py`, casts rather than runtime guards), then
-  add a mypy step to the SB3 job with `stable-baselines3==2.9.0` and
-  `torch==2.13.0` pinned, so an upstream release cannot turn an unrelated PR
-  red (CU-1 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)).
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)

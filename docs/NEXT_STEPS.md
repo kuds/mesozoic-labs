@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-26)
 
-**Status**: living reference — updated 2026-09-26; `main` = `be63a58` (#559 merged 2026-09-26 03:42 UTC).
+**Status**: living reference — updated 2026-09-26; `main` = `8e03483` (#560 merged 2026-09-26 05:03 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -43,6 +43,7 @@ file in place when the state changes; it is not a dated investigation.
 | #558 | 2026-09-25 | The notebook-safety PR, outside the consolidation sequence (D-D16): the RESUME cell trains nothing for a node that holds a gate verdict or its final pair and refuses a spent budget without the final pair; `QUICK_TEST` runs move to `<algo>_quick_test/`, out of the trunk selection and a real run's replicate scan; the RESUME cell moves ahead of the chain loop, so a resume is `RUN_ID` + `RESUME_STAGE` + Run all, and the sections regroup. Its follow-up (D-D16 amended) landed as #559 (below). |
 | #557 | 2026-09-25 | The notebook follow-up to PR-7, outside the consolidation sequence: the RESUME cell resolves `RESUME_STAGE` through the manifest, so `"locomotion"` (which raised `KeyError`) and `2` resume the same node, and refuses a node off `BEHAVIOR`'s chain before training (the chain loop would never judge it); section 6 says which number it takes and adds the chain-loop step; the auto-trunk tie-break is described as the greatest run directory name (notebook, `--trunk-from` help, docstrings, website recipes page; D-A25 clarified) and the storage cell no longer calls a trunk a "finished bundle"; no selection or training change for a resume by number; notebook 1,492 → 1,515 source lines. Measured on its CI: SB3 job 30:24, JAX job 47:26, coverage 90 percent |
 | #559 | 2026-09-26 | The #558 follow-up, outside the consolidation sequence (D-D16 amended): the RESUME cell and the chain loop check the final pair like a periodic one through `curriculum.checkpoint_pair_problem`, so a final pair cut short is never judged (within one checkpoint cadence of the budget the RESUME cell resumes over it; further short, the node had stopped early and the cell refuses it as a new attempt); the run memo counts only in the tree `SPECIES`, `ALGORITHM` and `QUICK_TEST` select; a resume `RETRAIN_FROM` covers is refused and the route to resume such a node (`BEHAVIOR` set to it, then a fresh `RUN_ID` trunked from this run) is documented; the docs the post-merge reviews of #558 found wrong are corrected; notebook 1,557 → 1,599 source lines (33 cells, 17 code); no digest moves. Measured on its CI: SB3 job 46:51, JAX job 48:10 |
+| #560 | 2026-09-26 | The cleanup and backend retirement plan ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)), twelve new KNOWN_ISSUES entries (seven corrected) and the hand-run digest-snapshot harness (`environments/shared/harnesses/digest_snapshot.py`), outside the consolidation sequence; no library, training or digest change. The maintainer then took D-D17, D-D18 and D-D19 (section 5). Its first follow-up, CU-1 (D-D18), makes CI's SB3 job type-check with SB3 and torch installed (mypy must report no errors; 23 type-only errors fixed with casts and annotations, the four in the SB3-absent diagnostics fallback with `# type: ignore`), pins one ruff and one mypy version in CI, pre-commit and the `dev` extra, keeps pre-commit's hooks off the digest data files (MJCF sources, recipe TOMLs, manifests, calibrations), and has every pytest step print test ids, skip reasons and the slowest tests; no digest moves |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -118,8 +119,9 @@ mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
 the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24 into PR-14a,
 PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D16 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
-on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
+D-D1..D-D19 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25, D-D17..D-D19 on 2026-09-26 for
+the cleanup plan; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
 PR-12 slice landed as #552 and PR-14 as #553, #554 and #555, all on 2026-09-24;
@@ -392,11 +394,14 @@ before training; the old widen-seed reorder is dropped (D-D15).
 after #558 and its follow-up (#559): a CI-signal PR (mypy with SB3
 installed), then the retirement of Ray Tune, the Vertex AI tuning sweeps and
 mjlab (PR-A) and of JAX/MJX (PR-B) behind a frozen MJX interface core, so no
-digest moves (proposed D-D17, not yet taken), then sixteen smaller PRs. Within
-this sequence PR-8 is still next; the cleanup plan proposes landing its CI PR,
-PR-A, PR-B and the reward/termination golden trace before PR-8, and names the
-cleanup each later PR needs first (its §3.4). Its §2 lists the decisions the
-maintainer has to take. Its §5.1 records the 2026-09-25 eval-only check of the
+digest moves (D-D17, taken 2026-09-26; the maintainer also retired the
+single-job Vertex AI route and GCS artifact upload, which PR-A removes too),
+then sixteen smaller PRs. Its CI PR (CU-1, D-D18) comes first, then the
+CHANGELOG release cut (D-D19), then PR-A; the archive points (the plan's
+decision 2) are still the maintainer's to settle before PR-A merges. Within this sequence PR-8 is still next; the cleanup
+plan proposes landing its CI PR, PR-A, PR-B and the reward/termination golden
+trace before PR-8, and names the cleanup each later PR needs first (its
+§3.4). Its §2 lists the decisions, with the outcome of each one taken. Its §5.1 records the 2026-09-25 eval-only check of the
 three certified walkers: each survived the plane in every episode, but only 1
 of 39 flat-heightfield episodes reached full horizon, so no terrain pilot or
 terrain node should start before the heightfield-contact investigation.
@@ -505,6 +510,28 @@ Taken on 2026-09-25:
   `<algo>_quick_test/`, outside the trunk selection and a real run's replicate
   scan, and the run memo counts only in the tree it was opened in; the RESUME
   cell moves ahead of the chain loop and the sections regroup.
+
+Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)):
+
+- **D-D17** (its row 1, widened) Stable-Baselines3 is the only training,
+  evaluation and evidence backend until every species' stage chain and
+  behavior is certified. PR-A retires Ray Tune, the Vertex AI tuning sweeps,
+  mjlab, the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the
+  `Dockerfile`) and GCS artifact upload (`curriculum --gcs-bucket`, the `[gcp]`
+  extra); PR-B retires the JAX/MJX runtime. A frozen MJX interface core stays,
+  so no digest moves. The archive points (its row 2) are not part of D-D17 and
+  are still open; the maintainer settles them before PR-A merges.
+- **D-D18** (its row 8) CI type-checks with SB3 and torch installed: the SB3
+  job pins SB3 as the notebook does and runs mypy, which must report no
+  errors, and ruff and mypy are each pinned to one version for CI and
+  pre-commit. As carried out by CU-1: ruff 0.16.9 in the lint job, pre-commit
+  and the `dev` extra; mypy 2.3.1 there and in the SB3 job.
+- **D-D19** (its row 3) The CHANGELOG release is cut before PR-A: the three
+  undated `[Unreleased]` headings are dated, the version moves to
+  `0.3.9.dev0`, and the maintainer tags `v0.3.8`.
+- Operational choice the same day (its row 19): the stale PRs #527 and #498
+  were closed, each with a comment.
 
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
@@ -651,8 +678,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    C½ / D / E, §7, §9 SS1 and §10, the CHANGELOG entry for #540/#541, and the
    KNOWN_ISSUES gaps) were corrected by the PR-2 docs pass (#544, 2026-09-19).
 5. Before any cleanup or backend-retirement PR, read
-   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the open
-   decisions (proposed D-D17 first), §3 for the PR order and §3.5 for the
+   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions
+   (D-D17..D-D19 taken on 2026-09-26; decision 2, the archive points, is
+   still open and is settled before PR-A merges), §3 for the PR order and §3.5 for the
    KNOWN_ISSUES entries each PR closes, §4 for the frozen MJX interface core
    and the retirement's acceptance checks, and §7 for the do-not-do list. Run
    `environments/shared/harnesses/digest_snapshot.py` by file path, with
@@ -665,8 +693,12 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
 - Automated sessions develop on the branch the session names, restart it from
   `origin/main` after each merge, commit with clear messages, push to that
   branch when the work is complete, and never push elsewhere.
-- Before a push: `ruff check .` and `ruff format --check .`;
-  `mypy environments/ --ignore-missing-imports`; `pytest environments/shared/tests/`
+- Before a push: `ruff check .` and `ruff format --check environments/`, with the
+  pinned ruff (0.16.9; on the whole tree it would also format the notebooks and
+  the Python blocks in Markdown files outside `environments/`, which CI never
+  checks);
+  `mypy environments/ --ignore-missing-imports` with SB3 and torch installed, as
+  the SB3 job runs it, reporting no errors (D-D18); `pytest environments/shared/tests/`
   in chunks; `pytest environments/<species>/tests/`; the notebook checks (every
   code cell parses, as `.github/workflows/python-ci.yml` does; an edited notebook
   round-trips through `json.dump` with `indent=1`, the plan's §5 PR process); the
@@ -684,7 +716,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D16, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D19, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note

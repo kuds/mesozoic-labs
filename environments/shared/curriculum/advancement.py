@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 
@@ -21,6 +21,11 @@ from .sb3_compat import BaseCallback
 from .schedules import ENT_COEF_WARMUP_MARKER, _ConstantSchedule
 from .stance_gate import STANCE_GATE_KIND, StancePanel, stance_panel_from_episode_duties
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
+
+if TYPE_CHECKING:  # pragma: no cover - typing only; SB3 stays an optional runtime import
+    import torch
+    from stable_baselines3 import PPO, SAC
+    from stable_baselines3.common.vec_env import VecEnv
 
 logger = logging.getLogger(__name__)
 
@@ -491,8 +496,8 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self.warmup_clip_range = warmup_clip_range
         self.warmup_ent_coef = warmup_ent_coef
         self.warmup_lr_scale = warmup_lr_scale
-        self._original_clip_range = None
-        self._original_ent_coef = None
+        self._original_clip_range: float | Callable[[float], float] | None = None
+        self._original_ent_coef: float | None = None
         self._original_lr_schedule: Optional[Callable[[float], float]] = None
         self._is_sac = False
         self._warmup_done = False
@@ -516,7 +521,9 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             # discard the tuning progress made during the warm-up window.
             import math as _math
 
-            self.model.log_ent_coef.data.fill_(_math.log(self.warmup_ent_coef))
+            # SB3 types log_ent_coef ``Tensor | None``; it is None only under a
+            # fixed ent_coef, and every committed [sac] block sets "auto".
+            cast("torch.Tensor", cast("SAC", self.model).log_ent_coef).data.fill_(_math.log(self.warmup_ent_coef))
             logger.info(
                 "StageWarmupCallback [SAC]: warm-up active for %d timesteps (lr=%.2e → %.2e, ent_coef seeded at %.3f)",
                 self.warmup_timesteps,
@@ -533,10 +540,11 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             # actually reached a gradient update (it is set on the model, not
             # the callback, because the two callbacks are constructed
             # independently in every launch path).
-            self._original_clip_range = self.model.clip_range
-            self._original_ent_coef = self.model.ent_coef
-            self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
-            self.model.ent_coef = self.warmup_ent_coef
+            ppo = cast("PPO", self.model)
+            self._original_clip_range = ppo.clip_range
+            self._original_ent_coef = ppo.ent_coef
+            ppo.clip_range = _ConstantSchedule(self.warmup_clip_range)
+            ppo.ent_coef = self.warmup_ent_coef
             setattr(self.model, ENT_COEF_WARMUP_MARKER, True)
             logger.info(
                 "StageWarmupCallback [PPO]: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
@@ -551,13 +559,15 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         if self._warmup_done:
             return True
         if self.num_timesteps >= self.warmup_timesteps:
+            # _on_training_start stored the originals this restores.
             if self._is_sac:
-                self.model.lr_schedule = self._original_lr_schedule
+                self.model.lr_schedule = cast("Callable[[float], float]", self._original_lr_schedule)
                 # log_ent_coef is intentionally left at its current
                 # (auto-tuned) value — see _on_training_start.
             else:
-                self.model.clip_range = self._original_clip_range
-                self.model.ent_coef = self._original_ent_coef
+                ppo = cast("PPO", self.model)
+                ppo.clip_range = cast("float | Callable[[float], float]", self._original_clip_range)
+                ppo.ent_coef = cast(float, self._original_ent_coef)
                 # Release ent_coef back to EntCoefDecayCallback, which
                 # captures its base value on the next step and continues the
                 # configured schedule from there.
@@ -612,8 +622,8 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
     def _set_env_attr(self, value: float) -> None:
         """Set the reward weight on all underlying envs."""
         vec_norm = self.model.get_env()
-        # Access the inner VecEnv through VecNormalize
-        inner_venv = getattr(vec_norm, "venv", vec_norm)
+        # Access the inner VecEnv through VecNormalize (a model in training has an env)
+        inner_venv = cast("VecEnv", getattr(vec_norm, "venv", vec_norm))
         inner_venv.env_method("set_reward_weight", self.attr_name, value)
         self._last_set_value = value
 

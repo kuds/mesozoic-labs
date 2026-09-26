@@ -219,8 +219,8 @@ class DiagnosticsCallback(_BaseCallback):
         def init_callback(self, model) -> None:
             """Minimal stand-in for ``BaseCallback.init_callback`` when SB3 is absent."""
             self.model = model
-            self.logger = getattr(model, "logger", None)
-            self.training_env = getattr(model, "get_env", lambda: None)()
+            self.logger = getattr(model, "logger", None)  # type: ignore[misc,assignment]
+            self.training_env = getattr(model, "get_env", lambda: None)()  # type: ignore[misc,assignment]
 
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):

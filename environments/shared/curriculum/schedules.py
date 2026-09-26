@@ -11,10 +11,13 @@ interpreter-specific bytecode (see :class:`LinearSchedule`)."""
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, cast
 
 from . import sb3_compat
 from .sb3_compat import BaseCallback
+
+if TYPE_CHECKING:  # pragma: no cover - typing only; SB3 stays an optional runtime import
+    from stable_baselines3 import PPO
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +180,7 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
         self._started = False
 
     def _capture_initial(self, deferred: bool) -> float:
-        initial = float(self.model.ent_coef)
+        initial = float(cast("PPO", self.model).ent_coef)
         self._initial = initial
         logger.info(
             "EntCoefDecay: ent_coef %.4f → %.4f over %d timesteps%s",
@@ -207,5 +210,6 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
         if initial is None:
             initial = self._capture_initial(deferred=True)
         frac = min(1.0, self.num_timesteps / self.decay_timesteps)
-        self.model.ent_coef = initial + frac * (self.end_value - initial)
+        ppo = cast("PPO", self.model)
+        ppo.ent_coef = initial + frac * (self.end_value - initial)
         return True

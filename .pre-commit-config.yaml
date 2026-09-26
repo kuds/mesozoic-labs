@@ -1,13 +1,32 @@
+# No hook may touch the digest data files: the MJCF plant sources and their
+# meshes (the plant identity hashes their bytes), the behavior recipe TOMLs
+# (recipe_sha256), the generated plant manifests, plant_versions.toml and the
+# recovery calibrations. end-of-file-fixer would append a newline to three
+# compsognathus MJCF files and move both compsognathus plant identities.
+# test_ci_tool_pins.py checks this pattern against the sources the plant
+# manifest records and the other data files, and that it catches no Python
+# file. The Python modules a digest hashes stay under the ruff and whitespace
+# hooks: CI's pinned ruff keeps them from changing, and any edit to them moves
+# the behavior identities anyway.
+exclude: '^(environments/[^/]+/(assets|references|data)/|configs/(plant_manifest\.generated\.json|plant_versions\.toml|[^/]+/recovery_calibration\.json|[^/]+/behaviors/))'
+
 repos:
+  # ruff and mypy use the versions the CI lint job pins
+  # (.github/workflows/python-ci.yml; test_ci_tool_pins.py checks they agree).
+  # The ruff hooks cover environments/ only, as CI does: this ruff also
+  # formats notebooks and the Python blocks in Markdown files, and outside
+  # environments/ CI checks neither.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.16.9
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
+        files: ^environments/
       - id: ruff-format
+        files: ^environments/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v2.3.1
     hooks:
       - id: mypy
         additional_dependencies: [gymnasium, numpy]

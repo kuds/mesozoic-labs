@@ -21,6 +21,9 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
+      # test_ci_tool_pins.py checks the hook versions and excludes it holds,
+      # so a pre-commit-only PR (a `pre-commit autoupdate`) must run it (CU-1).
+      - ".pre-commit-config.yaml"
       # The sys.path bootstrap every CI pytest invocation imports before
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
@@ -53,6 +56,9 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
+      # test_ci_tool_pins.py checks the hook versions and excludes it holds,
+      # so a pre-commit-only PR (a `pre-commit autoupdate`) must run it (CU-1).
+      - ".pre-commit-config.yaml"
       # The sys.path bootstrap every CI pytest invocation imports before
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
@@ -78,8 +84,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      # ruff and mypy are pinned, with the same versions as
+      # .pre-commit-config.yaml and the SB3 job's mypy step
+      # (test_ci_tool_pins.py checks all three), so a tool release cannot turn
+      # an unrelated pull request red, and pre-commit formats as CI checks.
       - name: Install tools
-        run: pip install ruff mypy gymnasium numpy
+        run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy
 
       - name: Ruff lint
         run: ruff check environments/
@@ -157,12 +167,16 @@ jobs:
             python -m environments.shared.plant_contract --check --baseline /tmp/base-plant-manifest.json
           fi
 
+      # Every pytest step passes -vv: pyproject.toml's addopts carries -q, which
+      # cancels one -v, so -vv prints each test id. -rfEs keeps the default
+      # failure and error lines of the short summary and adds skip reasons
+      # (-rs alone would replace them); --durations=30 lists the slowest tests.
       - name: Run plant-contract integration tests
         run: |
           pytest \
             environments/shared/tests/test_plant_contract_*.py \
             environments/shared/tests/test_species_catalog.py \
-            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           COVERAGE_FILE: .coverage.plant-contract
 
@@ -235,7 +249,7 @@ jobs:
           pip install -e .[dev]
 
       - name: Run tests with coverage
-        run: pytest environments/${{ matrix.suite }}/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        run: pytest environments/${{ matrix.suite }}/tests/ -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.${{ matrix.suite }}-${{ matrix.python-version }}
@@ -264,7 +278,9 @@ jobs:
           python -m pip install --upgrade pip
           # Keep CPU CI off PyPI's CUDA/Triton dependency stack.
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
-          python -m pip install -e ".[train,ray,test,viz]"
+          # SB3 pinned as notebooks/sb3_training.ipynb pins it, so the mypy step
+          # below sees the SB3 types the notebook trains with.
+          python -m pip install -e ".[train,ray,test,viz]" "stable-baselines3[extra]==2.9.0"
 
       - name: Verify optional backend imports
         run: |
@@ -305,6 +321,16 @@ jobs:
           print(ray.__version__, stable_baselines3.__version__, torch.__version__)
           PY
 
+      # The lint job's mypy runs without SB3 or torch installed, so both resolve
+      # to Any there and SB3-facing code is never really checked. Here they
+      # are installed at pinned versions (SB3 2.9.0, torch 2.13.0 CPU), and
+      # mypy, pinned like the lint job's, must report no errors (CU-1 in
+      # docs/CLEANUP_PLAN_2026_09.md; decision D-D18).
+      - name: mypy with SB3 and torch types
+        run: |
+          python -m pip install "mypy==2.3.1"
+          mypy environments/ --ignore-missing-imports
+
       # Consolidation PR-3: this job ran 52 minutes on the #544 merge (notebook
       # smoke 6, behaviors 14, integration 31; 69 at #541) because #540/#541
       # added their suites here, several of which import no SB3 and already run
@@ -333,7 +359,7 @@ jobs:
           pytest \
             environments/shared/tests/test_compsognathus_training.py \
             -k "test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and ppo and robot' || '' }}" \
-            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3-notebook
@@ -346,7 +372,7 @@ jobs:
           pytest \
             environments/shared/tests/test_behavior_species_training.py \
             ${{ steps.depth.outputs.full != 'true' && '-k compsognathus_robot' || '' }} \
-            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3-behaviors
@@ -378,7 +404,7 @@ jobs:
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
             -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
-            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3
@@ -421,7 +447,7 @@ jobs:
             environments/shared/tests/test_perturbation.py \
             environments/shared/tests/test_reward_functions.py \
             environments/trex/tests/ \
-            -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           JAX_PLATFORMS: cpu
           MUJOCO_GL: osmesa

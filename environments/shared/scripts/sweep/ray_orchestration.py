@@ -235,6 +235,7 @@ def create_ray_tuner(
 
     # Scheduler
     max_reports = timesteps // eval_freq
+    scheduler: FIFOScheduler  # ASHAScheduler subclasses FIFOScheduler
     if use_asha:
         scheduler = ASHAScheduler(
             metric="best_mean_reward",

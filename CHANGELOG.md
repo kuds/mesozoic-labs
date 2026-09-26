@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Decisions D-D17, D-D18 and D-D19 recorded** (2026-09-26;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
+  maintainer took three of the cleanup plan's decisions. D-D17:
+  Stable-Baselines3 is the only training, evaluation and evidence backend
+  until every species' stage chain and behavior is certified. PR-A retires
+  Ray Tune, the Vertex AI tuning sweeps and mjlab and, wider than the plan
+  proposed, the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the
+  `Dockerfile`) and GCS artifact upload (`curriculum --gcs-bucket`, the `[gcp]`
+  extra); PR-B retires JAX/MJX behind a frozen MJX interface core, so no
+  digest moves. D-D18: CI type-checks with SB3 and torch installed (Changed,
+  below). D-D19: this CHANGELOG is cut before PR-A; the maintainer tags
+  `v0.3.8`, and `0.3.9.dev0` follows. The stale pull requests #527 and #498
+  were closed. Nothing is removed yet: PR-A and PR-B carry out D-D17.
 - **Cleanup and backend retirement plan, and the digest-snapshot harness**
   (2026-09-26; `docs/CLEANUP_PLAN_2026_09.md`, `docs/KNOWN_ISSUES.md`,
   `environments/shared/harnesses/digest_snapshot.py`). A living plan for the
@@ -956,6 +970,43 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   encoder); reinstall the extra to pick it up.
 
 ### Changed
+- **CI type-checks with Stable-Baselines3 and torch installed; one ruff and
+  one mypy version everywhere** (CU-1 of `docs/CLEANUP_PLAN_2026_09.md`,
+  decision D-D18). The lint job's mypy runs without SB3 or torch, so both
+  resolved to `Any` and CI reported no issues, while the tree had 21 type
+  errors locally and 23 in the SB3 job's own environment (Python 3.12, numpy
+  2.5.3, torch 2.13.0, ray installed). All were type-only. They are fixed
+  with casts and annotations and no runtime change: typed PPO/SAC casts in
+  `StageWarmupCallback` and `EntCoefDecayCallback` and a `VecEnv` cast in
+  `RewardRampCallback` (the SB3 imports are typing-only, so the curriculum
+  package still imports without SB3), the widen tool's state dicts and
+  VecNormalize statistics, `pad_running_stats`' return,
+  `constant_action_controller` accepting the array the recovery-gate harness
+  passes it, and the Ray scheduler variable; the four in the SB3-absent
+  fallback of `DiagnosticsCallback.init_callback` get
+  `# type: ignore[misc,assignment]`. The SB3 job pins `stable-baselines3[extra]==2.9.0` (the SB3
+  notebook's pin) and runs `mypy environments/ --ignore-missing-imports`
+  (mypy 2.3.1), which must report no errors; a deliberate SB3 attribute typo
+  fails it and passes the lint job's mypy. The lint job,
+  `.pre-commit-config.yaml` (which pinned ruff 0.4.4, whose formatter would
+  have rewritten 22 files CI's ruff accepts, and mypy 1.15.0) and
+  `pyproject.toml`'s `dev` extra now pin ruff 0.16.9 and mypy 2.3.1. The
+  pre-commit ruff hooks cover `environments/` only, as CI does, because this
+  ruff also formats notebooks and the Python blocks in Markdown files. The
+  new `test_ci_tool_pins.py` keeps the pins, and the SB3 pin, in agreement.
+  Pre-commit now excludes the digest data files (the MJCF plant sources and
+  meshes, the recipe TOMLs, the plant manifests, `plant_versions.toml`, the
+  recovery calibrations; the byte-hashed Python modules stay under the hooks,
+  which CI's pinned ruff keeps from changing them): `end-of-file-fixer`
+  under `pre-commit run --all-files` would have appended a newline to three
+  compsognathus MJCF files and moved both compsognathus plant identities.
+  `.pre-commit-config.yaml` joins the workflow's path filters, so a
+  pre-commit-only pull request runs these checks.
+  Every CI pytest step passes `-vv -rfEs --durations=30`, because
+  `pyproject.toml`'s `addopts -q` cancelled the old `-v`, so the logs showed
+  no test ids, skip reasons or durations. No digest moves: the
+  digest-snapshot harness prints byte-identical output on `8e03483` and on
+  this change. KNOWN_ISSUES drops the two Testing / CI entries it closes.
 - **Resuming an interrupted node is "set `RUN_ID` and `RESUME_STAGE`, then Run
   all"** (#558, the notebook-safety PR, decision D-D16). The RESUME cell moved ahead
   of the chain loop, after the helpers that define `train_stage`, so it

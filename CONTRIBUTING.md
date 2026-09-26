@@ -40,7 +40,29 @@ We use **mypy** for static type checking:
 mypy environments/
 ```
 
-Pre-commit hooks run both automatically on `git commit`.
+CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and
+in the SB3 job, with both installed (`stable-baselines3[extra]==2.9.0` and the
+CPU `torch==2.13.0` wheel, on Python 3.12), where it must report no errors. The
+SB3 job is the authority. The `.[all]` install above only approximates it: it
+leaves SB3 and torch unpinned, adds JAX, and on Python 3.11 resolves an older
+numpy, and each of these can change what mypy reports. To reproduce the SB3
+job's check, use Python 3.12 and a fresh environment:
+
+```bash
+pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
+pip install -e ".[train,ray,test,viz]" "stable-baselines3[extra]==2.9.0" "mypy==2.3.1"
+mypy environments/ --ignore-missing-imports
+```
+
+Pre-commit hooks run both automatically on `git commit`. The `dev` extra, the
+hooks and CI pin one ruff version and one mypy version
+(`environments/shared/tests/test_ci_tool_pins.py` keeps them in agreement),
+and the ruff hooks cover `environments/`, as CI's ruff does. No hook touches
+the digest data files (the plant MJCF sources and meshes, the recipe TOMLs, the
+plant manifests, `plant_versions.toml` and the recovery calibrations): a
+whitespace fix there would move a digest. The Python modules whose bytes a
+digest hashes stay under the hooks; CI's pinned ruff keeps them from changing,
+and any edit to them moves the behavior identities anyway.
 
 ## Running Tests
 

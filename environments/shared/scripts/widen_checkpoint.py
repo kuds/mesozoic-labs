@@ -134,7 +134,7 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 import numpy as np
 
@@ -759,7 +759,9 @@ def _widen_sidecar(
         raise WidenError(f"{parent_pkl} holds no Box observation statistics to widen")
     if mean.shape != (parent_obs,):
         raise WidenError(f"{parent_pkl} normalises {mean.shape} observations, not the parent width ({parent_obs},)")
-    vecnorm.obs_rms = pad_running_stats(obs_rms, COMMAND_WIDTH)
+    # SB3 types obs_rms from its Dict-space branch; the Box statistics checked
+    # above are one RunningMeanStd.
+    vecnorm.obs_rms = cast(Any, pad_running_stats(obs_rms, COMMAND_WIDTH))
     vecnorm.observation_space = _widened_box(new_dim)
     attach_plant_identity(vecnorm, current)
     venv = DummyVecEnv([lambda: build_env(species, stage)])
@@ -799,22 +801,25 @@ def _verify(
     # the end of a tensor that was never widened is empty, and an empty
     # block equals its zeros vacuously.
     _, params, _ = load_from_zip_file(str(widened_zip), device="cpu", load_data=False)
+    # SB3 types each entry as a Tensor; each is a state dict (the policy's
+    # parameters by name, an optimizer's state by parameter index).
+    policy_params = cast("dict[str, torch.Tensor]", params["policy"])
     max_padded_abs = 0.0
     for name, columns in padded_tensors.items():
-        shape = tuple(params["policy"][name].shape)
+        shape = tuple(policy_params[name].shape)
         if shape != tuple(widened_shapes[name]):
             raise WidenError(f"widened {name} has shape {shape}, not the widened {tuple(widened_shapes[name])}")
-        block = params["policy"][name][:, columns[0] : columns[-1] + 1]
+        block = policy_params[name][:, columns[0] : columns[-1] + 1]
         max_padded_abs = max(max_padded_abs, float(block.abs().max()) if block.numel() else 0.0)
         if not torch.equal(block, torch.zeros_like(block)):
             raise WidenError(f"widened {name} columns {columns} are not exactly zero (max |w| = {max_padded_abs})")
     prefixes = _OPTIMIZER_MEMBERS[algorithm]
     for member, indices in optimizer_members_padded.items():
-        names = [name for name in params["policy"] if name.startswith(prefixes[member])]
+        names = [name for name in policy_params if name.startswith(prefixes[member])]
         for index in indices:
             columns = padded_tensors[names[index]]
             expected = tuple(widened_shapes[names[index]])
-            for key, moment in params[member]["state"][index].items():
+            for key, moment in cast("dict[str, Any]", params[member])["state"][index].items():
                 if getattr(moment, "ndim", 0) != 2:
                     continue
                 if tuple(moment.shape) != expected:
