@@ -2318,7 +2318,7 @@ class TestResumeCell:
             self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=2_800_000, calls=calls)
         assert calls == []
 
-    @pytest.mark.parametrize("reclaimed_in", ["local save", "zip copy", "sidecar copy"])
+    @pytest.mark.parametrize("reclaimed_in", ["sidecar removal", "local save", "zip copy", "sidecar copy"])
     @pytest.mark.parametrize(("steps", "refused"), [(2_800_000, True), (2_900_000, False)])
     def test_a_staged_final_save_cut_short_on_a_mount_reads_as_one_written_in_place(
         self, tmp_path, monkeypatch, reclaimed_in, steps, refused
@@ -2368,10 +2368,25 @@ class TestResumeCell:
         run_dir = root / "MyDrive" / "compsognathus_robot" / "ppo" / "20260926_000000"
         models = run_dir / stage_dirname("compsognathus_robot", 2) / "models"
         models.mkdir(parents=True)
+        if reclaimed_in == "sidecar removal":
+            # A previous final pair (here as a save straight to the mount left it: zip cut short, sidecar intact);
+            # the reclaim lands after the placeholder, before the old sidecar goes.
+            (models / "stage2_final.zip").write_bytes(b"PK\x03\x04 half")
+            Env().save(str(models / "stage2_final_vecnorm.pkl"))
+            real_unlink = Path.unlink
+
+            def unlink(self, *args, **kwargs):
+                if self.name == "stage2_final_vecnorm.pkl":
+                    raise Reclaimed()
+                return real_unlink(self, *args, **kwargs)
+
+            monkeypatch.setattr(Path, "unlink", unlink)
 
         with pytest.raises(Reclaimed):
             train_base._save_final_and_sync_tb(Model(), Env(), models, 2, None, root / "tb")
-        assert (models / "stage2_final.zip").exists() and not (models / "stage2_final_vecnorm.pkl").exists()
+        monkeypatch.undo()
+        assert (models / "stage2_final.zip").exists()
+        assert (models / "stage2_final_vecnorm.pkl").exists() == (reclaimed_in == "sidecar removal")
 
         calls: list[dict] = []
         if refused:

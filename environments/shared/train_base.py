@@ -940,13 +940,16 @@ def _save_final_and_sync_tb(
 
     On a Drive/GCS mount the pair is saved to local scratch and published
     zip first, sidecar last (``publish_staged_pair``). An empty placeholder
-    zip replaces the destination zip, and the destination sidecar is removed,
-    before anything is saved, so from the moment the final save begins a
-    reclaim leaves a final zip without its sidecar (the placeholder or the
-    published zip), which ``checkpoint_pair_problem`` reports, as a save
-    straight to the mount did: the notebook's D-D16 RESUME and chain-loop
-    rules, including the early-stop refusal, see the state they saw before
-    CU-3, never a truncated zip and never no final zip at all.
+    zip replaces the destination zip, and then the destination sidecar is
+    removed, before anything is saved. From the moment the final save begins
+    a reclaim therefore leaves a final zip that ``checkpoint_pair_problem``
+    rejects: the placeholder or the published zip without its sidecar, or,
+    in the instant before a previous final sidecar is removed, the empty
+    placeholder beside it. That is what a save straight to the mount left, so
+    the notebook's D-D16 RESUME and chain-loop rules, including the
+    early-stop refusal, see the state they saw before CU-3: never a truncated
+    zip they accept and never no final zip at all. (Removing the sidecar
+    first would briefly leave no final zip when there was none before.)
 
     Returns the final model path (without ``.zip`` extension).
     """

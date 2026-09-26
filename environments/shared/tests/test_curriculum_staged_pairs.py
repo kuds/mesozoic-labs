@@ -10,9 +10,10 @@ removes the destination file it publishes last before publishing anything,
 so a reclaim part-way leaves at worst one file without its partner, which
 that pair's readers already treat as incomplete. The final pair also gets an
 empty placeholder zip before its save begins, so a reclaim at any point of
-the final save leaves a final zip without its sidecar, as a save straight to
-the mount did, and the notebook's D-D16 rules (the early-stop refusal
-included) see what they saw before. Off a mount nothing changes.
+the final save leaves a final zip that ``checkpoint_pair_problem`` rejects,
+as a save straight to the mount did, and the notebook's D-D16 rules (the
+early-stop refusal included) see what they saw before. Off a mount nothing
+changes.
 """
 
 from __future__ import annotations
@@ -312,7 +313,9 @@ class TestFinalPair:
 
         assert final_path == models / "stage1_final"
         assert _intact(final_path)
-        assert list(scratch.iterdir()) == [], "the final pair's staging directory must be removed"
+        assert [path.name for path in scratch.iterdir() if path.name.startswith("final_")] == [], (
+            "the final pair's staging directory must be removed"
+        )
 
     @pytest.mark.parametrize("previous_pair", [False, True])
     def test_a_reclaim_mid_save_leaves_the_placeholder_without_a_sidecar(
@@ -339,7 +342,37 @@ class TestFinalPair:
         assert (models / "stage1_final.zip").read_bytes() == b""
         problem = checkpoint_pair_problem(models / "stage1_final.zip", models / "stage1_final_vecnorm.pkl")
         assert problem is not None and "missing matched VecNormalize sidecar" in problem
-        assert list(scratch.iterdir()) == [], "the final pair's staging directory must be removed"
+        assert [path.name for path in scratch.iterdir() if path.name.startswith("final_")] == [], (
+            "the final pair's staging directory must be removed"
+        )
+
+    def test_a_reclaim_before_the_old_sidecar_goes_leaves_a_zip_the_check_rejects(self, mount, scratch, monkeypatch):
+        """The placeholder lands before the previous final sidecar is removed; a reclaim between them leaves the empty
+        zip beside that sidecar, which ``checkpoint_pair_problem`` rejects (removing the sidecar first would instead
+        leave no final zip when there was none)."""
+        from environments.shared import train_base
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        model, env = _tiny_model()
+        models = mount / "MyDrive" / "run" / "01_stance" / "models"
+        models.mkdir(parents=True)
+        model.save(str(models / "stage1_final"))
+        env.save(str(models / "stage1_final_vecnorm.pkl"))
+        real_unlink = Path.unlink
+
+        def unlink(self, *args, **kwargs):
+            if self.name == "stage1_final_vecnorm.pkl":
+                raise Reclaimed()
+            return real_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "unlink", unlink)
+
+        with pytest.raises(Reclaimed):
+            train_base._save_final_and_sync_tb(model, env, models, 1, None, mount / "tb")
+
+        assert (models / "stage1_final.zip").read_bytes() == b""
+        problem = checkpoint_pair_problem(models / "stage1_final.zip", models / "stage1_final_vecnorm.pkl")
+        assert problem is not None and "bad/truncated checkpoint zip" in problem
 
     @pytest.mark.parametrize("failing_copy", [1, 2])
     def test_a_reclaim_mid_publish_leaves_a_final_zip_without_its_sidecar(

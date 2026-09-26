@@ -140,9 +140,11 @@ def publish_staged_pair(staged: "str | Path", destination: "str | Path", *, zip_
     * ``zip_last=False`` (the final pair): at worst a zip without its
       sidecar, which :func:`checkpoint_pair_problem` reports, so the SB3
       notebook's RESUME cell and chain loop treat it as a final pair cut
-      short (D-D16), as they treat a truncated one. ``train()`` also puts an
-      empty placeholder zip at the destination before it saves the pair, so
-      a reclaim before this publish starts leaves the same state.
+      short (D-D16), as they treat a truncated one. Before it saves the pair,
+      ``train()`` puts an empty placeholder zip at the destination and then
+      removes the destination sidecar, so a reclaim before this publish
+      starts also leaves a final zip that check rejects (the placeholder,
+      alone or, for an instant, beside the previous sidecar).
 
     Without a staged sidecar (a model with no VecNormalize wrapper) the zip
     is published alone and the destination's sidecar removed, so no earlier

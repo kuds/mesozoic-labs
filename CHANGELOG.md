@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   maintainer took the cleanup plan's decision 7 as D-D20: a Colab reclaim
   may not leave the final pair or a handoff pair truncated, nor mixed with
   the previous pair (carried out by CU-3; Fixed, below). D-D17 is amended:
-  it lands as two PRs, each with its own review. PR-A deletes the sweeps and
-  mjlab and stays pure deletion; PR-A2 removes the single-job Vertex AI route
+  PR-A is split in two, each with its own review, so D-D17 lands as PR-A,
+  PR-A2 and PR-B. PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2 removes the single-job Vertex AI route
   and GCS upload, with an end-to-end test of the command-line curriculum path
   (the cleanup plan lands it after PR-A).
 - **Decisions D-D17, D-D18 and D-D19 recorded** (2026-09-26;
@@ -1779,8 +1779,8 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Fixed
 - **A Colab reclaim no longer truncates the stage config, metrics, stance
-  reports, evidence CSVs and run sidecars, or a final or handoff checkpoint
-  pair** (CU-3 of `docs/CLEANUP_PLAN_2026_09.md`,
+  reports or evidence CSVs, or a final or handoff checkpoint pair, and a
+  crash no longer strands a sidecar temporary the bundle hashes** (CU-3 of `docs/CLEANUP_PLAN_2026_09.md`,
   decision D-D20). `train()` saved the final pair and the best and
   robust-best handoff pairs straight to the Drive mount (only the periodic
   pairs were staged), so a reclaim during a save could cut one short; a cut
@@ -1793,9 +1793,9 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `select_handoff_checkpoint` skips; the final pair publishes its sidecar
   last, and an empty placeholder takes the final zip's place (and the final
   sidecar is removed) before the final save begins, so a reclaim at any point
-  of that save leaves a final zip without its sidecar, which
-  `checkpoint_pair_problem` reports, as it reported a final pair a save
-  straight to the mount cut short: D-D16's RESUME and chain-loop rules, the
+  of that save leaves a final zip that `checkpoint_pair_problem` rejects (the
+  placeholder or the new zip without its sidecar), as it rejected a final
+  pair a save straight to the mount cut short: D-D16's RESUME and chain-loop rules, the
   early-stop refusal included, see what they saw before. Off a mount the
   pairs are written in place, as before.
   `file_io` gains `atomic_write_json` and `atomic_write_csv`, through which
