@@ -1695,9 +1695,12 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     cell ran on periodic pairs moves into the library as
     `curriculum.checkpoint_pair_problem` (the zip's `testzip`, SB3's outer
     `data` and `policy.pth` members, a sidecar that unpickles). The RESUME
-    cell runs it over the final pair and every periodic candidate, resuming
-    over a broken final pair with a warning and naming it when the budget is
-    spent. The chain loop runs it before JUDGE: a broken final pair is an
+    cell runs it over the final pair and every periodic candidate. A broken
+    final pair means training ended and the final save began: within one
+    checkpoint cadence (100k steps) of the budget the cell resumes over it with
+    a warning, and the resume's final save replaces it; further short the node
+    had stopped early, and the cell refuses it as a new attempt (D-D16); a
+    spent budget names the broken pair. The chain loop runs it before JUDGE: a broken final pair is an
     interrupted node, and the refusal says what is wrong and names
     `RESUME_STAGE` (it used to say "`<label>_final.zip` is missing" also when
     only the sidecar was).
@@ -1714,9 +1717,13 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
     and the refusal now say to set `BEHAVIOR` to the node as well (the loop
     looks for its target only in this run) and to continue the deeper chain
     in a fresh `RUN_ID` trunked from this run. The recipe also says to pin
-    `TRUNK_FROM` to the run the interrupted session resolved, and `""` only
-    when that session trained every node itself: the loop never follows this
-    run's own ancestor records, so `""` would train those again here.
+    `TRUNK_FROM` to the trunk the interrupted session's resolve cell printed
+    (if that output is lost, the run named in the ancestor record of the
+    reused ancestor nearest the interrupted node; a shallower record names the
+    run that certified that node, which is not the trunk when the trunk itself
+    reused it), and `""` only when that session trained every node itself: the
+    loop never follows this run's own ancestor records, so `""` would train
+    those again here.
   - The chain loop's interrupted-node message names the refused spent-budget
     case; the storage-cell comment and the recipes page say quick tests may
     count one another as replicates (never a real run's); decision D-D16 is
@@ -1726,13 +1733,14 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   Tests: `checkpoint_pair_problem` on an intact pair, a missing sidecar, a
   truncated zip, a CRC mismatch, missing SB3 members and a truncated sidecar;
   the chain loop sending three broken final pairs to the interrupted-node
-  refusal, never to JUDGE; the RESUME cell resuming over a broken final pair
-  and naming one when the budget is spent, skipping a broken newest periodic
+  refusal and an intact one to JUDGE; the RESUME cell resuming over a broken
+  final pair within one cadence of the budget, refusing one further short and
+  naming one when the budget is spent, skipping a broken newest periodic
   pair, judging nothing when a verdict or final pair has no periodic pair (a
   widened root), and refusing a node `RETRAIN_FROM` covers before anything
   trains while training one it does not; the memo across `QUICK_TEST`,
-  `ALGORITHM` and `SPECIES` changes. Eleven mutants of the new guards each
-  fail a test. The notebook goes from 1,557 to 1,579 lines (33 cells, 17 code).
+  `ALGORITHM` and `SPECIES` changes. Fifteen mutants of the new guards each
+  fail a test. The notebook goes from 1,557 to 1,599 lines (33 cells, 17 code).
 - **The RESUME cell never retrains a finished or judged node** (#558, the
   notebook-safety PR, decision D-D16). The cell measured what was left against
   the node's newest periodic checkpoint only. A node that an early stop ended

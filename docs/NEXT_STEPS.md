@@ -66,7 +66,7 @@ the RESUME cell ahead of the chain loop, guards it against finished and judged
 nodes, moves `QUICK_TEST` runs to `<algo>_quick_test/` and regroups the
 sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20; its
 follow-up checks the final pair like a periodic one in both the RESUME cell and
-the chain loop: 1,579 lines).
+the chain loop: 1,599 lines).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -485,7 +485,8 @@ Taken on 2026-09-25:
   without one (a further attempt after an early stop is a fresh `RUN_ID`), and
   refuses a node `RETRAIN_FROM` covers (a node trained here although the trunk
   certifies it is resumed as `BEHAVIOR`'s target); the chain loop judges only
-  an intact final pair; `QUICK_TEST` runs live under
+  an intact final pair, and a broken one is resumed over only within one
+  checkpoint cadence of the budget; `QUICK_TEST` runs live under
   `<algo>_quick_test/`, outside the trunk selection and a real run's replicate
   scan, and the run memo counts only in the tree it was opened in; the RESUME
   cell moves ahead of the chain loop and the sections regroup.
