@@ -1,11 +1,14 @@
 """The lint tools and the SB3 typing environment are pinned once (CU-1).
 
-The CI lint job and the SB3 job's mypy step (.github/workflows/python-ci.yml),
-.pre-commit-config.yaml and pyproject.toml's ``dev`` extra must name the same
-ruff and mypy versions. Otherwise pre-commit formats what CI rejects (it did,
-with ruff 0.4.4 against CI's unpinned ruff), or a tool release turns an
-unrelated pull request red. The SB3 job's stable-baselines3 pin is the SB3
-notebook's, so its mypy step checks the SB3 the notebook trains with.
+Wherever ruff and mypy are pinned, they name the same versions: the CI lint
+job (both tools), the SB3 job's mypy step (mypy), .pre-commit-config.yaml and
+pyproject.toml's ``dev`` extra (both). Otherwise pre-commit formats what CI
+rejects (it did, with ruff 0.4.4 against CI's unpinned ruff), or a tool
+release turns an unrelated pull request red. The SB3 job's stable-baselines3
+pin is the SB3 notebook's, so its mypy step checks the SB3 the notebook trains
+with. Every file read here is in both of the workflow's path filters, so a PR
+that edits only one of them still runs these checks, and pre-commit never
+rewrites a file whose bytes enter a digest.
 """
 
 from __future__ import annotations
@@ -26,6 +29,18 @@ _HOOK_REPOS = {
     "mypy": "https://github.com/pre-commit/mirrors-mypy",
 }
 _SB3_PIN = re.compile(r"stable-baselines3\[extra\]==([0-9][0-9.]*)")
+#: Files whose bytes enter a digest (the plant identity's MJCF sources and
+#: meshes, recipe_sha256, the generated manifests, the recovery calibrations),
+#: as globs under the repository root, each expected to match at least once.
+_DIGEST_INPUT_GLOBS = (
+    "environments/*/assets/**/*",
+    "environments/*/references/*",
+    "environments/*/data/*.json",
+    "configs/plant_manifest.generated.json",
+    "configs/plant_versions.toml",
+    "configs/*/recovery_calibration.json",
+    "configs/*/behaviors/*.toml",
+)
 
 
 def _ci_text() -> str:
@@ -102,3 +117,49 @@ def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
     ci_pins = set(_SB3_PIN.findall(_ci_text()))
     assert len(notebook_pins) == 1, f"the SB3 notebook pins stable-baselines3 as {notebook_pins}"
     assert ci_pins == notebook_pins, f"python-ci.yml pins stable-baselines3 {ci_pins}, the notebook {notebook_pins}"
+
+
+def _path_filters() -> list[list[str]]:
+    """The ``paths:`` lists of python-ci.yml's triggers, one list per trigger."""
+    filters: list[list[str]] = []
+    current: list[str] | None = None
+    for line in _ci_text().splitlines():
+        stripped = line.strip()
+        if stripped == "paths:":
+            current = []
+            filters.append(current)
+        elif current is not None and stripped.startswith("- "):
+            current.append(stripped[2:].strip().strip('"'))
+        elif current is not None and stripped and not stripped.startswith("#"):
+            current = None
+    return filters
+
+
+def _glob_matches(pattern: str, path: str) -> bool:
+    """GitHub's path-filter glob: ``**`` crosses directories, ``*`` does not."""
+    regex = re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
+    return re.fullmatch(regex, path) is not None
+
+
+def test_every_file_these_checks_read_triggers_the_workflow() -> None:
+    filters = _path_filters()
+    assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
+    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK):
+        relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+        for patterns in filters:
+            assert any(_glob_matches(pattern, relative) for pattern in patterns), (
+                f"{relative} is missing from a python-ci.yml paths filter, so a PR editing only it skips these checks"
+            )
+
+
+def test_pre_commit_never_rewrites_a_digest_input() -> None:
+    text = PRE_COMMIT_CONFIG.read_text(encoding="utf-8")
+    match = re.search(r"^exclude:\s*'([^']+)'\s*$", text, flags=re.MULTILINE)
+    assert match is not None, f"{PRE_COMMIT_CONFIG.name} needs a top-level exclude for the digest inputs"
+    exclude = re.compile(match.group(1))
+    for pattern in _DIGEST_INPUT_GLOBS:
+        files = [path for path in REPOSITORY_ROOT.glob(pattern) if path.is_file()]
+        assert files, f"no file matches {pattern}; update _DIGEST_INPUT_GLOBS"
+        for path in files:
+            relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+            assert exclude.search(relative), f"pre-commit hooks may rewrite the digest input {relative}"

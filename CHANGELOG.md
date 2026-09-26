@@ -977,13 +977,14 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   errors locally and 23 in the SB3 job's own environment (Python 3.12, numpy
   2.5.3, torch 2.13.0, ray installed). All were type-only. They are fixed
   with casts and annotations and no runtime change: typed PPO/SAC casts in
-  `StageWarmupCallback`, `RewardRampCallback` and `EntCoefDecayCallback` (the
-  SB3 imports are typing-only, so the curriculum package still imports
-  without SB3), the widen tool's state dicts and VecNormalize statistics,
-  `pad_running_stats`' return, the SB3-absent fallback of
-  `DiagnosticsCallback.init_callback`, `constant_action_controller` accepting
-  the array the recovery-gate harness passes it, and the Ray scheduler
-  variable. The SB3 job pins `stable-baselines3[extra]==2.9.0` (the SB3
+  `StageWarmupCallback` and `EntCoefDecayCallback` and a `VecEnv` cast in
+  `RewardRampCallback` (the SB3 imports are typing-only, so the curriculum
+  package still imports without SB3), the widen tool's state dicts and
+  VecNormalize statistics, `pad_running_stats`' return,
+  `constant_action_controller` accepting the array the recovery-gate harness
+  passes it, and the Ray scheduler variable; the four in the SB3-absent
+  fallback of `DiagnosticsCallback.init_callback` get
+  `# type: ignore[misc,assignment]`. The SB3 job pins `stable-baselines3[extra]==2.9.0` (the SB3
   notebook's pin) and runs `mypy environments/ --ignore-missing-imports`
   (mypy 2.3.1), which must report no errors; a deliberate SB3 attribute typo
   fails it and passes the lint job's mypy. The lint job,
@@ -993,6 +994,13 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   pre-commit ruff hooks cover `environments/` only, as CI does, because this
   ruff also formats notebooks and the Python blocks in Markdown files. The
   new `test_ci_tool_pins.py` keeps the pins, and the SB3 pin, in agreement.
+  Pre-commit now excludes every file whose bytes enter a digest (the MJCF
+  plant sources and meshes, the recipe TOMLs, the plant manifests,
+  `plant_versions.toml`, the recovery calibrations): `end-of-file-fixer`
+  under `pre-commit run --all-files` would have appended a newline to three
+  compsognathus MJCF files and moved both compsognathus plant identities.
+  `.pre-commit-config.yaml` joins the workflow's path filters, so a
+  pre-commit-only pull request runs these checks.
   Every CI pytest step passes `-vv -rfEs --durations=30`, because
   `pyproject.toml`'s `addopts -q` cancelled the old `-v`, so the logs showed
   no test ids, skip reasons or durations. No digest moves: the

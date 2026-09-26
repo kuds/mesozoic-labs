@@ -1,7 +1,7 @@
 # Cleanup and backend retirement plan (2026-09)
 
-**Status**: living plan, updated 2026-09-26. `main` = `be63a58` (#559, the #558 follow-up, merged 2026-09-26 03:42
-UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as `f850815`.
+**Status**: living plan, updated 2026-09-26. `main` = `8e03483` (#560, this plan). Written at `be63a58` (#559, the
+#558 follow-up, merged 2026-09-26 03:42 UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as `f850815`.
 Line numbers are at `f850815` unless marked "at the follow-up", which equals `be63a58` for every file #559 touched
 (`sb3_training.ipynb`, `curriculum/__init__.py`, `curriculum/checkpoints.py`, `test_curriculum_checkpoints.py`,
 `test_sb3_notebook_pins.py`, `CHANGELOG.md`, `docs/NEXT_STEPS.md`, `docs/CONSOLIDATION_PLAN_2026_09.md`,
@@ -29,7 +29,8 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
 ## 1. Bottom line
 
 1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. What remains is the backend retirement in two
-   PRs (PR-A, then PR-B), one CI-signal PR, and sixteen smaller PRs (CU-2..CU-17, §3). The retirement makes four of
+   PRs (PR-A, then PR-B), one CI-signal PR (CU-1, whose PR carries out D-D18), the release cut (D-D19), and sixteen
+   smaller PRs (CU-2..CU-17, §3). The retirement makes four of
    the survey's 21 waves wholly moot, most of C15 and half of C1. It also deletes five of the survey's nine live
    defects along with their code, and #558 already fixed two more.
 2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) comes first, then the CHANGELOG release cut (D-D19). Next
@@ -37,7 +38,8 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
    Vertex route and GCS upload too; its acceptance runs the digest-snapshot harness this plan adds, §4.4), then PR-B
    (JAX/MJX, keeping a frozen interface core). After that come the golden-trace, one-derivation and `extends` PRs
    that consolidation PR-8, PR-9 and PR-11 need, then the CI structure, and docs last.
-3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines. That covers about 17,459 of the 71,682
+3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines (measured before D-D17 widened PR-A to
+   the single-job Vertex route and GCS upload; PR-A re-derives its totals). That covers about 17,459 of the 71,682
    non-test library lines (24%) and about 12,090 test lines.
 4. **CI savings (estimated from 18 runs, #1210–#1227).** Jobs: 23 → 22. Runner time per PR/push run: 165.7 → 116.7 min
    (−30%, about 1,900 runner-minutes a week). Median wall time: 52.3 → 46.0 min. The nightly run is unchanged. Nearly
@@ -54,8 +56,8 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
 8. **No certified run is affected.** With the core kept, two independent prototypes produced byte-identical snapshots
    of every plant, stage, behavior and recovery digest. Every certified run on Drive stays valid, including the 18
    certified stage/digest prefixes in [NEXT_STEPS.md](NEXT_STEPS.md).
-9. **Before PR-A merges,** the maintainer tags the archive point (§4.8). D-D17 is taken (2026-09-26), and the
-   single-job Vertex route goes with PR-A (§2, row 1). The digest-snapshot harness is already in the repository
+9. **Before PR-A merges,** the maintainer settles the archive points (§2 row 2, still open) and pushes any tag they
+   call for (§4.8). D-D17 is taken (2026-09-26), and the single-job Vertex route goes with PR-A (§2, row 1). The digest-snapshot harness is already in the repository
    (added with this plan, 2026-09-26; §4.4). The frozen-core reference copies are not: PR-B rebuilds them from
    `f850815` (§4.2).
 10. **Direction/terrain is now gated by physics, not cleanup.** All three certified walkers survive the plane in every
@@ -130,7 +132,7 @@ callable, no byte-frozen file and no digest input (§5.6).
 
 | PR | Was | What | Why | Size | Risk | When |
 |---|---|---|---|---|---|---|
-| CU-1 CI signal | C2 (trimmed) | Re-measure the mypy errors in `test-sb3`'s environment (decision 8), then fix them with casts and annotations (the 21 local ones are listed in §5.5). The `advancement.py` fixes must be casts, not runtime guards. The SB3-absent fallback at `diagnostics.py:218-223` gets `# type: ignore[misc,assignment]`. Add the pinned mypy step (decision 8). Keep CI's `-v` and add `--durations=30 -rs`; where test ids are wanted, pass `-vv` (or `-o addopts="--tb=short"`), because `pyproject.toml:132` `addopts = "--tb=short -q"` cancels one `-v`. Pre-commit pins ruff `v0.4.4` and mypy `v1.15.0` (`.pre-commit-config.yaml:3,10`) while CI installs both unpinned (`python-ci.yml:82`); pin one ruff version and one mypy version for both. Closes the two Testing / CI KNOWN_ISSUES entries (§3.5). **As carried out (2026-09-26, D-D18):** 23 errors in 8 files in `test-sb3`'s environment on `8e03483` (§2 row 8), all fixed with casts and annotations and no runtime change; the SB3 job pins `stable-baselines3[extra]==2.9.0` and runs mypy 2.3.1; ruff 0.16.9 and mypy 2.3.1 are pinned in the lint job, pre-commit and the `dev` extra, and `test_ci_tool_pins.py` keeps them, with the SB3 pin, in agreement. The pre-commit ruff hooks are scoped to `environments/`, because this ruff also formats notebooks and the Python blocks in Markdown files: unscoped, it would rewrite all four notebooks and 15 Markdown files, two of them frozen investigations. Every pytest step passes `-vv -rfEs --durations=30`, not `-rs`, which replaces pytest's default `-rfE` and would drop the failure lines. | CI cannot see SB3 types. Logs show no test ids, durations or skip reasons. Pre-commit reformats 22 files that CI accepts. A pinned ruff also keeps a formatter release from reformatting the token-hashed callables of every species (§5.6). | +40–60 | LOW | Before PR-A |
+| CU-1 CI signal | C2 (trimmed) | Re-measure the mypy errors in `test-sb3`'s environment (decision 8), then fix them with casts and annotations (the 21 local ones are listed in §5.5). The `advancement.py` fixes must be casts, not runtime guards. The SB3-absent fallback at `diagnostics.py:218-223` gets `# type: ignore[misc,assignment]`. Add the pinned mypy step (decision 8). Keep CI's `-v` and add `--durations=30 -rs`; where test ids are wanted, pass `-vv` (or `-o addopts="--tb=short"`), because `pyproject.toml:132` `addopts = "--tb=short -q"` cancels one `-v`. Pre-commit pins ruff `v0.4.4` and mypy `v1.15.0` (`.pre-commit-config.yaml:3,10`) while CI installs both unpinned (`python-ci.yml:82`); pin one ruff version and one mypy version for both. Closes the two Testing / CI KNOWN_ISSUES entries (§3.5). **As carried out (2026-09-26, D-D18):** 23 errors in 8 files in `test-sb3`'s environment on `8e03483` (§2 row 8), fixed with casts and annotations and no runtime change (the four in the SB3-absent diagnostics fallback with the planned `# type: ignore`); the SB3 job pins `stable-baselines3[extra]==2.9.0` and runs mypy 2.3.1; ruff 0.16.9 and mypy 2.3.1 are pinned in the lint job, pre-commit and the `dev` extra, and `test_ci_tool_pins.py` keeps them, with the SB3 pin, in agreement. The pre-commit ruff hooks are scoped to `environments/`, because this ruff also formats notebooks and the Python blocks in Markdown files: unscoped, it would rewrite all four notebooks and 15 Markdown files, two of them frozen investigations. Every pytest step passes `-vv -rfEs --durations=30`, not `-rs`, which replaces pytest's default `-rfE` and would drop the failure lines. The review of the CU-1 PR added two things: `.pre-commit-config.yaml` joins both path filters of `python-ci.yml`, so a pre-commit-only PR runs the pin checks, and a top-level pre-commit `exclude` keeps every hook off the digest inputs (MJCF sources and meshes, recipe TOMLs, plant manifests, `plant_versions.toml`, recovery calibrations): `pre-commit run --all-files` would have let `end-of-file-fixer` append a newline to three compsognathus MJCF files and move both compsognathus plant identities (reproduced in a scratch worktree; `plant_contract --check` then reports the manifest stale). | CI cannot see SB3 types. Logs show no test ids, durations or skip reasons. Pre-commit reformats 22 files that CI accepts. A pinned ruff also keeps a formatter release from reformatting the token-hashed callables of every species (§5.6). | +40–60 | LOW | Before PR-A |
 | CU-2 Live library bugs | C1 (viewer half) + critic item | Add a lazy `import mujoco.viewer` in `render()`'s human branch (`base_env.py:1556-1566`; the imports at :19-21 lack it), one camera helper shared with `_make_camera`, and a test that monkeypatches `launch_passive`. Fix the `sim_dt` default of 0.01 at `reporting/stage_artifacts.py:151` by taking `dt` from a probe env. Both compsognathus species step at 0.02 s, so their summaries print half the sim time, but only where `generate_stage_artifacts` builds its own results (`stage_results=None`, :1463): the Ray and Vertex sweep trials (`ray_tune.py:1025`, `trial.py:233`). The notebook path overwrites `sim_dt` with the env's `dt` (:1242, :1277), and `backfill_gate_verdict.py` persists nothing that uses it, so after PR-A the default is latent. Closes the render and `sim_dt` KNOWN_ISSUES entries (§3.5). | `evaluate` without `--no-render` crashes on step 1. Re-checked 2026-09-26: `mujoco.viewer` is not imported after `base_env`, `train_base` and `evaluation` load (mujoco 3.10.0). | about +35 | LOW (`render` is not hashed; `base_env.py` is not byte-hashed) | Any time |
 | CU-3 Atomic writes and handoff pairs | C8 + decision 7 | Add `file_io.atomic_write_json` and `atomic_write_csv`. Use them for `stage_config.json` (`config.py:823`), `metrics.json`, the stance JSON/text writers and the three evidence CSVs, keeping each site's `json.dumps` arguments so the bytes stay identical. Three hand-rolled writers leave `<name>.json.tmp` files that the manifest's `.*.tmp` cleanup misses. That happens only after a crash between write and replace, and the next write overwrites the file (survey critic). Also stage the final and best pairs (decision 7), which closes the handoff-pair KNOWN_ISSUES entry (§3.5). | Otherwise PR-13's evidence writer copies the non-atomic pattern. | about +60 (tests) | LOW | Any time; before PR-13 |
 | CU-4 Test helpers | C19 | One `notebook_cells.py` for the notebook extractors (fewer after PR-A and PR-B), which the CI notebook validator uses too. Delete the duplicated library-only pins (decision 9) and the dead `_clean_repository_state`. `ancestors_helpers.py` replaces the test-to-test imports. One TinyEnv. Add a notebook import-resolution check and a canonical-JSON pin for the two notebooks that remain; CI only AST-parses notebooks (`python-ci.yml:93-124`). | CU-5 and CU-6 rewrite the same extractors and pins. This is PR-15's test slice. | about −200 | None | After PR-B |
@@ -304,8 +306,10 @@ annotations, parentheses, commas and relative-import dots, and it refuses f-stri
    pytest step, only the `test (shared, …)` matrix runs it. It asserts the seven anchor digests plus the two trex
    low-pass digests, so a failure names the function and D-D17 instead of a stale manifest.
    It also asserts each species' exact key set (9/8/7/7) rather than a common nine. Delete it together with the core.
-3. **Formatter.** Exclude the frozen modules from `ruff format` and `ruff check --fix`. CI's ruff is unpinned, and a
-   release that re-parenthesises code would move a digest.
+3. **Formatter.** Exclude the frozen modules from `ruff format` and `ruff check --fix`. CI's ruff was unpinned when
+   this was written, and a release that re-parenthesises code would move a digest. Since CU-1 CI and pre-commit pin
+   ruff 0.16.9 and the pre-commit ruff hooks cover `environments/`, which holds these modules, so a later pin bump
+   would move a digest the same way; the exclusion still stands.
 4. **Docs.** Rewrite "Backend parity and runtime binding" in [PLANT_CONTRACT.md](PLANT_CONTRACT.md) (:152-167).
    `CONTRIBUTING.md` step 4 (:101-107) becomes "declare `supported_training_backends = ("stable-baselines3",)`". Step
    8 (:132-140) adds `training_backends = ["stable-baselines3"]` to `species_manifest.toml`; without it,
@@ -353,7 +357,7 @@ moved no digest. With `--skip-behaviors` added, it printed 440 lines, the first 
 50.1 s. A `--repo` that is not a checkout and `python -m` with `--repo` naming another checkout were both refused with
 exit 2.
 
-### 4.5 PR-A: retire Ray Tune, the Vertex HPT sweeps and mjlab; propose D-D17
+### 4.5 PR-A: retire Ray Tune, the Vertex HPT sweeps and mjlab (D-D17, widened)
 
 PR-A is digest-neutral by construction. No hasher reads the sweep, Vertex or mjlab code, and its verifier measured
 identical snapshots before and after.
@@ -418,7 +422,8 @@ superseded where marked. `tb_sync.py` stays (§4.9) even though its `/gcs/` bran
   docstring. Keep the reader code: March 2026 sweep folders remain on Drive.
 - **Decision record (append-only).** Add D-D17 after D-D16 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
   §6.2 and in the consolidation plan's §6 table, plus a status row. Update the id lists in [README.md](README.md) and
-  NEXT_STEPS. Append "Amended by D-D17" to D-A12, D-A15, D-B1 and D-B12 (BEHAVIOR_RECIPES_PLAN.md §6.1, :1037,
+  NEXT_STEPS. (Done on 2026-09-26, when D-D17 was taken: the rows, the id lists and the status rows exist, so PR-A
+  appends to the D-D17 rows rather than adding them; the rest of this bullet is still PR-A's.) Append "Amended by D-D17" to D-A12, D-A15, D-B1 and D-B12 (BEHAVIOR_RECIPES_PLAN.md §6.1, :1037,
   :1040, :1051, :1062), and to D-D11 in both plans (BEHAVIOR_RECIPES_PLAN.md:1121 and
   CONSOLIDATION_PLAN_2026_09.md:1229) (critic item 7). D-D17 supersedes A6; append "Superseded by D-D17" to A6
   (:1005) so the list stops stating a retired sweep rule as current. Mark BALANCE_REWARD_METRICS "Withdrawn: Ray Tune
@@ -443,9 +448,11 @@ filling in this draft, which stays as proposed:
 1. The harness, run by path with `--block-optional-backends` on base and head, produces an empty `diff`.
 2. `plant_contract --check`, `plant_contract --check --baseline <base manifest>` and `species_catalog --check` pass.
 3. `pytest --collect-only environments` reports 0 errors (the verifier measured 4,494 → 4,239 tests collected).
-4. Full CI passes with the `full-ci` label, and `ruff check` and `ruff format --check` are clean.
+4. Full CI passes with the `full-ci` label, and `ruff check` and `ruff format --check` are clean (since CU-1, `ruff
+   format --check environments/`, CI's scope: the pinned ruff also flags notebooks and Markdown elsewhere).
 5. mypy with SB3 reports the same 21 errors in the same 6 files (358 → 331 files checked; the verifier measured
-   357 → 330 before the harness was added), or 0 once CU-1 has landed.
+   357 → 330 before the harness was added), or 0 once CU-1 has landed (CU-1's `test_ci_tool_pins.py` makes it 359
+   files before PR-A; PR-A re-derives its count).
 6. The notebook AST parse, `test_sb3_notebook_pins.py` and `test_species_names.py` pass.
 7. An import walk of every `environments.*` module (`pkgutil.walk_packages`) succeeds. `--ignore-missing-imports`
    hides dangling first-party imports, so mypy alone does not catch them.
@@ -545,7 +552,8 @@ filling in this draft, which stays as proposed:
   on the list changes.
 - The pin test passes, and so do the plant-contract tests (a prototype measured 54).
 - Collection shows 0 errors (the removal critic measured 3,812 tests collected after both PRs), and mypy checks 303
-  files (331 after PR-A; 302 and 330 before the harness was added) with the same 21 errors, or 0 after CU-1.
+  files (331 after PR-A; 302 and 330 before the harness was added) with the same 21 errors, or 0 after CU-1 (whose
+  test file adds one to each count).
 - The wheel step (`python-ci.yml:174-206`) passes, which proves the core ships without JAX.
 - Coverage stays at or above `fail_under = 70`. The #1226 artifacts gave 87.48% with the frozen files whole;
   re-measure on the PR.
@@ -762,7 +770,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 | #557's PR run (36087176501) | 23 jobs, 146.1 job-min. The 15 species matrix jobs took 0.8–1.5 min each (16.3 job-min), about 35 s of it setup | survey |
 | mypy | The lint step takes about 13 s and reports no issues, because SB3 is absent. With SB3 2.9.0 and torch 2.14.0+cpu, re-measured 2026-09-26 at `f850815`: "Found 21 errors in 6 files (checked 357 source files)", 46–57 s cold in two local runs (mypy 2.3.1, JAX installed, ray and wandb absent; decision 8). Per file: `curriculum/advancement.py` 7, `scripts/widen_checkpoint.py` 5, `diagnostics.py` 4, `curriculum/schedules.py` 2, `tests/test_widen_checkpoint.py` 2, `command_frame.py` 1. All are type-only: `BaseAlgorithm` lacks `ent_coef`/`clip_range`/`log_ent_coef`; read-only callback properties are set in the SB3-absent fallback; state dicts are typed as `Tensor`; some Optional values are unchecked. The hand-kept count has drifted from 13 (`5f7318d`) to 21, and one PR saw 22. At `be63a58` with the harness added (§4.4): "Found 21 errors in 6 files (checked 358 source files)", at the same locations; the harness adds none. Locations at `f850815` (unchanged at the follow-up, which also reports 21): `command_frame.py:156`; `diagnostics.py:222` (×2) and :223 (×2), inside the SB3-absent fallback at :218-223; `curriculum/schedules.py:180,210`; `curriculum/advancement.py:519,537,539,555,559,560,617`; `scripts/widen_checkpoint.py:762,804,807,817` (×2 at :817); `tests/test_widen_checkpoint.py:254,330`. Re-measured 2026-09-26 at `8e03483` (CU-1): 21 errors in 6 files locally, as above; 23 errors in 8 files in `test-sb3`'s environment (Python 3.12, numpy 2.5.3, torch 2.13.0+cpu, ray 2.58.0, 66 s cold), the extra two at `harnesses/freeze_recovery_gate.py:469` and `scripts/sweep/ray_orchestration.py:247`; a lint-job mirror (Python 3.11, ruff 0.16.9, mypy 2.3.1, no SB3) reports none. After CU-1, all three report no issues in 359 files | local runs |
 | Tests that run in no job | 6: 3 pandas-gated (`test_sweep_results.py`), 2 `google.auth` (`test_sweep_orchestration.py`), 1 JAX parameter (`test_obs_functions.py`). PR-A deletes the first five; the JAX parameter stays skipped by design | survey |
-| Log readability | `addopts = "--tb=short -q"` (`pyproject.toml:132`) cancels all six CI `-v` flags, so logs show no test ids, durations or skip reasons | verified |
+| Log readability | `addopts = "--tb=short -q"` (`pyproject.toml:132`) cancels all six CI `-v` flags, so logs show no test ids, durations or skip reasons. Since CU-1 every CI pytest step passes `-vv -rfEs --durations=30`, so the logs show each test id, the failure, error and skip lines, and the 30 slowest tests | verified |
 
 ### 5.6 Digest facts that constrain cleanup
 
@@ -825,6 +833,9 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
   (two of them frozen investigations) that CI never checks (CU-1).
 - **Measure in the job's own environment.** numpy 2.5, which needs Python 3.12, reports a type error that numpy 2.4.6
   under Python 3.11 does not, and ray adds one of its own: the 21 local mypy errors were 23 in `test-sb3` (CU-1).
+- **A whitespace hook can move a plant digest.** The plant identity hashes MJCF bytes, and three compsognathus MJCF
+  files end without a newline, so `end-of-file-fixer` under `pre-commit run --all-files` would move both compsognathus
+  identities. Pre-commit now excludes every digest input, and `test_ci_tool_pins.py` checks the exclusion (CU-1).
 - **`-rs` replaces pytest's default `-rfE`; it does not add to it.** The plan's own "add `-rs`" would have dropped the
   failure lines from CI's short summary; CI passes `-rfEs` (CU-1).
 

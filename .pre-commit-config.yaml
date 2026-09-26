@@ -1,9 +1,17 @@
+# No hook may touch a file whose bytes enter a digest: the MJCF plant sources
+# and their meshes (the plant identity hashes them), the behavior recipe TOMLs
+# (recipe_sha256), the generated plant manifests, plant_versions.toml and the
+# recovery calibrations. end-of-file-fixer would append a newline to three
+# compsognathus MJCF files and move both compsognathus plant identities.
+# test_ci_tool_pins.py checks that this pattern covers every such file.
+exclude: '^(environments/[^/]+/(assets|references|data)/|configs/(plant_manifest\.generated\.json|plant_versions\.toml|[^/]+/recovery_calibration\.json|[^/]+/behaviors/))'
+
 repos:
   # ruff and mypy use the versions the CI lint job pins
   # (.github/workflows/python-ci.yml; test_ci_tool_pins.py checks they agree).
   # The ruff hooks cover environments/ only, as CI does: this ruff also
-  # formats notebooks and the Python blocks in Markdown files, which CI never
-  # checks.
+  # formats notebooks and the Python blocks in Markdown files, and outside
+  # environments/ CI checks neither.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
     hooks:

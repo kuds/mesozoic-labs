@@ -21,6 +21,9 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
+      # test_ci_tool_pins.py checks the hook versions and excludes it holds,
+      # so a pre-commit-only PR (a `pre-commit autoupdate`) must run it (CU-1).
+      - ".pre-commit-config.yaml"
       # The sys.path bootstrap every CI pytest invocation imports before
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
@@ -53,6 +56,9 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
+      # test_ci_tool_pins.py checks the hook versions and excludes it holds,
+      # so a pre-commit-only PR (a `pre-commit autoupdate`) must run it (CU-1).
+      - ".pre-commit-config.yaml"
       # The sys.path bootstrap every CI pytest invocation imports before
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
