@@ -131,15 +131,18 @@ def publish_staged_pair(staged: "str | Path", destination: "str | Path", *, zip_
     names are reused: a reclaim between the copies would leave a new file
     beside the previous pair's other file, a mixed pair that every existence
     and integrity check accepts. So the destination file published last is
-    removed first, and a reclaim part-way through leaves one half of the new
-    pair, which that pair's readers already treat as incomplete:
+    removed first, and a reclaim part-way through leaves at worst one file
+    without its partner (the new pair's, or the previous pair's before the
+    first copy lands), which that pair's readers already treat as incomplete:
 
     * ``zip_last=True`` (the best and robust-best handoff pairs): at worst a
       sidecar without its zip, which :func:`select_handoff_checkpoint` skips;
     * ``zip_last=False`` (the final pair): at worst a zip without its
       sidecar, which :func:`checkpoint_pair_problem` reports, so the SB3
       notebook's RESUME cell and chain loop treat it as a final pair cut
-      short (D-D16), as they treat a truncated one.
+      short (D-D16), as they treat a truncated one. ``train()`` also puts an
+      empty placeholder zip at the destination before it saves the pair, so
+      a reclaim before this publish starts leaves the same state.
 
     Without a staged sidecar (a model with no VecNormalize wrapper) the zip
     is published alone and the destination's sidecar removed, so no earlier

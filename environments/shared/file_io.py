@@ -67,7 +67,7 @@ def atomic_write_text(path: "str | Path", text: str, *, encoding: str = "utf-8",
     (or no file) rather than a truncated one -- a half-written JSON record
     on a FUSE mount otherwise wedges every later reader with a decode error.
     *newline* is ``open``'s: ``""`` writes line endings untranslated (the
-    ``csv`` module's ``\r\n``).  The temp file's name starts with a dot and
+    ``csv`` module's ``\\r\\n``).  The temp file's name starts with a dot and
     ends in ``.tmp``, the shape the result-bundle manifest discards if a
     crash strands one.
     """
@@ -129,7 +129,7 @@ def atomic_write_csv(
     """A ``csv.DictWriter`` table (header, then *rows*) written to *path* atomically; returns *path*.
 
     The bytes are those of a ``DictWriter`` in the default ``excel`` dialect
-    writing to a file opened with ``newline=""`` (``\r\n`` row endings).
+    writing to a file opened with ``newline=""`` (``\\r\\n`` row endings).
     Every row is rendered before anything is opened, so a row with a key
     outside *fieldnames* raises ``ValueError`` and leaves the previous file
     intact.

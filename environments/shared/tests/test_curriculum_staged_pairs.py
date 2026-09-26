@@ -7,8 +7,12 @@ load (reproduced 2026-09-26), and a reclaim between a zip and its sidecar
 could pair a new file with the previous pair's other half. They are now
 saved to local scratch and published by ``publish_staged_pair``, which
 removes the destination file it publishes last before publishing anything,
-so a reclaim part-way leaves only half of the new pair, which that pair's
-readers already treat as incomplete. Off a mount nothing changes.
+so a reclaim part-way leaves at worst one file without its partner, which
+that pair's readers already treat as incomplete. The final pair also gets an
+empty placeholder zip before its save begins, so a reclaim at any point of
+the final save leaves a final zip without its sidecar, as a save straight to
+the mount did, and the notebook's D-D16 rules (the early-stop refusal
+included) see what they saw before. Off a mount nothing changes.
 """
 
 from __future__ import annotations
@@ -164,6 +168,34 @@ def mount(tmp_path, monkeypatch):
     return root
 
 
+@pytest.fixture
+def scratch(tmp_path, monkeypatch):
+    """Local scratch (``tempfile.mkdtemp``) inside the test's own directory, so no staging dir outlives the test."""
+    import tempfile
+
+    directory = tmp_path / "scratch"
+    directory.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(directory))
+    return directory
+
+
+def _copies_fail_at(monkeypatch, failing_copy: int) -> list[str]:
+    """Make ``file_io.atomic_copy`` raise on its *failing_copy*-th call (a reclaim mid-publish); return the names copied."""
+    from environments.shared import file_io
+
+    real_copy = file_io.atomic_copy
+    calls: list[str] = []
+
+    def copy(src, dst):
+        calls.append(Path(dst).name)
+        if len(calls) == failing_copy:
+            raise OSError("runtime reclaimed")
+        real_copy(src, dst)
+
+    monkeypatch.setattr(file_io, "atomic_copy", copy)
+    return calls
+
+
 class TestHandoffCallbacks:
     def test_robust_best_saves_to_the_stage_then_publishes(self, tmp_path):
         from environments.shared.curriculum import RobustBestModelCallback
@@ -220,6 +252,46 @@ class TestHandoffCallbacks:
         assert _intact(models / "best_model")
         assert list(staging.iterdir()) == []
 
+    def test_a_reclaim_mid_publish_leaves_no_robust_zip(self, tmp_path, monkeypatch):
+        """The robust-best pair publishes its sidecar first: a reclaim between the copies leaves a lone sidecar."""
+        from environments.shared.curriculum import RobustBestModelCallback
+
+        model, _ = _tiny_model()
+        models, staging = tmp_path / "models", tmp_path / "stage"
+        models.mkdir()
+        staging.mkdir()
+        eval_cb = type("Eval", (), {"evaluations_results": [[1.0, 1.0]]})()
+        callback = RobustBestModelCallback(eval_cb, model_dir=models, staging_dir=staging)
+        callback.init_callback(model)
+        calls = _copies_fail_at(monkeypatch, 2)
+
+        with pytest.raises(OSError, match="reclaimed"):
+            callback.on_step()
+
+        assert calls == ["robust_best_model_vecnorm.pkl", "robust_best_model.zip"]
+        assert sorted(path.name for path in models.iterdir()) == ["robust_best_model_vecnorm.pkl"]
+        assert select_handoff_checkpoint(models) is None
+
+    def test_a_reclaim_mid_publish_leaves_no_best_zip(self, tmp_path, monkeypatch):
+        """The best pair publishes its sidecar first too, so the lone file is never a zip a reader could pick."""
+        from environments.shared.curriculum import SaveVecNormalizeCallback
+
+        model, _ = _tiny_model()
+        models, staging = tmp_path / "models", tmp_path / "stage"
+        models.mkdir()
+        staging.mkdir()
+        model.save(str(staging / "best_model"))
+        callback = SaveVecNormalizeCallback(str(staging / "best_model_vecnorm.pkl"), publish_dir=models)
+        callback.init_callback(model)
+        calls = _copies_fail_at(monkeypatch, 2)
+
+        with pytest.raises(OSError, match="reclaimed"):
+            callback.on_step()
+
+        assert calls == ["best_model_vecnorm.pkl", "best_model.zip"]
+        assert sorted(path.name for path in models.iterdir()) == ["best_model_vecnorm.pkl"]
+        assert select_handoff_checkpoint(models) is None
+
     def test_publishing_needs_a_sidecar_name(self, tmp_path):
         pytest.importorskip("stable_baselines3")
         from environments.shared.curriculum import SaveVecNormalizeCallback
@@ -229,14 +301,9 @@ class TestHandoffCallbacks:
 
 
 class TestFinalPair:
-    def test_on_a_mount_the_pair_is_staged_then_published(self, mount, monkeypatch, tmp_path):
-        import tempfile
-
+    def test_on_a_mount_the_pair_is_staged_then_published(self, mount, scratch):
         from environments.shared import train_base
 
-        scratch = tmp_path / "scratch"
-        scratch.mkdir()
-        monkeypatch.setattr(tempfile, "tempdir", str(scratch))
         model, env = _tiny_model()
         models = mount / "MyDrive" / "run" / "01_stance" / "models"
         models.mkdir(parents=True)
@@ -247,30 +314,70 @@ class TestFinalPair:
         assert _intact(final_path)
         assert list(scratch.iterdir()) == [], "the final pair's staging directory must be removed"
 
-    def test_a_reclaim_mid_save_leaves_no_truncated_final_zip(self, mount, monkeypatch):
+    @pytest.mark.parametrize("previous_pair", [False, True])
+    def test_a_reclaim_mid_save_leaves_the_placeholder_without_a_sidecar(
+        self, mount, scratch, monkeypatch, previous_pair
+    ):
+        """A reclaim during the local save: the destination holds the empty placeholder zip and no sidecar, which
+        ``checkpoint_pair_problem`` reports, never a truncated zip, no final zip at all, or a previous pair intact."""
         sb3 = pytest.importorskip("stable_baselines3")
         from environments.shared import train_base
+        from environments.shared.curriculum import checkpoint_pair_problem
 
         model, env = _tiny_model()
         models = mount / "MyDrive" / "run" / "01_stance" / "models"
         models.mkdir(parents=True)
+        if previous_pair:
+            model.save(str(models / "stage1_final"))
+            env.save(str(models / "stage1_final_vecnorm.pkl"))
         monkeypatch.setattr(sb3.PPO, "save", _half_then_reclaimed(sb3.PPO.save))
 
         with pytest.raises(Reclaimed):
             train_base._save_final_and_sync_tb(model, env, models, 1, None, mount / "tb")
 
-        assert not (models / "stage1_final.zip").exists()
-        assert list(models.iterdir()) == []
+        assert sorted(path.name for path in models.iterdir()) == ["stage1_final.zip"]
+        assert (models / "stage1_final.zip").read_bytes() == b""
+        problem = checkpoint_pair_problem(models / "stage1_final.zip", models / "stage1_final_vecnorm.pkl")
+        assert problem is not None and "missing matched VecNormalize sidecar" in problem
+        assert list(scratch.iterdir()) == [], "the final pair's staging directory must be removed"
 
-    def test_a_hard_kill_mid_save_leaves_no_truncated_final_zip(self, tmp_path):
+    @pytest.mark.parametrize("failing_copy", [1, 2])
+    def test_a_reclaim_mid_publish_leaves_a_final_zip_without_its_sidecar(
+        self, mount, scratch, monkeypatch, failing_copy
+    ):
+        """The final pair publishes its zip first (over the placeholder) and its sidecar last."""
+        from environments.shared import train_base
+        from environments.shared.curriculum import checkpoint_pair_problem
+
+        model, env = _tiny_model()
+        models = mount / "MyDrive" / "run" / "01_stance" / "models"
+        models.mkdir(parents=True)
+        calls = _copies_fail_at(monkeypatch, failing_copy)
+
+        with pytest.raises(OSError, match="reclaimed"):
+            train_base._save_final_and_sync_tb(model, env, models, 1, None, mount / "tb")
+
+        assert calls == ["stage1_final.zip", "stage1_final_vecnorm.pkl"][:failing_copy]
+        assert sorted(path.name for path in models.iterdir()) == ["stage1_final.zip"]
+        published = (models / "stage1_final.zip").read_bytes()
+        assert (published == b"") == (failing_copy == 1), "the zip copy replaces the placeholder"
+        problem = checkpoint_pair_problem(models / "stage1_final.zip", models / "stage1_final_vecnorm.pkl")
+        assert problem is not None and "missing matched VecNormalize sidecar" in problem
+
+    @pytest.mark.parametrize("killed_in", ["local save", "zip copy"])
+    def test_a_hard_kill_mid_save_leaves_the_placeholder_without_a_sidecar(self, tmp_path, killed_in):
         """``os._exit`` mid-save: no ``finally`` or ``except`` runs, as on a real reclaim."""
         pytest.importorskip("stable_baselines3")
+        from environments.shared.curriculum import checkpoint_pair_problem
+
         root = tmp_path / "content" / "drive"
         models = root / "MyDrive" / "run" / "01_stance" / "models"
         models.mkdir(parents=True)
+        system_tmp = tmp_path / "system_tmp"
+        system_tmp.mkdir()
         script = textwrap.dedent(
             f"""
-            import os, numpy as np, gymnasium as gym, stable_baselines3 as sb3
+            import os, shutil, numpy as np, gymnasium as gym, stable_baselines3 as sb3
             from pathlib import Path
             from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
             from environments.shared import train_base
@@ -285,14 +392,21 @@ class TestFinalPair:
                     return np.zeros(1, dtype=np.float32), 0.0, False, False, {{}}
             env = VecNormalize(DummyVecEnv([TinyEnv]))
             model = sb3.PPO("MlpPolicy", env, n_steps=8, batch_size=8, n_epochs=1, verbose=0, device="cpu")
-            real = sb3.PPO.save
-            def save(self, path, *a, **k):
-                target = str(path) if str(path).endswith(".zip") else f"{{path}}.zip"
-                real(self, path, *a, **k)
-                data = Path(target).read_bytes()
-                Path(target).write_bytes(data[: len(data) // 2])
-                os._exit(137)
-            sb3.PPO.save = save
+            if {killed_in!r} == "local save":
+                real = sb3.PPO.save
+                def save(self, path, *a, **k):
+                    target = str(path) if str(path).endswith(".zip") else f"{{path}}.zip"
+                    real(self, path, *a, **k)
+                    data = Path(target).read_bytes()
+                    Path(target).write_bytes(data[: len(data) // 2])
+                    os._exit(137)
+                sb3.PPO.save = save
+            else:
+                def copyfile(src, dst, *a, **k):
+                    data = Path(src).read_bytes()
+                    Path(dst).write_bytes(data[: len(data) // 2])
+                    os._exit(137)
+                shutil.copyfile = copyfile
             train_base._save_final_and_sync_tb(
                 model, env, Path({str(models)!r}), 1, None, Path({str(root / "tb")!r})
             )
@@ -304,16 +418,26 @@ class TestFinalPair:
             env={
                 **os.environ,
                 "PYTHONPATH": os.pathsep.join(filter(None, [str(repository), os.environ.get("PYTHONPATH")])),
+                "TMPDIR": str(system_tmp),
             },
             capture_output=True,
             text=True,
             timeout=300,
         )
         assert result.returncode == 137, result.stderr
-        assert not (models / "stage1_final.zip").exists(), "a reclaim mid-save published a truncated final zip"
+        left = sorted(path.name for path in models.iterdir())
+        # A kill mid-copy strands the copy's dot-named temporary, which the bundle manifest discards.
+        assert [name for name in left if not name.startswith(".")] == ["stage1_final.zip"], left
+        assert (models / "stage1_final.zip").read_bytes() == b"", "a reclaim mid-save published a truncated final zip"
+        problem = checkpoint_pair_problem(models / "stage1_final.zip", models / "stage1_final_vecnorm.pkl")
+        assert problem is not None and "missing matched VecNormalize sidecar" in problem
 
 
 class TestWiring:
+    @pytest.fixture(autouse=True)
+    def _local_scratch(self, scratch):
+        """``_build_core_callbacks`` makes its staging and evaluation dirs with ``mkdtemp``; keep them in tmp_path."""
+
     @staticmethod
     def _callbacks(stage_dir: Path):
         pytest.importorskip("stable_baselines3")

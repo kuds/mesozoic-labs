@@ -524,8 +524,11 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   extra); PR-B retires the JAX/MJX runtime. A frozen MJX interface core stays,
   so no digest moves. The archive points (its row 2) are not part of D-D17 and
   are still open; the maintainer settles them before PR-A merges. Amended
-  2026-09-26: the single-job Vertex AI route and GCS upload leave in a PR of
-  their own, PR-A2, after PR-A, so PR-A stays pure deletion.
+  2026-09-26: split into two PRs under the same D-D17, each with its own
+  review: PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2
+  removes the single-job Vertex AI route and GCS upload, with an end-to-end
+  test of the command-line curriculum path (the cleanup plan lands it after
+  PR-A).
 - **D-D18** (its row 8) CI type-checks with SB3 and torch installed: the SB3
   job pins SB3 as the notebook does and runs mypy, which must report no
   errors, and ruff and mypy are each pinned to one version for CI and
@@ -537,9 +540,12 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
 - **D-D20** (its row 7) A Colab reclaim may not leave the final pair or a
   handoff pair (best, robust-best) truncated, nor mixed with the previous
   pair: on a Drive/GCS mount `train()` stages them locally and publishes them
-  like the periodic pairs, so a reclaim leaves at worst half of the new pair,
-  which that pair's readers treat as incomplete (D-D16's RESUME and chain-loop
-  rules apply unchanged); off a mount nothing changes. Carried out by CU-3.
+  like the periodic pairs, and an empty placeholder takes the final zip's place
+  before the final save begins, so a reclaim leaves at worst one file of a pair
+  without its partner, which that pair's readers treat as incomplete, as they
+  treated a pair a save straight to the mount cut short (D-D16's RESUME and
+  chain-loop rules, the early-stop refusal included, apply unchanged); off a
+  mount nothing changes. Carried out by CU-3.
 - Operational choice the same day (its row 19): the stale PRs #527 and #498
   were closed, each with a comment.
 

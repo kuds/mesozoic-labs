@@ -939,9 +939,14 @@ def _save_final_and_sync_tb(
     """Save the final model checkpoint and sync TensorBoard events to GCS.
 
     On a Drive/GCS mount the pair is saved to local scratch and published
-    zip first, sidecar last (``publish_staged_pair``): a reclaim during the
-    save leaves at worst a zip without its sidecar, which
-    ``checkpoint_pair_problem`` reports, never a truncated zip (CU-3).
+    zip first, sidecar last (``publish_staged_pair``). An empty placeholder
+    zip replaces the destination zip, and the destination sidecar is removed,
+    before anything is saved, so from the moment the final save begins a
+    reclaim leaves a final zip without its sidecar (the placeholder or the
+    published zip), which ``checkpoint_pair_problem`` reports, as a save
+    straight to the mount did: the notebook's D-D16 RESUME and chain-loop
+    rules, including the early-stop refusal, see the state they saw before
+    CU-3, never a truncated zip and never no final zip at all.
 
     Returns the final model path (without ``.zip`` extension).
     """
@@ -951,7 +956,13 @@ def _save_final_and_sync_tb(
         import tempfile as _tempfile
 
         from .curriculum.checkpoints import publish_staged_pair
+        from .file_io import atomic_write_text
 
+        # Mark "the final save began" on the mount first: without it, a reclaim
+        # before the zip lands would leave no final zip, which the RESUME cell
+        # reads as an interruption and so skips its early-stop refusal (D-D16).
+        atomic_write_text(Path(f"{final_path}.zip"), "")
+        Path(f"{final_path}_vecnorm.pkl").unlink(missing_ok=True)
         staging_dir = Path(_tempfile.mkdtemp(prefix=f"final_{stage_label(stage)}_"))
         try:
             staged = staging_dir / final_path.name
