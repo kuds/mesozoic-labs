@@ -687,15 +687,26 @@ def _build_core_callbacks(
 
     callbacks: list[Any] = []
 
-    save_vecnorm_cb = SaveVecNormalizeCallback(
-        save_path=str(model_dir / "best_model_vecnorm.pkl"),
-    )
-
     # EvalCallback rewrites evaluations.npz in place on every eval; on a
     # Drive/GCS FUSE mount that streaming rewrite can be observed — or
     # permanently left — truncated. Write to local scratch instead and
     # publish atomically to the stage dir after each eval.
     import tempfile as _tempfile
+
+    # The handoff pairs (best_model, robust_best_model) get the same
+    # treatment on a mount: SB3's EvalCallback and RobustBestModelCallback
+    # save them into local scratch, and publish_staged_pair publishes each
+    # pair so that a reclaim cannot leave it truncated, nor a new file beside
+    # the previous pair's other half (CU-3). Off a mount they are written in
+    # place, as before.
+    handoff_staging_dir: Path | None = None
+    if _is_remote_mount_path(model_dir):
+        handoff_staging_dir = Path(_tempfile.mkdtemp(prefix=f"handoff_{stage_label(stage)}_"))
+        logger.info("Handoff pairs staged locally at %s and published to %s", handoff_staging_dir, model_dir)
+    save_vecnorm_cb = SaveVecNormalizeCallback(
+        save_path=str((handoff_staging_dir or model_dir) / "best_model_vecnorm.pkl"),
+        publish_dir=model_dir if handoff_staging_dir is not None else None,
+    )
 
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
@@ -707,7 +718,7 @@ def _build_core_callbacks(
         # the artifact a human (or a Drive reader) checks mid-run, so it has
         # to land beside diagnostics.npz rather than in a temp directory.
         gate_progress_dir=log_path,
-        best_model_save_path=str(model_dir),
+        best_model_save_path=str(handoff_staging_dir or model_dir),
         log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,
         n_eval_episodes=_eval_episodes_for_stage(stage_config),
@@ -721,7 +732,9 @@ def _build_core_callbacks(
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
     # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
     # best_model; next-stage loading prefers it when present.
-    callbacks.append(RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose))
+    callbacks.append(
+        RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose, staging_dir=handoff_staging_dir)
+    )
 
     checkpoint_stride = max(1, save_freq // n_envs)
     # On a Drive/GCS FUSE mount, stream the periodic checkpoint pair to fast
@@ -925,11 +938,31 @@ def _save_final_and_sync_tb(
 ) -> Path:
     """Save the final model checkpoint and sync TensorBoard events to GCS.
 
+    On a Drive/GCS mount the pair is saved to local scratch and published
+    zip first, sidecar last (``publish_staged_pair``): a reclaim during the
+    save leaves at worst a zip without its sidecar, which
+    ``checkpoint_pair_problem`` reports, never a truncated zip (CU-3).
+
     Returns the final model path (without ``.zip`` extension).
     """
     final_path = model_dir / f"{stage_label(stage)}_final"
-    model.save(str(final_path))
-    train_env.save(str(final_path) + "_vecnorm.pkl")
+    if _is_remote_mount_path(model_dir):
+        import shutil as _shutil
+        import tempfile as _tempfile
+
+        from .curriculum.checkpoints import publish_staged_pair
+
+        staging_dir = Path(_tempfile.mkdtemp(prefix=f"final_{stage_label(stage)}_"))
+        try:
+            staged = staging_dir / final_path.name
+            model.save(str(staged))
+            train_env.save(str(staged) + "_vecnorm.pkl")
+            publish_staged_pair(staged, final_path, zip_last=False)
+        finally:
+            _shutil.rmtree(staging_dir, ignore_errors=True)
+    else:
+        model.save(str(final_path))
+        train_env.save(str(final_path) + "_vecnorm.pkl")
 
     if local_tb_dir is not None:
         try:
@@ -1489,8 +1522,6 @@ def _report_hpt_metrics(
     """
     _validate_post_eval_episodes(post_eval_episodes)
 
-    import json as _json
-
     import numpy as _np
 
     from .config import get_library_version
@@ -1605,9 +1636,10 @@ def _report_hpt_metrics(
 
     # Write all metrics to a JSON sidecar so they can be collected from
     # GCS without relying on the HPT metric_spec.
-    metrics_path = Path(log_path) / "metrics.json"
-    with open(metrics_path, "w") as f:
-        _json.dump(aux_metrics, f, indent=2)
+    from .file_io import atomic_write_json
+
+    # Written atomically, and as before with no trailing newline (CU-3).
+    metrics_path = atomic_write_json(Path(log_path) / "metrics.json", aux_metrics, trailing_newline=False)
     logger.info("Metrics sidecar written to: %s", metrics_path)
 
 

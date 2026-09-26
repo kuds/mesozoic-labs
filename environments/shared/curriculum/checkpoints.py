@@ -45,6 +45,10 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         model_dir: Directory to save ``robust_best_model.zip`` into.
         risk_coef: Weight on the per-episode std in the score
             (default 1.0, i.e. one standard deviation below the mean).
+        staging_dir: When set (``train()`` sets it on a Drive/GCS mount), the
+            pair is saved there first and published into *model_dir* by
+            :func:`publish_staged_pair`, so a reclaim cannot leave it
+            truncated or mixed with the previous pair (CU-3).
         verbose: Verbosity level.
     """
 
@@ -54,6 +58,7 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         model_dir: "str | Path",
         risk_coef: float = 1.0,
         verbose: int = 0,
+        staging_dir: "str | Path | None" = None,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for RobustBestModelCallback.")
@@ -61,6 +66,7 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         self.eval_callback = eval_callback
         self.model_dir = Path(model_dir)
         self.risk_coef = risk_coef
+        self.staging_dir = Path(staging_dir) if staging_dir is not None else None
         self.best_score = -np.inf
         self._last_seen_n = 0
 
@@ -77,11 +83,15 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
             return True
         self.best_score = score
 
-        path = self.model_dir / "robust_best_model"
+        # getattr: tests build this callback without __init__.
+        staging_dir = getattr(self, "staging_dir", None)
+        path = (staging_dir if staging_dir is not None else self.model_dir) / "robust_best_model"
         self.model.save(str(path))
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
             vec_env.save(str(path) + "_vecnorm.pkl")
+        if staging_dir is not None:
+            publish_staged_pair(path, self.model_dir / "robust_best_model", zip_last=True)
         logger.info(
             "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
             score,
@@ -108,6 +118,50 @@ def select_handoff_checkpoint(model_dir: Path) -> tuple[str, str, str] | None:
         if cand_zip.exists() and cand_vecnorm.exists():
             return candidate, str(model_dir / candidate), str(cand_vecnorm)
     return None
+
+
+def publish_staged_pair(staged: "str | Path", destination: "str | Path", *, zip_last: bool) -> None:
+    """Publish ``<staged>.zip`` and ``<staged>_vecnorm.pkl`` over ``<destination>.*``, never as a mixed pair.
+
+    For the fixed-name pairs (``best_model``, ``robust_best_model``,
+    ``<label>_final``) that ``train()`` saves to local scratch when the stage
+    directory is on a Drive/GCS mount (CU-3). Each file goes through
+    :func:`~environments.shared.file_io.atomic_copy`, so neither is ever seen
+    truncated. Two files cannot be replaced in one step, though, and these
+    names are reused: a reclaim between the copies would leave a new file
+    beside the previous pair's other file, a mixed pair that every existence
+    and integrity check accepts. So the destination file published last is
+    removed first, and a reclaim part-way through leaves one half of the new
+    pair, which that pair's readers already treat as incomplete:
+
+    * ``zip_last=True`` (the best and robust-best handoff pairs): at worst a
+      sidecar without its zip, which :func:`select_handoff_checkpoint` skips;
+    * ``zip_last=False`` (the final pair): at worst a zip without its
+      sidecar, which :func:`checkpoint_pair_problem` reports, so the SB3
+      notebook's RESUME cell and chain loop treat it as a final pair cut
+      short (D-D16), as they treat a truncated one.
+
+    Without a staged sidecar (a model with no VecNormalize wrapper) the zip
+    is published alone and the destination's sidecar removed, so no earlier
+    sidecar is left beside it. The staged files are removed once published.
+    An ``OSError`` propagates, as a direct save's would.
+    """
+    from ..file_io import atomic_copy
+
+    staged_zip, staged_pkl = Path(f"{staged}.zip"), Path(f"{staged}_vecnorm.pkl")
+    destination_zip, destination_pkl = Path(f"{destination}.zip"), Path(f"{destination}_vecnorm.pkl")
+    if not staged_pkl.exists():
+        order = [(staged_zip, destination_zip)]
+        destination_pkl.unlink(missing_ok=True)
+    elif zip_last:
+        order = [(staged_pkl, destination_pkl), (staged_zip, destination_zip)]
+    else:
+        order = [(staged_zip, destination_zip), (staged_pkl, destination_pkl)]
+    order[-1][1].unlink(missing_ok=True)
+    for source, target in order:
+        atomic_copy(source, target)
+    for source, _ in order:
+        source.unlink(missing_ok=True)
 
 
 def checkpoint_pair_problem(zip_path: Path, vecnorm_path: Path) -> str | None:
@@ -436,19 +490,32 @@ class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
     Args:
         save_path: Destination path for the VecNormalize ``.pkl`` file.
         verbose: Verbosity level.
+        publish_dir: When set (``train()`` sets it on a Drive/GCS mount, with
+            the ``EvalCallback``'s ``best_model_save_path`` and *save_path* in
+            local scratch), the pair SB3 just saved there is published into
+            *publish_dir* by :func:`publish_staged_pair` (CU-3). *save_path*
+            must then end in ``_vecnorm.pkl``; the pair's name is what precedes it.
     """
 
-    def __init__(self, save_path: str, verbose: int = 0):
+    def __init__(self, save_path: str, verbose: int = 0, publish_dir: "str | Path | None" = None):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for SaveVecNormalizeCallback.")
+        if publish_dir is not None and not str(save_path).endswith("_vecnorm.pkl"):
+            raise ValueError(f"save_path must end in _vecnorm.pkl when publish_dir is set, got {save_path}")
         super().__init__(verbose)
         self.save_path = save_path
+        self.publish_dir = Path(publish_dir) if publish_dir is not None else None
 
     def _on_step(self) -> bool:
         vec_env = self.model.get_vec_normalize_env()
         if vec_env is not None:
             vec_env.save(self.save_path)
             logger.info("VecNormalize saved to: %s", self.save_path)
+        # getattr: tests build this callback without __init__.
+        publish_dir = getattr(self, "publish_dir", None)
+        if publish_dir is not None:
+            staged = Path(str(self.save_path).removesuffix("_vecnorm.pkl"))
+            publish_staged_pair(staged, publish_dir / staged.name, zip_last=True)
         return True
 
 

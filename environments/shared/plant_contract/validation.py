@@ -6,7 +6,6 @@ before a policy is trained, replayed, or promoted against the wrong plant."""
 from __future__ import annotations
 
 import importlib
-import json
 import logging
 from pathlib import Path
 from typing import Any, Mapping
@@ -170,13 +169,14 @@ def validate_mjx_environment_plant(
 
 
 def write_plant_identity(path: str | Path, identity: PlantIdentity) -> Path:
-    """Atomically write a checkpoint/run identity sidecar."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(json.dumps(identity.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temp_path.replace(path)
-    return path
+    """Atomically write a checkpoint/run identity sidecar.
+
+    Through ``file_io``, whose dot-named temp file the result-bundle manifest
+    discards if a crash strands one (CU-3).
+    """
+    from ..file_io import atomic_write_json
+
+    return atomic_write_json(path, identity.to_dict(), sort_keys=True)
 
 
 def attach_plant_identity(model: Any, identity: PlantIdentity) -> None:

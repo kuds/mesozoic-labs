@@ -2286,8 +2286,8 @@ class TestResumeCell:
 
     @pytest.mark.parametrize("broken", ["zip", "sidecar"])
     def test_a_final_pair_cut_short_is_resumed_over(self, tmp_path, capsys, broken):
-        """Executed: ``train()`` writes the final pair straight to the mount (only periodic pairs are staged and
-        published atomically), so a reclaim during the final save can truncate it. It is checked like a periodic pair; a broken one is not a finished node
+        """Executed: a reclaim during the final save can leave the final pair broken (off a mount ``train()`` writes it in
+        place and can truncate it; on one it publishes the zip before the sidecar). It is checked like a periodic pair; a broken one is not a finished node
         (the JUDGE branch could not load it), so the cell resumes from the newest intact periodic pair and warns."""
         import pickle
 

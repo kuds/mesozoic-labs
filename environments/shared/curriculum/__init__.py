@@ -66,6 +66,7 @@ from .checkpoints import (
     checkpoint_pair_problem,
     load_vecnorm_stats,
     prune_periodic_checkpoints,
+    publish_staged_pair,
     seed_resume_eval_state,
     select_handoff_checkpoint,
 )
@@ -132,6 +133,7 @@ __all__ = [
     "prune_periodic_checkpoints",
     "seed_resume_eval_state",
     "checkpoint_pair_problem",
+    "publish_staged_pair",
     "select_handoff_checkpoint",
     "sb3_compat",
     "thresholds_from_configs",

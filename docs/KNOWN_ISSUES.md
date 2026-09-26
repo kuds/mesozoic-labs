@@ -382,37 +382,6 @@ tolerance) remains the standing recommendation for the divergences above.
   a complete run's copy). Nothing certified is touched, and the next node
   trained or judged in the run rebuilds the bundle over both files. Remedy:
   run the auto-disconnect cell (§9) by hand.
-- **MEDIUM (operational)** — **the best and robust-best handoff pairs are
-  written straight to the mount, and one a reclaim cuts short leaves the node
-  unjudgeable (reproduced 2026-09-26 at the #558 follow-up, #559).**
-  On a Drive/GCS mount `train()` stages only the periodic pairs locally and
-  publishes them atomically (`_build_core_callbacks`, `train_base.py:726-760`).
-  SB3's `EvalCallback` saves `best_model.zip` into `models/` directly
-  (`best_model_save_path`, :710) and `SaveVecNormalizeCallback` then its
-  sidecar; `RobustBestModelCallback` saves `robust_best_model.zip`, then its
-  sidecar, the same way (`curriculum/checkpoints.py:80-84`). The final pair is
-  written the same way (`_save_final_and_sync_tb`, `train_base.py:918-932`),
-  but since #559 the RESUME cell and the chain loop check it with
-  `curriculum.checkpoint_pair_problem`. Nothing checks the handoff pairs:
-  `select_handoff_checkpoint` (`curriculum/checkpoints.py:96`) tests only
-  that both files exist, and the JUDGE branch's `evaluate_stage_checkpoints`
-  loads the selected pair after evaluating the final one
-  (`reporting/stage_artifacts.py:1292-1312`). With an intact final pair and
-  `robust_best_model.zip` cut in half, the RESUME cell prints "Nothing to
-  resume", the selector still returns `robust_best_model`, and
-  `load_sb3_model` raises `AssertionError: No data found in the saved file`,
-  so every Run all fails in JUDGE with a bare load error. A resume does not
-  repair it: `seed_resume_eval_state` (`train_base.py:1344`) seeds the best
-  trackers from `evaluations.npz`, so the pair is rewritten only when a later
-  evaluation beats the old best. A reclaim between a zip and its sidecar can
-  also pair a new zip with the previous best's sidecar, which no integrity
-  check can see (read from the write order, not reproduced). Workaround:
-  before judging, run `checkpoint_pair_problem` over `robust_best_model.*` and
-  `best_model.*`; moving a broken pair aside lets the selector fall back to
-  the other (the verdict then binds that checkpoint), otherwise train the node
-  again in a fresh `RUN_ID`. Plan: stage the final and best pairs like the
-  periodic ones (CU-3 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md);
-  names and bytes are unchanged, so no digest moves). (#558 reviews)
 - **LOW (operational)** — **nothing on disk records the trunk a session
   resolved, so a resume must re-supply it by hand, and a wrong one fails late
   or discards the resumed node (read from the code at the #558 follow-up,
@@ -444,7 +413,7 @@ tolerance) remains the standing recommendation for the divergences above.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:403-427`, called at
-  `train_base.py:1143`) lets any same-stage resume through. Against a
+  `train_base.py:1176`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -1058,7 +1027,7 @@ tolerance) remains the standing recommendation for the divergences above.
   canonical builder also pops the callback-driven `ent_coef_end` and
   `ent_coef_decay_timesteps` (`train_base._prepare_alg_kwargs`,
   `train_base.py:354-355`) and adds the decay callback
-  (`_maybe_ent_coef_decay_callback`, :841). All 21 PPO stage configs carry
+  (`_maybe_ent_coef_decay_callback`, :854). All 21 PPO stage configs carry
   `ent_coef_end` (20 also carry `ent_coef_decay_timesteps`), and replaying
   :714-733 for each against SB3 2.9.0 raised `PPO.__init__() got an unexpected
   keyword argument 'ent_coef_end'` 21 times out of 21. The sweep notebook's

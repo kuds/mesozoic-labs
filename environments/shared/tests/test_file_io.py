@@ -1,12 +1,20 @@
 """Tests for atomic file-write helpers."""
 
+import csv
+import json
 import os
 import stat
 
 import numpy as np
 import pytest
 
-from environments.shared.file_io import atomic_copy, atomic_savez, atomic_write_text
+from environments.shared.file_io import (
+    atomic_copy,
+    atomic_savez,
+    atomic_write_csv,
+    atomic_write_json,
+    atomic_write_text,
+)
 
 
 class TestAtomicCopy:
@@ -102,6 +110,74 @@ class TestAtomicWriteText:
         assert [p.name for p in tmp_path.iterdir()] == ["record.json"]
 
 
+class TestAtomicWriteJson:
+    """The JSON helper reproduces each converted writer's bytes (CU-3)."""
+
+    VALUE = {"b": [1, 2.5], "a": {"z": None, "y": "caf\u00e9"}}
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({}, json.dumps(VALUE, indent=2) + "\n"),  # stage_config.json
+            ({"trailing_newline": False}, json.dumps(VALUE, indent=2)),  # metrics.json
+            ({"sort_keys": True}, json.dumps(VALUE, indent=2, sort_keys=True) + "\n"),  # sidecars
+            (
+                {"sort_keys": True, "allow_nan": False},
+                json.dumps(VALUE, indent=2, sort_keys=True, allow_nan=False) + "\n",
+            ),  # stance reports
+            ({"ensure_ascii": False}, json.dumps(VALUE, indent=2, ensure_ascii=False) + "\n"),
+        ],
+    )
+    def test_bytes_equal_the_json_dumps_expression_it_replaces(self, tmp_path, kwargs, expected):
+        written = atomic_write_json(tmp_path / "out" / "record.json", self.VALUE, **kwargs)
+
+        assert written == tmp_path / "out" / "record.json"
+        assert written.read_bytes() == expected.encode("utf-8")
+        assert [p.name for p in written.parent.iterdir()] == ["record.json"]
+
+    def test_a_value_that_cannot_serialize_leaves_the_previous_file(self, tmp_path):
+        dst = tmp_path / "report.json"
+        dst.write_text("old", encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            atomic_write_json(dst, {"x": float("nan")}, allow_nan=False)
+
+        assert dst.read_text(encoding="utf-8") == "old"
+        assert [p.name for p in tmp_path.iterdir()] == ["report.json"]
+
+
+class TestAtomicWriteCsv:
+    """The CSV helper writes what a DictWriter on a ``newline=""`` file writes."""
+
+    FIELDS = ["episode", "reward", "label"]
+    ROWS = [{"episode": 0, "reward": 1.5, "label": "a,b"}, {"episode": 1, "reward": -2.0, "label": 'say "hi"'}]
+
+    def _reference(self, path):
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=self.FIELDS)
+            writer.writeheader()
+            writer.writerows(self.ROWS)
+        return path.read_bytes()
+
+    def test_bytes_equal_a_dictwriter_on_a_newline_less_file(self, tmp_path):
+        expected = self._reference(tmp_path / "reference.csv")
+
+        written = atomic_write_csv(tmp_path / "out" / "evidence.csv", self.FIELDS, iter(self.ROWS))
+
+        assert written.read_bytes() == expected
+        assert b"\r\n" in expected, "the excel dialect's row terminator must survive"
+
+    def test_a_row_outside_the_fieldnames_leaves_the_previous_file(self, tmp_path):
+        dst = tmp_path / "evidence.csv"
+        dst.write_text("old", encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            atomic_write_csv(dst, self.FIELDS, [{"episode": 0, "reward": 1.0, "label": "", "extra": 1}])
+
+        assert dst.read_text(encoding="utf-8") == "old"
+        assert [p.name for p in tmp_path.iterdir()] == ["evidence.csv"]
+
+
 class TestPublishedFileMode:
     """A published temporary carries the mode a plain write would have given it.
 
@@ -139,6 +215,16 @@ class TestPublishedFileMode:
 
         assert self._mode(tmp_path / "copy.bin") == self._mode(plain)
         assert self._mode(tmp_path / "arrays.npz") == self._mode(plain)
+
+    def test_json_and_csv_helpers_match_a_plain_write(self, tmp_path, umask):
+        plain = tmp_path / "plain.json"
+        plain.write_text("{}", encoding="utf-8")
+
+        atomic_write_json(tmp_path / "atomic.json", {})
+        atomic_write_csv(tmp_path / "atomic.csv", ["a"], [{"a": 1}])
+
+        assert self._mode(tmp_path / "atomic.json") == self._mode(plain) == 0o666 & ~umask
+        assert self._mode(tmp_path / "atomic.csv") == self._mode(plain)
 
     def test_a_replaced_file_takes_the_new_mode(self, tmp_path, umask):
         dst = tmp_path / "record.json"

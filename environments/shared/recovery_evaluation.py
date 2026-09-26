@@ -28,7 +28,6 @@ definition that produced it.
 
 from __future__ import annotations
 
-import csv
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -36,6 +35,7 @@ from typing import Any, Callable, Sequence
 import numpy as np
 
 from .curriculum.recovery_gate import episode_recovery_success, per_push_recovery
+from .file_io import atomic_write_csv
 
 #: Provisional safe-set thresholds (plan §6 / P3).  Recorded per evidence
 #: file; a calibration run replaces them WITH the re-derivation, never
@@ -326,10 +326,7 @@ def write_recovery_evidence(stage_dir: "str | Path", evidence: RecoveryPanelEvid
         ("shoves", evidence.shoves, ShoveRecord),
     ):
         path = stage_dir / f"recovery_{name}_{evidence.controller_id}.csv"
-        fieldnames = list(fields.__dataclass_fields__)
-        with path.open("w", newline="", encoding="utf-8") as destination:
-            writer = csv.DictWriter(destination, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(asdict(row) for row in rows)
-        paths[name] = path
+        # Atomic, the pattern PR-13's terrain evidence writer is to follow
+        # (CU-3; the bytes are unchanged).
+        paths[name] = atomic_write_csv(path, list(fields.__dataclass_fields__), [asdict(row) for row in rows])
     return paths

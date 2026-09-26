@@ -30,8 +30,6 @@ this module by its full path, lazily where the importer must stay light.
 
 from __future__ import annotations
 
-import csv
-import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +45,7 @@ from ..curriculum.stance_gate import (
     evaluate_stance_gate,
     stance_panel_from_episode_duties,
 )
+from ..file_io import atomic_write_csv, atomic_write_json, atomic_write_text
 from ..policy_loading import PolicyLoadError, load_sb3_checkpoint
 from ..species_registry import SPECIES_FACTORIES
 from ..stance_diagnostics import derive_stance_info
@@ -1301,13 +1300,10 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     stem = stem or "stance_gate_report"
     text_path = directory / f"{stem}.txt"
     json_path = directory / f"{stem}.json"
-    text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
+    atomic_write_text(text_path, render_stance_gate_report(report) + "\n")
     # allow_nan=False turns any non-finite value _json_safe missed into a
     # ValueError here rather than an unparseable artifact on Drive.
-    json_path.write_text(
-        json.dumps(_json_safe(report), indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_json(json_path, _json_safe(report), sort_keys=True, allow_nan=False)
     written = {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
     if probe:
         return written
@@ -1395,11 +1391,8 @@ def write_action_filter_sweep(
     ]
     text_path = directory / "stance_gate_probe_filtered.txt"
     json_path = directory / "stance_gate_probe_filtered.json"
-    text_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    json_path.write_text(
-        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_text(text_path, "\n".join(lines) + "\n")
+    atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"action_filter_sweep_txt": text_path, "action_filter_sweep_json": json_path}
 
 
@@ -1837,11 +1830,8 @@ def write_impulse_probe(
     text, payload = render_impulse_probe(policy_reports, statue_reports, probe_episodes=probe_episodes)
     text_path = directory / "stance_gate_probe_impulse.txt"
     json_path = directory / "stance_gate_probe_impulse.json"
-    text_path.write_text(text, encoding="utf-8")
-    json_path.write_text(
-        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_text(text_path, text)
+    atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"impulse_probe_txt": text_path, "impulse_probe_json": json_path}
 
 
@@ -1964,11 +1954,8 @@ def write_constant_hold_ablation(
     text, payload = render_constant_hold_ablation(reports, probe_episodes=probe_episodes)
     text_path = directory / "stance_gate_probe_release.txt"
     json_path = directory / "stance_gate_probe_release.json"
-    text_path.write_text(text, encoding="utf-8")
-    json_path.write_text(
-        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_text(text_path, text)
+    atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"constant_hold_ablation_txt": text_path, "constant_hold_ablation_json": json_path}
 
 
@@ -1986,11 +1973,8 @@ def write_constant_hold_probe(
     text, payload = render_constant_hold_probe(reports, probe_episodes=probe_episodes)
     text_path = directory / "stance_gate_probe_constant.txt"
     json_path = directory / "stance_gate_probe_constant.json"
-    text_path.write_text(text, encoding="utf-8")
-    json_path.write_text(
-        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_text(text_path, text)
+    atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"constant_hold_probe_txt": text_path, "constant_hold_probe_json": json_path}
 
 
@@ -2185,25 +2169,25 @@ def write_stance_panel_evidence(stage_dir: "str | Path", report: dict[str, Any])
     episodes = report.get("episode_evidence")
     if not episodes:
         return None
-    output = Path(stage_dir) / "stance_panel_selected.csv"
-    with output.open("w", newline="", encoding="utf-8") as destination:
-        writer = csv.DictWriter(destination, fieldnames=list(STANCE_PANEL_FIELDNAMES))
-        writer.writeheader()
-        for episode in episodes:
-            duty = episode.get("unsupported_duty")
-            writer.writerow(
-                {
-                    "episode": episode["episode"],
-                    "panel_seed": episode["seed"],
-                    "length": int(episode["length"]),
-                    "reward": float(episode["reward"]),
-                    "reached_horizon": bool(episode["reached_horizon"]),
-                    "unsupported_duty": "" if duty is None else float(duty),
-                    "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
-                    "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
-                }
-            )
-    return output
+    rows = []
+    for episode in episodes:
+        duty = episode.get("unsupported_duty")
+        rows.append(
+            {
+                "episode": episode["episode"],
+                "panel_seed": episode["seed"],
+                "length": int(episode["length"]),
+                "reward": float(episode["reward"]),
+                "reached_horizon": bool(episode["reached_horizon"]),
+                "unsupported_duty": "" if duty is None else float(duty),
+                "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
+                "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
+            }
+        )
+    # Every row is built before the file is touched, and the table is
+    # published atomically: a bad episode or a reclaim leaves the previous
+    # file, never a partial one (CU-3; the bytes are unchanged).
+    return atomic_write_csv(Path(stage_dir) / "stance_panel_selected.csv", STANCE_PANEL_FIELDNAMES, rows)
 
 
 def _optional_float_cell(value: Any) -> str | float:

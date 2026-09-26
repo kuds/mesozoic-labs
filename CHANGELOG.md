@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
 
 ### Added
+- **Decision D-D20 recorded; D-D17 amended** (2026-09-26;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
+  maintainer took the cleanup plan's decision 7 as D-D20: a Colab reclaim
+  may not leave the final pair or a handoff pair truncated, nor mixed with
+  the previous pair (carried out by CU-3; Fixed, below). D-D17 is amended:
+  the single-job Vertex AI route and GCS upload leave in a PR of their own,
+  PR-A2, after PR-A, so PR-A stays pure deletion.
 - **Decisions D-D17, D-D18 and D-D19 recorded** (2026-09-26;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
@@ -971,7 +979,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 
 ### Changed
 - **CI type-checks with Stable-Baselines3 and torch installed; one ruff and
-  one mypy version everywhere** (CU-1 of `docs/CLEANUP_PLAN_2026_09.md`,
+  one mypy version everywhere** (#561, CU-1 of `docs/CLEANUP_PLAN_2026_09.md`,
   decision D-D18). The lint job's mypy runs without SB3 or torch, so both
   resolved to `Any` and CI reported no issues, while the tree had 21 type
   errors locally and 23 in the SB3 job's own environment (Python 3.12, numpy
@@ -1768,6 +1776,30 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
+- **A Colab reclaim no longer truncates a run-tree record or a final or
+  handoff checkpoint pair** (CU-3 of `docs/CLEANUP_PLAN_2026_09.md`,
+  decision D-D20). `train()` saved the final pair and the best and
+  robust-best handoff pairs straight to the Drive mount (only the periodic
+  pairs were staged), so a reclaim during a save could cut one short; a cut
+  handoff pair beside an intact final pair made the RESUME cell treat the
+  node as finished and JUDGE fail to load it (the KNOWN_ISSUES entry, now
+  deleted). On a mount these pairs are now saved to local scratch and
+  published by the new `curriculum.publish_staged_pair`, which first removes
+  the destination file it publishes last: a handoff pair publishes its zip
+  last, so a reclaim leaves at worst a sidecar without its zip, which
+  `select_handoff_checkpoint` skips; the final pair publishes its sidecar
+  last, so a reclaim leaves at worst a zip without its sidecar, which
+  `checkpoint_pair_problem` reports and D-D16's RESUME and chain-loop rules
+  handle as before. Off a mount the pairs are written in place, as before.
+  `file_io` gains `atomic_write_json` and `atomic_write_csv`, through which
+  `stage_config.json`, `metrics.json`, the stance gate text and JSON
+  reports, the three evidence CSVs (`save_evaluation_episodes`,
+  `write_stance_panel_evidence`, `write_recovery_evidence`) and the
+  `gate_resolution.json`, `task_fingerprint.json` and `plant_identity.json`
+  sidecars are now written, each with its bytes unchanged; the three
+  sidecar writers had stranded a fixed `<name>.json.tmp` after a crash,
+  which the result-bundle manifest hashed instead of discarding. File names
+  and bytes are unchanged, so no digest moves.
 - **Follow-up to #558: a final pair cut short is never judged; the run memo
   stays in its tree** (#559, decision D-D16, amended). Two reviews of #558 after it
   merged found these, each reproduced:
