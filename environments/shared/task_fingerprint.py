@@ -229,13 +229,14 @@ def compute_task_fingerprint(
 
 
 def write_task_fingerprint(path: str | Path, fingerprint: Mapping[str, Any]) -> Path:
-    """Atomically write the task-fingerprint sidecar (like plant identity)."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(path.suffix + ".tmp")
-    temp_path.write_text(json.dumps(dict(fingerprint), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temp_path.replace(path)
-    return path
+    """Atomically write the task-fingerprint sidecar (like plant identity).
+
+    Through ``file_io``, whose dot-named temp file the result-bundle manifest
+    discards if a crash strands one (CU-3).
+    """
+    from .file_io import atomic_write_json
+
+    return atomic_write_json(path, dict(fingerprint), sort_keys=True)
 
 
 def attach_task_fingerprint(model: Any, fingerprint: Mapping[str, Any]) -> None:

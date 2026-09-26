@@ -118,13 +118,15 @@ def build_gate_resolution(
 
 
 def write_gate_resolution(stage_dir: "str | Path", resolution: Mapping[str, Any]) -> Path:
-    """Atomically persist ``gate_resolution.json`` in the stage directory."""
-    path = Path(stage_dir) / "gate_resolution.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(".json.tmp")
-    temp_path.write_text(json.dumps(dict(resolution), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temp_path.replace(path)
-    return path
+    """Atomically persist ``gate_resolution.json`` in the stage directory.
+
+    Through ``file_io``, whose temp file is dot-named, so one a crash strands
+    is discarded by the result-bundle manifest rather than hashed into it
+    (a fixed ``gate_resolution.json.tmp`` used to be; CU-3).
+    """
+    from ..file_io import atomic_write_json
+
+    return atomic_write_json(Path(stage_dir) / "gate_resolution.json", dict(resolution), sort_keys=True)
 
 
 def require_gate_resolution(stage_dir: "str | Path", *, current_task_sha256: str) -> dict[str, Any]:

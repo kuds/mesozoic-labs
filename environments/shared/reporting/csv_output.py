@@ -478,8 +478,8 @@ def save_evaluation_episodes(
         for row in rows:
             row[column] = digest
         fieldnames.append(column)
-    with output.open("w", newline="", encoding="utf-8") as destination:
-        writer = _csv.DictWriter(destination, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-    return output
+    from ..file_io import atomic_write_csv
+
+    # Published atomically: evidence a verdict is read from must never be
+    # left half-written by a reclaim (CU-3; the bytes are unchanged).
+    return atomic_write_csv(output, fieldnames, rows)

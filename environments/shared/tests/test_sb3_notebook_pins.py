@@ -2286,8 +2286,8 @@ class TestResumeCell:
 
     @pytest.mark.parametrize("broken", ["zip", "sidecar"])
     def test_a_final_pair_cut_short_is_resumed_over(self, tmp_path, capsys, broken):
-        """Executed: ``train()`` writes the final pair straight to the mount (only periodic pairs are staged and
-        published atomically), so a reclaim during the final save can truncate it. It is checked like a periodic pair; a broken one is not a finished node
+        """Executed: a reclaim during the final save can leave the final pair broken (off a mount ``train()`` writes it in
+        place and can truncate it; on one it stages the pair and leaves a zip without its sidecar). It is checked like a periodic pair; a broken one is not a finished node
         (the JUDGE branch could not load it), so the cell resumes from the newest intact periodic pair and warns."""
         import pickle
 
@@ -2317,6 +2317,85 @@ class TestResumeCell:
         with pytest.raises(RuntimeError, match=r"200,000 steps short .* early stop .* fresh RUN_ID"):
             self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=2_800_000, calls=calls)
         assert calls == []
+
+    @pytest.mark.parametrize("reclaimed_in", ["sidecar removal", "local save", "zip copy", "sidecar copy"])
+    @pytest.mark.parametrize(("steps", "refused"), [(2_800_000, True), (2_900_000, False)])
+    def test_a_staged_final_save_cut_short_on_a_mount_reads_as_one_written_in_place(
+        self, tmp_path, monkeypatch, reclaimed_in, steps, refused
+    ):
+        """Executed against what ``train_base._save_final_and_sync_tb`` leaves: on a Drive mount it stages the final
+        pair and publishes it (CU-3, D-D20). A reclaim at any point of that save must leave what a save straight to the
+        mount left, a final zip cut short, so the cell resumes over it within one checkpoint cadence of the budget and
+        refuses it beyond as an early stop (D-D16). Without the placeholder zip ``train()`` writes first, a reclaim
+        before the zip landed left no final zip, and an early-stopped node was trained further in place."""
+        import pickle
+        import tempfile
+        import zipfile
+
+        from environments.shared import file_io, train_base
+        from environments.shared.stage_manifest import stage_dirname
+
+        class Reclaimed(BaseException):
+            pass
+
+        class Model:
+            def save(self, path):
+                if reclaimed_in == "local save":
+                    Path(f"{path}.zip").write_bytes(b"PK\x03\x04 half")
+                    raise Reclaimed()
+                with zipfile.ZipFile(f"{path}.zip", "w") as archive:
+                    archive.writestr("data", "{}")
+                    archive.writestr("policy.pth", b"")
+
+        class Env:
+            def save(self, path):
+                Path(path).write_bytes(pickle.dumps({}))
+
+        failing_copy = {"zip copy": 1, "sidecar copy": 2}.get(reclaimed_in)
+        real_copy, copies = file_io.atomic_copy, []
+
+        def copy(src, dst):
+            copies.append(dst)
+            if len(copies) == failing_copy:
+                raise Reclaimed()
+            real_copy(src, dst)
+
+        monkeypatch.setattr(file_io, "atomic_copy", copy)
+        root = tmp_path / "content" / "drive"
+        monkeypatch.setattr(train_base, "_REMOTE_MOUNT_ROOTS", (str(root),))
+        (tmp_path / "scratch").mkdir()
+        monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "scratch"))
+        run_dir = root / "MyDrive" / "compsognathus_robot" / "ppo" / "20260926_000000"
+        models = run_dir / stage_dirname("compsognathus_robot", 2) / "models"
+        models.mkdir(parents=True)
+        if reclaimed_in == "sidecar removal":
+            # A previous final pair (here as a save straight to the mount left it: zip cut short, sidecar intact);
+            # the reclaim lands after the placeholder, before the old sidecar goes.
+            (models / "stage2_final.zip").write_bytes(b"PK\x03\x04 half")
+            Env().save(str(models / "stage2_final_vecnorm.pkl"))
+            real_unlink = Path.unlink
+
+            def unlink(self, *args, **kwargs):
+                if self.name == "stage2_final_vecnorm.pkl":
+                    raise Reclaimed()
+                return real_unlink(self, *args, **kwargs)
+
+            monkeypatch.setattr(Path, "unlink", unlink)
+
+        with pytest.raises(Reclaimed):
+            train_base._save_final_and_sync_tb(Model(), Env(), models, 2, None, root / "tb")
+        monkeypatch.undo()
+        assert (models / "stage2_final.zip").exists()
+        assert (models / "stage2_final_vecnorm.pkl").exists() == (reclaimed_in == "sidecar removal")
+
+        calls: list[dict] = []
+        if refused:
+            with pytest.raises(RuntimeError, match=r"200,000 steps short .* early stop .* fresh RUN_ID"):
+                self._run_resume_cell(run_dir, "compsognathus_robot", "walk", 2, 2, steps=steps, calls=calls)
+            assert calls == []
+        else:
+            [call] = self._run_resume_cell(run_dir, "compsognathus_robot", "walk", 2, 2, steps=steps, calls=calls)
+            assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
 
     def test_a_spent_budget_with_a_final_pair_cut_short_names_it(self, tmp_path):
         """Executed: with nothing left to train, the refusal names the broken final pair and why, not "never saved"."""

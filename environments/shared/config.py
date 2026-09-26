@@ -819,8 +819,12 @@ def save_stage_config(
     if gpu_info:
         data["gpu"] = gpu_info
 
-    out_path = stage_dir / "stage_config.json"
-    out_path.write_text(json.dumps(data, indent=2) + "\n")
+    from .file_io import atomic_write_json
+
+    # Atomic, like record_stage_duration's rewrite: a same-stage resume reads
+    # this file back (its duration and parent edge), and a reclaim mid-write
+    # would otherwise leave it truncated (CU-3; the bytes are unchanged).
+    out_path = atomic_write_json(stage_dir / "stage_config.json", data)
     if plant_identity is not None:
         from .plant_contract import write_plant_identity
 
