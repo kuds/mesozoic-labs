@@ -235,7 +235,7 @@ const features = [
     icon: FeatureIcons.openSource,
     title: 'Open Source',
     description:
-      'MIT licensed with TOML configs, Gymnasium registration, W&B tracking, and Docker support.',
+      'MIT licensed with TOML configs, Gymnasium registration and W&B tracking.',
   },
 ];
 

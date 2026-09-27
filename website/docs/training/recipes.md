@@ -8,8 +8,8 @@ Every species trains a small set of named behaviors — stand, walk and hunt —
 and each one is its own policy: certified against its own gate, published on
 its own, and built by reusing the certified trunk beneath it and training
 only what is missing above it. This page owns that vocabulary and workflow;
-the [PPO](ppo.md), [SAC](sac.md), [hyperparameter](hyperparameters.md) and
-[Vertex AI](vertex-ai.md) pages link here instead of re-explaining it.
+the [PPO](ppo.md), [SAC](sac.md) and [hyperparameter](hyperparameters.md)
+pages link here instead of re-explaining it.
 
 ## One trunk, one leaf per behavior
 

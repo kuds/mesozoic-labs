@@ -147,8 +147,9 @@ python scripts/train_sb3.py curriculum --algorithm sac
 python scripts/train_sb3.py train --stage 1 \
   --override ppo.learning_rate=1e-3 env.alive_bonus=3.0
 
-# Write outputs to a specific directory (e.g. GCS mount for cloud training)
-python scripts/train_sb3.py curriculum --output-dir /mnt/gcs/training/velociraptor
+# Write outputs to a specific directory, a fresh one per run (the curriculum
+# refuses a stage directory that already records a stage)
+python scripts/train_sb3.py curriculum --output-dir logs/<new_run>
 ```
 
 ## Diagnostic Metrics

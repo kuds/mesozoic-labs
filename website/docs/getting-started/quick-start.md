@@ -15,30 +15,7 @@ Open one of the unified training notebooks in the `notebooks/` directory:
 
 Both notebooks handle dependency installation automatically.
 
-## Option 2: Docker (Recommended for Reproducibility)
-
-The repo ships a ready-to-use `Dockerfile` that bundles MuJoCo, Stable-Baselines3, and all training dependencies.
-
-```bash
-# Build the image
-docker build -t mesozoic-labs:latest .
-
-# Test it with a quick 1000-step run (no GPU needed)
-docker run --rm mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  train --stage 1 --algorithm ppo --timesteps 1000 --n-envs 1
-
-# The advancing stages (stance, locomotion, behavior) in manifest order, with GPU
-docker run --rm --gpus all \
-  -v "$(pwd)/outputs:/app/outputs" \
-  mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  curriculum --algorithm ppo --n-envs 4 --output-dir /app/outputs/velociraptor
-```
-
-The `--output-dir` flag writes all checkpoints and logs to the mounted host directory.
-
-## Option 3: Local Setup
+## Option 2: Local Setup
 
 ```bash
 # Clone and setup
