@@ -87,8 +87,8 @@ LEGACY_STAGE_IDS = {1: "stance", 2: "locomotion", 3: "behavior"}
 #: a valid file prefix, directory suffix, TOML bare key and wandb run token.
 STAGE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 #: Ids of this shape are refused: they would collide with ``stage_label``'s
-#: integer form, ``find_stage_dir``'s exact ``stage{N}`` probe,
-#: ``detect_stage_from_path``'s legacy token and the upload filter.
+#: integer form, ``find_stage_dir``'s exact ``stage{N}`` probe and
+#: ``detect_stage_from_path``'s legacy token.
 _LEGACY_LABEL_SHAPE = re.compile(r"^stage[0-9]+$")
 #: The ``{position:02d}_{id}`` directory form (:func:`stage_dirname`).
 _POSITION_PREFIXED_DIRNAME = re.compile(r"^[0-9]{2}_(?P<id>[a-z][a-z0-9_]*)$")

@@ -92,8 +92,9 @@ def write_results_csv(
 
     Args:
         rows: Flat result dicts (one per trial/stage).
-        path: Output CSV path.  ``gs://`` URIs are supported for batch
-            writes (the file is written locally first, then uploaded).
+        path: Output CSV path, local or on a mounted filesystem.  A
+            ``gs://`` URI raises ``ValueError``: Cloud Storage upload was
+            retired with GCS artifact upload (D-D17).
         fixed_columns: Column names that appear first in the header, in
             the order given.  Remaining non-metric, non-eval keys are
             treated as hyperparameter columns and sorted alphabetically.
@@ -101,19 +102,17 @@ def write_results_csv(
         append: When *True*, rows are appended to an existing file.  If
             the file does not yet exist it is created with a header.  If
             new keys appear that were not in the original header the file
-            is rewritten with the expanded column set.  Append mode does
-            not support ``gs://`` URIs.
+            is rewritten with the expanded column set.
 
     Returns:
         Path to the written CSV file.
     """
-    import tempfile
-
     path_str = str(path)
-    is_gcs = path_str.startswith("gs://")
-
-    if append and is_gcs:
-        raise ValueError("Append mode is not supported for gs:// URIs")
+    if path_str.startswith("gs://"):
+        raise ValueError(
+            f"write_results_csv writes local files only, not {path_str!r}: "
+            "GCS upload was retired (D-D17); write to a local or mounted path"
+        )
 
     if not rows:
         if not append:
@@ -169,11 +168,8 @@ def write_results_csv(
         return local_path
 
     # ── Batch mode ─────────────────────────────────────────────────────
-    if is_gcs:
-        local_path = Path(tempfile.NamedTemporaryFile(suffix=".csv", delete=False).name)
-    else:
-        local_path = Path(path_str)
-        local_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path = Path(path_str)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
 
     fieldnames = _compute_fieldnames(rows, fixed_columns)
     with open(local_path, "w", newline="") as f:
@@ -184,18 +180,6 @@ def write_results_csv(
         )
         writer.writeheader()
         writer.writerows(rows)
-
-    if is_gcs:
-        from google.cloud import storage
-
-        without_scheme = path_str[len("gs://") :]
-        bucket_name, _, blob_name = without_scheme.partition("/")
-        try:
-            client = storage.Client()
-            bucket = client.bucket(bucket_name)
-            bucket.blob(blob_name).upload_from_filename(str(local_path))
-        finally:
-            local_path.unlink(missing_ok=True)
 
     logger.info("Results CSV written to: %s", path_str)
     return Path(path_str)

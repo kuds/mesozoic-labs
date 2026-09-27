@@ -3,7 +3,7 @@
 One module owns the stage-directory layout so writers and readers cannot
 drift apart.  Before this existed the figures, the replay videos, and the
 per-frame stance CSVs were written straight into the stage root by three
-unrelated call sites, and the only reader (``config.upload_curriculum_artifacts``)
+unrelated call sites, and the only reader (the GCS upload, retired by D-D17)
 found them with a hand-written ``glob("*.mp4")`` — a pairing that breaks
 silently the moment either side moves.
 
@@ -131,7 +131,7 @@ def iter_replay_files(stage_dir: "str | Path") -> Iterator[Path]:
                 yield path
     # `is_file()` on the legacy branch too: the nested branch guards it, and an
     # accessor that yields a directory for one layout but not the other hands
-    # its caller -- the GCS upload -- something it cannot read.
+    # its caller -- ``notebook_runtime.display_stage_videos`` -- something it cannot read.
     for pattern in ("*.mp4", "*_stance.csv"):
         for path in sorted(stage_path.glob(pattern)):
             if path.name not in seen and path.is_file():
