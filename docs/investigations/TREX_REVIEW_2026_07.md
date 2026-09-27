@@ -1246,3 +1246,14 @@ observation-provenance enumeration, and the SB3/MJX threshold probe — are repr
 in the findings that cite them. The cohort-A floor in F1 was measured in a detached worktree
 at `c2accbee` with the current `zero_action_baseline.py` copied in (the script did not exist
 at that commit; it was added by `d6f44c1`).
+
+---
+
+## Note 2026-09-27 (appended)
+
+The appendix's case for keeping `cloudml-hypertune` no longer applies. Decision D-D17 retired
+the Vertex AI hyperparameter-tuning sweep in cleanup PR-A, together with the dependency, its
+report in `train_base` and the sweep guide the appendix cites
+(`website/docs/training/sweeps.md`). `pip install -e ".[train]"` no longer builds it. The
+retired code is recoverable from the `0.3.8` tag and from git history; see
+[../CLEANUP_PLAN_2026_09.md](../CLEANUP_PLAN_2026_09.md) §4.5.

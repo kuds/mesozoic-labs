@@ -38,7 +38,6 @@ train = [
     "torch>=2.0.0",
     "stable-baselines3[extra]>=2.2.0",
     "wandb>=0.16.0",
-    "cloudml-hypertune>=0.1.0.dev0",
 ]
 jax = [
     "mujoco-mjx==3.10.0",
@@ -53,25 +52,13 @@ jax-cpu = [
     "flax>=0.8.0",
     "optax>=0.1.7",
 ]
-ray = [
-    # Ray Tune sweep backend.  Keep this aligned with the real-backend CI
-    # smoke and the notebook bootstrap cell.
-    "mesozoic-labs[train]",
-    "ray[tune]>=2.55.0,<3",
-]
-mjlab = [
-    # mjlab (GPU-accelerated MuJoCo-Warp + Isaac-Lab-style manager API).
-    # Requires an NVIDIA GPU for training; macOS is evaluation-only.
-    # See https://github.com/mujocolab/mjlab
-    "mjlab",
-]
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
     "imageio-ffmpeg>=0.5.0",
 ]
 gcp = [
-    # Vertex AI sweep orchestration + GCS artifact upload/collection.
+    # Single-job Vertex AI submission + GCS artifact upload.
     "google-cloud-aiplatform>=1.38.0",
     "google-cloud-storage>=2.10.0",
 ]
@@ -89,7 +76,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "mesozoic-labs[train,jax,ray,viz,gcp,dev]",
+    "mesozoic-labs[train,jax,viz,gcp,dev]",
 ]
 
 # Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
@@ -168,10 +155,6 @@ omit = [
     # Hand-run smoke-check and viewer harnesses behind the per-species scripts
     # (the scripts themselves are already excluded by */scripts/*).
     "environments/shared/harnesses/*",
-    # mjlab adapter — scaffold only, requires the optional [mjlab] extra and an
-    # NVIDIA GPU, so no CI job can exercise it.
-    "environments/shared/mjlab_env.py",
-    "environments/*/mjlab_config.py",
 ]
 
 [tool.coverage.report]

@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-27)
 
-**Status**: living reference — updated 2026-09-27; `main` = `89d814a` (#562 merged 2026-09-26 23:13 UTC).
+**Status**: living reference — updated 2026-09-27; `main` = `04d107a` (#563 merged 2026-09-27 03:02 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -46,6 +46,7 @@ file in place when the state changes; it is not a dated investigation.
 | #560 | 2026-09-26 | The cleanup and backend retirement plan ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)), twelve new KNOWN_ISSUES entries (seven corrected) and the hand-run digest-snapshot harness (`environments/shared/harnesses/digest_snapshot.py`), outside the consolidation sequence; no library, training or digest change. The maintainer then took D-D17, D-D18 and D-D19 (section 5); its first follow-up, CU-1, landed as #561 (below) |
 | #561 | 2026-09-26 | Cleanup CU-1 (D-D18), outside the consolidation sequence: CI's SB3 job type-checks with SB3 and torch installed (mypy must report no errors; 23 type-only errors fixed with casts and annotations, the four in the SB3-absent diagnostics fallback with `# type: ignore`), one ruff and one mypy version is pinned in CI, pre-commit and the `dev` extra, pre-commit's hooks stay off the digest data files (MJCF sources, recipe TOMLs, manifests, calibrations), and every pytest step prints test ids, skip reasons and the slowest tests; D-D17..D-D19 recorded; no digest moves. Measured on its CI: SB3 job 48:54 (its mypy step: no issues in 359 source files), JAX job 51:20, coverage 90 percent |
 | #562 | 2026-09-26 | Cleanup CU-3 (D-D20), outside the consolidation sequence: on a Drive/GCS mount `train()` saves the final pair and the best and robust-best handoff pairs to local scratch and publishes them through `curriculum.publish_staged_pair`, and an empty placeholder takes the final zip's place before the final save begins, so a Colab reclaim leaves at worst an incomplete pair its readers reject (a handoff sidecar without its zip, or a final zip `checkpoint_pair_problem` rejects), never a truncated file or a mixed pair they accept, and D-D16's RESUME and chain-loop rules apply unchanged (off a mount nothing changes); `stage_config.json`, `metrics.json`, the stance reports, the three evidence CSVs and the `gate_resolution.json`, `task_fingerprint.json` and `plant_identity.json` sidecars are written through `file_io`'s new `atomic_write_json` / `atomic_write_csv` with their bytes unchanged; the handoff-pair KNOWN_ISSUES entry deleted; D-D20 and D-D17's amendment (PR-A2) recorded; no digest moves. Measured on its CI: SB3 job 47:57 (its mypy step: no issues in 361 source files), JAX job 50:05, coverage 90 percent |
+| #563 | 2026-09-27 | The CHANGELOG release cut (D-D19), outside the consolidation sequence: its first commit `afad625` sets `version = "0.3.8"` and dates `[0.3.8] - 2026-09-27`, `[0.3.2] - 2026-07-21` and `[0.3.0] - 2026-07-09`; its second opens a bare `## [Unreleased]` and sets `0.3.9.dev0`; #562 recorded as landed; no code, notebook, config or digest change. The maintainer tagged `afad625` as `0.3.8` (a lightweight tag) and published it as a GitHub pre-release on 2026-09-27. Measured on its CI: SB3 job 46:21 (its mypy step: no issues in 361 source files), JAX job 35:47, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -121,8 +122,8 @@ mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
 sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
 the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24 into PR-14a,
 PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D20 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
-on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25, D-D17..D-D20 on 2026-09-26 for
+D-D1..D-D21 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
+on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25, D-D17..D-D20 on 2026-09-26 and D-D21 on 2026-09-27 for
 the cleanup plan; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
 the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
@@ -399,11 +400,13 @@ mjlab (PR-A) and of JAX/MJX (PR-B) behind a frozen MJX interface core, so no
 digest moves (D-D17, taken 2026-09-26; the maintainer also retired the
 single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
-CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562; next come
-the CHANGELOG release cut (D-D19), then PR-A, PR-A2 and PR-B; the archive points
-(the plan's decision 2) are still the maintainer's to settle before PR-A merges. Within this sequence PR-8 is still next; the cleanup
-plan proposes landing its CI PR, PR-A, PR-B and the reward/termination golden
-trace before PR-8, and names the cleanup each later PR needs first (its
+CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
+CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`; next come PR-A, PR-A2
+and PR-B; the archive points (the plan's decision 2) were settled on 2026-09-27
+with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
+structural cleanup PRs have landed, the clean base the consolidation builds on. Within this sequence PR-8 is still next; under D-D21
+the whole 0.3.9 gate, including the reward/termination golden trace, lands
+before PR-8, and the cleanup plan names the cleanup each later PR needs first (its
 §3.4). Its §2 lists the decisions, with the outcome of each one taken. Its §5.1 records the 2026-09-25 eval-only check of the
 three certified walkers: each survived the plane in every episode, but only 1
 of 39 flat-heightfield episodes reached full horizon, so no terrain pilot or
@@ -468,7 +471,8 @@ Confirmed by the maintainer on 2026-09-20 (recommended on 2026-09-17):
 - **D-D11** CLI runs record stage duration and seed model construction like the
   notebook does (PR-14). PR-14c implements it in `train()`: the `train`
   subcommand and Vertex sweep trials; `curriculum` runs and Ray Tune trials
-  are not aligned.
+  are not aligned. Amended by D-D17: the Vertex sweep trials and the Ray Tune
+  trials are retired (cleanup PR-A).
 - **D-D12** The dead `lateral_speed_scale` field is dropped when the TOMLs are
   rewritten (PR-11/PR-12).
 
@@ -529,7 +533,10 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   own review: PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2
   removes the single-job Vertex AI route and GCS upload, with an end-to-end
   test of the command-line curriculum path (the cleanup plan lands it after
-  PR-A).
+  PR-A). Archive points settled 2026-09-27 (its row 2, option (c)): no archive
+  tags; the retired code is recoverable from the `0.3.8` tag and git history.
+  As carried out by PR-A: Ray Tune, the Vertex AI tuning sweeps and mjlab are
+  removed; no digest moves.
 - **D-D18** (its row 8) CI type-checks with SB3 and torch installed: the SB3
   job pins SB3 as the notebook does and runs mypy, which must report no
   errors, and ruff and mypy are each pinned to one version for CI and
@@ -541,7 +548,9 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   PR: its first commit, the one the maintainer tags, reads `0.3.8` and dates
   `[0.3.8] - 2026-09-27`, `[0.3.2] - 2026-07-21` and `[0.3.0] - 2026-07-09`;
   its second opens a bare `## [Unreleased]` and sets `0.3.9.dev0`; no digest
-  moves.
+  moves. Landed as #563; the maintainer tagged `afad625` as `0.3.8`
+  (lightweight, without the `v` prefix) and published it as a GitHub
+  pre-release on 2026-09-27.
 - **D-D20** (its row 7) A Colab reclaim may not leave the final pair or a
   handoff pair (best, robust-best) truncated, nor mixed with the previous
   pair in a way the pair's checks accept: on a Drive/GCS mount `train()` stages them locally and publishes them
@@ -554,6 +563,12 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   changes. Carried out by CU-3. Landed as #562.
 - Operational choice the same day (its row 19): the stale PRs #527 and #498
   were closed, each with a comment.
+- **D-D21** (its row 20, taken 2026-09-27) 0.3.9 is the clean, refactored base
+  release the consolidation builds on; 0.3.8 stays the pre-cleanup release. It
+  is cut once its gate has landed: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7,
+  CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. CU-6, CU-10, CU-13, CU-15, CU-17
+  and consolidation PR-8..PR-15 are deferred, not dropped, each at the point
+  the cleanup plan records for it.
 
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
@@ -701,8 +716,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    KNOWN_ISSUES gaps) were corrected by the PR-2 docs pass (#544, 2026-09-19).
 5. Before any cleanup or backend-retirement PR, read
    [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions
-   (D-D17..D-D20 taken on 2026-09-26; decision 2, the archive points, is
-   still open and is settled before PR-A merges), §3 for the PR order and §3.5 for the
+   (D-D17..D-D20 taken on 2026-09-26 and D-D21 on 2026-09-27; decision 2, the
+   archive points, was settled on 2026-09-27 as option (c), no archive tags),
+   §3 for the PR order and §3.5 for the
    KNOWN_ISSUES entries each PR closes, §4 for the frozen MJX interface core
    and the retirement's acceptance checks, and §7 for the do-not-do list. Run
    `environments/shared/harnesses/digest_snapshot.py` by file path, with
@@ -738,7 +754,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
   items are deleted, context stays in the archived review or investigation).
 - Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D20, G1..G4); never renumber.
+  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D21, G1..G4); never renumber.
   Relative markdown links only; every link must resolve.
 
 ### The widened-interface template note

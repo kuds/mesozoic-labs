@@ -181,7 +181,7 @@ omitting it is an error, even when `allow_legacy_plant=True`. `unsafe_skip_plant
 deliberate low-level artifact inspection, emits an explicit warning, and must not be used to resume training or run
 evaluation. The low-level `load_vecnorm_stats` API follows the same rule for SB3 normalization state.
 
-SB3 models, VecNormalize statistics, JAX checkpoints, Ray trial/resume state, promoted sweep winners, stage configs,
+SB3 models, VecNormalize statistics, JAX checkpoints, stage configs,
 metrics, and run directories all carry the same identity. Promotion validates the embedded model and normalization
 payloads, not only an adjacent sidecar.
 

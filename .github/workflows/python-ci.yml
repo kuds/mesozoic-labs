@@ -280,45 +280,16 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
           # SB3 pinned as notebooks/sb3_training.ipynb pins it, so the mypy step
           # below sees the SB3 types the notebook trains with.
-          python -m pip install -e ".[train,ray,test,viz]" "stable-baselines3[extra]==2.9.0"
+          python -m pip install -e ".[train,test,viz]" "stable-baselines3[extra]==2.9.0"
 
       - name: Verify optional backend imports
         run: |
           python - <<'PY'
-          import ray
           import stable_baselines3
           import torch
-          from pathlib import Path
-          from ray import tune
-          from ray.train import Checkpoint
-          from ray.tune import CheckpointConfig, RunConfig
-          from tempfile import TemporaryDirectory
 
-          from environments.shared.scripts.sweep.ray_orchestration import create_ray_tuner
-
-          assert tune.Tuner and Checkpoint and CheckpointConfig and RunConfig
           assert torch.version.cuda is None, "SB3 CI must use the CPU-only PyTorch wheel"
-          with TemporaryDirectory() as temp_dir:
-              root = Path(temp_dir)
-              tuner = create_ray_tuner(
-                  train_fn=lambda config: None,
-                  search_space={},
-                  species="velociraptor",
-                  algorithm="ppo",
-                  stage=1,
-                  timesteps=10,
-                  n_envs=1,
-                  seed=0,
-                  eval_freq=5,
-                  num_trials=1,
-                  max_concurrent=1,
-                  local_ray_dir=root / "ray",
-                  local_trials_dir=root / "trials",
-                  sweep_dir=root / "sweep",
-                  use_asha=False,
-              )
-              assert tuner
-          print(ray.__version__, stable_baselines3.__version__, torch.__version__)
+          print(stable_baselines3.__version__, torch.__version__)
           PY
 
       # The lint job's mypy runs without SB3 or torch installed, so both resolve
@@ -400,7 +371,6 @@ jobs:
             environments/shared/tests/test_stance_gate_report.py \
             environments/shared/tests/test_train_base.py \
             environments/shared/tests/test_train_wiring.py \
-            environments/shared/tests/test_sweep_ray_plant_contract.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
             -k 'not test_actual_notebook_training_stance_and_recovery_reports' \

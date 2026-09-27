@@ -1,6 +1,6 @@
 """Post-training stage artifact generation.
 
-The shared entry-points that the training notebook, the sweep trial worker,
+The shared entry-points that the training notebook, the gate backfill tool
 and the JAX/MJX trainer all call so that stage artifacts stay consistent
 across backends."""
 

@@ -649,12 +649,6 @@ def test_training_notebooks_do_not_restore_stale_public_defaults() -> None:
     assert '.get("timesteps",' not in sb3
     assert "GPU-Specific Recommended Settings" not in sb3
 
-    ray = notebook_text("ray_tune_sweep.ipynb")
-    assert "_settings_for_stage" in ray
-    assert "TIMESTEPS_PER_TRIAL_OVERRIDE" in ray
-    assert "configs/sweep_ppo.json" not in ray
-    assert "configs/sweep_sac.json" not in ray
-
     jax = notebook_text("jax_training.ipynb")
     assert "10-100x" not in jax
     assert "A100 recommended" not in jax

@@ -50,7 +50,7 @@ job's check, use Python 3.12 and a fresh environment:
 
 ```bash
 pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
-pip install -e ".[train,ray,test,viz]" "stable-baselines3[extra]==2.9.0" "mypy==2.3.1"
+pip install -e ".[train,test,viz]" "stable-baselines3[extra]==2.9.0" "mypy==2.3.1"
 mypy environments/ --ignore-missing-imports
 ```
 
@@ -135,7 +135,6 @@ Follow this checklist:
      `python environments/shared/scripts/zero_action_baseline.py <species> --sweep-noise`:
      a level at which a do-nothing policy reaches the full horizon in nearly
      every episode makes the stage reward a statue
-   - Add `sweep_ppo.json` and `sweep_sac.json` if the species will be swept
 
 6. **Write tests** (`tests/test_<species>_env.py`):
    - Use the shared test utilities in `environments/shared/`

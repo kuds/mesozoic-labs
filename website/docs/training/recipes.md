@@ -512,7 +512,7 @@ The `run` block of each `stage_config.json` records:
 | `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint a same-stage resume continued from; the edge keys above are kept. |
 | `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs or gate thresholds. Always written. |
 | `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
-| `duration_seconds` | Seconds from `train_base.train`'s start to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` subcommand, Vertex sweep trials and the notebook's `train_stage`; not by `curriculum` runs or Ray Tune trials. |
+| `duration_seconds` | Seconds from `train_base.train`'s start to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` subcommand and the notebook's `train_stage`; not by `curriculum` runs. |
 
 `gate_verdict.json` (schema `mesozoic.gate-verdict/v1`) records the species,
 stage and stage id, the gate kind and schema version, `passed` and the list
@@ -615,17 +615,6 @@ carries into later hunts without retraining anything, provided the original
 run is still visible from the machine — as recorded, or beside the variant
 under the same log base.
 
-Vertex AI sweep trials are single-stage `train()` runs wrapped by the
-`trial` subcommand, which judges the stage afterwards through
-`generate_stage_artifacts` (a `gate_verdict.json` beside the trial's
-handoff); the Ray Tune worker runs its own SB3 loop and judges the same way,
-best-effort. Neither trial directory is a run directory — its `models/` sit
-directly under `stageN/<trial_id>/`, so rule 1 finds no stage directory for
-the node — and trials are never reusable as ancestors (plan A6). Promote a
-winning configuration by committing it to the TOML and training a fresh
-curriculum or a trunked `--retrain-from` run. See
-[Hyperparameter Sweeps](sweeps.md).
-
 ## What stays on the ladder in Phase A
 
 - The JAX/MJX runner (`jax_curriculum.run_curriculum`) walks the advancing
@@ -633,9 +622,6 @@ curriculum or a trunked `--retrain-from` run. See
   the JAX notebook walks them by `CURRENT_STAGE`. Neither reads
   `warm_start_from`, writes `gate_verdict.json` or publishes deliverables,
   so a JAX run cannot serve as a trunk. See [JAX/MJX Training](jax.md).
-- Sweeps stay trunk-only and integer-keyed (`stage1` / `stage2` / `stage3`
-  in the search-space files and the collector), and their trials are never
-  reusable as ancestors.
 - The in-training `CurriculumManager` stays integer-keyed: it judges the
   advancing nodes during training, and semantic-id nodes (recovery) are
   judged after the stage.

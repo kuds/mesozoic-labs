@@ -377,7 +377,7 @@ Use `--override` to change TOML config values without editing files. This is des
 ],
 ```
 
-> **Important:** a plain `section.key=value` override applies the same value to **every stage**, which is intentional for sweep jobs where you want a consistent adjustment. To target one stage, prefix the key with its legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, `recovery.ppo.learning_rate=1e-4` (see [stage-scoped overrides](sweeps.md#stage-scoped-overrides-with---override)). The non-advancing `recovery` node still needs its own `train --stage recovery` job — because the curriculum skips it, not because `--override` cannot address it.
+> **Important:** a plain `section.key=value` override applies the same value to **every stage**, which is intentional for sweep jobs where you want a consistent adjustment. To target one stage, prefix the key with its legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, `recovery.ppo.learning_rate=1e-4` (see [stage-scoped overrides](hyperparameters.md#overriding-hyperparameters-from-the-cli)). The non-advancing `recovery` node still needs its own `train --stage recovery` job — because the curriculum skips it, not because `--override` cannot address it.
 
 ## 6. W&B Integration on Vertex AI
 
@@ -569,6 +569,8 @@ job.run(
 
 ## Running Long Sweeps from a GCE VM
 
+> **Retired (decision D-D17).** The sweep tool this section drives (`python -m environments.shared.scripts.sweep`) and the `configs/<species>/sweep_*.json` files it loads were removed after the `0.3.8` release, so the commands below no longer run; the `0.3.8` tag still has them. The single-job route above keeps working until a later cleanup PR under the same decision removes it too.
+
 The `launch-all` command in `sweep.py` blocks while it orchestrates three sequential HPT jobs. For large sweeps (20+ trials across 3 stages), the total wall-clock time can exceed 24 hours. Notebook environments like Colab may disconnect before all stages complete.
 
 The recommended approach is to run the orchestrator from a small **GCE VM** with `tmux` so the process persists indefinitely. The VM only orchestrates — all GPU training happens on Vertex AI worker nodes.
@@ -629,7 +631,7 @@ python -m environments.shared.scripts.sweep launch-all \
   --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest
 ```
 
-When no `--search-space-file` is given, the sweep tool automatically loads the species' pre-built search space from `configs/<species>/sweep_<algorithm>.json` (e.g. `configs/trex/sweep_ppo.json`). Pass `--search-space-file` to use a custom JSON file instead (see [Customising the Search Space](sweeps.md#customising-the-search-space) for the file format).
+When no `--search-space-file` is given, the sweep tool automatically loads the species' pre-built search space from `configs/<species>/sweep_<algorithm>.json` (e.g. `configs/trex/sweep_ppo.json`). Pass `--search-space-file` to use a custom JSON file instead.
 
 Detach from tmux with `Ctrl+B` then `D`. The sweep continues running.
 
@@ -693,4 +695,4 @@ Increase `--save-freq` to save checkpoints more often. Consider switching to on-
 
 ## Next Steps
 
-Once you have a working training run, use Vertex AI's built-in Hyperparameter Tuning to automatically find the best learning rate, entropy coefficient, batch size, and more — without manually submitting one job per combination. See [Hyperparameter Sweeps](sweeps.md) for the full guide, or jump to [Running a Stage 1 Trial](sweeps.md#running-a-stage-1-trial) for a focused walkthrough of running a single-stage sweep.
+To tune hyperparameters, run one job per candidate value with `--override` (above) and compare the runs; see the [tuning workflow](hyperparameters.md#a-minimal-tuning-workflow).

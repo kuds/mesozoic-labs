@@ -313,32 +313,6 @@ class TestShapingIsWired:
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
-    def test_the_sweep_routes_through_the_helper_too(self):
-        # The notebook's train_stage cell is where the inline copy grew (and
-        # lost the ramp guard); it trains through train() since consolidation
-        # PR-14c (test_sb3_notebook_pins pins that no cell names the warm-up).
-        # The Ray sweep worker had a third copy.
-        repo_root = Path(__file__).resolve().parents[3]
-        sweep = (repo_root / "environments" / "shared" / "scripts" / "sweep" / "ray_tune.py").read_text(
-            encoding="utf-8"
-        )
-        assert "_stage_entry_shaping_callbacks(" in sweep
-        assert "parent_id=" in sweep
-        assert "stage_position" not in sweep
-        assert "StageWarmupCallback(" not in sweep
-        assert "RewardRampCallback(" not in sweep
-        assert 'task_load_mode="initialize_next_stage"' in sweep
-
-    def test_a_ray_trial_keeps_its_own_seed_on_a_warm_start(self):
-        # ray_tune seeds each trial on its own; a train() archive records its training seed (D-D11, consolidation
-        # PR-14c), which SB3's load would re-apply to the trial's env and global RNGs without seed=None.
-        repo_root = Path(__file__).resolve().parents[3]
-        sweep = (repo_root / "environments" / "shared" / "scripts" / "sweep" / "ray_tune.py").read_text(
-            encoding="utf-8"
-        )
-        load = sweep.index("model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)")
-        assert 'alg_kwargs.setdefault("seed", None)' in sweep[sweep.rindex("if load_path:", 0, load) : load]
-
     def test_train_resolves_the_sidecar_from_its_load_path(self):
         # _load_vecnorm_into_envs owns the resolution for both launch paths.
         src = inspect.getsource(train_base.train)

@@ -2,7 +2,7 @@
 
 > **Date:** 2026-03-26 *(last reviewed 2026-04-18)*
 > **Scope:** Remaining SAC & PPO training across all species
-> **Notebooks:** `notebooks/sb3_training.ipynb`, `notebooks/ray_tune_sweep.ipynb`
+> **Notebooks:** `notebooks/sb3_training.ipynb`, `ray_tune_sweep.ipynb` (retired by D-D17)
 >
 > **Update (2026-04-18):** Active priority shifted to JAX training
 > stabilization (Apr 2–3) and then to the SAC VecNormalize fix (Apr 18).
@@ -22,6 +22,10 @@
 > `locomotion.toml` and `behavior.toml` (plus `recovery.toml`); Brachiosaurus
 > keeps its `stage*.toml` files. See
 > [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md).
+>
+> **Update (2026-09-27):** Trials 2 and 4 were Ray Tune sweeps. D-D17 retired
+> Ray Tune, its notebook and the sweep JSONs these trials name; all are
+> recoverable from the `0.3.8` tag and git history.
 
 ---
 
@@ -66,7 +70,7 @@ this dated plan intentionally does not copy the values.
 
 ### Trial 2: Brachiosaurus PPO Stage 3 Sweep
 
-**Notebook:** `notebooks/ray_tune_sweep.ipynb`
+**Notebook:** `ray_tune_sweep.ipynb` (retired by D-D17; recoverable from the `0.3.8` tag)
 
 **Why Ray Tune (not the SB3 notebook):** The historical Stage 3 `food_reach`
 summary did not meet its configured success gate. A systematic sweep is the
@@ -118,7 +122,7 @@ rather than relying on the dated numeric notes that previously lived here.
 
 ### Trial 4 (Contingency): Brachiosaurus SAC Stage 3 Sweep
 
-**Notebook:** `notebooks/ray_tune_sweep.ipynb`
+**Notebook:** `ray_tune_sweep.ipynb` (retired by D-D17; recoverable from the `0.3.8` tag)
 
 **When to run:** Only if Trial 3 passes Stages 1-2 but fails Stage 3 food_reach (same
 pattern as PPO).
