@@ -1464,7 +1464,7 @@ def train(
     record_stage_duration(log_path, (prior_duration or 0.0) + (time.monotonic() - stage_start))
 
     if report_metrics:
-        # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
+        # Write metrics.json (the CLI train subcommand's panel record)
         _report_hpt_metrics(
             species_cfg,
             model,
@@ -1513,12 +1513,17 @@ def _report_hpt_metrics(
     plant_identity: PlantIdentity | None = None,
     post_eval_episodes: int | None = None,
 ):
-    """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
+    """Write the stage's metrics to ``<log_path>/metrics.json``.
 
-    Only ``best_mean_reward`` is declared in the HPT ``metric_spec`` (it
-    is the sole optimisation target).  All auxiliary metrics are written
-    to ``<log_path>/metrics.json`` so they can be collected from GCS
-    after the sweep completes — without polluting the HPT objective.
+    ``train()`` calls it only with ``report_metrics=True``, i.e. for the CLI
+    ``train`` subcommand; the notebook's ``train_stage`` passes ``False`` and
+    evaluates the node itself.
+    ``reporting.stage_artifacts.build_stage_results_from_eval_data`` reads the
+    file back (the training duration, the velocity/success panel and the
+    plant identity) for ``backfill_gate_verdict`` and for
+    ``generate_stage_artifacts`` called without ``stage_results``.  The name
+    is historical: the Vertex AI hyperparameter-tuning report it also sent
+    was retired with the sweeps (D-D17).
 
     For forward velocity and success rate (stages 2+), the **best model**
     checkpoint is loaded with its matched VecNormalize stats so the
@@ -1556,25 +1561,6 @@ def _report_hpt_metrics(
         aux_metrics["plant_identity"] = plant_identity.to_dict()
     if seed is not None:
         aux_metrics["seed"] = seed
-
-    # Report the primary optimisation metric to HPT (if available).
-    try:
-        import hypertune as _hypertune
-
-        _hypertune.HyperTune().report_hyperparameter_tuning_metric(
-            hyperparameter_metric_tag="best_mean_reward",
-            metric_value=eval_callback.best_mean_reward,
-            global_step=total_timesteps,
-        )
-        logger.info(
-            "HPT metric reported: best_mean_reward=%.4f",
-            eval_callback.best_mean_reward,
-        )
-    except ImportError:
-        logger.info(
-            "cloudml-hypertune not installed — HPT metric not reported (best_mean_reward=%.4f)",
-            eval_callback.best_mean_reward,
-        )
 
     eval_npz_path = Path(log_path) / "evaluations.npz"
     if eval_npz_path.exists():

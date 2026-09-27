@@ -122,7 +122,7 @@ node that entered from its parent keeps those edge keys and adds
 for the periodic checkpoint it continued from, so a resumed-then-judged node
 still chains by digest. The run block also always records
 `hyperparameters_sha256` and, when set, a `label`; `train_base.train` (the
-CLI `train` subcommand, Vertex sweep trials and the notebook's `train_stage`,
+CLI `train` subcommand and the notebook's `train_stage`,
 not `curriculum` runs) adds `duration_seconds` at the stage's final save
 (decision D-A15): the training time of the sessions that reached a final save
 in this stage directory. A same-stage resume into the same directory adds its

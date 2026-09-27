@@ -5,7 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
+
+### Added
+- **Decision D-D21 recorded; the archive points settled; D-D17's
+  amendments appended** (cleanup PR-A, 2026-09-27;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.1–§6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, `docs/CLEANUP_PLAN_2026_09.md` §2,
+  `docs/NEXT_STEPS.md` §5). The release cut of D-D19 landed as #563, and the
+  maintainer tagged its first commit, `afad625`, as `0.3.8` (a lightweight
+  tag, without the `v` that the `[0.3.8]` entries below anticipate) and
+  published it as a GitHub pre-release. The maintainer then settled the
+  cleanup plan's decision 2 as (c): no archive tags. The code this section
+  removes is recoverable from the `0.3.8` tag and from git history. D-D21
+  (the plan's decision 20): 0.3.9 is the clean, refactored base release that
+  the consolidation work builds on, and `0.3.8` stays the pre-cleanup
+  release. 0.3.9 is cut once thirteen PRs have landed: PR-A, PR-A2, PR-B,
+  CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. CU-6,
+  CU-10, CU-13, CU-15, CU-17 and consolidation PR-8..PR-15 are deferred, not
+  dropped. D-A12, D-A15, D-B1, D-B12 and D-D11 now carry "Amended by D-D17",
+  and A6 "Superseded by D-D17".
+
+### Migration
+- **The `ray` and `mjlab` extras are gone, and `train` no longer installs
+  `cloudml-hypertune`** (cleanup PR-A, decision D-D17). `[all]` is now
+  `[train,jax,viz,gcp,dev]`. pip only warns about an extra the package no
+  longer provides, so an install line that still names `ray` or `mjlab`
+  succeeds without them; drop the name (CI's SB3 job installs
+  `.[train,test,viz]`).
+- **No sweep command or sweep notebook.** `python -m
+  environments.shared.scripts.sweep`, `notebooks/ray_tune_sweep.ipynb` and
+  the `configs/<species>/sweep_{ppo,sac}.json` search spaces are removed.
+  Tune by running one job per candidate with `--override` (the tuning
+  workflow in `website/docs/training/hyperparameters.md`). To look at the old
+  code, check it out from the tag, e.g. `git checkout 0.3.8 --
+  notebooks/ray_tune_sweep.ipynb`. The site's `/docs/training/sweeps` page
+  now returns 404; the site has no redirect plugin.
+- **Drive:** nothing to move. The March 2026 sweep folders stay, and the Drive
+  summary still reads them; no new sweep folders are written.
+- **Unchanged until PR-A2:** the single-job Vertex AI route
+  (`scripts/setup_vertex_ai.sh`, the `Dockerfile`,
+  `website/docs/training/vertex-ai.md`), GCS upload (`curriculum
+  --gcs-bucket`) and the `[gcp]` extra. The Vertex page's GCE sweep section
+  is marked retired.
+
+### Removed
+- **Ray Tune, the Vertex AI hyperparameter-tuning sweeps and the mjlab
+  scaffold** (cleanup PR-A of `docs/CLEANUP_PLAN_2026_09.md`, decision
+  D-D17). 42 files and 13,222 lines are deleted:
+  `environments/shared/scripts/sweep/` (13 files), `shared/mjlab_env.py`,
+  `velociraptor/mjlab_config.py` and `velociraptor/scripts/train_mjlab.py`,
+  the twelve `configs/*/sweep_{ppo,sac}.json`, `configs/quality_scoring.toml`,
+  `notebooks/ray_tune_sweep.ipynb`, eleven `test_sweep_*.py` files and
+  `website/docs/training/sweeps.md`. Also removed:
+  `visualization.plot_trial_comparison` (only the sweep notebook called it),
+  the `[ray]` and `[mjlab]` extras with the two mjlab coverage omits,
+  `cloudml-hypertune` and the Vertex tuning report in `train_base`, the
+  notebook's `species_manifest.toml` entry (the README catalog and
+  `species.generated.json` are regenerated), and the SB3 job's Ray install,
+  Ray import check and `test_sweep_ray_plant_contract.py` run.
+  `test_sweep_reporting.py`, which tests `generate_stage_artifacts`, is kept
+  as `test_stage_artifacts_generation.py`. `_report_hpt_metrics` keeps its
+  name and still writes `metrics.json` for the CLI `train` subcommand. No
+  plant, task, gate, hyperparameter, stage-config, recipe, behavior-identity
+  or recovery digest moves: the digest-snapshot harness prints the same 848
+  lines on the base and on this PR. The KNOWN_ISSUES entries that went with
+  the code, listed as the re-add checklist the cleanup plan asks for:
+  - every Ray Tune PPO trial raises `TypeError` on `ent_coef_end` before it
+    trains (defect 1);
+  - 7 of the 12 sweep configs crash every stage-3 trial, sampling 18 env
+    keys no constructor accepts (defect 9);
+  - `ray_orchestration.py` (1,006 lines) was wired to the sweep notebook only
+    through `export_best_trial`;
+  - quality scoring weighted `cost_of_transport` / `vel_consistency`, which
+    only the notebook path exported, so scores were not comparable across
+    paths;
+  - from a mixed LOW entry (the rest is kept): `_handle_stage_failure` used
+    `os._exit(1)`; `scoring.compute_quality_scores` sorted the caller's list
+    in place; `plot_sweep_results` used the deprecated `tempfile.mktemp`;
+    `collect_ray_results` could emit empty `trial_id`s;
+    `load_resume_settings` read a `gpu_model` key that was never written and
+    could not store `seed=0`; `_is_retryable_gcp_error` treated the generic
+    `GoogleAPICallError` name as retryable;
+  - the post-training artifact wishes for the Vertex path: a sweep manifest
+    at submit time, a `best_trial_config.json` per stage with a
+    `model_manifest.json` beside every exported `best_model.zip`, and a run
+    timestamp or `resume_run` id on sweep CSV rows;
+  - the sweep notebook duplicated `ray_orchestration.py`, its
+    `EVAL_EPISODES` knob did not reach the in-trial evaluation, and its
+    analysis wrote the sweep's `training_summary.txt` from the last-ranked
+    of the top trials (gap review NB3);
+  - the Drive summary skipped sweep folders written under the current naming
+    (gap review NB2; none exists on Drive);
+  - open question 2: published sweeps ran with identical seeds per trial,
+    and the top three configs were to be re-run with three seeds before
+    being locked into the TOMLs.
+
+  The `sim_dt` default entry stays, reworded: the callers where it showed
+  left with this PR, so it is latent (CU-2 fixes it).
 
 ## [0.3.8] - 2026-09-27 — Reproducible Runs & Velociraptor Stage-1 Diagnosis
 

@@ -22,7 +22,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | **In Progress** | 1/9 items | Dibothrosuchus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
-| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/6 items | JAX SAC, large-scale experiments, mjlab pilot |
+| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/5 items | JAX SAC, large-scale experiments |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
@@ -295,7 +295,8 @@ critical bridge between "cool demo" and "transferable research."
   - _Dependency: Stage 4 prey pursuit foundation_
 
 - [ ] **Hyperparameter optimization**
-  - Add Optuna integration for systematic sweeps
+  - Add Optuna integration for systematic sweeps (adding a tuning backend is a
+    new decision under D-D17)
   - Sweep over learning rate, batch size, entropy coefficient, gamma
   - Run for Velociraptor first, then transfer best configs to other species
   - _Dependency: Phase 1 W&B integration (for tracking sweep results)_
@@ -493,27 +494,12 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
   - Discover training regimes not possible at CPU scale
   - _Dependency: Brax PPO pipeline_
 
-- [-] **mjlab pilot — evaluate manager-based GPU backend**
-  - Scaffold landed 2026-04-05 in `environments/shared/mjlab_env.py` and
-    `environments/velociraptor/mjlab_config.py` with an `[mjlab]`
-    optional extra in `pyproject.toml` (PR #418)
-  - mjlab pairs Isaac-Lab's manager-based API with MuJoCo-Warp
-    (GPU-accelerated MuJoCo); paper: Zakka et al., arXiv:2601.22074
-  - Pilot target: velociraptor Stage 1 balance on a single NVIDIA GPU
-    - Reach reward >= 1900 in <= 30 min (baseline: SB3 PPO 2:57:25)
-    - Achieve >= 2x envs/sec vs existing `MJXDinoEnv`
-    - Express env + curriculum in <= 60% of current MJX LOC
-  - Remaining: run pilot on GPU and make keep/retire decision
-  - If pilot succeeds: migrate all species to mjlab for the GPU track,
-    retire bespoke `jax_ppo.py` / `jax_training.py`, and fold domain
-    randomization (Phase 2) into mjlab event managers
-  - If pilot fails: keep existing MJX path, document findings, close out
-  - _Dependency: MJX environment for all species (completed above);
-    NVIDIA GPU in Colab / Vertex AI_
-
 **Exit criteria:** A reproducible speedup demonstrated. All species available on the MJX backend.
-Published benchmark comparison (CPU vs. NVIDIA GPU). mjlab pilot concluded
-with a keep/retire decision on the custom JAX training stack.
+Published benchmark comparison (CPU vs. NVIDIA GPU).
+
+_The mjlab pilot item was retired unrun by D-D17 (2026-09-26;
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2); its scaffold is
+recoverable from the `0.3.8` tag and git history._
 
 ---
 
@@ -607,7 +593,6 @@ Locomotion (P1) → Turning (P2) → Stage 4 prey pursuit (P2) → Reactive prey
                                                                                  → Learned prey (P4)
 
 Velociraptor trained (P1) → MJX port (P5) → Brax PPO (P5) → Scale experiments (P5)
-                                          → mjlab pilot (P5) → DR via event managers (P2)
 
 Compsognathus species (P3) → Physical prototype (P6) → Sim-to-real (P6)
 Sensor noise policies (P2) → HAL (P6) → ROS 2 bridge (P6)

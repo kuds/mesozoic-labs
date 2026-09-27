@@ -250,12 +250,7 @@ tolerance) remains the standing recommendation for the divergences above.
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
   (its §1–§3 seed-44 columns filled, §7 and §8 appended; its §6, appended
   2026-09-19, marks Session 1 (the seed-42 widen) and Session 2 superseded by
-  `20260914_123816`). Three neighbours: an
-  in-flight Ray sweep experiment cannot be resumed under the new plant — the
-  sweep notebook validates the recorded `plant_identity.json` of the sweep
-  and experiment directories against the current identity on resume
-  (`validate_recorded_identity`) and trials are not widened (sweeps stay
-  trunk-only, plan A6) — so it restarts under a new experiment directory.
+  `20260914_123816`). Two neighbours:
   JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint`
   validates the recorded identity against `current_plant` and has no widen
   path, so a pre-Phase-C JAX checkpoint fails closed (plan A7: SB3 is the
@@ -1019,112 +1014,47 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Sweeps / infrastructure
 
-- **MEDIUM** — **every Ray Tune PPO trial raises `TypeError` before it trains
-  (reproduced 2026-09-26).** `ray_tune.train_trial` copies
-  `stage_config["ppo_kwargs"]` (`scripts/sweep/ray_tune.py:714`) and pops only
-  `learning_rate_end`, `lr_schedule`, `clip_range_end` and `policy_kwargs`
-  (:718-733) before `PPO("MlpPolicy", ..., **alg_kwargs)` (:759). The
-  canonical builder also pops the callback-driven `ent_coef_end` and
-  `ent_coef_decay_timesteps` (`train_base._prepare_alg_kwargs`,
-  `train_base.py:354-355`) and adds the decay callback
-  (`_maybe_ent_coef_decay_callback`, :854). All 21 PPO stage configs carry
-  `ent_coef_end` (20 also carry `ent_coef_decay_timesteps`), and replaying
-  :714-733 for each against SB3 2.9.0 raised `PPO.__init__() got an unexpected
-  keyword argument 'ent_coef_end'` 21 times out of 21. The sweep notebook's
-  default `ALGORITHM = "ppo"` hits it. A warm-started trial (:749) does not
-  raise, but SB3's `load` stores the keys as plain attributes, so entropy
-  never decays (read from the code). SAC configs carry no such keys, and the
-  Vertex trial trains through `train()`, unaffected. No test builds the
-  trial's model. The 2026-09 survey found the defect already present at the
-  oldest reachable commit (2026-08-09). Plan: PR-A of the backend retirement
-  (D-D17, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md))
-  deletes the Ray worker; a re-add wraps `train_base.train()` instead of
-  copying it. (2026-09 cleanup survey)
-
-- **MEDIUM** — **7 of the 12 sweep configs crash every stage-3 trial: they
-  sample 18 env keys that no constructor accepts (re-counted 2026-09-26).**
-  brachiosaurus `sweep_{ppo,sac}.json` sample `env_food_distance_range_min` /
-  `_max` and `env_food_height_range_min` / `_max` (the constructor takes the
-  tuples `food_distance_range` / `food_height_range`); dibothrosuchus
-  `sweep_ppo.json` samples `env_prey_distance_range_min` / `_max`; trex and
-  velociraptor `sweep_{ppo,sac}.json` sample `env_prey_distance_min` / `_max`,
-  which match no constructor parameter at all. Both sweep paths put the
-  prefix-stripped name into `env_kwargs` (Ray: `scripts/sweep/ray_tune.py:499-517`;
-  Vertex: `scripts/sweep/trial.py:16-31`, then `_apply_overrides`), and each
-  of the 18 raised `TypeError: ... unexpected keyword argument` when its
-  stage-3 env was constructed. Suffix pairing in the override code would fix
-  only the brachiosaurus and dibothrosuchus keys; the trex and velociraptor
-  keys must go. Plan: PR-A of the backend retirement deletes the sweep JSONs;
-  a re-add regenerates them from the constructor signatures. (2026-07
-  Dibothrosuchus review; 2026-09 cleanup survey)
-
-- **MEDIUM (cleanup)** — `ray_orchestration.py` (1,006 lines) is wired to
-  `ray_tune_sweep.ipynb` only through `export_best_trial`; `create_ray_tuner`,
-  `run_ray_sweep`, `discover_and_rank_trials` and `evaluate_trials_parallel`
-  (about 740 lines) have no production caller, and the notebook keeps its
-  inline Tuner and ranking copies, which have already diverged once. PR-A of
-  the backend retirement deletes both. (July §4)
-- **LOW** — quality scoring weights `cost_of_transport` / `vel_consistency`
-  that only the notebook path exports, so scores aren't comparable across
-  paths; a single trial missing a metric drops that metric for the whole
-  set. (July §4)
-- **LOW** — `_handle_stage_failure` uses `os._exit(1)` (skips
-  atexit/W&B finalizers); `scoring.compute_quality_scores` sorts the
-  caller's list in place; `plot_sweep_results` uses deprecated
-  `tempfile.mktemp`; `collect_ray_results` may emit empty `trial_id`s when
-  Ray returns ids as the index; `metrics.py` `velocity_consistency`
-  explodes when mean velocity ≈ 0; `load_resume_settings` reads a
-  `gpu_model` key never written and can't store `seed=0`;
-  `_is_retryable_gcp_error` treats the generic `GoogleAPICallError` name as
-  retryable; thread-unsafe CSV appends under concurrent local runs.
-  (June §3.3; July §1/§4; CODE_REVIEW §2.1#1)
+- **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
+  ≈ 0; thread-unsafe CSV appends under concurrent local runs. (June §3.3;
+  CODE_REVIEW §2.1#1)
 - **LOW** — JAX `TrainingCSVLogger` flushes per update directly to the
   output path — one network write per update on `/gcs` FUSE; buffer locally
   like `tb_sync` when `_is_gcs_path(path)`. (July §1)
 - **LOW** — **stage summaries built from `evaluations.npz` assume a 0.01 s
-  control step, so both compsognathus species report half their sim time
-  (reproduced 2026-09-26).** `build_stage_results_from_eval_data` records
+  control step (latent since cleanup PR-A; reproduced 2026-09-26).**
+  `build_stage_results_from_eval_data` records
   `sim_dt = stage_config["env_kwargs"].get("sim_dt", 0.01)`
   (`reporting/stage_artifacts.py:151`), and no stage config sets `sim_dt`.
   compsognathus and compsognathus_robot step at 0.02 s, the other four
   species at 0.01 s. `write_stage_summary` and `write_training_summary`
   multiply episode length by it, printing 1,000 steps as "10.00s sim time"
-  instead of 20 s. It shows where `generate_stage_artifacts` builds its own
-  results (`stage_results=None`, :1463): the Ray and Vertex sweep trials
-  (`ray_tune.py:1025`, `trial.py:233`); `ray_tune_sweep.ipynb` also keeps its
-  own copy of the default (`_sim_dt`, passed as `stage_results`) beside a
-  `LocomotionMetrics()` that defaults to the same 0.01 s. The notebook's TRAIN and JUDGE paths
+  instead of 20 s. It shows only where `generate_stage_artifacts` builds its
+  own results (`stage_results=None`, :1462). The callers that did so (the Ray
+  and Vertex sweep trials) left with cleanup PR-A (D-D17), and so did
+  `ray_tune_sweep.ipynb`, which kept its own copy of the 0.01 s default
+  (`_sim_dt`, passed as `stage_results`).
+  The SB3 notebook's TRAIN and JUDGE paths
   overwrite `sim_dt` with the env's `dt` (`evaluate_stage_checkpoints`,
   :1242, :1277). `backfill_gate_verdict.py:293` builds these results, but no
   field it persists uses `sim_dt` (the verdict's `stage_result` projection
   omits it). No gate, verdict or digest reads it. Plan: take `dt` from a probe
-  env (CU-2 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); once PR-A
-  retires the sweep trials and that notebook, nothing in the repository shows
-  it, and the default is latent until CU-2.
+  env (CU-2 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); until
+  then the default is latent.
   (2026-09 cleanup survey)
 
 ## Post-training artifacts (recommended additions)
 
-1. Vertex-side sweep manifest at submit time (resolved search space, image,
-   machine type, HPT job resource name/console URL) for parity with the Ray
-   path's `save_search_space`. (July §4)
-2. `best_trial_config.json` per stage on the Vertex path + a
-   `model_manifest.json` next to every exported `best_model.zip`
-   (trial id, hyperparameters, seed, eval metrics, library version,
-   VecNormalize pairing). (July §4)
-3. Persist the curriculum gate history (`CurriculumManager.summary()` →
+1. Persist the curriculum gate history (`CurriculumManager.summary()` →
    `curriculum_state.json`) and the achieved gate metrics in
    `curriculum_results.csv`; include CLI overrides in the saved effective
    config. (July §4; June §6.5)
-4. CLI curriculum parity with the notebook: call `generate_stage_artifacts`
+2. CLI curriculum parity with the notebook: call `generate_stage_artifacts`
    per stage and run the quality eval so `metrics.json` exists on that path.
    (July §4)
-5. W&B: pass a render-capable eval env into `WandbCallback` (its video path
+3. W&B: pass a render-capable eval env into `WandbCallback` (its video path
    is dead code), log final metrics before `finish()`, upload
    `best_model.zip` + vecnorm as W&B Artifacts, log the run URL into
    `stage_config.json`. (July §4; June §6.6)
-6. Sweep CSV rows lack a run timestamp / `resume_run` id, so rows merged
-   across resume cycles are indistinguishable. (July §4)
 
 ## MuJoCo models (July 2026 model review)
 
@@ -1306,38 +1236,16 @@ Still open:
   loader, so `gym.make("MesozoicLabs/Raptor-v0")` without `import
   environments` raises `NamespaceNotFound` even with the groups installed
   (verified 2026-09-26); the envs self-register on `import environments`.
-  Delete the block (CU-7). `[all]` omits `[mjlab]` (moot once PR-A removes
-  `[mjlab]`). (June §4)
+  Delete the block (CU-7). (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)
 
 ## Notebooks
 
-- `ray_tune_sweep.ipynb` duplicates `ray_orchestration.py` (see above); its
-  `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count; and its
-  post-sweep analysis writes the sweep's `training_summary.txt` from the
-  last-ranked of the top-`TOP_K` trials (default 5), not rank 1: the loop runs
-  ranks 1..`TOP_K` and the summary takes the last iteration (cell 23; gap
-  review NB3). PR-A deletes the notebook. (July §5)
-- **LOW** — **the Drive summary skips every sweep folder written under the
-  current naming (verified 2026-09-26; gap review NB2).** `ray_tune_sweep.ipynb`
-  names a sweep `<species>/sweeps/<algorithm>_<YYYYMMDD_HHMMSS>` (cell 7;
-  present at the oldest reachable commit, 2026-08-09), while
-  `google_drive_summary.ipynb`'s `parse_sweep_dir_name` (cell 8) matches only
-  `^stage(\d+)_(.+?)_(\d{8}_\d{6})$`, and `discover_runs` (cell 11) keeps only
-  matching children of `sweeps/` without recursing. A current sweep is
-  dropped with no warning. A read-only listing of the project Drive
-  (2026-09-26) found three `sweeps/` folders, created 2026-03-25..28, holding
-  only ten legacy `stage<N>_<algo>_<ts>` folders, which the summary reads, and
-  no current-layout sweep. Plan: PR-A stops all sweep writes and keeps this
-  reader for the March folders; drop the entry then, and fix the pattern only
-  if a current-layout folder turns up.
-  ([reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md)
-  NB2)
 - The notebooks pin the plant compiler (`mujoco==3.10.0`, `mujoco-mjx`),
-  `stable-baselines3[extra]==2.9.0` (SB3 and Ray notebooks) and
+  `stable-baselines3[extra]==2.9.0` (SB3 notebook) and
   `jax[cuda12]==0.10.2` / `flax==0.12.8` / `optax==0.2.8` (JAX notebook), but
-  torch is unpinned, Ray is a range (`>=2.55.0,<3`), and the `pyproject.toml`
+  torch is unpinned and the `pyproject.toml`
   extras stay ranges; pin complete lockfiles for reproducible training.
   (July §5)
 
@@ -1358,6 +1266,3 @@ Still open:
 1. Is SB3↔JAX reward parity a hard goal? If yes, the parity test should
    gate CI; if the JAX path is a research spike, keep the divergence table
    above authoritative. (June §7)
-2. Published sweeps ran with identical seeds per trial (fixed going
-   forward); re-run top-3 configs with 3 seeds before locking them into the
-   TOMLs. (June §7)

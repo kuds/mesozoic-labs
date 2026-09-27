@@ -186,9 +186,6 @@ The final command includes real, small CPU PPO/SAC runs through all three
 shared-trainer stages, checkpoint handoffs and the actual notebook training
 function. The tests shorten horizons and budgets while preserving the
 production gate criteria; they verify infrastructure, not learned behavior.
-The `configs/<variant>/sweep_ppo.json` and `sweep_sac.json` files provide
-conservative initial algorithm search spaces for the Ray Tune notebook.
-Distributed sweep execution is a separate optional runtime.
 
 Both variants explicitly support **SB3 only**. They are absent from the
 JAX notebook selector until MJX environments and backend parity tests exist.

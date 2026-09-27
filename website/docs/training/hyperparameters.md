@@ -190,10 +190,6 @@ the node, so a variant that reused stance hands stance on to a later run as
 the original run's checkpoint. See
 [Behavior Recipes](recipes.md#experiments-on-a-node-that-already-passes).
 
-> **Systematic sweeps:** Use `notebooks/ray_tune_sweep.ipynb` for a Colab/Google
-> Drive workflow, or see [Hyperparameter Sweeps](sweeps.md) for the Vertex AI
-> workflow.
-
 ## Tips
 
 1. **Start from the committed config** — Treat it as a reproducible baseline, not a validated optimum
@@ -269,8 +265,6 @@ copying values from a guide.
 
 1. **Baseline.** Run the stage with committed defaults for 2–3 seeds. Record best reward, mean episode length, and any behavioral metrics (success rate, velocity).
 2. **Diagnose.** If the run fails, match symptoms against the tables above. Do not change more than one group of knobs per run.
-3. **Narrow.** For promising directions, launch a Ray Tune sweep over 3–5 candidate values using `notebooks/ray_tune_sweep.ipynb`. Use the ASHA scheduler to prune early.
+3. **Narrow.** For promising directions, train 3–5 candidate values as separate runs, each changing one value with `--override` (see [Overriding Hyperparameters from the CLI](#overriding-hyperparameters-from-the-cli)), and compare them with the baseline under the same protocol.
 4. **Promote.** Commit the winning values back to the TOML with a trailing comment explaining why (see existing configs for the house style — e.g. `# Setting 4 sweep: ...`).
 5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.
-
-For systematic multi-parameter sweeps, see [Hyperparameter Sweeps](sweeps.md).

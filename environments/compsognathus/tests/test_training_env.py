@@ -9,7 +9,6 @@ from gymnasium.utils.env_checker import check_env
 from environments.compsognathus.envs import CompsognathusEnv, CompsognathusRobotEnv
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics
-from environments.shared.scripts.sweep import build_search_space, resolve_config_path
 from environments.shared.species_registry import get_species_config
 
 
@@ -123,13 +122,3 @@ def test_robot_training_does_not_add_head_or_tail_motors():
         assert instance.model.nu == 12
         for name in ("fixed_head", "passive_tail"):
             assert instance.model.body(name).jntnum[0] == 0
-
-
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
-@pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_ray_notebook_can_resolve_each_stage_search_space(species, algorithm):
-    assert resolve_config_path(algorithm, species).is_file()
-    for stage in (1, 2, 3):
-        parameters = build_search_space(species, stage, algorithm)
-        assert parameters
-        assert all(name.startswith(f"{algorithm}_") for name in parameters)

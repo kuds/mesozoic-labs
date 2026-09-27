@@ -1,7 +1,7 @@
 # Composite ASHA Metric for Balance Reward Discrimination
 
 > **Date:** 2026-03-16
-> **Status:** Proposed
+> **Status:** Proposed; withdrawn: Ray Tune retired by D-D17 (2026-09-26), never implemented. The sweep files it names are recoverable from the `0.3.8` tag.
 > **Scope:** Stage 1 (Balance) hyperparameter sweeps via Ray Tune
 
 ---
@@ -144,7 +144,7 @@ tune.report(
 )
 ```
 
-**2. ASHA scheduler configuration in `notebooks/ray_tune_sweep.ipynb`**
+**2. ASHA scheduler configuration in the Ray Tune sweep notebook (`ray_tune_sweep.ipynb`)**
 
 ```python
 COMPOSITE_ALPHA = 50  # Configurable in the notebook header
@@ -158,7 +158,7 @@ scheduler = ASHAScheduler(
 )
 ```
 
-**3. `DriveProgressLogCallback` in `notebooks/ray_tune_sweep.ipynb`**
+**3. `DriveProgressLogCallback` in the Ray Tune sweep notebook (`ray_tune_sweep.ipynb`)**
 
 Add `utilization_ratio` and `composite_score` to the progress CSV so we can
 analyze the metric distribution post-sweep.

@@ -1,4 +1,4 @@
-"""Tests for reporting integration used by sweep trial artifacts."""
+"""Tests for ``generate_stage_artifacts`` on a trainer-shaped stage directory."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 class TestGenerateTrialArtifacts:
     """Test generate_stage_artifacts produces stage summary and videos.
 
-    This tests the shared function that both the sweep trial worker
-    and the training notebook use to produce consistent artifacts.
+    This tests the shared function the training notebook uses to
+    produce its stage artifacts.
     """
 
     def test_writes_stage_summary_and_records_videos(self, tmp_path):

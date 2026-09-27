@@ -102,7 +102,7 @@ def test_unknown_training_name_is_rejected_but_custom_plot_label_is_preserved():
 
 
 def test_colab_species_selectors_match_the_manifest():
-    for filename in ("sb3_training.ipynb", "jax_training.ipynb", "ray_tune_sweep.ipynb"):
+    for filename in ("sb3_training.ipynb", "jax_training.ipynb"):
         notebook = json.loads((REPO_ROOT / "notebooks" / filename).read_text())
         for cell in notebook["cells"]:
             for line in "".join(cell["source"]).splitlines():

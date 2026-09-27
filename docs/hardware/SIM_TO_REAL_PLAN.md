@@ -70,7 +70,7 @@ charismatic species. The honest summary:
 | Sim-to-real validation | **not_started** | `configs/species_manifest.toml:17-18` |
 
 The training codebase is mature (SB3 + JAX/MJX dual backend, curriculum manager,
-W&B, sweeps, a "plant contract" fingerprinting system). Everything downstream of
+W&B, a "plant contract" fingerprinting system). Everything downstream of
 training toward hardware is greenfield.
 
 Additional maturity caveats that matter for hardware:
@@ -203,8 +203,8 @@ The only stochasticity implemented is **reset-time initial-state noise**
 | Terrain diversity (heightfields/slopes) | not implemented |
 | Actuator dynamics (time constants / lag) | not implemented |
 
-The mjlab adapter defines default DR ranges but every factory raises
-`NotImplementedError` (`mjlab_env.py:172`, `velociraptor/mjlab_config.py:57-63`) —
+The mjlab scaffold (retired by D-D17, recoverable from the `0.3.8` tag) defined
+default DR ranges but every factory raised `NotImplementedError` —
 a scaffold, not a mechanism. **Any policy trainable today is overfit to one
 idealized plant and would not survive transfer.**
 

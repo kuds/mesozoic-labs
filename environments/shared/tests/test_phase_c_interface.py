@@ -32,8 +32,6 @@ contract code:
   payload section exists only when a manifest is passed (amendment A9).
 * The recovery-calibration restamp tool is idempotent and refuses a physics
   change; the committed compsognathus calibrations load (decision D-C2).
-* The velociraptor mjlab registration's ``obs_dim`` tracks the plant
-  identity (amendment A5).
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full under the shared matrix job (``.[dev]`` only) as well as the SB3 job.
@@ -517,18 +515,3 @@ def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
     path, _ = _pre_restamp_copy("compsognathus_robot", root)
     with pytest.raises(tool.RestampError, match="non-empty"):
         tool.restamp_recovery_calibration("compsognathus_robot", path=path, reason="  ")
-
-
-# ---------------------------------------------------------------------------
-# mjlab registration (amendment A5)
-# ---------------------------------------------------------------------------
-
-
-def test_velociraptor_mjlab_obs_dim_matches_the_plant_identity():
-    import environments.velociraptor.mjlab_config  # noqa: F401  (registers the species)
-    from environments.shared.mjlab_env import get_species_mjlab
-
-    config = get_species_mjlab("velociraptor")
-    identity = current_plant_identity("velociraptor", verify_generated=False)
-    assert config.obs_dim == identity.observation_dim == 70
-    assert config.action_dim == identity.action_dim == 22

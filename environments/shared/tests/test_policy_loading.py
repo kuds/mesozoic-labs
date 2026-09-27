@@ -594,7 +594,7 @@ def test_every_sb3_archive_load_goes_through_the_loader():
 
 
 def test_the_known_load_sites_call_the_loader():
-    """The sites the incident review listed, plus the sweep scripts, name ``load_sb3_model``."""
+    """The sites the incident review listed name ``load_sb3_model``."""
     expected = {
         "environments/shared/train_base.py": 3,
         "environments/shared/evaluation.py": 1,
@@ -602,8 +602,6 @@ def test_the_known_load_sites_call_the_loader():
         "environments/shared/harnesses/freeze_recovery_gate.py": 1,
         "environments/shared/scripts/widen_checkpoint.py": 1,
         "environments/shared/behavior_checkpoint.py": 1,
-        "environments/shared/scripts/sweep/ray_tune.py": 3,
-        "environments/shared/scripts/sweep/ray_orchestration.py": 3,
     }
     for name, count in expected.items():
         source = (REPO_ROOT / name).read_text(encoding="utf-8")
