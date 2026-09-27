@@ -1,6 +1,6 @@
-# Next steps and program state (2026-09-26)
+# Next steps and program state (2026-09-27)
 
-**Status**: living reference — updated 2026-09-26; `main` = `74ba16c` (#561 merged 2026-09-26 15:46 UTC).
+**Status**: living reference — updated 2026-09-27; `main` = `89d814a` (#562 merged 2026-09-26 23:13 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -45,6 +45,7 @@ file in place when the state changes; it is not a dated investigation.
 | #559 | 2026-09-26 | The #558 follow-up, outside the consolidation sequence (D-D16 amended): the RESUME cell and the chain loop check the final pair like a periodic one through `curriculum.checkpoint_pair_problem`, so a final pair cut short is never judged (within one checkpoint cadence of the budget the RESUME cell resumes over it; further short, the node had stopped early and the cell refuses it as a new attempt); the run memo counts only in the tree `SPECIES`, `ALGORITHM` and `QUICK_TEST` select; a resume `RETRAIN_FROM` covers is refused and the route to resume such a node (`BEHAVIOR` set to it, then a fresh `RUN_ID` trunked from this run) is documented; the docs the post-merge reviews of #558 found wrong are corrected; notebook 1,557 → 1,599 source lines (33 cells, 17 code); no digest moves. Measured on its CI: SB3 job 46:51, JAX job 48:10 |
 | #560 | 2026-09-26 | The cleanup and backend retirement plan ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)), twelve new KNOWN_ISSUES entries (seven corrected) and the hand-run digest-snapshot harness (`environments/shared/harnesses/digest_snapshot.py`), outside the consolidation sequence; no library, training or digest change. The maintainer then took D-D17, D-D18 and D-D19 (section 5); its first follow-up, CU-1, landed as #561 (below) |
 | #561 | 2026-09-26 | Cleanup CU-1 (D-D18), outside the consolidation sequence: CI's SB3 job type-checks with SB3 and torch installed (mypy must report no errors; 23 type-only errors fixed with casts and annotations, the four in the SB3-absent diagnostics fallback with `# type: ignore`), one ruff and one mypy version is pinned in CI, pre-commit and the `dev` extra, pre-commit's hooks stay off the digest data files (MJCF sources, recipe TOMLs, manifests, calibrations), and every pytest step prints test ids, skip reasons and the slowest tests; D-D17..D-D19 recorded; no digest moves. Measured on its CI: SB3 job 48:54 (its mypy step: no issues in 359 source files), JAX job 51:20, coverage 90 percent |
+| #562 | 2026-09-26 | Cleanup CU-3 (D-D20), outside the consolidation sequence: on a Drive/GCS mount `train()` saves the final pair and the best and robust-best handoff pairs to local scratch and publishes them through `curriculum.publish_staged_pair`, and an empty placeholder takes the final zip's place before the final save begins, so a Colab reclaim leaves at worst an incomplete pair its readers reject (a handoff sidecar without its zip, or a final zip `checkpoint_pair_problem` rejects), never a truncated file or a mixed pair they accept, and D-D16's RESUME and chain-loop rules apply unchanged (off a mount nothing changes); `stage_config.json`, `metrics.json`, the stance reports, the three evidence CSVs and the `gate_resolution.json`, `task_fingerprint.json` and `plant_identity.json` sidecars are written through `file_io`'s new `atomic_write_json` / `atomic_write_csv` with their bytes unchanged; the handoff-pair KNOWN_ISSUES entry deleted; D-D20 and D-D17's amendment (PR-A2) recorded; no digest moves. Measured on its CI: SB3 job 47:57 (its mypy step: no issues in 361 source files), JAX job 50:05, coverage 90 percent |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -397,9 +398,9 @@ installed), then the retirement of Ray Tune, the Vertex AI tuning sweeps and
 mjlab (PR-A) and of JAX/MJX (PR-B) behind a frozen MJX interface core, so no
 digest moves (D-D17, taken 2026-09-26; the maintainer also retired the
 single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
-PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561; next
-come CU-3 (atomic run-tree records and checkpoint pairs, D-D20), the
-CHANGELOG release cut (D-D19), then PR-A, PR-A2 and PR-B; the archive points
+PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
+CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562; next come
+the CHANGELOG release cut (D-D19), then PR-A, PR-A2 and PR-B; the archive points
 (the plan's decision 2) are still the maintainer's to settle before PR-A merges. Within this sequence PR-8 is still next; the cleanup
 plan proposes landing its CI PR, PR-A, PR-B and the reward/termination golden
 trace before PR-8, and names the cleanup each later PR needs first (its
@@ -546,7 +547,7 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   `checkpoint_pair_problem` rejects), never a mixed pair they accept, as with a
   pair a save straight to the mount cut short (D-D16's RESUME and chain-loop
   rules, the early-stop refusal included, apply unchanged); off a mount nothing
-  changes. Carried out by CU-3.
+  changes. Carried out by CU-3. Landed as #562.
 - Operational choice the same day (its row 19): the stale PRs #527 and #498
   were closed, each with a comment.
 

@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.8)
+## [0.3.8] - 2026-09-27 — Reproducible Runs & Velociraptor Stage-1 Diagnosis
 
 ### Added
-- **Decision D-D20 recorded; D-D17 amended** (2026-09-26;
+- **Decision D-D20 recorded; D-D17 amended** (#562, 2026-09-26;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
   maintainer took the cleanup plan's decision 7 as D-D20: a Colab reclaim
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PR-A2 and PR-B. PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2 removes the single-job Vertex AI route
   and GCS upload, with an end-to-end test of the command-line curriculum path
   (the cleanup plan lands it after PR-A).
-- **Decisions D-D17, D-D18 and D-D19 recorded** (2026-09-26;
+- **Decisions D-D17, D-D18 and D-D19 recorded** (#561, 2026-09-26;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, `docs/CLEANUP_PLAN_2026_09.md` §2, `docs/NEXT_STEPS.md` §5). The
   maintainer took three of the cleanup plan's decisions. D-D17:
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `v0.3.8`, and `0.3.9.dev0` follows. The stale pull requests #527 and #498
   were closed. Nothing is removed yet: PR-A and PR-B carry out D-D17.
 - **Cleanup and backend retirement plan, and the digest-snapshot harness**
-  (2026-09-26; `docs/CLEANUP_PLAN_2026_09.md`, `docs/KNOWN_ISSUES.md`,
+  (#560, 2026-09-26; `docs/CLEANUP_PLAN_2026_09.md`, `docs/KNOWN_ISSUES.md`,
   `environments/shared/harnesses/digest_snapshot.py`). A living plan for the
   cleanup left after #558 and the #558 follow-up (#559). It orders a
   CI-signal PR (mypy with SB3 installed, where 21 type-only errors show
@@ -1781,7 +1781,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 ### Fixed
 - **A Colab reclaim no longer truncates the stage config, metrics, stance
   reports or evidence CSVs, or a final or handoff checkpoint pair, and a
-  crash no longer strands a sidecar temporary the bundle hashes** (CU-3 of `docs/CLEANUP_PLAN_2026_09.md`,
+  crash no longer strands a sidecar temporary the bundle hashes** (#562, CU-3 of `docs/CLEANUP_PLAN_2026_09.md`,
   decision D-D20). `train()` saved the final pair and the best and
   robust-best handoff pairs straight to the Drive mount (only the periodic
   pairs were staged), so a reclaim during a save could cut one short; a cut
@@ -3992,7 +3992,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   binds reward functions only after environment creation. Comprehensive
   fixed-state, all-component SB3↔JAX parity remains open.
 
-## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
+## [0.3.2] - 2026-07-21 — RL/GCP Review Fixes & Model Physics
 
 ### Changed
 - **Plateau diagnostics now follow deterministic stage-gate evaluations**:
@@ -4120,7 +4120,7 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
 - Code reviews consolidated: `docs/KNOWN_ISSUES.md` is the living list of
   open findings; dated reviews archived under `docs/reviews/`
 
-## [Unreleased] — Codebase Consolidation & Training Results (v0.3.0)
+## [0.3.0] - 2026-07-09 — Codebase Consolidation & Training Results
 
 ### Added
 - Velociraptor SAC training results — all 3 stages passed (90.0% strike success, 22M steps, 22:59:18)
