@@ -129,7 +129,7 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - _Dependency: None_
 
 - [x] **Expanded evaluation metrics**
-  - Gait symmetry (left-right phase difference)
+  - Gait symmetry (left/right contact balance; no phase difference is computed)
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
   - Forward velocity consistency (std dev)
