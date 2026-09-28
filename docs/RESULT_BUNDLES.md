@@ -182,9 +182,6 @@ parent's own handoff name plus byte-identical `<stage_label>_final.*` copies
 `provenance.json`, `gate_resolution.json`, `evaluations.npz`, `metrics.json`
 or periodic checkpoints — the widened node is re-paneled before it certifies.
 
-JAX/MJX also writes `stage_result.json` so stages completed in separate Colab
-sessions can be combined idempotently under one run ID.
-
 Completed bundles are immutable. Start a new run ID rather than replacing a
 checkpoint, stage result, seed role, or other captured experiment setting. The
 SB3 notebook enforces this before training: a session whose `RUN_ID` names a
@@ -273,9 +270,8 @@ The bundle writer adds the **finalization** fields (schema v4):
   verdict records no `gate_sha256` (judged before decision D-A22) is skipped
   until re-judged with `backfill_gate_verdict.py --force`, consistent with
   reuse rule 7.  `environments.shared.replication.discover_replicates_for_run`
-  finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`;
-  the JAX saver passes none, so its records count the run alone.  The count
-  is recorded at publication (decision D-B10): a replicate that finishes
+  finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`.
+  The count is recorded at publication (decision D-B10): a replicate that finishes
   later is counted when the run's publication cell is re-run with the
   sibling present, which rebuilds a `partial` bundle and regenerates a
   `complete` bundle's derived artifacts (`provenance.json`, `summary.json`,
@@ -310,16 +306,10 @@ readable but are labelled `legacy-unverified` or `legacy-conflict`.
 
 ## Colab workflow
 
-The SB3 and JAX notebooks call the shared bundle functions. For JAX curricula,
-set and reuse the same `RUN_ID` for stages 1–3. Stages 2 and 3 automatically
-load the preceding stage's `models/best_model.pkl` only after its recorded gate
-passes. A new run ID starts an independent experiment. SB3's chain runs in one
-ordered notebook session because its stage objects are kept in memory; the
-bundle is saved after every node, growing from `partial` to `complete` when
-the target certifies.
-JAX evaluates the selected and terminal parameters separately and saves both
-episode files; a training-rollout selection score is not reported as an
-evaluation reward.
+The SB3 notebook calls the shared bundle functions. A new run ID starts an
+independent experiment. SB3's chain runs in one ordered notebook session
+because its stage objects are kept in memory; the bundle is saved after every
+node, growing from `partial` to `complete` when the target certifies.
 
 `publication_gate_passed` is the promotion decision recomputed from the fixed
 publication evaluation and the frozen stage thresholds. A recorded pass must
@@ -328,7 +318,7 @@ evidence but is not re-judged, and can never be certified. Training-time
 `required_consecutive` settings describe chronological evaluation batches and
 are not inferred from episodes in the publication evaluation.
 
-Reusing a JAX run in a fresh Colab session revalidates the run's identity:
+Reusing a run in a fresh Colab session revalidates the run's identity:
 species, algorithm, backend, seed roles, evaluation protocols and seeds,
 episode and parallel-environment counts, plant identity, and the run ID must
 match the captured provenance exactly, and the initializer refuses a mismatch
@@ -360,10 +350,9 @@ summary), and `canonical-conflict` (any error — including a summary whose
 manifest).
 
 The manifest hashes files present when the exporter runs, and promotion rejects
-undeclared files. The JAX notebook writes an early marker after the core
-artifacts, then refreshes and validates it after optional plots and videos.
-If artifacts are added manually, regenerate the manifest before promotion.
-Both notebooks flush Google Drive before an automatic runtime disconnect.
+undeclared files. If artifacts are added manually, regenerate the manifest
+before promotion. The SB3 notebook flushes Google Drive before an automatic
+runtime disconnect.
 
 ## Public result paths
 

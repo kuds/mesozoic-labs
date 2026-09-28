@@ -12,7 +12,8 @@ touch the digest data files (the MJCF plant sources and meshes the plant
 manifest records, the recipe TOMLs, the plant manifests, plant_versions.toml,
 the recovery calibrations), and they still see every Python file; the
 byte-hashed Python modules stay under the hooks, which CI's pinned ruff keeps
-from changing them.
+from changing them. Ruff itself skips the frozen MJX core (pyproject.toml's
+extend-exclude, D-D17), which test_plant_contract_frozen_mjx.py checks.
 """
 
 from __future__ import annotations

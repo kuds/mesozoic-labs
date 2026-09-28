@@ -10,8 +10,8 @@ nothing:
 * the reporting path advances a recovery stage ONLY through the frozen
   resolution — absence, tampering, staleness, and missing panel evidence are
   each a refusal that names what is wrong;
-* the in-training paths (SB3 ``CurriculumManager`` and JAX
-  ``check_stage_gate``) still refuse outright, because neither can obtain the
+* the in-training path (SB3 ``CurriculumManager``; the JAX ``check_stage_gate``
+  left with the JAX runtime, D-D17) still refuses outright, because it cannot obtain the
   stage directory, the current task fingerprint, or a panel pairable against
   the frozen nulls;
 * unknown kinds and ``none/v1`` refuse exactly as before, and the
@@ -37,7 +37,7 @@ from environments.shared.curriculum.gate_resolver import (
     build_gate_resolution,
     write_gate_resolution,
 )
-from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION, GateSchemaError
+from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION
 from environments.shared.curriculum.recovery_gate import (
     RECOVERY_GATE_KIND,
     RecoveryGateThresholds,
@@ -45,7 +45,6 @@ from environments.shared.curriculum.recovery_gate import (
     paired_difference_lcb,
 )
 from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND, StancePanel
-from environments.shared.jax_curriculum import check_stage_gate
 from environments.shared.recovery_evaluation import (
     CALIBRATED_POSTURE_ONLY,
     EpisodeRecord,
@@ -703,63 +702,3 @@ class TestInTrainingManagerRefusesRecovery:
             unsupported_duty_ucb=0.02,
         )
         assert manager.should_advance([3000.0] * 10, [1000.0] * 10, None, None, panel)
-
-
-class TestJaxCurriculumRefusesRecovery:
-    """The MJX path has no pushed-panel roller and no stage directory."""
-
-    def test_recovery_is_refused_with_a_message_naming_the_missing_inputs(self):
-        config = {"stage": "recovery", "curriculum_kwargs": dict(RECOVERY_CURRICULUM)}
-        with pytest.raises(GateSchemaError) as excinfo:
-            check_stage_gate({"mean_episode_return": 1e9, "mean_episode_length": 1000.0}, config)
-        message = str(excinfo.value)
-        assert "cannot evaluate" in message
-        assert "gate_resolution.json" in message
-        assert "task_sha256" in message
-
-    def test_a_declared_reward_rail_does_not_turn_it_into_a_reward_gate(self):
-        config = {"stage": "recovery", "curriculum_kwargs": dict(RECOVERY_CURRICULUM, min_avg_reward=100.0)}
-        with pytest.raises(GateSchemaError, match="cannot evaluate"):
-            check_stage_gate({"mean_episode_return": 1e9}, config)
-
-    def test_an_unknown_kind_and_none_v1_still_refuse(self):
-        unknown = {"curriculum_kwargs": {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "made_up/v9"}}
-        with pytest.raises(GateSchemaError, match="unknown gate_kind"):
-            check_stage_gate({"mean_episode_return": 1e9}, unknown)
-        pilot = {"curriculum_kwargs": {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "none/v1"}}
-        with pytest.raises(GateSchemaError, match="non-advancing pilot"):
-            check_stage_gate({"mean_episode_return": 1e9}, pilot)
-
-    def test_reward_and_length_is_unaffected(self):
-        config = {
-            "stage": 1,
-            "curriculum_kwargs": {
-                "gate_schema_version": GATE_SCHEMA_VERSION,
-                "gate_kind": "reward_and_length/v1",
-                "min_avg_reward": 1950.0,
-            },
-        }
-        assert check_stage_gate({"mean_episode_return": 2000.0}, config) is True
-        assert check_stage_gate({"mean_episode_return": 1900.0}, config) is False
-
-    def test_stance_quality_is_unaffected(self):
-        config = {
-            "stage": 1,
-            "curriculum_kwargs": {
-                "gate_schema_version": GATE_SCHEMA_VERSION,
-                "gate_kind": STANCE_GATE_KIND,
-                "min_full_horizon_fraction": 0.9,
-                "max_unsupported_duty": 0.05,
-                "max_unsupported_duty_ucb": 0.08,
-                "min_eval_episodes": 10,
-            },
-        }
-        metrics = {
-            "n_eval_episodes": 10.0,
-            "full_horizon_fraction": 1.0,
-            "n_duty_episodes": 10.0,
-            "mean_unsupported_duty": 0.01,
-            "unsupported_duty_ucb": 0.02,
-        }
-        assert check_stage_gate(metrics, config) is True
-        assert check_stage_gate(dict(metrics, unsupported_duty_ucb=0.5), config) is False

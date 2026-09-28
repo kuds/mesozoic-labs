@@ -12,11 +12,9 @@ results/
 │   │   ├── stage1_balance.gif
 │   │   ├── stage3_strike.gif
 │   │   └── summary.json
-│   ├── sac/
-│   │   ├── collected_results.csv
-│   │   ├── stage3_strike.gif
-│   │   └── summary.json
-│   └── jax_ppo/                    # when a JAX/MJX PPO result is promoted
+│   └── sac/
+│       ├── collected_results.csv
+│       ├── stage3_strike.gif
 │       └── summary.json
 ├── trex/
 │   └── ppo/
@@ -51,7 +49,8 @@ backend and provenance metadata mandatory.
 
 ## How Results Are Generated
 
-SB3 and JAX training runs are saved to Google Drive as portable result bundles.
+SB3 training runs are saved to Google Drive as portable result bundles (so were
+the JAX/MJX runs before decision D-D17 retired that backend; they still validate).
 The shared exporter captures provenance at run time, writes one canonical
 `summary.json` after all three stages, derives `collected_results.csv` from the
 same normalized metrics, binds selected and terminal claims to episode-level

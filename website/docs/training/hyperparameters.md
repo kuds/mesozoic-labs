@@ -47,7 +47,7 @@ configs/
     └── stages.toml
 ```
 
-Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` in every stage file except the T-Rex `recovery.toml`, which is PPO-only, and `[jax]` only in the advancing stage files of the four JAX species (T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus) — the T-Rex `recovery.toml` and every Compsognathus and Compsognathus robot file have no `[jax]` section. `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` in every stage file except the T-Rex `recovery.toml`, which is PPO-only. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -125,12 +125,6 @@ records a failure and the `curriculum` command stops before the next node
 rather than training it from an uncertified parent. Consult the generated
 model pages or the TOML files for current values rather than relying on a
 static table here.
-
-JAX/MJX does not currently reproduce that decision loop. The CLI curriculum
-trains the configured stage and performs one reward-only gate afterward. The JAX
-notebook evaluation helper checks the enabled reward, episode-length,
-forward-velocity, and success-rate thresholds once, but does not require
-consecutive passes. See [JAX/MJX Training](jax.md#three-stage-task-sequence).
 
 ## Overriding Hyperparameters from the CLI
 
@@ -228,9 +222,7 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 The names "Bite" and "Food Reach" refer to simulation success proxies. In the
 Gym/SB3 environments, T-Rex uses contact from a fixed head geom and has no
 articulated jaw; Brachiosaurus uses a head-tip distance threshold and does not
-require physical food contact. MJX uses site-distance thresholds for both
-T-Rex and Velociraptor instead of their Gym/SB3 contact checks; see
-[JAX/MJX Training](jax.md#three-stage-task-sequence).
+require physical food contact.
 
 | Symptom | Most likely cause | What to change |
 |---|---|---|
@@ -252,14 +244,6 @@ than assuming one fixed progression across species.
 Tune `train_freq`, `gradient_steps`, and `buffer_size` together: their useful
 values depend on the species, stage, parallel-environment count, and memory
 budget.
-
-**JAX / MJX.** `num_envs × rollout_len` determines the effective rollout
-buffer and is a major memory lever. Reduce one or both values if device memory
-is tight. `warmup_updates` and `ramp_updates` in `[jax]` mirror the
-`warmup_timesteps` / `ramp_timesteps` knobs from `[curriculum]`, but use update
-counts. The per-stage `[jax]` section is authoritative; see the
-[current config-key reference](jax.md#ppo-hyperparameters-jax) rather than
-copying values from a guide.
 
 ### A minimal tuning workflow
 

@@ -1,4 +1,4 @@
-"""Both backends must refuse gate kinds they cannot evaluate in-training.
+"""The in-training gate must refuse gate kinds it cannot evaluate.
 
 TREX_REVIEW_2026_08 §3.1 (F1/F2): ``CurriculumManager.should_advance`` and the
 JAX ``check_stage_gate`` both treated the reward-and-length evaluator as the
@@ -7,8 +7,8 @@ stage therefore advanced on reward alone under ``StageThreshold``'s permissive
 defaults (``min_avg_reward = -inf``) on SB3, and on JAX either crashed on a
 missing threshold key after the stage's whole budget or advanced on its
 optional reward rail — while ``reporting/gates.py`` explicitly refused the
-same fall-through.  These tests pin the refusal on both backends, and pin that
-the JAX path refuses BEFORE any training compute is spent.
+same fall-through.  These tests pin the SB3 refusal; the JAX half left with
+the JAX runtime (decision D-D17, cleanup PR-B).
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ import pytest
 from environments.shared.curriculum import CurriculumManager, thresholds_from_configs
 from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION, GateSchemaError
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
-from environments.shared.jax_curriculum import check_stage_gate, run_curriculum
 
 #: A schema-valid recovery gate declaration.  Threshold values are stand-ins:
 #: they are irrelevant here because the dispatch must refuse before reading
@@ -156,197 +155,6 @@ class TestTaskSuccessSchemaRequiresTheBarAndThePanelSize:
             validate_gate_config(3, block, advancement_enabled=True)
         with pytest.raises(GateSchemaError, match=missing):
             thresholds_from_configs({3: {"curriculum_kwargs": block}}, advancement_enabled=True)
-
-
-class TestJaxCheckStageGateRefusesUnevaluatableKinds:
-    """F2: the JAX gate must refuse explicitly, not fall through to reward."""
-
-    def test_recovery_quality_is_refused_even_with_generous_metrics(self):
-        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY)}
-        with pytest.raises(GateSchemaError, match="cannot evaluate"):
-            check_stage_gate({"mean_episode_return": 1e9, "mean_episode_length": 1000.0}, config)
-
-    def test_the_optional_reward_rail_does_not_convert_it_into_a_reward_gate(self):
-        """With the rail present the old code advanced on reward alone."""
-        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY, min_avg_reward=100.0)}
-        with pytest.raises(GateSchemaError, match="cannot evaluate"):
-            check_stage_gate({"mean_episode_return": 1e9, "mean_episode_length": 1000.0}, config)
-
-    def test_a_made_up_kind_is_refused_by_the_schema(self):
-        bogus = {"curriculum_kwargs": {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "made_up/v9"}}
-        with pytest.raises(GateSchemaError, match="unknown gate_kind"):
-            check_stage_gate({"mean_episode_return": 1e9}, bogus)
-
-
-class TestJaxEvalGateRefusesUnevaluatableKinds:
-    """F2 on the OTHER JAX path (review J #10).
-
-    ``jax_eval.check_stage_gate_for_config`` is what ``run_stage_evaluation``
-    writes into ``publication_gate_passed``.  It refused nothing the schema
-    accepted, so a recovery stage -- reachable once ``jax_setup`` took the
-    semantic id -- fell through to the scalar check with every threshold
-    unset and passed on evidence nobody checked.  It must refuse exactly what
-    ``check_stage_gate`` refuses, for exactly the same reason.
-    """
-
-    def _results(self, reward):
-        from environments.shared.jax_eval import EvalResults
-
-        results = EvalResults()
-        results.rewards = [reward] * 10
-        results.lengths = [1000] * 10
-        results.forward_vels = [0.0] * 10
-        results.distances = [0.0] * 10
-        results.successes = [False] * 10
-        return results
-
-    def test_recovery_quality_is_refused_with_the_reason_as_the_verdict(self):
-        from environments.shared.jax_eval import check_stage_gate_for_config
-
-        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY)}
-        passed, failures = check_stage_gate_for_config(self._results(1e9), config)
-        assert passed is False
-        assert len(failures) == 1
-        assert "recovery_quality/v1" in failures[0]
-        assert "cannot evaluate" in failures[0]
-
-    def test_the_optional_reward_rail_does_not_convert_it_into_a_reward_gate(self):
-        from environments.shared.jax_eval import check_stage_gate_for_config
-
-        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY, min_avg_reward=100.0)}
-        passed, _ = check_stage_gate_for_config(self._results(1e9), config)
-        assert passed is False
-
-    def test_both_jax_gates_share_one_refusal(self):
-        """One predicate, one message: jax_curriculum.unevaluable_gate_kind_reason."""
-        from environments.shared.jax_eval import check_stage_gate_for_config
-
-        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY)}
-        _, failures = check_stage_gate_for_config(self._results(1e9), config)
-        with pytest.raises(GateSchemaError) as excinfo:
-            check_stage_gate({"mean_episode_return": 1e9, "mean_episode_length": 1000.0}, config)
-        assert failures == [str(excinfo.value)]
-
-    def test_the_evaluable_kinds_are_one_set_for_both_paths(self):
-        from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
-        from environments.shared.jax_curriculum import unevaluable_gate_kind_reason
-
-        assert unevaluable_gate_kind_reason(1, "reward_and_length/v1") is None
-        assert unevaluable_gate_kind_reason(1, STANCE_GATE_KIND) is None
-        reason = unevaluable_gate_kind_reason(1, "recovery_quality/v1")
-        assert reason is not None and "recovery_quality/v1" in reason
-        # task_success/v1 stays OUT of the evaluable set (plan A7): its
-        # verdict comes from the SB3 evidence CSV, and no MJX hunting panel
-        # exists.  The refusal names the kind and where the verdict comes from.
-        reason = unevaluable_gate_kind_reason(3, TASK_SUCCESS_GATE_KIND)
-        assert reason is not None and TASK_SUCCESS_GATE_KIND in reason
-        assert "evaluation_selected.csv" in reason and "cannot evaluate" in reason
-        # The generic sentence is kind-neutral: the recovery-specific text
-        # travels only with the recovery refusal.
-        assert "gate resolver" not in reason
-
-
-class TestRunCurriculumFailsFastBeforeTraining:
-    """F2's expensive half: the refusal must land before the budget is spent.
-
-    ``check_stage_gate`` runs only after a stage trains, so without a
-    pre-flight check a recovery-gated stage burned its full budget before the
-    verdict turned out to be uncomputable.
-    """
-
-    @staticmethod
-    def _patch_loader(monkeypatch, curriculum_kwargs):
-        import environments.shared.jax_curriculum as jc
-
-        def mock_load(species, stage):
-            return {
-                "stage": stage,
-                "jax_kwargs": {},
-                "env_kwargs": {},
-                "curriculum_kwargs": dict(curriculum_kwargs),
-            }
-
-        monkeypatch.setattr(jc, "load_stage_config", mock_load)
-
-    def test_a_recovery_gated_stage_is_rejected_before_any_training(self, monkeypatch):
-        self._patch_loader(monkeypatch, _RECOVERY)
-        trained: list[int] = []
-
-        def mock_train(species, stage, **kwargs):
-            trained.append(stage)
-            return {"w": 1.0}, {"mean_episode_return": 1e9}
-
-        with pytest.raises(GateSchemaError, match="cannot evaluate"):
-            run_curriculum("trex", mock_train, stages=(1, 2))
-        assert trained == []
-
-    def test_a_none_gate_on_a_gated_stage_is_rejected_before_any_training(self, monkeypatch):
-        self._patch_loader(monkeypatch, {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "none/v1"})
-        trained: list[int] = []
-
-        def mock_train(species, stage, **kwargs):
-            trained.append(stage)
-            return {"w": 1.0}, {"mean_episode_return": 1e9}
-
-        with pytest.raises(GateSchemaError, match="non-advancing pilot"):
-            run_curriculum("trex", mock_train, stages=(1, 2))
-        assert trained == []
-
-    def test_a_task_success_final_stage_is_rejected_before_any_training(self, monkeypatch):
-        """Decision D-B13: a FINAL stage no JAX path can judge refuses up front.
-
-        A JAX trex chain ending on task_success/v1 would otherwise spend the
-        hunting stage's 8M steps for the CPU eval to record a refusal.
-        """
-        self._patch_loader(monkeypatch, _TASK_SUCCESS)
-        trained: list[int] = []
-
-        def mock_train(species, stage, **kwargs):
-            trained.append(stage)
-            return {"w": 1.0}, {"mean_episode_return": 1e9}
-
-        with pytest.raises(GateSchemaError, match="D-B13") as excinfo:
-            run_curriculum("trex", mock_train, stages=(3,))
-        assert TASK_SUCCESS_GATE_KIND in str(excinfo.value) and "cannot evaluate" in str(excinfo.value)
-        assert trained == []
-
-    def test_the_final_stage_block_is_not_schema_validated_by_the_preflight(self, monkeypatch):
-        """D-B13 refuses on the declared KIND only: a single-stage pilot whose final block would not
-        validate under advancement (an evaluable kind missing its threshold, an unregistered kind, no
-        declaration at all) keeps training exactly as it did before the decision."""
-        for block in (
-            {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "reward_and_length/v1"},
-            {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "stance_quality/v1"},
-            {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "not_a_kind/v9"},
-            {},
-        ):
-            self._patch_loader(monkeypatch, block)
-            trained: list[int] = []
-
-            def mock_train(species, stage, **kwargs):
-                trained.append(stage)
-                return {"w": 1.0}, {"mean_episode_return": 1e9}
-
-            results = run_curriculum("trex", mock_train, stages=(1,))
-            assert trained == [1] and 1 in results, block
-
-    def test_a_single_stage_pilot_still_trains(self, monkeypatch):
-        """The final stage's gate is never evaluated, so it is not pre-checked.
-
-        A one-stage recovery pilot (the DESIGNED state until P5 lands measured
-        thresholds) must keep training; only stages whose gate would actually
-        be checked are validated up front.
-        """
-        self._patch_loader(monkeypatch, _RECOVERY)
-        trained: list[int] = []
-
-        def mock_train(species, stage, **kwargs):
-            trained.append(stage)
-            return {"w": 1.0}, {"mean_episode_return": 1e9}
-
-        results = run_curriculum("trex", mock_train, stages=(1,))
-        assert trained == [1]
-        assert 1 in results
 
 
 def _selected_evidence(stage_dir: Path, successes: list[bool], *, checkpoint: str = "robust_best_model") -> Path:

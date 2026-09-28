@@ -12,8 +12,7 @@ ignored-edit warning.
 
 These tests read the notebook JSON and pin its STRUCTURE — the order of calls
 inside the ``for NODE in CHAIN:`` body, keyword presence, the absence of
-position-keyed names — the way ``test_jax_notebook_pins`` pins the JAX
-notebook: a rewording of a print survives; a semantic regression (a node
+position-keyed names: a rewording of a print survives; a semantic regression (a node
 retrained over a failed verdict, a target reused from another run, the raise
 before the bundle write, a load mode inferred from position) fails here
 instead of in a Colab session weeks later.
@@ -34,7 +33,6 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
 #: ``train_stage`` trains through ``train_base.train`` (consolidation PR-14c); pins on what it records read its source.
 TRAIN_BASE_PATH = REPO_ROOT / "environments" / "shared" / "train_base.py"
-JAX_NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "jax_training.ipynb"
 
 # Unique markers that identify the cells under test (not their positions —
 # cell numbers move when a markdown cell is added).
@@ -2922,7 +2920,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
 
 
-@pytest.mark.parametrize("path", [NOTEBOOK_PATH, JAX_NOTEBOOK_PATH], ids=["sb3", "jax"])
+@pytest.mark.parametrize("path", [NOTEBOOK_PATH], ids=["sb3"])
 def test_the_notebook_round_trips_through_json_dump_indent_1(path):
     """Every notebook edit goes through json.load -> json.dump(indent=1, ensure_ascii=False) + newline."""
     text = _notebook_text(path)
@@ -2931,7 +2929,7 @@ def test_the_notebook_round_trips_through_json_dump_indent_1(path):
         f"{path.name} is not in the canonical json.dump(indent=1, ensure_ascii=False) form"
     )
     if path == NOTEBOOK_PATH:
-        # Every SB3 code cell is plain Python (the JAX install cell keeps a `!pip` Colab magic).
+        # Every SB3 code cell is plain Python.
         for index, cell in enumerate(notebook["cells"]):
             if cell["cell_type"] == "code":
                 ast.parse("".join(cell["source"]), filename=f"{path.name}[code cell {index}]")

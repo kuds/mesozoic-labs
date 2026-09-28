@@ -198,8 +198,8 @@ def _gate_metric(stage_results: Mapping[str, Any], *keys: str) -> float | None:
     callers report as an unmeasurable criterion and fail.
 
     The per-value rule itself is :func:`~environments.shared.curriculum.
-    gate_schema.finite_gate_metric`, shared with the JAX backend so the two
-    cannot drift on what counts as measured.
+    gate_schema.finite_gate_metric`, the one rule every gate path shares, so
+    no two paths can drift on what counts as measured.
     """
     from environments.shared.curriculum.gate_schema import finite_gate_metric
 
@@ -387,8 +387,8 @@ def task_success_statistics(stage_dir: "str | Path") -> "tuple[dict[str, Any] | 
     """The selected checkpoint's task-success count, bound to the handoff pair.
 
     Reads ``<stage_dir>/evaluation_selected.csv`` — the per-episode evidence
-    the notebook, the trainers' post-training panel and the JAX saver write
-    for the SELECTED checkpoint — and binds it to the handoff pair
+    the notebook and the trainers' post-training panel write (and the JAX
+    saver D-D17 retired wrote) for the SELECTED checkpoint — and binds it to the handoff pair
     ``select_handoff_checkpoint`` picks NOW through the rows'
     ``checkpoint_sha256`` column — and, when the rows record one, their
     ``normalization_sha256`` against the pair's ``_vecnorm.pkl``: an SB3

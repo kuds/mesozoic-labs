@@ -1,6 +1,9 @@
 # T-Rex Stage-1 Leg Flexing — Remediation Plan
 
 **Status:** Option 1 implemented (2026-07-27); options 2–5 still open.
+*Note 2026-09-28 (cleanup PR-B, decision D-D17):* the JAX/MJX runtime is retired. The MJX items below no
+longer apply: `environments/trex/mjx_config.py` is a frozen registration without `target_standing_z`, the MJX
+path carries no filter state, and the `test-jax-cpu` parity job is gone; `plant-contract` is the remaining check.
 **Date:** 2026-07-27
 **Motivating runs:** `20260725_194916` (w=0.1), `20260726_191730` (w=0.7),
 `20260727_130726` (w=2.0), all T-Rex stage 1, PPO, seed 42.

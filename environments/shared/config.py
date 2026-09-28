@@ -172,13 +172,14 @@ _CONFIGS_DIR = _REPO_ROOT / "configs"
 #: Every top-level table a stage TOML may declare.  This is the complete set
 #: the loader below reads — the scripts that open a stage TOML themselves
 #: (``stance_quality_baseline``, ``zero_action_baseline``, the report
-#: scripts) read only ``[env]``, the JAX and sweep paths go through
-#: :func:`load_stage_config`, and ``stages.toml`` has its own reader in
+#: scripts) read only ``[env]``, the trainers (the CLI and the notebook) go
+#: through :func:`load_stage_config`, and ``stages.toml`` has its own reader in
 #: ``stage_manifest``.  Anything else is rejected rather than ignored: a
 #: misspelled ``[environment]`` used to load as an empty ``[env]`` and the
-#: stage silently trained on constructor defaults (review CF4).
-_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "jax", "curriculum"})
-_ALGORITHM_TABLES = ("ppo", "sac", "jax")
+#: stage silently trained on constructor defaults (review CF4).  ``[jax]`` has
+#: been rejected too since D-D17 retired the JAX/MJX trainer that read it.
+_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "curriculum"})
+_ALGORITHM_TABLES = ("ppo", "sac")
 
 
 def load_stage_config(
@@ -201,10 +202,9 @@ def load_stage_config(
 
     Returns:
         Dictionary with keys "name", "description", "env_kwargs",
-        "ppo_kwargs", "sac_kwargs", "jax_kwargs", and
-        "curriculum_kwargs".  Values in [env] that are lists are
-        converted to tuples so they can be passed directly to the
-        environment constructors.
+        "ppo_kwargs", "sac_kwargs" and "curriculum_kwargs".  Values in
+        [env] that are lists are converted to tuples so they can be passed
+        directly to the environment constructors.
     """
     if config_path is not None:
         path = Path(config_path)
@@ -246,7 +246,6 @@ def load_stage_config(
     env_raw = raw.get("env", {})
     ppo_raw = raw.get("ppo", {})
     sac_raw = raw.get("sac", {})
-    jax_raw = raw.get("jax", {})
     curriculum_raw = raw.get("curriculum", {})
 
     # Convert lists to tuples for range parameters (e.g. prey_distance_range)
@@ -263,7 +262,6 @@ def load_stage_config(
         "env_kwargs": env_kwargs,
         "ppo_kwargs": dict(ppo_raw),
         "sac_kwargs": dict(sac_raw),
-        "jax_kwargs": dict(jax_raw),
         "curriculum_kwargs": dict(curriculum_raw),
     }
 

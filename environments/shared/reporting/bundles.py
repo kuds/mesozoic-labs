@@ -185,7 +185,7 @@ def save_result_bundle(
     maps a deliverable's stage key to the ``{run_id, training_seed}`` records
     of the sibling runs that certified the same recipe on other seeds
     (``environments.shared.replication.discover_replicates_for_run``
-    supplies them; the JAX saver passes none).  Each deliverable's
+    supplies them).  Each deliverable's
     ``replication`` record lists this run first, then its replicates;
     ``certification_seeds`` is copied from the stage's resolved
     ``[curriculum]`` block (default 1) and ``provisional`` is

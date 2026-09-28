@@ -1,7 +1,7 @@
 """Tests for the pure reward functions in environments.shared.reward_functions.
 
 These tests verify that the pure functions produce correct results with
-NumPy arrays.  When JAX is available, they also verify NumPy/JAX parity.
+NumPy arrays.
 """
 
 import numpy as np
@@ -423,70 +423,6 @@ class TestNosediveTermination:
         assert reason == "nosedive"
 
 
-# ---------------------------------------------------------------------------
-# NumPy / JAX parity (skipped if JAX not installed)
-# ---------------------------------------------------------------------------
-
-_has_jax = False
-try:
-    import jax
-    import jax.numpy as jnp
-
-    _has_jax = True
-except ImportError:
-    pass
-
-
-@pytest.mark.skipif(not _has_jax, reason="JAX not installed")
-class TestNumpyJaxParity:
-    """Verify that pure functions produce identical results with NumPy and JAX arrays."""
-
-    def test_reward_forward_velocity_parity(self):
-        vel_np = np.array([1.5, 0.3])
-        fwd_np = np.array([0.8, 0.6])
-        vel_jax = jnp.array(vel_np)
-        fwd_jax = jnp.array(fwd_np)
-
-        r_np, v_np = reward_forward_velocity(vel_np, fwd_np, 10.0, 1.0)
-        r_jax, v_jax = reward_forward_velocity(vel_jax, fwd_jax, 10.0, 1.0)
-        assert r_np == pytest.approx(r_jax, abs=1e-5)
-        assert v_np == pytest.approx(v_jax, abs=1e-5)
-
-    def test_quat_to_tilt_parity(self):
-        quat = np.array([0.9, 0.1, 0.2, 0.3])
-        quat = quat / np.linalg.norm(quat)
-        tilt_np = quat_to_tilt(quat)
-        tilt_jax = quat_to_tilt(jnp.array(quat))
-        assert tilt_np == pytest.approx(tilt_jax, abs=1e-5)
-
-    def test_reward_energy_parity(self):
-        action = np.array([0.5, -0.3, 0.8, 0.1])
-        r_np = reward_energy(action, 4, 0.01)
-        r_jax = reward_energy(jnp.array(action), 4, 0.01)
-        assert r_np == pytest.approx(r_jax, abs=1e-6)
-
-    def test_lean_aware_posture_parity(self):
-        natural_pitch = 0.35
-        target = -np.sin(natural_pitch)
-        quat = np.array([np.cos(0.2), 0.0, np.sin(0.2), 0.0])
-        r_np, tilt_np = reward_lean_aware_posture(quat, 1.047, 1.5, target)
-        r_jax, tilt_jax = reward_lean_aware_posture(jnp.array(quat), 1.047, 1.5, target)
-        assert r_np == pytest.approx(r_jax, abs=1e-6)
-        assert tilt_np == pytest.approx(tilt_jax, abs=1e-6)
-
-    def test_lean_aware_posture_gradient_is_finite_at_target(self):
-        natural_pitch = 0.35
-        target = -np.sin(natural_pitch)
-
-        def posture_reward_for_pitch(pitch):
-            quat = jnp.array([jnp.cos(pitch / 2.0), 0.0, jnp.sin(pitch / 2.0), 0.0])
-            reward, _ = reward_lean_aware_posture(quat, 1.047, 1.5, target)
-            return reward
-
-        gradient = jax.grad(posture_reward_for_pitch)(jnp.float32(natural_pitch))
-        assert np.isfinite(float(gradient))
-
-
 class TestFootLoadBalanceMonotoneOrdering:
     """Airborne must be strictly worse than honest single support.
 
@@ -625,22 +561,3 @@ class TestSoftHomePoseBroadTail:
         _, _, q_far_n = reward_soft_home_pose(far, home, 0.1, 1.0)
         _, _, q_nearer_n = reward_soft_home_pose(nearer, home, 0.1, 1.0)
         assert abs(float(q_nearer_n) - float(q_far_n)) < 1e-6
-
-
-@pytest.mark.skipif(not _has_jax, reason="JAX not installed")
-class TestNewTermsNumpyJaxParity:
-    def test_action_saturation_parity(self):
-        action = np.array([0.97, -1.0, 0.2, -0.85])
-        r_np, f_np = reward_action_saturation(action, 0.5, 0.9)
-        r_jax, f_jax = reward_action_saturation(jnp.array(action), 0.5, 0.9)
-        assert float(r_np) == pytest.approx(float(r_jax), abs=1e-6)
-        assert float(f_np) == pytest.approx(float(f_jax), abs=1e-6)
-
-    def test_soft_home_pose_broad_tail_parity(self):
-        positions = np.array([0.31, -0.52, 0.07, 0.44])
-        home = np.array([-0.045, 0.0, -0.433, 1.342])
-        r_np, e_np, q_np = reward_soft_home_pose(positions, home, 0.1, 0.5, 0.25, 6.0)
-        r_jax, e_jax, q_jax = reward_soft_home_pose(jnp.array(positions), jnp.array(home), 0.1, 0.5, 0.25, 6.0)
-        assert float(r_np) == pytest.approx(float(r_jax), abs=1e-6)
-        assert float(e_np) == pytest.approx(float(e_jax), abs=1e-6)
-        assert float(q_np) == pytest.approx(float(q_jax), abs=1e-6)

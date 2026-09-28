@@ -641,13 +641,6 @@ const milestones = [
     items: ['Multi-agent envs', 'Cooperative hunting', 'Predator-prey'],
   },
   {
-    phase: 'PHASE 5',
-    title: 'Hyperdrive',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
-    items: ['JAX/MJX backend', 'GPU benchmarks', 'Backend validation'],
-  },
-  {
     phase: 'PHASE 6',
     title: 'Sim-to-Real',
     status: 'upcoming' as const,

@@ -21,7 +21,7 @@ already certified.
 
 | Term | Meaning |
 |---|---|
-| **Node** | One stage TOML (`[env]`, `[curriculum]`, `[ppo]`, `[sac]`, `[jax]` and a `gate_kind`); one training run with one checkpoint and one gate verdict. Today's "stage". |
+| **Node** | One stage TOML (`[env]`, `[curriculum]`, `[ppo]`, `[sac]` and a `gate_kind`); one training run with one checkpoint and one gate verdict. Today's "stage". |
 | **Edge** (`warm_start_from`) | The declared parent a node initialises from, under `initialize_next_stage`, with lineage recorded. |
 | **Trunk** | The shared certified chain every behavior builds on: stance → (recovery) → locomotion. |
 | **Leaf** | A node with no children: today `behavior` (hunt). |
@@ -617,11 +617,6 @@ under the same log base.
 
 ## What stays on the ladder in Phase A
 
-- The JAX/MJX runner (`jax_curriculum.run_curriculum`) walks the advancing
-  stages by number, carrying parameters and normalization statistics forward;
-  the JAX notebook walks them by `CURRENT_STAGE`. Neither reads
-  `warm_start_from`, writes `gate_verdict.json` or publishes deliverables,
-  so a JAX run cannot serve as a trunk. See [JAX/MJX Training](jax.md).
 - The in-training `CurriculumManager` stays integer-keyed: it judges the
   advancing nodes during training, and semantic-id nodes (recovery) are
   judged after the stage.

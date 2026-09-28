@@ -15,7 +15,6 @@ Mesozoic Labs is a simulation research project exploring bipedal and quadrupedal
 - Develop locomotion controllers for dinosaur-inspired simulated species
 - Explore predatory behaviors (hunting, striking, pack coordination)
 - Study the requirements for eventual policy transfer to robotic platforms
-- Experiment with JAX/MJX for high-performance training
 
 ## Repository Structure
 
@@ -60,9 +59,7 @@ mesozoic-labs/
 │       ├── species_registry.py # Species configuration registry
 │       ├── metrics.py         # Locomotion evaluation metrics
 │       ├── wandb_integration.py # W&B experiment tracking
-│       ├── mjx_env.py         # JAX/MJX batched environment
-│       ├── jax_ppo.py         # JAX-native PPO implementation
-│       ├── jax_training.py    # JAX training loop
+│       ├── mjx_env.py         # Frozen MJX interface core (D-D17; hashed, never trained on)
 │       ├── harnesses/         # Hand-run smoke checks and MJCF viewers
 │       └── tests/             # Shared utility tests
 ├── configs/                   # Per-species stage manifest (stages.toml) and TOML stage configs
@@ -146,7 +143,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 - **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15).
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Bite) · Stable-Baselines3 — Head-contact bite success (task_success/v1):** The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate.
-- **hunt (3 — Bite) · JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path cannot judge task_success/v1 (no MJX hunting panel exists) and refuses the stage rather than certifying it.
+- **hunt (3 — Bite) · JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it.
 
 [Full documentation →](environments/trex/README.md)
 
@@ -474,7 +471,6 @@ and verified. Current stage budgets may therefore differ from the steps reported
 | Notebook | Description |
 |---|---|
 | [`notebooks/sb3_training.ipynb`](notebooks/sb3_training.ipynb) | Train and evaluate species with Stable-Baselines3. |
-| [`notebooks/jax_training.ipynb`](notebooks/jax_training.ipynb) | Train and evaluate species with the JAX/MJX backend. |
 | [`notebooks/google_drive_summary.ipynb`](notebooks/google_drive_summary.ipynb) | Collect and summarize training artifacts from Google Drive. |
 <!-- END GENERATED: NOTEBOOKS -->
 
@@ -486,7 +482,6 @@ and verified. Current stage budgets may therefore differ from the steps reported
 - [-] SAC training for T-Rex (a historical, unverified Velociraptor SAC summary is published)
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [-] Terrain adaptation (uneven ground, obstacles) — randomized heightfield terrain pilots landed 2026-09-15 in #540/#541; certified terrain deliverables pending the consolidation plan
-- [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
 - [-] Behavior recipes on one certified trunk — stand / walk / hunt published per deliverable with cross-run ancestor reuse (Phase A landed 2026-09-12; the measured hunting gate `task_success/v1` landed 2026-09-13 with a provisional 0.5 bar, decision D-B2, and seed replication as provenance landed the same day — `certification_seeds`, provisional labels; trex stance declares a 2-seed bar and publishes provisional at 1 of 2 until the seed-44 r11 parent `20260815_205206` is widened and re-paneled under r13, the first session in [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md); re-backfilling its r11 verdict cannot lift the label); the command-interface bump landed (Phase C, 2026-09-13/14), a certified r13 walker exists (trex run `20260914_123816`), automatic trunk selection is the notebook default (#543), the direction/terrain pilots landed as a separate pipeline (#540/#541) and their consolidation into manifest nodes is planned ([docs/CONSOLIDATION_PLAN_2026_09.md](docs/CONSOLIDATION_PLAN_2026_09.md); see [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md))
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Sim-to-real transfer experiments (future work; no hardware-transfer results are published yet)

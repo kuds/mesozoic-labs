@@ -298,7 +298,7 @@ class CurriculumManager:
         else:
             # A kind with no evaluator here: a future entry added to
             # gate_schema.GATE_KINDS (the schema's documented extension path
-            # is to add the entry AND teach both backends to evaluate it)
+            # is to add the entry AND teach every backend to evaluate it)
             # that has not been given a branch above. This used to be the
             # reward_and_length fall-through, so such a stage advanced on
             # return alone under StageThreshold's permissive defaults
@@ -446,7 +446,7 @@ class CurriculumManager:
         Reconstructs a :class:`StancePanel` from the recorded summary so the
         shared criterion logic in
         :func:`~environments.shared.curriculum.stance_gate.evaluate_stance_gate`
-        is the single implementation both backends run.
+        is the single implementation every backend runs.
 
         A stage declaring this kind whose evaluation carried no stance panel
         fails closed and says so once per evaluation, rather than falling

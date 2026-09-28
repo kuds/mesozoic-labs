@@ -1,6 +1,6 @@
 # Cleanup and backend retirement plan (2026-09)
 
-**Status**: living plan, updated 2026-09-27. `main` = `9369d6b` (#564, cleanup PR-A, merged 2026-09-27 20:45 UTC). Written at `be63a58` (#559, the
+**Status**: living plan, updated 2026-09-28. `main` = `7ae0a19` (#565, cleanup PR-A2, merged 2026-09-28 01:02 UTC). Written at `be63a58` (#559, the
 #558 follow-up, merged 2026-09-26 03:42 UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as `f850815`.
 Line numbers are at `f850815` unless marked "at the follow-up", which equals `be63a58` for every file #559 touched
 (`sb3_training.ipynb`, `curriculum/__init__.py`, `curriculum/checkpoints.py`, `test_curriculum_checkpoints.py`,
@@ -15,7 +15,7 @@ command-line curriculum path (D-D17 amended; §4.5). CU-3 landed as #562 the sam
 (D-D19) landed as #563 on 2026-09-27, and the maintainer tagged its first commit, `afad625`, as `0.3.8` (a
 lightweight tag, published as a GitHub pre-release). The same day the maintainer settled §2 row 2 as (c), no
 archive tags, and took row 20 as D-D21: 0.3.9 is the clean, refactored base release, cut once its gate has landed.
-PR-A landed as #564 the same day, and PR-A2 follows it (§3.1).
+PR-A landed as #564 the same day, and PR-A2 as #565 on 2026-09-28; PR-B is carried out (§3.1).
 
 ## How to use this document
 
@@ -34,24 +34,25 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
 
 ## 1. Bottom line
 
-1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. What remains is the backend retirement's last PR, PR-B
-   (PR-A landed as #564 and PR-A2 is carried out), and fifteen smaller PRs (CU-2 and CU-4..CU-17, §3); the
-   CI-signal PR (CU-1, D-D18) landed as #561, CU-3 (D-D20) as #562 and the release cut (D-D19) as #563. D-D21
-   (§2 row 20) gates the 0.3.9 release on thirteen of these PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8,
-   CU-9, CU-11, CU-12, CU-14 and CU-16; the other five CUs are deferred, not dropped. The retirement makes four of
-   the survey's 21 waves wholly moot, most of C15 and half of C1. It also deletes five of the survey's nine live
-   defects along with their code, and #558 already fixed two more.
+1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. The backend retirement is carried out (PR-A
+   landed as #564, PR-A2 as #565, and PR-B is carried out, §4.6). What remains is fifteen smaller PRs (CU-2 and
+   CU-4..CU-17, §3); the CI-signal PR (CU-1, D-D18) landed as #561, CU-3 (D-D20) as #562 and the release cut
+   (D-D19) as #563. D-D21 (§2 row 20) gates the 0.3.9 release on thirteen of these PRs: PR-A, PR-A2, PR-B, CU-2,
+   CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16; the other five CUs are deferred, not dropped. The
+   retirement makes four of the survey's 21 waves wholly moot, most of C15 and half of C1. It also deletes five of
+   the survey's nine live defects along with their code, and #558 already fixed two more.
 2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) came first, as #561, and CU-3 (atomic run-tree records
    and checkpoint pairs; D-D20) second, as #562, and the CHANGELOG release cut (D-D19) third, as #563. PR-A (Ray Tune, the Vertex AI
    tuning sweeps and mjlab; its acceptance runs the digest-snapshot harness this plan adds, §4.4) came fourth, as #564, and PR-A2 (the
-   single-job Vertex route and GCS upload, which D-D17 also retires) fifth. Next is PR-B (JAX/MJX, keeping a frozen interface
-   core). After that comes the rest of D-D21's 0.3.9 gate (§2 row 20), among it the golden-trace (CU-11),
+   single-job Vertex route and GCS upload, which D-D17 also retires) fifth, as #565, and PR-B (JAX/MJX, keeping a frozen
+   interface core) sixth. Next comes the rest of D-D21's 0.3.9 gate (§2 row 20), among it the golden-trace (CU-11),
    one-derivation (CU-8) and env-dedup (CU-12) PRs that consolidation PR-8 and PR-9 need, the CI structure (CU-14)
    and docs correctness (CU-16), and then the 0.3.9 cut. The deferred PRs follow at their §3.2 points: `extends`
    (CU-13) before PR-11, and the docs shrink (CU-17) last, before PR-15.
 3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines (PR-A's and PR-B's, measured before
    D-D17 was taken; the Vertex route and GCS upload leave in PR-A2, which derives its own). That covers about 17,459 of the 71,682
-   non-test library lines (24%) and about 12,090 test lines.
+   non-test library lines (24%) and about 12,090 test lines. As carried out: PR-A deleted 42 files and 13,222 lines,
+   PR-A2 4 files and 957 lines, and PR-B 30 files and 15,665 lines (whole files; PR-B's whole diff is +489 / −21,178).
 4. **CI savings (estimated from 18 runs, #1210–#1227).** Jobs: 23 → 22. Runner time per PR/push run: 165.7 → 116.7 min
    (−30%, about 1,900 runner-minutes a week). Median wall time: 52.3 → 46.0 min. The nightly run is unchanged. Nearly
    all of this comes from PR-B; PR-A (Ray, Vertex and mjlab) saves tens of seconds.
@@ -62,15 +63,16 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
    estimates, re-summed without the moot items). Its most important items are the `render_mode='human'` crash, atomic
    final and best checkpoint pairs, and a golden trace for reward and termination, which no digest covers today.
 7. **The overriding constraint: no digest may move.** The policy-interface digests of trex, velociraptor,
-   brachiosaurus and dibothrosuchus hash MJX source tokens and run an MJX probe. A 473-line frozen MJX interface core
-   therefore stays, unedited, until each of those species reaches its next deliberate policy-interface revision.
+   brachiosaurus and dibothrosuchus hash MJX source tokens and run an MJX probe. A frozen MJX interface core (473 lines
+   planned, 549 as PR-B built it with its FROZEN notices; §4.3) therefore stays, unedited, until each of those
+   species reaches its next deliberate policy-interface revision.
 8. **No certified run is affected.** With the core kept, two independent prototypes produced byte-identical snapshots
    of every plant, stage, behavior and recovery digest. Every certified run on Drive stays valid, including the 18
    certified stage/digest prefixes in [NEXT_STEPS.md](NEXT_STEPS.md).
 9. **Archive points settled (§2 row 2, 2026-09-27): no archive tags.** The retired code stays reachable at the
    `0.3.8` tag (`afad625`) and in git history (§4.8). D-D17 is taken (2026-09-26), and the single-job Vertex route and GCS upload go with PR-A2 (§2, row 1; §4.5; carried out by PR-A2, 2026-09-27). The digest-snapshot harness is already in the repository
    (added with this plan, 2026-09-26; §4.4). The frozen-core reference copies are not: PR-B rebuilds them from
-   `f850815` (§4.2).
+   `f850815` (§4.2; carried out by PR-B, 2026-09-28, which pins them with a test, §4.3).
 10. **Direction/terrain is now gated by physics, not cleanup.** All three certified walkers survive the plane in every
     episode, but only 1 of 39 flat-heightfield episodes reached full horizon (§5.1). The heightfield contact
     investigation and the speed and map re-derivation must come before PR-11.
@@ -87,7 +89,7 @@ row append-only in
 
 | # | Decision | Options | Recommendation (why) | Blocks |
 |---|---|---|---|---|
-| 1 | **Proposed D-D17: retire the backends.** The maintainer's direction is to remove Ray Tune, the Vertex AI hyperparameter-tuning sweeps, mjlab and JAX/MJX now, and add them back once every species and behavior is learned. **Open scope question** (removal critic item 12): does the single-job Vertex route stay? That route is `scripts/setup_vertex_ai.sh` (184 lines; submits SB3 `train_sb3.py train`/`curriculum` jobs at :127-162; one sweep hint at :183) and the `Dockerfile` (44 lines; `.[train,viz,gcp]` at :31). | (a) D-D17 as drafted (§4.5), keeping the route. (b) Also delete `setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, the kept parts of `vertex-ai.md`, and `google-cloud-aiplatform` from `[gcp]`. | **(a).** The route runs SB3 only and references no sweep code, and removing it later is a separate, reversible choice. It still needs the maintainer's explicit yes, because the original scope named both files. Also confirm the appended note to [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_2026_07.md) (§4.5). **Taken 2026-09-26 as D-D17, wider than (b):** the maintainer also retires GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, the helpers they reach and the whole `[gcp]` extra), so PR-A's delete list grows beyond §4.5's (see its note). **Split the same day:** those two leave in a PR of their own, PR-A2, with an end-to-end test of the command-line curriculum path; this plan lands it after PR-A (D-D17 amended). **Carried out in part by PR-A (2026-09-27; §4.5):** Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines); D-A12, D-A15, D-B1, D-B12 and D-D11 amended and A6 superseded; no digest moves. PR-A2 and PR-B carry out the rest. **PR-A landed as #564 on 2026-09-27.** **Carried out by PR-A2 (2026-09-27; §4.5):** the single-job Vertex AI route and GCS artifact upload removed (4 files and 957 lines, the upload code, the `--gcs-*` flags and `[gcp]`), with an end-to-end test of the command-line curriculum path; no digest moves. PR-B carries out the rest. | PR-A and PR-B. Their FROZEN docstrings, amendments and CHANGELOG entries cite D-D17. PR-A2 too (split 2026-09-26). |
+| 1 | **Proposed D-D17: retire the backends.** The maintainer's direction is to remove Ray Tune, the Vertex AI hyperparameter-tuning sweeps, mjlab and JAX/MJX now, and add them back once every species and behavior is learned. **Open scope question** (removal critic item 12): does the single-job Vertex route stay? That route is `scripts/setup_vertex_ai.sh` (184 lines; submits SB3 `train_sb3.py train`/`curriculum` jobs at :127-162; one sweep hint at :183) and the `Dockerfile` (44 lines; `.[train,viz,gcp]` at :31). | (a) D-D17 as drafted (§4.5), keeping the route. (b) Also delete `setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, the kept parts of `vertex-ai.md`, and `google-cloud-aiplatform` from `[gcp]`. | **(a).** The route runs SB3 only and references no sweep code, and removing it later is a separate, reversible choice. It still needs the maintainer's explicit yes, because the original scope named both files. Also confirm the appended note to [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_2026_07.md) (§4.5). **Taken 2026-09-26 as D-D17, wider than (b):** the maintainer also retires GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, the helpers they reach and the whole `[gcp]` extra), so PR-A's delete list grows beyond §4.5's (see its note). **Split the same day:** those two leave in a PR of their own, PR-A2, with an end-to-end test of the command-line curriculum path; this plan lands it after PR-A (D-D17 amended). **Carried out in part by PR-A (2026-09-27; §4.5):** Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines); D-A12, D-A15, D-B1, D-B12 and D-D11 amended and A6 superseded; no digest moves. PR-A2 and PR-B carry out the rest. **PR-A landed as #564 on 2026-09-27.** **Carried out by PR-A2 (2026-09-27; §4.5):** the single-job Vertex AI route and GCS artifact upload removed (4 files and 957 lines, the upload code, the `--gcs-*` flags and `[gcp]`), with an end-to-end test of the command-line curriculum path; no digest moves. PR-B carries out the rest. **PR-A2 landed as #565 on 2026-09-28.** **Carried out by PR-B (2026-09-28; §4.6):** the JAX/MJX runtime removed (30 whole files and 15,665 lines: the 13 `jax_*` modules, 15 JAX/MJX test files, the notebook and the JAX guide; also the stage writer `save_jax_stage_artifacts`, `validate_mjx_environment_plant`, the `[jax]` stage tables, the `jax`/`jax-cpu` extras and the `test-jax-cpu` job) behind the 549-line frozen MJX interface core and its pin test; A7 narrowed and D-A5, D-B13, D-C3, D-C4, D-C7, D-C16 and G1 amended; no digest moves. This completes D-D17's removals. | PR-A and PR-B. Their FROZEN docstrings, amendments and CHANGELOG entries cite D-D17. PR-A2 too (split 2026-09-26). |
 | 2 | **Archive points.** | (a) One tag at PR-A's first parent. It misses any JAX change that lands between the two merges. (b) Two annotated tags: `archive/secondary-backends-2026-09` at PR-A's first parent and one at PR-B's first parent (e.g. `archive/jax-mjx-2026-09`), each pushed before its PR merges, with both SHAs in D-D17 (critic item 5). (c) No tags; merge commits keep the SHAs reachable. | **(b).** It is cheap, and each half can be recovered from a named point. The remote had 0 tags on 2026-09-25. Do not reuse the stale `JAX` branch (`f900d3a`, 2026-02-03), which is not an ancestor of `main`. **Decided 2026-09-27: (c), no archive tags.** The project is in alpha, and the maintainer had already tagged the tree before the retirement as the release `0.3.8` (`afad625`, row 3). Every file PR-A deletes is byte-identical there, and anything that changes later stays reachable through PR-A's and PR-B's merge commits. §4.8 item 1 no longer applies. | The PR-A and PR-B merges. Maintainer action. |
 | 3 | **Cut the CHANGELOG release?** `[Unreleased] (v0.3.8)` spans `CHANGELOG.md:8-3805`: 3,798 of 4,009 lines (3,860 of 4,071 at the follow-up). Two more undated `[Unreleased]` headings sit at :3806 and :3934. The last dated release is 0.2.0 (2026-02-09). Since `c0e9b52` (2026-08-02), `.devN` in `pyproject.toml:7` and the heading move together, with no tags. | (a) Before PR-A: date the three headings, open an empty `[Unreleased]`, bump to `0.3.9.dev0` (or `0.4.0.dev0` if the terrain path is ROADMAP's v0.4.0), and tag `v0.3.8`. (b) The same, without a release tag. (c) Keep growing the section. | **(a) or (b), before PR-A**, so the retirement's Removed and Migration entries head a short section. A release tag is the maintainer's call; archive tags are not release tags. The version is recorded in `stage_config.json` (`config.py:788`), in the HPT metrics payload (`train_base.py:1503`) and in `provenance.json`'s `dependency_versions` (`"mesozoic_labs"`, `result_bundle/constants.py:55`). It enters no digest; a resume after the bump only records it as environment drift, as a new `repository_commit` already does. **Taken 2026-09-26 as D-D19: (a), with `0.3.9.dev0` next; the maintainer tags `v0.3.8`.** **Carried out by the release PR (§3.1).** **Landed as #563 on 2026-09-27** (merged 03:02 UTC as `04d107a`); the maintainer tagged `afad625` as `0.3.8`, a lightweight tag without the `v` prefix, and published it as a GitHub pre-release. | Nothing hard. It only decides where PR-A's entries go. |
 | 4 | **Persist the resolved trunk run on disk.** The chain loop never follows the run's own `ancestors/` records, so a resume must pin `TRUNK_FROM` to the trunk that the interrupted session's resolve cell *printed*. If that output is lost, the operator has to hunt through the ancestor records (`CHANGELOG.md:1712-1726` at the follow-up; round-3 check). | (a) The resolve cell writes the resolved trunk into a run-level sidecar, and the RESUME cell and the recipe read it. (b) Keep the printed output plus the recipe. (c) Put it in `provenance.json`. | **(a), as a small notebook PR.** First check how the run manifest treats a new run-level file: `result_bundle/manifest.py` hashes the run tree, and a `complete` bundle is immutable. Not (c): provenance keys drive the drift records and the audit. | Nothing. It removes an operator error mode (KNOWN_ISSUES, §3.5). |
@@ -106,7 +108,7 @@ row append-only in
 | 17 | **Retired-backend metric lines.** After the retirement the generated catalog in the root `README.md` (:105-215) and the website still advertise JAX/MJX success metrics for four species that nothing can train. `species_catalog.py:949-954` requires those rows while the species stay dual. | (a) A `species_manifest.toml` field separating the declared interface backends (`plant_contract/manifest.py:88-93`) from the advertised training backends, so the catalog stops rendering JAX/MJX metrics. (b) Keep them with a note. | **(a), as a catalog PR after PR-B.** The removal inventory found the declared backends list is not a bundle-digest input; confirm with the harness. | Nothing; living docs stay true. |
 | 18 | **Branch protection.** On 2026-09-25 `main` had no required checks, although `python-ci.yml:210-212,316` assume them (§4.8). | (a) Turn on required checks once the job names settle (after CU-14). (b) Reword the workflow comments. | **(a)**, a maintainer action. | Nothing. |
 | 19 | **Stale open PRs.** #527 ("Research Compsognathus feet and add resumable Colab balance sessions", 2026-09-10) edits `python-ci.yml` and `harnesses/freeze_recovery_gate.py` and adds a notebook. #498 ("Record the August 2026 RL pipeline review", 2026-08-08) adds a review that was never merged. | Close, or rebase and merge. | **Decide before PR-A.** #527 conflicts with PR-A/PR-B in `python-ci.yml` and with CU-9. **Decided 2026-09-26: both closed, each with a comment (an operational choice, not a D-D row).** | PR-A (rebase cost). |
-| 20 | **Which release is the clean base.** Added 2026-09-27, after the release cut: the maintainer asked whether to finish the cleanup and refactor first, so that the tagged version is the clean base. `0.3.8` was already tagged and published on `afad625`, before any retirement PR. | (a) Re-open `0.3.8`: move the tag to the cleaned tree. (b) Keep `0.3.8` as the pre-cleanup release, and make 0.3.9 the clean, refactored base, cut once a named set of cleanup PRs has landed. | **(b).** A published tag should not move, and `0.3.8` doubles as the archive point for the retired code (row 2). **Taken 2026-09-27 as D-D21: (b).** The 0.3.9 gate is thirteen PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. Deferred, not dropped, each at the point §3.2 and §3.4 give it: CU-6 (after session 6's resume and CU-4; amends D-D7), CU-13 (before PR-11; amends D-D5), CU-10 (lowest priority), CU-15 (optional; after PR-A), CU-17 (last, before PR-15), and consolidation PR-8..PR-15, which build on 0.3.9. CU-4 and CU-14 still take decisions 9 and 10 when they open. | The 0.3.9 release cut. |
+| 20 | **Which release is the clean base.** Added 2026-09-27, after the release cut: the maintainer asked whether to finish the cleanup and refactor first, so that the tagged version is the clean base. `0.3.8` was already tagged and published on `afad625`, before any retirement PR. | (a) Re-open `0.3.8`: move the tag to the cleaned tree. (b) Keep `0.3.8` as the pre-cleanup release, and make 0.3.9 the clean, refactored base, cut once a named set of cleanup PRs has landed. | **(b).** A published tag should not move, and `0.3.8` doubles as the archive point for the retired code (row 2). **Taken 2026-09-27 as D-D21: (b).** The 0.3.9 gate is thirteen PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. Deferred, not dropped, each at the point §3.2 and §3.4 give it: CU-6 (after session 6's resume and CU-4; amends D-D7), CU-13 (before PR-11; amends D-D5), CU-10 (lowest priority), CU-15 (optional; after PR-A), CU-17 (last, before PR-15), and consolidation PR-8..PR-15, which build on 0.3.9. CU-4 and CU-14 still take decisions 9 and 10 when they open. *Session 6's resume finished on 2026-09-28, so CU-6 waits only for CU-4.* | The 0.3.9 release cut. |
 
 **Made moot by the retirement:** whether the dibothrosuchus MJX kernel should pay `snap_snout_proximity_weight`; JAX
 `ppo_epochs` (4 in the notebook, 10 in the CLI); whether to keep Vertex HPT or mjlab; a Ray sweep-backend decision;
@@ -160,11 +162,20 @@ attempt after an early stop is a fresh `RUN_ID`.
    (4 files and 957 lines deleted) with the test unchanged; the digest-snapshot harness printed 848 lines with
    0 errors, byte-identical on the base `9369d6b` and the head; mypy reports no issues in 335 source files
    (from 334; the new test) in all three environments; `pytest --collect-only` collects 4,339 tests locally
-   (from 4,344) and 4,289 in CI's SB3 environment (from 4,294), with no errors. PR-B follows PR-A (§4.7). Both use the digest-snapshot
-   harness, which is already in the repository (§4.4), for their acceptance.
+   (from 4,344) and 4,289 in CI's SB3 environment (from 4,294), with no errors. **PR-A2 landed as #565 on
+   2026-09-28** (merged 01:02 UTC as `7ae0a19`, whose tree equals `647ca1f`; measured on its CI at `647ca1f`: SB3
+   job 34:52, whose mypy step printed "Success: no issues found in 335 source files" in 41 s; JAX job 34:43; all 23
+   checks green; coverage 91 percent; at full depth, with the `full-ci` label). **As carried out by PR-B
+   (2026-09-28; §4.6):** 30 files and 15,665 lines deleted as whole files (the whole diff is +489 / −21,178 in 113
+   files); the digest-snapshot harness printed 848 lines with 0 errors, byte-identical on the base `7ae0a19` and the
+   head, with the optional backends blocked and unblocked; mypy reports no issues in 309 source files (from 335) in
+   all three environments; `pytest --collect-only environments` collects 3,943 tests both locally (from 4,339) and
+   in CI's SB3 environment (from 4,289), with no errors; the plant-contract tests are 69 (54 + the 15 pin tests);
+   and the wheel, installed without JAX, reproduces all six `policy_interface_sha256` values. PR-B follows PR-A
+   (§4.7). Both use the digest-snapshot harness, which is already in the repository (§4.4), for their acceptance.
 3. **The surviving waves (§3.2).** CU-2 and CU-7 are independent of the retirement and can land any time (CU-3, also
    independent, landed as #562). Work
-   that edits CI structure, or docs the retirement also edits, waits for PR-B.
+   that edits CI structure, or docs the retirement also edits, waits for PR-B (carried out, 2026-09-28).
 
 ### 3.2 The surviving waves (relabelled CU-n; "was" names the survey item)
 
@@ -178,18 +189,18 @@ callable, no byte-frozen file and no digest input (§5.6).
 | CU-3 Atomic writes and handoff pairs | C8 + decision 7 | Add `file_io.atomic_write_json` and `atomic_write_csv`. Use them for `stage_config.json` (`config.py:823`), `metrics.json`, the stance JSON/text writers and the three evidence CSVs, keeping each site's `json.dumps` arguments so the bytes stay identical. Three hand-rolled writers leave `<name>.json.tmp` files that the manifest's `.*.tmp` cleanup misses. That happens only after a crash between write and replace, and the next write overwrites the file (survey critic). Also stage the final and best pairs (decision 7), which closes the handoff-pair KNOWN_ISSUES entry (§3.5). **As carried out (2026-09-26, D-D20):** `file_io` gains `atomic_write_json` and `atomic_write_csv` (and `atomic_write_text` a `newline` argument). `stage_config.json`, `metrics.json` (still without a trailing newline), the five stance text/JSON pairs, the three evidence-CSV writers (`save_evaluation_episodes`, `write_stance_panel_evidence`, `write_recovery_evidence`) and the three hand-rolled sidecar writers (`gate_resolution.json`, `task_fingerprint.json`, `plant_identity.json`, all written inside run trees) go through them with their bytes unchanged, so a stranded temporary is now dot-named and discarded by the manifest. On a mount the final, best and robust-best pairs are saved to local scratch and published by `curriculum.publish_staged_pair`: handoff pairs zip last, the final pair sidecar last, each after removing the destination file it publishes last, so no reclaim leaves a truncated file or a mixed pair the pair's checks accept. Before the final pair is saved, an empty placeholder takes the final zip's place and then the final sidecar is removed, so a reclaim at any point of the final save leaves a final zip `checkpoint_pair_problem` rejects, as a save straight to the mount did; without it, a reclaim before the zip landed left no final zip, and the RESUME cell trained an early-stopped node further in place (found by the CU-3 review and reproduced; `test_sb3_notebook_pins.py` now runs the RESUME cell on each state the staged save can leave). Off a mount the pairs are written in place, as before. Not converted, among other writers of the same pattern outside CU-3's list: `stage_summary.txt` and `training_summary.txt`, `collected_results.csv` and `curriculum_results.csv` (append mode), the stance diagnostics CSV, the run's `zero_action_baseline.json`, the stage's `wandb_run_id.txt`, `ancestors.py`'s record copy, the widen tool's pairs, the behavior pilot's outputs and the repository's `plant_manifest.generated.json`. Measured (`git diff --numstat` against `74ba16c`): code +270 / −99, tests +1,039 / −3, notebook JSON +2 / −2; the size estimate above counted only tests. | Otherwise PR-13's evidence writer copies the non-atomic pattern. | about +60 (tests) | LOW | Landed as #562 (2026-09-26) |
 | CU-4 Test helpers | C19 | One `notebook_cells.py` for the notebook extractors (fewer after PR-A and PR-B), which the CI notebook validator uses too. Delete the duplicated library-only pins (decision 9) and the dead `_clean_repository_state`. `ancestors_helpers.py` replaces the test-to-test imports. One TinyEnv. Add a notebook import-resolution check and a canonical-JSON pin for the two notebooks that remain; CI only AST-parses notebooks (`python-ci.yml:93-124`). | CU-5 and CU-6 rewrite the same extractors and pins. This is PR-15's test slice. | about −200 | None | After PR-B |
 | CU-5 Notebook text and dead parameters | C5 | Re-check the survey's text fixes against the follow-up's notebook: the deleted `trex/stance.toml` quote, "all four" species (there are six), the stale "review F3" note, and the branch numbering. Drop `save_path`/`save_dir`/`_show`/`fig1`/`fig2`, `species=None` and `run_dir=None`. Add `node_budget()`. Cut the markdown toward about 95 lines, most of this PR's reduction. Measured: the SB3 notebook has 33 cells and 1,557 source lines at `f850815` (207 of them markdown), and 1,599 at the follow-up. The survey projected about 29 cells and 1,290 source lines after C4, C5, C6 and C9, counted from 1,515; re-derive it from 1,599. | Moves toward the consolidation plan's §4 notebook targets. | about −110 | None (keep the pinned phrases) | After CU-4 |
-| CU-6 Resume slice into the package | C6 (remainder) | The follow-up already moved the pair check. What remains: `newest_intact_periodic_pair` sharing `train_base`'s regex, with one test per skip reason; `train_stage(evaluate=False)`, which drops a 60-episode evaluation that JUDGE always redoes; and moving the archive preflight into `policy_loading`. | Resume becomes tested library code. | notebook −115, library and tests +200 | LOW | After session 6's resume and CU-4; amend D-D7 |
-| CU-7 Dead code and import cost | C7 (minus JAX) + critic items | Delete 6 dead defs, `FIGURE_NAMES`, the stale "funnel through `summarize_stance_panel`" text, the test-only `recovery_evaluation.paired_success_differences`, and the dead gym entry points (`pyproject.toml:77-88` after PR-A2; gymnasium 1.3.0 loads no plugins). Reduce `environments/shared/__init__.py` to its docstring; the survey measured `import environments` falling from 1.9 s to 0.3 s and from 1,676 modules to 390. Script hygiene. One sha256 regex and one set of validators. Declare `imageio` (used at `compsognathus/scripts/view_model.py:117`). Delete what PR-A leaves of the KNOWN_ISSUES gym entry-point bullet (under Configs, docs & website) and fix `docs/ROADMAP.md:48-52`, which ticks "Register Gymnasium entry points" and names `MesozoicLabs/Velociraptor-v0` (the id is `Raptor-v0`). Correct the fingerprint docstring (`task_fingerprint.py:88` says "all four species constructors"; there are five) and, unless PR-B has already deleted it, the `foot_contact_*` test comment (`test_species_integration.py:454-456`) (§7). Optional: make `curriculum/__init__.py` lazy (a PEP 562 `__getattr__` over the same names), so the pure gate modules stop importing SB3 and torch; the survey measured `curriculum.gate_schema` falling from 1.73 s to 0.28 s that way. **Also left by PR-A (2026-09-27)**, sweep and HPT wording in code that PR-A did not otherwise touch (line numbers at PR-A's head): in `train_base.py`, the `# ── HPT metric reporting` banner (:1497), the `HPT metric reported` and `HPT eval` log strings, the "HPT report" in `train()`'s `report_metrics` docstring (:1116), the "sweep warm-starts" in the load-mode docstring (:399), the GCS comment at :1637-1638 (PR-A2's), the Ray Tune worker in `run_success_panel`'s docstring (:1664-1666), the sweep-row comments and docstrings at :1733, :1765-1770 and :1889, and the sweep-CSV comments at :2822 and :2832; in `reporting/stage_artifacts.py`, the sweep-trial docstrings and comments at :52-53, :113-114, :137-138, :197-204, :302-311, :1037-1038, :1432-1433 and :1479; the "alias used by existing sweep analysis" comments at `train_base.py:1871` and :1881; in `curriculum/task_success_gate.py:22-23`, the sweep's offline row verdict, which D-B12's D-D17 amendment retires; in `stage_manifest.py`, the sweeps (:43, :209) and the sweep collector (:76), which D-A12's amendment retires; in `reporting/csv_output.py`, :4, :21-22 (it names the deleted `sweep/results.write_results_csv`), :38-39, :87, :249, :258 and :335; `reporting/gates.py:6`; `reporting/stage_layout.py:27`; `config.py:175`; `cli.py:21`; and `tb_sync.py:4`. `config.py:988` goes with PR-A2's GCS code, and `result_bundle/evidence.py:565` and `result_bundle/hashing.py:38` wait until after PR-B, whose acceptance keeps `result_bundle/` unchanged. The `best_mean_*` alias keys stay (§4.9). *As carried out by PR-A2 (2026-09-27):* `config.py:988` went with the GCS code and `train_base.py:1637-1638` was reworded. **Also left by PR-A2**, Vertex-route and GCS wording in code it did not otherwise touch: `curriculum/early_stopping.py:168`, `file_io.py:4`, `wandb_integration.py:84-85` and `tb_sync.py:112` (with :4 above). Line numbers in this row are at PR-A's head unless marked; after PR-A2 those in `train_base.py` past :2084 and in `reporting/csv_output.py` past :95 moved, so re-derive them. | Pure deletion. | about −330 | LOW | Any time |
+| CU-6 Resume slice into the package | C6 (remainder) | The follow-up already moved the pair check. What remains: `newest_intact_periodic_pair` sharing `train_base`'s regex, with one test per skip reason; `train_stage(evaluate=False)`, which drops a 60-episode evaluation that JUDGE always redoes; and moving the archive preflight into `policy_loading`. | Resume becomes tested library code. | notebook −115, library and tests +200 | LOW | After session 6's resume and CU-4; amend D-D7. *Session 6's resume finished on 2026-09-28, so CU-6 waits only for CU-4.* |
+| CU-7 Dead code and import cost | C7 (minus JAX) + critic items | Delete 6 dead defs, `FIGURE_NAMES`, the stale "funnel through `summarize_stance_panel`" text, the test-only `recovery_evaluation.paired_success_differences`, and the dead gym entry points (`pyproject.toml:77-88` after PR-A2; gymnasium 1.3.0 loads no plugins). Reduce `environments/shared/__init__.py` to its docstring; the survey measured `import environments` falling from 1.9 s to 0.3 s and from 1,676 modules to 390. Script hygiene. One sha256 regex and one set of validators. Declare `imageio` (used at `compsognathus/scripts/view_model.py:117`). Delete what PR-A leaves of the KNOWN_ISSUES gym entry-point bullet (under Configs, docs & website) and fix `docs/ROADMAP.md:48-52`, which ticks "Register Gymnasium entry points" and names `MesozoicLabs/Velociraptor-v0` (the id is `Raptor-v0`). Correct the fingerprint docstring (`task_fingerprint.py:88` says "all four species constructors"; there are five) and, unless PR-B has already deleted it, the `foot_contact_*` test comment (`test_species_integration.py:454-456`) (§7). Optional: make `curriculum/__init__.py` lazy (a PEP 562 `__getattr__` over the same names), so the pure gate modules stop importing SB3 and torch; the survey measured `curriculum.gate_schema` falling from 1.73 s to 0.28 s that way. **Also left by PR-A (2026-09-27)**, sweep and HPT wording in code that PR-A did not otherwise touch (line numbers at PR-A's head): in `train_base.py`, the `# ── HPT metric reporting` banner (:1497), the `HPT metric reported` and `HPT eval` log strings, the "HPT report" in `train()`'s `report_metrics` docstring (:1116), the "sweep warm-starts" in the load-mode docstring (:399), the GCS comment at :1637-1638 (PR-A2's), the Ray Tune worker in `run_success_panel`'s docstring (:1664-1666), the sweep-row comments and docstrings at :1733, :1765-1770 and :1889, and the sweep-CSV comments at :2822 and :2832; in `reporting/stage_artifacts.py`, the sweep-trial docstrings and comments at :52-53, :113-114, :137-138, :197-204, :302-311, :1037-1038, :1432-1433 and :1479; the "alias used by existing sweep analysis" comments at `train_base.py:1871` and :1881; in `curriculum/task_success_gate.py:22-23`, the sweep's offline row verdict, which D-B12's D-D17 amendment retires; in `stage_manifest.py`, the sweeps (:43, :209) and the sweep collector (:76), which D-A12's amendment retires; in `reporting/csv_output.py`, :4, :21-22 (it names the deleted `sweep/results.write_results_csv`), :38-39, :87, :249, :258 and :335; `reporting/gates.py:6`; `reporting/stage_layout.py:27`; `config.py:175`; `cli.py:21`; and `tb_sync.py:4`. `config.py:988` goes with PR-A2's GCS code, and `result_bundle/evidence.py:565` and `result_bundle/hashing.py:38` wait until after PR-B, whose acceptance keeps `result_bundle/` unchanged. The `best_mean_*` alias keys stay (§4.9). *As carried out by PR-A2 (2026-09-27):* `config.py:988` went with the GCS code and `train_base.py:1637-1638` was reworded. **Also left by PR-A2**, Vertex-route and GCS wording in code it did not otherwise touch: `curriculum/early_stopping.py:168`, `file_io.py:4`, `wandb_integration.py:84-85` and `tb_sync.py:112` (with :4 above). Line numbers in this row are at PR-A's head unless marked; after PR-A2 those in `train_base.py` past :2084 and in `reporting/csv_output.py` past :95 moved, so re-derive them. *As carried out by PR-B (2026-09-28):* the `foot_contact_*` test comment went with `test_species_integration.py`'s MJX block, and PR-B rewrote the `config.py:175` sentence, so both items are done. **Also left by PR-B**, JAX and MJX wording in code it did not otherwise touch (line numbers at PR-B's head): in files its acceptance keeps unchanged, `result_bundle/gate_verdict.py:18,62-63` (they name the retired `save_jax_stage_artifacts`), `action_filter.py:12-13` (it names the deleted `_PLANT_INTERFACE_CONFIG_FIELDS`) and `result_bundle/evidence.py:179,762`, beside `evidence.py:565` and `hashing.py:38` above; elsewhere, the `base_env.py` comments that describe a live MJX step or settle (:99, :109, :133, :884, :1116, :1160, :1359-1366), the `reward_functions.py` module docstring (:6-18), `test_widen_checkpoint.py:20` and, optionally, the `jax_training` pair at `species_catalog.py:1112`. Dead-code candidates after PR-B, uncalled or reachable only from tests: `gate_schema.apply_backend_overrides` and `has_backend_overrides` (inside §4.9's keep range, so CU-7 decides), `stance_gate.episode_unsupported_duty`, and `reward_functions.check_nosedive_termination` and `reward_height_maintenance`. Also from PR-B's review: the quadruped-detection MEDIUM in KNOWN_ISSUES closes with a one-root assertion (exactly one of `torso` / `pelvis` in `body_ids`) in the plant contract's MJX probe, `policy_layer._jax_policy_interface_payload`, which is not hashed, so no digest moves (checked with `plant_contract --check`). | Pure deletion. | about −330 | LOW | Any time |
 | CU-8 One derivation, one reader | C9 | Generalise `stage_task_fingerprint` to all 6 sites, which retires the text pin at pins:487-506. Make `ignored_hyperparameter_edits` public; the notebook copy lacks its guard. One `stage_config.json` reader. Move the sidecar resolver and `_ensure_sb3` into `policy_loading`. Keep one `FINGERPRINT_BACKEND` constant (today at `freeze_recovery_gate.py:127` and `widen_checkpoint.py:153`), one constant for the 33 `"stable-baselines3"` literals, and one `REPOSITORY_ROOT`/`_SHARED_ROOT` (defined in both `result_bundle/constants.py` and `plant_contract/constants.py`). Keep the values unchanged: the backend string enters `task_sha256`, and repo-relative paths enter `behavior_identity`. | PR-9 gets a single derivation, and PR-10 gets `policy_loading`. | about −100 | LOW; acceptance is the committed `task_sha256` tests | After PR-A; before PR-9 |
 | CU-9 Coverage of certification code | critic item | `*/scripts/*` and `environments/shared/harnesses/*` are coverage-omitted (`pyproject.toml:164-169`). That hides `freeze_recovery_gate.py` (892 lines), `widen_checkpoint.py` (1,412) and `backfill_gate_verdict.py` (469). Replace the blanket omits with explicit entries, and move `brace_controller` to break the cycle. Keep `harnesses/digest_snapshot.py` (added with this plan) in the explicit omit list. Close or rebase #527 first (decision 19); it edits `freeze_recovery_gate.py`. | Certification code should count toward `fail_under = 70`. | small | LOW (re-measure) | After PR-B |
 | CU-10 `train_curriculum` body onto `train()`'s helper | C10 | Name `eval_env_seed`. Validate old against new under a frozen clock. Optional second PR: split `train_base.py` into trainer, curriculum runner and post-training panels. **Also fixes the curriculum horizon defect** (added 2026-09-27 by the maintainer, when cleanup PR-A2 recorded it in KNOWN_ISSUES under Training / RL): `CurriculumCallback._eval_horizon` reads `max_episode_steps` from the TOMLs `CurriculumManager` re-reads, not from the overridden stage config the panel runs, so hand it the overridden horizon, with a test that a `--override env.max_episode_steps` stance stage can pass. | Removes the second copy of the stage body, and the horizon defect with it. | about −100 | LOW-MED | Lowest priority |
 | CU-11 Reward/info/termination golden | C11 | 21 species×stage captures, stored as digests plus a summary. Quantise the values, or run a same-machine A/B. Reuse the `reset_golden` helpers. | No digest covers reward or termination code, and PR-8/PR-9 need a "no number moved" check. | +150–200 | LOW | Before PR-8 |
 | CU-12 Species env dedup | C12 (minus MJX scalars) | Reward-term helpers replace the 8 thin `_compute_*` wrappers. One contact query and one height/tilt termination prefix. Drop the foot-force overrides, pinning the base order `group[0]+sum(group[1:])`. A home-keyframe helper. Delete the test-only trex accessor. The cross-backend scalars need no work: PR-B deletes their MJX copies, and the 7–9 keys left in the frozen `mjx_config.py` registrations are not edited. Leave every token-hashed method alone (§5.6). | PR-9's constructors edit the same files. | about −300 | LOW (CU-11 proves it). A byte edit to a species env file moves the pilot `behavior_identity`; those bundles are evaluation-only (D-D9), none is on Drive, and PR-9 deletes that identity. Acceptance: CU-11's golden, plus a harness diff limited to the `behavior` identity lines of the species touched. | After CU-11; before PR-9 |
-| CU-13 Stage-TOML `extends`, step 1 | C13 | D-D5 pulled forward: recovery extends stance for `[env]`, `[ppo]`, `[sac]` and `[stage]` in trex, compsognathus and compsognathus_robot. The survey critic confirmed that `{**stance, **recovery}` reproduces those tables with identical key order and that only `[curriculum]` differs. Never inherit `[curriculum]`. Keep a permanent 21-stage digest snapshot, which the digest-snapshot harness (§4.4) produces. Step 2 (compsognathus_robot ← compsognathus, after rerouting the direct TOML readers) waits for PR-12 and session 6. | Tests PR-11's mechanism against a known answer. | about −130 | LOW | Before PR-11; amend D-D5 |
+| CU-13 Stage-TOML `extends`, step 1 | C13 | D-D5 pulled forward: recovery extends stance for `[env]`, `[ppo]`, `[sac]` and `[stage]` in trex, compsognathus and compsognathus_robot. The survey critic confirmed that `{**stance, **recovery}` reproduces those tables with identical key order and that only `[curriculum]` differs. Never inherit `[curriculum]`. Keep a permanent 21-stage digest snapshot, which the digest-snapshot harness (§4.4) produces. Step 2 (compsognathus_robot ← compsognathus, after rerouting the direct TOML readers) waits for PR-12 and session 6. *Session 6 finished on 2026-09-28 (compsognathus_robot's walk certified), so step 2 waits only for PR-12.* | Tests PR-11's mechanism against a known answer. | about −130 | LOW | Before PR-11; amend D-D5 |
 | CU-14 Workflow structure | critic items + decision 10 | Collapse the 18 matrix jobs to 6 (`python-ci.yml:216-220`). Anchor the byte-identical `paths` lists (:6-29, :38-61). Install `.[test]` rather than `.[dev]` in the matrix. Drop the plant-contract job's duplicate pytest step (192 s), keeping its `--check`, baseline and wheel steps. Drop `test_phase_c_interface.py` from the SB3 list (145 s). Apply decision 10, and fix the "smallest plant" comment at `python-ci.yml:313-314` (the robot is the costliest plant for those tests). Update branch protection if job names change (decision 18). After the plant-contract pytest step goes, the frozen-core pin test runs only in the `test (shared, …)` matrix (§4.3). | `test-sb3` is the critical path after PR-B. | YAML only | LOW | After PR-B |
 | CU-15 Drive summary reader | C16 (reduced) + the rest of C15 | No sweeps are written after PR-A. NB2 (current-layout `sweeps/<algo>_<ts>` folders are skipped) has no present impact: a read-only Drive listing on 2026-09-26 found three `sweeps/` folders (created 2026-03-25..28) holding ten legacy `stage<N>_<algo>_<ts>` folders, which the summary reads, and no current-layout folder. PR-A drops its KNOWN_ISSUES entry. Give the Drive summary's setup cell the SB3 bootstrap: `REPO_REF` with fetch-and-detach instead of a `--depth 1` clone of the default branch, the three-clause `IN_COLAB`, and a guarded Drive mount. Optional: move the 786-line parser into a tested `reporting/run_index.py`, with pandas imported lazily and declared. | Seven reader patches since August. The bootstrap records which code the summary ran. | +150–300, all tested (optional), plus the small bootstrap edit | LOW | After PR-A |
-| CU-16 Docs correctness | C20 | Add a status appendix to [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) and move its open findings (CF6, OP3, SS3/4, TC8) into KNOWN_ISSUES; mark JX2, JX4, JX7, JX9, NB3 and CF1 "retired by D-D17". List all 6 env ids in the API overview. Fix the backfill tool path. Mark STAGE1_SPLIT_PLAN's status, re-label RECOMMENDATIONS.md as a dated 2026-03 snapshot (`docs/README.md:43` says "Active"), and mark WEBSITE_PLAN complete (:47), moving its logo-SVG item to KNOWN_ISSUES. Update ROADMAP, the README and the website milestones. Correct the living-doc sentences that say pilot or certificate data exists on Drive (none does); the CHANGELOG copies are history, but add a one-line correction to the `Images/` entry (`CHANGELOG.md:3326-3329`, :3388-3391 at the follow-up), which is wrong about where the removed GIFs survive, in the new `[Unreleased]`. Assets: the three `website/static/videos/raptor_stage*.mp4` videos and their three posters (1,974,435 + 19,787 B) are unreferenced and have no other copy. `sac_apex.gif`/`ppo_apex.gif` share blobs with `results/velociraptor/{sac,ppo}/stage3_strike.gif` (23,558,176 B), which only `results/README.md:12-17` lists, so delete both copies or neither. `results/velociraptor/ppo/stage1_balance.gif` and `raptor_balance_ppo.gif` share a blob, but both are referenced: no action. The orphan PWA icons (62,739 B) and `compsognathus/data/robot_camera_view.png` (32,616 B) can go. The heightfield and render-crash entries are already added with this plan (§3.5). *After PR-A2:* CF6's file (`configs/trex/sweep_ppo.json`) left with PR-A and OP3's last entry point (`scripts/setup_vertex_ai.sh`'s stage prompt) with PR-A2, so both are retired by D-D17 and do not move into KNOWN_ISSUES. | Living docs must stay true. About 2.1 MB is freed without the GIF decision. | about +150 | None | After PR-B |
-| CU-17 Docs shrink | C21 | First move the only copies of unique text: PR-7's parity reason, PR-4's reproducibility note and the NEXT_STEPS §5 operational choices. PR-3b's list is superseded; say so. Then: landed consolidation-plan PR bodies become pointers (−500), NEXT_STEPS shrinks (−185), KNOWN_ISSUES entries over 40 lines shrink (−275), and the README Quick Start folds into the recipe pages (−90). Rewrite PR-15's text. Adopt the rule that PR landing status lives only in the consolidation status table and the CHANGELOG (a `docs/README.md` convention). | Shorter living docs. | about −1,050 (docs) | None | Last |
+| CU-16 Docs correctness | C20 | Add a status appendix to [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) and move its open findings (CF6, OP3, SS3/4, TC8) into KNOWN_ISSUES; mark JX2, JX4, JX7, JX9, NB3 and CF1 "retired by D-D17". List all 6 env ids in the API overview. Fix the backfill tool path. Mark STAGE1_SPLIT_PLAN's status, re-label RECOMMENDATIONS.md as a dated 2026-03 snapshot (`docs/README.md:43` says "Active"), and mark WEBSITE_PLAN complete (:47), moving its logo-SVG item to KNOWN_ISSUES. Update ROADMAP, the README and the website milestones. Correct the living-doc sentences that say pilot or certificate data exists on Drive (none does); the CHANGELOG copies are history, but add a one-line correction to the `Images/` entry (`CHANGELOG.md:3326-3329`, :3388-3391 at the follow-up), which is wrong about where the removed GIFs survive, in the new `[Unreleased]`. Assets: the three `website/static/videos/raptor_stage*.mp4` videos and their three posters (1,974,435 + 19,787 B) are unreferenced and have no other copy. `sac_apex.gif`/`ppo_apex.gif` share blobs with `results/velociraptor/{sac,ppo}/stage3_strike.gif` (23,558,176 B), which only `results/README.md:12-17` lists, so delete both copies or neither. `results/velociraptor/ppo/stage1_balance.gif` and `raptor_balance_ppo.gif` share a blob, but both are referenced: no action. The orphan PWA icons (62,739 B) and `compsognathus/data/robot_camera_view.png` (32,616 B) can go. The heightfield and render-crash entries are already added with this plan (§3.5). *After PR-A2:* CF6's file (`configs/trex/sweep_ppo.json`) left with PR-A and OP3's last entry point (`scripts/setup_vertex_ai.sh`'s stage prompt) with PR-A2, so both are retired by D-D17 and do not move into KNOWN_ISSUES. *After PR-B (2026-09-28):* the stage-TOML comments that still mention JAX or MJX outside the deleted `[jax]` tables are CU-16's (line numbers at PR-B's head): brachiosaurus `stage1_balance.toml:48`, `stage2_locomotion.toml:30,49` and `stage3_food_reach.toml:26`; dibothrosuchus `stage1_balance.toml:12-14,59`; trex `behavior.toml:25`, `locomotion.toml:35,65` and `stance.toml:13,110,255,411`; velociraptor `stage2_locomotion.toml:31,50` and `stage3_strike.toml:27`. PR-B's acceptance limited its stage-TOML diff to the `[jax]` tables, so they wait. Edit the comments only (three of those lines carry `foot_contact_*` keys, which stay; §4.2), and run the harness on base and head. The recipes plan's vocabulary row for a node (`BEHAVIOR_RECIPES_PLAN.md:135`) still lists `[jax]` among a stage TOML's tables, which `load_stage_config` now refuses; correct it here. | Living docs must stay true. About 2.1 MB is freed without the GIF decision. | about +150 | None | After PR-B |
+| CU-17 Docs shrink | C21 | First move the only copies of unique text: PR-7's parity reason, PR-4's reproducibility note and the NEXT_STEPS §5 operational choices. PR-3b's list is superseded; say so. Then: landed consolidation-plan PR bodies become pointers (−500), NEXT_STEPS shrinks (−185), KNOWN_ISSUES entries over 40 lines shrink (−275), and the README Quick Start folds into the recipe pages (−90). Rewrite PR-15's text. Adopt the rule that PR landing status lives only in the consolidation status table and the CHANGELOG (a `docs/README.md` convention). *Since PR-B (2026-09-28) the consolidation plan's PR-3b paragraph says it is superseded.* | Shorter living docs. | about −1,050 (docs) | None | Last |
 
 **Optional, unscheduled:** split the diagnostic stance probes into `reporting/stance_probes.py` (about 1,216 lines
 move, no net change).
@@ -225,13 +236,13 @@ hardened by #559.
 | Planned | Needed for terrain? | Land first | Effect of the retirement |
 |---|---|---|---|
 | PR-8 selector, constants, normalisation | Yes | CU-11 (golden as acceptance) | Unchanged |
-| PR-9 phase D hook, identity = fingerprint | Yes | CU-8, CU-12 | Smaller: no `MJXEnvConfig` edit (`mjx_env.py:274-279`), no MJX suite. It must still leave the frozen core untouched and pass `plant_contract --check` |
+| PR-9 phase D hook, identity = fingerprint | Yes | CU-8, CU-12 | Smaller: no `MJXEnvConfig` edit (`mjx_env.py:274-279`), no MJX suite. It must still leave the frozen core untouched and pass `plant_contract --check`. *Since PR-B (2026-09-28):* the `MJXEnvConfig` dataclass and the MJX suite are gone; the `TYPE_CHECKING`-only `MJXEnvConfig` alias in the frozen core is not PR-9's to edit (§4.3) |
 | PR-10 command-column warm start | Yes | CU-8, CU-1 (SB3-aware mypy) | Unchanged |
-| PR-11 follow/terrain nodes | Yes | CU-13; PR-11's Breaks line must name `test_every_committed_stage_is_command_mode_none_in_phase_c` (`test_sb3_notebook_pins.py:2333`, :2559 at the follow-up); decisions 11, 13, 14 and 15 | New TOMLs carry no `[jax]` (after PR-B, `config.py:224-231` rejects it) and need no MJX mirror |
+| PR-11 follow/terrain nodes | Yes | CU-13; PR-11's Breaks line must name `test_every_committed_stage_is_command_mode_none_in_phase_c` (`test_sb3_notebook_pins.py:2333`, :2559 at the follow-up); decisions 11, 13, 14 and 15 | New TOMLs carry no `[jax]` (after PR-B, `config.py:224-231` rejects it) and need no MJX mirror. *Since PR-B (2026-09-28):* the rejection is live (`config.py:225-231` at PR-B's head), and `test_config.py`'s `test_a_retired_jax_table_is_rejected` pins it |
 | PR-12 rest (delete the pilot) | No; it is cleanup that follows PR-11 by design | — | It updates the harness's behavior section when the 66 recipe TOMLs go, and conflicts with the retirement only in `python-ci.yml` |
-| PR-13 terrain_command gate | Yes, to certify terrain | CU-3 (landed as #562 on 2026-09-26, D-D20); decisions 6 and 12 | Invariant 10's new case covers only the SB3 manager. Land PR-B first, because it deletes `test_gate_dispatch_fail_closed.py:161-351` |
+| PR-13 terrain_command gate | Yes, to certify terrain | CU-3 (landed as #562 on 2026-09-26, D-D20); decisions 6 and 12 | Invariant 10's new case covers only the SB3 manager. Land PR-B first, because it deletes `test_gate_dispatch_fail_closed.py:161-351`. *Deleted by PR-B (2026-09-28).* |
 | PR-15 | Mostly cleanup | CU-4, CU-17 | No JAX or sweep docs to fold. CHANGELOG Removed inherits the D-D17 entries |
-| PR-3b (JAX/SB3 job) | No | — | Superseded by PR-B. The next CI lever is inside `test-sb3` (decision 10) |
+| PR-3b (JAX/SB3 job) | No | — | Superseded by PR-B. The next CI lever is inside `test-sb3` (decision 10). *PR-B deleted the JAX job (`test-jax-cpu`), 2026-09-28.* |
 
 ### 3.5 KNOWN_ISSUES entries added with this plan
 
@@ -250,27 +261,29 @@ the code, and cites code lines at `be63a58`. The PR that removes a cause also de
 | Nothing on disk records the trunk a session resolved (Training / RL, LOW) | Decisions 4 and 6 | The PRs that take both decisions |
 | `train --load` with the default `resume_same_stage` writes into a judged stage directory (Training / RL, MEDIUM) | Decision 5 | The library guard |
 | `render_mode="human"` crashes on the first step (Training / RL, MEDIUM) | Defect 2 | CU-2 |
-| The JAX command-line curriculum ignores `min_avg_forward_vel` (Training / RL, MEDIUM (JAX)) | Defect 3 | PR-B |
-| MJX training never pays dibothrosuchus `snap_snout_proximity_weight` (Training / RL, MEDIUM (JAX)) | Defect 4 | PR-B |
+| The JAX command-line curriculum ignores `min_avg_forward_vel` (Training / RL, MEDIUM (JAX)) | Defect 3 | PR-B (deleted by it, 2026-09-28; D-D17) |
+| MJX training never pays dibothrosuchus `snap_snout_proximity_weight` (Training / RL, MEDIUM (JAX)) | Defect 4 | PR-B (deleted by it, 2026-09-28; D-D17) |
 | Every Ray Tune PPO trial raises `TypeError` on `ent_coef_end` (Sweeps / infrastructure, MEDIUM) | Defect 1 | PR-A (deleted by it, 2026-09-27; D-D17) |
 | Stage summaries built from `evaluations.npz` assume a 0.01 s control step (Sweeps / infrastructure, LOW) | CU-2 | CU-2 (latent after PR-A, which rewords it, 2026-09-27) |
 | The Drive summary skips current-layout sweep folders, gap-review NB2 (Notebooks, LOW) | Defect 6; CU-15 | PR-A (deleted by it, 2026-09-27; D-D17) |
 | Pre-commit pins ruff 0.4.4 while CI installs the latest ruff (Testing / CI, LOW) | CU-1 | CU-1 (deleted by it, #561, 2026-09-26) |
 | CI's mypy never sees SB3 or torch types (Testing / CI, LOW) | Decision 8 | CU-1 (deleted by it, #561, 2026-09-26) |
-| The command-line curriculum judges `stance_quality/v1`'s full horizon against the stage TOML, not an overridden `env.max_episode_steps` (Training / RL, MEDIUM; added by PR-A2, 2026-09-27) | — | CU-10 (the maintainer's choice, 2026-09-27) |
+| The command-line curriculum judges `stance_quality/v1`'s full horizon against the stage TOML, not an overridden `env.max_episode_steps` (Training / RL, MEDIUM; added by PR-A2, #565, 2026-09-27) | — | CU-10 (the maintainer's choice, 2026-09-27) |
 
 Corrected existing entries:
 - The "Curriculum gates" divergence bullet: the JAX CLI checks reward and episode length, and ignoring velocity and
-  success is a defect, not a divergence. PR-B deletes it with its section.
+  success is a defect, not a divergence. PR-B deletes it with its section. Deleted by PR-B (2026-09-28).
 - The LOW re-entry entry now names the bundle-verification cell, which #558 renamed from "Cleanup". It stays.
 - The stage-3 sweep-keys entry is replaced: 18 keys in 7 files (defect 9). PR-A deletes it.
 - The `ray_orchestration.py` entry (1,006 lines; `export_best_trial` has a caller) and the `ray_tune_sweep.ipynb`
   bullet, which gains gap-review NB3. PR-A deletes both.
 - The notebook-pins bullet: the notebooks now pin SB3 and JAX. PR-A drops its Ray clauses and PR-B its JAX clauses.
+  Both done (#564; PR-B, 2026-09-28).
 - The gym entry-point line: verified dead. CU-7 deletes it.
 
-The `foot_contact_*` LOW (the JAX-only knobs entry under Training / RL) is not edited now; PR-B rewords it (§4.6, §7). The speed and map
-mismatch of decision 13 has no entry of its own; the heightfield entry records velociraptor's map exits.
+The `foot_contact_*` LOW (the JAX-only knobs entry under Training / RL) is not edited now; PR-B rewords it (§4.6, §7).
+Reworded by PR-B (2026-09-28). The speed and map mismatch of decision 13 has no entry of its own; the heightfield
+entry records velociraptor's map exits.
 
 ## 4. Backend retirement plan
 
@@ -295,8 +308,11 @@ re-certification" ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md):666-671;
 D3). When it is taken, take it once, as one decision, and batch into it per species the survey's deferred checklist:
 the SB3-only declaration (which takes that species off the frozen core), one `_scale_action` and one `_get_obs` in the
 base class, removal of the midpoint mapping and the inert reset height channel, then a regenerated
-`plant_manifest.generated.json` and reset golden. It moves every certified run's plant identity, so it is not cleanup
-(§7); decide it with the maintainer once the walkers it would strand are known.
+`plant_manifest.generated.json` and reset golden (for trex, also the stale comment at
+`environments/trex/assets/trex.xml:554`, added by PR-B, 2026-09-28: it names `mjx_config.py`'s `target_standing_z`,
+`_NATURAL_PITCH` and `healthy_z_range`, which the frozen registration no longer holds, and MJCF bytes enter the plant
+identity, so only a trex plant or policy-interface revision may edit it). It moves every certified run's plant
+identity, so it is not cleanup (§7); decide it with the maintainer once the walkers it would strand are known.
 
 ### 4.2 What stays
 
@@ -314,7 +330,8 @@ base class, removal of the midpoint mapping and the inert reset height channel, 
 | Byte-frozen files: `behavior_env.py`, the five species env modules, `direction_commands.py`, `terrain.py`, `terrain_sampling.py` | whole files | `behavior_identity` hashes their raw bytes, comments included | zero-line diff in PR-A and PR-B (their acceptance step 9). Any other PR that edits these files says so, and its harness diff shows only the `behavior` identity lines of the species it touches (CU-12, PR-C) |
 | TOML digest inputs | `[stage]`, `[env]`, `[ppo]`, `[sac]`, `[curriculum]`; `configs/*/behaviors/*.toml`; `plant_versions.toml`, `plant_manifest.generated.json`, `recovery_calibration.json`; the `[[species]]` rows, with no `training_backends` added for the four dual species (`plant_contract/manifest.py:88-93` raises on a mismatch) | Only `[jax]` and `[jax.policy_kwargs]` may go. Three prototypes confirmed they enter no digest | — |
 
-The frozen code totals 76 + 54 + 72 + 180 + 91 = **473 lines**.
+The frozen code totals 76 + 54 + 72 + 180 + 91 = **473 lines**. *As built by PR-B (2026-09-28):* 90 + 60 + 79 +
+180 + 140 = 549 lines, 464 without their module docstrings; the difference is mostly the FROZEN (D-D17) notices (§4.3).
 
 The tokenizer (`digests.py:98-137`) drops comments, docstrings and indentation width. It keeps identifiers,
 annotations, parentheses, commas and relative-import dots, and it refuses f-strings. Module paths are not hashed
@@ -357,6 +374,16 @@ annotations, parentheses, commas and relative-import dots, and it refuses f-stri
    8 (:132-140) adds `training_backends = ["stable-baselines3"]` to `species_manifest.toml`; without it,
    `plant_contract/manifest.py:88-93` raises. D-D17 records the exit rule (§4.1).
 
+*As carried out by PR-B (2026-09-28):* the eight files total 549 lines (§4.2). The FROZEN (D-D17) notices open the
+seven reduced files, and `obs_functions.py` has a zero-line diff; `jax_setup.py`'s Docker wording went with its old
+docstring, and the harness output is unchanged. Two `TYPE_CHECKING`-only aliases keep the hashed signatures
+type-checkable without the retired classes (`from __future__ import annotations` keeps the modules importable): `MJXEnvConfig = Any` in `mjx_env.py` and `SpeciesContext = Any` in
+`jax_setup.py`; the annotation tokens keep their names (§4.10). The pin test is 89 lines and 15 tests: the nine
+token digests, each registration's exact key set (four tests), a tripwire that the registrations are exactly the
+species declaring `jax-mjx`, and a check of the formatter exclusion. The plant-contract job's glob (`python-ci.yml:177`
+at PR-B's head) and the `test (shared, …)` matrix run it. The exclusion is `[tool.ruff]` `extend-exclude`, listing
+the eight files, with `force-exclude = true`, so ruff skips them even when a path is named on the command line.
+
 ### 4.4 The digest-snapshot harness (in the repository since 2026-09-26)
 
 The harness is committed with this plan (2026-09-26) as `environments/shared/harnesses/digest_snapshot.py`, a guarded
@@ -365,7 +392,8 @@ repository. It is listed in the module list of `environments/shared/harnesses/__
 already omits `harnesses/*` (`pyproject.toml:169`; keep it omitted when CU-9 lands). PR-A and PR-B use it for
 acceptance step 1 (§4.5, §4.6). Decision 16 (commit a golden output and add a `--check` step) stays proposed: until it
 is taken, the harness is run by hand. The frozen-core reference copies are not in the repository; PR-B rebuilds them
-from `f850815` per §4.2.
+from `f850815` per §4.2. *As carried out by PR-B (2026-09-28):* the eight files keep §4.2's functions verbatim (their
+token digests equal the `f850815` values), and `test_plant_contract_frozen_mjx.py` pins them (§4.3).
 
 **Output.** The harness prints one tab-separated line per value, in a fixed order, with no timestamps or paths. It
 covers every plant identity and policy sub-digest (`plant_contract.current_plant_identity`, `plant_contract/manifest.py:267`). For
@@ -530,6 +558,22 @@ the retired code is recoverable from the `0.3.8` tag (`afad625`) and git history
 | `jax_training.ipynb` | 1 | 1,372 |
 | `website/docs/training/jax.md` | 1 | 293 (260 after PR-A2 removed its Vertex section) |
 
+*As carried out by PR-B (2026-09-28):* the 30 files are deleted with the sidebar entry (15,665 lines, `jax.md` at
+260; the whole diff is +489 / −21,178 in 113 files). The `[jax]` and `[jax.policy_kwargs]` tables of the 12 stage
+TOMLs go (304 lines deleted, none added, no `foot_contact_*` line touched), and `load_stage_config` now refuses a
+`[jax]` table with `ValueError` ("unknown top-level table(s) ['jax']"), which `test_config.py`'s new
+`test_a_retired_jax_table_is_rejected` pins. Also removed: the `jax` and `jax-cpu` extras (`[all]` is
+`[train,viz,dev]`), `reporting.save_jax_stage_artifacts`, `plant_contract.validate_mjx_environment_plant`, the
+notebook's `species_manifest.toml` entry (the README catalog and `species.generated.json` regenerated), the JAX parts
+of kept tests, `velociraptor/requirements.txt`'s JAX lines, and the `test-jax-cpu` job with its coverage `needs`
+entry (23 jobs → 22). Kept, as §4.9 says: the `foot_contact_*` parameters and `[env]` keys, the readers of recorded
+JAX runs, the `jax-mjx` catalog rows (decision 17), `command_frame.py` whole and `gate_schema`'s backend-override
+validation. Where it departs from the lists below: `test_stance_gate.py:401-470` becomes an SB3-only class (it held the
+only manager assertions on a failing stance panel) rather than going; `RESULT_BUNDLES.md`'s run-reuse paragraph is
+reworded for SB3 rather than deleted, because it still describes SB3 resume and provenance drift; the KNOWN_ISSUES
+quadruped-detection MEDIUM is kept, reworded as latent; and `result_bundle/gate_verdict.py:18,62-63` and
+`action_filter.py:12-13`, which acceptance step 9 keeps unchanged, are not reworded but handed to CU-7 (§3.2).
+
 **Library:**
 - Reduce the frozen core per §4.2.
 - In `reporting/stage_artifacts.py`, delete :1725-2200 and the mention at :4, and remove the export at
@@ -595,12 +639,15 @@ the retired code is recoverable from the `0.3.8` tag (`afad625`) and git history
   and the frozen core only feeds the probe." D-A5. D-B13, which becomes the re-add entry condition. D-C3. D-C4: the
   probe still runs on the frozen core, and nothing trains on it. D-C7 and D-C16. G1 in **both** plans; the consolidation plan's G1
   says "MJX fails closed". New paragraphs after the recipes plan's risk bullet and after invariant 9. The
-  consolidation plan's PR-3b, PR-9 and §8 risks.
+  consolidation plan's PR-3b, PR-9 and §8 risks. *Done by PR-B (2026-09-28).*
 - **CHANGELOG.** Record both archive SHAs, the drift list (§5.3), the titles of the dropped KNOWN_ISSUES entries (the
   re-add checklist, including the Ray PPO `ent_coef_end`, JAX-threshold, snout-proximity and sweep-keys entries) and
   the seven anchor digests. *Superseded in part 2026-09-27 (decision 2 = (c)):* there are no archive SHAs to
   record; PR-B's entry cites the `0.3.8` tag and its own first parent. *As carried out by PR-A:* PR-A's CHANGELOG
-  entry lists the sweep-side titles (defects 1 and 9 among them), so PR-B's drift list cites it for those.
+  entry lists the sweep-side titles (defects 1 and 9 among them), so PR-B's drift list cites it for those. *As
+  carried out by PR-B (2026-09-28):* its entry cites the `0.3.8` tag, where every file it deletes except `jax.md` is
+  byte-identical, and its own first parent, which holds `jax.md` as PR-A2 left it; it lists the drift list, the
+  titles of the KNOWN_ISSUES entries it deletes and the nine anchor token digests (§4.2).
 
 **Acceptance (PR-B)** (restated per critic item 3):
 - Run PR-A's steps 1–8, with the snapshot diff both blocked and unblocked.
@@ -610,7 +657,8 @@ the retired code is recoverable from the `0.3.8` tag (`afad625`) and git history
 - The pin test passes, and so do the plant-contract tests (a prototype measured 54).
 - Collection shows 0 errors (the removal critic measured 3,812 tests collected after both PRs), and mypy checks 303
   files (331 after PR-A; 302 and 330 before the harness was added) with the same 21 errors, or 0 after CU-1 (CU-1's
-  and CU-3's test files add three to each count).
+  and CU-3's test files add three to each count). *As carried out by PR-B (2026-09-28): 3,943 collected, mypy 309
+  files, 69 plant-contract tests (§3.1).*
 - The wheel step (`python-ci.yml:174-206`) passes, which proves the core ships without JAX.
 - Coverage stays at or above `fail_under = 70`. The #1226 artifacts gave 87.48% with the frozen files whole;
   re-measure on the PR.
@@ -623,7 +671,10 @@ the retired code is recoverable from the `0.3.8` tag (`afad625`) and git history
 - **Well-meant follow-ups have the same effect:** declaring a dual species SB3-only, adding `training_backends` for
   one, "cleaning" `obs_functions._array_mod`, or editing comments in byte-frozen files.
 - **Coverage of the frozen code falls** (`mjx_env` 88% → 22%). Only source drift stays guarded, which is acceptable
-  for frozen code.
+  for frozen code. *Corrected by PR-B (2026-09-28):* those figures describe the unreduced file. The reduced
+  `mjx_env.py` is covered but for one statement (17 of 18: the non-Mapping branch of `value`, which the probe, passing a
+  dict, never takes), because the plant-contract probe runs it; `jax_setup.py` and `mjx_utils.py` are about
+  20 percent covered, because their bodies are hashed and never executed.
 - **Behavior identities are not pinned in CI.** Nothing in CI pins them; the harness closes that gap only when run
   (decision 16).
 
@@ -647,7 +698,9 @@ it changes nothing else in either file. PR-A2 deletes both, so its rebase meets 
 those conflicts never arose. PR-B rebases over PR-A2 on `sidebars.ts:19` (the same line), `pyproject.toml`'s
 `[all]` (`[train,jax,viz,dev]` after PR-A2; PR-B makes it `[train,viz,dev]`), `jax.md` (modify/delete, which
 `git rm` resolves), `installation.md`, `quick-start.md` (PR-B's :14 sits just above PR-A2's edit at :18),
-`recipes.md`, the CHANGELOG, KNOWN_ISSUES and the plans.
+`recipes.md`, the CHANGELOG, KNOWN_ISSUES and the plans. *As carried out by PR-B (2026-09-28):* PR-A2 landed as
+#565, and PR-B was built on #565's head `647ca1f`, whose tree the merge `7ae0a19` equals, so it applied to `main`
+unchanged, with no rebase conflict.
 
 ### 4.8 Maintainer actions outside the repository
 
@@ -658,7 +711,9 @@ those conflicts never arose. PR-B rebases over PR-A2 on `sidebars.ts:19` (the sa
 2. **Branch protection (decision 18).** On 2026-09-25 the public API showed `main` with `protected: false`, no
    required checks and no rulesets, although the comments at `python-ci.yml:210-212,316` assume required checks exist. Check Settings →
    Branches/Rules. If `test-jax-cpu` is a required check, remove that requirement when PR-B merges; otherwise every PR
-   will wait for a check that never reports.
+   will wait for a check that never reports. *Checked 2026-09-28 (public API): `main` still has no protection, no
+   required checks and no rulesets, so no required check waits for `test-jax-cpu`; the maintainer re-checks Settings →
+   Branches/Rules before merging PR-B.*
 3. **Before merging, check outside the repository:** put the `full-ci` label on PR-A, PR-A2 and PR-B; confirm that no Vertex
    tuning job, GCS sweep state (`gs://<bucket>/sweeps/…`) or Ray experiment is still live; leave Drive untouched: the
    27 JAX run folders (2026-03-30..04-03, none a certified parent) and the March 2026 sweep folders stay.
@@ -666,7 +721,9 @@ those conflicts never arose. PR-B rebases over PR-A2 on `sidebars.ts:19` (the sa
    environment and passed. For PR-A2, also confirm that no single-job Vertex AI custom job is running, copy
    to Drive any run under `gs://<bucket>/` still wanted as a trunk, and decide whether to delete the
    Artifact Registry repository `setup_vertex_ai.sh` created (`mesozoic-labs` by default, image `trainer`)
-   and any bucket it used, which nothing in the repository reads any more.
+   and any bucket it used, which nothing in the repository reads any more. For PR-B, nothing on Drive moves: the
+   JAX run folders counted above stay (this plan's count, not re-checked), and §4.9's readers of recorded JAX runs
+   are kept.
 
 ### 4.9 What not to remove
 
@@ -675,7 +732,8 @@ those conflicts never arose. PR-B rebases over PR-A2 on `sidebars.ts:19` (the sa
   and `bundles.py:355,409-423`; `ancestors.py:1031-1033` and `config.py:494`; Drive summary cells 8, 9, 11 and 12.
 - **The provenance keys** `_DEPENDENCY_PACKAGES` (`result_bundle/constants.py:54-64`) and their fixture
   (`conftest.py:31-45`). Changing the key set records `environment_drift` on the next resume of an incomplete run,
-  such as session 6's.
+  such as session 6's. *Session 6 finished on 2026-09-28: its resume, on `main` = `7ae0a19`, recorded the expected
+  drift (the commit and the `mesozoic_labs` version), which moves no identity.*
 - **`gate_schema` backend-override validation** (:274-295, 466, 538, 544-600). It still validates recorded blocks, and
   a shallow clone could not rule out a historical `jax` sub-table.
 - **`command_frame.py`,** including its MJX refusal. PR-9 rewrites that file.
@@ -696,7 +754,11 @@ those conflicts never arose. PR-B rebases over PR-A2 on `sidebars.ts:19` (the sa
 
 Adding a backend back is a new decision, taken against D-B13 and invariant 9. Start from the archive tags.
 *Superseded 2026-09-27 (decision 2 = (c)):* start from the `0.3.8` tag (`afad625`) for Ray, Vertex HPT and mjlab,
-or from PR-A's, PR-A2's or PR-B's first parent for anything that changed after it.
+or from PR-A's, PR-A2's or PR-B's first parent for anything that changed after it. *As carried out by PR-B
+(2026-09-28):* every file it deleted except `website/docs/training/jax.md` is byte-identical at `0.3.8`, and so are
+the `jax`/`jax-cpu` extras, the `[jax]` stage tables and the `test-jax-cpu` job; `jax.md` as PR-A2 left it is in
+PR-B's first parent. A re-add replaces the frozen core's two `TYPE_CHECKING`-only aliases (`MJXEnvConfig`,
+`SpeciesContext`) with the restored classes (§4.3).
 
 **JAX:**
 1. Restore the generic stack almost as-is (3,969 lines), from `jax_ppo` through `jax_viz`.
@@ -771,7 +833,8 @@ compsognathus, whose gaits are far above cruise.
    parent (D-D9). Score it by hand at 40 episodes of its one flat family (about 10–14 min), and do not adapt it to
    terrain before decision 11.
 7. **Two walkers were not in this check.** Repeat it on the trex seed-44 walker (`20260925_033501`, locomotion PASS at
-   1.57 m/s) and on compsognathus_robot once its locomotion is judged.
+   1.57 m/s) and on compsognathus_robot once its locomotion is judged. *Judged PASS on 2026-09-28 (session 6, run
+   `20260924_031815`, 0.23 m/s).*
 
 ### 5.2 Direction/terrain readiness (with the critic's corrections)
 
@@ -784,7 +847,10 @@ compsognathus, whose gaits are far above cruise.
 - **Parents** (per [NEXT_STEPS.md](NEXT_STEPS.md)): certified walkers exist for trex seed 42 (1.07 m/s), trex seed 44
   (1.57 m/s), velociraptor and compsognathus; compsognathus_robot's locomotion stopped at the Colab cap at 2.8M of
   3.0M steps, so it needs a resume (session 6); dibothrosuchus locomotion failed (session 4); brachiosaurus has no run
-  on current physics (session 5).
+  on current physics (session 5). *Updated 2026-09-28:* session 6's resume finished compsognathus_robot's
+  locomotion (3,000,704 steps; PASS, 0.23 m/s; run `20260924_031815`), so its walker is certified; the maintainer
+  started session 4's re-run the same day, and its result is recorded in [NEXT_STEPS.md](NEXT_STEPS.md) when it
+  finishes.
 - **Heightfield evidence before §5.1** (statues and #540): the trex statue survived a flat heightfield 0/10 at 200 mm
   cells, 3/4 at 100 mm and 4/4 at 50 mm; the velociraptor statue survived 2/10–4/8, and finer cells made it worse;
   compsognathus-pair contact flickers, so the support-gated reward is 0.20–0.49 per step (0.61–0.92 for the robot),
@@ -814,8 +880,8 @@ compsognathus, whose gaits are far above cruise.
 |---|---|---|
 | 1 | Every Ray PPO trial crashes on `ent_coef_end`: `ray_tune.py:714-759` lacks the pops at `train_base.py:354-355`. Present since at least 2026-08-09 | Disappears with PR-A |
 | 2 | `render_mode='human'` crashes on its first step (`base_env.py:1558`; `mujoco.viewer` is never imported) | **Live** (re-checked 2026-09-26); CU-2 |
-| 3 | The JAX in-training gate ignores `min_avg_forward_vel` (`jax_curriculum.py:455-486` vs `curriculum/manager.py:340-348`); it would ignore `min_success_rate` too, but the CLI never gates the final stage, where that key is set | Disappears with PR-B |
-| 4 | The MJX step never pays dibothrosuchus `snap_snout_proximity_weight` (`mjx_env.py:1303-1306`), although the CPU eval that gates it does | Disappears with PR-B |
+| 3 | The JAX in-training gate ignores `min_avg_forward_vel` (`jax_curriculum.py:455-486` vs `curriculum/manager.py:340-348`); it would ignore `min_success_rate` too, but the CLI never gates the final stage, where that key is set | Disappears with PR-B (deleted by it, 2026-09-28, with its KNOWN_ISSUES entry; D-D17) |
+| 4 | The MJX step never pays dibothrosuchus `snap_snout_proximity_weight` (`mjx_env.py:1303-1306`), although the CPU eval that gates it does | Disappears with PR-B (deleted by it, 2026-09-28, with its KNOWN_ISSUES entry; D-D17) |
 | 5 | Ray post-sweep metrics for compsognathus are 2× off: the notebook's `LocomotionMetrics()` defaults dt to 0.01, but compsognathus runs at 0.02 | Disappears with PR-A. The related `sim_dt` default (`stage_artifacts.py:151`) survives; CU-2 |
 | 6 | The Drive summary drops every current-layout sweep (NB2) | The reader stays, and no new sweeps are written. A read-only Drive listing on 2026-09-26 found no current-layout sweep folder, so there is no present impact; its KNOWN_ISSUES entry goes with PR-A (CU-15) |
 | 7 | RESUME can retrain over a node that already has a verdict | Fixed by #558 (D-D16), hardened by #559 |
@@ -823,6 +889,7 @@ compsognathus, whose gaits are far above cruise.
 | 9 | 7 of the 12 sweep configs crash every stage-3 trial: they sample **18** env keys that no constructor accepts, e.g. `env_prey_distance_min`. Re-counted 2026-09-26; the survey critic's "22" was a miscount | Disappears with PR-A, which also deletes the replaced KNOWN_ISSUES entry (the stage-3 sweep-keys entry under Sweeps / infrastructure; §3.5) |
 
 Defects 1, 3, 4 and 9, together with the never-executed notebook copies behind 5, make up the drift list PR-B records.
+PR-B's CHANGELOG entry lists it (2026-09-28).
 
 ### 5.4 What the #558 reviews found
 
@@ -846,6 +913,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 | #562's CI (CU-3, at `db854c1`) | SB3 job 47:57, its mypy step "Success: no issues found in 361 source files" in 75 s; JAX job 50:05; all 23 checks green; coverage 90 percent | job timestamps and logs |
 | #563's CI (the release cut, at `29cbc2d`) | SB3 job 46:21, its mypy step "Success: no issues found in 361 source files" in 70 s; JAX job 35:47; all 23 checks green; coverage 90 percent | job timestamps and logs |
 | #564's CI (PR-A, at `3c5eab7`) | SB3 job 47:01, its mypy step "Success: no issues found in 334 source files" in 68 s; JAX job 39:11; all 23 checks green; coverage 91 percent; reduced depth, without `full-ci` | job timestamps and logs |
+| #565's CI (PR-A2, at `647ca1f`, run 36360108931) | SB3 job 34:52, its mypy step "Success: no issues found in 335 source files" in 41 s; JAX job 34:43; all 23 checks green; coverage 91 percent; full depth, with `full-ci` | job timestamps and logs |
 | Earlier PRs (SB3 / JAX job) | #551 35:37 / 53:34; #556 47:09 / 49:05; #557 30:24 / 47:26 | consolidation plan status rows |
 | Job that sets the finish time | JAX, in 12 of 15 PR/push runs (18 runs, #1210–#1227) | CI-cost inventory |
 | Median PR/push wall time | 52.3 min now; estimated 46.0 min after PR-B (per-run saving 0–18.9 min, median 5.9) | same |
@@ -857,7 +925,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 | `test_phase_c_interface.py` in the SB3 list | 145 s | survey critic |
 | Plant-contract job's pytest step | 192 s, re-running files the shared matrix already runs three times | survey critic |
 | #557's PR run (36087176501) | 23 jobs, 146.1 job-min. The 15 species matrix jobs took 0.8–1.5 min each (16.3 job-min), about 35 s of it setup | survey |
-| mypy | The lint step takes about 13 s and reports no issues, because SB3 is absent. With SB3 2.9.0 and torch 2.14.0+cpu, re-measured 2026-09-26 at `f850815`: "Found 21 errors in 6 files (checked 357 source files)", 46–57 s cold in two local runs (mypy 2.3.1, JAX installed, ray and wandb absent; decision 8). Per file: `curriculum/advancement.py` 7, `scripts/widen_checkpoint.py` 5, `diagnostics.py` 4, `curriculum/schedules.py` 2, `tests/test_widen_checkpoint.py` 2, `command_frame.py` 1. All are type-only: `BaseAlgorithm` lacks `ent_coef`/`clip_range`/`log_ent_coef`; read-only callback properties are set in the SB3-absent fallback; state dicts are typed as `Tensor`; some Optional values are unchecked. The hand-kept count has drifted from 13 (`5f7318d`) to 21, and one PR saw 22. At `be63a58` with the harness added (§4.4): "Found 21 errors in 6 files (checked 358 source files)", at the same locations; the harness adds none. Locations at `f850815` (unchanged at the follow-up, which also reports 21): `command_frame.py:156`; `diagnostics.py:222` (×2) and :223 (×2), inside the SB3-absent fallback at :218-223; `curriculum/schedules.py:180,210`; `curriculum/advancement.py:519,537,539,555,559,560,617`; `scripts/widen_checkpoint.py:762,804,807,817` (×2 at :817); `tests/test_widen_checkpoint.py:254,330`. Re-measured 2026-09-26 at `8e03483` (CU-1): 21 errors in 6 files locally, as above; 23 errors in 8 files in `test-sb3`'s environment (Python 3.12, numpy 2.5.3, torch 2.13.0+cpu, ray 2.58.0, 66 s cold), the extra two at `harnesses/freeze_recovery_gate.py:469` and `scripts/sweep/ray_orchestration.py:247`; a lint-job mirror (Python 3.11, ruff 0.16.9, mypy 2.3.1, no SB3) reports none. After CU-1, all three report no issues in 359 files; after CU-3 (#562), 361, in CI's SB3 job too; after PR-A, 334 in all three; after PR-A2, 335 | local runs |
+| mypy | The lint step takes about 13 s and reports no issues, because SB3 is absent. With SB3 2.9.0 and torch 2.14.0+cpu, re-measured 2026-09-26 at `f850815`: "Found 21 errors in 6 files (checked 357 source files)", 46–57 s cold in two local runs (mypy 2.3.1, JAX installed, ray and wandb absent; decision 8). Per file: `curriculum/advancement.py` 7, `scripts/widen_checkpoint.py` 5, `diagnostics.py` 4, `curriculum/schedules.py` 2, `tests/test_widen_checkpoint.py` 2, `command_frame.py` 1. All are type-only: `BaseAlgorithm` lacks `ent_coef`/`clip_range`/`log_ent_coef`; read-only callback properties are set in the SB3-absent fallback; state dicts are typed as `Tensor`; some Optional values are unchecked. The hand-kept count has drifted from 13 (`5f7318d`) to 21, and one PR saw 22. At `be63a58` with the harness added (§4.4): "Found 21 errors in 6 files (checked 358 source files)", at the same locations; the harness adds none. Locations at `f850815` (unchanged at the follow-up, which also reports 21): `command_frame.py:156`; `diagnostics.py:222` (×2) and :223 (×2), inside the SB3-absent fallback at :218-223; `curriculum/schedules.py:180,210`; `curriculum/advancement.py:519,537,539,555,559,560,617`; `scripts/widen_checkpoint.py:762,804,807,817` (×2 at :817); `tests/test_widen_checkpoint.py:254,330`. Re-measured 2026-09-26 at `8e03483` (CU-1): 21 errors in 6 files locally, as above; 23 errors in 8 files in `test-sb3`'s environment (Python 3.12, numpy 2.5.3, torch 2.13.0+cpu, ray 2.58.0, 66 s cold), the extra two at `harnesses/freeze_recovery_gate.py:469` and `scripts/sweep/ray_orchestration.py:247`; a lint-job mirror (Python 3.11, ruff 0.16.9, mypy 2.3.1, no SB3) reports none. After CU-1, all three report no issues in 359 files; after CU-3 (#562), 361, in CI's SB3 job too; after PR-A, 334 in all three; after PR-A2, 335; after PR-B, 309 | local runs |
 | Tests that run in no job | 6: 3 pandas-gated (`test_sweep_results.py`), 2 `google.auth` (`test_sweep_orchestration.py`), 1 JAX parameter (`test_obs_functions.py`). PR-A deletes the first five; the JAX parameter stays skipped by design | survey |
 | Log readability | `addopts = "--tb=short -q"` (`pyproject.toml:132`) cancels all six CI `-v` flags, so logs show no test ids, durations or skip reasons. Since CU-1 every CI pytest step passes `-vv -rfEs --durations=30`, so the logs show each test id, the failure, error and skip lines, and the 30 slowest tests | verified |
 
@@ -943,7 +1011,8 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 - **Deleting the SB3-dead `foot_contact_*` kwargs or TOML keys.** It moves the trex and dibothrosuchus task digests.
   Document them instead: PR-B rewords the `foot_contact_*` LOW under Training / RL in KNOWN_ISSUES (JAX-only knobs that stay because they are
   `task_sha256` inputs); the notes in `trex_env.py` and `dibothrosuchus_env.py` go in PR-C (byte-frozen until then);
-  the fingerprint docstring and, unless PR-B deletes it first, the test comment go in CU-7.
+  the fingerprint docstring and, unless PR-B deletes it first, the test comment go in CU-7. (PR-B reworded the LOW and
+  deleted the test comment with its MJX block, 2026-09-28; the fingerprint docstring stays CU-7's.)
 - **An `extends` that inherits `[curriculum]`.** It moves the gate digest. Inherit another table only where the
   stage-digest snapshot shows it unchanged, key order included. (`[jax]` is rejected after PR-B anyway.)
 - **A library guard refusing reuse when `run.timesteps` < `curriculum.timesteps`.** It would reclassify existing Drive
@@ -959,7 +1028,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
   into `sweeps/`. The `JAX` branch is not an ancestor of `main`. (D-D17 retires GCS upload itself: `[gcp]` leaves in
   PR-A2 together with the upload code, never on its own; carried out that way.)
 - **The full D-D7 package move now.** It is line-neutral XL work that rewrites 1.3–1.9k lines of pins while walker
-  sessions 4–6 are pending. Decide it after PR-13.
+  sessions 4–6 are pending. Decide it after PR-13. (Session 6 finished on 2026-09-28.)
 - **The session-half move (cells 7, 9 and 10).** It adds 50 to 100 lines net. Only its preflight slice is in CU-6.
 - **A `RUN_PROVENANCE` dict.** It turns the loud refusal of `SEED`/`N_ENVS` drift into silently wrong provenance. That
   is also why decision 4 avoids `provenance.json`.

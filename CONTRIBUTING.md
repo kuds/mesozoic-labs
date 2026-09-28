@@ -44,8 +44,8 @@ CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and
 in the SB3 job, with both installed (`stable-baselines3[extra]==2.9.0` and the
 CPU `torch==2.13.0` wheel, on Python 3.12), where it must report no errors. The
 SB3 job is the authority. The `.[all]` install above only approximates it: it
-leaves SB3 and torch unpinned, adds JAX, and on Python 3.11 resolves an older
-numpy, and each of these can change what mypy reports. To reproduce the SB3
+leaves SB3 and torch unpinned and on Python 3.11 resolves an older numpy, and
+either can change what mypy reports. To reproduce the SB3
 job's check, use Python 3.12 and a fresh environment:
 
 ```bash
@@ -62,7 +62,14 @@ the digest data files (the plant MJCF sources and meshes, the recipe TOMLs, the
 plant manifests, `plant_versions.toml` and the recovery calibrations): a
 whitespace fix there would move a digest. The Python modules whose bytes a
 digest hashes stay under the hooks; CI's pinned ruff keeps them from changing,
-and any edit to them moves the behavior identities anyway.
+and any edit to them moves the behavior identities anyway. The one exception is
+the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
+`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the four
+`mjx_config.py` registrations): four species' policy-interface digests hash its
+function tokens, so `pyproject.toml`'s `[tool.ruff]` `extend-exclude`, with
+`force-exclude`, keeps every ruff run off it (the hooks, CI, and a file named
+on the command line), and `test_plant_contract_frozen_mjx.py` pins the list.
+Never edit those files.
 
 ## Running Tests
 
@@ -120,13 +127,17 @@ Follow this checklist:
    - Add the species to `environments/__init__.py` and
      `environments/shared/species_registry.py`
 
-4. **Register the MJX plant** (`mjx_config.py`):
-   - Call `register_species_mjx` with the sensor layout, root `body_ids`
-     (`"pelvis"` for bipeds, `"torso"` for quadrupeds — the shared observation
-     builder dispatches on this), termination heights, and stage-3 success
-     sites
-   - Add the species to the model-path and module maps in
-     `environments/shared/mjx_env.py` and `environments/shared/jax_training.py`
+4. **Declare the species SB3-only** (`envs/<species>_env.py`):
+   - Set the class attribute `supported_training_backends = ("stable-baselines3",)`,
+     as `CompsognathusEnv` does. Stable-Baselines3 is the only training backend
+     (decision D-D17); without the attribute the plant contract treats the
+     species as dual-backend and fails with "cannot import MJX plant
+     registration"
+   - Do not add an `mjx_config.py`: the four that exist belong to the frozen
+     MJX interface core, which the policy-interface digests of T-Rex,
+     Velociraptor, Brachiosaurus and Dibothrosuchus hash and which is never
+     edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
+     binding")
 
 5. **Add curriculum configs** (`configs/<species>/`):
    - Create `stage1_balance.toml`, `stage2_locomotion.toml`, `stage3_<behavior>.toml`
@@ -152,8 +163,11 @@ Follow this checklist:
 
 8. **Add the public catalog entry** (`configs/species_manifest.toml`):
    - Add presentation metadata, the environment entry point, and the MJCF path
-   - Declare success semantics for every supported backend and the applicable
-     training-notebook IDs
+   - Set `training_backends = ["stable-baselines3"]` and
+     `training_notebooks = ["sb3_training"]`; `plant_contract/manifest.py`
+     raises when `training_backends` differs from the environment's
+     `supported_training_backends` (step 4)
+   - Declare success semantics for `stable-baselines3`
    - Declare only existing, provenance-labelled result summaries or stage videos
    - Run `python -m environments.shared.species_catalog` to regenerate the
      README blocks and `website/src/data/species.generated.json`

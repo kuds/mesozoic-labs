@@ -44,13 +44,6 @@ description = "Train and evaluate species with Stable-Baselines3."
 path = "notebooks/sb3_training.ipynb"
 
 [[notebooks]]
-id = "jax_training"
-display_order = 2
-label = "JAX/MJX training"
-description = "Train and evaluate species with the JAX/MJX backend."
-path = "notebooks/jax_training.ipynb"
-
-[[notebooks]]
 id = "google_drive_summary"
 display_order = 4
 label = "Google Drive results summary"
@@ -67,7 +60,7 @@ specialty = "Sickle-claw contact attacks"
 aliases = ["raptor"]
 env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"
 model_path = "environments/velociraptor/assets/raptor.xml"
-training_notebooks = ["sb3_training", "jax_training"]
+training_notebooks = ["sb3_training"]
 result_summary_paths = [
     "results/velociraptor/ppo/summary.json",
     "results/velociraptor/sac/summary.json",
@@ -147,7 +140,7 @@ specialty = "Head-contact attack task"
 aliases = ["t-rex"]
 env_entrypoint = "environments.trex.envs.trex_env:TRexEnv"
 model_path = "environments/trex/assets/trex.xml"
-training_notebooks = ["sb3_training", "jax_training"]
+training_notebooks = ["sb3_training"]
 result_summary_paths = ["results/trex/ppo/summary.json"]
 
 [[species.success_metrics]]
@@ -195,7 +188,7 @@ deliverable = "hunt"
 backends = ["jax-mjx"]
 key = "bite_proximity_success"
 label = "Head-tip proximity bite proxy"
-definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path cannot judge task_success/v1 (no MJX hunting panel exists) and refuses the stage rather than certifying it."
+definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it."
 
 [[species.stage_videos]]
 stage = "stance"
@@ -231,7 +224,7 @@ specialty = "Head-to-food reaching"
 aliases = ["brachio"]
 env_entrypoint = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
 model_path = "environments/brachiosaurus/assets/brachiosaurus.xml"
-training_notebooks = ["sb3_training", "jax_training"]
+training_notebooks = ["sb3_training"]
 result_summary_paths = ["results/brachiosaurus/ppo/summary.json"]
 
 [[species.success_metrics]]
@@ -289,7 +282,7 @@ specialty = "Snout-contact snap task"
 aliases = ["dibo"]
 env_entrypoint = "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv"
 model_path = "environments/dibothrosuchus/assets/dibothrosuchus.xml"
-training_notebooks = ["sb3_training", "jax_training"]
+training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
 [[species.success_metrics]]

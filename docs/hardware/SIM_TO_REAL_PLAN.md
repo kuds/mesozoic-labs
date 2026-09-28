@@ -69,7 +69,7 @@ charismatic species. The honest summary:
 | ROS 2 bridge | **planned** | `configs/species_manifest.toml:14-16` |
 | Sim-to-real validation | **not_started** | `configs/species_manifest.toml:17-18` |
 
-The training codebase is mature (SB3 + JAX/MJX dual backend, curriculum manager,
+The training codebase is mature (SB3 PPO/SAC, curriculum manager,
 W&B, a "plant contract" fingerprinting system). Everything downstream of
 training toward hardware is greenfield.
 
@@ -211,15 +211,18 @@ idealized plant and would not survive transfer.**
 ### 3.5 Deployment / software stack
 
 - **No export path.** Inference only runs inside the training stack — SB3
-  `model.predict()` (needs PyTorch + a live VecNormalize env) or JAX
-  `network.apply()` (welded to MuJoCo/MJX). No ONNX/TensorRT/tflite/TorchScript.
-- **Normalization stats are Python pickles** (SB3 `_vecnorm.pkl`; JAX `obs_rms`
-  inside the checkpoint). A C/C++ embedded runtime cannot load these, and
-  skipping them silently corrupts the policy input.
+  `model.predict()` (needs PyTorch + a live VecNormalize env). No
+  ONNX/TensorRT/tflite/TorchScript. (The JAX/MJX backend, retired by D-D17, was
+  no better: its `network.apply()` was welded to MuJoCo/MJX.)
+- **Normalization stats are Python pickles** (SB3 `_vecnorm.pkl`). A C/C++
+  embedded runtime cannot load these, and skipping them silently corrupts the
+  policy input.
 - **No hardware abstraction at all** — grep for `ros2|rclpy|dynamixel|servo|pwm|
   serial|HAL` returns zero hits.
-- **The network is tiny** — `[512, 256]` tanh MLP (`jax_ppo.py:75-103`) — so
-  compute is not the barrier. The barrier is missing plumbing.
+- **The network is tiny** — a `[512, 256]` MLP for the four large species and
+  `[128, 128]` for the compsognathus pair (tanh under PPO; `net_arch` in each
+  stage TOML's `[ppo.policy_kwargs]`) — so compute is not the barrier.
+  The barrier is missing plumbing.
 
 ### 3.6 Author-stated posture
 
@@ -257,7 +260,7 @@ items. This plan agrees with that posture and sequences the work accordingly.
 Close the largest gaps that are pure code and stand up the export plumbing:
 implement the DR engine, add observation noise and an action-delay buffer,
 re-derive real per-joint torque (peak *and* RMS/duty-cycle) from gait rollouts,
-build a policy exporter + normalization dumper, fix SB3↔JAX backend divergence,
+build a policy exporter + normalization dumper,
 and produce **one** reproducible, provenance-complete, verified policy bundle.
 
 **Phase 1 — Design the buildable-scale target in sim · quarters.**
@@ -304,16 +307,16 @@ These need no hardware, live inside this repo, and directly de-risk transfer:
    gravity/actuator-gain at init, resample per reset from opt-in TOML ranges
    (Stage 2+). Highest single leverage. *(M)*
 2. **Per-step observation noise** — additive Gaussian + optional IMU bias drift +
-   touch threshold, after `_get_obs` / `build_mjx_observation`, disabled by
+   touch threshold, after `_get_obs` (never inside the frozen
+   `build_mjx_observation`, D-D17), disabled by
    default. *(S)*
-3. **Action-delay ring buffer** — configurable 1–3 control steps, symmetric in
-   SB3 and MJX. *(M)*
+3. **Action-delay ring buffer** — configurable 1–3 control steps. *(M)*
 4. **Real torque table** — re-derive per-joint peak *and* RMS/duty-cycle torque
    from recorded gait rollouts via the existing
    `actuator_saturation_report.py` + `test_actuator_bounds` tooling, turning
    servo caps into a defensible BOM sizing table. *(M)*
 5. **Policy exporter + normalization dumper** — reuse the already-pure
-   `obs_functions`, `scale_action_jax`, and `jax_normalization` modules; export a
+   `obs_functions` module and the SB3 VecNormalize statistics; export a
    deterministic-mean head to ONNX/npy plus a language-neutral mean/var. *(S–M)*
 6. **Egocentric observation reframe** — rotate base velocity + target into the
    root frame, express the target as a yaw-invariant bearing, drop absolute yaw;
@@ -325,9 +328,9 @@ These need no hardware, live inside this repo, and directly de-risk transfer:
 8. **External push perturbations** — randomized impulses on the root via
    `xfrc_applied`; the roadmap calls this the single most impactful balance
    technique. *(M)*
-9. **Backend parity** — MJX reset to the home keyframe, JAX action-clip parity,
-   fix `render_fps`, add an SB3↔JAX reward-parity CI test so one canonical
-   behavior can be pinned. *(S)*
+9. **`render_fps`** — fix it. *(S)* (This item's backend-parity half, MJX
+   home-keyframe reset, JAX action-clip parity and an SB3↔JAX reward-parity CI
+   test, is moot: D-D17 retired the JAX/MJX backend.)
 
 ---
 

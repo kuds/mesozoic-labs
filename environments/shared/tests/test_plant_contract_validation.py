@@ -16,7 +16,6 @@ from environments.shared.plant_contract import (
     current_plant_identity,
     validate_compiled_plant,
     validate_environment_plant,
-    validate_mjx_environment_plant,
     validate_model_plant,
     validate_recorded_identity,
     write_plant_identity,
@@ -41,32 +40,6 @@ def test_compiled_backend_binding_rejects_different_model(raptor_layers):
 
     with pytest.raises(PlantCompatibilityError, match="physics_sha256"):
         validate_compiled_plant(mujoco.MjModel.from_xml_string(changed_source), current)
-
-
-def test_mjx_runtime_binding_rejects_interface_override(raptor_layers):
-    _source, interface, _version, _original = raptor_layers
-    current = current_plant_identity("velociraptor", verify_generated=False)
-    config = SimpleNamespace(
-        species="velociraptor",
-        frame_skip=5,
-        body_ids={"pelvis": 2},
-        sensor_foot_indices=(10, 11),
-        sensor_gyro_start=0,
-        sensor_accel_start=3,
-        sensor_quat_start=6,
-        action_mapping="home-keyframe-residual/v1",
-    )
-    runtime_env = SimpleNamespace(mj_model=interface.model, config=config, action_dim=22)
-    validate_mjx_environment_plant(runtime_env, current)
-
-    config.frame_skip = 4
-    with pytest.raises(PlantCompatibilityError, match="frame_skip"):
-        validate_mjx_environment_plant(runtime_env, current)
-
-    config.frame_skip = 5
-    config.action_mapping = "midpoint/v1"
-    with pytest.raises(PlantCompatibilityError, match="action_mapping"):
-        validate_mjx_environment_plant(runtime_env, current)
 
 
 def test_missing_checkpoint_identity_fails_closed_unless_explicitly_allowed():

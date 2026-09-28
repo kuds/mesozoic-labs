@@ -1,9 +1,12 @@
 # MJX Conversion Plan
 
-> **Status:** Implemented design record. Sections 1–8 describe the original
-> target architecture, not a parity guarantee. For current behavior, use the
-> [JAX/MJX guide](../website/docs/training/jax.md) and
-> [known-divergence list](KNOWN_ISSUES.md#known-sb3--jax-divergences-documented-deliberate-for-now).
+> **Status:** Retired design record (D-D17, 2026-09-26). Cleanup PR-B removed
+> the JAX/MJX runtime this plan built (trainer, evaluator, stage writer,
+> notebook, `[jax]` extras and stage tables, CI job); it is recoverable from the
+> `0.3.8` tag (`afad625`) and git history. A frozen MJX interface core stays
+> because four species' policy-interface digests hash it
+> ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Sections 1–8 describe the original
+> target architecture, not current code.
 
 Detailed plan for adding MuJoCo MJX (JAX-accelerated GPU simulation) support to
 Mesozoic Labs while preserving the existing Stable Baselines 3 (SB3) CPU training
@@ -375,7 +378,7 @@ def run_curriculum(species, stages=(1, 2, 3), ...):
 **Goal:** Refactor the JAX notebook to use the shared modules and make it
 species-agnostic so a single notebook supports all species.
 
-### 5.1 Refactored `notebooks/jax_training.ipynb` ✅
+### 5.1 Refactored `jax_training.ipynb` ✅
 
 The unified notebook has been refactored to:
 - Import from shared modules (`reward_functions`, `obs_functions`, `jax_ppo`, `mjx_utils`)
@@ -395,7 +398,7 @@ continues to work exactly as before via the Gymnasium API.
 
 | File | Action |
 |------|--------|
-| `notebooks/jax_training.ipynb` | **Edit** — Refactor to use shared modules |
+| `jax_training.ipynb` | **Edit** — Refactor to use shared modules |
 | `notebooks/sb3_training.ipynb` | **Existing** — Unified SB3 training for all species |
 
 ---
@@ -566,7 +569,7 @@ Mark MJX integration as part of the project roadmap.
       corrections (2026-04-02 / 2026-04-03)
 
 ### Phase 4 — Notebooks
-- [x] Refactor `notebooks/jax_training.ipynb` (species-agnostic, all 3 species)
+- [x] Refactor `jax_training.ipynb` (species-agnostic, all 3 species)
 - [ ] Test notebook on Colab with GPU runtime for each species (ongoing
       operational validation)
 

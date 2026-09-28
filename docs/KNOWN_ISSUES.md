@@ -13,42 +13,12 @@ lands, fold its open items in here and archive the review document.
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
-| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings, all open — **execution deferred until the T-Rex clears stages 1–3**; see below |
+| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B), the other 10 open — **execution deferred until the T-Rex clears stages 1–3**; see below |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
 
 ---
-
-## Known SB3 ↔ JAX divergences (documented, deliberate for now)
-
-- **Forward-velocity reference frame** — SB3 envs project velocity onto the
-  *fixed initial* agent→target direction; the MJX env (and, since PR #426,
-  the JAX CPU eval) use the *current* direction each step. (June §2.5)
-- **Eval target placement** — JAX CPU eval evaluates against the model's
-  fixed target-body position; training randomizes a virtual target 3–8 m
-  ahead. Consider sampling eval targets per episode. (July §3)
-- **Stage-3 success semantics** — the SB3 Velociraptor and T-Rex environments
-  detect geom contact, while MJX uses claw-tip/head-tip distance thresholds.
-  The generated species catalog documents both definitions; parity is still
-  open.
-- **Curriculum gates** — SB3 can advance early after consecutive passing
-  evaluations. The JAX CLI checks reward and episode length once after a full
-  stage and ignores `min_avg_forward_vel` (a defect, not a deliberate
-  divergence: see "the JAX command-line curriculum advances a stage without
-  checking..." under Training / RL); it never evaluates the final stage's
-  gate, so `min_success_rate` is never consulted. The JAX notebook checks
-  reward, episode length, velocity and success once on a CPU evaluation.
-  These paths are documented but not behaviorally equivalent.
-- **PPO advantage normalization** — per-minibatch in JAX vs per-batch in
-  SB3; acceptable, documented in `jax_ppo.py`. (June §2.7)
-
-Targeted tests now pin the shared NumPy/JAX Velociraptor natural-lean posture
-primitive and its per-path runtime routing. A comprehensive per-component
-SB3↔JAX reward **parity test** (one fixed state, assert every component within
-tolerance) remains the standing recommendation for the divergences above.
-(June §6.8; see the
-[Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md))
 
 ## Training / RL
 
@@ -250,14 +220,11 @@ tolerance) remains the standing recommendation for the divergences above.
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
   (its §1–§3 seed-44 columns filled, §7 and §8 appended; its §6, appended
   2026-09-19, marks Session 1 (the seed-42 widen) and Session 2 superseded by
-  `20260914_123816`). Two neighbours:
-  JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint`
-  validates the recorded identity against `current_plant` and has no widen
-  path, so a pre-Phase-C JAX checkpoint fails closed (plan A7: SB3 is the
-  evidence backend). The two compsognathus recovery calibrations were
-  restamped, not re-measured, which moved their `profile_sha256`, so every
-  compsognathus / compsognathus_robot recovery freeze made before Phase C is
-  refused and must be re-frozen from the restamped profile
+  `20260914_123816`). One neighbour: the two compsognathus recovery
+  calibrations were restamped, not re-measured, which moved their
+  `profile_sha256`, so every compsognathus / compsognathus_robot recovery
+  freeze made before Phase C is refused and must be re-frozen from the
+  restamped profile
   (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
 - **MEDIUM (operational)** — **SB3 archives are bound to the interpreter that
   saved them; only `policy_loading.load_sb3_model` opens one safely, and the
@@ -658,93 +625,6 @@ tolerance) remains the standing recommendation for the divergences above.
   measured window, `height` 0.578 of 0.6, `neck_posture` 0.173 of 0.2,
   `leg_home_pose` 0.312 of 0.5. (PLANT_VALIDATION §14)
 
-- **MEDIUM** — **JAX evaluation cannot produce per-episode foot duty for
-  quadrupeds.** `jax_eval` routes per-foot force with
-  `results.diag_r_foot if i % 2 == 0 else results.diag_l_foot`, so on a
-  four-footed species feet 0 and 2 both land in `diag_r_foot` and feet 1 and 3
-  in `diag_l_foot`: the arrays carry two feet interleaved at twice the step
-  count, under labels that no longer mean right and left. Bipeds are correct
-  (foot 0 → r, foot 1 → l, one entry per step), which is why episode
-  boundaries reconstruct exactly from `cumsum(lengths)` there and not for
-  quadrupeds. This blocks the adopted 1a duty bound (STAGE1_SPLIT_PLAN §2.3)
-  on brachiosaurus and dibothrosuchus, and it became load-bearing when the
-  brachiosaurus stance and sensor repairs made its §8 stance-quality row
-  interpretable for the first time. The T-Rex pilot is unaffected.
-
-  **Contained, not fixed (2026-08-02).** `jax_eval.stance_panel_from_eval_results`
-  refuses to reconstruct a panel unless `len(diag_r_foot) == sum(lengths)` —
-  one reading per side per step, which holds for bipeds and gives exactly 2x
-  for a four-footed species. A quadruped therefore fails the stance gate
-  closed with that ratio named, rather than being scored on mis-paired feet.
-  The routing defect itself is unchanged; fixing it still means keying feet by
-  sensor identity instead of `i % 2`.
-
-- **MEDIUM** — **the JAX backend cannot finalise a stance-gated result bundle.**
-  `result_bundle.evidence` certifies a `stance_quality/v1` stage by re-deriving
-  its criteria from `stage<N>/stance_panel_selected.csv`, the per-episode duty
-  record `write_stance_gate_report` emits. Only the SB3 path writes it:
-  `generate_stage_artifacts` calls `_write_stance_gate_report`, and
-  `save_jax_stage_artifacts` has no equivalent. A JAX run whose stage 1
-  declares the stance gate will therefore train all three stages and then fail
-  bundle finalisation with `stance_panel_selected.csv is missing`.
-
-  This is a **fail-closed** limitation, not a wrong verdict — the bundle
-  refuses rather than certifying stance quality nobody recorded — and it is
-  not a regression: the same bundle previously refused unconditionally, on
-  every backend. What changed is that the SB3 path is now unblocked and the
-  JAX path is not.
-
-  The measurements exist on the JAX side already:
-  `jax_eval.stance_panel_from_eval_results` reduces `diag_r_foot`/`diag_l_foot`
-  into per-episode duties before summarising them into a `StancePanel`. Fixing
-  this means returning those per-episode duties alongside the panel and having
-  `save_jax_stage_artifacts` write them through the same
-  `write_stance_panel_evidence` the SB3 path uses — deliberately the same
-  writer, so the two backends cannot disagree about the evidence format the
-  auditor reads. Note the quadruped restriction above applies to that
-  reconstruction too.
-
-- **MEDIUM (JAX)** — **the JAX command-line curriculum advances a stage
-  without checking `min_avg_forward_vel` (verified 2026-09-26).** The
-  `reward_and_length/v1` arm of `jax_curriculum.check_stage_gate`
-  (`jax_curriculum.py:455-486`) checks `min_avg_reward` and
-  `min_avg_episode_length` only. The SB3
-  `CurriculumManager` enforces both further thresholds when they are set
-  (`curriculum/manager.py:340-348`), and so does the JAX notebook's CPU
-  evaluation. Executed with a huge return and length and no velocity or
-  success metric, it passes locomotion for velociraptor (bar 2.0 m/s),
-  brachiosaurus (0.75), dibothrosuchus (0.9) and trex (1.0). It would also pass
-  the stage-3 success bar (0.5) of the first three, but its one caller,
-  `run_curriculum` (reached by `python -m environments.shared.jax_training
-  --curriculum`), never checks the final stage's gate (`if stage !=
-  stages[-1]`, `jax_curriculum.py:654`), so only the missing velocity check
-  bites; the missing success check is latent in `check_stage_gate`. Every
-  stage of velociraptor, brachiosaurus and dibothrosuchus is
-  `reward_and_length/v1`, so that command can advance a standing policy to
-  stage 3; trex's is refused up front (D-B13). No certified run comes from
-  this path. Plan: retired with the JAX runtime (PR-B in
-  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D17); until
-  then read a JAX CLI stage advance as reward and length only. (2026-09
-  cleanup survey)
-
-- **MEDIUM (JAX)** — **MJX training never pays dibothrosuchus
-  `snap_snout_proximity_weight`, while the JAX CPU evaluation that gates the
-  stage does (verified 2026-09-26).** The MJX step kernel looks the proximity
-  weight up under `bite_head_proximity_weight`,
-  `strike_claw_proximity_weight` and `food_head_proximity_weight` only
-  (`mjx_env.py:1303-1306`). `compute_total_reward`, which the CPU evaluation
-  uses, also reads `snap_snout_proximity_weight`
-  (`jax_reward_termination.py:348-356`). For dibothrosuchus stage 3
-  (`stage3_snap.toml:21`, weight 2.0) the built MJX env's config carries 2.0
-  while the kernel's lookup returns 0.0. `_KNOWN_REWARD_KEYS`
-  (`mjx_env.py:61-111`) lists the key as read by the MJX step, so no
-  unknown-key warning fires. MJX training therefore never optimises a term
-  that the stage's `min_avg_reward = 100.0` is judged on. Neither JAX side
-  matches SB3, which pays it over a fixed 1.5 m range
-  (`dibothrosuchus_env.py:453-456`) where the composer uses `forward_vel_max`.
-  Plan: retired with the JAX runtime (PR-B); a re-add builds one reward
-  composition for the kernel and the evaluation. (2026-09 cleanup survey)
-
 - **LOW** — **collidable necks are deferred until terrain lands.** Velociraptor
   is the reference: its neck geom collides *and* sits in `_body_ground_geoms`,
   so hitting the ground with it terminates the episode. The other three carry
@@ -754,10 +634,9 @@ tolerance) remains the standing recommendation for the divergences above.
   floor this is unobservable — an animal whose neck reaches the ground has
   already tripped tilt, height or head-contact termination — so the decision
   was to leave physics alone and revisit when heightfield terrain arrives, at
-  which point the raptor's pattern is the template. Note the MJX settle
-  currently *raises* on a heightfield floor and would need an iterative settle,
-  and newly-colliding long neck capsules must be checked for home-pose
-  self-collision (the defect class fixed twice in the PR #480 series). The
+  which point the raptor's pattern is the template. Newly-colliding long neck
+  capsules must be checked for home-pose self-collision (the defect class
+  fixed twice in the PR #480 series). The
   cosmetic geoms should stay non-collidable permanently; they are already
   excluded from the ground-settle probe. On behavior terrain, T. rex's
   non-colliding neck is probed through `_terrain_contact_probe_geoms`
@@ -794,17 +673,13 @@ tolerance) remains the standing recommendation for the divergences above.
   over the run (1.00 → 0.72) while empirical `action_std` nearly doubled: the
   policy is pushing its **mean** out of bounds, not widening its exploration.
 
-  **What this is not: the reward is not inflated.** Both training paths clip
-  before stepping the environment, so `_get_reward_info` receives an in-bound
+  **What this is not: the reward is not inflated.** SB3 clips before
+  stepping the environment, so `_get_reward_info` receives an in-bound
   action and both penalties are computed on it:
 
   - SB3 `on_policy_algorithm.py:214-218` — `clipped_actions = np.clip(actions,
     low, high)` immediately before `env.step(clipped_actions)`; `policies.py:379`
     does the same inside `predict()`, which is what both eval loops use.
-  - `jax_train_fn.py` (step_fn) — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
-    `env.step`; `jax_ppo.sample_action`'s docstring states the contract
-    ("returns the **unclipped** action… callers must clip before sending to the
-    environment").
   - `base_env.py:_scale_action` says so directly: "SB3 already clips before
     stepping, but direct callers… would otherwise command out-of-range ctrl."
 
@@ -841,7 +716,7 @@ tolerance) remains the standing recommendation for the divergences above.
   passes the raw `action` to `_get_reward_info` while `_scale_action` clips
   separately on the way to `ctrl` (anchor on the function names; the line
   numbers this paragraph used to carry rotted by ~250 lines in the August
-  rewrites). Harmless under SB3 and the JAX trainer today, but any direct
+  rewrites). Harmless under SB3 today, but any direct
   caller — a notebook, a custom rollout loop, a diagnostic script — is
   silently charged energy and smoothness penalties for magnitude the plant
   never sees. Since r11 this applies only to species with
@@ -890,32 +765,46 @@ tolerance) remains the standing recommendation for the divergences above.
   different means and can disagree. `mjx_env.build_mjx_observation` tests
   `"torso" in body_ids`; `plant_contract._policy_interface_payload` tests
   `observation_schema == "quadrupedal-target/v1"`. A registration declaring a
-  bipedal schema with a `torso` root would error in the plant contract (so CI
-  catches it) but silently pick the torso root at runtime. Give the MJX
-  registration the observation schema, or assert exactly one of
-  `{"torso", "pelvis"}` in `body_ids`. (2026-07 Dibothrosuchus review)
+  bipedal schema with a `torso` root errors in the plant contract (so CI
+  catches it); the MJX runtime that would have silently picked the torso root
+  left with D-D17 (cleanup PR-B). (2026-07 Dibothrosuchus review) Latent since
+  D-D17: `build_mjx_observation` and the four registrations are part of the
+  frozen MJX interface core (its tokens and their values enter the
+  policy-interface digests), and a new species declares SB3 only, so no new
+  registration reaches `build_mjx_observation`. Either fix inside the frozen
+  core (give the MJX registration the observation schema, or assert exactly
+  one of `{"torso", "pelvis"}` in `body_ids` in `build_mjx_observation`) would
+  move four species' digests. The same one-root assertion in the plant
+  contract's MJX probe (`policy_layer._jax_policy_interface_payload`, which is
+  not hashed) would move none and would close this entry, because the probe
+  already requires the schema's root; it is left to cleanup CU-7. Otherwise a
+  backend added back takes one of the fixes
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.10), and the entry
+  closes when the last dual species' SB3-only revision drops its MJX branch.
 - **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
   declare exactly one mocap body. All four comply and it fails loudly, but the
   constraint was introduced to derive a segment label, not because the contract
   needs uniqueness. (2026-07 Dibothrosuchus review)
 
-- **LOW** — T-Rex SB3 env silently accepts `foot_contact_weight` /
-  `foot_contact_gate` (JAX-only params) without using them; typo'd weights
-  do nothing. Reject unknown env kwargs loudly. (June §1.6)
+- **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
+  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:141-142`,
+  `dibothrosuchus_env.py:108-109`) and no SB3 reward reads them: they were
+  knobs of the MJX reward, which left with the JAX/MJX runtime (D-D17, cleanup
+  PR-B). They stay, with their six `[env]` keys (`configs/trex/stance.toml:13-14`,
+  `configs/trex/recovery.toml:57-58`, `configs/dibothrosuchus/stage1_balance.toml:13-14`),
+  because `task_sha256` hashes the constructor defaults overlaid with `[env]`:
+  removing either moves the trex and dibothrosuchus task digests (stripping the
+  dibothrosuchus keys moved its certified stance task from `083e2966` to
+  `abfb339f`, measured 2026-09-26). Do not delete them
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §7). A typo'd weight
+  still does nothing; a loud rejection of unknown env kwargs must keep these two
+  names. (June §1.6)
 - **LOW** — `CurriculumCallback` / `LocomotionMetrics` hardcode success keys
   (`bite_success`, `strike_success`, `food_reached`) instead of using
   `SpeciesConfig.success_keys`. (June §6.4)
 - **LOW** — `curriculum/advancement.py` `_read_latest_eval`: the
   `successes.shape[0] == n_evals` guard permanently discards npz successes
   if SB3 starts recording them one eval late. (July §2)
-- **LOW (JAX)** — two same-named `check_stage_gate` functions with different
-  signatures (`jax_eval` vs `jax_curriculum`); logged `learning_rate` decays
-  faster than the real schedule (display-only); KL early-stop inside
-  `lax.scan` still computes-then-discards remaining minibatch gradients;
-  `StabilityMonitor` default `kl_warn=100` only fires after total collapse;
-  eval per-step reward diagnostics decompose forward velocity in world-X
-  rather than the agent→target frame the total now uses. (June §2.7, §6.7;
-  July §3)
 - **MEDIUM (perf)** — `EvalCallback` runs 30 serial episodes every 50k steps
   plus supplementary + post-stage evals — up to ~3.6M serial eval steps per
   6M-step stage. Vectorize the eval env or trim episodes. (June §6.1)
@@ -1040,9 +929,6 @@ tolerance) remains the standing recommendation for the divergences above.
 - **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
   ≈ 0; thread-unsafe CSV appends under concurrent local runs. (June §3.3;
   CODE_REVIEW §2.1#1)
-- **LOW** — JAX `TrainingCSVLogger` flushes per update directly to the
-  output path — one network write per update on `/gcs` FUSE; buffer locally
-  like `tb_sync` when `_is_gcs_path(path)`. (July §1)
 - **LOW** — **stage summaries built from `evaluations.npz` assume a 0.01 s
   control step (latent since cleanup PR-A; reproduced 2026-09-26).**
   `build_stage_results_from_eval_data` records
@@ -1134,7 +1020,9 @@ none of `foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` o
 permanently-zero input channels were revived by the note-8 repair.)
 
 Repair is an MJCF change of the `aa87445` shape — per-geom touch sites and sensors, appended so
-existing sensor indices keep their positions, summed per foot on both backends — and moves that
+existing sensor indices keep their positions, summed per foot in the SB3 env (for velociraptor the
+frozen MJX registration is not edited, so under D-D17 that policy-interface revision is where it
+declares itself SB3-only, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1) — and moves that
 species' physics and policy fingerprints. Full evidence, method and reproduction in
 [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
 re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
@@ -1177,7 +1065,7 @@ stance (PR #464).
   the metatarsus (17.36 N) are invisible against 36.79 N sensed of 66.22 N
   real. This is the *same defect* as the T-Rex foot-contact repair (which was
   at 77.6%); the raptor is worse and was never brought along. Foot contact is
-  a trained observation and feeds the JAX `foot_contact_gate`.
+  a trained observation.
 - **HIGH (fidelity) — the metatarsus is 78% too long** relative to the femur:
   model MT III/femur 0.741 against 0.416 (Persons & Currie 2016, *Sci Rep*
   6:19828, Table 1, IGM 100/986) and ~0.51 from a second specimen (Norell &
@@ -1194,13 +1082,6 @@ stance (PR #464).
   plant (`forcelimited=False`, `gear=50`): 693 N at the claw tip, 5.2× body
   weight, on the geom that scores stage 3. The July 2026 `forcerange` sweep
   missed them.
-- **MEDIUM — SB3/MJX termination asymmetry.** SB3 terminates on floor contact
-  of torso, neck, head and tail_3/4/5; the MJX registration lists only the
-  three tail bodies and no `termination_site_heights`. On MJX the raptor can
-  put its face on the ground without terminating.
-- **LOW — `nosedive_termination_threshold` is hardcoded** at
-  `raptor_env.py:530` while the MJX path reads it from stage config. They agree
-  today only because no raptor TOML sets the key.
 - **Not recommended:** porting the T-Rex stance correction here. That argument
   rests on a live stage-1 height term forcing knee travel through a
   near-singular joint, and the raptor env has **no height reward at all** —
@@ -1265,12 +1146,10 @@ Still open:
 
 ## Notebooks
 
-- The notebooks pin the plant compiler (`mujoco==3.10.0`, `mujoco-mjx`),
-  `stable-baselines3[extra]==2.9.0` (SB3 notebook) and
-  `jax[cuda12]==0.10.2` / `flax==0.12.8` / `optax==0.2.8` (JAX notebook), but
-  torch is unpinned and the `pyproject.toml`
-  extras stay ranges; pin complete lockfiles for reproducible training.
-  (July §5)
+- The SB3 notebook pins the plant compiler (`mujoco==3.10.0`) and
+  `stable-baselines3[extra]==2.9.0`, but torch is unpinned and the
+  `pyproject.toml` extras stay ranges; pin complete lockfiles for reproducible
+  training. (July §5)
 
 ## Testing / CI
 
@@ -1282,10 +1161,3 @@ Still open:
   (2026-07 Dibothrosuchus review)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
-- SB3↔JAX reward parity test (see divergences section above). (June §6.8)
-
-## Open questions
-
-1. Is SB3↔JAX reward parity a hard goal? If yes, the parity test should
-   gate CI; if the JAX path is a research spike, keep the divergence table
-   above authoritative. (June §7)

@@ -104,10 +104,10 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         "publication_gate_passed": passed,
     }
     # Provenance for the verdict above: which gate it was earned under
-    # (review SS5), as recorded by _apply_stage_gate / save_jax_stage_artifacts
-    # from the stage's curriculum config.  Omitted — not nulled — for a
-    # producer that predates the key, so a reader can tell "unrecorded" from
-    # "declared none".
+    # (review SS5), as recorded by _apply_stage_gate (and, in older records,
+    # by the JAX stage writer D-D17 retired) from the stage's curriculum
+    # config.  Omitted — not nulled — for a producer that predates the key,
+    # so a reader can tell "unrecorded" from "declared none".
     for key in ("gate_kind", "gate_schema_version"):
         if key in result:
             stage_summary[key] = result[key]

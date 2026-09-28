@@ -187,8 +187,7 @@ shared-trainer stages, checkpoint handoffs and the actual notebook training
 function. The tests shorten horizons and budgets while preserving the
 production gate criteria; they verify infrastructure, not learned behavior.
 
-Both variants explicitly support **SB3 only**. They are absent from the
-JAX notebook selector until MJX environments and backend parity tests exist.
+Both variants explicitly support **SB3 only**.
 The plant contract fingerprints the actual SB3 interface and records separate
 anatomical/robot identities; a checkpoint from one variant is rejected by
 the other. Save each checkpoint with its matched VecNormalize sidecar.
