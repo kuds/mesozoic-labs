@@ -96,7 +96,7 @@ class TestLoadStageConfig:
         in CI (run 20260712_185931).
         """
         config = load_stage_config(species, stage)
-        for alg_key in ("ppo_kwargs", "sac_kwargs", "jax_kwargs"):
+        for alg_key in ("ppo_kwargs", "sac_kwargs"):
             kwargs = config[alg_key]
             assert "net_arch" not in kwargs, (
                 f"{species} stage {stage}: net_arch is a top-level [{alg_key[:-7]}] key — "
@@ -623,6 +623,16 @@ class TestLoadStageConfigTableValidation:
             '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n\n[ppo_config]\nlearning_rate = 1e-4\n',
         )
         with pytest.raises(ValueError, match=r"\['ppo_config'\]"):
+            load_stage_config("ignored", 1, config_path=str(path))
+
+    def test_a_retired_jax_table_is_rejected(self, tmp_path):
+        """D-D17 retired the JAX/MJX trainer that read ``[jax]``; a stage that still declares it is refused."""
+        path = self._write(
+            tmp_path,
+            '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n\n[ppo]\nlearning_rate = 1e-4\n\n'
+            "[jax]\nlearning_rate = 3e-4\n\n[jax.policy_kwargs]\nnet_arch = [512, 256]\n",
+        )
+        with pytest.raises(ValueError, match=r"unknown top-level table\(s\) \['jax'\]"):
             load_stage_config("ignored", 1, config_path=str(path))
 
     def test_empty_env_table_warns(self, tmp_path, caplog):

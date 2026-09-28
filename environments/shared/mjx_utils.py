@@ -1,22 +1,18 @@
-"""JAX/MJX utility helpers for Mesozoic Labs environments.
+"""FROZEN (D-D17): the MJX action-mapping and home-reset helpers the plant contract hashes.
 
-All JAX imports are **lazy** so that users who only install the ``train``
-(SB3) dependencies don't get import errors.  Call :func:`check_jax` at
-the top of any module that needs JAX to produce a clear error message.
+D-D17 retired the JAX/MJX runtime that called these (cleanup PR-B; it is
+recoverable from the ``0.3.8`` tag or PR-B's first parent).
+``plant_contract/policy_layer.py`` hashes the tokens of
+``scale_action_around_nominal_jax`` and ``reset_mujoco_data_to_home`` into the
+policy-interface digests of trex, velociraptor, brachiosaurus and
+dibothrosuchus, and names ``scale_action_jax`` for a species on the midpoint
+mapping (none is). None of them is executed, and nothing trains on them. Do not
+edit, reformat or move them: a token change moves four species' plant
+identities. This docstring is not hashed; ``test_plant_contract_frozen_mjx.py``
+pins the digests. See ``environments/shared/mjx_env.py``.
 """
 
 from __future__ import annotations
-
-
-def check_jax() -> None:
-    """Raise a clear error if JAX/MJX is not installed."""
-    try:
-        import jax  # noqa: F401
-        import mujoco.mjx  # noqa: F401
-    except ImportError as exc:
-        raise ImportError(
-            "JAX/MJX training requires the [jax] extras.  Install with:\n  pip install mesozoic-labs[jax]"
-        ) from exc
 
 
 def scale_action_jax(action, ctrl_range):

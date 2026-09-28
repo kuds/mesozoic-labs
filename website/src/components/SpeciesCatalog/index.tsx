@@ -211,10 +211,9 @@ export function SpeciesStages({species}: {species: Species}): React.JSX.Element 
       <h2>Current curriculum configuration</h2>
       <p>
         The Stable-Baselines3 budgets and early-advancement gates below come from the current TOML files and can differ
-        from older published runs. A stage also ends when its configured budget is exhausted. JAX/MJX uses the same task
-        sequence, but its CLI and notebook gate behavior is not yet equivalent. The recipe column names the behavior a
-        stage belongs to and whether its checkpoint is a published deliverable; the warm-start column names the stage
-        it starts from.
+        from older published runs. A stage also ends when its configured budget is exhausted. The recipe column names the
+        behavior a stage belongs to and whether its checkpoint is a published deliverable; the warm-start column names
+        the stage it starts from.
       </p>
       <table>
         <thead>

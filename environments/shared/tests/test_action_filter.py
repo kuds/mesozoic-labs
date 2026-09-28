@@ -1,10 +1,11 @@
 """Tests for the training-time command low-pass filter.
 
 The filter is a plant-interface feature (see action_filter.py): trex enables
-it at 10 Hz in both backends, every other species leaves it off and must keep
-the exact legacy step arithmetic.  The SB3 and MJX implementations share the
-alpha formula with the stance-gate probe filter, so probe cutoffs and plant
-cutoffs are directly comparable.
+it at 10 Hz, every other species leaves it off and must keep the exact legacy
+step arithmetic.  The SB3 implementation shares the alpha formula with the
+stance-gate probe filter, so probe cutoffs and plant cutoffs are directly
+comparable.  The frozen MJX registration's cutoff is checked against the SB3
+env's by the plant contract (``policy_layer``), not here.
 """
 
 from __future__ import annotations
@@ -108,50 +109,3 @@ class TestSB3ActionFilter:
         env.step(up)
         env.step(-up)
         assert env._prev_action == pytest.approx(env._action_filter_state)
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-class TestMJXActionFilter:
-    @pytest.fixture(scope="class")
-    def mjx_env(self):
-        pytest.importorskip("jax")
-        pytest.importorskip("mujoco.mjx")
-        import environments.trex.mjx_config  # noqa: F401  (registers trex)
-        from environments.shared.mjx_env import MJXDinoEnv
-
-        return MJXDinoEnv("trex", stage=1, num_envs=1)
-
-    def test_registered_cutoff_matches_sb3(self, mjx_env) -> None:
-        assert mjx_env.config.action_filter_cutoff_hz == TRexEnv.action_filter_cutoff_hz
-
-    def test_stage_toml_cannot_override_the_cutoff(self) -> None:
-        pytest.importorskip("jax")
-        pytest.importorskip("mujoco.mjx")
-        import environments.trex.mjx_config  # noqa: F401
-        from environments.shared.mjx_env import MJXDinoEnv
-
-        with pytest.raises(ValueError, match="versioned plant interface"):
-            MJXDinoEnv("trex", stage=1, num_envs=1, env_kwargs={"action_filter_cutoff_hz": 5.0})
-
-    def test_step_seeds_then_blends_in_lockstep_with_sb3(self, mjx_env) -> None:
-        import jax
-        import jax.numpy as jnp
-
-        rng = jax.random.PRNGKey(0)
-        state = mjx_env._reset_single(rng)
-        assert state.filtered_action.shape == (mjx_env.action_dim,)
-
-        up = jnp.ones(mjx_env.action_dim)
-        state1, _, _, _ = mjx_env._step_single(state, up, rng, jnp.float32(1.0))
-        # Seeded: the first filtered command is the clipped action itself,
-        # and prev_action carries the filtered signal for the reward lags.
-        np.testing.assert_allclose(np.asarray(state1.filtered_action), 1.0, atol=1e-6)
-        np.testing.assert_allclose(np.asarray(state1.prev_action), 1.0, atol=1e-6)
-
-        alpha = low_pass_alpha(10.0, float(mjx_env.mj_model.opt.timestep) * mjx_env.config.frame_skip)
-        state2, _, _, _ = mjx_env._step_single(state1, -up, rng, jnp.float32(1.0))
-        np.testing.assert_allclose(
-            np.asarray(state2.filtered_action),
-            1.0 + alpha * (-1.0 - 1.0),
-            atol=1e-6,
-        )

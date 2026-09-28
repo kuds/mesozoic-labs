@@ -22,8 +22,8 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | **In Progress** | 1/9 items | Dibothrosuchus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
-| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/5 items | JAX SAC, large-scale experiments |
-| **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
+| **5** | Hyperdrive (v0.7.0) | **Retired** (D-D17) | 3/5 items | — (JAX SAC and large-scale experiments dropped) |
+| **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-4 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
 W&B tracking, metrics) and codebase consolidation
@@ -236,8 +236,6 @@ critical bridge between "cool demo" and "transferable research."
     balance recovery.
   - Introduce in Stage 2+ configs only — Stage 1 (balance) should train
     without perturbations so the agent learns to stand first.
-  - JAX/MJX path will need its own domain randomization approach (functional
-    `model.replace()` instead of in-place mutation) — coordinate with Phase 5
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
 - [ ] **Sensor noise & action delay**
@@ -458,55 +456,21 @@ Model zoo with downloadable checkpoints. Browser-based interactive demo.
 
 ---
 
-## Phase 5 — JAX/MJX & Performance (Weeks 24-34)
+## Phase 5 — JAX/MJX & Performance (retired)
 
-Parallel track that can start alongside Phase 4. GPU-accelerated batch simulation.
-
-### Milestone: v0.7.0 — "Hyperdrive"
-
-- [x] **MJX environment for all species**
-  - Implemented `MJXDinoEnv` in `environments/shared/mjx_env.py` with
-    functional JAX-native API (`jax.jit`/`jax.vmap` compatible)
-  - Batch simulation (2048 parallel environments on GPU by default)
-  - All three species (T-Rex, Velociraptor, Brachiosaurus) supported
-    via per-species `mjx_config.py` registration modules
-  - _Completed_
-
-- [x] **JAX-native PPO training pipeline**
-  - Implemented `jax_ppo.py` (Flax actor-critic, GAE, PPO clipped loss)
-    and `jax_training.py` (full training loop with curriculum support)
-  - `jax_training.ipynb` Colab notebook with A100 GPU support
-  - Network architecture matches SB3 configs: `[512, 256]`
-  - Post-landing stabilization (2026-04-02 / 2026-04-03): LR schedule fix,
-    PPO ratio explosion fix (store raw actions for PPO, clip only at env
-    boundary), value-loss domination fix, dones broadcasting fix,
-    SB3/JAX reward-signal unification (`fall_penalty`, `reset_noise_scale`
-    overrides restored), extracted `jax_trainer.py`
-  - _Completed_
-
-- [ ] **JAX-native SAC implementation**
-  - Build `jax_sac.py` module with replay buffer, twin Q-networks, and
-    automatic entropy tuning (analogous to `jax_ppo.py`)
-  - Add SAC option to `jax_training.ipynb` notebook alongside PPO
-  - Compare sample efficiency and final performance vs JAX PPO and SB3 SAC
-  - _Dependency: Brax PPO pipeline (reuse actor-critic infrastructure)_
-
-- [x] **Port remaining species to MJX**
-  - All three species (T-Rex, Velociraptor, Brachiosaurus) ported
-  - Shared `MJXDinoEnv` with per-species config registration
-  - _Completed (included in MJX environment implementation above)_
-
-- [ ] **Large-scale training experiments**
-  - Sweep over billions of steps (feasible with MJX speedup)
-  - Discover training regimes not possible at CPU scale
-  - _Dependency: Brax PPO pipeline_
-
-**Exit criteria:** A reproducible speedup demonstrated. All species available on the MJX backend.
-Published benchmark comparison (CPU vs. NVIDIA GPU).
-
-_The mjlab pilot item was retired unrun by D-D17 (2026-09-26;
-[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2); its scaffold is
-recoverable from the `0.3.8` tag and git history._
+_Retired by D-D17 (2026-09-26; [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+§6.2): Stable-Baselines3 is the only training, evaluation and evidence backend
+until every species' stage chain and behavior is certified. Cleanup PR-B
+removed what this phase had completed (the MJX environment, the JAX-native PPO
+pipeline and its notebook, the species ports) and dropped its open items
+(JAX-native SAC, large-scale training experiments) and its exit criteria. The
+removed code is recoverable from the `0.3.8` tag (`afad625`) and git history.
+A frozen MJX interface core stays, unedited, because the policy-interface
+digests of T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus hash it;
+nothing trains on it ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Adding a backend
+back is a new decision ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
+§4.10). The mjlab pilot item was retired unrun by D-D17 as well; its scaffold is
+recoverable from the same tag._
 
 ---
 
@@ -569,8 +533,6 @@ Phase 3:  |        |        |     ████|█████████|     
           |        |        |  Advanced RL + Species     |         |
 Phase 4:  |        |        |         |     ████|█████████|         |
           |        |        |         |  Multi-Agent + Ecosystem   |
-Phase 5:  |        |        |         |       ██|█████████|██       |
-          |        |        |         |    JAX/MJX (parallel track) |
 Phase 6:  |        |        |         |         |     ████|█████████|
           |        |        |         |         | Sim-to-Real + HW  |
 ```
@@ -584,7 +546,7 @@ Phase 6:  |        |        |         |         |     ████|████�
 | v0.4.0 | 2 | Into the Wild | Observation space grows (prey_velocity for predators), Stage 4 added |
 | v0.5.0 | 3 | Evolution | Multi-species API stable |
 | v0.6.0 | 4 | The Pack | Multi-agent API stable |
-| v0.7.0 | 5 | Hyperdrive | MJX backend API stable |
+| v0.7.0 | 5 | Hyperdrive (retired, D-D17) | — |
 | v1.0.0 | 6 | Life Finds a Way | Full API freeze, PyPI publish |
 
 ## Key Dependencies (Critical Path)
@@ -598,8 +560,6 @@ Velociraptor training (P1) → Custom networks (P3) → Hierarchical RL (P3)
 
 Locomotion (P1) → Turning (P2) → Stage 4 prey pursuit (P2) → Reactive prey (P2) → Multi-agent (P4)
                                                                                  → Learned prey (P4)
-
-Velociraptor trained (P1) → MJX port (P5) → Brax PPO (P5) → Scale experiments (P5)
 
 Compsognathus species (P3) → Physical prototype (P6) → Sim-to-real (P6)
 Sensor noise policies (P2) → HAL (P6) → ROS 2 bridge (P6)

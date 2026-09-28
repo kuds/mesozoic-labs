@@ -16,7 +16,6 @@ We use articulated MuJoCo models to study how reinforcement-learning agents can 
 - **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
 - **Behavior Recipes** - Every species trains stand, walk and hunt as separately certified, separately published policies on one shared trunk, declared in `configs/<species>/stages.toml`
-- **JAX/MJX Integration** - Batched, GPU-oriented PPO training for T-Rex, Velociraptor, Brachiosaurus, and Dibothrosuchus
 - **Six Species** - T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus, and the Compsognathus robot
 - **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
@@ -49,7 +48,6 @@ current model revision and configs.
 - [Models](/docs/models/trex) - Explore available species models
 - [Behavior Recipes](/docs/training/recipes) - Train stand, walk and hunt on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
-- [JAX/MJX Training](/docs/training/jax) - GPU-accelerated training with JAX
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 
 ## Project Status

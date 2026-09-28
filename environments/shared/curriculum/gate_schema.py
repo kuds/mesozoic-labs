@@ -10,8 +10,8 @@ could advance on evidence nobody had checked:
    :class:`~environments.shared.curriculum.manager.StageThreshold`'s
    permissive defaults (``min_avg_reward = -inf``, length and success floors
    ``0``) — which advance on any evaluation whatsoever.
-2. :func:`~environments.shared.jax_curriculum.check_stage_gate` logged a
-   warning and returned ``True`` when ``min_avg_reward`` was absent.
+2. The JAX backend's ``jax_curriculum.check_stage_gate`` (retired by D-D17)
+   logged a warning and returned ``True`` when ``min_avg_reward`` was absent.
 3. Neither backend rejected an unrecognised key, so a typo in a threshold
    name disabled that threshold instead of failing.
 
@@ -381,7 +381,8 @@ def finite_gate_metric(value: Any) -> float | None:
     floor beneath it, and a gate that could not measure anything reports a
     pass.  Measured on both paths before this guard existed --
     ``min_avg_reward = 1950`` against a NaN reward returned ``(True, [])``
-    from ``reporting.gates`` and from ``jax_eval.check_stage_gate`` alike.
+    from ``reporting.gates`` and from the JAX backend's
+    ``jax_eval.check_stage_gate`` (retired by D-D17) alike.
 
     ``None`` and ``""`` are the two "not measured" sentinels the trainers
     actually write, and non-finite values join them, so every caller can
@@ -525,8 +526,7 @@ def validate_gate_config(
             f"{_describe(stage)}: gate_kind {declared_kind!r} is missing required "
             f"threshold field(s) {missing}. Declaring a gate without them fails "
             "open on the SB3 path (StageThreshold defaults to min_avg_reward = "
-            '-inf) while the JAX path rejects it; declare gate_kind = "none/v1" '
-            "for a non-advancing pilot instead."
+            '-inf); declare gate_kind = "none/v1" for a non-advancing pilot instead.'
         )
 
     if advancement_enabled and declared_kind == "none/v1":

@@ -39,19 +39,6 @@ train = [
     "stable-baselines3[extra]>=2.2.0",
     "wandb>=0.16.0",
 ]
-jax = [
-    "mujoco-mjx==3.10.0",
-    "jax[cuda12]>=0.4.20",
-    "flax>=0.8.0",
-    "optax>=0.1.7",
-]
-jax-cpu = [
-    # CPU-only JAX stack for development and CI hosts without NVIDIA drivers.
-    "mujoco-mjx==3.10.0",
-    "jax>=0.4.20",
-    "flax>=0.8.0",
-    "optax>=0.1.7",
-]
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
@@ -71,7 +58,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "mesozoic-labs[train,jax,viz,dev]",
+    "mesozoic-labs[train,viz,dev]",
 ]
 
 # Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
@@ -126,6 +113,22 @@ ignore_missing_imports = true
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+# The frozen MJX interface core (D-D17): the plant contract hashes the source
+# tokens of its functions, so a formatter or autofix change would move four
+# species' policy-interface digests (docs/CLEANUP_PLAN_2026_09.md §4.3).
+# force-exclude also skips them when a path is named on the command line;
+# test_plant_contract_frozen_mjx.py checks this list.
+extend-exclude = [
+    "environments/shared/mjx_env.py",
+    "environments/shared/jax_setup.py",
+    "environments/shared/mjx_utils.py",
+    "environments/shared/obs_functions.py",
+    "environments/trex/mjx_config.py",
+    "environments/velociraptor/mjx_config.py",
+    "environments/brachiosaurus/mjx_config.py",
+    "environments/dibothrosuchus/mjx_config.py",
+]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

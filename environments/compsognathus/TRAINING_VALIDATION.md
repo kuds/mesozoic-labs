@@ -67,7 +67,6 @@ python -m environments.compsognathus.scripts.validate_models --output /tmp/comps
 ```
 
 Run full training next, comparing learned behavior with the zero-action
-baseline and enforcing the recorded gates. JAX/MJX, distributed Ray execution,
-onboard state estimation, hardware transfer and learned walking performance
+baseline and enforcing the recorded gates. Onboard state estimation, hardware transfer and learned walking performance
 are outside this validation. The initial robot policy uses privileged
 simulator state; the camera is available separately, not as an MLP input.

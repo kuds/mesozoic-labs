@@ -35,8 +35,8 @@ contract code:
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full under the shared matrix job (``.[dev]`` only) as well as the SB3 job.
-The MJX counterparts live in ``test_mjx_phase_c_interface.py`` and the
-dual-backend probe parity pin in ``test_plant_contract_phase_c.py``.
+The dual-backend probe parity pin lives in ``test_plant_contract_phase_c.py``;
+the MJX runtime half left with the JAX runtime (D-D17).
 """
 
 from __future__ import annotations
@@ -394,8 +394,7 @@ def test_command_kwargs_enter_the_task_fingerprint_and_the_payload_has_a_command
     )
     assert derived["command"] == {"schema": "x"}
 
-    # (iv), SB3 half: no manifest while command_mode is "none".  The MJX
-    # half lives in test_mjx_phase_c_interface.py.
+    # (iv): no manifest while command_mode is "none".
     env = TRexEnv(reset_noise_scale=0.0)
     try:
         assert env.command_manifest() is None

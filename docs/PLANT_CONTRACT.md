@@ -146,26 +146,37 @@ lists the same steps). Then run the notebook with `RUN_ID` set to that id, `SEED
 `run.seed` and `TRUNK_FROM = ""`, and its chain loop judges the widened root (BEHAVIOR_RECIPES_PLAN §4.6, decision
 D-C13). The storage cell refuses any other `SEED` before it writes anything (D-C14), and the resolve cell refuses a
 trunk until the widened root holds a verdict. `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this applies
-to. JAX checkpoints are not widened: `jax_checkpoint.load_checkpoint` validates the recorded identity against
-`current_plant` and has no widen path, so a pre-bump JAX checkpoint fails closed.
+to.
 
 ## Backend parity and runtime binding
 
-The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes. The
-canonical writer requires SB3 and MJX to produce the same ordered observation for the four dual-backend species (the two
-compsognathus plants are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the
-environment lists `jax-mjx` among its training backends). Since the Phase C interface revision
-(BEHAVIOR_RECIPES_PLAN §4.6) both probes inject the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the
-trailing 3-dim command segment — the SB3 probe sets `env._command` beside the model/data swap and the MJX probe passes
-`command=` to `build_mjx_observation` — so the parity assertion covers the appended slot rather than three zeros.
-`validate_mjx_environment_plant` also checks the MJX observation width against the identity. MJX registration
-values (root-body IDs, sensor offsets, action mapping, frame skip, and control timestep) are versioned alongside the SB3
-interface. Curriculum configuration may tune rewards and termination rules, but cannot override these plant-level keys.
+The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes.
+Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17). Four species (trex,
+velociraptor, brachiosaurus and dibothrosuchus) still declare the dual SB3/MJX backend, because their policy-interface
+digests hash the source tokens of a frozen MJX interface core (`build_mjx_observation` and the species registration in
+`environments/shared/mjx_env.py`, `jax_setup.make_obs_fn`, the `mjx_utils` action-mapping and home-reset functions,
+`obs_functions.py` and each species' `mjx_config.py` registration) and record an MJX observation probe. For these
+species the canonical writer requires SB3 and MJX to produce the same ordered observation (the two compsognathus plants
+are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the environment lists
+`jax-mjx` among its training backends). Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) both probes
+inject the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the trailing 3-dim command segment — the SB3 probe
+sets `env._command` beside the model/data swap and the MJX probe passes `command=` to `build_mjx_observation` — so the
+parity assertion covers the appended slot rather than three zeros. The probe runs `build_mjx_observation` on NumPy
+data, so it needs no JAX install. MJX registration values (root-body IDs, sensor offsets, action mapping, frame skip
+and, on trex, the action-filter cutoff) are versioned alongside the SB3 interface.
 
-Before any artifact is tagged, training validates the environment that actually runs. SB3 validates the concrete
-Gymnasium model and observation interface behind the VecEnv. JAX validates both the compiled `mj_model` and the live MJX
-interface configuration. This prevents a stale runtime registry, alternate model path, or modified sensor/body mapping
-from being mislabeled with the canonical identity.
+Nothing trains on the frozen core, and it is never edited, reformatted or moved: any token change moves those four
+species' policy-interface digests, which `plant_contract --check` reports and
+`environments/shared/tests/test_plant_contract_frozen_mjx.py` pins function by function. A species leaves the core only
+by declaring itself SB3-only (`supported_training_backends = ("stable-baselines3",)` on the environment and
+`training_backends = ["stable-baselines3"]` in `configs/species_manifest.toml`, which must agree) inside its next
+deliberate `policy_interface_revision` bump; once all four have done so, the core and its pin test are deleted
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1). A new species declares SB3 only.
+
+Before any artifact is tagged, training validates the environment that actually runs: SB3 validates the concrete
+Gymnasium model and observation interface behind the VecEnv, and on the four dual species that validation also
+requires the backend parity above (`validate_environment_plant`). This prevents a stale runtime registry, alternate
+model path, or modified sensor/body mapping from being mislabeled with the canonical identity.
 
 ## Checkpoints and legacy artifacts
 
@@ -176,12 +187,12 @@ Artifacts without plant identity are legacy artifacts. Contract validation fails
 an explicit `allow_legacy_plant=True` migration/evaluation choice and emits a warning. That override acknowledges missing
 provenance—it does not make the artifact current or verified.
 
-The low-level JAX `load_checkpoint` and `restore_train_state` APIs also require the caller to supply `current_plant`;
-omitting it is an error, even when `allow_legacy_plant=True`. `unsafe_skip_plant_validation=True` exists only for
-deliberate low-level artifact inspection, emits an explicit warning, and must not be used to resume training or run
-evaluation. The low-level `load_vecnorm_stats` API follows the same rule for SB3 normalization state.
+The low-level `load_vecnorm_stats` API (`curriculum/checkpoints.py`) also requires the caller to supply
+`current_plant`; omitting it is an error, even when `allow_legacy_plant=True`. `unsafe_skip_plant_validation=True`
+exists only for deliberate low-level artifact inspection, emits an explicit warning, and must not be used to resume
+training or run evaluation.
 
-SB3 models, VecNormalize statistics, JAX checkpoints, stage configs,
+SB3 models, VecNormalize statistics, stage configs,
 metrics, and run directories all carry the same identity. Promotion validates the embedded model and normalization
 payloads, not only an adjacent sidecar.
 

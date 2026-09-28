@@ -43,7 +43,7 @@ past a couple of files get their own subdirectory (`investigations/`,
 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Active — codebase-wide improvement backlog |
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Dated planning snapshot (update notes 2026-04-18, 2026-09-13 and 2026-09-27) — trial list for the remaining SAC/PPO runs; its notebook setup predates the behavior chain loop (`BEHAVIOR`) and the id-named T-Rex stage configs, which the 2026-09-13 note maps; its trials 2 and 4 were Ray Tune sweeps, retired by D-D17 (the notebook and sweep JSONs are recoverable from the `0.3.8` tag) |
 | [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Option 1 (stance correction) implemented; options 2–4 open, step 5 (port to the raptor) withdrawn — see the raptor review |
-| [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Implemented design record — current divergences live in KNOWN_ISSUES and the JAX guide |
+| [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Retired design record (D-D17) — cleanup PR-B removed the JAX/MJX runtime it built; a frozen MJX interface core stays for four species' policy-interface digests ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)) |
 | [WEBSITE_PLAN.md](WEBSITE_PLAN.md) | — | Active — Docusaurus site improvements |
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Withdrawn: Ray Tune retired (D-D17) — composite ASHA metric for stage-1 sweeps, never implemented |
 | [PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md](PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md) | 2026-07-31 | Active — **read before any stage-1 work.** Why every reset was geometrically invalid, why the stage-1 objective's optimum is the zero-action policy, and what replaces the reward gate |
@@ -80,7 +80,7 @@ becomes credible near a $10k parts cap, with 2 m/s as repeatable acceptance and
 Dated, evidence-driven analyses of training runs and reward behavior, in
 chronological order. Each is frozen at its date; follow-ups cross-link rather
 than rewrite. Notes dated before D-D17 cite code it retired (the sweeps,
-mjlab, the single-job Vertex AI route and GCS upload, and after cleanup PR-B the JAX/MJX stack); the release tag `0.3.8`
+mjlab, the single-job Vertex AI route and GCS upload, and the JAX/MJX runtime); the release tag `0.3.8`
 (`afad625`), which predates the retirement, and git history keep that code
 reachable, so check out the tag or the commit a note names to reproduce one.
 

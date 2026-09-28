@@ -102,13 +102,13 @@ def test_unknown_training_name_is_rejected_but_custom_plot_label_is_preserved():
 
 
 def test_colab_species_selectors_match_the_manifest():
-    for filename in ("sb3_training.ipynb", "jax_training.ipynb"):
+    for filename in ("sb3_training.ipynb",):
         notebook = json.loads((REPO_ROOT / "notebooks" / filename).read_text())
         for cell in notebook["cells"]:
             for line in "".join(cell["source"]).splitlines():
                 if line.startswith("SPECIES = ") and "# @param [" in line:
                     labels = json.loads(line.split("# @param ", 1)[1])
-                    backend = "jax-mjx" if filename == "jax_training.ipynb" else "stable-baselines3"
+                    backend = "stable-baselines3"
                     assert labels == list(species_display_names(backend=backend).values())
                     break
             else:

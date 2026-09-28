@@ -8,12 +8,11 @@ Train your first dinosaur-inspired simulated agent.
 
 ## Option 1: Google Colab (Easiest)
 
-Open one of the unified training notebooks in the `notebooks/` directory:
+Open the unified training notebook in the `notebooks/` directory:
 
 - `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a species (Velociraptor, T-Rex, Brachiosaurus, Dibothrosuchus, Compsognathus or the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stand"`, `"walk"` or `"hunt"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
-- `notebooks/jax_training.ipynb` - PPO training with JAX/MJX on an NVIDIA GPU for T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus, one stage at a time via `CURRENT_STAGE`; behavior chains are the SB3 notebook's in Phase A.
 
-Both notebooks handle dependency installation automatically.
+The notebook handles dependency installation automatically.
 
 ## Option 2: Local Setup
 

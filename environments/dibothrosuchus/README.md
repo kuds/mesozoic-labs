@@ -124,7 +124,7 @@ dibothrosuchus/
 ├── envs/
 │   ├── __init__.py
 │   └── dibothrosuchus_env.py       # Gymnasium environment
-├── mjx_config.py                   # JAX/MJX species registration
+├── mjx_config.py                   # Frozen MJX registration (D-D17 digest input)
 ├── scripts/
 │   ├── view_model.py               # MuJoCo passive viewer
 │   ├── test_actuators.py           # Test joint movements

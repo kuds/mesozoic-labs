@@ -141,7 +141,8 @@ terrain**. The maintainer fixed its shape on 2026-09-17:
   `difficult_terrain` node stays as an optional diagnostic sibling; recipe label
   `follow` resolves to the deepest deliverable; `follow_direction_speed` is folded
   into `follow_direction`; three new stage files per species; the final node is
-  SB3-only (MJX fails closed on live commands and has no terrain).
+  SB3-only (MJX fails closed on live commands and has no terrain). Amended by
+  D-D17 (cleanup PR-B): nothing trains on MJX any more, so every node is SB3-only.
 - **G2** command set = heading, speed (half to full cruise), stops and restarts,
   switching every few seconds (the pilots' combined recipe).
 - **G3** walker sessions start now on the current notebook, trex first (its r13
@@ -661,22 +662,20 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   `load_stage_config` when `read_recipe` goes (PR-9/PR-11).
 - PR-8 moves single-template recipes from a Bernoulli `flat_probability` draw to
   balanced blocks: a distribution change to state in the decision record.
-- PR-9 touches five species constructors, `MJXEnvConfig` and the fingerprint
-  carve-out; acceptance = no committed `task_sha256` moves
-  (`test_phase_c_interface.py`) and `plant_contract --check` reports no interface
-  change, on every species. MJX reward kernels stay world-z after PR-7 (MJX has
-  no terrain and fails closed on live commands); PR-7 notes the divergence in
-  `mjx_env`'s step-loop comment.
+- PR-9 touches five species constructors and the fingerprint carve-out
+  (`MJXEnvConfig` and the MJX reward kernels left with cleanup PR-B, D-D17);
+  acceptance = no committed `task_sha256` moves (`test_phase_c_interface.py`)
+  and `plant_contract --check` reports no interface change, on every species.
+  PR-9 leaves the frozen MJX interface core untouched.
 - CI: PR-3 (#546) dropped the SB3-free suites from the `test-sb3` job (the `test`
   matrix already runs them) and moved the full six-species and
   four-notebook-parameter sets to the nightly schedule and the `full-ci` label,
   keeping one real-PPO smoke per body of work on every PR; the union coverage
   gate `fail_under = 70` read 90 percent on its CI runs and is re-measured again
   after PR-12/PR-13.
-- `notebooks/jax_training.ipynb` carries the same Drive-mount block and
-  `_ACTIVE_RUN_ID` memo; since consolidation PR-14a the SB3 notebook's `RUN_ID`
-  is a configuration-cell knob while the JAX notebook keeps it in its storage
-  cell; take D-D7-style moves for both notebooks.
+- The SB3 notebook's Drive-mount block and `_ACTIVE_RUN_ID` memo are still
+  candidates for D-D7-style moves (the JAX notebook, which carried copies of
+  both, left with cleanup PR-B).
 - The plan's per-event `command_tracking/v1` statistic and the
   worst-of-heading-bins floor have no implementation anywhere (D-D6's second
   kind is new work).
@@ -748,8 +747,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   code cell parses, as `.github/workflows/python-ci.yml` does; an edited notebook
   round-trips through `json.dump` with `indent=1`, the plan's §5 PR process); the
   SB3 job for trainer changes. The review container is a venv with SB3 2.9.0,
-  torch, jax, mujoco 3.10.0 and `JAX_PLATFORMS=cpu`, without IPython; since the
-  notebook-only PR-12 slice deleted `test_behavior_notebook.py` no test needs it.
+  torch and mujoco 3.10.0, without JAX (no test needs it since cleanup PR-B) and
+  without IPython (since the notebook-only PR-12 slice deleted
+  `test_behavior_notebook.py` no test needs it).
 - Never write an AI model or vendor name into repository files; cite PR numbers,
   branch names or "the maintainer".
 

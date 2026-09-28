@@ -398,16 +398,15 @@ class TestFailsClosedOnBrokenInput:
         assert any("outside [0, 1]" in f for f in failures)
 
 
-class TestBackendParity:
-    """SB3 and JAX must reach the same verdict from the same panel."""
+class TestManagerReachesThePanelVerdict:
+    """The SB3 manager must reach the stance gate's verdict from the same panel."""
 
     @pytest.mark.parametrize(
         "duty,reward,expected",
         [(0.000, 3271.8, True), (0.319, 2133.4, False), (0.005, 3100.0, True)],
     )
-    def test_sb3_and_jax_agree(self, duty, reward, expected):
+    def test_the_manager_verdict_matches_the_panel(self, duty, reward, expected):
         from environments.shared.curriculum.manager import CurriculumManager
-        from environments.shared.jax_curriculum import check_stage_gate
 
         panel = _panel(duty, reward)
 
@@ -421,25 +420,6 @@ class TestBackendParity:
             "min_avg_reward": TREX_1A.min_avg_reward,
             "required_consecutive": 1,
         }
-        jax_config = {
-            "stage": 1,
-            "curriculum_kwargs": {
-                "gate_schema_version": 1,
-                **thresholds,
-            },
-        }
-        jax_verdict = check_stage_gate(
-            {
-                "n_eval_episodes": panel.n_episodes,
-                "full_horizon_fraction": panel.full_horizon_fraction,
-                "n_duty_episodes": panel.n_duty_episodes,
-                "mean_unsupported_duty": panel.mean_unsupported_duty,
-                "unsupported_duty_ucb": panel.unsupported_duty_ucb,
-                "mean_episode_return": panel.mean_reward,
-            },
-            jax_config,
-        )
-
         manager = CurriculumManager(species="trex", stage_thresholds={1: thresholds})
         sb3_verdict = manager.should_advance(
             [panel.mean_reward] * panel.n_episodes,
@@ -447,25 +427,7 @@ class TestBackendParity:
             stance_panel=panel,
         )
 
-        assert jax_verdict is expected
         assert sb3_verdict is expected
-
-    def test_jax_raises_rather_than_half_enforcing(self):
-        from environments.shared.curriculum.gate_schema import GateSchemaError
-        from environments.shared.jax_curriculum import check_stage_gate
-
-        config = {
-            "stage": 1,
-            "curriculum_kwargs": {
-                "gate_schema_version": 1,
-                "gate_kind": STANCE_GATE_KIND,
-                "min_full_horizon_fraction": 0.95,
-                "max_unsupported_duty": 0.02,
-                "max_unsupported_duty_ucb": 0.02,
-            },
-        }
-        with pytest.raises(GateSchemaError, match="stance quality cannot be checked"):
-            check_stage_gate({"mean_episode_return": 3271.8, "mean_episode_length": 1000.0}, config)
 
 
 class TestManagerFailsClosedWithoutAPanel:

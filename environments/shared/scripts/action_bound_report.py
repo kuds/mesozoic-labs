@@ -2,12 +2,10 @@
 """Report how far a policy's raw actions leave the declared action bound.
 
 The action space is ``Box(-1, 1)``, but SB3's Gaussian policy is unbounded, so
-the sampled action routinely lands outside it.  Both training paths clip before
-stepping the environment -- SB3 at ``on_policy_algorithm.py:214-218`` and
-``policies.py:379`` (inside ``predict``), the JAX trainer in
-``collect_rollout`` inside ``_build_jit_fns``
-(``environments/shared/jax_train_fn.py``) -- so the plant and the reward both
-see an in-bound action.  What the clip hides is how hard the policy is pushing
+the sampled action routinely lands outside it.  SB3 clips before stepping the
+environment -- at ``on_policy_algorithm.py:214-218`` and ``policies.py:379``
+(inside ``predict``) -- so the plant and the reward both see an in-bound
+action.  What the clip hides is how hard the policy is pushing
 against the bound, and that is what this script measures.
 
 It matters because PPO stores the *raw* action and its ``log_prob`` while the
@@ -178,13 +176,13 @@ def main(argv: list[str]) -> None:
     for i in np.argsort(-per_actuator):
         print(f"  {names[i]:<{width}}  {per_actuator[i]:>8.1f}%  {np.abs(acts[:, i]).max():>8.2f}")
 
-    print("\nThe reward is not affected by any of this: both training paths clip")
+    print("\nThe reward is not affected by any of this: SB3 clips")
     print("before env.step, so reward_energy and reward_action_smoothness are")
     print("computed on in-bound actions.  What saturation costs is control")
     print("resolution, not reward -- a saturated component's gradient moves the")
     print("policy mean without moving the plant.")
     print("\nSeparately, base_env.py:783 passes the raw action to _get_reward_info")
-    print("while line 765 clips for ctrl.  Harmless under SB3 and the JAX trainer,")
+    print("while line 765 clips for ctrl.  Harmless under SB3,")
     print("but a direct caller that skips the clip is charged energy and")
     print("smoothness for magnitude the plant never sees.  This script clips.")
 

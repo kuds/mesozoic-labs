@@ -1,12 +1,13 @@
-"""Velociraptor MJX species configuration.
+"""FROZEN (D-D17): velociraptor's MJX plant registration. Nothing trains on it.
 
-Registers the Velociraptor species with the MJX environment so that
-``MJXDinoEnv("velociraptor", ...)`` works out of the box.
+The plant contract imports this module by name (a policy-interface digest
+input), checks it against ``RaptorEnv`` and executes ``build_mjx_observation``
+on it in its MJX probe on every SB3 training and evaluation run. It holds only
+the keys the probe reads. Do not edit, reformat or move it; see
+``environments/shared/mjx_env.py``.
 """
 
 from __future__ import annotations
-
-import math
 
 from environments.shared.mjx_env import register_species_mjx
 
@@ -15,51 +16,14 @@ from environments.shared.mjx_env import register_species_mjx
 # r_foot_touch(1), l_foot_touch(1)
 _SENSOR_R_FOOT = 10
 _SENSOR_L_FOOT = 11
-# Tail tip gyro starts after: gyro(3)+accel(3)+quat(4)+touch(2)+r_claw_pos(3)+l_claw_pos(3)+tail_pos(3)+tail_linvel(3)=24
-_SENSOR_TAIL_GYRO_START = 24
-_NATURAL_PITCH = 0.35
-_POSTURE_TARGET_FORWARD_Z = -math.sin(_NATURAL_PITCH)
 
 register_species_mjx(
     species="velociraptor",
     action_mapping="home-keyframe-residual/v1",
     frame_skip=5,
-    max_episode_steps=1000,
-    healthy_z_range=(0.3, 1.0),
-    max_tilt_angle=1.047,
     sensor_foot_indices=(_SENSOR_R_FOOT, _SENSOR_L_FOOT),
     sensor_gyro_start=0,
     sensor_accel_start=3,
     sensor_quat_start=6,
-    # Preserve the existing rounded nosedive baseline so reward shaping does
-    # not move the termination boundary in this isolated experiment.
-    natural_forward_z=-0.342,
-    posture_target_forward_z=_POSTURE_TARGET_FORWARD_Z,
-    sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
-    forward_vel_max=10.0,
-    fall_penalty=-100.0,
-    target_distance_range=(3.0, 8.0),
-    target_lateral_range=(-2.0, 2.0),
-    target_z=0.3,
     body_ids={"pelvis": 2},  # MuJoCo body ID for pelvis (world=0, prey=1)
-    termination_body_heights={
-        "tail_3": 0.05,  # tail_3 capsule radius=0.035 + margin
-        "tail_4": 0.04,  # tail_4 capsule radius=0.025 + margin
-        "tail_5": 0.03,  # tail_5 capsule radius=0.015 + margin
-    },
-    # Stage 3 success: either sickle claw tip proximity to prey.
-    # Gated by reward_weights["strike_bonus"] — inactive when 0 (stages 1-2).
-    success_sites=("r_claw_tip", "l_claw_tip"),
-    success_threshold=0.20,  # claw capsule (0.01) + prey sphere (0.15) + margin
-    success_bonus_key="strike_bonus",
-    reward_weights={
-        "forward_vel_weight": 1.0,
-        "alive_bonus": 0.1,
-        "energy_penalty_weight": 0.001,
-        "posture_weight": 0.2,
-        "approach_weight": 1.0,
-        "tail_stability_weight": 0.05,
-        "smoothness_weight": 0.05,
-        "strike_bonus": 10.0,
-    },
 )

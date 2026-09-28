@@ -323,7 +323,7 @@ ALGORITHM = "ppo"         # Change to: "ppo", "sac"
 ```
 
 All subsequent cells use `SPECIES` and `ALGORITHM` variables. The JAX/MJX path
-uses the same pattern in `notebooks/jax_training.ipynb`. Public documentation
+used the same pattern in `jax_training.ipynb` (retired by D-D17). Public documentation
 should link to these unified notebooks rather than retired per-species names.
 
 ### 6.2 Fix common notebook issues

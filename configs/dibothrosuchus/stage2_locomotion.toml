@@ -66,33 +66,6 @@ gradient_steps = 4               # Match train_freq to maintain the update-to-da
 [sac.policy_kwargs]
 net_arch = [512, 256]
 
-[jax]
-num_envs = 2048
-rollout_len = 64
-num_updates = 1000                      # Quadrupedal coordination needs more updates than a biped's balance stage
-ppo_epochs = 4
-minibatch_size = 512
-learning_rate = 1e-4
-max_grad_norm = 0.5
-gamma = 0.993
-gae_lambda = 0.95
-clip_range = 0.2
-ent_coef = 0.01
-fall_penalty = -10.0
-reset_noise_scale = 0.05
-init_qpos_noise = 0.01
-init_yaw_noise = 0.1
-obs_rms_decay_on_resume = 0.01          # Decay obs normalization count on resume
-warmup_updates = 80                     # ~8% of 1000 updates
-warmup_clip_range = 0.035
-warmup_ent_coef = 0.018
-ramp_updates = 250                      # ~25% of 1000 updates: gradual ramp for gait development
-ramp_attr = "forward_vel_weight"
-ramp_start_fraction = 0.16
-
-[jax.policy_kwargs]
-net_arch = [512, 256]
-
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py

@@ -25,10 +25,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install the package with SB3 training dependencies
 pip install -e ".[train]"
 
-# Install JAX/MJX for GPU-accelerated training
-pip install -e ".[jax]"
-
-# Or install all optional dependencies (training, JAX, visualization, dev tools)
+# Or install all optional dependencies (training, visualization, dev tools)
 pip install -e ".[all]"
 ```
 
@@ -44,12 +41,11 @@ pytest environments/velociraptor/tests/ -v
 
 ## Google Colab
 
-For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebooks use a species selector rather than separate files for each species, and they handle dependency installation automatically.
+For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook uses a species selector rather than separate files for each species, and it handles dependency installation automatically.
 
 Available notebooks:
 
 - `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"walk"` or a deliverable's stage id) for any of the six species with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
-- `notebooks/jax_training.ipynb` - JAX/MJX training for T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus on an NVIDIA GPU, one stage at a time via `CURRENT_STAGE`
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies
@@ -68,12 +64,3 @@ Optional training dependencies (`pip install -e ".[train]"`):
 |---------|---------|---------|
 | stable-baselines3 | >= 2.2.0 | RL algorithms (PPO, SAC) |
 | wandb | >= 0.16.0 | Experiment tracking |
-
-Optional JAX dependencies (`pip install -e ".[jax]"`):
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| mujoco-mjx | >= 3.0.0 | GPU-accelerated MuJoCo simulation |
-| jax[cuda12] | >= 0.4.20 | JAX with CUDA support |
-| flax | >= 0.8.0 | Neural network library for JAX |
-| optax | >= 0.1.7 | Gradient-based optimization for JAX |

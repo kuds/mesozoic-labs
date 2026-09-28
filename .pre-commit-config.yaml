@@ -7,7 +7,9 @@
 # manifest records and the other data files, and that it catches no Python
 # file. The Python modules a digest hashes stay under the ruff and whitespace
 # hooks: CI's pinned ruff keeps them from changing, and any edit to them moves
-# the behavior identities anyway.
+# the behavior identities anyway. The one exception is the frozen MJX core
+# (D-D17), which pyproject.toml's [tool.ruff] extend-exclude keeps from ruff
+# (these hooks pass --force-exclude); the whitespace hooks still cover it.
 exclude: '^(environments/[^/]+/(assets|references|data)/|configs/(plant_manifest\.generated\.json|plant_versions\.toml|[^/]+/recovery_calibration\.json|[^/]+/behaviors/))'
 
 repos:

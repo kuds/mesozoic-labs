@@ -5,7 +5,6 @@ before a policy is trained, replayed, or promoted against the wrong plant."""
 
 from __future__ import annotations
 
-import importlib
 import logging
 from pathlib import Path
 from typing import Any, Mapping
@@ -15,7 +14,6 @@ import numpy as np
 
 from . import physics_layer
 from .constants import (
-    _ACTION_MAPPING_MIDPOINT,
     _MISSING_IDENTITY,
     MODEL_IDENTITY_ATTRIBUTE,
     PHYSICS_SCHEMA,
@@ -97,74 +95,6 @@ def validate_environment_plant(
     if errors:
         raise PlantCompatibilityError(
             f"{artifact} is not the current {current.species} plant:\n- " + "\n- ".join(errors)
-        )
-
-
-def validate_mjx_environment_plant(
-    env: Any,
-    current: PlantIdentity,
-    *,
-    artifact: str = "runtime MJX environment",
-) -> None:
-    """Bind an actual MJX model and observation/control config to identity."""
-    model = getattr(env, "mj_model", None)
-    if not isinstance(model, mujoco.MjModel):
-        raise PlantCompatibilityError(f"{artifact} exposes no compiled mj_model for plant validation")
-    validate_compiled_plant(model, current, artifact=artifact)
-
-    try:
-        importlib.import_module(f"environments.{current.species}.mjx_config")
-        mjx_env_module = importlib.import_module("environments.shared.mjx_env")
-        expected = mjx_env_module._SPECIES_CONFIGS[current.species]
-    except (ImportError, KeyError) as exc:
-        raise PlantCompatibilityError(f"{artifact} has no canonical MJX registration: {exc}") from exc
-    config = getattr(env, "config", None)
-    if config is None:
-        raise PlantCompatibilityError(f"{artifact} exposes no MJX config for plant validation")
-
-    fields = (
-        "frame_skip",
-        "body_ids",
-        "sensor_foot_indices",
-        "sensor_foot_aux_indices",
-        "sensor_gyro_start",
-        "sensor_accel_start",
-        "sensor_quat_start",
-        "action_mapping",
-    )
-    errors = []
-    if str(getattr(config, "species", "")) != current.species:
-        errors.append(f"species: runtime={getattr(config, 'species', None)!r}, current={current.species!r}")
-    for field_name in fields:
-        actual_value = getattr(config, field_name, None)
-        expected_value = (
-            expected.get(field_name, _ACTION_MAPPING_MIDPOINT)
-            if field_name == "action_mapping"
-            else expected.get(field_name)
-        )
-        if actual_value != expected_value:
-            errors.append(f"{field_name}: runtime={actual_value!r}, registered={expected_value!r}")
-    action_dim = int(getattr(env, "action_dim", -1))
-    if action_dim != current.action_dim:
-        errors.append(f"action_dim: runtime={action_dim}, current={current.action_dim}")
-    if errors:
-        raise PlantCompatibilityError(
-            f"{artifact} is not the current {current.species} MJX interface:\n- " + "\n- ".join(errors)
-        )
-
-    # Observation width (decision D-C16): MJX had no width check, so a
-    # dropped or duplicated segment in build_mjx_observation would have
-    # trained a policy the identity could not describe.  Imported lazily:
-    # the package __init__ would cycle through policy_layer otherwise (A8).
-    from .policy_layer import _deterministic_probe_data
-
-    probe = _deterministic_probe_data(model)
-    target_pos = probe.mocap_pos[0] if model.nmocap else np.array([1.25, -0.45, 0.8])
-    observation = np.asarray(mjx_env_module.build_mjx_observation(probe, target_pos, config))
-    width = int(observation.shape[0]) if observation.ndim == 1 else -1
-    if width != int(current.observation_dim):
-        raise PlantCompatibilityError(
-            f"MJX observation width {width} does not match the plant identity ({current.observation_dim})"
         )
 
 

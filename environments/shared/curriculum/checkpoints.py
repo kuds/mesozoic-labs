@@ -656,9 +656,9 @@ def load_vecnorm_stats(
     return True
 
 
-#: Periodic checkpoints kept by default.  Matches the JAX backend's
-#: ``JaxTrainerConfig.max_checkpoints``, so a stage keeps the same amount of
-#: rollback history whichever backend produced it.
+#: Periodic checkpoints kept by default: five, the rollback depth the JAX
+#: trainer kept (its ``max_checkpoints``) until D-D17 retired it, so stages
+#: trained before and after the retirement keep the same history.
 DEFAULT_MAX_CHECKPOINTS = 5
 
 #: The three artifact families SB3's ``CheckpointCallback`` emits, as

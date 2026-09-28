@@ -301,7 +301,8 @@ def stance_panel_from_episode_duties(
 ) -> StancePanel:
     """Build the panel from per-episode duties that a caller already reduced.
 
-    The streaming callers -- SB3's evaluation callback and the MJX rollout --
+    The streaming caller -- SB3's evaluation callback (and the MJX rollout
+    until D-D17 retired it) --
     accumulate duty per episode as steps arrive rather than retaining a
     per-step trace for every episode of the panel.  They hand the reduced
     scalars here so the rules that actually define the gate stay in one place:

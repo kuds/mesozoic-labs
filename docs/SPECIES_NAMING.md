@@ -29,8 +29,7 @@ result artifacts are not renamed. Regenerate public catalog labels with
 
 Both Compsognathus variants are training selections in the SB3 notebook, with
 separate environment classes, configs, normalization statistics and checkpoint
-identities. JAX/MJX support remains limited to
-the original four species; backend-specific selectors follow the manifest.
+identities.
 See the [training guide](../environments/compsognathus/README.md#training).
 
 Name references: [Velociraptor mongoliensis (AMNH)](https://www.amnh.org/explore/ology/ology-cards/018-velociraptor-mongoliensis),

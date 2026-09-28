@@ -159,12 +159,6 @@ absolute tilt remains the safety signal for termination.
 - Add proximity reward (bonus for getting closer)
 - Reduce `prey_distance_range` to spawn prey closer
 
-## JAX/MJX Backend
-
-The repository includes an experimental shared JAX/MJX PPO path. See the
-[JAX/MJX training guide](../../website/docs/training/jax.md) for its current
-scope, installation extra, and backend-parity limitations.
-
 ## Troubleshooting
 
 **"No module named 'envs'"**

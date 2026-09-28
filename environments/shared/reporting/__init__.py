@@ -25,7 +25,7 @@ from that layout:
 * :mod:`~environments.shared.reporting.stage_layout` — where a stage's
   generated figures and replays live, and the local-staging publish
 * :mod:`~environments.shared.reporting.stage_artifacts` — post-training
-  artifact generation for the SB3 and JAX/MJX backends
+  stage artifact generation
 * :mod:`~environments.shared.reporting.stance_report` — the
   ``stance_quality/v1`` checkpoint report and its probes, behind
   ``scripts/stance_gate_report.py``; deliberately not re-exported here
@@ -49,7 +49,6 @@ from .stage_artifacts import (
     build_stage_results_from_eval_data,
     evaluate_stage_checkpoints,
     generate_stage_artifacts,
-    save_jax_stage_artifacts,
 )
 from .summaries import build_result_summary, save_results_json
 from .text_summaries import write_stage_summary, write_training_summary
@@ -67,7 +66,6 @@ __all__ = [
     "generate_stage_artifacts",
     "parse_optional_bool",
     "save_evaluation_episodes",
-    "save_jax_stage_artifacts",
     "save_result_bundle",
     "save_results_csv",
     "save_results_json",

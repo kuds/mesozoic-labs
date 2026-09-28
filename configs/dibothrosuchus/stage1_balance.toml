@@ -75,30 +75,6 @@ gradient_steps = 8                # 2:1 data-to-update ratio
 [sac.policy_kwargs]
 net_arch = [512, 256]             # Match PPO architecture (obs is 80 with the Phase C command segment)
 
-[jax]
-num_envs = 2048                         # Parallel MJX environments on GPU
-rollout_len = 64
-num_updates = 500                       # Balance converges fast
-ppo_epochs = 4
-minibatch_size = 512
-learning_rate = 3e-5                    # Match SB3 PPO
-learning_rate_end = 1e-5
-max_grad_norm = 5.0
-gamma = 0.98
-gae_lambda = 0.95
-clip_range = 0.2
-vf_coef = 0.25
-vf_clip_range = 10.0
-ent_coef = 0.005
-target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this
-fall_penalty = -10.0                    # Smaller than the SB3 penalty: large penalties let value loss dominate early JAX training
-reset_noise_scale = 0.05                # Match [env]: stage 1a operating point (PLANT_VALIDATION §7/§12).
-init_qpos_noise = 0.01                  # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
-init_yaw_noise = 0.1                    # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
-
-[jax.policy_kwargs]
-net_arch = [512, 256]
-
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
