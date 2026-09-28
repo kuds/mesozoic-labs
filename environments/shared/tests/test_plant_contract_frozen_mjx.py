@@ -51,9 +51,15 @@ def test_frozen_function_keeps_its_hashed_tokens(target: str) -> None:
     module, name = target.split(".")
     function = getattr(importlib.import_module(f"environments.shared.{module}"), name)
     expected = {"qualname": name, "tokens_sha256": f"sha256:{FROZEN_TOKEN_DIGESTS[target]}"}
+    if module == "action_filter":
+        why = (
+            "Its tokens are part of trex's policy-interface digest (the low-pass filter): change it only inside a "
+            "trex policy_interface_revision bump and update this pin, otherwise revert the change."
+        )
+    else:
+        why = "It is frozen by D-D17: its tokens are part of four species' policy-interface digests. Revert the change."
     assert _callable_semantics(function) == expected, (
-        f"environments/shared/{module}.py: {name} was edited, reformatted or moved. It is frozen by D-D17: "
-        "its tokens are part of four species' policy-interface digests. Revert the change."
+        f"environments/shared/{module}.py: {name} was edited, reformatted or moved. {why}"
     )
 
 

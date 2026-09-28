@@ -219,8 +219,9 @@ idealized plant and would not survive transfer.**
   policy input.
 - **No hardware abstraction at all** — grep for `ros2|rclpy|dynamixel|servo|pwm|
   serial|HAL` returns zero hits.
-- **The network is tiny** — a `[512, 256]` MLP (tanh under PPO; `net_arch`
-  in each stage TOML's `[ppo.policy_kwargs]`) — so compute is not the barrier.
+- **The network is tiny** — a `[512, 256]` MLP for the four large species and
+  `[128, 128]` for the compsognathus pair (tanh under PPO; `net_arch` in each
+  stage TOML's `[ppo.policy_kwargs]`) — so compute is not the barrier.
   The barrier is missing plumbing.
 
 ### 3.6 Author-stated posture

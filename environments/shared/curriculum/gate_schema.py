@@ -28,8 +28,9 @@ enabled.  Running without a gate is still possible, but only by declaring
 advance rather than passing by default.
 
 Adding a new gate kind means adding an entry to :data:`GATE_KINDS` and
-teaching both backends to evaluate it — the schema deliberately will not let
-one backend understand a gate the other silently ignores.
+teaching every training backend (since D-D17, only SB3) to evaluate it — the
+schema deliberately will not let one backend understand a gate another silently
+ignores.
 """
 
 from __future__ import annotations
@@ -272,14 +273,16 @@ DEFAULT_CERTIFICATION_SEEDS = 1
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
 #: Name of the per-backend override sub-table: ``[curriculum.jax]`` in TOML,
-#: ``curriculum_kwargs["jax"]`` once loaded.  The shared scalar thresholds are
-#: compared against raw episode returns on both backends, but the two do not
-#: pay the same return for the same behaviour: the MJX stage-2/3 alive bonus
-#: is height-gated (a deliberate legacy kernel) and ``[jax] fall_penalty``
-#: overrides ``[env] fall_penalty``, so one shared number encodes a different
-#: bar per backend.  The sub-table lets a stage state a JAX-calibrated bar
-#: ADDITIVELY: absent, nothing changes; present, only the keys it names are
-#: replaced on the JAX path (see :func:`apply_backend_overrides`).
+#: ``curriculum_kwargs["jax"]`` once loaded.  The shared scalar thresholds were
+#: compared against raw episode returns on both backends, but the two did not
+#: pay the same return for the same behaviour: the retired MJX stage-2/3 alive
+#: bonus was height-gated (a deliberate legacy kernel) and ``[jax]
+#: fall_penalty`` overrode ``[env] fall_penalty``, so one shared number encoded
+#: a different bar per backend.  The sub-table let a stage state a
+#: JAX-calibrated bar ADDITIVELY: absent, nothing changes; present, only the
+#: keys it names are replaced for that backend (:func:`apply_backend_overrides`,
+#: which has had no caller since D-D17 retired the JAX path; the table is still
+#: validated, docs/CLEANUP_PLAN_2026_09.md §4.9).
 BACKEND_OVERRIDE_TABLES = frozenset({"jax"})
 
 #: The only keys an override table may carry: the legacy scalar thresholds.

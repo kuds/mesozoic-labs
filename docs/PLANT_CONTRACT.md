@@ -153,9 +153,10 @@ to.
 The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes.
 Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17). Four species (trex,
 velociraptor, brachiosaurus and dibothrosuchus) still declare the dual SB3/MJX backend, because their policy-interface
-digests hash the source tokens of a frozen MJX interface core (`build_mjx_observation` and the species registration in
-`environments/shared/mjx_env.py`, `jax_setup.make_obs_fn`, the `mjx_utils` action-mapping and home-reset functions,
-`obs_functions.py` and each species' `mjx_config.py` registration) and record an MJX observation probe. For these
+digests hash the source tokens of a frozen MJX interface core (`build_mjx_observation` in `environments/shared/mjx_env.py`,
+`jax_setup.make_obs_fn`, the `mjx_utils` action-mapping and home-reset functions and the `obs_functions.py` observation
+builders), record each species' `mjx_config.py` registration (its module name and registered values) and record an MJX
+observation probe. For these
 species the canonical writer requires SB3 and MJX to produce the same ordered observation (the two compsognathus plants
 are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the environment lists
 `jax-mjx` among its training backends). Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) both probes

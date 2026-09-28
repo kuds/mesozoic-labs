@@ -13,7 +13,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
-| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings, all open — **execution deferred until the T-Rex clears stages 1–3**; see below |
+| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B), the other 10 open — **execution deferred until the T-Rex clears stages 1–3**; see below |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -771,12 +771,16 @@ robustness, **LOW** = cosmetic / QoL.
   D-D17: `build_mjx_observation` and the four registrations are part of the
   frozen MJX interface core (its tokens and their values enter the
   policy-interface digests), and a new species declares SB3 only, so no new
-  registration reaches `build_mjx_observation`. Neither fix (give the MJX
-  registration the observation schema, or assert exactly one of
-  `{"torso", "pelvis"}` in `body_ids`) can be taken without moving four
-  species' digests; a backend added back takes one
-  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.10). The entry closes
-  when the last dual species' SB3-only revision drops its MJX branch.
+  registration reaches `build_mjx_observation`. Either fix inside the frozen
+  core (give the MJX registration the observation schema, or assert exactly
+  one of `{"torso", "pelvis"}` in `body_ids` in `build_mjx_observation`) would
+  move four species' digests. The same one-root assertion in the plant
+  contract's MJX probe (`policy_layer._jax_policy_interface_payload`, which is
+  not hashed) would move none and would close this entry, because the probe
+  already requires the schema's root; it is left to cleanup CU-7. Otherwise a
+  backend added back takes one of the fixes
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.10), and the entry
+  closes when the last dual species' SB3-only revision drops its MJX branch.
 - **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
   declare exactly one mocap body. All four comply and it fails loudly, but the
   constraint was introduced to derive a segment label, not because the contract
@@ -1016,7 +1020,9 @@ none of `foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` o
 permanently-zero input channels were revived by the note-8 repair.)
 
 Repair is an MJCF change of the `aa87445` shape — per-geom touch sites and sensors, appended so
-existing sensor indices keep their positions, summed per foot on both backends — and moves that
+existing sensor indices keep their positions, summed per foot in the SB3 env (for velociraptor the
+frozen MJX registration is not edited, so under D-D17 that policy-interface revision is where it
+declares itself SB3-only, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1) — and moves that
 species' physics and policy fingerprints. Full evidence, method and reproduction in
 [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
 re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.

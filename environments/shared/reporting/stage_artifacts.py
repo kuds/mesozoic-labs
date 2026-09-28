@@ -1,8 +1,7 @@
 """Post-training stage artifact generation.
 
-The shared entry-points that the training notebook, the command-line trainer
-and the gate backfill tool call, so that every stage records the same
-artifacts."""
+The shared entry-points that the training notebook and the gate backfill tool
+call, so that every stage they judge records the same artifacts."""
 
 from __future__ import annotations
 

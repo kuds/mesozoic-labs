@@ -623,7 +623,7 @@ D-D2.
 Amended by D-D17 (cleanup PR-B, 2026-09-28): the `MJXEnvConfig` dataclass,
 `canonicalize_env_kwargs`, test_mjx_phase_c_interface.py and the MJX suite are
 deleted (a type-checking-only `MJXEnvConfig` alias keeps the frozen signature
-importable), so PR-9 edits no MJX config, loses no MJX test fields and runs no
+type-checkable), so PR-9 edits no MJX config, loses no MJX test fields and runs no
 MJX suite; `command_frame.py` keeps its MJX refusal until PR-9 rewrites the
 file. PR-9 still leaves the frozen MJX interface core untouched and passes
 `plant_contract --check` (the cleanup plan's §3.4).

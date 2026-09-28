@@ -12,11 +12,9 @@ results/
 │   │   ├── stage1_balance.gif
 │   │   ├── stage3_strike.gif
 │   │   └── summary.json
-│   ├── sac/
-│   │   ├── collected_results.csv
-│   │   ├── stage3_strike.gif
-│   │   └── summary.json
-│   └── jax_ppo/                    # a legacy JAX/MJX PPO result (JAX retired by D-D17)
+│   └── sac/
+│       ├── collected_results.csv
+│       ├── stage3_strike.gif
 │       └── summary.json
 ├── trex/
 │   └── ppo/

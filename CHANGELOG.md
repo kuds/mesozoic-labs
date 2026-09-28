@@ -23,9 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test_plant_contract_*.py` glob, and so does the `test (shared, …)`
   matrix; it is deleted with the core. `test_config.py` also gains
   `test_a_retired_jax_table_is_rejected` (Migration, below).
+- **The `[curriculum]` schema's fail-closed checks keep their tests**
+  (cleanup PR-B; `environments/shared/tests/test_gate_schema_validation.py`).
+  The refusal of an unknown `gate_kind` and the validation of a
+  `[curriculum.jax]` override table run on every SB3 curriculum run but were
+  tested only through the JAX curriculum; 11 tests now drive them through
+  `validate_gate_config`, `thresholds_from_configs` and `load_stage_config`.
 - **D-D17's remaining amendments appended** (cleanup PR-B, 2026-09-28;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6–§8, `docs/CONSOLIDATION_PLAN_2026_09.md`
-  §3 and §6–§8). A7 now carries "Narrowed by D-D17", and D-A5, D-B13, D-C3,
+  §3 and §5–§8). A7 now carries "Narrowed by D-D17", and D-A5, D-B13, D-C3,
   D-C4, D-C7, D-C16 and G1 (in both plans) "Amended by D-D17"; with PR-A's
   five amendments and A6, every row D-D17 names now carries its note. New
   paragraphs follow the recipes plan's MJX risk and its invariant 9, and the
@@ -168,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never edited, and a species leaves it only by declaring itself SB3-only in
   its next deliberate `policy_interface_revision` bump. Two
   type-checking-only aliases (`MJXEnvConfig = Any`, `SpeciesContext = Any`)
-  keep the hashed signatures importable, and `[tool.ruff]` excludes the 8
+  keep the hashed signatures type-checkable, and `[tool.ruff]` excludes the 8
   files (`extend-exclude`, with `force-exclude = true`). Its anchor token
   digests, unchanged and pinned by the new test:
   - `mjx_env.build_mjx_observation`: `sha256:d1a8ac56e6f533670690897f47756ebf07cc2e499d6f56da89a5bea7d2446ac4`
@@ -252,8 +258,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   T-Rex and Dibothrosuchus SB3 envs and says why the knobs stay
   (`task_sha256` inputs). Kept, reworded as latent: the quadruped MEDIUM
   (two code paths decide whether a species is a quadruped). The probe still
-  runs `build_mjx_observation`, but no new registration reaches it, and
-  neither fix can be taken without moving four species' digests. A known
+  runs `build_mjx_observation`, but no new registration reaches it; a fix
+  inside the frozen core would move four species' digests, while a one-root
+  assertion in the plant contract's probe would not (left to CU-7). A known
   leftover: the comment at `environments/trex/assets/trex.xml:554` still
   names `mjx_config.py`'s `target_standing_z`, `_NATURAL_PITCH` and
   `healthy_z_range`, which the frozen registration no longer holds; MJCF

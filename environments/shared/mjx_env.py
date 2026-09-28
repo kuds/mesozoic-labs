@@ -11,9 +11,9 @@ is computed with backend parity: on every SB3 training and evaluation run
 ``plant_contract --check``.
 
 Do not edit, reformat or move ``build_mjx_observation``. A token change (a
-refactor, an annotation, an f-string, a formatter release) moves four species'
-plant identities and every task digest built on them; comments and docstrings
-are not hashed. ``test_plant_contract_frozen_mjx.py`` names the function that
+refactor, an annotation, a formatter release) moves four species' plant
+identities and every task digest built on them, and an f-string makes the plant
+contract refuse them outright; comments and docstrings are not hashed. ``test_plant_contract_frozen_mjx.py`` names the function that
 moved. The core goes once all four species have declared themselves SB3-only,
 each inside a ``policy_interface_revision`` bump (docs/CLEANUP_PLAN_2026_09.md §4.1).
 """

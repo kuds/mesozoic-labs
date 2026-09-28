@@ -754,7 +754,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   code cell parses, as `.github/workflows/python-ci.yml` does; an edited notebook
   round-trips through `json.dump` with `indent=1`, the plan's §5 PR process); the
   SB3 job for trainer changes. The review container is a venv with SB3 2.9.0,
-  torch and mujoco 3.10.0, without JAX (no test needs it since cleanup PR-B) and
+  torch and mujoco 3.10.0, without JAX (since cleanup PR-B only the kept `jax`
+  parameter of `test_obs_functions.py` uses it, and it skips without JAX) and
   without IPython (since the notebook-only PR-12 slice deleted
   `test_behavior_notebook.py` no test needs it).
 - Never write an AI model or vendor name into repository files; cite PR numbers,

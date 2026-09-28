@@ -54,7 +54,7 @@ Core requirements (from `pyproject.toml`):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| mujoco | >= 3.0.0 | Physics simulation |
+| mujoco | == 3.10.0 | Physics simulation (pinned; the plant contract requires this exact version) |
 | gymnasium | >= 0.29.0 | RL environment API |
 | numpy | >= 1.24.0 | Numerical computing |
 
