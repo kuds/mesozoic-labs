@@ -41,8 +41,10 @@ No locomotion gate reads a foot contact.
 [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) proposes the fix
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut; every one of its
-decisions (GQ-1..GQ-18) is open. Section 2 labels each audited node, and the
-plan's §10 holds a prompt for continuing the gait work in a fresh session.
+decisions (GQ-1..GQ-18) is open. Section 2 labels each audited node except
+the in-training dibothrosuchus re-run, which section 3's session-4 row
+describes, and the plan's §10 holds a prompt for continuing the gait work in
+a fresh session.
 
 ### Landed on `main` (all merged since 2026-09-12)
 

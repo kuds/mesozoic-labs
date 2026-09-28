@@ -86,12 +86,12 @@ PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6).
 | GQ-5 | Gate, reward, or both | (a) Gate only. (b) Reward only. (c) Both: gate report-only then enforced; reward kit inert; each species' revision just before its retrain. | **(c).** A gate alone turns each retrain into an 8 h FAIL; rewards alone certify nothing. | PR-G5..PR-G9 |
 | GQ-6 | Contact source | (a) Floor truth: gates via the hook (no digest); rewards via a `support_source` kwarg (legacy `"touch"`) inside each task revision. (b) Touch sensors. | **(a).** Touch shows 0.50–0.57 phantom support on the robot and reads handoffs as flight (velociraptor 49% against 33%; dibothrosuchus 0.39 body weights against 1.00). Touch stays in the observation. | PR-G1 |
 | GQ-7 | Certification statistic | (a) Per-episode qualification, binomial LCB over a 40-episode panel (seeds 3042–3081, D-B17's role), bar 0.80 (37/40). (b) Bar 0.70 (34/40). (c) Panel means, as v1. (d) A 60-episode panel. | **(a).** Means hid trex seed 44's hop bouts and admit lunge-then-fall. Against `stance_gate.py:53-61`: at 37/40 a policy qualifying on 99% of episodes fails 0.1% of panels, 96.7% (velociraptor's fall rate) 4%, 95% 14%, 90% 58%. | PR-G3 |
-| GQ-8 | What `locomotion_gait/v1` enforces first | (a) The separators that differ by at least 4× (alternation, simultaneous, lead swaps, flight, foot-on-foot and phantom by ≥ 10×; hop-flight 4.7×) and are stable across hardware reruns (§4.3), per-episode length and displacement speed, and a flight cap on bipeds whose gate speed is below Froude 0.5; the rest report-only, provisional like D-B2. (b) The full literature table. (c) (a) plus `min_stride_over_L` 0.3 (report-only or enforced): genuine walkers 0.336–0.742 L including the final checkpoints, hops 0.114–0.218 L. | **(a).** Literature bands fail the genuine walkers (§4.4). Tightening later is a re-judge, not a retrain. | PR-G5 |
+| GQ-8 | What `locomotion_gait/v1` enforces first | (a) The separators that differ by at least 4× (alternation, simultaneous, lead swaps, flight, foot-on-foot and phantom by ≥ 10×; hop-flight 4.7×) and hold on both the certified and the final checkpoints in the CPU replays (§4.3; stability across realizations is PR-G5's five-realization acceptance), per-episode length and displacement speed, and a flight cap on bipeds whose gate speed is below Froude 0.5; the rest report-only, provisional like D-B2. (b) The full literature table. (c) (a) plus `min_stride_over_L` 0.3 (report-only or enforced): genuine walkers 0.336–0.742 L including the final checkpoints, hops 0.114–0.218 L. | **(a).** Literature bands fail the genuine walkers (§4.4). Tightening later is a re-judge, not a retrain. | PR-G5 |
 | GQ-9 | Quadrupeds | (a) Enforce a minimal set now: flight ≤ 0.05, minimum limb duty ≥ 0.20, fore and hind pair alternation ≥ 0.75; Hildebrand band report-only. (b) Report-only until a quadruped walker is accepted on video. (c) Full set with the band. | **(a).** The false pass is live (the skid); no quadruped walker is certified, so nothing is stranded; walk, trot and pace all meet these floors, which PR-G1's synthetic fixtures must prove. | PR-G5 |
 | GQ-10 | Order of gate revisions | (a) Locomotion on all six first; stance v2 per species only inside a revision that retrains that chain (the robot with its `gait-r1`); recovery separately. (b) All at once. | **(a).** Stance v2 fails the compsognathus and velociraptor stances, and `select_trunk` stops at a run's first refused node, stranding both genuine walkers; (b) also costs at least 15 h more. | PR-G8 |
 | GQ-11 | Re-certifying the genuine walkers (compsognathus `20260921_203149`, velociraptor `20260922_125248`) | (a) Re-panel: copy the certified handoff pair byte-identically into a fresh run with its `ancestors/` records; JUDGE rolls the panel. (b) A re-judge record that reuse follows (amends D-A23). (c) Retrain both walks (3h49m + 6h30m). (d) Re-judge in place. | **(a).** No reuse rule changes; it has the widen tool's shape (a node judged in a new run). (d) is refused: both bundles are complete. | PR-G4 |
 | GQ-12 | Stance v2 bar against trex's two-seed bar | 0.80: seed 44 fails (35/40, LCB 0.755), trex stance falls to 1 of 2 seeds. 0.70: it passes. | **0.80**, applied when trex stance adopts v2, with a third seed scheduled then. | PR-G8 |
-| GQ-13 | `recovery_quality/v2` (support clause) | (a) Register; adopt at the trex recovery's next revision, re-freezing the nulls; compsognathus_robot recovery adopts v2 inside the robot `gait-r1` (through CU-13's `extends`), compsognathus at its next recovery session. (b) Adopt now: the certified seed-44 recovery fails (5/40). (c) Never. | **(a).** | PR-G9 |
+| GQ-13 | `recovery_quality/v2` (support clause) | (a) Register; adopt at the trex recovery's next revision, re-freezing the nulls; compsognathus_robot recovery adopts v2 inside the robot `gait-r1` (its `[env]` follows the stance through CU-13's `extends`; its `[curriculum]` names v2 directly, since `extends` never inherits `[curriculum]`), compsognathus at its next recovery session. (b) Adopt now: the certified seed-44 recovery fails (5/40). (c) Never. | **(a).** | PR-G9 |
 | GQ-14 | Robot feet | (a) Keep the sole-to-sole collision (contype/conaffinity 5/26 and 9/22, `compsognathus_robot.xml:181,254`); add floor-truth support and a foot-collision penalty. (b) `<exclude>` the pair: physics revision r1 → r2, every robot digest moves, and legs pass through each other in sim only. (c) Narrower soles or wider hips (physics and hardware). | **(a)**; (c) if the stance pilot shows stacking persists. | Robot `gait-r1` |
 | GQ-15 | Alternation incentive | (a) A clock-free event reward at floor-truth touchdowns (§5.3). (b) A phase clock in the observation: a policy-interface revision widening cannot carry (only the +3 command columns, `PLANT_CONTRACT.md:93-97`), so fresh stances everywhere. (c) Penalties only. | **(a)**; (b) if pilots stall. | PR-G7 |
 | GQ-16 | Where the reward kit lands | (a) After PR-9, which edits the same constructors and deletes the behavior identity. (b) Before PR-9 under CU-12's acceptance. | **(a)**, unless the robot retrain must precede PR-9. | PR-G6 |
@@ -113,8 +113,9 @@ It only reads `data` and edits no species env file (those are byte-hashed, `CLEA
   above 0.1 N and mean floor force, limb-to-limb contact, non-foot floor force, the env's
   `_aggregated_foot_contact_forces()` (`base_env.py:915`) and kinematics. Evaluation envs only: a Python contact loop
   costs about 50 µs per substep (`base_env.py:1174-1176`).
-- **`events.py`**: a limb is down when its floor force exceeds 0.1 N on at least half the substeps, the channel that
-  matched video on every node. Debounce and merge windows are 20 ms, defined in seconds (2 steps is 20 ms at 0.01 s
+- **`events.py`**: a limb is down when its floor force exceeds 0.1 N on at least half the substeps, the audit's floor-truth channel, which
+  agreed with video wherever a frame could resolve the contact (audit §2.5; hops, taps and 20 ms flights come from the
+  contact data alone). Debounce and merge windows are 20 ms, defined in seconds (2 steps is 20 ms at 0.01 s
   but 40 ms at 0.02 s); left and right touchdowns within 20 ms are one simultaneous event `B`, per pair on quadrupeds.
 - **`metrics.py`**: `episode_gait_metrics(trace, morph, settle)`, a frozen dataclass; an undefined value is NaN,
   which gates treat as unmeasured (`finite_gate_metric`, `gate_schema.py:377`).
@@ -138,7 +139,7 @@ six statues putting 99% of its floor load on foot geoms.
 | velociraptor run / stance | flight 0.49 / 0.25 | 0.33 / 0.15 | minimum over substeps drops brief contacts |
 | compsognathus stance | unsupported 0.013 | 0.000 | handoffs inside one 20 ms step |
 | dibothrosuchus skid | 0.39 body weights | 1.00 | 10–30 ms contacts lost to the minimum |
-| trex, all nodes | agrees; misses 5–8% at contact edges | — | — |
+| trex, all nodes | agrees; misses 5–8% at contact edges on locomotion, under 2% on stance and recovery | — | — |
 
 ### 3.3 Metric definitions
 
@@ -253,8 +254,8 @@ realizations. v2 with no `B` touchdown per push window: 5/40 (0.051); at most on
 | Metric (literature band) | Genuine walkers | Hops |
 |---|---|---|
 | Stride within 0.67–1.5× of 2.3·Fr^0.3·L | compsognathus 0.35–0.38 L (0.38×); velociraptor 0.65–0.74 L (0.23×) | 0.11–0.22 L |
-| Walking duty 0.55–0.65 | compsognathus right foot 0.49–0.52 | trex 0.56–0.66 |
-| Robinson duty symmetry ≤ 10% | compsognathus 15–21%; velociraptor 13–30% | trex 2–9% |
+| Walking duty 0.55–0.65 | compsognathus right foot 0.49–0.52 | trex seed 42 0.56–0.66, seed 44 0.48–0.53 |
+| Robinson duty symmetry ≤ 10% | compsognathus 15–21%; velociraptor 13–30% | trex 0–9% |
 | PCI ≲ 5% | 25–36% (10–12 steps per stride) | — |
 | \|μφ − 0.5\| ≤ 0.15 | 0.06†, 0.04†, 0.07† | 0.44–0.49† |
 | Slip while down | velociraptor 0.9–1.1 m/s (toe roll); compsognathus 0.05 | 0.07–0.35 |
@@ -267,7 +268,8 @@ panels confirm it.
 ### 4.5 Plumbing
 
 - **Manager**: a branch beside `manager.py:290-297`; the `else` stays fail-closed (:298-311). The supplementary
-  evaluation (`advancement.py:405-432`) runs its eval env through the recorder.
+  evaluation (`advancement.py:225-277`, called at :329) and the standalone evaluation (:350-432) run their eval env
+  through the recorder.
 - **Judge**: `evaluate_stage_gate` (`reporting/gates.py:688`) gains an arm before the closed fall-through (:776-784)
   that reads the verdict off `gait_report.json`, as `_stance_stage_gate` (:213) does, refusing a report scored under
   other thresholds or another handoff pair; `evaluate_recorded_gate` (:60) returns None without the gait counts.
@@ -300,7 +302,9 @@ panels confirm it.
    revision.
 2. **Carve-out**: a new kwarg enters every stage's effective config through the signature (:133-136).
    `_effective_env_kwargs` pops each kit key absent from `[env]` and equal to its legacy value, like the compsognathus
-   push keys (:141-158) and the command keys (:159-170).
+   push keys (:141-158) and the command keys (:159-170). `config.save_stage_config` (`config.py:756-788`), which
+   records every constructor default in `reward_weights`, gets the same carve-out, so the recorded `stage_config.json`
+   and the harness's `stage_config_view_sha256` lines are unchanged at defaults.
 3. **Hashed code untouched**: `_get_obs`, `_scale_action`, `reset`, and `_cache_ids` on the compsognathus pair
    (`plant_contract/policy_layer.py:360-361,397,399-404`). Kit state resets in `_reset_gait_state`
    (`base_env.py:700`), which every species' `_spawn_target` already calls; the substep loop (:1178-1185) is not
@@ -380,8 +384,8 @@ robot sessions and PR-13 (amends D-D13).
 | PR-G4 Re-panel | `scripts/repanel_checkpoint.py` (GQ-11) | about +350, tests +600 | PR-G3 | none | refuses a failed or non-handoff source and an occupied target; copies hash equal; the verdict records the source handoff | Before PR-G5 |
 | PR-G5 Locomotion gate | six locomotion TOMLs declare `locomotion_gait/v1`; re-panel the two genuine walkers | TOML + tests | PR-G3, PR-G4 | **gate revision**: only those stages' `gate_sha256` and `stage_config_view_sha256` lines | fails both trex walkers, the robot, the skid and every statue; passes compsognathus and velociraptor (certified and final checkpoints) identically over five chaos realizations | Before PR-11 and any retrain |
 | PR-G6 Reward kit | §5.2–5.3, inert | about +600, tests +500 | CU-11, CU-12, PR-9 (GQ-16) | none at defaults (`behavior` lines only if before PR-9) | CU-11 golden unchanged; harness diff empty; `plant_contract --check`; the §5.5 re-scoring table | After PR-9 |
-| PR-G7 `gait-r1` | one TOML PR per species×stage (§5.4), merged just before its session | TOML | PR-G5, PR-G6, pilots | **task revision** (and gate revision if rails move) | statue re-measured; harness diff names only revised stages; retrained node passes PR-G5 | Robot, trex, dibothrosuchus, brachiosaurus |
-| PR-G8 Stance v2 | per species inside its `gait-r1` (GQ-10, GQ-12) | TOML | PR-G3 | **gate revision** | the retrained (or trex seed-42) stance passes | With each revision |
+| PR-G7 `gait-r1` | one TOML PR per species×stage (§5.4), merged just before its session | TOML | PR-G5, PR-G6, pilots; CU-13 for the robot stance (its recovery follows it through `extends`) | **task revision** (and gate revision if rails move) | statue re-measured; harness diff names only revised stages; retrained node passes PR-G5 | Robot, trex, dibothrosuchus, brachiosaurus |
+| PR-G8 Stance v2 | per species inside its `gait-r1` (GQ-10, GQ-12) | TOML | PR-G3 | **gate revision** | the retrained stance passes; trex stance keeps v1 until a trex stance retrain (GQ-12's third seed), since adopting v2 without one makes rule 7 refuse the seed-42 stance that §5.4's `TRUNK_FROM = "20260914_123816"` reuses | With each revision |
 | PR-G9 Recovery v2 | register; re-freeze nulls; adopt per species (GQ-13) | about +300 | PR-G3 | **gate revision** at adoption | §4.3 D reproduces | Later |
 | PR-G10 PR-13 clause | `terrain_command/v1` reads `classify_episode` (GQ-18) | in PR-13 | PR-G3 | PR-13's | PR-13's | With PR-13 |
 
@@ -437,7 +441,9 @@ PR-G0 under Added; each revision under Changed, naming the digest lines it moves
   synthetic fixtures and GQ-8's separators (at least 4× apart).
 - **Hardware chaos**: episodes diverge between the recording GPU and a CPU replay (trex seed 44, seed 3042: duty
   0.0675 recorded, 0.009 replayed, 0.0625 after a 1e-7 nudge; recovery successes 28–34 over five realizations; one
-  compsognathus fall on CPU only). Counts held (the hop bouts fell in the same six seeds). PR-G5 requires identical
+  compsognathus fall on CPU only). Verdicts held and the hop bouts fell in the same six seeds, but counts moved: recovery
+  28–34, and seed 3042 clears stance v2 on the CPU replay (duty 0.009) but probably not at the recorded 0.0675, so
+  §4.3 C's 35/40 depends on the realization. PR-G5 requires identical
   verdicts over five realizations.
 - **Registry errors** fail a good node or blind the non-foot check, which stays report-only until tested.
 - **Sampling**: the robot's stride is 5 control steps; windows are in seconds; 2 s contact sheets alias hops, so video
@@ -461,8 +467,9 @@ PR-G0 under Added; each revision under Changed, naming the digest lines it moves
 - Gate the hunts' approach gait (`task_success/v1` and the reward-and-length hunts keep no gait clause; a hunt child
   may regress to a hop).
 - Reject an alternating shuffle (short alternating steps) unless GQ-8 (c) enforces `min_stride_over_L`.
-- Gate on literature bands, joint phase, symmetry indices or sim-to-real targets; add a phase clock, motion priors or
-  a backend.
+- Gate on literature bands, joint phase, symmetry indices or sim-to-real targets; add motion priors or a backend; add a
+  phase clock unless the pilots stall and GQ-15 (b) is decided, as its own policy-interface revision (fresh stances
+  everywhere).
 - Decide: §2 proposes; the maintainer decides.
 
 ## 10. Continuing this work
@@ -475,8 +482,9 @@ Continue the gait-quality work in the mesozoic-labs repository.
 1. Read first: docs/GAIT_QUALITY_PLAN_2026_09.md (the plan), docs/investigations/GAIT_AUDIT_2026_09.md (its
    evidence), docs/NEXT_STEPS.md, docs/CLEANUP_PLAN_2026_09.md, docs/CONSOLIDATION_PLAN_2026_09.md and
    docs/KNOWN_ISSUES.md. Line numbers drift with every merge; re-read each file:line before relying on it. If
-   PR-G0, the docs-only records PR that adds the plan and the audit note, has not merged, read them on its branch
-   and land it first.
+   PR-G0, the docs-only records PR that adds the plan and the audit note, has not merged, read them on its open pull
+   request (the maintainer can name it) and ask the maintainer to review and merge it (GQ-1 is open; do not merge or
+   rebuild it yourself).
 2. Check the maintainer's answers to GQ-1..GQ-18 (plan §2; a taken decision appears as a D-D row in
    docs/BEHAVIOR_RECIPES_PLAN.md §6.2). Ask for any still open before building on it, especially GQ-2 (the
    in-training dibothrosuchus re-run), GQ-3 (sessions meanwhile) and GQ-5 (gate, reward or both).
@@ -485,7 +493,8 @@ Continue the gait-quality work in the mesozoic-labs repository.
    cleanup PRs in CLEANUP_PLAN §3 order, not gait code.
 4. Once 0.3.9 is cut, start PR-G1 (the gait library, plan §3.1; it depends on CU-9), then PR-G2 (report-only gait
    reports). Use docs/investigations/gait_2026_09/gait_probe.py and gait_audit_2026_09.csv as the calibration
-   reference: PR-G1 must reproduce the audit's per-node summaries on CPU. The per-node JSON, traces and plots are
+   reference: PR-G1 must reproduce the audit's per-node summaries on CPU. Hop-flight and the stance-v2 scores in plan
+   §4.3 are in neither the probe nor the CSV; compute them from §3.1's definitions. The per-node JSON, traces and plots are
    not in the repository; gait_2026_09/SHA256SUMS pins them, and gait_2026_09/README.md says how to regenerate them
    from the certified checkpoints on Drive.
 

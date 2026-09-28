@@ -54,7 +54,9 @@ exits with code 3 and was never forced.
   Drive files copied by hand were wrong at least five times; each was repaired and re-hashed.
 - **Probe copies.** Four copies add `--video-frame-dt` only (trex locomotion, velociraptor, quadrupeds) or, for trex
   stance and recovery, push-schedule capture with the repository's per-step recovery judge plus the same video fix.
-  Every panel ran on the unchanged probe or on a copy that differs only in video timing, except the recovery panel.
+  Every panel ran on the unchanged probe or on a copy that differs only in video timing, except the recovery panel and
+  the July brachiosaurus panel. A legacy driver ran the July panel at `e179198`, with each foot's single touch sensor
+  read at the end of the control step, as the July env read it, not the minimum over substeps.
 
 ### 2.2 Touch against floor truth
 
@@ -67,7 +69,7 @@ exits with code 3 and was never forced.
 | compsognathus walk | label "run" 26/30 | label "walk" 29/30 | the same handoffs |
 | dibothrosuchus re-run | 0.39 body weights | 1.00 | 10–30 ms contacts lost to the minimum; 100% of floor load inside the touch-site volumes |
 | brachiosaurus July (r1) | 0.019 body weights, touch duty 0.0005–0.034 | 1.00 | only 2.9% of floor load inside the r1 touch spheres (repaired in the current plant, plant_versions note 8) |
-| trex, all nodes | agrees; misses 5–8% of floor-contact steps at contact edges | — | — |
+| trex, all nodes | agrees; misses 5–8% of floor-contact steps at contact edges on the two locomotion nodes, under 2% on the stance and recovery nodes | — | — |
 
 ### 2.3 Sanity checks (recorded against replay)
 
@@ -102,8 +104,8 @@ is chaos, not the probe:
   stance and recovery panels), including compsognathus's CPU-only fall.
 - Nudging one action by 1e-6 moves an episode's reward by 6–8 (robot) or 10–12 (trex locomotion); by 1e-5, 21.
 - Largest per-episode reward gaps: robot 41 (59 on the final checkpoint), trex locomotion 26.7 and 25.9, compsognathus
-  stance 28, trex seed-42 stance 7.3, velociraptor 6.8 (stance) and 1.9 (locomotion); dibothrosuchus matched bit for
-  bit.
+  stance 28, trex seed-42 stance 7.3, velociraptor 6.8 (stance) and 1.9 (locomotion); dibothrosuchus within 2e-5 (4e-5 on
+  the final checkpoint).
 - trex seed-44 stance, seed 3042: replay 3350 with duty 0.009; a +1e-7 nudge at step 300 gives 3195 and 0.0625;
   recorded 3171 and 0.0675. A quiet seed does not move. The hop bouts fell in the same six seeds recorded and replayed.
 - trex seed-44 recovery, five realizations (float64 inference, three 1e-7 noise runs, plain SB3): 28, 30, 34, 31 and 34
@@ -144,7 +146,7 @@ judged by each stage's own gate code; the 66 behavior recipes were checked again
 | velociraptor | locomotion (`walk`) | as trex, speed ≥ 2.0 | FAIL on speed | hop, bound, scoot, lunge late |
 | velociraptor | strike (`hunt`) | reward ≥ 100, success ≥ 0.5 | FAIL, 0/40 | dive and fall |
 | compsognathus (and robot) | stance | `stance_quality/v1`, rail 1800 | PASS (2998.7; robot 2997.8) | one-leg stance paid in full (support = either foot); chatter; slide |
-| compsognathus (and robot) | recovery | success LCB ≥ 0.5, gain ≥ 0.1 over statue and brace | FAIL, 20/40 (robot 13/40) | the statue already recovers 93% of shoves |
+| compsognathus (and robot) | recovery | success LCB ≥ 0.5, gain ≥ 0.1 over statue and brace | FAIL, 20/40 (robot 13/40) | the statue already recovers 93% of shoves (robot 86%) |
 | compsognathus (and robot) | locomotion | speed ≥ 0.08 (robot 0.04), reward ≥ 500, length ≥ 900 | FAIL on speed (1499.6) | a 1.6 m (robot 0.8 m) shuffle in 20 s; one-leg hopping fully paid |
 | compsognathus (and robot) | behavior (`hunt`) | success ≥ 0.7 | FAIL, 0/40 | any approach mode |
 | brachiosaurus | stance (`stand`) | reward ≥ 1040, length ≥ 950 | PASS (1739.1) | kneeling (shins 0.067 m up, unsensed, not terminated), three-leg stance |
@@ -231,7 +233,8 @@ each other; the policies narrowed their spacing to 6.3–6.9 cm, and the right s
 edge. The touch sensors read that contact as floor support, so the reward's support flag (touch sum above 4% of body
 weight, which one foot satisfies) is on 99.6% of steps by touch and 34.3% by floor: about 838 of about 2627 reward is
 paid for support the floor never gives. The walker hops at 9.2 Hz with 5 mm pelvis bounce and 7–9 mm foot clearance,
-a gait no servo with real latency could reproduce. This is the hardware target.
+foot motions of the same order as typical servo latency and backlash errors, so unlikely to transfer to hardware
+(latency and backlash are not modelled or measured here). This is the hardware target.
 
 **Dibothrosuchus.** The certified stance and the failed walk are the same statue; `gait_symmetry` pays 89% of the
 walk return for standing still. The 2026-09-28 re-run `20260928_012318` (on `7ae0a19`) was found reusing the
@@ -246,7 +249,7 @@ gate, and the statue reaches the food in 11 of 40 hunt episodes.
 
 ## 6. Evidence
 
-The per-node JSON files (metadata, sanity, per-episode rows, summaries), one trace per node, footfall and fore-aft
+The pinned per-node JSON files (metadata, sanity, per-episode rows, summaries), one trace per node, footfall and fore-aft
 plots, contact sheets and the statue baselines (`statue_baselines.json`, with per-episode numbers) are 153 files,
 64.7 MB; the probe, its copies and the gate audit scripts add under 1 MB.
 
@@ -258,4 +261,4 @@ equals the trex locomotion, velociraptor and quadruped copies, `--video-frame-dt
 [README.md](gait_2026_09/README.md), which says how to regenerate them. The audit's full 559 MB working tree is not in
 the repository and is not uploaded anywhere. The per-node files can be regenerated with the probe from each node's
 checkpoint pair and replay on Drive, at a `7ae0a19` checkout; the means match, the bytes do not (the README names
-the few files that helper scripts not kept here made).
+the few files that helper scripts not kept here made, and the cited probe runs the pin set leaves out).
