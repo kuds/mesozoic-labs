@@ -57,6 +57,14 @@ class TestBuildStageResultsFromEvalData:
         assert "mean_forward_vel" not in result
         assert "mean_success_rate" not in result
 
+    def test_an_explicit_sim_dt_wins_over_the_fallback(self, tmp_path):
+        """Callers pass the env's `dt`; the 0.01 s fallback is wrong for the compsognathus pair."""
+        config = {"name": "Locomotion", "description": "Walk", "env_kwargs": {}}
+        default = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=1)
+        explicit = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=1, sim_dt=0.02)
+        assert default["sim_dt"] == 0.01
+        assert explicit["sim_dt"] == 0.02
+
     def test_reads_duration_from_metrics_json(self, tmp_path):
         model_dir = tmp_path / "models"
         model_dir.mkdir()

@@ -40,6 +40,7 @@ def build_stage_results_from_eval_data(
     stage_config: dict[str, Any],
     timesteps: int,
     duration_seconds: float = 0.0,
+    sim_dt: float | None = None,
 ) -> dict[str, Any]:
     """Build a ``stage_results`` dict from on-disk evaluation artifacts.
 
@@ -58,6 +59,12 @@ def build_stage_results_from_eval_data(
     the keys are OMITTED rather than zeroed, so the gate reads them as
     unmeasured; ``best_model_*`` default to ``""`` and can be filled by the
     caller after running ``eval_policy``.
+
+    *sim_dt* is the env's control step, which the summaries multiply episode
+    lengths by to print sim time. Pass the env's ``dt``, as
+    :func:`generate_stage_artifacts` and :func:`evaluate_stage_checkpoints`
+    do; without it the value falls back to ``env_kwargs["sim_dt"]`` or 0.01 s,
+    which is wrong for the compsognathus pair (0.02 s).
     """
     import numpy as _np
 
@@ -144,7 +151,8 @@ def build_stage_results_from_eval_data(
     else:
         _, selected_path, vecnorm_path = handoff
         best_model_path = Path(selected_path)
-    sim_dt = stage_config.get("env_kwargs", {}).get("sim_dt", 0.01)
+    if sim_dt is None:
+        sim_dt = stage_config.get("env_kwargs", {}).get("sim_dt", 0.01)
 
     result = {
         "stage": stage,
@@ -1252,6 +1260,7 @@ def evaluate_stage_checkpoints(
         stage_config,
         timesteps=timesteps,
         duration_seconds=duration_seconds,
+        sim_dt=sim_dt,
     )
     best_eval_reward = stage_results["best_eval_reward"]
     best_eval_std = stage_results["best_eval_std"]
@@ -1456,11 +1465,20 @@ def generate_stage_artifacts(
     species = species_cfg.species
 
     if stage_results is None:
+        # The summaries print episode length × sim_dt as sim time, so take the
+        # node's own control step from a bare env of its task (the compsognathus
+        # pair steps at 0.02 s, not the 0.01 s default).
+        probe_env = species_cfg.env_class(**stage_config.get("env_kwargs", {}))
+        try:
+            sim_dt = float(probe_env.dt)
+        finally:
+            probe_env.close()
         stage_results = build_stage_results_from_eval_data(
             stage_dir,
             stage,
             stage_config,
             timesteps=timesteps,
+            sim_dt=sim_dt,
         )
 
     stance_report = _write_stance_gate_report(
