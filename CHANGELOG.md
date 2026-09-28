@@ -8,7 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
-- **An end-to-end test of the command-line curriculum path** (cleanup
+- **A pin test for the frozen MJX interface core** (cleanup PR-B, decision
+  D-D17; `environments/shared/tests/test_plant_contract_frozen_mjx.py`).
+  Its 15 tests pin the token digests of the seven anchor functions whose
+  tokens the policy-interface digests of trex, velociraptor, brachiosaurus
+  and dibothrosuchus hash, and of the two `action_filter` low-pass
+  functions that trex's digest also hashes (9 tests); each `mjx_config.py`
+  registration's exact key set (trex 9, brachiosaurus 8, velociraptor and
+  dibothrosuchus 7; 4 tests); that the species declaring `jax-mjx` in
+  `configs/species_manifest.toml` are exactly those four (the dual-species
+  tripwire); and the `[tool.ruff]` exclusion that keeps ruff off the core.
+  An edit fails naming the function and D-D17 rather than as a stale plant
+  manifest. The plant-contract job runs it through its
+  `test_plant_contract_*.py` glob, and so does the `test (shared, …)`
+  matrix; it is deleted with the core. `test_config.py` also gains
+  `test_a_retired_jax_table_is_rejected` (Migration, below).
+- **D-D17's remaining amendments appended** (cleanup PR-B, 2026-09-28;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6–§8, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §3 and §6–§8). A7 now carries "Narrowed by D-D17", and D-A5, D-B13, D-C3,
+  D-C4, D-C7, D-C16 and G1 (in both plans) "Amended by D-D17"; with PR-A's
+  five amendments and A6, every row D-D17 names now carries its note. New
+  paragraphs follow the recipes plan's MJX risk and its invariant 9, and the
+  consolidation plan's PR-3b, PR-9 and three §8 risks record what the
+  retirement changed.
+- **An end-to-end test of the command-line curriculum path** (#565, cleanup
   PR-A2, decision D-D17;
   `environments/shared/tests/test_curriculum_cli_end_to_end.py`). It runs
   velociraptor's `train_sb3.py curriculum` in a subprocess with 64-step
@@ -39,8 +62,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and A6 "Superseded by D-D17".
 
 ### Migration
-- **`curriculum --gcs-bucket` / `--gcs-project` are gone** (cleanup PR-A2,
-  decision D-D17): argparse exits 2 with "unrecognized arguments".
+- **The `jax` and `jax-cpu` extras are gone** (cleanup PR-B, decision
+  D-D17), and `[all]` is `[train,viz,dev]`. pip only warns ("does not
+  provide the extra 'jax'") and installs the package anyway, so an install
+  line that still names `jax` or `jax-cpu` succeeds without JAX, Flax,
+  Optax or `mujoco-mjx`; drop the name. The plant contract's MJX probe needs
+  none of them (CI's plant-contract job installs no JAX).
+- **A `[jax]` table in a stage TOML is now refused.** `load_stage_config`
+  accepts only `[stage]`, `[env]`, `[ppo]`, `[sac]` and `[curriculum]` and
+  raises `ValueError` ("unknown top-level table(s) ['jax']; …") on anything
+  else, as it already did for a misspelled table. The 12 committed stage
+  TOMLs lost their `[jax]` and `[jax.policy_kwargs]` tables in this PR;
+  delete them from any copy of your own. Their `foot_contact_*` `[env]`
+  keys stay, because `task_sha256` hashes them, and a `[curriculum.jax]`
+  override table is still validated.
+- **No JAX notebook, trainer or evaluator.** `notebooks/jax_training.ipynb`,
+  `python -m environments.shared.jax_training` and the other
+  `environments/shared/jax_*` modules (all but the frozen `jax_setup.py`)
+  are removed, and so are `reporting.save_jax_stage_artifacts` and
+  `plant_contract.validate_mjx_environment_plant`. Train and evaluate with
+  the SB3 notebook or `train_sb3.py`. To look at the old code, check it out
+  from the tag, e.g. `git checkout 0.3.8 -- notebooks/jax_training.ipynb`:
+  every file this PR deletes except `website/docs/training/jax.md` is
+  byte-identical there, and `jax.md` as cleanup PR-A2 left it is in this
+  PR's first parent. The site's `/docs/training/jax` page now returns 404;
+  the site has no redirect plugin.
+- **Drive:** nothing to move. The JAX run folders stay (the cleanup plan's
+  §4.8 counts 27, 2026-03-30..04-03, none a certified parent), and their
+  records still validate: `result_schema` still allows the `jax-mjx`
+  training backend, legacy `JAX_PPO` labels still normalise, and the Drive
+  summary still reads them.
+- **`curriculum --gcs-bucket` / `--gcs-project` are gone** (#565, cleanup
+  PR-A2, decision D-D17): argparse exits 2 with "unrecognized arguments".
   `train_curriculum()` loses its `gcs_bucket` / `gcs_project` parameters,
   and `config.upload_curriculum_artifacts` is removed. To keep a copy in
   Cloud Storage, write the run to a fresh `--output-dir` on a mounted bucket
@@ -49,10 +102,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`reporting.write_results_csv` refuses `gs://` paths** with a
   `ValueError`, in batch and append mode. Before, batch mode uploaded the
   file and append mode raised a different error.
-- **The `[gcp]` extra is gone**, and `[all]` is `[train,jax,viz,dev]`. pip
-  only warns about an extra the package no longer provides; install
-  `google-cloud-storage` or `google-cloud-aiplatform` yourself if you need
-  them.
+- **The `[gcp]` extra is gone**, and `[all]` is `[train,jax,viz,dev]`
+  (cleanup PR-B then drops `jax`, above). pip only warns about an extra the
+  package no longer provides; install `google-cloud-storage` or
+  `google-cloud-aiplatform` yourself if you need them.
 - **No Docker image and no Vertex AI route.** The `Dockerfile`,
   `.dockerignore`, `scripts/setup_vertex_ai.sh` and
   `website/docs/training/vertex-ai.md` are removed, and the site's
@@ -64,10 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `trainer`) and any bucket it used; delete them if unused.
 - **The `ray` and `mjlab` extras are gone, and `train` no longer installs
   `cloudml-hypertune`** (#564, cleanup PR-A, decision D-D17). `[all]` became
-  `[train,jax,viz,gcp,dev]` (cleanup PR-A2 then drops `gcp`, above). pip
-  only warns about an extra the package no longer provides, so an install
-  line that still names `ray` or `mjlab` succeeds without them; drop the
-  name (CI's SB3 job installs `.[train,test,viz]`).
+  `[train,jax,viz,gcp,dev]` (cleanup PR-A2 then drops `gcp`, and cleanup
+  PR-B `jax`, above). pip only warns about an extra the package no longer
+  provides, so an install line that still names `ray` or `mjlab` succeeds
+  without them; drop the name (CI's SB3 job installs `.[train,test,viz]`).
 - **No sweep command or sweep notebook.** `python -m
   environments.shared.scripts.sweep`, `notebooks/ray_tune_sweep.ipynb` and
   the `configs/<species>/sweep_{ppo,sac}.json` search spaces are removed.
@@ -80,9 +133,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Removed
-- **The single-job Vertex AI route and GCS artifact upload** (cleanup PR-A2
-  of `docs/CLEANUP_PLAN_2026_09.md`, decision D-D17). Deleted: 4 files and
-  957 lines, `scripts/setup_vertex_ai.sh` (183), the `Dockerfile` (44),
+- **The JAX/MJX runtime** (cleanup PR-B of `docs/CLEANUP_PLAN_2026_09.md`,
+  decision D-D17). 30 files and 15,665 lines are deleted: the thirteen
+  `environments/shared/jax_{checkpoint,curriculum,eval,hooks,normalization,ppo,reward_termination,train_fn,trainer,trainer_types,training,training_utils,viz}.py`
+  modules (6,777 lines), fourteen `test_jax_*.py` / `test_mjx_*.py` files
+  and `trex/tests/test_trex_mjx_reward_parity.py` (7,256),
+  `notebooks/jax_training.ipynb` (1,372) and `website/docs/training/jax.md`
+  (260) with its sidebar entry. Also removed: everything in `mjx_env.py`,
+  `jax_setup.py` and `mjx_utils.py` outside the frozen core below
+  (`MJXDinoEnv`, `MJXEnvConfig`, `canonicalize_env_kwargs`, `setup_species`
+  and the rest), and every `mjx_config.py` key the probe does not read; the
+  `jax` and `jax-cpu` extras; the `[jax]` and `[jax.policy_kwargs]` tables
+  of the 12 stage TOMLs (304 lines; no `foot_contact_*` line touched);
+  `reporting.save_jax_stage_artifacts`;
+  `plant_contract.validate_mjx_environment_plant`; the notebook's
+  `species_manifest.toml` entry (the README catalog and
+  `species.generated.json` are regenerated); the JAX parts of kept tests;
+  `velociraptor/requirements.txt`'s JAX lines; and the `test-jax-cpu` CI
+  job with its coverage `needs` entry (23 jobs → 22). On the site and in
+  the README: the JAX install instructions and dependency table, the JAX
+  notebook in the notebook lists, the intro's JAX/MJX feature and link, and
+  the landing page's "Hyperdrive" (JAX/MJX backend) milestone.
+
+  Kept, as the frozen MJX interface core: 549 lines in 8 files, seven of
+  them opening with a FROZEN (D-D17) notice (464 without module docstrings;
+  the cleanup plan estimated 473), namely `register_species_mjx`,
+  `_SPECIES_CONFIGS` and `build_mjx_observation` in `mjx_env.py`,
+  `make_obs_fn` in `jax_setup.py`,
+  three functions of `mjx_utils.py`, all of `obs_functions.py` and the
+  `mjx_config.py` registrations of trex, velociraptor, brachiosaurus and
+  dibothrosuchus. Those four species hash its tokens into their
+  policy-interface digests, and the plant-contract probe runs
+  `build_mjx_observation` on every SB3 training and evaluation run; it is
+  never edited, and a species leaves it only by declaring itself SB3-only in
+  its next deliberate `policy_interface_revision` bump. Two
+  type-checking-only aliases (`MJXEnvConfig = Any`, `SpeciesContext = Any`)
+  keep the hashed signatures importable, and `[tool.ruff]` excludes the 8
+  files (`extend-exclude`, with `force-exclude = true`). Its anchor token
+  digests, unchanged and pinned by the new test:
+  - `mjx_env.build_mjx_observation`: `sha256:d1a8ac56e6f533670690897f47756ebf07cc2e499d6f56da89a5bea7d2446ac4`
+  - `jax_setup.make_obs_fn`: `sha256:66d4e404736f5c23159eec010e125a3a9a5c0981fae300897040c16b6fa923c5`
+  - `mjx_utils.scale_action_around_nominal_jax`: `sha256:f01be749e8a78ac9c9266d462f31511a06e9f0c0fef2b7d7292c4b8c431b2eae`
+  - `mjx_utils.reset_mujoco_data_to_home`: `sha256:f780f506759e615e1a0e9292deeae31fa8113a6feef5442993bd26bfbec28eb0`
+  - `obs_functions._array_mod`: `sha256:cbcfa3fe9292bf98e8d8c70d88d4f1ef03e49e11cfcbd50d0d6f87e6967d48f4`
+  - `obs_functions.build_bipedal_obs`: `sha256:8b46a7e02e14059c38d723ff46f60eae31b633bb3b61bb2455caf862dc6f75e4`
+  - `obs_functions.build_quadruped_obs`: `sha256:7b4e74c4c97a78b143f80902d6e4eb542ecc8a3830579182c1921ad5065dbded`
+  - and trex's `action_filter.low_pass_alpha`: `sha256:f32bb3f1cda4b52493b8bbd4c61fff9c86231f705ddcf9d462900f97af7f0908`
+    and `action_filter.apply_low_pass`: `sha256:8c619d7021723c3f74bfc3d5ccb45c27738c931d176c487a3a76a18b1affaa19`.
+
+  The `foot_contact_*` parameters and `[env]` keys (`task_sha256` inputs),
+  the readers of recorded JAX runs, `command_frame.py`'s MJX refusal (until
+  consolidation PR-9), the `[curriculum.jax]` override validation and the
+  generated catalog's `jax-mjx` metric rows stay (the last until the
+  cleanup plan's decision 17). No plant, task, gate, hyperparameter,
+  stage-config, recipe, behavior-identity or recovery digest moves: the
+  digest-snapshot harness prints the same 848 lines on the base and on this
+  PR, with the optional backends blocked and unblocked. The code this entry
+  removes is recoverable from the `0.3.8` tag and from this PR's first
+  parent (Migration, above).
+
+  **The drift list** (D-D17's entry condition for adding a backend back; the
+  cleanup plan's §5.3). Mirrored copies drifted into live defects with no CI
+  failure:
+  - defect 1: every Ray Tune PPO trial raised `TypeError` on `ent_coef_end`
+    (removed with #564; listed under its entry below);
+  - defect 3: the JAX command-line curriculum advanced a stage without
+    checking `min_avg_forward_vel` (the `reward_and_length/v1` arm of
+    `jax_curriculum.check_stage_gate` checked reward and episode length
+    only, while the SB3 `CurriculumManager` also checks velocity and
+    success), and it would have ignored `min_success_rate`, had its one
+    caller ever judged the final stage;
+  - defect 4: MJX training never paid dibothrosuchus
+    `snap_snout_proximity_weight` (the step kernel looked the weight up
+    under the other species' keys only), while the JAX CPU evaluation that
+    gated the stage did, and neither matched SB3's fixed 1.5 m range;
+  - defect 9: 7 of the 12 sweep configs sampled 18 env keys that no
+    constructor accepts (removed with #564; listed below);
+  - defect 5's never-executed copies: the sweep notebook's
+    `LocomotionMetrics()` and its `_sim_dt` assumed a 0.01 s control step,
+    so its compsognathus metrics were 2× off (removed with #564; the
+    library's `sim_dt` default survives, latent, for cleanup CU-2).
+
+  **KNOWN_ISSUES entries that went with the code** (the JAX half of the
+  re-add checklist; #564's entry below lists the sweep half):
+  - the "Known SB3 ↔ JAX divergences (documented, deliberate for now)"
+    section: the forward-velocity reference frame, eval target placement,
+    stage-3 success semantics, curriculum gates and PPO advantage
+    normalization, with its standing recommendation of a per-component
+    SB3↔JAX reward parity test;
+  - JAX evaluation cannot produce per-episode foot duty for quadrupeds;
+  - the JAX backend cannot finalise a stance-gated result bundle;
+  - the JAX command-line curriculum advances a stage without checking
+    `min_avg_forward_vel` (defect 3);
+  - MJX training never pays dibothrosuchus `snap_snout_proximity_weight`,
+    while the JAX CPU evaluation that gates the stage does (defect 4);
+  - a LOW (JAX) entry: two same-named `check_stage_gate` functions with
+    different signatures; a logged `learning_rate` decaying faster than the
+    real schedule; the KL early stop inside `lax.scan` computing, then
+    discarding, the remaining minibatch gradients; `StabilityMonitor`'s
+    `kl_warn=100` firing only after total collapse; per-step reward
+    diagnostics decomposing forward velocity in world-X;
+  - the JAX `TrainingCSVLogger` flushing per update straight to the output
+    path, one network write per update on a `/gcs` FUSE mount;
+  - velociraptor's SB3/MJX termination asymmetry, and its
+    `nosedive_termination_threshold`, hardcoded in the SB3 env but read from
+    the stage config on MJX;
+  - the SB3↔JAX reward parity test (Testing / CI), and open question 1:
+    whether SB3↔JAX reward parity is a hard goal (the "Open questions"
+    section's only item, so the section went too);
+  - clauses of kept entries: the JAX-checkpoint neighbour of the
+    pre-Phase-C checkpoint entry, the MJX settle raising on a heightfield
+    floor (collidable necks), the JAX trainer's clip in the
+    action-saturation entry and its mention in that entry's latent-trap
+    paragraph, the JAX `foot_contact_gate` in the velociraptor foot-sensor
+    entry and the JAX notebook's pins in the notebook-pins bullet.
+
+  Reworded, not deleted: the `foot_contact_*` LOW, which now covers the
+  T-Rex and Dibothrosuchus SB3 envs and says why the knobs stay
+  (`task_sha256` inputs). Kept, reworded as latent: the quadruped MEDIUM
+  (two code paths decide whether a species is a quadruped). The probe still
+  runs `build_mjx_observation`, but no new registration reaches it, and
+  neither fix can be taken without moving four species' digests. A known
+  leftover: the comment at `environments/trex/assets/trex.xml:554` still
+  names `mjx_config.py`'s `target_standing_z`, `_NATURAL_PITCH` and
+  `healthy_z_range`, which the frozen registration no longer holds; MJCF
+  bytes enter the plant identity, so the next trex plant revision corrects
+  it (the cleanup plan's §4.1 batch).
+- **The single-job Vertex AI route and GCS artifact upload** (#565, cleanup
+  PR-A2 of `docs/CLEANUP_PLAN_2026_09.md`, decision D-D17). Deleted: 4 files
+  and 957 lines, `scripts/setup_vertex_ai.sh` (183), the `Dockerfile` (44),
   `.dockerignore` (32) and `website/docs/training/vertex-ai.md` (698) with
   its sidebar entry. Also removed: `config._upload_to_gcs` and
   `config.upload_curriculum_artifacts` (213 lines), the `curriculum
