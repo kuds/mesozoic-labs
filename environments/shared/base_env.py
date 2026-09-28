@@ -1565,7 +1565,10 @@ class BaseDinoEnv(gym.Env, ABC):
                 from mujoco import viewer as mujoco_viewer
 
                 self._viewer = mujoco_viewer.launch_passive(self.model, self.data)
-                self._configure_camera(self._viewer.cam)
+                # The viewer's render thread reads this camera on every frame,
+                # so it is changed only under the viewer's lock.
+                with self._viewer.lock():
+                    self._configure_camera(self._viewer.cam)
             self._viewer.sync()
 
         elif self.render_mode == "rgb_array":

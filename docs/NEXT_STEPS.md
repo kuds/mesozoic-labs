@@ -24,7 +24,8 @@ only training backend (D-D17). The cleanup is **not** complete: ten PRs of
 D-D21's 0.3.9 gate remain (CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12,
 CU-14 and CU-16, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), then
 the 0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control
-step that stage summaries assumed) is carried out; nine more remain after it.
+step that stage summaries built from `evaluations.npz` assumed) is carried
+out; nine more remain after it.
 CU-6 (now waiting only for CU-4), CU-10 (lowest priority; it also owns the
 curriculum horizon defect), CU-13 (before PR-11), CU-15 (optional) and CU-17
 (last, before PR-15) are deferred, not dropped. The consolidation's PR-8,

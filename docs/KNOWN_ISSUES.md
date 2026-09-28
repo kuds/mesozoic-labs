@@ -1099,6 +1099,21 @@ robustness, **LOW** = cosmetic / QoL.
 - **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
   ≈ 0; thread-unsafe CSV appends under concurrent local runs. (June §3.3;
   CODE_REVIEW §2.1#1)
+- **LOW** — **a node re-entered from its own `gate_verdict.json` prints a
+  0.01 s control step in `training_summary.txt` (reproduced 2026-09-28).**
+  When the SB3 notebook's chain loop re-runs in the same `RUN_DIR`, it takes
+  a certified node's results from its verdict
+  (`NODE_RESULTS[NODE.id] = dict(stage_result)`, the `same_run` branch). The
+  verdict's `stage_result` projection (`_PERSISTED_STAGE_RESULT_KEYS`,
+  `result_bundle/gate_verdict.py:66`) omits `sim_dt`, so
+  `write_training_summary` falls back to 0.01 s
+  (`reporting/text_summaries.py:156`): a reused compsognathus or
+  compsognathus_robot node shows 1,000 steps as "10.00s sim time" instead of
+  20 s, while a freshly trained one shows 20 s. No gate, verdict or digest
+  reads it. CU-2 fixed the other 0.01 s fallback, in summaries built from
+  `evaluations.npz`, but not this one. Fix: persist `sim_dt` in the
+  projection (new verdicts only), or give `write_training_summary` the
+  node's control step; no cleanup PR owns it yet. (2026-09 CU-2 review)
 
 ## Post-training artifacts (recommended additions)
 

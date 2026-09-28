@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import types
 
@@ -48,15 +49,40 @@ def test_human_render_loads_the_viewer_itself(monkeypatch):
     The submodule is removed from `mujoco` and a fake stands in for it in
     `sys.modules`: code that reaches `mujoco.viewer` as an attribute fails as
     the eval CLI did, and the lazy import finds the fake instead of opening a
-    window.
+    window. The fake camera records every attribute assigned on it while the
+    viewer's lock is not held, since the real viewer's render thread reads the
+    camera on every frame.
     """
     launches = []
 
+    class LockCheckedCamera:
+        def __init__(self, viewer):
+            object.__setattr__(self, "_viewer", viewer)
+            object.__setattr__(self, "_cam", mujoco.MjvCamera())
+            object.__setattr__(self, "unlocked_writes", [])
+
+        def __getattr__(self, name):
+            return getattr(self._cam, name)
+
+        def __setattr__(self, name, value):
+            if not self._viewer.locked:
+                self.unlocked_writes.append(name)
+            setattr(self._cam, name, value)
+
     class FakeViewer:
         def __init__(self):
-            self.cam = mujoco.MjvCamera()
+            self.locked = False
+            self.cam = LockCheckedCamera(self)
             self.syncs = 0
             self.closed = False
+
+        @contextlib.contextmanager
+        def lock(self):
+            self.locked = True
+            try:
+                yield
+            finally:
+                self.locked = False
 
         def sync(self):
             self.syncs += 1
@@ -83,6 +109,7 @@ def test_human_render_loads_the_viewer_itself(monkeypatch):
     expected = env._make_camera()
     for field in ("type", "trackbodyid", "distance", "azimuth", "elevation"):
         assert getattr(viewer.cam, field) == getattr(expected, field), field
+    assert viewer.cam.unlocked_writes == [], "the camera is aimed under the viewer's lock"
     env.close()
     assert viewer.closed and env._viewer is None
 

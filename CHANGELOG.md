@@ -376,19 +376,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/CLEANUP_PLAN_2026_09.md`). `BaseDinoEnv.render` called
   `mujoco.viewer.launch_passive`, but `import mujoco` does not load the
   `mujoco.viewer` submodule, so a human-mode env raised `AttributeError`
-  from its first `step`, and `train_sb3.py eval` without `--no-render` and
-  `test_env.py --render` crashed (the KNOWN_ISSUES entry, now deleted). The
+  from its first `step`, and `train_sb3.py eval` without `--no-render`
+  crashed (the KNOWN_ISSUES entry, now deleted; `test_env.py --render`
+  escaped, because the harness package it imports loads the viewer). The
   human branch now imports the viewer itself, under its own name (`from
   mujoco import viewer as mujoco_viewer`), since a bare `import
   mujoco.viewer` would make `mujoco` local to `render` and break the
   rgb_array branch. One `_configure_camera` helper aims both the viewer's
-  camera and `_make_camera`'s. Tests: a human render, with `mujoco.viewer`
-  removed from the package and a fake in `sys.modules`, launches the viewer
-  once, aims its camera like `_make_camera`, syncs every step and closes;
-  an rgb_array render works with a fake `mujoco.Renderer`. Three mutations
-  each fail at least one of them: the old attribute access, a bare import
-  and no camera setup. `render` and `_make_camera` enter no digest, and
-  `base_env.py` is not byte-hashed.
+  camera and `_make_camera`'s; the viewer's camera is aimed under the
+  viewer's lock, since its render thread reads the camera on every frame.
+  Tests: a human render, with `mujoco.viewer` removed from the package and
+  a fake in `sys.modules`, launches the viewer once, aims its camera like
+  `_make_camera` and under the lock, syncs every step and closes; an
+  rgb_array render works with a fake `mujoco.Renderer`. Four mutations
+  each fail at least one of them: the old attribute access, a bare import,
+  no camera setup and no lock. `render` and `_make_camera` enter no digest,
+  and `base_env.py` is not byte-hashed.
 - **A stage summary built from `evaluations.npz` prints the node's own sim
   time** (CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). Called with
   `stage_results=None`, `generate_stage_artifacts` built its results with
@@ -410,7 +413,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `build_stage_results_from_eval_data` ignoring `sim_dt`. The
   `reporting` package enters no digest. The digest-snapshot harness, run
   with the optional backends blocked, printed 848 lines with 0 errors,
-  byte-identical on the base and on this PR.
+  byte-identical on the base and on this PR. A node the notebook re-enters
+  from its own `gate_verdict.json` still prints 0.01 s in
+  `training_summary.txt`, since the verdict does not persist `sim_dt` (a
+  new KNOWN_ISSUES entry).
 
 ## [0.3.8] - 2026-09-27 — Reproducible Runs & Velociraptor Stage-1 Diagnosis
 
