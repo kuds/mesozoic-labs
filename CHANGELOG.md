@@ -8,8 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
-- **A pin test for the frozen MJX interface core** (cleanup PR-B, decision
-  D-D17; `environments/shared/tests/test_plant_contract_frozen_mjx.py`).
+- **A gait audit of the certified nodes and a gait-quality plan** (gait
+  PR-G0 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, docs only;
+  `docs/investigations/GAIT_AUDIT_2026_09.md` and its evidence directory
+  `docs/investigations/gait_2026_09/`). The audit note records CPU replays,
+  on 2026-09-28, of 15 nodes, every certified node on Drive (12) among them,
+  with contact read both from the touch sensors and from the floor's normal
+  force: three of the five certified walkers hop (trex seed 42
+  `20260914_123816` and seed 44 `20260925_033501`, and compsognathus_robot
+  `20260924_031815`), while only compsognathus `20260921_203149` walks and
+  velociraptor `20260922_125248` runs; the zero-action statue passes all six
+  stance gates; the robot's touch sensors count sole-on-sole force as
+  support; and the in-training dibothrosuchus re-run `20260928_012318` is a
+  three-legged skid at 4.3M steps that clears its gate as written. The
+  evidence directory holds the audit's hand-run probe `gait_probe.py`
+  (imported by nothing), `gait_audit_2026_09.csv` (one row per audited node
+  and checkpoint) and `SHA256SUMS`, which pins the 153 JSON, trace, plot and
+  contact-sheet files the audit produced; those files stay outside the
+  repository. The plan proposes measuring gait on floor contact, per-episode
+  gates (`locomotion_gait/v1` first), per-species reward revisions and a PR
+  order; its 18 decisions (GQ-1..GQ-18) are all open, and its code PRs build
+  on 0.3.9. New KNOWN_ISSUES entries: no locomotion gate reads a foot
+  contact, compsognathus_robot's stacked feet and phantom touch support, and
+  stance gates that admit non-stances (HIGH); a lunge-then-fall passing on
+  per-episode means, a recovery safe set without a support clause, hunt
+  success counted on a step that ends in a fall, the brachiosaurus statue
+  reaching the food in 11 of 40 hunt episodes, and knee, shin and
+  proximal-tail floor contact that never ends an episode on four species
+  (MEDIUM); the stance diagnostic reading only the forefeet on quadrupeds,
+  and `zero_action_baseline.py` judging a `stance_quality` stage by its
+  reward rail alone (LOW); and dated updates to existing entries. No
+  library, test or configuration file changes, and no digest moves.
+- **A pin test for the frozen MJX interface core** (#566, cleanup PR-B,
+  decision D-D17;
+  `environments/shared/tests/test_plant_contract_frozen_mjx.py`).
   Its 15 tests pin the token digests of the seven anchor functions whose
   tokens the policy-interface digests of trex, velociraptor, brachiosaurus
   and dibothrosuchus hash, and of the two `action_filter` low-pass
@@ -24,12 +56,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matrix; it is deleted with the core. `test_config.py` also gains
   `test_a_retired_jax_table_is_rejected` (Migration, below).
 - **The `[curriculum]` schema's fail-closed checks keep their tests**
-  (cleanup PR-B; `environments/shared/tests/test_gate_schema_validation.py`).
+  (#566, cleanup PR-B;
+  `environments/shared/tests/test_gate_schema_validation.py`).
   The refusal of an unknown `gate_kind` and the validation of a
   `[curriculum.jax]` override table run on every SB3 curriculum run but were
   tested only through the JAX curriculum; 11 tests now drive them through
   `validate_gate_config`, `thresholds_from_configs` and `load_stage_config`.
-- **D-D17's remaining amendments appended** (cleanup PR-B, 2026-09-28;
+- **D-D17's remaining amendments appended** (#566, cleanup PR-B, 2026-09-28;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6–§8, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §3 and §5–§8). A7 now carries "Narrowed by D-D17", and D-A5, D-B13, D-C3,
   D-C4, D-C7, D-C16 and G1 (in both plans) "Amended by D-D17"; with PR-A's
@@ -68,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and A6 "Superseded by D-D17".
 
 ### Migration
-- **The `jax` and `jax-cpu` extras are gone** (cleanup PR-B, decision
+- **The `jax` and `jax-cpu` extras are gone** (#566, cleanup PR-B, decision
   D-D17), and `[all]` is `[train,viz,dev]`. pip only warns ("does not
   provide the extra 'jax'") and installs the package anyway, so an install
   line that still names `jax` or `jax-cpu` succeeds without JAX, Flax,
@@ -139,8 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Removed
-- **The JAX/MJX runtime** (cleanup PR-B of `docs/CLEANUP_PLAN_2026_09.md`,
-  decision D-D17). 30 files and 15,665 lines are deleted: the thirteen
+- **The JAX/MJX runtime** (#566, cleanup PR-B of
+  `docs/CLEANUP_PLAN_2026_09.md`, decision D-D17). 30 files and 15,665 lines
+  are deleted: the thirteen
   `environments/shared/jax_{checkpoint,curriculum,eval,hooks,normalization,ppo,reward_termination,train_fn,trainer,trainer_types,training,training_utils,viz}.py`
   modules (6,777 lines), fourteen `test_jax_*.py` / `test_mjx_*.py` files
   and `trex/tests/test_trex_mjx_reward_parity.py` (7,256),

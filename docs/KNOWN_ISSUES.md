@@ -80,6 +80,9 @@ robustness, **LOW** = cosmetic / QoL.
   0.00 the other) is superseded by the recovery records —
   [STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) and
   [investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md).
+  **Update (2026-09-28):** nor does a PASS always certify a clean stance: the
+  certified seed-44 stance `20260920_010912` hops to rebalance in 6 of 40
+  episodes (the stance-gate HIGH at the end of this section).
 - **MEDIUM (operational)** — **every checkpoint trained before the Phase C
   interface revision is refused as a trunk, every `gate_resolution.json`
   frozen before it is stale, and the two recipes below (the D-A22 re-judge
@@ -613,6 +616,17 @@ robustness, **LOW** = cosmetic / QoL.
   history-ratio shape (not measured here). A reward change moves the
   task fingerprint, so it belongs with the planned plant and reward work on
   these species, not with a backstop setting.
+  **Update (2026-09-28, gait audit):** the biped `_compute_gait_symmetry` has
+  been measured: a synchronous two-foot landing appends `"R"` then `"L"`
+  (`base_env.py:737-740`), so a bounce scores 1.000, as do a true alternating
+  walk and the statue ([STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) §6
+  item 7). Its weight is 0.0 in every biped stage, so only its
+  `alternation_ratio` diagnostic misleads. The quadruped version likewise pays
+  a pronk, bound or pace in full, since a simultaneous landing appends both
+  pairs (:845-848; [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). The
+  gait plan keeps the code byte-identical and sets the weight to 0 in the
+  quadruped `gait-r1` revisions ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)
+  §5.3, PR-G7); this entry stays while any TOML uses the term.
 
 - **LOW** — **contact-switch rate conflates bilateral↔single with
   bilateral↔airborne.** The PR #479 plant repair moved T-Rex's raw switch count
@@ -802,6 +816,13 @@ robustness, **LOW** = cosmetic / QoL.
 - **LOW** — `CurriculumCallback` / `LocomotionMetrics` hardcode success keys
   (`bite_success`, `strike_success`, `food_reached`) instead of using
   `SpeciesConfig.success_keys`. (June §6.4)
+  **Update (2026-09-28, gait audit):** the supplementary evaluation's flags
+  (`curriculum/advancement.py:262,402`) read 0.0 on an upright dibothrosuchus
+  or compsognathus success, as the tuple lacks `snap_success` and
+  `target_success`; the `evaluations.npz` sample is preferred where it exists
+  (:337), so in that check the manager's success rate still read 1.0.
+  `LocomotionMetrics` (`metrics.py:154`) now lists `target_success` but not
+  `snap_success`.
 - **LOW** — `curriculum/advancement.py` `_read_latest_eval`: the
   `successes.shape[0] == n_evals` guard permanently discards npz successes
   if SB3 starts recording them one eval late. (July §2)
@@ -870,6 +891,14 @@ robustness, **LOW** = cosmetic / QoL.
   operator guide and an explicit `--checkpoint` / `--vecnormalize` pair in
   every load mode and for evaluation (the certified library and
   `SOURCE_SELECTION` left with PR-5).
+  **Update (2026-09-28, gait audit):** the certificate has no contact
+  criteria. Its rules (`configs/behavior_certification.toml`) are survival,
+  success, commanded speed and yaw-rate tracking, settling and course
+  progress, so the per-episode statistic PR-13 registers as
+  `terrain_command/v1` (D-D6) would certify a hop, scoot or slide that tracks
+  the command ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). The
+  gait plan recommends a per-episode gait clause in that kind
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G10; GQ-18, open).
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair
@@ -923,6 +952,166 @@ robustness, **LOW** = cosmetic / QoL.
   Plan: cleanup CU-10 hands the callback the horizon of the overridden stage
   config (the maintainer's choice, 2026-09-27;
   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.2).
+
+<!-- The items below come from the 2026-09-28 gait audit: CPU replays of
+     the certified nodes and zero-action rollouts of every stage gate, with
+     contact read two ways, "touch" (the env's own foot sensors) and "floor
+     contact" (the floor's normal force on a leg above 0.1 N on at least
+     half of a control step's substeps). Full evidence in
+     investigations/GAIT_AUDIT_2026_09.md; the plan that acts on them is
+     GAIT_QUALITY_PLAN_2026_09.md, whose decisions (GQ-1..GQ-18) are all
+     open and whose code PRs build on 0.3.9. The lunge-then-fall and
+     falling-step hunt items were executed through the repository's own
+     code before they were entered. -->
+
+- **HIGH** — **no locomotion gate reads a foot contact, and three of the five
+  certified walkers hop (replayed 2026-09-28).** All six locomotion stages
+  judge `reward_and_length/v1` (`reporting/gates.py:620-685`) on mean reward,
+  length and forward velocity, with reward floors 3–22× below the zero-action
+  statue, so beyond mean length the only test is mean root speed. On floor
+  contact, trex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
+  both feet at 7.7 and 9.2 Hz, airborne 35% and 43% of steps, and
+  compsognathus_robot `20260924_031815` micro-hops at 9.2 Hz, airborne 48%;
+  only compsognathus `20260921_203149` walks and velociraptor
+  `20260922_125248` runs. The in-training dibothrosuchus re-run
+  `20260928_012318` skids on three legs at 4.3M and clears its gate as written
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
+  `locomotion_gait/v1` in the six locomotion TOMLs, then retrains
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G5 and PR-G7; GQ-8, open).
+
+- **HIGH (hardware target)** — **compsognathus_robot stands and walks on
+  stacked feet, and its touch sensors count sole-on-sole force as support
+  (replayed 2026-09-28).** Its 10 × 9 cm soles collide with each other
+  (`compsognathus_robot.xml:181,254`), and both certified nodes of run
+  `20260924_031815` rest the right sole on the left foot: the stance carries
+  81% of its floor load on the left foot, and its reported two-foot support of
+  0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
+  pushing 1.12 body weights into each touch sensor, so the support flag that
+  scales its alive, posture and height rewards (touch sum above 4% of body
+  weight, `compsognathus_env.py:189,239`) is on 99.6% of steps by touch and
+  34.3% by floor: about 838 of its about 2627 reward pays for support the
+  floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
+  Plan: the robot's `gait-r1` revisions, with floor-contact support and a
+  foot-collision penalty ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G7;
+  GQ-14, open); the touch observation still counts that force until the
+  robot's next policy-interface revision.
+
+- **HIGH** — **the stance gates admit stances that chatter, march, stand on
+  one foot or hop (replayed 2026-09-28).** `stance_quality/v1` counts only
+  steps with neither foot above 0.1 N, averaged over the panel, and the other
+  three stances gate on a reward rail at 0.60× the statue; the zero-action
+  statue passes all six by design (`stance_gate.py:13-20`), as it would the
+  planned v2. Of the six certified stances only trex seed 42 `20260914_123816`
+  is clean: trex seed 44 `20260920_010912` hops to rebalance in 6 of 40
+  episodes (duty 0.02–0.07 each, drift up to 0.57 m) under a panel mean of
+  0.0069; compsognathus `20260921_203149` marches in place at 3.05 Hz, both
+  feet down 10% of steps; velociraptor `20260922_125248` chatters at about
+  10 Hz and slides 0.65 m; the robot stands on one foot; dibothrosuchus
+  `20260923_020654` is the statue, three-legged in some episodes
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
+  `stance_quality/v2` per species inside its `gait-r1`
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G8; GQ-10 and GQ-12, open);
+  compsognathus and velociraptor stay open until their optional revisions.
+
+- **MEDIUM** — **locomotion gates average per-episode means, so a policy that
+  lunges and falls passes (executed 2026-09-28).** An episode's speed is the
+  mean of its per-step `info["forward_vel"]` (`evaluation.py:97-105`), the
+  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1348`,
+  `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
+  weighs as much as a 1,000-step one. Through the repository's own evaluation
+  and gate code on trex locomotion (length 750, speed 1.0 m/s), three scripted
+  episodes at 0.7 m/s for 1,000 steps and one at 2.0 m/s that falls at step
+  250 give mean length 812.5 and speed 1.025 m/s (recorded 1.02) and pass,
+  though distance over time is 0.80 m/s
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3); on a 30-episode
+  panel, 23 walks and 7 lunges pass both the post-training judge and the
+  in-training `CurriculumManager`, while 24 and 6 fail. The post-training
+  judge also compares the speed rounded to two decimals (:1348): a 0.996 m/s
+  panel passed the 1.0 bar. Plan: per-episode qualification under
+  `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
+  GQ-7, open).
+
+- **MEDIUM** — **the recovery safe set has no support clause, and the
+  certified trex recovery answers forward pushes with two-footed hops
+  (replayed 2026-09-28).** The calibrated judge is posture-only on purpose,
+  `min_foot_force_n = 0.0` (`recovery_evaluation.py:74-79`; the compsognathus
+  pair's calibrations the same), because quiet certified stance reads 0.0 N on
+  a foot during weight shifts. On a CPU replay of the seed-44 recovery in
+  `20260920_010912` (certified 28/40), none of 41 forward pushes is absorbed
+  in place: 27 mix two-footed hops with single-foot touches, 13 are pure
+  two-footed hops and 1 falls; 37% of its touchdowns fall outside push
+  windows, and it drifts 0.67 m per episode
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §4). Plan:
+  `recovery_quality/v2`, with windowed support clauses, registered and then
+  adopted per species ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G9; GQ-13,
+  open); allowing no two-footed touchdown in a push window, seed 44 scores
+  5/40.
+
+- **MEDIUM** — **hunt success counts on a step that ends in a fall, and the
+  panel and training definitions disagree (executed 2026-09-28).** On trex,
+  velociraptor, brachiosaurus and dibothrosuchus the reward info sets the
+  success flag and pays the 1,000 bonus whenever the contact or reach holds,
+  but `_is_terminated` runs every fall check except floor contact before its
+  success check, so such a step ends as a fall with `is_success` False
+  (`base_env.py:1245`). The post-training panel reads the flag on every step
+  (`evaluation.py:100`) and counts the episode, for trex in the `task_success`
+  that `task_success/v1` judges; training reads `is_success` and does not.
+  Executed on each hunt env with the body rolled past `max_tilt_angle` and the
+  prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
+  success (trex 30/30, gate PASS) and 0 in training; a floor-contact fall on
+  the contact step ends as a success in both. The compsognathus pair reads
+  success after its fall checks (`compsognathus_env.py:240-241`) and is
+  unaffected. Leaves with each hunt's task revision, which the gait plan does
+  not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
+  [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
+
+- **MEDIUM** — **the brachiosaurus zero-action statue reaches the food in 11
+  of 40 hunt episodes (executed 2026-09-28).** The food spawns 1.5–4.0 m ahead
+  and 2.0–3.5 m up and counts within 0.8 m of the head tip
+  (`configs/brachiosaurus/stage3_food_reach.toml:18-23`), so the statue
+  reaches it on 27.5% of the audit's seeds (3042–3081; a spawn draw, about
+  ±7%) against a `min_success_rate` of 0.5: more than half the bar is free
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Leaves with the
+  brachiosaurus hunt's task revision (a paired comparison with the statue, or
+  food spawned out of resting reach), which the gait plan does not schedule
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9).
+
+- **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
+  episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
+  the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
+  only the torso (and belly), head and distal tail (`trex_env.py:365-372`,
+  `raptor_env.py:223-230`, `brachio_env.py:234-240`,
+  `dibothrosuchus_env.py:252-259`; velociraptor adds its neck), so a policy
+  may kneel or crawl while the root stays above the height floor. Settled
+  clearance of the lowest such geom, then the root drop allowed: trex tibia
+  0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
+  brachiosaurus shins 0.067 m, 0.186 m (0.336 m on locomotion); dibothrosuchus
+  shins 0.047 m, 0.133–0.153 m. The compsognathus pair ends on any non-foot
+  geom ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Plan: the
+  reward kit's `terminate_on_leg_contact`, set in the dibothrosuchus and
+  brachiosaurus `gait-r1` revisions ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)
+  PR-G6 and PR-G7); none is planned for trex or velociraptor.
+
+- **LOW** — **the shared stance diagnostic reads only the forefeet on
+  quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
+  (`stance_diagnostics.py:75`) takes `r_foot_contact` and `l_foot_contact`,
+  which the brachiosaurus and dibothrosuchus envs set to their front feet
+  (`brachio_env.py:443-444`, `dibothrosuchus_env.py:486-487`), so its
+  unsupported duty and balance ignore the hind feet, which carry 79% of the
+  certified dibothrosuchus stance's floor load
+  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
+  reads it today. Plan: a four-foot `derive_stance_info`
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G2).
+
+- **LOW** — **`zero_action_baseline.py`'s verdict judges a `stance_quality`
+  stage by its reward rail alone (read from the code 2026-09-28).** It
+  compares the statue with `min_avg_reward` whatever the gate kind
+  (`scripts/zero_action_baseline.py:176-190`), so the trex, compsognathus and
+  compsognathus_robot stances print "FAILS — a statue clears this gate"
+  because the statue clears the collapse rail, not because of the stance
+  gate's criteria, which the statue passes by design. Plan: PR-G2 prints the
+  stance-gate verdict for `stance_quality` stages
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)).
 
 ## Sweeps / infrastructure
 
@@ -1027,6 +1216,18 @@ species' physics and policy fingerprints. Full evidence, method and reproduction
 [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
 re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
 
+**Update (2026-09-28, gait audit):** a second under-read, shared by every species, comes from how
+substeps are combined rather than from sensor scope. The contact-shaped rewards and foot-contact
+info keys read `_aggregated_foot_contact_forces()`, the per-foot **minimum** over a control step's
+physics substeps (`base_env.py:915-928`), so a foot touching on only some substeps reads as
+airborne. Against the floor's normal force on the leg (above 0.1 N on at least half the substeps),
+the velociraptor run `20260922_125248` reads 49% flight by touch against 33% (its stance 25% against
+15%), and the in-training dibothrosuchus re-run `20260928_012318` reads 0.39 body weights against
+1.00 with all of its floor load inside the touch-site volumes, its 10–30 ms contacts lost to the
+minimum ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §2.2). The gait plan measures gait on
+floor contact instead ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §3.2; GQ-6, open). The opposite
+error, touch over-reporting through compsognathus_robot's stacked soles, is under Training / RL.
+
 ### Velociraptor plant — open (July 2026 raptor review)
 
 **The stance-referenced-spring migration above never reached the raptor.** It
@@ -1050,6 +1251,12 @@ stance (PR #464).
   measured statue floor. The reset-noise calibration was not carried over
   either — the raptor is still at 0.05, measured at 97% statue survival, where
   0.10 gives 80%. *Config-only fix, no checkpoint cost.*
+  **Update (2026-09-28):** the stage now declares a collapse rail of 1050,
+  0.60× the statue's 1745.8 (`configs/velociraptor/stage1_balance.toml:67`),
+  which the statue still clears by design: it passes the gate on the certified
+  stance's 30 resets (1694 ± 277), and that stance, `20260922_125248`,
+  chatters and slides (the stance-gate HIGH under Training / RL;
+  [gait audit](investigations/GAIT_AUDIT_2026_09.md) §4).
 - **HIGH — the plant does not stand on its actuators.** No raptor leg joint
   sets `springref`, so the springs are neutral at `qpos = 0` — which is
   *outside the legal range* for the knee and ankle, making them a permanent

@@ -1,6 +1,6 @@
 # Cleanup and backend retirement plan (2026-09)
 
-**Status**: living plan, updated 2026-09-28. `main` = `7ae0a19` (#565, cleanup PR-A2, merged 2026-09-28 01:02 UTC). Written at `be63a58` (#559, the
+**Status**: living plan, updated 2026-09-28. `main` = `2b9219d` (#566, cleanup PR-B, merged 2026-09-28 05:13 UTC). Written at `be63a58` (#559, the
 #558 follow-up, merged 2026-09-26 03:42 UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as `f850815`.
 Line numbers are at `f850815` unless marked "at the follow-up", which equals `be63a58` for every file #559 touched
 (`sb3_training.ipynb`, `curriculum/__init__.py`, `curriculum/checkpoints.py`, `test_curriculum_checkpoints.py`,
@@ -15,7 +15,8 @@ command-line curriculum path (D-D17 amended; §4.5). CU-3 landed as #562 the sam
 (D-D19) landed as #563 on 2026-09-27, and the maintainer tagged its first commit, `afad625`, as `0.3.8` (a
 lightweight tag, published as a GitHub pre-release). The same day the maintainer settled §2 row 2 as (c), no
 archive tags, and took row 20 as D-D21: 0.3.9 is the clean, refactored base release, cut once its gate has landed.
-PR-A landed as #564 the same day, and PR-A2 as #565 on 2026-09-28; PR-B is carried out (§3.1).
+PR-A landed as #564 the same day, PR-A2 as #565 on 2026-09-28 and PR-B as #566 the same day, which completes D-D17's
+removals (§3.1).
 
 ## How to use this document
 
@@ -34,21 +35,26 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
 
 ## 1. Bottom line
 
-1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. The backend retirement is carried out (PR-A
-   landed as #564, PR-A2 as #565, and PR-B is carried out, §4.6). What remains is fifteen smaller PRs (CU-2 and
-   CU-4..CU-17, §3); the CI-signal PR (CU-1, D-D18) landed as #561, CU-3 (D-D20) as #562 and the release cut
-   (D-D19) as #563. D-D21 (§2 row 20) gates the 0.3.9 release on thirteen of these PRs: PR-A, PR-A2, PR-B, CU-2,
-   CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16; the other five CUs are deferred, not dropped. The
-   retirement makes four of the survey's 21 waves wholly moot, most of C15 and half of C1. It also deletes five of
-   the survey's nine live defects along with their code, and #558 already fixed two more.
+1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. The backend retirement has landed (PR-A as
+   #564, PR-A2 as #565 and PR-B as #566, §4.6). What remains is fifteen smaller PRs (CU-2 and CU-4..CU-17, §3);
+   the CI-signal PR (CU-1, D-D18) landed as #561, CU-3 (D-D20) as #562 and the release cut (D-D19) as #563. D-D21
+   (§2 row 20) gates the 0.3.9 release on thirteen of these PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8,
+   CU-9, CU-11, CU-12, CU-14 and CU-16, of which ten remain now that the retirement has landed; the other five CUs
+   are deferred, not dropped. The retirement makes four of the survey's 21 waves wholly moot, most of C15 and half
+   of C1. It also deletes five of the survey's nine live defects along with their code, and #558 already fixed two
+   more.
 2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) came first, as #561, and CU-3 (atomic run-tree records
    and checkpoint pairs; D-D20) second, as #562, and the CHANGELOG release cut (D-D19) third, as #563. PR-A (Ray Tune, the Vertex AI
    tuning sweeps and mjlab; its acceptance runs the digest-snapshot harness this plan adds, §4.4) came fourth, as #564, and PR-A2 (the
    single-job Vertex route and GCS upload, which D-D17 also retires) fifth, as #565, and PR-B (JAX/MJX, keeping a frozen
-   interface core) sixth. Next comes the rest of D-D21's 0.3.9 gate (§2 row 20), among it the golden-trace (CU-11),
+   interface core) sixth, as #566. Next comes the rest of D-D21's 0.3.9 gate (§2 row 20), among it the golden-trace (CU-11),
    one-derivation (CU-8) and env-dedup (CU-12) PRs that consolidation PR-8 and PR-9 need, the CI structure (CU-14)
    and docs correctness (CU-16), and then the 0.3.9 cut. The deferred PRs follow at their §3.2 points: `extends`
-   (CU-13) before PR-11, and the docs shrink (CU-17) last, before PR-15.
+   (CU-13) before PR-11, and the docs shrink (CU-17) last, before PR-15. The gait audit of 2026-09-28
+   ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)) found that three of the five
+   certified walkers hop, and its plan ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md), whose
+   decisions GQ-1..GQ-18 are all open) places the gait-check code after the 0.3.9 cut, as the maintainer asked;
+   nothing in D-D21's gate changes.
 3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines (PR-A's and PR-B's, measured before
    D-D17 was taken; the Vertex route and GCS upload leave in PR-A2, which derives its own). That covers about 17,459 of the 71,682
    non-test library lines (24%) and about 12,090 test lines. As carried out: PR-A deleted 42 files and 13,222 lines,
@@ -89,7 +95,7 @@ row append-only in
 
 | # | Decision | Options | Recommendation (why) | Blocks |
 |---|---|---|---|---|
-| 1 | **Proposed D-D17: retire the backends.** The maintainer's direction is to remove Ray Tune, the Vertex AI hyperparameter-tuning sweeps, mjlab and JAX/MJX now, and add them back once every species and behavior is learned. **Open scope question** (removal critic item 12): does the single-job Vertex route stay? That route is `scripts/setup_vertex_ai.sh` (184 lines; submits SB3 `train_sb3.py train`/`curriculum` jobs at :127-162; one sweep hint at :183) and the `Dockerfile` (44 lines; `.[train,viz,gcp]` at :31). | (a) D-D17 as drafted (§4.5), keeping the route. (b) Also delete `setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, the kept parts of `vertex-ai.md`, and `google-cloud-aiplatform` from `[gcp]`. | **(a).** The route runs SB3 only and references no sweep code, and removing it later is a separate, reversible choice. It still needs the maintainer's explicit yes, because the original scope named both files. Also confirm the appended note to [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_2026_07.md) (§4.5). **Taken 2026-09-26 as D-D17, wider than (b):** the maintainer also retires GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, the helpers they reach and the whole `[gcp]` extra), so PR-A's delete list grows beyond §4.5's (see its note). **Split the same day:** those two leave in a PR of their own, PR-A2, with an end-to-end test of the command-line curriculum path; this plan lands it after PR-A (D-D17 amended). **Carried out in part by PR-A (2026-09-27; §4.5):** Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines); D-A12, D-A15, D-B1, D-B12 and D-D11 amended and A6 superseded; no digest moves. PR-A2 and PR-B carry out the rest. **PR-A landed as #564 on 2026-09-27.** **Carried out by PR-A2 (2026-09-27; §4.5):** the single-job Vertex AI route and GCS artifact upload removed (4 files and 957 lines, the upload code, the `--gcs-*` flags and `[gcp]`), with an end-to-end test of the command-line curriculum path; no digest moves. PR-B carries out the rest. **PR-A2 landed as #565 on 2026-09-28.** **Carried out by PR-B (2026-09-28; §4.6):** the JAX/MJX runtime removed (30 whole files and 15,665 lines: the 13 `jax_*` modules, 15 JAX/MJX test files, the notebook and the JAX guide; also the stage writer `save_jax_stage_artifacts`, `validate_mjx_environment_plant`, the `[jax]` stage tables, the `jax`/`jax-cpu` extras and the `test-jax-cpu` job) behind the 549-line frozen MJX interface core and its pin test; A7 narrowed and D-A5, D-B13, D-C3, D-C4, D-C7, D-C16 and G1 amended; no digest moves. This completes D-D17's removals. | PR-A and PR-B. Their FROZEN docstrings, amendments and CHANGELOG entries cite D-D17. PR-A2 too (split 2026-09-26). |
+| 1 | **Proposed D-D17: retire the backends.** The maintainer's direction is to remove Ray Tune, the Vertex AI hyperparameter-tuning sweeps, mjlab and JAX/MJX now, and add them back once every species and behavior is learned. **Open scope question** (removal critic item 12): does the single-job Vertex route stay? That route is `scripts/setup_vertex_ai.sh` (184 lines; submits SB3 `train_sb3.py train`/`curriculum` jobs at :127-162; one sweep hint at :183) and the `Dockerfile` (44 lines; `.[train,viz,gcp]` at :31). | (a) D-D17 as drafted (§4.5), keeping the route. (b) Also delete `setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, the kept parts of `vertex-ai.md`, and `google-cloud-aiplatform` from `[gcp]`. | **(a).** The route runs SB3 only and references no sweep code, and removing it later is a separate, reversible choice. It still needs the maintainer's explicit yes, because the original scope named both files. Also confirm the appended note to [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_2026_07.md) (§4.5). **Taken 2026-09-26 as D-D17, wider than (b):** the maintainer also retires GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, the helpers they reach and the whole `[gcp]` extra), so PR-A's delete list grows beyond §4.5's (see its note). **Split the same day:** those two leave in a PR of their own, PR-A2, with an end-to-end test of the command-line curriculum path; this plan lands it after PR-A (D-D17 amended). **Carried out in part by PR-A (2026-09-27; §4.5):** Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines); D-A12, D-A15, D-B1, D-B12 and D-D11 amended and A6 superseded; no digest moves. PR-A2 and PR-B carry out the rest. **PR-A landed as #564 on 2026-09-27.** **Carried out by PR-A2 (2026-09-27; §4.5):** the single-job Vertex AI route and GCS artifact upload removed (4 files and 957 lines, the upload code, the `--gcs-*` flags and `[gcp]`), with an end-to-end test of the command-line curriculum path; no digest moves. PR-B carries out the rest. **PR-A2 landed as #565 on 2026-09-28.** **Carried out by PR-B (2026-09-28; §4.6):** the JAX/MJX runtime removed (30 whole files and 15,665 lines: the 13 `jax_*` modules, 15 JAX/MJX test files, the notebook and the JAX guide; also the stage writer `save_jax_stage_artifacts`, `validate_mjx_environment_plant`, the `[jax]` stage tables, the `jax`/`jax-cpu` extras and the `test-jax-cpu` job) behind the 549-line frozen MJX interface core and its pin test; A7 narrowed and D-A5, D-B13, D-C3, D-C4, D-C7, D-C16 and G1 amended; no digest moves. This completes D-D17's removals. **PR-B landed as #566 on 2026-09-28.** | PR-A and PR-B. Their FROZEN docstrings, amendments and CHANGELOG entries cite D-D17. PR-A2 too (split 2026-09-26). |
 | 2 | **Archive points.** | (a) One tag at PR-A's first parent. It misses any JAX change that lands between the two merges. (b) Two annotated tags: `archive/secondary-backends-2026-09` at PR-A's first parent and one at PR-B's first parent (e.g. `archive/jax-mjx-2026-09`), each pushed before its PR merges, with both SHAs in D-D17 (critic item 5). (c) No tags; merge commits keep the SHAs reachable. | **(b).** It is cheap, and each half can be recovered from a named point. The remote had 0 tags on 2026-09-25. Do not reuse the stale `JAX` branch (`f900d3a`, 2026-02-03), which is not an ancestor of `main`. **Decided 2026-09-27: (c), no archive tags.** The project is in alpha, and the maintainer had already tagged the tree before the retirement as the release `0.3.8` (`afad625`, row 3). Every file PR-A deletes is byte-identical there, and anything that changes later stays reachable through PR-A's and PR-B's merge commits. §4.8 item 1 no longer applies. | The PR-A and PR-B merges. Maintainer action. |
 | 3 | **Cut the CHANGELOG release?** `[Unreleased] (v0.3.8)` spans `CHANGELOG.md:8-3805`: 3,798 of 4,009 lines (3,860 of 4,071 at the follow-up). Two more undated `[Unreleased]` headings sit at :3806 and :3934. The last dated release is 0.2.0 (2026-02-09). Since `c0e9b52` (2026-08-02), `.devN` in `pyproject.toml:7` and the heading move together, with no tags. | (a) Before PR-A: date the three headings, open an empty `[Unreleased]`, bump to `0.3.9.dev0` (or `0.4.0.dev0` if the terrain path is ROADMAP's v0.4.0), and tag `v0.3.8`. (b) The same, without a release tag. (c) Keep growing the section. | **(a) or (b), before PR-A**, so the retirement's Removed and Migration entries head a short section. A release tag is the maintainer's call; archive tags are not release tags. The version is recorded in `stage_config.json` (`config.py:788`), in the HPT metrics payload (`train_base.py:1503`) and in `provenance.json`'s `dependency_versions` (`"mesozoic_labs"`, `result_bundle/constants.py:55`). It enters no digest; a resume after the bump only records it as environment drift, as a new `repository_commit` already does. **Taken 2026-09-26 as D-D19: (a), with `0.3.9.dev0` next; the maintainer tags `v0.3.8`.** **Carried out by the release PR (§3.1).** **Landed as #563 on 2026-09-27** (merged 03:02 UTC as `04d107a`); the maintainer tagged `afad625` as `0.3.8`, a lightweight tag without the `v` prefix, and published it as a GitHub pre-release. | Nothing hard. It only decides where PR-A's entries go. |
 | 4 | **Persist the resolved trunk run on disk.** The chain loop never follows the run's own `ancestors/` records, so a resume must pin `TRUNK_FROM` to the trunk that the interrupted session's resolve cell *printed*. If that output is lost, the operator has to hunt through the ancestor records (`CHANGELOG.md:1712-1726` at the follow-up; round-3 check). | (a) The resolve cell writes the resolved trunk into a run-level sidecar, and the RESUME cell and the recipe read it. (b) Keep the printed output plus the recipe. (c) Put it in `provenance.json`. | **(a), as a small notebook PR.** First check how the run manifest treats a new run-level file: `result_bundle/manifest.py` hashes the run tree, and a `complete` bundle is immutable. Not (c): provenance keys drive the drift records and the audit. | Nothing. It removes an operator error mode (KNOWN_ISSUES, §3.5). |
@@ -171,11 +177,16 @@ attempt after an early stop is a fresh `RUN_ID`.
    head, with the optional backends blocked and unblocked; mypy reports no issues in 309 source files (from 335) in
    all three environments; `pytest --collect-only environments` collects 3,943 tests both locally (from 4,339) and
    in CI's SB3 environment (from 4,289), with no errors; the plant-contract tests are 69 (54 + the 15 pin tests);
-   and the wheel, installed without JAX, reproduces all six `policy_interface_sha256` values. PR-B follows PR-A
-   (§4.7). Both use the digest-snapshot harness, which is already in the repository (§4.4), for their acceptance.
+   and the wheel, installed without JAX, reproduces all six `policy_interface_sha256` values. **PR-B landed as #566
+   on 2026-09-28** (merged 05:13 UTC as `2b9219d`, whose tree equals `c8b66a6`; measured on its CI at `c8b66a6`, run
+   36376798324: SB3 job 37:03, whose mypy step printed "Success: no issues found in 309 source files" in 53 s; all
+   22 CI jobs green, with no JAX job any more; coverage 91 percent). The run was at reduced depth, because the
+   `full-ci` label was missing (its log printed "SB3 depth: one real-PPO smoke per body of work"); the full-depth
+   selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's
+   SB3 environment on `2b9219d` and passed. PR-B follows PR-A (§4.7). Both use the digest-snapshot harness, which is already in the repository (§4.4), for their acceptance.
 3. **The surviving waves (§3.2).** CU-2 and CU-7 are independent of the retirement and can land any time (CU-3, also
    independent, landed as #562). Work
-   that edits CI structure, or docs the retirement also edits, waits for PR-B (carried out, 2026-09-28).
+   that edits CI structure, or docs the retirement also edits, waits for PR-B (landed as #566, 2026-09-28).
 
 ### 3.2 The surviving waves (relabelled CU-n; "was" names the survey item)
 
@@ -723,7 +734,8 @@ unchanged, with no rebase conflict.
    Artifact Registry repository `setup_vertex_ai.sh` created (`mesozoic-labs` by default, image `trainer`)
    and any bucket it used, which nothing in the repository reads any more. For PR-B, nothing on Drive moves: the
    JAX run folders counted above stay (this plan's count, not re-checked), and §4.9's readers of recorded JAX runs
-   are kept.
+   are kept. PR-B merged without the label too (#566); its full-depth selections were then run by hand in CI's SB3
+   environment on `2b9219d` and passed.
 
 ### 4.9 What not to remove
 
@@ -914,6 +926,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 | #563's CI (the release cut, at `29cbc2d`) | SB3 job 46:21, its mypy step "Success: no issues found in 361 source files" in 70 s; JAX job 35:47; all 23 checks green; coverage 90 percent | job timestamps and logs |
 | #564's CI (PR-A, at `3c5eab7`) | SB3 job 47:01, its mypy step "Success: no issues found in 334 source files" in 68 s; JAX job 39:11; all 23 checks green; coverage 91 percent; reduced depth, without `full-ci` | job timestamps and logs |
 | #565's CI (PR-A2, at `647ca1f`, run 36360108931) | SB3 job 34:52, its mypy step "Success: no issues found in 335 source files" in 41 s; JAX job 34:43; all 23 checks green; coverage 91 percent; full depth, with `full-ci` | job timestamps and logs |
+| #566's CI (PR-B, at `c8b66a6`, run 36376798324) | SB3 job 37:03, its mypy step "Success: no issues found in 309 source files" in 53 s; no JAX job; all 22 CI jobs green; coverage 91 percent; reduced depth, without `full-ci` | job timestamps and logs |
 | Earlier PRs (SB3 / JAX job) | #551 35:37 / 53:34; #556 47:09 / 49:05; #557 30:24 / 47:26 | consolidation plan status rows |
 | Job that sets the finish time | JAX, in 12 of 15 PR/push runs (18 runs, #1210–#1227) | CI-cost inventory |
 | Median PR/push wall time | 52.3 min now; estimated 46.0 min after PR-B (per-run saving 0–18.9 min, median 5.9) | same |
