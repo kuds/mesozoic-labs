@@ -258,6 +258,17 @@ class TestMainDispatch:
             "'locomotion': ['stance', 'locomotion']; it must name one of those"
         ) in capsys.readouterr().err
 
+    @pytest.mark.parametrize("flag", ["--gcs-bucket", "--gcs-project"])
+    def test_retired_gcs_flags_are_usage_errors(self, species_cfg, capsys, flag):
+        """D-D17 retired GCS upload (cleanup PR-A2): the flags are gone, so argparse refuses them before
+        train_curriculum is reached, and the curriculum is called with no gcs_* keyword."""
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, [flag, "my-bucket"])
+        assert excinfo.value.code == 2
+        assert f"unrecognized arguments: {flag} my-bucket" in capsys.readouterr().err
+        kwargs = self._run_curriculum(species_cfg, []).call_args.kwargs
+        assert not {"gcs_bucket", "gcs_project"} & set(kwargs)
+
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()

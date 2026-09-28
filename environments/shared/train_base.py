@@ -1634,8 +1634,8 @@ def _report_hpt_metrics(
         if net_arch is not None:
             aux_metrics[f"{algorithm}_net_arch"] = str(net_arch)
 
-    # Write all metrics to a JSON sidecar so they can be collected from
-    # GCS without relying on the HPT metric_spec.
+    # Write all metrics to a JSON sidecar; build_stage_results_from_eval_data
+    # reads it back (see the docstring).
     from .file_io import atomic_write_json
 
     # Written atomically, and as before with no trailing newline (CU-3).
@@ -2081,8 +2081,6 @@ def train_curriculum(
     algorithm: str = "ppo",
     use_wandb: bool = False,
     output_dir: str | None = None,
-    gcs_bucket: str | None = None,
-    gcs_project: str | None = None,
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
     trunk_from: "str | Path | None" = None,
@@ -2196,7 +2194,6 @@ def train_curriculum(
     from .config import (
         refuse_occupied_stage_dir,
         save_stage_config,
-        upload_curriculum_artifacts,
     )
     from .curriculum import (
         CurriculumCallback,
@@ -2753,14 +2750,6 @@ def train_curriculum(
                 stage,
             )
             break
-
-    upload_curriculum_artifacts(
-        base_dir,
-        species=species,
-        algorithm=algorithm,
-        bucket=gcs_bucket,
-        project=gcs_project,
-    )
 
     logger.info("=" * 60)
     logger.info("Curriculum training complete!")

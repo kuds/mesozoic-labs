@@ -8,8 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
+- **An end-to-end test of the command-line curriculum path** (cleanup
+  PR-A2, decision D-D17;
+  `environments/shared/tests/test_curriculum_cli_end_to_end.py`). It runs
+  velociraptor's `train_sb3.py curriculum` in a subprocess with 64-step
+  stages and every gate opened through `--override`, and checks the stage
+  directories and records, the hash-bound gate verdicts, the handoff
+  lineage, `curriculum_results.csv`, the `ancestors/` records of a
+  `--trunk-from` run and a ladder stopped by a closed gate. It lands before
+  the GCS upload removal and passes before and after it, and it runs in
+  CI's SB3 job. Sizing it found a new KNOWN_ISSUES entry: the command-line
+  curriculum judges `stance_quality/v1`'s full horizon against the stage
+  TOML, not an overridden `env.max_episode_steps`; cleanup CU-10 fixes it.
 - **Decision D-D21 recorded; the archive points settled; D-D17's
-  amendments appended** (cleanup PR-A, 2026-09-27;
+  amendments appended** (#564, cleanup PR-A, 2026-09-27;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.1–§6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, `docs/CLEANUP_PLAN_2026_09.md` §2,
   `docs/NEXT_STEPS.md` §5). The release cut of D-D19 landed as #563, and the
@@ -27,12 +39,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and A6 "Superseded by D-D17".
 
 ### Migration
+- **`curriculum --gcs-bucket` / `--gcs-project` are gone** (cleanup PR-A2,
+  decision D-D17): argparse exits 2 with "unrecognized arguments".
+  `train_curriculum()` loses its `gcs_bucket` / `gcs_project` parameters,
+  and `config.upload_curriculum_artifacts` is removed. To keep a copy in
+  Cloud Storage, write the run to a fresh `--output-dir` on a mounted bucket
+  or copy it afterwards (e.g. `gcloud storage cp -r`); a run under `/gcs/…`
+  still buffers TensorBoard locally and stages its checkpoint pairs.
+- **`reporting.write_results_csv` refuses `gs://` paths** with a
+  `ValueError`, in batch and append mode. Before, batch mode uploaded the
+  file and append mode raised a different error.
+- **The `[gcp]` extra is gone**, and `[all]` is `[train,jax,viz,dev]`. pip
+  only warns about an extra the package no longer provides; install
+  `google-cloud-storage` or `google-cloud-aiplatform` yourself if you need
+  them.
+- **No Docker image and no Vertex AI route.** The `Dockerfile`,
+  `.dockerignore`, `scripts/setup_vertex_ai.sh` and
+  `website/docs/training/vertex-ai.md` are removed, and the site's
+  `/docs/training/vertex-ai` page now returns 404. Train locally or with the
+  SB3 notebook. The image files are byte-identical at the `0.3.8` tag (e.g.
+  `git checkout 0.3.8 -- Dockerfile .dockerignore`); the script and the page
+  are in git history. Cloud resources the script created are untouched:
+  its Artifact Registry repository (`mesozoic-labs` by default, image
+  `trainer`) and any bucket it used; delete them if unused.
 - **The `ray` and `mjlab` extras are gone, and `train` no longer installs
-  `cloudml-hypertune`** (cleanup PR-A, decision D-D17). `[all]` is now
-  `[train,jax,viz,gcp,dev]`. pip only warns about an extra the package no
-  longer provides, so an install line that still names `ray` or `mjlab`
-  succeeds without them; drop the name (CI's SB3 job installs
-  `.[train,test,viz]`).
+  `cloudml-hypertune`** (#564, cleanup PR-A, decision D-D17). `[all]` became
+  `[train,jax,viz,gcp,dev]` (cleanup PR-A2 then drops `gcp`, above). pip
+  only warns about an extra the package no longer provides, so an install
+  line that still names `ray` or `mjlab` succeeds without them; drop the
+  name (CI's SB3 job installs `.[train,test,viz]`).
 - **No sweep command or sweep notebook.** `python -m
   environments.shared.scripts.sweep`, `notebooks/ray_tune_sweep.ipynb` and
   the `configs/<species>/sweep_{ppo,sac}.json` search spaces are removed.
@@ -43,15 +78,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now returns 404; the site has no redirect plugin.
 - **Drive:** nothing to move. The March 2026 sweep folders stay, and the Drive
   summary still reads them; no new sweep folders are written.
-- **Unchanged until PR-A2:** the single-job Vertex AI route
-  (`scripts/setup_vertex_ai.sh`, the `Dockerfile`,
-  `website/docs/training/vertex-ai.md`), GCS upload (`curriculum
-  --gcs-bucket`) and the `[gcp]` extra. The Vertex page's GCE sweep section
-  is marked retired.
 
 ### Removed
+- **The single-job Vertex AI route and GCS artifact upload** (cleanup PR-A2
+  of `docs/CLEANUP_PLAN_2026_09.md`, decision D-D17). Deleted: 4 files and
+  957 lines, `scripts/setup_vertex_ai.sh` (183), the `Dockerfile` (44),
+  `.dockerignore` (32) and `website/docs/training/vertex-ai.md` (698) with
+  its sidebar entry. Also removed: `config._upload_to_gcs` and
+  `config.upload_curriculum_artifacts` (213 lines), the `curriculum
+  --gcs-bucket` / `--gcs-project` flags and `train_curriculum`'s matching
+  parameters, the `gs://` branch of `write_results_csv`, the `[gcp]` extra,
+  and the 11 tests of the removed code (7 in `test_config.py`, 4 in
+  `test_stage_layout.py`); the append-mode `gs://` test now pins the
+  refusal. On the site and in the README: the Docker sections of the README
+  and the installation and quick-start pages, the JAX guide's "Vertex AI
+  with JAX" section and the landing page's "Docker support". `tb_sync.py`
+  and the `/gcs/` mount detection stay. No digest moves: the digest-snapshot
+  harness prints the same 848 lines on the base and on this PR. No
+  KNOWN_ISSUES entry had its cause in the removed code.
 - **Ray Tune, the Vertex AI hyperparameter-tuning sweeps and the mjlab
-  scaffold** (cleanup PR-A of `docs/CLEANUP_PLAN_2026_09.md`, decision
+  scaffold** (#564, cleanup PR-A of `docs/CLEANUP_PLAN_2026_09.md`, decision
   D-D17). 42 files and 13,222 lines are deleted:
   `environments/shared/scripts/sweep/` (13 files), `shared/mjlab_env.py`,
   `velociraptor/mjlab_config.py` and `velociraptor/scripts/train_mjlab.py`,

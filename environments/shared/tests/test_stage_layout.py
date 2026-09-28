@@ -64,7 +64,7 @@ class TestIterReplayFiles:
     def test_legacy_flat_layout_excludes_the_publication_evidence_csvs(self, tmp_path):
         # A legacy stage root holds the replays beside evaluation_*.csv. Those
         # are the result-bundle evidence files, not replay artifacts; sweeping
-        # them in here would upload them twice and imply they moved.
+        # them in here would list them as replay artifacts and imply they moved.
         _touch(tmp_path / "trex_ppo_stage1_best.mp4")
         _touch(tmp_path / "trex_ppo_stage1_best_stance.csv")
         _touch(tmp_path / "evaluation_selected.csv")
@@ -262,56 +262,6 @@ class TestGenerateStageArtifactsLayout:
         assert published == ["velociraptor_ppo_stage1_selected.mp4"]
 
 
-class TestGcsUploadScope:
-    """The GCS upload resolves replays through the layout, videos only."""
-
-    def _uploaded(self, tmp_path, monkeypatch):
-        from environments.shared import config
-
-        calls: list[str] = []
-        monkeypatch.setattr(
-            config,
-            "_upload_to_gcs",
-            lambda src, bucket, key, **kw: calls.append(key),
-        )
-        (tmp_path / "plant_identity.json").write_text("{}")
-        config.upload_curriculum_artifacts(tmp_path, "trex", "ppo", bucket="b")
-        return calls
-
-    def test_uploads_nested_videos_at_their_relative_path(self, tmp_path, monkeypatch):
-        stage = tmp_path / "stage1"
-        _touch(stage / "replays" / "trex_ppo_stage1_best.mp4")
-        keys = self._uploaded(tmp_path, monkeypatch)
-        assert "training/trex/{}/stage1/replays/trex_ppo_stage1_best.mp4".format(tmp_path.name) in keys
-
-    def test_still_uploads_a_legacy_flat_video(self, tmp_path, monkeypatch):
-        stage = tmp_path / "stage1"
-        _touch(stage / "trex_ppo_stage1_best.mp4")
-        keys = self._uploaded(tmp_path, monkeypatch)
-        assert "training/trex/{}/stage1/trex_ppo_stage1_best.mp4".format(tmp_path.name) in keys
-
-    def test_does_not_start_uploading_figures_or_stance_csvs(self, tmp_path, monkeypatch):
-        # Nesting must not quietly enlarge what lands in someone's bucket:
-        # a stance CSV is ~1.7 MB and neither it nor the figures ever
-        # uploaded before.
-        stage = tmp_path / "stage1"
-        _touch(stage / "replays" / "trex_ppo_stage1_best.mp4")
-        _touch(stage / "replays" / "trex_ppo_stage1_best_stance.csv")
-        _touch(stage / "figures" / "training_curves.png")
-        keys = self._uploaded(tmp_path, monkeypatch)
-        assert not [k for k in keys if k.endswith(".png") or k.endswith("_stance.csv")]
-
-    def test_gate_verdict_uploads_with_the_stage_sidecars(self, tmp_path, monkeypatch):
-        # gate_verdict.json lives at the stage root beside stage_config.json
-        # and is what makes a stage reusable from GCS alone.
-        stage = tmp_path / "stage1"
-        _touch(stage / "gate_verdict.json")
-        _touch(stage / "stage_config.json")
-        keys = self._uploaded(tmp_path, monkeypatch)
-        assert "training/trex/{}/stage1/gate_verdict.json".format(tmp_path.name) in keys
-        assert "training/trex/{}/stage1/stage_config.json".format(tmp_path.name) in keys
-
-
 class TestSelectedCheckpointReplay:
     """The replay must show the checkpoint the evidence CSV is evidence for.
 
@@ -467,8 +417,8 @@ class TestAccessorsNeverYieldDirectories:
     """Both layouts must behave the same way.
 
     The nested branch guarded ``is_file()`` and the legacy one did not, so a
-    directory whose name ended in ``.mp4`` was handed to the GCS upload for
-    one layout but not the other.
+    directory whose name ended in ``.mp4`` was yielded for one layout but not
+    the other.
     """
 
     def test_a_directory_named_like_a_replay_is_not_yielded(self, tmp_path):

@@ -388,8 +388,6 @@ def main(species_cfg):
         help="Free-text label for this run, recorded in every trained stage's run block beside its "
         "hyperparameters_sha256 digest and tagged onto each W&B run (label:<TEXT>)",
     )
-    cur_parser.add_argument("--gcs-bucket", type=str, default=None)
-    cur_parser.add_argument("--gcs-project", type=str, default=None)
 
     # -- eval ----------------------------------------------------------
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
@@ -571,8 +569,6 @@ def main(species_cfg):
             algorithm=args.algorithm,
             use_wandb=args.wandb,
             output_dir=args.output_dir,
-            gcs_bucket=args.gcs_bucket,
-            gcs_project=args.gcs_project,
         )
 
     elif args.command == "eval":

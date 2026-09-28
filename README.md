@@ -412,29 +412,6 @@ cd environments/trex
 python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 ```
 
-## Docker
-
-The repo ships a `Dockerfile` that bundles MuJoCo, Stable-Baselines3, and all training dependencies:
-
-```bash
-# Build
-docker build -t mesozoic-labs:latest .
-
-# Quick smoke-test (no GPU needed)
-docker run --rm mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  train --stage 1 --timesteps 1000 --n-envs 1
-
-# Full curriculum with GPU, writing outputs to local disk
-docker run --rm --gpus all \
-  -v "$(pwd)/outputs:/app/outputs" \
-  mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  curriculum --algorithm ppo --n-envs 4 --output-dir /app/outputs/velociraptor
-```
-
-See [Vertex AI training docs](website/docs/training/vertex-ai.md) for cloud deployment.
-
 ## Training Results
 
 <!-- BEGIN GENERATED: RESULTS -->

@@ -255,39 +255,6 @@ The number of parallel environments is a major factor in GPU memory use, but the
 
 The first training step triggers JAX's JIT compilation, which can take several minutes depending on model complexity, batch size, software versions, and hardware. This one-time pause before steady-state execution is expected behavior.
 
-## Vertex AI with JAX
-
-The following is an illustrative A100 Vertex AI job. Validate the machine type
-and environment batch with a short pilot before launching a full run:
-
-```python
-job = aiplatform.CustomJob(
-    display_name="trex-jax-curriculum",
-    worker_pool_specs=[
-        {
-            "machine_spec": {
-                "machine_type": "a2-highgpu-1g",
-                "accelerator_type": "NVIDIA_TESLA_A100",
-                "accelerator_count": 1,
-            },
-            "replica_count": 1,
-            "container_spec": {
-                "image_uri": IMAGE_URI,
-                "command": ["python"],
-                "args": [
-                    "-m", "environments.shared.jax_training",
-                    "--species", "trex",
-                    "--curriculum",
-                ],
-            },
-        }
-    ],
-)
-job.run(sync=False)
-```
-
-See [Training on Vertex AI](vertex-ai.md) for full setup instructions.
-
 ## Comparing JAX with SB3
 
 The JAX backend is designed to improve throughput through batched, compiled simulation, while SB3 remains the simpler CPU path for debugging and smaller experiments. The repository does not yet publish a controlled, reproducible cross-backend benchmark, and it should not be assumed that the two implementations reach identical final performance. Compare them with the same species, stage configuration, seed set, evaluation protocol, and hardware description, and report both throughput and policy quality.

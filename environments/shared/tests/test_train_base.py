@@ -1051,7 +1051,6 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(train_base, "_select_handoff_checkpoint", lambda model_dir: None)
         monkeypatch.setattr(train_base, "_record_stage_result", lambda *args, **kwargs: None)
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
-        monkeypatch.setattr(config_module, "upload_curriculum_artifacts", lambda *args, **kwargs: None)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
         real_manager = curriculum_module.CurriculumManager

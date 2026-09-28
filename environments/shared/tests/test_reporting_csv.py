@@ -129,9 +129,13 @@ class TestWriteResultsCsv:
         assert result[0]["ppo_lr"] == ""
         assert result[1]["ppo_lr"] == "0.001"
 
-    def test_append_gcs_raises(self, tmp_path):
-        with pytest.raises(ValueError, match="Append mode is not supported"):
-            write_results_csv([{"stage": 1}], "gs://bucket/file.csv", append=True)
+    @pytest.mark.parametrize("append", [False, True])
+    def test_gs_uri_is_refused(self, append, tmp_path, monkeypatch):
+        """GCS upload was retired (D-D17): a gs:// URI is an error in both modes, never a local ``gs:`` dir."""
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ValueError, match="writes local files only"):
+            write_results_csv([{"stage": 1}], "gs://bucket/file.csv", append=append)
+        assert list(tmp_path.iterdir()) == []
 
     def test_creates_parent_directories(self, tmp_path):
         rows = [{"stage": 1, "best_mean_reward": 10.0}]

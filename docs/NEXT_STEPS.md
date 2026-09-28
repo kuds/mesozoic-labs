@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-27)
 
-**Status**: living reference — updated 2026-09-27; `main` = `04d107a` (#563 merged 2026-09-27 03:02 UTC).
+**Status**: living reference — updated 2026-09-27; `main` = `9369d6b` (#564 merged 2026-09-27 20:45 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -47,6 +47,7 @@ file in place when the state changes; it is not a dated investigation.
 | #561 | 2026-09-26 | Cleanup CU-1 (D-D18), outside the consolidation sequence: CI's SB3 job type-checks with SB3 and torch installed (mypy must report no errors; 23 type-only errors fixed with casts and annotations, the four in the SB3-absent diagnostics fallback with `# type: ignore`), one ruff and one mypy version is pinned in CI, pre-commit and the `dev` extra, pre-commit's hooks stay off the digest data files (MJCF sources, recipe TOMLs, manifests, calibrations), and every pytest step prints test ids, skip reasons and the slowest tests; D-D17..D-D19 recorded; no digest moves. Measured on its CI: SB3 job 48:54 (its mypy step: no issues in 359 source files), JAX job 51:20, coverage 90 percent |
 | #562 | 2026-09-26 | Cleanup CU-3 (D-D20), outside the consolidation sequence: on a Drive/GCS mount `train()` saves the final pair and the best and robust-best handoff pairs to local scratch and publishes them through `curriculum.publish_staged_pair`, and an empty placeholder takes the final zip's place before the final save begins, so a Colab reclaim leaves at worst an incomplete pair its readers reject (a handoff sidecar without its zip, or a final zip `checkpoint_pair_problem` rejects), never a truncated file or a mixed pair they accept, and D-D16's RESUME and chain-loop rules apply unchanged (off a mount nothing changes); `stage_config.json`, `metrics.json`, the stance reports, the three evidence CSVs and the `gate_resolution.json`, `task_fingerprint.json` and `plant_identity.json` sidecars are written through `file_io`'s new `atomic_write_json` / `atomic_write_csv` with their bytes unchanged; the handoff-pair KNOWN_ISSUES entry deleted; D-D20 and D-D17's amendment (PR-A2) recorded; no digest moves. Measured on its CI: SB3 job 47:57 (its mypy step: no issues in 361 source files), JAX job 50:05, coverage 90 percent |
 | #563 | 2026-09-27 | The CHANGELOG release cut (D-D19), outside the consolidation sequence: its first commit `afad625` sets `version = "0.3.8"` and dates `[0.3.8] - 2026-09-27`, `[0.3.2] - 2026-07-21` and `[0.3.0] - 2026-07-09`; its second opens a bare `## [Unreleased]` and sets `0.3.9.dev0`; #562 recorded as landed; no code, notebook, config or digest change. The maintainer tagged `afad625` as `0.3.8` (a lightweight tag) and published it as a GitHub pre-release on 2026-09-27. Measured on its CI: SB3 job 46:21 (its mypy step: no issues in 361 source files), JAX job 35:47, coverage 90 percent |
+| #564 | 2026-09-27 | Cleanup PR-A (D-D17), outside the consolidation sequence: Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines, with `cloudml-hypertune`, the `[ray]` and `[mjlab]` extras and `visualization.plot_trial_comparison`); #563 and the maintainer's `0.3.8` tag recorded; the archive points settled with no archive tags; D-D21 recorded; no digest moves. Measured on its CI: SB3 job 47:01 (its mypy step: no issues in 334 source files), JAX job 39:11, coverage 91 percent. The run was at reduced depth because the `full-ci` label was missing; the full-depth selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's SB3 environment on `9369d6b` and passed |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -401,8 +402,8 @@ digest moves (D-D17, taken 2026-09-26; the maintainer also retired the
 single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
-CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`; next come PR-A, PR-A2
-and PR-B; the archive points (the plan's decision 2) were settled on 2026-09-27
+CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, and PR-A as #564;
+PR-A2 is carried out and PR-B is next; the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed, the clean base the consolidation builds on. Within this sequence PR-8 is still next; under D-D21
 the whole 0.3.9 gate, including the reward/termination golden trace, lands
@@ -536,7 +537,13 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   PR-A). Archive points settled 2026-09-27 (its row 2, option (c)): no archive
   tags; the retired code is recoverable from the `0.3.8` tag and git history.
   As carried out by PR-A: Ray Tune, the Vertex AI tuning sweeps and mjlab are
-  removed; no digest moves.
+  removed; no digest moves. Landed as #564 on 2026-09-27. As carried out by PR-A2:
+  the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the `Dockerfile`,
+  `.dockerignore`, `website/docs/training/vertex-ai.md`) and GCS artifact
+  upload (`curriculum --gcs-bucket` / `--gcs-project`, `config.upload_curriculum_artifacts`,
+  the `gs://` branch of `write_results_csv` and the `[gcp]` extra) are
+  removed, with an end-to-end test of the command-line curriculum path;
+  `tb_sync.py` and the `/gcs/` mount detection stay; no digest moves.
 - **D-D18** (its row 8) CI type-checks with SB3 and torch installed: the SB3
   job pins SB3 as the notebook does and runs mypy, which must report no
   errors, and ruff and mypy are each pinned to one version for CI and

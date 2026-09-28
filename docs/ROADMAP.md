@@ -26,7 +26,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
-W&B tracking, metrics, Dockerfile, Vertex AI guide) and codebase consolidation
+W&B tracking, metrics) and codebase consolidation
 is complete. Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO,
 and Brachiosaurus PPO; their provenance and metrics are shown in the generated
 catalog. Further Brachiosaurus Stage 3 work and T-Rex SAC training remain planned.
@@ -142,6 +142,10 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - Installs training dependencies via `pip install -e ".[train]"`
   - Packages `environments/` and `configs/` for cloud deployment
   - _Dependency: None_
+  - _Retired by D-D17 (cleanup PR-A2;
+    [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): the
+    `Dockerfile` and `.dockerignore` are removed and recoverable from the
+    `0.3.8` tag and git history_
 
 - [x] **Vertex AI cloud training guide**
   - Step-by-step guide for single-stage and full curriculum training on GCP
@@ -152,6 +156,9 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - Spot/preemptible VM configuration for cost savings
   - Published at `website/docs/training/vertex-ai.md`
   - _Dependency: Dockerfile_
+  - _Retired by D-D17 (cleanup PR-A2): the guide and
+    `scripts/setup_vertex_ai.sh` are removed and recoverable from git history;
+    `/docs/training/vertex-ai` returns 404_
 
 - [x] **Full linting and type-checking compliance**
   - Fixed 92 Ruff lint errors, formatted 25 files, fixed 40 mypy type errors

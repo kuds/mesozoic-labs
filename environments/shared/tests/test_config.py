@@ -20,7 +20,6 @@ from environments.shared.config import (
     StageDirectoryOccupiedError,
     _detect_gpu_info,
     _detect_gpu_info_nvidia_smi,
-    _upload_to_gcs,
     append_stage_result_csv,
     get_git_commit,
     hyperparameter_diff,
@@ -29,7 +28,6 @@ from environments.shared.config import (
     load_stage_config,
     refuse_occupied_stage_dir,
     save_stage_config,
-    upload_curriculum_artifacts,
 )
 
 from .reporting_helpers import make_plant_identity as _plant_identity
@@ -590,155 +588,6 @@ class TestStageFileResolution:
         (species_dir / "stage1_b.toml").write_text("")
         with pytest.raises(StageManifestError, match="multiple stage-1 config files"):
             load_stage_manifest("multi", configs_dir=tmp_path / "configs")
-
-
-class TestUploadToGcs:
-    """Test GCS upload."""
-
-    def test_returns_false_for_missing_file(self, tmp_path):
-        result = _upload_to_gcs(tmp_path / "nonexistent.csv", "bucket", "path.csv")
-        assert result is False
-
-    def test_returns_false_when_gcs_import_fails(self, tmp_path):
-        local_file = tmp_path / "data.csv"
-        local_file.write_text("a,b\n1,2\n")
-        # The GCS import is inside the function, so we mock the import mechanism
-        import builtins
-
-        real_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "google.cloud":
-                raise ImportError("no google-cloud-storage")
-            return real_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
-            result = _upload_to_gcs(local_file, "bucket", "data.csv")
-        assert result is False
-
-
-class TestUploadCurriculumArtifacts:
-    """Test upload_curriculum_artifacts."""
-
-    def test_noop_when_no_bucket(self, tmp_path):
-        """Should do nothing when bucket is None."""
-        upload_curriculum_artifacts(tmp_path, "velociraptor", "ppo", bucket=None)
-
-    def test_uploads_artifacts_with_bucket(self, tmp_path):
-        """Should call upload_to_gcs for existing artifacts."""
-        # Create a fake run directory structure
-        base = tmp_path / "curriculum_20240228_150000"
-        base.mkdir()
-        (base / "curriculum_results.csv").write_text("stage,reward\n1,10\n")
-        (base / "training_summary.txt").write_text("summary")
-        (base / "plant_identity.json").write_text("{}")
-        stage1 = base / "stage1"
-        stage1_models = stage1 / "models"
-        stage1_models.mkdir(parents=True)
-        (stage1 / "stage_summary.txt").write_text("stage 1 summary")
-        (stage1 / "plant_identity.json").write_text("{}")
-        (stage1 / "velociraptor_ppo_stage1_best.mp4").write_bytes(b"vid1")
-        (stage1 / "velociraptor_ppo_stage1_final.mp4").write_bytes(b"vid2")
-        (stage1_models / "best_model.zip").write_bytes(b"fake")
-        (stage1_models / "stage1_final.zip").write_bytes(b"fake")
-        (stage1_models / "stage1_final_vecnorm.pkl").write_bytes(b"fake")
-
-        with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
-            upload_curriculum_artifacts(base, "velociraptor", "ppo", bucket="test-bucket", project="test-project")
-
-        # Run CSV/summary/identity + stage summary/identity + 2 videos + 3 models = 10
-        assert mock_upload.call_count == 10
-
-        # Verify the GCS paths for the new artifact types
-        uploaded_paths = [call.args[2] for call in mock_upload.call_args_list]
-        run = "curriculum_20240228_150000"
-        assert f"training/velociraptor/{run}/training_summary.txt" in uploaded_paths
-        assert f"training/velociraptor/{run}/plant_identity.json" in uploaded_paths
-        assert f"training/velociraptor/{run}/stage1/stage_summary.txt" in uploaded_paths
-        assert f"training/velociraptor/{run}/stage1/plant_identity.json" in uploaded_paths
-        assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
-        assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths
-
-    @staticmethod
-    def _uploaded_keys(base, species):
-        with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
-            upload_curriculum_artifacts(base, species, "ppo", bucket="test-bucket")
-        return [call.args[2] for call in mock_upload.call_args_list]
-
-    def test_nn_id_and_bare_id_dirs_upload_and_unrelated_dirs_do_not(self, tmp_path):
-        """The stage-dir filter is stage_ref_from_dirname with the species in hand."""
-        base = tmp_path / "curriculum_20260901_120000"
-        for name in ("02_recovery", "recovery", "stage1", "models", "replays", "stage4", "ancestors"):
-            (base / name).mkdir(parents=True)
-            (base / name / "stage_config.json").write_text("{}")
-        keys = self._uploaded_keys(base, "trex")
-        run = base.name
-        for name in ("02_recovery", "recovery", "stage1"):
-            assert f"training/trex/{run}/{name}/stage_config.json" in keys
-        for name in ("models", "replays", "stage4", "ancestors"):
-            # Not stage directories: none of their stage-level sidecars
-            # upload (the ancestors/ RECORDS, one directory deeper, do —
-            # test_ancestor_records_upload_beside_the_stages).
-            assert f"training/trex/{run}/{name}/stage_config.json" not in keys, name
-
-    def test_ancestor_records_upload_beside_the_stages(self, tmp_path):
-        """A reused node's ancestors/<id>/ record mirrors in full: the audit requires it."""
-        base = tmp_path / "curriculum_20260906_120000"
-        stage = base / "02_locomotion"
-        (stage / "models").mkdir(parents=True)
-        (stage / "stage_config.json").write_text("{}")
-        record = base / "ancestors" / "stance"
-        record.mkdir(parents=True)
-        record_files = (
-            "ancestor.json",
-            "gate_verdict.json",
-            "stage_config.json",
-            "task_fingerprint.json",
-            "plant_identity.json",
-        )
-        for name in record_files:
-            (record / name).write_text("{}")
-        # Litter beside the records never uploads: only record directories do.
-        (base / "ancestors" / "README.txt").write_text("not a record")
-
-        keys = self._uploaded_keys(base, "trex")
-
-        run = base.name
-        assert f"training/trex/{run}/02_locomotion/stage_config.json" in keys
-        for name in record_files:
-            assert f"training/trex/{run}/ancestors/stance/{name}" in keys, name
-        assert not [key for key in keys if key.endswith("README.txt")]
-        # The record directory is never mistaken for a stage directory.
-        assert not [key for key in keys if "/ancestors/stance/models/" in key]
-
-    def test_an_open_id_dir_uploads_only_when_the_manifest_declares_it(self, tmp_path, monkeypatch):
-        import shutil
-
-        from environments.shared import stage_manifest
-
-        configs = tmp_path / "configs"
-        shutil.copytree(stage_manifest._CONFIGS_DIR / "trex", configs / "trex")
-        species_dir = configs / "pilot"
-        species_dir.mkdir(parents=True)
-        for name in ("stance.toml", "follow_direction.toml"):
-            (species_dir / name).write_text("[stage]\nname = 'x'\n")
-        (species_dir / "stages.toml").write_text(
-            f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V2}"\n'
-            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
-            '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "stance"\n'
-            "deliverable = true\n"
-        )
-        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
-        base = tmp_path / "run"
-        for name in ("01_stance", "02_follow_direction", "02_sprint"):
-            (base / name).mkdir(parents=True)
-            (base / name / "stage_config.json").write_text("{}")
-        keys = self._uploaded_keys(base, "pilot")
-        assert "training/pilot/run/01_stance/stage_config.json" in keys
-        assert "training/pilot/run/02_follow_direction/stage_config.json" in keys
-        assert not [key for key in keys if "02_sprint" in key]
-        # A species whose manifest does not declare the id skips the directory.
-        assert not [key for key in self._uploaded_keys(base, "trex") if "follow_direction" in key]
 
 
 class TestLoadStageConfigTableValidation:
