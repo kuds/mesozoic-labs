@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
-- **A gait audit of the certified nodes and a gait-quality plan** (gait
-  PR-G0 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, docs only;
+- **A gait audit of the certified nodes and a gait-quality plan** (#567,
+  gait PR-G0 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, docs only;
   `docs/investigations/GAIT_AUDIT_2026_09.md` and its evidence directory
   `docs/investigations/gait_2026_09/`). The audit note records CPU replays,
   on 2026-09-28, of 15 nodes, every certified node on Drive (12) among them,
@@ -252,7 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - defect 5's never-executed copies: the sweep notebook's
     `LocomotionMetrics()` and its `_sim_dt` assumed a 0.01 s control step,
     so its compsognathus metrics were 2× off (removed with #564; the
-    library's `sim_dt` default survives, latent, for cleanup CU-2).
+    library's `sim_dt` default survives, latent, for cleanup CU-2; Fixed,
+    below).
 
   **KNOWN_ISSUES entries that went with the code** (the JAX half of the
   re-add checklist; #564's entry below lists the sweep half):
@@ -368,7 +369,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     being locked into the TOMLs.
 
   The `sim_dt` default entry stays, reworded: the callers where it showed
-  left with this PR, so it is latent (CU-2 fixes it).
+  left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
+
+### Fixed
+- **`render_mode="human"` no longer crashes on the first step** (CU-2 of
+  `docs/CLEANUP_PLAN_2026_09.md`). `BaseDinoEnv.render` called
+  `mujoco.viewer.launch_passive`, but `import mujoco` does not load the
+  `mujoco.viewer` submodule, so a human-mode env raised `AttributeError`
+  from its first `step`, and `train_sb3.py eval` without `--no-render` and
+  `test_env.py --render` crashed (the KNOWN_ISSUES entry, now deleted). The
+  human branch now imports the viewer itself, under its own name (`from
+  mujoco import viewer as mujoco_viewer`), since a bare `import
+  mujoco.viewer` would make `mujoco` local to `render` and break the
+  rgb_array branch. One `_configure_camera` helper aims both the viewer's
+  camera and `_make_camera`'s. Tests: a human render, with `mujoco.viewer`
+  removed from the package and a fake in `sys.modules`, launches the viewer
+  once, aims its camera like `_make_camera`, syncs every step and closes;
+  an rgb_array render works with a fake `mujoco.Renderer`. Three mutations
+  each fail at least one of them: the old attribute access, a bare import
+  and no camera setup. `render` and `_make_camera` enter no digest, and
+  `base_env.py` is not byte-hashed.
+- **A stage summary built from `evaluations.npz` prints the node's own sim
+  time** (CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). Called with
+  `stage_results=None`, `generate_stage_artifacts` built its results with
+  `build_stage_results_from_eval_data`, which took `sim_dt` from
+  `env_kwargs["sim_dt"]` or 0.01 s. No stage config sets it, and the
+  compsognathus pair steps at 0.02 s, so their summaries would print 1,000
+  steps as "10.00s sim time" instead of 20 s; no caller has passed `None`
+  since #564 removed the sweep trials, so the defect was latent (the
+  KNOWN_ISSUES entry, now deleted). `generate_stage_artifacts` now takes
+  `sim_dt` from a bare env of the node's task (closed afterwards), as
+  `evaluate_stage_checkpoints` already did, and
+  `build_stage_results_from_eval_data` gains a `sim_dt` keyword that both
+  pass; its fallback stays, documented, for other direct callers.
+  `backfill_gate_verdict.py` still calls it without `sim_dt`, and nothing
+  it persists reads the value. Tests: the probe env's `dt` reaches the
+  results and the env is closed; an explicit `sim_dt` wins over the
+  fallback; both compsognathus envs step at 0.02 s. Two mutations each
+  fail one of them: `generate_stage_artifacts` ignoring the probe's `dt`
+  and `build_stage_results_from_eval_data` ignoring `sim_dt`. The
+  `reporting` package enters no digest. The digest-snapshot harness, run
+  with the optional backends blocked, printed 848 lines with 0 errors,
+  byte-identical on the base and on this PR.
 
 ## [0.3.8] - 2026-09-27 — Reproducible Runs & Velociraptor Stage-1 Diagnosis
 
