@@ -28,6 +28,9 @@ on:
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
       - "conftest.py"
+      # The checkout's line endings: the plant manifest and the digest snapshot
+      # hash file bytes, so a .gitattributes-only PR can move a digest (D-D22).
+      - ".gitattributes"
       - ".github/workflows/**"
       - ".github/actions/**"
   pull_request:
@@ -63,6 +66,9 @@ on:
       # collecting tests: a conftest-only PR used to trigger no jobs while
       # changing collection behavior for every later run (gap review CI7).
       - "conftest.py"
+      # The checkout's line endings: the plant manifest and the digest snapshot
+      # hash file bytes, so a .gitattributes-only PR can move a digest (D-D22).
+      - ".gitattributes"
       - ".github/workflows/**"
       - ".github/actions/**"
   # Nightly run of the whole workflow on `main`; in it the SB3 job runs the
@@ -144,6 +150,16 @@ jobs:
             git show "${BASE_SHA}:configs/plant_manifest.generated.json" > /tmp/base-plant-manifest.json
             python -m environments.shared.plant_contract --check --baseline /tmp/base-plant-manifest.json
           fi
+
+      # D-D22: the FULL digest snapshot (every plant, policy, stage, recovery
+      # and behavior digest; never --skip-behaviors, about a minute) must equal
+      # the committed configs/digest_snapshot.generated.txt. A PR that moves a
+      # digest on purpose regenerates it with --write in its own diff; the
+      # failure names each moved line and prints that command. No `if:`, so
+      # pushes and the nightly run also catch a dependency that moves a digest
+      # (test_plant_contract_digest_snapshot.py pins this step).
+      - name: Verify the digest snapshot golden
+        run: python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check
 
       # Every pytest step passes -vv: pyproject.toml's addopts carries -q, which
       # cancels one -v, so -vv prints each test id. -rfEs keeps the default
