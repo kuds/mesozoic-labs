@@ -264,13 +264,104 @@ def check_plant_manifest(*, baseline_path: Path | None = None) -> dict[str, Any]
     return current
 
 
+# One slot per species: the identity build (an environment, two compiled
+# models and their layer fingerprints; seconds for the mesh-heavy robot) and
+# the key it was built under.  Only a build equal to the committed manifest
+# entry is stored, so a stale or modified plant is always rebuilt.  The
+# manifest build and check below never read it: CI's --check recomputes.
+_IDENTITY_CACHE: dict[str, tuple[tuple[Any, ...], dict[str, Any], PlantIdentity]] = {}
+
+
+def clear_plant_identity_cache() -> None:
+    """Forget every memoised identity; the next call per species rebuilds it."""
+    _IDENTITY_CACHE.clear()
+
+
+def _identity_cache_key(species: str, entry: Mapping[str, Any], version: PlantVersion) -> tuple[Any, ...] | None:
+    """The inputs of ``_manifest_entry_for_identity`` that can change in a process.
+
+    Resolved in the build's own order.  ``None`` (uncacheable) when the source
+    closure cannot be read, so the build raises its own error in its own order.
+    Python code is not part of the key; every hit re-runs the policy layer on a
+    fresh environment instead (:func:`_policy_interface_unchanged`).
+    """
+    model_path = _resolve_repo_path(str(entry["model_path"]), field=f"{species} model")
+    env_class = _load_environment(str(entry["env_entrypoint"]))
+    try:
+        source_digest = _semantic_digest(SOURCE_SCHEMA, source_layer._source_payload(model_path))
+    except (PlantContractError, OSError):
+        return None
+    return (
+        json.dumps(entry, sort_keys=True, default=str),
+        version,
+        constants.REPOSITORY_ROOT,
+        model_path,
+        source_digest,
+        env_class,
+        mujoco.__version__,
+    )
+
+
+def _is_committed_entry(species: str, manifest_entry: Mapping[str, Any]) -> bool:
+    try:
+        plants = _load_generated_manifest().get("plants")
+    except (PlantContractError, OSError, ValueError):  # ValueError: an undecodable file
+        return False
+    return isinstance(plants, dict) and plants.get(species) == manifest_entry
+
+
+def _policy_interface_unchanged(entry: Mapping[str, Any], version: PlantVersion, identity: PlantIdentity) -> bool:
+    """Re-run the cheap policy layer on a fresh env (Python code is not in the key)."""
+    default = ("stable-baselines3", "jax-mjx")
+    try:
+        env = _load_environment(str(entry["env_entrypoint"]))(reset_noise_scale=0.0)
+    except Exception:
+        return False
+    try:
+        payload = policy_layer._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        return (
+            _semantic_digest(POLICY_INTERFACE_SCHEMA, payload) == identity.policy_interface_sha256
+            and int(np.prod(env.observation_space.shape)) == identity.observation_dim
+            and int(np.prod(env.action_space.shape)) == identity.action_dim
+            and set(entry.get("training_backends", default))
+            == set(getattr(env, "supported_training_backends", default))
+        )
+    except Exception:
+        return False
+    finally:
+        env.close()
+
+
 def current_plant_identity(species: str, *, verify_generated: bool = True) -> PlantIdentity:
-    """Return the executable identity for one species and optionally verify it."""
+    """Return the executable identity for one species and optionally verify it.
+
+    Memoised per process and species.  The configs, the source closure, the
+    policy layer and the generated-manifest check are re-run on every call; the
+    build is reused while its key (:func:`_identity_cache_key`) is unchanged.
+    """
     _, versions = load_plant_versions()
     entries = _species_entries()
     if species not in entries:
         raise PlantContractError(f"unknown species: {species}")
-    manifest_entry, identity = _manifest_entry_for_identity(species, entries[species], versions[species])
+    key = _identity_cache_key(species, entries[species], versions[species])
+    cached = _IDENTITY_CACHE.get(species)
+    if (
+        key is not None
+        and cached is not None
+        and cached[0] == key
+        and _policy_interface_unchanged(entries[species], versions[species], cached[2])
+    ):
+        _, manifest_entry, identity = cached
+    else:
+        manifest_entry, identity = _manifest_entry_for_identity(species, entries[species], versions[species])
+        # key[4] is the closure digest read before the build; storing only when the build
+        # hashed the same bytes keeps a file that changed mid-build from keying a stale entry.
+        if (
+            key is not None
+            and key[4] == manifest_entry["source"]["closure_sha256"]
+            and _is_committed_entry(species, manifest_entry)
+        ):
+            _IDENTITY_CACHE[species] = (key, manifest_entry, identity)
     if verify_generated:
         generated = _load_generated_manifest().get("plants", {}).get(species)
         if generated != manifest_entry:

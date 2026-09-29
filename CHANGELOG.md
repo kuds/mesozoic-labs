@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Decision D-D22 recorded; D-D21 amended (CU-7, CU-8, CU-14 and CU-16
-  split)** (cleanup
-  CU-4, 2026-09-29; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  split)** (#569, cleanup CU-4, 2026-09-29;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, `docs/CLEANUP_PLAN_2026_09.md`
   §2–§3, `docs/NEXT_STEPS.md` §5). The maintainer took the cleanup plan's
   decision 16 as D-D22: the output of the digest-snapshot harness is
@@ -191,8 +191,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **The plant identity is built once per process and species** (CU-14b of
+  `docs/CLEANUP_PLAN_2026_09.md`, the plan's decision 10 (c)).
+  `current_plant_identity` built an environment, compiled the declared model
+  and fingerprinted both on every call, seconds each for the mesh-heavy
+  `compsognathus_robot`, several times per training test and once per
+  behavior env built. It now keeps one build per species for the life of
+  the process. Every call, hit or miss, still re-reads `configs/`,
+  re-hashes the model's source closure, re-runs the policy-interface layer
+  on a fresh env and, unless `verify_generated=False`, compares the result
+  with the committed plant manifest; a hit reuses the declared model's
+  compilation and the physics and visual fingerprints. A build is reused only while its
+  key is unchanged (the species entry, the plant version, the repository
+  root, the resolved model path, the source-closure digest, the environment
+  class and the MuJoCo version) and the policy layer still matches, and only
+  a build equal to the committed manifest entry, hashed from the bytes the
+  key read, is stored, so a stale plant rebuilds on every call. The manifest
+  build, `--write` and `--check` never read the cache, so CI's
+  plant-contract check always recomputes. One limit is kept on purpose:
+  Python code is not in the key, so a hit does not see environment code
+  patched in a live process in a way that changes the compiled model (not
+  the MJCF). The live checks compare the physics of every env they are
+  given instead: `validate_environment_plant` for each env training's
+  `make_env` builds with a plant identity and for the envs the evaluation
+  paths build, and `validate_compiled_plant` for each behavior env and,
+  new here, for each env `config.build_env` builds. The frozen recovery
+  gate (its nulls, brace and policy panel), the recovery calibration, the
+  zero-action baseline's preflight and `widen_checkpoint` build through
+  `build_env` and had relied on `current_plant_identity` alone (the report
+  scripts that build through it had no plant check at all): with a warm
+  cache, a
+  mid-process patch of `CompsognathusEnv.__init__` (the pelvis 1.5 times
+  heavier) was frozen and rolled, where `c69a169`'s rebuild refused it.
+  `build_env` now refuses it. It reads the identity with
+  `verify_generated=False`, since the callers that certify compare it with
+  the committed manifest in their own calls. Once the species' identity is
+  built in the process, the check adds about 0.03 s per env for the small
+  plants and 1.2–1.4 s for the robot; a process that had not built it (the
+  report scripts) also pays that build on its first env per species, about
+  7.4 s for the robot and under 1 s for the others. A process that patches
+  environment code and builds envs another way (a `make_env` without a
+  plant identity, as `probe_ppo_updates.py` does) calls the new
+  `clear_plant_identity_cache()` (exported from `plant_contract`). A physics
+  recheck on every hit would cost 1.2 s of the robot's 7.4 s build, so there
+  is none. The new `test_plant_contract_identity_cache.py` (18 tests)
+  covers the key's inputs (the resolved model path through the species
+  entry and the root), the guards (including the committed-manifest read,
+  which never raises), the uncached check path and that patch on the
+  recovery gate's path, and
+  `docs/PLANT_CONTRACT.md` describes the cache. Measured locally: the
+  robot's first call takes 7.4 s and each repeat call about 0.1 s
+  (compsognathus 0.43 s, then 0.03 s); CI's three SB3 pytest steps, run
+  locally with CI's flags at pull-request depth, took 2,609 s before and
+  855 s after (the integration step 36:08, then 11:05). CI runners differ,
+  so this PR's own CI durations are the record. The maintainer settled
+  decision 10 as (c) first on 2026-09-29; its option (a), gating
+  `test_compsognathus_training.py` behind the depth switch, waits for
+  CU-14a, which decides it from those durations.
+  `manifest.py` is one of the files cleanup PR-A and PR-B kept
+  byte-identical as the hasher, but no digest hashes its bytes: the
+  digest-snapshot harness, run with the optional backends blocked, printed
+  848 lines with 0 errors, byte-identical on the base and on this PR, and
+  `plant_contract --check` and `--check --baseline` report the manifest
+  current. mypy finds no issues in 314 source files (from 313), and the
+  suite collects 3,969 tests (from 3,951).
 - **One notebook-cell reader for the tests and CI, shared test helpers, and
-  no library-only duplicates in the notebook pins** (CU-4 of
+  no library-only duplicates in the notebook pins** (#569, CU-4 of
   `docs/CLEANUP_PLAN_2026_09.md`).
   The new `environments/shared/tests/notebook_cells.py` imports only the
   standard library, and the 16 places in 9 test files that read notebook

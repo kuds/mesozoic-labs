@@ -377,7 +377,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:403-427`, called at
+  `config.refuse_occupied_stage_dir` (`config.py:413-436`, called at
   `train_base.py:1190`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`

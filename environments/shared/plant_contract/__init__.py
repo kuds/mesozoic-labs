@@ -61,6 +61,7 @@ from .identity import PlantIdentity, PlantVersion
 from .manifest import (
     build_plant_manifest,
     check_plant_manifest,
+    clear_plant_identity_cache,
     current_plant_identity,
     fingerprint_model_layers,
     render_plant_manifest,
@@ -98,6 +99,7 @@ __all__ = [
     "attach_plant_identity",
     "build_plant_manifest",
     "check_plant_manifest",
+    "clear_plant_identity_cache",
     "constants",
     "current_plant_identity",
     "fingerprint_model_layers",
