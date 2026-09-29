@@ -183,13 +183,13 @@ model path, or modified sensor/body mapping from being mislabeled with the canon
 re-reads `configs/`, re-hashes the model's source closure, re-runs the policy-interface layer on a fresh environment and,
 unless `verify_generated=False`, compares the result with the committed manifest; what is reused is the declared model's
 compilation and the physics and visual fingerprints, seconds per call for the mesh-heavy `compsognathus_robot`. The
-build is reused only while the species entry, the plant version, the repository root, the source-closure digest, the
-environment class and the MuJoCo version are unchanged and the policy layer still matches, and only a build equal to
+build is reused only while the species entry, the plant version, the repository root, the resolved model path, the
+source-closure digest, the environment class and the MuJoCo version are unchanged and the policy layer still matches, and only a build equal to
 the committed manifest entry, hashed from the bytes the key read, is kept, so a stale plant is rebuilt on every call.
 The manifest build, `--write` and `--check` never read it. Python code is not part of the key: a process that patches
-environment code so that the compiled model changes (not the MJCF) calls `clear_plant_identity_cache()`; the live
-checks above, `validate_environment_plant` and the behavior environments' `validate_compiled_plant`, still compare the
-physics digest of every environment they build.
+environment code so that the compiled model changes (not the MJCF) calls `clear_plant_identity_cache()`;
+`validate_environment_plant` (above) and the behavior environments' `validate_compiled_plant` still compare the physics
+digest of every environment they are given.
 
 ## Checkpoints and legacy artifacts
 
