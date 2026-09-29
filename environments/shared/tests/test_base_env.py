@@ -1,3 +1,8 @@
+import contextlib
+import sys
+import types
+
+import mujoco
 import numpy as np
 import pytest
 
@@ -35,6 +40,102 @@ def test_base_env_lifecycle():
         pass
 
     # Test close
+    env.close()
+
+
+def test_human_render_loads_the_viewer_itself(monkeypatch):
+    """`import mujoco` does not load `mujoco.viewer`, so human rendering must.
+
+    The submodule is removed from `mujoco` and a fake stands in for it in
+    `sys.modules`: code that reaches `mujoco.viewer` as an attribute fails as
+    the eval CLI did, and the lazy import finds the fake instead of opening a
+    window. The fake camera records every attribute assigned on it while the
+    viewer's lock is not held, since the real viewer's render thread reads the
+    camera on every frame.
+    """
+    launches = []
+
+    class LockCheckedCamera:
+        def __init__(self, viewer):
+            object.__setattr__(self, "_viewer", viewer)
+            object.__setattr__(self, "_cam", mujoco.MjvCamera())
+            object.__setattr__(self, "unlocked_writes", [])
+
+        def __getattr__(self, name):
+            return getattr(self._cam, name)
+
+        def __setattr__(self, name, value):
+            if not self._viewer.locked:
+                self.unlocked_writes.append(name)
+            setattr(self._cam, name, value)
+
+    class FakeViewer:
+        def __init__(self):
+            self.locked = False
+            self.cam = LockCheckedCamera(self)
+            self.syncs = 0
+            self.closed = False
+
+        @contextlib.contextmanager
+        def lock(self):
+            self.locked = True
+            try:
+                yield
+            finally:
+                self.locked = False
+
+        def sync(self):
+            self.syncs += 1
+
+        def close(self):
+            self.closed = True
+
+    viewer = FakeViewer()
+
+    def launch_passive(model, data):
+        launches.append((model, data))
+        return viewer
+
+    monkeypatch.delattr(mujoco, "viewer", raising=False)
+    monkeypatch.setitem(sys.modules, "mujoco.viewer", types.SimpleNamespace(launch_passive=launch_passive))
+
+    env = RaptorEnv(render_mode="human")
+    env.reset(seed=0)
+    for _ in range(2):
+        env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+
+    assert launches == [(env.model, env.data)], "the viewer launches once, on the first step"
+    assert viewer.syncs == 2
+    expected = env._make_camera()
+    for field in ("type", "trackbodyid", "distance", "azimuth", "elevation"):
+        assert getattr(viewer.cam, field) == getattr(expected, field), field
+    assert viewer.cam.unlocked_writes == [], "the camera is aimed under the viewer's lock"
+    env.close()
+    assert viewer.closed and env._viewer is None
+
+
+def test_rgb_array_render_does_not_depend_on_the_human_branch(monkeypatch):
+    """Guards the lazy viewer import: a bare `import mujoco.viewer` inside
+    `render` would make `mujoco` local to it and break this branch."""
+
+    class FakeRenderer:
+        def __init__(self, model, height, width):
+            self.shape = (height, width, 3)
+
+        def update_scene(self, data, camera):
+            self.camera = camera
+
+        def render(self):
+            return np.zeros(self.shape, dtype=np.uint8)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(mujoco, "Renderer", FakeRenderer)
+    env = RaptorEnv(render_mode="rgb_array")
+    env.reset(seed=0)
+    frame = env.render()
+    assert frame.shape == (480, 640, 3)
     env.close()
 
 

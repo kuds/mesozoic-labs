@@ -1540,9 +1540,8 @@ class BaseDinoEnv(gym.Env, ABC):
 
         return obs, info
 
-    def _make_camera(self) -> mujoco.MjvCamera:
-        """Create a configured MjvCamera for rendering."""
-        camera = mujoco.MjvCamera()
+    def _configure_camera(self, camera: mujoco.MjvCamera) -> mujoco.MjvCamera:
+        """Aim *camera* the way both render modes view this env, and return it."""
         if self._camera_track_body is not None:
             camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
             camera.trackbodyid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body)
@@ -1551,18 +1550,25 @@ class BaseDinoEnv(gym.Env, ABC):
         camera.elevation = self._camera_elevation
         return camera
 
+    def _make_camera(self) -> mujoco.MjvCamera:
+        """Create a configured MjvCamera for rendering."""
+        return self._configure_camera(mujoco.MjvCamera())
+
     def render(self):
         """Render the environment."""
         if self.render_mode == "human":
             if self._viewer is None:
-                self._viewer = mujoco.viewer.launch_passive(self.model, self.data)
-                cam = self._viewer.cam
-                if self._camera_track_body is not None:
-                    cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-                    cam.trackbodyid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body)
-                cam.distance = self._camera_distance
-                cam.azimuth = self._camera_azimuth
-                cam.elevation = self._camera_elevation
+                # `import mujoco` does not load the viewer submodule, and only a
+                # human-mode render needs it. Imported under its own name: a bare
+                # `import mujoco.viewer` here would make `mujoco` local to this
+                # method and break the rgb_array branch below.
+                from mujoco import viewer as mujoco_viewer
+
+                self._viewer = mujoco_viewer.launch_passive(self.model, self.data)
+                # The viewer's render thread reads this camera on every frame,
+                # so it is changed only under the viewer's lock.
+                with self._viewer.lock():
+                    self._configure_camera(self._viewer.cam)
             self._viewer.sync()
 
         elif self.render_mode == "rgb_array":

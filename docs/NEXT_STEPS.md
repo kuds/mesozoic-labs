@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-28)
 
-**Status**: living reference — updated 2026-09-28; `main` = `2b9219d` (#566 merged 2026-09-28 05:13 UTC).
+**Status**: living reference — updated 2026-09-28; `main` = `1ce42f6` (#567 merged 2026-09-28 19:15 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,16 +18,19 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-09-28** (`main` = `2b9219d`). The backend retirement is complete:
+**On 2026-09-28** (`main` = `1ce42f6`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete: ten PRs of
 D-D21's 0.3.9 gate remain (CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12,
 CU-14 and CU-16, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), then
-the 0.3.9 cut; CU-6 (now waiting only for CU-4), CU-10 (lowest priority; it
-also owns the curriculum horizon defect), CU-13 (before PR-11), CU-15
-(optional) and CU-17 (last, before PR-15) are deferred, not dropped. The
-consolidation's PR-8, PR-9, PR-10, PR-11, the rest of PR-12, PR-13 and PR-15
-remain and build on 0.3.9 ([section 4](#4-consolidation-the-remaining-prs)).
+the 0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control
+step that stage summaries built from `evaluations.npz` assumed) is carried
+out; nine more remain after it.
+CU-6 (now waiting only for CU-4), CU-10 (lowest priority; it also owns the
+curriculum horizon defect), CU-13 (before PR-11), CU-15 (optional) and CU-17
+(last, before PR-15) are deferred, not dropped. The consolidation's PR-8,
+PR-9, PR-10, PR-11, the rest of PR-12, PR-13 and PR-15 remain and build on
+0.3.9 ([section 4](#4-consolidation-the-remaining-prs)).
 The gait audit of 2026-09-28
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md))
 replayed every certified node on Drive: three of the five certified walkers
@@ -41,10 +44,11 @@ No locomotion gate reads a foot contact.
 [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) proposes the fix
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut; every one of its
-decisions (GQ-1..GQ-18) is open. Section 2 labels each audited node except
-the in-training dibothrosuchus re-run, which section 3's session-4 row
-describes, and the plan's §10 holds a prompt for continuing the gait work in
-a fresh session.
+decisions (GQ-1..GQ-18) is open. The audit and the plan landed as #567, the
+plan's docs-only PR-G0, outside D-D21's gate. Section 2 labels each audited
+node except the in-training dibothrosuchus re-run, which section 3's session-4
+row describes, and the plan's §10 holds a prompt for continuing the gait work
+in a fresh session.
 
 ### Landed on `main` (all merged since 2026-09-12)
 
@@ -78,6 +82,7 @@ a fresh session.
 | #564 | 2026-09-27 | Cleanup PR-A (D-D17), outside the consolidation sequence: Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines, with `cloudml-hypertune`, the `[ray]` and `[mjlab]` extras and `visualization.plot_trial_comparison`); #563 and the maintainer's `0.3.8` tag recorded; the archive points settled with no archive tags; D-D21 recorded; no digest moves. Measured on its CI: SB3 job 47:01 (its mypy step: no issues in 334 source files), JAX job 39:11, coverage 91 percent. The run was at reduced depth because the `full-ci` label was missing; the full-depth selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's SB3 environment on `9369d6b` and passed |
 | #565 | 2026-09-28 | Cleanup PR-A2 (D-D17), outside the consolidation sequence: the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, `website/docs/training/vertex-ai.md`; 4 files, 957 lines) and GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, `config.upload_curriculum_artifacts`, the `gs://` branch of `write_results_csv`, the `[gcp]` extra) removed, with an end-to-end test of the command-line curriculum path (`test_curriculum_cli_end_to_end.py`, landed first and passing before and after); #564 recorded; the curriculum horizon defect logged in KNOWN_ISSUES for CU-10; no digest moves. Measured on its CI at `647ca1f` (the merge's tree): SB3 job 34:52 (its mypy step: no issues in 335 source files), JAX job 34:43, all 23 checks green, coverage 91 percent. The run was at full depth, with the `full-ci` label |
 | #566 | 2026-09-28 | Cleanup PR-B (D-D17), outside the consolidation sequence: the JAX/MJX runtime removed (30 files and 15,665 lines: the JAX trainer and evaluator modules, `jax_training.ipynb`, `website/docs/training/jax.md` and their tests; also the stage writer `save_jax_stage_artifacts`, the `[jax]` and `[jax-cpu]` extras, the `[jax]` tables of the 12 stage TOMLs, which `load_stage_config` now refuses, and the `test-jax-cpu` job); the 549-line frozen MJX interface core stays, pinned by `test_plant_contract_frozen_mjx.py`, and so do the readers of recorded JAX runs; #565 and session 6 recorded; D-D17's amendments appended to the decisions it changes; no digest moves. This completes the backend retirement. Measured on its CI at `c8b66a6` (the merge's tree): SB3 job 37:03 (its mypy step: no issues in 309 source files), no JAX job any more, the 22 CI jobs and the site build green (deploy skipped), coverage 91 percent. The run was at reduced depth because the `full-ci` label was missing; the full-depth selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's SB3 environment on `2b9219d` and passed |
+| #567 | 2026-09-28 | Gait PR-G0 (docs only), outside the consolidation sequence and D-D21's gate: the 2026-09-28 gait audit ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md); replays of 15 nodes, every certified node on Drive among them, against floor-truth foot contact) with its evidence directory (the hand-run probe `gait_probe.py`, imported by nothing, a per-node CSV and `SHA256SUMS`), the gait-quality plan ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md); GQ-1..GQ-18 all open, every code PR after the 0.3.9 cut), ten KNOWN_ISSUES entries from the audit, each audited node's label in section 2, and the root README's certified-walker line and ROADMAP's gait-symmetry line corrected; #566 recorded; no library, training, configuration or digest change. Measured on its CI at `fcf9f2d` (the merge's tree): SB3 job 46:07 (its mypy step: no issues in 309 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work: docs only, without the `full-ci` label), and no full-depth selection was run by hand, since nothing but docs and the hand-run probe changed |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -442,8 +447,9 @@ CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
 PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement; the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
-structural cleanup PRs have landed (all ten still open on 2026-09-28;
-[section 1](#1-where-things-stand) names them), the clean base the consolidation builds on. Within this sequence PR-8 is still next; under D-D21
+structural cleanup PRs have landed (all ten still open on 2026-09-28; CU-2 is
+carried out, and nine more remain after it; [section 1](#1-where-things-stand)
+names them), the clean base the consolidation builds on. Within this sequence PR-8 is still next; under D-D21
 the whole 0.3.9 gate, including the reward/termination golden trace, lands
 before PR-8, and the cleanup plan names the cleanup each later PR needs first (its
 §3.4). Its §2 lists the decisions, with the outcome of each one taken. Its §5.1 records the 2026-09-25 eval-only check of the

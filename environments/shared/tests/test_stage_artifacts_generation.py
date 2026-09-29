@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestGenerateTrialArtifacts:
     """Test generate_stage_artifacts produces stage summary and videos.
@@ -106,3 +108,59 @@ class TestGenerateTrialArtifacts:
             assert not list(tmp_path.glob("*.png")), "figures must not be loose in the stage root"
         except ImportError:
             pass  # graphs are skipped gracefully without matplotlib
+
+
+def test_generate_stage_artifacts_takes_sim_dt_from_the_nodes_env(tmp_path):
+    """Without precomputed results, sim time uses a bare env of this node's task."""
+    from environments.shared.reporting import stage_artifacts
+
+    class ProbeEnv:
+        dt = 0.02
+        created_with: dict = {}
+        closed = False
+
+        def __init__(self, **kwargs):
+            ProbeEnv.created_with = kwargs
+
+        def close(self):
+            ProbeEnv.closed = True
+
+    class Stop(Exception):
+        pass
+
+    captured = {}
+
+    def fake_build(*args, **kwargs):
+        captured.update(kwargs)
+        raise Stop
+
+    species_cfg = MagicMock()
+    species_cfg.species = "compsognathus"
+    species_cfg.env_class = ProbeEnv
+    stage_config = {"name": "Locomotion", "description": "Walk", "env_kwargs": {"alive_bonus": 0.5}}
+    with patch.object(stage_artifacts, "build_stage_results_from_eval_data", side_effect=fake_build):
+        with pytest.raises(Stop):
+            stage_artifacts.generate_stage_artifacts(
+                species_cfg=species_cfg,
+                stage_config=stage_config,
+                stage=2,
+                algorithm="ppo",
+                stage_dir=tmp_path,
+                seed=42,
+                timesteps=1,
+            )
+    assert captured["sim_dt"] == 0.02
+    assert ProbeEnv.created_with == {"alive_bonus": 0.5}
+    assert ProbeEnv.closed
+
+
+@pytest.mark.parametrize("env_path", ["CompsognathusEnv", "CompsognathusRobotEnv"])
+def test_the_compsognathus_pair_steps_at_twenty_milliseconds(env_path):
+    """The premise of the probe: a 0.01 s default halves this pair's printed sim time."""
+    from environments.compsognathus.envs import compsognathus_env
+
+    env = getattr(compsognathus_env, env_path)()
+    try:
+        assert env.dt == pytest.approx(0.02)
+    finally:
+        env.close()

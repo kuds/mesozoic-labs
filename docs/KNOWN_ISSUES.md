@@ -748,25 +748,6 @@ robustness, **LOW** = cosmetic / QoL.
   study stands, no `min_avg_reward` gate needs re-deriving, and no historical
   reward comparison is invalidated. (2026-07 T-Rex telemetry review)
 
-- **MEDIUM** — **`render_mode="human"` crashes on the first step, so
-  `train_sb3.py eval` without `--no-render` fails (reproduced 2026-09-26).**
-  `BaseDinoEnv.render` calls `mujoco.viewer.launch_passive`
-  (`base_env.py:1558`), but `base_env.py` imports only `mujoco` (:19-21). After
-  importing `cli`, `evaluation` and `train_base` under mujoco 3.10.0 the
-  `mujoco.viewer` submodule is still absent, and
-  `TRexEnv(render_mode="human")` raises `AttributeError: module 'mujoco' has no
-  attribute 'viewer'` from `step` (:1249). `evaluate()` defaults to
-  `render=True` (`evaluation.py:415-463`), and the documented eval commands
-  (`environments/velociraptor/README.md:102`, the website quick start and API
-  overview) omit `--no-render`; `test_env.py --render` (`harnesses/env_smoke.py`)
-  takes the same path. Only standalone scripts (`harnesses/viewer.py`,
-  `harnesses/actuators.py`, `compsognathus/scripts/view_model.py`) import the
-  viewer; nothing on the env or evaluation path does. Workaround: pass `--no-render`, or `import mujoco.viewer`
-  before creating the env. Fix: a lazy import in the human branch that shares
-  `_make_camera`'s camera setup (CU-2 in
-  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); `render` enters no
-  digest. (2026-09 cleanup survey)
-
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
   velocity (rad/s) and joint velocities (rad/s). This is the same
@@ -1016,7 +997,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
   mean of its per-step `info["forward_vel"]` (`evaluation.py:97-105`), the
-  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1348`,
+  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1357`,
   `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
   weighs as much as a 1,000-step one. Through the repository's own evaluation
   and gate code on trex locomotion (length 750, speed 1.0 m/s), three scripted
@@ -1026,7 +1007,7 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3); on a 30-episode
   panel, 23 walks and 7 lunges pass both the post-training judge and the
   in-training `CurriculumManager`, while 24 and 6 fail. The post-training
-  judge also compares the speed rounded to two decimals (:1348): a 0.996 m/s
+  judge also compares the speed rounded to two decimals (:1357): a 0.996 m/s
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open).
@@ -1118,27 +1099,21 @@ robustness, **LOW** = cosmetic / QoL.
 - **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
   ≈ 0; thread-unsafe CSV appends under concurrent local runs. (June §3.3;
   CODE_REVIEW §2.1#1)
-- **LOW** — **stage summaries built from `evaluations.npz` assume a 0.01 s
-  control step (latent since cleanup PR-A; reproduced 2026-09-26).**
-  `build_stage_results_from_eval_data` records
-  `sim_dt = stage_config["env_kwargs"].get("sim_dt", 0.01)`
-  (`reporting/stage_artifacts.py:151`), and no stage config sets `sim_dt`.
-  compsognathus and compsognathus_robot step at 0.02 s, the other four
-  species at 0.01 s. `write_stage_summary` and `write_training_summary`
-  multiply episode length by it, printing 1,000 steps as "10.00s sim time"
-  instead of 20 s. It shows only where `generate_stage_artifacts` builds its
-  own results (`stage_results=None`, :1462). The callers that did so (the Ray
-  and Vertex sweep trials) left with cleanup PR-A (D-D17), and so did
-  `ray_tune_sweep.ipynb`, which kept its own copy of the 0.01 s default
-  (`_sim_dt`, passed as `stage_results`).
-  The SB3 notebook's TRAIN and JUDGE paths
-  overwrite `sim_dt` with the env's `dt` (`evaluate_stage_checkpoints`,
-  :1242, :1277). `backfill_gate_verdict.py:293` builds these results, but no
-  field it persists uses `sim_dt` (the verdict's `stage_result` projection
-  omits it). No gate, verdict or digest reads it. Plan: take `dt` from a probe
-  env (CU-2 in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)); until
-  then the default is latent.
-  (2026-09 cleanup survey)
+- **LOW** — **a node re-entered from its own `gate_verdict.json` prints a
+  0.01 s control step in `training_summary.txt` (reproduced 2026-09-28).**
+  When the SB3 notebook's chain loop re-runs in the same `RUN_DIR`, it takes
+  a certified node's results from its verdict
+  (`NODE_RESULTS[NODE.id] = dict(stage_result)`, the `same_run` branch). The
+  verdict's `stage_result` projection (`_PERSISTED_STAGE_RESULT_KEYS`,
+  `result_bundle/gate_verdict.py:66`) omits `sim_dt`, so
+  `write_training_summary` falls back to 0.01 s
+  (`reporting/text_summaries.py:156`): a reused compsognathus or
+  compsognathus_robot node shows 1,000 steps as "10.00s sim time" instead of
+  20 s, while a freshly trained one shows 20 s. No gate, verdict or digest
+  reads it. CU-2 fixed the other 0.01 s fallback, in summaries built from
+  `evaluations.npz`, but not this one. Fix: persist `sim_dt` in the
+  projection (new verdicts only), or give `write_training_summary` the
+  node's control step; no cleanup PR owns it yet. (2026-09 CU-2 review)
 
 ## Post-training artifacts (recommended additions)
 
