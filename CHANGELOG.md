@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
+- **Decision D-D22 recorded; D-D21 amended (CU-7, CU-8, CU-14 and CU-16
+  split)** (cleanup
+  CU-4, 2026-09-29; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, `docs/CLEANUP_PLAN_2026_09.md`
+  §2–§3, `docs/NEXT_STEPS.md` §5). The maintainer took the cleanup plan's
+  decision 16 as D-D22: the output of the digest-snapshot harness is
+  committed as a golden and checked in CI's plant-contract job, with the
+  full run, behavior identities included, on pull requests rather than
+  `--skip-behaviors`. A PR of its own builds the check, before CU-7b,
+  CU-8a, CU-12 and CU-13. Four gate PRs are split: CU-7 into CU-7a (dead
+  code and import cost) and CU-7b (retired-backend wording, with CU-16's
+  stage-TOML comments folded in), CU-7's regex and validators going to
+  CU-8c; CU-8 into CU-8a (one derivation), CU-8b (`policy_loading` owns
+  the SB3 import and the sidecar resolver) and CU-8c (one reader, one root,
+  one regex, one set of validators); CU-14 into CU-14b (the per-process
+  plant-identity cache, the plan's decision 10 (c)), which comes first,
+  and CU-14a (the workflow YAML); and CU-16 into CU-16a (docs text) and
+  CU-16b (orphan assets). D-D21's gate names cover every part, so the gate
+  is unchanged.
 - **A gait audit of the certified nodes and a gait-quality plan** (#567,
   gait PR-G0 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, docs only;
   `docs/investigations/GAIT_AUDIT_2026_09.md` and its evidence directory
@@ -170,6 +189,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now returns 404; the site has no redirect plugin.
 - **Drive:** nothing to move. The March 2026 sweep folders stay, and the Drive
   summary still reads them; no new sweep folders are written.
+
+### Changed
+- **One notebook-cell reader for the tests and CI, shared test helpers, and
+  no library-only duplicates in the notebook pins** (CU-4 of
+  `docs/CLEANUP_PLAN_2026_09.md`).
+  The new `environments/shared/tests/notebook_cells.py` imports only the
+  standard library, and the 16 places in 9 test files that read notebook
+  cells now use it (`test_sb3_notebook_pins.py` keeps thin wrappers). CI's
+  lint job, which does not install the package, runs it by path as its
+  "Validate notebooks (parse every code cell)" step in place of an inline
+  script, with the same messages; with no arguments it checks the
+  repository's `notebooks/*.ipynb`, found from the file's location, and
+  fails when there are none. The new `test_notebook_cells.py` (4 tests)
+  resolves every `environments` import in both notebooks from source,
+  without importing the package: 78 name imports (66 in
+  `sb3_training.ipynb`, 52 of them distinct, and 12 in
+  `google_drive_summary.ipynb`) from 21 modules, so a library rename that a notebook still imports fails in CI
+  rather than in a Colab session. Two of its tests run `notebook_cells.py`
+  by path under `python -I -S`, on the real notebooks and on a broken one.
+  The canonical-JSON pin covers `google_drive_summary.ipynb` too.
+
+  Four pins that tested only the library, each with a twin in the shared
+  (non-SB3) matrix, leave the notebook pins file:
+  `test_the_manifest_mechanism_the_notebook_relies_on`
+  (`test_stage_manifest.py`), `test_the_library_rule_the_notebook_relies_on`
+  (`test_ancestors.py`), `test_the_selection_it_delegates_to`
+  (`TestSelectTrunk`) and `test_the_gate_kind_set_the_notebook_relies_on`
+  (`test_recovery_gate_config.py`); the file goes from 118 tests to 115.
+  The manifest pin asserted what its twin did not, and those assertions
+  move into `test_stage_manifest.py`: trex's `chain_for("recovery")` and
+  `chain_for("locomotion")`, the recipe-label checks on all six committed
+  species, the compsognathus pair included (the twin covered the other
+  four), and trex's `resolve_behavior("stance")`. Dropping
+  `recipe = "stand"` from compsognathus's recovery stage fails the moved
+  check and passed the old twin. The consolidation plan's PR-4, which
+  kept the library-rule pin, gains a dated note, as the cleanup plan's
+  decision 9 asks, and so does its PR-15, whose `notebook_cells.py` slice
+  CU-4 took. The notebook pins that repeat each other across files
+  (`RUN_RECOVERY_STAGE` three times, the no-inference pin and the
+  `chain_results` routing twice each) stay for PR-15, and the widen-help
+  and `TestCommandSliceReseed` pins stay.
+
+  No test module imports another any more: the trunk builders and
+  constants that `test_replication.py` and `test_train_base.py` imported
+  from `test_ancestors.py` move, byte for byte, into the new
+  `ancestors_helpers.py`, and `_canonical_summary` and its helpers move
+  from `test_result_summaries.py` into `result_bundle_helpers.py`. The new
+  `tiny_env_helpers.tiny_env_class` replaces eight copies of a `TinyEnv` in
+  five files, the one inside `test_curriculum_staged_pairs.py`'s subprocess
+  script included; the copies differed only in observation shape and step
+  `info`. The change is +709 / −642 lines in 25 files (net +67), about 300
+  of them moved, and not the net reduction of about 200 lines the plan
+  estimated: the import-resolution check, its tests and `notebook_cells.py`
+  outweigh the deletions, and the estimate counted
+  `_clean_repository_state`, which cleanup PR-B had already deleted. Only
+  tests, test helpers and the lint step change, and none of them enters a
+  digest: the digest-snapshot harness, run with the optional backends
+  blocked, printed 848 lines with 0 errors, byte-identical on the base and
+  on this PR. mypy finds no issues in 313 source files (from 309, the four
+  new modules), and the suite collects 3,950 tests (from 3,949).
 
 ### Removed
 - **The JAX/MJX runtime** (#566, cleanup PR-B of
@@ -372,8 +451,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
 
 ### Fixed
-- **`render_mode="human"` no longer crashes on the first step** (CU-2 of
-  `docs/CLEANUP_PLAN_2026_09.md`). `BaseDinoEnv.render` called
+- **`render_mode="human"` no longer crashes on the first step** (#568,
+  CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). `BaseDinoEnv.render` called
   `mujoco.viewer.launch_passive`, but `import mujoco` does not load the
   `mujoco.viewer` submodule, so a human-mode env raised `AttributeError`
   from its first `step`, and `train_sb3.py eval` without `--no-render`
@@ -393,7 +472,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no camera setup and no lock. `render` and `_make_camera` enter no digest,
   and `base_env.py` is not byte-hashed.
 - **A stage summary built from `evaluations.npz` prints the node's own sim
-  time** (CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). Called with
+  time** (#568, CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). Called with
   `stage_results=None`, `generate_stage_artifacts` built its results with
   `build_stage_results_from_eval_data`, which took `sim_dt` from
   `env_kwargs["sim_dt"]` or 0.01 s. No stage config sets it, and the
