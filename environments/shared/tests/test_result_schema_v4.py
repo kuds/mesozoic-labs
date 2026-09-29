@@ -31,7 +31,7 @@ from environments.shared.result_schema import (
 )
 from environments.shared.stage_manifest import load_stage_manifest
 
-from .test_result_summaries import _canonical_summary
+from .result_bundle_helpers import _canonical_summary
 
 
 def _entries(species: str, *ids: str) -> list[tuple[str, Any]]:

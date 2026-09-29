@@ -24,6 +24,8 @@ from environments.shared.curriculum.checkpoints import (
     seed_resume_eval_state,
 )
 
+from .tiny_env_helpers import tiny_env_class
+
 sb3 = pytest.importorskip("stable_baselines3")
 
 
@@ -289,21 +291,10 @@ class TestResumeLearnWiring:
         reload, learn more with ``reset_num_timesteps=False`` — the counter
         and the checkpoint filenames must stay cumulative.
         """
-        gym = pytest.importorskip("gymnasium")
         from stable_baselines3 import PPO
         from stable_baselines3.common.callbacks import CheckpointCallback
 
-        class TinyEnv(gym.Env):
-            observation_space = gym.spaces.Box(-1.0, 1.0, (2,), dtype=np.float32)
-            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-
-            def reset(self, *, seed=None, options=None):
-                super().reset(seed=seed)
-                return np.zeros(2, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.zeros(2, dtype=np.float32), 0.0, False, False, {}
-
+        TinyEnv = tiny_env_class(obs_dim=2)
         model = PPO("MlpPolicy", TinyEnv(), n_steps=32, batch_size=32, verbose=0)
         model.learn(total_timesteps=64)
         assert model.num_timesteps == 64

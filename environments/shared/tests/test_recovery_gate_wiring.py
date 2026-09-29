@@ -52,6 +52,8 @@ from environments.shared.recovery_evaluation import (
 )
 from environments.shared.reporting import evaluate_stage_gate
 
+from .notebook_cells import code_cell_sources
+
 # ── The values P5 freezes ────────────────────────────────────────────────
 # Derivation record: docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md
 # §9 (measured 2026-08-28, ten 40-episode panels) and §4 (P3 calibration).
@@ -304,8 +306,7 @@ class TestNotebookRecoveryFlowPin:
 
     def test_cell_order_and_gate_evidence_wiring(self):
         repo_root = Path(__file__).resolve().parents[3]
-        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-        code_cells = ["".join(cell["source"]) for cell in notebook["cells"] if cell["cell_type"] == "code"]
+        code_cells = code_cell_sources(repo_root / "notebooks" / "sb3_training.ipynb")
         assert not any("RUN_RECOVERY_STAGE" in cell for cell in code_cells), (
             "RUN_RECOVERY_STAGE is back: recovery is a chain node under BEHAVIOR, not an opt-in pilot"
         )

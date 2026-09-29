@@ -24,8 +24,15 @@ from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_
 from environments.shared.replication import REPLICATE_RUN_FIELDS, discover_replicates, discover_replicates_for_run
 from environments.shared.stage_manifest import load_stage_manifest
 
+from .ancestors_helpers import (
+    OTHER_TASK,
+    STANCE_CURRICULUM,
+    STANCE_TASK,
+    build_trunk_run,
+    strip_gate_record,
+    trunk_plant,
+)
 from .reporting_helpers import make_plant_identity
-from .test_ancestors import OTHER_TASK, STANCE_CURRICULUM, STANCE_TASK, build_trunk_run, strip_gate_record, trunk_plant
 
 #: The recipe every same-recipe sibling records (D-A21 shape or pre-D-A21 shape).
 RECIPE = {"learning_rate": 3e-4, "n_steps": 2048}

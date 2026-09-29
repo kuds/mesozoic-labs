@@ -40,6 +40,8 @@ from environments.shared.species_catalog import (
 )
 from environments.shared.stage_manifest import load_stage_manifest, resolve_stage_key
 
+from .notebook_cells import cell_sources, code_cell_sources
+
 GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
 
 
@@ -637,26 +639,13 @@ def test_public_notebook_references_are_manifested_and_exist() -> None:
 
 
 def test_training_notebooks_do_not_restore_stale_public_defaults() -> None:
-    def notebook_text(name: str) -> str:
-        notebook = json.loads((REPOSITORY_ROOT / "notebooks" / name).read_text(encoding="utf-8"))
-        chunks: list[str] = []
-        for cell in notebook["cells"]:
-            source = cell.get("source", "")
-            chunks.append("".join(source) if isinstance(source, list) else source)
-        return "\n".join(chunks)
-
-    sb3 = notebook_text("sb3_training.ipynb")
+    sb3 = "\n".join(cell_sources(REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"))
     assert '.get("timesteps",' not in sb3
     assert "GPU-Specific Recommended Settings" not in sb3
 
 
 def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> None:
-    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-    chunks: list[str] = []
-    for cell in notebook["cells"]:
-        source = cell.get("source", "")
-        chunks.append("".join(source) if isinstance(source, list) else source)
-    source_text = "\n".join(chunks)
+    source_text = "\n".join(cell_sources(REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"))
     # The notebook's evaluation is reporting.evaluate_stage_checkpoints (consolidation PR-14c).
     library = (REPOSITORY_ROOT / "environments/shared/reporting/stage_artifacts.py").read_text(encoding="utf-8")
 
@@ -684,8 +673,7 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
     the runtime and raises (invariant 5), and ONE manual single-node cell that
     records a verdict without ever enforcing it.
     """
-    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-    code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
+    code_cells = code_cell_sources(REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb")
 
     chain_cells = [cell for cell in code_cells if "# ===== BEHAVIOR CHAIN LOOP =====" in cell]
     manual_cells = [cell for cell in code_cells if "# ===== MANUAL SINGLE NODE" in cell]
@@ -749,8 +737,7 @@ def test_sb3_notebook_routes_every_bundle_write_through_chain_results() -> None:
     / ``dir_N`` / ``results_r`` variables the old cells threaded forward are
     pinned absent from every code cell.
     """
-    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-    code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
+    code_cells = code_cell_sources(REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb")
 
     bundle_calls = [
         line.strip()

@@ -32,6 +32,8 @@ from environments.shared.task_fingerprint import (  # noqa: E402
 )
 from environments.shared.train_base import create_vec_env, train  # noqa: E402
 
+from .notebook_cells import first_code_cell  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[3]
 SPECIES = ("compsognathus", "compsognathus_robot")
 
@@ -328,12 +330,7 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
     from environments.shared.curriculum.gate_resolver import GateResolutionError
     from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label
 
-    notebook = json.loads((ROOT / "notebooks/sb3_training.ipynb").read_text())
-    source = next(
-        "".join(cell["source"])
-        for cell in notebook["cells"]
-        if cell["cell_type"] == "code" and "# ===== BEHAVIOR CHAIN LOOP =====" in "".join(cell["source"])
-    )
+    source = first_code_cell(ROOT / "notebooks/sb3_training.ipynb", "# ===== BEHAVIOR CHAIN LOOP =====")
     directory = tmp_path / stage_dirname("compsognathus", "recovery")
     directory.mkdir()
     (directory / "gate_resolution.json").write_text("{}")
@@ -386,14 +383,8 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
 @pytest.mark.parametrize("species", SPECIES)
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
 def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm, tmp_path, monkeypatch):
-    notebook = json.loads((ROOT / "notebooks/sb3_training.ipynb").read_text())
-
     def cell(marker):
-        return next(
-            "".join(c["source"])
-            for c in notebook["cells"]
-            if c["cell_type"] == "code" and marker in "".join(c["source"])
-        )
+        return first_code_cell(ROOT / "notebooks/sb3_training.ipynb", marker)
 
     namespace = {"IN_COLAB": False}
     exec(compile(cell("# Add repo root to path"), "sb3_setup", "exec"), namespace)

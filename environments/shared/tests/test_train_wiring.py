@@ -17,12 +17,13 @@ import json
 import logging
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from environments.shared.curriculum import early_stopping
 from environments.shared.tb_sync import PeriodicTbSyncCallback
 from environments.shared.train_base import _build_core_callbacks, _prepare_alg_kwargs
+
+from .tiny_env_helpers import tiny_env_class
 
 _CONFIG = {
     "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64, "clip_range": 0.2},
@@ -219,23 +220,11 @@ class TestAdvisoriesAnchorOnTheActualBudget:
 
 
 def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, species=None, total=None):
-    gym = pytest.importorskip("gymnasium")
     pytest.importorskip("stable_baselines3")
     from stable_baselines3.common.callbacks import CheckpointCallback
     from stable_baselines3.common.vec_env import DummyVecEnv
 
-    class TinyEnv(gym.Env):
-        observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-        action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-
-        def reset(self, *, seed=None, options=None):
-            super().reset(seed=seed)
-            return np.zeros(1, dtype=np.float32), {}
-
-        def step(self, action):
-            return np.zeros(1, dtype=np.float32), 0.0, False, False, {}
-
-    eval_env = DummyVecEnv([TinyEnv])
+    eval_env = DummyVecEnv([tiny_env_class()])
     try:
         callbacks, _, _ = _build_core_callbacks(
             {"CheckpointCallback": CheckpointCallback},

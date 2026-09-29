@@ -30,6 +30,7 @@ from environments.shared.config import (
     save_stage_config,
 )
 
+from .notebook_cells import first_code_cell
 from .reporting_helpers import make_plant_identity as _plant_identity
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
@@ -900,9 +901,7 @@ class TestSaveStageConfigLoadLineage:
         required keyword-only argument, and no position-keyed name anywhere.
         """
         repo_root = Path(__file__).resolve().parents[3]
-        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-        cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
-        cell = next(c for c in cells if "def train_stage(" in c)
+        cell = first_code_cell(repo_root / "notebooks" / "sb3_training.ipynb", "def train_stage(")
         train_src = (repo_root / "environments" / "shared" / "train_base.py").read_text(encoding="utf-8")
         save_call = train_src.index("    save_stage_config(\n        log_path,")
         call_text = train_src[save_call : train_src.index("\n    )\n", save_call)]

@@ -27,7 +27,10 @@ from pathlib import Path
 
 import pytest
 
-from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+from environments.shared.stage_manifest import load_stage_manifest
+
+from .notebook_cells import cell_index as _cell_index
+from .notebook_cells import cell_sources, code_cell, code_cell_sources, code_cells
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
@@ -56,32 +59,16 @@ DISCONNECT_KNOBS = (("in_colab", "IN_COLAB"), ("auto", "AUTO_DISCONNECT"), ("flu
 SPECIES_WITH_MANIFESTS = sorted(path.parent.name for path in (REPO_ROOT / "configs").glob("*/stages.toml"))
 
 
-def _notebook_text(path: Path = NOTEBOOK_PATH) -> str:
-    return path.read_text(encoding="utf-8")
+def _code_cells() -> list[str]:
+    return code_cell_sources(NOTEBOOK_PATH)
 
 
-def _cells(path: Path = NOTEBOOK_PATH) -> list[dict]:
-    cells: list[dict] = json.loads(_notebook_text(path))["cells"]
-    return cells
-
-
-def _code_cells(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return ["".join(cell["source"]) for cell in _cells(path) if cell["cell_type"] == "code"]
-
-
-def _all_cell_sources(path: Path = NOTEBOOK_PATH) -> list[str]:
-    return ["".join(cell["source"]) for cell in _cells(path)]
-
-
-def _cell_index(cells: list[str], marker: str) -> int:
-    hits = [index for index, src in enumerate(cells) if marker in src]
-    assert len(hits) == 1, f"expected exactly one code cell containing {marker!r}, found {len(hits)}"
-    return hits[0]
+def _all_cell_sources() -> list[str]:
+    return cell_sources(NOTEBOOK_PATH)
 
 
 def _cell(marker: str) -> str:
-    cells = _code_cells()
-    return cells[_cell_index(cells, marker)]
+    return code_cell(NOTEBOOK_PATH, marker)
 
 
 def _branch_source(src: str, nodes: list[ast.stmt]) -> str:
@@ -389,26 +376,6 @@ class TestBehaviorKnob:
 
 class TestChainResolution:
     """The chain is resolved ONCE, in the resolve cell, through the manifest."""
-
-    def test_the_manifest_mechanism_the_notebook_relies_on(self):
-        trex = load_stage_manifest("trex")
-        assert trex.resolve_behavior("hunt").id == "behavior"
-        assert tuple(node.id for node in trex.chain_for("behavior")) == ("stance", "locomotion", "behavior")
-        assert trex.resolve_behavior("stand").id == "recovery", "a label resolves to its DEEPEST deliverable"
-        assert tuple(node.id for node in trex.chain_for("recovery")) == ("stance", "recovery")
-        assert trex.resolve_behavior("walk").id == "locomotion"
-        assert tuple(node.id for node in trex.chain_for("locomotion")) == ("stance", "locomotion")
-        # An id resolves to itself; the chain never visits a sibling branch.
-        assert trex.resolve_behavior("stance").id == "stance"
-        assert tuple(node.id for node in trex.chain_for("stance")) == ("stance",)
-        for species in SPECIES_WITH_MANIFESTS:
-            manifest = load_stage_manifest(species)
-            assert manifest.resolve_behavior("hunt").id == "behavior", species
-            has_recovery = any(entry.id == "recovery" for entry in manifest.stages)
-            assert manifest.resolve_behavior("stand").id == ("recovery" if has_recovery else "stance"), species
-            assert manifest.chain_for("behavior")[0].id == "stance", "every chain is root-first"
-            with pytest.raises(StageManifestError):
-                manifest.resolve_behavior("sprint")
 
     def test_behavior_is_resolved_once_through_the_manifest(self):
         cells = _code_cells()
@@ -730,55 +697,6 @@ class TestReuseRule:
         assert ".zip" not in ast.unparse(_dict_value(_handoff_assigns(reuse_if)[0].value, "model")), (
             "the handoff is the ancestor's own stem, in its own run (A10), without a duplicate extension"
         )
-
-    def test_the_library_rule_the_notebook_relies_on(self, tmp_path):
-        """Invariant 6, thin: the seven-rule reuse check the loop delegates to is fail-closed."""
-        from environments.shared.ancestors import AncestorReuseError, find_certified_ancestor
-
-        from .reporting_helpers import make_plant_identity
-        from .test_ancestors import OTHER_TASK, STANCE_CURRICULUM, STANCE_TASK, build_trunk_run, trunk_plant
-
-        stance = load_stage_manifest("trex").by_id("stance")
-
-        def find(run_dir, **overrides):
-            kwargs = dict(
-                species="trex",
-                entry=stance,
-                current_task_sha256=STANCE_TASK,
-                plant_identity=trunk_plant(),
-                current_gate_config=STANCE_CURRICULUM,
-            )
-            kwargs.update(overrides)
-            return find_certified_ancestor(run_dir, **kwargs)
-
-        passed = tmp_path / "passed"
-        passed.mkdir()
-        stage_dir = build_trunk_run(passed)
-        ancestor = find(passed)
-        assert ancestor.stage_dir == stage_dir and ancestor.stage_id == "stance"
-        assert ancestor.model_sha256.startswith("sha256:") and ancestor.verdict["passed"] is True
-
-        failed = tmp_path / "failed"
-        failed.mkdir()
-        build_trunk_run(failed, passed=False)
-        with pytest.raises(AncestorReuseError, match="FAILED gate"):
-            find(failed)
-        with pytest.raises(AncestorReuseError, match="judged under task"):
-            find(passed, current_task_sha256=OTHER_TASK)
-        other_plant = make_plant_identity(
-            species="trex", model_path="environments/trex/assets/trex.xml", physics_sha256="sha256:" + "9" * 64
-        )
-        with pytest.raises(AncestorReuseError, match="incompatible with the current trex plant"):
-            find(passed, plant_identity=other_plant)
-        # D-A22 (rule 7): a verdict judged under another gate is refused naming the threshold.
-        with pytest.raises(AncestorReuseError, match="differing thresholds"):
-            find(passed, current_gate_config={**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05})
-        # Absence of a verdict never reads as a pass.
-        unjudged = tmp_path / "unjudged"
-        unjudged.mkdir()
-        build_trunk_run(unjudged, verdict=False)
-        with pytest.raises(AncestorReuseError, match="no gate_verdict.json"):
-            find(unjudged)
 
 
 class _Clock:
@@ -1176,44 +1094,6 @@ class TestAutoTrunk:
         namespace["TRUNK_DIR"] = tmp_path / "20260914_123816"
         with pytest.raises(ResultBundleError, match="never judge the widened root"):
             exec(_cell(RESOLVE_CELL_MARKER), namespace)
-
-    def test_the_selection_it_delegates_to(self, tmp_path, monkeypatch):
-        """Invariant, thin: the selector prefers coverage, then recency, and reuses the seven-rule check."""
-        from environments.shared import task_fingerprint as task_fingerprint_module
-        from environments.shared.ancestors import select_trunk
-
-        from .test_ancestors import (
-            LOCOMOTION_CURRICULUM,
-            LOCOMOTION_TASK,
-            STANCE_CURRICULUM,
-            STANCE_TASK,
-            build_chained_trunk,
-            build_trunk_run,
-            trunk_plant,
-        )
-
-        build_trunk_run(tmp_path / "20260910_000000")
-        build_chained_trunk(tmp_path / "20260905_000000")
-        digests = {1: STANCE_TASK, 2: LOCOMOTION_TASK}
-        monkeypatch.setattr(
-            task_fingerprint_module,
-            "derive_stage_task_fingerprint",
-            lambda **kwargs: {"task_sha256": digests[kwargs["stage"]]},
-        )
-        manifest = load_stage_manifest("trex")
-        selection = select_trunk(
-            tmp_path,
-            species="trex",
-            chain=tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior")),
-            stage_configs={
-                1: {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM},
-                2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
-                3: {"env_kwargs": {}, "curriculum_kwargs": {}},
-            },
-            plant_identity=trunk_plant(),
-        )
-        assert selection.run_dir == tmp_path / "20260905_000000"
-        assert [candidate.coverage for candidate in selection.candidates] == [1, 2]
 
 
 class TestLoadModeByEdge:
@@ -1821,20 +1701,6 @@ class TestFrozenNullFlow:
         )
         for marker in (CHAIN_CELL_MARKER, MANUAL_CELL_MARKER):
             assert '== "recovery"' not in _cell(marker), "the frozen-null flow is keyed on the kind, not the id"
-
-    def test_the_gate_kind_set_the_notebook_relies_on(self):
-        from environments.shared.curriculum import FROZEN_NULL_GATE_KINDS, GATE_KINDS
-        from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
-
-        assert FROZEN_NULL_GATE_KINDS == frozenset({"recovery_quality/v1"})
-        assert FROZEN_NULL_GATE_KINDS == frozenset({RECOVERY_GATE_KIND})
-        assert FROZEN_NULL_GATE_KINDS <= set(GATE_KINDS)
-        assert isinstance(FROZEN_NULL_GATE_KINDS, frozenset)
-        # The trex recovery stage declares that kind, so BEHAVIOR="stand" takes the frozen-null flow.
-        from environments.shared.config import load_all_stages
-
-        recovery = load_all_stages("trex")["recovery"]
-        assert recovery["curriculum_kwargs"]["gate_kind"] in FROZEN_NULL_GATE_KINDS
 
 
 class TestPublication:
@@ -2920,16 +2786,17 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
 
 
-@pytest.mark.parametrize("path", [NOTEBOOK_PATH], ids=["sb3"])
+@pytest.mark.parametrize(
+    "path", [NOTEBOOK_PATH, REPO_ROOT / "notebooks" / "google_drive_summary.ipynb"], ids=["sb3", "drive_summary"]
+)
 def test_the_notebook_round_trips_through_json_dump_indent_1(path):
     """Every notebook edit goes through json.load -> json.dump(indent=1, ensure_ascii=False) + newline."""
-    text = _notebook_text(path)
+    text = path.read_text(encoding="utf-8")
     notebook = json.loads(text)
     assert json.dumps(notebook, indent=1, ensure_ascii=False) + "\n" == text, (
         f"{path.name} is not in the canonical json.dump(indent=1, ensure_ascii=False) form"
     )
     if path == NOTEBOOK_PATH:
         # Every SB3 code cell is plain Python.
-        for index, cell in enumerate(notebook["cells"]):
-            if cell["cell_type"] == "code":
-                ast.parse("".join(cell["source"]), filename=f"{path.name}[code cell {index}]")
+        for index, source in code_cells(path):
+            ast.parse(source, filename=f"{path.name}[code cell {index}]")

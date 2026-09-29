@@ -9,6 +9,8 @@ import pytest
 
 from environments.shared.scripts.zero_action_baseline import gate_margin, score
 
+from .notebook_cells import code_cell
+
 
 class _StubEnv:
     """Minimal environment implementing the members used by ``score``."""
@@ -98,16 +100,10 @@ def _exec_preflight_cell(tmp_path, monkeypatch, run_dir):
     _stub_stage(monkeypatch, {"brachiosaurus": [100] * 40}, {"brachiosaurus": 100.0})
 
     notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "sb3_training.ipynb"
-    notebook = json.loads(notebook_path.read_text())
-    preflight_cells = [
-        "".join(cell.get("source", []))
-        for cell in notebook["cells"]
-        if cell.get("cell_type") == "code" and "Pre-flight: zero-action baseline" in "".join(cell.get("source", []))
-    ]
-    assert len(preflight_cells) == 1
+    preflight_cell = code_cell(notebook_path, "Pre-flight: zero-action baseline")
 
     namespace = {"SPECIES": "brachiosaurus", "LOG_BASE": tmp_path / "logs", "RUN_DIR": run_dir}
-    exec(compile(preflight_cells[0], str(notebook_path), "exec"), namespace)
+    exec(compile(preflight_cell, str(notebook_path), "exec"), namespace)
     return next((tmp_path / "logs" / "brachiosaurus" / "zero_action_baselines").glob("*.json"))
 
 

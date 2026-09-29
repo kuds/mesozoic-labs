@@ -2,15 +2,18 @@
 
 ``test_result_bundle_*.py`` each cover one submodule of
 ``environments.shared.result_bundle``; these builders assemble the on-disk
-run directories they all operate on.
+run directories they all operate on.  ``_canonical_summary`` is the complete
+curated summary ``test_result_summaries.py`` and ``test_result_schema_v4.py``
+validate.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+from copy import deepcopy
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from environments.shared.curriculum.gate_schema import gate_config_view
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
@@ -30,6 +33,7 @@ _COMMIT = "a" * 40
 _ANCESTOR_TASK_SHA256 = "sha256:" + "7" * 64
 #: The run the reused trunk came from (its provenance run_id).
 _TRUNK_RUN_ID = "velociraptor-stable-baselines3-ppo-trunk"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class _InitializeResultBundleKwargs(TypedDict):
@@ -445,3 +449,94 @@ def _complete_bundle(
         run_id=f"{species}-{backend}-{algorithm.lower()}-test",
     )
     return paths, stage_results, stage_configs
+
+
+def _load_summary(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as summary_file:
+        return cast(dict[str, Any], json.load(summary_file))
+
+
+def _published_summary() -> dict[str, Any]:
+    return _load_summary(REPOSITORY_ROOT / "results" / "velociraptor" / "ppo" / "summary.json")
+
+
+def _canonical_plant_identity() -> dict[str, Any]:
+    return make_plant_identity().to_dict()
+
+
+def _canonical_summary() -> dict[str, Any]:
+    summary = deepcopy(_published_summary())
+    plant_identity = _canonical_plant_identity()
+    summary.update(
+        {
+            "bundle_status": "complete",
+            "run_id": "velociraptor-stable-baselines3-ppo-test",
+            "backend_version": "2.7.0",
+            "plant_identity": plant_identity,
+        }
+    )
+    summary["provenance"].update(
+        {
+            "evaluation_episodes": 30,
+            "repository_commit": "a" * 40,
+            "model_hash": "sha256:" + "b" * 64,
+            "config_hash": "sha256:" + "c" * 64,
+            "run_id": summary["run_id"],
+            "species": summary["species"],
+            "algorithm": summary["algorithm"],
+            "backend": summary["backend"],
+            "backend_version": summary["backend_version"],
+            "captured_at": f"{summary['date']}T12:00:00+00:00",
+            "repository_dirty": False,
+            "repository_patch_sha256": None,
+            "training_seed": summary["seed"],
+            "seed_roles": {
+                "training": summary["seed"],
+                "publication_evaluation": 3042,
+            },
+            "evaluation_protocols": {
+                "publication_evaluation": {
+                    "seed": 3042,
+                    "episodes": 30,
+                    "deterministic": True,
+                }
+            },
+            "evaluation_seeds": [3042],
+            "parallel_envs": summary["parallel_envs"],
+            "hardware": summary["hardware"],
+            "python_version": "3.12.11",
+            "platform": "Linux-6.8.0-x86_64",
+            "dependency_versions": {
+                "mujoco": "3.10.0",
+                "stable_baselines3": "2.7.0",
+            },
+            "plant_identity": plant_identity,
+            "selected_checkpoints": {
+                str(stage): {
+                    "model_path": f"stage{stage}/models/best_model.zip",
+                    "model_hash": "sha256:" + ("b" if stage == 3 else "e") * 64,
+                    "normalization_path": f"stage{stage}/models/best_model_vecnorm.pkl",
+                    "normalization_hash": "sha256:" + "f" * 64,
+                }
+                for stage in (1, 2, 3)
+            },
+            "selected_model_path": "stage3/models/best_model.zip",
+        }
+    )
+    for stage in summary["stages"].values():
+        stage.setdefault("mean_distance_traveled", 0.0)
+        stage.setdefault("mean_success_rate", 0.0)
+        stage["publication_gate_passed"] = stage["stage_passed"]
+        stage.update(
+            {
+                "selected_model_reward": stage["final_eval_reward"],
+                "selected_model_reward_std": stage.get("final_eval_std", 0.0),
+                "selected_model_episode_length": stage["avg_episode_length"],
+                "selected_model_episode_length_std": stage.get("avg_episode_length_std", 0.0),
+                "selected_model_forward_vel": stage["avg_forward_vel"],
+                "selected_model_forward_vel_std": stage.get("avg_forward_vel_std", 0.0),
+                "selected_model_distance": stage.get("mean_distance_traveled", 0.0),
+                "selected_model_success_rate": stage.get("mean_success_rate", 0.0),
+            }
+        )
+    return summary
