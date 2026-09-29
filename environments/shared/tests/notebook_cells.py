@@ -79,14 +79,18 @@ def strip_magics(source: str) -> str:
 
 
 def parse_failures(paths: Sequence[Path]) -> list[str]:
-    """``<path> cell <index>: <error>`` for each code cell of *paths* that does not parse."""
+    """``<path> cell <index>: <error>`` for each code cell of *paths* that does not parse.
+
+    A notebook inside the repository is named relative to its root (``notebooks/<name>.ipynb``).
+    """
     failures = []
     for path in paths:
+        shown = path.resolve().relative_to(REPO_ROOT) if path.resolve().is_relative_to(REPO_ROOT) else path
         for index, source in code_cells(path):
             try:
                 ast.parse(strip_magics(source))
             except SyntaxError as exc:
-                failures.append(f"{path} cell {index}: {exc}")
+                failures.append(f"{shown} cell {index}: {exc}")
     return failures
 
 

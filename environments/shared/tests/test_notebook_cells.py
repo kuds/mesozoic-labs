@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from . import notebook_cells
 from .notebook_cells import REPO_ROOT, code_cells, strip_magics
 
 NOTEBOOKS = [REPO_ROOT / "notebooks" / "sb3_training.ipynb", REPO_ROOT / "notebooks" / "google_drive_summary.ipynb"]
@@ -108,6 +109,18 @@ def test_every_environments_import_in_a_notebook_resolves(path):
     assert imports, f"{path.name} imports nothing from environments; the check has nothing to check"
     problems = [f"cell {index}: {problem}" for index, module, name in imports if (problem := _unresolved(module, name))]
     assert not problems, f"{path.name} imports what the library does not define:\n" + "\n".join(problems)
+
+
+def test_the_ci_notebook_check_names_a_repository_notebook_from_the_repository_root(tmp_path, monkeypatch, capsys):
+    """CI's failure lines read ``notebooks/<name>.ipynb cell <index>``, as the inline script's did."""
+    monkeypatch.setattr(notebook_cells, "REPO_ROOT", tmp_path)
+    (tmp_path / "notebooks").mkdir()
+    cells = [{"cell_type": "code", "metadata": {}, "source": "def broken(:\n"}]
+    (tmp_path / "notebooks" / "broken.ipynb").write_text(json.dumps({"cells": cells}))
+    assert notebook_cells.main([]) == 1
+    header, failure = capsys.readouterr().err.splitlines()
+    assert header == "notebook validation failed:"
+    assert failure.startswith("notebooks/broken.ipynb cell 0: "), failure
 
 
 def _run_notebook_cells(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:

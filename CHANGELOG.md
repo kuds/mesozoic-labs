@@ -201,13 +201,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Validate notebooks (parse every code cell)" step in place of an inline
   script, with the same messages; with no arguments it checks the
   repository's `notebooks/*.ipynb`, found from the file's location, and
-  fails when there are none. The new `test_notebook_cells.py` (4 tests)
+  fails when there are none. The new `test_notebook_cells.py` (5 tests)
   resolves every `environments` import in both notebooks from source,
   without importing the package: 78 name imports (66 in
   `sb3_training.ipynb`, 52 of them distinct, and 12 in
-  `google_drive_summary.ipynb`) from 21 modules, so a library rename that a notebook still imports fails in CI
-  rather than in a Colab session. Two of its tests run `notebook_cells.py`
-  by path under `python -I -S`, on the real notebooks and on a broken one.
+  `google_drive_summary.ipynb`) from 21 modules, so a library rename that
+  a notebook still imports fails in CI rather than in a Colab session. Two
+  of its tests run `notebook_cells.py` by path under `python -I -S`, on the
+  real notebooks and on a broken one, and one checks that a failure names
+  a repository notebook as `notebooks/<name>.ipynb`, as the inline script
+  did.
   The canonical-JSON pin covers `google_drive_summary.ipynb` too.
 
   Four pins that tested only the library, each with a twin in the shared
@@ -239,7 +242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tiny_env_helpers.tiny_env_class` replaces eight copies of a `TinyEnv` in
   five files, the one inside `test_curriculum_staged_pairs.py`'s subprocess
   script included; the copies differed only in observation shape and step
-  `info`. The change is +709 / −642 lines in 25 files (net +67), about 300
+  `info`. The change is +726 / −642 lines in 25 files (net +84), about 300
   of them moved, and not the net reduction of about 200 lines the plan
   estimated: the import-resolution check, its tests and `notebook_cells.py`
   outweigh the deletions, and the estimate counted
@@ -248,7 +251,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   digest: the digest-snapshot harness, run with the optional backends
   blocked, printed 848 lines with 0 errors, byte-identical on the base and
   on this PR. mypy finds no issues in 313 source files (from 309, the four
-  new modules), and the suite collects 3,950 tests (from 3,949).
+  new modules), and the suite collects 3,951 tests (from 3,949).
 
 ### Removed
 - **The JAX/MJX runtime** (#566, cleanup PR-B of
