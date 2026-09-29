@@ -484,6 +484,9 @@ class TestManifestV2Edges:
         manifest = load_stage_manifest("trex")
         assert [entry.id for entry in manifest.chain_for("behavior")] == ["stance", "locomotion", "behavior"]
         assert [entry.id for entry in manifest.chain_for(3)] == ["stance", "locomotion", "behavior"]
+        # A chain never visits a sibling branch.
+        assert [entry.id for entry in manifest.chain_for("recovery")] == ["stance", "recovery"]
+        assert [entry.id for entry in manifest.chain_for("locomotion")] == ["stance", "locomotion"]
         assert [entry.id for entry in manifest.ancestors("behavior")] == ["stance", "locomotion"]
         assert [entry.id for entry in manifest.ancestors("recovery")] == ["stance"]
         assert manifest.ancestors("stance") == ()
@@ -514,6 +517,15 @@ class TestManifestV2Edges:
             assert manifest.resolve_behavior("stand").id == "stance"
             assert manifest.resolve_behavior("walk").id == "locomotion"
             assert manifest.resolve_behavior("hunt").id == "behavior"
+        # Every committed manifest, the Compsognathus pair included: root-first chains, no unknown label.
+        for species in COMMITTED_SPECIES:
+            manifest = load_stage_manifest(species)
+            assert manifest.resolve_behavior("hunt").id == "behavior", species
+            has_recovery = any(entry.id == "recovery" for entry in manifest.stages)
+            assert manifest.resolve_behavior("stand").id == ("recovery" if has_recovery else "stance"), species
+            assert manifest.chain_for("behavior")[0].id == "stance", species
+            with pytest.raises(StageManifestError):
+                manifest.resolve_behavior("sprint")
         pilot = load_stage_manifest("pilot", configs_dir=_write_manifest(tmp_path, "pilot", OPEN_ID_BODY))
         assert pilot.recipe_labels == ("stand", "walk", "follow")
         follow = pilot.resolve_behavior("follow")
@@ -529,6 +541,7 @@ class TestManifestV2Edges:
     def test_resolve_behavior_accepts_a_deliverable_id_and_refuses_a_non_deliverable_or_unknown_one(self, tmp_path):
         pilot = load_stage_manifest("pilot", configs_dir=_write_manifest(tmp_path, "pilot", OPEN_ID_BODY))
         assert pilot.resolve_behavior("follow_direction").id == "follow_direction"
+        assert load_stage_manifest("trex").resolve_behavior("stance").id == "stance"
         body = (
             V2 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
             '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\nwarm_start_from = "stance"\ndeliverable = true\n'

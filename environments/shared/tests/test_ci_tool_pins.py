@@ -23,6 +23,8 @@ import re
 import tomllib
 from pathlib import Path
 
+from .notebook_cells import code_cell_sources
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CI_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "python-ci.yml"
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
@@ -112,12 +114,7 @@ def test_dev_extra_pins_the_ci_versions() -> None:
 
 
 def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
-    notebook = json.loads(SB3_NOTEBOOK.read_text(encoding="utf-8"))
-    code = "".join(
-        "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
-        for cell in notebook["cells"]
-        if cell["cell_type"] == "code"
-    )
+    code = "".join(code_cell_sources(SB3_NOTEBOOK))
     notebook_pins = set(_SB3_PIN.findall(code))
     ci_pins = set(_SB3_PIN.findall(_ci_text()))
     assert len(notebook_pins) == 1, f"the SB3 notebook pins stable-baselines3 as {notebook_pins}"

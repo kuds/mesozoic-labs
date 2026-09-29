@@ -9,7 +9,7 @@ D-D21's 0.3.9 gate; every code PR builds on 0.3.9.
 ## How to use this document
 
 §1 says what the replays found, what the plan does and where the cleanup it waits for stands; §2 lists the decisions,
-which the maintainer takes (each takes the next free D-D id, D-D22 onward, appended to
+which the maintainer takes (each takes the next free D-D id, D-D23 onward since D-D22 went to the cleanup plan's decision 16 on 2026-09-29, appended to
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the consolidation plan's table); §3 defines the
 measurement, §4 the gates and their calibration, §5 the reward changes, §6 the PR order, §7 the records, §8 the risks,
 §9 what the plan leaves alone, §10 a prompt for continuing the work in a fresh session. Companions:
@@ -73,7 +73,9 @@ before PR-15). Consolidation has landed PR-1 (#542), the automatic trunk selecti
 (#546–#549), PR-12's notebook-only slice (#552), PR-14a/b/c (#553–#555) and PR-7 (#556); PR-8, PR-9, PR-10, PR-11, the
 rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)). PR-G1 needs CU-9; the later G PRs interleave with
-PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6).
+PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-09-29: CU-2 landed as #568, CU-4
+is carried out, and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
+CU-6 also waits for CU-5, CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 
 ## 2. Decisions needed
 
@@ -432,7 +434,7 @@ session 4's re-run and its reuse discrepancy and says that this plan recommends 
 that it is held; rows for the re-panels, pilots and retrains come with the decisions that schedule them; §7 adds the
 risk of a gate without reward changes. `README.md:485` notes that the walker was certified on forward speed, reward
 and episode length with no foot-contact check, and that the audit found it a two-footed hop. CHANGELOG `[Unreleased]`:
-PR-G0 under Added; each revision under Changed, naming the digest lines it moves. Decision rows D-D22 onward, append-only, in both plans.
+PR-G0 under Added; each revision under Changed, naming the digest lines it moves. Decision rows D-D23 onward (D-D22 went to the cleanup plan's decision 16 on 2026-09-29), append-only, in both plans.
 
 ## 8. Risks
 

@@ -12,6 +12,8 @@ from environments.shared.species_names import resolve_species_id, species_displa
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import load_stage_manifest
 
+from .notebook_cells import cell_sources, first_code_cell
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FULL_NAMES = {
     "velociraptor": "Velociraptor Mongoliensis",
@@ -24,12 +26,7 @@ FULL_NAMES = {
 
 
 def _notebook_cell(marker):
-    notebook = json.loads((REPO_ROOT / "notebooks/sb3_training.ipynb").read_text())
-    return next(
-        "".join(cell["source"])
-        for cell in notebook["cells"]
-        if cell["cell_type"] == "code" and marker in "".join(cell["source"])
-    )
+    return first_code_cell(REPO_ROOT / "notebooks/sb3_training.ipynb", marker)
 
 
 def _selection_code(name):
@@ -103,9 +100,8 @@ def test_unknown_training_name_is_rejected_but_custom_plot_label_is_preserved():
 
 def test_colab_species_selectors_match_the_manifest():
     for filename in ("sb3_training.ipynb",):
-        notebook = json.loads((REPO_ROOT / "notebooks" / filename).read_text())
-        for cell in notebook["cells"]:
-            for line in "".join(cell["source"]).splitlines():
+        for source in cell_sources(REPO_ROOT / "notebooks" / filename):
+            for line in source.splitlines():
                 if line.startswith("SPECIES = ") and "# @param [" in line:
                     labels = json.loads(line.split("# @param ", 1)[1])
                     backend = "stable-baselines3"

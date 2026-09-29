@@ -8,7 +8,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
-import numpy as np
 import pytest
 
 from environments.shared.plant_contract import (
@@ -147,7 +146,6 @@ class TestBuildCoreCallbacks:
         success_threshold,
         success_applicable,
     ):
-        gym = pytest.importorskip("gymnasium")
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
@@ -157,18 +155,9 @@ class TestBuildCoreCallbacks:
             StageGatePlateauCallback,
         )
 
-        class TinyEnv(gym.Env):
-            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+        from .tiny_env_helpers import tiny_env_class
 
-            def reset(self, *, seed=None, options=None):
-                super().reset(seed=seed)
-                return np.zeros(1, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.zeros(1, dtype=np.float32), 0.0, False, False, {"forward_vel": 0.0}
-
-        eval_env = DummyVecEnv([TinyEnv])
+        eval_env = DummyVecEnv([tiny_env_class(info={"forward_vel": 0.0})])
         stage_config = {
             "curriculum_kwargs": {
                 "min_avg_reward": 100.0,
@@ -199,26 +188,16 @@ class TestBuildCoreCallbacks:
         eval_env.close()
 
     def test_collapse_early_stop_params_are_configurable(self, tmp_path):
-        gym = pytest.importorskip("gymnasium")
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
 
         from environments.shared.curriculum import EvalCollapseEarlyStopCallback
 
-        class TinyEnv(gym.Env):
-            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-
-            def reset(self, *, seed=None, options=None):
-                super().reset(seed=seed)
-                return np.zeros(1, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.zeros(1, dtype=np.float32), 0.0, False, False, {"forward_vel": 0.0}
+        from .tiny_env_helpers import tiny_env_class
 
         def _build_collapse_cb(curriculum_kwargs):
-            eval_env = DummyVecEnv([TinyEnv])
+            eval_env = DummyVecEnv([tiny_env_class(info={"forward_vel": 0.0})])
             callbacks, _, _ = _build_core_callbacks(
                 {"CheckpointCallback": CheckpointCallback},
                 eval_env,
@@ -808,23 +787,13 @@ class TestCheckpointRetentionIsWired:
     """
 
     def _build(self, tmp_path, stage_config, n_envs=1, save_freq=100):
-        gym = pytest.importorskip("gymnasium")
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback
         from stable_baselines3.common.vec_env import DummyVecEnv
 
-        class TinyEnv(gym.Env):
-            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+        from .tiny_env_helpers import tiny_env_class
 
-            def reset(self, *, seed=None, options=None):
-                super().reset(seed=seed)
-                return np.zeros(1, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.zeros(1, dtype=np.float32), 0.0, False, False, {}
-
-        eval_env = DummyVecEnv([TinyEnv])
+        eval_env = DummyVecEnv([tiny_env_class()])
         try:
             callbacks, _, _ = _build_core_callbacks(
                 {"CheckpointCallback": CheckpointCallback},
@@ -1345,8 +1314,8 @@ class TestTrainCurriculumWalksTheManifest:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import load_stage_manifest
 
+        from .ancestors_helpers import STANCE_TASK, build_trunk_run
         from .reporting_helpers import make_plant_identity
-        from .test_ancestors import STANCE_TASK, build_trunk_run
 
         plant = make_plant_identity()
         original = tmp_path / "logs" / "original-run"

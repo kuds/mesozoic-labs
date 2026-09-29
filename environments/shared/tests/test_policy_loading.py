@@ -50,6 +50,8 @@ from environments.shared.policy_loading import (
     schedule_custom_objects,
 )
 
+from .notebook_cells import code_cell_sources, code_cells, strip_magics
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sb3_archives"
 MANIFEST: dict[str, dict] = json.loads((FIXTURES / "manifest.json").read_text(encoding="utf-8"))
@@ -575,16 +577,8 @@ def test_every_sb3_archive_load_goes_through_the_loader():
         if hits:
             offenders[name] = hits
     for path in sorted((REPO_ROOT / "notebooks").glob("*.ipynb")):
-        notebook = json.loads(path.read_text(encoding="utf-8"))
-        for index, cell in enumerate(notebook["cells"]):
-            if cell["cell_type"] != "code":
-                continue
-            source = "".join(cell["source"])
-            stripped = "\n".join(
-                line if not line.lstrip().startswith(("!", "%")) else line[: len(line) - len(line.lstrip())] + "pass"
-                for line in source.splitlines()
-            )
-            hits = _bare_algorithm_loads(ast.parse(stripped))
+        for index, source in code_cells(path):
+            hits = _bare_algorithm_loads(ast.parse(strip_magics(source)))
             if hits:
                 offenders[f"{path.relative_to(REPO_ROOT)}[cell {index}]"] = hits
     assert not offenders, f"bare SB3 archive loads outside policy_loading.load_sb3_model: {offenders}"
@@ -611,6 +605,5 @@ def test_the_known_load_sites_call_the_loader():
             if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "load_sb3_model"
         ]
         assert len(calls) == count, (name, len(calls))
-    notebook = json.loads((REPO_ROOT / "notebooks/sb3_training.ipynb").read_text(encoding="utf-8"))
-    cells = ["".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "code"]
+    cells = code_cell_sources(REPO_ROOT / "notebooks/sb3_training.ipynb")
     assert sum(cell.count("load_sb3_model(") for cell in cells) == 1, "the preflight (evaluation loads in the library)"

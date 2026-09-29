@@ -24,10 +24,11 @@ import sys
 import textwrap
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from environments.shared.curriculum.checkpoints import publish_staged_pair, select_handoff_checkpoint
+
+from .tiny_env_helpers import tiny_env_class
 
 
 def _pair(stem: Path, tag: str) -> None:
@@ -109,29 +110,13 @@ class Reclaimed(BaseException):
     """A runtime reclaim: not an Exception, so nothing downstream swallows it."""
 
 
-def _tiny_env_class():
-    gym = pytest.importorskip("gymnasium")
-
-    class TinyEnv(gym.Env):
-        observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-        action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-
-        def reset(self, *, seed=None, options=None):
-            super().reset(seed=seed)
-            return np.zeros(1, dtype=np.float32), {}
-
-        def step(self, action):
-            return np.zeros(1, dtype=np.float32), 0.0, False, False, {}
-
-    return gym, TinyEnv
-
-
 def _vec_env(training: bool = True):
     pytest.importorskip("stable_baselines3")
+    from gymnasium.wrappers import TimeLimit
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-    gym, tiny = _tiny_env_class()
-    env = VecNormalize(DummyVecEnv([lambda: gym.wrappers.TimeLimit(tiny(), max_episode_steps=5)]))
+    tiny = tiny_env_class()
+    env = VecNormalize(DummyVecEnv([lambda: TimeLimit(tiny(), max_episode_steps=5)]))
     env.training = training
     return env
 
@@ -410,20 +395,13 @@ class TestFinalPair:
         system_tmp.mkdir()
         script = textwrap.dedent(
             f"""
-            import os, shutil, numpy as np, gymnasium as gym, stable_baselines3 as sb3
+            import os, shutil, stable_baselines3 as sb3
             from pathlib import Path
             from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
             from environments.shared import train_base
+            from environments.shared.tests.tiny_env_helpers import tiny_env_class
             train_base._REMOTE_MOUNT_ROOTS = ({str(root)!r},)
-            class TinyEnv(gym.Env):
-                observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-                action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-                def reset(self, *, seed=None, options=None):
-                    super().reset(seed=seed)
-                    return np.zeros(1, dtype=np.float32), {{}}
-                def step(self, action):
-                    return np.zeros(1, dtype=np.float32), 0.0, False, False, {{}}
-            env = VecNormalize(DummyVecEnv([TinyEnv]))
+            env = VecNormalize(DummyVecEnv([tiny_env_class()]))
             model = sb3.PPO("MlpPolicy", env, n_steps=8, batch_size=8, n_epochs=1, verbose=0, device="cpu")
             if {killed_in!r} == "local save":
                 real = sb3.PPO.save

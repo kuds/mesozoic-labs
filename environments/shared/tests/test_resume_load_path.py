@@ -29,6 +29,8 @@ from environments.shared.train_base import (
     _stage_entry_shaping_callbacks,
 )
 
+from .tiny_env_helpers import tiny_env_class
+
 # ── VecNormalize sidecar resolution (F3) ─────────────────────────────────
 
 
@@ -145,21 +147,10 @@ class TestLoadVecnormIntoEnvsResolution:
 
     def test_real_vecnormalize_stats_round_trip_via_periodic_naming(self, tmp_path):
         """End-to-end: stats saved under SB3's periodic name are carried forward."""
-        gym = pytest.importorskip("gymnasium")
         pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-        class TinyEnv(gym.Env):
-            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
-
-            def reset(self, *, seed=None, options=None):
-                super().reset(seed=seed)
-                return np.zeros(1, dtype=np.float32), {}
-
-            def step(self, action):
-                return np.zeros(1, dtype=np.float32), 0.0, False, False, {}
-
+        TinyEnv = tiny_env_class()
         source_env = VecNormalize(DummyVecEnv([TinyEnv]), norm_obs=True, norm_reward=True)
         source_env.obs_rms.mean = np.full(1, 0.42)
         source_env.obs_rms.var = np.full(1, 2.5)

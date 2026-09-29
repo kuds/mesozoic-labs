@@ -105,33 +105,11 @@ jobs:
         # symbol rename could break the Colab entry point with every job
         # green, surfacing hours into the next paid session (gap review
         # CI9). AST-parse is cheap and needs no execution; IPython magic
-        # and shell lines are stripped the way nbconvert would.
-        run: |
-          python - <<'PY'
-          import ast, json, sys
-          from pathlib import Path
-
-          failures = []
-          for path in sorted(Path("notebooks").glob("*.ipynb")):
-              nb = json.loads(path.read_text(encoding="utf-8"))
-              for index, cell in enumerate(nb["cells"]):
-                  if cell["cell_type"] != "code":
-                      continue
-                  source = "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
-                  lines = [
-                      line
-                      if not line.lstrip().startswith(("!", "%"))
-                      else line[: len(line) - len(line.lstrip())] + "pass"
-                      for line in source.splitlines()
-                  ]
-                  try:
-                      ast.parse("\n".join(lines))
-                  except SyntaxError as exc:
-                      failures.append(f"{path} cell {index}: {exc}")
-          if failures:
-              sys.exit("notebook validation failed:\n" + "\n".join(failures))
-          print("all notebook code cells parse")
-          PY
+        # and shell lines are stripped the way nbconvert would. The check
+        # is notebook_cells.py's own, standard library only, so it runs by
+        # path in this job, which does not install the package; the test
+        # jobs resolve each notebook import (test_notebook_cells.py).
+        run: python environments/shared/tests/notebook_cells.py
 
   plant-contract:
     runs-on: ubuntu-latest
