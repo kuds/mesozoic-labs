@@ -173,6 +173,9 @@ Follow this checklist:
      README blocks and `website/src/data/species.generated.json`
    - Run `python -m environments.shared.species_catalog --check` to verify that
      generated data and declared artifacts are current
+   - Once its stages and behavior recipes are in place, run
+     `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`
+     to add the species' lines to `configs/digest_snapshot.generated.txt`
 
 9. **Update CI** (`.github/workflows/python-ci.yml`):
    - Add a `test-<species>` job following the existing pattern
@@ -191,8 +194,16 @@ Follow this checklist:
 1. Create a feature branch from `main`
 2. Make your changes with clear, focused commits
 3. Ensure all tests pass and pre-commit hooks are clean
-4. Open a PR with a description of what changed and why
-5. Link any related issues
+4. If the change moves a digest on purpose (a plant, the policy interface, a stage
+   config, a recovery calibration, a behavior recipe or the environment code it
+   hashes), regenerate the digest snapshot from the repository root with the
+   canonical MuJoCo (`configs/plant_versions.toml`) and commit
+   `configs/digest_snapshot.generated.txt` in the same PR:
+   `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`.
+   CI's plant-contract job fails on any digest line that moved without it; a
+   change that claims to move no digest leaves the file unchanged
+5. Open a PR with a description of what changed and why
+6. Link any related issues
 
 ## Reporting Issues
 

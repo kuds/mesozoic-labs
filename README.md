@@ -60,7 +60,7 @@ mesozoic-labs/
 │       ├── metrics.py         # Locomotion evaluation metrics
 │       ├── wandb_integration.py # W&B experiment tracking
 │       ├── mjx_env.py         # Frozen MJX interface core (D-D17; hashed, never trained on)
-│       ├── harnesses/         # Hand-run smoke checks and MJCF viewers
+│       ├── harnesses/         # Smoke checks, MJCF viewers, the digest snapshot CI checks
 │       └── tests/             # Shared utility tests
 ├── configs/                   # Per-species stage manifest (stages.toml) and TOML stage configs
 ├── notebooks/                 # Jupyter training and reporting workflows

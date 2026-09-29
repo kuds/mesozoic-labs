@@ -67,10 +67,22 @@ After an intentional model or interface change:
    pytest environments/shared/tests/test_plant_contract_*.py environments/shared/tests/test_species_catalog.py
    ```
 
+4. Regenerate the digest snapshot (every plant, policy, stage, recovery and behavior digest, one per line; D-D22) and
+   check that its diff moves only the digests you meant to move:
+
+   ```bash
+   python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write
+   git diff configs/digest_snapshot.generated.txt
+   ```
+
 The writer updates both `configs/plant_manifest.generated.json` and the byte-identical runtime copy under
 `environments/shared/data/`. Commit the version counters, both generated manifests, generated public catalog/README
-data, and the intentional source change together. CI repeats the check with the canonical MuJoCo version, tests revision
-monotonicity against the PR base, and verifies identity/config loading from an installed wheel.
+data, the digest snapshot, and the intentional source change together. CI repeats the check with the canonical MuJoCo
+version, tests revision monotonicity against the PR base, runs the full digest snapshot against
+`configs/digest_snapshot.generated.txt` (a failure names every moved line and prints the `--write` command), and
+verifies identity/config loading from an installed wheel. Any other change that moves a digest on purpose (a stage
+config, a recovery calibration, a behavior recipe or the environment code it hashes) commits the regenerated snapshot the
+same way; a change that claims to move no digest leaves it unchanged.
 
 ### Widening a checkpoint across a policy-interface bump
 

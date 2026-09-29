@@ -19,9 +19,10 @@ them.
 * :mod:`~environments.shared.harnesses.viewer` — passive viewer for MJCF
   iteration
 * :mod:`~environments.shared.harnesses.digest_snapshot` — print every plant,
-  policy, stage, recovery and behavior digest, one per line, to ``diff`` a
-  change that claims to move no digest (run it by file path; see its
-  ``--help``)
+  policy, stage, recovery and behavior digest, one per line.  Its output is
+  committed as ``configs/digest_snapshot.generated.txt``, which the
+  plant-contract CI job checks with ``--check``; a change that moves a digest
+  on purpose regenerates it with ``--write`` (D-D22; see its ``--help``)
 """
 
 from __future__ import annotations

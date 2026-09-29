@@ -1,11 +1,12 @@
-"""Hand-run harness: print every identity and digest a certified run depends on.
+"""Print every identity and digest a certified run depends on; CI checks it.
 
 The acceptance check for a change that claims to move no digest (retiring a
-backend, a refactor, a dependency bump).  Run it on the base and on the head
-and ``diff`` the two outputs: any line that differs names the digest that
-moved.  One tab-separated line per value, in a fixed order, with no
-timestamps and no checkout paths, so two runs on the same tree are
-byte-identical:
+backend, a refactor, a dependency bump).  Its output for the committed tree
+is committed as ``configs/digest_snapshot.generated.txt``, and CI compares a
+full run with that golden on every pull request (see "The committed golden"
+below): any line that differs names the digest that moved.  One
+tab-separated line per value, in a fixed order, with no timestamps and no
+checkout paths, so two runs on the same tree are byte-identical:
 
     plant.check_plant_manifest  OK
     plant     <species>  <identity key>  <value>
@@ -21,6 +22,26 @@ The sections are the plant identities and their policy-interface payload
 and every behavior recipe's identity with its source digests.  A value that
 cannot be computed prints an ERROR line instead of stopping the run, so the
 diff shows the failure.
+
+The committed golden (D-D22).  The plant-contract CI job runs the full
+harness, never ``--skip-behaviors``, from the repository root with the
+canonical MuJoCo of ``configs/plant_versions.toml``:
+
+    python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check
+
+A pull request that moves a digest on purpose regenerates the golden the
+same way and commits it in its own diff, where the move is reviewed; every
+other pull request leaves it unchanged:
+
+    python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write
+    git diff configs/digest_snapshot.generated.txt    # only the moves you meant
+
+``--check [PATH]`` compares the run with PATH (default: the golden; a
+relative PATH is under ``--repo``) and, when they differ, names every moved
+line and prints the diff and the ``--write`` command.  ``--write [PATH]``
+writes the run to PATH, and refuses a run with an ERROR line.  Both print
+no snapshot lines, imply ``--block-optional-backends`` and refuse
+``--skip-behaviors``.
 
 Comparing two checkouts.  The digests are computed by whichever
 ``environments`` package Python imports, and ``configs/`` is read from
@@ -51,24 +72,29 @@ SB3-only install; it refuses to start if one of them is already imported.
 ``--skip-behaviors`` leaves out the behavior section, which builds one
 environment per recipe and is most of the run time.
 
-Exit status: 0 when every value was computed, 1 when any ERROR line was
-printed (the rest of the snapshot is still complete), 2 when the invocation
-is refused.  A one-line summary (line and error counts, elapsed time) goes to
-stderr, so it never reaches the diff.
+Exit status: 0 when every value was computed (and, with ``--check``, the
+run equals PATH), 1 when any ERROR line was printed (the rest of the
+snapshot is still complete) or ``--check`` found a difference, 2 when the
+invocation is refused (also when ``--check`` finds no file at PATH).  A
+one-line summary (line and error counts, elapsed time) goes to stderr, so it
+never reaches the diff.
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import importlib.abc
 import json
 import logging
 import os
+import shlex
 import sys
 import tempfile
 import time
 import traceback
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -78,6 +104,13 @@ BLOCKED_BACKENDS = ("jax", "jaxlib", "flax", "optax", "mujoco.mjx", "ray", "mjla
 #: ``stage_config.json`` keys left out of ``stage_config_view_sha256``: the
 #: line already names the species and stage, and the rest change per run.
 UNPINNED_STAGE_CONFIG_KEYS = ("species", "stage", "library_version", "git_commit", "run", "gpu")
+
+#: The committed golden (D-D22): the full output for the committed tree,
+#: relative to the repository root.  The default PATH of --check and --write.
+GOLDEN = "configs/digest_snapshot.generated.txt"
+
+#: The command that regenerates GOLDEN, which a failed --check prints.
+WRITE_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write"
 
 
 def _is_blocked(name: str) -> bool:
@@ -94,16 +127,22 @@ class _BackendBlocker(importlib.abc.MetaPathFinder):
 
 
 class _Snapshot:
-    """Prints the snapshot lines and counts them and the ERROR lines."""
+    """Prints the snapshot lines (or keeps them, for --check and --write) and counts them and the ERROR lines."""
 
-    def __init__(self, repo: Path, *, debug: bool = False) -> None:
+    def __init__(self, repo: Path, *, debug: bool = False, keep: bool = False) -> None:
         self.repo = repo
         self.debug = debug
+        self.keep = keep
+        self.kept: list[str] = []
         self.lines = 0
         self.errors = 0
 
     def emit(self, *parts: object) -> None:
-        print("\t".join(str(part) for part in parts), flush=True)
+        line = "\t".join(str(part) for part in parts)
+        if self.keep:
+            self.kept.append(line)
+        else:
+            print(line, flush=True)
         self.lines += 1
 
     def guard(self, label: str, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
@@ -293,6 +332,100 @@ def _behavior_identity(recipe_path: Path, species: str) -> Any:
         env.close()
 
 
+def render(lines: Sequence[str]) -> str:
+    """The snapshot as a file: every line newline-terminated (what --write writes)."""
+    return "".join(f"{line}\n" for line in lines)
+
+
+def _is_error(line: str) -> bool:
+    return line.split("\t")[1:2] == ["ERROR"]
+
+
+def _digest_name(line: str) -> str:
+    """Every field of *line* but its value, space-separated: the name of the digest it prints."""
+    return (line.rpartition("\t")[0] or line).replace("\t", " ")
+
+
+def _write_command(label: str) -> str:
+    """The command that regenerates *label*: the committed golden, or the PATH given to --check."""
+    return WRITE_COMMAND if label == GOLDEN else f"{WRITE_COMMAND} {shlex.quote(label)}"
+
+
+def golden_mismatch(golden: str, lines: Sequence[str], errors: int, label: str) -> str | None:
+    """None when *lines* reproduce the text *golden* with no ERROR line; otherwise the failure message.
+
+    The message names every moved line (changed, added or removed), then
+    prints the unified diff and what to do: fix the ERROR lines, or, for a
+    deliberate move, regenerate the golden in the same pull request.
+    """
+    if render(lines) == golden and not errors:
+        return None
+    # A byte-order mark or extra final newlines move no value: they are reported as the file's form below.
+    expected, actual = golden.removeprefix("\ufeff").rstrip("\n").splitlines(), list(lines)
+    report = [f"digest_snapshot: {label} does not match this checkout."]
+    if expected != actual:
+        old, new = set(expected), set(actual)
+        gone = Counter(_digest_name(line) for line in expected if line not in new)
+        came = Counter(_digest_name(line) for line in actual if line not in old)
+        changed = gone & came
+        # One entry per moved line, so two identical ERROR lines count twice.
+        moved = [
+            (kind, name)
+            for kind, names in (("changed", changed), ("added", came - changed), ("removed", gone - changed))
+            for name in names.elements()
+        ]
+        if moved:
+            counts = ", ".join(f"{sum(k == kind for k, _ in moved)} {kind}" for kind in ("changed", "added", "removed"))
+            report.append(f"{len(moved)} digest line(s) moved ({counts}):")
+            report += [f"  {kind:<8} {name}" for kind, name in moved]
+        else:
+            report.append("No value moved, but the lines differ in order or number:")
+        report += difflib.unified_diff(expected, actual, f"{label} (committed)", "this checkout", n=0, lineterm="")
+    elif render(lines) != golden:
+        report.append(
+            f"Every line matches, but {label} is not the text --write writes"
+            " (a byte-order mark, or not exactly one final newline)."
+        )
+    if errors:
+        report.append(f"{errors} value(s) could not be computed (--debug prints each traceback):")
+        report += [f"  {line}" for line in lines if _is_error(line)]
+        report.append("Fix these first: the golden never holds an ERROR line, and --write refuses a run with one.")
+    else:
+        command = _write_command(label)
+        report += [
+            "If every move above is deliberate, regenerate the golden (from the repository root, with the canonical",
+            "MuJoCo) and commit it in this pull request, where the move is reviewed (D-D22):",
+            f"    {command}",
+            f"A change that claims to move no digest leaves {label} unchanged: find what moved it instead.",
+        ]
+    return "\n".join(report)
+
+
+def check_golden(path: Path, label: str, lines: Sequence[str], errors: int) -> int:
+    """--check: 0 when *lines* reproduce *path* with no ERROR line, else print why and return 1."""
+    mismatch = golden_mismatch(path.read_text(encoding="utf-8"), lines, errors, label)
+    if mismatch is not None:
+        print(mismatch, file=sys.stderr)
+        return 1
+    print(f"Digest snapshot is current: {label} ({len(lines)} lines)")
+    return 0
+
+
+def write_golden(path: Path, label: str, lines: Sequence[str], errors: int) -> int:
+    """--write: replace *path* with *lines*, unless the run printed an ERROR line (then 1, nothing written)."""
+    if errors:
+        print(f"digest_snapshot: not writing {label}: {errors} value(s) could not be computed:", file=sys.stderr)
+        for line in lines:
+            if _is_error(line):
+                print(f"  {line}", file=sys.stderr)
+        return 1
+    temp = path.with_name(f"{path.name}.tmp")
+    temp.write_text(render(lines), encoding="utf-8", newline="\n")
+    temp.replace(path)
+    print(f"Wrote {label} ({len(lines)} lines)")
+    return 0
+
+
 def _refuse(message: str) -> int:
     print(f"digest_snapshot: refused: {message}", file=sys.stderr)
     return 2
@@ -312,9 +445,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--skip-behaviors", action="store_true", help="leave out the behavior section (the slow part)")
     parser.add_argument("--debug", action="store_true", help="print the traceback of every ERROR line to stderr")
+    golden_mode = parser.add_mutually_exclusive_group()
+    golden_mode.add_argument(
+        "--check",
+        nargs="?",
+        const=GOLDEN,
+        metavar="PATH",
+        help=f"compare the full run with PATH (default: {GOLDEN}) and name every moved line",
+    )
+    golden_mode.add_argument(
+        "--write",
+        nargs="?",
+        const=GOLDEN,
+        metavar="PATH",
+        help=f"write the full run to PATH (default: {GOLDEN}), after a deliberate digest move",
+    )
     args = parser.parse_args(argv)
     started = time.monotonic()
 
+    target: str | None = args.check if args.check is not None else args.write
+    if target is not None:
+        if args.skip_behaviors:
+            return _refuse("--check and --write need the full run (D-D22); drop --skip-behaviors")
+        args.block_optional_backends = True
     if args.block_optional_backends:
         loaded = [name for name in BLOCKED_BACKENDS if any(m == name or m.startswith(name + ".") for m in sys.modules)]
         if loaded:
@@ -324,6 +477,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     repo = Path(args.repo).resolve()
     if not (repo / "environments" / "__init__.py").is_file():
         return _refuse(f"--repo {repo} is not a checkout (no environments/__init__.py)")
+    golden = None if target is None else repo / target
+    label = ""
+    if golden is not None:
+        label = golden.relative_to(repo).as_posix() if golden.is_relative_to(repo) else str(golden)
+        if args.check is not None and not golden.is_file():
+            return _refuse(f"--check: no file at {label}; generate it with `{_write_command(label)}`")
     os.chdir(repo)
     sys.path.insert(0, str(repo))
     import environments
@@ -339,7 +498,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     logging.disable(logging.CRITICAL)
-    out = _Snapshot(repo, debug=args.debug)
+    out = _Snapshot(repo, debug=args.debug, keep=golden is not None)
     identities = plant_section(out)
     stage_section(out, identities)
     recovery_section(out)
@@ -349,7 +508,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"digest_snapshot: {out.lines} lines, {out.errors} errors, {time.monotonic() - started:.1f} s ({repo})",
         file=sys.stderr,
     )
-    return 1 if out.errors else 0
+    if golden is None:
+        return 1 if out.errors else 0
+    finish = check_golden if args.check is not None else write_golden
+    return finish(golden, label, out.kept, out.errors)
 
 
 if __name__ == "__main__":

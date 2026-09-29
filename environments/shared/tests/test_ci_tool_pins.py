@@ -23,10 +23,10 @@ import re
 import tomllib
 from pathlib import Path
 
+from .ci_workflow_helpers import CI_WORKFLOW, ci_text, glob_matches, path_filters
 from .notebook_cells import code_cell_sources
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-CI_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "python-ci.yml"
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
@@ -50,12 +50,8 @@ _DIGEST_DATA_GLOBS = (
 )
 
 
-def _ci_text() -> str:
-    return CI_WORKFLOW.read_text(encoding="utf-8")
-
-
 def _ci_pins(tool: str) -> list[str]:
-    return re.findall(rf'"{tool}==([0-9][0-9.]*)"', _ci_text())
+    return re.findall(rf'"{tool}==([0-9][0-9.]*)"', ci_text())
 
 
 def _pre_commit_block(tool: str) -> str:
@@ -73,7 +69,7 @@ def _pre_commit_rev(tool: str) -> str:
 
 
 def test_every_ci_install_of_ruff_or_mypy_is_pinned_to_one_version() -> None:
-    for line in _ci_text().splitlines():
+    for line in ci_text().splitlines():
         if "pip install" not in line:
             continue
         unpinned = re.findall(r"(?<![\w.-])(ruff|mypy)(?![\w.-])(?!==)", line)
@@ -97,8 +93,8 @@ def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
     # CI runs `ruff check environments/` and `ruff format --check environments/`.
     # The pinned ruff also formats notebooks and Markdown code blocks, so an
     # unscoped hook would rewrite files CI never looks at.
-    assert "ruff check environments/" in _ci_text()
-    assert "ruff format --check environments/" in _ci_text()
+    assert "ruff check environments/" in ci_text()
+    assert "ruff format --check environments/" in ci_text()
     block = _pre_commit_block("ruff")
     hooks = re.findall(r"^\s*- id:\s*(\S+)", block, flags=re.MULTILINE)
     scoped = re.findall(r"^\s*files:\s*\^environments/\s*$", block, flags=re.MULTILINE)
@@ -116,40 +112,18 @@ def test_dev_extra_pins_the_ci_versions() -> None:
 def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
     code = "".join(code_cell_sources(SB3_NOTEBOOK))
     notebook_pins = set(_SB3_PIN.findall(code))
-    ci_pins = set(_SB3_PIN.findall(_ci_text()))
+    ci_pins = set(_SB3_PIN.findall(ci_text()))
     assert len(notebook_pins) == 1, f"the SB3 notebook pins stable-baselines3 as {notebook_pins}"
     assert ci_pins == notebook_pins, f"python-ci.yml pins stable-baselines3 {ci_pins}, the notebook {notebook_pins}"
 
 
-def _path_filters() -> list[list[str]]:
-    """The ``paths:`` lists of python-ci.yml's triggers, one list per trigger."""
-    filters: list[list[str]] = []
-    current: list[str] | None = None
-    for line in _ci_text().splitlines():
-        stripped = line.strip()
-        if stripped == "paths:":
-            current = []
-            filters.append(current)
-        elif current is not None and stripped.startswith("- "):
-            current.append(stripped[2:].strip().strip('"'))
-        elif current is not None and stripped and not stripped.startswith("#"):
-            current = None
-    return filters
-
-
-def _glob_matches(pattern: str, path: str) -> bool:
-    """GitHub's path-filter glob: ``**`` crosses directories, ``*`` does not."""
-    regex = re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
-    return re.fullmatch(regex, path) is not None
-
-
 def test_every_file_these_checks_read_triggers_the_workflow() -> None:
-    filters = _path_filters()
+    filters = path_filters()
     assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
     for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK):
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()
         for patterns in filters:
-            assert any(_glob_matches(pattern, relative) for pattern in patterns), (
+            assert any(glob_matches(pattern, relative) for pattern in patterns), (
                 f"{relative} is missing from a python-ci.yml paths filter, so a PR editing only it skips these checks"
             )
 
