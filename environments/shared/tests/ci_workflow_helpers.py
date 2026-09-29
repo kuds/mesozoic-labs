@@ -13,19 +13,23 @@ def ci_text() -> str:
     return CI_WORKFLOW.read_text(encoding="utf-8")
 
 
-def path_filters() -> list[list[str]]:
-    """The ``paths:`` lists of python-ci.yml's triggers, one list per trigger."""
+def path_filters(text: str | None = None) -> list[list[str]]:
+    """The ``paths:`` lists of python-ci.yml's triggers (or of *text*), one list per trigger."""
     filters: list[list[str]] = []
     current: list[str] | None = None
-    for line in ci_text().splitlines():
+    for line in (ci_text() if text is None else text).splitlines():
         stripped = line.strip()
         if stripped == "paths:":
             current = []
             filters.append(current)
         elif current is not None and stripped.startswith("- "):
-            current.append(stripped[2:].strip().strip('"'))
+            # Either YAML quote style: a `!` pattern must be quoted, and GitHub's docs single-quote it.
+            current.append(stripped[2:].strip().strip("\"'"))
         elif current is not None and stripped and not stripped.startswith("#"):
             current = None
+    # The trigger pins treat a filter as any-match; GitHub lets a later `!` pattern exclude a path.
+    negated = [pattern for patterns in filters for pattern in patterns if pattern.startswith("!")]
+    assert not negated, f"python-ci.yml's path filters exclude {negated}; a pinned path could stop triggering"
     return filters
 
 

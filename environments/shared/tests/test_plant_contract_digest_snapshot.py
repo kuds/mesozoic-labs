@@ -66,6 +66,15 @@ def _plant_contract_steps() -> list[str]:
     job = text[start : end.start() if end else len(text)]
     job_keys = re.compile(r"^    [\"']?(if|continue-on-error|defaults)[\"']?\s*:", re.MULTILINE)
     assert not job_keys.search(job), "the plant-contract job must always run, with the default shell"
+    # GitHub skips a job whose needed job was skipped, so the lint job it needs must always run too.
+    needs = re.findall(r"^    [\"']?needs[\"']?\s*:.*$", job, re.MULTILINE)
+    assert needs == ["    needs: lint"], f"the plant-contract job must need only lint: {needs}"
+    lint_start = text.index("\n  lint:\n")
+    lint_end = re.compile(r"^  \S", re.MULTILINE).search(text, lint_start + 2)
+    lint = text[lint_start : lint_end.start() if lint_end else len(text)]
+    assert not re.search(r"^    [\"']?(if|continue-on-error|needs)[\"']?\s*:", lint, re.MULTILINE), (
+        "the lint job the plant-contract job needs must always run"
+    )
     starts = [match.start() for match in re.finditer(r"^      - ", job, re.MULTILINE)]
     return [job[a:b] for a, b in zip(starts, [*starts[1:], len(job)])]
 
@@ -97,6 +106,12 @@ def test_the_golden_the_harness_and_the_line_endings_trigger_the_workflow() -> N
             assert any(glob_matches(pattern, relative) for pattern in patterns), relative
 
 
+@pytest.mark.parametrize("item", ['"!configs/x.txt"', "'!configs/x.txt'"], ids=["double-quoted", "single-quoted"])
+def test_the_trigger_pins_refuse_a_negated_path_in_either_quote_style(item: str) -> None:
+    with pytest.raises(AssertionError, match="exclude"):
+        path_filters(f'on:\n  push:\n    paths:\n      - "configs/**"\n      - {item}\n')
+
+
 # -- the committed golden -----------------------------------------------------
 
 
@@ -105,7 +120,10 @@ def _golden_lines() -> list[str]:
 
 
 def test_golden_is_what_write_writes() -> None:
-    text = GOLDEN.read_text(encoding="utf-8")
+    # Bytes, not newline-translated text: only a CRLF checkout of the LF file is accepted.
+    data = GOLDEN.read_bytes().replace(b"\r\n", b"\n")
+    assert b"\r" not in data, "the golden has a lone CR line ending; regenerate it with --write"
+    text = data.decode("utf-8")
     lines = text.splitlines()
     assert text == digest_snapshot.render(lines), "the golden must end in exactly one newline, with no blank line"
     assert text.isascii()
@@ -175,7 +193,7 @@ def test_check_passes_only_an_exact_reproduction() -> None:
     golden = digest_snapshot.render(_LINES)
     assert digest_snapshot.golden_mismatch(golden, _LINES, 0, digest_snapshot.GOLDEN) is None
     report = digest_snapshot.golden_mismatch(golden.rstrip("\n"), _LINES, 0, digest_snapshot.GOLDEN)
-    assert report is not None and "does not end in exactly one newline" in report
+    assert report is not None and "is not the text --write writes" in report
     report = digest_snapshot.golden_mismatch(golden, _LINES[::-1], 0, digest_snapshot.GOLDEN)
     assert report is not None and "No value moved, but the lines differ in order or number:" in report
 
@@ -211,6 +229,27 @@ def test_check_fails_a_run_with_an_error_line_even_when_the_golden_holds_it() ->
     assert digest_snapshot.WRITE_COMMAND not in report, "--write refuses a run with an ERROR line"
 
 
+def test_check_names_the_write_command_for_the_path_it_was_given() -> None:
+    report = digest_snapshot.golden_mismatch(digest_snapshot.render(_LINES), _LINES[:-1], 0, "my golden.txt")
+    assert report is not None
+    assert f"    {digest_snapshot.WRITE_COMMAND} 'my golden.txt'" in report.splitlines()
+
+
+def test_check_reports_a_byte_order_mark_or_extra_newlines_as_form_not_moves() -> None:
+    golden = digest_snapshot.render(_LINES)
+    for variant in ("\ufeff" + golden, golden + "\n"):
+        report = digest_snapshot.golden_mismatch(variant, _LINES, 0, digest_snapshot.GOLDEN)
+        assert report is not None and "is not the text --write writes" in report, report
+        assert "moved" not in report.split("--write writes")[0], report
+
+
+def test_check_counts_every_moved_line_once() -> None:
+    error = "stage.trex.stance.view\tERROR\tTypeError\tbad env class"
+    report = digest_snapshot.golden_mismatch(digest_snapshot.render(_LINES), [*_LINES, error, error], 2, "x")
+    assert report is not None
+    assert "2 digest line(s) moved (0 changed, 2 added, 0 removed):" in report.splitlines()
+
+
 def test_check_golden_and_write_golden(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "snapshot.txt"
     assert digest_snapshot.write_golden(path, "snapshot.txt", _LINES, 0) == 0
@@ -239,7 +278,7 @@ def test_check_reads_a_crlf_checkout_of_the_golden(tmp_path: Path) -> None:
     [
         (["--check", "--skip-behaviors"], "drop --skip-behaviors"),
         (["--write", "--skip-behaviors"], "drop --skip-behaviors"),
-        (["--check", "no/such/snapshot.txt"], digest_snapshot.WRITE_COMMAND),
+        (["--check", "no/such/snapshot.txt"], f"`{digest_snapshot.WRITE_COMMAND} no/such/snapshot.txt`"),
     ],
     ids=["check-skip-behaviors", "write-skip-behaviors", "check-no-golden"],
 )
@@ -252,6 +291,8 @@ def test_refusals_come_before_the_run(extra: list[str], message: str) -> None:
     )
     assert result.returncode == 2, result.stderr
     assert message in result.stderr and not result.stdout
+    # Only the refusal: a run would have printed its "digest_snapshot: N lines, ..." summary first.
+    assert all(line.startswith("digest_snapshot: refused: ") for line in result.stderr.splitlines()), result.stderr
 
 
 @pytest.fixture

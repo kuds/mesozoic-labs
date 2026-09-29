@@ -260,7 +260,15 @@ attempt after an early stop is a fresh `RUN_ID`.
    `.gitattributes` joins both path filters, since it sets the checkout's line endings and the digests hash file
    bytes; the readers of `python-ci.yml` move from `test_ci_tool_pins.py` into `ci_workflow_helpers.py`, so no test
    module imports another. A PR that moves a digest on purpose regenerates the golden with `--write` in its own
-   diff. No digest moves: the golden equals the harness's plain output on the base.
+   diff. No digest moves: the golden equals the harness's plain output on the base. Validated locally: in a pip install
+   built as the plant-contract job builds it (Python 3.12, `.[test]`, MuJoCo 3.10.0, no SB3), the exact CI command
+   reports the golden current (848 lines, about 40-45 s) and the plant-contract pytest step passes (186 tests); mypy
+   finds no issues in 316 source files in all three environments; the suite collects 3,991 tests and passes (3,990
+   passed, 1 skipped). *Review follow-up (2026-09-29):* an adversarial review confirmed six minor findings, all fixed:
+   the regeneration command names a custom PATH, quoted; a byte-order mark or extra final newlines are reported as the
+   file's form, not as moved digests, and moved lines are counted once each; the trigger pins refuse `!` path
+   patterns in either YAML quote style, since one could exclude a pinned file; the lint job the plant-contract job needs must also always run; the
+   refusal tests prove that nothing ran first; and the golden test compares bytes, so a lone CR line ending fails it.
 
 ### 3.2 The surviving waves (relabelled CU-n; "was" names the survey item)
 

@@ -89,10 +89,12 @@ import importlib.abc
 import json
 import logging
 import os
+import shlex
 import sys
 import tempfile
 import time
 import traceback
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -344,6 +346,11 @@ def _digest_name(line: str) -> str:
     return (line.rpartition("\t")[0] or line).replace("\t", " ")
 
 
+def _write_command(label: str) -> str:
+    """The command that regenerates *label*: the committed golden, or the PATH given to --check."""
+    return WRITE_COMMAND if label == GOLDEN else f"{WRITE_COMMAND} {shlex.quote(label)}"
+
+
 def golden_mismatch(golden: str, lines: Sequence[str], errors: int, label: str) -> str | None:
     """None when *lines* reproduce the text *golden* with no ERROR line; otherwise the failure message.
 
@@ -353,31 +360,38 @@ def golden_mismatch(golden: str, lines: Sequence[str], errors: int, label: str) 
     """
     if render(lines) == golden and not errors:
         return None
-    expected, actual = golden.splitlines(), list(lines)
+    # A byte-order mark or extra final newlines move no value: they are reported as the file's form below.
+    expected, actual = golden.removeprefix("\ufeff").rstrip("\n").splitlines(), list(lines)
     report = [f"digest_snapshot: {label} does not match this checkout."]
     if expected != actual:
         old, new = set(expected), set(actual)
-        gone = [_digest_name(line) for line in expected if line not in new]
-        came = [_digest_name(line) for line in actual if line not in old]
-        came_names = set(came)
-        moved = {name: "changed" if name in came_names else "removed" for name in gone}
-        moved.update((name, "added") for name in came if name not in moved)
+        gone = Counter(_digest_name(line) for line in expected if line not in new)
+        came = Counter(_digest_name(line) for line in actual if line not in old)
+        changed = gone & came
+        # One entry per moved line, so two identical ERROR lines count twice.
+        moved = [
+            (kind, name)
+            for kind, names in (("changed", changed), ("added", came - changed), ("removed", gone - changed))
+            for name in names.elements()
+        ]
         if moved:
-            kinds = list(moved.values())
-            counts = ", ".join(f"{kinds.count(kind)} {kind}" for kind in ("changed", "added", "removed"))
+            counts = ", ".join(f"{sum(k == kind for k, _ in moved)} {kind}" for kind in ("changed", "added", "removed"))
             report.append(f"{len(moved)} digest line(s) moved ({counts}):")
-            report += [f"  {kind:<8} {name}" for name, kind in moved.items()]
+            report += [f"  {kind:<8} {name}" for kind, name in moved]
         else:
             report.append("No value moved, but the lines differ in order or number:")
         report += difflib.unified_diff(expected, actual, f"{label} (committed)", "this checkout", n=0, lineterm="")
     elif render(lines) != golden:
-        report.append(f"Every line matches, but {label} does not end in exactly one newline.")
+        report.append(
+            f"Every line matches, but {label} is not the text --write writes"
+            " (a byte-order mark, or not exactly one final newline)."
+        )
     if errors:
         report.append(f"{errors} value(s) could not be computed (--debug prints each traceback):")
         report += [f"  {line}" for line in lines if _is_error(line)]
         report.append("Fix these first: the golden never holds an ERROR line, and --write refuses a run with one.")
     else:
-        command = WRITE_COMMAND if label == GOLDEN else f"{WRITE_COMMAND} {label}"
+        command = _write_command(label)
         report += [
             "If every move above is deliberate, regenerate the golden (from the repository root, with the canonical",
             "MuJoCo) and commit it in this pull request, where the move is reviewed (D-D22):",
@@ -468,7 +482,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if golden is not None:
         label = golden.relative_to(repo).as_posix() if golden.is_relative_to(repo) else str(golden)
         if args.check is not None and not golden.is_file():
-            return _refuse(f"--check: no file at {label}; generate it with `{WRITE_COMMAND}`")
+            return _refuse(f"--check: no file at {label}; generate it with `{_write_command(label)}`")
     os.chdir(repo)
     sys.path.insert(0, str(repo))
     import environments
