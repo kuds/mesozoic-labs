@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
+- **The digest snapshot is a committed golden that CI checks** (cleanup
+  ROW-16, D-D22, 2026-09-29; `docs/CLEANUP_PLAN_2026_09.md` §2 row 16,
+  §3.1 item 4 and §4.4). `configs/digest_snapshot.generated.txt` holds the
+  full output of `environments/shared/harnesses/digest_snapshot.py`, 848
+  lines: every plant, policy, stage, recovery and behavior digest. The
+  plant-contract job's new step, "Verify the digest snapshot golden", runs
+  the full harness (never `--skip-behaviors`) with `--check` on every
+  event, so a change that moves only behavior identities fails its own pull
+  request. The harness gains `--check [PATH]`, which names every moved line
+  and prints the diff and the regeneration command, and `--write [PATH]`,
+  which refuses a run with an ERROR line. A PR that moves a digest on
+  purpose runs `python -m environments.shared.harnesses.digest_snapshot
+  --block-optional-backends --write` and commits the golden in its own
+  diff (`docs/PLANT_CONTRACT.md`, `CONTRIBUTING.md`);
+  `test_plant_contract_digest_snapshot.py` pins the whole CI step, the
+  golden's shape and the `--check`/`--write` wiring; `.gitattributes`,
+  which sets the checkout's line endings, joins both path filters, since
+  the digests hash file bytes; and the readers of `python-ci.yml` move from
+  `test_ci_tool_pins.py` into `ci_workflow_helpers.py`. No digest moves.
 - **Decision D-D22 recorded; D-D21 amended (CU-7, CU-8, CU-14 and CU-16
   split)** (#569, cleanup CU-4, 2026-09-29;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
@@ -191,7 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
-- **The plant identity is built once per process and species** (CU-14b of
+- **The plant identity is built once per process and species** (#570, CU-14b of
   `docs/CLEANUP_PLAN_2026_09.md`, the plan's decision 10 (c)).
   `current_plant_identity` built an environment, compiled the declared model
   and fingerprinted both on every call, seconds each for the mesh-heavy
