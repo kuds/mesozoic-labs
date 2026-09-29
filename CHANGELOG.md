@@ -211,15 +211,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plant-contract check always recomputes. One limit is kept on purpose:
   Python code is not in the key, so a hit does not see environment code
   patched in a live process in a way that changes the compiled model (not
-  the MJCF). The live checks still compare the physics of every env they
-  are given, `validate_environment_plant` for each SB3 training and
-  evaluation env and `validate_compiled_plant` for each behavior env, and a
-  process that patches environment code outside them calls the new
+  the MJCF). The live checks compare the physics of every env they are
+  given instead: `validate_environment_plant` for each env training's
+  `make_env` builds with a plant identity and for the envs the evaluation
+  paths build, and `validate_compiled_plant` for each behavior env and,
+  new here, for each env `config.build_env` builds. The frozen recovery
+  gate (its nulls, brace and policy panel), the recovery calibration, the
+  zero-action baseline's preflight and `widen_checkpoint` build through
+  `build_env` and had relied on `current_plant_identity` alone (the report
+  scripts that build through it had no plant check at all): with a warm
+  cache, a
+  mid-process patch of `CompsognathusEnv.__init__` (the pelvis 1.5 times
+  heavier) was frozen and rolled, where `c69a169`'s rebuild refused it.
+  `build_env` now refuses it. It reads the identity with
+  `verify_generated=False`, since the callers that certify compare it with
+  the committed manifest in their own calls. Once the species' identity is
+  built in the process, the check adds about 0.03 s per env for the small
+  plants and 1.2–1.4 s for the robot; a process that had not built it (the
+  report scripts) also pays that build on its first env per species, about
+  7.4 s for the robot and under 1 s for the others. A process that patches
+  environment code and builds envs another way (a `make_env` without a
+  plant identity, as `probe_ppo_updates.py` does) calls the new
   `clear_plant_identity_cache()` (exported from `plant_contract`). A physics
   recheck on every hit would cost 1.2 s of the robot's 7.4 s build, so there
-  is none. The new `test_plant_contract_identity_cache.py` (15 tests)
+  is none. The new `test_plant_contract_identity_cache.py` (18 tests)
   covers the key's inputs (the resolved model path through the species
-  entry and the root), the guards and the uncached check path, and
+  entry and the root), the guards (including the committed-manifest read,
+  which never raises), the uncached check path and that patch on the
+  recovery gate's path, and
   `docs/PLANT_CONTRACT.md` describes the cache. Measured locally: the
   robot's first call takes 7.4 s and each repeat call about 0.1 s
   (compsognathus 0.43 s, then 0.03 s); CI's three SB3 pytest steps, run
@@ -235,7 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   848 lines with 0 errors, byte-identical on the base and on this PR, and
   `plant_contract --check` and `--check --baseline` report the manifest
   current. mypy finds no issues in 314 source files (from 313), and the
-  suite collects 3,966 tests (from 3,951).
+  suite collects 3,969 tests (from 3,951).
 - **One notebook-cell reader for the tests and CI, shared test helpers, and
   no library-only duplicates in the notebook pins** (#569, CU-4 of
   `docs/CLEANUP_PLAN_2026_09.md`).

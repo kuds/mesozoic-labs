@@ -3,7 +3,7 @@
 ``current_plant_identity`` reuses one build per species while the build's key
 is unchanged.  Every test starts from an empty cache and hands the rest of the
 session its cache back afterwards.  Most tests replace the builder with a
-stand-in (``builds``), so a key test costs milliseconds; three tests run real
+stand-in (``builds``), so a key test costs milliseconds; four tests run real
 builds of the cheapest plant.
 """
 
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import functools
 import json
 import shutil
 from types import SimpleNamespace
@@ -19,6 +20,7 @@ import mujoco
 import pytest
 
 from environments.shared.plant_contract import (
+    PlantCompatibilityError,
     PlantContractError,
     build_plant_manifest,
     clear_plant_identity_cache,
@@ -225,6 +227,18 @@ def test_an_unreadable_source_closure_is_left_to_the_uncached_build(builds, monk
     assert current_plant_identity(SPECIES).build == 2
 
 
+@pytest.mark.parametrize("content", [b"\xff\xfe not json", b"{}"], ids=["undecodable", "wrong-schema"])
+def test_an_unreadable_committed_manifest_is_never_stored_and_never_raises(builds, monkeypatch, tmp_path, content):
+    # Without verify_generated, only the store's committed-entry check reads the
+    # manifest, and a call that never read it before the cache must not fail on it.
+    unreadable = tmp_path / "plant_manifest.generated.json"
+    unreadable.write_bytes(content)
+    monkeypatch.setattr(constants, "GENERATED_MANIFEST_PATH", unreadable)
+
+    assert current_plant_identity(SPECIES, verify_generated=False).build == 1
+    assert current_plant_identity(SPECIES, verify_generated=False).build == 2
+
+
 def test_the_plant_manifest_build_never_reads_the_cache(monkeypatch, physics_payloads):
     current_plant_identity(SPECIES)
     real_versions, real_entries = manifest.load_plant_versions, manifest._species_entries
@@ -267,3 +281,31 @@ def test_a_build_of_other_bytes_than_the_key_read_is_never_stored(builds, monkey
 
     assert current_plant_identity(SPECIES).build == 1
     assert current_plant_identity(SPECIES).build == 2
+
+
+def test_patched_physics_code_after_a_hit_is_refused_where_the_recovery_gate_builds(monkeypatch, tmp_path):
+    # The known limit: a hit does not see environment code, patched in a live process, that
+    # changes the compiled model.  config.build_env, which the frozen recovery gate, its
+    # calibration and the zero-action baseline build through, compares the env it built.
+    from environments.shared.config import build_env
+    from environments.shared.harnesses.freeze_recovery_gate import freeze_recovery_gate
+    from environments.shared.recovery_calibration import load_recovery_calibration
+
+    build_env(SPECIES, "recovery").close()  # the unpatched plant is accepted and cached
+    env_class = manifest._load_environment(COMMITTED[SPECIES]["env_entrypoint"])
+    original = env_class.__init__
+
+    @functools.wraps(original)  # keeps the signature the task fingerprint reads
+    def heavier_pelvis(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        self.model.body_mass[2] *= 1.5
+
+    monkeypatch.setattr(env_class, "__init__", heavier_pelvis)
+    for certify in (
+        lambda: build_env(SPECIES, "recovery"),
+        lambda: load_recovery_calibration(SPECIES),
+        lambda: freeze_recovery_gate(tmp_path, species=SPECIES, episodes=1),
+    ):
+        with pytest.raises(PlantCompatibilityError, match="physics_sha256"):
+            certify()
+    assert not (tmp_path / "gate_resolution.json").exists()

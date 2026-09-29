@@ -296,12 +296,24 @@ def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
     cross-check zeroes ``reset_noise_scale`` so the plant settles
     deterministically.  The registry import is deferred because
     ``species_registry`` imports ``train_base``, which imports this module.
+
+    The built environment's compiled physics is compared with the current
+    plant (``validate_compiled_plant``): the per-process identity cache does
+    not see environment code patched in a live process, so the envs the
+    recovery gate freezes and rolls are checked here, as training's are in
+    ``make_env``.  The comparison with the committed manifest is left to the
+    certifying callers, which each make their own ``current_plant_identity``
+    call, so a diagnostic still runs while a plant edit awaits ``--write``.
     """
+    from .plant_contract import current_plant_identity, validate_compiled_plant
     from .species_registry import get_species_config
 
     config = load_stage_config(species, stage)
-    env_class = get_species_config(species).env_class
-    return env_class(**{**config["env_kwargs"], **env_overrides})
+    species_config = get_species_config(species)
+    identity = current_plant_identity(species_config.species, verify_generated=False)
+    env = species_config.env_class(**{**config["env_kwargs"], **env_overrides})
+    validate_compiled_plant(env.model, identity, artifact=f"{species_config.species} stage {stage} environment")
+    return env
 
 
 def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:

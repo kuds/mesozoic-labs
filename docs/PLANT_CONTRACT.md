@@ -186,10 +186,15 @@ compilation and the physics and visual fingerprints, seconds per call for the me
 build is reused only while the species entry, the plant version, the repository root, the resolved model path, the
 source-closure digest, the environment class and the MuJoCo version are unchanged and the policy layer still matches, and only a build equal to
 the committed manifest entry, hashed from the bytes the key read, is kept, so a stale plant is rebuilt on every call.
-The manifest build, `--write` and `--check` never read it. Python code is not part of the key: a process that patches
-environment code so that the compiled model changes (not the MJCF) calls `clear_plant_identity_cache()`;
-`validate_environment_plant` (above) and the behavior environments' `validate_compiled_plant` still compare the physics
-digest of every environment they are given.
+The manifest build, `--write` and `--check` never read it. Python code is not part of the key, so a kept build does not
+see environment code patched in a live process so that the compiled model changes (not the MJCF). The live checks
+compare the physics digest of every environment they are given instead: `validate_environment_plant` (above) for the
+environments training's `make_env` builds with a plant identity and those the evaluation paths build, and
+`validate_compiled_plant` for the behavior environments and for every environment `config.build_env` builds, which is
+how the frozen recovery gate (its nulls, brace and policy panel), the recovery calibration, the zero-action baseline,
+`widen_checkpoint` and the report scripts get theirs. `build_env` reads the identity with `verify_generated=False`; the
+callers that certify compare it with the committed manifest in their own calls. A process that patches environment code
+and builds environments another way calls `clear_plant_identity_cache()`.
 
 ## Checkpoints and legacy artifacts
 
