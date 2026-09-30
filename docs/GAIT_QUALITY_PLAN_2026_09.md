@@ -79,7 +79,8 @@ digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (t
 CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, which completes wave 1, and CU-9
 (coverage of the certification code, which PR-G1 needs) as #574 the same day, and CU-5 (the SB3 notebook's text and
 dead parameters) as #575 the same day, and CU-7b (the second part of CU-7, the retired-backend wording) as #576 the
-same day, which completes CU-7; CU-16a (the docs text of CU-16) is carried out,
+same day, which completes CU-7, and CU-16a (the docs text of CU-16) as #577 the same day, which completes wave 2;
+CU-16b (the orphan assets of CU-16) is carried out,
 and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
 CU-6 also waits for CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 

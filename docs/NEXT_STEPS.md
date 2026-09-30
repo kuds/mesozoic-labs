@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-30)
 
-**Status**: living reference — updated 2026-09-30; `main` = `8cb4eba` (#576 merged 2026-09-30 18:18 UTC).
+**Status**: living reference — updated 2026-09-30; `main` = `28ea8bc` (#577 merged 2026-09-30 19:02 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,7 +18,7 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-09-30** (`main` = `8cb4eba`). The backend retirement is complete:
+**On 2026-09-30** (`main` = `28ea8bc`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete: four of
 D-D21's 0.3.9 gate names remain (CU-8, CU-12, CU-14 and CU-16,
@@ -43,8 +43,11 @@ retired-backend wording that PR-A, PR-A2 and PR-B left in code, the fingerprint
 comment and the stage-TOML comments that mentioned JAX or MJX; no digest
 moved), the third, as #576 the same day, which completes CU-7. CU-16a (the
 docs text of CU-16: the gap review's status appendix, its open findings moved
-to KNOWN_ISSUES, and the living-doc corrections), the last of wave 2, is
-carried out; CU-16 stays open until CU-16b lands. On 2026-09-29 the
+to KNOWN_ISSUES, and the living-doc corrections), the last of wave 2, landed
+as #577 the same day, which completes wave 2. CU-16b (eleven orphan asset
+files deleted, the apex GIFs kept by the maintainer's choice, and the landing
+page's milestones corrected), the first of wave 3, is carried out; CU-16 stays
+open until it lands. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
 CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
@@ -121,6 +124,7 @@ in a fresh session.
 | #574 | 2026-09-30 | Cleanup CU-9 (in D-D21's gate, the first PR of wave 2), outside the consolidation sequence: coverage's blanket `*/scripts/*` and `environments/shared/harnesses/*` omits become 21 named entries (30 files), each with its reason, so the recovery gate's freeze producer, `widen_checkpoint.py`, `backfill_gate_verdict.py`, the recovery calibration scripts and the statue baselines count toward `fail_under = 70`; `digest_snapshot.py` stays omitted by name; `test_coverage_config.py` pins the list and that no other coverage setting takes a file out of the union; `brace_controller` moves to `recovery_evaluation.py`, which breaks the freeze producer's import cycle; CONTRIBUTING says what coverage counts; #573 recorded; no digest moves. Measured on its CI at `8465ace` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 13:47 (its mypy step: no issues in 317 source files), all 22 CI jobs green, coverage 88 percent (19,626 statements, 2,405 missed, as measured locally; 91 percent before); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-9 changes no training, configuration or digest input |
 | #575 | 2026-09-30 | Cleanup CU-5 (in D-D21's gate, the second PR of wave 2), outside the consolidation sequence: the SB3 notebook's markdown goes from 223 to 111 source lines, keeping every pinned phrase and D-D16 rule, and a new pin reads the resume recipe's trunk-recovery and D-D16 text; the quote of a deleted `configs/trex/stance.toml` comment, "all four" species (there are six), a stale "review F3" note and the chain loop's branch labels (now 1 REUSE, 2 JUDGE, 3 TRAIN) are fixed; the plotting wrappers' dead parameters, `write_training_summary`'s `species=None` and `save_run_bundle`'s `run_dir=None` go, and `train_stage`'s `run_dir` is required; `node_budget()` is the one budget derivation of the chain loop, the RESUME cell and the manual cell (33 cells, 17 code, 1,599 → 1,468 source lines; the notebook pins grow from 115 to 119 tests); #574 recorded; no library, configuration or digest change. Measured on its CI at `a57a967` (the merge's tree): the digest step took 71 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 17:07 (its mypy step: no issues in 317 source files), all 22 CI jobs green, coverage 88 percent (19,626 statements, 2,405 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work): the PR asked for the `full-ci` label, which was not applied, so the notebook-training step ran one case (`[ppo-compsognathus_robot]`); the full-depth run (4 cases) passed locally |
 | #576 | 2026-09-30 | Cleanup CU-7b (in D-D21's gate, the second and last part of CU-7 and the third PR of wave 2), outside the consolidation sequence: the sweep, HPT, Ray Tune, Vertex, GCS, JAX and MJX wording that PR-A, PR-A2 and PR-B left in code comments, docstrings and log messages describes the code as it is (the post-training logs read `Recorded metric:` and `Post-training eval:`, and a failed TensorBoard sync names the remote mount); the task-fingerprint comment counts five species constructors; the stage-TOML comments that mentioned JAX or MJX are reworded in place, every key, value and line count unchanged; the species catalog drops its check of the deleted `jax_training` notebook; a new test, `test_retired_tuning_wording.py`, fails any line of the library, the tests, the stage configuration, the SB3 notebook or the build and CI files that names Vertex, Ray or HPT without marking it retired; the byte-hashed species env files keep their MJX comments; #575 recorded; no digest moves (50 code files, +372 / −239). Measured on its CI at `862bf7c` (the merge's tree): the digest step took 69 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests (195 and the new catalog test); SB3 job 15:25 (its mypy step: no issues in 318 source files), all 22 CI jobs green, coverage 88 percent (19,625 statements, 2,404 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-7b changes no training, configuration value or digest input |
+| #577 | 2026-09-30 | Cleanup CU-16a (in D-D21's gate, the first part of CU-16 and the last PR of wave 2), outside the consolidation sequence: `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` gains an appended status appendix for all 120 of its ids (78 fixed, 16 fixed and then retired with their code by D-D17, 9 retired without a fix, 3 fixed with a residue, 6 duplicates, 8 open); the eight open findings, the three residues and WEBSITE_PLAN's logo size move into KNOWN_ISSUES, each re-checked against the code; the living docs the CU-16 row names are corrected (the API overview's six env ids, the backfill tool's module path, the dated plan headers, ROADMAP and the README, the sentences that said pilot or certificate data is on Drive, and the docs text CU-7b left); the CHANGELOG corrects the 0.3.8 `Images/` entry; #576 recorded; docs only, no digest moves (the docs commit 18 files, +355 / −42; the review follow-up 6 files, +96 / −42). Measured on its CI at `5d4594f` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 10:42 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16a changes no code, configuration or digest input |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -487,14 +491,15 @@ single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575 and CU-7b as #576 (2026-09-30); the archive points (the plan's decision 2) were settled on 2026-09-27
+PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576 and CU-16a as #577 (2026-09-30); the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
 and CU-4 landed; CU-14b, the first part of CU-14, landed as #570, and CU-14
 stays open until CU-14a lands; CU-7a landed as #572; CU-11 landed as #573,
 which leaves seven, CU-9 as #574, which leaves six, CU-5 as #575, which leaves
-five, and CU-7b as #576, which completes CU-7 and leaves four; CU-16a, the first
-part of CU-16, is carried out; [section 1](#1-where-things-stand) names them),
+five, and CU-7b as #576, which completes CU-7 and leaves four, and CU-16a, the
+first part of CU-16, as #577, which completes wave 2; CU-16b, its second part,
+is carried out; [section 1](#1-where-things-stand) names them),
 the clean base the consolidation builds on. On 2026-09-29 the maintainer took
 D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
 CI checks, with the full harness run on pull requests, in the plant-contract
