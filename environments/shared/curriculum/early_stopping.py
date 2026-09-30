@@ -165,7 +165,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
     def _on_step(self) -> bool:
         # EvalCallback keeps per-eval episode rewards in memory (populated
         # whenever its log_path is set); using it avoids re-opening
-        # evaluations.npz — a GCS FUSE file on Vertex AI — on every single
+        # evaluations.npz — often on a Drive FUSE mount — on every single
         # training step.
         results = getattr(self.eval_callback, "evaluations_results", None)
         if not results:

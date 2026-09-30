@@ -28,7 +28,7 @@ lateral_penalty_weight = 0.1
 prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
-                                       # while [jax] used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
                                        # inherited a 5x narrower reset distribution by accident.
 
 [ppo]
@@ -47,7 +47,7 @@ ent_coef_end = 0.001                # Linearly decay the entropy bonus over the 
                                     # still rising at the early stop.
                                     # See docs/investigations/STAGE2_RECOMMENDATIONS.md R4.
 
-target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning); matches the JAX path's value.
+target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

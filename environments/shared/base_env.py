@@ -95,8 +95,7 @@ class BaseDinoEnv(gym.Env, ABC):
         unloaded sample per 5).  MIN over per-substep per-foot SUMS -- never
         a sum of per-sensor minima, which under-reports when load shifts
         between pad and digits within a control step.  Falls back to the
-        instantaneous read when no step has run (reset, direct calls, the
-        SB3/MJX single-state parity tests)."""
+        instantaneous read when no step has run (reset, direct calls)."""
 
     # Ground-settling caches, all derived from the model and so fixed for the
     # lifetime of the instance.  Declared here rather than assigned via getattr
@@ -106,9 +105,9 @@ class BaseDinoEnv(gym.Env, ABC):
     _home_ground_clearance_m: float | None = None
 
     # Per-foot touch-sensor groups (sensordata indices), declared per species
-    # in _cache_ids; () means "no foot sensors".  Mirrors the MJX registry's
-    # sensor_foot_indices + sensor_foot_aux_indices so both backends aggregate
-    # the same sensors.
+    # in _cache_ids; () means "no foot sensors".  Mirrors the frozen MJX
+    # registration's sensor_foot_indices + sensor_foot_aux_indices (D-D17), so
+    # the plant contract's MJX observation probe reads the same foot sensors.
     _foot_sensor_groups: "tuple[tuple[int, ...], ...]" = ()
 
     # Substep aggregation state, populated by step()'s frame-skip loop.
@@ -130,9 +129,8 @@ class BaseDinoEnv(gym.Env, ABC):
     # step loop records each entity's MINIMUM clearance (z minus
     # _ground_height_at, which is z on the plane) across the substeps so the
     # species' height terminations (trex head_tip/skull, dibothrosuchus
-    # snout_tip) fire on a between-samples dip exactly like the MJX
-    # height-emulation checks, which became any-substep with the contact
-    # aggregation.  Info keys keep reporting the boundary sample.
+    # snout_tip) fire on a between-samples dip, not only on the boundary
+    # sample.  Info keys keep reporting the boundary sample.
     _substep_height_checks: "tuple[tuple[str, int], ...]" = ()
     _substep_min_heights: "np.ndarray | None" = None
 
@@ -881,8 +879,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         Species height rewards, head/snout clearance and height terminations
         read heights through :meth:`_clearance`, so the behavior env's
-        heightfield overrides only this.  MJX has no terrain and reads world
-        z, which is the same number on the plane.
+        heightfield overrides only this.
         """
         return 0.0
 
@@ -917,7 +914,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         Falls back to the instantaneous read when no aggregate exists for the
         CURRENT step count (before any step, or after reset zeroes the count)
-        so those callers keep today's semantics on both backends.  The tag
+        so those callers keep the instantaneous-read semantics.  The tag
         cannot see EXTERNAL state mutation: hand-posing ``self.data`` after a
         completed step and scoring directly reads that step's minima, not the
         posed state -- call :meth:`_invalidate_substep_aggregates` after
@@ -1113,8 +1110,7 @@ class BaseDinoEnv(gym.Env, ABC):
         ``reset()`` stays untouched.  Clips first: the filter state must
         live in the same [-1, 1] box the scaler clips to, or an
         out-of-range burst would decay through several steps instead of
-        being cut at the boundary.  The MJX step_fn applies the identical
-        update through its ``filtered_action`` carry — keep in lockstep.
+        being cut at the boundary.
         """
         clipped = np.clip(np.asarray(action, dtype=np.float64), -1.0, 1.0)
         if self._step_count == 0 or self._action_filter_state is None:
@@ -1157,8 +1153,7 @@ class BaseDinoEnv(gym.Env, ABC):
         # (or a tail can strike the floor) entirely between control-boundary
         # samples.  MIN per-foot force feeds the contact-shaped rewards and
         # the stance-duty gate; the first floor strike is latched for
-        # _check_floor_contact.  The MJX step_fn carries the same aggregates
-        # through its fori_loop -- keep the two in lockstep.
+        # _check_floor_contact.
         min_forces: "np.ndarray | None" = None
         min_heights: "np.ndarray | None" = None
         self._substep_floor_hit_geom = None
@@ -1356,14 +1351,11 @@ class BaseDinoEnv(gym.Env, ABC):
         would need an iterative settle.  Every current species floors on a
         plane at z=0.
 
-        Assumptions this shares with the MJX settle, stated so the two stay
-        comparable: exactly ONE horizontal floor, and a spawn over it.  This
-        side takes the minimum ``mj_geomDistance`` over every floor geom, which
-        respects finite plane extents; MJX takes the highest floor's z and
-        treats the plane as infinite.  With one 100x100 plane at z=0 and a
-        spawn near the origin the two agree to ~1e-9, but multiple floors at
-        different heights, a tilted plane, or a spawn beyond the plane's extent
-        would diverge.  MJX raises on a heightfield rather than mis-settling.
+        Assumptions, stated so a new floor layout is checked against them:
+        exactly ONE horizontal floor, and a spawn over it.  This takes the
+        minimum ``mj_geomDistance`` over every floor geom, which respects
+        finite plane extents; multiple floors at different heights, a tilted
+        plane, or a spawn beyond the plane's extent break them.
         """
         if self._static_floor_geom_ids is not None:
             return self._static_floor_geom_ids
@@ -1521,7 +1513,7 @@ class BaseDinoEnv(gym.Env, ABC):
             # xfrc_applied, so no pulse survives a reset — cleared again
             # explicitly to keep the invariant local.  Pairing rests on
             # this line: reset(seed=S) yields the same schedule for the
-            # policy and for every null controller, on either backend.
+            # policy and for every null controller.
             from environments.shared.perturbation import push_schedule
 
             self.data.xfrc_applied[:] = 0.0

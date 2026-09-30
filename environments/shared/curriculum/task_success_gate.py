@@ -19,9 +19,11 @@ policy 4%.  The one committed hunting result (29/30) bounds at 0.851.
 Three consumers share this one implementation: the post-stage judge
 (``reporting.gates._task_success_stage_gate``, also what the backfill tool
 runs), publication (``result_bundle.evidence``, bound to the certified
-checkpoint's hash) and the sweep's offline row verdict (from the recorded
-count).  ``min_avg_reward`` is a collapse RAIL on the selected checkpoint's
-mean reward, never the gate; ``min_avg_episode_length`` is optional.
+checkpoint's hash) and the recorded-history reading
+(``reporting.gates.evaluate_recorded_gate``, from each evaluation's
+recorded count).  ``min_avg_reward`` is a collapse RAIL on the selected
+checkpoint's mean reward, never the gate; ``min_avg_episode_length`` is
+optional.
 
 Everything fails closed: a panel smaller than ``min_eval_episodes``, a NaN
 bound, a blank or unparsable success cell, and evidence whose rows hash to

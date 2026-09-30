@@ -345,7 +345,7 @@ class TestSelectedCheckpointReplay:
 class TestRecordedModelPathFollowsTheSelector:
     """`stage_results["model_path"]` must name the checkpoint the replay shows.
 
-    `build_stage_results_from_eval_data` feeds the sweep trial worker, where
+    `build_stage_results_from_eval_data` feeds the gate backfill tool, where
     nothing else re-derives the path.
     """
 

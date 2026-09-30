@@ -1228,7 +1228,7 @@ class TestTrainStageRecordKeeping:
             "task_load_mode": "task_load_mode",
             "parent_run_id": "parent_run_id",
             "label": "label",
-            # evaluate_stage_checkpoints replaces the HPT report and metrics.json, and a stop propagates before
+            # evaluate_stage_checkpoints replaces the metrics.json report, and a stop propagates before
             # the final save: the node keeps its periodic checkpoints for the RESUME cell and is never judged on
             # a truncated final.
             "report_metrics": "False",

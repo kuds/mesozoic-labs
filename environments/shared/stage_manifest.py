@@ -40,8 +40,8 @@ Two vocabularies live on one manifest (plan §7):
 
 * **advancing** stages (:attr:`StageManifest.advancing_stages`) are the
   legacy-numbered ones — the integer-keyed vocabulary of
-  ``CurriculumManager``, ``thresholds_from_configs`` and the sweeps, and the
-  schema-v3 historical-bundle completeness rule;
+  ``CurriculumManager`` and ``thresholds_from_configs``, and the schema-v3
+  historical-bundle completeness rule;
 * **deliverables** (:attr:`StageManifest.deliverables`) are the publication
   vocabulary.
 
@@ -71,7 +71,7 @@ STAGE_MANIFEST_SCHEMAS = (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
 #: NO LONGER the complete vocabulary — any id matching
 #: :data:`STAGE_ID_PATTERN` may be declared — but these four keep their
 #: meaning everywhere: species-free readers (:func:`stage_ref_from_dirname`,
-#: ``evaluation.detect_stage_from_path``, the sweep collector) recognise them
+#: ``evaluation.detect_stage_from_path``) recognise them
 #: without a manifest in hand, and the numbered three map through
 #: :data:`LEGACY_STAGE_IDS`.
 RESERVED_STAGE_IDS = ("stance", "recovery", "locomotion", "behavior")
@@ -198,8 +198,8 @@ class StageManifest:
         """The stages whose gates advance the curriculum, in manifest order.
 
         Defined as the stages carrying a legacy number: the integer-keyed
-        vocabulary of ``CurriculumManager``, ``thresholds_from_configs`` and
-        the sweeps, and the schema-v3 historical-bundle completeness rule
+        vocabulary of ``CurriculumManager`` and ``thresholds_from_configs``,
+        and the schema-v3 historical-bundle completeness rule
         ("a complete curriculum recorded a handoff per advancing stage",
         bundle/catalog migration 2026-08-23).  This is NOT the publication
         vocabulary — that is :attr:`deliverables` (manifest v2) — and the two

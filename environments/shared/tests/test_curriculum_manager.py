@@ -442,8 +442,8 @@ class TestThresholdsFromConfigs:
         This shape used to pass the schema (which only rejected *misplaced*
         threshold keys), yield no threshold_fields, and drop through to
         StageThreshold's permissive defaults (min_avg_reward = -inf) — the SB3
-        path advancing on any evaluation while the JAX path raised. The schema
-        now requires each gate kind's core field, so both backends reject it.
+        path advancing on any evaluation while the JAX path (retired by D-D17)
+        raised. The schema now requires each gate kind's core field, so it is refused.
         """
         configs = {1: {"curriculum_kwargs": dict(_GATE)}}
         with pytest.raises(GateSchemaError, match="missing required threshold"):

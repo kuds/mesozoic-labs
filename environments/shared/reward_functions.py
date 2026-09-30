@@ -1,21 +1,22 @@
-"""Backend-agnostic pure reward functions for Mesozoic Labs environments.
+"""Pure reward functions for Mesozoic Labs environments.
 
 Every function in this module accepts plain array inputs (positions,
 velocities, sensor data) and returns scalar rewards.  No ``self``,
 no MuJoCo data objects.  All operations use the intersection of
 NumPy and JAX (``+``, ``-``, ``*``, ``/``, ``clip``, ``sum``, ``dot``,
-``norm``) so that the same code works with both ``np.ndarray`` and
+``norm``), so the functions accept both ``np.ndarray`` and
 ``jnp.ndarray``.
 
 **JAX-trace-safe**: all functions avoid ``float()``, Python ``min``/
 ``max``/``abs``/``if`` on array values so they can be used inside
 ``jax.jit``, ``jax.vmap``, and ``jax.lax.scan`` without breaking
-tracing.
+tracing.  The MJX trainer that called them that way was retired by
+D-D17; ``_array_mod`` keeps the dispatch (the NumPy-only simplification
+is deferred, docs/CLEANUP_PLAN_2026_09.md §4.9).
 
-The existing Gymnasium environments (``BaseDinoEnv`` subclasses)
-delegate to these functions via thin wrappers that extract the
-relevant arrays from ``self.data``.  The MJX (JAX) path calls them
-directly on JAX arrays.
+The Gymnasium environments (``BaseDinoEnv`` subclasses) delegate to
+these functions via thin wrappers that extract the relevant arrays
+from ``self.data``.
 """
 
 from __future__ import annotations

@@ -81,8 +81,8 @@ def init_wandb(
         run_dir: Optional output directory for this training run.  When
             given (and *run_id* is not), the generated run id is persisted
             to ``<run_dir>/wandb_run_id.txt`` and reused on the next call,
-            so a relaunch that writes to the same directory (e.g. a Vertex
-            AI job restarted after preemption) resumes the same W&B run
+            so a relaunch that writes to the same directory (e.g. a Colab
+            session resumed after a runtime reclaim) resumes the same W&B run
             instead of creating a split run.
 
     Returns:

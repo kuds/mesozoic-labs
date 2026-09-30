@@ -3,7 +3,7 @@
 Two entry points, for two different questions:
 
 * :func:`evaluate_recorded_gate` — "does this *history* of evaluations show a
-  pass?", used by the catalog and sweep reporting to describe finished runs.
+  pass?", used by the Drive summary notebook to describe finished runs.
 * :func:`evaluate_stage_gate` — "may this completed stage advance, and may its
   artifacts claim it passed?", used by the trainers.
 
@@ -474,9 +474,10 @@ def _task_success_stage_gate(
     hash-binds, then the reward rail and the optional length floor as
     conjuncts over the SAME panel's mean reward / length (the CSV's own
     rows; *stage_results* is consulted only when the file carries no such
-    column).  Judging the rail on *stage_results* alone would read a sweep
-    trial's ``best_eval_reward`` — the argmax EvalCallback panel of the
-    mean-reward best_model — beside a bound from the handoff pair's panel,
+    column).  Judging the rail on *stage_results* alone would read the
+    ``best_eval_reward`` of a results dict built from disk — the argmax
+    EvalCallback panel of the mean-reward best_model — beside a bound from
+    the handoff pair's panel,
     and publication (which rails on the CSV) would disagree with the
     verdict on the same directory.  Every input this call lacks is a
     refusal naming it — no stage directory, no evidence file, evidence for

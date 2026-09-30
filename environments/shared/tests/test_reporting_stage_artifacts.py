@@ -125,10 +125,11 @@ class TestBuildStageResultsFromEvalData:
         assert result["best_eval_reward"] == ""
         assert result["duration_seconds"] == 0.0
 
-    # Review ER4: the sweep workers pass no stage_results, so the velocity and
-    # success numbers the gate judges come from here — and they were
-    # hardcoded to 0.0 although metrics.json (already opened for the
-    # duration) carries the real panel.
+    # Review ER4: a results dict built here (the sweep workers' then, retired
+    # by D-D17; the backfill tool's now) takes the velocity and success
+    # numbers the gate judges from here — and they were hardcoded to 0.0
+    # although metrics.json (already opened for the duration) carries the
+    # real panel.
 
     _LOCO = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
 
@@ -399,7 +400,7 @@ class TestStageSummaryRecordsTheVerdict:
         assert "Verdict:      PASS" in summary
 
     def test_a_summary_with_no_verdict_omits_the_section(self, tmp_path):
-        """Pre-gate callers (and the JAX path's own ordering) must still work."""
+        """Pre-gate callers must still work."""
         from environments.shared.reporting import text_summaries
 
         text_summaries.write_stage_summary(tmp_path, self._results(), "trex", "PPO")
@@ -613,8 +614,8 @@ class TestStageGateVerdictRecord:
 class TestTaskSuccessEvidence:
     """generate_stage_artifacts gives task_success/v1 the stance treatment (D-B12 amendment).
 
-    The kind is judged from evaluation_selected.csv; the sweep trial workers
-    and the CLI write none themselves, so before the gate the directory
+    The kind is judged from evaluation_selected.csv; a caller that rolled no
+    bound panel wrote none, so before the gate the directory
     must hold one bound to the handoff — kept when the trainer's panel
     wrote it, rolled from the handoff pair on the publication seed otherwise.
     """
@@ -797,7 +798,7 @@ class TestTaskSuccessEvidence:
         assert seen["episodes"] == 30 and "is not bound to the handoff" in caplog.text
 
     def test_a_bound_panel_below_min_eval_episodes_is_re_rolled(self, tmp_path, monkeypatch, caplog):
-        """A 10-row trainer panel (--post-eval-episodes 10, a small Ray n_eval_episodes) bound to the
+        """A 10-row trainer panel (--post-eval-episodes 10) bound to the
         handoff would make the judge refuse 'n_episodes 10 < min_eval_episodes 30' although a fresh
         roll makes the stage judgeable; it is re-rolled at the declared size."""
         from environments.shared.reporting import save_evaluation_episodes

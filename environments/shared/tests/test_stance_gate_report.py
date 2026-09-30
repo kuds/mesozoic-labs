@@ -625,9 +625,8 @@ class TestBuildReportArguments:
 class TestStanceReportEpisodesKnob:
     """`stance_report_episodes` gives the artifact path a cost control.
 
-    The report costs a 40-episode rollout per stage AND per sweep trial,
-    which a fifty-trial sweep pays fifty times for a verdict nobody reads
-    until a trial is shortlisted.
+    The report costs a 40-episode rollout per stage, which a smoke or debug
+    run need not pay.
     """
 
     def _stage_config(self, **curriculum):

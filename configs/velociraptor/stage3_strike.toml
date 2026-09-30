@@ -24,7 +24,7 @@ prey_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer prey 
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
 reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
-                                       # while [jax] used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
                                        # inherited a 5x narrower reset distribution by accident.
 
 [ppo]

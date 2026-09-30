@@ -237,7 +237,7 @@ def load_stage_config(
         )
     if not any(raw.get(table) for table in _ALGORITHM_TABLES):
         _logger.warning(
-            "%s declares no algorithm table (%s): every backend will train on library-default hyperparameters.",
+            "%s declares no algorithm table (%s): SB3 will train on library-default hyperparameters.",
             path,
             ", ".join(f"[{table}]" for table in _ALGORITHM_TABLES),
         )

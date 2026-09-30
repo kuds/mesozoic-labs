@@ -197,7 +197,7 @@ class TestSaveEvaluationEpisodesBindings:
         assert {row["normalization_sha256"] for row in rows} == {sha256_file(sidecar)}
 
     def test_omits_the_normalization_column_without_a_sidecar(self, tmp_path):
-        """The JAX path has no sidecar; its evidence must not grow an empty column."""
+        """Evidence rolled without a sidecar must not grow an empty column."""
         checkpoint = tmp_path / "best_model.pkl"
         checkpoint.write_bytes(b"params")
 

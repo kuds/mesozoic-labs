@@ -85,7 +85,8 @@ LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
 
 #: Constructor params excluded from the effective env config: they select
 #: presentation, not task.  ``render_mode`` is the only such param across
-#: all four species constructors (every other defaulted param shapes
+#: all five species constructors (``CompsognathusRobotEnv`` inherits
+#: ``CompsognathusEnv``'s; every other defaulted param shapes
 #: reward, termination, reset, horizon, or the push schedule), and it is
 #: the same exclusion ``save_stage_config`` applies when it records the
 #: effective config into ``stage_config.json``.

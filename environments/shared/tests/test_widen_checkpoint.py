@@ -17,7 +17,7 @@ on a copy (``copy_parent`` / ``shutil.copytree``), and
 ``build_narrow_parent`` / ``narrow_identity`` / ``NarrowObservation`` stay
 public for WS-C3.
 
-Run with the SB3 interpreter (``JAX_PLATFORMS=cpu``, no ``MUJOCO_GL``).
+Run with the SB3 interpreter (no ``MUJOCO_GL``).
 """
 
 from __future__ import annotations

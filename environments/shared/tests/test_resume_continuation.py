@@ -238,7 +238,7 @@ class TestIsResumeContinuation:
         ("load_path", "mode", "stage_lbl", "algorithm"),
         [
             # Curated checkpoints carry no cumulative step count — and are
-            # how sweep warm-starts arrive; they must keep fresh-counter
+            # how warm-starts arrive; they must keep fresh-counter
             # semantics.
             ("/run/models/best_model.zip", "resume_same_stage", "stage2", "ppo"),
             ("/run/models/stage2_final.zip", "resume_same_stage", "stage2", "ppo"),

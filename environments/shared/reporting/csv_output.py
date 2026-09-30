@@ -1,8 +1,8 @@
 """CSV result writers.
 
 Holds the canonical ``collected_results.csv`` schema plus the single shared
-CSV writer used by single-run training, sweep collection, and CLI curriculum
-training, and the per-episode evaluation-evidence writer."""
+CSV writer used by the result bundle, CLI curriculum training and the Drive
+summary, and the per-episode evaluation-evidence writer."""
 
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ from .formatting import _optional_metric, parse_optional_bool
 logger = logging.getLogger(__name__)
 
 
-# Canonical metric column order for collected_results.csv.  Both the
-# single-run notebook (``save_results_csv``) and the sweep result
-# collector (``sweep/results.write_results_csv``) reference this list
-# so that all CSVs share a consistent schema.
+# Canonical metric column order for collected_results.csv.
+# ``write_results_csv`` (and so ``save_results_csv``, which the result
+# bundle calls) orders its metric columns by this list, so that all CSVs
+# share a consistent schema.
 CSV_METRIC_COLUMNS: list[str] = [
     "best_mean_reward",
     "best_mean_episode_length",
@@ -35,9 +35,9 @@ CSV_METRIC_COLUMNS: list[str] = [
     "ep_length_threshold",
     "forward_vel_threshold",
     "success_rate_threshold",
-    # task_success/v1 (plan §4.4): the LCB bar, the sweep's recorded
-    # count / panel size the offline row verdict is judged on (D-B12), and
-    # the same panel's mean reward / length the rail is judged on.
+    # task_success/v1 (plan §4.4): the LCB bar, the recorded count / panel
+    # size (D-B12), and the same panel's mean reward / length the rail is
+    # judged on.
     # Additive: success_rate_threshold stays for the reward_and_length species.
     "success_lcb_threshold",
     "success_count",
@@ -83,8 +83,9 @@ def write_results_csv(
 ) -> Path:
     """Write (or append) result rows to a CSV file.
 
-    This is the single shared CSV writer used by single-run training,
-    sweep result collection, and CLI curriculum training.  All callers
+    This is the single shared CSV writer used by the result bundle
+    (``save_results_csv``), CLI curriculum training
+    (``config.append_stage_result_csv``) and the Drive summary.  All callers
     build a flat row dict with prefixed hyperparameter keys (``ppo_*``,
     ``env_*``, …), canonical metric keys from :data:`CSV_METRIC_COLUMNS`,
     and optional ``eval_*`` quality-metric keys, then delegate the actual
@@ -230,7 +231,7 @@ def build_results_csv_rows(
         if isinstance(plant_identity, Mapping):
             row.update({f"plant_{key}": value for key, value in plant_identity.items()})
 
-        # ── Hyperparameters (mirroring sweep CSV key names) ─────────
+        # ── Hyperparameters (prefixed env_* / <algo>_* keys) ────────
         for key, val in cfg.get("env_kwargs", {}).items():
             row[f"env_{key}"] = val
         if public_backend == "jax-mjx":
@@ -239,7 +240,7 @@ def build_results_csv_rows(
             algo_key = "sac_kwargs" if algorithm_key == "sac" else "ppo_kwargs"
         for key, val in cfg.get(algo_key, {}).items():
             if key == "policy_kwargs":
-                # Flatten net_arch to a string like the sweep CSV does
+                # Flatten net_arch to a string (the <algo>_net_arch column)
                 net_arch = val.get("net_arch", [])
                 row[f"{algorithm_key}_net_arch"] = str(net_arch)
             elif key == "verbose":
@@ -316,7 +317,7 @@ def save_results_csv(
 ) -> Path:
     """Save canonical stage rows to ``collected_results.csv``.
 
-    Hyperparameters are retained for sweep analysis, while every metric shared
+    Hyperparameters are retained for cross-run comparison, while every metric shared
     with ``summary.json`` is derived from the same in-memory stage results.
     """
     run_path = Path(run_dir)
@@ -374,8 +375,9 @@ def save_evaluation_episodes(
     *normalization_path* is the VecNormalize statistics file the rollout ran
     under, recorded the same way as ``normalization_sha256``: an SB3
     checkpoint is the pair, and a sidecar rewritten between evaluation and
-    bundle save would otherwise be hashed into provenance unbound.  JAX has
-    no sidecar and leaves it out, so its evidence carries no such column.
+    bundle save would otherwise be hashed into provenance unbound.  Without
+    a sidecar (the retired JAX path had none) it is left out, so the
+    evidence carries no such column.
     """
     if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
         raise ValueError("evaluation_seed must be a non-negative integer")

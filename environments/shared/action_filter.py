@@ -9,11 +9,11 @@ it through plant-level declarations only:
 
 - SB3: ``action_filter_cutoff_hz`` class attribute on the species env
   (deliberately not an ``__init__`` kwarg, so stage TOMLs cannot set it);
-- MJX: ``action_filter_cutoff_hz`` in ``register_species_mjx`` (listed in
-  ``_PLANT_INTERFACE_CONFIG_FIELDS``, so stage TOMLs cannot override it).
+- the frozen MJX registration (D-D17): ``action_filter_cutoff_hz`` in the
+  species' ``register_species_mjx`` call, which no stage TOML reaches.
 
 The plant contract fingerprints this module and records the cutoff when a
-species enables it, and asserts both backends agree.
+species enables it, and asserts that the two declarations agree.
 
 Why it exists: both 2026-08 trex stage-1 runs converged on poses that are
 not statically stable and survive only through 16.8–18.7 Hz command
@@ -41,7 +41,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-# Arrays from either backend (numpy or jax.numpy); plain arithmetic only.
+# NumPy arrays (jax.numpy ones work too); plain arithmetic only.
 Array = Any
 
 
@@ -62,9 +62,9 @@ def low_pass_alpha(cutoff_hz: float, control_dt: float) -> float:
 def apply_low_pass(previous: Array, current: Array, alpha: float) -> Array:
     """One filter update: blend ``current`` into the carried filter state.
 
-    Backend-neutral (numpy and JAX arrays) and trace-safe: arithmetic only.
-    Seeding — returning ``current`` unblended on the first post-reset step —
-    is the caller's job, because the two backends detect the episode
-    boundary differently (Python state vs a traced ``step_count``).
+    Arithmetic only, so it also takes JAX arrays and traces.  Seeding —
+    returning ``current`` unblended on the first post-reset step — is the
+    caller's job: ``BaseDinoEnv`` detects the episode boundary from its own
+    ``_step_count``.
     """
     return previous + alpha * (current - previous)

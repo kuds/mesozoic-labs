@@ -10,8 +10,8 @@ spin_penalty_weight = 0.1                      # Penalize pelvis angular velocit
 speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — complements drift penalty with instantaneous signal
 speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
 alive_bonus = 1.0                              # Half of this bonus is conditioned on bilateral support below
-foot_contact_gate = 0.0                        # Disable the legacy binary MJX gate; bounded bilateral support gives a smoother signal
-foot_contact_weight = 0.0                      # Disable the legacy any-foot bonus, which permits a one-leg stance
+foot_contact_gate = 0.0                        # Read only by the retired MJX reward (a binary foot-contact gate); SB3 ignores it. Kept: task_sha256 hashes it. Bilateral support below is the smoother signal
+foot_contact_weight = 0.0                      # Read only by the retired MJX reward (an any-foot bonus, which permits a one-leg stance); SB3 ignores it
 bilateral_support_weight = 0.6                 # Reward the weaker-loaded foot, so both feet must carry weight
 foot_contact_saturation_force = 350.0          # N per foot; quiet home support (~421 N/foot) already earns full credit
 foot_load_balance_weight = 0.3                 # Penalize normalized left/right load imbalance
@@ -107,7 +107,7 @@ tail_home_pose_tolerance = 0.05                # rad; around the SETTLED droop, 
                                                # -0.0926; sub-milliradian spread over 40 seeds at noise 0.05), so
                                                # the keyframe zeros are unreachable and would cap the statue at
                                                # ~0.25 quality. Targets live plant-side (TRexEnv._TAIL_SETTLED_QPOS
-                                               # = MJX registry tail_home_pose_targets). At 0.05 the statue scores
+                                               # in trex_env.py). At 0.05 the statue scores
                                                # ~1.0 and every parked-tail pose from the 20260809 run scores ~0.
 action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold (linear ramp to
                                                # full range). A saturated command cannot oscillate, so it is
@@ -252,7 +252,7 @@ ent_coef_decay_timesteps = 7000000      # 64% of the 11M budget (derived as 70% 
                                         # showed at 4.34M. If either tracks the old curve, this hypothesis is wrong
                                         # and the next suspect is the learning rate (3e-5 -> 1e-5 is very low).
 
-target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -408,8 +408,8 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
 max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
                                         # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
                                         # Drive mount, for files nothing in this repository reads — they exist for manual rollback,
-                                        # which needs recent history, not all of it. 5 matches the JAX backend's max_checkpoints so a
-                                        # stage keeps the same rollback depth whichever backend produced it. best_model,
+                                        # which needs recent history, not all of it. 5 is the default (DEFAULT_MAX_CHECKPOINTS), the depth the
+                                        # retired JAX trainer kept, so stages before and after D-D17 match. best_model,
                                         # robust_best_model and stage1_final are never periodic checkpoints and are never pruned.
                                         # Set 0 to keep every one.
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.

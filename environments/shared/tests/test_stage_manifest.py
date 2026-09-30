@@ -918,7 +918,7 @@ class TestSerializedStageKeys:
             "locomotion",
             "behavior",
         ]
-        # Two vocabularies: advancing (integer-keyed manager/sweeps) is not
+        # Two vocabularies: advancing (integer-keyed manager) is not
         # deliverables (publication); they coincide only for the trio.
         trex = load_stage_manifest("trex")
         assert [entry.id for entry in trex.advancing_stages] == ["stance", "locomotion", "behavior"]

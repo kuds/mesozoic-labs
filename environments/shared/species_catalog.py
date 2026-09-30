@@ -1109,9 +1109,8 @@ def build_catalog(
         training_backends = set(raw_species.get("training_backends", ALLOWED_TRAINING_BACKENDS))
         if not training_backends or training_backends - ALLOWED_TRAINING_BACKENDS:
             raise CatalogError(f"{species_id} has invalid training backends: {training_backends}")
-        for notebook_id, backend in (("sb3_training", "stable-baselines3"), ("jax_training", "jax-mjx")):
-            if notebook_id in training_notebook_ids and backend not in training_backends:
-                raise CatalogError(f"{species_id} advertises unsupported notebook {notebook_id}")
+        if "sb3_training" in training_notebook_ids and "stable-baselines3" not in training_backends:
+            raise CatalogError(f"{species_id} advertises unsupported notebook sb3_training")
         unknown_notebooks = sorted(set(training_notebook_ids) - notebook_ids)
         if unknown_notebooks:
             raise CatalogError(f"{species_id} references unknown notebooks: {unknown_notebooks}")

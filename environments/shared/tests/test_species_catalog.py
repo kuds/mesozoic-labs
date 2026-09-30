@@ -607,6 +607,19 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
         build_catalog(broken_manifest)
 
 
+def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
+    entrypoint = 'env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"\n'
+    manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
+    assert manifest_text.count(entrypoint) == 1
+    broken_manifest = tmp_path / "species_manifest.toml"
+    broken_manifest.write_text(
+        manifest_text.replace(entrypoint, entrypoint + 'training_backends = ["jax-mjx"]\n'), encoding="utf-8"
+    )
+
+    with pytest.raises(CatalogError, match="velociraptor advertises unsupported notebook sb3_training"):
+        build_catalog(broken_manifest)
+
+
 def test_catalog_rejects_plant_contract_that_disagrees_with_environment(tmp_path: Path) -> None:
     plant_manifest = json.loads(DEFAULT_PLANT_MANIFEST_PATH.read_text(encoding="utf-8"))
     plant_manifest["plants"]["velociraptor"]["policy_interface"]["observation_dim"] += 1

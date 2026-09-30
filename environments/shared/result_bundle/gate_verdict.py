@@ -15,7 +15,8 @@ Who writes it (Phase A, decision D-A5): ``generate_stage_artifacts``
 (post-stage, evidence-backed) and ``train_curriculum``'s in-training
 ``CurriculumManager`` verdict, each recording ``judged_by``; a backfill tool
 re-derives it for pre-Phase-A directories with ``judged_by = "backfill"``.
-``train()`` and ``save_jax_stage_artifacts`` do not write it.  **Absence
+``train()`` does not write it, nor did ``save_jax_stage_artifacts``, the JAX
+stage writer D-D17 retired.  **Absence
 never reads as a pass**: :func:`read_gate_verdict` returns None for a
 missing file and raises on a malformed one.
 
@@ -59,8 +60,9 @@ _SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 #: ``curriculum.gate_schema.gate_config_view`` returns, and nothing else.
 _GATE_CONFIG_KEYS = frozenset({"gate_kind", "gate_schema_version", "thresholds"})
 
-#: The ``stage_result`` projection: the keys ``save_jax_stage_artifacts``
-#: persists into ``stage_result.json`` plus the SB3-side handoff and gate
+#: The ``stage_result`` projection: the keys the retired JAX stage writer
+#: (``save_jax_stage_artifacts``, D-D17) persisted into ``stage_result.json``
+#: plus the SB3-side handoff and gate
 #: fields, so a verdict carries the numbers the gate was judged on without
 #: dragging in per-episode arrays or callbacks.
 _PERSISTED_STAGE_RESULT_KEYS = (

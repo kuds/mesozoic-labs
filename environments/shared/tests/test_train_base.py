@@ -2320,7 +2320,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
     """Decisions D-D11 and D-A15 at the single-stage launch path, and the two switches the notebook's
     ``train_stage`` passes (consolidation PR-14c): model construction is seeded; the duration from entry to
     the final save is recorded, accumulating on a same-stage resume into the same directory;
-    ``report_metrics=False`` skips the HPT report (the only ``metrics.json`` writer); and
+    ``report_metrics=False`` skips the ``metrics.json`` report (its only writer); and
     ``save_on_interrupt=False`` lets a KeyboardInterrupt from ``learn`` propagate before the final save."""
 
     def _run(self, tmp_path, monkeypatch, *, interrupt=False, ppo_seed=None, **train_kwargs):

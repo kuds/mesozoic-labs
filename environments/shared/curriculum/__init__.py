@@ -27,8 +27,8 @@ Usage with CurriculumCallback (SB3 integration)::
     if curriculum_cb.ready_to_advance:
         manager.advance()
 
-The manager is separated from the SB3 callbacks so that a JAX or notebook
-training loop can drive the curriculum without importing SB3 at all:
+The manager is separated from the SB3 callbacks so that a notebook or other
+non-SB3 training loop can drive the curriculum without importing SB3 at all:
 
 * :mod:`~environments.shared.curriculum.sb3_compat` — the optional-SB3 import
   shim every callback subclasses through, and the single patch point for

@@ -879,7 +879,7 @@ class TestPostEvalEpisodes:
         assert source.count("load_sb3_model(") == source.count("env=eval_env, seed=None)") == 2
         assert (panel["success_count"], panel["n_success_episodes"]) == (20, 30)
         assert panel["mean_success_rate"] == pytest.approx(20 / 30)
-        # The same panel's aggregates, so the sweep row rails on the panel the count came from.
+        # The same panel's aggregates, so the rail is judged on the panel the count came from.
         assert (panel["selected_mean_reward"], panel["selected_mean_episode_length"]) == (600.0, 1000.0)
         eval_env.seed.assert_called_once_with(3042)
         with (tmp_path / "evaluation_selected.csv").open(newline="") as handle:
@@ -891,8 +891,8 @@ class TestPostEvalEpisodes:
         assert sum(row["task_success"] == "True" for row in rows) == 20
 
     def test_a_hunt_panel_without_a_handoff_pair_records_no_count(self, tmp_path, monkeypatch, caplog):
-        """The smoke-trial shape (no checkpoint saved, final_model evaluated): no evidence CSV can be
-        bound, so no success_count is recorded either — the sweep row is 'not evaluable' beside the
+        """The smoke-run shape (no checkpoint saved, final_model evaluated): no evidence CSV can be
+        bound, so no success_count is recorded either — metrics.json holds no count beside the
         refused verdict, never a PASS beside a FAILED verdict file (D-B12 amendment)."""
         pytest.importorskip("stable_baselines3")
         from environments.shared import evaluation, train_base
