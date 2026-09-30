@@ -68,6 +68,7 @@ from environments.shared.recovery_evaluation import (
     CALIBRATED_POSTURE_ONLY,
     RecoveryPanelEvidence,
     _safe_step,
+    brace_controller,
     constant_action_controller,
     roll_recovery_panel,
     write_recovery_evidence,
@@ -707,10 +708,6 @@ def freeze_recovery_gate(
             )
         }
         if policy_zip is not None and vecnorm is not None:
-            # Lazy import: the historical brace helper imports this module's
-            # constants. It holds a checkpoint's post-settle mean action.
-            from environments.shared.harnesses.recovery_offdist_panel import brace_controller
-
             predict = policy_controller(
                 policy_zip,
                 vecnorm,
@@ -729,6 +726,7 @@ def freeze_recovery_gate(
                 )
                 null_provenance = {"brace": brace_metadata}
             else:
+                # The historical T-Rex brace: the checkpoint's post-settle mean action, held.
                 brace_predict = brace_controller(env, predict)
             null_evidence["brace"] = _roll_null(
                 env,

@@ -136,12 +136,48 @@ source = ["environments"]
 # them and gates on the union. Paths must be relative for that combine to line
 # up across jobs.
 relative_files = true
+# Everything under scripts/ and harnesses/ counts, including the recovery
+# certification code (the freeze producer, widen_checkpoint, the verdict
+# backfill), unless it is named below with its reason (cleanup CU-9). Name
+# files one by one: a `*` may stand only for the species directory, and a
+# file a test imports is not omitted. This list is the only place a file
+# leaves the union: no [tool.coverage.report] omit and no `include`
+# (test_coverage_config.py pins all three).
 omit = [
     "*/tests/*",
-    "*/scripts/*",
-    # Hand-run smoke-check and viewer harnesses behind the per-species scripts
-    # (the scripts themselves are already excluded by */scripts/*).
-    "environments/shared/harnesses/*",
+    # Hand-run viewers and actuator drivers (mujoco.viewer needs a display)
+    # and the environment smoke checks, with each species' wrapper scripts.
+    "environments/*/scripts/view_model.py",
+    "environments/*/scripts/test_actuators.py",
+    "environments/*/scripts/test_env.py",
+    "environments/shared/harnesses/viewer.py",
+    "environments/shared/harnesses/actuators.py",
+    "environments/shared/harnesses/env_smoke.py",
+    # The digest snapshot: the plant-contract job runs it as its own CI step
+    # (D-D22), outside pytest; kept omitted by the CU-9 row.
+    "environments/shared/harnesses/digest_snapshot.py",
+    # Hand-run Compsognathus MJCF generators (the plant digests and the
+    # Compsognathus model tests check the committed MJCFs they write) and
+    # hand-run render and geometry review tools.
+    "environments/compsognathus/scripts/build_models.py",
+    "environments/compsognathus/scripts/robot_shells.py",
+    "environments/compsognathus/scripts/robot_finish.py",
+    "environments/compsognathus/scripts/styling.py",
+    "environments/compsognathus/scripts/standing_targets.py",
+    "environments/compsognathus/scripts/validate_shells.py",
+    "environments/compsognathus/scripts/render_style_comparison.py",
+    # A one-off PPO update probe; by its own docstring it is not convergence
+    # or stance-gate evidence.
+    "environments/compsognathus/scripts/probe_ppo_updates.py",
+    # Hand-run investigation and study scripts that feed no gate. (The statue
+    # baselines, zero_action_baseline.py and stance_quality_baseline.py, count:
+    # they measure the statue-derived stage-1 gate constants.)
+    "environments/shared/scripts/hw_chassis_study.py",
+    "environments/shared/scripts/stance_duty_validation.py",
+    "environments/shared/scripts/compare_run_diagnostics.py",
+    "environments/shared/scripts/foot_sensor_report.py",
+    "environments/shared/scripts/actuator_saturation_report.py",
+    "environments/velociraptor/scripts/actuator_saturation_report.py",
 ]
 
 [tool.coverage.report]

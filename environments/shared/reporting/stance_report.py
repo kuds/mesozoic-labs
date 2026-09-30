@@ -13,8 +13,9 @@ It lives in the reporting package because the training pipeline emits the
 same report automatically: :mod:`~environments.shared.reporting.stage_artifacts`
 calls :func:`build_stance_gate_report` and the probe writers for every
 stance-gated stage, and a library must not import from a script -- the
-scripts tree sits outside the package boundary and outside coverage, so the
-code the certification path runs was hidden from the coverage gate.
+scripts tree sits outside the package boundary, and until cleanup CU-9 it
+sat outside coverage too, so the code the certification path runs was
+hidden from the coverage gate.
 
 Why one implementation rather than a notebook cell: the gate's verdict is the
 thing runs are judged on, and a verdict computed by hand-rolled

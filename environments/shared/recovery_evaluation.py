@@ -23,7 +23,12 @@ the judge every §9 panel and the gate resolution use.  This module is the
 CANONICAL definition of both — the harnesses and the freeze producer
 import it rather than restating the numbers — and whichever set a panel
 was judged under is recorded in its evidence, so no row can outlive the
-definition that produced it.
+definition that produced it.  The null controllers live here for the same
+reason: the statue (:func:`zero_action_controller`), a held command
+(:func:`constant_action_controller`, which also holds the calibrated
+species' quiet-stance brace the freeze producer derives) and the historical
+T-Rex brace (:func:`brace_controller`), which the freeze producer and the
+hand-run off-distribution panel both import.
 """
 
 from __future__ import annotations
@@ -152,6 +157,43 @@ def constant_action_controller(action: Sequence[float] | np.ndarray) -> Callable
         return held
 
     return predict
+
+
+#: The historical T-Rex brace null's settle panel (first-runs record §3.1):
+#: five off-panel seeds (the frozen panel starts at 3042), each rolled for
+#: up to twice the settle length, sampling from step BRACE_SETTLE_STEPS on.
+BRACE_SETTLE_SEEDS = (5042, 5043, 5044, 5045, 5046)
+BRACE_SETTLE_STEPS = 200
+
+
+def brace_controller(env: Any, predict: Callable[[Any], np.ndarray]) -> Callable[[Any], np.ndarray]:
+    """The policy's post-settle mean action, held (first-runs record §3.1).
+
+    Rolls ``predict`` from each of :data:`BRACE_SETTLE_SEEDS` for up to
+    ``2 * BRACE_SETTLE_STEPS`` steps and averages the actions it commands
+    from step ``BRACE_SETTLE_STEPS`` on.  An episode that ends earlier
+    contributes only the steps it reached, one that ends inside the settle
+    contributes none, and with no sample at all there is no mean and it
+    raises ``ValueError``.  The mean is held with
+    :func:`constant_action_controller`.
+
+    The freeze producer uses it for the historical T-Rex gate, which has no
+    species calibration; calibrated species use the producer's quiet-stance
+    brace instead.  Cleanup CU-9 moved it here from the hand-run
+    ``harnesses/recovery_offdist_panel.py``, which imports the producer, so
+    the producer no longer imports it back lazily.
+    """
+    actions: list[np.ndarray] = []
+    for seed in BRACE_SETTLE_SEEDS:
+        obs, _ = env.reset(seed=seed)
+        for step in range(BRACE_SETTLE_STEPS * 2):
+            action = predict(obs)
+            if step >= BRACE_SETTLE_STEPS:
+                actions.append(np.asarray(action, dtype=np.float64))
+            obs, _reward, terminated, truncated, _info = env.step(action)
+            if terminated or truncated:
+                break
+    return constant_action_controller(np.mean(np.stack(actions), axis=0).tolist())
 
 
 def _safe_step(env: Any, safe_set: dict[str, float], height_target: float) -> bool:
