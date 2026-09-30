@@ -235,11 +235,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **Code comments, docstrings and log messages no longer describe the retired
+  backends as present** (cleanup CU-7b of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-09-30; §3.2 CU-7 and CU-16 rows). The wording PR-A, PR-A2 and PR-B left
+  about the tuning sweeps, Ray Tune, the Vertex AI route and its HPT report,
+  GCS as the only mount and the JAX/MJX trainer now describes the code as it
+  is, in the library, the tests and the comments of the stage TOMLs (no key,
+  value or line count changes there; the `foot_contact_*` keys, which only the
+  retired MJX reward read, stay, as the cleanup plan keeps them, §4.9). Log
+  messages change with it: the post-training metrics log
+  `Recorded metric: ...` (was `HPT metric reported: ...`), the checkpoint
+  evaluation `Post-training eval: ...` (was `HPT eval: ...`), and a failed
+  TensorBoard sync logs `TensorBoard sync to the remote mount failed.` or
+  `Periodic TensorBoard sync to the remote mount failed.` (was
+  `... to GCS failed.`); a stage TOML without `[ppo]` or `[sac]` warns that
+  SB3, not "every backend", will train on library defaults, and the
+  task-success evidence warning names `metrics.json` instead of a sweep row.
+  The species catalog drops its check of the deleted `jax_training` notebook,
+  which the unknown-notebook check already covered, and a new test fails any
+  line of the library, the tests, the stage configuration, the SB3 notebook or
+  the build and CI files that names Vertex, Ray or HPT without marking it
+  retired (the docs and the Drive summary notebook, which still reads legacy
+  sweep folders, are not scanned). The species env files keep their MJX
+  comments, since behavior identities hash their bytes. No digest moves.
 - **The SB3 notebook's text is cut and corrected, and its dead parameters
-  are gone** (cleanup CU-5 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2
-  CU-5 row). The markdown goes from 223 to 111 source lines, keeping every
-  pinned phrase and D-D16 rule (a new pin reads the resume recipe's
-  trunk-recovery and D-D16 text). Fixed: the quote of a
+  are gone** (#575, cleanup CU-5 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-09-30; §3.2 CU-5 row). The markdown goes from 223 to 111 source
+  lines, keeping every pinned phrase and D-D16 rule (a new pin reads the
+  resume recipe's trunk-recovery and D-D16 text). Fixed: the quote of a
   `configs/trex/stance.toml` comment that no longer exists, "all four"
   species (there are six), a stale "review F3" note, and the chain loop's
   branch labels (now 1 REUSE, 2 JUDGE, 3 TRAIN, the loop's and section 6's
