@@ -34,9 +34,9 @@ def gate_config_sha256(view: Mapping[str, Any]) -> str:
 
     *view* is the ``curriculum.gate_schema.gate_config_view`` projection —
     ``{gate_kind, gate_schema_version, thresholds}``.  Every real number
-    under ``thresholds`` (bools excluded; numpy scalars included, since a
-    value read back from ``evaluations.npz`` can be one, and they are
-    neither ``int`` nor ``float`` subclasses) is hashed as its
+    under ``thresholds`` (bools excluded; numpy scalars included,
+    defensively: no current caller passes one, and ``np.float32`` /
+    ``np.int64`` are not ``float`` / ``int`` subclasses) is hashed as its
     ``float()``, so a cosmetic TOML retype (``100`` to ``100.0``) leaves the
     digest unchanged and cannot refuse a reuse (decision D-B7); everything
     else is hashed verbatim through :func:`canonical_json_sha256`.  Pure — no

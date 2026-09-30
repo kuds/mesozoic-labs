@@ -455,8 +455,8 @@ class TestThresholdsFromConfigs:
     def test_every_committed_stage_config_declares_a_valid_gate(self):
         """The shipped configs must satisfy the schema on every species.
 
-        Asserts every declared kind is one the registry knows and both
-        backends evaluate, rather than pinning the specific kind each stage
+        Asserts every declared kind is one the registry knows and SB3
+        evaluates, rather than pinning the specific kind each stage
         uses — pinning the literal made adopting stance_quality/v1 for T-Rex
         stage 1a look like a regression instead of the intended change.
 

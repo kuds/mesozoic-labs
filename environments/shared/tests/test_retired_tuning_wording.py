@@ -25,7 +25,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
-RETIRED_TUNING_NAMES = re.compile(r"\b(?:Vertex|Ray|HPT)\b")
+RETIRED_TUNING_NAMES = re.compile(r"\b(?:Vertex|Ray|HPTs?)\b|\b(?:VertexAI|RayTune)")
 RETIRED_MARKERS = ("retired", "D-D17")
 
 
@@ -33,8 +33,12 @@ def _living_files() -> list[Path]:
     this_file = Path(__file__).resolve()
     files = sorted(path for path in (REPOSITORY_ROOT / "environments").rglob("*.py") if path.resolve() != this_file)
     files += sorted((REPOSITORY_ROOT / "configs").rglob("*.toml"))
+    files += sorted((REPOSITORY_ROOT / "configs").rglob("*.py"))
+    files += sorted((REPOSITORY_ROOT / "environments").rglob("requirements*.txt"))
+    files += sorted(REPOSITORY_ROOT.glob("*.py"))
     files += [REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb", REPOSITORY_ROOT / "pyproject.toml"]
-    files += sorted((REPOSITORY_ROOT / ".github" / "workflows").glob("*.yml"))
+    files += [REPOSITORY_ROOT / ".pre-commit-config.yaml"]
+    files += sorted(path for path in (REPOSITORY_ROOT / ".github").rglob("*") if path.suffix in (".yml", ".yaml"))
     return files
 
 
@@ -72,11 +76,28 @@ def test_the_scan_reaches_its_files_and_matches_only_the_retired_names() -> None
         "notebooks/sb3_training.ipynb",
         "pyproject.toml",
         ".github/workflows/python-ci.yml",
+        ".github/actions/upload-coverage/action.yml",
+        ".pre-commit-config.yaml",
     } <= names
     # Wording CU-7b replaced is caught; the lowercase live uses are not.
-    for retired in ("HPT metric reported: x", "sync under concurrent Vertex AI HPT trials", "the Ray Tune worker"):
+    for retired in (
+        "HPT metric reported: x",
+        "sync under concurrent Vertex AI HPT trials",
+        "the Ray Tune worker",
+        "submit the job to VertexAI",
+        "the RayTuneReportCallback reports each eval",
+        "the HPTs read metrics.json",
+    ):
         assert RETIRED_TUNING_NAMES.search(retired), retired
-    for live in ("mujoco.mj_rayHfield(model)", 'mesh.get("vertex")', "_report_hpt_metrics(", '"ray", "mjlab"'):
+    for live in (
+        "mujoco.mj_rayHfield(model)",
+        'mesh.get("vertex")',
+        "_report_hpt_metrics(",
+        '"ray", "mjlab"',
+        "RayCast",
+        "Vertices",
+        "VertexBuffer",
+    ):
         assert not RETIRED_TUNING_NAMES.search(live), live
 
 

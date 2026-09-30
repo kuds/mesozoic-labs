@@ -87,7 +87,10 @@ LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
 #: presentation, not task.  ``render_mode`` is the only such param across
 #: all five species constructors (``CompsognathusRobotEnv`` inherits
 #: ``CompsognathusEnv``'s; every other defaulted param shapes
-#: reward, termination, reset, horizon, or the push schedule), and it is
+#: reward, termination, reset, horizon, or the push schedule, except
+#: trex's and dibothrosuchus's ``foot_contact_weight`` /
+#: ``foot_contact_gate``, which only the retired MJX reward read and which
+#: stay hashed), and it is
 #: the same exclusion ``save_stage_config`` applies when it records the
 #: effective config into ``stage_config.json``.
 NON_TASK_ENV_PARAMS = frozenset({"render_mode"})

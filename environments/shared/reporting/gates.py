@@ -5,7 +5,8 @@ Two entry points, for two different questions:
 * :func:`evaluate_recorded_gate` — "does this *history* of evaluations show a
   pass?", used by the Drive summary notebook to describe finished runs.
 * :func:`evaluate_stage_gate` — "may this completed stage advance, and may its
-  artifacts claim it passed?", used by the trainers.
+  artifacts claim it passed?", used by the training notebook (through
+  ``generate_stage_artifacts``) and the gate backfill tool.
 
 The second exists because it did not, and every trainer carried its own copy
 of the rule.  ``notebooks/sb3_training.ipynb`` checked ``min_avg_reward`` /

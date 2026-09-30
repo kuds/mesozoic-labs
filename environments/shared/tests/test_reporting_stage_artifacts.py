@@ -250,7 +250,7 @@ class TestSaveStageConfigKeepsTheCurriculumTable:
 class TestApplyStageGate:
     """The wiring: generate_stage_artifacts must record a verdict, always.
 
-    Both trainers read `publication_gate_passed` off the dict this writes. If
+    The notebook reads `publication_gate_passed` off the dict this writes. If
     it were absent the notebook's `if not results_1["publication_gate_passed"]`
     would raise KeyError; if it were reward-derived we would be back to run
     20260802_203215, which advanced a stance-gated stage on its rail alone.

@@ -872,7 +872,7 @@ class TestCheckpointRetentionIsWired:
 
 
 class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
-    """Review CF4: the first point that knows the backend says when its table is empty."""
+    """Review CF4: the first point that knows the algorithm says when its table is empty."""
 
     def test_an_empty_ppo_table_warns(self, tmp_path, caplog):
         from environments.shared.train_base import _prepare_alg_kwargs

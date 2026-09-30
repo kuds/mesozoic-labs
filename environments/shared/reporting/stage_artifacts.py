@@ -1039,7 +1039,8 @@ def _apply_stage_gate(
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
-    Runs here, in the one entry point the notebook calls for every node,
+    Runs here, in the one entry point the notebook calls for every node it
+    trains or judges,
     because the alternative is what actually happened:
     each caller kept a private checklist, the notebook's drifted out of step
     with ``gate_kind``, and run ``20260802_203215`` recorded
@@ -1435,8 +1436,8 @@ def generate_stage_artifacts(
     """Write stage summary, record replay videos, and generate training graphs.
 
     This is the single shared entry-point for generating post-training
-    artifacts.  The training notebook calls it for every node, so the
-    artifacts are always consistent.
+    artifacts.  The training notebook calls it for every node it trains or
+    judges, so the artifacts are always consistent.
 
     When *stage_results* is ``None``, a results dict is built from on-disk
     eval data via :func:`build_stage_results_from_eval_data`.  Callers

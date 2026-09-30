@@ -308,8 +308,8 @@ def _prepare_alg_kwargs(
     alg_table = "sac" if algorithm == "sac" else "ppo"
     alg_kwargs = config[f"{alg_table}_kwargs"].copy()
     if not alg_kwargs:
-        # The loader cannot know which backend a config is for; this is the
-        # first point that does (review CF4).
+        # The loader cannot know which algorithm ([ppo] or [sac]) a config
+        # will train; this is the first point that does (review CF4).
         logger.warning(
             "Stage config declares no [%s] table (or an empty one): %s will train on "
             "stable-baselines3's default hyperparameters.",
@@ -1546,7 +1546,7 @@ def _report_hpt_metrics(
     from .config import get_library_version
 
     # Accumulate all metrics for the JSON sidecar.  Run identity + effective
-    # seed make each run reproducible from the collected CSV alone.
+    # seed make each run reproducible from metrics.json alone.
     aux_metrics: dict[str, Any] = {
         "species": species_cfg.species,
         "algorithm": algorithm,
@@ -1554,7 +1554,7 @@ def _report_hpt_metrics(
         "best_mean_reward": float(eval_callback.best_mean_reward),
         "training_duration_seconds": round(training_duration_seconds, 1),
         # Actual steps trained (callers pass model.num_timesteps), so
-        # early-stopped runs are visible in offline result collection.
+        # metrics.json records what an early-stopped run actually trained.
         "timesteps": int(total_timesteps),
     }
     if plant_identity is not None:
@@ -1614,8 +1614,9 @@ def _report_hpt_metrics(
             )
         )
 
-    # Include key hyperparameters in the sidecar so offline result
-    # collection works even when stage_config.json is missing.
+    # Include key hyperparameters so metrics.json names them on its own,
+    # even without stage_config.json (the sweep collector that read them
+    # was retired, D-D17).
     if stage_config is not None:
         algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
         algo_kwargs = stage_config.get(algo_key, {})
@@ -1763,8 +1764,8 @@ def _post_training_eval_panels(
     The velocity/success panel is :func:`run_success_panel`: it records
     ``success_count`` / ``n_success_episodes`` beside ``mean_success_rate``
     — the exact ``k`` / ``n`` a rounded rate cannot recover (decision
-    D-B12) — and, when *stage_config* declares that kind and the panel
-    evaluated the handoff pair, writes the same episodes as
+    D-B12) — and, when *stage_config* declares ``task_success/v1`` and the
+    panel evaluated the handoff pair, writes the same episodes as
     ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair, so the
     post-stage judge (``generate_stage_artifacts``) and ``metrics.json``
     agree by construction.
