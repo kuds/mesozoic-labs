@@ -1,8 +1,10 @@
 # Website Improvement Plan
 
 **Status (2026-09-30): complete.** Everything under Completed holds. The two
-items left under Remaining have moved: using or deleting the unused training
-GIFs is cleanup CU-16b's ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
+items left under Remaining are settled: the two apex GIFs stay, unused, by the
+maintainer's decision of 2026-09-30 (they share their blobs with
+`results/velociraptor/{ppo,sac}/stage3_strike.gif`, so the cleanup plan allowed
+deleting both copies or neither; [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
 §3.2, CU-16 row), and the logo's size is a [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
 entry (Configs, docs & website), which corrects the remedy below: the SVG
 wraps one PNG and has no paths and no SVG editor metadata, so SVGO would not
@@ -14,7 +16,7 @@ The following items from the original plan have been implemented:
 
 - **1a. Features Section** — `FeaturesSection` component added to `index.tsx` with all 4 features
 - **1b. Simulation Preview Section** — `SimulationSection` with terminal window, real API code, and `raptor_balance_ppo.gif`
-- **1c. Roadmap Section** — `RoadmapSection` with all 6 phases (Phase 0 complete, Phase 1 active)
+- **1c. Roadmap Section** — `RoadmapSection` with six phase cards (Phase 0 complete; Phases 1–3 in progress, as in ROADMAP.md)
 - **1d. CTA Section** — "GET STARTED" and "VIEW ON GITHUB" buttons
 - **1e. Remove "COMING SOON" Badge** — Badge removed; public title and tagline now describe dinosaur-inspired simulation research
 - **2a. Fix CHANGELOG Version Status** — v0.2.0 dated 2026-02-09

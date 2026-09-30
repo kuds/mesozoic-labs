@@ -235,8 +235,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **The landing page's roadmap agrees with ROADMAP** (cleanup CU-16b of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row). Phases 2 and
+  3 read IN PROGRESS, as `docs/ROADMAP.md` has them; the terrain and turning
+  items say piloted (#540/#541), and Phase 3's new-species item says two of
+  four are delivered (Dibothrosuchus and Compsognathus).
+  `docs/WEBSITE_PLAN.md`'s status and its `docs/README.md` row say the two
+  apex GIFs stay.
 - **The docs record what became of the 2026-08 gap review's findings, and
-  stale living-doc text is corrected** (cleanup CU-16a of
+  stale living-doc text is corrected** (#577, cleanup CU-16a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row).
   `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` gains an appended status
   appendix for all 120 of its ids (78 fixed, 16 fixed and then retired with
@@ -452,6 +459,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new modules), and the suite collects 3,951 tests (from 3,949).
 
 ### Removed
+- **Eleven unreferenced asset files** (cleanup CU-16b of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row), 2,089,577
+  bytes, each the only copy of its blob in the tree and named by no page,
+  configuration or code: the three stage videos
+  `website/static/videos/raptor_stage{1_balance,2_locomotion,3_strike}.mp4`
+  (1,974,435 bytes), which the site stopped showing on 2026-03-18 when it
+  moved to the `velociraptor_ppo_stage*_best.mp4` names, and their three
+  posters under `website/static/img/posters/` (19,787 bytes); the four icons
+  `apple-touch-icon.png`, `favicon-96x96.png` and
+  `web-app-manifest-{192x192,512x512}.png` under `website/static/img/`
+  (62,739 bytes), which no page, web manifest or `docusaurus.config.ts` ever
+  linked (the site's icon, `img/favicon.ico`, stays); and
+  `environments/compsognathus/data/robot_camera_view.png` (32,616 bytes), a
+  640×480 head-camera snapshot that nothing reads and the package data
+  (`data/*.json`) does not ship. The site's static files shrink by 2,056,961
+  bytes. The two apex GIFs stay, unused, by the maintainer's decision of
+  2026-09-30, so the `Images/` correction under Fixed stands. No digest
+  moves: no deleted file is an MJCF asset or another hashed input, and CI's
+  digest command reports the golden current (932 lines, 0 errors).
 - **Dead code and the unread gymnasium entry points** (#572, cleanup CU-7a of
   `docs/CLEANUP_PLAN_2026_09.md`). Deleted, each with the tests that
   covered only it: `gate_schema.apply_backend_overrides` and
@@ -674,13 +700,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **The 0.3.8 entry on the removed `Images/` directory left out the second
   surviving copies and misstated which copies the site and README show**
-  (cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16
-  row). Each of its three GIFs survives twice, under `website/static/img/`
-  and under `results/velociraptor/` (`ppo/stage1_balance.gif`,
-  `ppo/stage3_strike.gif` and `sac/stage3_strike.gif`, byte-identical); the
-  README shows the `results/` copy of the balance GIF, the site shows only
-  `raptor_balance_ppo.gif`, and no page shows the two apex GIFs
-  (`results/README.md` lists their `results/` copies).
+  (#577, cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2
+  CU-16 row). Each of its three GIFs survives twice, under
+  `website/static/img/` and under `results/velociraptor/`
+  (`ppo/stage1_balance.gif`, `ppo/stage3_strike.gif` and
+  `sac/stage3_strike.gif`, byte-identical); the README shows the `results/`
+  copy of the balance GIF, the site shows only `raptor_balance_ppo.gif`, and
+  no page shows the two apex GIFs (`results/README.md` lists their
+  `results/` copies).
 - **The plant contract's MJX probe requires exactly one root body**
   (#572, cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
   `build_mjx_observation` roots its observation on `torso` whenever the

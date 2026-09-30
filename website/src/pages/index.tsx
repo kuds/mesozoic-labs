@@ -622,16 +622,16 @@ const milestones = [
   {
     phase: 'PHASE 2 — v0.4.0',
     title: 'Into the Wild',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
-    items: [capabilitySummary('domain_randomization'), 'Terrain diversity', 'Turning & steering'],
+    status: 'active' as const,
+    statusLabel: 'IN PROGRESS',
+    items: [capabilitySummary('domain_randomization'), 'Terrain diversity — piloted', 'Turning & steering — piloted'],
   },
   {
     phase: 'PHASE 3 — v0.5.0',
     title: 'Evolution',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
-    items: ['Custom policy networks', 'New species', 'Benchmark suite'],
+    status: 'active' as const,
+    statusLabel: 'IN PROGRESS',
+    items: ['Custom policy networks', 'New species — 2 of 4 delivered', 'Benchmark suite'],
   },
   {
     phase: 'PHASE 4 — v0.6.0',

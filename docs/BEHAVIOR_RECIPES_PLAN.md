@@ -13,7 +13,7 @@ Statements tagged `[probe]` were measured by throwaway scripts during the
 2026-09-05 assessment and are re-measured by the tests §8 pins before the
 corresponding phase lands.
 
-*Note 2026-09-30 (cleanup CU-16a, decision D-D17):* after this plan was
+*Note 2026-09-30 (cleanup CU-16a, #577, decision D-D17):* after this plan was
 written, D-D17 retired the sweeps (cleanup PR-A, 2026-09-27) and the JAX/MJX
 runtime (cleanup PR-B, 2026-09-28). Where §3, §4 and §7 describe a sweep, the
 JAX runner, saver or preflight, the JAX notebook or its pin test, or an MJX
