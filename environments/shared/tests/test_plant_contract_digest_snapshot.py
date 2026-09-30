@@ -7,8 +7,11 @@ and the plant-contract CI job runs the full harness against it with
 environment per behavior recipe (about a minute), so it is CI's step, not a
 test here. These tests pin that step, keep the committed golden complete
 (no ERROR line, no section, stage or recipe missing, the bytes ``--write``
-writes), and exercise ``--check``'s comparison and failure message and
-``--write`` on tiny snapshots.
+writes, every stage's reward capture and the ends its probes reach), and
+exercise ``--check``'s comparison and failure message and ``--write`` on tiny
+snapshots. The reward captures (CU-11) also get unit tests of their two
+encodings, one species' capture on every leg of the test matrix, and a check
+that no state probe sits on its tilt, height or nosedive threshold.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from environments.shared.config import SPECIES_NAMES
@@ -34,7 +38,15 @@ HARNESS = Path(digest_snapshot.__file__).resolve()
 CI_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check"
 
 #: Fields per line, by section (the first field).
-_FIELDS = {"plant.check_plant_manifest": 2, "plant": 4, "policy": 4, "stage": 5, "recovery": 4, "behavior": 5}
+_FIELDS = {
+    "plant.check_plant_manifest": 2,
+    "plant": 4,
+    "policy": 4,
+    "stage": 5,
+    "recovery": 4,
+    "behavior": 5,
+    "reward": 5,
+}
 #: The lines of one stage, in order: _stage_lines emits them.
 _STAGE_NAMES = [
     "config_file",
@@ -45,6 +57,26 @@ _STAGE_NAMES = [
     "stage_config_view_sha256.PPO",
     "stage_config_view_sha256.SAC",
 ]
+#: The lines of one stage's reward capture (CU-11), in order.
+_REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
+#: The success reason each species' behavior stage ends the success probe with.
+_SUCCESS = {
+    "brachiosaurus": "food_reached",
+    "compsognathus": "target_reached",
+    "compsognathus_robot": "target_reached",
+    "dibothrosuchus": "snap_success",
+    "trex": "bite_success",
+    "velociraptor": "strike_success",
+}
+#: The reasons each species' state probes reach (the union over its stages' poses line).
+_POSE_REASONS = {
+    "brachiosaurus": {"fallen", "too_high", "excessive_tilt", "tail_contact", "head_contact"},
+    "compsognathus": {"fallen", "too_high", "excessive_tilt", "body_contact", "nonfinite_state"},
+    "compsognathus_robot": {"fallen", "too_high", "excessive_tilt", "body_contact", "nonfinite_state"},
+    "dibothrosuchus": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact", "head_contact"},
+    "trex": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact"},
+    "velociraptor": {"fallen", "too_high", "excessive_tilt", "tail_contact"},
+}
 
 
 # -- the CI step --------------------------------------------------------------
@@ -145,7 +177,7 @@ def test_golden_holds_every_section_in_order() -> None:
     blocks = [section for i, section in enumerate(sections) if i == 0 or section != sections[i - 1]]
     plants = sorted(json.loads((REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json").read_text())["plants"])
     # Each plant's identity, then its policy-interface lines; then the other sections.
-    assert blocks == ["plant", "policy"] * len(plants) + ["stage", "recovery", "behavior"]
+    assert blocks == ["plant", "policy"] * len(plants) + ["stage", "recovery", "behavior", "reward"]
     for kind, field in (("plant", "verify_generated"), ("plant", "physics_sha256"), ("policy", "WHOLE")):
         species = [line.split("\t")[1] for line in lines if line.startswith(f"{kind}\t") and f"\t{field}\t" in line]
         assert species == plants, (kind, field, species)
@@ -160,6 +192,56 @@ def test_golden_holds_every_stage() -> None:
         for name in _STAGE_NAMES
     ]
     assert [tuple(fields[1:4]) for fields in stages] == expected
+
+
+def test_golden_holds_every_stage_reward_capture() -> None:
+    rewards = [line.split("\t") for line in _golden_lines() if line.startswith("reward\t")]
+    expected = [
+        (species, entry.id, name)
+        for species in SPECIES_NAMES
+        for entry in load_stage_manifest(species).stages
+        for name in _REWARD_NAMES
+    ]
+    assert [tuple(fields[1:4]) for fields in rewards] == expected
+
+
+def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
+    # A probe that stops reaching its end (a renamed element, a moved attribute) would pass --check once regenerated.
+    for fields in (line.split("\t") for line in _golden_lines() if line.startswith("reward\t")):
+        if fields[3] != "summary":
+            continue
+        assert fields[4].split(" ")[1] == "second_reset=0:-:0.0000", fields
+        (species, stage), ends = fields[1:3], dict(part.split("=") for part in fields[4].split(" "))
+        steps = {part: end.split(":")[:2] for part, end in ends.items()}
+        pushes = ["zero"] if stage == "recovery" else []
+        assert list(steps) == [
+            "roll",
+            "second_reset",
+            *pushes,
+            "success",
+            "too_high",
+            "tilt",
+            "high_tilt",
+            "truncation",
+        ], fields
+        assert steps["roll"][1] not in ("-", "truncated"), f"{species} {stage}: the roll must end the episode"
+        if pushes:  # zero action to the episode's end (a termination, or truncation at the horizon), past the pushes
+            assert steps["zero"][1] != "-", f"{species} {stage}: the zero part must run to the episode's end"
+        success = [_SUCCESS[species] if stage == "behavior" else "-"]
+        assert steps["success"] == ["1", *success], (species, stage, steps["success"])
+        assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
+        assert steps["tilt"] == ["1", "excessive_tilt"] and steps["truncation"] == ["3", "truncated"], steps
+
+
+def test_golden_state_probes_reach_every_branch_they_cover() -> None:
+    reached: dict = {}
+    for fields in (line.split("\t") for line in _golden_lines() if line.startswith("reward\t")):
+        if fields[3] == "poses":
+            ends = dict(item.split("=") for item in fields[4].split(" "))
+            assert list(ends) == [name for name, *_ in digest_snapshot.REWARD_POSES] + ["nonfinite"], fields
+            assert ends["low_roll"] == "fallen" and ends["high"] == "too_high", fields  # the prefix's precedence
+            reached.setdefault(fields[1], set()).update(ends.values())
+    assert {species: reasons - {"-"} for species, reasons in reached.items()} == _POSE_REASONS
 
 
 def test_golden_holds_every_recovery_calibration_and_behavior_recipe() -> None:
@@ -177,6 +259,74 @@ def test_golden_holds_every_recovery_calibration_and_behavior_recipe() -> None:
         assert sorted((fields[1], fields[2]) for fields in behavior if fields[3] == name) == recipes, name
     with_sources = {(fields[1], fields[2]) for fields in behavior if fields[3].startswith("source:")}
     assert with_sources == set(recipes), "every recipe's identity records its source digests"
+
+
+# -- the reward captures ------------------------------------------------------
+
+
+def test_reward_rounding_and_the_exact_encoding() -> None:
+    rounded, exact = digest_snapshot._rounded, digest_snapshot._exact
+    assert json.dumps(rounded(-4e-7)) == "0.0" and json.dumps(rounded(np.float64(-0.0))) == "0.0"
+    assert rounded(np.float32(0.25)) == rounded(0.25) == 0.25 and rounded(1.23456789) == 1.234568
+    assert rounded(1234.56789) == 1234.568 and rounded(-98765.4321) == -98765.43
+    assert rounded(True) is True and rounded(7) == 7 and rounded("fallen") == "fallen"
+    assert exact(np.float32(0.1)) != exact(0.1) and exact(float(np.nextafter(0.1, 1.0))) != exact(0.1)
+    assert exact(np.float32(0.25)) != exact(0.25), "the dtype alone separates values every dtype holds exactly"
+
+
+def _capture(x: float, **extra: float) -> list[tuple[str, object, list[object]]]:
+    """A one-part, one-step capture as _capture returns it, with info value *x* (and *extra* keys)."""
+    info = {"x": x, **extra, "termination_reason": "fallen"}
+    row = (1.5, info, True, False, np.zeros(2, np.float32), np.ones(3), np.zeros(3))
+    return [("roll", {"qpos": [0.5], "rng_state": {"state": 3}, "obs": np.zeros(2)}, [row])]
+
+
+def test_exact_streams_see_an_ulp_that_the_rounded_golden_does_not() -> None:
+    streams, exact, rounded = digest_snapshot._streams, digest_snapshot._exact, digest_snapshot._rounded
+    ulp = float(np.nextafter(0.3, 1.0))
+    moved = streams(_capture(ulp), exact)
+    assert [key for key, digest in streams(_capture(0.3), exact).items() if moved[key] != digest] == [
+        ("roll", "info:x")
+    ]
+    assert streams(_capture(ulp), rounded) == streams(_capture(0.3), rounded)
+    assert streams(_capture(0.3001), rounded) != streams(_capture(0.3), rounded)
+    # A new key, even an inert 0.0 reward term, moves the shape digest's streams.
+    shape = streams(_capture(0.3, y=0.0), lambda value: "float")
+    assert ("roll", "info:y") in shape and shape[("roll", "flags")] != streams(_capture(0.3), lambda value: "float")[
+        ("roll", "flags")
+    ]
+    assert digest_snapshot._summary(_capture(0.3)) == "roll=1:fallen:1.5000"
+
+
+def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CI's digest step runs every stage on Python 3.12; this runs one species on every leg of the test matrix,
+    # where Python 3.11's float sum() moves the compsognathus reward by an ulp that the golden rounds away.
+    monkeypatch.setattr("environments.shared.config.SPECIES_NAMES", ("compsognathus",))
+    out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
+    digest_snapshot.reward_section(out)
+    assert out.kept == [line for line in _golden_lines() if line.startswith("reward\tcompsognathus\t")]
+
+
+def test_state_probes_keep_clear_of_the_thresholds() -> None:
+    # A pose within an ulp of a threshold would flip its reason between machines; this keeps each pose's tilt, root
+    # height and, where the species terminates on one, nosedive signal at least 1e-3 from its threshold (measured:
+    # 0.15 rad, 2.9 mm, 0.015).
+    out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
+    probes = 0
+    for species, stage, env in digest_snapshot._reward_envs(out, False):
+        low, high = env.healthy_z_range
+        # trex and dibothrosuchus take the nosedive threshold as a parameter; raptor_env.py hard-codes its 0.5.
+        nosedive = getattr(env, "nosedive_termination_threshold", 0.5 if species == "velociraptor" else None)
+        for part, _, rows in digest_snapshot._capture(env, digest_snapshot._state_parts()[:-1]):
+            info = rows[0][1]
+            height = info.get("torso_height", info.get("pelvis_height"))
+            assert abs(info["tilt_angle"] - env.max_tilt_angle) > 1e-3, (species, stage, part)
+            assert min(abs(height - low), abs(height - high)) > 1e-3, (species, stage, part)
+            if nosedive is not None:
+                assert abs(info["forward_z"] - (env._natural_forward_z - nosedive)) > 1e-3, (species, stage, part)
+            probes += 1
+    stages = sum(len(load_stage_manifest(species).stages) for species in SPECIES_NAMES)
+    assert not out.kept and stages and probes == len(digest_snapshot.REWARD_POSES) * stages
 
 
 # -- --check and --write on tiny snapshots ------------------------------------
@@ -297,7 +447,7 @@ def test_refusals_come_before_the_run(extra: list[str], message: str) -> None:
 
 @pytest.fixture
 def stubbed_sections(monkeypatch: pytest.MonkeyPatch):
-    """main() with its four sections replaced by one that emits _LINES, and its process-wide changes undone."""
+    """main() with its section functions replaced by one that emits _LINES, and its process-wide changes undone."""
 
     def plant_section(out: digest_snapshot._Snapshot) -> dict[str, object]:
         for line in _LINES:
@@ -307,6 +457,7 @@ def stubbed_sections(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(digest_snapshot, "plant_section", plant_section)
     for name in ("stage_section", "recovery_section", "behavior_section"):
         monkeypatch.setattr(digest_snapshot, name, lambda *args: None)
+    monkeypatch.setattr(digest_snapshot, "reward_section", lambda out, exact=False, behaviors=False: None)
     # main() blocks the optional backends, changes into --repo and puts it on sys.path.
     monkeypatch.setattr(digest_snapshot, "BLOCKED_BACKENDS", ())
     monkeypatch.setattr(sys, "meta_path", list(sys.meta_path))
@@ -331,3 +482,22 @@ def test_main_checks_without_writing_and_writes_what_check_accepts(
     assert path.read_text(encoding="utf-8") == digest_snapshot.render(_LINES)
     assert digest_snapshot.main([*repo, "--check", str(path)]) == 0
     assert f"Digest snapshot is current: {path} (4 lines)" in capsys.readouterr().out
+
+
+def test_main_exact_prints_only_the_reward_captures(
+    stubbed_sections: None, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = []
+
+    def reward_section(out: digest_snapshot._Snapshot, exact: bool = False, behaviors: bool = False) -> None:
+        calls.append((exact, behaviors))
+        out.emit("reward-exact", "trex", "stance", "roll", "reward", "sha256:e")
+
+    monkeypatch.setattr(digest_snapshot, "reward_section", reward_section)
+    repo = ["--repo", str(REPOSITORY_ROOT)]
+    assert digest_snapshot.main([*repo, "--exact", "--skip-behaviors"]) == 0
+    assert digest_snapshot.main([*repo, "--exact"]) == 0
+    assert capsys.readouterr().out == "reward-exact\ttrex\tstance\troll\treward\tsha256:e\n" * 2, "no other section"
+    assert calls == [(True, False), (True, True)]
+    with pytest.raises(SystemExit):  # never a golden
+        digest_snapshot.main([*repo, "--exact", "--check"])

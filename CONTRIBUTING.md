@@ -173,6 +173,13 @@ Follow this checklist:
      README blocks and `website/src/data/species.generated.json`
    - Run `python -m environments.shared.species_catalog --check` to verify that
      generated data and declared artifacts are current
+   - Add the species to `REWARD_SPECIES` in
+     `environments/shared/harnesses/digest_snapshot.py` (its roll amplitude and
+     the MJCF element its target sits on); without it the reward section
+     prints ERROR lines and `--write` refuses; also add its behavior stage's
+     success reason to `_SUCCESS` and the termination reasons its state probes
+     reach to `_POSE_REASONS` in
+     `environments/shared/tests/test_plant_contract_digest_snapshot.py`
    - Once its stages and behavior recipes are in place, run
      `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`
      to add the species' lines to `configs/digest_snapshot.generated.txt`
@@ -194,13 +201,15 @@ Follow this checklist:
 2. Make your changes with clear, focused commits
 3. Ensure all tests pass and pre-commit hooks are clean
 4. If the change moves a digest on purpose (a plant, the policy interface, a stage
-   config, a recovery calibration, a behavior recipe or the environment code it
-   hashes), regenerate the digest snapshot from the repository root with the
+   config, a recovery calibration, a behavior recipe, the environment code it
+   hashes, or reward, info or termination code), regenerate the digest snapshot from the repository root with the
    canonical MuJoCo (`configs/plant_versions.toml`) and commit
    `configs/digest_snapshot.generated.txt` in the same PR:
    `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`.
    CI's plant-contract job fails on any digest line that moved without it; a
-   change that claims to move no digest leaves the file unchanged
+   change that claims to move no digest leaves the file unchanged. A refactor
+   that claims to move no number also runs the harness's `--exact` on the base
+   and the head, on one machine, and shows an empty `diff` (see its `--help`)
 5. Open a PR with a description of what changed and why
 6. Link any related issues
 

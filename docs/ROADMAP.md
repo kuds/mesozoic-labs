@@ -50,7 +50,7 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
   - Users can then do `gym.make("MesozoicLabs/Raptor-v0")` after `import environments`
   - Auto-registration on `import environments`; the `pyproject.toml` entry-point
     groups first added for this were never read by Gymnasium and were deleted
-    (cleanup CU-7a)
+    (cleanup CU-7a, #572)
   - _Dependency: None_
 
 - [x] **Developer tooling**

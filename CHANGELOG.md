@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
+- **A golden of reward, info and termination values** (cleanup CU-11 of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-11 row, §4.4). The
+  digest snapshot gains a `reward` section: for each of the 21 stages, a
+  fixed capture (a noisy roll that ends in a held kick, an unseeded second
+  reset, zero action through the pushes of the recovery stages, one-step
+  probes, and twelve posed states scored against the stage's own
+  thresholds) becomes four lines of `configs/digest_snapshot.generated.txt`:
+  a summary (steps, end and reward sum per part), the ends of the posed
+  states, a digest of the discrete records and one of every value rounded
+  to 6 decimals. CI's existing digest step checks them on every event, so a
+  change that moves a reward, info or termination value by about 1e-6 or
+  more, an end or a reason fails its own pull request unless it
+  regenerates the golden; the rounded lines cannot see an ulp. `--exact` prints the same captures, and
+  every behavior recipe's, bit-exact, for a same-machine base/head `diff`:
+  the acceptance of refactors that claim to move no number. The first 848
+  lines of the golden are unchanged.
 - **The digest snapshot is a committed golden that CI checks** (#571,
   cleanup ROW-16, D-D22, 2026-09-29; `docs/CLEANUP_PLAN_2026_09.md` §2 row 16,
   §3.1 item 4 and §4.4). `configs/digest_snapshot.generated.txt` holds the
@@ -140,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migration
 - **`from environments.shared import <name>` no longer works for the 19
-  names the package re-exported** (cleanup CU-7a of
+  names the package re-exported** (#572, cleanup CU-7a of
   `docs/CLEANUP_PLAN_2026_09.md`): `CurriculumManager`, `BaseDinoEnv`,
   `load_stage_config`, `save_result_bundle` and the rest now raise
   `ImportError`. Import each from its submodule, e.g. `from
@@ -220,7 +236,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`import environments` no longer loads Stable-Baselines3, torch and
-  wandb** (cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`).
+  wandb** (#572, cleanup CU-7a of
+  `docs/CLEANUP_PLAN_2026_09.md`).
   `environments/shared/__init__.py` re-exported 19 names that nothing
   imported through the package, and importing any `environments.shared`
   submodule runs it first, as every species environment does. It now holds
@@ -357,7 +374,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new modules), and the suite collects 3,951 tests (from 3,949).
 
 ### Removed
-- **Dead code and the unread gymnasium entry points** (cleanup CU-7a of
+- **Dead code and the unread gymnasium entry points** (#572, cleanup CU-7a of
   `docs/CLEANUP_PLAN_2026_09.md`). Deleted, each with the tests that
   covered only it: `gate_schema.apply_backend_overrides` and
   `has_backend_overrides` (no caller since D-D17; a `[curriculum.jax]`
@@ -578,7 +595,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **The plant contract's MJX probe requires exactly one root body**
-  (cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
+  (#572, cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
   `build_mjx_observation` roots its observation on `torso` whenever the
   registration maps one, while the probe takes the root from the
   observation schema (`torso` for `quadrupedal-target/v1`, otherwise
@@ -588,7 +605,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`docs/PLANT_CONTRACT.md`), which closes the quadruped-detection MEDIUM
   in KNOWN_ISSUES; no committed registration maps both. The probe is not
   hashed, so no digest moves.
-- **`imageio` is declared** (cleanup CU-7a).
+- **`imageio` is declared** (#572, cleanup CU-7a).
   `compsognathus/scripts/view_model.py --video` imports `imageio.v2`,
   which no extra required; the `viz` extra now requires `imageio>=2.16.1`
   (`imageio.v2` needs 2.16, and 2.16.0 was yanked).
