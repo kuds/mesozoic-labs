@@ -32,7 +32,7 @@ from environments.shared.task_fingerprint import (  # noqa: E402
 )
 from environments.shared.train_base import create_vec_env, train  # noqa: E402
 
-from .notebook_cells import first_code_cell  # noqa: E402
+from .notebook_cells import exec_top_level_def, first_code_cell  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
 SPECIES = ("compsognathus", "compsognathus_robot")
@@ -376,6 +376,9 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
         "train_stage": forbidden,
         "evaluate_stage_checkpoints": forbidden,
     }
+    # The loop reads each node's budget through the infrastructure cell's node_budget (the real def, not a stub).
+    infrastructure = first_code_cell(ROOT / "notebooks/sb3_training.ipynb", "def train_stage(")
+    exec_top_level_def(infrastructure, "node_budget", namespace)
     with pytest.raises(GateResolutionError):
         exec(compile(source, "sb3_recovery_invalid_resolution", "exec"), namespace)
 

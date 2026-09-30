@@ -1,4 +1,4 @@
-"""Notebook cell readers for the notebook tests, and CI's notebook parse check.
+"""Notebook cell readers and helpers for the notebook tests, and CI's notebook parse check.
 
 The module imports only the standard library and nothing relative, so CI's
 lint job, which does not install the package, runs it by path:
@@ -68,6 +68,18 @@ def first_code_cell(path: Path, marker: str) -> str:
         if marker in source:
             return source
     raise LookupError(f"no code cell of {path.name} contains {marker!r}")
+
+
+def exec_top_level_def(source: str, name: str, namespace: dict[str, Any]) -> None:
+    """Define the one top-level ``def name`` of a code cell's *source* in *namespace*, running nothing else of it.
+
+    For an executed test of a cell that calls a helper another cell defines: the real definition, never a stub.
+    """
+    defs: list[ast.stmt] = [
+        node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == name
+    ]
+    assert len(defs) == 1, f"expected exactly one top-level `def {name}(`, found {len(defs)}"
+    exec(compile(ast.Module(body=defs, type_ignores=[]), f"<notebook def {name}>", "exec"), namespace)
 
 
 def strip_magics(source: str) -> str:
