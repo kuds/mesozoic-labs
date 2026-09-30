@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
-- **A golden of reward, info and termination values** (cleanup CU-11 of
+- **A golden of reward, info and termination values** (#573, cleanup CU-11 of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-11 row, §4.4). The
   digest snapshot gains a `reward` section: for each of the 21 stages, a
   fixed capture (a noisy roll that ends in a held kick, an unseeded second
@@ -235,6 +235,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **Coverage counts the certification code** (cleanup CU-9 of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-9 row).
+  `[tool.coverage.run] omit` names the hand-run and one-off files one by
+  one, each with its reason, instead of omitting every `scripts/` and
+  `harnesses/` file; the recovery gate's freeze producer,
+  `widen_checkpoint.py`, `backfill_gate_verdict.py`,
+  `restamp_recovery_calibration.py` and `calibrate_recovery.py`, and the
+  statue baselines `zero_action_baseline.py` and
+  `stance_quality_baseline.py`, now count; `digest_snapshot.py` and the
+  viewers stay omitted; and `test_coverage_config.py` pins the list and
+  that nothing else (a report-time omit, an `include`, another coverage
+  config file) takes a file out of the union. `brace_controller` and
+  `BRACE_SETTLE_SEEDS`/`BRACE_SETTLE_STEPS` moved from
+  `harnesses/recovery_offdist_panel.py` to `recovery_evaluation.py`, which
+  breaks the import cycle between the freeze producer and that panel.
+  Measured locally, the union reads 19,626 statements, 2,405 missed,
+  87.75 percent (91.24 before). No digest moves.
 - **`import environments` no longer loads Stable-Baselines3, torch and
   wandb** (#572, cleanup CU-7a of
   `docs/CLEANUP_PLAN_2026_09.md`).
