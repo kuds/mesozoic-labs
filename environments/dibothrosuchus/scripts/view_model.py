@@ -2,8 +2,8 @@
 """
 Passive viewer for Dibothrosuchus MJCF iteration.
 
-Usage:
-    python view_model.py
+Usage (from the repository root):
+    python -m environments.dibothrosuchus.scripts.view_model
 
 Controls:
     - Mouse drag: rotate view

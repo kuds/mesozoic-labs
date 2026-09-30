@@ -27,28 +27,6 @@ class TestDirectoryAccessors:
         assert stage_layout.replays_dir(tmp_path, create=True).is_dir()
 
 
-class TestIterFigures:
-    def test_finds_nested_figures(self, tmp_path):
-        _touch(tmp_path / "figures" / "training_curves.png")
-        _touch(tmp_path / "figures" / "foot_contacts.png")
-        names = {p.name for p in stage_layout.iter_figures(tmp_path)}
-        assert names == {"training_curves.png", "foot_contacts.png"}
-
-    def test_finds_legacy_flat_figures(self, tmp_path):
-        # The layout the ~35 existing runs on Drive use.
-        for name in stage_layout.FIGURE_NAMES:
-            _touch(tmp_path / name)
-        names = {p.name for p in stage_layout.iter_figures(tmp_path)}
-        assert names == set(stage_layout.FIGURE_NAMES)
-
-    def test_a_nested_figure_shadows_its_legacy_twin(self, tmp_path):
-        _touch(tmp_path / "training_curves.png")
-        _touch(tmp_path / "figures" / "training_curves.png")
-        found = list(stage_layout.iter_figures(tmp_path))
-        assert len(found) == 1
-        assert found[0].parent.name == "figures"
-
-
 class TestIterReplayFiles:
     def test_finds_nested_videos_and_stance_csvs(self, tmp_path):
         _touch(tmp_path / "replays" / "trex_ppo_stage1_best.mp4")
@@ -435,9 +413,3 @@ class TestAccessorsNeverYieldDirectories:
         _touch(tmp_path / "replays" / "real.mp4")
         found = list(stage_layout.iter_replay_files(tmp_path))
         assert [p.name for p in found] == ["real.mp4"]
-
-    def test_generated_artifacts_are_all_readable(self, tmp_path):
-        (tmp_path / "weird.mp4").mkdir()
-        _touch(tmp_path / "figures" / "training_curves.png")
-        _touch(tmp_path / "replays" / "real.mp4")
-        assert all(p.is_file() for p in stage_layout.iter_generated_artifacts(tmp_path))

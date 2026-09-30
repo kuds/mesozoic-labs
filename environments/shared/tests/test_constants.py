@@ -3,7 +3,6 @@
 from environments.shared.constants import (
     DEFAULT_CLIP_OBS,
     DEFAULT_CLIP_REWARD,
-    DEFAULT_FRAME_SKIP,
     DEFAULT_NORM_OBS,
     DEFAULT_NORM_REWARD,
     SENSOR_ACCEL_START,
@@ -30,7 +29,6 @@ def test_vecnormalize_defaults():
 
 def test_physics_defaults():
     """Physics constants must match expected simulation configuration."""
-    assert DEFAULT_FRAME_SKIP == 5
     assert TAIL_ANGULAR_VEL_MAX == 10.0
 
 

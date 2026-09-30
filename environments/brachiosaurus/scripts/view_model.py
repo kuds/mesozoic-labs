@@ -2,8 +2,8 @@
 """
 Passive viewer for Brachiosaurus MJCF iteration.
 
-Usage:
-    python view_model.py
+Usage (from the repository root):
+    python -m environments.brachiosaurus.scripts.view_model
 
 Controls:
     - Mouse drag: rotate view

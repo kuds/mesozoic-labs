@@ -6,6 +6,7 @@ the assertions necessarily span source, policy, physics, and visual."""
 
 from __future__ import annotations
 
+import importlib
 from dataclasses import replace
 
 import mujoco
@@ -15,12 +16,13 @@ import pytest
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
+    PlantContractError,
     PlantVersion,
     fingerprint_model_layers,
     load_plant_versions,
 )
 from environments.shared.plant_contract.physics_layer import _option_payload
-from environments.shared.plant_contract.policy_layer import _policy_interface_payload
+from environments.shared.plant_contract.policy_layer import _jax_policy_interface_payload, _policy_interface_payload
 from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
@@ -285,3 +287,28 @@ def test_human_revision_counters_do_not_change_semantic_fingerprints(raptor_laye
         env.close()
 
     assert revised == original
+
+
+def test_mjx_probe_rejects_a_registration_with_both_root_bodies(raptor_layers, monkeypatch):
+    """The MJX probe requires exactly one registered root body.
+
+    ``build_mjx_observation`` (frozen core) roots on ``torso`` whenever one is
+    registered, while the probe takes the root from the observation schema.  A
+    biped that also maps a ``torso`` body must fail the probe rather than build
+    its MJX observation from the wrong root.
+    """
+    source, interface, version, _original = raptor_layers
+    changed_source = source.replace("</worldbody>", '  <body name="torso" pos="0.3 0 1.0"/>\n  </worldbody>', 1)
+    assert changed_source != source
+    model = mujoco.MjModel.from_xml_string(changed_source)
+    registration_module = importlib.import_module("environments.velociraptor.mjx_config")
+    registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
+    if version.species not in registry:
+        importlib.reload(registration_module)
+    registration = dict(registry[version.species])
+    torso_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "torso")
+    registration["body_ids"] = {**registration["body_ids"], "torso": torso_id}
+    monkeypatch.setitem(registry, version.species, registration)
+
+    with pytest.raises(PlantContractError, match="exactly one root body, 'pelvis'"):
+        _jax_policy_interface_payload(model, interface, version)

@@ -23,9 +23,9 @@ reimplementation is not the same verdict.  Everything here funnels through
 this reports is what the curriculum would decide.
 
 Deliberately not re-exported from :mod:`environments.shared.reporting`: the
-species registry imported here pulls ``train_base`` at module level, and the
-reporting package is imported eagerly by ``environments.shared``.  Import
-this module by its full path, lazily where the importer must stay light.
+species registry imported here pulls ``train_base`` at module level, which
+every importer of the reporting package would then pay for.  Import this
+module by its full path, lazily where the importer must stay light.
 """
 
 from __future__ import annotations

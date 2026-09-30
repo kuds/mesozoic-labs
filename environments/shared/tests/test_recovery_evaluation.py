@@ -24,7 +24,6 @@ from environments.shared.curriculum.gate_resolver import (
 )
 from environments.shared.curriculum.recovery_gate import RecoveryGateThresholds, binomial_ucb
 from environments.shared.recovery_evaluation import (
-    paired_success_differences,
     roll_recovery_panel,
     write_recovery_evidence,
     zero_action_controller,
@@ -94,16 +93,6 @@ class TestPanelHarness:
         env = TRexEnv(reset_noise_scale=0.0, max_episode_steps=120)
         with pytest.raises(ValueError, match="perturbation-enabled"):
             _roll(env, "policy")
-
-    def test_paired_differences_align_by_seed(self):
-        policy = _roll(_pushed_env(), "policy")
-        null = _roll(_pushed_env(), "zero_action")
-        differences = paired_success_differences(policy, null)
-        # Identical controllers on identical seeds: every difference is 0.
-        assert differences == tuple([0.0] * len(policy.episodes))
-        mismatched = _roll(_pushed_env(), "zero_action", seed=4000)
-        with pytest.raises(ValueError, match="seed set"):
-            paired_success_differences(policy, mismatched)
 
     def test_evidence_csvs_round_trip(self, tmp_path):
         evidence = _roll(_pushed_env(), "policy")

@@ -43,6 +43,8 @@ viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
     "imageio-ffmpeg>=0.5.0",
+    # compsognathus/scripts/view_model.py --video (imageio.v2 needs 2.16; 2.16.0 was yanked).
+    "imageio>=2.16.1",
 ]
 test = [
     "pytest>=7.0",
@@ -60,19 +62,6 @@ dev = [
 all = [
     "mesozoic-labs[train,viz,dev]",
 ]
-
-# Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
-[project.entry-points."gymnasium.envs.__root__"]
-MesozoicLabs = "environments:__init__"
-
-[project.entry-points."gymnasium.envs.MesozoicLabs"]
-__root__ = "environments:__init__"
-Raptor-v0 = "environments.velociraptor.envs.raptor_env:RaptorEnv"
-Brachio-v0 = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
-TRex-v0 = "environments.trex.envs.trex_env:TRexEnv"
-Dibothrosuchus-v0 = "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv"
-Compsognathus-v0 = "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv"
-CompsognathusRobot-v0 = "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "configs*"]

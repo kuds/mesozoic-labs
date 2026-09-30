@@ -24,7 +24,6 @@ from environments.shared.stage_manifest import (
     LEGACY_STAGE_IDS,
     RESERVED_STAGE_IDS,
     STAGE_ID_PATTERN,
-    STAGE_MANIFEST_SCHEMA,
     STAGE_MANIFEST_SCHEMA_V1,
     STAGE_MANIFEST_SCHEMA_V2,
     STAGE_MANIFEST_SCHEMAS,
@@ -159,8 +158,6 @@ class TestTrexManifest:
         manifest = load_stage_manifest("trex")
         with pytest.raises(StageManifestError, match="no stage 'sprint'"):
             manifest.resolve("sprint")
-        with pytest.raises(StageManifestError, match="positions 1..4"):
-            manifest.by_position(5)
         with pytest.raises(StageManifestError, match="invalid stage reference"):
             manifest.resolve(True)
 
@@ -182,7 +179,6 @@ class TestDeclaredLegacyTrio:
 class TestSchemaVersions:
     def test_v1_and_v2_both_load_and_v3_is_fatal(self, tmp_path):
         assert STAGE_MANIFEST_SCHEMAS == (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
-        assert STAGE_MANIFEST_SCHEMA == STAGE_MANIFEST_SCHEMA_V2
         entry = '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nlegacy_number = 1\n'
         root = _write_manifest(tmp_path / "v1", "x", V1 + entry)
         assert load_stage_manifest("x", configs_dir=root).schema == STAGE_MANIFEST_SCHEMA_V1

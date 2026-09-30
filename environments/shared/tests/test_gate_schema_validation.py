@@ -16,7 +16,6 @@ from environments.shared.curriculum import thresholds_from_configs
 from environments.shared.curriculum.gate_schema import (
     GATE_SCHEMA_VERSION,
     GateSchemaError,
-    apply_backend_overrides,
     validate_gate_config,
 )
 
@@ -81,14 +80,6 @@ class TestBackendOverrideTable:
         thresholds = thresholds_from_configs(configs)
         assert thresholds[1]["min_avg_reward"] == 100.0
         assert "jax" not in thresholds[1]
-
-    def test_apply_backend_overrides_replaces_only_the_named_scalar(self):
-        curriculum = dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)
-        assert apply_backend_overrides(curriculum, "jax") == curriculum
-        effective = apply_backend_overrides(dict(curriculum, jax={"min_avg_reward": 40.0}), "jax")
-        assert effective["min_avg_reward"] == 40.0
-        assert effective["min_avg_episode_length"] == 950
-        assert "jax" not in effective
 
     def test_a_toml_sub_table_loads_and_validates(self, tmp_path):
         path = tmp_path / "good.toml"

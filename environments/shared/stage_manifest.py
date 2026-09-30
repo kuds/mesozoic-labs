@@ -66,8 +66,6 @@ STAGE_MANIFEST_SCHEMA_V1 = "mesozoic.stage-manifest/v1"
 STAGE_MANIFEST_SCHEMA_V2 = "mesozoic.stage-manifest/v2"
 #: Every schema this reader accepts.
 STAGE_MANIFEST_SCHEMAS = (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
-#: The schema new manifests are written with.
-STAGE_MANIFEST_SCHEMA = STAGE_MANIFEST_SCHEMA_V2
 
 #: The four historical ids (STAGE1_SPLIT_PLAN §4).  Since manifest v2 this is
 #: NO LONGER the complete vocabulary — any id matching
@@ -180,11 +178,6 @@ class StageManifest:
             f"{self.species} has no stage with legacy number {number}; integer references resolve "
             "through legacy numbers only (a stage without one, like recovery, must be named by ID)"
         )
-
-    def by_position(self, position: int) -> StageEntry:
-        if not 1 <= position <= len(self.stages):
-            raise StageManifestError(f"{self.species} has stages at positions 1..{len(self.stages)}, not {position}")
-        return self.stages[position - 1]
 
     def resolve(self, ref: "int | str") -> StageEntry:
         """Resolve a stage reference: str = semantic ID, int = LEGACY number.

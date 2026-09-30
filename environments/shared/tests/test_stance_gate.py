@@ -31,12 +31,10 @@ from environments.shared.curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
     StancePanel,
-    episode_unsupported_duty,
     evaluate_stance_gate,
     mean_upper_confidence_bound,
     one_sided_t95,
     stance_panel_from_episode_duties,
-    summarize_stance_panel,
 )
 
 HORIZON = 1000
@@ -61,17 +59,23 @@ def _episode(duty: float, length: int = HORIZON) -> np.ndarray:
     return flags
 
 
+def _duty(flags: np.ndarray, settle_steps: int = SETTLE) -> float | None:
+    """A trace's post-settle unsupported duty; ``None`` when it has no tail past the window."""
+    if flags.size <= settle_steps:
+        return None
+    return float(flags[settle_steps:].mean())
+
+
 def _panel(duty, reward, *, n=40, full_fraction=1.0, jitter=0.0, seed=0):
     rng = np.random.default_rng(seed)
     n_full = int(round(n * full_fraction))
     lengths = [HORIZON] * n_full + [400] * (n - n_full)
     traces = [_episode(max(0.0, duty + (rng.normal(0, jitter) if jitter else 0.0)), L) for L in lengths]
-    return summarize_stance_panel(
+    return stance_panel_from_episode_duties(
         episode_lengths=lengths,
-        episode_unsupported=traces,
+        episode_duties=[_duty(trace) for trace in traces],
         episode_rewards=[reward] * n,
         horizon=HORIZON,
-        settle_steps=SETTLE,
     )
 
 
@@ -186,12 +190,11 @@ def test_compsognathus_configured_settling_window(species):
     # Reset corrections throughout the first 20% must not count as stance duty.
     flags = np.zeros(horizon)
     flags[: horizon // 5] = 1.0
-    panel = summarize_stance_panel(
+    panel = stance_panel_from_episode_duties(
         episode_lengths=[horizon] * 40,
-        episode_unsupported=[flags] * 40,
+        episode_duties=[_duty(flags, thresholds.settle_steps)] * 40,
         episode_rewards=[3000.0] * 40,
         horizon=horizon,
-        settle_steps=thresholds.settle_steps,
     )
     assert panel.mean_unsupported_duty == 0.0
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -209,7 +212,7 @@ class TestFailedEpisodesAreExcludedFromDuty:
         traces = [_episode(0.0, HORIZON), _episode(1.0, 400)]
         panel = stance_panel_from_episode_duties(
             episode_lengths=lengths,
-            episode_duties=[episode_unsupported_duty(t, settle_steps=SETTLE) for t in traces],
+            episode_duties=[_duty(t) for t in traces],
             episode_rewards=[3271.8, 900.0],
             horizon=HORIZON,
         )
@@ -235,22 +238,6 @@ class TestFailedEpisodesAreExcludedFromDuty:
         )
         assert panel.n_duty_episodes == 1
         assert panel.mean_unsupported_duty == pytest.approx(0.5)
-
-
-class TestSettlingWindow:
-    def test_duty_before_the_window_is_ignored(self):
-        # Airborne for the whole settling prefix, planted afterwards.
-        flags = np.zeros(HORIZON)
-        flags[:SETTLE] = 1.0
-        assert episode_unsupported_duty(flags, settle_steps=SETTLE) == pytest.approx(0.0)
-
-    def test_duty_after_the_window_is_counted(self):
-        flags = np.zeros(HORIZON)
-        flags[SETTLE:] = 1.0
-        assert episode_unsupported_duty(flags, settle_steps=SETTLE) == pytest.approx(1.0)
-
-    def test_episode_shorter_than_the_window_has_no_measurable_tail(self):
-        assert episode_unsupported_duty(np.zeros(SETTLE), settle_steps=SETTLE) is None
 
 
 class TestConfidenceBound:

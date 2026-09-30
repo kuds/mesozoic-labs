@@ -283,18 +283,6 @@ def reward_nosedive(
     return reward, forward_z
 
 
-def reward_height_maintenance(
-    body_height: Array,
-    healthy_z_min: float,
-    target_z: float,
-    weight: float,
-) -> Array:
-    """Smooth gradient toward staying at target height."""
-    xp = _array_mod(body_height)
-    height_frac = xp.clip((body_height - healthy_z_min) / (target_z - healthy_z_min), 0.0, 1.0)
-    return weight * height_frac
-
-
 def reward_target_centered_height(
     body_height: Array,
     target_z: float,
@@ -305,7 +293,7 @@ def reward_target_centered_height(
 
     ``tolerance`` is the Gaussian scale: an absolute error of one tolerance
     receives ``exp(-1)`` quality.  Callers retain the historical one-sided
-    :func:`reward_height_maintenance` path when tolerance is zero.
+    height fraction, which they compute inline, when tolerance is zero.
 
     Returns:
         ``(reward, absolute_height_error, height_quality)``.
@@ -676,24 +664,5 @@ def check_height_tilt_termination(
             return True, "too_high"
         if tilted:
             return True, "excessive_tilt"
-        return False, None
-    return terminated, None
-
-
-def check_nosedive_termination(
-    forward_z: Array,
-    natural_forward_z: float,
-    threshold: float = 0.5,
-) -> tuple[Array, str | None]:
-    """Check nosedive termination.
-
-    Returns:
-        (terminated, reason).
-    """
-    xp = _array_mod(forward_z)
-    terminated = forward_z < natural_forward_z - threshold
-    if xp is np:
-        if terminated:
-            return True, "nosedive"
         return False, None
     return terminated, None

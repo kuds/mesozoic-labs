@@ -307,7 +307,6 @@ class TestWrite:
         assert path.parent == stage_dir
         assert path.name == "gate_verdict.json"
         assert "models" not in path.relative_to(stage_dir).parts
-        assert path not in set(stage_layout.iter_generated_artifacts(stage_dir))
         assert path not in set(stage_layout.iter_replay_files(stage_dir))
 
     def test_a_handoff_outside_the_stage_dir_is_recorded_absolute(self, tmp_path):

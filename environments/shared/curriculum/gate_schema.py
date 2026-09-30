@@ -280,9 +280,9 @@ _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 #: fall_penalty`` overrode ``[env] fall_penalty``, so one shared number encoded
 #: a different bar per backend.  The sub-table let a stage state a
 #: JAX-calibrated bar ADDITIVELY: absent, nothing changes; present, only the
-#: keys it names are replaced for that backend (:func:`apply_backend_overrides`,
-#: which has had no caller since D-D17 retired the JAX path; the table is still
-#: validated, docs/CLEANUP_PLAN_2026_09.md §4.9).
+#: keys it names were replaced for that backend.  Nothing has applied it since
+#: D-D17 retired the JAX path, and its merge helper is gone; the table is still
+#: validated (docs/CLEANUP_PLAN_2026_09.md §4.9).
 BACKEND_OVERRIDE_TABLES = frozenset({"jax"})
 
 #: The only keys an override table may carry: the legacy scalar thresholds.
@@ -573,34 +573,6 @@ def _validate_backend_override_table(stage: int | str, table: str, overrides: An
         raise GateSchemaError(
             f"{_describe(stage)}: [curriculum.{table}] threshold(s) {non_numeric} must be finite numbers."
         )
-
-
-def apply_backend_overrides(curriculum_kwargs: Mapping[str, Any], backend: str) -> dict[str, Any]:
-    """Return *curriculum_kwargs* with *backend*'s override sub-table applied.
-
-    The result carries no override sub-tables at all (every backend's table
-    is dropped, the requested one after being merged over the shared scalar
-    thresholds), so downstream readers see a flat ``[curriculum]`` mapping
-    exactly as they always have.  Absent table, identical thresholds — the
-    override is strictly additive.
-
-    Args:
-        curriculum_kwargs: A stage's ``curriculum_kwargs`` mapping, already
-            validated by :func:`validate_gate_config`.
-        backend: Which sub-table to apply, e.g. ``"jax"``.
-    """
-    if backend not in BACKEND_OVERRIDE_TABLES:
-        raise ValueError(f"unknown backend override table {backend!r}; known: {sorted(BACKEND_OVERRIDE_TABLES)}")
-    merged = {key: value for key, value in curriculum_kwargs.items() if key not in BACKEND_OVERRIDE_TABLES}
-    overrides = curriculum_kwargs.get(backend)
-    if overrides:
-        merged.update(dict(overrides))
-    return merged
-
-
-def has_backend_overrides(curriculum_kwargs: Mapping[str, Any], backend: str) -> bool:
-    """Whether the stage declares a non-empty ``[curriculum.<backend>]`` table."""
-    return bool(curriculum_kwargs.get(backend))
 
 
 def validate_gate_configs(

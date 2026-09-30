@@ -45,10 +45,12 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
   - Enables rapid reward experimentation without code changes
   - _Dependency: None_
 
-- [x] **Register Gymnasium entry points**
-  - Add `[project.entry-points."gymnasium.envs"]` to `pyproject.toml`
-  - Users can then do `gym.make("MesozoicLabs/Velociraptor-v0")`
-  - Auto-registration on `import environments`
+- [x] **Register the Gymnasium environments**
+  - Each species' env module calls `gym.register` in the `MesozoicLabs` namespace
+  - Users can then do `gym.make("MesozoicLabs/Raptor-v0")` after `import environments`
+  - Auto-registration on `import environments`; the `pyproject.toml` entry-point
+    groups first added for this were never read by Gymnasium and were deleted
+    (cleanup CU-7a)
   - _Dependency: None_
 
 - [x] **Developer tooling**

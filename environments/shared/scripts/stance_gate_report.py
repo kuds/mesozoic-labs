@@ -8,8 +8,8 @@ and prints the verdict criterion by criterion.
 Why this exists as a script rather than a notebook cell: the gate's verdict is
 the thing runs are judged on, and a verdict computed by hand-rolled
 reimplementation is not the same verdict.  Everything here funnels through
-``summarize_stance_panel`` and ``evaluate_stance_gate``, so what this prints is
-what the curriculum would decide.
+``stance_panel_from_episode_duties`` and ``evaluate_stance_gate``, so what this
+prints is what the curriculum would decide.
 
 It also covers the case the training loop cannot: **an already-finished run**.
 Run ``20260801_203206`` completed stage 1 under the old ``reward_and_length/v1``

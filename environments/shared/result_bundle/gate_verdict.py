@@ -9,7 +9,7 @@ puts it beside the handoff pair and hash-binds it to them.
 Where it lives: the STAGE DIRECTORY ROOT beside ``stage_config.json`` —
 never under ``models/`` (retention pruning must never touch it) and never
 in the staged ``figures/`` / ``replays/`` tree
-(``stage_layout.iter_generated_artifacts`` must never enumerate it).
+(``stage_layout.iter_replay_files`` must never enumerate it).
 
 Who writes it (Phase A, decision D-A5): ``generate_stage_artifacts``
 (post-stage, evidence-backed) and ``train_curriculum``'s in-training

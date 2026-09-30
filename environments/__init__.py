@@ -28,7 +28,3 @@ except ImportError:
     _logging.getLogger(__name__).debug(
         "Species environments not loaded (gymnasium/mujoco may not be installed)",
     )
-
-
-def register_all():
-    """No-op kept for backwards compatibility. Envs are registered on import."""

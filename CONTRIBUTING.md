@@ -182,7 +182,6 @@ Follow this checklist:
 
 10. **Update pyproject.toml**:
     - Add the test path to `[tool.pytest.ini_options]`
-    - Add the Gymnasium entry point
 
 11. **Add the documentation** (`environments/<species>/README.md`,
     `website/docs/models/<species>.mdx`):

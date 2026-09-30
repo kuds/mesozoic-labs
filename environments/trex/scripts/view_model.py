@@ -2,8 +2,8 @@
 """
 Passive viewer for T-Rex MJCF model.
 
-Usage:
-    python view_model.py
+Usage (from the repository root):
+    python -m environments.trex.scripts.view_model
 
 Controls:
     - Mouse drag: rotate view

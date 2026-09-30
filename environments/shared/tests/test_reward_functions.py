@@ -9,7 +9,6 @@ import pytest
 
 from environments.shared.reward_functions import (
     check_height_tilt_termination,
-    check_nosedive_termination,
     quat_to_forward_2d,
     quat_to_forward_z,
     quat_to_tilt,
@@ -24,7 +23,6 @@ from environments.shared.reward_functions import (
     reward_foot_load_balance,
     reward_forward_velocity,
     reward_head_clearance,
-    reward_height_maintenance,
     reward_idle_penalty,
     reward_lean_aware_posture,
     reward_posture,
@@ -237,16 +235,6 @@ class TestRewardProximity:
         assert reward == pytest.approx(0.0)
 
 
-class TestRewardHeightMaintenance:
-    def test_at_target(self):
-        r = reward_height_maintenance(0.9, 0.5, 0.9, 1.0)
-        assert r == pytest.approx(1.0)
-
-    def test_at_min(self):
-        r = reward_height_maintenance(0.5, 0.5, 0.9, 1.0)
-        assert r == pytest.approx(0.0)
-
-
 class TestStageOneStancePrimitives:
     def test_bilateral_support_uses_weaker_saturated_foot(self):
         reward, quality = reward_bilateral_support(np.array([125.0, 40.0]), 100.0, 2.0)
@@ -410,17 +398,6 @@ class TestHeightTiltTermination:
         terminated, reason = check_height_tilt_termination(0.5, 2.0, (0.3, 1.0), 1.047)
         assert terminated
         assert reason == "excessive_tilt"
-
-
-class TestNosediveTermination:
-    def test_normal(self):
-        terminated, _ = check_nosedive_termination(-0.1, -0.17)
-        assert not terminated
-
-    def test_nosedive(self):
-        terminated, reason = check_nosedive_termination(-0.8, -0.17)
-        assert terminated
-        assert reason == "nosedive"
 
 
 class TestFootLoadBalanceMonotoneOrdering:

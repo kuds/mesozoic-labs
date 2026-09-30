@@ -3,8 +3,8 @@
 Test actuators by applying sinusoidal control signals.
 Useful for verifying joint ranges and actuator gains.
 
-Usage:
-    python test_actuators.py
+Usage (from the repository root):
+    python -m environments.trex.scripts.test_actuators
 """
 
 from pathlib import Path
