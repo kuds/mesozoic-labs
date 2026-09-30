@@ -13,11 +13,15 @@ These tests keep the list explicit:
   stage-1 gate constants, count;
 * ``harnesses/digest_snapshot.py`` stays omitted by name (its own CI step
   checks it);
-* no omitted file is imported by a test, so tested code is never hidden;
+* no omitted file is imported by name by a test, so tested code is never
+  hidden (``viewer.py``, ``actuators.py`` and ``env_smoke.py`` load only through
+  ``harnesses/__init__.py``'s re-exports, which no test calls);
   ``digest_snapshot.py`` is the one named exception;
-* the omit list is the only way out of the union: no report-time ``omit``,
-  no ``include``, ``source`` is the whole package, and no other coverage
-  config file overrides pyproject.toml.
+* no other coverage setting takes a file out of the union: no report-time
+  ``omit``, no ``include``, ``source`` is the whole package, no other
+  coverage config file overrides pyproject.toml, and each of those files
+  triggers the workflow, so a PR that adds one runs these checks.  (CI's
+  coverage command lines are not checked here.)
 
 An omit entry is a glob relative to the repository root, where CI runs
 coverage, and coverage's ``*`` does not cross ``/``; ``Path.glob`` resolves
@@ -30,6 +34,8 @@ import ast
 import tomllib
 from pathlib import Path
 from typing import Any
+
+from environments.shared.tests.ci_workflow_helpers import glob_matches, path_filters
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
@@ -52,7 +58,7 @@ GATE_CONSTANT_EVIDENCE = (
 )
 #: Files coverage reads its settings from in preference to pyproject.toml
 #: (the latter two only when they hold a ``[coverage:*]`` section).
-COVERAGERC = ".coveragerc"
+COVERAGE_RCFILES = (".coveragerc", ".coveragerc.toml")
 OTHER_COVERAGE_CONFIGS = ("setup.cfg", "tox.ini")
 _GLOB_CHARACTERS = frozenset("*?[]")
 
@@ -141,7 +147,7 @@ def test_the_certification_code_counts():
         assert path not in omitted, f"{path} is certification or gate-constant code: coverage must measure it"
 
 
-def test_no_omitted_file_is_imported_by_a_test():
+def test_no_omitted_file_is_imported_by_name_by_a_test():
     imported = _modules_tests_import()
     hidden = sorted(path for path in _omitted_files() if path != DIGEST_SNAPSHOT and _module_name(path) in imported)
     assert not hidden, f"a test imports {hidden}: delete their omit entries so coverage measures them"
@@ -152,7 +158,17 @@ def test_nothing_else_takes_a_file_out_of_the_union():
     assert config["run"]["source"] == ["environments"]
     assert "include" not in config["run"], "measure all of environments/; omit names what is left out"
     assert not {"omit", "include"} & set(config.get("report", {})), "a report-time omit would hide measured files"
-    assert not (REPOSITORY_ROOT / COVERAGERC).exists(), f"{COVERAGERC} would override pyproject.toml"
+    for name in COVERAGE_RCFILES:
+        assert not (REPOSITORY_ROOT / name).exists(), f"{name} would override pyproject.toml"
     for name in OTHER_COVERAGE_CONFIGS:
         path = REPOSITORY_ROOT / name
         assert not path.is_file() or "[coverage:" not in path.read_text(encoding="utf-8"), f"{name} overrides it too"
+
+
+def test_every_coverage_config_file_triggers_the_workflow():
+    # A PR that only adds one of these files must still run the check above.
+    filters = path_filters()
+    assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
+    for patterns in filters:
+        for name in (*COVERAGE_RCFILES, *OTHER_COVERAGE_CONFIGS):
+            assert any(glob_matches(pattern, name) for pattern in patterns), f"{name} does not trigger python-ci.yml"

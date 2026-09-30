@@ -140,9 +140,10 @@ relative_files = true
 # certification code (the freeze producer, widen_checkpoint, the verdict
 # backfill), unless it is named below with its reason (cleanup CU-9). Name
 # files one by one: a `*` may stand only for the species directory, and a
-# file a test imports is not omitted. This list is the only place a file
-# leaves the union: no [tool.coverage.report] omit and no `include`
-# (test_coverage_config.py pins all three).
+# file a test imports by name is not omitted (digest_snapshot.py is the one
+# exception). In coverage's configuration this list is the only place a
+# file leaves the union: no [tool.coverage.report] omit, no `include`, and
+# no other coverage config file (test_coverage_config.py pins them all).
 omit = [
     "*/tests/*",
     # Hand-run viewers and actuator drivers (mujoco.viewer needs a display)
@@ -153,8 +154,9 @@ omit = [
     "environments/shared/harnesses/viewer.py",
     "environments/shared/harnesses/actuators.py",
     "environments/shared/harnesses/env_smoke.py",
-    # The digest snapshot: the plant-contract job runs it as its own CI step
-    # (D-D22), outside pytest; kept omitted by the CU-9 row.
+    # The digest snapshot: the plant-contract job runs it in full as its own
+    # CI step (D-D22); test_plant_contract_digest_snapshot.py imports parts of
+    # it. Kept omitted by the CU-9 row, the one test-imported exception.
     "environments/shared/harnesses/digest_snapshot.py",
     # Hand-run Compsognathus MJCF generators (the plant digests and the
     # Compsognathus model tests check the committed MJCFs they write) and

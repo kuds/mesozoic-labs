@@ -290,7 +290,8 @@ class TestHistoricalBraceNull:
     """The T-Rex branch that freezes the brace next to the statue (no species calibration)."""
 
     def test_a_checkpoint_adds_the_brace_null(self, tmp_path, monkeypatch):
-        calls, policies, braced = [], [], []
+        calls, policies, braced, held, rolled = [], [], [], [], {}
+        real_roll_null = producer._roll_null
 
         def zero_policy(*args, **kwargs):
             calls.append((args, kwargs))
@@ -299,12 +300,18 @@ class TestHistoricalBraceNull:
 
         def library_brace(env, predict):
             braced.append(predict)
-            return recovery_evaluation.brace_controller(env, predict)
+            held.append(recovery_evaluation.brace_controller(env, predict))
+            return held[-1]
+
+        def spy_roll_null(env, predict, *, controller_id, **kwargs):
+            rolled[controller_id] = predict
+            return real_roll_null(env, predict, controller_id=controller_id, **kwargs)
 
         # A checkpoint that commands the home keyframe: its post-settle mean
         # is the zero vector, so its brace must replay the statue's panel.
         monkeypatch.setattr(producer, "policy_controller", zero_policy)
         monkeypatch.setattr(producer, "brace_controller", library_brace)
+        monkeypatch.setattr(producer, "_roll_null", spy_roll_null)
         result = producer.freeze_recovery_gate(
             tmp_path, episodes=2, seed=3042, policy_zip="stance.zip", vecnorm="stance_vecnorm.pkl"
         )
@@ -313,6 +320,8 @@ class TestHistoricalBraceNull:
         assert args == ("stance.zip", "stance_vecnorm.pkl")
         # The brace is the library's post-settle mean of THIS checkpoint.
         assert braced == policies
+        # And the brace null the producer rolls is that controller, not the checkpoint or the statue.
+        assert [rolled["brace"]] == held and rolled["brace"] is not policies[0]
         # The historical judge is T-Rex's own: no species or stage expectation.
         assert kwargs["expected_species"] is None and kwargs["expected_stage"] is None
         manifest = result.resolution["null_manifest"]
