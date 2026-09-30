@@ -14,14 +14,26 @@ checkout paths, so two runs on the same tree are byte-identical:
     stage     <species>  <stage id>      <name>  <digest>
     recovery  <species>  <name>          <digest or OK>
     behavior  <species>  <recipe>        <name>  <digest>
+    reward    <species>  <stage id>      <name>  <summary, poses or digest>
     <label>   ERROR      <exception>     <first line of its message>
 
 The sections are the plant identities and their policy-interface payload
 (whole and per key), each stage's task fingerprint, gate, hyperparameter and
 ``stage_config.json`` digests for PPO and SAC, the recovery calibrations,
-and every behavior recipe's identity with its source digests.  A value that
-cannot be computed prints an ERROR line instead of stopping the run, so the
-diff shows the failure.
+every behavior recipe's identity with its source digests, and (CU-11) what
+each stage's reward, info and termination code computes: a fixed capture per
+stage (a noisy roll that ends in a held kick, an unseeded second reset, zero
+action through the pushes of a stage that has them, one-step probes: the
+target moved onto the effector, the root lifted, rolled, both, and a
+three-step horizon; and state probes, scored without a physics step: twelve
+root and neck poses relative to the stage's own thresholds and a non-finite
+velocity), printed as a summary (steps, end and reward sum per stepped
+part), the end of each state probe, a digest of the discrete
+records (info keys and their order, flags, reasons, the reset's generator
+state) and a digest of every value rounded to 6 decimals (7 significant
+digits from 10 up), which holds across Python, numpy and x86 CPUs.  A value
+that cannot be computed prints an ERROR line instead of stopping the run, so
+the diff shows the failure.
 
 The committed golden (D-D22).  The plant-contract CI job runs the full
 harness, never ``--skip-behaviors``, from the repository root with the
@@ -65,6 +77,16 @@ the recipe files from there.  The harness refuses any run in which
 working directory).  ``-m`` from the root of the checkout being measured,
 without ``--repo``, is fine.
 
+``--exact`` prints only the reward captures, one bit-exact digest per part
+and stream (the reset record, the reward, the flags, each info key, the
+observation, qpos and qvel), with every behavior recipe's env after the
+stages (a seeded zero-action episode past the first command switch, unseeded
+resets, and on terrain the root moved off the flat spawn apron) unless
+``--skip-behaviors``.  The rounded golden cannot see a change of a few ulp
+(a reordered sum, a dtype); ``--exact`` can, but only on one machine and in
+one environment, so it is never a golden: run it on both checkouts as above,
+each with its own copy when both have it, and ``diff`` (CU-12, PR-8, PR-9).
+
 ``--block-optional-backends`` makes every import of jax, jaxlib, flax, optax,
 ``mujoco.mjx``, ray, mjlab, hypertune and ``google.cloud`` raise
 ImportError, so the run also proves the digests are computable on an
@@ -84,10 +106,13 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import functools
 import hashlib
 import importlib.abc
+import itertools
 import json
 import logging
+import math
 import os
 import shlex
 import sys
@@ -96,7 +121,7 @@ import time
 import traceback
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterator, Sequence
 
 #: The optional backends an SB3-only install does not have.
 BLOCKED_BACKENDS = ("jax", "jaxlib", "flax", "optax", "mujoco.mjx", "ray", "mjlab", "hypertune", "google.cloud")
@@ -111,6 +136,44 @@ GOLDEN = "configs/digest_snapshot.generated.txt"
 
 #: The command that regenerates GOLDEN, which a failed --check prints.
 WRITE_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write"
+
+#: The reward captures (CU-11).  Every part starts from ``reset(seed=REWARD_SEED)`` unless it says otherwise.
+REWARD_SEED, REWARD_ACTION_SEED = 1042, 7
+#: The roll: uniform action noise at the species' amplitude, then a held-sign kick until the episode ends.
+REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
+#: Per species: the roll's noise amplitude (half the largest that kept every stage of the species up for 300
+#: steps and past the first push), and the MJCF element the success probe moves the target (mocap body 0) onto.
+REWARD_SPECIES = {
+    "brachiosaurus": (0.2, "site", "head_tip"),
+    "compsognathus": (0.01, "body", "pelvis"),
+    "compsognathus_robot": (0.01, "body", "pelvis"),
+    "dibothrosuchus": (0.2, "geom", "snout_snap"),
+    "trex": (0.1, "geom", "head_bite"),
+    "velociraptor": (0.1, "geom", "r_claw_geom"),
+}
+#: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
+#: (sign, kind): zero, mid (half max_tilt_angle), in / out (max_tilt_angle -/+ REWARD_TILT_MARGIN), roll about
+#: world x beyond max_tilt_angle or None, every limited neck/head hinge at its upper limit).  Each is scored
+#: without a physics step; every angle is relative to the stage's own threshold.
+REWARD_TILT_MARGIN = 0.15
+REWARD_POSES: tuple[tuple[str, float, tuple[int, str], float | None, bool], ...] = (
+    ("low", -0.5, (1, "zero"), None, False),
+    ("high", 1.05, (1, "zero"), None, False),
+    ("low_roll", -1.2, (1, "zero"), 0.2, False),
+    ("fwd_mid", 0.0, (1, "mid"), None, False),
+    ("fwd_in", 0.0, (1, "in"), None, False),
+    ("fwd_out", 0.0, (1, "out"), None, False),
+    ("back_mid", 0.0, (-1, "mid"), None, False),
+    ("back_in", 0.0, (-1, "in"), None, False),
+    ("back_out", 0.0, (-1, "out"), None, False),
+    ("back_in_low", -0.25, (-1, "in"), None, False),
+    ("neck_mid", 0.0, (1, "mid"), None, True),
+    ("neck_mid_low", -0.3, (1, "mid"), None, True),
+)
+#: --exact's behavior recipes: zero action past the first command switch, then unseeded resets (episodes 1-9).
+REWARD_BEHAVIOR_STEPS, REWARD_BEHAVIOR_RESETS = 650, 9
+#: A capture part: its name, its set-up (reset seed, pose, horizon) and its actions (or a count of zero actions).
+_Part = tuple[str, dict[str, Any], Any]
 
 
 def _is_blocked(name: str) -> bool:
@@ -320,16 +383,286 @@ def behavior_section(out: _Snapshot) -> None:
                 out.emit("behavior", label, f"source:{source}", digest)
 
 
-def _behavior_identity(recipe_path: Path, species: str) -> Any:
-    """The identity the recipe's environment records, built as train_behaviors builds it."""
+def _behavior_env(recipe_path: Path, species: str) -> Any:
+    """The recipe's environment, built as train_behaviors builds it."""
     from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
     _, commands, terrain, kwargs = read_recipe(recipe_path, species)
-    env = create_behavior_env(species, commands=commands, terrain=terrain, run_seed=0, **kwargs)
+    return create_behavior_env(species, commands=commands, terrain=terrain, run_seed=0, **kwargs)
+
+
+def _behavior_identity(recipe_path: Path, species: str) -> Any:
+    """The identity the recipe's environment records."""
+    env = _behavior_env(recipe_path, species)
     try:
         return env.behavior_identity
     finally:
         env.close()
+
+
+def reward_section(out: _Snapshot, exact: bool = False, behaviors: bool = False) -> None:
+    """Per stage: the capture's summary, its state probes' ends, a digest of its discrete records and one of its
+    rounded values.
+
+    With *exact* (--exact), one bit-exact digest per part and stream instead, also for every behavior recipe
+    with *behaviors*; exact digests move across machines and environments, so they are never a golden.
+    """
+    for species, name, env in _reward_envs(out, behaviors):
+        parts = _behavior_parts if hasattr(env, "terrain_config") else _stage_parts
+        capture = out.guard(f"reward.{species}.{name}", lambda: _capture(env, parts(env, species)))
+        if capture is not None and exact:
+            for (part, stream), digest in _streams(capture, _exact).items():
+                out.emit("reward-exact", species, name, part, stream, digest)
+        elif capture is not None:
+            shape = _streams(capture, lambda value: "float" if _is_float(value) else value)
+            out.emit("reward", species, name, "summary", _summary(capture))
+            out.emit("reward", species, name, "poses", _poses(capture))
+            out.emit("reward", species, name, "shape_sha256", _sha(sorted(shape.items())))
+            out.emit(
+                "reward", species, name, "rounded_values_sha256", _sha(sorted(_streams(capture, _rounded).items()))
+            )
+
+
+def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[str, str, Any]]:
+    """(species, stage id or recipe, env), each closed after use: the stages as train_base.make_env builds them."""
+    from environments.shared.config import SPECIES_NAMES, load_stage_config
+    from environments.shared.species_registry import get_species_config
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    def stage_env(species: str, stage: Any) -> Any:
+        return get_species_config(species).env_class(**load_stage_config(species, stage)["env_kwargs"])
+
+    builds: list[tuple[str, str, Callable[[], Any]]] = []
+    for species in SPECIES_NAMES:
+        for entry in getattr(out.guard(f"reward.{species}.manifest", load_stage_manifest, species), "stages", ()):
+            builds.append((species, str(entry.id), functools.partial(stage_env, species, entry.reference)))
+    for path in sorted(Path("configs").glob("*/behaviors/*.toml")) if behaviors else []:
+        builds.append(
+            (path.parent.parent.name, path.stem, functools.partial(_behavior_env, path, path.parent.parent.name))
+        )
+    for species, name, build in builds:
+        env = out.guard(f"reward.{species}.{name}.env", build)
+        if env is not None:
+            try:
+                yield species, name, env
+            finally:
+                env.close()
+
+
+def _stage_parts(env: Any, species: str) -> list[_Part]:
+    """(part, set-up, actions or zero-action steps): the roll, zero action if the stage pushes, the probes."""
+    import numpy as np
+
+    shape, (amplitude, *effector) = env.action_space.shape, REWARD_SPECIES[species]
+
+    def roll() -> Iterator[Any]:
+        rng = np.random.default_rng(REWARD_ACTION_SEED)
+        for _ in range(REWARD_NOISE_STEPS):
+            yield rng.uniform(-amplitude, amplitude, size=shape).astype(np.float32)
+        sign = rng.choice(np.array([-1.0, 1.0]), size=shape)
+        for _ in range(REWARD_KICK_STEPS):
+            yield np.clip(0.9 * sign + rng.uniform(-0.1, 0.1, size=shape), -1.0, 1.0).astype(np.float32)
+
+    env.reset(seed=REWARD_SEED)
+    pushes: list[_Part] = [("zero", {}, env.max_episode_steps)] if env._push_schedule_starts is not None else []
+    return [
+        ("roll", {}, roll()),
+        ("second_reset", {"seed": None}, 0),
+        *pushes,
+        ("success", {"target": effector}, 1),
+        ("too_high", {"lift": True}, 1),
+        ("tilt", {"roll": True}, 1),
+        ("high_tilt", {"lift": True, "roll": True}, 1),
+        ("truncation", {"horizon": 3}, 3),
+        *_state_parts(),
+    ]
+
+
+def _state_parts() -> list[_Part]:
+    """The state probes: every pose of REWARD_POSES, then a non-finite velocity; scored without a physics step."""
+    poses: list[_Part] = [
+        (name, {"state": (dz, pitch, roll, neck)}, None) for name, dz, pitch, roll, neck in REWARD_POSES
+    ]
+    return [*poses, ("nonfinite", {"nonfinite": True}, None)]
+
+
+def _behavior_parts(env: Any, species: str) -> list[_Part]:
+    """A seeded zero-action episode, unseeded resets and, on terrain, the root halfway from the apron to the edge."""
+    parts: list[_Part] = [("episode", {}, REWARD_BEHAVIOR_STEPS)]
+    parts += [(f"reset{index}", {"seed": None}, 0) for index in range(1, REWARD_BEHAVIOR_RESETS + 1)]
+    terrain = env.terrain_config
+    if terrain is not None:
+        parts.append(("off_apron", {"x": (terrain.apron_radius + terrain.extent) / 2}, 1))
+    return parts
+
+
+def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
+    """Per part: (part, reset record, rows of reward, info, terminated, truncated, obs, qpos, qvel)."""
+    import mujoco
+    import numpy as np
+
+    from environments.shared.tests.reset_golden import _reset_record
+
+    zero, captured = np.zeros(env.action_space.shape, dtype=np.float32), []
+    for part, setup, actions in parts:
+        setup, horizon = dict(setup), env.max_episode_steps
+        obs, info = env.reset(seed=setup.pop("seed", REWARD_SEED))
+        env.max_episode_steps = setup.pop("horizon", horizon)
+        if setup:
+            _pose(env, **setup)
+            mujoco.mj_forward(env.model, env.data)
+        record, rows = {**_reset_record(env), "info": info, "obs": obs}, []
+        if actions is None:  # a state probe: score the posed state as step() would, without a physics step
+            env._invalidate_substep_aggregates()
+            if setup.get("nonfinite"):
+                terminated, info = env._is_terminated()
+                reward, obs = 0.0, np.zeros(0, dtype=np.float32)
+            else:
+                obs = env._get_obs()
+                reward, info = env._get_reward_info(zero)
+                terminated, term_info = env._is_terminated()
+                info = {**info, **term_info}
+            rows.append((reward, info, terminated, False, obs, env.data.qpos.copy(), env.data.qvel.copy()))
+            actions = 0
+        try:
+            for action in itertools.repeat(zero, actions) if isinstance(actions, int) else actions:
+                obs, reward, terminated, truncated, info = env.step(action)
+                rows.append((reward, info, terminated, truncated, obs, env.data.qpos.copy(), env.data.qvel.copy()))
+                if terminated or truncated:
+                    break
+        finally:
+            env.max_episode_steps = horizon
+        captured.append((part, record, rows))
+    return captured
+
+
+def _pose(
+    env: Any,
+    *,
+    lift: bool = False,
+    roll: bool = False,
+    target: Any = None,
+    x: float = 0.0,
+    state: Any = None,
+    nonfinite: bool = False,
+) -> None:
+    """Move the root (up by the healthy height range, rolled past max_tilt_angle, along x, or to a REWARD_POSES
+    *state*), the target onto an MJCF element, or make the velocity non-finite; the caller runs mj_forward."""
+    import mujoco
+    import numpy as np
+
+    qpos = env.data.qpos
+    qpos[0] += x
+    if nonfinite:
+        env.data.qvel[0] = np.nan
+    if state is not None:
+        dz, (sign, kind), extra_roll, neck = state
+        model, limit = env.model, float(env.max_tilt_angle)
+        if neck:
+            for joint in range(model.njnt):
+                name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint) or ""
+                hinge = model.jnt_type[joint] == mujoco.mjtJoint.mjJNT_HINGE
+                if hinge and model.jnt_limited[joint] and ("neck" in name or "head" in name):
+                    qpos[model.jnt_qposadr[joint]] = model.jnt_range[joint][1]
+        qpos[2] += dz * (env.healthy_z_range[1] - env.healthy_z_range[0])
+        pitch = (
+            sign
+            * {"zero": 0.0, "mid": 0.5 * limit, "in": limit - REWARD_TILT_MARGIN, "out": limit + REWARD_TILT_MARGIN}[
+                kind
+            ]
+        )
+        rotation = np.array([np.cos(pitch / 2), 0.0, np.sin(pitch / 2), 0.0])
+        if extra_roll is not None:
+            half = (limit + extra_roll) / 2
+            rolled = np.zeros(4)
+            mujoco.mju_mulQuat(rolled, np.array([np.cos(half), np.sin(half), 0.0, 0.0]), rotation)
+            rotation = rolled
+        mujoco.mju_mulQuat(qpos[3:7], rotation, qpos[3:7].copy())
+    if lift:
+        qpos[2] += env.healthy_z_range[1] - env.healthy_z_range[0]
+    if roll:  # about world x
+        half = (env.max_tilt_angle + 0.2) / 2
+        mujoco.mju_mulQuat(qpos[3:7], np.array([np.cos(half), np.sin(half), 0.0, 0.0]), qpos[3:7].copy())
+    if target is not None:
+        kind, name = target
+        positions = getattr(env.data, {"site": "site_xpos", "geom": "geom_xpos", "body": "xpos"}[kind])
+        point = positions[getattr(env.model, kind)(name).id].copy()
+        if kind == "body":  # the compsognathus target stays on the ground, under the pelvis
+            point[2] = env.data.mocap_pos[0][2]
+        env.data.mocap_pos[0] = point
+
+
+def _is_float(value: Any) -> bool:
+    import numpy as np
+
+    return isinstance(value, (float, np.floating))
+
+
+def _rounded(value: Any) -> Any:
+    """A float to 6 decimals, or 7 significant digits from 10 up; -0.0 reads 0.0; anything else unchanged."""
+    if not _is_float(value) or not math.isfinite(value) or value == 0:
+        return float(value) + 0.0 if _is_float(value) else value
+    return round(float(value), 6 - max(0, int(math.log10(abs(value))))) + 0.0
+
+
+def _exact(value: Any) -> Any:
+    return [type(value).__name__, float(value).hex() if _is_float(value) else value]
+
+
+def _encoded(value: Any, encode: Callable[[Any], Any]) -> Any:
+    import numpy as np
+
+    if isinstance(value, dict):
+        return {str(key): _encoded(item, encode) for key, item in value.items()}
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return [_encoded(item, encode) for item in value]
+    return encode(value)
+
+
+def _streams(capture: list[tuple[str, Any, list[Any]]], encode: Callable[[Any], Any]) -> dict[tuple[str, str], str]:
+    """One digest per (part, stream): reset record, reward, flags, each info key; obs and state when exact."""
+    hashes: dict[tuple[str, str], Any] = {}
+
+    def feed(part: str, stream: str, value: Any) -> None:
+        hashes.setdefault((part, stream), hashlib.sha256()).update(_sha(_encoded(value, encode)).encode())
+
+    for part, record, rows in capture:
+        feed(part, "reset", record if encode is _exact else {k: v for k, v in record.items() if k != "obs"})
+        for step, (reward, info, terminated, truncated, *state) in enumerate(rows, 1):
+            feed(part, "reward", reward)
+            feed(part, "flags", [list(info), bool(terminated), bool(truncated)])
+            for key, value in info.items():
+                feed(part, f"info:{key}", [step, value])
+            for stream, array in zip(("obs", "qpos", "qvel"), state if encode is _exact else ()):
+                feed(part, stream, array)
+    return {key: "sha256:" + digest.hexdigest() for key, digest in hashes.items()}
+
+
+_STATE_PARTS = {name for name, *_ in REWARD_POSES} | {"nonfinite"}
+
+
+def _poses(capture: list[tuple[str, Any, list[Any]]]) -> str:
+    """Per state probe: the termination reason, or - when the posed state is alive."""
+    ends = []
+    for part, _, rows in capture:
+        if part in _STATE_PARTS:
+            _, info, terminated, *_ = rows[0]
+            ends.append(f"{part}={info.get('termination_reason', '?') if terminated else '-'}")
+    return " ".join(ends)
+
+
+def _summary(capture: list[tuple[str, Any, list[Any]]]) -> str:
+    """Per part: steps, how it ended (the reason, truncated, or - when it did not end) and the reward sum."""
+    parts = []
+    for part, _, rows in capture:
+        if part in _STATE_PARTS:
+            continue
+        end = "-"
+        if rows:
+            _, info, terminated, truncated, *_ = rows[-1]
+            end = str(info.get("termination_reason", "?")) if terminated else "truncated" if truncated else "-"
+        parts.append(f"{part}={len(rows)}:{end}:{round(math.fsum(float(row[0]) for row in rows), 4) + 0.0:.4f}")
+    return " ".join(parts)
 
 
 def render(lines: Sequence[str]) -> str:
@@ -447,6 +780,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--debug", action="store_true", help="print the traceback of every ERROR line to stderr")
     golden_mode = parser.add_mutually_exclusive_group()
     golden_mode.add_argument(
+        "--exact",
+        action="store_true",
+        help="print only the reward captures, bit-exact, to diff two checkouts on one machine (never a golden)",
+    )
+    golden_mode.add_argument(
         "--check",
         nargs="?",
         const=GOLDEN,
@@ -499,11 +837,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     logging.disable(logging.CRITICAL)
     out = _Snapshot(repo, debug=args.debug, keep=golden is not None)
-    identities = plant_section(out)
-    stage_section(out, identities)
-    recovery_section(out)
-    if not args.skip_behaviors:
-        behavior_section(out)
+    if args.exact:
+        reward_section(out, exact=True, behaviors=not args.skip_behaviors)
+    else:
+        identities = plant_section(out)
+        stage_section(out, identities)
+        recovery_section(out)
+        if not args.skip_behaviors:
+            behavior_section(out)
+        reward_section(out)
     print(
         f"digest_snapshot: {out.lines} lines, {out.errors} errors, {time.monotonic() - started:.1f} s ({repo})",
         file=sys.stderr,
