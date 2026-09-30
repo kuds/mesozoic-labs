@@ -11,7 +11,7 @@ writes, every stage's reward capture and the ends its probes reach), and
 exercise ``--check``'s comparison and failure message and ``--write`` on tiny
 snapshots. The reward captures (CU-11) also get unit tests of their two
 encodings, one species' capture on every leg of the test matrix, and a check
-that no state probe sits on a termination threshold.
+that no state probe sits on its tilt, height or nosedive threshold.
 """
 
 from __future__ import annotations
@@ -225,6 +225,8 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
             "truncation",
         ], fields
         assert steps["roll"][1] not in ("-", "truncated"), f"{species} {stage}: the roll must end the episode"
+        if pushes:  # zero action to the episode's end (a termination, or truncation at the horizon), past the pushes
+            assert steps["zero"][1] != "-", f"{species} {stage}: the zero part must run to the episode's end"
         success = [_SUCCESS[species] if stage == "behavior" else "-"]
         assert steps["success"] == ["1", *success], (species, stage, steps["success"])
         assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
@@ -269,6 +271,7 @@ def test_reward_rounding_and_the_exact_encoding() -> None:
     assert rounded(1234.56789) == 1234.568 and rounded(-98765.4321) == -98765.43
     assert rounded(True) is True and rounded(7) == 7 and rounded("fallen") == "fallen"
     assert exact(np.float32(0.1)) != exact(0.1) and exact(float(np.nextafter(0.1, 1.0))) != exact(0.1)
+    assert exact(np.float32(0.25)) != exact(0.25), "the dtype alone separates values every dtype holds exactly"
 
 
 def _capture(x: float, **extra: float) -> list[tuple[str, object, list[object]]]:
@@ -305,19 +308,25 @@ def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.Monk
 
 
 def test_state_probes_keep_clear_of_the_thresholds() -> None:
-    # A pose within an ulp of a threshold would flip its reason between machines; each is relative to the stage's
-    # own thresholds, and this keeps every one at least a millimetre and a milliradian away (measured: 2.9 mm, 0.15).
+    # A pose within an ulp of a threshold would flip its reason between machines; this keeps each pose's tilt, root
+    # height and, where the species terminates on one, nosedive signal at least 1e-3 from its threshold (measured:
+    # 0.15 rad, 2.9 mm, 0.015).
     out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
     probes = 0
     for species, stage, env in digest_snapshot._reward_envs(out, False):
         low, high = env.healthy_z_range
+        # trex and dibothrosuchus take the nosedive threshold as a parameter; raptor_env.py hard-codes its 0.5.
+        nosedive = getattr(env, "nosedive_termination_threshold", 0.5 if species == "velociraptor" else None)
         for part, _, rows in digest_snapshot._capture(env, digest_snapshot._state_parts()[:-1]):
             info = rows[0][1]
             height = info.get("torso_height", info.get("pelvis_height"))
             assert abs(info["tilt_angle"] - env.max_tilt_angle) > 1e-3, (species, stage, part)
             assert min(abs(height - low), abs(height - high)) > 1e-3, (species, stage, part)
+            if nosedive is not None:
+                assert abs(info["forward_z"] - (env._natural_forward_z - nosedive)) > 1e-3, (species, stage, part)
             probes += 1
-    assert not out.kept and probes == 12 * 21
+    stages = sum(len(load_stage_manifest(species).stages) for species in SPECIES_NAMES)
+    assert not out.kept and stages and probes == len(digest_snapshot.REWARD_POSES) * stages
 
 
 # -- --check and --write on tiny snapshots ------------------------------------
@@ -438,7 +447,7 @@ def test_refusals_come_before_the_run(extra: list[str], message: str) -> None:
 
 @pytest.fixture
 def stubbed_sections(monkeypatch: pytest.MonkeyPatch):
-    """main() with its four sections replaced by one that emits _LINES, and its process-wide changes undone."""
+    """main() with its section functions replaced by one that emits _LINES, and its process-wide changes undone."""
 
     def plant_section(out: digest_snapshot._Snapshot) -> dict[str, object]:
         for line in _LINES:

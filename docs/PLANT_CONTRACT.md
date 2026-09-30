@@ -68,7 +68,7 @@ After an intentional model or interface change:
    ```
 
 4. Regenerate the digest snapshot (every plant, policy, stage, recovery and behavior digest and each stage's reward,
-   info and termination capture, one per line; D-D22, CU-11) and
+   info and termination capture, one value per line; D-D22, CU-11) and
    check that its diff moves only the digests you meant to move:
 
    ```bash
@@ -84,7 +84,7 @@ version, tests revision monotonicity against the PR base, runs the full digest s
 verifies identity/config loading from an installed wheel. Any other change that moves a digest on purpose (a stage
 config, a recovery calibration, a behavior recipe, the environment code it hashes, or the reward, info or termination
 code the `reward` lines capture) commits the regenerated snapshot the same way; a change that claims to move no digest
-leaves it unchanged. Regenerate it on Linux x86-64 with the canonical MuJoCo, as CI runs it. A refactor that claims to
+leaves it unchanged. Regenerate it on Linux x86-64 with the canonical MuJoCo and numpy 2, as CI runs it. A refactor that claims to
 move no number also diffs the harness's `--exact` output of the base and the head on one machine (see its `--help`):
 the `reward` lines are rounded and cannot see a change of a few ulp.
 

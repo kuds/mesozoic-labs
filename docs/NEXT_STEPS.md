@@ -925,7 +925,7 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 | Consolidation sequence, per-PR file lists, target architecture | [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) |
 | Remaining cleanup, the backend retirement and its frozen core, open cleanup decisions | [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) |
 | Gait audit of the certified nodes (2026-09-28), the gait-quality plan and its open decisions GQ-1..GQ-18 | [investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md), its evidence files in [investigations/gait_2026_09/](investigations/gait_2026_09/README.md); [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) |
-| Digest snapshot (every plant, policy, stage, recovery and behavior digest and the 21 stages' reward, info and termination captures, one per line; `--exact` for a same-machine A/B) | `environments/shared/harnesses/digest_snapshot.py`; its committed golden, which CI checks, `configs/digest_snapshot.generated.txt` |
+| Digest snapshot (every plant, policy, stage, recovery and behavior digest and the 21 stages' reward, info and termination captures, one value per line; `--exact` for a same-machine A/B) | `environments/shared/harnesses/digest_snapshot.py`; its committed golden, which CI checks, `configs/digest_snapshot.generated.txt` |
 | Drive state as surveyed 2026-09-17 | [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md) |
 | Bundle layout, `gate_verdict.json`, `ancestors/` records | [RESULT_BUNDLES.md](RESULT_BUNDLES.md) |
 | Plant identities and the widen contract | [PLANT_CONTRACT.md](PLANT_CONTRACT.md), `configs/plant_versions.toml` |

@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a summary (steps, end and reward sum per part), the ends of the posed
   states, a digest of the discrete records and one of every value rounded
   to 6 decimals. CI's existing digest step checks them on every event, so a
-  change to reward, info or termination code fails its own pull request
-  unless it regenerates the golden. `--exact` prints the same captures, and
+  change that moves a reward, info or termination value by about 1e-6 or
+  more, an end or a reason fails its own pull request unless it
+  regenerates the golden; the rounded lines cannot see an ulp. `--exact` prints the same captures, and
   every behavior recipe's, bit-exact, for a same-machine base/head `diff`:
   the acceptance of refactors that claim to move no number. The first 848
   lines of the golden are unchanged.

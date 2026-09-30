@@ -176,7 +176,10 @@ Follow this checklist:
    - Add the species to `REWARD_SPECIES` in
      `environments/shared/harnesses/digest_snapshot.py` (its roll amplitude and
      the MJCF element its target sits on); without it the reward section
-     prints ERROR lines and `--write` refuses
+     prints ERROR lines and `--write` refuses; also add its behavior stage's
+     success reason to `_SUCCESS` and the termination reasons its state probes
+     reach to `_POSE_REASONS` in
+     `environments/shared/tests/test_plant_contract_digest_snapshot.py`
    - Once its stages and behavior recipes are in place, run
      `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`
      to add the species' lines to `configs/digest_snapshot.generated.txt`

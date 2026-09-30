@@ -26,12 +26,14 @@ stage (a noisy roll that ends in a held kick, an unseeded second reset, zero
 action through the pushes of a stage that has them, one-step probes: the
 target moved onto the effector, the root lifted, rolled, both, and a
 three-step horizon; and state probes, scored without a physics step: twelve
-root and neck poses relative to the stage's own thresholds and a non-finite
+root and neck poses sized by the stage's own thresholds and a non-finite
 velocity), printed as a summary (steps, end and reward sum per stepped
 part), the end of each state probe, a digest of the discrete
 records (info keys and their order, flags, reasons, the reset's generator
 state) and a digest of every value rounded to 6 decimals (7 significant
-digits from 10 up), which holds across Python, numpy and x86 CPUs.  A value
+digits from 10 up), which held across Python 3.11 to 3.13, numpy 2.0 to
+2.5, x86 numpy and OpenBLAS dispatch and a libm without FMA (numpy 1.x,
+which promotes float32 differently, moves a line).  A value
 that cannot be computed prints an ERROR line instead of stopping the run, so
 the diff shows the failure.
 
@@ -78,10 +80,12 @@ working directory).  ``-m`` from the root of the checkout being measured,
 without ``--repo``, is fine.
 
 ``--exact`` prints only the reward captures, one bit-exact digest per part
-and stream (the reset record, the reward, the flags, each info key, the
-observation, qpos and qvel), with every behavior recipe's env after the
-stages (a seeded zero-action episode past the first command switch, unseeded
-resets, and on terrain the root moved off the flat spawn apron) unless
+and stream (the reset record with the raw state after the reset, the
+reward, the flags, each info key, the observation, qpos and qvel), with
+every behavior recipe's env after the stages (a seeded episode of up to 650
+zero-action steps, past the first command switch unless it ends first, as
+the trex terrain recipes' episodes do; unseeded resets; and on terrain the
+root moved off the flat spawn apron) unless
 ``--skip-behaviors``.  The rounded golden cannot see a change of a few ulp
 (a reordered sum, a dtype); ``--exact`` can, but only on one machine and in
 one environment, so it is never a golden: run it on both checkouts as above,
@@ -154,7 +158,10 @@ REWARD_SPECIES = {
 #: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
 #: (sign, kind): zero, mid (half max_tilt_angle), in / out (max_tilt_angle -/+ REWARD_TILT_MARGIN), roll about
 #: world x beyond max_tilt_angle or None, every limited neck/head hinge at its upper limit).  Each is scored
-#: without a physics step; every angle is relative to the stage's own threshold.
+#: without a physics step.  The angles are sized by the stage's own threshold but applied on top of the reset
+#: orientation (world pre-multiplication), as dz is added to the reset height, so a stage whose reset pose leans
+#: is offset by that lean: velociraptor's home keyframe leans about 20 degrees forward, so its fwd_in ends past
+#: max_tilt_angle and its back_out inside it.  The margin test checks the actual distances from the thresholds.
 REWARD_TILT_MARGIN = 0.15
 REWARD_POSES: tuple[tuple[str, float, tuple[int, str], float | None, bool], ...] = (
     ("low", -0.5, (1, "zero"), None, False),
@@ -170,7 +177,8 @@ REWARD_POSES: tuple[tuple[str, float, tuple[int, str], float | None, bool], ...]
     ("neck_mid", 0.0, (1, "mid"), None, True),
     ("neck_mid_low", -0.3, (1, "mid"), None, True),
 )
-#: --exact's behavior recipes: zero action past the first command switch, then unseeded resets (episodes 1-9).
+#: --exact's behavior recipes: up to 650 zero-action steps (past the first command switch, except where the episode
+#: ends first, as the trex terrain recipes' episodes do), then unseeded resets (episodes 1-9).
 REWARD_BEHAVIOR_STEPS, REWARD_BEHAVIOR_RESETS = 650, 9
 #: A capture part: its name, its set-up (reset seed, pose, horizon) and its actions (or a count of zero actions).
 _Part = tuple[str, dict[str, Any], Any]
@@ -409,18 +417,23 @@ def reward_section(out: _Snapshot, exact: bool = False, behaviors: bool = False)
     """
     for species, name, env in _reward_envs(out, behaviors):
         parts = _behavior_parts if hasattr(env, "terrain_config") else _stage_parts
-        capture = out.guard(f"reward.{species}.{name}", lambda: _capture(env, parts(env, species)))
-        if capture is not None and exact:
-            for (part, stream), digest in _streams(capture, _exact).items():
-                out.emit("reward-exact", species, name, part, stream, digest)
-        elif capture is not None:
-            shape = _streams(capture, lambda value: "float" if _is_float(value) else value)
-            out.emit("reward", species, name, "summary", _summary(capture))
-            out.emit("reward", species, name, "poses", _poses(capture))
-            out.emit("reward", species, name, "shape_sha256", _sha(sorted(shape.items())))
-            out.emit(
-                "reward", species, name, "rounded_values_sha256", _sha(sorted(_streams(capture, _rounded).items()))
-            )
+        # Encoded inside the guard, so a value no encoder takes is an ERROR line, not a stopped run.
+        lines = out.guard(f"reward.{species}.{name}", lambda: _reward_lines(_capture(env, parts(env, species)), exact))
+        for kind, *fields in lines or ():
+            out.emit(kind, species, name, *fields)
+
+
+def _reward_lines(capture: list[tuple[str, Any, list[Any]]], exact: bool) -> list[tuple[str, ...]]:
+    """(section, *fields) per line: one per part and stream when *exact*, else the capture's four golden lines."""
+    if exact:
+        return [("reward-exact", part, stream, digest) for (part, stream), digest in _streams(capture, _exact).items()]
+    shape = _streams(capture, lambda value: "float" if _is_float(value) else value)
+    return [
+        ("reward", "summary", _summary(capture)),
+        ("reward", "poses", _poses(capture)),
+        ("reward", "shape_sha256", _sha(sorted(shape.items()))),
+        ("reward", "rounded_values_sha256", _sha(sorted(_streams(capture, _rounded).items()))),
+    ]
 
 
 def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[str, str, Any]]:
@@ -511,7 +524,9 @@ def _capture(env: Any, parts: list[_Part]) -> list[tuple[str, Any, list[Any]]]:
         if setup:
             _pose(env, **setup)
             mujoco.mj_forward(env.model, env.data)
-        record, rows = {**_reset_record(env), "info": info, "obs": obs}, []
+        # The reset record rounds the state; "state" keeps it raw for --exact, and the golden leaves it out.
+        state = [env.data.qpos.copy(), env.data.qvel.copy(), env.data.mocap_pos.copy()]
+        record, rows = {**_reset_record(env), "info": info, "obs": obs, "state": state}, []
         if actions is None:  # a state probe: score the posed state as step() would, without a physics step
             env._invalidate_substep_aggregates()
             if setup.get("nonfinite"):
@@ -627,7 +642,11 @@ def _streams(capture: list[tuple[str, Any, list[Any]]], encode: Callable[[Any], 
         hashes.setdefault((part, stream), hashlib.sha256()).update(_sha(_encoded(value, encode)).encode())
 
     for part, record, rows in capture:
-        feed(part, "reset", record if encode is _exact else {k: v for k, v in record.items() if k != "obs"})
+        feed(
+            part,
+            "reset",
+            record if encode is _exact else {k: v for k, v in record.items() if k not in ("obs", "state")},
+        )
         for step, (reward, info, terminated, truncated, *state) in enumerate(rows, 1):
             feed(part, "reward", reward)
             feed(part, "flags", [list(info), bool(terminated), bool(truncated)])

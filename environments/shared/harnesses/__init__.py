@@ -21,7 +21,7 @@ them.
 * :mod:`~environments.shared.harnesses.digest_snapshot` — print every plant,
   policy, stage, recovery and behavior digest and each stage's reward, info
   and termination capture (CU-11; ``--exact`` prints them bit-exact for a
-  same-machine A/B), one per line.  Its output is
+  same-machine A/B), one value per line.  Its output is
   committed as ``configs/digest_snapshot.generated.txt``, which the
   plant-contract CI job checks with ``--check``; a change that moves a digest
   on purpose regenerates it with ``--write`` (D-D22; see its ``--help``)
