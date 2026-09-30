@@ -40,7 +40,7 @@ past a couple of files get their own subdirectory (`investigations/`,
 | Document | Date | Status |
 |---|---|---|
 | [ROADMAP.md](ROADMAP.md) | 2026-09-30 | Active — phased project timeline |
-| [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Dated snapshot — the codebase-wide improvement backlog as of 2026-03-25, not maintained; ROADMAP.md holds the phased plan and KNOWN_ISSUES.md the open problems, and D-D17 retired the JAX/MJX migration it recommends |
+| [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Dated snapshot — the codebase-wide improvement backlog as of 2026-03-25 (one item added 2026-07-27, §6.1 reworded 2026-07-13), not maintained; ROADMAP.md holds the phased plan and KNOWN_ISSUES.md the open problems, and D-D17 retired the JAX/MJX migration it recommends |
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Dated planning snapshot (update notes 2026-04-18, 2026-09-13 and 2026-09-27) — trial list for the remaining SAC/PPO runs; its notebook setup predates the behavior chain loop (`BEHAVIOR`) and the id-named T-Rex stage configs, which the 2026-09-13 note maps; its trials 2 and 4 were Ray Tune sweeps, retired by D-D17 (the notebook and sweep JSONs are recoverable from the `0.3.8` tag) |
 | [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Option 1 (stance correction) implemented; options 2–4 open, step 5 (port to the raptor) withdrawn — see the raptor review |
 | [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Retired design record (D-D17) — cleanup PR-B removed the JAX/MJX runtime it built; a frozen MJX interface core stays for four species' policy-interface digests ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)) |

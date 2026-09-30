@@ -19,7 +19,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
 | **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt) |
-| **2** | Into the Wild (v0.4.0) | **In Progress** | 0/8 items | Terrain and turning piloted (#540/#541, evaluation-only); certified nodes wait for consolidation PR-8..PR-11 |
+| **2** | Into the Wild (v0.4.0) | **In Progress** | 0/8 items | Terrain and turning piloted (#540/#541, evaluation-only); certified nodes wait for consolidation PR-8..PR-13 (PR-13 registers their gate kind) |
 | **3** | Evolution (v0.5.0) | **In Progress** | 2/9 items | Dibothrosuchus and Compsognathus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | **Retired** (D-D17) | 3/5 items | — (JAX SAC and large-scale experiments dropped) |
@@ -265,7 +265,7 @@ critical bridge between "cool demo" and "transferable research."
 
 - [-] **Terrain diversity** — piloted: randomized heightfield terrain landed
   as an evaluation-only pilot pipeline (#540/#541, 2026-09-15; D-D9); certified
-  terrain nodes wait for consolidation PR-11 and the heightfield-contact
+  terrain nodes wait for consolidation PR-8..PR-13 and the heightfield-contact
   investigation ([KNOWN_ISSUES.md](KNOWN_ISSUES.md))
   - Implement heightfield-based procedural terrain (sinusoidal, rough, steps)
   - Add slopes (5-15 degrees) as training variants
@@ -281,7 +281,7 @@ critical bridge between "cool demo" and "transferable research."
 
 - [-] **Turning and steering** — piloted: direction-following recipes on the
   command interface (the pilot pipeline of #540/#541); certified follow nodes
-  wait for consolidation PR-9..PR-11
+  wait for consolidation PR-9..PR-13
   - Add yaw velocity reward component and target-relative heading
   - Train policies that can steer toward moving targets
   - Prerequisite for interesting predator-prey dynamics

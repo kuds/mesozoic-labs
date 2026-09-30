@@ -14,7 +14,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
 | [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B), the other 10 open — **execution deferred until the T-Rex clears stages 1–3**; see below |
-| [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 79 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (15 of them after a fix), 2 fixed with a residue, 6 duplicates; the 8 open ones and the SM7 residue are below (its appendix B, 2026-09-30) |
+| [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 78 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (16 of them after a fix), 3 fixed with a residue, 6 duplicates; the 8 open ones and the three residues (SM7, DU4, CI8) are below (its appendix B, 2026-09-30) |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -1171,6 +1171,29 @@ robustness, **LOW** = cosmetic / QoL.
   digest-snapshot golden's `reward` lines, which capture noisy resets. No
   cleanup PR owns it. (2026-08 gap review EP4)
 
+- **LOW** — **a `stance_quality/v1` stage that leaves out `min_eval_episodes`
+  gets a 10-episode panel floor in training and in the recorded-gate reader,
+  and a 40-episode one in the stance report and publication (read from the
+  code 2026-09-30).** The SB3 curriculum manager's `StageThreshold` falls
+  back to `DEFAULT_MIN_EVAL_EPISODES` = 10 (`curriculum/manager.py:29-36,73`)
+  and hands it to the stance gate as a field copy (`stance_thresholds`,
+  :76-92), the in-training diagnostics callback sizes the gate's duty count
+  from the same 10 (`eval_diagnostics.py:636-639`), the recorded-gate reader
+  the Drive summary uses falls back to it too (`reporting/gates.py:104`), and
+  the species catalog publishes it (`species_catalog.py:501`), while the
+  stance report, its probes and publication fall back to
+  `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
+  `reporting/stage_artifacts.py:226,514`, `result_bundle/evidence.py:509`).
+  The gate schema requires `min_eval_episodes` for `task_success/v1` only
+  (`curriculum/gate_schema.py:148-179`), so nothing stops a new
+  `stance_quality/v1` TOML from leaving it out; the three that exist (trex,
+  compsognathus and compsognathus_robot `stance.toml`) set 40, so it is latent. #519 named both
+  values and kept them apart on purpose, because unifying them would change
+  which panels the SB3 manager certifies (gap review DU4, part 2 not applied).
+  Fix: require `min_eval_episodes` for `stance_quality/v1` in the gate schema,
+  as `task_success/v1` does (the three stance TOMLs already set it), or unify
+  the two fallbacks. No cleanup PR owns it. (2026-08 gap review DU4)
+
 ## Infrastructure
 
 - **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
@@ -1466,3 +1489,19 @@ Still open:
   (2026-07 Dibothrosuchus review)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
+- **LOW** — **the site deploy waits on nothing but its own build (read from
+  the code 2026-09-30).** `.github/workflows/deploy.yml` runs on a push to
+  `main` that touches `website/**`, a `summary.json` or the workflow itself
+  (:3-15), and its `deploy` job needs only the `build` job (`npm ci`, `tsc`,
+  the site build) and the `main` ref (:72-78). A push with a hand-edited or
+  stale `website/src/data/species.generated.json` therefore deploys while
+  python-ci's `species_catalog --check` (`python-ci.yml:151-154`) fails on the
+  same commit, and `main` has no required checks
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.8 item 2). The
+  workflow's comment (:7-11) leaves the wait to a required-checks setting, but
+  it can be built in the tree. Fix: a `species_catalog --check` step in the
+  build job, or a `workflow_run` trigger on python-ci that deploys only when
+  it succeeds, with python-ci's path filters widened to all of `website/`
+  (today a push that touches only the site config never runs python-ci); turning on required checks (the cleanup plan's decision 18 (a))
+  closes it for everyone who cannot bypass them. No cleanup PR owns it.
+  (2026-08 gap review CI8)

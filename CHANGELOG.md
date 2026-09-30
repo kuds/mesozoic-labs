@@ -649,15 +649,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
 
 ### Fixed
-- **The 0.3.8 entry on the removed `Images/` directory named the wrong
-  surviving copies** (cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`,
-  2026-09-30; §3.2 CU-16 row). Each of its three GIFs survives twice, under
-  `website/static/img/` and under `results/velociraptor/`
-  (`ppo/stage1_balance.gif`, `ppo/stage3_strike.gif` and
-  `sac/stage3_strike.gif`, byte-identical); the README shows the `results/`
-  copy of the balance GIF, the site shows only `raptor_balance_ppo.gif`, and
-  no page shows the two apex GIFs (`results/README.md` lists their
-  `results/` copies).
+- **The 0.3.8 entry on the removed `Images/` directory left out the second
+  surviving copies and misstated which copies the site and README show**
+  (cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16
+  row). Each of its three GIFs survives twice, under `website/static/img/`
+  and under `results/velociraptor/` (`ppo/stage1_balance.gif`,
+  `ppo/stage3_strike.gif` and `sac/stage3_strike.gif`, byte-identical); the
+  README shows the `results/` copy of the balance GIF, the site shows only
+  `raptor_balance_ppo.gif`, and no page shows the two apex GIFs
+  (`results/README.md` lists their `results/` copies).
 - **The plant contract's MJX probe requires exactly one root body**
   (#572, cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
   `build_mjx_observation` roots its observation on `torso` whenever the
