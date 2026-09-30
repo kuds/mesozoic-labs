@@ -442,8 +442,8 @@ class TestThresholdsFromConfigs:
         This shape used to pass the schema (which only rejected *misplaced*
         threshold keys), yield no threshold_fields, and drop through to
         StageThreshold's permissive defaults (min_avg_reward = -inf) — the SB3
-        path advancing on any evaluation while the JAX path raised. The schema
-        now requires each gate kind's core field, so both backends reject it.
+        path advancing on any evaluation while the JAX path (retired by D-D17)
+        raised. The schema now requires each gate kind's core field, so it is refused.
         """
         configs = {1: {"curriculum_kwargs": dict(_GATE)}}
         with pytest.raises(GateSchemaError, match="missing required threshold"):
@@ -455,8 +455,8 @@ class TestThresholdsFromConfigs:
     def test_every_committed_stage_config_declares_a_valid_gate(self):
         """The shipped configs must satisfy the schema on every species.
 
-        Asserts every declared kind is one the registry knows and both
-        backends evaluate, rather than pinning the specific kind each stage
+        Asserts every declared kind is one the registry knows and SB3
+        evaluates, rather than pinning the specific kind each stage
         uses — pinning the literal made adopting stance_quality/v1 for T-Rex
         stage 1a look like a regression instead of the intended change.
 

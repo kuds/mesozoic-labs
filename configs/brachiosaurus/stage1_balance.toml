@@ -45,7 +45,7 @@ ent_coef_decay_timesteps = 2500000      # species with this disabled; the bipeds
                                         # and this decay fixed them. Anchored to ~40% of the 6M budget so entropy reaches its
                                         # floor once balance has converged. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 target_kl = 0.03                        # Early-stop PPO epochs on high approx-KL — caps destabilising late updates on the
-                                        # thin 4-env rollouts (mirrors the JAX path's target_kl guard).
+                                        # thin 4-env rollouts.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

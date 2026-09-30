@@ -560,8 +560,7 @@ class TestSubstepContactAggregation:
 class TestSubstepHeightTermination:
     """Height terminations must see every physics substep, like contact does.
 
-    MJX's height-emulation termination went any-substep with the contact
-    aggregation; these pin the SB3 side of that lockstep: the step loop
+    These pin the any-substep height termination: the step loop
     records each declared entity's MIN z, and _is_terminated consumes it by
     declaration index while the info keys keep the boundary sample.
     """

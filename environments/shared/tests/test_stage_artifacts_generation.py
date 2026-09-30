@@ -13,7 +13,7 @@ class TestGenerateTrialArtifacts:
     """
 
     def test_writes_stage_summary_and_records_videos(self, tmp_path):
-        """After a trial, stage_summary.txt is written and videos are attempted."""
+        """After a stage, stage_summary.txt is written and videos are attempted."""
         import numpy as np
 
         from environments.shared.plant_contract import attach_plant_identity, current_plant_identity

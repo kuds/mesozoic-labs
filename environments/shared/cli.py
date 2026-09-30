@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 def _cast_value(v: str):
     """Auto-cast a string value to bool, int, float, or keep as string.
 
-    Handles float-encoded integers (e.g. ``"128.0"`` -> ``128``) which
-    Vertex AI HPT sends for ``DiscreteParameterSpec`` values, and
+    Handles float-encoded integers (e.g. ``"128.0"`` -> ``128``) and
     ``true``/``false`` literals (otherwise ``bool("false")`` truthiness
     bites anyone overriding a boolean kwarg).
     """

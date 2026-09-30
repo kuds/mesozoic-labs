@@ -1,7 +1,7 @@
 """Atomic file-write helpers for training artifacts.
 
 Training artifacts frequently live on FUSE-mounted remote storage
-(Google Drive on Colab, GCS on Vertex AI). An in-place streaming write
+(Google Drive on Colab, or a ``/gcs/`` FUSE mount). An in-place streaming write
 there can be observed — or permanently left — truncated if the runtime
 dies mid-flush; ``np.savez`` in particular rewrites the whole zip on
 every call, so the file spends real time in a half-written state.

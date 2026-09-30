@@ -77,10 +77,10 @@ PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Update
 as #569, CU-14b (the first part of CU-14, the cleanup plan's decision 10 (c), settled without a D-D id) as #570 and the
 digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (the first part of CU-7) as #572 and
 CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, which completes wave 1, and CU-9
-(coverage of the certification code, which PR-G1 needs) as #574 the same day; CU-5 (the SB3 notebook's text and
-dead parameters) is carried out,
+(coverage of the certification code, which PR-G1 needs) as #574 the same day, and CU-5 (the SB3 notebook's text and
+dead parameters) as #575 the same day; CU-7b (the second part of CU-7, the retired-backend wording) is carried out,
 and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
-CU-6 also waits for CU-5, CU-8b and the notebook PR for that plan's decisions 4 and 6.*
+CU-6 also waits for CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 
 ## 2. Decisions needed
 

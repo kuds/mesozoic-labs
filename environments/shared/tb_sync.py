@@ -1,9 +1,12 @@
-"""TensorBoard local-buffer helpers for GCS FUSE mounts.
+"""TensorBoard local-buffer helpers for FUSE-mounted remote stores.
 
-Writing TensorBoard events directly to ``/gcs/...`` is slow and produces
-partial-write corruption under concurrent Vertex AI HPT trials.  These
-helpers let the SB3 trainer buffer events to local disk and sync to GCS
-at the end of a stage.
+Writing TensorBoard events straight to a FUSE mount (Google Drive on Colab,
+or ``/gcs/...``) is slow, and an event file held open all stage loses its
+un-uploaded tail when the runtime is reclaimed (review CO5).  These helpers
+let the SB3 trainer buffer events on local disk and sync them to the mount
+on the checkpoint cadence and at the end of a stage.  The ``gcs`` in
+``_sync_tb_to_gcs`` and ``gcs_tb_path`` is historical: both serve a Drive
+mount the same way.
 
 Extracted from :mod:`environments.shared.train_base` for reuse and
 testability.  That module re-exports these names so existing
@@ -29,10 +32,10 @@ def _is_gcs_path(path: str | Path) -> bool:
 def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
     """Create a local temp directory for TensorBoard event buffering.
 
-    Returns a ``Path`` under ``/tmp`` that mirrors the GCS structure so
-    concurrent trials don't collide.
+    Returns a ``Path`` under ``/tmp`` named after the remote path, so
+    concurrent runs don't collide.
     """
-    # Stable suffix derived from the GCS path so restarts reuse the dir.
+    # Stable suffix derived from the remote path so restarts reuse the dir.
     suffix = str(gcs_tb_path).replace("/", "_")
     local_dir = Path(tempfile.gettempdir()) / "tb_buffer" / suffix
     local_dir.mkdir(parents=True, exist_ok=True)
@@ -69,7 +72,7 @@ def _mirror_remote_run_dirs(local_tb_dir: Path, remote_tb_path: str | Path) -> l
 
 
 def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path, cleanup: bool = True) -> None:
-    """Copy locally-buffered TensorBoard events to the GCS FUSE mount.
+    """Copy locally-buffered TensorBoard events to the remote FUSE mount.
 
     Uses :func:`shutil.copy` (not ``copy2``) because GCS FUSE does not
     support the ``os.utime`` / ``os.chmod`` calls that ``copy2`` makes
@@ -77,7 +80,7 @@ def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path, cleanup: bool =
 
     Args:
         local_tb_dir: The local buffer directory.
-        gcs_tb_path: Destination directory on the GCS FUSE mount.
+        gcs_tb_path: Destination directory on the remote FUSE mount.
         cleanup: Remove the local buffer after copying.  Pass ``False``
             for mid-training syncs where the writer still holds the files.
     """
@@ -105,16 +108,16 @@ except ImportError:  # SB3 is an optional dependency
 
 
 class PeriodicTbSyncCallback(_BaseCallback):
-    """Periodically flush the local TensorBoard buffer to GCS.
+    """Periodically flush the local TensorBoard buffer to the remote mount.
 
-    Without this, buffered events reach GCS only at stage end
+    Without this, buffered events reach the mount only at stage end
     (:func:`_sync_tb_to_gcs` from ``_save_final_and_sync_tb``), so a
-    preempted or crashed Vertex AI worker — e.g. on spot VMs — loses the
-    entire stage's TensorBoard logs.
+    reclaimed Colab runtime or a crashed worker loses the entire stage's
+    TensorBoard logs.
 
     Args:
         local_tb_dir: Local buffer directory (from ``_make_local_tb_dir``).
-        gcs_tb_path: Destination on the GCS FUSE mount.
+        gcs_tb_path: Destination on the remote FUSE mount.
         sync_freq: Sync every N timesteps (compared against
             ``num_timesteps``, which advances by ``n_envs`` per step).
     """
@@ -139,5 +142,5 @@ class PeriodicTbSyncCallback(_BaseCallback):
             try:
                 _sync_tb_to_gcs(self.local_tb_dir, self.gcs_tb_path, cleanup=False)
             except Exception:
-                logger.warning("Periodic TensorBoard sync to GCS failed.", exc_info=True)
+                logger.warning("Periodic TensorBoard sync to the remote mount failed.", exc_info=True)
         return True

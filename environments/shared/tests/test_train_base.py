@@ -872,7 +872,7 @@ class TestCheckpointRetentionIsWired:
 
 
 class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
-    """Review CF4: the first point that knows the backend says when its table is empty."""
+    """Review CF4: the first point that knows the algorithm says when its table is empty."""
 
     def test_an_empty_ppo_table_warns(self, tmp_path, caplog):
         from environments.shared.train_base import _prepare_alg_kwargs
@@ -2320,7 +2320,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
     """Decisions D-D11 and D-A15 at the single-stage launch path, and the two switches the notebook's
     ``train_stage`` passes (consolidation PR-14c): model construction is seeded; the duration from entry to
     the final save is recorded, accumulating on a same-stage resume into the same directory;
-    ``report_metrics=False`` skips the HPT report (the only ``metrics.json`` writer); and
+    ``report_metrics=False`` skips the ``metrics.json`` report (its only writer); and
     ``save_on_interrupt=False`` lets a KeyboardInterrupt from ``learn`` propagate before the final save."""
 
     def _run(self, tmp_path, monkeypatch, *, interrupt=False, ppo_seed=None, **train_kwargs):

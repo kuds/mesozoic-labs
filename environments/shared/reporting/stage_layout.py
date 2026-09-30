@@ -24,7 +24,7 @@ Generated, renderable artifacts are grouped by kind::
 Only the *generated* artifacts move.  ``evaluations.npz``, ``diagnostics.npz``
 and ``evaluation_{selected,final}.csv`` deliberately stay in the stage root:
 the first two are written during training by SB3 callbacks on the hot path
-and are read by a dozen call sites including the sweep tooling, and the
+and are read by a dozen call sites, and the
 evaluation CSVs are the publication evidence contract that
 ``result_bundle.audit`` names by fixed relative path.  Moving those is a
 larger change with a different risk profile and is not what this module is

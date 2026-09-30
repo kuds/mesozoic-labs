@@ -227,8 +227,8 @@ class TestWrite:
         assert gate_config_sha256({"gate_kind": "x", "gate_schema_version": 1, "thresholds": {"a": True}}) != (
             gate_config_sha256({"gate_kind": "x", "gate_schema_version": 1, "thresholds": {"a": 1}})
         )
-        # A numpy scalar threshold (a sweep override, a value read back from
-        # evaluations.npz) is neither an int nor a float subclass: it digests
+        # A numpy scalar threshold (none reaches it today; handled
+        # defensively; np.float32 is not a float subclass): it digests
         # as its float, the file records its item, and the digest recorded is
         # the digest of the block on disk — so the reader accepts the file.
         numpy_typed = gate_config_view(

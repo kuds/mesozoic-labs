@@ -46,8 +46,8 @@ def build_stage_results_from_eval_data(
 
     Reads ``evaluations.npz`` (written by SB3's ``EvalCallback``) and
     ``metrics.json`` to reconstruct the same results dict that the
-    training notebook's ``train_stage`` produces.  This allows sweep
-    trials and any other post-hoc consumers to build a consistent
+    training notebook's ``train_stage`` produces.  This lets the gate
+    backfill tool and any other post-hoc consumer build a consistent
     results dict without re-running evaluation.
 
     If *duration_seconds* is 0 and a ``metrics.json`` exists, the duration
@@ -137,8 +137,9 @@ def build_stage_results_from_eval_data(
     # replay shows and the evidence CSV is evidence for. It used to hardcode
     # `best_model` while the replay, the stance gate report and the next-stage
     # handoff all resolved through `select_handoff_checkpoint`, which prefers
-    # the risk-adjusted `robust_best_model`. This path feeds the sweep trial
-    # worker, where nothing else re-derives it.
+    # the risk-adjusted `robust_best_model`. This path feeds the gate backfill
+    # tool and `generate_stage_artifacts` called without `stage_results`,
+    # where nothing else re-derives it.
     #
     # Falls back to `best_model` rather than skipping when no candidate is
     # complete: unlike the replay and the gate report, this function only
@@ -197,15 +198,15 @@ def _write_stance_gate_report(
     40-episode panel costs a few minutes, which is nothing beside a multi-hour
     stage but is pure waste for a stage the criteria do not govern.
 
-    Runs here rather than in the notebook so it happens for every SB3 run and
-    every sweep trial without anyone remembering, and lands beside
+    Runs here rather than in the notebook so it happens for every SB3 run
+    without anyone remembering, and lands beside
     ``stage_summary.txt`` in the run directory -- which is on Drive, so the
     verdict survives a lost runtime.
 
     ``stance_report_episodes`` in ``[curriculum]`` overrides the panel size;
     ``0`` skips the report entirely. It exists because "a few minutes" is per
-    stage AND per sweep trial, and a sweep of fifty trials pays it fifty
-    times for a verdict nobody reads until a trial is shortlisted. Overriding
+    stage, which a smoke or debug run need not pay (the tuning sweeps,
+    retired by D-D17, paid it once per trial). Overriding
     downward makes the bound weaker than the gate claims -- the panel size is
     what its power is specified at -- so the log says so when it happens.
 
@@ -303,21 +304,21 @@ def _write_task_success_evidence(
     The verdict for this kind comes ONLY from ``evaluation_selected.csv`` —
     the selected checkpoint's per-episode task successes, hash-bound to the
     handoff pair — and the notebook writes that file itself
-    (``evaluate_stage_checkpoints``).  The sweep trial workers and the CLI
-    do not, so without this every trial directory would record a FAILED
-    verdict beside an offline row verdict that says PASS (decision D-B12).
-    This is the stance treatment (:func:`_write_stance_gate_report`): for
-    every SB3 run and every sweep trial, when the file is absent or is not
+    (``evaluate_stage_checkpoints``).  A caller that rolled no bound panel
+    would otherwise record a FAILED verdict for want of evidence (decision
+    D-B12).  This is the stance treatment (:func:`_write_stance_gate_report`):
+    for every SB3 run, when the file is absent or is not
     bound to the handoff ``select_handoff_checkpoint`` picks NOW, roll
     ``min_eval_episodes`` episodes from that pair on the publication seed
     and write it through ``csv_output.save_evaluation_episodes``.  A file
     already bound to the handoff (the trainer's post-training panel wrote
-    it) is kept, so the on-disk verdict and the sweep row agree by
-    construction — "bound" meaning the checkpoint digest AND, when the rows
-    record one, the VecNormalize sidecar digest (the judge refuses a panel
-    rolled under other observation statistics), and the file must hold at
-    least ``min_eval_episodes`` rows: a smaller trainer panel would leave
-    the stage unjudgeable where a fresh roll makes it judgeable.
+    it) is kept, so the on-disk verdict and the count ``metrics.json``
+    records agree by construction — "bound" meaning the checkpoint digest
+    AND, when the rows record one, the VecNormalize sidecar digest (the
+    judge refuses a panel rolled under other observation statistics), and
+    the file must hold at least ``min_eval_episodes`` rows: a smaller
+    trainer panel would leave the stage unjudgeable where a fresh roll
+    makes it judgeable.
 
     ``task_success_panel_episodes`` in ``[curriculum]`` overrides the panel
     size (``0`` skips the roll; a smaller panel is warned about, since the
@@ -1038,8 +1039,9 @@ def _apply_stage_gate(
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
-    Runs here, in the one entry point both the notebook and the sweep trial
-    worker already call, because the alternative is what actually happened:
+    Runs here, in the one entry point the notebook calls for every node it
+    trains or judges,
+    because the alternative is what actually happened:
     each caller kept a private checklist, the notebook's drifted out of step
     with ``gate_kind``, and run ``20260802_203215`` recorded
     ``publication_gate_passed = True`` beside a ``GATE: FAIL`` stance report
@@ -1434,8 +1436,8 @@ def generate_stage_artifacts(
     """Write stage summary, record replay videos, and generate training graphs.
 
     This is the single shared entry-point for generating post-training
-    artifacts.  Both the training notebook and the sweep trial worker
-    call this function so that the artifacts are always consistent.
+    artifacts.  The training notebook calls it for every node it trains or
+    judges, so the artifacts are always consistent.
 
     When *stage_results* is ``None``, a results dict is built from on-disk
     eval data via :func:`build_stage_results_from_eval_data`.  Callers
@@ -1490,7 +1492,7 @@ def generate_stage_artifacts(
     )
     # A task_success/v1 stage is judged from evaluation_selected.csv; make
     # sure the directory holds one bound to the handoff before the gate
-    # (the sweep trial workers write none themselves — decision D-B12).
+    # (a caller that rolled no bound panel wrote none — decision D-B12).
     _write_task_success_evidence(
         species_cfg=species_cfg,
         stage=stage,

@@ -176,7 +176,7 @@ def _evaluation_evidence_aggregates(
     Every value is a float except the :data:`_EVIDENCE_HASH_COLUMNS`: the
     digest of the checkpoint the episodes were rolled out from and of the
     VecNormalize statistics they ran under, each ``None`` for evidence written
-    without that column (before it existed, or by the sidecar-less JAX path).
+    without that column (before it existed, or by the retired sidecar-less JAX path).
     """
     required_columns = {
         "episode",
@@ -562,7 +562,8 @@ def _validate_task_success_evidence(
     recorded has nothing to bind to, so both are refusals here where the
     legacy kinds only warn — and the statistic is
     :func:`~environments.shared.curriculum.task_success_gate.evaluate_task_success_gate`,
-    the one implementation the post-stage judge and the sweep share.  The
+    the one implementation the post-stage judge and the recorded-history
+    reading (``reporting.gates.evaluate_recorded_gate``) share.  The
     published ``selected_model_success_count`` / ``selected_model_n_episodes``
     (when *stage_summary* records them) must equal the rows' ``k`` / ``n``
     exactly: the bound alone is checked at a tolerance, and a count claim
@@ -759,8 +760,8 @@ def validate_evaluation_evidence(
         # The same binding for the VecNormalize statistics the rollout ran
         # under: an SB3 checkpoint is the pair, and a sidecar rewritten
         # between evaluation and save would otherwise be hashed into
-        # provenance unbound.  JAX certifies no sidecar, so there is nothing
-        # to bind and nothing to warn about.
+        # provenance unbound.  A record that certifies no sidecar (the retired
+        # JAX path's) has nothing to bind and nothing to warn about.
         certified_normalization = certified.get("normalization_hash") if isinstance(certified, Mapping) else None
         recorded_normalization = selected_aggregates["normalization_sha256"]
         if certified_normalization is not None:

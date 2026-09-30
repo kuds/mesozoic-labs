@@ -366,7 +366,7 @@ class TestEvaluateStageGateTaskSuccess:
         assert failures == ["stage 3 best model reward 200.00 < task_success rail 361.00"]
 
     def test_the_rail_is_judged_on_the_evidence_panel_not_the_npz_best(self, tmp_path):
-        """A sweep trial's stage_results carry the argmax EvalCallback panel (best_eval_reward);
+        """stage_results built from disk carry the argmax EvalCallback panel (best_eval_reward);
         the rail reads the selected panel the bound came from, so publication and the verdict agree."""
         self._evidence(tmp_path, [True] * 30, reward=300.0)
         passed, failures = evaluate_stage_gate(
@@ -509,8 +509,7 @@ class TestFiniteGateMetricCannotRaise:
 
     `value == ""` is an ELEMENTWISE comparison against a numpy array, so the
     following `if` raised "truth value of an array ... is ambiguous". Reachable
-    from any caller that hands through an array-valued metric, and on the JAX
-    path there is no try/except above it.
+    from any caller that hands through an array-valued metric.
     """
 
     @pytest.mark.parametrize(

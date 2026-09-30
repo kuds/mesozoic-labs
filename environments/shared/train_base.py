@@ -308,8 +308,8 @@ def _prepare_alg_kwargs(
     alg_table = "sac" if algorithm == "sac" else "ppo"
     alg_kwargs = config[f"{alg_table}_kwargs"].copy()
     if not alg_kwargs:
-        # The loader cannot know which backend a config is for; this is the
-        # first point that does (review CF4).
+        # The loader cannot know which algorithm ([ppo] or [sac]) a config
+        # will train; this is the first point that does (review CF4).
         logger.warning(
             "Stage config declares no [%s] table (or an empty one): %s will train on "
             "stable-baselines3's default hyperparameters.",
@@ -396,7 +396,7 @@ def _is_resume_continuation(
     * the checkpoint is one of SB3's periodic ``<prefix>_<steps>_steps.zip``
       files whose prefix is THIS stage's label.  A curated checkpoint
       (``best_model.zip``, ``stage<N>_final.zip``) carries no cumulative step
-      count and is how sweep warm-starts and exploratory loads arrive —
+      count and is how warm-starts and exploratory loads arrive —
       treating every bare ``--load`` under the default mode as a continuation
       would silently change those launches (review follow-up);
     * the algorithm is on-policy.  A SAC checkpoint restores its step counter
@@ -843,8 +843,8 @@ def _build_core_callbacks(
         callbacks.append(WandbCallback())
 
     # Flush buffered TensorBoard events to the remote mount (GCS or Drive)
-    # on the checkpoint cadence so a preempted worker (spot VMs) or a
-    # reclaimed Colab runtime doesn't lose the whole stage's logs.
+    # on the checkpoint cadence so a reclaimed Colab runtime (or any crashed
+    # worker) doesn't lose the whole stage's logs.
     if local_tb_dir is not None and gcs_tb_path is not None:
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
@@ -936,7 +936,7 @@ def _save_final_and_sync_tb(
     local_tb_dir: Path | None,
     gcs_tb_path: Path,
 ) -> Path:
-    """Save the final model checkpoint and sync TensorBoard events to GCS.
+    """Save the final model checkpoint and sync TensorBoard events to the remote mount.
 
     On a Drive/GCS mount the pair is saved to local scratch and published
     zip first, sidecar last (``publish_staged_pair``). An empty placeholder
@@ -982,7 +982,7 @@ def _save_final_and_sync_tb(
         try:
             _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
         except Exception:
-            logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
+            logger.warning("TensorBoard sync to the remote mount failed.", exc_info=True)
 
     return final_path
 
@@ -1113,7 +1113,7 @@ def train(
     own (decision D-D11), and the time from this call to the final save is
     recorded as ``run.duration_seconds`` (decision D-A15), added to the value
     already recorded in ``log_path`` on a same-stage resume.  The notebook
-    passes ``report_metrics=False`` (no HPT report, panels or
+    passes ``report_metrics=False`` (no post-training panels or
     ``metrics.json``: it evaluates the node itself) and
     ``save_on_interrupt=False`` (a ``KeyboardInterrupt`` in training
     propagates before the final save, recording nothing, so its RESUME cell
@@ -1494,7 +1494,7 @@ def train(
     return model
 
 
-# ── HPT metric reporting ─────────────────────────────────────────────────
+# ── Post-training metrics (metrics.json) ─────────────────────────────────
 
 
 def _report_hpt_metrics(
@@ -1546,7 +1546,7 @@ def _report_hpt_metrics(
     from .config import get_library_version
 
     # Accumulate all metrics for the JSON sidecar.  Run identity + effective
-    # seed make each trial reproducible from the collected CSV alone.
+    # seed make each run reproducible from metrics.json alone.
     aux_metrics: dict[str, Any] = {
         "species": species_cfg.species,
         "algorithm": algorithm,
@@ -1554,7 +1554,7 @@ def _report_hpt_metrics(
         "best_mean_reward": float(eval_callback.best_mean_reward),
         "training_duration_seconds": round(training_duration_seconds, 1),
         # Actual steps trained (callers pass model.num_timesteps), so
-        # early-stopped runs are visible in offline result collection.
+        # metrics.json records what an early-stopped run actually trained.
         "timesteps": int(total_timesteps),
     }
     if plant_identity is not None:
@@ -1573,7 +1573,7 @@ def _report_hpt_metrics(
         best_mean_ep_length = float(eval_lengths[best_eval_idx].mean())
         aux_metrics["best_mean_episode_length"] = best_mean_ep_length
         logger.info(
-            "HPT metric reported: best_mean_episode_length=%.1f",
+            "Recorded metric: best_mean_episode_length=%.1f",
             best_mean_ep_length,
         )
 
@@ -1582,7 +1582,7 @@ def _report_hpt_metrics(
         aux_metrics["last_mean_reward"] = last_mean_reward
         aux_metrics["last_mean_episode_length"] = last_mean_ep_length
         logger.info(
-            "HPT metric reported: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
+            "Recorded metric: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
             last_mean_reward,
             last_mean_ep_length,
         )
@@ -1614,8 +1614,9 @@ def _report_hpt_metrics(
             )
         )
 
-    # Include key hyperparameters in the sidecar so offline result
-    # collection works even when stage_config.json is missing.
+    # Include key hyperparameters so metrics.json names them on its own,
+    # even without stage_config.json (the sweep collector that read them
+    # was retired, D-D17).
     if stage_config is not None:
         algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
         algo_kwargs = stage_config.get(algo_key, {})
@@ -1661,9 +1662,9 @@ def run_success_panel(
 ) -> tuple[PanelEpisodes, dict[str, Any]]:
     """Run the post-training velocity/success panel; for a hunt it doubles as the gate evidence.
 
-    The ONE implementation behind ``train()``'s panel and the Ray Tune
-    worker's, so the two cannot drift on what a ``task_success/v1`` sweep
-    row is judged on (decision D-B12 and its amendment).  Returns the panel's
+    Its one caller is :func:`_post_training_eval_panels`, the panel
+    ``train()`` rolls with ``report_metrics=True`` (decision D-B12 and its
+    amendment).  Returns the panel's
     per-episode sequences and the ``metrics.json`` entries they add:
 
     * For every kind, ``success_count`` / ``n_success_episodes`` — the exact
@@ -1676,10 +1677,10 @@ def run_success_panel(
       count keys are recorded ONLY when that file was written, together
       with ``selected_mean_reward`` / ``selected_mean_episode_length`` (the
       rail and length-floor inputs off the same rows).  A hunt panel that
-      did not evaluate the handoff pair (no checkpoint saved, the smoke-trial
-      shape) or whose evidence write failed records no count at all: the
-      offline row is then "not evaluable" beside a directory the judge
-      refuses, never a PASS beside a FAILED verdict file.
+      did not evaluate the handoff pair (no checkpoint saved, the smoke-run
+      shape) or whose evidence write failed records no count at all, so
+      ``metrics.json`` holds no count beside a directory the judge refuses,
+      never a PASS beside a FAILED verdict file.
     """
     curriculum = curriculum or {}
     task_success = curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND
@@ -1730,7 +1731,7 @@ def run_success_panel(
     except Exception:  # noqa: BLE001 - evidence must not sink the run; the judge refuses without it
         logger.warning(
             "Task-success evidence could not be written; the panel's count is not recorded either, "
-            "so the sweep row stays unjudged beside the refused verdict",
+            "so metrics.json holds no count beside the refused verdict",
             exc_info=True,
         )
         return episodes, metrics
@@ -1762,12 +1763,12 @@ def _post_training_eval_panels(
 
     The velocity/success panel is :func:`run_success_panel`: it records
     ``success_count`` / ``n_success_episodes`` beside ``mean_success_rate``
-    — the count a ``task_success/v1`` sweep row is judged on (decision
-    D-B12) — and, when *stage_config* declares that kind and the panel
-    evaluated the handoff pair, writes the same episodes as
+    — the exact ``k`` / ``n`` a rounded rate cannot recover (decision
+    D-B12) — and, when *stage_config* declares ``task_success/v1`` and the
+    panel evaluated the handoff pair, writes the same episodes as
     ``<stage_dir>/evaluation_selected.csv`` hash-bound to the pair, so the
-    post-stage judge (``generate_stage_artifacts``) and the sweep row agree
-    by construction.
+    post-stage judge (``generate_stage_artifacts``) and ``metrics.json``
+    agree by construction.
     """
     import numpy as _np
 
@@ -1805,7 +1806,7 @@ def _post_training_eval_panels(
         eval_env.training = False
         eval_env.norm_reward = False
         panel["quality_eval_checkpoint"] = ckpt_name
-        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
+        logger.info("Post-training eval: using %s + matched VecNormalize", ckpt_name)
     elif best_model_zip.exists():
         # Legacy fallback: a best_model saved without matched VecNormalize
         # stats. Evaluate it rather than nothing, but flag the mismatch.
@@ -1816,7 +1817,7 @@ def _post_training_eval_panels(
         eval_env.norm_reward = False
         panel["quality_eval_checkpoint"] = "best_model"
         logger.warning(
-            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
+            "Post-training eval: best_model has no matched VecNormalize stats — quality eval "
             "normalization may not match the policy weights"
         )
     else:
@@ -1824,7 +1825,7 @@ def _post_training_eval_panels(
         eval_env.training = False
         eval_env.norm_reward = False
         panel["quality_eval_checkpoint"] = "final_model"
-        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
+        logger.warning("Post-training eval: no saved checkpoint found, falling back to final model")
 
     # Quality evaluation with full LocomotionMetrics (spinning detection,
     # heading alignment, reward breakdown, etc.)
@@ -1868,27 +1869,27 @@ def _post_training_eval_panels(
         std_fwd = float(_np.std(fwd_vels))
         panel["mean_forward_vel"] = mean_fwd
         panel["std_forward_vel"] = std_fwd
-        # Keep backward-compat alias used by existing sweep analysis.
+        # Backward-compat alias the retired sweep analysis read; kept (docs/CLEANUP_PLAN_2026_09.md §4.9).
         panel["best_mean_forward_vel"] = mean_fwd
-        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
+        logger.info("Recorded metric: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
     if distances:
         mean_dist = float(_np.mean(distances))
         panel["mean_distance_traveled"] = mean_dist
-        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
+        logger.info("Recorded metric: mean_distance_traveled=%.4f", mean_dist)
     if success_flags:
         mean_success = float(_np.mean(success_flags))
         panel["mean_success_rate"] = mean_success
-        # Keep backward-compat alias used by existing sweep analysis.
+        # Backward-compat alias the retired sweep analysis read; kept (docs/CLEANUP_PLAN_2026_09.md §4.9).
         panel["best_mean_success_rate"] = mean_success
         logger.info(
-            "HPT metric reported: mean_success_rate=%.4f (%d/%d)",
+            "Recorded metric: mean_success_rate=%.4f (%d/%d)",
             mean_success,
             sum(1 for flag in success_flags if flag),
             len(success_flags),
         )
-    # The count and the panel size, so a task_success/v1 sweep row can form
-    # the exact binomial bound the gate certifies (D-B12) — recorded by the
-    # shared panel only when the row can be judged on the same evidence.
+    # The count and the panel size (D-B12). For task_success/v1 the shared
+    # panel records them only when it wrote the evidence file the judge
+    # reads, so the count always has the rows behind it.
     panel.update(success_panel_metrics)
     return panel
 
@@ -2807,8 +2808,8 @@ def _record_stage_result(
     else:
         net_arch_str = str(net_arch_val) if net_arch_val else ""
 
-    # Use canonical column names matching CSV_METRIC_COLUMNS and prefixed
-    # hyperparameter conventions from the sweep CSV format.
+    # Use canonical column names matching CSV_METRIC_COLUMNS and the prefixed
+    # <algo>_* / env_* hyperparameter columns of build_results_csv_rows.
     result_row: dict = {
         "species": species,
         "algorithm": algorithm.upper(),
@@ -2818,7 +2819,7 @@ def _record_stage_result(
         "stage_name": config["name"],
         "seed": seed,
         "n_envs": n_envs,
-        # Prefixed hyperparameters (matching sweep CSV conventions)
+        # Prefixed hyperparameters (the <algo>_* / env_* columns)
         f"{algo_prefix}_learning_rate": algo_kwargs.get("learning_rate", ""),
         f"{algo_prefix}_batch_size": algo_kwargs.get("batch_size", ""),
         f"{algo_prefix}_gamma": algo_kwargs.get("gamma", ""),

@@ -143,8 +143,8 @@ FROZEN_NULL_GATE_KINDS: frozenset[str] = frozenset({RECOVERY_GATE_KIND})
 #: passed, ``thresholds_from_configs`` produced no fields, and
 #: ``CurriculumManager`` fell back to ``StageThreshold``'s permissive defaults
 #: (``min_avg_reward = -inf``) — advancing on any evaluation — while the JAX
-#: path raised.  Requiring the core field here closes that hole and keeps the
-#: two backends agreeing, which is the schema's whole job.
+#: path (retired by D-D17) raised.  Requiring the core field here closes that
+#: hole for every gate reader.
 _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
     "reward_and_length/v1": frozenset({"min_avg_reward"}),
     # All three stance criteria are required.  The UCB in particular is the
@@ -313,7 +313,7 @@ def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
     diagnostic, retention, provenance and publication keys
     (``certification_seeds``, decision D-B9) and any ``[curriculum.jax]``
     override table are not (SB3 never applies the override table and the
-    JAX path writes no verdict, decision D-A5).  A null kind (a stage that
+    retired JAX path wrote no verdict, decision D-A5).  A null kind (a stage that
     declares no gate; ``stage_artifacts`` records it as null) or an
     unregistered one projects through :data:`_ALL_THRESHOLD_KEYS` instead, so
     it hashes deterministically rather than raising.  Hash it with
@@ -377,8 +377,9 @@ def gate_config_differences(recorded_thresholds: Mapping[str, Any], current_view
 def finite_gate_metric(value: Any) -> float | None:
     """The metric as a float, or ``None`` when it was not measured.
 
-    Lives here, at the bottom of the gate stack, because both backends need
-    the same answer and both got it wrong in the same way.  A threshold
+    Lives here, at the bottom of the gate stack, because every gate reader
+    needs the same answer, and SB3 and the retired JAX backend got it wrong
+    in the same way.  A threshold
     comparison against an unmeasured metric is the archetypal fail-open:
     ``nan < threshold`` is ``False``, so an unfiltered NaN *clears* every
     floor beneath it, and a gate that could not measure anything reports a
@@ -498,8 +499,8 @@ def validate_gate_config(
     if declared_kind not in GATE_KINDS:
         raise GateSchemaError(
             f"{_describe(stage)}: unknown gate_kind {declared_kind!r}. "
-            f"Known kinds: {sorted(GATE_KINDS)}. An unknown kind is fatal so a "
-            "backend cannot silently ignore a gate the other backend enforces."
+            f"Known kinds: {sorted(GATE_KINDS)}. An unknown kind is fatal so no "
+            "gate reader can silently ignore a gate another one enforces."
         )
 
     if declared_version is None:

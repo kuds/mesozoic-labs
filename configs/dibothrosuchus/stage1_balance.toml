@@ -9,9 +9,9 @@ drift_penalty_weight = 0.3                     # Penalize horizontal displacemen
 spin_penalty_weight = 0.1                      # Penalize trunk angular velocity to directly discourage spinning
 speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — instantaneous complement to the drift penalty
 speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
-alive_bonus = 1.5                              # Gated on height AND foot contact in mjx_env: no reward for propping on the snout
-foot_contact_gate = 1.0                        # Gate alive bonus on foot contact (>0 enables gating). JAX-only: SB3 handles this via snout/body-contact termination instead.
-foot_contact_weight = 0.8                      # Per-step bonus for having at least one foot on the ground. JAX-only: SB3 does not use this signal.
+alive_bonus = 1.5                              # Ungated under SB3, where snout- and body-contact termination end a snout prop (the retired mjx_env gated it on height AND foot contact)
+foot_contact_gate = 1.0                        # Read only by the retired MJX reward (>0 gated its alive bonus on foot contact); SB3 ignores it. Kept: task_sha256 hashes it.
+foot_contact_weight = 0.8                      # Read only by the retired MJX reward (a per-step bonus for a grounded foot); SB3 ignores it. Kept: task_sha256 hashes it.
 energy_penalty_weight = 0.05                   # This plant is light and its servos are cheap; a moderate cost still favours an efficient stance
 gait_stability_weight = 0.05                   # Light trunk angular-velocity penalty
 tail_stability_weight = 0.1
@@ -56,7 +56,7 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
 ent_coef_decay_timesteps = 3000000      # repository that ran without decay destabilized late; anchor at half the 6M budget
                                         # so ent_coef reaches its floor before any late action-std drift.
                                         # See docs/investigations/TREX_STAGE1_LEG_JITTER.md.
-target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

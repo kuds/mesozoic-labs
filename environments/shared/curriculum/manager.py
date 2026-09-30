@@ -1,8 +1,8 @@
 """Stage thresholds and the backend-independent curriculum manager.
 
 :class:`CurriculumManager` owns the advancement decision and per-stage config
-loading; it has no SB3 dependency, so it can be driven from a JAX loop or a
-notebook just as well as from :class:`~.advancement.CurriculumCallback`."""
+loading; it has no SB3 dependency, so it can be driven from a notebook or any
+other loop just as well as from :class:`~.advancement.CurriculumCallback`."""
 
 from __future__ import annotations
 
