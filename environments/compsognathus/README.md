@@ -45,7 +45,8 @@ The viewer starts at `home`, holds fixed joint-angle targets and steps real
 physics. `--motors-off` disables actuation at solver level; `--mass-scale 1.15` increases
 body masses and inertias while preserving motor limits.
 
-Pictures need Pillow; videos additionally need `imageio imageio-ffmpeg`:
+Pictures need Pillow; videos additionally need `imageio` and `imageio-ffmpeg`,
+both in the `viz` extra (`pip install -e ".[viz]"`):
 
 ```bash
 python -m environments.compsognathus.scripts.view_model --compare /tmp/models.png

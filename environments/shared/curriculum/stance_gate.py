@@ -88,7 +88,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 
@@ -245,28 +245,6 @@ def mean_upper_confidence_bound(values: Sequence[float]) -> float:
     return mean + one_sided_t95(n - 1) * std_err
 
 
-def episode_unsupported_duty(
-    unsupported_flags: Sequence[float] | Sequence[bool],
-    *,
-    settle_steps: int = 0,
-) -> float | None:
-    """Fraction of post-settling steps in which neither foot bore load.
-
-    Args:
-        unsupported_flags: Per-step truthy values, one per environment step of
-            a single episode, true when neither foot is bearing load.
-        settle_steps: Leading steps to discard before measuring.
-
-    Returns:
-        The duty fraction, or ``None`` when the episode is shorter than the
-        settling window and therefore carries no measurable tail.
-    """
-    flags = np.asarray(list(unsupported_flags), dtype=float)
-    if flags.size <= settle_steps:
-        return None
-    return float(flags[settle_steps:].mean())
-
-
 @dataclass(frozen=True)
 class StancePanel:
     """The per-evaluation summary the gate consumes.
@@ -349,34 +327,6 @@ def stance_panel_from_episode_duties(
         n_duty_episodes=len(duties),
         mean_unsupported_duty=float(np.mean(duties)) if duties else math.inf,
         unsupported_duty_ucb=mean_upper_confidence_bound(duties) if duties else math.inf,
-    )
-
-
-def summarize_stance_panel(
-    *,
-    episode_lengths: Sequence[float],
-    episode_unsupported: Iterable[Sequence[float] | Sequence[bool]],
-    episode_rewards: Sequence[float],
-    horizon: int,
-    settle_steps: int = 0,
-) -> StancePanel:
-    """Reduce one evaluation's per-episode traces to the gate's panel summary.
-
-    ``episode_unsupported`` yields one per-step flag sequence per episode, in
-    the same order as ``episode_lengths``.  Only episodes that reached
-    ``horizon`` contribute duty -- see the module docstring for why failures
-    are excluded rather than scored as 1.0.
-
-    Both backends must funnel through this function.  It is where the
-    settling window and the failed-episode rule are applied, and a backend
-    that reduced traces itself would be free to disagree with the other one
-    about what the gate means.
-    """
-    return stance_panel_from_episode_duties(
-        episode_lengths=episode_lengths,
-        episode_duties=[episode_unsupported_duty(flags, settle_steps=settle_steps) for flags in episode_unsupported],
-        episode_rewards=episode_rewards,
-        horizon=horizon,
     )
 
 

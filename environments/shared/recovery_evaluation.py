@@ -294,28 +294,6 @@ def roll_recovery_panel(
     )
 
 
-def paired_success_differences(
-    policy: RecoveryPanelEvidence,
-    null: RecoveryPanelEvidence,
-) -> tuple[float, ...]:
-    """Per-seed policy-minus-null success differences, aligned by panel seed.
-
-    Fail-closed: a seed present on one side and missing on the other is a
-    pairing defect, not a skippable row.
-    """
-    policy_by_seed = policy.successes_by_seed()
-    null_by_seed = null.successes_by_seed()
-    if set(policy_by_seed) != set(null_by_seed):
-        raise ValueError(
-            "paired panels do not share their seed set: "
-            f"policy-only {sorted(set(policy_by_seed) - set(null_by_seed))}, "
-            f"null-only {sorted(set(null_by_seed) - set(policy_by_seed))}"
-        )
-    return tuple(
-        float(policy_by_seed[panel_seed]) - float(null_by_seed[panel_seed]) for panel_seed in sorted(policy_by_seed)
-    )
-
-
 def write_recovery_evidence(stage_dir: "str | Path", evidence: RecoveryPanelEvidence) -> dict[str, Path]:
     """Write the per-episode and per-shove CSVs for one controller."""
     stage_dir = Path(stage_dir)

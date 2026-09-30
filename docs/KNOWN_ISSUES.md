@@ -756,26 +756,6 @@ robustness, **LOW** = cosmetic / QoL.
   jitter could spawn an episode already outside `healthy_z_range`. Worth
   separating if a species much smaller than Dibothrosuchus is ever added.
   (2026-07 Dibothrosuchus review)
-- **MEDIUM** — two code paths decide "is this species a quadruped?" by
-  different means and can disagree. `mjx_env.build_mjx_observation` tests
-  `"torso" in body_ids`; `plant_contract._policy_interface_payload` tests
-  `observation_schema == "quadrupedal-target/v1"`. A registration declaring a
-  bipedal schema with a `torso` root errors in the plant contract (so CI
-  catches it); the MJX runtime that would have silently picked the torso root
-  left with D-D17 (cleanup PR-B). (2026-07 Dibothrosuchus review) Latent since
-  D-D17: `build_mjx_observation` and the four registrations are part of the
-  frozen MJX interface core (its tokens and their values enter the
-  policy-interface digests), and a new species declares SB3 only, so no new
-  registration reaches `build_mjx_observation`. Either fix inside the frozen
-  core (give the MJX registration the observation schema, or assert exactly
-  one of `{"torso", "pelvis"}` in `body_ids` in `build_mjx_observation`) would
-  move four species' digests. The same one-root assertion in the plant
-  contract's MJX probe (`policy_layer._jax_policy_interface_payload`, which is
-  not hashed) would move none and would close this entry, because the probe
-  already requires the schema's root; it is left to cleanup CU-7. Otherwise a
-  backend added back takes one of the fixes
-  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.10), and the entry
-  closes when the last dual species' SB3-only revision drops its MJX branch.
 - **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
   declare exactly one mocap body. All four comply and it fails loudly, but the
   constraint was introduced to derive a segment label, not because the contract
@@ -1317,12 +1297,6 @@ Still open:
 
 - Brachio stage-2 `natural_pitch = -0.15` while stages 1/3 use 0.0 —
   intentional? (June §4)
-- `pyproject.toml`'s gymnasium entry-point groups (`gymnasium.envs.__root__`,
-  `gymnasium.envs.MesozoicLabs`) are dead: gymnasium 1.3.0 has no plugin
-  loader, so `gym.make("MesozoicLabs/Raptor-v0")` without `import
-  environments` raises `NamespaceNotFound` even with the groups installed
-  (verified 2026-09-26); the envs self-register on `import environments`.
-  Delete the block (CU-7). (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)
 

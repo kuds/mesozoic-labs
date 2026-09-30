@@ -1,6 +1,6 @@
-# Next steps and program state (2026-09-29)
+# Next steps and program state (2026-09-30)
 
-**Status**: living reference — updated 2026-09-29; `main` = `a919985` (#570 merged 2026-09-29 18:44 UTC).
+**Status**: living reference — updated 2026-09-30; `main` = `19762d5` (#571 merged 2026-09-29 22:44 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,7 +18,7 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-09-29** (`main` = `a919985`). The backend retirement is complete:
+**On 2026-09-30** (`main` = `19762d5`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete: eight of
 D-D21's 0.3.9 gate names remain (CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14
@@ -29,10 +29,13 @@ that stage summaries built from `evaluations.npz` assumed) landed as #568 on
 notebook check, the four duplicated library-only pins deleted, shared test
 helpers) as #569 the same day, and CU-14b (the plant identity cached per process
 and species, the first part of CU-14) as #570 the same day; the same eight names
-remain after it, since CU-14 stays open until CU-14a lands. On 2026-09-29 the
+remain after it, since CU-14 stays open until CU-14a lands. CU-7a (the dead code, the
+unread gym entry points, the package re-exports that made `import environments`
+load SB3, and the MJX probe's one-root check that closes the quadruped-detection
+MEDIUM) is carried out; CU-7 stays open until CU-7b lands. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
-CU-7b, CU-8a, CU-12 and CU-13, and is carried out), split CU-7, CU-8, CU-14 and CU-16 into parts
+CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
 that D-D21's gate names cover, and accepted the order of the rest of the gate,
 in four waves (the cleanup plan's §3.1 item 4). The same day the maintainer
 settled the cleanup plan's decision 10 (its §2 row 10, the `test-sb3`
@@ -100,6 +103,7 @@ in a fresh session.
 | #568 | 2026-09-29 | Cleanup CU-2 (in D-D21's gate), outside the consolidation sequence: `render_mode="human"` loads `mujoco.viewer` itself (it raised `AttributeError` on the first step, so `train_sb3.py eval` without `--no-render` crashed) and aims the viewer's camera under the viewer's lock, through one camera helper shared with `_make_camera`; `generate_stage_artifacts`, when it builds a node's results from `evaluations.npz`, takes the node's own control step (0.02 s for the compsognathus pair) instead of 0.01 s; both KNOWN_ISSUES entries deleted, and one LOW added for the other 0.01 s fallback (a node re-entered from its own `gate_verdict.json`; no cleanup PR owns it yet); #567 recorded; no digest moves. Measured on its CI at `d8ea2a6` (the merge's tree): SB3 job 37:11 (its mypy step: no issues in 309 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-2 changes no training, configuration or digest input |
 | #569 | 2026-09-29 | Cleanup CU-4 (in D-D21's gate), outside the consolidation sequence: one standard-library notebook-cell reader, `environments/shared/tests/notebook_cells.py`, replaces the 16 notebook-extraction sites in nine test files and CI's inline notebook check (the lint job runs it by path); `test_notebook_cells.py` adds a notebook import-resolution check, and the canonical-JSON pin covers both notebooks; the four duplicated library-only pins deleted, each with a twin in the shared matrix (the cleanup plan's decision 9, amended); `ancestors_helpers.py`, `result_bundle_helpers.py` and `tiny_env_helpers.py` replace the test-to-test imports and the eight TinyEnv copies; #568, D-D22, D-D21's amendment (CU-7, CU-8, CU-14 and CU-16 split into parts) and the order of the rest of the gate recorded; its code touches tests, test helpers and the lint step only (25 files, +726 / −642); no digest moves. Measured on its CI at `9d8b53f` (the merge's tree): SB3 job 48:37 (its mypy step: no issues in 313 source files), all 22 CI jobs green, coverage 91 percent; the lint job's new step, `python environments/shared/tests/notebook_cells.py`, printed "all notebook code cells parse"; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-4 changes no training, configuration or digest input |
 | #570 | 2026-09-29 | Cleanup CU-14b (in D-D21's gate, the first part of CU-14; the cleanup plan's decision 10 (c)), outside the consolidation sequence: `current_plant_identity` keeps one build per process and species, reused only while its cache key (the species entry, the plant versions, the repository root, the model path, the source-closure digest, the environment class and the MuJoCo version) is unchanged and the policy layer, re-run on a fresh environment, still matches; the `verify_generated` comparison with the committed manifest runs on every call, and the manifest build and CI's `--check` never read the cache; a review fix checks the compiled physics of every env `config.build_env` builds; #569, decision 10 (c) and CU-14b recorded; no digest moves. Measured on its CI at `e62ce6d` (the merge's tree): SB3 job 17:31 (its mypy step: no issues in 314 source files; its three pytest steps 879 s, against 2,731 s at #569), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-14b changes no training, configuration or digest input |
+| #571 | 2026-09-29 | Cleanup ROW-16 (D-D22, outside D-D21's gate), outside the consolidation sequence: the digest-snapshot harness's full output, 848 lines, is committed as `configs/digest_snapshot.generated.txt`, and the plant-contract job's new step, "Verify the digest snapshot golden", runs the full harness with `--check` on every event, so a change that moves only behavior identities fails its own pull request; the harness gains `--check [PATH]` and `--write [PATH]`; `test_plant_contract_digest_snapshot.py` pins the step, the golden's shape and the `--check`/`--write` wiring; `.gitattributes` joins both path filters; #570 recorded; no digest moves. Measured on its CI at `6ae87e4` (the merge's tree): the new step took 50 s and reported the golden current (848 lines, 0 errors), and the plant-contract job's pytest step passed 186 tests; SB3 job 13:09 (its mypy step: no issues in 316 source files), all 22 CI jobs green, coverage 91 percent; the site build passed. The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); ROW-16 changes no training, configuration or digest input |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -462,16 +466,17 @@ single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569 and CU-14b as #570 (2026-09-29); the archive points (the plan's decision 2) were settled on 2026-09-27
+PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29); the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
 and CU-4 landed; CU-14b, the first part of CU-14, landed as #570, and CU-14
-stays open until CU-14a lands; [section 1](#1-where-things-stand) names them),
+stays open until CU-14a lands; CU-7a is carried out, and CU-7 stays open until
+CU-7b lands; [section 1](#1-where-things-stand) names them),
 the clean base the consolidation builds on. On 2026-09-29 the maintainer took
 D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
 CI checks, with the full harness run on pull requests, in the plant-contract
 job; its own PR, ROW-16, builds it, before CU-7b, CU-8a, CU-12 and CU-13, and
-is carried out), split CU-7,
+landed as #571 the same day), split CU-7,
 CU-8, CU-14 and CU-16 into parts that D-D21's gate names cover, and accepted
 the order of the rest of the gate (the plan's §3.1 item 4). The same day the
 maintainer settled the plan's decision 10 (its §2 row 10) as (c) first,
@@ -674,7 +679,7 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   plant-contract job's step "Verify the digest snapshot golden" runs the full
   harness with `--check` on every event, and
   `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`
-  regenerates it.
+  regenerates it. Landed as #571 on 2026-09-29.
 
 Goal decisions **G1–G4** (chain shape and node set, command set, session order,
 first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).

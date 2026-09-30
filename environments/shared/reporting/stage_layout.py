@@ -37,8 +37,8 @@ make a mechanical move indistinguishable from a semantic one in review.
 
 Reading old runs
 ----------------
-Every accessor here falls back to the legacy flat location, so the ~35
-existing runs on Drive keep resolving.  New runs write only the nested
+:func:`iter_replay_files` falls back to the legacy flat location, so the
+~35 existing runs on Drive keep resolving.  New runs write only the nested
 form; nothing rewrites history.
 """
 
@@ -64,16 +64,6 @@ REPLAYS_DIRNAME = "replays"
 #: than with the evaluation evidence.
 _REPLAY_SUFFIXES: tuple[str, ...] = (".mp4", ".csv")
 
-#: Figures this layout knows by name.  Used only to recognise legacy
-#: stage roots, where a figure is not distinguishable from any other PNG.
-FIGURE_NAMES: tuple[str, ...] = (
-    "training_curves.png",
-    "foot_contacts.png",
-    "stance_diagnostics.png",
-    "locomotion_health.png",
-    "behavioral_metrics.png",
-)
-
 
 def figures_dir(stage_dir: "str | Path", *, create: bool = False) -> Path:
     """Return the directory generated plots are written to."""
@@ -89,28 +79,6 @@ def replays_dir(stage_dir: "str | Path", *, create: bool = False) -> Path:
     if create:
         path.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def iter_figures(stage_dir: "str | Path") -> Iterator[Path]:
-    """Yield every figure in a stage directory, nested or legacy.
-
-    A nested figure shadows a legacy one of the same name: a run written
-    by a newer trainer into an older stage directory would otherwise be
-    reported twice.
-    """
-    stage_path = Path(stage_dir)
-    seen: set[str] = set()
-    nested = stage_path / FIGURES_DIRNAME
-    if nested.is_dir():
-        for path in sorted(nested.glob("*.png")):
-            seen.add(path.name)
-            yield path
-    for name in FIGURE_NAMES:
-        if name in seen:
-            continue
-        legacy = stage_path / name
-        if legacy.is_file():
-            yield legacy
 
 
 def iter_replay_files(stage_dir: "str | Path") -> Iterator[Path]:
@@ -136,12 +104,6 @@ def iter_replay_files(stage_dir: "str | Path") -> Iterator[Path]:
         for path in sorted(stage_path.glob(pattern)):
             if path.name not in seen and path.is_file():
                 yield path
-
-
-def iter_generated_artifacts(stage_dir: "str | Path") -> Iterator[Path]:
-    """Yield every figure and replay artifact for a stage, in that order."""
-    yield from iter_figures(stage_dir)
-    yield from iter_replay_files(stage_dir)
 
 
 @contextmanager

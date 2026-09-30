@@ -446,8 +446,8 @@ oscillation and large transients — which is precisely the failure mode in §1.
 following had to be specified and implemented — items still open are marked:
 
 * ~~per-step → per-episode → per-evaluation aggregation, explicitly~~ **done** —
-  `summarize_stance_panel` / `stance_panel_from_episode_duties`, the single reduction both
-  backends call;
+  `stance_panel_from_episode_duties`, the single reduction both backends call (its trace-level
+  wrapper `summarize_stance_panel` was deleted by cleanup CU-7a, 2026-09-30);
 * ~~whether failed episodes contribute, and with what value~~ **done** — excluded;
 * the settling window is defined (`settle_steps`, applied before duty is accumulated); the
   **tail window** for the quantile criteria is not, because those criteria are not built;

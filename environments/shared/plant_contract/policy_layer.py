@@ -195,6 +195,14 @@ def _jax_policy_interface_payload(
     root_name = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
     if root_name not in body_ids:
         raise PlantContractError(f"MJX plant registration lacks required {root_name!r} body mapping")
+    # build_mjx_observation picks its root by ``"torso" in body_ids``, not by
+    # the schema: exactly one root keeps the two in agreement.
+    registered_roots = sorted({"torso", "pelvis"}.intersection(body_ids))
+    if registered_roots != [root_name]:
+        raise PlantContractError(
+            f"MJX plant registration for {version.species} must map exactly one root body, {root_name!r} "
+            f"(observation schema {version.observation_schema!r}); it maps {registered_roots}"
+        )
 
     sensor_layout = SensorLayout(
         gyro_start=int(raw_config.get("sensor_gyro_start", 0)),

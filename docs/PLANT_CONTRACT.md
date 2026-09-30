@@ -175,8 +175,10 @@ are SB3-only and report parity `None`: `backend_observation_equal` is computed o
 inject the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the trailing 3-dim command segment — the SB3 probe
 sets `env._command` beside the model/data swap and the MJX probe passes `command=` to `build_mjx_observation` — so the
 parity assertion covers the appended slot rather than three zeros. The probe runs `build_mjx_observation` on NumPy
-data, so it needs no JAX install. MJX registration values (root-body IDs, sensor offsets, action mapping, frame skip
-and, on trex, the action-filter cutoff) are versioned alongside the SB3 interface.
+data, so it needs no JAX install. It also requires the registration to map exactly one root body, the one the
+observation schema names (`torso` for `quadrupedal-target/v1`, otherwise `pelvis`), because `build_mjx_observation`
+roots on `torso` whenever one is registered. MJX registration values (root-body IDs, sensor offsets, action mapping,
+frame skip and, on trex, the action-filter cutoff) are versioned alongside the SB3 interface.
 
 Nothing trains on the frozen core, and it is never edited, reformatted or moved: any token change moves those four
 species' policy-interface digests, which `plant_contract --check` reports and

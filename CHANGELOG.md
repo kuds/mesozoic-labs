@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
 
 ### Added
-- **The digest snapshot is a committed golden that CI checks** (cleanup
-  ROW-16, D-D22, 2026-09-29; `docs/CLEANUP_PLAN_2026_09.md` §2 row 16,
+- **The digest snapshot is a committed golden that CI checks** (#571,
+  cleanup ROW-16, D-D22, 2026-09-29; `docs/CLEANUP_PLAN_2026_09.md` §2 row 16,
   §3.1 item 4 and §4.4). `configs/digest_snapshot.generated.txt` holds the
   full output of `environments/shared/harnesses/digest_snapshot.py`, 848
   lines: every plant, policy, stage, recovery and behavior digest. The
@@ -139,6 +139,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and A6 "Superseded by D-D17".
 
 ### Migration
+- **`from environments.shared import <name>` no longer works for the 19
+  names the package re-exported** (cleanup CU-7a of
+  `docs/CLEANUP_PLAN_2026_09.md`): `CurriculumManager`, `BaseDinoEnv`,
+  `load_stage_config`, `save_result_bundle` and the rest now raise
+  `ImportError`. Import each from its submodule, e.g. `from
+  environments.shared.config import load_stage_config`; nothing in the
+  repository or the notebooks imported them through the package.
+  `environments.register_all()`, a no-op, is gone too: the environments
+  register on `import environments`, as before.
 - **The `jax` and `jax-cpu` extras are gone** (#566, cleanup PR-B, decision
   D-D17), and `[all]` is `[train,viz,dev]`. pip only warns ("does not
   provide the extra 'jax'") and installs the package anyway, so an install
@@ -210,6 +219,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **`import environments` no longer loads Stable-Baselines3, torch and
+  wandb** (cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`).
+  `environments/shared/__init__.py` re-exported 19 names that nothing
+  imported through the package, and importing any `environments.shared`
+  submodule runs it first, as every species environment does. It now holds
+  only its docstring. Measured with SB3 installed, `import environments`
+  takes about 0.36 s and loads 569 modules, against 3.45-3.55 s and 2,480;
+  without SB3 the time is unchanged within noise. The usage docstrings of
+  seven species scripts, whose old `python <name>.py` usage fails without
+  an installed package, now give `python -m
+  environments.<species>.scripts.<name>`.
 - **The plant identity is built once per process and species** (#570, CU-14b of
   `docs/CLEANUP_PLAN_2026_09.md`, the plan's decision 10 (c)).
   `current_plant_identity` built an environment, compiled the declared model
@@ -337,6 +357,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new modules), and the suite collects 3,951 tests (from 3,949).
 
 ### Removed
+- **Dead code and the unread gymnasium entry points** (cleanup CU-7a of
+  `docs/CLEANUP_PLAN_2026_09.md`). Deleted, each with the tests that
+  covered only it: `gate_schema.apply_backend_overrides` and
+  `has_backend_overrides` (no caller since D-D17; a `[curriculum.jax]`
+  table is still validated), `stance_gate.summarize_stance_panel` and
+  `episode_unsupported_duty` (the live reduction is
+  `stance_panel_from_episode_duties`),
+  `recovery_evaluation.paired_success_differences`,
+  `reward_functions.reward_height_maintenance` and
+  `check_nosedive_termination`, `stage_layout.FIGURE_NAMES`,
+  `iter_figures` and `iter_generated_artifacts`,
+  `StageManifest.by_position`, `stage_manifest.STAGE_MANIFEST_SCHEMA`,
+  `constants.DEFAULT_FRAME_SKIP` and `environments.register_all`. The
+  `gymnasium.envs.__root__` and `gymnasium.envs.MesozoicLabs` entry-point
+  groups leave `pyproject.toml`: gymnasium 0.29's plugin loader reads only
+  the `gymnasium.envs` group, and 1.0 onward has no loader, so no
+  supported gymnasium version read them. Their KNOWN_ISSUES bullet and the
+  CONTRIBUTING step that told a new species to add one go too, and the
+  ROADMAP item now names the real id, `MesozoicLabs/Raptor-v0` (it said
+  `Velociraptor-v0`). No digest moves.
 - **The JAX/MJX runtime** (#566, cleanup PR-B of
   `docs/CLEANUP_PLAN_2026_09.md`, decision D-D17). 30 files and 15,665 lines
   are deleted: the thirteen
@@ -537,6 +577,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
 
 ### Fixed
+- **The plant contract's MJX probe requires exactly one root body**
+  (cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
+  `build_mjx_observation` roots its observation on `torso` whenever the
+  registration maps one, while the probe takes the root from the
+  observation schema (`torso` for `quadrupedal-target/v1`, otherwise
+  `pelvis`) and checked only that it was mapped, so a registration mapping
+  both could be rooted differently by the two. The probe now also requires
+  that the registration maps exactly one of them, the one the schema names
+  (`docs/PLANT_CONTRACT.md`), which closes the quadruped-detection MEDIUM
+  in KNOWN_ISSUES; no committed registration maps both. The probe is not
+  hashed, so no digest moves.
+- **`imageio` is declared** (cleanup CU-7a).
+  `compsognathus/scripts/view_model.py --video` imports `imageio.v2`,
+  which no extra required; the `viz` extra now requires `imageio>=2.16.1`
+  (`imageio.v2` needs 2.16, and 2.16.0 was yanked).
 - **`render_mode="human"` no longer crashes on the first step** (#568,
   CU-2 of `docs/CLEANUP_PLAN_2026_09.md`). `BaseDinoEnv.render` called
   `mujoco.viewer.launch_passive`, but `import mujoco` does not load the

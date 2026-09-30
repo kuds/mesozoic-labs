@@ -176,12 +176,11 @@ class CurriculumManager:
             success_rates: Optional list of per-episode success flags
                 (1.0 if prey contact / food reached, 0.0 otherwise).
             stance_panel: Optional stance summary for ``stance_quality/v1``.
-                Both backends must build this with
-                :func:`~environments.shared.curriculum.stance_gate.summarize_stance_panel`
-                rather than reducing per-episode traces themselves, so the
-                settling window and the failed-episode rule cannot drift
-                between SB3 and JAX — which is the whole point of the
-                versioned schema.
+                Build it with
+                :func:`~environments.shared.curriculum.stance_gate.stance_panel_from_episode_duties`
+                rather than assembling a ``StancePanel`` by hand, so the
+                failed-episode rule and the bound cannot drift between
+                callers — which is the whole point of the versioned schema.
 
         Returns:
             Summary dict with mean/std statistics.
@@ -460,7 +459,7 @@ class CurriculumManager:
             logger.warning(
                 "Stage %d declares gate_kind %s but the evaluation carried no stance panel; "
                 "refusing to advance. The eval path must build one with "
-                "stance_gate.summarize_stance_panel().",
+                "stance_gate.stance_panel_from_episode_duties().",
                 self._current_stage,
                 STANCE_GATE_KIND,
             )

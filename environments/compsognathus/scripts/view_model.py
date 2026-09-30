@@ -5,8 +5,8 @@ Examples:
   MUJOCO_GL=osmesa python -m environments.compsognathus.scripts.view_model --compare /tmp/compso.png
   MUJOCO_GL=osmesa python -m environments.compsognathus.scripts.view_model --model robot --video /tmp/robot.mp4
 
-Render outputs need Pillow; videos additionally need imageio[ffmpeg]. A headless
-host needs an EGL or OSMesa runtime. Interactive viewing uses the platform GL
+Render outputs need Pillow; videos additionally need imageio and imageio-ffmpeg
+(the ``viz`` extra). A headless host needs an EGL or OSMesa runtime. Interactive viewing uses the platform GL
 window system (on macOS use mjpython instead of python).
 """
 
