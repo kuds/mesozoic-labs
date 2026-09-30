@@ -1,5 +1,13 @@
 # Website Improvement Plan
 
+**Status (2026-09-30): complete.** Everything under Completed holds. The two
+items left under Remaining have moved: using or deleting the unused training
+GIFs is cleanup CU-16b's ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
+§3.2, CU-16 row), and the logo's size is a [KNOWN_ISSUES.md](KNOWN_ISSUES.md)
+entry (Configs, docs & website), which corrects the remedy below: the SVG
+wraps one PNG and has no paths and no SVG editor metadata, so SVGO would not
+shrink it.
+
 ## Completed
 
 The following items from the original plan have been implemented:

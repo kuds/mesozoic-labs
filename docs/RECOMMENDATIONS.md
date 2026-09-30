@@ -1,6 +1,12 @@
 # Mesozoic Labs - Codebase Review & Recommendations
 
 > Last updated: 2026-03-25
+>
+> **Status (2026-09-30):** a dated snapshot (2026-03-25; one item added
+> 2026-07-27, §6.1 reworded 2026-07-13), not an active backlog. [ROADMAP.md](ROADMAP.md) holds the
+> phased plan and [KNOWN_ISSUES.md](KNOWN_ISSUES.md) the open problems. Since
+> this was written, D-D17 (2026-09-26) retired the JAX/MJX migration it
+> recommends (§6.1, table item 7), with cleanup PR-B (2026-09-28).
 
 ## Codebase Assessment
 

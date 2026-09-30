@@ -1192,3 +1192,102 @@ agents) with adversarial verification of every finding, plus a by-hand integrato
 P5 merge. The full per-finding verification transcripts (including the runtime probes and their
 scripts) are preserved in the session working directory; the findings above stand on the
 verifier-corrected wording.*
+
+---
+
+## Appendix B — Status 2026-09-30 (appended)
+
+This appendix records what became of every finding (§3, §4) and cleanup entry (§6), checked against
+the code on 2026-09-30 (after cleanup CU-7b; line numbers below are of that tree). It supersedes
+the header's "a finding without one is still open", which no longer holds: most findings were
+fixed without an inline status line. The four inline *Status* lines (CF2, CF3, SS1, SS2) stand.
+Of the 120 ids (84 findings, 36 cleanup entries), 78 are fixed, 16 were fixed (OP4 in part) and
+then retired with their code by D-D17, 9 were retired by D-D17 without a fix, 3 are fixed with a
+residue left on purpose, 6 are duplicates and 8 are open. D-D17 is the backend retirement
+([../CLEANUP_PLAN_2026_09.md](../CLEANUP_PLAN_2026_09.md) §4): cleanup PR-A (#564, 2026-09-27)
+removed Ray Tune, the Vertex AI tuning sweeps and their configs, PR-A2 (#565, 2026-09-28) the
+single-job Vertex AI route, and PR-B (#566, 2026-09-28) the JAX/MJX runtime and its notebook;
+the retired code is recoverable from the `0.3.8` tag and git history.
+
+**Open (8), moved to [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md),** which tracks them from here;
+the PR that fixes one deletes its entry there. Each was re-checked on 2026-09-30, EP1 and EP4
+by running them:
+
+- **TC8** (Training / RL, MEDIUM). A same-stage resume still attaches neither the warm-up nor
+  the reward ramp (`train_base.py:901-902`). Since TC1's fix the step counter survives a
+  continuation, so the ramp's position is recoverable, but nothing re-applies it; the warm-up
+  marker is cleared with a warning (EE3's fix), and the ramp's remainder is dropped silently.
+- **SS3 and SS4** (Training / RL, MEDIUM, one entry). No held-out confirmation panel exists,
+  and certification stays bound to the registered block 3042–3081; SS1's fix (#535) counts
+  training seeds, not fresh evaluation seeds.
+- **EP1** (Training / RL, MEDIUM). Executed: with `qvel` set to 1e12, one step on the trex stance
+  config returned `terminated=False` and reward 1.101 with the model back at its default pose
+  (`qpos0`), and no `termination_reason`.
+- **EP2** (Training / RL, MEDIUM, a design gap). The recovery pushes still share one magnitude.
+- **EP4** (Training / RL, LOW). Executed: on the trex stance config, seeds 0–3, one foot reads
+  0 N for the first 5, 3, 3 and 4 steps.
+- **NB9** (Notebooks, LOW). The SB3 notebook still trains SAC on 4 environments, the command
+  line on 8.
+- **OP9** (Infrastructure, LOW). The three species `requirements.txt` files still take any
+  MuJoCo from 3.0.0, and the stale-manifest error still omits the version.
+
+**Fixed, with a residue left on purpose (3).** SM7: #519 repointed `trex_env.py`, but the
+matching pointer in `environments/trex/assets/trex.xml` still names `stage1_balance.toml`,
+because the plant's source digest hashes that file's bytes; KNOWN_ISSUES (MuJoCo models, LOW)
+tracks it until the next edit of that file. DU4: #519 named both fallbacks
+(`DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40, `curriculum.manager.DEFAULT_MIN_EVAL_EPISODES` = 10)
+but did not apply part 2 of the action, the SB3 stance path falling back to 40, because that
+would change which panels the SB3 manager certifies (`curriculum/manager.py:29-36`). The
+manager, the in-training diagnostics callback and the recorded-gate reader
+(`reporting/gates.py:104`) still fall back to 10 where the stance report, its probes and
+publication use 40, which is latent while every `stance_quality/v1` TOML sets
+`min_eval_episodes`; KNOWN_ISSUES (Training / RL, LOW) tracks it. CI8: #516 added the deploy workflow's path filters
+and left the deploy ungated; `.github/workflows/deploy.yml:10-11` leaves the wait on python-ci
+to a required-checks setting, but a catalog check in the build job would do it inside the
+tree (a `workflow_run` gate would too, once python-ci runs on every change under `website/`). KNOWN_ISSUES (Testing / CI, LOW) tracks it.
+
+**Fixed, then retired with their code by D-D17 (16).** JX1–JX9 and EP3, fixed by #518
+(2026-09-05) and retired with the JAX/MJX runtime by PR-B; CI4 (#516) with the `test-jax-cpu`
+job and ST6 (#519) with `jax_trainer.py`, both by PR-B; OP1, OP2 and OP8 (#517) with the sweep
+package, by PR-A; and OP4 in part, with `ray_tune.py`, by PR-A: #528 (`a61c1f2`, 2026-09-12)
+keyed the Ray worker's warm-up guard on the node's manifest edge, which ended the crash on a
+semantic stage, but its `stage{stage}` checkpoint and final-model names were never changed. The
+cleanup plan's CU-16 row asked for JX2, JX4, JX7 and JX9 to be marked "retired by D-D17"; they
+were fixed first (JX2 by `a1db916` and `49283bb`, JX4 by `a1db916`, JX7 by `a1db916` and
+`873e9fe`, JX9 by `49283bb` and `d75b541`), so they are recorded here.
+
+**Retired by D-D17 without a fix (9).** NB3 and NB10 (`ray_tune_sweep.ipynb`), CF1, CF5 and
+CF6 (the sweep configs) and OP5 (`ray_tune.py`), all by PR-A; OP3, whose sweep package
+went with PR-A and whose last entry point (`scripts/setup_vertex_ai.sh`) with PR-A2; NB8
+(`jax_training.ipynb`), by PR-B; and NB2, whose sweep folders PR-A stopped producing, so the
+Drive summary's folder parsing can meet only historical ones (the cleanup plan's optional
+CU-15 owns that notebook).
+
+**Duplicates (6).** NB4 of JX4, CI1 of ER1, CI2 of TC1, CI5 of TC2, OP6 of TC7 and ST2 of DC1;
+each shares its twin's status.
+
+**Fixed (78).**
+
+- #514 (Phase R, 2026-08-30): TC1–TC6, NB1, CI3, EE3, CO1–CO4, RP2 and RP5.
+- #515 (Phase G, 2026-09-01): TC10, NB6, NB7, CI6, EE1 and EE2.
+- #516 (Phase C, 2026-09-01): CI7, CI9, DC1 and ST1.
+- #517 (Phase V, 2026-09-02): TC7, TC9, ER1–ER7, CF4, OP7, EE4, CO5, SS5, RP1, RP3, RP4 and RP6.
+- #519 (Phase K, 2026-09-05): DC2–DC9, DU1–DU3, DU5–DU8, SM1–SM6, SM8–SM10, ST3–ST5 and
+  ST7–ST9.
+- #530 (the recipes plan's Phase A, 2026-09-12): NB5, overtaken by the notebook's chain loop,
+  which has no per-stage artifact cell left to fail.
+- #534 and #535 (Phase B, 2026-09-13): CF2, CF3 and SS2, and SS1, as their inline status lines
+  say.
+
+Seven of the 78 cite a file that D-D17 later deleted, and ER5 a function it deleted; they still
+count as fixed, because what they did stands: the dead-code deletions DC2, DC3, DC6, DC9 and ST8
+(in files PR-A or PR-B deleted; ST8's `compare_run_diagnostics._fmt` and
+`mjx_utils.unscale_action_jax` deletions are in live files), ST3 (the species `train_sb3.py`
+scripts still read `species_registry`; `trial.py` went with PR-A), SM9 (its three trex
+stage-TOML comments stand; `configs/quality_scoring.toml` went with PR-A) and ER5 (its atomic
+writes in `save_jax_stage_artifacts`, where the defect was, went with PR-B; the same fix's
+atomic write in `save_results_json`, and the `file_io.atomic_write_text` helper it added,
+stand). The 16 above are fixes whose code D-D17 removed.
+
+§5's integrator notes are not findings: the gap they name became EE2, and the synthetic
+`none/v1` fixture in `test_result_bundle_semantic_stages.py` is unchanged and still harmless.

@@ -235,18 +235,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **The docs record what became of the 2026-08 gap review's findings, and
+  stale living-doc text is corrected** (cleanup CU-16a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row).
+  `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` gains an appended status
+  appendix for all 120 of its ids (78 fixed, 16 fixed and then retired with
+  their code by D-D17, 9 retired without a fix, 3 fixed with a residue, 6
+  duplicates, 8 open). The eight open findings (TC8, SS3 with SS4, EP1, EP2,
+  EP4, NB9, OP9), the residues SM7, DU4 and CI8 (a `trex.xml` pointer, a
+  `stance_quality/v1` stage's 10-episode fallback, a site deploy that does
+  not wait on python-ci) and the website logo's size are KNOWN_ISSUES entries,
+  each checked against the code (EP1 and EP4 executed), and KNOWN_ISSUES'
+  "Sweeps / infrastructure" section is now "Infrastructure". Corrected: the
+  API overview lists all six environment ids; the quick start names the
+  backfill tool by module; the recipes plan's node vocabulary no longer
+  lists a `[jax]` table, and a dated note marks its retired-backend design
+  text; `RESULT_BUNDLES.md` describes the `jax_ppo/` path as the home of
+  runs recorded before D-D17; the pilot and certificate sentences no longer
+  say such output is on Drive; ROADMAP, the README's roadmap and planned
+  species, and the status of the stage-1 split plan (implemented), the
+  recommendations (a dated snapshot) and the website plan (complete) are
+  brought up to date. Docs only: no code, configuration, test or asset
+  changes, so no digest moves.
 - **Code comments, docstrings and log messages no longer describe the retired
-  backends as present** (cleanup CU-7b of `docs/CLEANUP_PLAN_2026_09.md`,
-  2026-09-30; §3.2 CU-7 and CU-16 rows). The wording PR-A, PR-A2 and PR-B left
-  about the tuning sweeps, Ray Tune, the Vertex AI route and its HPT report,
-  GCS as the only mount and the JAX/MJX trainer now describes the code as it
-  is, in the library, the tests and the comments of the stage TOMLs (no key,
-  value or line count changes there; the `foot_contact_*` keys, which only the
-  retired MJX reward read, stay, as the cleanup plan keeps them, §4.9). Log
-  messages change with it: the post-training metrics log
-  `Recorded metric: ...` (was `HPT metric reported: ...`), the checkpoint
-  evaluation `Post-training eval: ...` (was `HPT eval: ...`), and a failed
-  TensorBoard sync logs `TensorBoard sync to the remote mount failed.` or
+  backends as present** (#576, cleanup CU-7b of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-7 and CU-16 rows). The
+  wording PR-A, PR-A2 and PR-B left about the tuning sweeps, Ray Tune, the
+  Vertex AI route and its HPT report, GCS as the only mount and the JAX/MJX
+  trainer now describes the code as it is, in the library, the tests and the
+  comments of the stage TOMLs (no key, value or line count changes there; the
+  `foot_contact_*` keys, which only the retired MJX reward read, stay, as the
+  cleanup plan keeps them, §4.9). Log messages change with it: the
+  post-training metrics log `Recorded metric: ...` (was
+  `HPT metric reported: ...`), the checkpoint evaluation
+  `Post-training eval: ...` (was `HPT eval: ...`), and a failed TensorBoard
+  sync logs `TensorBoard sync to the remote mount failed.` or
   `Periodic TensorBoard sync to the remote mount failed.` (was
   `... to GCS failed.`); a stage TOML without `[ppo]` or `[sac]` warns that
   SB3, not "every backend", will train on library defaults, and the
@@ -649,6 +672,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
 
 ### Fixed
+- **The 0.3.8 entry on the removed `Images/` directory left out the second
+  surviving copies and misstated which copies the site and README show**
+  (cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16
+  row). Each of its three GIFs survives twice, under `website/static/img/`
+  and under `results/velociraptor/` (`ppo/stage1_balance.gif`,
+  `ppo/stage3_strike.gif` and `sac/stage3_strike.gif`, byte-identical); the
+  README shows the `results/` copy of the balance GIF, the site shows only
+  `raptor_balance_ppo.gif`, and no page shows the two apex GIFs
+  (`results/README.md` lists their `results/` copies).
 - **The plant contract's MJX probe requires exactly one root body**
   (#572, cleanup CU-7a of `docs/CLEANUP_PLAN_2026_09.md`). The frozen
   `build_mjx_observation` roots its observation on `torso` whenever the

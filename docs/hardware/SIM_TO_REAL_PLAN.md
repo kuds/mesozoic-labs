@@ -183,7 +183,8 @@ Key idealizations that don't map to hardware:
 - **No latency or delay modeling** anywhere in the step loop. Action
   filtering: the T-Rex low-passes commands at 10 Hz in-loop since policy
   interface r11 (first-order, `BaseDinoEnv._filter_action`, present during
-  training in both backends — the sim-to-real prerequisite #491 asked for);
+  training — the sim-to-real prerequisite #491 asked for; the JAX/MJX backend,
+  retired by D-D17, applied it too);
   every other species still has no action filtering
   (`action_filter_cutoff_hz = 0`).
 
