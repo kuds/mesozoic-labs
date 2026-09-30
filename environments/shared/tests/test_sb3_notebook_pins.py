@@ -1754,6 +1754,10 @@ class TestPublication:
         assert _keyword_source(infra, forwarded, "run_dir") == "RUN_DIR", "the bundle is this run's, never another"
         summary_def = _top_level_def(infra, "write_training_summary")
         assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "species") == "SPECIES"
+        # No dead parameters (cleanup CU-5): the run directory and species are forwarded, never taken and ignored.
+        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "species"]
+        assert [arg.arg for arg in summary_def.args.args] == ["run_dir", "stage_results_list"]
+        assert not bundle_def.args.kwonlyargs and not summary_def.args.kwonlyargs
         chain_def = _top_level_def(infra, "chain_results")
         assert "MANIFEST.stages" in ast.unparse(chain_def) and "NODE_RESULTS" in ast.unparse(chain_def), (
             "chain_results() is NODE_RESULTS in manifest order"
@@ -2455,6 +2459,8 @@ class TestResumeCell:
             "spent budget without an intact final pair",
             "a new attempt, in a fresh `RUN_ID`",
             "never resumed without its sidecar",
+            "`gate_verdict.json` or an intact final pair",
+            "`BEHAVIOR` set to it",
             # The widened root is judged here (D-C13 as amended by D-D14).
             "D-C13",
         ):
