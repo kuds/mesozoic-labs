@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-04-18
+> Last updated: 2026-09-30
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -19,17 +19,25 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
 | **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt) |
-| **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
-| **3** | Evolution (v0.5.0) | **In Progress** | 1/9 items | Dibothrosuchus landed early; rest blocked on Phases 1-2 |
+| **2** | Into the Wild (v0.4.0) | **In Progress** | 0/8 items | Terrain and turning piloted (#540/#541, evaluation-only); certified nodes wait for consolidation PR-8..PR-11 |
+| **3** | Evolution (v0.5.0) | **In Progress** | 2/9 items | Dibothrosuchus and Compsognathus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | **Retired** (D-D17) | 3/5 items | — (JAX SAC and large-scale experiments dropped) |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-4 |
 
-**Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
-W&B tracking, metrics) and codebase consolidation
-is complete. Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO,
-and Brachiosaurus PPO; their provenance and metrics are shown in the generated
-catalog. Further Brachiosaurus Stage 3 work and T-Rex SAC training remain planned.
+**Current focus (2026-09-30):** the behavior recipes
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)). T-Rex, Velociraptor,
+Compsognathus and the Compsognathus robot have certified stance and walk
+nodes, though the 2026-09-28 gait audit found three of the five certified
+walkers hopping; the Dibothrosuchus and Brachiosaurus sessions remain
+([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup that gates the 0.3.9 release
+comes first ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); the
+direction and terrain nodes ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))
+and the gait-quality work ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md))
+build on 0.3.9. The phase items below are the long-range plan they feed.
+Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO, and
+Brachiosaurus PPO; their provenance and metrics are shown in the generated
+catalog.
 
 ---
 
@@ -218,6 +226,10 @@ critical bridge between "cool demo" and "transferable research."
 
 - [ ] **Domain randomization**
   **Planned design:** these APIs are not implemented in `BaseDinoEnv` today.
+  External pushes exist in another form: the recovery stages of T-Rex and the
+  Compsognathus pair train against scheduled pushes (`perturbation_*` `[env]`
+  keys, `environments/shared/perturbation.py`), as the task rather than as
+  randomization of later stages.
   Add opt-in TOML settings, cache nominal physics at initialization, and apply
   sampled changes relative to XML defaults on each `reset()`.
   - **Ground friction** (`friction_range`): Multiplicative per-episode scaling
@@ -251,7 +263,10 @@ critical bridge between "cool demo" and "transferable research."
   - All noise parameters in TOML config `[env]` sections, disabled by default
   - _Dependency: Phase 0 config externalization_
 
-- [ ] **Terrain diversity**
+- [-] **Terrain diversity** — piloted: randomized heightfield terrain landed
+  as an evaluation-only pilot pipeline (#540/#541, 2026-09-15; D-D9); certified
+  terrain nodes wait for consolidation PR-11 and the heightfield-contact
+  investigation ([KNOWN_ISSUES.md](KNOWN_ISSUES.md))
   - Implement heightfield-based procedural terrain (sinusoidal, rough, steps)
   - Add slopes (5-15 degrees) as training variants
   - Add varying ground friction zones
@@ -264,7 +279,9 @@ critical bridge between "cool demo" and "transferable research."
   - Improve collision geometry (more detailed foot/claw shapes)
   - _Dependency: None_
 
-- [ ] **Turning and steering**
+- [-] **Turning and steering** — piloted: direction-following recipes on the
+  command interface (the pilot pipeline of #540/#541); certified follow nodes
+  wait for consolidation PR-9..PR-11
   - Add yaw velocity reward component and target-relative heading
   - Train policies that can steer toward moving targets
   - Prerequisite for interesting predator-prey dynamics
@@ -369,7 +386,11 @@ Deepen the RL capabilities and expand the species roster.
   - Single-agent training first, multi-agent in Phase 4
   - _Dependency: Phase 1 (use Velociraptor as template)_
 
-- [ ] **Compsognathus (small fast biped)**
+- [x] **Compsognathus (small fast biped)** — delivered ahead of this phase
+  - Landed in #521 as two variants, the anatomical model
+    (`MesozoicLabs/Compsognathus-v0`) and a twelve-servo robot prototype
+    (`MesozoicLabs/CompsognathusRobot-v0`); both have certified stance and
+    walk nodes ([NEXT_STEPS.md](NEXT_STEPS.md) §2)
   - MJCF model: small, lightweight, fast
   - Focus on speed and agility benchmarks
   - Good candidate for eventual physical robot (small, cheap)

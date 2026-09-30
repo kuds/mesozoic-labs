@@ -14,6 +14,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
 | [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B), the other 10 open — **execution deferred until the T-Rex clears stages 1–3**; see below |
+| [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 79 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (15 of them after a fix), 2 fixed with a residue, 6 duplicates; the 8 open ones and the SM7 residue are below (its appendix B, 2026-09-30) |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -1074,7 +1075,103 @@ robustness, **LOW** = cosmetic / QoL.
   stance-gate verdict for `stance_quality` stages
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)).
 
-## Sweeps / infrastructure
+<!-- The items below come from the 2026-08-28 RL pipeline gap review
+     (reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md, whose appendix B records
+     what became of every finding). Each was re-checked against the code on
+     2026-09-30; EP1 and EP4 were executed. -->
+
+- **MEDIUM** — **a same-stage resume inside a stage's entry window drops the
+  rest of its reward ramp and warm-up (read from the code 2026-09-30).** A
+  node entered from its parent (`initialize_next_stage`) trains under
+  `StageWarmupCallback` (default 100k steps) and, when its
+  `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
+  stage's weight over 500k steps by default). A `resume_same_stage` load
+  attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
+  mode (`train_base.py:901-902`, called at :1405-1412), so the env trains at
+  the stage's full `forward_vel_weight` from the first resumed step. Since the
+  gap review's TC1 fix a continuation keeps the checkpoint's step counter
+  (`train_base.py:1312-1326`, `reset_num_timesteps=not resuming` at :1431),
+  and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
+  its position is recoverable; nothing re-applies it. The warm-up marker is
+  cleared with a warning that the rest of the warm-up is not re-applied
+  (`train_base.py:611-625`); the ramp's remainder goes without a log line. It bites when a
+  session dies early in a locomotion or behavior stage and the RESUME cell
+  continues it: 200k steps into a 0.1 → 1.0 ramp, the policy meets the other
+  0.54 of the weight in one step. Fix: re-attach the shaping on a
+  continuation, offset by the counter (not on a curated `--load`, which
+  `_is_resume_continuation` tells apart), or at least warn. No cleanup PR
+  owns it. (2026-08 gap review TC8)
+
+- **MEDIUM** — **certification is judged on one fixed 40-seed block, and the
+  held-out confirmation panel the stance design calls for does not exist
+  (read from the code 2026-09-30).** `stance_quality/v1` implements items 1
+  and 2 of its adopted rule; item 3, one predeclared held-out panel at
+  n ≈ 100–180 for the full-horizon event, "is offline and deliberately lives
+  outside this module" (`curriculum/stance_gate.py:49-51`), and no code runs
+  it ([STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) §2.3: "neither is item 3's
+  held-out panel"). Every certifying panel runs on the registered block
+  3042–3081 (`constants.py:34`, `PUBLICATION_SEED_START`): publication
+  refuses a `certification_panel` role that starts anywhere else
+  (`result_bundle/evidence.py:682-686`) and binds each stance panel row to it
+  (:441-448). The panel is deterministic given the policy, so a marginal
+  policy that happens to fit the block passes every re-check; by the review's
+  arithmetic, one with a true full-horizon rate near 0.93 fits about 46% of
+  blocks and would fail a fresh one about 54% of the time. The blocks do
+  differ: the statue scores 119/120 over three of them
+  (`configs/trex/stance.toml:318`). Seed replication (`certification_seeds`,
+  the review's SS1 fix) counts training seeds, not fresh evaluation seeds.
+  Fix: run the confirmation panel on a disjoint seed block before a stance is
+  certified and record both blocks (`stance_gate_report.py --episodes`
+  already sizes such a panel). No cleanup PR owns it. (2026-08 gap review SS3
+  and SS4)
+
+- **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
+  (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1122-1246`, its
+  frame-skip loop at :1173) never reads `data.warning`, and on a bad `qvel`
+  or `qacc` MuJoCo resets the state to the model's default pose (`qpos0`) and
+  carries on. On the trex stance config, setting `qvel` to 1e12 and taking
+  one zero-action step printed MuJoCo's "The simulation is unstable" warning
+  and returned `terminated=False`, reward 1.101 and a finite observation, with the pelvis
+  at 0.977 m (`qpos0`, not the settled stance) and
+  `warning[mjWARN_BADQVEL].number` at 1, but no `termination_reason`. In
+  training, a mid-episode divergence silently moves the animal back to that
+  pose (clearing its drift and velocity) while the push clock, VecNormalize's
+  statistics and the gate's length and reward metrics take in the impossible
+  trajectory. Fix: compare the warning counters around the frame-skip loop
+  and end the episode with its own `termination_reason`, logged. No cleanup PR
+  owns it. (2026-08 gap review EP1)
+
+- **MEDIUM (design gap)** — **every push of a recovery stage has the same
+  magnitude (read from the code 2026-09-30).** `push_schedule` draws each
+  push's start and heading from hash lanes `k*2` and `k*2+1`
+  (`perturbation.py:95-120`), and `external_push_force` applies one scalar
+  `force_newtons` to every push (:123-142), while the recovery design
+  pre-generated push "times, directions, and magnitudes" per episode
+  ([STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) W1), so a
+  certified recovery policy has met one force. Adding magnitudes needs a hash
+  lane disjoint from {`k*2`, `k*2+1`} (renumbering the lanes would silently
+  change every existing schedule and its null-controller pairing), and it
+  changes the transition, so `SCHEDULE_IMPLEMENTATION`
+  (`task_fingerprint.py:71`) and every recovery task digest move. No cleanup
+  PR owns it. (2026-08 gap review EP2)
+
+- **LOW** — **after a noisy reset one foot spawns just above the floor and
+  reads 0 N for the first few steps (executed 2026-09-30).**
+  `_settle_root_on_ground` (`base_env.py:1418-1449`) shifts the root so the
+  lowest geom sits at the home clearance, which grounds one foot and can
+  leave the other millimetres up. On the trex stance config
+  (`reset_noise_scale` 0.05, zero action), seeds 0–3 read 0.0 N on one foot
+  for the first 5, 3, 3 and 4 control steps, with a step reward of 1.86–1.99
+  on those steps against 3.19–3.38 within two steps of the second foot's
+  touchdown. The stance duty gate is unaffected
+  (`settle_steps = 200` excludes the transient); the reward lost is small and
+  the same for every policy, but any measurement window that opens at a
+  reset reads the same zeros. Fix: settle each foot, or leave the first
+  post-reset steps out of the support-conditioned terms; either one moves the
+  digest-snapshot golden's `reward` lines, which capture noisy resets. No
+  cleanup PR owns it. (2026-08 gap review EP4)
+
+## Infrastructure
 
 - **LOW** — `metrics.py` `velocity_consistency` explodes when mean velocity
   ≈ 0; thread-unsafe CSV appends under concurrent local runs. (June §3.3;
@@ -1094,6 +1191,23 @@ robustness, **LOW** = cosmetic / QoL.
   `evaluations.npz`, but not this one. Fix: persist `sim_dt` in the
   projection (new verdicts only), or give `write_training_summary` the
   node's control step; no cleanup PR owns it yet. (2026-09 CU-2 review)
+- **LOW** — **the species `requirements.txt` files take any MuJoCo from
+  3.0.0, and the stale-manifest error does not name the version (read from
+  the code 2026-09-30).** `environments/trex/requirements.txt:2`,
+  `environments/velociraptor/requirements.txt:2` and
+  `environments/brachiosaurus/requirements.txt:1` ask for `mujoco>=3.0.0`,
+  while the package pins `mujoco==3.10.0` (`pyproject.toml:25`), the version
+  the plant digests are built on. An install from one of them gets a newer
+  MuJoCo, and training then stops in `current_plant_identity` with
+  "generated plant manifest is stale for <species>; run the plant-contract
+  check before training" (`plant_contract/manifest.py:365-370`); only the
+  check it points to names the cause ("plant manifest generation requires
+  MuJoCo 3.10.0", :168-171). In the review's reproduction (MuJoCo 3.12.0)
+  training stopped before its first step, so the cost is a two-step
+  diagnosis, not a wrong result. Fix: pin or delete the three files
+  (`pip install -e ".[train]"` is the documented install) and name the
+  MuJoCo version in the stale-manifest error. No cleanup PR owns it.
+  (2026-08 gap review OP9)
 
 ## Post-training artifacts (recommended additions)
 
@@ -1290,6 +1404,21 @@ Still open:
   (pre-existing; unchanged by the July 2026 plant revision, which measured it
   rather than fixing it). Either exclude the pair like the sibling toes, or
   reshape `tail_1` so the overlap is gone; re-measure the home stance after.
+- **LOW** — the T-Rex home keyframe's re-measurement checklist
+  (`environments/trex/assets/trex.xml:552-556`) points at two things that no
+  longer hold what it names: `configs/trex/stage1_balance.toml` (renamed
+  `stance.toml`) and `mjx_config.py`'s `target_standing_z`, `_NATURAL_PITCH`
+  and `healthy_z_range` (the frozen MJX registration keeps none of them since
+  D-D17, cleanup PR-B). `trex_env.py`'s pointer was fixed (gap review SM7, #519);
+  this one was left because any byte change to `trex.xml` moves the plant's
+  source digest (`source_closure_sha256`), which the plant manifest, the
+  species catalog and the digest-snapshot golden record, so the PR that edits
+  the file regenerates all three (no checkpoint is invalidated: plant
+  compatibility ignores source revisions). Fix it with the next deliberate
+  `trex.xml` edit; the same stale `mjx_config.py` pointers in `trex_env.py`
+  are optional cleanup PR-C's
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.2). (read from the
+  model 2026-09-30; 2026-08 gap review SM7)
 - **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is
   worth running (halves sim cost if stable).
 
@@ -1299,6 +1428,16 @@ Still open:
   intentional? (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)
+- **LOW** — `website/static/img/logo.svg` is 38,405 bytes because it is not a
+  vector drawing: it is a 1000×1000 SVG wrapping one base64 PNG (500×500,
+  28,552 bytes, with a 418-byte XMP text chunk) and has no paths and no
+  SVG editor metadata, so SVGO or path simplification, the remedy
+  [WEBSITE_PLAN.md](WEBSITE_PLAN.md) proposed, would not shrink it; the
+  navbar's dark-mode `logo-dark.svg` (25,293 bytes) is built the same way
+  (`website/docusaurus.config.ts:108-112`), its PNG (18,720 bytes) without
+  the text chunk. Fix: recompress both PNGs, dropping `logo.svg`'s XMP chunk,
+  or redraw the logo as a vector. (measured 2026-09-30; moved
+  from WEBSITE_PLAN.md's "Optimize Logo SVG")
 
 ## Notebooks
 
@@ -1306,6 +1445,16 @@ Still open:
   `stable-baselines3[extra]==2.9.0`, but torch is unpinned and the
   `pyproject.toml` extras stay ranges; pin complete lockfiles for reproducible
   training. (July §5)
+- **LOW** — the SB3 notebook trains SAC on 4 environments where the command
+  line trains it on 8: `cli.py` raises `n_envs` from 4 to 8 for SAC unless
+  `--n-envs` says otherwise (`cli.py:430-432`, applied at :454-456 for
+  `train` and :515-517 for `curriculum`), while the configuration cell of
+  [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb) sets
+  `N_ENVS = 4` whatever `ALGORITHM` is and says nothing about SAC. The two
+  entry points' default SAC runs differ twofold in collection against
+  gradient updates; `n_envs` is recorded, so the difference can be found but
+  is never flagged. Fix: mirror the CLI in the configuration cell, or say so
+  there. (read from the code 2026-09-30; 2026-08 gap review NB9)
 
 ## Testing / CI
 

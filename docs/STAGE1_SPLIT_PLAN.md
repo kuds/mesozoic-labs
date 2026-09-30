@@ -1,5 +1,16 @@
 # Splitting Stage 1 into Stance (1a) and Recovery (1b)
 
+**Status (2026-09-30): implemented; this is now the design record.** `stance_quality/v1` (§2.3's
+items 1 and 2) shipped on 2026-08-01, and the split itself (§3's perturbation scheduler, §4's
+semantic stage manifest and §5's recovery gate with its resolver) landed through
+[STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) W1–W5 by 2026-08-16;
+`recovery_quality/v1` was frozen on 2026-08-28, and trex trains both stages from its manifest
+(`configs/trex/stages.toml`). Not built: §2.3's `stance_success` conjunction, §2.3 item 3's
+held-out confirmation panel (open in [KNOWN_ISSUES.md](KNOWN_ISSUES.md), with gap-review SS3 and
+SS4) and §7.3's diagnostic task modes. The MJX/JAX parity items were retired with that runtime
+(D-D17, cleanup PR-B, 2026-09-28). The text below is revision 5 (2026-07-31) with its dated
+STATUS notes; where it says the split has not started, read it as of that revision.
+
 Design proposal to replace the single balance stage with two: **1a — stance**, reaching and
 holding a stable pose, and **1b — recovery**, holding it against external disturbance.
 

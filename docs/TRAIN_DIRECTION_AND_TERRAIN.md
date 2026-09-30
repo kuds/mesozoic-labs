@@ -148,10 +148,12 @@ family, which checks coverage rather than establishing competence. Use 25 or 50
 episodes for a more useful comparison, including unseen seeds, and inspect the
 individual outcomes.
 
-Runs made from the notebook before the PR-12 slice stay under
+Runs made from the notebook before the PR-12 slice wrote to
 `logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Google Drive when it
-was mounted, otherwise in that checkout's `logs/`) as evaluation-only pilot
-output (decision D-D9); leave them in place.
+was mounted, otherwise in that checkout's `logs/`). None is on Drive: nothing
+was trained beyond 4,096-step smoke runs
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §5.2). Any such output is
+evaluation-only pilot output (decision D-D9); leave it in place.
 
 The recipes use a constant learning rate of 5e-5 and PPO clipping of 0.02 for the
 first 100,000 adaptation steps, then 0.2. Exact-task resume retains that warmup

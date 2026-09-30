@@ -361,9 +361,11 @@ The public algorithm remains `PPO` or `SAC`; backend identity is separate:
 ```text
 results/<species>/ppo/summary.json       # SB3 PPO
 results/<species>/sac/summary.json       # SB3 SAC
-results/<species>/jax_ppo/summary.json   # JAX/MJX PPO
+results/<species>/jax_ppo/summary.json   # JAX/MJX PPO, recorded before D-D17
 ```
 
-This allows SB3 and JAX results for the same algorithm to coexist without
-mislabeling JAX as a different reinforcement-learning algorithm. The paths are
+The validator still files a `jax-mjx` summary under `jax_<algorithm>/`, so a
+JAX run recorded before D-D17 retired that backend (cleanup PR-B) is never
+mislabeled as a different reinforcement-learning algorithm; nothing writes one
+now, and `results/` holds only Stable-Baselines3 results. The paths are
 unchanged by schema v4; the summary carries the deliverables map.

@@ -738,9 +738,10 @@ findings, the notebook mode-switch findings (no interim behaviors notebook,
 D-D8), the `BEHAVIOR_*` half of the knob finding, the checkpoint-suite collapse,
 and the operator-guide cut.
 Breaks: every behavior bundle from #540/#541
-(bundle.json/run.json/`checkpoints/step-*`) stops loading anywhere (D-D9); the
-parallel Drive tree `logs/<species>/ppo/behaviors/` becomes orphaned pilot
-output (leave it). The canonical chain, both r11 parents, the r13 run,
+(bundle.json/run.json/`checkpoints/step-*`) stops loading anywhere (D-D9); pilot
+output under `logs/<species>/ppo/behaviors/` becomes orphaned (leave it; none is
+on Drive, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §5.2). The
+canonical chain, both r11 parents, the r13 run,
 TRUNK_FROM/RETRAIN_FROM/RUN_ID and the resume cell are untouched (WIDEN_FROM
 left with PR-14a, D-D14).
 Validation: full shared and species suites, notebook parse and pins, the SB3 job
@@ -821,8 +822,9 @@ and carries the stance CSV the r11/r13 reviews read).
 Folds in: the gate-kind finding (corrected), the replay-recorder finding
 (corrected; recorder deletion rejected), the helper half of the evaluation
 finding, and invariant 10 (the fail-closed dispatch test gains a case).
-Breaks: `certification/certificate.json` files on Drive stay as history (no
-behavior has passed the certificate per #541). Validation: gate schema tests,
+Breaks: nothing on Drive: no `certification/certificate.json` exists there (no
+behavior has passed the certificate per #541, and its writer left with PR-5).
+Validation: gate schema tests,
 dispatch fail-closed test, shared suite, one notebook smoke with `gate_kind`
 set. Prerequisites: PR-11, PR-12; D-D6, G4.
 

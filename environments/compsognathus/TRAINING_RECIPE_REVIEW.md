@@ -72,9 +72,10 @@ Budgets and stage-entry settings live in the shared curriculum table, so the
 table is unchanged and its entropy remains automatically tuned; PPO's entropy
 decay callback is not used for SAC. This review does not qualify SAC learning.
 
-The PPO sweep ranges now include `3e-5`. Their existing 100k-step trials are
-only wiring and early-stability probes: rankings at that budget cannot select
-a converged controller or evaluate a 7M entropy schedule.
+The PPO sweep ranges included `3e-5` until D-D17 retired the sweeps (cleanup
+PR-A, 2026-09-27). Their 100k-step trials were only wiring and early-stability
+probes: rankings at that budget could not select a converged controller or
+evaluate a 7M entropy schedule.
 
 ## What transfers, and what does not
 

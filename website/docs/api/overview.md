@@ -24,6 +24,11 @@ Available environment IDs:
 - `MesozoicLabs/Raptor-v0` - Velociraptor
 - `MesozoicLabs/Brachio-v0` - Brachiosaurus
 - `MesozoicLabs/TRex-v0` - T-Rex
+- `MesozoicLabs/Dibothrosuchus-v0` - Dibothrosuchus
+- `MesozoicLabs/Compsognathus-v0` - Compsognathus
+- `MesozoicLabs/CompsognathusRobot-v0` - Compsognathus robot prototype
+
+`import environments` registers all six at once.
 
 ## Velociraptor Environment
 
