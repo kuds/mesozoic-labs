@@ -67,7 +67,8 @@ After an intentional model or interface change:
    pytest environments/shared/tests/test_plant_contract_*.py environments/shared/tests/test_species_catalog.py
    ```
 
-4. Regenerate the digest snapshot (every plant, policy, stage, recovery and behavior digest, one per line; D-D22) and
+4. Regenerate the digest snapshot (every plant, policy, stage, recovery and behavior digest and each stage's reward,
+   info and termination capture, one per line; D-D22, CU-11) and
    check that its diff moves only the digests you meant to move:
 
    ```bash
@@ -81,8 +82,11 @@ data, the digest snapshot, and the intentional source change together. CI repeat
 version, tests revision monotonicity against the PR base, runs the full digest snapshot against
 `configs/digest_snapshot.generated.txt` (a failure names every moved line and prints the `--write` command), and
 verifies identity/config loading from an installed wheel. Any other change that moves a digest on purpose (a stage
-config, a recovery calibration, a behavior recipe or the environment code it hashes) commits the regenerated snapshot the
-same way; a change that claims to move no digest leaves it unchanged.
+config, a recovery calibration, a behavior recipe, the environment code it hashes, or the reward, info or termination
+code the `reward` lines capture) commits the regenerated snapshot the same way; a change that claims to move no digest
+leaves it unchanged. Regenerate it on Linux x86-64 with the canonical MuJoCo, as CI runs it. A refactor that claims to
+move no number also diffs the harness's `--exact` output of the base and the head on one machine (see its `--help`):
+the `reward` lines are rounded and cannot see a change of a few ulp.
 
 ### Widening a checkpoint across a policy-interface bump
 
