@@ -1,6 +1,6 @@
-"""Interactive harnesses shared by the per-species ``scripts/``.
+"""Hand-run harnesses behind the species scripts, the digest snapshot and the recovery gate.
 
-These are the implementations behind ``scripts/test_env.py``,
+The first three below are the implementations behind ``scripts/test_env.py``,
 ``scripts/test_actuators.py``, and ``scripts/view_model.py`` for every
 species — hand-run smoke checks and MuJoCo viewers that print to stdout and
 open windows, not automated tests.  The automated suite lives in
@@ -25,6 +25,12 @@ them.
   committed as ``configs/digest_snapshot.generated.txt``, which the
   plant-contract CI job checks with ``--check``; a change that moves a digest
   on purpose regenerates it with ``--write`` (D-D22; see its ``--help``)
+* :mod:`~environments.shared.harnesses.freeze_recovery_gate` — the recovery
+  stage's gate-resolution producer (plan P5): rolls the null panels and
+  writes the frozen ``gate_resolution.json`` that the recovery gate reads
+* :mod:`~environments.shared.harnesses.recovery_offdist_panel` — re-rolls the
+  recovery panels on and off the training distribution, to probe the frozen
+  record
 """
 
 from __future__ import annotations

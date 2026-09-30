@@ -31,6 +31,12 @@ on:
       # The checkout's line endings: the plant manifest and the digest snapshot
       # hash file bytes, so a .gitattributes-only PR can move a digest (D-D22).
       - ".gitattributes"
+      # Coverage reads these before pyproject.toml, so one could take files out
+      # of the union; test_coverage_config.py pins that none does (CU-9).
+      - ".coveragerc"
+      - ".coveragerc.toml"
+      - "setup.cfg"
+      - "tox.ini"
       - ".github/workflows/**"
       - ".github/actions/**"
   pull_request:
@@ -69,6 +75,12 @@ on:
       # The checkout's line endings: the plant manifest and the digest snapshot
       # hash file bytes, so a .gitattributes-only PR can move a digest (D-D22).
       - ".gitattributes"
+      # Coverage reads these before pyproject.toml, so one could take files out
+      # of the union; test_coverage_config.py pins that none does (CU-9).
+      - ".coveragerc"
+      - ".coveragerc.toml"
+      - "setup.cfg"
+      - "tox.ini"
       - ".github/workflows/**"
       - ".github/actions/**"
   # Nightly run of the whole workflow on `main`; in it the SB3 job runs the

@@ -13,6 +13,10 @@ Three things are pinned here, and they are the three ways P5 could rot:
   ``require_gate_resolution`` at the task it was measured under, and
   refused when the file is edited or the task moves.
 
+The historical T-Rex brace null is pinned here too: one library definition
+(``recovery_evaluation.brace_controller``, since cleanup CU-9) that the
+producer rolls without importing the hand panel back.
+
 Panels here are deliberately tiny (two episodes on a short horizon).  The
 frozen record is 40 episodes; what these tests check is mechanism, and a
 40-episode roll would buy nothing but minutes.
@@ -20,6 +24,8 @@ frozen record is 40 episodes; what these tests check is mechanism, and a
 
 from __future__ import annotations
 
+import ast
+import inspect
 import json
 
 import numpy as np
@@ -102,6 +108,20 @@ class TestHeightReference:
         assert not any(record.success for record in shifted.episodes)
 
 
+def _imported_names(module) -> set[str]:
+    """Every module (and ``module.name``) a module's source imports, at any depth, lazily or not."""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(inspect.getsource(module))):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            # A relative import keeps its dots, so `from . import x` still names x.
+            imported = "." * node.level + (node.module or "")
+            names.add(imported)
+            names.update(f"{imported.rstrip('.')}.{alias.name}" for alias in node.names)
+    return names
+
+
 class TestCalibratedSafeSetIsSingleSourced:
     """One definition of "calibrated", imported everywhere it is used."""
 
@@ -121,6 +141,16 @@ class TestCalibratedSafeSetIsSingleSourced:
         assert producer.CALIBRATED_POSTURE_ONLY is recovery_evaluation.CALIBRATED_POSTURE_ONLY
         assert offdist.CALIBRATED_HEIGHT_REFERENCE_M == CALIBRATED_HEIGHT_REFERENCE_M
         assert producer.CALIBRATED_HEIGHT_REFERENCE_M == CALIBRATED_HEIGHT_REFERENCE_M
+
+    def test_the_brace_null_is_the_library_one(self):
+        assert producer.brace_controller is recovery_evaluation.brace_controller
+        assert offdist.brace_controller is recovery_evaluation.brace_controller
+
+    def test_the_producer_does_not_import_the_hand_panel(self):
+        """The panel imports the producer; the reverse (lazy) edge was the cycle CU-9 removed."""
+        assert not [name for name in _imported_names(producer) if "recovery_offdist_panel" in name]
+        # The library module the brace now lives in imports no harness at all.
+        assert not [name for name in _imported_names(recovery_evaluation) if "harnesses" in name]
 
     def test_the_hand_harness_uses_the_frozen_panel_geometry(self):
         """A hand panel judged on a different clock could not be compared."""
@@ -254,3 +284,52 @@ class TestProducer:
         # Deterministic panels mean a re-freeze is byte-identical: a changed
         # digest would mean the "frozen" record depends on when it was made.
         assert again.resolution == frozen.resolution
+
+
+class TestHistoricalBraceNull:
+    """The T-Rex branch that freezes the brace next to the statue (no species calibration)."""
+
+    def test_a_checkpoint_adds_the_brace_null(self, tmp_path, monkeypatch):
+        calls, policies, braced, held, rolled = [], [], [], [], {}
+        real_roll_null = producer._roll_null
+
+        def zero_policy(*args, **kwargs):
+            calls.append((args, kwargs))
+            policies.append(zero_action_controller(kwargs["action_space"].shape[0]))
+            return policies[-1]
+
+        def library_brace(env, predict):
+            braced.append(predict)
+            held.append(recovery_evaluation.brace_controller(env, predict))
+            return held[-1]
+
+        def spy_roll_null(env, predict, *, controller_id, **kwargs):
+            rolled[controller_id] = predict
+            return real_roll_null(env, predict, controller_id=controller_id, **kwargs)
+
+        # A checkpoint that commands the home keyframe: its post-settle mean
+        # is the zero vector, so its brace must replay the statue's panel.
+        monkeypatch.setattr(producer, "policy_controller", zero_policy)
+        monkeypatch.setattr(producer, "brace_controller", library_brace)
+        monkeypatch.setattr(producer, "_roll_null", spy_roll_null)
+        result = producer.freeze_recovery_gate(
+            tmp_path, episodes=2, seed=3042, policy_zip="stance.zip", vecnorm="stance_vecnorm.pkl"
+        )
+
+        [(args, kwargs)] = calls
+        assert args == ("stance.zip", "stance_vecnorm.pkl")
+        # The brace is the library's post-settle mean of THIS checkpoint.
+        assert braced == policies
+        # And the brace null the producer rolls is that controller, not the checkpoint or the statue.
+        assert [rolled["brace"]] == held and rolled["brace"] is not policies[0]
+        # The historical judge is T-Rex's own: no species or stage expectation.
+        assert kwargs["expected_species"] is None and kwargs["expected_stage"] is None
+        manifest = result.resolution["null_manifest"]
+        assert set(manifest) == {"zero_action", "brace"}
+        assert manifest["brace"]["safe_set"] == dict(CALIBRATED_POSTURE_ONLY)
+        assert manifest["brace"]["successes_by_seed"] == manifest["zero_action"]["successes_by_seed"]
+        # Only the calibrated quiet-stance brace records a derivation.
+        assert "null_provenance" not in result.resolution
+        assert result.null_evidence["brace"].controller_id == "brace"
+        assert "STATUE NULL ONLY" not in producer.summarize(result)
+        assert (tmp_path / "gate_resolution.json").is_file()

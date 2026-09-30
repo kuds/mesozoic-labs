@@ -75,8 +75,9 @@ rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)). PR-G1 needs CU-9; the later G PRs interleave with
 PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-09-30: CU-2 landed as #568, CU-4
 as #569, CU-14b (the first part of CU-14, the cleanup plan's decision 10 (c), settled without a D-D id) as #570 and the
-digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (the first part of CU-7) as #572 on 2026-09-30; CU-11 (the reward, info and
-termination golden) is carried out,
+digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (the first part of CU-7) as #572 and
+CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, which completes wave 1; CU-9 (coverage of
+the certification code, which PR-G1 needs) is carried out,
 and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
 CU-6 also waits for CU-5, CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 

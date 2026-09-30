@@ -3,14 +3,17 @@
 Structure over outcomes: whether a statue survives a 165 N shove is a
 physics question for the calibration runs; what these tests pin is that
 the harness judges exactly the scheduled pushes, that identical seeds mean
-identical pushes across controllers (the pairing the design rests on), and
-that the resolver blocks on absence and staleness instead of skipping.
+identical pushes across controllers (the pairing the design rests on), that
+the historical T-Rex brace null holds exactly the post-settle mean it is
+defined as, and that the resolver blocks on absence and staleness instead
+of skipping.
 """
 
 from __future__ import annotations
 
 import csv
 
+import numpy as np
 import pytest
 
 from environments.shared.curriculum.gate_resolver import (
@@ -24,6 +27,9 @@ from environments.shared.curriculum.gate_resolver import (
 )
 from environments.shared.curriculum.recovery_gate import RecoveryGateThresholds, binomial_ucb
 from environments.shared.recovery_evaluation import (
+    BRACE_SETTLE_SEEDS,
+    BRACE_SETTLE_STEPS,
+    brace_controller,
     roll_recovery_panel,
     write_recovery_evidence,
     zero_action_controller,
@@ -101,6 +107,79 @@ class TestPanelHarness:
             rows = list(csv.DictReader(source))
         assert len(rows) == len(evidence.shoves)
         assert {"controller_id", "panel_seed", "push_index", "recovered", "recovery_step"} <= set(rows[0])
+
+
+class _ScriptedEnv:
+    """A stand-in env whose observation is (seed, steps taken) and whose episodes end on schedule.
+
+    ``terminate_at`` / ``truncate_at`` map a reset seed to the step count at
+    which that episode reports ``terminated`` / ``truncated``.
+    """
+
+    def __init__(self, *, terminate_at=None, truncate_at=None):
+        self.terminate_at = dict(terminate_at or {})
+        self.truncate_at = dict(truncate_at or {})
+        self.resets: list[int] = []
+        self.steps_taken: dict[int, int] = {}
+
+    def reset(self, *, seed):
+        self.resets.append(seed)
+        self.steps_taken[seed] = 0
+        return (seed, 0), {}
+
+    def step(self, action):
+        seed = self.resets[-1]
+        self.steps_taken[seed] += 1
+        taken = self.steps_taken[seed]
+        terminated = taken >= self.terminate_at.get(seed, taken + 1)
+        truncated = taken >= self.truncate_at.get(seed, taken + 1)
+        return (seed, taken), 0.0, terminated, truncated, {}
+
+
+def _step_and_seed_policy(obs):
+    """Commands (steps taken so far, seed index): every sample is traceable to its seed and step."""
+    seed, taken = obs
+    return np.array([float(taken), float(seed - BRACE_SETTLE_SEEDS[0])])
+
+
+class TestBraceController:
+    """The historical T-Rex brace null (first-runs record §3.1), which the freeze producer rolls."""
+
+    def test_the_settle_panel_is_the_recorded_one(self):
+        assert BRACE_SETTLE_SEEDS == (5042, 5043, 5044, 5045, 5046)
+        assert BRACE_SETTLE_STEPS == 200
+        # Off-panel: the frozen 40-episode panel starts at seed 3042.
+        assert not set(BRACE_SETTLE_SEEDS) & set(range(3042, 3042 + 40))
+
+    def test_it_holds_the_mean_of_the_post_settle_actions(self):
+        env = _ScriptedEnv()
+        held = brace_controller(env, _step_and_seed_policy)
+
+        assert env.resets == list(BRACE_SETTLE_SEEDS)
+        assert env.steps_taken == {seed: 2 * BRACE_SETTLE_STEPS for seed in BRACE_SETTLE_SEEDS}
+        # Steps 200..399 of every seed: mean step 299.5, mean seed index 2.
+        np.testing.assert_array_equal(held(None), [299.5, 2.0])
+        # Held means held: the observation is ignored and the command never changes.
+        np.testing.assert_array_equal(held(("anything", 7)), held(None))
+        assert held(None).dtype == np.float64
+
+    def test_an_episode_that_ends_contributes_only_the_steps_it_reached(self):
+        first, second, *rest = BRACE_SETTLE_SEEDS
+        env = _ScriptedEnv(terminate_at={first: 250}, truncate_at={second: 150})
+        held = brace_controller(env, _step_and_seed_policy)
+
+        # Termination and truncation both end the seed; the next seed still runs.
+        assert env.resets == list(BRACE_SETTLE_SEEDS)
+        assert env.steps_taken == {first: 250, second: 150, **{seed: 400 for seed in rest}}
+        samples = [[step, 0.0] for step in range(200, 250)] + [
+            [step, float(seed - first)] for seed in rest for step in range(200, 400)
+        ]
+        np.testing.assert_allclose(held(None), np.mean(np.array(samples), axis=0), rtol=0, atol=1e-12)
+
+    def test_no_post_settle_sample_is_refused(self):
+        env = _ScriptedEnv(terminate_at={seed: BRACE_SETTLE_STEPS for seed in BRACE_SETTLE_SEEDS})
+        with pytest.raises(ValueError):
+            brace_controller(env, _step_and_seed_policy)
 
 
 def _resolution(tmp_path, evidence, *, paired_delta=None, min_episodes=2):

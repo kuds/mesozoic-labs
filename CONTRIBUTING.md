@@ -84,7 +84,16 @@ pytest environments/velociraptor/tests/ -v
 pytest --cov=environments --cov-report=term-missing
 ```
 
-All tests must pass before submitting a PR. We target 70%+ code coverage.
+All tests must pass before submitting a PR. We target 70%+ code coverage;
+CI's `coverage` job gates the union of every test job at `fail_under = 70`.
+Coverage counts all of `environments/` except tests and the hand-run or
+one-off files that `[tool.coverage.run] omit` in `pyproject.toml` names one
+by one, each with its reason, so a new script or harness counts unless you
+add an entry. An entry names a file that no test imports by name and that
+feeds no gate (`environments/shared/tests/test_coverage_config.py` checks
+the first and holds the certification code and the statue baselines in);
+`harnesses/digest_snapshot.py` is the one exception, checked by its own CI
+step.
 
 ## Adding a New Species
 

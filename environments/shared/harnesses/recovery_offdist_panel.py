@@ -7,13 +7,13 @@ the seeded pushed panel at the training schedule or at schedules the policy
 never trained on, judged under either the provisional safe set or the P3
 calibrated posture-only set.
 
-Like everything in harnesses/, this is hand-run instrumentation, not part
-of the gated pipeline: it re-rolls panels on demand, while the frozen
-gate_resolution.json — written once by ``freeze_recovery_gate.py`` — is
-what any gate actually consumes.  The calibrated safe set and the fixed
-height reference are IMPORTED from ``recovery_evaluation`` rather than
-restated here, so a hand roll and the frozen record can never disagree
-about what "calibrated" means.
+Like the viewers and smoke checks in harnesses/, this is hand-run
+instrumentation, not part of the gated pipeline: it re-rolls panels on
+demand, while the frozen gate_resolution.json — written once by
+``freeze_recovery_gate.py`` — is what any gate actually consumes.  The
+calibrated safe set and the fixed height reference are IMPORTED from
+``recovery_evaluation`` rather than restated here, so a hand roll and the
+frozen record can never disagree about what "calibrated" means.
 
 Examples (repo root, trex):
 
@@ -44,9 +44,9 @@ from environments.shared.curriculum.recovery_gate import binomial_lcb, binomial_
 # harness's historical names: a hand panel that used a different dwell,
 # seed block, or inference path would not be comparable with the frozen
 # record it exists to probe — §9's panels ran the producer's NumPy
-# fallback, which is why the loader lives there and is shared.  (The
-# producer imports this module's brace_controller lazily, so the
-# dependency stays one-way.)
+# fallback, which is why the loader lives there and is shared.  The
+# brace null lives in recovery_evaluation, which both import, so the
+# dependency stays one-way.
 from environments.shared.harnesses.freeze_recovery_gate import (
     DWELL_STEPS,
     T_RECOVER_STEPS,
@@ -63,6 +63,7 @@ from environments.shared.recovery_evaluation import (
     CALIBRATED_HEIGHT_REFERENCE_M,
     CALIBRATED_POSTURE_ONLY,
     DEFAULT_SAFE_SET,
+    brace_controller,
     roll_recovery_panel,
     zero_action_controller,
 )
@@ -79,9 +80,6 @@ SCHEDULES = {
     "mag210": {"perturbation_capture_velocity_multiple": 1.5 * 210.0 / 165.501},
 }
 
-BRACE_SETTLE_SEEDS = (5042, 5043, 5044, 5045, 5046)
-BRACE_SETTLE_STEPS = 200
-
 
 def build_env(schedule: str) -> Any:
     from environments.trex.envs.trex_env import TRexEnv
@@ -90,23 +88,6 @@ def build_env(schedule: str) -> Any:
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
     return TRexEnv(**env_kwargs)
-
-
-def brace_controller(env: Any, predict: Callable[[Any], np.ndarray]) -> Callable[[Any], np.ndarray]:
-    """The policy's post-settle mean action, held (first-runs record §3.1)."""
-    from environments.shared.recovery_evaluation import constant_action_controller
-
-    actions: list[np.ndarray] = []
-    for seed in BRACE_SETTLE_SEEDS:
-        obs, _ = env.reset(seed=seed)
-        for step in range(BRACE_SETTLE_STEPS * 2):
-            action = predict(obs)
-            if step >= BRACE_SETTLE_STEPS:
-                actions.append(np.asarray(action, dtype=np.float64))
-            obs, _reward, terminated, truncated, _info = env.step(action)
-            if terminated or truncated:
-                break
-    return constant_action_controller(np.mean(np.stack(actions), axis=0).tolist())
 
 
 def roll_panel(
