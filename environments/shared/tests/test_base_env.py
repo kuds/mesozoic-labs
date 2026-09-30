@@ -1,4 +1,5 @@
 import contextlib
+import math
 import sys
 import types
 
@@ -7,7 +8,10 @@ import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.shared import reward_functions as rf
 from environments.shared.base_env import BaseDinoEnv
+from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 
@@ -793,3 +797,316 @@ class TestLowestGroundClearanceDataArgument:
                 fresh.close()
         finally:
             env.close()
+
+
+class TestRewardTermHelpers:
+    """The reward-term helpers' contract with the species' reward chains.
+
+    ``_progress_terms``, ``_nosedive_term``, ``_heading_terms`` and ``_speed_terms`` record their
+    info keys in a fixed order, pass the pure functions' NumPy scalars through unconverted and
+    return their terms unsummed, in the order every dual species destructures them into its
+    left-associated ``+`` chain.  The digest golden rounds rewards and gives float and np.float64
+    one shape, so it sees neither a swapped pair (heading and lateral sit next to each other in
+    every chain, and swapping them moves some step rewards by an ulp) nor a ``float()`` wrap.
+
+    The species defaults leave most of these weights at 0.0, which makes the terms -0.0 and a swap
+    invisible, so every weight is set nonzero and the speed threshold is put under the idle one.
+    The state then makes every term nonzero and distinct: a planar velocity of speed 0.03 pointing
+    backward along the reference, a body yawed off the reference and pitched nose-down, and a root
+    displaced from its spawn point.
+    """
+
+    WEIGHTS = {
+        "forward_vel_weight": 1.5,
+        "forward_vel_max": 2.0,
+        "backward_vel_penalty_weight": 0.7,
+        "drift_penalty_weight": 0.4,
+        "nosedive_weight": 0.9,
+        "heading_weight": 0.3,
+        "lateral_penalty_weight": 0.6,
+        "speed_penalty_weight": 0.5,
+        "speed_penalty_threshold": 0.01,
+        "idle_penalty_weight": 0.35,
+        "idle_velocity_threshold": 0.05,
+    }
+
+    @staticmethod
+    def _assert_recorded(info, expected):
+        assert list(info) == [key for key, _ in expected]
+        for key, value in expected:
+            assert type(value) is np.float64, key
+            assert type(info[key]) is np.float64, f"{key} was converted to {type(info[key]).__name__}"
+            assert info[key] == value, key
+
+    @pytest.mark.parametrize("env_cls", [TRexEnv, RaptorEnv, BrachioEnv, DibothrosuchusEnv])
+    def test_terms_are_recorded_unconverted_and_returned_in_chain_order(self, env_cls):
+        env = env_cls(reset_noise_scale=0.0, **self.WEIGHTS)
+        try:
+            env.reset(seed=0)
+            # Yawed 0.4 rad about z, then pitched 0.6 rad nose-down about the body's y.
+            half_yaw, half_pitch = 0.2, 0.3
+            quat = np.array(
+                [
+                    math.cos(half_yaw) * math.cos(half_pitch),
+                    -math.sin(half_yaw) * math.sin(half_pitch),
+                    math.cos(half_yaw) * math.sin(half_pitch),
+                    math.sin(half_yaw) * math.cos(half_pitch),
+                ]
+            )
+            forward_ref_2d = np.array([0.6, 0.8])
+            vel_2d = np.array([-0.024, -0.018])
+            root_pos_2d = env._initial_pos_2d + np.array([0.3, -0.4])
+
+            reward_forward, forward_vel = rf.reward_forward_velocity(
+                vel_2d, forward_ref_2d, env.forward_vel_max, env.forward_vel_weight
+            )
+            reward_backward, backward_vel = rf.reward_backward_penalty(
+                forward_vel, env.forward_vel_max, env.backward_vel_penalty_weight
+            )
+            reward_drift, drift_distance = rf.reward_drift_penalty(
+                root_pos_2d, env._initial_pos_2d, env.drift_penalty_weight
+            )
+            reward_nosedive, forward_z = rf.reward_nosedive(quat, env.nosedive_weight, env._natural_forward_z)
+            body_forward_2d = np.asarray(rf.quat_to_forward_2d(quat))
+            reward_heading, heading_alignment = rf.reward_heading_alignment(
+                body_forward_2d, forward_ref_2d, env.heading_weight
+            )
+            reward_lateral, lateral_vel = rf.reward_lateral_velocity_penalty(
+                vel_2d, body_forward_2d, env.lateral_penalty_weight
+            )
+            reward_speed, abs_speed = rf.reward_speed_penalty(
+                vel_2d, env.speed_penalty_weight, env.speed_penalty_threshold
+            )
+            reward_idle, _ = rf.reward_idle_penalty(vel_2d, env.idle_penalty_weight, env.idle_velocity_threshold)
+            terms = (
+                reward_forward,
+                reward_backward,
+                reward_drift,
+                reward_nosedive,
+                reward_heading,
+                reward_lateral,
+                reward_speed,
+                reward_idle,
+            )
+            assert all(term != 0.0 for term in terms), terms
+            assert len(set(terms)) == len(terms), terms
+
+            info = {}
+            returned = env._progress_terms(info, vel_2d, forward_ref_2d, root_pos_2d)
+            self._assert_recorded(
+                info,
+                [
+                    ("forward_vel", forward_vel),
+                    ("reward_forward", reward_forward),
+                    ("backward_vel", backward_vel),
+                    ("reward_backward", reward_backward),
+                    ("drift_distance", drift_distance),
+                    ("reward_drift", reward_drift),
+                ],
+            )
+            assert returned == (info["reward_forward"], info["reward_backward"], info["reward_drift"])
+
+            info = {}
+            returned = env._nosedive_term(info, quat)
+            self._assert_recorded(info, [("forward_z", forward_z), ("reward_nosedive", reward_nosedive)])
+            assert returned == info["reward_nosedive"]
+
+            info = {}
+            returned = env._heading_terms(info, quat, forward_ref_2d, vel_2d)
+            self._assert_recorded(
+                info,
+                [
+                    ("heading_alignment", heading_alignment),
+                    ("reward_heading", reward_heading),
+                    ("lateral_vel", lateral_vel),
+                    ("reward_lateral", reward_lateral),
+                ],
+            )
+            assert returned == (info["reward_heading"], info["reward_lateral"])
+
+            info = {}
+            returned = env._speed_terms(info, vel_2d)
+            self._assert_recorded(
+                info, [("abs_speed", abs_speed), ("reward_speed", reward_speed), ("reward_idle", reward_idle)]
+            )
+            assert returned == (info["reward_speed"], info["reward_idle"])
+        finally:
+            env.close()
+
+
+class TestContactGeom:
+    """``_contact_geom``: the one contact query behind the bite, strike and snap checks and the floor scan.
+
+    It scans ``data.contact`` in order and returns the geom of *geoms* from the first contact that
+    pairs one of them with *other_geom*, from either side of the pair, or None.  The first match
+    decides which body part a categorised floor contact reports.
+    """
+
+    @staticmethod
+    def _query(pairs, geoms, other_geom):
+        contacts = [types.SimpleNamespace(geom1=geom1, geom2=geom2) for geom1, geom2 in pairs]
+        holder = types.SimpleNamespace(data=types.SimpleNamespace(ncon=len(contacts), contact=contacts))
+        return BaseDinoEnv._contact_geom(holder, geoms, other_geom)
+
+    def test_no_contact_is_none(self):
+        assert self._query([], {3, 4}, 0) is None
+
+    def test_contacts_without_the_other_geom_are_none(self):
+        assert self._query([(3, 4), (5, 3), (7, 8)], {3, 4}, 0) is None
+
+    def test_contacts_with_the_other_geom_but_not_the_geoms_are_none(self):
+        assert self._query([(0, 5), (6, 0)], {3, 4}, 0) is None
+
+    def test_first_matching_contact_wins_from_either_side(self):
+        assert self._query([(5, 9), (0, 4), (3, 0)], {3, 4}, 0) == 4
+        assert self._query([(5, 9), (3, 0), (0, 4)], {3, 4}, 0) == 3
+
+    def test_a_live_airborne_body_has_no_floor_contact(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.data.qpos[2] += 1.0
+            mujoco.mj_forward(env.model, env.data)
+            assert env._contact_geom(set(range(env.model.ngeom)), env.floor_geom_id) is None
+        finally:
+            env.close()
+
+    def test_a_live_standing_body_reports_its_first_floor_contact(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            mujoco.mj_forward(env.model, env.data)
+            floor = env.floor_geom_id
+            pairs = [(int(env.data.contact[i].geom1), int(env.data.contact[i].geom2)) for i in range(env.data.ncon)]
+            touching = [geom1 if geom2 == floor else geom2 for geom1, geom2 in pairs if floor in (geom1, geom2)]
+            assert touching, "the settled raptor should stand on the floor"
+            assert env._contact_geom(set(touching), floor) == touching[0]
+            assert env._contact_geom(set(touching), -2) is None
+        finally:
+            env.close()
+
+
+class TestRootTermination:
+    """``_root_termination``: the height/tilt(/nosedive) opening every dual species' termination shares.
+
+    The digest harness hashes the order of info keys, so the order is part of the contract: the
+    height key, ``tilt_angle``, ``forward_z`` only when a nosedive threshold is given, then
+    ``termination_reason`` only on termination.
+    """
+
+    @pytest.fixture
+    def env(self):
+        e = RaptorEnv(reset_noise_scale=0.0)
+        e.reset(seed=0)
+        yield e
+        e.close()
+
+    def test_healthy_with_a_threshold_records_height_tilt_then_forward_z(self, env):
+        terminated, info = env._root_termination(env.pelvis_id, "pelvis_height", 0.5)
+        assert not terminated
+        assert list(info) == ["pelvis_height", "tilt_angle", "forward_z"]
+
+    def test_healthy_without_a_threshold_records_no_forward_z(self, env):
+        terminated, info = env._root_termination(env.pelvis_id, "some_height")
+        assert not terminated
+        assert list(info) == ["some_height", "tilt_angle"]
+
+    def test_a_height_failure_ends_before_the_nosedive_check(self, env):
+        env.data.qpos[2] = env.healthy_z_range[0] - 0.1
+        mujoco.mj_forward(env.model, env.data)
+        terminated, info = env._root_termination(env.pelvis_id, "pelvis_height", 0.5)
+        assert terminated
+        assert info["termination_reason"] == "fallen"
+        assert list(info) == ["pelvis_height", "tilt_angle", "termination_reason"]
+
+    @pytest.mark.parametrize(
+        "module, class_name, prefix",
+        [
+            ("environments.trex.envs.trex_env", "TRexEnv", ["pelvis_height", "tilt_angle", "forward_z"]),
+            ("environments.velociraptor.envs.raptor_env", "RaptorEnv", ["pelvis_height", "tilt_angle", "forward_z"]),
+            ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv", ["torso_height", "tilt_angle"]),
+            (
+                "environments.dibothrosuchus.envs.dibothrosuchus_env",
+                "DibothrosuchusEnv",
+                ["torso_height", "tilt_angle", "forward_z"],
+            ),
+        ],
+    )
+    def test_each_species_termination_opens_with_the_prefix(self, module, class_name, prefix):
+        import importlib
+
+        env = getattr(importlib.import_module(module), class_name)(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            terminated, info = env._is_terminated()
+            assert not terminated, info
+            assert list(info)[: len(prefix)] == prefix
+            if "forward_z" not in prefix:
+                assert "forward_z" not in info
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("env_cls", [TRexEnv, DibothrosuchusEnv])
+    @pytest.mark.parametrize(
+        "offset, reason", [pytest.param(-0.01, "nosedive", id="just_past"), pytest.param(0.01, None, id="just_short")]
+    )
+    def test_the_nosedive_threshold_is_the_species_knob(self, env_cls, offset, reason):
+        """T-Rex and Dibothrosuchus pass ``nosedive_termination_threshold`` to the prefix.
+
+        The digest probes that reach ``nosedive`` end there under the knob and a nearby literal
+        alike, so they cannot tell the two apart.  A non-default knob of 0.3 is pinned from
+        both sides instead: the root is lifted 0.1 above its settled height (inside
+        ``healthy_z_range``) and pitched nose-down about +y to 0.01 past or 0.01 short of
+        ``_natural_forward_z - 0.3``; the tilt then stays well inside ``max_tilt_angle``.
+        """
+        env = env_cls(reset_noise_scale=0.0, nosedive_termination_threshold=0.3)
+        try:
+            env.reset(seed=0)
+            forward_z = env._natural_forward_z - 0.3 + offset
+            pitch = math.asin(-forward_z)
+            env.data.qpos[2] += 0.1
+            env.data.qpos[3:7] = (math.cos(pitch / 2.0), 0.0, math.sin(pitch / 2.0), 0.0)
+            env.data.qvel[:] = 0.0
+            mujoco.mj_forward(env.model, env.data)
+            terminated, info = env._is_terminated()
+
+            assert info["forward_z"] == pytest.approx(forward_z, abs=1e-9)
+            assert info["tilt_angle"] < env.max_tilt_angle
+            assert info.get("termination_reason") == reason, info
+            assert terminated == (reason is not None)
+        finally:
+            env.close()
+
+
+class TestCacheHomeKeyframe:
+    """``_cache_home_keyframe``: the ``home`` keyframe lookup the four dual species' ``_cache_ids`` share."""
+
+    _XML = """
+    <mujoco>
+      <worldbody>
+        <body name="b"><joint name="j" type="hinge"/><geom size="0.1"/></body>
+      </worldbody>
+      <actuator><motor joint="j"/></actuator>
+      <keyframe>{keys}</keyframe>
+    </mujoco>
+    """
+
+    @classmethod
+    def _holder(cls, keys):
+        return types.SimpleNamespace(model=mujoco.MjModel.from_xml_string(cls._XML.format(keys=keys)))
+
+    def test_a_model_without_home_is_refused_with_the_species_label(self):
+        holder = self._holder('<key name="other" ctrl="0.5"/>')
+        with pytest.raises(ValueError, match="^Velociraptor model must define a named 'home' keyframe$"):
+            BaseDinoEnv._cache_home_keyframe(holder, "Velociraptor")
+
+    def test_home_is_the_reset_keyframe_and_its_controls_are_a_copy(self):
+        holder = self._holder('<key name="other" ctrl="0.5"/><key name="home" ctrl="0.25"/>')
+        BaseDinoEnv._cache_home_keyframe(holder, "Test")
+        assert holder.home_keyframe_id == holder._reset_keyframe_id == 1
+        np.testing.assert_array_equal(holder._home_ctrl, [0.25])
+        holder._home_ctrl[0] = 9.0
+        assert holder.model.key_ctrl[1, 0] == 0.25
+        # Re-callable, as the behavior env's model swap requires.
+        BaseDinoEnv._cache_home_keyframe(holder, "Test")
+        np.testing.assert_array_equal(holder._home_ctrl, [0.25])

@@ -13,7 +13,7 @@ across all dinosaur species. Subclasses override species-specific methods:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from typing import Any
 
 import gymnasium as gym
@@ -79,10 +79,24 @@ class BaseDinoEnv(gym.Env, ABC):
         or check ``len`` before unpacking.  Species declare their sensor
         groups via ``_foot_sensor_groups`` in ``_cache_ids``; a species with
         no groups gets an empty tuple, which is why consumers check the
-        arity.  Kept an overridable METHOD (tests monkeypatch it to steer
-        the contact-shaped rewards), and it stays the per-substep primitive:
-        :meth:`step` calls it once per physics substep to build the
-        aggregated value below.
+        arity.  Every species uses this one implementation, and each group
+        sums in one pinned order,
+        ``sensordata[group[0]] + sum(sensordata[i] for i in group[1:])``:
+        the first sensor (the pad) plus the running sum of the rest.  That is
+        the association the retired T-Rex and brachiosaurus overrides used,
+        so the recorded forces, rewards and termination reasons stay
+        bit-identical; a plain ``sum(group)`` re-associates the T-Rex
+        four-sensor feet and moves the last bit of their forces.  The items
+        stay ``np.float64``: a per-item ``float()`` or ``.tolist()`` hands
+        ``sum()`` exact floats, which Python 3.12 and later add with
+        compensation (3.11 does not), and ``np.sum`` or ``math.fsum``
+        changes the association outright.  Kept an overridable METHOD under
+        this name: tests monkeypatch it to steer the contact-shaped rewards,
+        and the token-hashed ``_get_obs`` bodies (T-Rex, brachiosaurus,
+        compsognathus) call it by name, so a rename would move their policy
+        interface digests.  It stays the per-substep primitive: :meth:`step`
+        calls it once per physics substep to build the aggregated value
+        below.
 
     ``_aggregated_foot_contact_forces() -> tuple[float, ...]``
         The per-foot MIN across the ``frame_skip`` physics substeps of the
@@ -108,6 +122,9 @@ class BaseDinoEnv(gym.Env, ABC):
     # in _cache_ids; () means "no foot sensors".  Mirrors the frozen MJX
     # registration's sensor_foot_indices + sensor_foot_aux_indices (D-D17), so
     # the plant contract's MJX observation probe reads the same foot sensors.
+    # Each group lists the pad first: _foot_contact_forces adds group[0] to
+    # the running sum of the rest (the pinned order in the class docstring),
+    # so keep the pad first and leave no group empty.
     _foot_sensor_groups: "tuple[tuple[int, ...], ...]" = ()
 
     # Substep aggregation state, populated by step()'s frame-skip loop.
@@ -348,6 +365,22 @@ class BaseDinoEnv(gym.Env, ABC):
         """
         return float(_quat_to_tilt_pure(quat))
 
+    def _cache_home_keyframe(self, label: str) -> None:
+        """Cache the named ``home`` keyframe as the reset pose and its controls as action zero.
+
+        Sets ``home_keyframe_id``, ``_reset_keyframe_id`` (read by :meth:`reset`) and ``_home_ctrl`` (the
+        origin of the species' residual ``_scale_action``); *label* names the species in the error a model
+        without the keyframe raises.  Called from the ``_cache_ids`` of T-Rex, velociraptor, brachiosaurus
+        and dibothrosuchus, which the policy interface digest does not token-hash; compsognathus inlines its
+        own lookup because its ``_cache_ids`` is token-hashed.  Safe to call again: the behavior env re-runs
+        ``_cache_ids`` on every model swap.
+        """
+        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if self.home_keyframe_id < 0:
+            raise ValueError(f"{label} model must define a named 'home' keyframe")
+        self._reset_keyframe_id = self.home_keyframe_id
+        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+
     # ------------------------------------------------------------------
     # Abstract methods: subclasses MUST implement these
     # ------------------------------------------------------------------
@@ -396,6 +429,22 @@ class BaseDinoEnv(gym.Env, ABC):
     # reset so an episode never charges jerk across an episode boundary.
     _prev_prev_action: "np.ndarray | None" = None
     action_jerk_weight: float = 0.0
+    # Read by the reward-term helpers (_progress_terms, _nosedive_term,
+    # _heading_terms, _speed_terms), _natural_forward_z also by _root_termination.
+    # Annotation only: the species that call them set these in ``__init__``
+    # (_initial_pos_2d when the target spawns on reset); compsognathus calls none.
+    forward_vel_max: float
+    backward_vel_penalty_weight: float
+    drift_penalty_weight: float
+    heading_weight: float
+    lateral_penalty_weight: float
+    speed_penalty_weight: float
+    speed_penalty_threshold: float
+    idle_penalty_weight: float
+    idle_velocity_threshold: float
+    nosedive_weight: float
+    _natural_forward_z: float
+    _initial_pos_2d: np.ndarray
 
     def _reward_energy(self, action: np.ndarray) -> float:
         """Compute normalised energy penalty. Identical across all species.
@@ -495,21 +544,6 @@ class BaseDinoEnv(gym.Env, ABC):
             natural_forward_z,
         )
 
-    def _compute_nosedive_penalty(
-        self, quat: np.ndarray, weight: float, natural_forward_z: float
-    ) -> tuple[float, float]:
-        """Compute nosedive penalty (excessive forward pitch beyond natural lean).
-
-        Args:
-            quat: Pelvis/torso quaternion from sensor data.
-            weight: Nosedive penalty weight.
-            natural_forward_z: Baseline forward_z for species' natural lean.
-
-        Returns:
-            (reward, forward_z) tuple.
-        """
-        return _reward_nosedive_pure(quat, weight, natural_forward_z)
-
     def _compute_angular_velocity_penalty(
         self, weight: float, max_angvel: float = TAIL_ANGULAR_VEL_MAX
     ) -> tuple[float, float]:
@@ -567,111 +601,87 @@ class BaseDinoEnv(gym.Env, ABC):
         dt = self.frame_skip * self.model.opt.timestep
         return _reward_approach_shaping_pure(current_distance, prev_distance, weight, max_speed, dt)
 
-    def _compute_forward_velocity(
-        self, vel_2d: np.ndarray, forward_ref_2d: np.ndarray, vel_max: float, weight: float
-    ) -> tuple[float, float]:
-        """Compute forward velocity reward along a reference direction.
+    # ------------------------------------------------------------------
+    # Reward terms shared by T-Rex, velociraptor, brachiosaurus and
+    # dibothrosuchus (compsognathus computes its own, with different
+    # formulas).  Each writes its info keys in the order the species have
+    # always recorded them and passes the pure functions' values through
+    # unconverted, because the digest harness hashes both the key order and
+    # the value types.  The rewards come back unsummed: every species adds
+    # them into one left-associated ``+`` chain of its own, and a pre-summed
+    # pair would re-associate that chain.
+    # ------------------------------------------------------------------
 
-        Args:
-            vel_2d: 2D velocity vector (qvel[0:2]).
-            forward_ref_2d: Unit reference direction in XY plane.
-            vel_max: Maximum velocity for normalisation.
-            weight: Reward weight.
+    def _progress_terms(
+        self, info: dict[str, Any], vel_2d: np.ndarray, forward_ref_2d: np.ndarray, root_pos_2d: np.ndarray
+    ) -> tuple[Any, Any, Any]:
+        """Forward velocity along *forward_ref_2d*, the backward penalty and the drift of *root_pos_2d* from spawn.
 
-        Returns:
-            (reward, raw_forward_vel) tuple.
+        Records ``forward_vel``, ``reward_forward``, ``backward_vel``, ``reward_backward``, ``drift_distance`` and
+        ``reward_drift`` in that order; returns ``(reward_forward, reward_backward, reward_drift)``.
         """
-        return _reward_forward_velocity_pure(vel_2d, forward_ref_2d, vel_max, weight)
+        reward_forward, forward_vel = _reward_forward_velocity_pure(
+            vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
+        )
+        info["forward_vel"] = forward_vel
+        info["reward_forward"] = reward_forward
+        reward_backward, backward_vel = _reward_backward_penalty_pure(
+            forward_vel, self.forward_vel_max, self.backward_vel_penalty_weight
+        )
+        info["backward_vel"] = backward_vel
+        info["reward_backward"] = reward_backward
+        reward_drift, drift_dist = _reward_drift_penalty_pure(
+            root_pos_2d, self._initial_pos_2d, self.drift_penalty_weight
+        )
+        info["drift_distance"] = drift_dist
+        info["reward_drift"] = reward_drift
+        return reward_forward, reward_backward, reward_drift
 
-    def _compute_backward_penalty(self, forward_vel: float, vel_max: float, weight: float) -> tuple[float, float]:
-        """Compute backward velocity penalty.
+    def _nosedive_term(self, info: dict[str, Any], quat: np.ndarray) -> Any:
+        """Nosedive penalty for pitching beyond the natural lean.
 
-        Args:
-            forward_vel: Forward velocity (negative means backward).
-            vel_max: Normalisation ceiling.
-            weight: Penalty weight.
-
-        Returns:
-            (reward, backward_vel) tuple.
+        Records ``forward_z`` and ``reward_nosedive`` in that order; returns the reward.
         """
-        return _reward_backward_penalty_pure(forward_vel, vel_max, weight)
+        reward_nosedive, forward_z = _reward_nosedive_pure(quat, self.nosedive_weight, self._natural_forward_z)
+        info["forward_z"] = forward_z
+        info["reward_nosedive"] = reward_nosedive
+        return reward_nosedive
 
-    def _compute_drift_penalty(
-        self, current_pos_2d: np.ndarray, initial_pos_2d: np.ndarray, weight: float
-    ) -> tuple[float, float]:
-        """Compute quadratic drift penalty (horizontal displacement from spawn).
+    def _heading_terms(
+        self, info: dict[str, Any], quat: np.ndarray, forward_ref_2d: np.ndarray, vel_2d: np.ndarray
+    ) -> tuple[Any, Any]:
+        """Heading alignment with *forward_ref_2d* and the lateral (crab-walk) velocity penalty.
 
-        Args:
-            current_pos_2d: Current XY position.
-            initial_pos_2d: Spawn XY position.
-            weight: Penalty weight.
-
-        Returns:
-            (reward, drift_distance) tuple.
+        Both use the body's forward direction from *quat*.  Records ``heading_alignment``, ``reward_heading``,
+        ``lateral_vel`` and ``reward_lateral`` in that order; returns ``(reward_heading, reward_lateral)``.
         """
-        return _reward_drift_penalty_pure(current_pos_2d, initial_pos_2d, weight)
+        body_forward_2d = self._quat_to_forward_2d(quat)
+        reward_heading, heading_alignment = _reward_heading_alignment_pure(
+            body_forward_2d, forward_ref_2d, self.heading_weight
+        )
+        info["heading_alignment"] = heading_alignment
+        info["reward_heading"] = reward_heading
+        reward_lateral, lateral_vel = _reward_lateral_velocity_penalty_pure(
+            vel_2d, body_forward_2d, self.lateral_penalty_weight
+        )
+        info["lateral_vel"] = lateral_vel
+        info["reward_lateral"] = reward_lateral
+        return reward_heading, reward_lateral
 
-    def _compute_heading_alignment(
-        self, body_forward_2d: np.ndarray, forward_ref_2d: np.ndarray, weight: float
-    ) -> tuple[float, float]:
-        """Compute heading alignment reward (reward facing toward target).
+    def _speed_terms(self, info: dict[str, Any], vel_2d: np.ndarray) -> tuple[Any, Any]:
+        """Speed penalty above ``speed_penalty_threshold`` and idle penalty below ``idle_velocity_threshold``.
 
-        Args:
-            body_forward_2d: Body's forward direction in XY plane.
-            forward_ref_2d: Reference direction to target in XY plane.
-            weight: Reward weight.
-
-        Returns:
-            (reward, heading_alignment_cos) tuple.
+        Records ``abs_speed``, ``reward_speed`` and ``reward_idle`` in that order (the idle speed is not
+        recorded); returns ``(reward_speed, reward_idle)``.
         """
-        return _reward_heading_alignment_pure(body_forward_2d, forward_ref_2d, weight)
-
-    def _compute_lateral_velocity_penalty(
-        self, vel_2d: np.ndarray, body_forward_2d: np.ndarray, weight: float
-    ) -> tuple[float, float]:
-        """Compute lateral (crab-walk) velocity penalty.
-
-        Args:
-            vel_2d: 2D velocity vector.
-            body_forward_2d: Body's forward direction in XY plane.
-            weight: Penalty weight.
-
-        Returns:
-            (reward, lateral_vel) tuple.
-        """
-        return _reward_lateral_velocity_penalty_pure(vel_2d, body_forward_2d, weight)
-
-    def _compute_speed_penalty(
-        self, vel_2d: np.ndarray, weight: float, threshold: float = 0.10, max_excess: float = 1.0
-    ) -> tuple[float, float]:
-        """Penalise absolute 2D speed exceeding a threshold.
-
-        Args:
-            vel_2d: 2D velocity vector (qvel[0:2]).
-            weight: Penalty weight.
-            threshold: Speed (m/s) below which no penalty applies.
-            max_excess: Speed above threshold at which penalty saturates.
-
-        Returns:
-            (reward, absolute_speed) tuple.
-        """
-        return _reward_speed_penalty_pure(vel_2d, weight, threshold, max_excess)
-
-    def _compute_idle_penalty(self, vel_2d: np.ndarray, weight: float, threshold: float = 0.05) -> tuple[float, float]:
-        """Penalise low 2D speed (standing still / barely moving).
-
-        Applies a penalty that is strongest at zero speed and linearly
-        decreases to zero when speed reaches *threshold*.
-
-        Args:
-            vel_2d: 2D velocity vector (qvel[0:2]).
-            weight: Penalty weight (positive value; returned reward is negative).
-            threshold: Speed (m/s) at or above which no penalty applies.
-
-        Returns:
-            (reward, absolute_speed) tuple.
-        """
-        return _reward_idle_penalty_pure(vel_2d, weight, threshold)
+        reward_speed, abs_speed = _reward_speed_penalty_pure(
+            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
+        )
+        info["abs_speed"] = abs_speed
+        info["reward_speed"] = reward_speed
+        reward_idle, _ = _reward_idle_penalty_pure(vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold)
+        info["reward_idle"] = reward_idle
+        return reward_speed, reward_idle
 
     def _init_gait_state(
         self,
@@ -899,15 +909,49 @@ class BaseDinoEnv(gym.Env, ABC):
         """
         return _check_height_tilt_pure(body_z, tilt_angle, self.healthy_z_range, self.max_tilt_angle)
 
+    def _root_termination(
+        self, root_id: int, height_key: str, nosedive_threshold: float | None = None
+    ) -> tuple[bool, dict[str, Any]]:
+        """Shared opening of the species terminations: root height, tilt, then an optional nosedive.
+
+        Records the clearance of body *root_id* under *height_key*, then ``tilt_angle``, and ends the episode
+        through :meth:`_check_height_tilt_termination`.  With a *nosedive_threshold* it then records
+        ``forward_z`` and ends the episode as ``nosedive`` when ``forward_z`` is more than the threshold below
+        ``_natural_forward_z``; without one (brachiosaurus) ``forward_z`` is not recorded.  A
+        ``termination_reason`` follows only on termination.  Returns ``(terminated, info)``, and the caller
+        adds its own checks to that *info*.
+        """
+        info: dict[str, Any] = {}
+        root_z = self._clearance(self.data.xpos[root_id])
+        info[height_key] = root_z
+        quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        tilt_angle = self._quat_to_tilt(quat)
+        info["tilt_angle"] = tilt_angle
+        terminated, reason = self._check_height_tilt_termination(root_z, tilt_angle)
+        if terminated:
+            info["termination_reason"] = reason
+            return True, info
+        if nosedive_threshold is not None:
+            forward_z = self._quat_to_forward_z(quat)
+            info["forward_z"] = forward_z
+            if forward_z < self._natural_forward_z - nosedive_threshold:
+                info["termination_reason"] = "nosedive"
+                return True, info
+        return False, info
+
     def _foot_contact_forces(self) -> "tuple[float, ...]":
         """Instantaneous per-foot touch-force sums from the current sensordata.
 
-        See the class docstring for the contract.  This is the per-substep
-        primitive; the contact-shaped rewards and info keys consume
-        :meth:`_aggregated_foot_contact_forces` instead.
+        See the class docstring for the contract, including the pinned
+        ``group[0] + sum(group[1:])`` order over ``np.float64`` items.  This
+        is the per-substep primitive; the contact-shaped rewards and info
+        keys consume :meth:`_aggregated_foot_contact_forces` instead.
         """
         sensordata = self.data.sensordata
-        return tuple(float(sum(sensordata[index] for index in group)) for group in self._foot_sensor_groups)
+        return tuple(
+            float(sensordata[group[0]] + sum(sensordata[index] for index in group[1:]))
+            for group in self._foot_sensor_groups
+        )
 
     def _aggregated_foot_contact_forces(self) -> "tuple[float, ...]":
         """Per-foot MIN force across the current control step's substeps.
@@ -982,23 +1026,30 @@ class BaseDinoEnv(gym.Env, ABC):
                     if latched in category_geoms:
                         return True, f"{category_name}_contact"
             return True, "body_contact"
+        floor_contact_geom = self._contact_geom(body_ground_geoms, floor_geom_id)
+        if floor_contact_geom is not None:
+            if geom_categories:
+                for category_name, category_geoms in geom_categories.items():
+                    if floor_contact_geom in category_geoms:
+                        return True, f"{category_name}_contact"
+            return True, "body_contact"
+        return False, None
+
+    def _contact_geom(self, geoms: "Collection[int]", other_geom: int) -> "int | None":
+        """The geom of *geoms* in the first contact that pairs one of them with *other_geom*, or None.
+
+        Scans the live ``data.contact`` in order, so it sees the final physics substep only (for floor
+        strikes, step()'s latch covers the earlier substeps), and the first match decides which geom a
+        categorised floor contact reports.
+        """
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
-
-            floor_contact_geom = None
-            if geom2 == floor_geom_id and geom1 in body_ground_geoms:
-                floor_contact_geom = geom1
-            elif geom1 == floor_geom_id and geom2 in body_ground_geoms:
-                floor_contact_geom = geom2
-
-            if floor_contact_geom is not None:
-                if geom_categories:
-                    for category_name, category_geoms in geom_categories.items():
-                        if floor_contact_geom in category_geoms:
-                            return True, f"{category_name}_contact"
-                return True, "body_contact"
-        return False, None
+            if geom2 == other_geom and geom1 in geoms:
+                return int(geom1)
+            if geom1 == other_geom and geom2 in geoms:
+                return int(geom2)
+        return None
 
     # ------------------------------------------------------------------
     # Consolidated target spawning helpers

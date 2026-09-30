@@ -296,6 +296,54 @@ class TestFootContactSensors:
         assert adjacent_pairs.isdisjoint(actual_pairs)
 
 
+class TestFootContactForceSummationOrder:
+    """The shared ``_foot_contact_forces`` adds each group's pad to the running sum of the rest.
+
+    ``pad + (d1 + d2 + d3)`` is the association the retired T-Rex override used, and the
+    recorded T-Rex forces depend on it: summing left to right from zero instead moved 87
+    exact digest lines, all T-Rex.  The sensordata items must also reach ``sum()`` as
+    ``np.float64``: from Python 3.12 ``sum()`` compensates exact ``float`` items, which
+    a per-item ``float()`` or ``.tolist()`` would hand it.  Exact equality throughout.
+    """
+
+    def test_trex_four_sensor_feet_add_the_pad_to_the_digit_sum(self, env):
+        env.reset(seed=0)
+        right, left = env._foot_sensor_groups
+        assert len(right) == len(left) == 4, "the T-Rex feet are a pad plus three digit sensors"
+        sensordata = env.data.sensordata
+        # pad + (((0 + 1e-16) + 1e-16) + 0.0) rounds up to the next float after 1.0;
+        # from zero, (((0 + 1.0) + 1e-16) + 1e-16) + 0.0 rounds back down to 1.0 at every step.
+        for index, value in zip(right, (1.0, 1e-16, 1e-16, 0.0), strict=True):
+            sensordata[index] = value
+        # 0.0 + ((1.0 + 1e-16) + 1e-16) is 1.0 when the digits are summed plainly;
+        # a compensated sum of Python floats gives the next float after 1.0.
+        for index, value in zip(left, (0.0, 1.0, 1e-16, 1e-16), strict=True):
+            sensordata[index] = value
+
+        forces = env._foot_contact_forces()
+
+        assert forces == (1.0000000000000002, 1.0)
+        assert all(type(force) is float for force in forces)
+
+    def test_brachiosaurus_two_sensor_legs_add_pad_and_meta_in_group_order(self):
+        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+
+        env = BrachioEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            groups = env._foot_sensor_groups
+            assert [len(group) for group in groups] == [2, 2, 2, 2], "each leg is a pad plus a meta sensor"
+            readings = ((0.1, 0.2), (1.0, 1e-16), (2.5, 0.0), (0.0, 3.0))
+            for group, values in zip(groups, readings, strict=True):
+                for index, value in zip(group, values, strict=True):
+                    env.data.sensordata[index] = value
+
+            # fr, fl, rr, rl: each the pad + meta sum the retired override returned.
+            assert env._foot_contact_forces() == (0.30000000000000004, 1.0, 2.5, 3.0)
+        finally:
+            env.close()
+
+
 class TestHeightTargetTracksStance:
     """The height-maintenance reward must have gradient at the operating point.
 

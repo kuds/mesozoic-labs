@@ -4,6 +4,8 @@ Common env tests (spaces, reset, step, determinism, observation bounds) are in
 environments/shared/tests/test_species_integration.py.
 """
 
+import math
+
 import mujoco
 import numpy as np
 import pytest
@@ -97,6 +99,108 @@ class TestStrikeTerminationGating:
         # The gating condition (self.strike_bonus > 0) should prevent
         # strike_success termination even if contact occurs
         env.close()
+
+    @staticmethod
+    def _prey_on_one_claw(env, claw, other):
+        """Move the prey onto *claw* alone and return its geom id.
+
+        The claws sit 0.12 apart and the prey sphere has radius 0.15, so a prey placed on one
+        claw also touches the other; the other claw's collisions are switched off so each claw
+        is checked on its own.
+        """
+        env.reset(seed=0)
+        claw_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, claw)
+        other_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, other)
+        env.model.geom_contype[other_id] = 0
+        env.model.geom_conaffinity[other_id] = 0
+        env.data.mocap_pos[0] = env.data.geom_xpos[claw_id]
+        mujoco.mj_forward(env.model, env.data)
+        prey = env.prey_geom_id
+        pairs = [(int(env.data.contact[i].geom1), int(env.data.contact[i].geom2)) for i in range(env.data.ncon)]
+        assert {geom1 if geom2 == prey else geom2 for geom1, geom2 in pairs if prey in (geom1, geom2)} == {claw_id}
+        return claw_id
+
+    @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
+    def test_either_claw_alone_scores_and_ends_the_strike(self, claw, other):
+        """Each sickle claw on its own pays the strike bonus and ends the episode as ``strike_success``."""
+        env = RaptorEnv(strike_bonus=10.0, reset_noise_scale=0.0)
+        try:
+            self._prey_on_one_claw(env, claw, other)
+            _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert info["strike_success"] == 1.0
+            assert info["reward_strike"] == 10.0
+
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "strike_success"
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
+    def test_either_claw_alone_does_not_end_the_episode_without_a_strike_bonus(self, claw, other):
+        """With ``strike_bonus == 0.0`` the same claw contact pays nothing and ends nothing."""
+        env = RaptorEnv(strike_bonus=0.0, reset_noise_scale=0.0)
+        try:
+            self._prey_on_one_claw(env, claw, other)
+            _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert info["strike_success"] == 1.0
+            assert info["reward_strike"] == 0.0
+
+            terminated, info = env._is_terminated()
+            assert not terminated, info
+            assert "termination_reason" not in info
+        finally:
+            env.close()
+
+
+class TestNosediveTermination:
+    """Raptor ends an episode as ``nosedive`` once forward_z drops 0.5 below its natural lean.
+
+    ``raptor_env.py`` passes that 0.5 to the shared ``_root_termination`` as a literal,
+    and no digest probe reaches the branch (its raptor poses end on ``excessive_tilt``),
+    so these posed states pin the threshold from both sides.  The pelvis is lifted clear
+    of the floor and pitched nose-down about +y: a pure pitch gives
+    ``forward_z == -sin(pitch)`` and a tilt equal to the pitch, which stays inside
+    ``max_tilt_angle`` this close to the threshold.
+    """
+
+    MARGIN = 0.01
+
+    @staticmethod
+    def _terminate_pitched(env, forward_z):
+        pitch = math.asin(-forward_z)
+        env.reset(seed=0)
+        env.data.qpos[2] = 0.7
+        env.data.qpos[3:7] = (math.cos(pitch / 2.0), 0.0, math.sin(pitch / 2.0), 0.0)
+        env.data.qvel[:] = 0.0
+        mujoco.mj_forward(env.model, env.data)
+        return env._is_terminated()
+
+    def test_just_past_the_threshold_terminates_as_nosedive(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            forward_z = env._natural_forward_z - 0.5 - self.MARGIN
+            terminated, info = self._terminate_pitched(env, forward_z)
+
+            assert info["forward_z"] == pytest.approx(forward_z, abs=1e-9)
+            assert info["tilt_angle"] < env.max_tilt_angle
+            assert terminated
+            assert info["termination_reason"] == "nosedive"
+            assert list(info) == ["pelvis_height", "tilt_angle", "forward_z", "termination_reason"]
+        finally:
+            env.close()
+
+    def test_just_before_the_threshold_does_not_terminate(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            forward_z = env._natural_forward_z - 0.5 + self.MARGIN
+            terminated, info = self._terminate_pitched(env, forward_z)
+
+            assert info["forward_z"] == pytest.approx(forward_z, abs=1e-9)
+            assert not terminated, info
+            assert "termination_reason" not in info
+        finally:
+            env.close()
 
 
 class TestNominalPoseActionScaling:
