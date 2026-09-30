@@ -235,11 +235,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
-- **The landing page's roadmap agrees with ROADMAP** (cleanup CU-16b of
-  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row). Phases 2 and
-  3 read IN PROGRESS, as `docs/ROADMAP.md` has them; the terrain and turning
-  items say piloted (#540/#541), and Phase 3's new-species item says two of
-  four are delivered (Dibothrosuchus and Compsognathus).
+- **One stage-level task-fingerprint derivation** (cleanup CU-8a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-8 row).
+  `task_fingerprint.stage_task_fingerprint(species, stage, *,
+  stage_config=None, env_kwargs=None, plant_identity=None)` is how training,
+  the curriculum walk, `select_trunk`, the recovery freeze, the recovery
+  calibration and its restamp tool, `widen_checkpoint` and the SB3
+  notebook's chain loop derive a stage's task fingerprint. It names the
+  stage by its manifest reference, whatever form it is given in, and
+  refuses a stage the manifest does not name. `FINGERPRINT_BACKEND` is
+  defined once, there; the recovery freeze and `widen_checkpoint` no longer
+  define their own, and `select_trunk`'s `backend` argument now governs only
+  the `provenance.json` comparison. The ignored-edits check is public as
+  `config.ignored_hyperparameter_edits`. `derive_stage_task_fingerprint`
+  and `hyperparameter_diff` stay public and unchanged. No digest moves:
+  every recorded `task_sha256` is reproduced, CI's digest command reports
+  the golden current (932 lines, 0 errors), and a new test ties the helper
+  to each stage's golden digest.
+- **The landing page's roadmap agrees with ROADMAP** (#578, cleanup CU-16b
+  of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row). Phases 2
+  and 3 read IN PROGRESS, as `docs/ROADMAP.md` has them; the terrain and
+  turning items say piloted (#540/#541), and Phase 3's new-species item says
+  two of four are delivered (Dibothrosuchus and Compsognathus).
   `docs/WEBSITE_PLAN.md`'s status and its `docs/README.md` row say the two
   apex GIFs stay.
 - **The docs record what became of the 2026-08 gap review's findings, and
@@ -459,7 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new modules), and the suite collects 3,951 tests (from 3,949).
 
 ### Removed
-- **Eleven unreferenced asset files** (cleanup CU-16b of
+- **Eleven unreferenced asset files** (#578, cleanup CU-16b of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-16 row), 2,089,577
   bytes, each the only copy of its blob in the tree and named by no page,
   configuration or code: the three stage videos
@@ -698,6 +715,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left with this PR, so it is latent (CU-2 fixes it; Fixed, below).
 
 ### Fixed
+- **The SB3 notebook's chain loop no longer crashes on a reused ancestor
+  whose `stage_config.json` is not a JSON object** (cleanup CU-8a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-8 row). Its copy of
+  the ignored-edits check lacked the library's guard, so a readable file
+  holding a list, `null`, a string or a number raised `AttributeError`
+  after the reuse; the loop now calls `config.ignored_hyperparameter_edits`,
+  which names such a file `<unreadable stage_config.json>` in its warning.
 - **The 0.3.8 entry on the removed `Images/` directory left out the second
   surviving copies and misstated which copies the site and README show**
   (#577, cleanup CU-16a of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2
