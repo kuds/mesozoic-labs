@@ -235,7 +235,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
-- **Coverage counts the certification code** (cleanup CU-9 of
+- **The SB3 notebook's text is cut and corrected, and its dead parameters
+  are gone** (cleanup CU-5 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2
+  CU-5 row). The markdown goes from 223 to 111 source lines, keeping every
+  pinned phrase and D-D16 rule (a new pin reads the resume recipe's
+  trunk-recovery and D-D16 text). Fixed: the quote of a
+  `configs/trex/stance.toml` comment that no longer exists, "all four"
+  species (there are six), a stale "review F3" note, and the chain loop's
+  branch labels (now 1 REUSE, 2 JUDGE, 3 TRAIN, the loop's and section 6's
+  order). Gone: the plotting wrappers' `save_path`, `save_dir`, `_show` and
+  unused `fig1, fig2`, `write_training_summary`'s `species=None` and
+  `save_run_bundle`'s `run_dir=None`; `train_stage`'s `run_dir` is required
+  (its fallback would have trained a node outside the run). `node_budget()`
+  is the one budget derivation of the chain loop, the RESUME cell and the
+  manual cell. 33 cells, 1,599 → 1,468 lines; no library, configuration or
+  digest change.
+- **Coverage counts the certification code** (#574, cleanup CU-9 of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-9 row).
   `[tool.coverage.run] omit` names the hand-run and one-off files one by
   one, each with its reason, instead of omitting every `scripts/` and
