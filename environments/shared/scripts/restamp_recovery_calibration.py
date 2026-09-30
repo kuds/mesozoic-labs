@@ -106,7 +106,7 @@ def restamp_recovery_calibration(
     from environments.shared.plant_contract import current_plant_identity
     from environments.shared.recovery_calibration import CONFIGS_ROOT, PROFILE_SCHEMA
     from environments.shared.species_names import resolve_species_id
-    from environments.shared.task_fingerprint import derive_stage_task_fingerprint
+    from environments.shared.task_fingerprint import stage_task_fingerprint
 
     try:
         species = resolve_species_id(species)
@@ -144,13 +144,7 @@ def restamp_recovery_calibration(
             "and needs a real recalibration, not a restamp"
         )
 
-    fingerprint = derive_stage_task_fingerprint(
-        species=species,
-        stage=stage,
-        backend="stable-baselines3",
-        env_kwargs=measured_env,
-        plant_identity=current_identity,
-    )
+    fingerprint = stage_task_fingerprint(species, stage, env_kwargs=measured_env, plant_identity=current_identity)
     task_sha256 = fingerprint["task_sha256"]
 
     if recorded_identity == current_identity and profile.get("task_sha256") == task_sha256:

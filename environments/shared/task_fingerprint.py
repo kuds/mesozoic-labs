@@ -54,9 +54,12 @@ import inspect
 import json
 import logging
 from pathlib import Path
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE
+
+if TYPE_CHECKING:
+    from .plant_contract import PlantIdentity
 
 _logger = logging.getLogger(__name__)
 
@@ -82,6 +85,13 @@ MODEL_TASK_LINEAGE_ATTRIBUTE = "mesozoic_task_lineage"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
+
+#: The backend string every stage task fingerprint is derived under
+#: (:func:`stage_task_fingerprint`): training, the reuse rule, the recovery
+#: freeze and calibration, and the widen tool all present it.  It enters
+#: every ``task_sha256``, so changing it moves every committed digest and
+#: strands every recorded one.
+FINGERPRINT_BACKEND = "stable-baselines3"
 
 #: Constructor params excluded from the effective env config: they select
 #: presentation, not task.  ``render_mode`` is the only such param across
@@ -574,4 +584,55 @@ def derive_stage_task_fingerprint(
         plant_identity=plant_identity,
         perturbation_manifest=manifest,
         command_manifest=command_manifest,
+    )
+
+
+def stage_task_fingerprint(
+    species: str,
+    stage: "int | str",
+    *,
+    stage_config: Mapping[str, Any] | None = None,
+    env_kwargs: Mapping[str, Any] | None = None,
+    plant_identity: "PlantIdentity | Mapping[str, Any] | None" = None,
+) -> dict[str, Any]:
+    """A stage's task fingerprint, derived the one way every caller derives it.
+
+    *stage* is an id or a reference; it is canonicalised to the manifest
+    reference (the legacy integer for a numbered stage, the id otherwise),
+    which is what every recorded fingerprint hashes, so ``"stance"`` and
+    ``1`` give the same digest.  The ``[env]`` block is *env_kwargs* when
+    given (the recovery calibration's measured task), else *stage_config*'s
+    ``env_kwargs`` (an in-memory config, overrides applied), else the
+    committed stage config's; passing both is refused.  *plant_identity*
+    defaults to the species' current plant; a :class:`PlantIdentity` or its
+    ``to_dict()`` mapping gives the same digest.  The backend is always
+    :data:`FINGERPRINT_BACKEND`.
+
+    Delegates to :func:`derive_stage_task_fingerprint`, looked up when
+    called, so a test that replaces it sees every derivation.
+    """
+    if stage_config is not None and env_kwargs is not None:
+        raise TypeError(
+            "stage_task_fingerprint takes stage_config or env_kwargs, not both: the task has one [env] block"
+        )
+    from .stage_manifest import load_stage_manifest
+
+    reference = load_stage_manifest(species).resolve(stage).reference
+    if env_kwargs is None:
+        if stage_config is None:
+            from .config import load_stage_config
+
+            stage_config = load_stage_config(species, reference)
+        env_kwargs = stage_config.get("env_kwargs", {})
+    if plant_identity is None:
+        from .plant_contract import current_plant_identity
+
+        plant_identity = current_plant_identity(species)
+    identity = dict(plant_identity) if isinstance(plant_identity, Mapping) else plant_identity.to_dict()
+    return derive_stage_task_fingerprint(
+        species=species,
+        stage=reference,
+        backend=FINGERPRINT_BACKEND,
+        env_kwargs=env_kwargs,
+        plant_identity=identity,
     )

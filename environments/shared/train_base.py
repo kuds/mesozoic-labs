@@ -1007,28 +1007,6 @@ def _wandb_run_tags(config: dict[str, Any], algorithm: str, label: str | None) -
     return tags
 
 
-def _ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancestor_stage_dir: Path) -> list[str]:
-    """The dotted keys on which this run's recipe differs from a reused ancestor's record.
-
-    Reads ``<ancestor stage_dir>/stage_config.json`` and delegates to
-    :func:`~environments.shared.config.hyperparameter_diff`; an ancestor
-    whose record cannot be read is reported as
-    ``["<unreadable stage_config.json>"]`` rather than silently trusted
-    (decision D-A21).  Never raises.
-    """
-    import json
-
-    from .config import hyperparameter_diff
-
-    try:
-        recorded = json.loads((Path(ancestor_stage_dir) / "stage_config.json").read_text(encoding="utf-8"))
-        if not isinstance(recorded, dict):
-            raise ValueError("stage_config.json must contain an object")
-    except (OSError, ValueError):
-        return ["<unreadable stage_config.json>"]
-    return hyperparameter_diff(config, algorithm, recorded)
-
-
 def train(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -1125,8 +1103,8 @@ def train(
     from .config import read_stage_duration, record_stage_duration, refuse_occupied_stage_dir, save_stage_config
     from .stage_manifest import load_stage_manifest
     from .task_fingerprint import (
-        derive_stage_task_fingerprint,
         read_checkpoint_task_fingerprint,
+        stage_task_fingerprint,
         validate_declared_parent,
     )
     from .wandb_integration import init_wandb
@@ -1134,13 +1112,7 @@ def train(
     config = stage_configs[stage]
     species = species_cfg.species
     plant_identity = current_plant_identity(species)
-    task_fingerprint = derive_stage_task_fingerprint(
-        species=species,
-        stage=stage,
-        backend="stable-baselines3",
-        env_kwargs=config.get("env_kwargs", {}),
-        plant_identity=plant_identity.to_dict(),
-    )
+    task_fingerprint = stage_task_fingerprint(species, stage, stage_config=config, plant_identity=plant_identity)
     # The node and its declared edge, resolved once: the edge keys the
     # declared-parent refusal below and the stage-entry shaping further down.
     manifest = load_stage_manifest(species)
@@ -2193,6 +2165,7 @@ def train_curriculum(
     """
     from .ancestors import AUTO_TRUNK, AncestorReuseError, find_certified_ancestor, record_ancestor, select_trunk
     from .config import (
+        ignored_hyperparameter_edits,
         refuse_occupied_stage_dir,
         save_stage_config,
     )
@@ -2204,7 +2177,7 @@ def train_curriculum(
     from .curriculum.gate_schema import gate_config_view
     from .result_bundle import write_gate_verdict
     from .stage_manifest import load_stage_manifest, stage_dirname
-    from .task_fingerprint import derive_stage_task_fingerprint
+    from .task_fingerprint import stage_task_fingerprint
     from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
@@ -2327,12 +2300,8 @@ def train_curriculum(
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
 
-        task_fingerprint = derive_stage_task_fingerprint(
-            species=species_cfg.species,
-            stage=stage,
-            backend="stable-baselines3",
-            env_kwargs=config.get("env_kwargs", {}),
-            plant_identity=plant_identity.to_dict(),
+        task_fingerprint = stage_task_fingerprint(
+            species_cfg.species, stage, stage_config=config, plant_identity=plant_identity
         )
 
         # The parent resolves first, for a reused node as much as a trained
@@ -2413,7 +2382,7 @@ def train_curriculum(
                 # this node's algorithm block or shaping keys since the
                 # ancestor was trained is ignored — say so, and say how to
                 # train it here instead.
-                ignored_edits = _ignored_hyperparameter_edits(config, algorithm, ancestor.stage_dir)
+                ignored_edits = ignored_hyperparameter_edits(config, algorithm, ancestor.stage_dir)
                 if ignored_edits:
                     logger.warning(
                         "Reusing certified %r from run %s ignores this run's hyperparameter edit: %s differ "

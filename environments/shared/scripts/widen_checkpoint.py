@@ -148,9 +148,6 @@ WIDEN_TOOL_VERSION = "widen_checkpoint/v1"
 WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v1"
 WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v1"
 WIDEN_REPORT_FILENAME = "widen_report.json"
-#: The backend string the task fingerprint is derived under — what
-#: ``train_base`` and the recovery harness both use.
-FINGERPRINT_BACKEND = "stable-baselines3"
 ALGORITHMS = ("ppo", "sac")
 #: The handoff names ``select_handoff_checkpoint`` recognises, in its order.
 HANDOFF_NAMES = ("robust_best_model", "best_model")
@@ -976,9 +973,9 @@ def widen_checkpoint(
     )
     from environments.shared.task_fingerprint import (
         MODEL_TASK_ATTRIBUTE,
-        derive_stage_task_fingerprint,
         read_checkpoint_attribute,
         read_checkpoint_task_fingerprint,
+        stage_task_fingerprint,
     )
 
     max_revision_gap = _check_max_revision_gap(max_revision_gap)
@@ -1084,13 +1081,7 @@ def widen_checkpoint(
             )
 
     stage_config = load_stage_config(species, reference)
-    task_fingerprint = derive_stage_task_fingerprint(
-        species=species,
-        stage=reference,
-        backend=FINGERPRINT_BACKEND,
-        env_kwargs=stage_config.get("env_kwargs", {}),
-        plant_identity=current.to_dict(),
-    )
+    task_fingerprint = stage_task_fingerprint(species, reference, stage_config=stage_config, plant_identity=current)
     parent_task = read_checkpoint_task_fingerprint(parent.model_zip)
     parent_task_sha256 = parent_task.get("task_sha256") if parent_task else None
     parent_checkpoint_sha256 = sha256_file(parent.model_zip)

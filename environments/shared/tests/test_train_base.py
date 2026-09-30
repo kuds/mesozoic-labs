@@ -916,8 +916,10 @@ class TestTrainCurriculumWalksTheManifest:
         plant=None,
         target=None,
         eval_panel=None,
+        stage_configs=None,
     ):
-        """*task_sha256* and *plant*, when given, are what every node derives as its task digest and
+        """*stage_configs*, when given, is the run's in-memory stage configuration (otherwise the committed
+        one, freshly loaded).  *task_sha256* and *plant*, when given, are what every node derives as its task digest and
         what ``current_plant_identity`` answers, so the REAL reuse rule can run against a real trunk
         (a test that leaves ``find_ancestor`` None); otherwise both are inert stand-ins.  *target* is
         forwarded as ``target=`` (decision D-A24).  The REAL ``CurriculumManager`` is used and every
@@ -1041,7 +1043,7 @@ class TestTrainCurriculumWalksTheManifest:
         with caplog.at_level(logging.INFO):
             train_base.train_curriculum(
                 species_cfg,
-                load_all_stages(species),
+                load_all_stages(species) if stage_configs is None else stage_configs,
                 n_envs=1,
                 seed=1,
                 verbose=0,
@@ -1474,6 +1476,34 @@ class TestTrainCurriculumWalksTheManifest:
             assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
             assert verdict["stage_dir"].name in {"01_stance", "02_locomotion", "03_behavior"}
             assert verdict["checkpoint"].suffix == ".zip" and verdict["normalization"].suffix == ".pkl"
+
+    def test_every_node_derives_its_task_through_the_stage_helper(self, tmp_path, monkeypatch, caplog):
+        """Cleanup CU-8a: each node's task digest comes from ``task_fingerprint.stage_task_fingerprint``
+        (the one stage-level derivation the notebook's chain loop and ``select_trunk`` share), called with
+        the node's reference, the run's in-memory config and the run's plant identity."""
+        from environments.shared import task_fingerprint
+        from environments.shared.config import load_all_stages
+
+        plant = SimpleNamespace(to_dict=lambda: {"physics_sha256": "sha256:plant"})
+        real_helper = task_fingerprint.stage_task_fingerprint
+        calls: list = []
+
+        def helper(*args, **kwargs):
+            calls.append((args, kwargs))
+            return real_helper(*args, **kwargs)
+
+        monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
+        # An in-memory edit (as the CLI's ``--override env.*`` makes) that a re-read of the committed
+        # TOML would drop from the recorded digest.
+        configs = load_all_stages("velociraptor")
+        configs[2]["env_kwargs"] = {**configs[2].get("env_kwargs", {}), "alive_bonus": 0.25}
+        self._run("velociraptor", tmp_path, monkeypatch, caplog, plant=plant, stage_configs=configs)
+
+        assert [args for args, _ in calls] == [("velociraptor", 1), ("velociraptor", 2), ("velociraptor", 3)]
+        for (_, stage), kwargs in calls:
+            assert set(kwargs) == {"stage_config", "plant_identity"}
+            assert kwargs["stage_config"] is configs[stage]
+            assert kwargs["plant_identity"] is plant
 
     def test_a_task_success_node_records_the_panel_count_it_was_judged_on(self, tmp_path):
         """The CLI hunt verdict is the manager's LAST-panel bound; its stage_result says which panel (D-B12 amendment)."""
@@ -2060,6 +2090,72 @@ class TestTrainRecordsTheLabel:
         assert _wandb_run_tags(config, "ppo", None) == [hp_tag]
         assert _wandb_run_tags(config, "ppo", "  ") == [hp_tag]
         assert _wandb_run_tags(config, "ppo", "lr-sweep-a") == [hp_tag, "label:lr-sweep-a"]
+
+
+class TestTrainDerivesTheTaskThroughTheStageHelper:
+    """Cleanup CU-8a at the single-stage launch path: ``train()`` records the task fingerprint
+    ``task_fingerprint.stage_task_fingerprint`` derives from the stage's in-memory config (CLI
+    overrides applied) and its local plant identity, the one derivation the reuse rule compares."""
+
+    class ConfigReached(RuntimeError):
+        pass
+
+    def test_the_recorded_fingerprint_is_the_helpers(self, tmp_path, monkeypatch):
+        from environments.shared import config as config_module
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+
+        identity = SimpleNamespace(to_dict=lambda: {"physics_sha256": "sha256:plant"})
+        stage_configs = load_all_stages("velociraptor")
+        stage_configs[1]["env_kwargs"] = {**stage_configs[1].get("env_kwargs", {}), "alive_bonus": 0.25}
+        real_helper = task_fingerprint.stage_task_fingerprint
+        helper_calls: list = []
+        derived: list = []
+        saved: dict = {}
+
+        def helper(*args, **kwargs):
+            helper_calls.append((args, kwargs))
+            return real_helper(*args, **kwargs)
+
+        def derive(**kwargs):
+            derived.append(kwargs)
+            return {"task_sha256": "sha256:" + "d" * 64}
+
+        def save_config(*args, **kwargs):
+            saved.update(kwargs)
+            raise self.ConfigReached()
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: identity)
+        monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr(config_module, "save_stage_config", save_config)
+        with pytest.raises(self.ConfigReached):
+            train_base.train(
+                SimpleNamespace(species="velociraptor", env_class=object),
+                stage_configs,
+                1,
+                total_timesteps=1,
+                output_dir=str(tmp_path / "run"),
+                use_tensorboard=False,
+                verbose=0,
+            )
+
+        ((args, kwargs),) = helper_calls
+        assert args == ("velociraptor", 1)
+        assert set(kwargs) == {"stage_config", "plant_identity"}
+        assert kwargs["stage_config"] is stage_configs[1] and kwargs["plant_identity"] is identity
+        assert derived == [
+            {
+                "species": "velociraptor",
+                "stage": 1,
+                "backend": "stable-baselines3",
+                "env_kwargs": stage_configs[1]["env_kwargs"],
+                "plant_identity": {"physics_sha256": "sha256:plant"},
+            }
+        ]
+        assert saved["task_fingerprint"] == {"task_sha256": "sha256:" + "d" * 64}
+        assert saved["plant_identity"] is identity
 
 
 class TestTrainRefusesAnUndeclaredParent:

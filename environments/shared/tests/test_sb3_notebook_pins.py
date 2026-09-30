@@ -451,28 +451,19 @@ class TestReuseRule:
         # D-A22 (rule 7): the gate this session would judge the node under is the
         # block save_stage_config records as 'curriculum' — the same source.
         assert _keyword_source(src, find, "current_gate_config") == 'config.get("curriculum_kwargs", {})'
-        # The task digest comes from the CURRENT config through the shared derivation, for this backend,
-        # from exactly the sources train_base.train records it from (train_stage trains through it with
-        # SPECIES_CFG and STAGE_CONFIGS): a drift (env_kwargs={} here, say) would silently refuse every
-        # reuse with "judged under task".
-        train_src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
-        recorded = _call(_top_level_def(train_src, "train"), "derive_stage_task_fingerprint")
-        assert {kw.arg: ast.get_source_segment(train_src, kw.value) for kw in recorded.keywords} == {
-            "species": "species",
-            "stage": "stage",
-            "backend": '"stable-baselines3"',
-            "env_kwargs": 'config.get("env_kwargs", {})',
-            "plant_identity": "plant_identity.to_dict()",
+        # The task digest comes from the CURRENT config and this session's plant identity through the one
+        # stage-level derivation (task_fingerprint.stage_task_fingerprint, cleanup CU-8a), the helper
+        # train_base.train records it through (train_stage trains through it with SPECIES_CFG and
+        # STAGE_CONFIGS). A drift (env_kwargs={} in place of stage_config=config, say) would silently
+        # refuse every reuse with "judged under task". Executed:
+        # test_executed_the_loop_derives_the_task_through_the_stage_helper below.
+        fingerprint = _call(loop, "stage_task_fingerprint")
+        assert [ast.unparse(arg) for arg in fingerprint.args] == ["SPECIES", "stage"]
+        assert {kw.arg: ast.get_source_segment(src, kw.value) for kw in fingerprint.keywords} == {
+            "stage_config": "config",
+            "plant_identity": "PLANT_IDENTITY",
         }
-        fingerprint = _call(loop, "derive_stage_task_fingerprint")
-        loop_sources = {kw.arg: ast.get_source_segment(src, kw.value) for kw in fingerprint.keywords}
-        assert loop_sources == {
-            "species": "SPECIES",
-            "stage": "stage",
-            "backend": '"stable-baselines3"',
-            "env_kwargs": 'config.get("env_kwargs", {})',
-            "plant_identity": "PLANT_IDENTITY.to_dict()",
-        }
+        assert not _calls(ast.parse(src), "derive_stage_task_fingerprint"), "the cell derives only through the helper"
         task_assign = next(
             node for node in loop.body if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "task_sha256"
         )
@@ -613,19 +604,17 @@ class TestReuseRule:
         """D-A21: reuse carries the ancestor's recipe; an edit since is IGNORED and said so, never refused."""
         src, loop = _chain_loop()
         reuse_if = _reuse_if(src, loop)
-        diff = _call(reuse_if, "hyperparameter_diff")
-        assert [ast.unparse(arg) for arg in diff.args] == ["config", "ALGORITHM", "_recorded"]
-        recorded = next(
-            node
-            for node in ast.walk(reuse_if)
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "_recorded"
-        )
-        assert "ancestor.stage_dir / 'stage_config.json'" in ast.unparse(recorded.value), (
-            "the diff is taken against the ANCESTOR's recorded stage_config.json (a diff of config against "
-            "itself is always empty, so the warning could never fire)"
-        )
-        assert recorded.lineno < diff.lineno
-        assert '"<unreadable stage_config.json>"' in _branch_source(src, reuse_if.body)
+        # The library's guarded check (config.ignored_hyperparameter_edits, cleanup CU-8a): the diff is
+        # taken against the ANCESTOR's recorded stage_config.json (a diff of config against itself is
+        # always empty, so the warning could never fire), and a record that is missing, unreadable or
+        # not a JSON object is named, never raised on. Executed:
+        # test_executed_a_reused_ancestor_whose_record_is_not_an_object_is_named_not_raised below.
+        diff = _call(reuse_if, "ignored_hyperparameter_edits")
+        assert [ast.unparse(arg) for arg in diff.args] == ["config", "ALGORITHM", "ancestor.stage_dir"]
+        assert not diff.keywords
+        assign = next(node for node in ast.walk(reuse_if) if isinstance(node, ast.Assign) and node.value is diff)
+        assert ast.unparse(assign.targets[0]) == "ignored_edits"
+        assert not _calls(ast.parse(src), "hyperparameter_diff"), "the cell uses the guarded check, not its own copy"
         warning_if = _the_if(reuse_if, src, lambda test: test == "ignored_edits", "on `ignored_edits`")
         warning = _branch_source(src, warning_if.body)
         assert _calls(warning_if, "print") and "RETRAIN_FROM" in warning, (
@@ -702,6 +691,125 @@ class TestReuseRule:
         assert ".zip" not in ast.unparse(_dict_value(_handoff_assigns(reuse_if)[0].value, "model")), (
             "the handoff is the ancestor's own stem, in its own run (A10), without a duplicate extension"
         )
+
+    @staticmethod
+    def _run_chain_loop(namespace: dict, run_dir: Path, *, behavior: str, trunk_dir: "Path | None") -> None:
+        """Execute the configuration, resolve and chain-loop cells for velociraptor under *behavior* into
+        *namespace*; the caller patches the reuse rule (and whatever it spies on) first."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.plant_contract import current_plant_identity
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        run_dir.mkdir(parents=True, exist_ok=True)
+        namespace.update(load_all_stages=load_all_stages, load_stage_manifest=load_stage_manifest)
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=trunk_dir, BEHAVIOR=behavior)
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)
+        namespace.update(
+            Path=Path,
+            stage_dirname=stage_dirname,
+            stage_label=stage_label,
+            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            NODE_RESULTS={},
+            completed_stages=[],
+            NODE_HANDOFF={},
+            QUICK_TEST=True,
+        )
+        _define_node_budget(namespace)
+        exec(_cell(CHAIN_CELL_MARKER), namespace)
+
+    def test_executed_the_loop_derives_the_task_through_the_stage_helper(self, tmp_path, monkeypatch):
+        """Cleanup CU-8a: the digest the reuse rule compares is the one stage-level derivation's
+        (``task_fingerprint.stage_task_fingerprint``, the helper ``train_base.train`` records through),
+        called once per node with this session's in-memory config and plant identity, and it reaches
+        ``derive_stage_task_fingerprint`` with exactly the arguments training records."""
+        from environments.shared import ancestors, task_fingerprint
+
+        class Asked(Exception):
+            """The reuse rule was consulted: what follows is pinned elsewhere."""
+
+        real_helper = task_fingerprint.stage_task_fingerprint
+        real_derive = task_fingerprint.derive_stage_task_fingerprint
+        helper_calls: list = []
+        derived: list = []
+        asked: list = []
+
+        def helper(*args, **kwargs):
+            helper_calls.append((args, kwargs))
+            return real_helper(*args, **kwargs)
+
+        def derive(**kwargs):
+            derived.append(kwargs)
+            return real_derive(**kwargs)
+
+        def find(candidate, **kwargs):
+            asked.append(kwargs["current_task_sha256"])
+            raise Asked
+
+        monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
+        namespace: dict = {}
+        with pytest.raises(Asked):
+            self._run_chain_loop(namespace, tmp_path / "20260930_000000", behavior="stance", trunk_dir=None)
+
+        reference = load_stage_manifest("velociraptor").resolve("stance").reference
+        config = namespace["STAGE_CONFIGS"][reference]
+        identity = namespace["PLANT_IDENTITY"]
+        ((args, kwargs),) = helper_calls
+        assert args == ("velociraptor", reference)
+        assert set(kwargs) == {"stage_config", "plant_identity"}
+        # The session's own objects, not copies re-read from disk.
+        assert kwargs["stage_config"] is config and kwargs["plant_identity"] is identity
+        assert derived == [
+            {
+                "species": "velociraptor",
+                "stage": reference,
+                "backend": "stable-baselines3",
+                "env_kwargs": config.get("env_kwargs", {}),
+                "plant_identity": identity.to_dict(),
+            }
+        ]
+        assert asked == [real_derive(**derived[0])["task_sha256"]]
+
+    def test_executed_a_reused_ancestor_whose_record_is_not_an_object_is_named_not_raised(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """A certified ancestor whose ``stage_config.json`` is readable JSON but not an object (``[]``)
+        is named as ``<unreadable stage_config.json>`` in the ignored-edit warning, and the reuse goes
+        on (cleanup CU-8a). The cell's own unguarded copy of the check raised AttributeError here,
+        after the reuse had succeeded."""
+        import types
+
+        from environments.shared import ancestors
+        from environments.shared.ancestors import AncestorReuseError
+
+        class Recorded(Exception):
+            """The reuse reached record_ancestor: what follows is pinned elsewhere."""
+
+        trunk = tmp_path / "20260921_000000"
+        stance_dir = trunk / "01_stance"
+        stance_dir.mkdir(parents=True)
+        (stance_dir / "stage_config.json").write_text("[]", encoding="utf-8")
+        copy = types.SimpleNamespace(stage_id="stance", run_id=trunk.name, stage_dir=stance_dir)
+
+        def find(candidate, **kwargs):
+            if candidate == trunk and kwargs["entry"].id == "stance":
+                return copy
+            raise AncestorReuseError("refused by the reuse rule")
+
+        def record(run_dir, ancestor):
+            assert ancestor is copy
+            raise Recorded
+
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
+        monkeypatch.setattr(ancestors, "record_ancestor", record)
+        with pytest.raises(Recorded):
+            self._run_chain_loop({}, tmp_path / "20260930_000000", behavior="walk", trunk_dir=trunk)
+        assert (
+            "WARNING: reusing certified 'stance' from run 20260921_000000 ignores this run's hyperparameter edit: "
+            "<unreadable stage_config.json> differ"
+        ) in capsys.readouterr().out
 
 
 class _Clock:

@@ -279,7 +279,7 @@ def find_certified_ancestor(
     Raises :class:`AncestorReuseError` naming the first rule that failed
     (module docstring, rules 1-7); returns the ancestor otherwise.
     *current_task_sha256* is the digest derived from the CURRENT stage
-    config (``derive_stage_task_fingerprint``), which the verdict and the
+    config (``stage_task_fingerprint``), which the verdict and the
     directory's own record must both equal exactly.  *current_gate_config*
     is the CURRENT stage config's ``[curriculum]`` block
     (``curriculum_kwargs``), whose gate-configuration digest the verdict's
@@ -1077,10 +1077,11 @@ def select_trunk(
     newest for timestamp run ids; a custom name such as ``my_run`` sorts after
     every timestamp): a whole coherent trunk, never one node from one run and
     its child from another, which rule 4 would refuse anyway.  The task
-    digest and gate block per node are
-    derived exactly as the chain loop and ``train_base.train`` derive them, so a
-    run this selects is one the loop's own ``find_certified_ancestor`` call
-    accepts as ``TRUNK_DIR``.
+    digest and gate block per node are derived exactly as the chain loop and
+    ``train_base.train`` derive them (the digest through
+    ``task_fingerprint.stage_task_fingerprint``), so a run this selects is
+    one the loop's own ``find_certified_ancestor`` call accepts as
+    ``TRUNK_DIR``.
 
     Nothing is copied or written.  The result names every run scanned with
     its coverage or first refusal, the replication each covered node rests
@@ -1094,14 +1095,16 @@ def select_trunk(
     *backend*, or whose root ``stage_config.json`` records another
     algorithm, is refused before the rules run (the identity check a pinned
     ``TRUNK_FROM`` makes; the seven rules never read the algorithm, and the
-    CLI's default layout keeps PPO and SAC curricula side by side).  A run
-    without ``provenance.json`` is named by its directory and judged by its
-    stage records alone.  No malformed or unreadable neighbour raises out of
-    the scan: it is listed as refused with the error, so one bad folder on a
-    mounted drive never blocks a session.
+    CLI's default layout keeps PPO and SAC curricula side by side).
+    *backend* governs only that ``provenance.json`` comparison: the task
+    digest is always derived under ``task_fingerprint.FINGERPRINT_BACKEND``,
+    as every caller derives it.  A run without ``provenance.json`` is named
+    by its directory and judged by its stage records alone.  No malformed or
+    unreadable neighbour raises out of the scan: it is listed as refused with
+    the error, so one bad folder on a mounted drive never blocks a session.
     """
     from .curriculum.gate_schema import declared_certification_seeds
-    from .task_fingerprint import derive_stage_task_fingerprint
+    from .task_fingerprint import stage_task_fingerprint
 
     chain = tuple(chain)
     if not chain:
@@ -1133,12 +1136,8 @@ def select_trunk(
     context: list[tuple[StageEntry, str, Mapping[str, Any]]] = []
     for entry in considered:
         config = stage_configs[entry.reference]
-        fingerprint = derive_stage_task_fingerprint(
-            species=species,
-            stage=entry.reference,
-            backend=backend,
-            env_kwargs=config.get("env_kwargs", {}),
-            plant_identity=plant_identity.to_dict(),
+        fingerprint = stage_task_fingerprint(
+            species, entry.reference, stage_config=config, plant_identity=plant_identity
         )
         context.append((entry, fingerprint["task_sha256"], config.get("curriculum_kwargs", {})))
 
