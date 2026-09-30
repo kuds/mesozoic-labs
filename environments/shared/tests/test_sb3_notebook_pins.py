@@ -30,7 +30,7 @@ import pytest
 from environments.shared.stage_manifest import load_stage_manifest
 
 from .notebook_cells import cell_index as _cell_index
-from .notebook_cells import cell_sources, code_cell, code_cell_sources, code_cells
+from .notebook_cells import cell_sources, code_cell, code_cell_sources, code_cells, exec_top_level_def
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
@@ -142,6 +142,11 @@ def _top_level_def(src: str, name: str) -> ast.FunctionDef:
     defs = [node for node in ast.parse(src).body if isinstance(node, ast.FunctionDef) and node.name == name]
     assert len(defs) == 1, f"expected exactly one top-level `def {name}(`, found {len(defs)}"
     return defs[0]
+
+
+def _define_node_budget(namespace: dict) -> None:
+    """The infrastructure cell's real ``node_budget`` (never a stub), for an executed cell that reads the budget."""
+    exec_top_level_def(_cell(INFRA_CELL_MARKER), "node_budget", namespace)
 
 
 def _top_level_assigns(src: str) -> dict[str, ast.expr]:
@@ -1107,6 +1112,9 @@ class TestLoadModeByEdge:
         assert train_stage.args.kw_defaults[kwonly.index("task_load_mode")] is None, "task_load_mode has no default"
         for name in ("load_path", "run_dir", "vecnorm_path", "parent_run_id", "label"):
             assert name in kwonly, f"{name} is a keyword-only argument of train_stage"
+        assert train_stage.args.kw_defaults[kwonly.index("run_dir")] is None, (
+            "run_dir has no default: a node trains only into a run, never into a fallback directory outside it"
+        )
         assert "if task_load_mode is None:" not in src, "no inference block: the mode is declared or refused"
         unknown = _the_if(
             train_stage,
@@ -1414,6 +1422,18 @@ class TestChainLoop:
         assert len(_calls(loop, "generate_stage_artifacts")) == 1
         assert len(_calls(loop, "find_certified_ancestor")) == 1
 
+    def test_the_branch_numbers_follow_the_loop_order_in_the_code_and_the_prose(self):
+        """Section 6 numbers the branches in the order the loop tries them, and the chain cell's labels agree (they
+        carried BEHAVIOR_RECIPES_PLAN §4.7's numbers, 1 REUSE, 2 TRAIN, 3 JUDGE, until cleanup CU-5)."""
+        src = _cell(CHAIN_CELL_MARKER)
+        labels = re.findall(r"#\s+\((\d)\) (REUSE|JUDGE|TRAIN)\b", src)
+        assert labels == [("1", "REUSE"), ("2", "JUDGE"), ("3", "TRAIN")] * 2, "the header, then the branches"
+        every = _all_cell_sources()
+        prose = every[every.index(src) - 1]
+        assert prose.startswith("## 6. ")
+        numbered = re.findall(r"^(\d)\. \*\*(\w+)\*\*", prose, re.MULTILINE)
+        assert numbered == [("1", "Reuse"), ("2", "Judge"), ("3", "Train")]
+
     def test_a_reused_node_continues_without_training(self):
         src, loop = _chain_loop()
         reuse_if = _reuse_if(src, loop)
@@ -1532,6 +1552,7 @@ class TestChainLoop:
             train_stage=lambda **kwargs: trained.append(kwargs),
             QUICK_TEST=True,
         )
+        _define_node_budget(namespace)
         try:
             exec(_cell(CHAIN_CELL_MARKER), namespace)
         finally:
@@ -1600,6 +1621,7 @@ class TestChainLoop:
             EVALUATION_SEED=3042,
             read_stage_duration=lambda stage_dir: None,
         )
+        _define_node_budget(namespace)
         if broken is None:  # an intact final pair is judged exactly as before
             with pytest.raises(Judged):
                 exec(_cell(CHAIN_CELL_MARKER), namespace)
@@ -1729,6 +1751,13 @@ class TestPublication:
             "the bundle status is judged against BEHAVIOR's node (result schema v4)"
         )
         assert ast.unparse(forwarded.args[0]) == "stage_results_list"
+        assert _keyword_source(infra, forwarded, "run_dir") == "RUN_DIR", "the bundle is this run's, never another"
+        summary_def = _top_level_def(infra, "write_training_summary")
+        assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "species") == "SPECIES"
+        # No dead parameters (cleanup CU-5): the run directory and species are forwarded, never taken and ignored.
+        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "species"]
+        assert [arg.arg for arg in summary_def.args.args] == ["run_dir", "stage_results_list"]
+        assert not bundle_def.args.kwonlyargs and not summary_def.args.kwonlyargs
         chain_def = _top_level_def(infra, "chain_results")
         assert "MANIFEST.stages" in ast.unparse(chain_def) and "NODE_RESULTS" in ast.unparse(chain_def), (
             "chain_results() is NODE_RESULTS in manifest order"
@@ -1849,7 +1878,8 @@ class TestSeedReplication:
         src = _cell(INFRA_CELL_MARKER)
         call = _call(ast.parse(src), "_lib_save_result_bundle")
         assert "replicates" in _keyword_names(call)
-        assert _keyword_source(src, call, "replicates").startswith("discover_replicates_for_run(run_dir, ")
+        # save_run_bundle writes RUN_DIR's bundle (its dead run_dir=None parameter went in cleanup CU-5).
+        assert _keyword_source(src, call, "replicates").startswith("discover_replicates_for_run(RUN_DIR, ")
         assert "from environments.shared.replication import discover_replicates_for_run" in src
 
 
@@ -1950,6 +1980,46 @@ class TestEscapeHatch:
         assert len([cell for cell in cells if "for NODE in CHAIN:" in cell]) == 1
         callers = [index for index, cell in enumerate(cells) if _calls(ast.parse(cell), "train_stage")]
         assert callers == [resume_at, chain_at, manual_at], "no other cell trains a node"
+
+
+class TestNodeBudget:
+    """One budget derivation: the chain loop, the RESUME cell and the manual cell read ``node_budget``, so a resume
+    measures what is left against the budget the chain loop trains and judges a node to (decision D-D16)."""
+
+    def test_every_budget_site_reads_node_budget(self):
+        cells = _code_cells()
+        infra = cells[_cell_index(cells, INFRA_CELL_MARKER)]
+        budget_def = _top_level_def(infra, "node_budget")
+        for index, src in enumerate(cells):
+            for node in ast.walk(ast.parse(src)):
+                if isinstance(node, ast.Subscript) and ast.unparse(node).endswith("['curriculum_kwargs']['timesteps']"):
+                    assert src == infra and budget_def.lineno <= node.lineno <= (budget_def.end_lineno or 0), (
+                        f"code cell {index} line {node.lineno} derives a node budget outside node_budget()"
+                    )
+        for marker, target, value in (
+            (CHAIN_CELL_MARKER, "budget", "node_budget(stage)"),
+            (RESUME_CELL_MARKER, "budget_res", "node_budget(stage_res)"),
+            (MANUAL_CELL_MARKER, "_manual_budget", "MANUAL_TIMESTEPS or node_budget(_manual_stage)"),
+        ):
+            assigns = [
+                node
+                for node in ast.walk(ast.parse(_cell(marker)))
+                if isinstance(node, ast.Assign) and [ast.unparse(each) for each in node.targets] == [target]
+            ]
+            assert [ast.unparse(node.value) for node in assigns] == [value], marker
+
+    def test_executed_the_budget_is_the_toml_budget_or_the_quick_test_budget(self):
+        from environments.shared.config import load_all_stages
+
+        for species in SPECIES_WITH_MANIFESTS:
+            stage_configs = load_all_stages(species)
+            for quick_test in (False, True):
+                namespace = {"QUICK_TEST": quick_test, "STAGE_CONFIGS": stage_configs}
+                _define_node_budget(namespace)
+                for entry in load_stage_manifest(species).stages:
+                    toml_budget = stage_configs[entry.reference]["curriculum_kwargs"]["timesteps"]
+                    expected = 50_000 if quick_test else toml_budget
+                    assert namespace["node_budget"](entry.reference) == expected, (species, entry.id, quick_test)
 
 
 class TestResumeCell:
@@ -2073,6 +2143,7 @@ class TestResumeCell:
             "RETRAIN_NODE": manifest.resolve(retrain_from) if retrain_from else None,
             "train_stage": train_stage,
         }
+        _define_node_budget(namespace)
         src = _cell(RESUME_CELL_MARKER).replace("RESUME_STAGE = None", f"RESUME_STAGE = {resume_stage!r}", 1)
         exec(compile(src, "sb3_resume", "exec"), namespace)
         return made
@@ -2370,6 +2441,31 @@ class TestResumeCell:
         for gone in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP", "restart the runtime", "_ACTIVE_RUN_ID", "stray"):
             assert gone not in prose, f"the RESUME prose still names {gone!r}"
 
+    def test_the_resume_prose_keeps_the_trunk_recovery_and_d_d16_rules(self):
+        """The recipe is the operator's only guide to the trunk a resume must re-supply (nothing on disk records it:
+        KNOWN_ISSUES, Training / RL, LOW) and states D-D16's rules; cleanup CU-5's cut of the markdown kept them."""
+        every = _all_cell_sources()
+        prose = every[every.index(_cell(RESUME_CELL_MARKER)) - 1]
+        for phrase in (
+            # How to find the trunk, and the two ways a guess goes wrong (#559).
+            "nearest the interrupted node",
+            "not necessarily the trunk",
+            "may select a newer run",
+            "never follows this run's own ancestor records",
+            # D-D16 (a) and its amendment.
+            "is never retrained",
+            'Set `RETRAIN_FROM = ""`',
+            "within one checkpoint cadence",
+            "spent budget without an intact final pair",
+            "a new attempt, in a fresh `RUN_ID`",
+            "never resumed without its sidecar",
+            "`gate_verdict.json` or an intact final pair",
+            "`BEHAVIOR` set to it",
+            # The widened root is judged here (D-C13 as amended by D-D14).
+            "D-C13",
+        ):
+            assert phrase in prose, f"the RESUME prose no longer says {phrase!r}"
+
 
 def _preflight_cell() -> tuple[str, ast.Module]:
     src = _cell(PREFLIGHT_CELL_MARKER)
@@ -2585,8 +2681,8 @@ class TestDeliverableAwareCells:
 
     def test_the_curves_cell_writes_nothing_into_the_sealed_bundle(self, tmp_path):
         """The chain loop seals the bundle with each node's declared ``figures/`` set; the curves
-        cell runs after that, so any file it wrote would be undeclared and the cleanup cell's
-        ``validate_result_bundle`` would raise before the auto-disconnect (the flat PNGs every
+        cell runs after that, so any file it wrote would be undeclared and the bundle-verification
+        cell's ``validate_result_bundle`` would raise before the auto-disconnect (the flat PNGs every
         completed Run all left in its stage directories until 2026-09-23)."""
         matplotlib = pytest.importorskip("matplotlib")
         matplotlib.use("Agg")
@@ -2607,6 +2703,12 @@ class TestDeliverableAwareCells:
             )
         ]
         assert len(visualization) == 1 and len(curves) == 1
+        # Display only by construction: neither wrapper takes a save path or forwards one (cleanup CU-5).
+        for name in ("plot_training_curves", "plot_diagnostics_graphs"):
+            wrapper = _top_level_def(visualization[0], name)
+            assert [arg.arg for arg in wrapper.args.args] == ["stage_dirs", "stage_configs", "algo_name"], name
+            assert not wrapper.args.kwonlyargs, name
+            assert not {"save_path", "save_dir", "show"} & _keyword_names(_call(wrapper, f"_lib_{name}")), name
         species = "velociraptor"
         run_dir = tmp_path / "run"
         stage_dir = run_dir / stage_dirname(species, 2)
