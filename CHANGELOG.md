@@ -236,9 +236,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **One `stage_config.json` reader, one repository root, one sha256
+  pattern and one set of record field validators** (cleanup CU-8c of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01; §3.2 CU-8 row).
+  `config.read_recorded_stage_config`, over the new
+  `file_io.read_json_object`, gives the nine lenient readers' answers from
+  one place. `save_result_bundle`, `audit_result_bundle` and
+  `validate_evaluation_evidence` now refuse a `stage_config.json` that is
+  not UTF-8 with their own error instead of a raw `UnicodeDecodeError`.
+  `environments/shared/paths.py` defines the repository root once
+  (`plant_contract.constants.REPOSITORY_ROOT` stays the patch point), and
+  `environments/shared/record_fields.py` holds the sha256 pattern and the
+  field validators that `result_schema` and `species_catalog` bind; the
+  catalog's number message ("must be null or a finite number") becomes
+  the schema's two ("must be a number or null", "must be finite or
+  null"). No digest moves. `docs/KNOWN_ISSUES.md` records the same
+  non-UTF-8 leak on several of the run directory's other JSON reads (the
+  summary, manifest, plant identity, gate resolution, provenance and
+  zero-action baseline), which stays open.
 - **`policy_loading` owns the SB3 import helper and the VecNormalize sidecar
-  resolver** (cleanup CU-8b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01;
-  §3.2 CU-8 row). `_ensure_sb3`, `_resolve_vecnorm_sidecar` and the
+  resolver** (#582, cleanup CU-8b of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-01; §3.2 CU-8 row). `_ensure_sb3`, `_resolve_vecnorm_sidecar` and the
   periodic-checkpoint pattern move from `train_base` with their bodies
   unchanged and keep their private names; `train_base` still exposes them
   as aliases for notebooks saved before PR-14c, and every library caller

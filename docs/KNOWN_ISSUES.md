@@ -1236,6 +1236,34 @@ robustness, **LOW** = cosmetic / QoL.
   warning when its sidecar is missing, as the selected replay does, or have
   `record_stage_video` refuse a named `vecnorm_path` that does not exist; no
   cleanup PR owns it yet. (2026-10 CU-8b scouting)
+- **LOW** — **a result-bundle JSON file that is not UTF-8 escapes as a raw
+  `UnicodeDecodeError` instead of the reader's own refusal (reproduced
+  2026-10-01).** These readers read with `encoding="utf-8"` but catch only
+  `OSError` and `json.JSONDecodeError` (and their own errors), so the
+  decode error, a `ValueError`, passes through: `result_bundle/audit.py:193`
+  (the summary), `:230` (the artifact manifest) and `:343` (the plant
+  identity), `reporting/bundles.py:530` (the previous manifest in
+  `save_result_bundle`), `result_bundle/evidence.py:530` (the gate
+  resolution), `result_bundle/manifest.py:216` (`verify_artifact_manifest`),
+  `result_bundle/provenance.py:368` (`load_provenance`) and
+  `curriculum/baseline_watch.py:66` (`read_zero_action_baseline`, which
+  training calls when it builds its callbacks, so there a bad file stops
+  the stage before it trains instead of skipping the advisory watch).
+  `initialize_result_bundle` reads an existing `provenance.json` with no
+  handler at all (`result_bundle/provenance.py:251`), so a file there that
+  is not UTF-8, or not JSON, escapes raw too, also from
+  `save_result_bundle` given a `run_id`. In a probe, a run directory
+  holding only a `summary.json` with a 0xff byte inside a string makes
+  `audit_result_bundle` raise `UnicodeDecodeError` instead of returning an
+  audit error, and `load_provenance`, `verify_artifact_manifest` and
+  `read_zero_action_baseline` do the same on such a file of their own; the
+  same at `08f7bdd`. It is latent: the project's writers write UTF-8, so
+  only a corrupt or hand-edited file reaches it. CU-8c closed the leak for
+  `stage_config.json` alone, by catching `ValueError` in
+  `save_result_bundle`, `audit_result_bundle` and
+  `validate_evaluation_evidence`. Fix: catch `ValueError` in these
+  handlers too, and give `initialize_result_bundle`'s read its own
+  refusal; no cleanup PR owns it yet. (2026-10 CU-8c review)
 - **LOW** — **the species `requirements.txt` files take any MuJoCo from
   3.0.0, and the stale-manifest error does not name the version (read from
   the code 2026-09-30).** `environments/trex/requirements.txt:2`,
