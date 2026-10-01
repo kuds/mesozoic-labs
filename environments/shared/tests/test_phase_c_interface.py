@@ -34,7 +34,8 @@ contract code:
   change; the committed compsognathus calibrations load (decision D-C2).
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
-full under the shared matrix job (``.[dev]`` only) as well as the SB3 job.
+full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
+does not repeat it (CU-14a).
 The dual-backend probe parity pin lives in ``test_plant_contract_phase_c.py``;
 the MJX runtime half left with the JAX runtime (D-D17).
 """

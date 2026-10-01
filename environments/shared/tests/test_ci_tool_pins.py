@@ -14,22 +14,33 @@ the recovery calibrations), and they still see every Python file; the
 byte-hashed Python modules stay under the hooks, which CI's pinned ruff keeps
 from changing them. Ruff itself skips the frozen MJX core (pyproject.toml's
 extend-exclude, D-D17), which test_plant_contract_frozen_mjx.py checks.
+
+The workflow's structure is pinned here too (CU-14a). The pull_request trigger
+reuses the push trigger's path list by a YAML alias, so the two cannot drift.
+The test matrix's suites run every directory of pyproject.toml's testpaths
+exactly once, installing the ``test`` extra, under the check names
+``test (<python>, <suite>)``. At reduced depth the SB3 job's integration step
+leaves out exactly the compsognathus_robot parametrisations of
+test_compsognathus_training.py (decision 10 (a)), which the nightly schedule, a
+manual dispatch and the ``full-ci`` label run.
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import tomllib
 from pathlib import Path
 
-from .ci_workflow_helpers import CI_WORKFLOW, ci_text, glob_matches, path_filters
+from .ci_workflow_helpers import CI_WORKFLOW, ci_text, glob_matches, job_block, job_steps, path_filters
 from .notebook_cells import code_cell_sources
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
+COMPSOGNATHUS_TRAINING = REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_training.py"
 
 _HOOK_REPOS = {
     "ruff": "https://github.com/astral-sh/ruff-pre-commit",
@@ -120,7 +131,7 @@ def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
 def test_every_file_these_checks_read_triggers_the_workflow() -> None:
     filters = path_filters()
     assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
-    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK):
+    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK, COMPSOGNATHUS_TRAINING):
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()
         for patterns in filters:
             assert any(glob_matches(pattern, relative) for pattern in patterns), (
@@ -177,3 +188,70 @@ def test_pre_commit_exclude_leaves_every_python_file_to_the_hooks() -> None:
         if exclude.search(path.relative_to(REPOSITORY_ROOT).as_posix())
     ]
     assert not caught, f"the pre-commit exclude hides Python files from the ruff and mypy hooks: {caught[:5]}"
+
+
+def test_both_triggers_share_one_path_filter() -> None:
+    # CU-14a: pull_request names push's anchored list by its alias, so a pattern added to one is in both.
+    push, pull_request = path_filters()
+    assert push, "python-ci.yml's push trigger filters on no path"
+    assert push is pull_request, "the pull_request trigger must reuse the push trigger's paths (paths: *name)"
+
+
+def test_the_test_matrix_runs_every_test_directory_once() -> None:
+    # CU-14a: two suites per Python version, which together run each testpaths directory exactly once.
+    with PYPROJECT.open("rb") as handle:
+        testpaths = tomllib.load(handle)["tool"]["pytest"]["ini_options"]["testpaths"]
+    job = job_block("test")
+    listed = re.findall(r"environments/\w+/tests/", job)
+    assert len(listed) == len(set(listed)), f"a test directory runs in two suites: {listed}"
+    assert sorted(path.rstrip("/") for path in listed) == sorted(testpaths), (
+        f"the test matrix's suites run {listed}; pyproject.toml's testpaths are {testpaths}"
+    )
+    # Each suite gets its `tests` from one include entry: a suite without one would run pytest on no path,
+    # that is on every testpaths directory.
+    (suites,) = re.findall(r"^\s+suite: \[([^\]]*)\]\s*$", job, re.MULTILINE)
+    included = re.findall(r"^\s+- suite: (\S+)\s*\n\s+tests:", job, re.MULTILINE)
+    assert sorted(included) == sorted(suite.strip() for suite in suites.split(",")), (suites, included)
+    assert re.search(r"^\s+run: pytest \$\{\{ matrix\.tests \}\} ", job, re.MULTILINE), (
+        "pytest must run the suite's tests"
+    )
+    assert 'pip install -e ".[test]"' in job, "the test matrix installs the test extra, not dev"
+    # The check names a branch protection rule would require: `test (3.11, shared)` as before CU-14a.
+    assert "\n    name: test (${{ matrix.python-version }}, ${{ matrix.suite }})\n" in job, (
+        "the test job's explicit name keeps its check names `test (<python>, <suite>)`"
+    )
+
+
+#: The depth idiom of the SB3 job's -k selections: *value* at reduced depth, nothing at full depth.
+_REDUCED_DEPTH_ONLY = re.compile(r"\$\{\{ steps\.depth\.outputs\.full != 'true' && '([^']*)' \|\| '' \}\}")
+
+
+def _selection_at_depth(selection: str, *, full: bool) -> str:
+    rendered = _REDUCED_DEPTH_ONLY.sub(lambda match: "" if full else match.group(1), selection)
+    assert "${{" not in rendered, f"an expression the depth idiom does not cover: {selection}"
+    return rendered
+
+
+def test_reduced_depth_leaves_out_only_the_robot_training_runs() -> None:
+    # Decision 10 (a), CU-14a: pull requests and pushes skip the compsognathus_robot parametrisations of
+    # test_compsognathus_training.py's training tests and keep the compsognathus ones; the full depth runs both.
+    # A bare `not compsognathus_robot` would also drop the robot's parameters in the step's other files.
+    job = job_block("test-sb3")
+    for full in ("true", "false"):
+        assert f'echo "full={full}" >> "$GITHUB_OUTPUT"' in job, f"the SB3 depth step no longer sets full={full}"
+    (step,) = [candidate for candidate in job_steps("test-sb3") if "name: Run SB3 integration tests\n" in candidate]
+    assert "environments/shared/tests/test_compsognathus_training.py" in step
+    # Either quote style; the selection holds no quote of its own kind.
+    ((_, selection),) = re.findall(r"""^\s+-k (["'])(.*)\1 \\$""", step, re.MULTILINE)
+    notebook = "not test_actual_notebook_training_stance_and_recovery_reports"
+    assert _selection_at_depth(selection, full=True) == notebook
+    assert _selection_at_depth(selection, full=False) == (
+        f"{notebook} and not (test_compsognathus_training and compsognathus_robot)"
+    )
+    # The -k terms are the module's name and the robot's parameter id, which the compsognathus id does not contain.
+    (species,) = [
+        ast.literal_eval(node.value)
+        for node in ast.parse(COMPSOGNATHUS_TRAINING.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ["SPECIES"]
+    ]
+    assert set(species) == {"compsognathus", "compsognathus_robot"}, species
