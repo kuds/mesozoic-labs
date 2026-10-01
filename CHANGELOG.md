@@ -235,7 +235,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
-- **One stage-level task-fingerprint derivation** (cleanup CU-8a of
+- **The four dual species share their reward, contact, termination and
+  keyframe code** (cleanup CU-12 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-01; §3.2 CU-12 row). `BaseDinoEnv._progress_terms`,
+  `_nosedive_term`, `_heading_terms` and `_speed_terms` replace the eight
+  thin `_compute_*` wrappers, `_contact_geom` is the one contact query (the
+  T. rex bite, the velociraptor strike, the dibothrosuchus snap and the
+  live floor scan), `_root_termination` the one height/tilt/nosedive
+  prefix, and `_cache_home_keyframe` the one home-keyframe setup. The
+  T. rex and Brachiosaurus `_foot_contact_forces` overrides are deleted:
+  the base sums each foot group in the order they used, so every value is
+  bit-identical. `TRexEnv._foot_load_imbalance`, unused since PR-B, is
+  deleted, and comments that described the retired MJX runtime as present
+  are reworded. Compsognathus is unchanged. No number moves (`--exact`
+  prints the same 32,389 lines on the base and on this PR), but the four
+  species' behavior identities do, since they hash their env files'
+  bytes: the digest golden's 88 `behavior` lines are regenerated, and
+  their pilot behavior bundles (evaluation-only, D-D9) stop certifying.
+- **One stage-level task-fingerprint derivation** (#579, cleanup CU-8a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-8 row).
   `task_fingerprint.stage_task_fingerprint(species, stage, *,
   stage_config=None, env_kwargs=None, plant_identity=None)` is how training,
@@ -716,7 +733,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **The SB3 notebook's chain loop no longer crashes on a reused ancestor
-  whose `stage_config.json` is not a JSON object** (cleanup CU-8a of
+  whose `stage_config.json` is not a JSON object** (#579, cleanup CU-8a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-09-30; §3.2 CU-8 row). Its copy of
   the ignored-edits check lacked the library's guard, so a readable file
   holding a list, `null`, a string or a number raised `AttributeError`

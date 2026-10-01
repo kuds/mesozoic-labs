@@ -73,7 +73,7 @@ before PR-15). Consolidation has landed PR-1 (#542), the automatic trunk selecti
 (#546–#549), PR-12's notebook-only slice (#552), PR-14a/b/c (#553–#555) and PR-7 (#556); PR-8, PR-9, PR-10, PR-11, the
 rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)). PR-G1 needs CU-9; the later G PRs interleave with
-PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-09-30: CU-2 landed as #568, CU-4
+PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-10-01: CU-2 landed as #568, CU-4
 as #569, CU-14b (the first part of CU-14, the cleanup plan's decision 10 (c), settled without a D-D id) as #570 and the
 digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (the first part of CU-7) as #572 and
 CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, which completes wave 1, and CU-9
@@ -81,7 +81,8 @@ CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, whi
 dead parameters) as #575 the same day, and CU-7b (the second part of CU-7, the retired-backend wording) as #576 the
 same day, which completes CU-7, and CU-16a (the docs text of CU-16) as #577 the same day, which completes wave 2;
 CU-16b (the orphan assets of CU-16) as #578 the same day, which completes CU-16; CU-8a (the first part of CU-8, one
-task-fingerprint derivation) is carried out,
+task-fingerprint derivation) as #579 on 2026-10-01; CU-12 (the species env dedup, which PR-G6's GQ-16 refers to) is
+carried out,
 and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
 CU-6 also waits for CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 
