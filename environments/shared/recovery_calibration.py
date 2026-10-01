@@ -20,7 +20,7 @@ from .curriculum.gate_resolver import GateResolutionError, thresholds_from_resol
 from .curriculum.recovery_gate import RecoveryGateThresholds
 from .plant_contract import current_plant_identity
 from .species_names import resolve_species_id
-from .task_fingerprint import derive_stage_task_fingerprint
+from .task_fingerprint import stage_task_fingerprint
 
 PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
 CONFIGS_ROOT = Path(__file__).resolve().parents[2] / "configs"
@@ -135,13 +135,7 @@ def load_recovery_calibration(species: str, stage: int | str = "recovery", *, en
     plant_identity = current_plant_identity(species).to_dict()
     if profile.get("plant_identity") != plant_identity:
         raise GateResolutionError(f"{path} plant identity changed; recalibrate this plant")
-    fingerprint = derive_stage_task_fingerprint(
-        species=species,
-        stage=stage,
-        backend="stable-baselines3",
-        env_kwargs=measured_env,
-        plant_identity=plant_identity,
-    )
+    fingerprint = stage_task_fingerprint(species, stage, env_kwargs=measured_env, plant_identity=plant_identity)
     if profile.get("task_sha256") != fingerprint["task_sha256"]:
         raise GateResolutionError(f"{path} measured task fingerprint changed; recalibrate the recovery implementation")
     owns_env = env is None

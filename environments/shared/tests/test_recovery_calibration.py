@@ -59,9 +59,7 @@ def profile_task(tmp_path, monkeypatch):
     path.write_text(json.dumps(profile))
     monkeypatch.setattr(calibration, "CONFIGS_ROOT", tmp_path)
     monkeypatch.setattr(calibration, "current_plant_identity", lambda _: SimpleNamespace(to_dict=lambda: identity))
-    monkeypatch.setattr(
-        calibration, "derive_stage_task_fingerprint", lambda **_: {"task_sha256": "sha256:measured-task"}
-    )
+    monkeypatch.setattr(calibration, "stage_task_fingerprint", lambda *_, **__: {"task_sha256": "sha256:measured-task"})
     config = {"env_kwargs": deepcopy(env_kwargs), "curriculum_kwargs": deepcopy(spec)}
     monkeypatch.setattr(
         calibration,

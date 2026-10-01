@@ -1,6 +1,6 @@
 # Next steps and program state (2026-09-30)
 
-**Status**: living reference — updated 2026-09-30; `main` = `28ea8bc` (#577 merged 2026-09-30 19:02 UTC).
+**Status**: living reference — updated 2026-09-30; `main` = `97ef1e1` (#578 merged 2026-09-30 22:28 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,10 +18,10 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-09-30** (`main` = `28ea8bc`). The backend retirement is complete:
+**On 2026-09-30** (`main` = `97ef1e1`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
-only training backend (D-D17). The cleanup is **not** complete: four of
-D-D21's 0.3.9 gate names remain (CU-8, CU-12, CU-14 and CU-16,
+only training backend (D-D17). The cleanup is **not** complete: three of
+D-D21's 0.3.9 gate names remain (CU-8, CU-12 and CU-14,
 [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), then the
 0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control step
 that stage summaries built from `evaluations.npz` assumed) landed as #568 on
@@ -46,8 +46,11 @@ docs text of CU-16: the gap review's status appendix, its open findings moved
 to KNOWN_ISSUES, and the living-doc corrections), the last of wave 2, landed
 as #577 the same day, which completes wave 2. CU-16b (eleven orphan asset
 files deleted, the apex GIFs kept by the maintainer's choice, and the landing
-page's milestones corrected), the first of wave 3, is carried out; CU-16 stays
-open until it lands. On 2026-09-29 the
+page's milestones corrected), the first of wave 3, landed as #578 the same
+day, which completes CU-16. CU-8a (one stage-level task-fingerprint helper
+that every derivation site calls, one backend constant, and a public
+ignored-edits check that ends a crash in the notebook's chain loop), the
+second, is carried out; CU-8 stays open until CU-8c lands. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
 CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
@@ -125,6 +128,7 @@ in a fresh session.
 | #575 | 2026-09-30 | Cleanup CU-5 (in D-D21's gate, the second PR of wave 2), outside the consolidation sequence: the SB3 notebook's markdown goes from 223 to 111 source lines, keeping every pinned phrase and D-D16 rule, and a new pin reads the resume recipe's trunk-recovery and D-D16 text; the quote of a deleted `configs/trex/stance.toml` comment, "all four" species (there are six), a stale "review F3" note and the chain loop's branch labels (now 1 REUSE, 2 JUDGE, 3 TRAIN) are fixed; the plotting wrappers' dead parameters, `write_training_summary`'s `species=None` and `save_run_bundle`'s `run_dir=None` go, and `train_stage`'s `run_dir` is required; `node_budget()` is the one budget derivation of the chain loop, the RESUME cell and the manual cell (33 cells, 17 code, 1,599 → 1,468 source lines; the notebook pins grow from 115 to 119 tests); #574 recorded; no library, configuration or digest change. Measured on its CI at `a57a967` (the merge's tree): the digest step took 71 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 17:07 (its mypy step: no issues in 317 source files), all 22 CI jobs green, coverage 88 percent (19,626 statements, 2,405 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work): the PR asked for the `full-ci` label, which was not applied, so the notebook-training step ran one case (`[ppo-compsognathus_robot]`); the full-depth run (4 cases) passed locally |
 | #576 | 2026-09-30 | Cleanup CU-7b (in D-D21's gate, the second and last part of CU-7 and the third PR of wave 2), outside the consolidation sequence: the sweep, HPT, Ray Tune, Vertex, GCS, JAX and MJX wording that PR-A, PR-A2 and PR-B left in code comments, docstrings and log messages describes the code as it is (the post-training logs read `Recorded metric:` and `Post-training eval:`, and a failed TensorBoard sync names the remote mount); the task-fingerprint comment counts five species constructors; the stage-TOML comments that mentioned JAX or MJX are reworded in place, every key, value and line count unchanged; the species catalog drops its check of the deleted `jax_training` notebook; a new test, `test_retired_tuning_wording.py`, fails any line of the library, the tests, the stage configuration, the SB3 notebook or the build and CI files that names Vertex, Ray or HPT without marking it retired; the byte-hashed species env files keep their MJX comments; #575 recorded; no digest moves (50 code files, +372 / −239). Measured on its CI at `862bf7c` (the merge's tree): the digest step took 69 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests (195 and the new catalog test); SB3 job 15:25 (its mypy step: no issues in 318 source files), all 22 CI jobs green, coverage 88 percent (19,625 statements, 2,404 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-7b changes no training, configuration value or digest input |
 | #577 | 2026-09-30 | Cleanup CU-16a (in D-D21's gate, the first part of CU-16 and the last PR of wave 2), outside the consolidation sequence: `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` gains an appended status appendix for all 120 of its ids (78 fixed, 16 fixed and then retired with their code by D-D17, 9 retired without a fix, 3 fixed with a residue, 6 duplicates, 8 open); the eight open findings, the three residues and WEBSITE_PLAN's logo size move into KNOWN_ISSUES, each re-checked against the code; the living docs the CU-16 row names are corrected (the API overview's six env ids, the backfill tool's module path, the dated plan headers, ROADMAP and the README, the sentences that said pilot or certificate data is on Drive, and the docs text CU-7b left); the CHANGELOG corrects the 0.3.8 `Images/` entry; #576 recorded; docs only, no digest moves (the docs commit 18 files, +355 / −42; the review follow-up 6 files, +96 / −42). Measured on its CI at `5d4594f` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 10:42 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16a changes no code, configuration or digest input |
+| #578 | 2026-09-30 | Cleanup CU-16b (in D-D21's gate, the second and last part of CU-16 and the first PR of wave 3), outside the consolidation sequence: eleven files that no page, configuration or code named are deleted (2,089,577 bytes: the three `raptor_stage*.mp4` videos and their posters, four icons nothing linked, and `compsognathus/data/robot_camera_view.png`), the two apex GIFs stay by the maintainer's choice, and the landing page's roadmap follows ROADMAP (Phases 2 and 3 in progress, terrain and turning piloted); #577 recorded; no digest moves (the change commit 14 files, +12 / −10 in text, and the 11 binaries). Measured on its CI at `cca1881` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 17:20 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16b changes no training, configuration value or digest input; CU-16 is complete |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -151,7 +155,8 @@ sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20; its
 follow-up (#559) checks the final pair like a periodic one in both the RESUME
 cell and the chain loop: 1,599 lines; cleanup CU-5 (#575) cuts the markdown
 from 223 to 111 lines and adds `node_budget`: 33 cells, 17 code, 1,468 lines,
-the chain loop at index 20).
+the chain loop at index 20; cleanup CU-8a has the chain loop call the
+library's fingerprint helper and ignored-edits check: 1,454 lines).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -491,15 +496,16 @@ single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576 and CU-16a as #577 (2026-09-30); the archive points (the plan's decision 2) were settled on 2026-09-27
+PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30); the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
 and CU-4 landed; CU-14b, the first part of CU-14, landed as #570, and CU-14
 stays open until CU-14a lands; CU-7a landed as #572; CU-11 landed as #573,
 which leaves seven, CU-9 as #574, which leaves six, CU-5 as #575, which leaves
 five, and CU-7b as #576, which completes CU-7 and leaves four, and CU-16a, the
-first part of CU-16, as #577, which completes wave 2; CU-16b, its second part,
-is carried out; [section 1](#1-where-things-stand) names them),
+first part of CU-16, as #577, which completes wave 2, and CU-16b, its second
+part, as #578, which completes CU-16 and leaves three; CU-8a, the first part
+of CU-8, is carried out; [section 1](#1-where-things-stand) names them),
 the clean base the consolidation builds on. On 2026-09-29 the maintainer took
 D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
 CI checks, with the full harness run on pull requests, in the plant-contract
@@ -852,7 +858,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    [section 4](#4-consolidation-the-remaining-prs) (PR-8 next; the notebook-only PR-12 slice landed
    as #552, PR-14 as #553, #554 and #555, and PR-7 as #556) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge. Under D-D21, PR-8 waits
-   for the cleanup's four remaining 0.3.9 gate names and the 0.3.9 cut
+   for the cleanup's three remaining 0.3.9 gate names and the 0.3.9 cut
    ([section 1](#1-where-things-stand)), so the next PR is a cleanup PR (item 5),
    in the order of the cleanup plan's §3.1 item 4.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
@@ -956,5 +962,5 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 | Bundle layout, `gate_verdict.json`, `ancestors/` records | [RESULT_BUNDLES.md](RESULT_BUNDLES.md) |
 | Plant identities and the widen contract | [PLANT_CONTRACT.md](PLANT_CONTRACT.md), `configs/plant_versions.toml` |
 | Reuse rules 1–7, trunk selection, widen and backfill tools | `environments/shared/ancestors.py` (`find_certified_ancestor`, `select_trunk`); `environments/shared/scripts/widen_checkpoint.py`, `environments/shared/scripts/backfill_gate_verdict.py` |
-| Gate digests and task fingerprints | `environments/shared/curriculum/gate_schema.py` (`gate_config_view`, `gate_config_sha256`), `environments/shared/task_fingerprint.py` (`derive_stage_task_fingerprint`) |
+| Gate digests and task fingerprints | `environments/shared/curriculum/gate_schema.py` (`gate_config_view`, `gate_config_sha256`), `environments/shared/task_fingerprint.py` (`stage_task_fingerprint`, the stage-level helper every derivation site calls, and `FINGERPRINT_BACKEND`; `derive_stage_task_fingerprint` beneath it) |
 | The notebook, its pins, the changelog | [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb); `environments/shared/tests/test_sb3_notebook_pins.py`; [CHANGELOG.md](../CHANGELOG.md) |

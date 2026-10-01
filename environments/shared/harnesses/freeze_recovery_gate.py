@@ -75,6 +75,7 @@ from environments.shared.recovery_evaluation import (
     zero_action_controller,
 )
 from environments.shared.species_names import resolve_species_id
+from environments.shared.task_fingerprint import stage_task_fingerprint
 
 logger = logging.getLogger(__name__)
 
@@ -120,13 +121,6 @@ MIN_EVAL_EPISODES = 40
 #: 3042), which the panel family starts from.
 PANEL_SEED_START = PUBLICATION_SEED_START
 
-#: The backend string every SB3 train path stamps into its stage
-#: fingerprint (train_base), so the frozen ``task_sha256`` is the one a
-#: gated run will present — a different backend string would freeze a
-#: resolution no run can ever match, and the resolver would (correctly)
-#: block forever.
-FINGERPRINT_BACKEND = "stable-baselines3"
-
 #: The tensors the NumPy forward pass needs out of an SB3 checkpoint.
 #: ``mlp_extractor.policy_net.1``/``.3`` are the tanh activations and carry
 #: no parameters; ``log_std`` is the exploration std, unused by a
@@ -150,27 +144,14 @@ class FrozenGateResolution:
 # ---------------------------------------------------------------------------
 
 
-def stage_task_fingerprint(species: str, stage: "int | str") -> dict[str, Any]:
-    """The stage's REAL task fingerprint, derived the way training derives it.
-
-    Same call, same backend string, and the same current plant identity as
-    ``train_base``, so the ``task_sha256`` frozen into the resolution is
-    exactly the one a gated run will compute — the resolver's staleness
-    check is only meaningful if both sides derive identically.
-    """
-    from environments.shared.plant_contract import current_plant_identity
-    from environments.shared.task_fingerprint import derive_stage_task_fingerprint
-
-    config = load_stage_config(species, stage)
-    return derive_stage_task_fingerprint(
-        species=species,
-        stage=stage,
-        backend=FINGERPRINT_BACKEND,
-        env_kwargs=config.get("env_kwargs", {}),
-        plant_identity=current_plant_identity(species).to_dict(),
-    )
-
-
+# ``stage_task_fingerprint`` is the shared
+# ``environments.shared.task_fingerprint.stage_task_fingerprint``, imported
+# above: the stage's REAL task fingerprint, derived exactly as training
+# derives it (the same backend string, the current plant identity), so the
+# ``task_sha256`` frozen into the resolution is the one a gated run will
+# present — the resolver's staleness check is only meaningful if both sides
+# derive identically.  It is called here by name, so a test can replace it.
+#
 # ``build_env`` is the shared ``environments.shared.config.build_env``,
 # re-exported above: species-generic through the registry (the
 # perturbation engine is, by the 2026-08-15 standing constraint), even
@@ -340,7 +321,6 @@ def _validate_checkpoint_source(policy_zip: str | Path, species: str, stage: int
         current_plant_identity,
         validate_recorded_identity,
     )
-    from environments.shared.stage_manifest import load_stage_manifest
     from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, validate_recorded_task
 
     try:
@@ -359,8 +339,7 @@ def _validate_checkpoint_source(policy_zip: str | Path, species: str, stage: int
     task = metadata.get(MODEL_TASK_ATTRIBUTE)
     if task is not None and not isinstance(task, dict):
         raise GateResolutionError(f"{policy_zip} contains invalid task fingerprint metadata")
-    reference = load_stage_manifest(species).resolve(stage).reference
-    current_task = stage_task_fingerprint(species, reference)
+    current_task = stage_task_fingerprint(species, stage)
     validate_recorded_task(task, current_task, mode="resume_same_stage", artifact=str(policy_zip))
     return identity
 

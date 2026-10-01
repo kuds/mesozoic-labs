@@ -379,7 +379,7 @@ robustness, **LOW** = cosmetic / QoL.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:413-436`, called at
-  `train_base.py:1190`) lets any same-stage resume through. Against a
+  `train_base.py:1162`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -908,7 +908,7 @@ robustness, **LOW** = cosmetic / QoL.
   TOML's horizon errs the other way: an episode that ends between the two
   counts as full (read from the code: `stance_gate.py:336` counts
   `lengths >= horizon`; not reproduced).
-  Only `train_curriculum` builds a `CurriculumCallback` (`train_base.py:2579`),
+  Only `train_curriculum` builds a `CurriculumCallback` (`train_base.py:2549`),
   so the notebook and `train --stage` are unaffected. Found while sizing
   cleanup PR-A2's end-to-end test, which uses velociraptor for this reason.
   Plan: cleanup CU-10 hands the callback the horizon of the overridden stage
@@ -1087,10 +1087,10 @@ robustness, **LOW** = cosmetic / QoL.
   `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
   stage's weight over 500k steps by default). A `resume_same_stage` load
   attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
-  mode (`train_base.py:901-902`, called at :1405-1412), so the env trains at
+  mode (`train_base.py:901-902`, called at :1377-1384), so the env trains at
   the stage's full `forward_vel_weight` from the first resumed step. Since the
   gap review's TC1 fix a continuation keeps the checkpoint's step counter
-  (`train_base.py:1312-1326`, `reset_num_timesteps=not resuming` at :1431),
+  (`train_base.py:1284-1298`, `reset_num_timesteps=not resuming` at :1403),
   and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
   its position is recoverable; nothing re-applies it. The warm-up marker is
   cleared with a warning that the rest of the warm-up is not re-applied
@@ -1152,7 +1152,7 @@ robustness, **LOW** = cosmetic / QoL.
   lane disjoint from {`k*2`, `k*2+1`} (renumbering the lanes would silently
   change every existing schedule and its null-controller pairing), and it
   changes the transition, so `SCHEDULE_IMPLEMENTATION`
-  (`task_fingerprint.py:71`) and every recovery task digest move. No cleanup
+  (`task_fingerprint.py:74`) and every recovery task digest move. No cleanup
   PR owns it. (2026-08 gap review EP2)
 
 - **LOW** — **after a noisy reset one foot spawns just above the floor and

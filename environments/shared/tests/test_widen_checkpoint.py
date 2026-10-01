@@ -93,6 +93,7 @@ from environments.shared.scripts.widen_checkpoint import main as widen_main  # n
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label  # noqa: E402
 from environments.shared.task_fingerprint import (  # noqa: E402
+    FINGERPRINT_BACKEND,
     MODEL_TASK_ATTRIBUTE,
     attach_task_fingerprint,
     derive_stage_task_fingerprint,
@@ -132,7 +133,6 @@ WIDENED_RUN_NAME = "20260102_000000"
 PARENT_SEED = 7
 PARENT_TIMESTEPS = 128
 PARENT_DURATION_SECONDS = 12.5
-FINGERPRINT_BACKEND = "stable-baselines3"
 
 #: The first-layer tensors the tool must pad, per algorithm (SB3 2.9.0 names).
 FIRST_LAYER_TENSORS = {

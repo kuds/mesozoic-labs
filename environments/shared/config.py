@@ -626,6 +626,28 @@ def hyperparameter_diff(
     return sorted(differing)
 
 
+def ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancestor_stage_dir: str | Path) -> list[str]:
+    """The dotted keys on which this run's recipe differs from a reused ancestor's record.
+
+    What reusing a certified ancestor ignores (decision D-A21): reuse carries
+    the ancestor's recorded recipe, so an edit made since is named, never
+    applied.  Reads ``<ancestor_stage_dir>/stage_config.json`` and delegates
+    to :func:`hyperparameter_diff`; an ancestor whose record cannot be read —
+    missing, not UTF-8, not JSON, or JSON that is not an object — is reported
+    as ``["<unreadable stage_config.json>"]`` rather than silently trusted.
+    ``[]`` when the recipes agree.  Never raises: the curriculum loop and the
+    notebook's chain loop call it after a successful reuse, where a warning
+    is the whole job.
+    """
+    try:
+        recorded = json.loads((Path(ancestor_stage_dir) / "stage_config.json").read_text(encoding="utf-8"))
+        if not isinstance(recorded, dict):
+            raise ValueError("stage_config.json must contain an object")
+    except (OSError, ValueError):
+        return ["<unreadable stage_config.json>"]
+    return hyperparameter_diff(config, algorithm, recorded)
+
+
 def _checkpoint_lineage(
     load_path: str | None,
     load_mode: str | None,

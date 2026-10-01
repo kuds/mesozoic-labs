@@ -24,6 +24,7 @@ from environments.shared.config import (
     get_git_commit,
     hyperparameter_diff,
     hyperparameters_sha256,
+    ignored_hyperparameter_edits,
     load_all_stages,
     load_stage_config,
     refuse_occupied_stage_dir,
@@ -1037,6 +1038,37 @@ class TestHyperparameterDigestAndLabel:
             "shaping.ramp_forward_vel_weight",
             "shaping.warmup_timesteps",
         ]
+
+    def test_the_ignored_edits_of_a_reuse_are_the_diff_against_the_ancestors_record(self, tmp_path):
+        """What reusing a certified ancestor ignores (cleanup CU-8a: the one check the curriculum loop
+        and the notebook's chain loop share): the diff against ``<stage_dir>/stage_config.json``."""
+        stage_dir = save_stage_config(tmp_path / "ancestor", 1, self.BASE, "PPO").parent
+        assert ignored_hyperparameter_edits(self.BASE, "PPO", stage_dir) == []
+        edited = self._with(
+            self._with(self.BASE, "ppo_kwargs", learning_rate=1e-4), "curriculum_kwargs", warmup_timesteps=1
+        )
+        assert ignored_hyperparameter_edits(edited, "PPO", stage_dir) == [
+            "ppo.learning_rate",
+            "shaping.warmup_timesteps",
+        ]
+        # A str path is a path.
+        assert ignored_hyperparameter_edits(edited, "PPO", str(stage_dir)) == [
+            "ppo.learning_rate",
+            "shaping.warmup_timesteps",
+        ]
+
+    @pytest.mark.parametrize(
+        "content",
+        [None, b"{not json", b"[]", b"null", b'"x"', b"3", b"\xff\xfe{}"],
+        ids=["missing", "invalid-json", "list", "null", "string", "number", "not-utf-8"],
+    )
+    def test_an_ancestor_record_that_is_not_a_readable_object_is_named_never_raised(self, tmp_path, content):
+        """Never raises: a missing or undecodable ``stage_config.json``, and readable JSON that is not an
+        object (which the diff cannot read), are all reported as the one unreadable marker."""
+        if content is not None:
+            (tmp_path / "stage_config.json").write_bytes(content)
+        for stage_dir in (tmp_path, str(tmp_path)):
+            assert ignored_hyperparameter_edits(self.BASE, "PPO", stage_dir) == ["<unreadable stage_config.json>"]
 
     def test_save_stage_config_records_the_digest_always_and_the_label_only_when_non_empty(self, tmp_path):
         run = json.loads(save_stage_config(tmp_path / "a", 1, self.BASE, "PPO").read_text())["run"]
