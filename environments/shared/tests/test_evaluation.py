@@ -253,7 +253,7 @@ class TestRecordStageVideo:
 
         with (
             patch("builtins.__import__", side_effect=mock_import),
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
         ):
             result = record_stage_video(
                 model=mock_model,
@@ -295,7 +295,7 @@ class TestRecordStageVideo:
         with (
             patch("builtins.__import__", side_effect=mock_import),
             patch(
-                "environments.shared.train_base._ensure_sb3",
+                "environments.shared.policy_loading._ensure_sb3",
                 return_value={"DummyVecEnv": MagicMock(), "VecNormalize": MagicMock()},
             ),
         ):
@@ -369,7 +369,7 @@ class TestEvaluateFunction:
         }
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=identity),
         ):
             evaluate(
@@ -403,7 +403,7 @@ class TestEvaluateFunction:
         )
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
             pytest.raises(PlantCompatibilityError, match="has no plant identity"),
         ):
@@ -438,7 +438,7 @@ class TestEvaluateFunction:
         )
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
             patch("environments.shared.evaluation.Path.exists", return_value=True),
             pytest.raises(PlantCompatibilityError, match="has no plant identity"),
@@ -514,7 +514,7 @@ class TestEvaluateSidecarResolution:
         mock_sb3["PPO"].load.return_value = _tagged_model()
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
         ):
             evaluate(
@@ -537,7 +537,7 @@ class TestEvaluateSidecarResolution:
         mock_sb3["DummyVecEnv"].return_value = mock_vec_env
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
             pytest.raises(FileNotFoundError, match="--allow-unnormalized"),
         ):
@@ -561,7 +561,7 @@ class TestEvaluateSidecarResolution:
         mock_sb3["PPO"].load.return_value = _tagged_model()
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
             caplog.at_level(logging.WARNING, logger="environments.shared.evaluation"),
         ):
@@ -594,7 +594,7 @@ class TestEvaluateSeeding:
         mock_sb3["DummyVecEnv"].return_value = mock_vec_env
         mock_sb3["PPO"].load.return_value = _tagged_model()
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
         ):
             evaluate(
@@ -646,7 +646,7 @@ class TestEvaluateSeeding:
 
         mock_sb3["PPO"].load.side_effect = load_like_sb3
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value=mock_sb3),
             patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
         ):
             evaluate(
@@ -705,7 +705,7 @@ class TestEvaluateSeeding:
 
         def run(seed):
             with (
-                patch("environments.shared.train_base._ensure_sb3", return_value=sb3),
+                patch("environments.shared.policy_loading._ensure_sb3", return_value=sb3),
                 patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
                 patch("environments.shared.plant_contract.validate_environment_plant"),
                 patch(
@@ -834,7 +834,7 @@ class TestPostEvalEpisodes:
                 return object()
 
         eval_env = MagicMock()
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
         monkeypatch.setattr(curriculum_package, "load_vecnorm_stats", lambda *a, **k: True)
         monkeypatch.setattr(evaluation, "eval_policy_quality", lambda *a, n_episodes: {})
         monkeypatch.setattr(

@@ -413,7 +413,8 @@ def _write_task_success_evidence(
         from ..curriculum import load_vecnorm_stats
         from ..evaluation import eval_policy
         from ..plant_contract import current_plant_identity, validate_model_plant
-        from ..train_base import _ensure_sb3, create_vec_env
+        from ..policy_loading import _ensure_sb3
+        from ..train_base import create_vec_env
 
         sb3 = _ensure_sb3()
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
@@ -1638,7 +1639,7 @@ def _record_stage_replays(
 
     try:
         from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
-        from environments.shared.train_base import _ensure_sb3
+        from environments.shared.policy_loading import _ensure_sb3
 
         sb3 = _ensure_sb3()
         env_kwargs = stage_config["env_kwargs"].copy()

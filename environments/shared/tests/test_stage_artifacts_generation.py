@@ -57,7 +57,7 @@ class TestGenerateTrialArtifacts:
 
         with (
             patch(
-                "environments.shared.train_base._ensure_sb3",
+                "environments.shared.policy_loading._ensure_sb3",
                 return_value=mock_sb3,
             ),
             patch(

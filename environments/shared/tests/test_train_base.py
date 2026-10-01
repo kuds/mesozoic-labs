@@ -1000,7 +1000,7 @@ class TestTrainCurriculumWalksTheManifest:
             record["parents"].append(kwargs["parent_id"])
             return []
 
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"CallbackList": list})
         monkeypatch.setattr(
             train_base,
             "current_plant_identity",
@@ -2056,7 +2056,7 @@ class TestTrainRecordsTheLabel:
 
         monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         with pytest.raises(self.ConfigReached):
             train_base.train(
@@ -2128,7 +2128,7 @@ class TestTrainDerivesTheTaskThroughTheStageHelper:
         monkeypatch.setattr(train_base, "current_plant_identity", lambda species: identity)
         monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         with pytest.raises(self.ConfigReached):
             train_base.train(
@@ -2181,7 +2181,9 @@ class TestTrainRefusesAnUndeclaredParent:
 
         monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: (_ for _ in ()).throw(SB3Reached()))
+        monkeypatch.setattr(
+            "environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(SB3Reached())
+        )
         parent = self._checkpoint(tmp_path / "parent.zip", parent_stage)
         output_dir = tmp_path / "out"
         output_dir.mkdir(exist_ok=True)
@@ -2229,7 +2231,9 @@ class TestTrainRefusesAnUndeclaredParent:
         monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: calls.append(k))
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
+        monkeypatch.setattr(
+            "environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(KeyboardInterrupt())
+        )
         parent = self._checkpoint(tmp_path / "parent.zip", 3)
         with pytest.raises(KeyboardInterrupt):
             train_base.train(
@@ -2269,7 +2273,7 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         # under test is what happens once a load has passed it.
         monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: None)
         monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         try:
             train_base.train(
@@ -2388,7 +2392,7 @@ class TestTrainResumeKeepsTheEdge:
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: None)
         monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(train_base, "create_vec_env", envs_reached)
         with pytest.raises(self.EnvsReached):
             train_base.train(
@@ -2446,7 +2450,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
         monkeypatch.setattr(train_base, "time", SimpleNamespace(monotonic=lambda: clock[0]))
         monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"CallbackList": list})
         monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
 
         def load_vecnorm(*args, **kwargs):

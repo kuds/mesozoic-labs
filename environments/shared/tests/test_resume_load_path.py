@@ -23,9 +23,9 @@ import numpy as np
 import pytest
 
 from environments.shared import train_base
+from environments.shared.policy_loading import _resolve_vecnorm_sidecar
 from environments.shared.train_base import (
     _load_vecnorm_into_envs,
-    _resolve_vecnorm_sidecar,
     _stage_entry_shaping_callbacks,
 )
 
