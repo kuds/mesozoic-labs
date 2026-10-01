@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
+from ..config import read_recorded_stage_config
 from ..stage_manifest import stage_dir_candidates, stage_dirname
 from .constants import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME, DEFAULT_PROVENANCE_NAME
 from .errors import ResultBundleError
@@ -188,11 +189,8 @@ def refuse_write_into_complete_run(
 
 def _run_block(stage_dir: Path) -> "dict[str, Any] | None":
     """The ``run`` block of *stage_dir*'s ``stage_config.json``; None when it is absent or unreadable."""
-    try:
-        config = json.loads((stage_dir / "stage_config.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    run = config.get("run") if isinstance(config, dict) else None
+    config = read_recorded_stage_config(stage_dir)
+    run = config.get("run") if config is not None else None
     return run if isinstance(run, dict) else None
 
 

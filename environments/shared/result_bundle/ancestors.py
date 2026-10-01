@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..record_fields import is_sha256_digest
 from .constants import ANCESTOR_RECORD_NAME, ANCESTOR_RECORD_SCHEMA, ANCESTORS_DIRNAME
 from .errors import ResultBundleError
 from .gate_verdict import GATE_VERDICT_FILENAME, GateVerdictError, read_gate_verdict
@@ -54,11 +55,9 @@ def _read_json_object(path: Path, *, what: str) -> dict[str, Any]:
 
 
 def _digest_or_none(value: Any, *, field: str, path: Path) -> str | None:
-    from .evidence import _SHA256_DIGEST
-
     if value is None:
         return None
-    if not isinstance(value, str) or _SHA256_DIGEST.fullmatch(value) is None:
+    if not is_sha256_digest(value):
         raise ResultBundleError(f"{path}: {field} must be sha256:<64 lowercase hex> or null")
     return value
 

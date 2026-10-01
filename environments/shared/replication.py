@@ -42,7 +42,6 @@ and the audit refuse a malformed or inconsistent replication record.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any, Mapping
@@ -63,17 +62,6 @@ def _plant_mapping(plant_identity: Any) -> Mapping[str, Any] | None:
     if isinstance(plant_identity, Mapping):
         return plant_identity
     raise TypeError(f"plant_identity must be a PlantIdentity or a mapping, not {type(plant_identity).__name__}")
-
-
-def _read_stage_config(stage_dir: Path) -> dict[str, Any] | None:
-    path = stage_dir / "stage_config.json"
-    if not path.is_file():
-        return None
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return value if isinstance(value, dict) else None
 
 
 def _recorded_training_seed(stage_config: Mapping[str, Any]) -> int | None:
@@ -123,7 +111,7 @@ def discover_replicates(
     here raises on a malformed neighbour.
     """
     from .ancestors import AncestorReuseError, run_id_for
-    from .config import recorded_hyperparameters_sha256
+    from .config import read_recorded_stage_config, recorded_hyperparameters_sha256
     from .result_bundle import (
         GateVerdictError,
         ResultBundleError,
@@ -187,7 +175,7 @@ def discover_replicates(
         if recorded_gate != gate_sha256:
             _skip(sibling, f"judged under gate {recorded_gate}, not {gate_sha256}: another recipe")
             continue
-        stage_config = _read_stage_config(stage_dir)
+        stage_config = read_recorded_stage_config(stage_dir)
         if stage_config is None:
             _skip(sibling, "no readable stage_config.json")
             continue
@@ -264,7 +252,7 @@ def discover_replicates_for_run(
     a node with no such verdict (never judged, failed, judged before
     D-A22) contributes no key, and its record then counts this run alone.
     """
-    from .config import recorded_hyperparameters_sha256
+    from .config import read_recorded_stage_config, recorded_hyperparameters_sha256
     from .result_bundle import GateVerdictError, read_gate_verdict, verdict_is_reusable
     from .stage_manifest import load_stage_manifest
 
@@ -304,7 +292,7 @@ def discover_replicates_for_run(
                 entry.id,
             )
             continue
-        stage_config = _read_stage_config(stage_dir)
+        stage_config = read_recorded_stage_config(stage_dir)
         if stage_config is None:
             _logger.info(
                 "replicates of %s: %r has no readable stage_config.json, counting this run alone",

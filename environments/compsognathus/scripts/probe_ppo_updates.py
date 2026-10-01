@@ -32,6 +32,7 @@ from stable_baselines3.common.logger import configure  # noqa: E402
 from stable_baselines3.common.vec_env import sync_envs_normalization  # noqa: E402
 
 from environments.shared.config import load_stage_config  # noqa: E402
+from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.train_base import (  # noqa: E402
     _maybe_ent_coef_decay_callback,
@@ -39,7 +40,6 @@ from environments.shared.train_base import (  # noqa: E402
     create_vec_env,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 BASELINE_REF = "21dfa4521b0822f0bee60be927893c2099c139c7"
 N_ENVS = 4
 N_EVAL_EPISODES = 10

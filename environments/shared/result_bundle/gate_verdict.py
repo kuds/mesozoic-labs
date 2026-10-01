@@ -36,25 +36,24 @@ bundle audit).
 
 This module lives under ``result_bundle`` because ``result_bundle`` never
 imports ``reporting``; it depends only on :func:`.hashing.sha256_file`,
-:func:`.hashing.gate_config_sha256` and :func:`..file_io.atomic_write_text`.
+:func:`.hashing.gate_config_sha256`, :func:`..file_io.atomic_write_text` and
+:func:`..record_fields.is_sha256_digest`.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 from ..file_io import atomic_write_text
+from ..record_fields import is_sha256_digest
 from .errors import ResultBundleError
 from .hashing import gate_config_sha256, sha256_file
 
 GATE_VERDICT_FILENAME = "gate_verdict.json"
 GATE_VERDICT_SCHEMA = "mesozoic.gate-verdict/v1"
-
-_SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 
 #: The keys of the gate-configuration view a verdict records (D-A22): what
 #: ``curriculum.gate_schema.gate_config_view`` returns, and nothing else.
@@ -262,7 +261,7 @@ def read_gate_verdict(stage_dir: "str | Path") -> "dict[str, Any] | None":
         raise GateVerdictError(f"{path}: 'failures' must be a JSON list")
     for key in ("checkpoint_sha256", "normalization_sha256", "task_sha256", "gate_sha256"):
         digest = verdict.get(key)
-        if digest is not None and (not isinstance(digest, str) or _SHA256_DIGEST.fullmatch(digest) is None):
+        if digest is not None and not is_sha256_digest(digest):
             raise GateVerdictError(f"{path}: {key} must be sha256:<64 lowercase hex> or null")
     gate = verdict.get("gate")
     if gate is not None and not isinstance(gate, dict):

@@ -371,7 +371,7 @@ def save_result_bundle(
         stage = entry.reference
         try:
             saved_config = _json.loads(config_path.read_text(encoding="utf-8"))
-        except (OSError, _json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:
             raise ResultBundleError(f"cannot read resolved stage config {config_path}: {exc}") from exc
         if not isinstance(saved_config, Mapping):
             raise ResultBundleError(f"resolved stage config must contain an object: {config_path}")

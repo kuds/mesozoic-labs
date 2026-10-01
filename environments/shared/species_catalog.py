@@ -16,11 +16,13 @@ import json
 import math
 import tomllib
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
 import mujoco
 
+from environments.shared import record_fields
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
 from environments.shared.curriculum.gate_schema import (
@@ -31,6 +33,7 @@ from environments.shared.curriculum.gate_schema import (
 )
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PHYSICS_SCHEMA,
@@ -51,7 +54,6 @@ from environments.shared.result_schema import (
     validate_result_summary,
 )
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIGS_DIR = REPOSITORY_ROOT / "configs"
 DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
 DEFAULT_PLANT_MANIFEST_PATH = GENERATED_MANIFEST_PATH
@@ -223,37 +225,13 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     return manifest
 
 
-def _require_mapping(value: Any, *, field: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise CatalogError(f"{field} must be an object")
-    return cast(dict[str, Any], value)
-
-
-def _require_nonempty_string(value: Any, *, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise CatalogError(f"{field} must be a non-empty string")
-    return value.strip()
-
-
-def _optional_nonempty_string(value: Any, *, field: str) -> str | None:
-    if value is None:
-        return None
-    return _require_nonempty_string(value, field=field)
-
-
-def _require_positive_int(value: Any, *, field: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise CatalogError(f"{field} must be a positive integer")
-    return value
-
-
-def _require_sha256(value: Any, *, field: str) -> str:
-    if not isinstance(value, str) or not value.startswith("sha256:"):
-        raise CatalogError(f"{field} must be sha256:<64 lowercase hex>")
-    digest = value.removeprefix("sha256:")
-    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
-        raise CatalogError(f"{field} must be sha256:<64 lowercase hex>")
-    return value
+# The shared field validators (``record_fields``), raising CatalogError.
+_require_mapping = partial(record_fields.require_mapping, error=CatalogError)
+_require_nonempty_string = partial(record_fields.require_nonempty_string, error=CatalogError)
+_optional_nonempty_string = partial(record_fields.optional_nonempty_string, error=CatalogError)
+_require_positive_int = partial(record_fields.require_positive_int, error=CatalogError)
+_optional_number = partial(record_fields.optional_number, error=CatalogError)
+_require_sha256 = partial(record_fields.require_sha256, error=CatalogError)
 
 
 def _load_plant_manifest(path: Path) -> dict[str, Any]:
@@ -274,18 +252,6 @@ def _load_plant_manifest(path: Path) -> dict[str, Any]:
     )
     _require_mapping(manifest.get("plants"), field="plant manifest plants")
     return manifest
-
-
-def _optional_number(value: Any, *, field: str) -> int | float | None:
-    if value is None:
-        return None
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        raise CatalogError(f"{field} must be null or a finite number")
-    # Annotated local: the isinstance guard above narrows the value, but mypy
-    # does not carry that narrowing out of an Any-typed parameter, so the bare
-    # ``return value`` trips no-any-return.
-    number: int | float = value
-    return number
 
 
 def _load_environment(entrypoint: str) -> type[Any]:

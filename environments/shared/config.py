@@ -25,12 +25,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .file_io import read_json_object
+from .paths import REPOSITORY_ROOT as _REPO_ROOT
+
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
 
 _logger = logging.getLogger(__name__)
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: The canonical species names, sorted, as the report scripts expose them
 #: for argparse ``choices``.  Deliberately not the registry's key set: that
@@ -345,6 +346,25 @@ def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
 STAGE_DURATION_KEY = "duration_seconds"
 
 
+#: The record :func:`save_stage_config` writes into every stage directory.
+STAGE_CONFIG_FILENAME = "stage_config.json"
+
+
+def read_recorded_stage_config(stage_dir: str | Path) -> dict[str, Any] | None:
+    """The ``stage_config.json`` *stage_dir* records, or ``None`` when it proves nothing.
+
+    The one lenient reader of the record :func:`save_stage_config` writes:
+    ``None`` when the file is absent (or a directory), unreadable, not UTF-8,
+    not JSON (a byte-order mark included) or not an object, as
+    :func:`~environments.shared.file_io.read_json_object` reads it; NaN is
+    accepted, as the writer writes it.  Callers that must refuse a bad record
+    read the file themselves: :func:`record_stage_duration`, the result-bundle
+    writer, audit, evidence and ancestor readers, the recovery-gate species
+    check, the stage-results builder and the backfill and widen tools.
+    """
+    return read_json_object(Path(stage_dir) / STAGE_CONFIG_FILENAME)
+
+
 def read_stage_duration(stage_dir: str | Path) -> float | None:
     """The ``run.duration_seconds`` a stage directory records, or ``None``.
 
@@ -353,14 +373,8 @@ def read_stage_duration(stage_dir: str | Path) -> float | None:
     case an honest "unknown", so a caller accumulating a resumed session's
     duration starts from nothing rather than from a guess.
     """
-    path = Path(stage_dir) / "stage_config.json"
-    if not path.is_file():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    run_block = data.get("run") if isinstance(data, dict) else None
+    data = read_recorded_stage_config(stage_dir)
+    run_block = data.get("run") if data is not None else None
     value = run_block.get(STAGE_DURATION_KEY) if isinstance(run_block, dict) else None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -383,7 +397,7 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
     seconds = float(duration_seconds)
     if isinstance(duration_seconds, bool) or not math.isfinite(seconds) or seconds < 0.0:
         raise ValueError(f"duration_seconds must be a finite non-negative number, not {duration_seconds!r}")
-    path = Path(stage_dir) / "stage_config.json"
+    path = Path(stage_dir) / STAGE_CONFIG_FILENAME
     if not path.is_file():
         raise FileNotFoundError(f"cannot record the stage duration: no stage_config.json in {stage_dir}")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -403,7 +417,7 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
 #: has judged it.  Writing a fresh stage into such a directory silently
 #: overwrites that record, so :func:`refuse_occupied_stage_dir` refuses it
 #: unless the load is an explicit same-stage resume.
-STAGE_DIR_OCCUPANCY_FILES = ("stage_config.json", "gate_verdict.json")
+STAGE_DIR_OCCUPANCY_FILES = (STAGE_CONFIG_FILENAME, "gate_verdict.json")
 
 
 class StageDirectoryOccupiedError(RuntimeError):
@@ -639,11 +653,8 @@ def ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancesto
     notebook's chain loop call it after a successful reuse, where a warning
     is the whole job.
     """
-    try:
-        recorded = json.loads((Path(ancestor_stage_dir) / "stage_config.json").read_text(encoding="utf-8"))
-        if not isinstance(recorded, dict):
-            raise ValueError("stage_config.json must contain an object")
-    except (OSError, ValueError):
+    recorded = read_recorded_stage_config(ancestor_stage_dir)
+    if recorded is None:
         return ["<unreadable stage_config.json>"]
     return hyperparameter_diff(config, algorithm, recorded)
 
@@ -700,14 +711,8 @@ def _recorded_edge_lineage(stage_dir: Path) -> dict[str, Any]:
     a load, or one that records a ``resume_same_stage`` load (a root, or a
     plain ``--load``) all read as "no edge to keep".
     """
-    path = stage_dir / "stage_config.json"
-    if not path.is_file():
-        return {}
-    try:
-        record: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    run_block = record.get("run") if isinstance(record, dict) else None
+    record = read_recorded_stage_config(stage_dir)
+    run_block = record.get("run") if record is not None else None
     if not isinstance(run_block, dict) or run_block.get("load_mode") != "initialize_next_stage":
         return {}
     return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
@@ -856,7 +861,7 @@ def save_stage_config(
     # Atomic, like record_stage_duration's rewrite: a same-stage resume reads
     # this file back (its duration and parent edge), and a reclaim mid-write
     # would otherwise leave it truncated (CU-3; the bytes are unchanged).
-    out_path = atomic_write_json(stage_dir / "stage_config.json", data)
+    out_path = atomic_write_json(stage_dir / STAGE_CONFIG_FILENAME, data)
     if plant_identity is not None:
         from .plant_contract import write_plant_identity
 

@@ -355,14 +355,14 @@ robustness, **LOW** = cosmetic / QoL.
   the resolve cell, D-A25) and only printed. Each reused
   node leaves `ancestors/<id>/ancestor.json`, but that names the run that
   certified the node after following records (`_ancestor_record`,
-  `ancestors.py:648-671`), not the trunk, and the chain loop never follows
+  `ancestors.py:644-667`), not the trunk, and the chain loop never follows
   this run's own records (`follow_records=candidate is not RUN_DIR`). So the
   resume recipe (section 5) has the operator pin `TRUNK_FROM` to the trunk the
   interrupted session printed, or derive it from the nearest ancestor record.
   A wrong trunk goes one of three ways. (a) `"auto"` picks a newer run
   holding a different certified copy of a reused ancestor: `record_ancestor`
   refuses ("a run cannot reuse two parents for one node",
-  `ancestors.py:694-704`), but only in the chain loop, after the RESUME cell
+  `ancestors.py:690-700`), but only in the chain loop, after the RESUME cell
   has trained the remaining budget; re-running with the right trunk then
   judges the node. (b) `"auto"` picks a newer run that certifies the resumed
   node itself (an ancestor of `BEHAVIOR`'s target, since the target is looked
@@ -378,7 +378,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:413-436`, called at
+  `config.refuse_occupied_stage_dir` (`config.py:427-450`, called at
   `train_base.py:1101`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
@@ -928,7 +928,7 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **HIGH** — **no locomotion gate reads a foot contact, and three of the five
   certified walkers hop (replayed 2026-09-28).** All six locomotion stages
-  judge `reward_and_length/v1` (`reporting/gates.py:620-685`) on mean reward,
+  judge `reward_and_length/v1` (`reporting/gates.py:617-682`) on mean reward,
   length and forward velocity, with reward floors 3–22× below the zero-action
   statue, so beyond mean length the only test is mean root speed. On floor
   contact, trex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
@@ -978,7 +978,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
   mean of its per-step `info["forward_vel"]` (`evaluation.py:97-105`), the
-  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1360`,
+  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1356`,
   `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
   weighs as much as a 1,000-step one. Through the repository's own evaluation
   and gate code on trex locomotion (length 750, speed 1.0 m/s), three scripted
@@ -988,7 +988,7 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3); on a 30-episode
   panel, 23 walks and 7 lunges pass both the post-training judge and the
   in-training `CurriculumManager`, while 24 and 6 fail. The post-training
-  judge also compares the speed rounded to two decimals (:1360): a 0.996 m/s
+  judge also compares the speed rounded to two decimals (:1356): a 0.996 m/s
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open).
@@ -1152,7 +1152,7 @@ robustness, **LOW** = cosmetic / QoL.
   lane disjoint from {`k*2`, `k*2+1`} (renumbering the lanes would silently
   change every existing schedule and its null-controller pairing), and it
   changes the transition, so `SCHEDULE_IMPLEMENTATION`
-  (`task_fingerprint.py:74`) and every recovery task digest move. No cleanup
+  (`task_fingerprint.py:75`) and every recovery task digest move. No cleanup
   PR owns it. (2026-08 gap review EP2)
 
 - **LOW** — **after a noisy reset one foot spawns just above the floor and
@@ -1179,8 +1179,8 @@ robustness, **LOW** = cosmetic / QoL.
   and hands it to the stance gate as a field copy (`stance_thresholds`,
   :76-92), the in-training diagnostics callback sizes the gate's duty count
   from the same 10 (`eval_diagnostics.py:636-639`), the recorded-gate reader
-  the Drive summary uses falls back to it too (`reporting/gates.py:104`), and
-  the species catalog publishes it (`species_catalog.py:501`), while the
+  the Drive summary uses falls back to it too (`reporting/gates.py:105`), and
+  the species catalog publishes it (`species_catalog.py:467`), while the
   stance report, its probes and publication fall back to
   `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
   `reporting/stage_artifacts.py:226,515`, `result_bundle/evidence.py:509`).
@@ -1205,7 +1205,7 @@ robustness, **LOW** = cosmetic / QoL.
   a certified node's results from its verdict
   (`NODE_RESULTS[NODE.id] = dict(stage_result)`, the `same_run` branch). The
   verdict's `stage_result` projection (`_PERSISTED_STAGE_RESULT_KEYS`,
-  `result_bundle/gate_verdict.py:66`) omits `sim_dt`, so
+  `result_bundle/gate_verdict.py:67`) omits `sim_dt`, so
   `write_training_summary` falls back to 0.01 s
   (`reporting/text_summaries.py:156`): a reused compsognathus or
   compsognathus_robot node shows 1,000 steps as "10.00s sim time" instead of
@@ -1218,9 +1218,9 @@ robustness, **LOW** = cosmetic / QoL.
   warning, when the final pair has lost its sidecar (reproduced
   2026-10-01).** `_record_stage_replays` records the selected checkpoint only
   from a pair whose `_vecnorm.pkl` exists and otherwise skips it with a
-  warning (`reporting/stage_artifacts.py:1672-1680`). The final replay checks
-  only the `.zip` (`:1709`) and passes `<stage>_final_vecnorm.pkl` (`:1650`,
-  `:1727`), which `evaluation.record_stage_video` ignores when the file is
+  warning (`reporting/stage_artifacts.py:1668-1676`). The final replay checks
+  only the `.zip` (`:1705`) and passes `<stage>_final_vecnorm.pkl` (`:1646`,
+  `:1723`), which `evaluation.record_stage_video` ignores when the file is
   missing (`evaluation.py:289`): the policy is replayed on unnormalised
   observations, which makes it a different policy, and its `_final.mp4` is
   written as usual. In a probe through the unchanged library code (the SB3
