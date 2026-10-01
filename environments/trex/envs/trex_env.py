@@ -12,7 +12,7 @@ Observation space (total dimension is generated in the public species catalog):
     - Pelvis angular velocity (gyroscope) — 3
     - Pelvis linear velocity — 3
     - Pelvis acceleration — 3
-    - Foot contact forces (2 plantar-pad touch sensors) — 2
+    - Foot contact forces (plantar pad + three digit touch sensors per foot) — 2
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
@@ -164,12 +164,12 @@ class TRexEnv(BaseDinoEnv):
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
-        # Matches the MJX registration, which is the value the evidence
-        # supports.  Both bounds moved down by 0.05 with the theropod stance:
-        # the flexed home keyframe settles at 0.9260 m where the columnar one
-        # settled at 0.9757 (-0.0497).  Translating the whole band by the
-        # measured stance drop is what preserves the three measurements the
-        # old (0.75, 1.6) was sized on, rather than re-guessing them:
+        # The value the evidence supports.  Both bounds moved down by 0.05 with
+        # the theropod stance: the flexed home keyframe settles at 0.9260 m
+        # where the columnar one settled at 0.9757 (-0.0497).  Translating the
+        # whole band by the measured stance drop is what preserves the three
+        # measurements the old (0.75, 1.6) was sized on, rather than
+        # re-guessing them:
         #   * The tail is the real backstop.  tail_3/4/5 are unconditional
         #     termination geoms and the tail reaches the floor at a pelvis
         #     height of ~0.55-0.57 in a level squat, so the plant is already
@@ -179,9 +179,10 @@ class TRexEnv(BaseDinoEnv):
         #   * Healthy full-horizon episodes bottomed out 0.134 m above the
         #     floor (0.884 against 0.75).  0.834 against 0.70 is the same
         #     margin under a stance that sits 0.0497 lower.
-        #   * The MJX alive bonus scales by (z - floor) / (ceiling - floor),
-        #     which is 0.266 at the settled stance before and after -- that is
-        #     why the ceiling moves too -- against the velociraptor's 0.275.
+        #   * The retired MJX alive bonus scaled by (z - floor) / (ceiling -
+        #     floor), which was 0.266 at the settled stance before and after --
+        #     that is why the ceiling moved too -- against the velociraptor's
+        #     0.275.
         # The spawn tail is preserved too: 2000 resets at reset_noise_scale
         # = 0.10 put 0.75% below the floor on both plants (0.70 on this one,
         # 0.75 on the columnar one).  The root-height jitter is a 0.10 m
@@ -281,8 +282,7 @@ class TRexEnv(BaseDinoEnv):
         # nosedive_termination_threshold in configs/trex/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
-        # vertical (see _get_reward_info); the MJX path matches by leaving
-        # posture_target_forward_z unset for this species.
+        # vertical (see _get_reward_info).
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # T-Rex-specific env settings
@@ -335,11 +335,7 @@ class TRexEnv(BaseDinoEnv):
         # T-Rex policies command residuals around the complete XML home
         # control vector. Cache the named keyframe so Gymnasium reset and
         # action zero share one nominal state.
-        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
-        if self.home_keyframe_id < 0:
-            raise ValueError("T-Rex model must define a named 'home' keyframe")
-        self._reset_keyframe_id = self.home_keyframe_id
-        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+        self._cache_home_keyframe("T-Rex")
 
         # Body IDs
         self.pelvis_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
@@ -380,9 +376,9 @@ class TRexEnv(BaseDinoEnv):
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
         # Height terminations sampled at every physics substep by the base
-        # step loop; _is_terminated reads the per-check MIN so a between-
-        # samples head dip terminates like the MJX height emulation does.
-        # Order is consumed by index there.
+        # step loop; _is_terminated reads the per-check MIN so a head dip
+        # between the control-step samples still terminates.  Order is
+        # consumed by index there.
         self._substep_height_checks = (
             ("site", self.head_tip_site_id),
             ("body", self.skull_body_id),
@@ -408,7 +404,7 @@ class TRexEnv(BaseDinoEnv):
         self._sensor_l_foot_digits = (27, 28, 29)
         # Per-foot groups for the base class's substep MIN aggregation --
         # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices
-        # so both backends aggregate the same sensors.
+        # so the plant contract's MJX observation probe reads the same sensors.
         self._foot_sensor_groups = (
             (self._sensor_r_foot, *self._sensor_r_foot_digits),
             (self._sensor_l_foot, *self._sensor_l_foot_digits),
@@ -446,10 +442,9 @@ class TRexEnv(BaseDinoEnv):
         # -0.2107/-0.2029 rad against the -0.2094 stop, tail_3 at -0.0926)
         # with sub-milliradian spread across 40 seeds at reset noise 0.05.
         # Pricing the keyframe would cap the ideal statue at ~0.25 quality,
-        # so the term targets the settled droop instead (the
-        # target_standing_z = 0.9260 precedent).  Must match the MJX
-        # registry's tail_home_pose_targets (environments/trex/mjx_config.py);
-        # re-measure whenever tail masses, springs, or gains change.
+        # so the term targets the settled droop instead (the precedent is the
+        # 0.9260 m settled height target in _get_reward_info).  Re-measure
+        # whenever tail masses, springs, or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
@@ -461,13 +456,6 @@ class TRexEnv(BaseDinoEnv):
                 raise ValueError(f"T-Rex model must define joint {name!r}")
             indices.append(int(self.model.jnt_qposadr[joint_id]))
         return np.asarray(indices, dtype=np.int32)
-
-    def _foot_contact_forces(self) -> tuple[float, float]:
-        """Total floor contact force under each foot: plantar pad and digits."""
-        sensordata = self.data.sensordata
-        right = sensordata[self._sensor_r_foot] + sum(sensordata[index] for index in self._sensor_r_foot_digits)
-        left = sensordata[self._sensor_l_foot] + sum(sensordata[index] for index in self._sensor_l_foot_digits)
-        return float(right), float(left)
 
     def _bilateral_support_quality(self, right_force: float, left_force: float) -> float:
         """Return bounded support quality, requiring load on both feet."""
@@ -493,10 +481,6 @@ class TRexEnv(BaseDinoEnv):
             self.foot_load_balance_airborne_penalty,
         )
         return float(reward), float(imbalance)
-
-    def _foot_load_imbalance(self, right_force: float, left_force: float) -> float:
-        """Backwards-compatible diagnostic accessor: the imbalance alone."""
-        return self._foot_load_balance(right_force, left_force)[1]
 
     def _home_pose_quality(
         self,
@@ -591,33 +575,17 @@ class TRexEnv(BaseDinoEnv):
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown for logging."""
-        info = {}
+        info: dict[str, Any] = {}
 
         pelvis_pos = self.data.xpos[self.pelvis_id]
         prey_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_prey_dir_2d
         vel_2d = self.data.qvel[0:2]
 
-        # 1. Forward velocity reward (toward prey)
-        reward_forward, forward_vel = self._compute_forward_velocity(
-            vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
+        # 1-1c. Forward velocity (toward prey), backward velocity penalty and drift penalty
+        reward_forward, reward_backward, reward_drift = self._progress_terms(
+            info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )
-        info["forward_vel"] = forward_vel
-        info["reward_forward"] = reward_forward
-
-        # 1b. Backward velocity penalty
-        reward_backward, backward_vel = self._compute_backward_penalty(
-            forward_vel, self.forward_vel_max, self.backward_vel_penalty_weight
-        )
-        info["backward_vel"] = backward_vel
-        info["reward_backward"] = reward_backward
-
-        # 1c. Drift penalty
-        reward_drift, drift_dist = self._compute_drift_penalty(
-            pelvis_pos[:2], self._initial_pos_2d, self.drift_penalty_weight
-        )
-        info["drift_distance"] = drift_dist
-        info["reward_drift"] = reward_drift
 
         # 1d. Bilateral support and load balance.  Touch sensors report the
         # full plantar-plus-digit load for each foot.  Saturation prevents
@@ -666,21 +634,9 @@ class TRexEnv(BaseDinoEnv):
         info["reward_tail"] = reward_tail
 
         # 5. Bite bonus (check head_bite-prey contact)
-        bite_reward = 0.0
-        for i in range(self.data.ncon):
-            contact = self.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            if (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id) or (
-                geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id
-            ):
-                bite_reward = self.bite_bonus
-                info["bite_success"] = 1.0
-                break
-        else:
-            info["bite_success"] = 0.0
-
-        reward_bite = bite_reward
+        bitten = self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None
+        info["bite_success"] = 1.0 if bitten else 0.0
+        reward_bite = self.bite_bonus if bitten else 0.0
         info["reward_bite"] = reward_bite
 
         # 6. Approach shaping
@@ -748,11 +704,7 @@ class TRexEnv(BaseDinoEnv):
         info["reward_posture"] = reward_posture
 
         # 8. Nosedive penalty
-        reward_nosedive, forward_z = self._compute_nosedive_penalty(
-            pelvis_quat, self.nosedive_weight, self._natural_forward_z
-        )
-        info["forward_z"] = forward_z
-        info["reward_nosedive"] = reward_nosedive
+        reward_nosedive = self._nosedive_term(info, pelvis_quat)
 
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         pelvis_height = self._clearance(self.data.xpos[self.pelvis_id])
@@ -768,8 +720,7 @@ class TRexEnv(BaseDinoEnv):
         # worth 39% of stage-1 and 10% of stage-2 return that shaped nothing.
         # ``TestHeightTargetTracksStance`` pins it to the measured stance, which
         # is how the 0.9757 -> 0.9260 move under the theropod stance correction
-        # was caught rather than left to drift.  Keep this and
-        # ``target_standing_z`` in environments/trex/mjx_config.py equal.
+        # was caught rather than left to drift.
         target_z = 0.9260
         if self.height_target_tolerance > 0.0:
             reward_height, height_error, height_quality = _reward_target_centered_height_pure(
@@ -836,20 +787,8 @@ class TRexEnv(BaseDinoEnv):
         info["action_saturation"] = float(action_saturation)
         info["reward_action_saturation"] = float(reward_action_saturation)
 
-        # 11. Heading alignment
-        body_forward_2d = self._quat_to_forward_2d(pelvis_quat)
-        reward_heading, heading_alignment = self._compute_heading_alignment(
-            body_forward_2d, forward_ref_2d, self.heading_weight
-        )
-        info["heading_alignment"] = heading_alignment
-        info["reward_heading"] = reward_heading
-
-        # 12. Lateral velocity penalty
-        reward_lateral, lateral_vel = self._compute_lateral_velocity_penalty(
-            vel_2d, body_forward_2d, self.lateral_penalty_weight
-        )
-        info["lateral_vel"] = lateral_vel
-        info["reward_lateral"] = reward_lateral
+        # 11-12. Heading alignment and lateral velocity penalty
+        reward_heading, reward_lateral = self._heading_terms(info, pelvis_quat, forward_ref_2d, vel_2d)
 
         # Pelvis angular velocity (for spinning detection in shared diagnostics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
@@ -861,18 +800,8 @@ class TRexEnv(BaseDinoEnv):
         info["spin_instability"] = spin_instability
         info["reward_spin"] = reward_spin
 
-        # 14. Speed penalty (penalise absolute speed above threshold)
-        reward_speed, abs_speed = self._compute_speed_penalty(
-            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
-        )
-        info["abs_speed"] = abs_speed
-        info["reward_speed"] = reward_speed
-
-        # 14b. Idle penalty (penalise standing still / barely moving)
-        reward_idle, idle_speed = self._compute_idle_penalty(
-            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
-        )
-        info["reward_idle"] = reward_idle
+        # 14-14b. Speed penalty above its threshold, idle penalty below its own
+        reward_speed, reward_idle = self._speed_terms(info, vel_2d)
 
         # Total reward
         total_reward = (
@@ -910,26 +839,9 @@ class TRexEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info: dict[str, Any] = {}
-
-        pelvis_z = self._clearance(self.data.xpos[self.pelvis_id])
-        info["pelvis_height"] = pelvis_z
-
-        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
-        tilt_angle = self._quat_to_tilt(pelvis_quat)
-        info["tilt_angle"] = tilt_angle
-
-        # Height/tilt termination (shared)
-        terminated, reason = self._check_height_tilt_termination(pelvis_z, tilt_angle)
+        # Height/tilt, then nosedive termination (shared)
+        terminated, info = self._root_termination(self.pelvis_id, "pelvis_height", self.nosedive_termination_threshold)
         if terminated:
-            info["termination_reason"] = reason
-            return True, info
-
-        # Nosedive termination
-        forward_z = self._quat_to_forward_z(pelvis_quat)
-        info["forward_z"] = forward_z
-        if forward_z < self._natural_forward_z - self.nosedive_termination_threshold:
-            info["termination_reason"] = "nosedive"
             return True, info
 
         # Site-height termination: snout tip must stay above threshold
@@ -951,17 +863,10 @@ class TRexEnv(BaseDinoEnv):
             return True, info
 
         # Check contacts: head-prey (success)
-        for i in range(self.data.ncon):
-            contact = self.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            if self.bite_bonus > 0 and (
-                (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id)
-                or (geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id)
-            ):
-                info["termination_reason"] = "bite_success"
-                info["success"] = True
-                return True, info
+        if self.bite_bonus > 0 and self._contact_geom({self.head_bite_geom_id}, self.prey_geom_id) is not None:
+            info["termination_reason"] = "bite_success"
+            info["success"] = True
+            return True, info
 
         # Floor contact termination (shared)
         terminated, reason = self._check_floor_contact(

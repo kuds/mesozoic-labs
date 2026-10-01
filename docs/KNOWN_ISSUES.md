@@ -619,7 +619,7 @@ robustness, **LOW** = cosmetic / QoL.
   these species, not with a backstop setting.
   **Update (2026-09-28, gait audit):** the biped `_compute_gait_symmetry` has
   been measured: a synchronous two-foot landing appends `"R"` then `"L"`
-  (`base_env.py:737-740`), so a bounce scores 1.000, as do a true alternating
+  (`base_env.py:745-748`), so a bounce scores 1.000, as do a true alternating
   walk and the statue ([STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) §6
   item 7). Its weight is 0.0 in every biped stage, so only its
   `alternation_ratio` diagnostic misleads. The quadruped version likewise pays
@@ -1015,7 +1015,7 @@ robustness, **LOW** = cosmetic / QoL.
   success flag and pays the 1,000 bonus whenever the contact or reach holds,
   but `_is_terminated` runs every fall check except floor contact before its
   success check, so such a step ends as a fall with `is_success` False
-  (`base_env.py:1245`). The post-training panel reads the flag on every step
+  (`base_env.py:1291`). The post-training panel reads the flag on every step
   (`evaluation.py:100`) and counts the episode, for trex in the `task_success`
   that `task_success/v1` judges; training reads `is_success` and does not.
   Executed on each hunt env with the body rolled past `max_tilt_angle` and the
@@ -1041,9 +1041,9 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
-  only the torso (and belly), head and distal tail (`trex_env.py:365-372`,
-  `raptor_env.py:223-230`, `brachio_env.py:234-240`,
-  `dibothrosuchus_env.py:252-259`; velociraptor adds its neck), so a policy
+  only the torso (and belly), head and distal tail (`trex_env.py:361-368`,
+  `raptor_env.py:219-226`, `brachio_env.py:231-237`,
+  `dibothrosuchus_env.py:247-254`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
   clearance of the lowest such geom, then the root drop allowed: trex tibia
   0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
@@ -1058,7 +1058,7 @@ robustness, **LOW** = cosmetic / QoL.
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
   (`stance_diagnostics.py:75`) takes `r_foot_contact` and `l_foot_contact`,
   which the brachiosaurus and dibothrosuchus envs set to their front feet
-  (`brachio_env.py:443-444`, `dibothrosuchus_env.py:486-487`), so its
+  (`brachio_env.py:410-411`, `dibothrosuchus_env.py:449-450`), so its
   unsupported duty and balance ignore the hind feet, which carry 79% of the
   certified dibothrosuchus stance's floor load
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
@@ -1126,8 +1126,8 @@ robustness, **LOW** = cosmetic / QoL.
   and SS4)
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
-  (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1122-1246`, its
-  frame-skip loop at :1173) never reads `data.warning`, and on a bad `qvel`
+  (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1173-1297`, its
+  frame-skip loop at :1224) never reads `data.warning`, and on a bad `qvel`
   or `qacc` MuJoCo resets the state to the model's default pose (`qpos0`) and
   carries on. On the trex stance config, setting `qvel` to 1e12 and taking
   one zero-action step printed MuJoCo's "The simulation is unstable" warning
@@ -1157,7 +1157,7 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **LOW** — **after a noisy reset one foot spawns just above the floor and
   reads 0 N for the first few steps (executed 2026-09-30).**
-  `_settle_root_on_ground` (`base_env.py:1418-1449`) shifts the root so the
+  `_settle_root_on_ground` (`base_env.py:1469-1500`) shifts the root so the
   lowest geom sits at the home clearance, which grounds one foot and can
   leave the other millimetres up. On the trex stance config
   (`reset_noise_scale` 0.05, zero action), seeds 0–3 read 0.0 N on one foot
@@ -1311,7 +1311,7 @@ re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
 **Update (2026-09-28, gait audit):** a second under-read, shared by every species, comes from how
 substeps are combined rather than from sensor scope. The contact-shaped rewards and foot-contact
 info keys read `_aggregated_foot_contact_forces()`, the per-foot **minimum** over a control step's
-physics substeps (`base_env.py:915-928`), so a foot touching on only some substeps reads as
+physics substeps (`base_env.py:956-969`), so a foot touching on only some substeps reads as
 airborne. Against the floor's normal force on the leg (above 0.1 N on at least half the substeps),
 the velociraptor run `20260922_125248` reads 49% flight by touch against 33% (its stance 25% against
 15%), and the in-training dibothrosuchus re-run `20260928_012318` reads 0.39 body weights against
@@ -1384,8 +1384,8 @@ stance (PR #464).
 - **Not recommended:** porting the T-Rex stance correction here. That argument
   rests on a live stage-1 height term forcing knee travel through a
   near-singular joint, and the raptor env has **no height reward at all** —
-  five height mentions, none of them a reward term, against 21 in
-  `trex_env.py`.
+  `height` appears in `raptor_env.py` only in the `pelvis_height` diagnostic
+  and the shared height/tilt termination, never in a reward term.
 - **Note for the hardware track:** because the springs are load-bearing, the
   raptor's true actuator requirement is *higher* than its sim actuator forces
   suggest, which pushes against the torque crux already flagged in
@@ -1439,7 +1439,7 @@ Still open:
   the file regenerates all three (no checkpoint is invalidated: plant
   compatibility ignores source revisions). Fix it with the next deliberate
   `trex.xml` edit; the same stale `mjx_config.py` pointers in `trex_env.py`
-  are optional cleanup PR-C's
+  were reworded by cleanup CU-12, which folded in optional PR-C
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.2). (read from the
   model 2026-09-30; 2026-08 gap review SM7)
 - **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is

@@ -100,11 +100,11 @@ class DibothrosuchusEnv(BaseDinoEnv):
         snap_bonus: float = 10.0,
         snap_approach_weight: float = 1.0,
         snap_snout_proximity_weight: float = 0.0,
-        # JAX-only: the MJX reward path gates its alive bonus on foot contact
-        # and pays a per-step grounded bonus.  The Gymnasium path gets the same
-        # effect from snout-contact and body-contact termination, so these are
-        # accepted (the stage TOMLs are shared between backends) and stored,
-        # but not read by _get_reward_info.
+        # Read only by the retired MJX reward, which gated its alive bonus on
+        # foot contact and paid a per-step grounded bonus; this env gets the
+        # same effect from snout-contact and body-contact termination.  They
+        # are accepted and stored (stage1_balance.toml sets them, and
+        # task_sha256 hashes them) but not read by _get_reward_info.
         foot_contact_weight: float = 0.0,
         foot_contact_gate: float = 0.0,
         nosedive_termination_threshold: float = 0.55,
@@ -165,8 +165,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         # 1500 steps leaves the trunk frame at forward_z +0.003, i.e. level, so
         # the default of 0.0 is the plant's real neutral rather than a guess.
         # Both the nosedive penalty and the posture reward stay centred on
-        # world vertical; the MJX path matches by leaving
-        # posture_target_forward_z unset for this species.
+        # world vertical.
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # Dibothrosuchus-specific env settings
@@ -221,11 +220,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
         # Policies command residuals around the complete XML home control
         # vector, so Gymnasium reset and action zero share one nominal state.
-        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
-        if self.home_keyframe_id < 0:
-            raise ValueError("Dibothrosuchus model must define a named 'home' keyframe")
-        self._reset_keyframe_id = self.home_keyframe_id
-        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+        self._cache_home_keyframe("Dibothrosuchus")
 
         # Body IDs
         self.torso_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "torso")
@@ -369,33 +364,17 @@ class DibothrosuchusEnv(BaseDinoEnv):
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown for logging."""
-        info = {}
+        info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
         prey_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_prey_dir_2d
         vel_2d = self.data.qvel[0:2]
 
-        # 1. Forward velocity reward (toward prey)
-        reward_forward, forward_vel = self._compute_forward_velocity(
-            vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
+        # 1-1c. Forward velocity (toward prey), backward velocity penalty and drift penalty
+        reward_forward, reward_backward, reward_drift = self._progress_terms(
+            info, vel_2d, forward_ref_2d, torso_pos[:2]
         )
-        info["forward_vel"] = forward_vel
-        info["reward_forward"] = reward_forward
-
-        # 1b. Backward velocity penalty
-        reward_backward, backward_vel = self._compute_backward_penalty(
-            forward_vel, self.forward_vel_max, self.backward_vel_penalty_weight
-        )
-        info["backward_vel"] = backward_vel
-        info["reward_backward"] = reward_backward
-
-        # 1c. Drift penalty
-        reward_drift, drift_dist = self._compute_drift_penalty(
-            torso_pos[:2], self._initial_pos_2d, self.drift_penalty_weight
-        )
-        info["drift_distance"] = drift_dist
-        info["reward_drift"] = reward_drift
 
         # 2. Alive bonus (shared helper)
         reward_alive = self._reward_alive()
@@ -418,21 +397,9 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["reward_tail"] = reward_tail
 
         # 6. Snap bonus (check snout-prey contact)
-        snap_reward = 0.0
-        for i in range(self.data.ncon):
-            contact = self.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            if (geom1 == self.snout_snap_geom_id and geom2 == self.prey_geom_id) or (
-                geom2 == self.snout_snap_geom_id and geom1 == self.prey_geom_id
-            ):
-                snap_reward = self.snap_bonus
-                info["snap_success"] = 1.0
-                break
-        else:
-            info["snap_success"] = 0.0
-
-        reward_snap = snap_reward
+        snapped = self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None
+        info["snap_success"] = 1.0 if snapped else 0.0
+        reward_snap = self.snap_bonus if snapped else 0.0
         info["reward_snap"] = reward_snap
 
         # 7. Approach shaping.  Measured from the SNOUT rather than the trunk:
@@ -464,11 +431,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["reward_posture"] = reward_posture
 
         # 9. Nosedive penalty
-        reward_nosedive, forward_z = self._compute_nosedive_penalty(
-            torso_quat, self.nosedive_weight, self._natural_forward_z
-        )
-        info["forward_z"] = forward_z
-        info["reward_nosedive"] = reward_nosedive
+        reward_nosedive = self._nosedive_term(info, torso_quat)
 
         # 10. Trunk height (for LocomotionMetrics tracking) and maintenance reward
         torso_height = self._clearance(torso_pos)
@@ -504,20 +467,8 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
 
-        # 13. Heading alignment
-        body_forward_2d = self._quat_to_forward_2d(torso_quat)
-        reward_heading, heading_alignment = self._compute_heading_alignment(
-            body_forward_2d, forward_ref_2d, self.heading_weight
-        )
-        info["heading_alignment"] = heading_alignment
-        info["reward_heading"] = reward_heading
-
-        # 14. Lateral velocity penalty
-        reward_lateral, lateral_vel = self._compute_lateral_velocity_penalty(
-            vel_2d, body_forward_2d, self.lateral_penalty_weight
-        )
-        info["lateral_vel"] = lateral_vel
-        info["reward_lateral"] = reward_lateral
+        # 13-14. Heading alignment and lateral velocity penalty
+        reward_heading, reward_lateral = self._heading_terms(info, torso_quat, forward_ref_2d, vel_2d)
 
         # Trunk angular velocity (for spinning detection in shared diagnostics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
@@ -529,18 +480,8 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["spin_instability"] = spin_instability
         info["reward_spin"] = reward_spin
 
-        # 16. Speed penalty (penalise absolute speed above threshold)
-        reward_speed, abs_speed = self._compute_speed_penalty(
-            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
-        )
-        info["abs_speed"] = abs_speed
-        info["reward_speed"] = reward_speed
-
-        # 16b. Idle penalty (penalise standing still / barely moving)
-        reward_idle, idle_speed = self._compute_idle_penalty(
-            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
-        )
-        info["reward_idle"] = reward_idle
+        # 16-16b. Speed penalty above its threshold, idle penalty below its own
+        reward_speed, reward_idle = self._speed_terms(info, vel_2d)
 
         # Total reward
         total_reward = (
@@ -571,28 +512,12 @@ class DibothrosuchusEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info: dict[str, Any] = {}
-
-        torso_z = self._clearance(self.data.xpos[self.torso_id])
-        info["torso_height"] = torso_z
-
-        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
-        tilt_angle = self._quat_to_tilt(torso_quat)
-        info["tilt_angle"] = tilt_angle
-
-        # Height/tilt termination (shared).  The lower bound is the sprawl
-        # gate: a modern-crocodilian belly-down sprawl drops the trunk well
-        # below the erect stance this species is being trained to hold.
-        terminated, reason = self._check_height_tilt_termination(torso_z, tilt_angle)
+        # Height/tilt, then nosedive termination (shared).  The lower height
+        # bound is the sprawl gate: a modern-crocodilian belly-down sprawl
+        # drops the trunk well below the erect stance this species is being
+        # trained to hold.
+        terminated, info = self._root_termination(self.torso_id, "torso_height", self.nosedive_termination_threshold)
         if terminated:
-            info["termination_reason"] = reason
-            return True, info
-
-        # Nosedive termination
-        forward_z = self._quat_to_forward_z(torso_quat)
-        info["forward_z"] = forward_z
-        if forward_z < self._natural_forward_z - self.nosedive_termination_threshold:
-            info["termination_reason"] = "nosedive"
             return True, info
 
         # Site-height termination: the snout tip must stay off the ground.
@@ -607,17 +532,10 @@ class DibothrosuchusEnv(BaseDinoEnv):
 
         # Success: snout snap geom contacted the prey.  Gated on snap_bonus so
         # stages 1-2 don't end episodes on incidental contact.
-        for i in range(self.data.ncon):
-            contact = self.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            if self.snap_bonus > 0 and (
-                (geom1 == self.snout_snap_geom_id and geom2 == self.prey_geom_id)
-                or (geom2 == self.snout_snap_geom_id and geom1 == self.prey_geom_id)
-            ):
-                info["termination_reason"] = "snap_success"
-                info["success"] = True
-                return True, info
+        if self.snap_bonus > 0 and self._contact_geom({self.snout_snap_geom_id}, self.prey_geom_id) is not None:
+            info["termination_reason"] = "snap_success"
+            info["success"] = True
+            return True, info
 
         # Floor contact termination (shared) — categorized by body part
         terminated, reason = self._check_floor_contact(

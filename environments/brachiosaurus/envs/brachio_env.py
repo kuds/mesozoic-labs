@@ -3,16 +3,17 @@ Brachiosaurus Gymnasium Environment
 
 A quadrupedal sauropod locomotion environment with food-reaching behavior.
 
-Observation space:
-    - Joint positions (qpos) excluding root freejoint
-    - Joint velocities (qvel) excluding root freejoint
-    - Torso orientation (quaternion)
-    - Torso angular velocity
-    - Torso linear velocity
-    - Foot contact states (4 feet)
-    - Food relative position
-    - Food distance
-    - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none")
+Observation space (total dimension is generated in the public species catalog):
+    - Joint positions (qpos[7:]), excluding the root freejoint
+    - Joint velocities (qvel[6:]), excluding the root freejoint
+    - Torso orientation (quaternion) — 4
+    - Torso angular velocity (gyroscope) — 3
+    - Torso linear velocity — 3
+    - Torso acceleration — 3
+    - Foot contact forces (pad + meta touch sensors per leg) — 4
+    - Food direction (unit vector) — 3
+    - Food distance (scalar) — 1
+    - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
@@ -204,11 +205,7 @@ class BrachioEnv(BaseDinoEnv):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
         # Policies command residuals around the complete XML home control
         # vector, so Gymnasium reset and action zero share one nominal state.
-        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
-        if self.home_keyframe_id < 0:
-            raise ValueError("Brachiosaurus model must define a named 'home' keyframe")
-        self._reset_keyframe_id = self.home_keyframe_id
-        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+        self._cache_home_keyframe("Brachiosaurus")
 
         # Body IDs
         self.torso_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "torso")
@@ -288,16 +285,6 @@ class BrachioEnv(BaseDinoEnv):
             (self._sensor_rl_foot, self._sensor_rl_meta),
         )
 
-    def _foot_contact_forces(self) -> tuple[float, float, float, float]:
-        """Total floor contact force under each leg: foot pad plus meta."""
-        sensordata = self.data.sensordata
-        return (
-            float(sensordata[self._sensor_fr_foot] + sensordata[self._sensor_fr_meta]),
-            float(sensordata[self._sensor_fl_foot] + sensordata[self._sensor_fl_meta]),
-            float(sensordata[self._sensor_rr_foot] + sensordata[self._sensor_rr_meta]),
-            float(sensordata[self._sensor_rl_foot] + sensordata[self._sensor_rl_meta]),
-        )
-
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
 
@@ -367,33 +354,17 @@ class BrachioEnv(BaseDinoEnv):
 
     def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown for logging."""
-        info = {}
+        info: dict[str, Any] = {}
 
         torso_pos = self.data.xpos[self.torso_id]
         food_pos = self.data.mocap_pos[0]
         forward_ref_2d = self._initial_food_dir_2d
         vel_2d = self.data.qvel[0:2]
 
-        # 1. Forward velocity reward (toward food)
-        reward_forward, forward_vel = self._compute_forward_velocity(
-            vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
+        # 1-1c. Forward velocity (toward food), backward velocity penalty and drift penalty
+        reward_forward, reward_backward, reward_drift = self._progress_terms(
+            info, vel_2d, forward_ref_2d, torso_pos[:2]
         )
-        info["forward_vel"] = forward_vel
-        info["reward_forward"] = reward_forward
-
-        # 1b. Backward velocity penalty
-        reward_backward, backward_vel = self._compute_backward_penalty(
-            forward_vel, self.forward_vel_max, self.backward_vel_penalty_weight
-        )
-        info["backward_vel"] = backward_vel
-        info["reward_backward"] = reward_backward
-
-        # 1c. Drift penalty
-        reward_drift, drift_dist = self._compute_drift_penalty(
-            torso_pos[:2], self._initial_pos_2d, self.drift_penalty_weight
-        )
-        info["drift_distance"] = drift_dist
-        info["reward_drift"] = reward_drift
 
         # 2. Alive bonus (shared helper)
         reward_alive = self._reward_alive()
@@ -422,11 +393,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_posture"] = reward_posture
 
         # 7. Nosedive penalty
-        reward_nosedive, forward_z = self._compute_nosedive_penalty(
-            torso_quat, self.nosedive_weight, self._natural_forward_z
-        )
-        info["forward_z"] = forward_z
-        info["reward_nosedive"] = reward_nosedive
+        reward_nosedive = self._nosedive_term(info, torso_quat)
 
         # 8. Height maintenance reward
         torso_height = self._clearance(torso_pos)
@@ -461,20 +428,8 @@ class BrachioEnv(BaseDinoEnv):
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
 
-        # 11. Heading alignment
-        body_forward_2d = self._quat_to_forward_2d(torso_quat)
-        reward_heading, heading_alignment = self._compute_heading_alignment(
-            body_forward_2d, forward_ref_2d, self.heading_weight
-        )
-        info["heading_alignment"] = heading_alignment
-        info["reward_heading"] = reward_heading
-
-        # 12. Lateral velocity penalty
-        reward_lateral, lateral_vel = self._compute_lateral_velocity_penalty(
-            vel_2d, body_forward_2d, self.lateral_penalty_weight
-        )
-        info["lateral_vel"] = lateral_vel
-        info["reward_lateral"] = reward_lateral
+        # 11-12. Heading alignment and lateral velocity penalty
+        reward_heading, reward_lateral = self._heading_terms(info, torso_quat, forward_ref_2d, vel_2d)
 
         # Torso angular velocity (for spinning detection in shared diagnostics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
@@ -486,18 +441,8 @@ class BrachioEnv(BaseDinoEnv):
         info["spin_instability"] = spin_instability
         info["reward_spin"] = reward_spin
 
-        # 14. Speed penalty (penalise absolute speed above threshold)
-        reward_speed, abs_speed = self._compute_speed_penalty(
-            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
-        )
-        info["abs_speed"] = abs_speed
-        info["reward_speed"] = reward_speed
-
-        # 14b. Idle penalty (penalise standing still / barely moving)
-        reward_idle, idle_speed = self._compute_idle_penalty(
-            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
-        )
-        info["reward_idle"] = reward_idle
+        # 14-14b. Speed penalty above its threshold, idle penalty below its own
+        reward_speed, reward_idle = self._speed_terms(info, vel_2d)
 
         # 15. Food reach bonus (head tip close to food)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
@@ -561,19 +506,9 @@ class BrachioEnv(BaseDinoEnv):
 
     def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
-        info: dict[str, Any] = {}
-
-        torso_z = self._clearance(self.data.xpos[self.torso_id])
-        info["torso_height"] = torso_z
-
-        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
-        tilt_angle = self._quat_to_tilt(torso_quat)
-        info["tilt_angle"] = tilt_angle
-
         # Height/tilt termination (shared)
-        terminated, reason = self._check_height_tilt_termination(torso_z, tilt_angle)
+        terminated, info = self._root_termination(self.torso_id, "torso_height")
         if terminated:
-            info["termination_reason"] = reason
             return True, info
 
         # Success: head reached food (only terminate when reaching is rewarded,
