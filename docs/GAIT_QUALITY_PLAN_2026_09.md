@@ -83,7 +83,8 @@ same day, which completes CU-7, and CU-16a (the docs text of CU-16) as #577 the 
 CU-16b (the orphan assets of CU-16) as #578 the same day, which completes CU-16; CU-8a (the first part of CU-8, one
 task-fingerprint derivation) as #579 on 2026-10-01; CU-12 (the species env dedup, which PR-G6's GQ-16 refers to) as
 #580 the same day, which completes CU-12; CU-14a (the workflow structure of CU-14, with the cleanup plan's decision
-10 (a), settled on 2026-09-30 without a D-D id) is carried out,
+10 (a), settled on 2026-09-30 without a D-D id) as #581 on 2026-10-01, which completes CU-14 and wave 3; CU-8b (the
+SB3 import helper and the sidecar resolver of CU-8, which CU-6 waits for) is carried out,
 and the rest of the gate follows the order the maintainer accepted in the cleanup plan's §3.1 item 4;
 CU-6 also waits for CU-8b and the notebook PR for that plan's decisions 4 and 6.*
 
