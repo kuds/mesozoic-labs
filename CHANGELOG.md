@@ -105,9 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `configs/species_manifest.toml` are exactly those four (the dual-species
   tripwire); and the `[tool.ruff]` exclusion that keeps ruff off the core.
   An edit fails naming the function and D-D17 rather than as a stale plant
-  manifest. The plant-contract job runs it through its
-  `test_plant_contract_*.py` glob, and so does the `test (shared, …)`
-  matrix; it is deleted with the core. `test_config.py` also gains
+  manifest. The plant-contract job ran it through its
+  `test_plant_contract_*.py` glob until cleanup CU-14a dropped that job's
+  pytest step (Changed, below); the three `test (<python>, shared)` legs
+  run it, and it is deleted with the core. `test_config.py` also gains
   `test_a_retired_jax_table_is_rejected` (Migration, below).
 - **The `[curriculum]` schema's fail-closed checks keep their tests**
   (#566, cleanup PR-B;
@@ -235,8 +236,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **CI runs six test jobs instead of eighteen, and pull requests skip the
+  robot's six real-training runs** (cleanup CU-14a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01; §3.2 CU-14 row). The `test`
+  matrix is three Pythons × {`shared`, `species`}: the `species` leg runs
+  the five species test directories in one pytest run, so the checks named
+  `test (<python>, <species>)` become `test (<python>, species)`, and CI
+  runs 10 jobs instead of 22. Both triggers share one anchored path list,
+  the matrix installs the `test` extra instead of `dev`, the plant-contract
+  job no longer re-runs its tests (the shared legs run them), and
+  `test_phase_c_interface.py` leaves the SB3 job. Pull requests and pushes
+  skip the six compsognathus_robot parametrisations of
+  `test_compsognathus_training.py` (the cleanup plan's decision 10 (a),
+  settled by the maintainer on 2026-09-30); the nightly schedule, a manual
+  dispatch and the `full-ci` label still run all twelve. A new species
+  adds its test directory to the `species` suite and to `testpaths`, which
+  a test ties together.
 - **The four dual species share their reward, contact, termination and
-  keyframe code** (cleanup CU-12 of `docs/CLEANUP_PLAN_2026_09.md`,
+  keyframe code** (#580, cleanup CU-12 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-01; §3.2 CU-12 row). `BaseDinoEnv._progress_terms`,
   `_nosedive_term`, `_heading_terms` and `_speed_terms` replace the eight
   thin `_compute_*` wrappers, `_contact_geom` is the one contact query (the
