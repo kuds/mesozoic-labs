@@ -50,12 +50,13 @@ no arm here is refused by name, never routed to the reward conjunction.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from ..config import STAGE_CONFIG_FILENAME
 from ..curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
+from ..file_io import read_json_object
 
 
 def evaluate_recorded_gate(
@@ -257,7 +258,7 @@ def _stance_stage_gate(
 #: either answers "what is the current task?" without this module re-deriving
 #: it.  Re-deriving would answer a *different* question (the task as configured
 #: now, not the one this stage ran) and would need the plant model loaded.
-_TASK_FINGERPRINT_ARTIFACTS = ("task_fingerprint.json", "stage_config.json")
+_TASK_FINGERPRINT_ARTIFACTS = ("task_fingerprint.json", STAGE_CONFIG_FILENAME)
 
 #: ``curriculum_kwargs`` keys the frozen capability spec records under the same
 #: name.  The frozen record is authoritative for the verdict; these are checked
@@ -282,16 +283,10 @@ def _current_task_sha256(stage_dir: Path) -> str | None:
     a stale one, and stale baselines block.
     """
     for name in _TASK_FINGERPRINT_ARTIFACTS:
-        path = stage_dir / name
-        if not path.is_file():
-            continue
-        try:
-            record: Any = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            # A truncated or hand-edited artifact proves nothing.  Try the
-            # next one; refusing is what happens if neither answers.
-            continue
-        if name == "stage_config.json" and isinstance(record, Mapping):
+        # A truncated or hand-edited artifact proves nothing (None).  Try the
+        # next one; refusing is what happens if neither answers.
+        record: Any = read_json_object(stage_dir / name)
+        if name == STAGE_CONFIG_FILENAME and record is not None:
             record = record.get("task_fingerprint")
         if isinstance(record, Mapping):
             recorded = record.get("task_sha256")

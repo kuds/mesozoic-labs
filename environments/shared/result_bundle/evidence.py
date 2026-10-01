@@ -18,12 +18,12 @@ from ..constants import PUBLICATION_SEED_START
 from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from ..record_fields import is_sha256_digest
 from ..stage_manifest import find_stage_dir
 from .errors import ResultBundleError
 
 _logger = logging.getLogger(__name__)
 
-_SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 #: Digest columns evaluation evidence may carry, each mapped to the noun its
 #: "mixes ..." error uses: the checkpoint the episodes were rolled out from,
 #: and (SB3 only) the VecNormalize statistics they ran under.
@@ -245,7 +245,7 @@ def _evaluation_evidence_aggregates(
             )
         for column, plural in _EVIDENCE_HASH_COLUMNS.items():
             digest = (row.get(column) or "").strip() or None
-            if digest is not None and _SHA256_DIGEST.fullmatch(digest) is None:
+            if digest is not None and not is_sha256_digest(digest):
                 raise ResultBundleError(
                     f"{checkpoint_label} evaluation evidence for stage {stage} records a malformed {column}: {digest!r}"
                 )
@@ -796,7 +796,7 @@ def validate_evaluation_evidence(
         config_path = find_stage_dir(run_path, stage) / "stage_config.json"
         try:
             config_value = json.loads(config_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:
             raise ResultBundleError(f"cannot read publication gate config for stage {stage}: {exc}") from exc
         if not isinstance(config_value, Mapping):
             raise ResultBundleError(f"publication gate config for stage {stage} must be an object")

@@ -57,6 +57,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE
+from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
@@ -76,13 +77,6 @@ SCHEDULE_IMPLEMENTATION = "push_schedule/v1+lowbias32+capture-point"
 MODEL_TASK_ATTRIBUTE = "mesozoic_task_fingerprint"
 #: Warm-start lineage record, persisted the same way on the CHILD checkpoint.
 MODEL_TASK_LINEAGE_ATTRIBUTE = "mesozoic_task_lineage"
-
-#: Plant identities record model_path REPO-RELATIVE (the identity must not
-#: depend on where a checkout lives), so resolving it against the process
-#: cwd only works when that happens to be the repository root — true in the
-#: test suite, false in Colab, whose notebook adds the clone to sys.path
-#: without chdir-ing into it.
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
 
@@ -557,6 +551,11 @@ def derive_stage_task_fingerprint(
 
         model_path = Path(str(plant_identity["model_path"]))
         if not model_path.is_absolute():
+            # Plant identities record model_path REPO-RELATIVE (the identity
+            # must not depend on where a checkout lives), so resolving it
+            # against the process cwd only works when that happens to be the
+            # repository root — true in the test suite, false in Colab, whose
+            # notebook adds the clone to sys.path without chdir-ing into it.
             model_path = _REPOSITORY_ROOT / model_path
         if not model_path.exists():
             raise TaskFingerprintError(

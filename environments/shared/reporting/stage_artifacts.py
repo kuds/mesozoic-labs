@@ -130,7 +130,7 @@ def build_stage_results_from_eval_data(
     if not isinstance(plant_identity, Mapping):
         saved_config_path = stage_dir / "stage_config.json"
         if saved_config_path.exists():
-            saved_config = _json.loads(saved_config_path.read_text())
+            saved_config = _json.loads(saved_config_path.read_text(encoding="utf-8"))
             plant_identity = saved_config.get("plant_identity")
 
     # The SELECTED checkpoint, so the `model_path` this records is the one the
@@ -987,14 +987,10 @@ def _recorded_curriculum_block(stage_dir: Path) -> "Mapping[str, Any] | None":
     way the bundle's evidence reader and the backfill tool read it.  None
     for an absent, unreadable or block-less file.
     """
-    path = stage_dir / "stage_config.json"
-    if not path.is_file():
-        return None
-    try:
-        record: Any = _json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(record, Mapping):
+    from ..config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir)
+    if record is None:
         return None
     block = record.get("curriculum", record.get("curriculum_kwargs"))
     return block if isinstance(block, Mapping) else None

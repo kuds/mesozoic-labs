@@ -24,11 +24,16 @@ Usage::
     python environments/shared/scripts/compare_run_diagnostics.py run_a/stage1
 """
 
-import json
 import sys
 from pathlib import Path
 
 import numpy as np
+
+_repo_root = str(Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from environments.shared.file_io import read_json_object  # noqa: E402
 
 # Signals worth comparing between two runs, in report order.  Each entry is
 # (npz key, display label, n_actuators-normalized?).
@@ -69,12 +74,8 @@ def _window_means(values):
 def _n_actuators(stage_dir: Path) -> int | None:
     """Read the action dimension from the stage's saved plant identity."""
     for name in ("stage_config.json", "plant_identity.json"):
-        path = stage_dir / name
-        if not path.exists():
-            continue
-        try:
-            blob = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError):
+        blob = read_json_object(stage_dir / name)
+        if blob is None:
             continue
         plant = blob.get("plant_identity", blob)
         dim = plant.get("action_dim") or plant.get("nu")

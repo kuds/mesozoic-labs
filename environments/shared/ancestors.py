@@ -124,6 +124,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
+from .file_io import read_json_object
+
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
     from .stage_manifest import StageEntry
@@ -215,16 +217,10 @@ def _recorded_load_lineage(stage_dir: Path) -> dict[str, Any]:
     non-root candidate and accepts a root, the same fail-closed reading the
     bundle audit gives an absent lineage.
     """
-    from .config import LOAD_LINEAGE_KEYS
+    from .config import LOAD_LINEAGE_KEYS, read_recorded_stage_config
 
-    path = stage_dir / "stage_config.json"
-    if not path.is_file():
-        return {}
-    try:
-        record: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    run_block = record.get("run") if isinstance(record, Mapping) else None
+    record = read_recorded_stage_config(stage_dir)
+    run_block = record.get("run") if record is not None else None
     if not isinstance(run_block, Mapping):
         return {}
     return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
@@ -861,14 +857,6 @@ class TrunkSelection:
         return "\n".join(lines)
 
 
-def _read_json_mapping(path: Path) -> "dict[str, Any] | None":
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return dict(value) if isinstance(value, Mapping) else None
-
-
 def _recorded_seed(stage_config: "Mapping[str, Any] | None") -> "int | None":
     run_block = stage_config.get("run") if isinstance(stage_config, Mapping) else None
     seed = run_block.get("seed") if isinstance(run_block, Mapping) else None
@@ -877,9 +865,7 @@ def _recorded_seed(stage_config: "Mapping[str, Any] | None") -> "int | None":
 
 def _recorded_plant_identity(stage_dir: Path, run_dir: Path) -> "dict[str, Any] | None":
     """The plant identity a stage recorded: its sidecar, the run's, else the handoff checkpoint's attribute."""
-    identity = _read_json_mapping(stage_dir / "plant_identity.json") or _read_json_mapping(
-        run_dir / "plant_identity.json"
-    )
+    identity = read_json_object(stage_dir / "plant_identity.json") or read_json_object(run_dir / "plant_identity.json")
     if identity is not None:
         return identity
     from .curriculum.checkpoints import select_handoff_checkpoint
@@ -958,11 +944,11 @@ def _node_support(
     current_gate_config: "Mapping[str, Any]",
 ) -> NodeSupport:
     """Replication of a covered node among its SOURCE run's siblings (decision D-B16), this run counted."""
-    from .config import recorded_hyperparameters_sha256
+    from .config import read_recorded_stage_config, recorded_hyperparameters_sha256
     from .curriculum.gate_schema import declared_certification_seeds
     from .replication import discover_replicates
 
-    stage_config = _read_json_mapping(ancestor.stage_dir / "stage_config.json")
+    stage_config = read_recorded_stage_config(ancestor.stage_dir)
     seed = _recorded_seed(stage_config)
     recipe = recorded_hyperparameters_sha256(stage_config) if stage_config is not None else None
     distinct = 1
@@ -1015,6 +1001,7 @@ def _identity_mismatch(
     Records that are missing or unreadable decide nothing: the seven rules
     still apply.
     """
+    from .config import read_recorded_stage_config
     from .result_bundle import DEFAULT_PROVENANCE_NAME, ResultBundleError, load_provenance
     from .stage_manifest import stage_dir_candidates
 
@@ -1041,7 +1028,7 @@ def _identity_mismatch(
     )
     if stage_dir is None:
         return None
-    stage_config = _read_json_mapping(stage_dir / "stage_config.json")
+    stage_config = read_recorded_stage_config(stage_dir)
     recorded = _canonical_algorithm_label(stage_config.get("algorithm")) if stage_config else None
     if recorded is not None and recorded != wanted:
         return f"{stage_dir} records algorithm {recorded}, not {wanted}"

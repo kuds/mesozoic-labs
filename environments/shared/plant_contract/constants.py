@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+# Bound as this module's own attributes: it stays the plant contract's patch
+# point (tests patch ``constants.REPOSITORY_ROOT``; source_layer, versions,
+# manifest and ``__main__`` read it here at call time), while the value comes
+# from the one computation in ``environments/shared/paths.py``.
+from ..paths import REPOSITORY_ROOT as REPOSITORY_ROOT
+from ..paths import SHARED_ROOT as _SHARED_ROOT
 
-_SHARED_ROOT = Path(__file__).resolve().parent.parent
-
-REPOSITORY_ROOT = _SHARED_ROOT.parents[1]
 SPECIES_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
 PLANT_VERSIONS_PATH = REPOSITORY_ROOT / "configs" / "plant_versions.toml"
 GENERATED_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json"

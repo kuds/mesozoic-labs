@@ -67,8 +67,11 @@ from __future__ import annotations
 import math
 import re
 from datetime import date, datetime
+from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, cast
+
+from . import record_fields
 
 RESULT_SCHEMA_VERSION = 4
 #: Versions this reader accepts.  v2 is the integer-stage schema every
@@ -154,45 +157,19 @@ CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4 = CANONICAL_RUNTIME_PROVENANCE_FIELDS + (
 )
 
 _GIT_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
-_SHA256_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class ResultSchemaError(ValueError):
     """Raised when a result summary is incomplete or contradictory."""
 
 
-def _require_mapping(value: Any, *, field: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ResultSchemaError(f"{field} must be an object")
-    return cast(dict[str, Any], value)
-
-
-def _require_nonempty_string(value: Any, *, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ResultSchemaError(f"{field} must be a non-empty string")
-    return value.strip()
-
-
-def _optional_nonempty_string(value: Any, *, field: str) -> str | None:
-    if value is None:
-        return None
-    return _require_nonempty_string(value, field=field)
-
-
-def _require_positive_int(value: Any, *, field: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise ResultSchemaError(f"{field} must be a positive integer")
-    return value
-
-
-def _optional_number(value: Any, *, field: str) -> int | float | None:
-    if value is None:
-        return None
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ResultSchemaError(f"{field} must be a number or null")
-    if not math.isfinite(float(value)):
-        raise ResultSchemaError(f"{field} must be finite or null")
-    return value
+# The shared field validators (``record_fields``), raising ResultSchemaError.
+_require_mapping = partial(record_fields.require_mapping, error=ResultSchemaError)
+_require_nonempty_string = partial(record_fields.require_nonempty_string, error=ResultSchemaError)
+_optional_nonempty_string = partial(record_fields.optional_nonempty_string, error=ResultSchemaError)
+_require_positive_int = partial(record_fields.require_positive_int, error=ResultSchemaError)
+_optional_number = partial(record_fields.optional_number, error=ResultSchemaError)
+_require_sha256 = partial(record_fields.require_sha256, error=ResultSchemaError)
 
 
 def _validate_task_success_stage_keys(raw_stage: Mapping[str, Any], *, prefix: str) -> None:
@@ -571,12 +548,6 @@ def _require_relative_posix_path(value: Any, *, field: str) -> str:
     return text
 
 
-def _require_sha256(value: Any, *, field: str) -> str:
-    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
-        raise ResultSchemaError(f"{field} must be sha256:<64 lowercase hex>")
-    return value
-
-
 def _validate_deliverable_records(
     deliverables_value: Any,
     *,
@@ -805,7 +776,7 @@ def validate_provenance(
             )
         for key in ("model_hash", "config_hash"):
             value = identifiers[key]
-            if value is None or _SHA256_PATTERN.fullmatch(value) is None:
+            if not record_fields.is_sha256_digest(value):
                 raise ResultSchemaError(f"provenance.{key} in {result_path} must be sha256:<64 lowercase hex>")
 
         runtime_fields = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4 if v4 else CANONICAL_RUNTIME_PROVENANCE_FIELDS
@@ -833,9 +804,7 @@ def validate_provenance(
             raise ResultSchemaError(
                 f"provenance.repository_patch_sha256 in {result_path} must be null for a clean repository"
             )
-        if repository_patch_sha256 is not None and (
-            not isinstance(repository_patch_sha256, str) or _SHA256_PATTERN.fullmatch(repository_patch_sha256) is None
-        ):
+        if repository_patch_sha256 is not None and not record_fields.is_sha256_digest(repository_patch_sha256):
             raise ResultSchemaError(
                 f"provenance.repository_patch_sha256 in {result_path} must be null or sha256:<64 lowercase hex>"
             )
@@ -1002,7 +971,7 @@ def validate_provenance(
                     "must be a normalized relative POSIX path"
                 )
             checkpoint_model_hash = checkpoint.get("model_hash")
-            if not isinstance(checkpoint_model_hash, str) or _SHA256_PATTERN.fullmatch(checkpoint_model_hash) is None:
+            if not record_fields.is_sha256_digest(checkpoint_model_hash):
                 raise ResultSchemaError(
                     f"provenance.selected_checkpoints.{stage_key}.model_hash in {result_path} "
                     "must be sha256:<64 lowercase hex>"
@@ -1022,7 +991,7 @@ def validate_provenance(
                         f"provenance.selected_checkpoints.{stage_key}.normalization_path "
                         f"in {result_path} must be a normalized relative POSIX path"
                     )
-                if not isinstance(normalization_hash, str) or _SHA256_PATTERN.fullmatch(normalization_hash) is None:
+                if not record_fields.is_sha256_digest(normalization_hash):
                     raise ResultSchemaError(
                         f"provenance.selected_checkpoints.{stage_key}.normalization_hash "
                         f"in {result_path} must be sha256:<64 lowercase hex>"
@@ -1264,7 +1233,7 @@ def validate_captured_provenance(
     dirty = candidate.get("repository_dirty")
     patch_hash = candidate.get("repository_patch_sha256")
     if dirty is True:
-        if not isinstance(patch_hash, str) or _SHA256_PATTERN.fullmatch(patch_hash) is None:
+        if not record_fields.is_sha256_digest(patch_hash):
             raise ResultSchemaError(
                 f"provenance.repository_patch_sha256 in {result_path} is required and must be "
                 "sha256:<64 lowercase hex> for a dirty repository"

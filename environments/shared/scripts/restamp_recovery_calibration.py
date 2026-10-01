@@ -47,6 +47,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from environments.shared.paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_SPECIES = ("compsognathus", "compsognathus_robot")
@@ -54,7 +56,6 @@ RESTAMP_REASON = (
     "BEHAVIOR_RECIPES_PLAN §4.6 Phase C interface bump; fixed-command nulls do not read the observation "
     "and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
 )
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class RestampError(RuntimeError):

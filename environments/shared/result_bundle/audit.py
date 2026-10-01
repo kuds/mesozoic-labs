@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..curriculum.gate_schema import GateSchemaError, declared_certification_seeds
+from ..record_fields import is_sha256_digest
 from ..stage_manifest import StageManifestError, find_stage_dir, resolve_stage_key
 from . import evidence, hashing
 from .ancestors import load_ancestor_records, project_ancestor_records
@@ -91,7 +92,7 @@ def _audit_load_lineage(
         problems.append(f"stage {stage} config run.load_mode {lineage['load_mode']!r} is not one of {LOAD_MODES}")
     for key in ("parent_task_sha256", "parent_checkpoint_sha256"):
         digest = lineage.get(key)
-        if key in lineage and (not isinstance(digest, str) or evidence._SHA256_DIGEST.fullmatch(digest) is None):
+        if key in lineage and not is_sha256_digest(digest):
             problems.append(f"stage {stage} config run.{key} must be sha256:<64 lowercase hex>")
     parent_run_id = lineage.get("parent_run_id")
     if "parent_run_id" in lineage and (not isinstance(parent_run_id, str) or not parent_run_id.strip()):
@@ -474,7 +475,7 @@ def audit_result_bundle(
                             errors.extend(lineage_problems)
                             if stage_lineage is not None:
                                 lineage[str(stage)] = stage_lineage
-                    except (OSError, json.JSONDecodeError, ResultBundleError) as exc:
+                    except (OSError, ValueError, ResultBundleError) as exc:
                         errors.append(str(exc))
 
             try:

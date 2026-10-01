@@ -24,12 +24,11 @@ import numpy as np
 
 from environments.shared.behavior_env import canonical_env_parameters, get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig
 from environments.shared.terrain_sampling import TerrainSamplerConfig, get_sampled_behavior_env_class
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _sha(path: Path) -> str:

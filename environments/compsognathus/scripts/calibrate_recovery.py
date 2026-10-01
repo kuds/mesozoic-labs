@@ -30,11 +30,11 @@ import numpy as np
 
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.recovery_gate import binomial_lcb, binomial_ucb
+from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.recovery_evaluation import constant_action_controller, roll_recovery_panel
 from environments.shared.species_registry import get_species_config
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 SPECIES = ("compsognathus", "compsognathus_robot")
 QUIET_SEED = 1042
 SELECTION_SEED = 2042

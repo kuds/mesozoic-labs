@@ -7,6 +7,10 @@ dies mid-flush; ``np.savez`` in particular rewrites the whole zip on
 every call, so the file spends real time in a half-written state.
 These helpers stage writes locally and publish with copy-to-temp +
 ``os.replace`` so the destination path always holds a complete file.
+
+:func:`read_json_object` is the shared lenient reader of the JSON records
+they write: a record that is missing, unreadable or not an object reads as
+``None``.
 """
 
 from __future__ import annotations
@@ -117,6 +121,22 @@ def atomic_write_json(
     )
     atomic_write_text(path, text + "\n" if trailing_newline else text, encoding=encoding)
     return Path(path)
+
+
+def read_json_object(path: "str | Path") -> dict[str, Any] | None:
+    """The JSON object *path* holds, or ``None``.
+
+    The shared lenient reader: ``None`` when the file is absent (or a
+    directory), unreadable, not UTF-8, not JSON (a byte-order mark included)
+    or JSON that is not an object -- every case a record that proves nothing.
+    NaN and infinities are accepted, as :func:`atomic_write_json` writes them.
+    A reader that must refuse a bad record reads the file itself and says why.
+    """
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def atomic_write_csv(
