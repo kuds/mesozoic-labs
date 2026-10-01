@@ -3,7 +3,10 @@ name: Python CI
 on:
   push:
     branches: [main]
-    paths:
+    # One list for both triggers: the pull_request trigger names it by the
+    # alias *ci-paths (GitHub takes YAML anchors and aliases, not merge keys),
+    # so a pattern added here triggers both (test_ci_tool_pins.py, CU-14a).
+    paths: &ci-paths
       - "README.md"
       - "environments/**"
       - "configs/**"
@@ -45,48 +48,16 @@ on:
     # starts a run that sees it: the SB3 job's depth step reads the labels
     # from the triggering event's payload, and a re-run replays the original
     # payload (consolidation PR-3). Any label added to a pull request that
-    # touches the paths below re-runs the workflow on its head once.
+    # touches the push trigger's paths re-runs the workflow on its head once.
     types: [opened, synchronize, reopened, labeled]
-    paths:
-      - "README.md"
-      - "environments/**"
-      - "configs/**"
-      # docs/** rather than docs/*.md: the investigations/reviews/hardware
-      # subdirectories were silently outside CI (gap review CI7).
-      - "docs/**"
-      - "notebooks/**"
-      - "results/**/summary.json"
-      - "website/blog/**"
-      - "website/docs/**"
-      # website/src/** rather than website/src/data/**: test_species_catalog.py
-      # pins the TSX adapter and gate formatter against the Python renderer
-      # as source text, so a TSX-only PR must run those pins (WS4, D-A10).
-      - "website/src/**"
-      - "website/static/videos/**"
-      - "website/static/img/posters/**"
-      - "pyproject.toml"
-      # test_ci_tool_pins.py checks the hook versions and excludes it holds,
-      # so a pre-commit-only PR (a `pre-commit autoupdate`) must run it (CU-1).
-      - ".pre-commit-config.yaml"
-      # The sys.path bootstrap every CI pytest invocation imports before
-      # collecting tests: a conftest-only PR used to trigger no jobs while
-      # changing collection behavior for every later run (gap review CI7).
-      - "conftest.py"
-      # The checkout's line endings: the plant manifest and the digest snapshot
-      # hash file bytes, so a .gitattributes-only PR can move a digest (D-D22).
-      - ".gitattributes"
-      # Coverage reads these before pyproject.toml, so one could take files out
-      # of the union; test_coverage_config.py pins that none does (CU-9).
-      - ".coveragerc"
-      - ".coveragerc.toml"
-      - "setup.cfg"
-      - "tox.ini"
-      - ".github/workflows/**"
-      - ".github/actions/**"
-  # Nightly run of the whole workflow on `main`; in it the SB3 job runs the
-  # six-species and four-notebook-parameter sets that pull-request and push
-  # runs leave out (the SB3 job's "Decide the SB3 depth" step; consolidation
-  # PR-3). GitHub pauses scheduled workflows after 60 days without a commit.
+    paths: *ci-paths
+  # Nightly run of the whole workflow on `main`. In it the SB3 job runs what
+  # pull-request and push runs leave out: the every-species and
+  # four-notebook-parameter sets, and the six compsognathus_robot
+  # parametrisations of test_compsognathus_training.py's trainer-handoff,
+  # warm-start and freeze-rehearsal tests (the SB3 job's "Decide the SB3
+  # depth" step; consolidation PR-3, and decision 10 (a) in CU-14a). GitHub
+  # pauses scheduled workflows after 60 days without a commit.
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
@@ -173,24 +144,11 @@ jobs:
       - name: Verify the digest snapshot golden
         run: python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check
 
-      # Every pytest step passes -vv: pyproject.toml's addopts carries -q, which
-      # cancels one -v, so -vv prints each test id. -rfEs keeps the default
-      # failure and error lines of the short summary and adds skip reasons
-      # (-rs alone would replace them); --durations=30 lists the slowest tests.
-      - name: Run plant-contract integration tests
-        run: |
-          pytest \
-            environments/shared/tests/test_plant_contract_*.py \
-            environments/shared/tests/test_species_catalog.py \
-            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
-        env:
-          COVERAGE_FILE: .coverage.plant-contract
-
-      - name: Upload coverage data
-        uses: ./.github/actions/upload-coverage
-        with:
-          name: coverage-plant-contract
-
+      # No pytest step, and so no coverage upload (CU-14a): the
+      # test_plant_contract_*.py files and test_species_catalog.py, the
+      # frozen-core pin test_plant_contract_frozen_mjx.py among them, run in
+      # the `test (<python>, shared)` legs on every Python version, which cover
+      # every line this job's own run of them covered.
       - name: Verify plant identity from an installed wheel
         run: |
           python -m pip wheel --no-deps --wheel-dir /tmp/mesozoic-wheel .
@@ -225,19 +183,34 @@ jobs:
                   assert read_recipe(recipe, species)[0]["behavior"]["species"] == species
           PY
 
-  # One matrix over per-directory suites, including the Compsognathus model prototypes: the previous five jobs
-  # were byte-identical 37-line blocks differing only in the pytest path and
-  # coverage-file suffix (gap review ST1). NOTE for branch protection: the
-  # check names change from "test-shared (3.11)" to "test (shared, 3.11)" —
-  # required-status settings must be updated to match.
+  # One matrix of two suites per Python version (gap review ST1, then CU-14a):
+  # the shared tests, and every species' tests directory in one pytest run (as
+  # one job per species, they spent more time on setup than on tests). Each
+  # suite's `tests` names its directories, and every directory in
+  # pyproject.toml's testpaths is in exactly one suite (test_ci_tool_pins.py),
+  # so a new species adds its tests directory to the species suite here and
+  # to testpaths. The explicit `name:` gives the check names
+  # "test (<python>, shared)" and "test (<python>, species)"; a branch
+  # protection rule that requires checks must name these.
   test:
+    name: test (${{ matrix.python-version }}, ${{ matrix.suite }})
     runs-on: ubuntu-latest
     needs: lint
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus, compsognathus]
+        suite: [shared, species]
+        include:
+          - suite: shared
+            tests: environments/shared/tests/
+          - suite: species
+            tests: >-
+              environments/velociraptor/tests/
+              environments/brachiosaurus/tests/
+              environments/trex/tests/
+              environments/dibothrosuchus/tests/
+              environments/compsognathus/tests/
     steps:
       - uses: actions/checkout@v4
 
@@ -249,13 +222,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # The test extra, not dev: no test runs ruff, mypy or pre-commit (the
+      # lint job runs ruff and mypy). PyYAML came only with pre-commit and is
+      # not installed here, so a test that reads this workflow must read it as
+      # text.
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e ".[test]"
 
+      # Every pytest step passes -vv: pyproject.toml's addopts carries -q, which
+      # cancels one -v, so -vv prints each test id. -rfEs keeps the default
+      # failure and error lines of the short summary and adds skip reasons
+      # (-rs alone would replace them); --durations=30 lists the slowest tests.
       - name: Run tests with coverage
-        run: pytest environments/${{ matrix.suite }}/tests/ -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        run: pytest ${{ matrix.tests }} -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.${{ matrix.suite }}-${{ matrix.python-version }}
@@ -313,10 +294,13 @@ jobs:
       # added their suites here, several of which import no SB3 and already run
       # three times in the `test` matrix, and because every real-PPO smoke ran
       # for all six species and all four notebook parameters on every PR. Pull
-      # requests and pushes now keep ONE real-PPO smoke per body of work (the
-      # compsognathus_robot parameter, the smallest plant); the nightly schedule,
-      # a manual dispatch and the `full-ci` label on a pull request run the full
-      # sets. The step names and the required-check name are unchanged.
+      # requests and pushes now keep ONE real-PPO smoke per body of work in the
+      # notebook and behavior steps, on the compsognathus_robot parameter (the
+      # costliest plant to build), and the integration step skips the six
+      # compsognathus_robot parametrisations of test_compsognathus_training's
+      # twelve training runs and keeps the six compsognathus ones (decision 10
+      # (a), CU-14a). The nightly schedule, a manual dispatch and the `full-ci`
+      # label on a pull request run the full sets and all twelve.
       # (`cond && value || ''` puts the non-empty string on the selecting
       # condition: GitHub's ternary idiom falls through to the right operand
       # whenever the middle one is falsy, and '' is falsy.)
@@ -355,7 +339,11 @@ jobs:
           COVERAGE_FILE: .coverage.sb3-behaviors
 
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
-      # test_behavior_env) run in the `test` matrix and are not repeated here.
+      # test_behavior_env, test_phase_c_interface) run in the `test` matrix and are
+      # not repeated here. At reduced depth -k also leaves out the robot's six
+      # test_compsognathus_training runs (decision 10 (a)); a bare
+      # `not compsognathus_robot` would drop the robot's parameters in
+      # test_config.py and test_recovery_calibration.py too.
       - name: Run SB3 integration tests
         run: |
           pytest \
@@ -369,7 +357,6 @@ jobs:
             environments/shared/tests/test_diagnostics.py \
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
-            environments/shared/tests/test_phase_c_interface.py \
             environments/shared/tests/test_policy_loading.py \
             environments/shared/tests/test_report_script_vecnorm.py \
             environments/shared/tests/test_resume_continuation.py \
@@ -379,7 +366,7 @@ jobs:
             environments/shared/tests/test_train_wiring.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
-            -k 'not test_actual_notebook_training_stance_and_recovery_reports' \
+            -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_training and compsognathus_robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
@@ -397,7 +384,6 @@ jobs:
     # union is what `fail_under` gates on.
     runs-on: ubuntu-latest
     needs:
-      - plant-contract
       - test
       - test-sb3
     steps:

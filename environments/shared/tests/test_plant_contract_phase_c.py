@@ -1,10 +1,12 @@
 """Phase C plant-contract pin: SB3/MJX observation parity on a NON-ZERO command.
 
 Lives beside ``test_plant_contract_layers.py`` (the ``test_plant_contract_*``
-glob of the plant-contract CI job, amendment A2) and follows its pattern:
+files, amendment A2) and follows its pattern:
 ``_policy_interface_payload(..., require_backend_parity=True)`` resolves the
-MJX observation builder with NumPy, so no JAX is needed and the job's
-``.[test]`` install is enough.  The shared matrix job runs it too.
+MJX observation builder with NumPy, so no JAX is needed and the ``.[test]``
+install is enough.  The shared legs of the test matrix run it, with the rest of
+the ``test_plant_contract_*`` files (the plant-contract CI job runs no pytest
+since CU-14a).
 
 Decision D-C4 / invariant 9, parity half: both probes inject
 ``COMMAND_PROBE_VECTOR`` so a dropped or mis-ordered command slot diverges

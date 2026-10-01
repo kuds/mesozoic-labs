@@ -194,10 +194,14 @@ Follow this checklist:
      to add the species' lines to `configs/digest_snapshot.generated.txt`
 
 9. **Update CI** (`.github/workflows/python-ci.yml`):
-   - Add a `test-<species>` job following the existing pattern
+   - Add `environments/<species>/tests/` to the `species` suite's `tests` in
+     the `test` job's matrix (`include`); the species directories run in one
+     pytest run per Python version
 
 10. **Update pyproject.toml**:
-    - Add the test path to `[tool.pytest.ini_options]`
+    - Add the test path to `testpaths` in `[tool.pytest.ini_options]`
+      (`environments/shared/tests/test_ci_tool_pins.py` checks that the CI
+      matrix runs every `testpaths` directory exactly once)
 
 11. **Add the documentation** (`environments/<species>/README.md`,
     `website/docs/models/<species>.mdx`):

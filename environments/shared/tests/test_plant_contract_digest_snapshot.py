@@ -10,8 +10,8 @@ test here. These tests pin that step, keep the committed golden complete
 writes, every stage's reward capture and the ends its probes reach), and
 exercise ``--check``'s comparison and failure message and ``--write`` on tiny
 snapshots. The reward captures (CU-11) also get unit tests of their two
-encodings, one species' capture on every leg of the test matrix, and a check
-that no state probe sits on its tilt, height or nosedive threshold.
+encodings, one species' capture in each shared leg of the test matrix, and a
+check that no state probe sits on its tilt, height or nosedive threshold.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from environments.shared.config import SPECIES_NAMES
 from environments.shared.harnesses import digest_snapshot
 from environments.shared.stage_manifest import load_stage_manifest
 
-from .ci_workflow_helpers import CI_WORKFLOW, glob_matches, path_filters
+from .ci_workflow_helpers import ci_code, glob_matches, job_block, job_steps, path_filters
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN = REPOSITORY_ROOT / digest_snapshot.GOLDEN
@@ -82,33 +82,20 @@ _POSE_REASONS = {
 # -- the CI step --------------------------------------------------------------
 
 
-def _ci_code() -> str:
-    """python-ci.yml without its comment lines."""
-    lines = CI_WORKFLOW.read_text(encoding="utf-8").splitlines()
-    return "\n".join(line for line in lines if not line.lstrip().startswith("#")) + "\n"
-
-
 def _plant_contract_steps() -> list[str]:
     """The plant-contract job's steps, each from its ``- `` to the next."""
-    text = _ci_code()
     # A workflow- or job-level `defaults: run: shell:` could replace the step's shell.
-    assert not re.search(r"^[\"']?defaults[\"']?\s*:", text, re.MULTILINE), "python-ci.yml sets no run defaults"
-    start = text.index("\n  plant-contract:\n")
-    end = re.compile(r"^  \S", re.MULTILINE).search(text, start + 2)
-    job = text[start : end.start() if end else len(text)]
+    assert not re.search(r"^[\"']?defaults[\"']?\s*:", ci_code(), re.MULTILINE), "python-ci.yml sets no run defaults"
+    job = job_block("plant-contract")
     job_keys = re.compile(r"^    [\"']?(if|continue-on-error|defaults)[\"']?\s*:", re.MULTILINE)
     assert not job_keys.search(job), "the plant-contract job must always run, with the default shell"
     # GitHub skips a job whose needed job was skipped, so the lint job it needs must always run too.
     needs = re.findall(r"^    [\"']?needs[\"']?\s*:.*$", job, re.MULTILINE)
     assert needs == ["    needs: lint"], f"the plant-contract job must need only lint: {needs}"
-    lint_start = text.index("\n  lint:\n")
-    lint_end = re.compile(r"^  \S", re.MULTILINE).search(text, lint_start + 2)
-    lint = text[lint_start : lint_end.start() if lint_end else len(text)]
-    assert not re.search(r"^    [\"']?(if|continue-on-error|needs)[\"']?\s*:", lint, re.MULTILINE), (
+    assert not re.search(r"^    [\"']?(if|continue-on-error|needs)[\"']?\s*:", job_block("lint"), re.MULTILINE), (
         "the lint job the plant-contract job needs must always run"
     )
-    starts = [match.start() for match in re.finditer(r"^      - ", job, re.MULTILINE)]
-    return [job[a:b] for a, b in zip(starts, [*starts[1:], len(job)])]
+    return job_steps("plant-contract")
 
 
 def test_plant_contract_job_checks_the_full_snapshot_against_the_golden() -> None:
@@ -125,7 +112,7 @@ def test_plant_contract_job_checks_the_full_snapshot_against_the_golden() -> Non
 
 def test_ci_never_skips_the_behavior_section() -> None:
     # D-D22: a change that moves only behavior identities is caught on its own pull request.
-    assert "--skip-behaviors" not in _ci_code()
+    assert "--skip-behaviors" not in ci_code()
 
 
 def test_the_golden_the_harness_and_the_line_endings_trigger_the_workflow() -> None:
@@ -299,7 +286,7 @@ def test_exact_streams_see_an_ulp_that_the_rounded_golden_does_not() -> None:
 
 
 def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch) -> None:
-    # CI's digest step runs every stage on Python 3.12; this runs one species on every leg of the test matrix,
+    # CI's digest step runs every stage on Python 3.12; this runs one species in each shared leg of the test matrix,
     # where Python 3.11's float sum() moves the compsognathus reward by an ulp that the golden rounds away.
     monkeypatch.setattr("environments.shared.config.SPECIES_NAMES", ("compsognathus",))
     out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)

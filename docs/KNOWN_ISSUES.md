@@ -1495,7 +1495,7 @@ Still open:
   (:3-15), and its `deploy` job needs only the `build` job (`npm ci`, `tsc`,
   the site build) and the `main` ref (:72-78). A push with a hand-edited or
   stale `website/src/data/species.generated.json` therefore deploys while
-  python-ci's `species_catalog --check` (`python-ci.yml:151-154`) fails on the
+  python-ci's `species_catalog --check` (`python-ci.yml:122-125`) fails on the
   same commit, and `main` has no required checks
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.8 item 2). The
   workflow's comment (:7-11) leaves the wait to a required-checks setting, but
