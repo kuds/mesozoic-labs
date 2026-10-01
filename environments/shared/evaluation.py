@@ -261,7 +261,7 @@ def record_stage_video(
         return
 
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
-    from .train_base import _ensure_sb3
+    from .policy_loading import _ensure_sb3
 
     sb3 = _ensure_sb3()
     if plant_identity is None and species != "dino":
@@ -427,7 +427,7 @@ def evaluate(
     """Evaluate a trained model with full locomotion metrics.
 
     The VecNormalize sidecar is resolved with the trainer's own
-    :func:`~environments.shared.train_base._resolve_vecnorm_sidecar`, so a
+    :func:`~environments.shared.policy_loading._resolve_vecnorm_sidecar`, so a
     periodic ``<prefix>_<steps>_steps.zip`` checkpoint finds its
     ``<prefix>_vecnormalize_<steps>_steps.pkl`` (review ER1).  A checkpoint
     with no sidecar under either convention **fails closed**: scoring it on
@@ -442,7 +442,7 @@ def evaluate(
     from .metrics import LocomotionMetrics
     from .metrics import env_dt as _env_dt
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
-    from .train_base import _ensure_sb3, _resolve_vecnorm_sidecar
+    from .policy_loading import _ensure_sb3, _resolve_vecnorm_sidecar
 
     sb3 = _ensure_sb3()
     plant_identity = current_plant_identity(species_cfg.species)

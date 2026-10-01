@@ -22,17 +22,20 @@ Only a few names are still re-exported here for backward compatibility --
 ``main``, ``_apply_overrides``, ``_cast_value``, ``eval_policy``,
 ``_select_handoff_checkpoint`` (now
 :func:`~environments.shared.curriculum.checkpoints.select_handoff_checkpoint`),
-and the ``tb_sync`` helpers -- so existing ``from environments.shared.train_base
+``_ensure_sb3``, ``_resolve_vecnorm_sidecar`` and ``_PERIODIC_CHECKPOINT_RE``
+(now in :mod:`~environments.shared.policy_loading`, cleanup CU-8b), and the
+``tb_sync`` helpers -- so existing ``from environments.shared.train_base
 import ...`` statements naming them keep working.  Import everything else
-from its home module.
+from its home module.  The three ``policy_loading`` names are bound here for
+old importers only: this module's own code imports them from
+``policy_loading`` at call time, so a patch there reaches it and a patch of
+the name here reaches none of it.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import logging
-import re
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -68,40 +71,6 @@ logger = logging.getLogger(__name__)
 
 # Suppress noisy tensorboardX NaN/Inf warnings (handled by _sanitize in diagnostics.py)
 logging.getLogger("tensorboardX").setLevel(logging.ERROR)
-
-
-def _ensure_sb3():
-    """Import SB3 or exit with a helpful error."""
-    try:
-        from stable_baselines3 import PPO, SAC
-        from stable_baselines3.common.callbacks import (
-            CallbackList,
-            CheckpointCallback,
-            EvalCallback,
-        )
-        from stable_baselines3.common.monitor import Monitor
-        from stable_baselines3.common.utils import set_random_seed
-        from stable_baselines3.common.vec_env import (
-            DummyVecEnv,
-            SubprocVecEnv,
-            VecNormalize,
-        )
-
-        return {
-            "PPO": PPO,
-            "SAC": SAC,
-            "CallbackList": CallbackList,
-            "CheckpointCallback": CheckpointCallback,
-            "EvalCallback": EvalCallback,
-            "Monitor": Monitor,
-            "set_random_seed": set_random_seed,
-            "DummyVecEnv": DummyVecEnv,
-            "SubprocVecEnv": SubprocVecEnv,
-            "VecNormalize": VecNormalize,
-        }
-    except ImportError:
-        logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
-        sys.exit(1)
 
 
 @dataclasses.dataclass
@@ -210,6 +179,8 @@ def make_env(
     plant_identity: PlantIdentity | None = None,
 ):
     """Create a single environment instance."""
+    from .policy_loading import _ensure_sb3
+
     sb3 = _ensure_sb3()
 
     def _init():
@@ -254,6 +225,8 @@ def create_vec_env(
     statistics match the algorithm's discount factor; otherwise it silently
     drifts from SB3's hard-coded default of 0.99.
     """
+    from .policy_loading import _ensure_sb3
+
     sb3 = _ensure_sb3()
 
     env_fns = [make_env(species_cfg, stage_configs, stage, i, seed, plant_identity) for i in range(n_envs)]
@@ -372,12 +345,6 @@ def _prepare_alg_kwargs(
     return alg_kwargs, local_tb_dir, gcs_tb_path
 
 
-#: SB3's ``CheckpointCallback`` names its periodic checkpoints
-#: ``{prefix}_{steps}_steps.zip`` (``CheckpointCallback._checkpoint_path``;
-#: mirrored by ``curriculum.checkpoints._CHECKPOINT_KINDS``).
-_PERIODIC_CHECKPOINT_RE = re.compile(r"(.+)_(\d+)_steps$")
-
-
 def _is_resume_continuation(
     load_path: "str | None",
     *,
@@ -407,6 +374,8 @@ def _is_resume_continuation(
     """
     if not load_path or task_load_mode != "resume_same_stage" or algorithm != "ppo":
         return False
+    from .policy_loading import _PERIODIC_CHECKPOINT_RE
+
     stem = Path(load_path).name
     if stem.endswith(".zip"):
         stem = stem[: -len(".zip")]
@@ -440,40 +409,6 @@ def _is_remote_mount_path(path: "Path | str") -> bool:
     return _is_gcs_path(resolved) or resolved.startswith(_REMOTE_MOUNT_ROOTS)
 
 
-def _resolve_vecnorm_sidecar(load_path: str) -> str:
-    """Resolve the VecNormalize sidecar path for a checkpoint being loaded.
-
-    Two sidecar naming conventions coexist: this repository's curated
-    checkpoints (``best_model``, ``robust_best_model``, ``stage<N>_final``)
-    save ``<base>_vecnorm.pkl``, while SB3's
-    ``CheckpointCallback(save_vecnormalize=True)`` writes
-    ``<prefix>_vecnormalize_<steps>_steps.pkl`` for its periodic
-    ``<prefix>_<steps>_steps.zip``.  Probing only the curated name made a
-    ``--load stage2_5000000_steps.zip`` resume warn and then train the loaded
-    policy under fresh normalization statistics — silently (review F3).
-
-    A ``load_path`` that already names a ``.pkl`` file is returned unchanged:
-    ``train_curriculum`` hands the sidecar path itself, and appending
-    ``_vecnorm.pkl`` to it would probe a file that cannot exist.
-
-    Returns the first existing candidate; when none exists, the curated
-    ``<base>_vecnorm.pkl`` name, so the caller's warning names the primary
-    probe.
-    """
-    if load_path.endswith(".pkl"):
-        return load_path
-    base = load_path[:-4] if load_path.endswith(".zip") else load_path
-    curated = base + "_vecnorm.pkl"
-    if Path(curated).exists():
-        return curated
-    match = _PERIODIC_CHECKPOINT_RE.match(Path(base).name)
-    if match:
-        periodic = Path(base).parent / f"{match.group(1)}_vecnormalize_{match.group(2)}_steps.pkl"
-        if periodic.exists():
-            return str(periodic)
-    return curated
-
-
 def _load_vecnorm_into_envs(
     load_path: str | None,
     train_env,
@@ -490,7 +425,9 @@ def _load_vecnorm_into_envs(
 
     The statistics come from ``vecnorm_path`` when the caller names the
     loaded checkpoint's sidecar, else from the sidecar
-    :func:`_resolve_vecnorm_sidecar` works out from ``load_path``.
+    :func:`~environments.shared.policy_loading._resolve_vecnorm_sidecar`
+    works out from ``load_path`` (imported at call time, so a patch of
+    ``policy_loading._resolve_vecnorm_sidecar`` reaches this load too).
 
     A ``load_path`` whose VecNormalize sidecar is missing **fails closed**:
     training the loaded policy under fresh mean-0/var-1 statistics feeds it
@@ -520,6 +457,7 @@ def _load_vecnorm_into_envs(
     records the parent's mode.
     """
     from .curriculum import load_vecnorm_stats
+    from .policy_loading import _resolve_vecnorm_sidecar
 
     if load_path:
         _vecnorm_path = vecnorm_path or _resolve_vecnorm_sidecar(load_path)
@@ -1101,6 +1039,7 @@ def train(
     _validate_post_eval_episodes(post_eval_episodes)
 
     from .config import read_stage_duration, record_stage_duration, refuse_occupied_stage_dir, save_stage_config
+    from .policy_loading import _ensure_sb3
     from .stage_manifest import load_stage_manifest
     from .task_fingerprint import (
         read_checkpoint_task_fingerprint,
@@ -1745,6 +1684,7 @@ def _post_training_eval_panels(
     import numpy as _np
 
     from .curriculum import load_vecnorm_stats
+    from .policy_loading import _ensure_sb3
 
     sb3 = _ensure_sb3()
     panel: dict[str, Any] = {}
@@ -2175,6 +2115,7 @@ def train_curriculum(
         thresholds_from_configs,
     )
     from .curriculum.gate_schema import gate_config_view
+    from .policy_loading import _ensure_sb3
     from .result_bundle import write_gate_verdict
     from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import stage_task_fingerprint
@@ -2833,5 +2774,15 @@ def _record_stage_result(
 # existing ``from environments.shared.train_base import ...`` continues
 # to work without changes.
 
+from . import policy_loading as _policy_loading  # noqa: E402
 from .cli import _apply_overrides, _cast_value, main  # noqa: E402, F401
 from .evaluation import eval_policy  # noqa: E402
+
+# Moved to policy_loading (cleanup CU-8b) and bound here for importers that
+# predate the move. Assignments, not imports: this module's own functions
+# import the names from policy_loading at call time, so one patch there
+# reaches them, and a module-level import of the same names would make each
+# of those a redefinition that ruff's F811 autofix deletes.
+_ensure_sb3 = _policy_loading._ensure_sb3
+_resolve_vecnorm_sidecar = _policy_loading._resolve_vecnorm_sidecar
+_PERIODIC_CHECKPOINT_RE = _policy_loading._PERIODIC_CHECKPOINT_RE

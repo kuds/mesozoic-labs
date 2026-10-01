@@ -236,8 +236,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary still reads them; no new sweep folders are written.
 
 ### Changed
+- **`policy_loading` owns the SB3 import helper and the VecNormalize sidecar
+  resolver** (cleanup CU-8b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01;
+  §3.2 CU-8 row). `_ensure_sb3`, `_resolve_vecnorm_sidecar` and the
+  periodic-checkpoint pattern move from `train_base` with their bodies
+  unchanged and keep their private names; `train_base` still exposes them
+  as aliases for notebooks saved before PR-14c, and every library caller
+  looks them up in `policy_loading` when called, so one patch reaches all
+  of them.
+  `resolve_vecnorm_path` no longer imports `train_base`, so resolving a
+  sidecar no longer loads SB3 and torch. No digest moves.
+  `docs/KNOWN_ISSUES.md` records a gap found on the way: the
+  final-checkpoint replay video runs on raw observations, with no warning,
+  when the final pair's sidecar is missing.
 - **CI runs six test jobs instead of eighteen, and pull requests skip the
-  robot's six real-training runs** (cleanup CU-14a of
+  robot's six real-training runs** (#581, cleanup CU-14a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01; §3.2 CU-14 row). The `test`
   matrix is three Pythons × {`shared`, `species`}: the `species` leg runs
   the five species test directories in one pytest run, so the checks named

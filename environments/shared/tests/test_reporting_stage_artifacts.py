@@ -675,7 +675,7 @@ class TestTaskSuccessEvidence:
             return [600.0] * n, [1000] * n, [1.0] * n, list(successes[:n]), [5.0] * n
 
         monkeypatch.setattr(train_base, "create_vec_env", create_vec_env)
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
         monkeypatch.setattr(evaluation, "eval_policy", eval_policy)
         monkeypatch.setattr(plant_contract, "current_plant_identity", lambda species: SimpleNamespace(species=species))
         monkeypatch.setattr(plant_contract, "validate_model_plant", lambda *a, **k: None)
@@ -860,7 +860,7 @@ class TestTaskSuccessEvidence:
             raise RuntimeError("no simulator here")
 
         monkeypatch.setattr(train_base, "create_vec_env", explode)
-        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": object, "SAC": object})
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"PPO": object, "SAC": object})
         with caplog.at_level(logging.WARNING):
             assert self._roll(tmp_path) is None
         assert "could not be rolled" in caplog.text

@@ -191,7 +191,7 @@ class TestGenerateStageArtifactsLayout:
             (output_dir / f"velociraptor_ppo_stage1_{label}.mp4").write_bytes(b"mp4")
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
             patch("environments.shared.evaluation.record_stage_video", side_effect=fake_record),
         ):
             generate_stage_artifacts(
@@ -279,7 +279,7 @@ class TestSelectedCheckpointReplay:
         algorithm.load.return_value = fake_model
 
         with (
-            patch("environments.shared.train_base._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
+            patch("environments.shared.policy_loading._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
             patch("environments.shared.evaluation.record_stage_video") as video,
         ):
             generate_stage_artifacts(

@@ -64,7 +64,7 @@ from environments.shared.plant_contract import (  # noqa: E402
     attach_plant_identity,
     current_plant_identity,
 )
-from environments.shared.policy_loading import load_sb3_checkpoint  # noqa: E402
+from environments.shared.policy_loading import _ensure_sb3, load_sb3_checkpoint  # noqa: E402
 from environments.shared.result_bundle import (  # noqa: E402
     GATE_VERDICT_FILENAME,
     ResultBundleError,
@@ -923,7 +923,7 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
         widened_task = read_checkpoint_task_fingerprint(result.model_zip)
         assert locomotion_task["task_sha256"] != widened_task["task_sha256"]
         model = train_base._create_or_load_model(
-            train_base._ensure_sb3(),
+            _ensure_sb3(),
             "ppo",
             {"n_steps": 64, "batch_size": 32, "device": "cpu"},
             train_env,

@@ -160,7 +160,7 @@ def _default_resume_timesteps(load_path: "str | None", load_mode: str, stage_bud
     """
     if not load_path or load_mode != "resume_same_stage":
         return None
-    from .train_base import _PERIODIC_CHECKPOINT_RE
+    from .policy_loading import _PERIODIC_CHECKPOINT_RE
 
     stem = Path(load_path).name
     if stem.endswith(".zip"):

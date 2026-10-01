@@ -379,7 +379,7 @@ robustness, **LOW** = cosmetic / QoL.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:413-436`, called at
-  `train_base.py:1162`) lets any same-stage resume through. Against a
+  `train_base.py:1101`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -908,7 +908,7 @@ robustness, **LOW** = cosmetic / QoL.
   TOML's horizon errs the other way: an episode that ends between the two
   counts as full (read from the code: `stance_gate.py:336` counts
   `lengths >= horizon`; not reproduced).
-  Only `train_curriculum` builds a `CurriculumCallback` (`train_base.py:2549`),
+  Only `train_curriculum` builds a `CurriculumCallback` (`train_base.py:2490`),
   so the notebook and `train --stage` are unaffected. Found while sizing
   cleanup PR-A2's end-to-end test, which uses velociraptor for this reason.
   Plan: cleanup CU-10 hands the callback the horizon of the overridden stage
@@ -978,7 +978,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
   mean of its per-step `info["forward_vel"]` (`evaluation.py:97-105`), the
-  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1357`,
+  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1360`,
   `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
   weighs as much as a 1,000-step one. Through the repository's own evaluation
   and gate code on trex locomotion (length 750, speed 1.0 m/s), three scripted
@@ -988,7 +988,7 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3); on a 30-episode
   panel, 23 walks and 7 lunges pass both the post-training judge and the
   in-training `CurriculumManager`, while 24 and 6 fail. The post-training
-  judge also compares the speed rounded to two decimals (:1357): a 0.996 m/s
+  judge also compares the speed rounded to two decimals (:1360): a 0.996 m/s
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open).
@@ -1087,14 +1087,14 @@ robustness, **LOW** = cosmetic / QoL.
   `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
   stage's weight over 500k steps by default). A `resume_same_stage` load
   attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
-  mode (`train_base.py:901-902`, called at :1377-1384), so the env trains at
+  mode (`train_base.py:839-840`, called at :1316-1323), so the env trains at
   the stage's full `forward_vel_weight` from the first resumed step. Since the
   gap review's TC1 fix a continuation keeps the checkpoint's step counter
-  (`train_base.py:1284-1298`, `reset_num_timesteps=not resuming` at :1403),
+  (`train_base.py:1223-1237`, `reset_num_timesteps=not resuming` at :1342),
   and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
   its position is recoverable; nothing re-applies it. The warm-up marker is
   cleared with a warning that the rest of the warm-up is not re-applied
-  (`train_base.py:611-625`); the ramp's remainder goes without a log line. It bites when a
+  (`train_base.py:549-563`); the ramp's remainder goes without a log line. It bites when a
   session dies early in a locomotion or behavior stage and the RESUME cell
   continues it: 200k steps into a 0.1 → 1.0 ramp, the policy meets the other
   0.54 of the weight in one step. Fix: re-attach the shaping on a
@@ -1183,7 +1183,7 @@ robustness, **LOW** = cosmetic / QoL.
   the species catalog publishes it (`species_catalog.py:501`), while the
   stance report, its probes and publication fall back to
   `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
-  `reporting/stage_artifacts.py:226,514`, `result_bundle/evidence.py:509`).
+  `reporting/stage_artifacts.py:226,515`, `result_bundle/evidence.py:509`).
   The gate schema requires `min_eval_episodes` for `task_success/v1` only
   (`curriculum/gate_schema.py:148-179`), so nothing stops a new
   `stance_quality/v1` TOML from leaving it out; the three that exist (trex,
@@ -1214,6 +1214,28 @@ robustness, **LOW** = cosmetic / QoL.
   `evaluations.npz`, but not this one. Fix: persist `sim_dt` in the
   projection (new verdicts only), or give `write_training_summary` the
   node's control step; no cleanup PR owns it yet. (2026-09 CU-2 review)
+- **LOW** — **the final-checkpoint replay runs on raw observations, with no
+  warning, when the final pair has lost its sidecar (reproduced
+  2026-10-01).** `_record_stage_replays` records the selected checkpoint only
+  from a pair whose `_vecnorm.pkl` exists and otherwise skips it with a
+  warning (`reporting/stage_artifacts.py:1672-1680`). The final replay checks
+  only the `.zip` (`:1709`) and passes `<stage>_final_vecnorm.pkl` (`:1650`,
+  `:1727`), which `evaluation.record_stage_video` ignores when the file is
+  missing (`evaluation.py:289`): the policy is replayed on unnormalised
+  observations, which makes it a different policy, and its `_final.mp4` is
+  written as usual. In a probe through the unchanged library code (the SB3
+  classes, the loader, the plant checks and mediapy stubbed; the same at
+  `02d98ca`), the selected replay's policy saw normalised observations, the
+  final one's raw, and nothing was logged at WARNING or above. It is latent:
+  every caller today hands the replays an intact final pair (the SB3
+  notebook's chain loop and manual cell call `generate_stage_artifacts` right
+  after training saved both files, and its JUDGE branch judges only an
+  intact final pair, `checkpoint_pair_problem`). A direct call on a stage
+  directory whose final `.pkl` is missing, for example one copied without
+  it, would publish the misleading video. Fix: skip the final replay with a
+  warning when its sidecar is missing, as the selected replay does, or have
+  `record_stage_video` refuse a named `vecnorm_path` that does not exist; no
+  cleanup PR owns it yet. (2026-10 CU-8b scouting)
 - **LOW** — **the species `requirements.txt` files take any MuJoCo from
   3.0.0, and the stale-manifest error does not name the version (read from
   the code 2026-09-30).** `environments/trex/requirements.txt:2`,

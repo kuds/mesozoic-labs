@@ -1,6 +1,6 @@
 # Next steps and program state (2026-10-01)
 
-**Status**: living reference — updated 2026-10-01; `main` = `f24e18f` (#580 merged 2026-10-01 03:28 UTC).
+**Status**: living reference — updated 2026-10-01; `main` = `02d98ca` (#581 merged 2026-10-01 12:56 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,10 +18,10 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-01** (`main` = `f24e18f`). The backend retirement is complete:
+**On 2026-10-01** (`main` = `02d98ca`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
-only training backend (D-D17). The cleanup is **not** complete: two of
-D-D21's 0.3.9 gate names remain (CU-8 and CU-14,
+only training backend (D-D17). The cleanup is **not** complete: one of
+D-D21's 0.3.9 gate names remains (CU-8,
 [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), then the
 0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control step
 that stage summaries built from `evaluations.npz` assumed) landed as #568 on
@@ -29,7 +29,8 @@ that stage summaries built from `evaluations.npz` assumed) landed as #568 on
 notebook check, the four duplicated library-only pins deleted, shared test
 helpers) as #569 the same day, and CU-14b (the plant identity cached per process
 and species, the first part of CU-14) as #570 the same day; the same eight names
-remain after it, since CU-14 stays open until CU-14a lands. CU-7a (the dead code, the
+remained after it, since CU-14 stayed open until CU-14a landed (#581,
+below). CU-7a (the dead code, the
 unread gym entry points, the package re-exports that made `import environments`
 load SB3, and the MJX probe's one-root check that closes the quadruped-detection
 MEDIUM) landed as #572 on 2026-09-30; with CU-7b (below), CU-7 is complete. CU-11
@@ -56,8 +57,10 @@ termination-prefix and keyframe helpers; no number moves, only their behavior
 identities), the third, landed as #580 the same day, which completes CU-12.
 CU-14a (six test jobs instead of eighteen, one path list, no duplicate
 steps, and the robot's six real-training runs left to the nightly schedule),
-the last of wave 3, is carried out; CU-14 is complete once it lands. On
-2026-09-29 the
+the last of wave 3, landed as #581 the same day, which completes CU-14 and
+wave 3; one gate name remains, CU-8. CU-8b (`policy_loading` owns the SB3
+import helper and the sidecar resolver), the first of wave 4, is carried
+out. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
 CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
@@ -69,7 +72,7 @@ CU-14a decides (a), gating `test_compsognathus_training.py` behind the depth
 switch, from the durations CU-14b's CI produces. On 2026-09-30 the maintainer
 settled (a) for the robot, also without a D-D id: pull requests and pushes
 skip its six real-training parametrisations, which the nightly schedule, a
-manual dispatch and the `full-ci` label still run; CU-14a carries it out.
+manual dispatch and the `full-ci` label still run; CU-14a carried it out (#581).
 CU-6 (after CU-4, CU-5, CU-8b and the notebook PR for the cleanup plan's
 decisions 4 and 6), CU-10 (lowest priority; it also owns the
 curriculum horizon defect), CU-13 (before PR-11), CU-15 (optional) and CU-17
@@ -141,6 +144,7 @@ in a fresh session.
 | #578 | 2026-09-30 | Cleanup CU-16b (in D-D21's gate, the second and last part of CU-16 and the first PR of wave 3), outside the consolidation sequence: eleven files that no page, configuration or code named are deleted (2,089,577 bytes: the three `raptor_stage*.mp4` videos and their posters, four icons nothing linked, and `compsognathus/data/robot_camera_view.png`), the two apex GIFs stay by the maintainer's choice, and the landing page's roadmap follows ROADMAP (Phases 2 and 3 in progress, terrain and turning piloted); #577 recorded; no digest moves (the change commit 14 files, +12 / −10 in text, and the 11 binaries). Measured on its CI at `cca1881` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 17:20 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16b changes no training, configuration value or digest input; CU-16 is complete |
 | #579 | 2026-10-01 | Cleanup CU-8a (in D-D21's gate, the first part of CU-8 and the second PR of wave 3), outside the consolidation sequence: `task_fingerprint.stage_task_fingerprint` is the one stage-level helper every site that derives a task fingerprint calls (training, the curriculum walk, `select_trunk`, the recovery freeze, calibration and restamp, `widen_checkpoint` and the notebook's chain loop), `FINGERPRINT_BACKEND` is defined once, and the ignored-edits check is public as `config.ignored_hyperparameter_edits`, which ends a crash in the notebook's chain loop; #578 recorded; no digest moves (the code commit 16 files, +633 / −177). Measured on its CI at `914e256` (the merge's tree), with the `full-ci` label: the digest step took 54 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 13:11 (its mypy step: no issues in 319 source files), the notebook training at full depth 4 passed and the behavior training 12, all 22 CI jobs green, coverage 88 percent (19,631 statements, 2,403 missed); CU-8 stays open until CU-8c lands |
 | #580 | 2026-10-01 | Cleanup CU-12 (in D-D21's gate, the third PR of wave 3), outside the consolidation sequence: the four dual species (T. rex, velociraptor, Brachiosaurus and Dibothrosuchus) share `BaseDinoEnv`'s reward-term (`_progress_terms`, `_nosedive_term`, `_heading_terms`, `_speed_terms`), contact (`_contact_geom`), termination-prefix (`_root_termination`) and home-keyframe (`_cache_home_keyframe`) helpers, the foot forces use one summation order, `TRexEnv._foot_load_imbalance` is deleted and the MJX comments are reworded (PR-C folded in); #579 recorded; no number moves (`--exact` prints the same 32,389 lines on the base and the head), and the four species' behavior identities move with their files' bytes (the golden's 88 `behavior` lines, regenerated; their pilot behavior bundles stop certifying; the code commit 10 files, +866 / −671). Measured on its CI at `ed409dc` (the merge's tree), with the `full-ci` label: the digest step took 39 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 22:15 (its mypy step: no issues in 319 source files), the notebook training at full depth 4 passed and the behavior training 12, all 22 CI jobs green, coverage 88 percent (19,505 statements, 2,388 missed); CU-12 is complete |
+| #581 | 2026-10-01 | Cleanup CU-14a (in D-D21's gate, the second and last part of CU-14 and the last PR of wave 3; the cleanup plan's decision 10 (a)), outside the consolidation sequence: the `test` matrix is three Pythons × {`shared`, `species`}, six jobs instead of eighteen, so CI runs 10 jobs instead of 22; the two triggers share one anchored path list; the matrix installs the `test` extra; the plant-contract job no longer re-runs its tests; `test_phase_c_interface.py` leaves the SB3 job; pull requests and pushes skip the robot's six real-training parametrisations of `test_compsognathus_training.py`, which the nightly schedule, a manual dispatch and the `full-ci` label still run; #580 recorded; no digest moves (the code commit 8 files, +214 / −110). Measured on its CI at `870830e` (the merge's tree), at reduced depth: exactly the ten new jobs, all green, in 9:50; the digest step took 55 s and reported the golden current (932 lines, 0 errors); SB3 job 8:09 (its mypy step: no issues in 319 source files; the integration step 1,174 passed, 10 deselected), coverage 88 percent (19,505 statements, 2,388 missed); CU-14 and wave 3 are complete |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -508,17 +512,19 @@ single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30), and CU-8a as #579 and CU-12 as #580 (2026-10-01); the archive points (the plan's decision 2) were settled on 2026-09-27
+PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30), and CU-8a as #579, CU-12 as #580 and CU-14a as #581 (2026-10-01); the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
-and CU-4 landed; CU-14b, the first part of CU-14, landed as #570, and CU-14
-stays open until CU-14a lands; CU-7a landed as #572; CU-11 landed as #573,
+and CU-4 landed; CU-14b, the first part of CU-14, landed as #570; CU-7a
+landed as #572; CU-11 landed as #573,
 which leaves seven, CU-9 as #574, which leaves six, CU-5 as #575, which leaves
 five, and CU-7b as #576, which completes CU-7 and leaves four, and CU-16a, the
 first part of CU-16, as #577, which completes wave 2, and CU-16b, its second
 part, as #578, which completes CU-16 and leaves three, and CU-8a, the first
 part of CU-8, as #579, and CU-12 as #580, which completes CU-12 and leaves
-two; CU-14a, the second part of CU-14, is carried out; [section 1](#1-where-things-stand) names them),
+two, and CU-14a, the second part of CU-14, as #581, which completes CU-14
+and wave 3 and leaves one; CU-8b, the second part of CU-8, is carried out;
+[section 1](#1-where-things-stand) names them),
 the clean base the consolidation builds on. On 2026-09-29 the maintainer took
 D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
 CI checks, with the full harness run on pull requests, in the plant-contract
@@ -531,7 +537,7 @@ without a D-D id: CU-14b caches the plant identity per process and species,
 and CU-14a decides (a), gating `test_compsognathus_training.py` behind the
 depth switch, from the durations CU-14b's CI produces. On 2026-09-30 the
 maintainer settled (a) for the robot's six real-training parametrisations,
-which pull requests and pushes skip from CU-14a on.
+which pull requests and pushes skip from CU-14a (#581) on.
 Within this sequence PR-8 is still next; under D-D21
 the whole 0.3.9 gate, including the reward/termination golden trace (CU-11,
 landed as #573, 2026-09-30), lands
@@ -828,9 +834,9 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   after PR-12/PR-13. *2026-09-30 (cleanup CU-9, #574): with the certification
   scripts and harnesses counted, the union reads 19,626 statements, 2,405
   missed, 88 percent on #574's CI (87.75 measured locally; 91.24 before).*
-  *2026-10-01 (cleanup CU-14a): the `test` matrix is six jobs, three Pythons
-  × {shared, species}; the plant-contract job no longer re-runs its tests;
-  pull requests and pushes skip the robot's six real-training
+  *2026-10-01 (cleanup CU-14a, #581): the `test` matrix is six jobs, three
+  Pythons × {shared, species}; the plant-contract job no longer re-runs its
+  tests; pull requests and pushes skip the robot's six real-training
   parametrisations of `test_compsognathus_training.py` (the cleanup plan's
   decision 10 (a)), which the nightly schedule and `full-ci` still run.*
 - The SB3 notebook's Drive-mount block and `_ACTIVE_RUN_ID` memo are still
@@ -878,7 +884,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    [section 4](#4-consolidation-the-remaining-prs) (PR-8 next; the notebook-only PR-12 slice landed
    as #552, PR-14 as #553, #554 and #555, and PR-7 as #556) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge. Under D-D21, PR-8 waits
-   for the cleanup's two remaining 0.3.9 gate names and the 0.3.9 cut
+   for the cleanup's one remaining 0.3.9 gate name (CU-8) and the 0.3.9 cut
    ([section 1](#1-where-things-stand)), so the next PR is a cleanup PR (item 5),
    in the order of the cleanup plan's §3.1 item 4.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
@@ -984,4 +990,5 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 | Plant identities and the widen contract | [PLANT_CONTRACT.md](PLANT_CONTRACT.md), `configs/plant_versions.toml` |
 | Reuse rules 1–7, trunk selection, widen and backfill tools | `environments/shared/ancestors.py` (`find_certified_ancestor`, `select_trunk`); `environments/shared/scripts/widen_checkpoint.py`, `environments/shared/scripts/backfill_gate_verdict.py` |
 | Gate digests and task fingerprints | `environments/shared/curriculum/gate_schema.py` (`gate_config_view`, `gate_config_sha256`), `environments/shared/task_fingerprint.py` (`stage_task_fingerprint`, the stage-level helper every derivation site calls, and `FINGERPRINT_BACKEND`; `derive_stage_task_fingerprint` beneath it) |
+| Policy loading: SB3 archive loads, the VecNormalize sidecar lookup and the SB3 import helper | `environments/shared/policy_loading.py` (`load_sb3_model`, `load_sb3_checkpoint`, `resolve_vecnorm_path`) |
 | The notebook, its pins, the changelog | [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb); `environments/shared/tests/test_sb3_notebook_pins.py`; [CHANGELOG.md](../CHANGELOG.md) |

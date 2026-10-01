@@ -1,6 +1,8 @@
 """Load an SB3 checkpoint together with the VecNormalize statistics it trained under.
 
-Two loaders live here. :func:`load_sb3_model` is the ONE way the repository
+Two loaders live here, with the SB3 import helper and the VecNormalize
+sidecar resolver that the trainer, the evaluator and the stage artifacts
+share. :func:`load_sb3_model` is the ONE way the repository
 opens an SB3 model archive (``PPO.load`` / ``SAC.load`` are never called
 bare outside this module; ``test_policy_loading`` pins it): it reads the
 archive's ``data`` JSON without unpickling anything, supplies the model's
@@ -29,13 +31,35 @@ the report would blame the joints, the actions or the gate for a loading
 mistake.  Keeping the block in one place is what makes the four reports
 comparable.
 
-Not the trainer's :func:`~environments.shared.train_base.load_vecnorm_stats`,
+Not the trainer's :func:`~environments.shared.curriculum.checkpoints.load_vecnorm_stats`,
 which loads statistics INTO a live training wrapper, and not the
 Monitor-wrapped evaluator in :mod:`~environments.shared.evaluation`: this is
 the read-only, normalise-then-predict loader an offline rollout wants.
 
+The two helpers moved here from ``train_base`` (cleanup CU-8b), which keeps
+its old names bound to these same objects for importers that predate the
+move. :func:`_ensure_sb3` is the one place ``train_base``, ``evaluation``
+and ``reporting.stage_artifacts`` import SB3's classes, and
+:func:`_resolve_vecnorm_sidecar` the one probe that finds a checkpoint's
+sidecar under either naming convention (the curated ``<base>_vecnorm.pkl``
+or SB3's periodic ``<prefix>_vecnormalize_<steps>_steps.pkl``, matched by
+:data:`_PERIODIC_CHECKPOINT_RE`). Every caller imports them from this module
+at call time, so one patch of the name here reaches every caller. The
+resolver only finds a candidate: what a missing sidecar means stays with
+each caller (:func:`resolve_vecnorm_path` raises :class:`PolicyLoadError`,
+``evaluation.evaluate`` and ``train_base._load_vecnorm_into_envs`` raise
+``FileNotFoundError``, each with its own escape hatch).
+
 SB3 is imported inside the functions, per the repository's lazy-SB3
-convention, so the module stays importable without it.
+convention, so the module stays importable without it; no project module is
+imported at import time, and ``train_base`` never is. The loaders raise
+:class:`PolicyLoadError`, so a diagnostic inside an artifact guard cannot
+sink a finished run. :func:`_ensure_sb3` alone exits the process (status 1,
+after logging an install hint) when SB3 is missing, as it always has: its
+callers are the training, evaluation and replay paths, which can do nothing
+without SB3, and two of them run inside the stage-artifact guards, which
+would swallow an exception as one more failed diagnostic instead of stopping
+the run.
 """
 
 from __future__ import annotations
@@ -105,31 +129,106 @@ class PolicyLoadError(RuntimeError):
     :func:`load_sb3_checkpoint` when the normalisation statistics cannot be
     resolved or read.
 
-    A plain ``Exception`` subclass rather than ``SystemExit`` on purpose: the
-    stance gate report runs inside the training pipeline's artifact guard,
-    which catches ``Exception`` so a diagnostic cannot sink a finished run,
-    and ``SystemExit`` (a ``BaseException``) would sail straight through it.
-    Each CLI converts this to ``SystemExit`` at its own boundary, which is
-    where an exit status belongs.
+    An ordinary exception (a ``RuntimeError`` subclass) rather than
+    ``SystemExit`` on purpose: the stance gate report runs inside the
+    training pipeline's artifact guard, which catches ``Exception`` so a
+    diagnostic cannot sink a finished run, and ``SystemExit`` (a
+    ``BaseException``) would sail straight through it. Each CLI converts
+    this to ``SystemExit`` at its own boundary, which is where an exit
+    status belongs. :func:`_ensure_sb3`'s exit on a missing SB3 is the one
+    deliberate departure (see the module docstring).
     """
+
+
+#: SB3's ``CheckpointCallback`` names its periodic checkpoints
+#: ``{prefix}_{steps}_steps.zip`` (``CheckpointCallback._checkpoint_path``;
+#: mirrored by ``curriculum.checkpoints._CHECKPOINT_KINDS``).
+_PERIODIC_CHECKPOINT_RE = re.compile(r"(.+)_(\d+)_steps$")
+
+
+def _ensure_sb3() -> dict[str, Any]:
+    """Import SB3 or exit with a helpful error."""
+    try:
+        from stable_baselines3 import PPO, SAC
+        from stable_baselines3.common.callbacks import (
+            CallbackList,
+            CheckpointCallback,
+            EvalCallback,
+        )
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.utils import set_random_seed
+        from stable_baselines3.common.vec_env import (
+            DummyVecEnv,
+            SubprocVecEnv,
+            VecNormalize,
+        )
+
+        return {
+            "PPO": PPO,
+            "SAC": SAC,
+            "CallbackList": CallbackList,
+            "CheckpointCallback": CheckpointCallback,
+            "EvalCallback": EvalCallback,
+            "Monitor": Monitor,
+            "set_random_seed": set_random_seed,
+            "DummyVecEnv": DummyVecEnv,
+            "SubprocVecEnv": SubprocVecEnv,
+            "VecNormalize": VecNormalize,
+        }
+    except ImportError:
+        logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
+        sys.exit(1)
+
+
+def _resolve_vecnorm_sidecar(load_path: str) -> str:
+    """Resolve the VecNormalize sidecar path for a checkpoint being loaded.
+
+    Two sidecar naming conventions coexist: this repository's curated
+    checkpoints (``best_model``, ``robust_best_model``, ``stage<N>_final``)
+    save ``<base>_vecnorm.pkl``, while SB3's
+    ``CheckpointCallback(save_vecnormalize=True)`` writes
+    ``<prefix>_vecnormalize_<steps>_steps.pkl`` for its periodic
+    ``<prefix>_<steps>_steps.zip``.  Probing only the curated name made a
+    ``--load stage2_5000000_steps.zip`` resume warn and then train the loaded
+    policy under fresh normalization statistics — silently (review F3).
+
+    A ``load_path`` that already names a ``.pkl`` file is returned unchanged:
+    ``train_curriculum`` hands the sidecar path itself, and appending
+    ``_vecnorm.pkl`` to it would probe a file that cannot exist.
+
+    Returns the first existing candidate; when none exists, the curated
+    ``<base>_vecnorm.pkl`` name, so the caller's warning names the primary
+    probe.
+    """
+    if load_path.endswith(".pkl"):
+        return load_path
+    base = load_path[:-4] if load_path.endswith(".zip") else load_path
+    curated = base + "_vecnorm.pkl"
+    if Path(curated).exists():
+        return curated
+    match = _PERIODIC_CHECKPOINT_RE.match(Path(base).name)
+    if match:
+        periodic = Path(base).parent / f"{match.group(1)}_vecnormalize_{match.group(2)}_steps.pkl"
+        if periodic.exists():
+            return str(periodic)
+    return curated
 
 
 def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
     """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
 
     An explicit *vecnorm_arg* (the CLI's ``--vecnorm``) wins.  Otherwise the
-    trainer's own resolver probes both sidecar conventions -- the
-    ``<stem>_vecnorm.pkl`` guess the report scripts used to make can never
-    match SB3's periodic ``<prefix>_vecnormalize_<steps>_steps.pkl``, so
-    every periodic checkpoint was silently scored on raw observations.  No
+    trainer's own resolver, :func:`_resolve_vecnorm_sidecar`, probes both
+    sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess the report
+    scripts used to make can never match SB3's periodic
+    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic
+    checkpoint was silently scored on raw observations.  No
     sidecar is fatal unless *allow_unnormalized*: a policy evaluated
     unnormalised is a different policy, and the report would blame the
     policy for a loading mistake.
     """
     if vecnorm_arg is not None:
         return vecnorm_arg
-    from environments.shared.train_base import _resolve_vecnorm_sidecar
-
     candidate = _resolve_vecnorm_sidecar(model_path)
     if Path(candidate).exists():
         return candidate
