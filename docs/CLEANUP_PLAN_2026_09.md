@@ -36,7 +36,7 @@ maintainer settled on 2026-09-30 without a D-D id, landed as #581 on 2026-10-01,
 (§2 row 10, §3.1 item 4, §3.2). CU-8b, the SB3 import helper and the sidecar resolver of CU-8 and the first PR of wave
 4, landed as #582 the same day (§3.1 item 4, §3.2). CU-8c, the one reader, one root, one sha256 pattern and one set of
 validators of CU-8 and the second PR of wave 4, landed as #583 the same day, which completes CU-8 and D-D21's gate
-(all thirteen names; §3.1 item 4, §3.2). The 0.3.9 cut follows (§2 row 20).
+(all thirteen names; §3.1 item 4, §3.2). The 0.3.9 cut is carried out (§2 row 20, §3.1 item 4).
 
 ## How to use this document
 
@@ -74,9 +74,9 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
    2026-10-01; CU-12 landed as #580, 2026-10-01, which completes CU-12; CU-14a, the second and last part of CU-14,
    landed as #581, 2026-10-01, which completes CU-14 and wave 3; CU-8b, the second part of CU-8, landed as #582,
    2026-10-01; CU-8c, the third and last part of CU-8, landed as #583, 2026-10-01, which completes CU-8 and D-D21's
-   gate), and the 0.3.9 cut follows. The retirement makes four of the survey's 21 waves wholly moot, most of C15 and
-   half of C1. It also deletes five of the survey's nine live defects along with their code, and #558 already fixed
-   two more; CU-2 fixed the render crash (§5.3 defect 2; landed as #568 on 2026-09-29).
+   gate), and the 0.3.9 cut is carried out (§3.1 item 4). The retirement makes four of the survey's 21 waves wholly
+   moot, most of C15 and half of C1. It also deletes five of the survey's nine live defects along with their code,
+   and #558 already fixed two more; CU-2 fixed the render crash (§5.3 defect 2; landed as #568 on 2026-09-29).
 2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) came first, as #561, and CU-3 (atomic run-tree records
    and checkpoint pairs; D-D20) second, as #562, and the CHANGELOG release cut (D-D19) third, as #563. PR-A (Ray Tune, the Vertex AI
    tuning sweeps and mjlab; its acceptance runs the digest-snapshot harness this plan adds, §4.4) came fourth, as #564, and PR-A2 (the
@@ -97,7 +97,7 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
    which completes wave 2; CU-16b, the first of wave 3, as #578 the same day, which completes CU-16; CU-8a, the
    second, as #579 on 2026-10-01; CU-12, the third, as #580 the same day, which completes CU-12; CU-14a, the
    last, as #581 the same day, which completes CU-14 and wave 3; CU-8b, the first of wave 4, as #582 the same day;
-   CU-8c, the second, as #583 the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut follows.
+   CU-8c, the second, as #583 the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut is carried out.
 3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines (PR-A's and PR-B's, measured before
    D-D17 was taken; the Vertex route and GCS upload leave in PR-A2, which derives its own). That covers about 17,459 of the 71,682
    non-test library lines (24%) and about 12,090 test lines. As carried out: PR-A deleted 42 files and 13,222 lines,
@@ -162,7 +162,7 @@ row 10's (a) for the robot, also without a D-D id; CU-14a carried it out (#581).
 | 17 | **Retired-backend metric lines.** After the retirement the generated catalog in the root `README.md` (:105-215) and the website still advertise JAX/MJX success metrics for four species that nothing can train. `species_catalog.py:949-954` requires those rows while the species stay dual. | (a) A `species_manifest.toml` field separating the declared interface backends (`plant_contract/manifest.py:88-93`) from the advertised training backends, so the catalog stops rendering JAX/MJX metrics. (b) Keep them with a note. | **(a), as a catalog PR after PR-B.** The removal inventory found the declared backends list is not a bundle-digest input; confirm with the harness. | Nothing; living docs stay true. |
 | 18 | **Branch protection.** On 2026-09-25 `main` had no required checks, although `python-ci.yml:210-212,316` assume them (§4.8). | (a) Turn on required checks once the job names settle (after CU-14). (b) Reword the workflow comments. | **(a)**, a maintainer action. *CU-14a (2026-10-01): the job names settle as `lint`, `plant-contract`, `test (3.11, shared)`, `test (3.12, shared)`, `test (3.13, shared)`, `test (3.11, species)`, `test (3.12, species)`, `test (3.13, species)`, `test-sb3` and `coverage`. Both triggers filter on paths, so a pull request that touches none of them starts no run, and a required check would stay pending on it (§4.8 item 2).* *CU-14a landed as #581 on 2026-10-01: its CI (run 36814106353) and the first push run on `main` (run 36865199914) each reported exactly these ten checks.* | Nothing. |
 | 19 | **Stale open PRs.** #527 ("Research Compsognathus feet and add resumable Colab balance sessions", 2026-09-10) edits `python-ci.yml` and `harnesses/freeze_recovery_gate.py` and adds a notebook. #498 ("Record the August 2026 RL pipeline review", 2026-08-08) adds a review that was never merged. | Close, or rebase and merge. | **Decide before PR-A.** #527 conflicts with PR-A/PR-B in `python-ci.yml` and with CU-9. **Decided 2026-09-26: both closed, each with a comment (an operational choice, not a D-D row).** | PR-A (rebase cost). |
-| 20 | **Which release is the clean base.** Added 2026-09-27, after the release cut: the maintainer asked whether to finish the cleanup and refactor first, so that the tagged version is the clean base. `0.3.8` was already tagged and published on `afad625`, before any retirement PR. | (a) Re-open `0.3.8`: move the tag to the cleaned tree. (b) Keep `0.3.8` as the pre-cleanup release, and make 0.3.9 the clean, refactored base, cut once a named set of cleanup PRs has landed. | **(b).** A published tag should not move, and `0.3.8` doubles as the archive point for the retired code (row 2). **Taken 2026-09-27 as D-D21: (b).** The 0.3.9 gate is thirteen PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. Deferred, not dropped, each at the point §3.2 and §3.4 give it: CU-6 (after session 6's resume and CU-4; amends D-D7), CU-13 (before PR-11; amends D-D5), CU-10 (lowest priority), CU-15 (optional; after PR-A), CU-17 (last, before PR-15), and consolidation PR-8..PR-15, which build on 0.3.9. CU-4 and CU-14 still take decisions 9 and 10 when they open. *Session 6's resume finished on 2026-09-28, so CU-6 waits only for CU-4.* **Split 2026-09-29:** the maintainer accepted splitting CU-7 into CU-7a (dead code and import cost) and CU-7b (retired-backend wording, with CU-16's stage-TOML comments folded in), with CU-7's sha256 regex and validators moving to CU-8c; CU-8 into CU-8a (one derivation), CU-8b (`policy_loading` owns the SB3 import and the sidecar resolver) and CU-8c (one reader, one root, one regex, one set of validators); CU-14 into CU-14b (the plant-identity cache, decision 10 (c)), first, and CU-14a (the workflow YAML); and CU-16 into CU-16a (docs text) and CU-16b (orphan assets). The gate's names cover their parts, so the gate itself is unchanged (§3.1 item 4, §3.2). *Corrected 2026-09-29: CU-6 also follows CU-5, CU-8b and the notebook PR for decisions 4 and 6 (§3.2, CU-6 row), not CU-4 alone.* | The 0.3.9 release cut. |
+| 20 | **Which release is the clean base.** Added 2026-09-27, after the release cut: the maintainer asked whether to finish the cleanup and refactor first, so that the tagged version is the clean base. `0.3.8` was already tagged and published on `afad625`, before any retirement PR. | (a) Re-open `0.3.8`: move the tag to the cleaned tree. (b) Keep `0.3.8` as the pre-cleanup release, and make 0.3.9 the clean, refactored base, cut once a named set of cleanup PRs has landed. | **(b).** A published tag should not move, and `0.3.8` doubles as the archive point for the retired code (row 2). **Taken 2026-09-27 as D-D21: (b).** The 0.3.9 gate is thirteen PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. Deferred, not dropped, each at the point §3.2 and §3.4 give it: CU-6 (after session 6's resume and CU-4; amends D-D7), CU-13 (before PR-11; amends D-D5), CU-10 (lowest priority), CU-15 (optional; after PR-A), CU-17 (last, before PR-15), and consolidation PR-8..PR-15, which build on 0.3.9. CU-4 and CU-14 still take decisions 9 and 10 when they open. *Session 6's resume finished on 2026-09-28, so CU-6 waits only for CU-4.* **Split 2026-09-29:** the maintainer accepted splitting CU-7 into CU-7a (dead code and import cost) and CU-7b (retired-backend wording, with CU-16's stage-TOML comments folded in), with CU-7's sha256 regex and validators moving to CU-8c; CU-8 into CU-8a (one derivation), CU-8b (`policy_loading` owns the SB3 import and the sidecar resolver) and CU-8c (one reader, one root, one regex, one set of validators); CU-14 into CU-14b (the plant-identity cache, decision 10 (c)), first, and CU-14a (the workflow YAML); and CU-16 into CU-16a (docs text) and CU-16b (orphan assets). The gate's names cover their parts, so the gate itself is unchanged (§3.1 item 4, §3.2). *Corrected 2026-09-29: CU-6 also follows CU-5, CU-8b and the notebook PR for decisions 4 and 6 (§3.2, CU-6 row), not CU-4 alone.* **As carried out by the 0.3.9 cut PR (2026-10-02; §3.1 item 4),** once the gate had landed with CU-8c (#583, 2026-10-01), with the details the maintainer chose on 2026-10-01 (the title kept without its "(v0.3.9)" suffix, the date rule and `0.4.0.dev0` as the next development version): its first commit, the one the maintainer tags, sets `version = "0.3.9"` and dates the section `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup`, by that commit's UTC author date (re-dated if it is rebuilt on a later UTC day); its second opens a bare `## [Unreleased]` above it, as the 0.3.8 cut did, and sets `0.4.0.dev0`. The digest-snapshot harness reports the golden current (932 lines, 0 errors) on the base, the tagged commit and the head. From `## [0.3.9]` to the end, `CHANGELOG.md` has sha256 `88c579c35fb4ee3a8a29ce1807e0e98210f5861a4e0fd3e12e8800a43e398dca` at the tagged commit and the head; from `## [0.3.8]` it is unchanged (`c750a3fd…773b`). The cut PR merges with a merge commit, so the tagged commit keeps its SHA on `main`, and never through "Update branch": if `main` moves first, both commits are rebuilt on it. | The 0.3.9 release cut. |
 
 **Made moot by the retirement:** whether the dibothrosuchus MJX kernel should pay `snap_snout_proximity_weight`; JAX
 `ppo_epochs` (4 in the notebook, 10 in the CLI); whether to keep Vertex HPT or mjlab; a Ray sweep-backend decision;
@@ -255,7 +255,7 @@ attempt after an early stop is a fresh `RUN_ID`.
    - **Wave 2:** CU-9 after CU-7a; CU-5 after CU-4; CU-7b after CU-7a and ROW-16; CU-16a after CU-7a.
    - **Wave 3:** CU-12 after CU-11, CU-7b and ROW-16, with the `full-ci` label; CU-14a after CU-4 and CU-14b; CU-16b
      after CU-16a; CU-8a after CU-4, CU-5, CU-7b and CU-9.
-   - **Wave 4:** CU-8b, then CU-8c; then the 0.3.9 cut (D-D21).
+   - **Wave 4:** CU-8b, then CU-8c; then the 0.3.9 cut (D-D21). The cut is carried out (§3.1 item 4).
 
    **Carried out by the CU-4 PR (2026-09-29):** one standard-library notebook reader serves the tests and CI's
    notebook check, a new test resolves every `environments` import of both notebooks, the four duplicated
@@ -536,6 +536,24 @@ attempt after an early stop is a fresh `RUN_ID`.
    depth) passed too, in 12:13, before the merge. The first push run on `main` after the merge (run 36943419888)
    passed, with the same ten jobs. CU-8 is complete, and D-D21's gate has landed (all thirteen names); the 0.3.9 cut
    follows.
+
+   **Carried out by the 0.3.9 cut PR (2026-10-02; §2 row 20):** D-D21's release, now that its gate has landed with
+   CU-8c (#583, 2026-10-01), with the details the maintainer chose on 2026-10-01 (the title kept without its
+   "(v0.3.9)" suffix, the date rule and `0.4.0.dev0` as the next development version). Its first commit, the one the
+   maintainer tags, records CU-8c as landed and cites #583 in its CHANGELOG entry, sets `version = "0.3.9"` and dates
+   the section `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup`, by its own UTC author date (re-dated if it
+   is rebuilt on a later UTC day), with the title kept and the "(v0.3.9)" suffix dropped; the section's body is
+   otherwise unchanged, and the cut adds no entry of its own. Its second commit opens a bare `## [Unreleased]` above
+   the dated section, as the 0.3.8 cut did, for the first PR that adds an entry to title, and sets `0.4.0.dev0`. The
+   digest-snapshot harness reports the golden current (932 lines, 0 errors) on the base (in CI), the tagged commit
+   and the head, where `plant_contract --check` and `species_catalog --check` report current too; a wheel built from
+   the tagged commit is version `0.3.9`, and one built from the head `0.4.0.dev0`. The released bytes are frozen from
+   here on: from `## [0.3.9]` to the end (5,044 lines), `CHANGELOG.md` has sha256
+   `88c579c35fb4ee3a8a29ce1807e0e98210f5861a4e0fd3e12e8800a43e398dca` at the tagged commit and the head, and from
+   `## [0.3.8]` (4,191 lines) it is unchanged (`c750a3fd…773b`); a later correction goes in the new `[Unreleased]`
+   (§3.2, CU-16 row). The cut PR merges with a merge commit, so the tagged commit keeps its SHA on `main`, and never
+   through "Update branch": if `main` moves first, both commits are rebuilt on it. Tagging and publishing the release
+   are the maintainer's.
 
 ### 3.2 The surviving waves (relabelled CU-n; "was" names the survey item)
 

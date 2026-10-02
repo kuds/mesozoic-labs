@@ -86,7 +86,7 @@ task-fingerprint derivation) as #579 on 2026-10-01; CU-12 (the species env dedup
 10 (a), settled on 2026-09-30 without a D-D id) as #581 on 2026-10-01, which completes CU-14 and wave 3; CU-8b (the
 SB3 import helper and the sidecar resolver of CU-8, which CU-6 waits for) as #582 the same day; CU-8c (one reader, one
 root, one sha256 pattern and one set of validators, the last part of CU-8 and of D-D21's gate) as #583 the same day,
-which completes CU-8 and D-D21's gate; the 0.3.9 cut follows (the cleanup plan's §3.1 item 4);
+which completes CU-8 and D-D21's gate; the 0.3.9 cut is carried out (the cleanup plan's §3.1 item 4);
 CU-6 also waits for the notebook PR for that plan's decisions 4 and 6.*
 
 ## 2. Decisions needed
@@ -389,7 +389,7 @@ Left of D-D21's gate (`CLEANUP_PLAN_2026_09.md:111`), with PR-B landed as #566: 
 CU-11, CU-12, CU-14, CU-16 (§1.3). The G PRs interleave with consolidation PR-8..PR-10 and precede PR-11's trex and
 robot sessions and PR-13 (amends D-D13).
 *Updated 2026-10-02: all ten have landed, CU-8 last, with CU-8c as #583 on 2026-10-01, which completes D-D21's gate;
-the 0.3.9 cut follows (§1.3).*
+the 0.3.9 cut is carried out (§1.3).*
 
 | PR | Scope | Size | Depends on | Digests | Acceptance | When |
 |---|---|---|---|---|---|---|

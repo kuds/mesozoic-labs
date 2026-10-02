@@ -22,8 +22,9 @@ file in place when the state changes; it is not a dated investigation.
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete, but
 D-D21's 0.3.9 gate has landed: no gate name remains
-([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3); then the
-0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control step
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), and the
+0.3.9 cut is carried out. CU-2 (the `render_mode="human"` crash and the
+0.01 s control step
 that stage summaries built from `evaluations.npz` assumed) landed as #568 on
 2026-09-29, and CU-4 (one notebook-cell reader for the tests and CI's
 notebook check, the four duplicated library-only pins deleted, shared test
@@ -63,7 +64,7 @@ import helper and the sidecar resolver), the first of wave 4, landed as #582
 the same day. CU-8c (one `stage_config.json` reader, one repository root, one
 sha256 pattern and one set of field validators), the second, landed as #583
 the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut
-follows. On 2026-09-29 the
+is carried out. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
 CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
@@ -237,7 +238,8 @@ the same day (#546–#549); the maintainer then paused the sequence while the
 training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
 PR-12 slice landed as #552 and PR-14 as #553, #554 and #555, all on 2026-09-24;
 PR-7 landed as #556 on 2026-09-25; PR-8 is next in the sequence, once the
-cleanup's 0.3.9 gate has landed and 0.3.9 is cut (D-D21;
+cleanup's 0.3.9 gate has landed and 0.3.9 is cut (D-D21; the gate has
+landed, and the cut is carried out;
 [section 4](#4-consolidation-the-remaining-prs)).
 
 ### The final goal and the goal decisions
@@ -366,7 +368,7 @@ on those records.
 | 1 | trex | `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`, `WIDEN_MAX_REVISION_GAP=2`, `SEED=44` | **Done.** Ran 2026-09-20 as `20260920_010912`: widen and re-panel PASSED in 15 minutes, the session died at the stance node's bundle write (fixed the same day, #546), and the in-place continuation from 21:38 UTC froze the recovery resolution, trained recovery 3M and PASSED its gate (28/40, LCB 0.56) at 01:16 UTC on 2026-09-21; bundle `complete`, trex stance at replication 2 | panel 15 min, recovery 3h30m (measured) |
 | 2 | compsognathus | `BEHAVIOR="walk"`, `WIDEN_FROM="20260909_162812"`, `WIDEN_MAX_REVISION_GAP=1`, `SEED=42` | **Done.** Ran 2026-09-21 as `20260921_203149` on `main` = `25132fc`: widen and re-panel PASSED (verdict 20:38 UTC, about seven minutes after minting), locomotion 3M PASSED (00:31 UTC on 2026-09-22); bundle `complete` in one pass | panel 7 min, walk 3h49m (measured) |
 | 3 | velociraptor | `BEHAVIOR="walk"`, `SEED=42` | **Done.** Ran 2026-09-22 as `20260922_125248`: stance 6M PASSED (17:42 UTC; thin length margin, section 2), locomotion 8M PASSED (00:15 UTC on 2026-09-23); bundle `complete` | 4h46m + 6h30m (measured) |
-| 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42`, `RETRAIN_FROM="stance"` | **Ran 2026-09-23 as `20260923_020654`, cut short**: the collapse backstop stopped both nodes at 1.45M (statue-level stance PASS, locomotion FAIL at 0.0012 m/s; section 2). Re-run on a `main` carrying the backstop fix; `RETRAIN_FROM = "stance"` keeps auto-trunk from reusing the statue-level stance (the resolve cell prints `RETRAIN_FROM 'stance': it and every node below it train here (no reuse)`): fresh stance 6M then locomotion 12M. The maintainer started the re-run on 2026-09-28 (a fresh run); its result is recorded here and in section 2 when it finishes. The gait audit of 2026-09-28 replayed that run, `20260928_012318` (on `main` = `7ae0a19`), while it trained: its 4.3M robust-best checkpoint skids on three legs at 2.20 m/s, and its gate as written would pass it (1.95 m/s, mean length 854); by 4.8M it rolls and tips. The replay read the run as reusing the statue-level stance `1d3527cc…` although this row sets `RETRAIN_FROM = "stance"`; that reuse needs confirming from the run's `ancestors/stance/ancestor.json` (the gait plan's GQ-2, open; the plan recommends letting the run finish and be judged). Risk: the locomotion reward pays a motionless statue about 2200, 89 percent of it gait symmetry (KNOWN_ISSUES), the optimum the first run's locomotion settled on | ~4.2 h + ~8.1 h (scaled from the measured 399 and 414 steps/s) |
+| 4 | dibothrosuchus | `BEHAVIOR="walk"`, `SEED=42`, `RETRAIN_FROM="stance"` | **Ran 2026-09-23 as `20260923_020654`, cut short**: the collapse backstop stopped both nodes at 1.45M (statue-level stance PASS, locomotion FAIL at 0.0012 m/s; section 2). Re-run on a `main` carrying the backstop fix; `RETRAIN_FROM = "stance"` keeps auto-trunk from reusing the statue-level stance (the resolve cell prints `RETRAIN_FROM 'stance': it and every node below it train here (no reuse)`): fresh stance 6M then locomotion 12M. The maintainer started the re-run on 2026-09-28 (a fresh run); its result is recorded here and in section 2 when it finishes. The gait audit of 2026-09-28 replayed that run, `20260928_012318` (on `main` = `7ae0a19`), while it trained: its 4.3M robust-best checkpoint skids on three legs at 2.20 m/s, and its gate as written would pass it (1.95 m/s, mean length 854); by 4.8M it rolls and tips. The replay read the run as reusing the statue-level stance `1d3527cc…` although this row sets `RETRAIN_FROM = "stance"`; that reuse needs confirming from the run's `ancestors/stance/ancestor.json` (the gait plan's GQ-2, open; the plan recommends letting the run finish and be judged). Risk: the locomotion reward pays a motionless statue about 2200, 89 percent of it gait symmetry (KNOWN_ISSUES), the optimum the first run's locomotion settled on. A resume of `20260928_012318` on `main` after the 0.3.9 cut PR merges also records `mesozoic_labs` 0.3.9.dev0 → 0.4.0.dev0 in `provenance.json` as environment drift, beside the commit drift, which is expected and moves no identity; only an install from the tagged commit reports `0.3.9`, since `main` never points at a commit that reads it | ~4.2 h + ~8.1 h (scaled from the measured 399 and 414 steps/s) |
 | 5 | brachiosaurus | `BEHAVIOR="stand"` then, in a second session, `BEHAVIOR="walk"` | stance 6M; the walk session reuses the certified stance through auto-trunk and trains locomotion 16M (both stages carry the 2026-09-23 backstop fix: peak warm-ups of 1.0M and 4.0M). Risk: the locomotion reward pays a motionless statue 2242.7, 98 percent of it gait symmetry (KNOWN_ISSUES). The gait plan recommends holding this session until the brachiosaurus task revision `gait-r1` (GQ-3, open): the zero-action statue also passes the brachiosaurus stance gate (1739.1 against the 1040 rail) | ~4.5 h then ~10 h |
 | 6 | compsognathus_robot | `BEHAVIOR="walk"`, `SEED=42` | **Done.** Ran from 2026-09-24 03:18 UTC as `20260924_031815` (`main` = `03d3a54`): stance 11M PASSED (22:57 UTC, section 2); locomotion trained from 22:58 UTC until the ~24 h Colab cap stopped it after `stage2_2800000_steps` (2026-09-25 03:17 UTC), about 200k steps short of its 3M. The maintainer resumed it in place on 2026-09-28 (provenance session 2 from 01:08:38 UTC, `main` = `7ae0a19`): the RESUME cell trained the last ~200k steps in 18m34s (to 3,000,704) and locomotion PASSED (01:36 UTC, 0.23 m/s, section 2); bundle `complete`, stance and locomotion certified. `provenance.json` records the expected environment drift (commit `03d3a54` → `7ae0a19`, `mesozoic_labs` 0.3.8.dev0 → 0.3.9.dev0), which moves no identity | 19h31m + ~4h19m to the cap + 18m34s resume (measured; the bundle's `total_training_time`, 19:49:58, omits the capped segment) |
 | 7 (optional) | trex | `BEHAVIOR="walk"`, `SEED=44`, `TRUNK_FROM="20260920_010912"` (a fresh run) | **Done.** Ran 2026-09-25 03:35 → 12:03 UTC as `20260925_033501` (`main` = `9d729e8`): stance reused from `20260920_010912` (`ancestors/stance`; the verdict's task, gate and plant digests matched), locomotion 8M PASSED (12:03 UTC, 1.57 m/s, section 2); bundle `complete`. The plan was: reuses the seed-44 run's certified stance across runs (recorded under `ancestors/`), trains locomotion 8M and rolls its gate: a second r13 walker seed beside `20260914_123816`. Not in place: `20260920_010912`'s bundle is `complete`, and a complete bundle is immutable, so the notebook refuses an in-place session that would train into it before anything is trained (consolidation PR-14a; before it, the bundle write failed after training) | 8h24m (measured) |
@@ -544,7 +546,8 @@ and CU-14a decides (a), gating `test_compsognathus_training.py` behind the
 depth switch, from the durations CU-14b's CI produces. On 2026-09-30 the
 maintainer settled (a) for the robot's six real-training parametrisations,
 which pull requests and pushes skip from CU-14a (#581) on.
-Within this sequence PR-8 is still next; under D-D21
+Within this sequence PR-8 is still next, after the 0.3.9 cut, which is
+carried out; under D-D21
 the whole 0.3.9 gate, including the reward/termination golden trace (CU-11,
 landed as #573, 2026-09-30), lands
 before PR-8, and the cleanup plan names the cleanup each later PR needs first (its
@@ -730,7 +733,22 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   validators); CU-14 into CU-14b (the plant-identity cache, first) and CU-14a
   (the workflow YAML); and CU-16 into CU-16a (docs text) and CU-16b (orphan
   assets). The gate's names cover all their parts, so the gate itself is
-  unchanged.
+  unchanged. As carried out by the 0.3.9 cut PR (2026-10-02), once the gate
+  had landed with CU-8c (#583, 2026-10-01), with the details the maintainer
+  chose on 2026-10-01 (the title kept without its "(v0.3.9)" suffix, the date
+  rule and `0.4.0.dev0` as the next development version): its first commit,
+  the one the maintainer tags, sets `version = "0.3.9"` and dates the section
+  `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup`, by that commit's
+  UTC author date (re-dated if it is rebuilt on a later UTC day); its second
+  opens a bare `## [Unreleased]` above it, as the 0.3.8 cut did, and sets
+  `0.4.0.dev0`. The digest-snapshot harness reports the golden current (932
+  lines, 0 errors) on the base, the tagged commit and the head. From
+  `## [0.3.9]` to the end, `CHANGELOG.md` has sha256
+  `88c579c35fb4ee3a8a29ce1807e0e98210f5861a4e0fd3e12e8800a43e398dca` at the
+  tagged commit and the head; from `## [0.3.8]` it is unchanged
+  (`c750a3fd…773b`). The cut PR merges with a merge commit, so the tagged
+  commit keeps its SHA on `main`, and never through "Update branch": if `main`
+  moves first, both commits are rebuilt on it.
 - **D-D22** (its row 16, taken 2026-09-29) The digest-snapshot output
   (`environments/shared/harnesses/digest_snapshot.py`) is committed as a
   golden and CI checks it, with the full harness run on pull requests (not
@@ -890,8 +908,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    [section 4](#4-consolidation-the-remaining-prs) (PR-8 next; the notebook-only PR-12 slice landed
    as #552, PR-14 as #553, #554 and #555, and PR-7 as #556) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge. Under D-D21, PR-8 waits
-   for the 0.3.9 cut ([section 1](#1-where-things-stand)); D-D21's gate has
-   landed, so the next PR is the cut (the cleanup plan's §2 row 20).
+   for the 0.3.9 cut ([section 1](#1-where-things-stand)), which is carried
+   out; D-D21's gate has landed.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
