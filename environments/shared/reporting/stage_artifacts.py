@@ -289,6 +289,71 @@ def _write_stance_gate_report(
     return None
 
 
+def _write_gait_report(
+    *,
+    species_cfg: Any,
+    stage: int | str,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_dir: Path,
+    algorithm: str,
+    allow_legacy_plant: bool = False,
+) -> dict[str, Any] | None:
+    """Roll a fresh physical gait panel on the actual selected handoff pair.
+
+    Existing locomotion recipes receive report-only diagnostics; an explicit
+    locomotion_gait/v1 declaration makes the same evidence authoritative.
+    Failure preserves the training artifacts and leaves certification closed.
+    """
+    from ..curriculum.gait_gate import GAIT_GATE_KIND
+    from ..stage_manifest import StageManifestError, load_stage_manifest
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    gated = curriculum.get("gate_kind") == GAIT_GATE_KIND
+    try:
+        locomotion = load_stage_manifest(species_cfg.species).resolve(stage).id == "locomotion"
+    except StageManifestError:
+        locomotion = stage == 2
+    if not gated and not locomotion:
+        return None
+    from ..result_bundle.reentry import refuse_write_into_complete_run
+
+    resolved = stage_dir.resolve()
+    for ancestor in (resolved, *resolved.parents):
+        refuse_write_into_complete_run(ancestor, what="Gait artifact generation")
+    # Derived evidence must not survive a failed fresh generation attempt.
+    # The immutable-bundle guard precedes even this invalidation.
+    (stage_dir / "gait_report.json").unlink(missing_ok=True)
+    episodes = curriculum.get("gait_report_episodes", curriculum.get("min_eval_episodes", 40) if gated else 40)
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
+        logger.info("Gait report skipped for stage %s: gait_report_episodes=%r", stage, episodes)
+        return None
+    handoff = select_handoff_checkpoint(model_dir)
+    if handoff is None:
+        logger.warning("Gait report skipped for stage %s: no matched selected checkpoint/normalization pair", stage)
+        return None
+    selected_name, model_path, vecnorm_path = handoff
+    try:
+        from ..gait.report import write_gait_report
+
+        logger.info("Gait report scoring stage %s checkpoint: %s", stage, selected_name)
+        report: dict[str, Any] = write_gait_report(
+            species_cfg,
+            dict(stage_config, _gait_stage=stage),
+            f"{model_path}.zip",
+            vecnorm_path,
+            stage_dir,
+            episodes=episodes,
+            seed=curriculum["gait_panel_seed_start"] if gated else PUBLICATION_SEED_START,
+            algorithm=algorithm,
+            allow_legacy_plant=allow_legacy_plant,
+        )
+        return report
+    except Exception:  # noqa: BLE001 - losing diagnostics must preserve a completed run
+        logger.warning("Gait report failed for stage %s", stage, exc_info=True)
+    return None
+
+
 def _write_task_success_evidence(
     *,
     species_cfg: Any,
@@ -1081,6 +1146,17 @@ def _apply_stage_gate(
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") == "locomotion_gait/v1" and stage_dir is not None:
+        try:
+            from .gates import gait_statistics
+
+            gait_stats, _ = gait_statistics(stage_dir, curriculum)
+        except Exception:  # noqa: BLE001 - copying statistics must preserve the run artifacts
+            logger.warning("Stage %s gait statistics could not be read", stage, exc_info=True)
+            gait_stats = None
+        if gait_stats:
+            for key in ("selected_gait_success_count", "selected_gait_n_episodes", "selected_gait_success_lcb"):
+                stage_results[key] = gait_stats[key]
     if curriculum.get("gate_kind") == "task_success/v1" and stage_dir is not None:
         # The numbers the verdict was judged on travel with it: the count,
         # the panel size and the bound go onto stage_results, hence into
@@ -1486,6 +1562,15 @@ def generate_stage_artifacts(
         stage_config=stage_config,
         stage_dir=stage_dir,
         model_dir=model_dir,
+    )
+    _write_gait_report(
+        species_cfg=species_cfg,
+        stage=stage,
+        stage_config=stage_config,
+        stage_dir=stage_dir,
+        model_dir=model_dir,
+        algorithm=algorithm,
+        allow_legacy_plant=allow_legacy_plant,
     )
     # A task_success/v1 stage is judged from evaluation_selected.csv; make
     # sure the directory holds one bound to the handoff before the gate

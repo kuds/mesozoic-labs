@@ -25,6 +25,7 @@ import mujoco
 from environments.shared import record_fields
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
+from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND, GAIT_THRESHOLD_KEYS
 from environments.shared.curriculum.gate_schema import (
     GATE_KINDS,
     STANCE_GATE_KIND,
@@ -152,7 +153,12 @@ def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     return []
 
 
+def _gait_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    return [("selected_gait_success_lcb", "physical gait success LCB95", "ratio")]
+
+
 _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]]] = {
+    GAIT_GATE_KIND: _gait_headline_specs,
     STANCE_GATE_KIND: _stance_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
@@ -467,6 +473,11 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
         "min_eval_episodes": int(curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)),
         "required_consecutive": int(
             curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
+        ),
+        **(
+            {key: curriculum[key] for key in GAIT_THRESHOLD_KEYS if key in curriculum}
+            if curriculum.get("gate_kind") == GAIT_GATE_KIND
+            else {}
         ),
     }
 
@@ -1338,6 +1349,16 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
     # reward_and_length/v1 criterion. required_consecutive is in-training
     # scheduler hysteresis only (D-B3), so the generic consecutive-passes
     # tail is not rendered here either.
+    if gate.get("gate_kind") == GAIT_GATE_KIND:
+        return "; ".join(
+            [
+                f"{gate['gait_profile']} joint episode success LCB95 ≥ {gate['min_gait_success_lcb']:g}",
+                f"exactly {gate['min_eval_episodes']} episodes from seed {gate['gait_panel_seed_start']}",
+                f"completed horizon and forward speed ≥ {gate['min_episode_forward_vel']:g} m/s per episode",
+                "physical contact, gait timing, flight, slip, and body-support criteria",
+                "verdict from the selected checkpoint's hash-bound gait_report.json and gait_panel.csv",
+            ]
+        )
     if gate.get("gate_kind") == "task_success/v1":
         task_criteria = [f"task success LCB95 ≥ {gate['min_success_lcb']:g}"]
         if gate["min_avg_reward"] is not None:

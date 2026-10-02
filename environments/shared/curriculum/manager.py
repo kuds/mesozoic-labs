@@ -14,6 +14,7 @@ import numpy as np
 
 from environments.shared.config import load_all_stages
 
+from .gait_gate import GAIT_GATE_KIND
 from .gate_schema import validate_gate_config
 from .recovery_gate import RECOVERY_GATE_KIND, binomial_lcb
 from .stance_gate import (
@@ -294,6 +295,16 @@ class CurriculumManager:
             passes = self._task_success_gate_passes(latest, threshold)
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
+        elif threshold.gate_kind == GAIT_GATE_KIND:
+            # The ordinary EvalCallback has no physics-substep contact panel.
+            # Only a fresh, bound selected-handoff report can certify gait.
+            logger.warning(
+                "Stage %d declares %s but ordinary in-training evaluations carry no gait telemetry; "
+                "refusing to advance until the selected handoff's gait panel is certified.",
+                self._current_stage,
+                GAIT_GATE_KIND,
+            )
+            passes = False
         else:
             # A kind with no evaluator here: a future entry added to
             # gate_schema.GATE_KINDS (the schema's documented extension path

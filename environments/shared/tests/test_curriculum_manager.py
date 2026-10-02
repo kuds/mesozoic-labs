@@ -599,6 +599,11 @@ class TestPublicationKeys:
             seen.add(kind)
         assert validate_gate_config(1, {**_PILOT, "certification_seeds": 3}, advancement_enabled=False) == "none/v1"
         seen.add("none/v1")
+        # The physical gait kind is available but current training recipes
+        # retain their legacy gates while fresh reports calibrate its bars.
+        from environments.shared.tests.test_gait_gate import curriculum
+
+        seen.add(validate_gate_config(2, curriculum(certification_seeds=3)))
         assert seen == set(GATE_KINDS)
 
     @pytest.mark.parametrize(
