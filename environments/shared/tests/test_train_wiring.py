@@ -248,15 +248,29 @@ def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, species=None, 
 
 
 def test_train_anchors_the_advisories_on_the_session_target():
-    """TC9: train() (the notebook's trainer too, consolidation PR-14c) passes the resume-aware target it computes."""
+    """TC9: train() (the notebook's trainer too, consolidation PR-14c) passes the resume-aware target it computes.
+
+    Since cleanup CU-10b the computation and the call are in the stage body train() trains through, which
+    train() hands its own budget, load and load mode (the inputs of the resume-aware target)."""
+    import ast
     import inspect
 
     from environments.shared import train_base
 
-    src = inspect.getsource(train_base.train)
+    src = inspect.getsource(train_base._train_stage_body)
     call_start = src.index("_build_core_callbacks(")
     assert "total_timesteps=target_timesteps," in src[call_start:]
     assert src.index("target_timesteps = loaded_steps + total_timesteps") < call_start
+    train_src = inspect.getsource(train_base.train)
+    assert "_build_core_callbacks(" not in train_src
+    (body,) = [
+        node
+        for node in ast.walk(ast.parse(train_src))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_train_stage_body"
+    ]
+    passed = {keyword.arg: ast.unparse(keyword.value) for keyword in body.keywords}
+    assert passed["total_timesteps"] == "total_timesteps"
+    assert passed["load_path"] == "load_path" and passed["task_load_mode"] == "task_load_mode"
 
 
 def test_the_notebook_binds_every_evidence_csv_to_its_checkpoint():

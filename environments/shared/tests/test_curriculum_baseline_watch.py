@@ -206,7 +206,9 @@ class TestBuilder:
 def test_every_trainer_call_site_passes_the_actual_budget():
     """`total_timesteps` is optional (TOML fallback), so a call site that omits
     it silently re-inherits the TC9 mis-anchoring. train() must hand over its
-    resume-aware cumulative target, not this call's remaining budget."""
+    resume-aware cumulative target, not this call's remaining budget: since
+    cleanup CU-10b the one call is in the stage body train() and the CLI
+    curriculum share, which computes that target from the budget each hands it."""
     import ast
 
     repo_root = Path(__file__).resolve().parents[3]
@@ -223,14 +225,26 @@ def test_every_trainer_call_site_passes_the_actual_budget():
             f"_build_core_callbacks call at train_base.py:{call.lineno} omits total_timesteps=, "
             "so the budget-anchored advisories fall back to the TOML budget on that path"
         )
-    train_fn = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "train")
-    train_call = next(
-        node
-        for node in ast.walk(train_fn)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_build_core_callbacks"
-    )
-    passed = next(kw.value for kw in train_call.keywords if kw.arg == "total_timesteps")
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    body_fn = functions["_train_stage_body"]
+    (body_call,) = [call for call in calls if body_fn.lineno <= call.lineno <= (body_fn.end_lineno or 0)]
+    assert len(calls) == 1, "every trainer builds its callbacks in the shared stage body"
+    passed = next(kw.value for kw in body_call.keywords if kw.arg == "total_timesteps")
     assert isinstance(passed, ast.Name) and passed.id == "target_timesteps"
+    target = next(
+        node
+        for node in ast.walk(body_fn)
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "target_timesteps"
+    )
+    assert ast.unparse(target.value) == "loaded_steps + total_timesteps"
+    for caller in ("train", "train_curriculum"):
+        (call,) = [
+            node
+            for node in ast.walk(functions[caller])
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_train_stage_body"
+        ]
+        budget = next(kw.value for kw in call.keywords if kw.arg == "total_timesteps")
+        assert isinstance(budget, ast.Name) and budget.id == "total_timesteps", caller
 
 
 def test_the_config_key_is_accepted_by_the_gate_schema():

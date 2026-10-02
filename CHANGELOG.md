@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **`train()` and the command-line curriculum train a stage through one
+  body, and the evaluation environment's seed has a name** (cleanup
+  CU-10b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row).
+  `train_curriculum` kept its own copy of `train()`'s stage body; both now
+  call one private helper in `train_base.py`, `_train_stage_body`. It
+  builds the training and evaluation environments, loads the VecNormalize
+  statistics, builds the algorithm kwargs, starts W&B, creates or loads
+  the model, sets up a same-stage resume, builds the callbacks, trains,
+  saves the final pair and returns both environments open. The curriculum
+  hands it `CurriculumCallback`, which still goes after the entropy decay
+  and before the stage-entry shaping, and gets back whether a Ctrl-C ended
+  the node; `curriculum_results.csv` still records the time `learn()`
+  took. What only one side did stays with it: `train()` refuses an
+  undeclared parent, seeds model construction (D-D11), records its
+  duration (D-A15), writes `metrics.json` and logs its own lines, and the
+  curriculum loads its parent's sidecar as before and judges no interrupted
+  node. The new public `train_base.eval_env_seed(seed)` returns
+  `seed + 1000`, the evaluation environment's seed on both paths; the SB3
+  notebook's `CHECKPOINT_SELECTION_SEED` stays `SEED + 1000`, and a pin
+  checks the two agree. Under a frozen clock, 16 runs (CLI `train` from
+  scratch, two periodic resumes, `initialize_next_stage`, an interrupt and
+  SAC; `train(report_metrics=False, save_on_interrupt=False)` as the
+  notebook calls it, from scratch, into the next stage, interrupted and
+  resumed; the CLI curriculum's velociraptor ladder, `--trunk-from`,
+  `--retrain-from`, a closed gate, an interrupt and compsognathus's stance
+  node) wrote the same files with the same bytes and the same log lines
+  before and after, SB3 archives apart from object addresses, the
+  TensorBoard event files aside (the comparison leaves them out because
+  their names carry the process id). Tests: ten new ones (both entry points
+  reach the body with their own switches, the callback order, the
+  curriculum's callback built where it was, the open environments, the
+  interrupt, the learn-only CSV duration, `eval_env_seed` on both paths, and
+  a node's model released before the next node trains), and the eight source
+  pins that read `train()` or `train_curriculum` now read the body and what
+  each caller passes it. No digest moves.
 - **The Drive summary notebook checks out `REPO_REF`, and its run reader
   is tested** (cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-02; §3.2 CU-15 row). `google_drive_summary.ipynb`'s setup cell
