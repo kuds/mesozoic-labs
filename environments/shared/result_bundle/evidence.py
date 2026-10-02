@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..constants import PUBLICATION_SEED_START
+from ..curriculum.gait_gate import GAIT_GATE_KIND
 from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
@@ -543,6 +544,41 @@ def _check_resolution_panel_seed(resolution_path: Path, *, stage: "int | str", p
         )
 
 
+def _validate_gait_evidence(
+    stage_dir: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    certified_hash: str | None,
+    certified_normalization: str | None,
+    stage: int | str,
+    stage_summary: Mapping[str, Any],
+    panel_seed_start: int | None,
+) -> None:
+    """Reproduce the gait verdict and headline from its exact certified pair."""
+    from ..reporting.gates import gait_statistics
+
+    stats, failures = gait_statistics(stage_dir, curriculum)
+    if stats is None or not stats["passed"]:
+        reasons = failures if stats is None else stats["failures"]
+        raise ResultBundleError(f"stage {stage} publication gait evidence fails: " + "; ".join(reasons))
+    for key, certified in (("checkpoint_sha256", certified_hash), ("normalization_sha256", certified_normalization)):
+        if certified is None or certified != stats[key]:
+            raise ResultBundleError(f"stage {stage} gait panel {key} does not match the certified selected pair")
+    if panel_seed_start is None or panel_seed_start != curriculum.get("gait_panel_seed_start"):
+        raise ResultBundleError(f"stage {stage} certification_panel role does not match gait_panel_seed_start")
+    for key in ("selected_gait_success_count", "selected_gait_n_episodes"):
+        if _integral(stage_summary.get(key)) != stats[key]:
+            raise ResultBundleError(f"stage {stage} {key} does not reproduce from gait evidence")
+    recorded_bound = stage_summary.get("selected_gait_success_lcb")
+    if (
+        isinstance(recorded_bound, bool)
+        or not isinstance(recorded_bound, (int, float))
+        or not math.isfinite(recorded_bound)
+        or abs(recorded_bound - stats["selected_gait_success_lcb"]) > 0.00005
+    ):
+        raise ResultBundleError(f"stage {stage} selected_gait_success_lcb does not reproduce from gait evidence")
+
+
 def _validate_task_success_evidence(
     evidence_path: Path,
     curriculum: Mapping[str, Any],
@@ -890,6 +926,16 @@ def validate_evaluation_evidence(
                 # `env_kwargs` is the in-memory name the same dict carries.
                 env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
+                panel_seed_start=certification_panel_seed,
+            )
+        elif recorded_pass and gate_kind == GAIT_GATE_KIND:
+            _validate_gait_evidence(
+                find_stage_dir(run_path, stage),
+                curriculum,
+                certified_hash=certified_hash,
+                certified_normalization=certified_normalization,
+                stage=stage,
+                stage_summary=stage_summary,
                 panel_seed_start=certification_panel_seed,
             )
         elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
