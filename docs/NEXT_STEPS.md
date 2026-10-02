@@ -1,6 +1,6 @@
 # Next steps and program state (2026-10-02)
 
-**Status**: living reference — updated 2026-10-02; `main` = `c090150` (#587 merged 2026-10-02 17:46 UTC).
+**Status**: living reference — updated 2026-10-02; `main` = `44b7d6e` (#588 merged 2026-10-02 19:58 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,7 +18,7 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-02** (`main` = `c090150`). The backend retirement is complete:
+**On 2026-10-02** (`main` = `44b7d6e`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete, but
 D-D21's 0.3.9 gate has landed: no gate name remains
@@ -91,14 +91,18 @@ decisions 4 and 6, which the maintainer took the same day), CU-6 (the resume
 slice) and CU-17 (the docs shrink); if ROW-4/6 is not ready when CU-10b
 merges, CU-17 takes its slot. CU-10 is split into CU-10a and CU-10b, and
 CU-10a landed as #587 the same day: the command-line curriculum judges a
-`stance_quality/v1` stage at an overridden `env.max_episode_steps`. CU-13 is
-carried out: the three recovery stages inherit their stance's `[stage]`,
-`[env]` and `[ppo]` (the compsognathus pair its `[sac]` too) through a
-per-table `extends`, the form of D-D5's amendment of 2026-10-02
+`stance_quality/v1` stage at an overridden `env.max_episode_steps`. CU-13
+landed as #588 the same day: the three recovery stages inherit their stance's
+`[stage]`, `[env]` and `[ppo]` (the compsognathus pair its `[sac]` too)
+through a per-table `extends`, the form of D-D5's amendment of 2026-10-02
 ([section 5](#5-decisions-taken-2026-09-17)), and every resolved stage config
-is byte-identical; CU-15 (reduced) is next. The consolidation's PR-8, PR-9,
-PR-10, PR-11, the rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9,
-after the deferred cleanup ([section 4](#4-consolidation-the-remaining-prs)).
+is byte-identical. CU-15 (reduced) is carried out: the Drive summary notebook
+checks out `REPO_REF` with the SB3 notebook's Git block, mounts Drive and
+installs the package only when needed, and an executed test reads runs in
+today's layout through its reader cells; CU-10b is next, with the `full-ci`
+label. The consolidation's PR-8, PR-9, PR-10, PR-11, the rest of PR-12, PR-13
+and PR-15 remain and build on 0.3.9, after the deferred cleanup
+([section 4](#4-consolidation-the-remaining-prs)).
 The gait audit of 2026-09-28
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md))
 replayed every certified node on Drive: three of the five certified walkers
@@ -171,6 +175,7 @@ gait work in a fresh session.
 | #584 | 2026-10-02 | The 0.3.9 cut (D-D21), outside the consolidation sequence: its first commit `20ab100` sets `version = "0.3.9"`, dates `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup` and cites #583 in CU-8c's entry; its second opens a bare `## [Unreleased]` and sets `0.4.0.dev0`; #583 recorded as landed; merged with a merge commit, so `20ab100` keeps its SHA on `main`; no code, notebook, config or digest change. The maintainer tagged `20ab100` as `0.3.9` (a lightweight tag) and published it as a GitHub pre-release on 2026-10-02; the tag first pointed at the merge commit `fb9b2a7`, and the maintainer moved it and published the release again. Measured on its CI at reduced depth, on the tagged tree (`20ab100`) and on the head (`9356086`): ten jobs each, all green, in 15:17 and 11:26 (the first finished three minutes after the merge, its SB3 job still in the integration step when the PR merged); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped; SB3 job 14:26 and 10:37 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,198 passed, 10 deselected), coverage 88 percent (19,469 statements, 2,281 missed); the first push run on `main` passed with the same ten jobs; D-D21 is complete |
 | #586 | 2026-10-02 | The records of the 0.3.9 cut and its tag, outside the consolidation sequence, docs only (7 files, +112 / −61): #584 and the maintainer's `0.3.9` tag on `20ab100` recorded as landed, D-D21 complete; merged with a merge commit (`20b7c24`, whose tree equals the head's); no code, notebook, config or digest change. Measured on its CI at reduced depth, on the head (`f6bec14`, through its merge ref): ten jobs, all green, in 12:07, finishing 7 h 40 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped; SB3 job 11:18 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,198 passed, 10 deselected), coverage 88 percent (19,469 statements, 2,281 missed); the first push run on `main` passed with the same ten jobs and counts, in 10:23 |
 | #587 | 2026-10-02 | Cleanup CU-10a (the first of the deferred PRs, in the order the maintainer chose on 2026-10-02), outside the consolidation sequence: `CurriculumCallback` takes an optional `eval_horizon`, which `train_curriculum` sets from the overridden stage config, so the command-line curriculum judges a `stance_quality/v1` stage at an overridden `env.max_episode_steps`; the KNOWN_ISSUES entry deleted; `## [Unreleased]` titled "Into the Wild (v0.4.0)"; #586, the maintainer's decisions of 2026-10-02 and the order recorded; merged with a merge commit (`c090150`, whose tree equals the head's); no digest moves (the change commit 6 files, +198 / −43; 13 files, +383 / −123 in all). Measured on its CI at reduced depth, on the head (`97acf97`, through its merge ref): ten jobs, all green, in 11:05, finishing 1 h 35 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,617 passed and 142 skipped; SB3 job 7:27 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,205 passed, 10 deselected), coverage 88 percent (19,473 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:28 |
+| #588 | 2026-10-02 | Cleanup CU-13 (the second of the deferred PRs), outside the consolidation sequence: the three recovery stage TOMLs inherit their stance's tables through a top-level `extends = { stage = "stance", tables = [...] }`, one level deep, with no chains and never `curriculum` (trex lists `stage`, `env` and `ppo` and stays PPO-only; the compsognathus pair lists `sac` too), the form of D-D5's amendment of 2026-10-02, which it appends; every resolved stage config byte-identical; the website's PPO, SAC and hyperparameter pages describe `extends`; #587 recorded; merged with a merge commit (`44b7d6e`, whose tree equals the head's); no digest moves (the change commit 14 files, +535 / −244; 20 files, +648 / −281 in all). Measured on its CI at reduced depth, on the head (`a281c01`, through its merge ref): ten jobs, all green, in 12:41, finishing 27 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,659 passed and 142 skipped; SB3 job 11:53 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,232 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:14, and the site's Deploy run on `main` built and deployed `44b7d6e` |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -638,6 +643,7 @@ G series; the D-A/D-B/D-C series keep their numbers). Confirmed by the maintaine
   already extends the robot's stance, so a robot stance that extended
   compsognathus's would put that recovery in a chain. This decision's own
   nodes wait for PR-11, where each names `locomotion` in this form.
+  CU-13 landed as #588 on 2026-10-02.
 - **D-D6** Honest gate name first: pilots run `none/v1` (recorded, not enforced),
   then the certificate's per-episode statistic is registered as
   `terrain_command/v1` with one shared threshold block; the plan's paired-null

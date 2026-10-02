@@ -44,8 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   taken, and the `library_version` column's two meanings become a
   KNOWN_ISSUES LOW. No library code or digest changes.
 - **The recovery stage TOMLs inherit from stance through `extends`**
-  (cleanup CU-13 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-13
-  row). A stage TOML may declare a top-level
+  (#588, cleanup CU-13 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02;
+  §3.2 CU-13 row). A stage TOML may declare a top-level
   `extends = { stage = "stance", tables = [...] }`: each listed table is the
   parent's, with the file's own keys overriding in place or appended, one
   level deep (a nested table such as `[ppo.policy_kwargs]` is replaced
