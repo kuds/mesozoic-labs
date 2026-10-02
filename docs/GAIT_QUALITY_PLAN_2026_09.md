@@ -98,6 +98,11 @@ before consolidation PR-8 and the gait code; it goes one PR at a time, in the or
 fix, split from CU-10; carried out), CU-13, CU-15 (reduced), CU-10b (the rest of CU-10), ROW-4/6 (the notebook PR for
 the cleanup plan's decisions 4 and 6, which the maintainer took the same day), CU-6 and CU-17, with CU-17 fifth if
 ROW-4/6 is not ready when CU-10b merges (the cleanup plan's §3.1 item 5). CU-13 also precedes PR-G7 (§6).*
+*Updated 2026-10-02: CU-10a landed as #587. CU-13 is carried out: each recovery stage, the robot's included, extends
+its stance through a per-table `extends` (the D-D5 amendment of 2026-10-02, the cleanup plan's decision 9), so a
+robot `gait-r1` stance edit moves its recovery with it, as PR-G7 assumes (§6), and an `[env]` edit there also makes
+the robot's recovery calibration refuse until it is recalibrated, as the robot's `stance.toml` says; CU-15 (reduced)
+is next.*
 
 ## 2. Decisions needed
 
@@ -412,7 +417,7 @@ the G PRs, like consolidation PR-8, wait for it; they still interleave with PR-8
 | PR-G4 Re-panel | `scripts/repanel_checkpoint.py` (GQ-11) | about +350, tests +600 | PR-G3 | none | refuses a failed or non-handoff source and an occupied target; copies hash equal; the verdict records the source handoff | Before PR-G5 |
 | PR-G5 Locomotion gate | six locomotion TOMLs declare `locomotion_gait/v1`; re-panel the two genuine walkers | TOML + tests | PR-G3, PR-G4 | **gate revision**: only those stages' `gate_sha256` and `stage_config_view_sha256` lines | fails both trex walkers, the robot, the skid and every statue; passes compsognathus and velociraptor (certified and final checkpoints) identically over five chaos realizations | Before PR-11 and any retrain |
 | PR-G6 Reward kit | §5.2–5.3, inert | about +600, tests +500 | CU-11, CU-12, PR-9 (GQ-16) | none at defaults (`behavior` lines only if before PR-9) | CU-11 golden unchanged; harness diff empty; `plant_contract --check`; the §5.5 re-scoring table | After PR-9 |
-| PR-G7 `gait-r1` | one TOML PR per species×stage (§5.4), merged just before its session | TOML | PR-G5, PR-G6, pilots; CU-13 for the robot stance (its recovery follows it through `extends`) | **task revision** (and gate revision if rails move) | statue re-measured; harness diff names only revised stages; retrained node passes PR-G5 | Robot, trex, dibothrosuchus, brachiosaurus |
+| PR-G7 `gait-r1` | one TOML PR per species×stage (§5.4), merged just before its session | TOML | PR-G5, PR-G6, pilots; CU-13 for the robot stance (its recovery follows it through `extends`) *CU-13 carried out 2026-10-02: each recovery stage, the robot's included, extends its stance through `extends` (the cleanup plan's §3.2, CU-13 row).* | **task revision** (and gate revision if rails move) | statue re-measured; harness diff names only revised stages; retrained node passes PR-G5 | Robot, trex, dibothrosuchus, brachiosaurus |
 | PR-G8 Stance v2 | per species inside its `gait-r1` (GQ-10, GQ-12) | TOML | PR-G3 | **gate revision** | the retrained stance passes; trex stance keeps v1 until a trex stance retrain (GQ-12's third seed), since adopting v2 without one makes rule 7 refuse the seed-42 stance that §5.4's `TRUNK_FROM = "20260914_123816"` reuses | With each revision |
 | PR-G9 Recovery v2 | register; re-freeze nulls; adopt per species (GQ-13) | about +300 | PR-G3 | **gate revision** at adoption | §4.3 D reproduces | Later |
 | PR-G10 PR-13 clause | `terrain_command/v1` reads `classify_episode` (GQ-18) | in PR-13 | PR-G3 | PR-13's | PR-13's | With PR-13 |

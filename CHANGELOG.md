@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **The command-line curriculum judges a `stance_quality/v1` stage at an
-  overridden `env.max_episode_steps`** (cleanup CU-10a of
+  overridden `env.max_episode_steps`** (#587, cleanup CU-10a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-10 row).
   `CurriculumCallback._eval_horizon` took the horizon from the stage TOML
   that `CurriculumManager` re-reads, while the evaluation env ran the
