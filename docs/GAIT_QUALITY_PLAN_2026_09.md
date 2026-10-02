@@ -73,7 +73,7 @@ before PR-15). Consolidation has landed PR-1 (#542), the automatic trunk selecti
 (#546–#549), PR-12's notebook-only slice (#552), PR-14a/b/c (#553–#555) and PR-7 (#556); PR-8, PR-9, PR-10, PR-11, the
 rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9
 ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)). PR-G1 needs CU-9; the later G PRs interleave with
-PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-10-01: CU-2 landed as #568, CU-4
+PR-8..PR-10 and precede PR-11's trex and robot sessions and PR-13 (§6). *Updated 2026-10-02: CU-2 landed as #568, CU-4
 as #569, CU-14b (the first part of CU-14, the cleanup plan's decision 10 (c), settled without a D-D id) as #570 and the
 digest-snapshot check of D-D22 (ROW-16) as #571, all on 2026-09-29, and CU-7a (the first part of CU-7) as #572 and
 CU-11 (the reward, info and termination golden) as #573, both on 2026-09-30, which completes wave 1, and CU-9
@@ -85,8 +85,8 @@ task-fingerprint derivation) as #579 on 2026-10-01; CU-12 (the species env dedup
 #580 the same day, which completes CU-12; CU-14a (the workflow structure of CU-14, with the cleanup plan's decision
 10 (a), settled on 2026-09-30 without a D-D id) as #581 on 2026-10-01, which completes CU-14 and wave 3; CU-8b (the
 SB3 import helper and the sidecar resolver of CU-8, which CU-6 waits for) as #582 the same day; CU-8c (one reader, one
-root, one sha256 pattern and one set of validators, the last part of CU-8 and of D-D21's gate) is carried out; once it
-lands, CU-8 is complete, D-D21's gate has landed and the 0.3.9 cut follows (the cleanup plan's §3.1 item 4);
+root, one sha256 pattern and one set of validators, the last part of CU-8 and of D-D21's gate) as #583 the same day,
+which completes CU-8 and D-D21's gate; the 0.3.9 cut follows (the cleanup plan's §3.1 item 4);
 CU-6 also waits for the notebook PR for that plan's decisions 4 and 6.*
 
 ## 2. Decisions needed
@@ -388,6 +388,8 @@ alternation ≥ 0.9 (0.02), foot-to-foot contact 0 (96%), stride ≥ 0.5 L at �
 Left of D-D21's gate (`CLEANUP_PLAN_2026_09.md:111`), with PR-B landed as #566: CU-2, CU-4, CU-5, CU-7, CU-8, CU-9,
 CU-11, CU-12, CU-14, CU-16 (§1.3). The G PRs interleave with consolidation PR-8..PR-10 and precede PR-11's trex and
 robot sessions and PR-13 (amends D-D13).
+*Updated 2026-10-02: all ten have landed, CU-8 last, with CU-8c as #583 on 2026-10-01, which completes D-D21's gate;
+the 0.3.9 cut follows (§1.3).*
 
 | PR | Scope | Size | Depends on | Digests | Acceptance | When |
 |---|---|---|---|---|---|---|

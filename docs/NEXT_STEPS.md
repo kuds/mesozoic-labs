@@ -1,6 +1,6 @@
-# Next steps and program state (2026-10-01)
+# Next steps and program state (2026-10-02)
 
-**Status**: living reference — updated 2026-10-01; `main` = `151a48b` (#582 merged 2026-10-01 22:00 UTC).
+**Status**: living reference — updated 2026-10-02; `main` = `c1ce2b8` (#583 merged 2026-10-01 23:56 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,11 +18,11 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-01** (`main` = `151a48b`). The backend retirement is complete:
+**On 2026-10-02** (`main` = `c1ce2b8`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
-only training backend (D-D17). The cleanup is **not** complete: one of
-D-D21's 0.3.9 gate names remains (CU-8,
-[CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), then the
+only training backend (D-D17). The cleanup is **not** complete, but
+D-D21's 0.3.9 gate has landed: no gate name remains
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3); then the
 0.3.9 cut. CU-2 (the `render_mode="human"` crash and the 0.01 s control step
 that stage summaries built from `evaluations.npz` assumed) landed as #568 on
 2026-09-29, and CU-4 (one notebook-cell reader for the tests and CI's
@@ -61,8 +61,8 @@ the last of wave 3, landed as #581 the same day, which completes CU-14 and
 wave 3; one gate name remains, CU-8. CU-8b (`policy_loading` owns the SB3
 import helper and the sidecar resolver), the first of wave 4, landed as #582
 the same day. CU-8c (one `stage_config.json` reader, one repository root, one
-sha256 pattern and one set of field validators), the second, is carried out;
-once it lands, CU-8 is complete, D-D21's gate has landed, and the 0.3.9 cut
+sha256 pattern and one set of field validators), the second, landed as #583
+the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut
 follows. On 2026-09-29 the
 maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
 with the full harness run on pull requests; its own PR, ROW-16, builds it, before
@@ -149,6 +149,7 @@ in a fresh session.
 | #580 | 2026-10-01 | Cleanup CU-12 (in D-D21's gate, the third PR of wave 3), outside the consolidation sequence: the four dual species (T. rex, velociraptor, Brachiosaurus and Dibothrosuchus) share `BaseDinoEnv`'s reward-term (`_progress_terms`, `_nosedive_term`, `_heading_terms`, `_speed_terms`), contact (`_contact_geom`), termination-prefix (`_root_termination`) and home-keyframe (`_cache_home_keyframe`) helpers, the foot forces use one summation order, `TRexEnv._foot_load_imbalance` is deleted and the MJX comments are reworded (PR-C folded in); #579 recorded; no number moves (`--exact` prints the same 32,389 lines on the base and the head), and the four species' behavior identities move with their files' bytes (the golden's 88 `behavior` lines, regenerated; their pilot behavior bundles stop certifying; the code commit 10 files, +866 / −671). Measured on its CI at `ed409dc` (the merge's tree), with the `full-ci` label: the digest step took 39 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 22:15 (its mypy step: no issues in 319 source files), the notebook training at full depth 4 passed and the behavior training 12, all 22 CI jobs green, coverage 88 percent (19,505 statements, 2,388 missed); CU-12 is complete |
 | #581 | 2026-10-01 | Cleanup CU-14a (in D-D21's gate, the second and last part of CU-14 and the last PR of wave 3; the cleanup plan's decision 10 (a)), outside the consolidation sequence: the `test` matrix is three Pythons × {`shared`, `species`}, six jobs instead of eighteen, so CI runs 10 jobs instead of 22; the two triggers share one anchored path list; the matrix installs the `test` extra; the plant-contract job no longer re-runs its tests; `test_phase_c_interface.py` leaves the SB3 job; pull requests and pushes skip the robot's six real-training parametrisations of `test_compsognathus_training.py`, which the nightly schedule, a manual dispatch and the `full-ci` label still run; #580 recorded; no digest moves (the code commit 8 files, +214 / −110). Measured on its CI at `870830e` (the merge's tree), at reduced depth: exactly the ten new jobs, all green, in 9:50; the digest step took 55 s and reported the golden current (932 lines, 0 errors); SB3 job 8:09 (its mypy step: no issues in 319 source files; the integration step 1,174 passed, 10 deselected), coverage 88 percent (19,505 statements, 2,388 missed); CU-14 and wave 3 are complete |
 | #582 | 2026-10-01 | Cleanup CU-8b (in D-D21's gate, the second part of CU-8 and the first PR of wave 4), outside the consolidation sequence: `policy_loading` owns the SB3 import helper (`_ensure_sb3`), the periodic checkpoint pattern and the VecNormalize sidecar resolver, which keep their private names and stay importable from `train_base` as aliases; every library caller looks them up in `policy_loading` when called, and `resolve_vecnorm_path` no longer imports `train_base`, SB3 or torch; `KNOWN_ISSUES.md` records the final-checkpoint replay's raw observations when its sidecar is missing; #581 recorded; no digest moves (the code commit 14 files, +784 / −136). Measured on its CI at `08f7bdd` (the merge's tree), with the `full-ci` label: ten jobs, all green, in 22:22; the digest step took 73 s and reported the golden current (932 lines, 0 errors); SB3 job 21:29 (its mypy step: no issues in 319 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,204 passed, 4 deselected), coverage 88 percent (19,514 statements, 2,385 missed); one gate name remains, CU-8 |
+| #583 | 2026-10-01 | Cleanup CU-8c (in D-D21's gate, the third and last part of CU-8 and the second PR of wave 4), outside the consolidation sequence: one lenient `stage_config.json` reader (`config.read_recorded_stage_config`, over the new `file_io.read_json_object`) gives the nine lenient readers' answers, and `save_result_bundle`, `audit_result_bundle` and `validate_evaluation_evidence` refuse a record that is not UTF-8 with their own errors; one repository root (`environments/shared/paths.py`; `plant_contract.constants` binds it and stays the patch point); one sha256 pattern and one set of record field validators (`environments/shared/record_fields.py`), whose three regex copies go; `KNOWN_ISSUES.md` records the same non-UTF-8 leak on several of the run directory's other JSON reads; #582 recorded; no digest moves (the code commit 28 files, +1,605 / −243). Measured on its CI at `d1e5654` (the merge's tree), with the `full-ci` label: ten jobs, all green, in 22:43, finishing two minutes after the merge (its SB3 job was still in the integration step when the PR merged); the digest step took 38 s and reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped (192 new tests); SB3 job 21:56 (its mypy step: no issues in 324 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,204 passed, 4 deselected), coverage 88 percent (19,469 statements, 2,281 missed); CU-8 is complete, and D-D21's gate has landed |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -516,7 +517,7 @@ single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
 PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
 CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
 CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30), and CU-8a as #579, CU-12 as #580, CU-14a as #581 and CU-8b as #582 (2026-10-01); the archive points (the plan's decision 2) were settled on 2026-09-27
+PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30), and CU-8a as #579, CU-12 as #580, CU-14a as #581, CU-8b as #582 and CU-8c as #583 (2026-10-01); the archive points (the plan's decision 2) were settled on 2026-09-27
 with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
 structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
 and CU-4 landed; CU-14b, the first part of CU-14, landed as #570; CU-7a
@@ -527,9 +528,9 @@ first part of CU-16, as #577, which completes wave 2, and CU-16b, its second
 part, as #578, which completes CU-16 and leaves three, and CU-8a, the first
 part of CU-8, as #579, and CU-12 as #580, which completes CU-12 and leaves
 two, and CU-14a, the second part of CU-14, as #581, which completes CU-14
-and wave 3 and leaves one, and CU-8b, the second part of CU-8, as #582;
-CU-8c, its third and last part, is carried out, and once it lands none
-remain; [section 1](#1-where-things-stand) names them),
+and wave 3 and leaves one, and CU-8b, the second part of CU-8, as #582,
+and CU-8c, its third and last part, as #583, which completes CU-8 and
+leaves none; [section 1](#1-where-things-stand) names them),
 the clean base the consolidation builds on. On 2026-09-29 the maintainer took
 D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
 CI checks, with the full harness run on pull requests, in the plant-contract
@@ -889,9 +890,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    [section 4](#4-consolidation-the-remaining-prs) (PR-8 next; the notebook-only PR-12 slice landed
    as #552, PR-14 as #553, #554 and #555, and PR-7 as #556) on the session branch, one PR at a time,
    restarting the branch from `main` after each merge. Under D-D21, PR-8 waits
-   for the cleanup's one remaining 0.3.9 gate name (CU-8) and the 0.3.9 cut
-   ([section 1](#1-where-things-stand)), so the next PR is a cleanup PR (item 5),
-   in the order of the cleanup plan's §3.1 item 4.
+   for the 0.3.9 cut ([section 1](#1-where-things-stand)); D-D21's gate has
+   landed, so the next PR is the cut (the cleanup plan's §2 row 20).
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
