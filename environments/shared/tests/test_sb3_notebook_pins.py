@@ -34,6 +34,8 @@ from .notebook_cells import cell_sources, code_cell, code_cell_sources, code_cel
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NOTEBOOK_PATH = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
+#: The Drive summary checks out ``REPO_REF`` with this notebook's Git block (cleanup CU-15), pinned here.
+DRIVE_SUMMARY_PATH = REPO_ROOT / "notebooks" / "google_drive_summary.ipynb"
 #: ``train_stage`` trains through ``train_base.train`` (consolidation PR-14c); pins on what it records read its source.
 TRAIN_BASE_PATH = REPO_ROOT / "environments" / "shared" / "train_base.py"
 
@@ -2938,16 +2940,29 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             assert not re.search(knobs, src), f"cell {index} names a direction/terrain knob"
 
     @pytest.mark.parametrize(
-        "dirty,loaded,expected", [(True, False, "local edits"), (False, True, "Restart"), (False, False, None)]
+        "dirty,loaded,indexed,expected",
+        [
+            (True, False, True, "local edits"),
+            (False, True, True, "Restart"),
+            (False, False, True, None),
+            # A clone whose first fetch failed: no index, HEAD already at the fetched commit, and
+            # every file staged as deleted. Setup checks it out instead of reporting an empty tree.
+            (True, False, False, None),
+        ],
     )
-    def test_colab_ref_change_is_explicit_and_preserves_edits(self, tmp_path, monkeypatch, dirty, loaded, expected):
-        """Execute the notebook's actual Git setup block with controlled Git replies."""
+    @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
+    def test_colab_ref_change_is_explicit_and_preserves_edits(
+        self, tmp_path, monkeypatch, path, dirty, loaded, indexed, expected
+    ):
+        """Execute the notebook's actual Git setup block with controlled Git replies (both notebooks')."""
         import subprocess
         import types
 
         checkout = tmp_path / "checkout"
         (checkout / ".git").mkdir(parents=True)
-        source = _cell("REPO_REF =")
+        if indexed:
+            (checkout / ".git" / "index").touch()
+        source = code_cell(path, "REPO_REF =")
         tree = ast.parse(source)
         colab_block = next(node for node in tree.body if isinstance(node, ast.If))
         start = next(
@@ -2971,7 +2986,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
                 return "new-commit\n"
             if command[1:3] == ["rev-parse", "HEAD"]:
-                return "old-commit\n"
+                return "old-commit\n" if indexed else "new-commit\n"
             if command[1:3] == ["status", "--porcelain"]:
                 return " M notebook.ipynb\n" if dirty else ""
             raise AssertionError(command)
@@ -2996,9 +3011,43 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
 
 
-@pytest.mark.parametrize(
-    "path", [NOTEBOOK_PATH, REPO_ROOT / "notebooks" / "google_drive_summary.ipynb"], ids=["sb3", "drive_summary"]
-)
+def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
+    """The setup cell's ``IN_COLAB`` assignment, and its Git block: in its ``if IN_COLAB:`` block, from
+    ``import pathlib`` through the print of the checked-out ref and commit."""
+    tree = ast.parse(code_cell(path, "REPO_REF ="))
+    (in_colab,) = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ["IN_COLAB"]
+    ]
+    (colab_block,) = [node for node in tree.body if isinstance(node, ast.If) and ast.unparse(node.test) == "IN_COLAB"]
+    body = colab_block.body
+    start = next(i for i, node in enumerate(body) if isinstance(node, ast.Import) and node.names[0].name == "pathlib")
+    end = next(i for i, node in enumerate(body) if "Repository ref: " in ast.unparse(node))
+    return in_colab, body[start : end + 1]
+
+
+def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block():
+    """The Drive summary's setup cell runs the SB3 setup cell's Git block statement for statement (CU-15).
+
+    The block installs the package, so it cannot live in it; the two copies are pinned equal as ASTs
+    instead: the ``--no-checkout`` clone, the fetch of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the
+    refusals after an import of the package or over local edits, and the detached checkout. Both cells
+    declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above runs the block.
+    """
+    sb3_in_colab, sb3_block = _colab_setup(NOTEBOOK_PATH)
+    drive_in_colab, drive_block = _colab_setup(DRIVE_SUMMARY_PATH)
+    assert len(sb3_block) >= 10, "the SB3 Git block was not found whole"
+    assert [ast.dump(node) for node in drive_block] == [ast.dump(node) for node in sb3_block], (
+        "google_drive_summary.ipynb's Git block differs from sb3_training.ipynb's:\n"
+        + ast.unparse(ast.Module(body=drive_block, type_ignores=[]))
+    )
+    assert ast.dump(drive_in_colab) == ast.dump(sb3_in_colab)
+    for path in (NOTEBOOK_PATH, DRIVE_SUMMARY_PATH):
+        assert 'REPO_REF = "main"  # @param {"type":"string"}' in code_cell(path, "REPO_REF =").splitlines()
+
+
+@pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
 def test_the_notebook_round_trips_through_json_dump_indent_1(path):
     """Every notebook edit goes through json.load -> json.dump(indent=1, ensure_ascii=False) + newline."""
     text = path.read_text(encoding="utf-8")

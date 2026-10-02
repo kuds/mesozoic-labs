@@ -344,6 +344,9 @@ jobs:
       # test_compsognathus_training runs (decision 10 (a)); a bare
       # `not compsognathus_robot` would drop the robot's parameters in
       # test_config.py and test_recovery_calibration.py too.
+      # test_drive_summary_notebook.py needs no SB3 but runs here for pandas,
+      # which stable-baselines3[extra] brings: its reader test skips in the
+      # `test` matrix, whose test extra has none (cleanup CU-15).
       - name: Run SB3 integration tests
         run: |
           pytest \
@@ -366,6 +369,7 @@ jobs:
             environments/shared/tests/test_train_wiring.py \
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
+            environments/shared/tests/test_drive_summary_notebook.py \
             -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_training and compsognathus_robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:

@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **The Drive summary notebook checks out `REPO_REF`, and its run reader
+  is tested** (cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-02; §3.2 CU-15 row). `google_drive_summary.ipynb`'s setup cell
+  takes the SB3 notebook's `REPO_REF = "main"` knob and its Git block,
+  statement for statement, in place of a `--depth 1` clone of the default
+  branch that a rerun reused without updating: a `--no-checkout` clone, a
+  fetch of `REPO_REF`, `FETCH_HEAD^{commit}`, the refusals after an import
+  of the package or over local edits, and a detached checkout. In both
+  notebooks the block also checks out a clone that has no index yet, as
+  a failed first fetch (a mistyped `REPO_REF`) leaves it; a rerun used to
+  print its commit over an empty tree. Drive is
+  mounted only when `google.colab` imports and `/content/drive` is not
+  mounted yet, and the install cell runs `pip install -e` only when
+  `environments` cannot be found, asking before it puts the checkout on
+  `sys.path`. The layout text, two docstrings, the `show_full_config`
+  example and the strict-validation note describe today's
+  `<algorithm>/<run_id>/NN_<stage id>/` runs and the `canonical-valid`
+  bundle. Tests: the two Git blocks are pinned AST-identical, the
+  ref-change test runs on both notebooks, and the new
+  `test_drive_summary_notebook.py`, which the SB3 job lists for pandas,
+  runs the mount with `google.colab` absent, unmounted and mounted, the
+  install cell with the package found and not, and the reader cells whole
+  and in order on a complete, a partial, a failed, a conflicting and an
+  interrupted run in today's layout, an older flat run, a March 2026
+  sweep and a `sweeps/<algorithm>_<timestamp>/` folder that gives no row
+  (`test_sb3_notebook_pins.py` goes from 121 tests to 127; the new module
+  has 6). Each fails under a mutant: a changed Git-block statement (the
+  pin, and the ref-change test unless it is the clone); a reader that
+  skips `<algorithm>/<run_id>/` runs or runs found only by an
+  `NN_<stage id>` directory, misroutes a partial or failed bundle,
+  renames a summary key, drops the sweep or legacy rows or walks into
+  `sweeps/`; the unguarded mount; an unconditional install, or the path
+  insert moved back into the setup cell. The `run_index.py` move is not
+  taken, and the `library_version` column's two meanings become a
+  KNOWN_ISSUES LOW. No library code or digest changes.
 - **The recovery stage TOMLs inherit from stance through `extends`**
   (cleanup CU-13 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-13
   row). A stage TOML may declare a top-level
