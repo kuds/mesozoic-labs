@@ -371,9 +371,10 @@ robustness, **LOW** = cosmetic / QoL.
   holds only as records are trained again here (found by the review of
   #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4). A node `RETRAIN_FROM` covered has the shape of (b); #559
   refuses its resume and names the route (`BEHAVIOR` set to that node, then a
-  fresh `RUN_ID` trunked from this run). Plan: two
-  pending decisions in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2,
-  a run-level record of the resolved trunk that the RESUME cell reads, and
+  fresh `RUN_ID` trunked from this run). Plan: two decisions in
+  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 (rows 4 and 6), which
+  the maintainer took on 2026-10-02 and the notebook PR ROW-4/6 carries out: a
+  run-level record of the resolved trunk that the RESUME cell reads, and
   judging an unjudged `RUN_DIR` node before any trunk reuse. (#558 reviews)
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already

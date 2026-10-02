@@ -7,6 +7,8 @@ The evidence is the dated note [investigations/GAIT_AUDIT_2026_09.md](investigat
 D-D21's 0.3.9 gate; every code PR builds on 0.3.9.
 *Updated 2026-10-02: the 0.3.9 cut landed as #584 on 2026-10-02, and the maintainer tagged its first commit,
 `20ab100`, as `0.3.9`, so the code PRs no longer wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
+*Updated 2026-10-02: the maintainer chose to finish the deferred cleanup (the cleanup plan's §3.1 item 5) before
+consolidation PR-8 and the code PRs here, so the code PRs now wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
 
 ## How to use this document
 
@@ -91,6 +93,11 @@ root, one sha256 pattern and one set of validators, the last part of CU-8 and of
 which completes CU-8 and D-D21's gate; the 0.3.9 cut landed as #584 on 2026-10-02, and the maintainer tagged `0.3.9`,
 so the gait code no longer waits for it (the cleanup plan's §3.1 item 4); CU-6 also waits for the notebook PR for
 that plan's decisions 4 and 6.*
+*Updated 2026-10-02: the 0.3.9 cut's records PR landed as #586. The maintainer chose to finish the deferred cleanup
+before consolidation PR-8 and the gait code; it goes one PR at a time, in the order CU-10a (the curriculum horizon
+fix, split from CU-10; carried out), CU-13, CU-15 (reduced), CU-10b (the rest of CU-10), ROW-4/6 (the notebook PR for
+the cleanup plan's decisions 4 and 6, which the maintainer took the same day), CU-6 and CU-17, with CU-17 fifth if
+ROW-4/6 is not ready when CU-10b merges (the cleanup plan's §3.1 item 5). CU-13 also precedes PR-G7 (§6).*
 
 ## 2. Decisions needed
 
@@ -393,11 +400,13 @@ CU-11, CU-12, CU-14, CU-16 (§1.3). The G PRs interleave with consolidation PR-8
 robot sessions and PR-13 (amends D-D13).
 *Updated 2026-10-02: all ten have landed, CU-8 last, with CU-8c as #583 on 2026-10-01, which completes D-D21's gate;
 the 0.3.9 cut landed as #584 on 2026-10-02 and `0.3.9` is tagged, so the G PRs no longer wait for it (§1.3).*
+*Updated 2026-10-02: the maintainer chose to finish the deferred cleanup first (the cleanup plan's §3.1 item 5), so
+the G PRs, like consolidation PR-8, wait for it; they still interleave with PR-8..PR-10 (§1.3).*
 
 | PR | Scope | Size | Depends on | Digests | Acceptance | When |
 |---|---|---|---|---|---|---|
 | PR-G0 Records | §7: this plan, the audit note and its evidence files, KNOWN_ISSUES, NEXT_STEPS, README, CHANGELOG | docs, plus the evidence files under `investigations/gait_2026_09/` | PR-B (merged 2026-09-28 as #566) | none (**digest-free; may precede the cut**) | links resolve; each entry states how it was verified | Now: the maintainer approved opening it on 2026-09-28, outside D-D21's gate (GQ-1 itself stays open) |
-| PR-G1 Library | §3.1 | about +1,100, tests +600 | CU-9 | none (new files) | reproduces the 2026-09-28 summaries on CPU for every audited node (the July brachiosaurus through a worktree at `e179198`, as the audit did); synthetic fixtures (walk, lateral-sequence walk, grounded and aerial run, hop, skip, scoot, stacked feet, march, chatter, trot, pace, pronk, bound, three-legged); the six-statue registry test; harness diff empty | First after the cut |
+| PR-G1 Library | §3.1 | about +1,100, tests +600 | CU-9 | none (new files) | reproduces the 2026-09-28 summaries on CPU for every audited node (the July brachiosaurus through a worktree at `e179198`, as the audit did); synthetic fixtures (walk, lateral-sequence walk, grounded and aerial run, hop, skip, scoot, stacked feet, march, chatter, trot, pace, pronk, bound, three-legged); the six-statue registry test; harness diff empty | First after the cut *2026-10-02: after the deferred cleanup, which the maintainer put first (the cleanup plan's §3.1 item 5).* |
 | PR-G2 Report-only | JUDGE writes `gait_report.json` and `gait_panel.csv` on every stage, declared in the bundle layout; no gate reads them; a four-foot `derive_stance_info`; `zero_action_baseline.py` prints the stance-gate verdict for `stance_quality` stages | about +400, tests +600 | PR-G1 | none | JUDGE time measured; the 40-episode panel rolled on every audited handoff and §4.3 re-frozen from it | With PR-8..PR-10 |
 | PR-G3 Kinds | §4.1, §4.5 | about +500, tests +700 | PR-G2 | none (no TOML declares them) | fail-closed and "is consulted" tests; backfill refuses without a report | Before PR-13 |
 | PR-G4 Re-panel | `scripts/repanel_checkpoint.py` (GQ-11) | about +350, tests +600 | PR-G3 | none | refuses a failed or non-handoff source and an occupied target; copies hash equal; the verdict records the source handoff | Before PR-G5 |
@@ -510,13 +519,14 @@ Continue the gait-quality work in the mesozoic-labs repository.
 3. Confirm whether the 0.3.9 release has been cut (the tags on the remote, from git ls-remote --tags origin rather
    than a local tag, which keeps its old target in a clone that fetched it before the tag moved; CHANGELOG; D-D21 in
    CLEANUP_PLAN §2). The maintainer wants the gait check after the cleanup. If the cut has not happened, the next
-   work is the remaining cleanup PRs in CLEANUP_PLAN §3 order, not gait code.
-4. Once 0.3.9 is cut, start PR-G1 (the gait library, plan §3.1; it depends on CU-9), then PR-G2 (report-only gait
-   reports). Use docs/investigations/gait_2026_09/gait_probe.py and gait_audit_2026_09.csv as the calibration
-   reference: PR-G1 must reproduce the audit's per-node summaries on CPU. Hop-flight and the stance-v2 scores in plan
-   §4.3 are in neither the probe nor the CSV; compute them from §3.1's definitions. The per-node JSON, traces and plots are
-   not in the repository; gait_2026_09/SHA256SUMS pins them, and gait_2026_09/README.md says how to regenerate them
-   from the certified checkpoints on Drive.
+   work is the remaining cleanup PRs in CLEANUP_PLAN §3 order, not gait code. Since 2026-10-02 the deferred cleanup
+   also comes first (CLEANUP_PLAN §3.1 item 5); check which of its PRs have landed.
+4. Once 0.3.9 is cut and the deferred cleanup has landed, start PR-G1 (the gait library, plan §3.1; it depends on
+   CU-9), then PR-G2 (report-only gait reports). Use docs/investigations/gait_2026_09/gait_probe.py and
+   gait_audit_2026_09.csv as the calibration reference: PR-G1 must reproduce the audit's per-node summaries on CPU.
+   Hop-flight and the stance-v2 scores in plan §4.3 are in neither the probe nor the CSV; compute them from §3.1's
+   definitions. The per-node JSON, traces and plots are not in the repository; gait_2026_09/SHA256SUMS pins them, and
+   gait_2026_09/README.md says how to regenerate them from the certified checkpoints on Drive.
 
 House rules (binding):
 - No digest moves except in a named revision; verify with environments/shared/harnesses/digest_snapshot.py on the
