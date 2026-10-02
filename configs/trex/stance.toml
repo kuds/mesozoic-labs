@@ -2,7 +2,7 @@
 name = "balance"
 description = "Learn to stand and balance without falling"
 
-[env]
+[env]                                          # recovery.toml inherits this table (`extends`), all but the foot_contact_* keys it writes out: an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (974.7), as its note there says
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
@@ -193,7 +193,7 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # every noise level. Robustness is stage 1b's job, via perturbations,
                                                # not lucky-draw reset noise (§13).
 
-[ppo]
+[ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
 learning_rate_end = 1e-5
 n_steps = 2048                          # Setting 4 sweep: smaller rollout buffer. Matches brachio Setting 4.

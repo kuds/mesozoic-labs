@@ -1,6 +1,11 @@
 # Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
 # See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
 # validation limits, and the next-run protocol. State observations are privileged.
+# recovery.toml extends this file's [stage], [env], [ppo] and [sac] (its
+# `extends` key): an [env] or [sac] edit here, or a [ppo] edit other than
+# ent_coef_decay_timesteps (which recovery sets itself), also moves the
+# recovery stage's task or hyperparameter digests, and an [env] edit makes
+# its recovery calibration refuse until recalibrated.
 [stage]
 name = "balance"
 description = "Hold an upright stance with foot support"

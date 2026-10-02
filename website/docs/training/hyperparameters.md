@@ -47,16 +47,17 @@ configs/
     └── stages.toml
 ```
 
-Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` in every stage file except the T-Rex `recovery.toml`, which is PPO-only. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its species through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
-**Each stage has its own `[ppo]` and `[sac]` sections.** When the
-`curriculum` command advances, it loads the next TOML file and re-initialises
-the algorithm with that stage's settings; the next node's weights come from
-its declared `warm_start_from` parent's handoff checkpoint, loaded under
-`initialize_next_stage`. Values differ across species and change as
-experiments evolve, so the stage TOML files are the authoritative source.
+**Each stage has its own `[ppo]` and `[sac]` sections**, declared in its TOML
+file or inherited through `extends`; the T-Rex `recovery` has no `[sac]`. When
+the `curriculum` command advances, it loads the next TOML file and
+re-initialises the algorithm with that stage's settings; the next node's
+weights come from its declared `warm_start_from` parent's handoff checkpoint,
+loaded under `initialize_next_stage`. Values differ across species and change
+as experiments evolve, so the stage TOML files are the authoritative source.
 
 Every trained node records a `hyperparameters_sha256` in the `run` block of
 its `stage_config.json`: a digest over the stage's `[ppo]` or `[sac]` table

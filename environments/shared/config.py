@@ -6,7 +6,13 @@ named as the species' stage manifest declares (trex: stance.toml,
 recovery.toml, locomotion.toml, behavior.toml; manifest-less species keep
 their historical stage{N}_* names, which their synthesized manifest records).
 
-Each TOML file has four tables: [stage], [env], [ppo]/[sac], and [curriculum].
+Each TOML file has up to five tables: [stage], [env], [ppo], [sac] and
+[curriculum].  A top-level ``extends`` key, before the first table header,
+inherits the listed tables from another stage of the same species, one
+level deep and never [curriculum]:
+
+    extends = { stage = "stance", tables = ["stage", "env", "ppo"] }
+
 The [curriculum] table contains per-stage training and advancement settings:
     timesteps           - number of timesteps to train this stage
     min_avg_reward      - minimum average reward to advance (optional)
@@ -171,16 +177,130 @@ _CONFIGS_DIR = _REPO_ROOT / "configs"
 # synthesizer for manifest-less species.
 
 #: Every top-level table a stage TOML may declare.  This is the complete set
-#: the loader below reads — the scripts that open a stage TOML themselves
-#: (``stance_quality_baseline``, ``zero_action_baseline``, the report
-#: scripts) read only ``[env]``, the trainers (the CLI and the notebook) go
-#: through :func:`load_stage_config`, and ``stages.toml`` has its own reader in
-#: ``stage_manifest``.  Anything else is rejected rather than ignored: a
-#: misspelled ``[environment]`` used to load as an empty ``[env]`` and the
-#: stage silently trained on constructor defaults (review CF4).  ``[jax]`` has
-#: been rejected too since D-D17 retired the JAX/MJX trainer that read it.
+#: the loader below reads, once :func:`_read_stage_toml` has resolved and
+#: removed the one other top-level key, ``extends``.  The trainers (the CLI
+#: and the notebook), the report scripts and the recovery harnesses go
+#: through :func:`load_stage_config`; the only library code that opens a
+#: stage TOML itself reads the ``[env]`` of a stage that extends nothing
+#: (``stance_quality_baseline`` stance's, ``train_behaviors`` locomotion's),
+#: and ``stages.toml`` has its own reader in ``stage_manifest``.  Anything
+#: else is rejected rather than ignored: a misspelled ``[environment]`` used
+#: to load as an empty ``[env]`` and the stage silently trained on
+#: constructor defaults (review CF4).  ``[jax]`` has been rejected too since
+#: D-D17 retired the JAX/MJX trainer that read it.
 _STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "curriculum"})
 _ALGORITHM_TABLES = ("ppo", "sac")
+#: The tables ``extends`` may inherit.  ``[curriculum]`` is never inherited:
+#: a stage's budget and advancement gate are its own.
+_INHERITABLE_TABLES = ("stage", "env", "ppo", "sac")
+
+
+def _tables_holding_extends(body: Any, dotted: str) -> list[str]:
+    """The dotted name of every table at or below *body* that holds an ``extends`` key.
+
+    Each table of an array of tables (``[[env.zones]]``) is walked under the
+    array's own name.
+    """
+    if isinstance(body, list):
+        return [where for item in body for where in _tables_holding_extends(item, dotted)]
+    if not isinstance(body, dict):
+        return []
+    found = [dotted] if "extends" in body else []
+    for key, value in body.items():
+        found.extend(_tables_holding_extends(value, f"{dotted}.{key}"))
+    return found
+
+
+def _load_stage_toml(path: Path) -> dict[str, Any]:
+    """Parse the stage TOML at *path*, refusing an ``extends`` written inside any table.
+
+    ``extends`` is a top-level key.  Written after a header, at any depth, it
+    lands inside that table (after ``[ppo.policy_kwargs]``, in the
+    ``policy_kwargs`` dict), where nothing would resolve it.  The top-level
+    value itself is not walked, so a malformed one gets the resolver's own
+    error.  Both reads in :func:`_read_stage_toml`, the file's and its
+    parent's, go through here.
+    """
+    with open(path, "rb") as f:
+        raw = tomllib.load(f)
+    misplaced = sorted(
+        {where for table, body in raw.items() if table != "extends" for where in _tables_holding_extends(body, table)}
+    )
+    if misplaced:
+        raise ValueError(
+            f"{path}: extends is declared inside {misplaced}; it is a top-level key and goes before the "
+            "first table header, or it would be silently ignored."
+        )
+    return raw
+
+
+def _read_stage_toml(path: Path) -> dict[str, Any]:
+    """Read the stage TOML at *path*, with its ``extends`` key resolved.
+
+    ``extends = { stage = "<id>", tables = [...] }`` names a parent stage and
+    the tables inherited from it.  The id resolves through the stage manifest
+    of *path*'s own directory (``<configs root>/<species>/stages.toml``),
+    never through a species argument, so an explicit ``config_path`` into
+    another configs root reads that root's parent.  Each listed table is
+    ``{**parent[table], **child[table]}``: a child key overrides in the
+    parent's position, a new child key is appended, and a nested table the
+    child declares (``[ppo.policy_kwargs]``) replaces the parent's whole.  An
+    unlisted table is the child's own.  Refused, naming the file at fault:
+    ``extends`` written inside a table at any depth (after a header such as
+    ``[stage]``, ``[ppo.policy_kwargs]`` or ``[[env.zones]]``), in the file
+    or in its parent, both read through :func:`_load_stage_toml`; a
+    malformed value; ``curriculum`` or an unknown table in the list; a
+    listed table the parent does not declare; a parent that itself extends
+    (one level only); and an id the directory's manifest cannot resolve,
+    which is how a copied TOML outside its species directory fails.
+    """
+    raw = _load_stage_toml(path)
+    if "extends" not in raw:
+        return raw
+    extends = raw.pop("extends")
+    parent_id = extends.get("stage") if isinstance(extends, dict) else None
+    tables = extends.get("tables") if isinstance(extends, dict) else None
+    if (
+        not isinstance(extends, dict)
+        or set(extends) != {"stage", "tables"}
+        or not isinstance(parent_id, str)
+        or not isinstance(tables, list)
+        or not tables
+        or not all(isinstance(table, str) for table in tables)
+        or len(set(tables)) != len(tables)
+    ):
+        raise ValueError(
+            f'{path}: extends must be {{ stage = "<stage id>", tables = ["<table>", ...] }}, each table '
+            f"named once; got {extends!r}"
+        )
+    refused = [table for table in tables if table not in _INHERITABLE_TABLES]
+    if refused:
+        raise ValueError(
+            f"{path}: extends cannot inherit {refused}; it may list only {list(_INHERITABLE_TABLES)}, "
+            "and never [curriculum]: a stage's budget and advancement gate are its own."
+        )
+    from .stage_manifest import StageManifestError, load_stage_manifest
+
+    species_dir = path.absolute().parent
+    try:
+        entry = load_stage_manifest(species_dir.name, species_dir.parent).by_id(parent_id)
+    except StageManifestError as exc:
+        raise ValueError(
+            f"{path}: extends stage {parent_id!r}, which the stage manifest of its own directory does not "
+            f"resolve ({exc}); a stage TOML that extends another loads only from its species directory."
+        ) from exc
+    parent_path = species_dir / entry.config_file
+    parent = _load_stage_toml(parent_path)
+    if "extends" in parent:
+        raise ValueError(
+            f"{path}: extends {parent_path}, which itself extends another stage; extends is one level "
+            "deep, so name the root stage instead."
+        )
+    for table in tables:
+        if not isinstance(parent.get(table), dict):
+            raise ValueError(f"{path}: extends lists [{table}], which {parent_path} does not declare")
+        raw[table] = {**parent[table], **raw.get(table, {})}
+    return raw
 
 
 def load_stage_config(
@@ -199,13 +319,17 @@ def load_stage_config(
             without a legacy number — recovery, every open id — are
             reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
-            automatic discovery when provided.
+            automatic discovery when provided.  A file that ``extends``
+            another stage finds that parent through the stage manifest of
+            its own directory, whatever *species* says, so it loads only
+            from inside a species directory (:func:`_read_stage_toml`).
 
     Returns:
         Dictionary with keys "name", "description", "env_kwargs",
-        "ppo_kwargs", "sac_kwargs" and "curriculum_kwargs".  Values in
-        [env] that are lists are converted to tuples so they can be passed
-        directly to the environment constructors.
+        "ppo_kwargs", "sac_kwargs" and "curriculum_kwargs", read from the
+        tables as resolved through ``extends``.  Values in [env] that are
+        lists are converted to tuples so they can be passed directly to the
+        environment constructors.
     """
     if config_path is not None:
         path = Path(config_path)
@@ -220,8 +344,7 @@ def load_stage_config(
         entry = load_stage_manifest(species).resolve(stage)
         path = _CONFIGS_DIR / species / entry.config_file
 
-    with open(path, "rb") as f:
-        raw = tomllib.load(f)
+    raw = _read_stage_toml(path)
 
     unknown_tables = sorted(set(raw) - _STAGE_CONFIG_TABLES)
     if unknown_tables:
