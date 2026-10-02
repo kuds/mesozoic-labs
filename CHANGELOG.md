@@ -5,7 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — Into the Wild (v0.4.0)
+
+### Fixed
+- **The command-line curriculum judges a `stance_quality/v1` stage at an
+  overridden `env.max_episode_steps`** (cleanup CU-10a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-10 row).
+  `CurriculumCallback._eval_horizon` took the horizon from the stage TOML
+  that `CurriculumManager` re-reads, while the evaluation env ran the
+  overridden stage config. With `curriculum --override
+  env.max_episode_steps=32` no 32-step episode reached the TOML's 1,000-step
+  horizon, none supplied an unsupported duty, and the gate could not pass;
+  an override above the TOML's horizon counted an episode that ended between
+  the two as full (the KNOWN_ISSUES entry, now deleted).
+  `CurriculumCallback` gains an optional `eval_horizon`, after its existing
+  parameters (default `None`: the TOML's horizon, as before), and
+  `train_curriculum` passes the overridden stage config's
+  `max_episode_steps`, the expression the in-training gate-progress
+  diagnostics already use. The notebook and `train --stage` build no
+  `CurriculumCallback` and are unaffected. Tests: the callback given 32 or
+  2,000 under a 1,000-step TOML uses it, and unset reads the TOML; 40
+  episodes of 32 steps all count as full, and under 2,000 an episode ending
+  at 1,500 does not; the constructor takes it after the existing parameters;
+  and an end-to-end CLI run of compsognathus's stance node at 32 steps
+  (`--target stance`), with the settling window, the reward rail and
+  `required_consecutive` (1, for its single evaluation) overridden, writes a
+  passed `gate_verdict.json`. `train_curriculum` without the argument fails
+  the end-to-end test, and `_eval_horizon` reading the TOML again fails it
+  and five of the six unit tests. No digest moves.
 
 ## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup
 

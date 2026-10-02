@@ -33,11 +33,13 @@ walkers hopping; the Dibothrosuchus and Brachiosaurus sessions remain
 ([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup's 0.3.9 gate has landed, and
 0.3.9, the clean base release, was tagged on 2026-10-02
 ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); `main` now
-carries the development version `0.4.0.dev0`. The direction and terrain nodes
+carries the development version `0.4.0.dev0`. The deferred cleanup PRs come
+next, as the maintainer chose on 2026-10-02, in the order of the cleanup
+plan's §3.1 item 5; then the direction and terrain nodes
 (consolidation PR-8..PR-15, [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))
-and the gait-quality work ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md))
-come next and build on 0.3.9. The phase items below are the long-range plan
-they feed.
+and the gait-quality work ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)),
+which build on 0.3.9. The phase items below are the long-range plan they
+feed.
 Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO, and
 Brachiosaurus PPO; their provenance and metrics are shown in the generated
 catalog.

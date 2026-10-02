@@ -371,9 +371,10 @@ robustness, **LOW** = cosmetic / QoL.
   holds only as records are trained again here (found by the review of
   #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4). A node `RETRAIN_FROM` covered has the shape of (b); #559
   refuses its resume and names the route (`BEHAVIOR` set to that node, then a
-  fresh `RUN_ID` trunked from this run). Plan: two
-  pending decisions in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2,
-  a run-level record of the resolved trunk that the RESUME cell reads, and
+  fresh `RUN_ID` trunked from this run). Plan: two decisions in
+  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 (rows 4 and 6), which
+  the maintainer took on 2026-10-02 and the notebook PR ROW-4/6 carries out: a
+  run-level record of the resolved trunk that the RESUME cell reads, and
   judging an unjudged `RUN_DIR` node before any trunk reuse. (#558 reviews)
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
@@ -891,29 +892,6 @@ robustness, **LOW** = cosmetic / QoL.
   heightfield-contact investigation before PR-11, decided together with the
   recipe speeds and map sizes
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1).
-
-- **MEDIUM** — **the command-line curriculum judges `stance_quality/v1`'s
-  full horizon against the stage TOML, not an overridden
-  `env.max_episode_steps` (reproduced 2026-09-27).** `CurriculumManager`
-  re-reads the stage TOMLs (`curriculum/manager.py:120`), and
-  `CurriculumCallback._eval_horizon` (`curriculum/advancement.py:170-173`)
-  takes `max_episode_steps` from the manager's `current_config()`, while the
-  evaluation panel runs the overridden stage configs. With `curriculum
-  --override env.max_episode_steps=32` on a stance stage gated by
-  `stance_quality/v1` (compsognathus, compsognathus_robot and trex), every
-  evaluation episode ends at 32 steps, short of the TOML's 1,000-step horizon,
-  no episode counts toward the unsupported-duty measurement, and the gate
-  cannot pass ("no full-horizon episode supplied a measurable unsupported
-  duty", even with `min_full_horizon_fraction=0`). An override above the
-  TOML's horizon errs the other way: an episode that ends between the two
-  counts as full (read from the code: `stance_gate.py:336` counts
-  `lengths >= horizon`; not reproduced).
-  Only `train_curriculum` builds a `CurriculumCallback` (`train_base.py:2490`),
-  so the notebook and `train --stage` are unaffected. Found while sizing
-  cleanup PR-A2's end-to-end test, which uses velociraptor for this reason.
-  Plan: cleanup CU-10 hands the callback the horizon of the overridden stage
-  config (the maintainer's choice, 2026-09-27;
-  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.2).
 
 <!-- The items below come from the 2026-09-28 gait audit: CPU replays of
      the certified nodes and zero-action rollouts of every stage gate, with

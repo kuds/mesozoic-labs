@@ -7,19 +7,20 @@ trainer (``test_train_base.py::TestTrainCurriculumWalksTheManifest`` mocks the
 model, environments, callbacks, config writer, CSV writer and verdict writer;
 ``test_cli.py`` mocks ``train_curriculum`` itself), so nothing ran the path from
 argv to artifacts.  These tests do: the real entry point,
-``environments/velociraptor/scripts/train_sb3.py curriculum``, runs in a
-subprocess with tiny budgets, and ``--override`` opens every gate so that each
-stage advances on its first evaluation.  They check the run's on-disk contract,
-not learning.
+``environments/<species>/scripts/train_sb3.py curriculum``, runs in a
+subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
+every gate so that each stage advances on its first evaluation.  They check
+the run's on-disk contract, not learning.
 
-Velociraptor rather than Compsognathus: all three of its advancing stages gate
-on ``reward_and_length/v1``, which ``--override`` can open at a 32-step
-horizon.  Compsognathus's stance gate (``stance_quality/v1``) needs an
-evaluation episode that reaches the horizon ``CurriculumManager`` re-reads from
-the stage TOML (1,000 steps, not an overridden ``env.max_episode_steps``), so
-its stance evaluation alone costs 40 thousand-step episodes (about 90 s
-measured, against about 16 s for the whole velociraptor ladder; docs/KNOWN_ISSUES.md,
-Training / RL, records the horizon defect).
+The ladder is velociraptor's: all three of its advancing stages gate on
+``reward_and_length/v1``, which ``--override`` opens.  Compsognathus's stance
+node, gated by ``stance_quality/v1``, is run on its own (``--target stance``)
+and judged at the overridden 32-step horizon (cleanup CU-10a):
+``train_curriculum`` hands ``CurriculumCallback`` the horizon of the
+overridden stage config.  Until CU-10a the callback took it from the stage
+TOML that ``CurriculumManager`` re-reads (1,000 steps), so no 32-step episode
+reached the horizon, none supplied an unsupported duty, and the gate could
+not pass.
 """
 
 from __future__ import annotations
@@ -71,6 +72,17 @@ OPEN_GATES = (
     "curriculum.min_avg_forward_vel=0",
     "curriculum.min_success_rate=0",
 )
+# Compsognathus's stance node under stance_quality/v1 at the 32-step horizon
+# (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode is
+# overridden: the settling window (the TOML's 20%, 200 steps, becomes 6) and
+# the reward rail (a 1,000-step return). The duty ceilings, the full-horizon
+# fraction and the 40-episode panel keep the TOML's values.
+STANCE_SPECIES = "compsognathus"
+STANCE_SCRIPT = REPO_ROOT / "environments" / STANCE_SPECIES / "scripts" / "train_sb3.py"
+STANCE_AT_32_STEPS = (
+    "stance.curriculum.settle_steps=6",
+    "stance.curriculum.min_avg_reward=-1000000000",
+)
 # The CLI flags, all real arguments of the `curriculum` subparser.
 FLAGS = ("--n-envs", "1", "--seed", "0", "--eval-freq", "64", "--save-freq", "64", "--verbose", "0")
 
@@ -81,7 +93,7 @@ FLAGS = ("--n-envs", "1", "--seed", "0", "--eval-freq", "64", "--save-freq", "64
 _GOOGLE_CLOUD_IMPORT = re.compile(r"^import time:.*\|\s+google\.cloud(\.|\s*$)")
 
 
-def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES):
+def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES, script: Path = SCRIPT):
     """Run ``train_sb3.py curriculum`` as a user would, and return the finished process."""
     env = dict(os.environ)
     # One thread per process: the SB3 job runs one pytest process on a
@@ -91,7 +103,7 @@ def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHA
         sys.executable,
         "-X",
         "importtime",
-        str(SCRIPT),
+        str(script),
         "curriculum",
         *FLAGS,
         "--label",
@@ -120,10 +132,10 @@ def _assert_no_cloud_imports(result: subprocess.CompletedProcess) -> None:
     assert not [line for line in lines if _GOOGLE_CLOUD_IMPORT.search(line)]
 
 
-def _expected_configs(*overrides: str) -> dict:
+def _expected_configs(*overrides: str, species: str = SPECIES) -> dict:
     """The stage configs the run judged under: the TOMLs with the same overrides applied."""
-    configs = load_all_stages(SPECIES)
-    _apply_overrides(configs, list(overrides), SPECIES)
+    configs = load_all_stages(species)
+    _apply_overrides(configs, list(overrides), species)
     return configs
 
 
@@ -302,3 +314,49 @@ def test_a_failed_gate_stops_the_cli_curriculum_after_recording_it(tmp_path):
     # The pair is still saved and hash-bound, so the node can be re-judged.
     assert verdict["checkpoint_sha256"] == sha256_file(run_dir / stance_dir / verdict["checkpoint"])
     assert [(row["stage"], row["stage_passed"]) for row in _rows(run_dir)] == [("1", "False")]
+
+
+def test_the_cli_curriculum_judges_a_stance_gate_at_the_overridden_horizon(tmp_path):
+    """Cleanup CU-10a: a ``stance_quality/v1`` node passes at ``--override env.max_episode_steps=32``.
+
+    Its 40 evaluation episodes end at 32 steps, short of the TOML's horizon; the
+    callback must count them as full-horizon for any of them to supply a duty.
+    """
+    toml = load_all_stages(STANCE_SPECIES)[1]
+    assert toml["curriculum_kwargs"]["gate_kind"] == "stance_quality/v1"
+    assert toml["env_kwargs"]["max_episode_steps"] > 32  # the override shortens the TOML's horizon
+
+    run_dir = tmp_path / "stance"
+    result = _run_cli(run_dir, "--target", "stance", overrides=RUN_SHAPE + STANCE_AT_32_STEPS, script=STANCE_SCRIPT)
+    _assert_succeeded(result)
+    _assert_no_cloud_imports(result)
+    assert "Curriculum training complete!" in result.stderr
+
+    stance_dir = run_dir / stage_dirname(STANCE_SPECIES, 1)
+    assert {path.name for path in run_dir.iterdir()} == {
+        stance_dir.name,
+        "plant_identity.json",
+        "curriculum_results.csv",
+    }
+    configs = _expected_configs(*RUN_SHAPE, *STANCE_AT_32_STEPS, species=STANCE_SPECIES)
+    assert configs[1]["env_kwargs"]["max_episode_steps"] == 32
+    cur_kwargs = configs[1]["curriculum_kwargs"]
+
+    verdict = _read(stance_dir / "gate_verdict.json")
+    # The manager's evaluation line (horizon fraction, duty and its bound) is
+    # the diagnosis when the gate does not pass.
+    evaluations = [line for line in result.stderr.splitlines() if "Stage 1 eval:" in line]
+    assert verdict["passed"] is True and verdict["failures"] == [], evaluations
+    assert verdict["species"] == STANCE_SPECIES
+    assert verdict["stage"] == 1 and verdict["stage_id"] == "stance"
+    assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
+    assert verdict["gate_kind"] == "stance_quality/v1"
+    assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(cur_kwargs))
+    thresholds = verdict["gate"]["thresholds"]
+    assert thresholds["settle_steps"] == 6
+    # Judged at the TOML's criteria, not opened ones.
+    for key in ("min_full_horizon_fraction", "max_unsupported_duty", "max_unsupported_duty_ucb", "min_eval_episodes"):
+        assert thresholds[key] == toml["curriculum_kwargs"][key], key
+    assert verdict["checkpoint_sha256"] == sha256_file(stance_dir / verdict["checkpoint"])
+    assert verdict["task_sha256"] == _read(stance_dir / "task_fingerprint.json")["task_sha256"]
+    assert [(row["stage"], row["stage_passed"]) for row in _rows(run_dir)] == [("1", "True")]

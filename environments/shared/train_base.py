@@ -2494,6 +2494,9 @@ def train_curriculum(
             n_eval_episodes=_eval_episodes_for_stage(config),
             eval_callback=eval_callback,
             supplementary_episodes=cur_kwargs.get("supplementary_episodes", 10),
+            # The horizon eval_env runs: this run's (possibly overridden)
+            # stage config, not the TOML the manager re-reads.
+            eval_horizon=int(config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
         )
         callbacks.append(curriculum_cb)
 

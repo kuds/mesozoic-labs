@@ -10,6 +10,7 @@ from environments.shared.curriculum import (
     StageThreshold,
     StageWarmupCallback,
 )
+from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 
 
 class TestCallbackMethodsMocked:
@@ -151,6 +152,77 @@ class TestCallbackMethodsMocked:
             # the stance capture is not consulted at all.
             None,
         )
+
+
+class TestEvalHorizon:
+    """Cleanup CU-10a: the stance panel's horizon is the one the evaluation env runs.
+
+    ``CurriculumManager`` re-reads the stage TOMLs, so a horizon taken from its
+    ``current_config()`` never saw an overridden ``env.max_episode_steps``: the
+    panel counted an episode as full against the TOML's horizon
+    (``stance_gate.py``, ``lengths >= horizon``).  ``train_curriculum`` now
+    passes the overridden stage config's horizon as ``eval_horizon``.
+    """
+
+    @staticmethod
+    def _callback(eval_horizon=None, *, toml_horizon=1000, duties=None):
+        """A stance-gated callback whose manager reads *toml_horizon* from the stage TOML."""
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_config.return_value = {"env_kwargs": {"max_episode_steps": toml_horizon}}
+        cb.curriculum_manager.current_threshold = StageThreshold(gate_kind=STANCE_GATE_KIND)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_unsupported_duties = [duties or []]
+        if eval_horizon is not None:
+            cb.eval_horizon = eval_horizon
+        return cb
+
+    def test_an_override_below_the_toml_horizon_is_the_horizon(self):
+        assert self._callback(32, toml_horizon=1000)._eval_horizon() == 32
+
+    def test_an_override_above_the_toml_horizon_is_the_horizon(self):
+        assert self._callback(2000, toml_horizon=1000)._eval_horizon() == 2000
+
+    def test_unset_it_is_the_managers_toml_horizon(self):
+        cb = self._callback(toml_horizon=1000)
+        assert cb.eval_horizon is None
+        assert cb._eval_horizon() == 1000
+        cb.curriculum_manager.current_config.assert_called_once_with()
+
+    def test_episodes_that_reach_an_overridden_short_horizon_are_full(self):
+        """40 episodes of 32 steps under a 1,000-step TOML: every one is full and supplies its duty."""
+        cb = self._callback(32, toml_horizon=1000, duties=[0.0] * 40)
+
+        panel = cb._stance_panel_for_eval(1, [10.0] * 40, [32.0] * 40)
+
+        assert panel is not None
+        assert panel.full_horizon_fraction == 1.0
+        assert panel.n_duty_episodes == 40
+        assert panel.mean_unsupported_duty == 0.0
+
+    def test_an_episode_short_of_an_overridden_long_horizon_is_not_full(self):
+        """Above the TOML's 1,000 steps, an episode ending at 1,500 no longer counts as full."""
+        cb = self._callback(2000, toml_horizon=1000, duties=[0.0, 0.0])
+
+        panel = cb._stance_panel_for_eval(1, [10.0, 10.0], [1500.0, 2000.0])
+
+        assert panel is not None
+        assert panel.full_horizon_fraction == 0.5
+        assert panel.n_duty_episodes == 1
+
+    def test_the_constructor_takes_it_after_the_existing_parameters(self):
+        pytest.importorskip("stable_baselines3")
+        manager = MagicMock()
+        manager.current_config.return_value = {"env_kwargs": {"max_episode_steps": 1000}}
+
+        # A positional caller of the seven earlier parameters is unaffected.
+        positional = CurriculumCallback(manager, MagicMock(), 50000, 30, None, 10, 0)
+        assert positional.eval_horizon is None
+        assert positional._eval_horizon() == 1000
+
+        given = CurriculumCallback(curriculum_manager=manager, eval_env=MagicMock(), eval_horizon=32)
+        assert given.eval_horizon == 32
+        assert given._eval_horizon() == 32
 
 
 class TestStageWarmupCallbackMocked:
