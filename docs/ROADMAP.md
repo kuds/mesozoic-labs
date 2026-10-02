@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-09-30
+> Last updated: 2026-10-02
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -25,16 +25,19 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **5** | Hyperdrive (v0.7.0) | **Retired** (D-D17) | 3/5 items | — (JAX SAC and large-scale experiments dropped) |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-4 |
 
-**Current focus (2026-09-30):** the behavior recipes
+**Current focus (2026-10-02):** the behavior recipes
 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)). T-Rex, Velociraptor,
 Compsognathus and the Compsognathus robot have certified stance and walk
 nodes, though the 2026-09-28 gait audit found three of the five certified
 walkers hopping; the Dibothrosuchus and Brachiosaurus sessions remain
-([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup that gates the 0.3.9 release
-comes first ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); the
-direction and terrain nodes ([CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))
+([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup's 0.3.9 gate has landed, and
+0.3.9, the clean base release, was tagged on 2026-10-02
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); `main` now
+carries the development version `0.4.0.dev0`. The direction and terrain nodes
+(consolidation PR-8..PR-15, [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))
 and the gait-quality work ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md))
-build on 0.3.9. The phase items below are the long-range plan they feed.
+come next and build on 0.3.9. The phase items below are the long-range plan
+they feed.
 Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO, and
 Brachiosaurus PPO; their provenance and metrics are shown in the generated
 catalog.
