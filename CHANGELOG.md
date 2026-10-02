@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **The command-line curriculum seeds model construction and records each
+  node's duration, as `train()` does** (decision D-D11; cleanup CU-10b of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior
+  change for CLI curriculum runs. Each node's model is built (the root) or
+  its warm start re-seeded (each child) under the run's `--seed`, unless
+  the stage's algorithm block names a seed (`--override ppo.seed=N`, which
+  is kept), so a run starts from seeded initial weights instead of the
+  state the environments' construction left in the global generators.
+  Without a block seed, every SB3 checkpoint a node saves records the
+  `run.seed` its `stage_config.json` records; with one, the checkpoint
+  records the block's seed, as under `train()`. Each trained node's
+  `stage_config.json` now records `run.duration_seconds` (D-A15), its time
+  from the stage directory to the final save, an interrupted node's
+  included, which the curriculum never wrote; `curriculum_results.csv`
+  still records the time `learn()` took. `docs/RESULT_BUNDLES.md` and the
+  recipes page's run-block table say which runs record the duration.
+  `_train_stage_body` now seeds every stage it trains. No certified result
+  comes from the CLI curriculum (its verdicts are training-time signals),
+  so none changes. Under the next entry's frozen clock, 19 runs before and
+  after this change: the 10 `train()` runs (CLI and the notebook's call)
+  wrote the same 162 files and log lines; with the curriculum's
+  construction seed popped, its 9 runs differ only by the added
+  `duration_seconds` in each trained node's `stage_config.json` and in the
+  ancestor records that copy one (the SAC run without a block seed too,
+  once OS entropy is fixed in both); with it, everything downstream of the
+  initial weights moves (the checkpoints, their sidecars, the evaluations,
+  the hashes the verdicts and the children record, the CSV's rewards; no
+  verdict changes), and a run whose algorithm block names a seed only
+  gains the duration. A SAC curriculum run, whose warm-up actions were
+  drawn unseeded, now repeats byte for byte. Tests: the curriculum's model
+  is built or warm-started under the run's seed and an algorithm-block
+  seed is kept; each node records its duration after its final save and
+  before its verdict, an interrupted node's too; the curriculum mock
+  harness records the durations and refuses one for a node whose config
+  it did not save; and the CLI end-to-end ladder checks that every
+  checkpoint a node saves records the seed and environment count its
+  `stage_config.json` run block records. No digest moves.
 - **`train()` and the command-line curriculum train a stage through one
   body, and the evaluation environment's seed has a name** (cleanup
   CU-10b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row).
@@ -21,28 +58,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and before the stage-entry shaping, and gets back whether a Ctrl-C ended
   the node; `curriculum_results.csv` still records the time `learn()`
   took. What only one side did stays with it: `train()` refuses an
-  undeclared parent, seeds model construction (D-D11), records its
-  duration (D-A15), writes `metrics.json` and logs its own lines, and the
+  undeclared parent, writes `metrics.json` and logs its own lines, and the
   curriculum loads its parent's sidecar as before and judges no interrupted
-  node. The new public `train_base.eval_env_seed(seed)` returns
-  `seed + 1000`, the evaluation environment's seed on both paths; the SB3
-  notebook's `CHECKPOINT_SELECTION_SEED` stays `SEED + 1000`, and a pin
-  checks the two agree. Under a frozen clock, 16 runs (CLI `train` from
-  scratch, two periodic resumes, `initialize_next_stage`, an interrupt and
-  SAC; `train(report_metrics=False, save_on_interrupt=False)` as the
-  notebook calls it, from scratch, into the next stage, interrupted and
-  resumed; the CLI curriculum's velociraptor ladder, `--trunk-from`,
-  `--retrain-from`, a closed gate, an interrupt and compsognathus's stance
-  node) wrote the same files with the same bytes and the same log lines
-  before and after, SB3 archives apart from object addresses, the
-  TensorBoard event files aside (the comparison leaves them out because
-  their names carry the process id). Tests: ten new ones (both entry points
-  reach the body with their own switches, the callback order, the
-  curriculum's callback built where it was, the open environments, the
-  interrupt, the learn-only CSV duration, `eval_env_seed` on both paths, and
-  a node's model released before the next node trains), and the eight source
-  pins that read `train()` or `train_curriculum` now read the body and what
-  each caller passes it. No digest moves.
+  node; `train()`'s seeded model construction (D-D11) and duration record
+  (D-A15) reach the curriculum in the entry above. The new public
+  `train_base.eval_env_seed(seed)` returns `seed + 1000`, the evaluation
+  environment's seed on both paths; the SB3 notebook's
+  `CHECKPOINT_SELECTION_SEED` stays `SEED + 1000`, and a pin checks the two
+  agree. Under a frozen clock, 16 runs (CLI `train` from scratch, two
+  periodic resumes, `initialize_next_stage`, an interrupt and SAC;
+  `train(report_metrics=False, save_on_interrupt=False)` as the notebook
+  calls it, from scratch, into the next stage, interrupted and resumed; the
+  CLI curriculum's velociraptor ladder, `--trunk-from`, `--retrain-from`, a
+  closed gate, an interrupt and compsognathus's stance node) wrote the same
+  files with the same bytes and the same log lines before and after, SB3
+  archives apart from object addresses, the TensorBoard event files aside
+  (the comparison leaves them out because their names carry the process id).
+  Tests: ten new ones (both entry points reach the body with their own
+  switches, the callback order, the curriculum's callback built where it
+  was, the open environments, the interrupt, the learn-only CSV duration,
+  `eval_env_seed` on both paths, and a node's model released before the next
+  node trains), and the eight source pins that read `train()` or
+  `train_curriculum` now read the body and what each caller passes it. No
+  digest moves.
 - **The Drive summary notebook checks out `REPO_REF`, and its run reader
   is tested** (cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-02; §3.2 CU-15 row). `google_drive_summary.ipynb`'s setup cell

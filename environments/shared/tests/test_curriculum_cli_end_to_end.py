@@ -27,10 +27,12 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -154,6 +156,18 @@ def _header(run_dir: Path) -> list[str]:
         return next(csv.reader(handle))
 
 
+def _assert_checkpoints_record_the_run_seed(models: Path, run: dict[str, Any]) -> None:
+    """Every SB3 archive a node saved records, in its JSON ``data`` member, the seed and environment count
+    its ``stage_config.json`` run block records (decision D-D11): the model was built, or its warm start
+    re-seeded, under the run's seed."""
+    archives = sorted(models.glob("*.zip"))
+    assert archives, models
+    for archive in archives:
+        with zipfile.ZipFile(archive) as opened:
+            data = json.loads(opened.read("data"))
+        assert (data["seed"], data["n_envs"]) == (run["seed"], run["n_envs"]), archive.name
+
+
 @pytest.fixture(scope="module")
 def ladder(tmp_path_factory):
     """One full CLI curriculum run (stance -> locomotion -> behavior), shared by the tests below."""
@@ -230,6 +244,11 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
         run = recorded["run"]
         assert (run["seed"], run["n_envs"], run["timesteps"]) == (0, 1, 64)
         assert run["label"] == LABEL
+        # D-D11, as train() does: the root's model is built under the run's seed, and its children, warm-started
+        # from it in this run, record that seed too (the --trunk-from test, run at another seed than its trunk,
+        # tells a re-seeded warm start from one that keeps its parent's seed); the node's duration recorded (D-A15).
+        _assert_checkpoints_record_the_run_seed(models, run)
+        assert math.isfinite(run["duration_seconds"]) and run["duration_seconds"] > 0
         assert run["hyperparameters_sha256"].startswith("sha256:")
         assert "parent_run_id" not in run  # nothing was reused from another run
         if parent_dir is None:
@@ -252,6 +271,10 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     rows = _rows(run_dir)
     assert [row["stage"] for row in rows] == ["1", "2", "3"]
     assert {row["stage_passed"] for row in rows} == {"True"}
+    # The CSV records the time learn() took, a part of the node's recorded duration (to 0.1 s).
+    for row, entry in zip(rows, chain):
+        run = _read(run_dir / stage_dirname(SPECIES, entry.reference) / "stage_config.json")["run"]
+        assert 0 <= float(row["training_duration_seconds"]) <= run["duration_seconds"] + 0.05
     assert {(row["species"], row["algorithm"], row["run_dir"], row["seed"], row["n_envs"]) for row in rows} == {
         (SPECIES, "PPO", run_dir.name, "0", "1")
     }
@@ -269,7 +292,9 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     trunk, trunk_result = ladder
     _assert_succeeded(trunk_result)
     run_dir = trunk.parent / "child"
-    result = _run_cli(run_dir, "--trunk-from", str(trunk))
+    # Another seed than the trunk's 0 (argparse keeps the last --seed): a warm start that kept its parent's
+    # seed would record 0.
+    result = _run_cli(run_dir, "--trunk-from", str(trunk), "--seed", "1")
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
 
@@ -288,10 +313,13 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
 
     parent_verdict = _read(trunk / stage_dirname(SPECIES, 2) / "gate_verdict.json")
     run = _read(run_dir / target_dir / "stage_config.json")["run"]
+    assert run["seed"] == 1  # not the trunk's 0, so a warm start that keeps its parent's seed is caught
     assert Path(run["load_path"]) == trunk / stage_dirname(SPECIES, 2) / parent_verdict["checkpoint"]
     assert run["parent_checkpoint_sha256"] == parent_verdict["checkpoint_sha256"]
     assert run["parent_run_id"] == trunk.name
     assert _read(run_dir / target_dir / "gate_verdict.json")["passed"] is True
+    # Warm-started from the other run's checkpoint (seed 0), and re-seeded under this run's seed 1 (D-D11).
+    _assert_checkpoints_record_the_run_seed(run_dir / target_dir / "models", run)
 
     # A reused node writes no curriculum_results.csv row.
     assert [row["stage"] for row in _rows(run_dir)] == ["3"]

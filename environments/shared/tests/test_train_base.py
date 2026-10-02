@@ -944,6 +944,8 @@ class TestTrainCurriculumWalksTheManifest:
             "labels": [],
             "wandb_tags": [],
             "managers": [],
+            "seeds": [],
+            "durations": [],
         }
         model = MagicMock()
         model.num_timesteps = 10
@@ -984,12 +986,24 @@ class TestTrainCurriculumWalksTheManifest:
 
         def create_or_load(sb3, algorithm, alg_kwargs, train_env, load_path, **kwargs):
             record["loads"].append(load_path)
+            record["seeds"].append(alg_kwargs.get("seed"))
             return model
 
+        saved_dirs: list[Path] = []
+
         def save_config(stage_dir, stage, config, algorithm, **kwargs):
+            saved_dirs.append(Path(stage_dir))
             record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
             record["parent_run_ids"].append((stage, kwargs.get("parent_run_id")))
             record["labels"].append((stage, kwargs.get("label")))
+
+        def record_duration(stage_dir, duration_seconds):
+            # The real writer refuses a directory without stage_config.json, which the stub above
+            # never writes: a duration is recorded only into a node whose config this run saved.
+            if Path(stage_dir) not in saved_dirs:
+                raise FileNotFoundError(f"cannot record the stage duration: no stage_config.json in {stage_dir}")
+            record["durations"].append((Path(stage_dir).name, duration_seconds))
+            return Path(stage_dir) / "stage_config.json"
 
         def init_wandb(**kwargs):
             # Records the tags and reports W&B as unavailable (None), which
@@ -1023,6 +1037,7 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(train_base, "_select_handoff_checkpoint", lambda model_dir: None)
         monkeypatch.setattr(train_base, "_record_stage_result", lambda *args, **kwargs: None)
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
+        monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
         real_manager = curriculum_module.CurriculumManager
@@ -1148,6 +1163,9 @@ class TestTrainCurriculumWalksTheManifest:
         assert asked == [("stance", None), ("locomotion", ancestor.model_sha256)]
         # Stance was reused, never trained; walk and hunt were trained here.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        # Only a node trained here is seeded with the run's seed (D-D11) and records its duration (D-A15).
+        assert record["seeds"] == [1, 1]
+        assert [name for name, _ in record["durations"]] == ["02_locomotion", "03_behavior"]
         assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
         # D-A22: each verdict digests the block the node was judged under.
         assert [v["gate_sha256"] for v in record["verdicts"]] == [
@@ -1465,6 +1483,15 @@ class TestTrainCurriculumWalksTheManifest:
         assert record["parents"] == [None, "stance", "locomotion"]
         assert not [r for r in caplog.records if "Skipping non-advancing stage" in r.message]
 
+    def test_every_trained_node_is_seeded_and_records_its_duration(self, tmp_path, monkeypatch, caplog):
+        """Decision D-D11 on the curriculum's path: every node is built (the root) or warm-started (its
+        children) under the run's seed, and records its duration once, into its own stage directory."""
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+
+        assert record["seeds"] == [1, 1, 1]
+        assert [name for name, _ in record["durations"]] == ["01_stance", "02_locomotion", "03_behavior"]
+        assert all(seconds >= 0.0 for _, seconds in record["durations"])
+
     def test_every_trained_node_records_the_managers_verdict(self, tmp_path, monkeypatch, caplog):
         """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff."""
         from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY
@@ -1589,6 +1616,8 @@ class TestTrainCurriculumWalksTheManifest:
 
         assert [stage for stage, _, _ in record["saved"]] == [1]
         assert record["verdicts"] == []
+        # The interrupted node was saved, so its duration is recorded, as train() records an interrupted stage's.
+        assert [name for name, _ in record["durations"]] == ["01_stance"]
         assert [r for r in caplog.records if "no gate verdict recorded" in r.message]
 
     def test_retrain_from_covers_the_node_and_its_descendants_but_not_its_ancestors(
@@ -2551,7 +2580,8 @@ class TestOneStageBody:
     curriculum's ``CurriculumCallback``) goes after entropy decay and before the stage-entry shaping; both
     environments come back open (``train()`` reports on them, the curriculum writes its verdict before closing
     them); a ``KeyboardInterrupt`` propagates unless the caller saves on one, and then it is returned; and the
-    curriculum's ``curriculum_results.csv`` records the time ``learn()`` took, not the stage's.  Every
+    curriculum's ``curriculum_results.csv`` records the time ``learn()`` took, not the stage's.  Both paths seed
+    model construction and record the stage's duration in its ``stage_config.json`` (decision D-D11).  Every
     collaborator is replaced at the seams the harnesses above use, with a clock that only moves where a test
     moves it."""
 
@@ -2572,6 +2602,7 @@ class TestOneStageBody:
             "events": [],
             "csv_durations": [],
             "vecnorm_loads": [],
+            "seeds": [],
         }
 
         def learn(**kwargs):
@@ -2620,6 +2651,11 @@ class TestOneStageBody:
         def report(*args, **kwargs):
             record["events"].append("report")
 
+        def create_or_load_model(sb3, algorithm, alg_kwargs, *args, **kwargs):
+            # The seed the model is built, or its warm start re-seeded, under (D-D11).
+            record["seeds"].append(alg_kwargs.get("seed"))
+            return model
+
         def body(*args, **kwargs):
             # Every argument the body runs with, defaults included.
             bound = inspect.signature(_train_stage_body).bind(*args, **kwargs)
@@ -2634,7 +2670,7 @@ class TestOneStageBody:
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"CallbackList": callback_list})
         monkeypatch.setattr(train_base, "create_vec_env", create_vec_env)
         monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", load_vecnorm)
-        monkeypatch.setattr(train_base, "_create_or_load_model", lambda *args, **kwargs: model)
+        monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load_model)
         monkeypatch.setattr(
             train_base, "_build_core_callbacks", lambda *args, **kwargs: (["core"], eval_callback, None)
         )
@@ -2668,18 +2704,18 @@ class TestOneStageBody:
         assert returned is model
         return eval_callback
 
-    def _curriculum(self, tmp_path, monkeypatch, *, interrupt=False):
+    def _curriculum(self, tmp_path, monkeypatch, *, interrupt=False, stage_configs=None):
         _, eval_callback = self._patch(monkeypatch, interrupt=interrupt)
-        self._run_curriculum(tmp_path)
+        self._run_curriculum(tmp_path, stage_configs=stage_configs)
         return eval_callback
 
-    def _run_curriculum(self, tmp_path):
+    def _run_curriculum(self, tmp_path, *, stage_configs=None):
         from environments.shared import train_base
         from environments.shared.config import load_all_stages
 
         train_base.train_curriculum(
             SimpleNamespace(species="velociraptor", env_class=object),
-            load_all_stages("velociraptor"),
+            load_all_stages("velociraptor") if stage_configs is None else stage_configs,
             n_envs=1,
             seed=self.SEED,
             verbose=0,
@@ -2696,7 +2732,7 @@ class TestOneStageBody:
     def test_train_reaches_the_body_with_its_own_switches(self, tmp_path, monkeypatch):
         self._train(tmp_path, monkeypatch, vecnorm_path=None)
         (body,) = self.record["bodies"]
-        assert body["announce"] is True and body["construction_seed"] == self.SEED
+        assert body["announce"] is True and body["seed"] == self.SEED
         assert body["stage_callback"] is None and body["save_on_interrupt"] is True
         assert (body["task_load_mode"], body["load_path"], body["vecnorm_load_path"]) == (
             "resume_same_stage",
@@ -2716,7 +2752,7 @@ class TestOneStageBody:
         assert [body["parent_id"] for body in bodies] == [entry.warm_start_from for entry in manifest.advancing_stages]
         assert len(bodies) == 3
         for index, body in enumerate(bodies):
-            assert body["announce"] is False and body["construction_seed"] is None
+            assert body["announce"] is False and body["seed"] == self.SEED
             assert body["save_on_interrupt"] is True and body["task_load_mode"] == "initialize_next_stage"
             assert body["stage_callback"] is not None
             if index == 0:
@@ -2790,6 +2826,54 @@ class TestOneStageBody:
 
         self._train(tmp_path, monkeypatch)
         assert read_stage_duration(tmp_path / "01_stance") == 207.0
+
+    def test_both_entry_points_seed_model_construction(self, tmp_path, monkeypatch):
+        """Decision D-D11 on both paths: the model is built (``train()``, the curriculum's root) or its warm
+        start re-seeded (the curriculum's children) under the run's seed, unless the stage's algorithm block
+        names one (``--override locomotion.ppo.seed=N``), which is kept."""
+        from environments.shared.config import load_all_stages
+
+        self._train(tmp_path, monkeypatch)
+        assert self.record["seeds"] == [self.SEED]
+        self._curriculum(tmp_path, monkeypatch)
+        assert self.record["seeds"] == [self.SEED] * 3
+        stage_configs = load_all_stages("velociraptor")
+        stage_configs[2]["ppo_kwargs"]["seed"] = 7
+        self._curriculum(tmp_path / "seeded", monkeypatch, stage_configs=stage_configs)
+        assert self.record["seeds"] == [self.SEED, 7, self.SEED]
+
+    def _curriculum_durations(self, tmp_path, monkeypatch, *, interrupt=False):
+        """Run the curriculum with its duration writes in the event log; return each node's recorded duration."""
+        from environments.shared import config as config_module
+        from environments.shared.config import read_stage_duration
+        from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
+
+        self._patch(monkeypatch, interrupt=interrupt)
+        record_stage_duration = config_module.record_stage_duration
+
+        def recorded(stage_dir, duration_seconds):
+            self.record["events"].append("duration")
+            return record_stage_duration(stage_dir, duration_seconds)
+
+        monkeypatch.setattr(config_module, "record_stage_duration", recorded)
+        self._run_curriculum(tmp_path)
+        stages = [entry.reference for entry in load_stage_manifest("velociraptor").advancing_stages]
+        return [read_stage_duration(tmp_path / "run" / stage_dirname("velociraptor", stage)) for stage in stages]
+
+    def test_the_curriculum_records_each_nodes_duration_at_its_final_save(self, tmp_path, monkeypatch):
+        """Decision D-A15 on the curriculum's path, as ``train()`` records it: each node's ``stage_config.json``
+        records its time from the stage directory to the final save (two environments, ``learn()`` and the save:
+        207 s), written after the final save and before the verdict; the CSV keeps the 7 s ``learn()`` took."""
+        assert self._curriculum_durations(tmp_path, monkeypatch) == [207.0] * 3
+        node = ["learn", "final save", "duration", "verdict", ("close", 1), ("close", 1), "csv"]
+        assert self.record["events"] == node * 3
+        assert self.record["csv_durations"] == [7.0] * 3
+
+    def test_an_interrupted_node_records_its_duration(self, tmp_path, monkeypatch):
+        """A Ctrl-C ends the node at its final save, so its duration is recorded; no verdict, and the walk stops."""
+        assert self._curriculum_durations(tmp_path, monkeypatch, interrupt=True) == [207.0, None, None]
+        assert self.record["events"] == ["learn", "final save", "duration", ("close", 1), ("close", 1), "csv"]
+        assert self.record["csv_durations"] == [7.0]
 
     def test_the_curriculum_callback_is_built_where_the_inline_body_built_it(self, tmp_path, monkeypatch):
         """Its arguments (the panel size, the horizon) are evaluated inside the body after entropy decay, as

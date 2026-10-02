@@ -1007,7 +1007,6 @@ def _train_stage_body(
     vecnorm_path: str | None = None,
     allow_fresh_vecnorm: bool,
     allow_legacy_plant: bool = False,
-    construction_seed: int | None = None,
     stage_callback: Callable[..., Any] | None = None,
     save_on_interrupt: bool,
     announce: bool,
@@ -1027,12 +1026,11 @@ def _train_stage_body(
 
     The statistics load from ``vecnorm_load_path`` (``train()`` passes its
     ``load_path``, the curriculum its parent's sidecar) unless
-    ``vecnorm_path`` names the sidecar.  ``construction_seed``, when given,
-    seeds model construction unless the algorithm block names a seed
-    (decision D-D11; ``train()`` passes its ``seed``, the curriculum
-    nothing).  A continuation is only ever a ``resume_same_stage`` load, so
-    the curriculum, which loads under ``initialize_next_stage``, never
-    resumes.
+    ``vecnorm_path`` names the sidecar.  Model construction, or a warm
+    start's re-seeding, takes ``seed`` unless the algorithm block names a
+    seed (decision D-D11), for both callers.  A continuation is only ever a
+    ``resume_same_stage`` load, so the curriculum, which loads under
+    ``initialize_next_stage``, never resumes.
 
     The callbacks are the core set, then entropy decay, then what
     ``stage_callback`` builds (called as ``stage_callback(eval_env=...,
@@ -1104,10 +1102,9 @@ def _train_stage_body(
         log_path,
         use_tensorboard,
     )
-    if construction_seed is not None:
-        # D-D11: the policy is built (or a warm start re-seeded) under the seed the
-        # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
-        alg_kwargs.setdefault("seed", construction_seed)
+    # D-D11: the policy is built (or a warm start re-seeded) under the seed the
+    # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
+    alg_kwargs.setdefault("seed", seed)
 
     wandb_run = None
     if use_wandb:
@@ -1544,7 +1541,6 @@ def train(
         vecnorm_path=vecnorm_path,
         allow_fresh_vecnorm=allow_fresh_vecnorm,
         allow_legacy_plant=allow_legacy_plant,
-        construction_seed=seed,
         save_on_interrupt=save_on_interrupt,
         announce=True,
     )
@@ -1881,8 +1877,9 @@ def _post_training_eval_panels(
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
         evaluated_handoff = handoff
-        # seed=None: an archive that recorded its training seed (every train()
-        # run, D-D11) would otherwise re-seed eval_env with it on load.
+        # seed=None: an archive that recorded its training seed (every stage
+        # train() or the CLI curriculum trains, D-D11) would otherwise re-seed
+        # eval_env with it on load.
         eval_model = load_sb3_model(ckpt_path, algorithm=alg_cls, env=eval_env, seed=None)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
@@ -2274,11 +2271,13 @@ def train_curriculum(
 
     A trained node runs :func:`train`'s stage body, :func:`_train_stage_body`
     (cleanup CU-10b), with ``CurriculumCallback`` between the entropy decay
-    and the stage-entry shaping.  Unlike :func:`train`, it leaves model
-    construction unseeded (decision D-D11) and records no duration in
+    and the stage-entry shaping.  As in :func:`train`, model construction is
+    seeded with ``seed`` unless the stage's algorithm block names one
+    (decision D-D11), and the node's time from its stage directory to its
+    final save is recorded as ``run.duration_seconds`` in its
     ``stage_config.json`` (D-A15); ``curriculum_results.csv`` records the
-    time ``learn()`` took.  A Ctrl-C saves the node, records no verdict for
-    it and stops the curriculum.
+    time ``learn()`` took.  A Ctrl-C saves the node and records its
+    duration, records no verdict for it and stops the curriculum.
 
     ``label`` (``--label``) is recorded in every trained node's ``run``
     block beside its ``hyperparameters_sha256`` and both reach W&B as tags
@@ -2291,6 +2290,7 @@ def train_curriculum(
     from .ancestors import AUTO_TRUNK, AncestorReuseError, find_certified_ancestor, record_ancestor, select_trunk
     from .config import (
         ignored_hyperparameter_edits,
+        record_stage_duration,
         refuse_occupied_stage_dir,
         save_stage_config,
     )
@@ -2543,6 +2543,8 @@ def train_curriculum(
                     logger.info("Auto-advanced to stage %d", manager.current_stage)
                 continue
 
+        # D-A15: the node is trained here, and its duration runs from here to its final save.
+        node_start = time.monotonic()
         load_path = parent_node.model_stem if parent_node is not None else None
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
 
@@ -2639,6 +2641,8 @@ def train_curriculum(
         actual_timesteps = trained.actual_timesteps
         # learn() alone: curriculum_results.csv's training_duration_seconds.
         stage_duration = trained.learn_seconds
+        # The node's whole time, recorded at its final save as train() records it (D-A15).
+        record_stage_duration(stage_dir, time.monotonic() - node_start)
 
         # Prefer loading the risk-adjusted robust_best_model (highest
         # mean - std eval, saved by RobustBestModelCallback), then SB3's
