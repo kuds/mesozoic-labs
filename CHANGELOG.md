@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Backend Retirement & Cleanup (v0.3.9)
+## [Unreleased]
+
+## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup
 
 ### Added
 - **A golden of reward, info and termination values** (#573, cleanup CU-11 of
@@ -237,8 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **One `stage_config.json` reader, one repository root, one sha256
-  pattern and one set of record field validators** (cleanup CU-8c of
-  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01; §3.2 CU-8 row).
+  pattern and one set of record field validators** (#583, cleanup CU-8c
+  of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-01; §3.2 CU-8 row).
   `config.read_recorded_stage_config`, over the new
   `file_io.read_json_object`, gives the nine lenient readers' answers from
   one place. `save_result_bundle`, `audit_result_bundle` and
