@@ -7,9 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Into the Wild (v0.4.0)
 
+### Changed
+- **The recovery stage TOMLs inherit from stance through `extends`**
+  (cleanup CU-13 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-13
+  row). A stage TOML may declare a top-level
+  `extends = { stage = "stance", tables = [...] }`: each listed table is the
+  parent's, with the file's own keys overriding in place or appended, one
+  level deep (a nested table such as `[ppo.policy_kwargs]` is replaced
+  whole). The parent id resolves through the manifest of the file's own
+  species directory, so a copy outside it is refused with a clear error, as
+  are `curriculum` or an unknown table in the list, a listed table the
+  parent lacks, a parent that itself extends, a missing parent id, a
+  malformed value and an `extends` written inside any table, sub-tables and
+  arrays of tables included, whether in the file or in its parent. The
+  T-Rex, Compsognathus and Compsognathus robot `recovery.toml` files now
+  declare only their deltas (the stage name and description, the
+  perturbation block and `ent_coef_decay_timesteps`; the T-Rex keeps its
+  three `foot_contact_*` keys written out) besides their own
+  `[curriculum]`. The T-Rex lists `stage`, `env` and `ppo`, never `sac`, so
+  it stays PPO-only; the Compsognathus pair also lists `sac`. All 21
+  resolved stage configs are byte-identical, key order included, so no
+  digest moves, and the hand-mirror test becomes ordered assertions on the
+  resolved tables of all three species. A stance edit to a key its recovery
+  stage inherits now moves that stage with it (for the Compsognathus pair
+  an `[env]` edit also makes its recovery calibration refuse until
+  recalibrated, and for the T-Rex a reward-weight edit means re-measuring
+  recovery's pushed-statue collapse reference), as each `stance.toml` now
+  says.
+
 ### Fixed
 - **The command-line curriculum judges a `stance_quality/v1` stage at an
-  overridden `env.max_episode_steps`** (cleanup CU-10a of
+  overridden `env.max_episode_steps`** (#587, cleanup CU-10a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-10 row).
   `CurriculumCallback._eval_horizon` took the horizon from the stage TOML
   that `CurriculumManager` re-reads, while the evaluation env ran the

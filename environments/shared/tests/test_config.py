@@ -661,6 +661,197 @@ class TestLoadStageConfigTableValidation:
         assert not [r for r in caplog.records if "no [env] table" in r.message or "no algorithm table" in r.message]
 
 
+class TestStageConfigExtends:
+    """CU-13: a stage TOML inherits the tables it lists from a parent stage through ``extends``.
+
+    Each case builds a tmp configs root whose species ``pilot`` declares
+    stance, recovery and push in its manifest, and loads by explicit path:
+    the parent resolves through the file's own directory, never the species
+    argument or the repository's configs.
+    """
+
+    PARENT = (
+        '[stage]\nname = "balance"\ndescription = "stand"\n\n'
+        "[env]\nalive_bonus = 1.0\nfall_penalty = -10.0\nmax_episode_steps = 1000\n\n"
+        "[ppo]\nlearning_rate = 3e-5\nent_coef_decay_timesteps = 7000000\ntarget_kl = 0.03\n\n"
+        "[ppo.policy_kwargs]\nnet_arch = [512, 256]\nlog_std_init = -2.0\n\n"
+        "[sac]\nlearning_rate = 3e-4\nbatch_size = 256\n\n"
+        '[curriculum]\ngate_kind = "stance_quality/v1"\ntimesteps = 11000000\n'
+    )
+
+    def _tree(self, tmp_path, recovery, *, stance=None, push=None):
+        from environments.shared.stage_manifest import STAGE_MANIFEST_SCHEMA_V1
+
+        species_dir = tmp_path / "configs" / "pilot"
+        species_dir.mkdir(parents=True)
+        (species_dir / "stages.toml").write_text(
+            f'schema = "{STAGE_MANIFEST_SCHEMA_V1}"\n'
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
+            '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\n'
+            '[[stages]]\nid = "push"\nconfig = "push.toml"\n'
+        )
+        (species_dir / "stance.toml").write_text(self.PARENT if stance is None else stance)
+        (species_dir / "recovery.toml").write_text(recovery)
+        (species_dir / "push.toml").write_text('[stage]\nname = "push"\n' if push is None else push)
+        return species_dir
+
+    def _load(self, species_dir, stage_file="recovery.toml"):
+        return load_stage_config("ignored", "ignored", config_path=str(species_dir / stage_file))
+
+    def test_only_the_listed_tables_are_inherited(self, tmp_path):
+        species_dir = self._tree(
+            tmp_path,
+            'extends = { stage = "stance", tables = ["env"] }\n\n'
+            '[stage]\nname = "recovery"\n\n[ppo]\nlearning_rate = 1e-5\n\n[curriculum]\ntimesteps = 3000000\n',
+        )
+        config = self._load(species_dir)
+        assert config["name"] == "recovery" and config["description"] == ""
+        assert config["env_kwargs"] == {"alive_bonus": 1.0, "fall_penalty": -10.0, "max_episode_steps": 1000}
+        assert config["ppo_kwargs"] == {"learning_rate": 1e-5}
+        assert config["sac_kwargs"] == {}
+        assert config["curriculum_kwargs"] == {"timesteps": 3000000}
+
+    def test_child_keys_override_in_place_and_new_keys_are_appended(self, tmp_path):
+        species_dir = self._tree(
+            tmp_path,
+            'extends = { stage = "stance", tables = ["stage", "env", "ppo", "sac"] }\n\n'
+            '[stage]\nname = "recovery"\n\n'
+            '[env]\nreset_noise_scale = 0.01\nfall_penalty = -25.0\nperturbation_direction = "uniform_horizontal"\n\n'
+            "[ppo]\nent_coef_decay_timesteps = 2000000\n\n[curriculum]\ntimesteps = 3000000\n",
+        )
+        config = self._load(species_dir)
+        assert (config["name"], config["description"]) == ("recovery", "stand")
+        assert list(config["env_kwargs"].items()) == [
+            ("alive_bonus", 1.0),
+            ("fall_penalty", -25.0),
+            ("max_episode_steps", 1000),
+            ("reset_noise_scale", 0.01),
+            ("perturbation_direction", "uniform_horizontal"),
+        ]
+        assert list(config["ppo_kwargs"]) == ["learning_rate", "ent_coef_decay_timesteps", "target_kl", "policy_kwargs"]
+        assert config["ppo_kwargs"]["ent_coef_decay_timesteps"] == 2000000
+        # A nested table the child does not declare comes over whole, in order.
+        assert list(config["ppo_kwargs"]["policy_kwargs"].items()) == [("net_arch", [512, 256]), ("log_std_init", -2.0)]
+        assert config["sac_kwargs"] == {"learning_rate": 3e-4, "batch_size": 256}
+        # [curriculum] is never inherited: the child's own, and only it.
+        assert config["curriculum_kwargs"] == {"timesteps": 3000000}
+
+    def test_a_nested_table_the_child_declares_replaces_the_parents_whole(self, tmp_path):
+        species_dir = self._tree(
+            tmp_path,
+            'extends = { stage = "stance", tables = ["env", "ppo"] }\n\n[ppo.policy_kwargs]\nnet_arch = [64, 64]\n',
+        )
+        ppo = self._load(species_dir)["ppo_kwargs"]
+        assert ppo["policy_kwargs"] == {"net_arch": [64, 64]}
+        assert list(ppo) == ["learning_rate", "ent_coef_decay_timesteps", "target_kl", "policy_kwargs"]
+
+    @pytest.mark.parametrize(
+        ("tables", "refused"),
+        [
+            ('["env", "curriculum"]', "['curriculum']"),
+            ('["env", "jax"]', "['jax']"),
+            ('["environment"]', "['environment']"),
+        ],
+    )
+    def test_curriculum_and_unknown_tables_are_refused(self, tmp_path, tables, refused):
+        species_dir = self._tree(
+            tmp_path, f'extends = {{ stage = "stance", tables = {tables} }}\n\n[stage]\nname = "r"\n'
+        )
+        with pytest.raises(ValueError, match=re.escape(f"extends cannot inherit {refused}")) as excinfo:
+            self._load(species_dir)
+        assert str(species_dir / "recovery.toml") in str(excinfo.value)
+        assert "never [curriculum]" in str(excinfo.value)
+
+    def test_a_chained_extends_is_refused(self, tmp_path):
+        species_dir = self._tree(
+            tmp_path,
+            'extends = { stage = "stance", tables = ["env"] }\n\n[stage]\nname = "recovery"\n',
+            push='extends = { stage = "recovery", tables = ["env"] }\n\n[stage]\nname = "push"\n',
+        )
+        assert self._load(species_dir)["env_kwargs"]["alive_bonus"] == 1.0
+        with pytest.raises(ValueError, match="which itself extends another stage; extends is one level deep"):
+            self._load(species_dir, "push.toml")
+
+    def test_a_stage_extending_itself_is_refused(self, tmp_path):
+        species_dir = self._tree(tmp_path, 'extends = { stage = "recovery", tables = ["env"] }\n')
+        with pytest.raises(ValueError, match="itself extends another stage"):
+            self._load(species_dir)
+
+    def test_a_missing_parent_id_is_refused(self, tmp_path):
+        species_dir = self._tree(tmp_path, 'extends = { stage = "balance", tables = ["env"] }\n')
+        with pytest.raises(ValueError, match="extends stage 'balance'.*pilot has no stage 'balance'"):
+            self._load(species_dir)
+
+    def test_a_listed_table_the_parent_lacks_is_refused(self, tmp_path):
+        stance = self.PARENT.replace("[sac]\nlearning_rate = 3e-4\nbatch_size = 256\n\n", "")
+        species_dir = self._tree(tmp_path, 'extends = { stage = "stance", tables = ["env", "sac"] }\n', stance=stance)
+        with pytest.raises(ValueError, match=r"extends lists \[sac\], which .*stance\.toml does not declare"):
+            self._load(species_dir)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            '"stance"',
+            '{ stage = "stance" }',
+            '{ tables = ["env"] }',
+            '{ stage = "stance", tables = "env" }',
+            '{ stage = 1, tables = ["env"] }',
+            '{ stage = "stance", tables = [] }',
+            '{ stage = "stance", tables = ["env", "env"] }',
+            '{ stage = "stance", tables = [1] }',
+            '{ stage = "stance", tables = ["env"], depth = 2 }',
+        ],
+    )
+    def test_a_malformed_value_is_refused(self, tmp_path, value):
+        species_dir = self._tree(tmp_path, f"extends = {value}\n\n[stage]\nname = 'r'\n")
+        with pytest.raises(ValueError, match=r'extends must be \{ stage = "<stage id>", tables = \['):
+            self._load(species_dir)
+
+    @pytest.mark.parametrize("in_parent", [False, True], ids=["child", "parent"])
+    @pytest.mark.parametrize(
+        ("header", "where"),
+        [("[stage]", "stage"), ("[ppo.policy_kwargs]", "ppo.policy_kwargs"), ("[[env.zones]]", "env.zones")],
+        ids=["table", "sub-table", "array-of-tables"],
+    )
+    def test_extends_written_inside_a_table_is_refused(self, tmp_path, header, where, in_parent):
+        # Unchecked, the child's would be silently ignored (nothing inherited)
+        # and the parent's merged into the child's resolved tables.
+        misplaced = f'{header}\nname = "x"\nextends = {{ stage = "stance", tables = ["env"] }}\n'
+        if in_parent:
+            stance = f"[env]\nalive_bonus = 1.0\n\n{misplaced}"
+            species_dir = self._tree(tmp_path, 'extends = { stage = "stance", tables = ["env"] }\n', stance=stance)
+        else:
+            species_dir = self._tree(tmp_path, misplaced)
+        at_fault = species_dir / ("stance.toml" if in_parent else "recovery.toml")
+        refusal = f"{at_fault}: extends is declared inside ['{where}']; it is a top-level key"
+        with pytest.raises(ValueError, match=f"^{re.escape(refusal)}"):
+            self._load(species_dir)
+
+    def test_a_copy_outside_its_species_directory_fails_clearly(self, tmp_path):
+        species_dir = self._tree(tmp_path, 'extends = { stage = "stance", tables = ["env"] }\n')
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        copied = elsewhere / "recovery.toml"
+        copied.write_text((species_dir / "recovery.toml").read_text())
+        with pytest.raises(ValueError, match="loads only from its species directory") as excinfo:
+            load_stage_config("pilot", "recovery", config_path=str(copied))
+        assert str(copied) in str(excinfo.value)
+
+    def test_the_warnings_judge_the_resolved_tables(self, tmp_path, caplog):
+        inherits = self._tree(tmp_path, 'extends = { stage = "stance", tables = ["env", "ppo"] }\n')
+        with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
+            self._load(inherits)
+        assert not [r for r in caplog.records if "no [env] table" in r.message or "no algorithm table" in r.message]
+
+        caplog.clear()
+        bare = self._tree(tmp_path / "bare", 'extends = { stage = "stance", tables = ["stage"] }\n')
+        with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
+            config = self._load(bare)
+        assert config["name"] == "balance" and config["env_kwargs"] == {}
+        assert any("no [env] table" in r.message for r in caplog.records)
+        assert any("no algorithm table" in r.message for r in caplog.records)
+
+
 def _sb3_style_zip(path, data):
     """An SB3 checkpoint archive's shape: a JSON ``data`` member beside the weights."""
     with zipfile.ZipFile(path, "w") as archive:
