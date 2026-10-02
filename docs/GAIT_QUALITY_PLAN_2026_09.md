@@ -5,6 +5,8 @@
 The evidence is the dated note [investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md):
 2026-09-28 replays of every certified node on Drive, each reproducing its recorded numbers. Nothing here enters
 D-D21's 0.3.9 gate; every code PR builds on 0.3.9.
+*Updated 2026-10-02: the 0.3.9 cut landed as #584 on 2026-10-02, and the maintainer tagged its first commit,
+`20ab100`, as `0.3.9`, so the code PRs no longer wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
 
 ## How to use this document
 
@@ -86,8 +88,9 @@ task-fingerprint derivation) as #579 on 2026-10-01; CU-12 (the species env dedup
 10 (a), settled on 2026-09-30 without a D-D id) as #581 on 2026-10-01, which completes CU-14 and wave 3; CU-8b (the
 SB3 import helper and the sidecar resolver of CU-8, which CU-6 waits for) as #582 the same day; CU-8c (one reader, one
 root, one sha256 pattern and one set of validators, the last part of CU-8 and of D-D21's gate) as #583 the same day,
-which completes CU-8 and D-D21's gate; the 0.3.9 cut is carried out (the cleanup plan's §3.1 item 4);
-CU-6 also waits for the notebook PR for that plan's decisions 4 and 6.*
+which completes CU-8 and D-D21's gate; the 0.3.9 cut landed as #584 on 2026-10-02, and the maintainer tagged `0.3.9`,
+so the gait code no longer waits for it (the cleanup plan's §3.1 item 4); CU-6 also waits for the notebook PR for
+that plan's decisions 4 and 6.*
 
 ## 2. Decisions needed
 
@@ -389,7 +392,7 @@ Left of D-D21's gate (`CLEANUP_PLAN_2026_09.md:111`), with PR-B landed as #566: 
 CU-11, CU-12, CU-14, CU-16 (§1.3). The G PRs interleave with consolidation PR-8..PR-10 and precede PR-11's trex and
 robot sessions and PR-13 (amends D-D13).
 *Updated 2026-10-02: all ten have landed, CU-8 last, with CU-8c as #583 on 2026-10-01, which completes D-D21's gate;
-the 0.3.9 cut is carried out (§1.3).*
+the 0.3.9 cut landed as #584 on 2026-10-02 and `0.3.9` is tagged, so the G PRs no longer wait for it (§1.3).*
 
 | PR | Scope | Size | Depends on | Digests | Acceptance | When |
 |---|---|---|---|---|---|---|
@@ -504,9 +507,10 @@ Continue the gait-quality work in the mesozoic-labs repository.
 2. Check the maintainer's answers to GQ-1..GQ-18 (plan §2; a taken decision appears as a D-D row in
    docs/BEHAVIOR_RECIPES_PLAN.md §6.2). Ask for any still open before building on it, especially GQ-2 (the
    in-training dibothrosuchus re-run), GQ-3 (sessions meanwhile) and GQ-5 (gate, reward or both).
-3. Confirm whether the 0.3.9 release has been cut (the git tags, CHANGELOG, D-D21 in CLEANUP_PLAN §2). The
-   maintainer wants the gait check after the cleanup. If the cut has not happened, the next work is the remaining
-   cleanup PRs in CLEANUP_PLAN §3 order, not gait code.
+3. Confirm whether the 0.3.9 release has been cut (the tags on the remote, from git ls-remote --tags origin rather
+   than a local tag, which keeps its old target in a clone that fetched it before the tag moved; CHANGELOG; D-D21 in
+   CLEANUP_PLAN §2). The maintainer wants the gait check after the cleanup. If the cut has not happened, the next
+   work is the remaining cleanup PRs in CLEANUP_PLAN §3 order, not gait code.
 4. Once 0.3.9 is cut, start PR-G1 (the gait library, plan §3.1; it depends on CU-9), then PR-G2 (report-only gait
    reports). Use docs/investigations/gait_2026_09/gait_probe.py and gait_audit_2026_09.csv as the calibration
    reference: PR-G1 must reproduce the audit's per-node summaries on CPU. Hop-flight and the stance-v2 scores in plan
