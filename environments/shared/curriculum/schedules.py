@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 #: Attribute set on the *model* by ``StageWarmupCallback`` while its PPO
 #: warm-up owns ``ent_coef``, and read by ``EntCoefDecayCallback`` to stand
 #: aside. On the model rather than between the callbacks because the two are
-#: constructed independently in three launch paths (``train``,
-#: ``train_curriculum``, and the notebook) and in no guaranteed order — the
+#: built independently, each by its own helper in ``train_base``'s one stage
+#: body (``_train_stage_body``, shared by ``train`` and ``train_curriculum``),
+#: and the hand-off must not rest on their order in the callback list — the
 #: model is the one object both are guaranteed to share. Cleared when the
 #: warm-up restores ``ent_coef``. A checkpoint saved inside a warm-up window
 #: pickles the flag as ``True``; every stage>1 ``--load`` path re-adds the

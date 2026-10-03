@@ -380,7 +380,7 @@ robustness, **LOW** = cosmetic / QoL.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:550-573`, called at
-  `train_base.py:1101`) lets any same-stage resume through. Against a
+  `train_base.py:1482`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -1065,10 +1065,10 @@ robustness, **LOW** = cosmetic / QoL.
   `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
   stage's weight over 500k steps by default). A `resume_same_stage` load
   attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
-  mode (`train_base.py:839-840`, called at :1316-1323), so the env trains at
+  mode (`train_base.py:839-840`, called at :1244-1251), so the env trains at
   the stage's full `forward_vel_weight` from the first resumed step. Since the
   gap review's TC1 fix a continuation keeps the checkpoint's step counter
-  (`train_base.py:1223-1237`, `reset_num_timesteps=not resuming` at :1342),
+  (`train_base.py:1141-1155`, `reset_num_timesteps=not resuming` at :1272),
   and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
   its position is recoverable; nothing re-applies it. The warm-up marker is
   cleared with a warning that the rest of the warm-up is not re-applied

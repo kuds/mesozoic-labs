@@ -1251,18 +1251,29 @@ class TestLoadModeByEdge:
             assert not position_compares, f"{marker!r} decides something by comparing a `.position`"
 
     def test_shaping_is_keyed_on_the_edge_and_applied_to_sac(self):
-        """train_stage trains through train_base.train (consolidation PR-14c), whose shaping this pins."""
+        """train_stage trains through train_base.train (consolidation PR-14c), whose shaping this pins: train()
+        hands its edge, load mode and load to the stage body it trains through (cleanup CU-10b), and the body
+        builds the shaping from exactly those."""
         src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
         train = _top_level_def(src, "train")
-        shaping = _call(train, "_stage_entry_shaping_callbacks")
-        assert _keyword_names(shaping) == {"task_load_mode", "parent_id", "load_path"}
-        assert _keyword_source(src, shaping, "parent_id") == "entry.warm_start_from", (
+        body = _call(train, "_train_stage_body")
+        assert _keyword_source(src, body, "parent_id") == "entry.warm_start_from", (
             "shaping fires on the declared EDGE (warm_start_from), verbatim like every CLI caller"
         )
-        assert _keyword_source(src, shaping, "task_load_mode") == "task_load_mode"
-        extend = next(call for call in _calls(train, "extend") if shaping in call.args)
+        assert _keyword_source(src, body, "task_load_mode") == "task_load_mode"
+        assert _keyword_source(src, body, "load_path") == "load_path"
+        assert not _calls(train, "_stage_entry_shaping_callbacks"), "train() builds no shaping of its own"
+        stage_body = _top_level_def(src, "_train_stage_body")
+        shaping = _call(stage_body, "_stage_entry_shaping_callbacks")
+        assert _keyword_names(shaping) == {"task_load_mode", "parent_id", "load_path"}
+        for name in ("parent_id", "task_load_mode", "load_path"):
+            assert _keyword_source(src, shaping, name) == name, name
+        extend = next(call for call in _calls(stage_body, "extend") if shaping in call.args)
         assert ast.unparse(extend.func) == "callbacks.extend" and len(extend.args) == 1, (
             "the shaping callbacks are applied unfiltered — SAC gets the same warm-up the CLI gives it (DU1)"
+        )
+        assert any(isinstance(statement, ast.Expr) and statement.value is extend for statement in stage_body.body), (
+            "applied on every path through the body, under no condition"
         )
         for index, cell in enumerate(_code_cells()):
             assert "StageWarmupCallback" not in cell, f"cell {index} filters or names StageWarmupCallback"
@@ -1973,15 +1984,24 @@ class TestSeedReplication:
 
     def test_the_checkpoint_selection_seed_role_is_the_seed_train_evaluates_on(self):
         """``train_stage`` trains through ``train_base.train`` (consolidation PR-14c), whose eval env is seeded
-        ``seed + 1000``; the storage cell records the same value as the checkpoint-selection seed role."""
-        assert ast.unparse(_top_level_assigns(_cell(STORAGE_CELL_MARKER))["CHECKPOINT_SELECTION_SEED"]) == "SEED + 1000"
+        ``eval_env_seed(seed)`` in the stage body train() trains through (cleanup CU-10b); the storage cell
+        records the same value, ``SEED + 1000``, as the checkpoint-selection seed role."""
+        from environments.shared.train_base import eval_env_seed
+
+        selection = _top_level_assigns(_cell(STORAGE_CELL_MARKER))["CHECKPOINT_SELECTION_SEED"]
+        assert ast.unparse(selection) == "SEED + 1000"
+        notebook_value = compile(ast.Expression(selection), "CHECKPOINT_SELECTION_SEED", "eval")
+        for seed in (0, 7, 42, 1_000_003):
+            assert eval(notebook_value, {"SEED": seed}) == eval_env_seed(seed), seed
         train_src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
+        body = _call(_top_level_def(train_src, "train"), "_train_stage_body")
+        assert _keyword_source(train_src, body, "seed") == "seed"
         eval_env = next(
             node.value
-            for node in ast.walk(_top_level_def(train_src, "train"))
+            for node in ast.walk(_top_level_def(train_src, "_train_stage_body"))
             if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "eval_env"
         )
-        assert _func_name(eval_env) == "create_vec_env" and ast.unparse(eval_env.args[4]) == "seed + 1000"
+        assert _func_name(eval_env) == "create_vec_env" and ast.unparse(eval_env.args[4]) == "eval_env_seed(seed)"
 
     def test_the_bundle_write_passes_discovered_replicates(self):
         """save_run_bundle hands the sibling replicates to the writer (D-B10/D-B16)."""
@@ -2680,7 +2700,8 @@ class TestCommandSliceReseed:
     whenever the node's command_mode is not "none" — EXCEPT on a same-stage resume, whose sidecar already holds the
     statistics the policy trained under. ``train_base._load_vecnorm_into_envs`` applies the rule
     (test_command_frame.py) and ``train_base.train``, which ``train_stage`` trains through (consolidation PR-14c),
-    feeds it the stage config's mode and the notebook's sidecar — always False in Phase C."""
+    feeds it the stage config's mode and the notebook's sidecar — always False in Phase C.  Since cleanup CU-10b
+    train() does so through the stage body it hands its load, sidecar, load mode and plant identity."""
 
     def test_train_feeds_the_rule_the_stage_config_and_the_sidecar(self):
         import inspect
@@ -2688,7 +2709,26 @@ class TestCommandSliceReseed:
         from environments.shared.curriculum import load_vecnorm_stats
 
         src = TRAIN_BASE_PATH.read_text(encoding="utf-8")
-        load = _call(_top_level_def(src, "train"), "_load_vecnorm_into_envs")
+        train = _top_level_def(src, "train")
+        assert not _calls(train, "_load_vecnorm_into_envs"), "train() loads the statistics only through the body"
+        body_call = _call(train, "_train_stage_body")
+        for name, value in (
+            ("vecnorm_load_path", "load_path"),
+            ("vecnorm_path", "vecnorm_path"),
+            ("task_load_mode", "task_load_mode"),
+            ("plant_identity", "plant_identity"),
+        ):
+            assert _keyword_source(src, body_call, name) == value, name
+        assert [ast.unparse(arg) for arg in body_call.args[1:4]] == ["species_cfg", "stage_configs", "stage"]
+        body = _top_level_def(src, "_train_stage_body")
+        # The body's `config` is the stage config of the stage it trains.
+        assert any(
+            isinstance(node, ast.Assign)
+            and ast.unparse(node.targets[0]) == "config"
+            and ast.unparse(node.value) == "stage_configs[stage]"
+            for node in body.body
+        )
+        load = _call(body, "_load_vecnorm_into_envs")
         assert _keyword_source(src, load, "command_mode") == (
             'str(config.get("env_kwargs", {}).get("command_mode", "none"))'
         )
@@ -2696,7 +2736,7 @@ class TestCommandSliceReseed:
         assert _keyword_source(src, load, "vecnorm_path") == "vecnorm_path"
         # Without it a sidecar loads with plant validation skipped (the notebook's manual cell names any sidecar).
         assert _keyword_source(src, load, "plant_identity") == "plant_identity"
-        assert [ast.unparse(arg) for arg in load.args] == ["load_path", "train_env", "eval_env"], (
+        assert [ast.unparse(arg) for arg in load.args] == ["vecnorm_load_path", "train_env", "eval_env"], (
             "both destinations are passed, so the reseed reaches the train AND the eval wrapper"
         )
         rule = ast.get_source_segment(src, _top_level_def(src, "_load_vecnorm_into_envs")) or ""

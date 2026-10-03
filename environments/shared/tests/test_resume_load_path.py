@@ -285,31 +285,50 @@ class TestShapingIsWired:
     of inline construction is itself the invariant.
     """
 
-    def test_train_routes_through_the_helper_keyed_on_its_load_mode(self):
-        src = inspect.getsource(train_base.train)
+    # Since cleanup CU-10b both launch paths train through one stage body,
+    # ``_train_stage_body``: it builds the shaping, keyed on the load mode and
+    # the edge each path hands it, and loads the statistics each path names.
+
+    @staticmethod
+    def _assert_the_body_builds_the_shaping():
+        src = inspect.getsource(train_base._train_stage_body)
         assert "_stage_entry_shaping_callbacks(" in src
         assert "task_load_mode=task_load_mode" in src
+        assert "parent_id=parent_id" in src
+        assert "stage_position" not in src
+        assert "StageWarmupCallback(" not in src
+        assert "RewardRampCallback(" not in src
+
+    def test_train_routes_through_the_helper_keyed_on_its_load_mode(self):
+        self._assert_the_body_builds_the_shaping()
+        src = inspect.getsource(train_base.train)
+        assert "_train_stage_body(" in src
+        assert "task_load_mode=task_load_mode" in src
         # Keyed on the node's declared edge, never its manifest position.
-        assert "parent_id=" in src
+        assert "parent_id=entry.warm_start_from" in src
         assert "stage_position" not in src
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
     def test_train_curriculum_routes_through_the_helper_as_a_boundary_crossing(self):
+        self._assert_the_body_builds_the_shaping()
         src = inspect.getsource(train_base.train_curriculum)
-        assert "_stage_entry_shaping_callbacks(" in src
+        assert "_train_stage_body(" in src
         assert 'task_load_mode="initialize_next_stage"' in src
-        assert "parent_id=" in src
+        assert "parent_id=entry.warm_start_from" in src
         assert "stage_position" not in src
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
     def test_train_resolves_the_sidecar_from_its_load_path(self):
-        # _load_vecnorm_into_envs owns the resolution for both launch paths.
+        # _load_vecnorm_into_envs owns the resolution for both launch paths;
+        # train() names its load path, the curriculum its parent's sidecar.
+        body = inspect.getsource(train_base._train_stage_body)
+        assert "_load_vecnorm_into_envs(\n        vecnorm_load_path," in body
         src = inspect.getsource(train_base.train)
-        assert "_load_vecnorm_into_envs(" in src
+        assert "vecnorm_load_path=load_path" in src
         src_curriculum = inspect.getsource(train_base.train_curriculum)
-        assert "_load_vecnorm_into_envs(" in src_curriculum
+        assert "vecnorm_load_path=parent_vecnorm_path" in src_curriculum
 
 
 # ── The resolver is the loader's single naming authority ─────────────────
