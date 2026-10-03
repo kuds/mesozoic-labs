@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **The SB3 notebook's chain loop judges a node the run trained but never
+  judged before it consults the trunk** (decision 6 (b), amending D-A17 and
+  D-C13; cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §2
+  row 6). A behavior change for notebook sessions with a trunk run
+  (`TRUNK_FROM`). For an ancestor whose stage directory in `RUN_DIR` holds
+  any checkpoint (`models/*.zip`) and no `gate_verdict.json`, and that the
+  run does not hold as an `ancestors/` record, the loop no longer asks the
+  trunk: an intact final pair goes to the JUDGE branch, anything else to the
+  interrupted-node refusal, which names `RESUME_STAGE`. Before, a trunk that
+  certified the node stood in for it: a node the RESUME cell had finished
+  was reused from the trunk and never judged, and an interrupted one was
+  abandoned for the trunk's copy. The loop judges such a node only on the
+  parent this session resolved (reuse rule 4): one trained on another parent
+  is refused before anything is judged or trained, naming a fresh `RUN_ID`.
+  It prints why it skips the trunk. A judged node that fails now stops the
+  chain where the trunk's copy used to be reused. A run that already took
+  the trunk's copy over its own keeps that `ancestors/` record, and the loop
+  still consults the trunk for that node. The target, a node `RETRAIN_FROM`
+  covers, a node holding a verdict and a session without a trunk behave as
+  before. A root widened on the command line is judged first the same way
+  (one widened into a run that already holds that root as an `ancestors/`
+  record is refused, with or without a trunk, naming a new run id), so the
+  resolve cell no longer calls D-C13's
+  `refuse_trunk_over_unjudged_widened_root` (still exported and tested).
+  The RESUME cell's refusal under `RETRAIN_FROM`, the resume recipe
+  (section 5) and the recipes page no longer route a node through
+  `BEHAVIOR`. New in `environments.shared.result_bundle`:
+  `unjudged_stage_dir` and `refuse_judging_off_the_resolved_parent`. Tests:
+  the notebook pins move with the cells (the resolve cell's guard holds the
+  complete-run refusal only, and no cell names D-C13's function; the loop's
+  candidates, rule-4 call and order; the `RETRAIN_FROM` message and the
+  resume prose), and 16 new executed loop cases run the configuration,
+  resolve and chain-loop cells, 14 of them against a trunk that certifies
+  every node and two without a trunk; the widen tool's round trip checks the
+  judge-first helpers on its real output. `docs/KNOWN_ISSUES.md` marks the
+  never-judged resume closed and lists, as a LOW, that the JUDGE branch
+  applies no chain check to the target or without a trunk. No digest moves.
 - **The command-line curriculum seeds model construction and records each
   node's duration, as `train()` does** (decision D-D11; cleanup CU-10b of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior

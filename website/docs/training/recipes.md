@@ -133,8 +133,15 @@ root-first. At each node it does exactly one of three things:
    (`widen_checkpoint --max-revision-gap N`).
 2. **Judge** a node that was trained but never gated (the notebook only:
    its final checkpoint exists but `gate_verdict.json` does not, because the
-   resume cell finished its budget or the command-line widen tool wrote a
-   widened root into the run).
+   resume cell finished its budget, the runtime stopped before its verdict,
+   or the command-line widen tool wrote a widened root into the run), even
+   when a trunk run certifies it: the loop does not consult the trunk for an
+   ancestor its run holds trained but unjudged, and judges such an ancestor
+   only on the parent resolved here (cleanup decision 6 (b); a run that
+   already holds the trunk's copy of it as an `ancestors/` record keeps that
+   record, and a root widened beside such a record is refused, naming a new
+   run id). The target, and any node in a session without a trunk, get no
+   such parent check (see `docs/KNOWN_ISSUES.md`).
 3. **Train** it otherwise, warm-started from its parent's handoff checkpoint
    and VecNormalize sidecar along the declared edge, then judge its gate and
    write `gate_verdict.json` beside the handoff.
@@ -221,7 +228,13 @@ tried (a moved `LOG_BASE`), else the refusal names both paths. The notebook's
 chain loop follows records for the `TRUNK_DIR` candidate only: it tries this
 run's own `RUN_DIR` first and takes a hit there as this run's own node, so a
 record in `RUN_DIR` — the reuse an earlier pass made from the trunk — is never
-followed, or the trunk's stance would re-enter as trained here.
+followed, or the trunk's stance would re-enter as trained here. It consults
+`TRUNK_DIR` for every ancestor `RETRAIN_FROM` does not cover, except a node
+`RUN_DIR` holds trained but unjudged, which it judges here instead (or
+refuses as an interrupted node, or as trained on another parent than the one
+resolved here); for a node the run already holds as an `ancestors/` record
+the trunk is still consulted (a root widened into the run beside that record
+is refused instead).
 
 On reuse the child run writes `ancestors/<stage_id>/`: `ancestor.json` plus
 verbatim copies of the ancestor stage's `gate_verdict.json`,
@@ -297,9 +310,9 @@ cell that mounts Drive, never the storage cell, then the tool from
 `/content/mesozoic-labs`), which the notebook then re-enters
 with `RUN_ID` set to that id, `SEED` set to the parent's seed and
 `TRUNK_FROM = ""`: the storage cell refuses any other seed before it writes
-anything (D-C14), the resolve cell refuses a trunk until the widened root
-holds a verdict, and the chain loop judges the widened root (decisions D-C13,
-D-D14). The notebook's `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen
+anything (D-C14), and the chain loop judges the widened root before it
+consults any trunk (decisions D-C13, D-D14, and the cleanup's decision
+6 (b)). The notebook's `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen
 cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
@@ -373,11 +386,9 @@ node still chains by digest and stays reusable. It sits ahead of the chain
 loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
 to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` pinned to the run the
 interrupted session resolved (`""` only when it trained every node itself),
-then Run all; the loop judges the node after the resume trains it. A node that
-was trained here although that trunk run certifies it (one `RETRAIN_FROM`
-covered) is resumed with `BEHAVIOR` set to it, because the loop looks for its
-target only in this run; the deeper chain then continues in a fresh `RUN_ID`
-trunked from this run. A node that already holds
+then Run all; the loop judges the node after the resume trains it, before it
+consults any trunk, so a node trained here although that trunk run certifies
+it is resumed the same way. A node that already holds
 `gate_verdict.json` or an intact final checkpoint pair is never retrained: the
 cell trains nothing and the loop reuses, refuses or judges it (decision
 D-D16).

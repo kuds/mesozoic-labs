@@ -29,7 +29,12 @@ naming the way out:
   ``initialize_result_bundle``) refuses another ``SEED``.  Until the chain
   loop has judged that root, a trunk run would satisfy the root from another
   run and bypass it (decision D-C13):
-  :func:`refuse_trunk_over_unjudged_widened_root` (the resolve cell).
+  :func:`refuse_trunk_over_unjudged_widened_root` refuses such a trunk.  The
+  resolve cell called it until cleanup ROW-4/6 (2026-10-03); the notebook no
+  longer does, because its chain loop now judges a widened root before it
+  consults any trunk (decision 6 (b), below), and refuses one widened into a
+  run that already holds that root as an ``ancestors/`` record.  It stays
+  exported.
 * **The trunk a run's ancestor records came through** (cleanup ROW-4/6,
   decision 4 (a)): ``trunk_run.json`` records the trunk a session resolved
   for the run and is fixed once the run holds an ``ancestors/`` record, the
@@ -39,7 +44,7 @@ naming the way out:
   trains) refuses a resume under another trunk than the recorded one, and a
   resume of a node the run holds as such a record.
 * **A node this run trained but never judged** (cleanup ROW-4/6, decision
-  6 (b)), which the chain loop is to judge before it consults any trunk:
+  6 (b)), which the chain loop judges before it consults any trunk:
   :func:`unjudged_stage_dir` names its loop directory (a reader; it refuses
   only a root widened into a run that already holds it as an ``ancestors/``
   record), and :func:`refuse_judging_off_the_resolved_parent` refuses to
@@ -280,11 +285,19 @@ def refuse_trunk_over_unjudged_widened_root(
     The chain loop tries this run's root directory first; a widened root holds
     no ``gate_verdict.json`` until the loop's JUDGE branch writes one, so the
     loop would take the root from the trunk instead and never judge the
-    widened copy.  The resolve cell calls this once the trunk is known.
-    Passes when there is no trunk, when the root is the target (the loop
-    never consults a trunk for it, D-A18) or is named by ``RETRAIN_FROM`` (it
-    then trains, and D-A20 refuses the occupied directory before any write),
-    and once the root holds a verdict.
+    widened copy.  Passes when there is no trunk, when the root is the target
+    (the loop never consults a trunk for it, D-A18) or is named by
+    ``RETRAIN_FROM`` (it then trains, and D-A20 refuses the occupied directory
+    before any write), and once the root holds a verdict.
+
+    The resolve cell called this once the trunk was known until cleanup
+    ROW-4/6 (2026-10-03).  The notebook no longer calls it: its chain loop
+    judges a node the run holds trained but unjudged, a widened root among
+    them, before it consults any trunk (decision 6 (b), amending D-C13;
+    :func:`unjudged_stage_dir`, which refuses a root widened into a run that
+    already holds that root as an ``ancestors/`` record).  It stays exported,
+    with its message and its tests, for a notebook copy older than that
+    change.
     """
     chain = tuple(chain)
     if trunk_dir is None or not chain:

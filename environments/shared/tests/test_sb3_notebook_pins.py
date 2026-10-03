@@ -8,7 +8,9 @@ RESUME cell but never gated) or TRAINED from its parent's handoff along the
 declared edge — then published BEFORE its verdict is enforced.  Decisions
 D-A15 and D-A17..D-A21 (§6.1) amended that loop with retrain-from, chain-by-
 digest reuse, the occupied-directory guard, recorded durations and the
-ignored-edit warning.
+ignored-edit warning; cleanup ROW-4/6's decision 6 (b) (amending D-A17 and
+D-C13) has it judge a node ``RUN_DIR`` holds trained but unjudged before it
+consults the trunk.
 
 These tests read the notebook JSON and pin its STRUCTURE — the order of calls
 inside the ``for NODE in CHAIN:`` body, keyword presence, the absence of
@@ -471,19 +473,44 @@ class TestReuseRule:
         )
         assert isinstance(task_assign.value, ast.Subscript) and task_assign.value.value is fingerprint
         assert ast.unparse(task_assign.value.slice) == "'task_sha256'"
-        # Candidates: RUN_DIR first, then TRUNK_DIR (when set) — for a non-target, non-covered node.
+        # Candidates: RUN_DIR first, then TRUNK_DIR (when set) — for a non-target, non-covered node, unless RUN_DIR
+        # holds it trained but unjudged (cleanup ROW-4/6, decision 6 (b), amending D-A17 and D-C13): such a node is
+        # judged here, only on the parent resolved here, and the trunk is not consulted for it (executed:
+        # TestJudgeFirst).
         covered_if = _the_if(loop, src, lambda test: test == "covered", "on `covered`")
         assert len(covered_if.orelse) == 1 and isinstance(covered_if.orelse[0], ast.If)
         target_if = covered_if.orelse[0]
         assert ast.get_source_segment(src, target_if.test) == "NODE.id == TARGET_NODE.id"
-        else_src = _branch_source(src, target_if.orelse)
         else_assign = next(
             node
             for node in target_if.orelse
             if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "candidates"
         )
-        assert ast.unparse(else_assign.value).startswith("[RUN_DIR]"), "RUN_DIR is tried first"
-        assert "TRUNK_DIR" in else_src and "TRUNK_DIR is not None" in else_src
+        assert ast.unparse(else_assign.value) == (
+            "[RUN_DIR] + ([TRUNK_DIR] if TRUNK_DIR is not None and unjudged is None else [])"
+        ), "RUN_DIR is tried first; the trunk only when one is set and RUN_DIR holds no unjudged node"
+        unjudged_assign, lineage_if, last = target_if.orelse
+        assert last is else_assign
+        assert isinstance(unjudged_assign, ast.Assign) and ast.unparse(unjudged_assign.targets[0]) == "unjudged"
+        assert ast.unparse(unjudged_assign.value) == "unjudged_stage_dir(RUN_DIR, species=SPECIES, entry=NODE)"
+        assert isinstance(lineage_if, ast.If)
+        assert ast.get_source_segment(src, lineage_if.test) == "unjudged is not None and TRUNK_DIR is not None"
+        assert not lineage_if.orelse
+        refuse, printed = lineage_if.body
+        assert isinstance(refuse, ast.Expr) and refuse.value is _call(loop, "refuse_judging_off_the_resolved_parent")
+        assert [ast.unparse(arg) for arg in refuse.value.args] == ["unjudged"]
+        assert _keyword_names(refuse.value) == {"entry", "parent_model_sha256"}
+        assert _keyword_source(src, refuse.value, "entry") == "NODE"
+        assert _keyword_source(src, refuse.value, "parent_model_sha256") == _keyword_source(
+            src, _call(loop, "find_certified_ancestor"), "parent_model_sha256"
+        ), "rule 4 checks the unjudged node against the parent the reuse rule would chain it onto"
+        assert isinstance(printed, ast.Expr) and _func_name(printed.value) == "print", "why the trunk is skipped"
+        # The header states the exemption: a node the run holds as an ancestors/ record still consults the trunk
+        # (result_bundle.unjudged_stage_dir). The candidates comment states it, and that a root widened beside it
+        # is refused.
+        assert "holds trained but unjudged (and not as an ancestors/ record) never comes from" in src
+        assert "or refused as an interrupted node or (rule 4) as trained on another parent." in src
+        assert "One the run holds as an ancestors/ record still consults the trunk (a root widened beside it" in src
         # Every refusal is printed (never silent), and the walk stops at the first success.
         handlers = [
             node
@@ -1142,7 +1169,13 @@ class TestAutoTrunk:
         assert len(_raises(auto_if, "RuntimeError")) == 1
         assert "WIDEN_FROM" not in src, "D-D14: widening is the command-line tool's; no widen session is special-cased"
 
-    def test_the_resolve_cell_ends_with_the_complete_run_and_widened_root_refusals(self):
+    def test_the_resolve_cell_ends_with_the_complete_run_refusal(self):
+        """The guard on a bound ``RUN_DIR`` is last, once ``TRUNK_DIR`` is final. It refuses a session that would
+        write into a complete run. D-C13's widened-root refusal left it with cleanup ROW-4/6 (decision 6 (b)): the
+        chain loop judges a widened root before it consults any trunk (executed: TestJudgeFirst). The function stays
+        exported for a notebook copy older than that change."""
+        import environments.shared.result_bundle as result_bundle
+
         cells = _code_cells()
         resolve_at = _cell_index(cells, RESOLVE_CELL_MARKER)
         src = cells[resolve_at]
@@ -1151,18 +1184,23 @@ class TestAutoTrunk:
         guard = _the_if(tree, src, lambda test: test == 'globals().get("RUN_DIR") is not None', "on a bound RUN_DIR")
         assert guard is tree.body[-1] and guard.lineno > auto_if.end_lineno, "last, once TRUNK_DIR is final"
         complete = _call(guard, "refuse_complete_run_session")
-        widened = _call(guard, "refuse_trunk_over_unjudged_widened_root")
-        assert complete.lineno < widened.lineno
-        for call in (complete, widened):
-            assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR"]
-            for keyword, value in (
-                ("species", "SPECIES"),
-                ("chain", "CHAIN"),
-                ("target", "TARGET_NODE"),
-                ("retrain_from", "RETRAIN_NODE"),
-                ("trunk_dir", "TRUNK_DIR"),
-            ):
-                assert _keyword_source(src, call, keyword) == value, keyword
+        assert [ast.unparse(arg) for arg in complete.args] == ["RUN_DIR"]
+        for keyword, value in (
+            ("species", "SPECIES"),
+            ("chain", "CHAIN"),
+            ("target", "TARGET_NODE"),
+            ("retrain_from", "RETRAIN_NODE"),
+            ("trunk_dir", "TRUNK_DIR"),
+        ):
+            assert _keyword_source(src, complete, keyword) == value, keyword
+        imported, last = guard.body
+        assert isinstance(imported, ast.ImportFrom) and [alias.name for alias in imported.names] == [
+            "refuse_complete_run_session"
+        ]
+        assert isinstance(last, ast.Expr) and last.value is complete, "the guard imports and calls this one refusal"
+        for index, cell in enumerate(_all_cell_sources()):
+            assert "refuse_trunk_over_unjudged_widened_root" not in cell, f"cell {index} names D-C13's refusal"
+        assert "refuse_trunk_over_unjudged_widened_root" in result_bundle.__all__, "it stays exported"
         # A plain refusal: no disconnect (imported later, by the infrastructure cell), and the loop has not run yet.
         assert not _calls(tree, "disconnect_runtime") and not _calls(tree, "halt")
         assert resolve_at < _cell_index(cells, CHAIN_CELL_MARKER)
@@ -1188,27 +1226,6 @@ class TestAutoTrunk:
             exec(_cell(RESOLVE_CELL_MARKER), namespace)
         assert 'TRUNK_FROM = "20260920_010912"' in str(excinfo.value)
         assert {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()} == before
-
-    def test_the_resolve_cell_refuses_a_trunk_over_an_unjudged_widened_root(self, tmp_path):
-        """Executed, D-C13 without the widen cell's ``TRUNK_DIR = None``: a root widened into this run on the command
-        line is judged by the chain loop before any trunk may stand in for it."""
-        from environments.shared.config import load_all_stages
-        from environments.shared.result_bundle import ResultBundleError
-        from environments.shared.stage_manifest import stage_dirname
-
-        run_dir = tmp_path / "20260924_000000"
-        stance_dir = run_dir / stage_dirname("velociraptor", 1)
-        stance_dir.mkdir(parents=True)
-        (stance_dir / "stage_config.json").write_text(
-            json.dumps({"run": {"seed": 42, "n_envs": 4, "widened_from_run_id": "20260815_205206"}})
-        )
-        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
-        exec(_cell(CONFIG_CELL_MARKER), namespace)
-        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="walk")
-        exec(_cell(RESOLVE_CELL_MARKER), namespace)  # no trunk: the loop judges the widened root
-        namespace["TRUNK_DIR"] = tmp_path / "20260914_123816"
-        with pytest.raises(ResultBundleError, match="never judge the widened root"):
-            exec(_cell(RESOLVE_CELL_MARKER), namespace)
 
 
 class TestLoadModeByEdge:
@@ -1427,7 +1444,9 @@ class TestJudgeBranch:
     def test_the_loop_judges_a_root_widened_on_the_command_line(self):
         """What the command-line widen tool relies on downstream (decision D-D14): the loop REUSE-refuses a
         verdict-less directory (printed, never silent), reads no verdict, and takes the JUDGE branch on the
-        ``<stage_label>_final`` pair the tool wrote."""
+        ``<stage_label>_final`` pair the tool wrote, under a trunk too: it judges the widened root before it consults
+        any trunk (cleanup ROW-4/6, decision 6 (b), which replaced D-C13's resolve-cell refusal; executed:
+        TestJudgeFirst)."""
         from environments.shared.scripts.widen_checkpoint import FORBIDDEN_OUTPUT_FILES
 
         assert "gate_verdict.json" in FORBIDDEN_OUTPUT_FILES, "the tool never mints a verdict: the loop must judge"
@@ -1522,6 +1541,10 @@ class TestChainLoop:
         src, loop = _chain_loop()
         body = _branch_source(src, loop.body)
         order = [
+            # Decision 6 (b): a node RUN_DIR holds trained but unjudged is found, and checked against the parent
+            # resolved here, before the reuse rule may consult the trunk.
+            "unjudged_stage_dir(",
+            "refuse_judging_off_the_resolved_parent(",
             "find_certified_ancestor(",
             "read_gate_verdict(",
             "evaluate_stage_checkpoints(",
@@ -1542,10 +1565,14 @@ class TestChainLoop:
         assert len(_calls(loop, "train_stage")) == 1
         assert len(_calls(loop, "generate_stage_artifacts")) == 1
         assert len(_calls(loop, "find_certified_ancestor")) == 1
+        assert len(_calls(loop, "unjudged_stage_dir")) == 1
+        assert len(_calls(loop, "refuse_judging_off_the_resolved_parent")) == 1
 
     def test_the_branch_numbers_follow_the_loop_order_in_the_code_and_the_prose(self):
         """Section 6 numbers the branches in the order the loop tries them, and the chain cell's labels agree (they
-        carried BEHAVIOR_RECIPES_PLAN §4.7's numbers, 1 REUSE, 2 TRAIN, 3 JUDGE, until cleanup CU-5)."""
+        carried BEHAVIOR_RECIPES_PLAN §4.7's numbers, 1 REUSE, 2 TRAIN, 3 JUDGE, until cleanup CU-5). Its Judge item
+        says the trunk is not consulted for a node this run trained but never judged (cleanup ROW-4/6, decision
+        6 (b))."""
         src = _cell(CHAIN_CELL_MARKER)
         labels = re.findall(r"#\s+\((\d)\) (REUSE|JUDGE|TRAIN)\b", src)
         assert labels == [("1", "REUSE"), ("2", "JUDGE"), ("3", "TRAIN")] * 2, "the header, then the branches"
@@ -1554,6 +1581,9 @@ class TestChainLoop:
         assert prose.startswith("## 6. ")
         numbered = re.findall(r"^(\d)\. \*\*(\w+)\*\*", prose, re.MULTILINE)
         assert numbered == [("1", "Reuse"), ("2", "Judge"), ("3", "Train")]
+        judge = prose[prose.index("2. **Judge**") : prose.index("3. **Train**")]
+        assert "never replaced by a trunk's copy: the trunk is not consulted for it" in judge
+        assert "decision 6 (b)" in judge
 
     def test_a_reused_node_continues_without_training(self):
         src, loop = _chain_loop()
@@ -1794,6 +1824,368 @@ class TestChainLoop:
 
         with pytest.raises(ResultBundleError, match="Recording 'stance' from run 20260921_000000 would write into"):
             self._complete_run_loop(tmp_path, monkeypatch, find=find, prepare=judge_stance)
+
+
+class TestJudgeFirst:
+    """Cleanup ROW-4/6, decision 6 (b), amending D-A17 and D-C13: the chain loop judges a node ``RUN_DIR`` holds
+    trained but unjudged (any ``models/*.zip`` and no ``gate_verdict.json``) before it consults the trunk, and only on
+    the parent resolved here. Executed against a trunk whose copy of every node the reuse rule accepts, so a trunk
+    the loop asks would stand in for the node: the trunk must not be asked for such a node at all."""
+
+    RUN_ID = "20261003_000000"
+    TRUNK_ID = "20260921_000000"
+    #: The handoff digest of the trunk's (stubbed) copy of every node.
+    TRUNK_SHA = "sha256:" + "a" * 64
+
+    class Judged(Exception):
+        """The loop reached the JUDGE branch: what follows it is pinned elsewhere."""
+
+    class Trained(Exception):
+        """The loop reached the TRAIN branch: what follows it is pinned elsewhere."""
+
+    @classmethod
+    def _loop(cls, tmp_path, monkeypatch, *, behavior, prepare, trunk=True, retrain_from=""):
+        """Execute the configuration, resolve and chain-loop cells for velociraptor under *behavior*, with
+        ``prepare(run_dir)`` writing what the run holds first and the trunk pinned (or no trunk). The reuse rule is
+        stubbed: this run's directory never holds a reusable copy (the cases below hold none, or a verdict the rule
+        is taken to refuse), and the trunk's copy of every node is accepted. Returns the reuse rule's questions as
+        ``(run id, node id)``, the recorded ancestors, the final paths JUDGE was given and the stages TRAIN was
+        given; the loop is left to raise (``Judged``, ``Trained`` or a refusal) to the caller."""
+        import types
+
+        from environments.shared import ancestors
+        from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.config import load_all_stages
+        from environments.shared.plant_contract import current_plant_identity
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / cls.RUN_ID
+        trunk_dir = run_dir.parent / cls.TRUNK_ID if trunk else None
+        run_dir.mkdir(parents=True)
+        prepare(run_dir)
+        asked: list = []
+        recorded: list = []
+        judged: list = []
+        trained: list = []
+
+        def find(candidate, **kwargs):
+            entry = kwargs["entry"]
+            asked.append((Path(candidate).name, entry.id))
+            if trunk_dir is not None and candidate == trunk_dir:
+                stage_dir = trunk_dir / stage_dirname("velociraptor", entry.reference)
+                return types.SimpleNamespace(
+                    stage_id=entry.id,
+                    run_id=cls.TRUNK_ID,
+                    stage_dir=stage_dir,
+                    model_stem=str(stage_dir / "models" / "handoff"),
+                    normalization_path=stage_dir / "models" / "handoff_vecnorm.pkl",
+                    source_run_dir=trunk_dir,
+                    model_sha256=cls.TRUNK_SHA,
+                    normalization_sha256="sha256:" + "b" * 64,
+                    handoff_name="handoff",
+                    verdict={},
+                )
+            raise AncestorReuseError("refused by the stubbed reuse rule")
+
+        def judge(*args, **kwargs):
+            judged.append(kwargs["final_path"])
+            raise cls.Judged
+
+        def train(*args, **kwargs):
+            trained.append(kwargs["stage"])
+            raise cls.Trained
+
+        monkeypatch.setattr(ancestors, "find_certified_ancestor", find)
+        monkeypatch.setattr(
+            ancestors, "record_ancestor", lambda directory, ancestor: recorded.append(ancestor.stage_id)
+        )
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        exec(_cell(CONFIG_CELL_MARKER), namespace)
+        # RUN_DIR implies the storage cell ran, which binds LOG_BASE (the trunk lies under it, as TRUNK_FROM's id).
+        namespace.update(
+            LOG_BASE=tmp_path / "logs",
+            RUN_DIR=run_dir,
+            TRUNK_DIR=trunk_dir,
+            BEHAVIOR=behavior,
+            RETRAIN_FROM=retrain_from,
+        )
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)
+        namespace.update(
+            Path=Path,
+            stage_dirname=stage_dirname,
+            stage_label=stage_label,
+            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            NODE_RESULTS={},
+            completed_stages=[],
+            NODE_HANDOFF={},
+            evaluate_stage_checkpoints=judge,
+            train_stage=train,
+            QUICK_TEST=False,
+            SPECIES_CFG=None,
+            ALGORITHM="ppo",
+            EVALUATION_SEED=3042,
+            read_stage_duration=lambda stage_dir: None,
+        )
+        _define_node_budget(namespace)
+        return namespace, asked, recorded, judged, trained
+
+    @staticmethod
+    def _stage_dir(run_dir: Path, node: str) -> Path:
+        from environments.shared.stage_manifest import stage_dirname
+
+        return run_dir / stage_dirname("velociraptor", load_stage_manifest("velociraptor").resolve(node).reference)
+
+    @classmethod
+    def _final_pair(cls, run_dir: Path, node: str, *, run_block: "dict | None" = None) -> Path:
+        """An intact ``<stage_label>_final`` pair of *node* in *run_dir* (the stem the JUDGE branch is given), with
+        *run_block* as its ``stage_config.json`` run block when given."""
+        from environments.shared.stage_manifest import stage_label
+
+        stage_dir = cls._stage_dir(run_dir, node)
+        final = (
+            stage_dir / "models" / f"{stage_label(load_stage_manifest('velociraptor').resolve(node).reference)}_final"
+        )
+        TestResumeCell._write_pair(Path(f"{final}.zip"), Path(f"{final}_vecnorm.pkl"))
+        if run_block is not None:
+            (stage_dir / "stage_config.json").write_text(json.dumps({"run": run_block}), encoding="utf-8")
+        return final
+
+    @classmethod
+    def _edge(cls, parent_sha256: str) -> dict:
+        """The run block of a non-root trained along its edge from the parent checkpoint *parent_sha256*."""
+        return {"load_mode": "initialize_next_stage", "parent_checkpoint_sha256": parent_sha256, "load_path": "x"}
+
+    @staticmethod
+    def _record(run_dir: Path, node: str) -> None:
+        record = run_dir / "ancestors" / node / "ancestor.json"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text("{}", encoding="utf-8")
+
+    def test_executed_an_unjudged_root_is_judged_before_a_certifying_trunk(self, tmp_path, monkeypatch, capsys):
+        """A node a trunk's copy stood in for before ROW-4/6: the trunk certifies stance, yet the loop never asks it
+        and judges this run's own copy; nothing is recorded, and the reason is printed."""
+        finals: dict = {}
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="walk",
+            prepare=lambda run: finals.update(stance=self._final_pair(run, "stance")),
+        )
+        with pytest.raises(self.Judged):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [finals["stance"]]
+        assert asked == [(self.RUN_ID, "stance")], "the trunk is never asked for a node this run trained"
+        assert recorded == [] and trained == []
+        assert f"Not consulting the trunk for 'stance': {self._stage_dir(namespace['RUN_DIR'], 'stance')}" in (
+            capsys.readouterr().out
+        )
+
+    def test_executed_an_unjudged_ancestor_on_the_resolved_parent_is_judged(self, tmp_path, monkeypatch):
+        """A non-root trained here on the parent this session resolved (the trunk's stance) is judged; the trunk
+        still stands in for stance, which this run never trained."""
+        finals: dict = {}
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="hunt",
+            prepare=lambda run: finals.update(
+                locomotion=self._final_pair(run, "locomotion", run_block=self._edge(self.TRUNK_SHA))
+            ),
+        )
+        with pytest.raises(self.Judged):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [finals["locomotion"]]
+        assert recorded == ["stance"]
+        assert asked == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance"), (self.RUN_ID, "locomotion")]
+
+    def test_executed_an_unjudged_ancestor_on_another_parent_is_refused_before_the_trunk_is_asked(
+        self, tmp_path, monkeypatch
+    ):
+        """Rule 4 before the trunk is skipped: JUDGE applies no chain check, so a node trained on another parent
+        than the one resolved here is refused, with the remedy that works (a fresh RUN_ID), not judged; and the
+        trunk's copy may not stand in for it either."""
+        from environments.shared.result_bundle import ResultBundleError
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="hunt",
+            prepare=lambda run: self._final_pair(run, "locomotion", run_block=self._edge("sha256:" + "c" * 64)),
+        )
+        with pytest.raises(ResultBundleError, match="does not chain onto the parent this session resolved") as excinfo:
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert "fresh RUN_ID" in str(excinfo.value) and "gate_verdict.json" not in str(excinfo.value)
+        assert judged == [] and trained == []
+        assert asked == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance")], "locomotion is never looked up"
+
+    @pytest.mark.parametrize("held", ["periodic checkpoints only", "a final pair without its sidecar"])
+    def test_executed_an_interrupted_node_under_a_certifying_trunk_is_refused_toward_resume(
+        self, tmp_path, monkeypatch, held
+    ):
+        """Any checkpoint without a verdict keeps the trunk out, not only an intact final pair: an interrupted node
+        reaches the interrupted-node refusal, which names RESUME_STAGE, instead of being abandoned for the trunk's
+        copy."""
+        from environments.shared.stage_manifest import stage_label
+
+        def prepare(run_dir):
+            if held == "periodic checkpoints only":
+                models = self._stage_dir(run_dir, "stance") / "models"
+                label = stage_label(load_stage_manifest("velociraptor").resolve("stance").reference)
+                TestResumeCell._write_pair(
+                    models / f"{label}_100000_steps.zip", models / f"{label}_vecnormalize_100000_steps.pkl"
+                )
+            else:
+                Path(f"{self._final_pair(run_dir, 'stance')}_vecnorm.pkl").unlink()
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path, monkeypatch, behavior="walk", prepare=prepare
+        )
+        with pytest.raises(RuntimeError, match="an interrupted node. Set RESUME_STAGE"):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert asked == [(self.RUN_ID, "stance")]
+        assert recorded == [] and judged == [] and trained == []
+
+    @pytest.mark.parametrize(
+        "verdict",
+        ["{}", json.dumps({"passed": False, "failures": ["x"]}), json.dumps({"passed": True})],
+        ids=["malformed", "failed", "passed"],
+    )
+    def test_executed_a_node_with_any_verdict_still_consults_the_trunk(self, tmp_path, monkeypatch, capsys, verdict):
+        """A verdict, whatever it says, is tested by presence: the node is judged already, so the reuse rule decides
+        as before (a malformed one is never read before REUSE), and the trunk's copy stands in when this run's
+        verdict is refused."""
+
+        def prepare(run_dir):
+            self._final_pair(run_dir, "stance")
+            (self._stage_dir(run_dir, "stance") / "gate_verdict.json").write_text(verdict, encoding="utf-8")
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path, monkeypatch, behavior="walk", prepare=prepare
+        )
+        with pytest.raises(self.Trained):  # the target, locomotion, is trained next
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert asked == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance"), (self.RUN_ID, "locomotion")]
+        assert recorded == ["stance"] and judged == []
+        assert "Not consulting the trunk" not in capsys.readouterr().out
+
+    def test_executed_a_node_the_run_holds_as_an_ancestor_record_keeps_the_trunk(self, tmp_path, monkeypatch, capsys):
+        """A run that took the trunk's copy over its own before ROW-4/6 holds the node's unjudged pair and its
+        ``ancestors/`` record: the record is the node in this run, and judging the directory too would make every
+        later bundle write refuse it as both trained and reused."""
+
+        def prepare(run_dir):
+            self._final_pair(run_dir, "stance")
+            self._record(run_dir, "stance")
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path, monkeypatch, behavior="walk", prepare=prepare
+        )
+        with pytest.raises(self.Trained):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [], "a record-held node is never judged"
+        assert asked[:2] == [(self.RUN_ID, "stance"), (self.TRUNK_ID, "stance")] and recorded == ["stance"]
+        assert "Not consulting the trunk" not in capsys.readouterr().out
+
+    def test_executed_a_covered_node_trains_and_no_trunk_is_asked(self, tmp_path, monkeypatch, capsys):
+        """D-A19 unchanged: a node RETRAIN_FROM covers has no reuse candidates and trains, whatever RUN_DIR holds
+        (D-A20 then refuses an occupied directory in train_stage)."""
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="walk",
+            retrain_from="stance",
+            prepare=lambda run: self._final_pair(run, "stance"),
+        )
+        with pytest.raises(self.Trained):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert asked == [] and recorded == [] and judged == []
+        assert trained == [load_stage_manifest("velociraptor").resolve("stance").reference]
+        assert "Not consulting the trunk" not in capsys.readouterr().out
+
+    def test_executed_the_target_is_judged_from_this_run_as_before(self, tmp_path, monkeypatch, capsys):
+        """D-A18 unchanged: the target is only ever looked for in this run, so there is no trunk to skip."""
+        finals: dict = {}
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="stance",
+            prepare=lambda run: finals.update(stance=self._final_pair(run, "stance")),
+        )
+        with pytest.raises(self.Judged):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [finals["stance"]] and asked == [(self.RUN_ID, "stance")] and recorded == []
+        assert "Not consulting the trunk" not in capsys.readouterr().out
+
+    def test_executed_without_a_trunk_the_loop_judges_as_before(self, tmp_path, monkeypatch, capsys):
+        """No trunk, nothing to skip: no rule-4 check and no print, and JUDGE takes the node as before."""
+        finals: dict = {}
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="walk",
+            trunk=False,
+            prepare=lambda run: finals.update(stance=self._final_pair(run, "stance")),
+        )
+        with pytest.raises(self.Judged):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [finals["stance"]] and asked == [(self.RUN_ID, "stance")] and recorded == []
+        assert "Not consulting the trunk" not in capsys.readouterr().out
+
+    def test_executed_a_widened_root_under_a_trunk_passes_the_resolve_cell_and_is_judged(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """D-C13 as amended by decision 6 (b): the resolve cell no longer refuses a trunk over a root widened into
+        this run on the command line; the chain loop judges the widened root (rule 4 passes it as a root: it records
+        no load lineage) before it consults the trunk, on the ``<stage_label>_final`` pair the tool wrote, and records
+        nothing."""
+        finals: dict = {}
+        widened = {"seed": 42, "n_envs": 4, "widened_from_run_id": "20260815_205206"}
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path,
+            monkeypatch,
+            behavior="walk",
+            prepare=lambda run: finals.update(stance=self._final_pair(run, "stance", run_block=widened)),
+        )  # the resolve cell ran with the trunk set, and passed
+        with pytest.raises(self.Judged):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert judged == [finals["stance"]]
+        assert asked == [(self.RUN_ID, "stance")] and recorded == [] and trained == []
+        assert "Not consulting the trunk for 'stance'" in capsys.readouterr().out
+
+    def test_executed_a_widened_root_cut_short_under_a_trunk_is_an_interrupted_node(self, tmp_path, monkeypatch):
+        """A widened pair without its sidecar is not judged, and not replaced by the trunk's copy either: it is
+        refused as an interrupted node."""
+
+        def prepare(run_dir):
+            widened = {"seed": 42, "n_envs": 4, "widened_from_run_id": "20260815_205206"}
+            Path(f"{self._final_pair(run_dir, 'stance', run_block=widened)}_vecnorm.pkl").unlink()
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path, monkeypatch, behavior="walk", prepare=prepare
+        )
+        with pytest.raises(RuntimeError, match="an interrupted node. Set RESUME_STAGE"):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert asked == [(self.RUN_ID, "stance")] and recorded == [] and judged == []
+
+    @pytest.mark.parametrize("trunk", [True, False], ids=["trunk", "no-trunk"])
+    def test_executed_a_widened_root_the_run_holds_as_an_ancestor_record_is_refused(self, tmp_path, monkeypatch, trunk):
+        """The widen tool does not refuse a run that already took the root from a trunk: a root widened there would
+        be neither judged (the record stays the node in the run, which D-C13 refused before ROW-4/6) nor judgeable
+        (the bundle refuses a node both trained and reused). Refused before the trunk is asked or anything is judged,
+        recorded or trained, with or without a trunk, naming a new run id."""
+        from environments.shared.result_bundle import ResultBundleError
+
+        def prepare(run_dir):
+            widened = {"seed": 42, "n_envs": 4, "widened_from_run_id": "20260815_205206"}
+            self._final_pair(run_dir, "stance", run_block=widened)
+            self._record(run_dir, "stance")
+
+        namespace, asked, recorded, judged, trained = self._loop(
+            tmp_path, monkeypatch, behavior="walk", prepare=prepare, trunk=trunk
+        )
+        with pytest.raises(ResultBundleError, match=r"already holds 'stance' as a reused ancestor.*new run id"):
+            exec(_cell(CHAIN_CELL_MARKER), namespace)
+        assert asked == recorded == judged == trained == []
 
 
 class TestFrozenNullFlow:
@@ -2481,11 +2873,14 @@ class TestResumeCell:
         """Executed: the chain loop trains a node ``RETRAIN_FROM`` covers from its parent instead of judging it, and
         D-A20 refuses its occupied directory, so a resume under it could never be judged."""
         calls: list[dict] = []
-        with pytest.raises(RuntimeError, match=r"which RETRAIN_FROM .* covers.*Set RETRAIN_FROM = \"\""):
+        with pytest.raises(RuntimeError, match=r"which RETRAIN_FROM .* covers.*Set RETRAIN_FROM = \"\"") as excinfo:
             self._run_resume_cell(
                 tmp_path, "compsognathus_robot", "walk", "locomotion", 2, retrain_from=retrain_from, calls=calls
             )
         assert calls == [], "refused before anything trains"
+        # Decision 6 (b): the loop judges the resumed node before it consults any trunk, so the BEHAVIOR route left.
+        assert "BEHAVIOR" not in str(excinfo.value)
+        assert "judges the resumed node before it consults any trunk" in str(excinfo.value)
 
     def test_a_retrain_from_below_the_resumed_node_does_not_cover_it(self, tmp_path):
         """Executed: RETRAIN_FROM covers the named node and its descendants only; resuming an ancestor of it
@@ -2548,7 +2943,9 @@ class TestResumeCell:
         """The markdown right before the RESUME cell: ``RUN_ID`` is set in the configuration cell, never into a
         complete run; an earlier run's certified nodes come in through ``TRUNK_FROM`` in a new run; a pre-bump
         checkpoint is widened on the command line (D-C17's bound as the tool's flag) into a new run judged here
-        under the parent's seed (D-C14, D-D14). No copy of the old restart / memo-reset remedy survives."""
+        under the parent's seed (D-C14, D-D14), and since cleanup ROW-4/6 the chain loop judges it before it consults
+        any trunk (decision 6 (b)), where the resolve cell refused a trunk before. No copy of the old restart /
+        memo-reset remedy survives."""
         every = _all_cell_sources()
         prose = every[every.index(_cell(RESUME_CELL_MARKER)) - 1]
         assert prose.startswith("## "), "a markdown section header sits right before the RESUME cell"
@@ -2565,15 +2962,25 @@ class TestResumeCell:
             "`SEED`",
             'TRUNK_FROM = ""',
             "re-entering run",
+            "the chain loop judges the widened root before it consults any trunk",
         ):
             assert phrase in prose, f"the RESUME prose no longer names {phrase}"
         assert "**new** `RUN_ID`" in prose and "never by pointing `RUN_ID` at the old run" in prose
-        for gone in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP", "restart the runtime", "_ACTIVE_RUN_ID", "stray"):
+        for gone in (
+            "WIDEN_FROM",
+            "WIDEN_MAX_REVISION_GAP",
+            "restart the runtime",
+            "_ACTIVE_RUN_ID",
+            "stray",
+            "the resolve cell refuses a trunk",
+        ):
             assert gone not in prose, f"the RESUME prose still names {gone!r}"
 
     def test_the_resume_prose_keeps_the_trunk_recovery_and_d_d16_rules(self):
         """The recipe is the operator's only guide to the trunk a resume must re-supply (nothing on disk records it:
-        KNOWN_ISSUES, Training / RL, LOW) and states D-D16's rules; cleanup CU-5's cut of the markdown kept them."""
+        KNOWN_ISSUES, Training / RL, LOW) and states D-D16's rules; cleanup CU-5's cut of the markdown kept them.
+        Since cleanup ROW-4/6 (decision 6 (b)) the chain loop judges a node this run trained before it consults any
+        trunk, so the recipe no longer routes such a node through ``BEHAVIOR``."""
         every = _all_cell_sources()
         prose = every[every.index(_cell(RESUME_CELL_MARKER)) - 1]
         for phrase in (
@@ -2590,11 +2997,14 @@ class TestResumeCell:
             "a new attempt, in a fresh `RUN_ID`",
             "never resumed without its sidecar",
             "`gate_verdict.json` or an intact final pair",
-            "`BEHAVIOR` set to it",
+            # A node trained here is judged before any trunk is consulted (decision 6 (b)).
+            "decision 6 (b)",
+            "is judged here too",
             # The widened root is judged here (D-C13 as amended by D-D14).
             "D-C13",
         ):
             assert phrase in prose, f"the RESUME prose no longer says {phrase!r}"
+        assert "`BEHAVIOR` set to it" not in prose, "the BEHAVIOR route left with decision 6 (b)"
 
 
 def _preflight_cell() -> tuple[str, ast.Module]:

@@ -3,10 +3,12 @@
 Consolidation PR-14a. A run whose ``artifact_manifest.json`` records ``complete`` is immutable
 (docs/RESULT_BUNDLES.md), so a session that would judge or train a node into it is refused before anything
 is trained or written, and a reuse-only session passes; a root widened on the command line keeps its parent's
-seed (decision D-C14) and is judged before any trunk may stand in for it (decision D-C13). Cleanup ROW-4/6 adds
-the resume check against the trunk ``trunk_run.json`` records (decision 4 (a)) and the two helpers for judging a
-node this run trained but never judged before any trunk (decision 6 (b)): its loop directory, and rule 4 of the
-reuse rule applied to it. Every check reads the run directory only, so the cases below also assert the directory
+seed (decision D-C14) and is judged before any trunk may stand in for it (decision D-C13; the trunk refusal the
+resolve cell made for it stays exported and tested here, although since cleanup ROW-4/6 the chain loop judges
+such a root first and the notebook no longer calls it). Cleanup ROW-4/6 adds the resume check against the trunk
+``trunk_run.json`` records (decision 4 (a)) and the two helpers the chain loop calls to judge a node this run
+trained but never judged before any trunk (decision 6 (b)): its loop directory, and rule 4 of the reuse rule
+applied to it. Every check reads the run directory only, so the cases below also assert the directory
 is byte-identical afterwards. No SB3, torch or IPython: these run in the shared test matrix.
 """
 

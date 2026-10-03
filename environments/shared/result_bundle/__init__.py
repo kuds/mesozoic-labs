@@ -37,9 +37,11 @@ them:
   ``trunk_run.json`` record of the trunk run a notebook session resolved
 * :mod:`~environments.shared.result_bundle.reentry` — what a notebook session
   that re-enters an existing run directory is refused before it writes
-  anything (a complete bundle, a widened root's seed and verdict, a resume
-  under another trunk than the recorded one, a node judged ahead of the
-  trunk off another parent)
+  anything (a complete bundle, a widened root's seed, a root widened beside
+  a reused record of it, a resume under another trunk than the recorded
+  one, a node judged ahead of the trunk off another parent; and, for a
+  notebook copy older than cleanup ROW-4/6, a trunk over an unjudged
+  widened root)
 """
 
 from __future__ import annotations

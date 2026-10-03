@@ -153,11 +153,15 @@ robustness, **LOW** = cosmetic / QoL.
   recorded `run.seed` and `TRUNK_FROM = ""`, mints an r13 provenance for it
   (the storage cell refuses any other `SEED` before it writes anything,
   D-C14: the provenance publishes `training_seed = SEED` and replication
-  counts distinct seeds; the resolve cell refuses a trunk until the widened
-  root holds a verdict, D-C13), and the chain loop refuses — loudly — to
-  reuse the verdict-less directory, finds the `<stage_label>_final.*` pair
-  and JUDGES it: a fresh 40-episode panel (seeds 3042–3081) under the
-  current gate, a `gate_verdict.json` minted under the new task hash. Never by pointing `RUN_ID` at the old run: for a
+  counts distinct seeds; the chain loop judges the widened root before it
+  consults any trunk, D-C13 as amended by ROW-4/6's decision 6 (b), and,
+  when it is an ancestor of `BEHAVIOR`'s node, refuses a root widened into
+  a run that already holds it as an `ancestors/` record, naming a new run
+  id), and the chain loop refuses —
+  loudly — to reuse the verdict-less directory, finds the
+  `<stage_label>_final.*` pair and JUDGES it: a fresh 40-episode panel
+  (seeds 3042–3081) under the current gate, a `gate_verdict.json` minted
+  under the new task hash. Never by pointing `RUN_ID` at the old run: for a
   pre-Phase-C run the storage cell refuses the directory outright (above),
   and for a same-plant run whose verdict rule 3 or 7 refuses the chain loop
   raises "mint a fresh RUN_ID" (D-C13).
@@ -350,32 +354,47 @@ robustness, **LOW** = cosmetic / QoL.
   run the auto-disconnect cell (§9) by hand.
 - **LOW (operational)** — **nothing on disk records the trunk a session
   resolved, so a resume must re-supply it by hand, and a wrong one fails late
-  or discards the resumed node (read from the code at the #558 follow-up,
-  #559).** `TRUNK_FROM = "auto"` is resolved in the kernel (`select_trunk` in
-  the resolve cell, D-A25) and only printed. Each reused
+  or trains the run's recorded ancestors again (read from the code at the
+  #558 follow-up, #559).** `TRUNK_FROM = "auto"` is resolved in the kernel
+  (`select_trunk` in the resolve cell, D-A25) and only printed. Each reused
   node leaves `ancestors/<id>/ancestor.json`, but that names the run that
   certified the node after following records (`_ancestor_record`,
   `ancestors.py:644-667`), not the trunk, and the chain loop never follows
   this run's own records (`follow_records=candidate is not RUN_DIR`). So the
   resume recipe (section 5) has the operator pin `TRUNK_FROM` to the trunk the
   interrupted session printed, or derive it from the nearest ancestor record.
-  A wrong trunk goes one of three ways. (a) `"auto"` picks a newer run
+  A wrong trunk goes one of two ways. (a) `"auto"` picks a newer run
   holding a different certified copy of a reused ancestor: `record_ancestor`
   refuses ("a run cannot reuse two parents for one node",
   `ancestors.py:690-700`), but only in the chain loop, after the RESUME cell
   has trained the remaining budget; re-running with the right trunk then
-  judges the node. (b) `"auto"` picks a newer run that certifies the resumed
-  node itself (an ancestor of `BEHAVIOR`'s target, since the target is looked
-  for only in this run): the loop reuses that copy, prints it as a reuse, and
-  never judges the resumed node. (c) `TRUNK_FROM = ""`: ancestors this run
+  judges the node. (c) `TRUNK_FROM = ""`: ancestors this run
   holds only as records are trained again here (found by the review of
-  #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4). A node `RETRAIN_FROM` covered has the shape of (b); #559
-  refuses its resume and names the route (`BEHAVIOR` set to that node, then a
-  fresh `RUN_ID` trunked from this run). Plan: two decisions in
-  [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 (rows 4 and 6), which
-  the maintainer took on 2026-10-02 and the notebook PR ROW-4/6 carries out: a
-  run-level record of the resolved trunk that the RESUME cell reads, and
-  judging an unjudged `RUN_DIR` node before any trunk reuse. (#558 reviews)
+  #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4).
+  A third way, (b), `"auto"` picking a newer run that certifies the resumed
+  node itself, so that the loop reused that copy and never judged the resumed
+  node, is closed by ROW-4/6's decision 6 (b): the chain loop judges a node
+  this run trained before it consults any trunk, and #559's `BEHAVIOR` route
+  for a node `RETRAIN_FROM` covered is retired. A run that took the trunk's
+  copy of a node that way before ROW-4/6 keeps its `ancestors/` record, and
+  the loop keeps taking the trunk's copy for that node, so a resume of it
+  there still trains and is never judged (executed 2026-10-03). Plan: the
+  other decision in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2
+  (row 4), which the maintainer took on 2026-10-02 and the notebook PR
+  ROW-4/6 carries out: a run-level record of the resolved trunk that the
+  RESUME cell reads. (#558 reviews)
+- **LOW (operational)** — **the chain loop's JUDGE branch applies no chain
+  check (reuse rule 4) to the target, or to any node when no trunk is set
+  (found reading the code for ROW-4/6; executed against the notebook cells
+  2026-10-03).** A node trained here is judged on whatever parent its
+  `stage_config.json` records, even when this session resolved that parent
+  elsewhere: the target, for example, after its parent's own verdict was
+  refused (a gate edit, say) and a trunk's copy of the parent was reused and
+  recorded. The bundle's lineage check passes it, because it hashes the
+  in-run parent that `load_path` names (`reporting/bundles.py:686-710`).
+  ROW-4/6's `result_bundle.refuse_judging_off_the_resolved_parent` covers
+  only a node the loop judges ahead of a trunk (decision 6 (b)); calling it
+  in the JUDGE branch would close the rest, and is a separate change.
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard

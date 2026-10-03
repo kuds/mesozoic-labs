@@ -1093,8 +1093,9 @@ class TestSelectTrunk:
     def test_the_widen_parameter_left_with_the_notebook_knob(self):
         """Decision D-D14: the notebook's WIDEN_FROM was select_trunk's only ``widen_from`` caller; both are gone.
 
-        A root widened on the command line is judged in its new run, and the notebook's resolve cell refuses a
-        resolved trunk until it holds a verdict (``result_bundle.refuse_trunk_over_unjudged_widened_root``)."""
+        A root widened on the command line is judged in its new run: the notebook's chain loop judges it before
+        it consults any resolved trunk (cleanup ROW-4/6, decision 6 (b), which replaced the resolve cell's
+        ``result_bundle.refuse_trunk_over_unjudged_widened_root`` call)."""
         import inspect
 
         from environments.shared.ancestors import select_trunk
