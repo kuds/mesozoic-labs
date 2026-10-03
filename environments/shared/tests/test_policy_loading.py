@@ -23,9 +23,11 @@ resolver that moved here from ``train_base`` (cleanup CU-8b): one definition
 each, every caller importing them from this module at call time so one patch
 reaches all of them, ``train_base``'s old names bound to the same objects and
 read by no other code or test, and a bare ``policy_loading`` that resolves a
-sidecar without importing SB3, torch or ``train_base``. The last section holds
-the SB3 notebook's archive-load preflight, which moved here from its cell
-(cleanup CU-6).
+sidecar without importing SB3, torch or ``train_base``. The last two sections
+hold the SB3 notebook's archive-load preflight, which moved here from its
+cell, and a pin that no notebook cell encodes SB3's periodic checkpoint name
+itself, as the RESUME cell's walk did until it moved into the library (both
+cleanup CU-6).
 """
 
 from __future__ import annotations
@@ -621,8 +623,12 @@ def test_the_known_load_sites_call_the_loader():
             if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "load_sb3_model"
         ]
         assert len(calls) == count, (name, len(calls))
+    # The notebook loads no archive itself (cleanup CU-6): its preflight cell calls the library's preflight, whose one
+    # load is the loader's (the evaluation loads in the library too).
     cells = code_cell_sources(REPO_ROOT / "notebooks/sb3_training.ipynb")
-    assert sum(cell.count("load_sb3_model(") for cell in cells) == 1, "the preflight (evaluation loads in the library)"
+    assert sum(cell.count("load_sb3_model(") for cell in cells) == 0, "the notebook loads no archive itself"
+    assert sum(cell.count("sb3_archive_load_preflight(") for cell in cells) == 1, "the preflight cell"
+    assert len(_named_calls(_top_level_function(PREFLIGHT), "load_sb3_model")) == 1, "the preflight's one load"
 
 
 # ── CU-8b: the SB3 import helper and the sidecar resolver live here ──────────
@@ -1489,3 +1495,128 @@ print("train_base loaded:", "environments.shared.train_base" in sys.modules)
     assert result.returncode == 0, result.stderr
     assert result.stdout.count(PREFLIGHT_PASSED) == 2
     assert result.stdout.splitlines()[-1] == "train_base loaded: False"
+
+
+# ── CU-6: no notebook cell encodes SB3's periodic checkpoint name ────────────
+
+
+def _periodic_name_encodings(tree: ast.AST) -> list[str]:
+    """Each place *tree* encodes SB3's periodic checkpoint name itself, in any of these forms: a string literal that
+    is a pattern naming ``_steps`` (a digit class before it); any ``re`` call (under any import name) given a string
+    naming ``_steps``; a glob or fnmatch over ``_steps`` names; a string method that tests, strips or splits on
+    ``_steps`` (``endswith``, ``removesuffix``, ``rsplit``, ...); or a value put right before ``_steps`` by an
+    f-string, by ``+`` or through a ``%`` or ``.format`` placeholder (a zip or sidecar name built from a step
+    count). A name bound to a string naming ``_steps`` counts as that string wherever it is read. Operator texts
+    that only quote the name (``{label}_*_steps.zip``, ``{label}_vecnormalize_<steps>_steps.pkl``) are not
+    encodings; a parse that never names ``_steps`` (a stem split on ``_`` alone) is beyond these forms."""
+    re_modules = {"re"}
+    re_functions: set[str] = set()
+    named: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            re_modules |= {alias.asname or alias.name for alias in node.names if alias.name == "re"}
+        elif isinstance(node, ast.ImportFrom) and node.module == "re":
+            re_functions |= {alias.asname or alias.name for alias in node.names}
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)) and isinstance(node.value, ast.Constant):
+            if isinstance(node.value.value, str) and "_steps" in node.value.value:
+                targets: list[ast.expr] = list(node.targets) if isinstance(node, ast.Assign) else [node.target]
+                named |= {target.id: node.value.value for target in targets if isinstance(target, ast.Name)}
+
+    def string(node: ast.AST) -> str | None:
+        """The string *node* is: a literal, or a name bound to a string naming ``_steps``."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return named.get(node.id) if isinstance(node, ast.Name) else None
+
+    placeholder = re.compile(r"(%(\([^)]*\))?[-+ #0-9.*]*[a-zA-Z]|\{[^{}]*\})_steps")
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if "_steps" in node.value and ("\\d" in node.value or "[0-9]" in node.value):
+                hits.append(node.value)
+        elif isinstance(node, ast.Call):
+            head, _, last = _dotted(node.func).rpartition(".")
+            texts = [
+                text
+                for argument in (*node.args, *(keyword.value for keyword in node.keywords))
+                for inner in ast.walk(argument)
+                if (text := string(inner)) is not None
+            ]
+            parses = head in re_modules or (not head and last in re_functions)
+            globs = last in {"glob", "iglob", "rglob", "fnmatch", "fnmatchcase", "filter"}
+            splits = last in {"endswith", "startswith", "removesuffix", "removeprefix", "split", "rsplit", "partition"}
+            receiver = string(node.func.value) if isinstance(node.func, ast.Attribute) else None
+            formats = last == "format" and receiver is not None and placeholder.search(receiver) is not None
+            if formats or ((parses or globs or splits) and any("_steps" in text for text in texts)):
+                hits.append(ast.unparse(node))
+        elif isinstance(node, ast.BinOp):
+            left, right = string(node.left), string(node.right)
+            built = isinstance(node.op, ast.Add) and left is None and (right or "").startswith("_steps")
+            formatted = isinstance(node.op, ast.Mod) and placeholder.search(left or "") is not None
+            if built or formatted:
+                hits.append(ast.unparse(node))
+        elif isinstance(node, ast.JoinedStr):
+            for before, after in zip(node.values, node.values[1:]):
+                if (
+                    isinstance(before, ast.FormattedValue)
+                    and isinstance(after, ast.Constant)
+                    and str(after.value).startswith("_steps")
+                ):
+                    hits.append(ast.unparse(node))
+    return hits
+
+
+def test_the_periodic_name_encoding_detector_catches_each_form():
+    caught = [
+        're.fullmatch(re.escape(label_res) + r"_(\\d+)_steps", p.stem)',
+        'pattern = re.escape(label) + r"_(\\d+)_steps"',
+        're.compile(r"(.+)_(\\d+)_steps$")',
+        'rf"{label}_(\\d+)_steps"',
+        're.match(label + "_([0-9]+)_steps$", stem)',
+        'import re as _re\n_re.match(label + "_" + digits + "_steps", s)',
+        'from re import fullmatch as fm\nfm(prefix + "_steps", s)',
+        'model_dir_res.glob(f"{label_res}_*_steps.zip")',
+        'glob.glob(os.path.join(directory, "*_steps.zip"))',
+        'fnmatch.fnmatch(name, "stage2_*_steps.zip")',
+        'f"{label_res}_vecnormalize_{cand_steps}_steps.pkl"',
+        'f"{label}_{steps}_steps.zip"',
+        'label_res + "_vecnormalize_" + str(steps) + "_steps.pkl"',
+        '"{}_vecnormalize_{}_steps.pkl".format(label_res, steps)',
+        '"%s_vecnormalize_%d_steps.pkl" % (label_res, steps)',
+        '[p for p in model_dir_res.iterdir() if p.stem.endswith("_steps") and p.stem.split("_")[-2].isdigit()]',
+        'int(p.stem.removesuffix("_steps").rsplit("_", 1)[1])',
+        'SUFFIX = "_steps"\nre.fullmatch(re.escape(label_res) + r"_(\\d+)" + SUFFIX, p.stem)',
+    ]
+    ignored = [
+        'f"No periodic checkpoint {label_res}_*_steps.zip in {model_dir_res} — "',
+        'f"{label_res}_vecnormalize_<steps>_steps.pkl in {model_dir_res}. Skipped: "',
+        '"WARNING: skipping stage2_2800000_steps.zip"',
+        'print(f"No periodic checkpoint {label}_*_steps.zip in {model_dir}")',
+        'PPO("MlpPolicy", env, n_steps=32)',
+        'any(model_dir.glob("*.zip"))',
+        're.match(r"^(.+?)_(\\d{8}_\\d{6})$", name)',
+        "newest_intact_periodic_pair(model_dir_res, label_res)",
+        '"No periodic checkpoint " + label_res + "_*_steps.zip in " + str(model_dir_res)',
+        '"No periodic checkpoint {}_*_steps.zip in {}".format(label_res, model_dir_res)',
+        '"No periodic checkpoint %s_*_steps.zip in %s" % (label_res, model_dir_res)',
+        'NAMES = "{label}_*_steps.zip"\nprint(NAMES)',
+    ]
+    for snippet in caught:
+        assert _periodic_name_encodings(ast.parse(snippet)), snippet
+    for snippet in ignored:
+        assert not _periodic_name_encodings(ast.parse(snippet)), snippet
+
+
+def test_no_notebook_cell_encodes_the_periodic_checkpoint_name():
+    """The RESUME cell compiled its own ``_(\\d+)_steps`` pattern until cleanup CU-6, a fourth encoding of SB3's
+    periodic name that the one-pattern pin above could not see (its literal differs); its walk is now
+    ``curriculum.newest_intact_periodic_pair``, which reads ``_PERIODIC_CHECKPOINT_RE``. No code cell of any notebook
+    encodes the name again. (The library's other encodings, ``result_bundle/evidence.py``'s name matcher and
+    ``prune_periodic_checkpoints``' glob, stay as they are: CU-6 folds only the notebook's.)"""
+    offenders = {
+        f"{path.relative_to(REPO_ROOT)}[cell {index}]": hits
+        for path in sorted((REPO_ROOT / "notebooks").glob("*.ipynb"))
+        for index, source in code_cells(path)
+        if (hits := _periodic_name_encodings(ast.parse(strip_magics(source))))
+    }
+    assert not offenders

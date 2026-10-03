@@ -385,7 +385,8 @@ Two escape hatches remain. The manual single-node cell (`MANUAL_NODE`) trains
 one node outside the chain and records its verdict without enforcing it; it
 never feeds the chain. The resume cell (`RESUME_STAGE`) continues an
 interrupted node from its newest intact periodic checkpoint under
-`resume_same_stage`; the re-saved `stage_config.json` keeps the edge's
+`resume_same_stage` and evaluates nothing (the loop's JUDGE branch evaluates
+the node from disk); the re-saved `stage_config.json` keeps the edge's
 lineage keys and records the continued-from checkpoint under
 `resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
 node still chains by digest and stays reusable. It sits ahead of the chain

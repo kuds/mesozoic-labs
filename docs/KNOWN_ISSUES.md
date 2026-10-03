@@ -285,7 +285,8 @@ robustness, **LOW** = cosmetic / QoL.
   widen report reads `parent_stage_config`); and the notebook's load preflight runs right
   after the resolve cell on a real archive, the trunk run's root handoff when
   there is one (until consolidation PR-14a moved widening to the command line,
-  the notebook's widen parent's handoff first)
+  the notebook's widen parent's handoff first), through
+  `policy_loading.sb3_archive_load_preflight` since cleanup CU-6
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
   Drive trained before that date — every trex and compsognathus stage
