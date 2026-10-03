@@ -109,6 +109,11 @@ is next.*
 CU-10: `train()` and the command-line curriculum train a stage through one body, and CLI curriculum runs seed model
 construction and record each node's duration (D-D11); ROW-4/6 (the notebook PR for decisions 4 and 6 of the cleanup
 plan) is next.*
+*Updated 2026-10-03: CU-10b landed as #590. ROW-4/6 (the notebook PR for decisions 4 and 6 of the cleanup plan) is
+carried out: the chain loop judges a node the run trained but never judged before it consults the trunk, so a node a
+stopped run leaves unjudged (GQ-2's "cleanup decision 6's hazard") is judged, or refused toward the RESUME cell,
+before any trunk stands in for it (unless the run already holds it as an `ancestors/` record), and the run's
+`trunk_run.json` records the trunk, which the RESUME cell checks a resume against; CU-6 is next.*
 
 ## 2. Decisions needed
 

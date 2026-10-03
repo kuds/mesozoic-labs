@@ -91,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   LOW, that the JUDGE branch applies no chain check to the target or without
   a trunk. No digest moves.
 - **The command-line curriculum seeds model construction and records each
-  node's duration, as `train()` does** (decision D-D11; cleanup CU-10b of
-  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior
+  node's duration, as `train()` does** (#590, decision D-D11; cleanup CU-10b
+  of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior
   change for CLI curriculum runs. Each node's model is built (the root) or
   its warm start re-seeded (each child) under the run's `--seed`, unless
   the stage's algorithm block names a seed (`--override ppo.seed=N`, which
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checkpoint a node saves records the seed and environment count its
   `stage_config.json` run block records. No digest moves.
 - **`train()` and the command-line curriculum train a stage through one
-  body, and the evaluation environment's seed has a name** (cleanup
+  body, and the evaluation environment's seed has a name** (#590, cleanup
   CU-10b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row).
   `train_curriculum` kept its own copy of `train()`'s stage body; both now
   call one private helper in `train_base.py`, `_train_stage_body`. It
