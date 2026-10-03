@@ -1506,6 +1506,27 @@ Still open:
   gradient updates; `n_envs` is recorded, so the difference can be found but
   is never flagged. Fix: mirror the CLI in the configuration cell, or say so
   there. (read from the code 2026-09-30; 2026-08 gap review NB9)
+- **LOW** — **the Drive summary's `library_version` column holds two
+  different versions (read from the code and probed 2026-10-02).** For a
+  run with a result bundle it is the training backend's version:
+  `_bundle_fields` (cell 9 of
+  [notebooks/google_drive_summary.ipynb](../notebooks/google_drive_summary.ipynb),
+  `:763`) takes `summary.json`'s `backend_version`, else `provenance.json`'s,
+  and both record the Stable-Baselines3 version (`reporting/bundles.py:354`,
+  `:643`); a partial or failed run, which `_canonical_csv_rows` reads
+  without a summary (`:784-796`), takes the provenance one. For an older
+  run without a bundle it is the mesozoic-labs version, which the legacy
+  `scan_run` (cell 8, `:526`) reads from `stage_config.json`
+  (`config.py:948`). The summary tables (cells 14, 16 and 18) and the
+  export to `runs_summary.csv` (cell 24) show both under the one name. In
+  a probe of the reader cells, a complete and a failed run read the
+  backend version their bundles record and a flat run its stage config's
+  mesozoic-labs version. Nothing in the repository reads the column back.
+  Fix: export the bundle value as `backend_version`, and fill
+  `library_version` from `provenance.json`'s
+  `dependency_versions.mesozoic_labs`, which changes what
+  `runs_summary.csv` says for those rows; no cleanup PR owns it. (2026-10
+  CU-15 scouting)
 
 ## Testing / CI
 
