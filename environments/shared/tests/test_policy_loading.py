@@ -23,7 +23,9 @@ resolver that moved here from ``train_base`` (cleanup CU-8b): one definition
 each, every caller importing them from this module at call time so one patch
 reaches all of them, ``train_base``'s old names bound to the same objects and
 read by no other code or test, and a bare ``policy_loading`` that resolves a
-sidecar without importing SB3, torch or ``train_base``.
+sidecar without importing SB3, torch or ``train_base``. The last section holds
+the SB3 notebook's archive-load preflight, which moved here from its cell
+(cleanup CU-6).
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from __future__ import annotations
 import ast
 import base64
 import functools
+import io
 import json
 import logging
 import math
@@ -38,6 +41,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -658,6 +662,8 @@ CALL_TIME_READS = {
     "environments/shared/evaluation.py": {"_ensure_sb3": 2, "_resolve_vecnorm_sidecar": 1},
     "environments/shared/reporting/stage_artifacts.py": {"_ensure_sb3": 2},
     "environments/shared/cli.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+    # The SB3 notebook RESUME cell's periodic-pair walk (cleanup CU-6), which replaced the cell's own pattern.
+    "environments/shared/curriculum/checkpoints.py": {"_PERIODIC_CHECKPOINT_RE": 1},
 }
 #: The only bindings of a moved name made outside a function body (at import
 #: or class-definition time) outside this module: ``train_base``'s
@@ -1178,3 +1184,308 @@ def test_policy_loading_imports_only_the_standard_library_at_import_time():
         pending += ast.iter_child_nodes(node)
     assert imported
     assert [name for name in imported if name.split(".")[0] not in sys.stdlib_module_names] == []
+
+
+# ── CU-6: the SB3 notebook's archive-load preflight lives here ───────────────
+#
+# The notebook's section-4 cell is one call of ``sb3_archive_load_preflight``
+# (``test_sb3_notebook_pins.py``, ``TestArchiveLoadPreflightCell``, pins the
+# call). What the cell held is pinned and executed here: one load, through the
+# loader, with the print flushed immediately before it; the trunk run's root
+# handoff under any of its directory names, else a throwaway saved into a
+# temporary directory; a failure that propagates. The fixture archives saved
+# under 3.12 and 3.13 make the executed load a cross-interpreter proof wherever
+# SB3 is installed.
+
+PREFLIGHT = "sb3_archive_load_preflight"
+PREFLIGHT_HELPERS = ("_root_handoff_archive", "_save_throwaway_ppo")
+#: The ``walk`` chain's root in ``compsognathus_robot``: stance, stage 1, written as ``01_stance`` since 2026-08-20 and
+#: as ``stage1`` or ``stance`` before (``stage_manifest.stage_dir_candidates``, newest naming first).
+PREFLIGHT_SPECIES, PREFLIGHT_ROOT = "compsognathus_robot", 1
+PREFLIGHT_ROOT_DIRECTORIES = ("01_stance", "stage1", "stance")
+PREFLIGHT_PASSED = "SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.\n"
+
+
+def _top_level_function(name: str) -> ast.FunctionDef:
+    tree = ast.parse((REPO_ROOT / POLICY_LOADING).read_text(encoding="utf-8"))
+    (definition,) = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == name]
+    return definition
+
+
+def _named_calls(tree: ast.AST, name: str) -> list[ast.Call]:
+    return [node for node in ast.walk(tree) if isinstance(node, ast.Call) and _dotted(node.func).split(".")[-1] == name]
+
+
+class _StdoutEvents(io.TextIOBase):
+    """A stdout that records each write and flush, in order, beside the load a spy records."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, Any]] = []
+
+    def write(self, text: str) -> int:
+        self.events.append(("write", text))
+        return len(text)
+
+    def flush(self) -> None:
+        self.events.append(("flush", None))
+
+
+def _trunk_with_handoff(trunk: Path, directory: str, archive: Path, *, sidecar: bool = True) -> Path:
+    """*trunk* holding *archive* as its root's ``robust_best_model`` pair under *directory* (the sidecar's bytes are
+    never read: ``select_handoff_checkpoint`` takes a pair whose two files exist)."""
+    models = trunk / directory / "models"
+    models.mkdir(parents=True)
+    handoff = models / "robust_best_model.zip"
+    handoff.write_bytes(archive.read_bytes())
+    if sidecar:
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"")
+    return handoff
+
+
+def _tree_bytes(root: Path) -> dict[str, bytes]:
+    return {str(path.relative_to(root)): path.read_bytes() for path in sorted(root.rglob("*")) if path.is_file()}
+
+
+def test_the_preflight_prints_flushed_immediately_before_its_one_load():
+    """A foreign archive kills the kernel inside the load with no traceback: the statement right before the one
+    ``load_sb3_model`` call is the print, flushed, naming the archive's saving Python, its bytecode members and "kernel
+    death HERE", so that line is on screen when it does (the notebook cell's rule until cleanup CU-6)."""
+    definition = _top_level_function(PREFLIGHT)
+    (load,) = _named_calls(definition, "load_sb3_model")
+    assert ast.unparse(load) == "load_sb3_model(archive, device='cpu')", "one CPU load, the proof"
+    block, at = next(
+        (body, index)
+        for node in ast.walk(definition)
+        for body in (getattr(node, "body", None),)
+        if isinstance(body, list)
+        for index, statement in enumerate(body)
+        if isinstance(statement, ast.Assign) and statement.value is load
+    )
+    before = block[at - 1] if at else None
+    assert isinstance(before, ast.Expr) and isinstance(before.value, ast.Call), "a print right before the load"
+    assert _dotted(before.value.func) == "print"
+    assert any(kw.arg == "flush" and ast.literal_eval(kw.value) is True for kw in before.value.keywords)
+    printed = ast.unparse(before)
+    assert "saved_python_text" in printed and "bytecode_members" in printed and "kernel death HERE" in printed
+    # The throwaway lives in a temporary directory; nothing is caught or raised, and nothing is trained or written:
+    # no call the notebook cell's pin refused until cleanup CU-6 moved its body here, nor pathlib's two writers.
+    assert [ast.unparse(call) for call in _named_calls(definition, "TemporaryDirectory")] == [
+        "tempfile.TemporaryDirectory(prefix='sb3_load_preflight_')"
+    ]
+    for function in (definition, *map(_top_level_function, PREFLIGHT_HELPERS)):
+        assert not _bare_algorithm_loads(function), function.name
+        assert not [node for node in ast.walk(function) if isinstance(node, (ast.Raise, ast.Try))], function.name
+        for name in (
+            "train_stage",
+            "widen_checkpoint",
+            "evaluate_stage_checkpoints",
+            "generate_stage_artifacts",
+            "learn",
+            "initialize_result_bundle",
+            "save_stage_config",
+            "write_gate_verdict",
+            "disconnect_runtime",
+            "halt",
+            "open",
+            "write_text",
+            "write_bytes",
+        ):
+            assert not _named_calls(function, name), f"{function.name} calls {name}"
+    # A forgotten trunk is a TypeError, never a silent throwaway: trunk_dir is keyword-only and has no default.
+    arguments = definition.args
+    assert [argument.arg for argument in (*arguments.posonlyargs, *arguments.args)] == ["species", "root_reference"]
+    assert [argument.arg for argument in arguments.kwonlyargs] == ["trunk_dir"] and arguments.kw_defaults == [None]
+
+
+def test_the_preflight_flushes_its_line_before_the_load_starts(tmp_path, monkeypatch):
+    """Executed (no SB3 needed): by the time the load starts, the line naming the archive has been written AND
+    flushed, and nothing was written after it; the "passed" line follows the load."""
+    handoff = _trunk_with_handoff(tmp_path / "trunk", "01_stance", FIXTURES / FIXTURE_NAMES[0])
+    stdout = _StdoutEvents()
+    monkeypatch.setattr(sys, "stdout", stdout)
+
+    def load(path, **kwargs):
+        stdout.events.append(("load", (Path(path), kwargs)))
+        return object()
+
+    monkeypatch.setattr(policy_loading, "load_sb3_model", load)
+    inspection = policy_loading.sb3_archive_load_preflight(
+        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
+    )
+    kinds = [kind for kind, _ in stdout.events]
+    at = kinds.index("load")
+    assert kinds.count("load") == 1 and stdout.events[at][1] == (handoff, {"device": "cpu"})
+    assert kinds[at - 1] == "flush", "the line is flushed right before the load"
+    written = "".join(text for kind, text in stdout.events[:at] if kind == "write")
+    assert written.startswith(f"SB3 archive load preflight: loading the trunk run's root handoff {handoff} (saved by ")
+    assert written.endswith("... a kernel death HERE means this image cannot load SB3 archives\n")
+    assert written.count("\n") == 1, "one line before the load"
+    assert "".join(text for kind, text in stdout.events[at:] if kind == "write") == PREFLIGHT_PASSED
+    assert inspection.path == handoff
+
+
+def test_the_preflight_raises_what_the_load_raises_and_reports_no_pass(tmp_path, monkeypatch, capsys):
+    """Executed (no SB3 needed): a refused archive or a failed load propagates unchanged (a failure halts the
+    notebook's Run all before any training), after the flushed line and without the "passed" line; an unreadable
+    handoff is refused by the inspection before anything is printed or loaded."""
+    _trunk_with_handoff(tmp_path / "trunk", "01_stance", FIXTURES / FIXTURE_NAMES[0])
+    refusal = PolicyLoadError("foreign bytecode outside the schedule members")
+
+    def refuse(path, **kwargs):
+        raise refusal
+
+    monkeypatch.setattr(policy_loading, "load_sb3_model", refuse)
+    with pytest.raises(PolicyLoadError) as raised:
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk")
+    assert raised.value is refusal
+    out = capsys.readouterr().out
+    assert out.endswith("a kernel death HERE means this image cannot load SB3 archives\n") and "passed" not in out
+
+    loaded: list[Path] = []
+    monkeypatch.setattr(policy_loading, "load_sb3_model", lambda path, **kwargs: loaded.append(path))
+    _trunk_with_handoff(tmp_path / "unreadable", "01_stance", FIXTURES / FIXTURE_NAMES[0]).write_bytes(b"not a zip")
+    with pytest.raises(PolicyLoadError):
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "unreadable")
+    assert loaded == [] and capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("directory", PREFLIGHT_ROOT_DIRECTORIES)
+def test_the_preflight_loads_the_trunks_root_handoff_under_any_directory_name(tmp_path, monkeypatch, capsys, directory):
+    """Executed (no SB3 needed): the chain root's handoff is found under each name a run has written the stage under,
+    newest naming first, and is what is inspected, printed and loaded; the trunk is read, and nothing in it or beside it
+    is written."""
+    loaded: list[Path] = []
+    monkeypatch.setattr(policy_loading, "load_sb3_model", lambda path, **kwargs: loaded.append(Path(path)))
+    handoff = _trunk_with_handoff(tmp_path / "trunk", directory, FIXTURES / FIXTURE_NAMES[0])
+    if directory != PREFLIGHT_ROOT_DIRECTORIES[0]:
+        # An older naming loses to the newest one whenever both hold a pair.
+        _trunk_with_handoff(tmp_path / "both", PREFLIGHT_ROOT_DIRECTORIES[0], FIXTURES / FIXTURE_NAMES[0])
+        _trunk_with_handoff(tmp_path / "both", directory, FIXTURES / FIXTURE_NAMES[0])
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "both")
+        assert loaded.pop() == tmp_path / "both" / PREFLIGHT_ROOT_DIRECTORIES[0] / "models" / "robust_best_model.zip"
+        capsys.readouterr()
+    before = _tree_bytes(tmp_path)
+    inspection = policy_loading.sb3_archive_load_preflight(
+        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=str(tmp_path / "trunk")
+    )
+    assert loaded == [handoff] and inspection.path == handoff
+    assert inspection.saved_python == tuple(MANIFEST[FIXTURE_NAMES[0]]["python_minor"])
+    out = capsys.readouterr().out
+    assert out.startswith(
+        f"SB3 archive load preflight: loading the trunk run's root handoff {handoff} (saved by Python "
+        f"{inspection.saved_python_text}; this runtime is Python {RUNNING[0]}.{RUNNING[1]}; "
+    )
+    assert out.endswith(PREFLIGHT_PASSED)
+    assert _tree_bytes(tmp_path) == before, "the trunk is read, and nothing in it or beside it is written"
+
+
+def test_the_preflight_loads_the_handoff_of_the_species_and_root_it_is_given(tmp_path, monkeypatch, capsys):
+    """Executed (no SB3 needed): the archive is the handoff ``select_handoff_checkpoint`` picks in the directory of
+    *root_reference* in *species*' manifest, the cell's ``SPECIES`` and ``CHAIN[0].reference``. Velociraptor's stage
+    2 is ``02_locomotion``; its stage 1 (``01_stance``) and compsognathus_robot's stage 2 (``03_locomotion``) hold
+    pairs that are never loaded. A ``best_model`` pair alone is the handoff, and ``robust_best_model`` wins once
+    both are complete."""
+    loaded: list[Path] = []
+    monkeypatch.setattr(policy_loading, "load_sb3_model", lambda path, **kwargs: loaded.append(Path(path)))
+    trunk = tmp_path / "trunk"
+    for decoy in ("01_stance", "03_locomotion"):
+        _trunk_with_handoff(trunk, decoy, FIXTURES / FIXTURE_NAMES[0])
+    models = trunk / "02_locomotion" / "models"
+    models.mkdir(parents=True)
+    for name in ("best_model", "robust_best_model"):
+        (models / f"{name}.zip").write_bytes((FIXTURES / FIXTURE_NAMES[0]).read_bytes())
+        (models / f"{name}_vecnorm.pkl").write_bytes(b"")
+        inspection = policy_loading.sb3_archive_load_preflight("velociraptor", 2, trunk_dir=trunk)
+        assert loaded == [models / f"{name}.zip"] and inspection.path == models / f"{name}.zip", name
+        assert f"loading the trunk run's root handoff {models / name}.zip (saved by " in capsys.readouterr().out
+        loaded.clear()
+
+
+@pytest.mark.parametrize("trunk", ["none", "another node's directory only", "a handoff without its sidecar"])
+def test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_writes_nothing(
+    tmp_path, monkeypatch, capsys, trunk
+):
+    """Executed with SB3: no trunk, a trunk without the root's directory, or a root handoff without its sidecar falls
+    back to a throwaway PPO saved by this runtime into a temporary directory, never refused; the throwaway is a file
+    when the load starts and gone afterwards, and nothing else is written (the trunk, the working directory)."""
+    pytest.importorskip("stable_baselines3")
+    scratch, cwd, trunk_dir = tmp_path / "scratch", tmp_path / "cwd", tmp_path / "trunk"
+    for directory in (scratch, cwd, trunk_dir):
+        directory.mkdir()
+    if trunk == "another node's directory only":
+        _trunk_with_handoff(trunk_dir, "02_locomotion", FIXTURES / FIXTURE_NAMES[0])
+    elif trunk == "a handoff without its sidecar":
+        _trunk_with_handoff(trunk_dir, "01_stance", FIXTURES / FIXTURE_NAMES[0], sidecar=False)
+    before = _tree_bytes(trunk_dir)
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    monkeypatch.chdir(cwd)
+    real_load, seen = policy_loading.load_sb3_model, []
+
+    def load(path, **kwargs):
+        seen.append((Path(path), Path(path).is_file()))
+        return real_load(path, **kwargs)
+
+    monkeypatch.setattr(policy_loading, "load_sb3_model", load)
+    inspection = policy_loading.sb3_archive_load_preflight(
+        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=None if trunk == "none" else trunk_dir
+    )
+    [(path, existed)] = seen
+    assert existed and path.name == "preflight_ppo.zip" and path.parent.name.startswith("sb3_load_preflight_")
+    assert path.parent.parent == scratch and inspection.path == path and not path.exists()
+    assert inspection.saved_python == RUNNING
+    assert list(scratch.iterdir()) == [] and list(cwd.iterdir()) == [] and _tree_bytes(trunk_dir) == before
+    out = capsys.readouterr().out
+    assert out.startswith(
+        f"SB3 archive load preflight: loading a throwaway model saved by this runtime (saved by Python "
+        f"{RUNNING[0]}.{RUNNING[1]}; this runtime is Python {RUNNING[0]}.{RUNNING[1]}; bytecode members: "
+    )
+    # The members, or "none": SB3 2.9's throwaway carries no bytecode member, so a run without a trunk handoff prints
+    # "none" there.
+    assert (
+        f"bytecode members: {', '.join(sorted(inspection.bytecode_members)) or 'none'}) ... "
+        "a kernel death HERE means this image cannot load SB3 archives\n"
+    ) in out
+    assert out.endswith(PREFLIGHT_PASSED)
+
+
+@pytest.mark.parametrize("name", FIXTURE_NAMES)
+def test_the_preflight_loads_each_fixture_archive_through_the_loader(tmp_path, capsys, name):
+    """Executed with SB3: a trunk whose root handoff is a closure-bearing archive saved by Python 3.12 or 3.13 loads
+    here whatever this interpreter is (the foreign one is what a bare ``PPO.load`` dies on), and the printed line
+    names the saving Python and the bytecode members the loader supplies instead of unpickling."""
+    pytest.importorskip("stable_baselines3")
+    entry = MANIFEST[name]
+    handoff = _trunk_with_handoff(tmp_path / "trunk", "01_stance", FIXTURES / name)
+    inspection = policy_loading.sb3_archive_load_preflight(
+        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
+    )
+    assert inspection.path == handoff and sorted(inspection.bytecode_members) == entry["bytecode_members"]
+    out = capsys.readouterr().out
+    saved = f"{entry['python_minor'][0]}.{entry['python_minor'][1]}"
+    assert f"(saved by Python {saved}; this runtime is Python {RUNNING[0]}.{RUNNING[1]}; " in out
+    assert f"bytecode members: {', '.join(entry['bytecode_members']) or 'none'}) ... a kernel death HERE" in out
+    assert out.endswith(PREFLIGHT_PASSED)
+
+
+def test_calling_the_preflight_never_loads_train_base(tmp_path):
+    """The module's promise that ``train_base`` never is imported holds when the preflight runs too, on either
+    path: it imports the handoff selector, the stage manifest, gymnasium, numpy and SB3, none of which loads the
+    trainer."""
+    pytest.importorskip("stable_baselines3")
+    _trunk_with_handoff(tmp_path / "trunk", "01_stance", FIXTURES / FIXTURE_NAMES[0])
+    code = f"""
+import sys
+
+from environments.shared import policy_loading
+
+for trunk in ({str(tmp_path / "trunk")!r}, None):
+    policy_loading.sb3_archive_load_preflight({PREFLIGHT_SPECIES!r}, {PREFLIGHT_ROOT!r}, trunk_dir=trunk)
+print("train_base loaded:", "environments.shared.train_base" in sys.modules)
+"""
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO_ROOT), os.environ.get("PYTHONPATH")]))}
+    result = subprocess.run(
+        [sys.executable, "-c", code], cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=300
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count(PREFLIGHT_PASSED) == 2
+    assert result.stdout.splitlines()[-1] == "train_base loaded: False"
