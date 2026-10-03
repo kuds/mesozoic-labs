@@ -105,6 +105,10 @@ the robot's recovery calibration refuse until it is recalibrated, as the robot's
 is next.*
 *Updated 2026-10-02: CU-13 landed as #588. CU-15 (reduced) is carried out: the Drive summary notebook checks out
 `REPO_REF` with the SB3 notebook's Git block, and its run reader is tested; CU-10b (the rest of CU-10) is next.*
+*Updated 2026-10-03: CU-15 (reduced) landed as #589. CU-10b (the rest of CU-10) is carried out, which completes
+CU-10: `train()` and the command-line curriculum train a stage through one body, and CLI curriculum runs seed model
+construction and record each node's duration (D-D11); ROW-4/6 (the notebook PR for decisions 4 and 6 of the cleanup
+plan) is next.*
 
 ## 2. Decisions needed
 

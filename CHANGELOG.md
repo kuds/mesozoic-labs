@@ -82,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `train_curriculum` now read the body and what each caller passes it. No
   digest moves.
 - **The Drive summary notebook checks out `REPO_REF`, and its run reader
-  is tested** (cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
+  is tested** (#589, cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-02; §3.2 CU-15 row). `google_drive_summary.ipynb`'s setup cell
   takes the SB3 notebook's `REPO_REF = "main"` knob and its Git block,
   statement for statement, in place of a `--depth 1` clone of the default
