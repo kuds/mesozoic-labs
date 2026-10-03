@@ -33,9 +33,13 @@ them:
   ``gate_verdict.json`` record a stage directory carries beside its handoff
 * :mod:`~environments.shared.result_bundle.ancestors` — the reader of the
   ``ancestors/<stage_id>/`` records of nodes reused from another run
+* :mod:`~environments.shared.result_bundle.trunk_record` — the run-level
+  ``trunk_run.json`` record of the trunk run a notebook session resolved
 * :mod:`~environments.shared.result_bundle.reentry` — what a notebook session
   that re-enters an existing run directory is refused before it writes
-  anything (a complete bundle, a widened root's seed and verdict)
+  anything (a complete bundle, a widened root's seed and verdict, a resume
+  under another trunk than the recorded one, a node judged ahead of the
+  trunk off another parent)
 """
 
 from __future__ import annotations
@@ -50,6 +54,8 @@ from .constants import (
     DEFAULT_MANIFEST_NAME,
     DEFAULT_PROVENANCE_NAME,
     PROVENANCE_SCHEMA_VERSION,
+    TRUNK_RECORD_NAME,
+    TRUNK_RECORD_SCHEMA,
 )
 from .errors import ResultBundleError
 from .evidence import compare_summary_to_csv, validate_evaluation_evidence
@@ -73,10 +79,14 @@ from .naming import _normalize_plant_identity, canonical_algorithm, canonical_ba
 from .provenance import initialize_result_bundle, load_provenance, update_provenance
 from .reentry import (
     refuse_complete_run_session,
+    refuse_judging_off_the_resolved_parent,
+    refuse_trunk_other_than_recorded,
     refuse_trunk_over_unjudged_widened_root,
     refuse_widened_seed_mismatch,
     refuse_write_into_complete_run,
+    unjudged_stage_dir,
 )
+from .trunk_record import read_trunk_record, record_trunk_run, trunk_from_value
 
 __all__ = [
     "ANCESTOR_RECORD_NAME",
@@ -88,6 +98,8 @@ __all__ = [
     "GATE_VERDICT_FILENAME",
     "GATE_VERDICT_SCHEMA",
     "PROVENANCE_SCHEMA_VERSION",
+    "TRUNK_RECORD_NAME",
+    "TRUNK_RECORD_SCHEMA",
     "GateVerdictError",
     "ResultBundleError",
     "_normalize_plant_identity",
@@ -106,11 +118,17 @@ __all__ = [
     "project_ancestor_records",
     "read_bundle_status",
     "read_gate_verdict",
+    "read_trunk_record",
+    "record_trunk_run",
     "refuse_complete_run_session",
+    "refuse_judging_off_the_resolved_parent",
+    "refuse_trunk_other_than_recorded",
     "refuse_trunk_over_unjudged_widened_root",
     "refuse_widened_seed_mismatch",
     "refuse_write_into_complete_run",
     "sha256_file",
+    "trunk_from_value",
+    "unjudged_stage_dir",
     "update_provenance",
     "validate_evaluation_evidence",
     "validate_result_bundle",

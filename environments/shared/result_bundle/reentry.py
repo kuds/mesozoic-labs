@@ -30,6 +30,21 @@ naming the way out:
   loop has judged that root, a trunk run would satisfy the root from another
   run and bypass it (decision D-C13):
   :func:`refuse_trunk_over_unjudged_widened_root` (the resolve cell).
+* **The trunk a run's ancestor records came through** (cleanup ROW-4/6,
+  decision 4 (a)): ``trunk_run.json`` records the trunk a session resolved
+  for the run and is fixed once the run holds an ``ancestors/`` record, the
+  trunk those records came through when the resolve cell ran before the
+  chain loop that recorded them (:mod:`.trunk_record`).
+  :func:`refuse_trunk_other_than_recorded` (for the RESUME cell, before it
+  trains) refuses a resume under another trunk than the recorded one, and a
+  resume of a node the run holds as such a record.
+* **A node this run trained but never judged** (cleanup ROW-4/6, decision
+  6 (b)), which the chain loop is to judge before it consults any trunk:
+  :func:`unjudged_stage_dir` names its loop directory (a reader; it refuses
+  only a root widened into a run that already holds it as an ``ancestors/``
+  record), and :func:`refuse_judging_off_the_resolved_parent` refuses to
+  judge it there unless it was trained on the parent this session resolved
+  (rule 4 of the reuse rule).
 """
 
 from __future__ import annotations
@@ -41,10 +56,11 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from ..config import read_recorded_stage_config
 from ..stage_manifest import stage_dir_candidates, stage_dirname
-from .constants import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME, DEFAULT_PROVENANCE_NAME
+from .constants import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME, DEFAULT_PROVENANCE_NAME, TRUNK_RECORD_NAME
 from .errors import ResultBundleError
 from .gate_verdict import GATE_VERDICT_FILENAME
 from .manifest import read_bundle_status
+from .trunk_record import _names_trunk, ancestor_record_ids, read_trunk_record, trunk_from_value
 
 if TYPE_CHECKING:
     from ..stage_manifest import StageEntry
@@ -289,3 +305,164 @@ def refuse_trunk_over_unjudged_widened_root(
         "widened root is reusable from another run anyway: reuse chains on the parent's checkpoint digest) and run "
         "the notebook again from there."
     )
+
+
+def refuse_trunk_other_than_recorded(
+    run_dir: "str | Path",
+    *,
+    trunk_dir: "str | Path | None",
+    log_dir: "str | Path",
+    what: str,
+    resumed: "StageEntry | None" = None,
+) -> None:
+    """Refuse *what* ("Resuming 2") in a run whose ``trunk_run.json`` names another trunk.
+
+    Cleanup ROW-4/6, decision 4 (a), for the SB3 notebook's RESUME cell
+    before it trains: ``trunk_run.json`` (:mod:`.trunk_record`) names the
+    trunk a session resolved for *run_dir*, fixed once the run holds an
+    ``ancestors/`` record (the trunk those records came through when the
+    resolve cell ran before the chain loop that recorded them), and
+    *trunk_dir* / *log_dir* are this session's ``TRUNK_DIR`` and the
+    directory a ``TRUNK_FROM`` id resolves under
+    (``trunk_record.trunk_from_value``).  Under another trunk the chain loop
+    refuses a second parent for a recorded node that trunk certifies
+    (``record_ancestor``) only after the resume has trained, and trains a
+    recorded node it does not certify again here (every one, under
+    ``TRUNK_FROM = ""``).  With *resumed* (the node to resume), a node
+    the run holds as an ``ancestors/`` record is refused first: that record
+    stays the node in the run (the chain loop takes it while a trunk
+    certifies the node, and otherwise the bundle write refuses a node both
+    trained in the run and reused), so a resume of it would never be judged
+    into the run's bundle.
+
+    Passes when the bundle is ``complete`` (:func:`refuse_write_into_complete_run`
+    refuses that), when the run holds no record (any trunk is consistent with
+    it), when no trunk record exists (a run opened before ROW-4/6: the resume
+    recipe's manual route), and when the recorded trunk is this session's
+    (an absolute recorded value compared as the directory it names).
+    A trunk record that cannot be read, in a run holding records, is refused.
+    A session trunk that differs from the recorded one but reaches the same
+    sources (itself trunked from it) is refused too; pinning the recorded
+    ``TRUNK_FROM`` is the remedy either way.  Writes nothing.
+    """
+    if read_bundle_status(run_dir) == "complete":
+        return
+    run_path = Path(run_dir)
+    records = ancestor_record_ids(run_path)
+    if resumed is not None and resumed.id in records:
+        record = run_path / ANCESTORS_DIRNAME / resumed.id / ANCESTOR_RECORD_NAME
+        raise ResultBundleError(
+            f"{what} is refused before anything is trained: this run holds {resumed.id!r} as a reused ancestor "
+            f"({record}), and that record stays the node in this run: the chain loop takes it, never this run's own "
+            "checkpoints of it, while a trunk certifies the node, and otherwise the next bundle write refuses a node "
+            f"recorded both as trained in this run and as reused, so a resumed {resumed.id!r} would never be judged "
+            f"into this run's bundle. Train {resumed.id!r} again in a fresh RUN_ID, with TRUNK_FROM naming this run "
+            "for its certified ancestors."
+        )
+    if not records:
+        return
+    held = f"this run's ancestor records ({', '.join(repr(node) for node in records)})"
+    try:
+        recorded = read_trunk_record(run_path)
+    except ResultBundleError as exc:
+        raise ResultBundleError(
+            f"{what} is refused before anything is trained: {exc}, so the trunk {held} were reused through is "
+            "unknown. Remove that file and pin TRUNK_FROM by the recipe's manual route (section 5, step 1), then "
+            "re-run sections 2-3."
+        ) from exc
+    if recorded is None:
+        return
+    session = trunk_from_value(trunk_dir, log_dir=log_dir)
+    if _names_trunk(recorded, session, log_dir=log_dir):
+        return
+    raise ResultBundleError(
+        f'{what} under TRUNK_FROM = "{session}" is refused before anything is trained: {held} were reused '
+        f'through TRUNK_FROM = "{recorded}" ({run_path / TRUNK_RECORD_NAME}). Under another trunk the chain loop '
+        "would refuse a second parent for a recorded node after this resume trained, or train the recorded nodes "
+        f'again here. Set TRUNK_FROM = "{recorded}" in the configuration cell and re-run sections 2-3, then this cell.'
+    )
+
+
+def unjudged_stage_dir(run_dir: "str | Path", *, species: str, entry: "StageEntry") -> "Path | None":
+    """*entry*'s loop directory in *run_dir* when it holds checkpoints this run trained but never judged.
+
+    Cleanup ROW-4/6, decision 6 (b), amending D-A17 and D-C13, has the chain
+    loop judge such a directory before it consults any trunk, so a trunk's
+    copy never stands in for this run's own training (except where the run
+    already holds the trunk's copy as an ``ancestors/`` record, below).  The
+    directory is ``stage_dirname(species, entry.reference)``, the one the
+    loop judges and trains (as in :func:`complete_run_writes`), and it is
+    returned when it holds any ``models/*.zip`` and no
+    ``gate_verdict.json``: an intact final pair is what the loop's JUDGE
+    branch takes, anything else (periodic checkpoints only, a final pair cut
+    short) its interrupted-node refusal, which points at the RESUME cell.
+    The verdict is tested by presence (``read_gate_verdict`` is None exactly
+    when the file is absent), so a malformed one still reaches the reuse
+    rule and the loop's verdict branch.  None otherwise, and None when the
+    run holds *entry* as an ``ancestors/<id>`` record (a run opened before
+    ROW-4/6 that took the trunk's copy over its own): that record is the
+    node in this run, and judging the directory too would make the next
+    bundle write refuse ("recorded both as trained in this run and as reused
+    ancestors").  A root widened into the run beside such a record
+    (``widen_checkpoint`` into a run that already took that root from a
+    trunk) is refused with :class:`ResultBundleError` instead: the record
+    would stand in for it and it would never be judged, which D-C13 refused
+    before ROW-4/6.  Reads nothing else (that directory's
+    ``stage_config.json`` run block, only then) and writes nothing.
+    """
+    run_path = Path(run_dir)
+    stage_dir = run_path / stage_dirname(species, entry.reference)
+    if (stage_dir / GATE_VERDICT_FILENAME).is_file():
+        return None
+    if not any((stage_dir / "models").glob("*.zip")):
+        return None
+    record = run_path / ANCESTORS_DIRNAME / entry.id / ANCESTOR_RECORD_NAME
+    if record.is_file():
+        run = _run_block(stage_dir)
+        if run is not None and WIDENED_FROM_RUN_ID in run:
+            raise ResultBundleError(
+                f"{stage_dir} holds {entry.id!r} widened from run {run[WIDENED_FROM_RUN_ID]!r} and not judged yet, "
+                f"but this run already holds {entry.id!r} as a reused ancestor ({record}): that record stays the node "
+                "in this run (the chain loop takes it while a trunk certifies the node, and a bundle refuses a node "
+                "both trained in this run and reused), so the widened root would never be judged into this run's "
+                "bundle (decision D-C13, as amended by decision 6 (b)). Nothing has been judged or trained. A root is "
+                f"widened into a run id no run uses yet: move {stage_dir.name} out of this run, widen the parent again "
+                f"with widen_checkpoint --to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/{stage_dir.name}, "
+                "then set RUN_ID to that new run id."
+            )
+        return None
+    return stage_dir
+
+
+def refuse_judging_off_the_resolved_parent(
+    stage_dir: "str | Path",
+    *,
+    entry: "StageEntry",
+    parent_model_sha256: "str | None",
+) -> None:
+    """Refuse to judge *stage_dir* ahead of the trunk unless it was trained on the parent resolved here.
+
+    Rule 4 of the reuse rule (D-A17, ``ancestors._check_chain``) applied to a
+    node judged before any trunk is consulted (decision 6 (b), cleanup
+    ROW-4/6; :func:`unjudged_stage_dir`): its recorded load lineage must name
+    the checkpoint this session resolved for *entry*'s declared parent
+    (*parent_model_sha256*; None for a root, which must not have entered
+    from a parent).  The JUDGE branch applies no chain check of its own, and
+    a node whose parent this session resolved elsewhere would otherwise be
+    judged on a parent the session did not resolve, with the trunk kept out.
+    A resumed node keeps its edge (``config.RESUME_LINEAGE_KEYS``); a widened
+    root records none.  The refusal names the remedy, a fresh ``RUN_ID``.
+    Writes nothing.
+    """
+    from ..ancestors import AncestorReuseError, _check_chain
+
+    try:
+        _check_chain(Path(stage_dir), entry=entry, parent_model_sha256=parent_model_sha256)
+    except AncestorReuseError as exc:
+        raise ResultBundleError(
+            f"{entry.id!r} in {stage_dir} was trained in this run but never judged, so the chain loop judges it "
+            f"before it consults the trunk (decision 6 (b)); but it does not chain onto the parent this session "
+            f"resolved: {exc}. Nothing has been judged or trained for {entry.id!r}, and neither its checkpoints nor "
+            f"the trunk's copy may stand in for it here. Train {entry.id!r} in a fresh RUN_ID, with TRUNK_FROM naming "
+            "the run that holds the parent it should descend from."
+        ) from exc
