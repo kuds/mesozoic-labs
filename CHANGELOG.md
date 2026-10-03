@@ -8,6 +8,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **The SB3 notebook records the trunk a session resolved in the run's
+  `trunk_run.json`, and the RESUME cell checks a resume against it**
+  (decision 4 (a); cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-03; §2 row 4). A behavior change for notebook sessions that
+  re-enter a run. The resolve cell now writes `RUN_DIR/trunk_run.json`
+  (`mesozoic.trunk-run/v1`: the `TRUNK_FROM` value that reproduces the trunk
+  it resolved, `""`, a run id or an absolute run directory, with no
+  timestamp) and prints a `Trunk record:` line. It writes nothing into a
+  `complete` run, nothing when the session's trunk is the recorded one, and
+  nothing once the run holds an `ancestors/` record: those records came
+  through the recorded trunk when sections 2-3 ran in order before the chain
+  loop (`docs/KNOWN_ISSUES.md` documents the out-of-order case), so a
+  session under another trunk gets a WARNING naming the `TRUNK_FROM` to set,
+  and a run opened before this change that holds records is never recorded
+  with a guess. Before, nothing on disk recorded the trunk `"auto"`
+  resolved, and a resume re-supplied it by hand. The RESUME cell, right
+  after its complete-run guard and before it trains, refuses three things in
+  a run that is not `complete`: a resume of a node the run holds as an
+  `ancestors/` record, which stays that node in the run (the chain loop
+  takes it while a trunk certifies the node, and a bundle refuses a node
+  both reused and trained here), so the resume could never be certified;
+  and, once the run holds a record, a resume under another trunk than the
+  file names (before, `record_ancestor` refused a second parent only after
+  the resume had trained, and `TRUNK_FROM = ""` trained the recorded
+  ancestors again) or with a file it cannot read. A run without records
+  resumes under any trunk, and one opened before this change keeps the
+  resume recipe's manual route. The resume recipe (section 5, step 1) and
+  the recipes page set `TRUNK_FROM` from `trunk_run.json`. The file is a
+  plain run file: the next bundle write declares and hashes it, and the
+  export does not regenerate it, so a complete bundle certifies it. New in
+  `environments.shared.result_bundle`: `TRUNK_RECORD_NAME`,
+  `TRUNK_RECORD_SCHEMA`, `trunk_from_value`, `read_trunk_record`,
+  `record_trunk_run` and `refuse_trunk_other_than_recorded`. Tests: the pins
+  move with the cells (the resolve cell's guard ends with the printed
+  record; the RESUME cell's resuming branch calls the check right after the
+  complete-run guard; the resume prose names `trunk_run.json`); 8 executed
+  resolve-cell cases (a run id, `""`, an absolute directory, the `"auto"`
+  selection, a rewrite without records, the record kept and warned about
+  once records exist, no guess, an unreadable file) and 11 executed
+  RESUME-cell cases; the executed helpers bind `LOG_BASE` and `ALGORITHM` as
+  the storage and configuration cells do. `docs/KNOWN_ISSUES.md` narrows the
+  trunk entry to what stays open (a session that does not resume is only
+  warned, and the file names the wrong trunk when the cells ran out of
+  order) and adds the file to the reuse-only re-entry entry;
+  `docs/RESULT_BUNDLES.md` lists it. No digest moves.
 - **The SB3 notebook's chain loop judges a node the run trained but never
   judged before it consults the trunk** (decision 6 (b), amending D-A17 and
   D-C13; cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §2
@@ -42,9 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resume prose), and 16 new executed loop cases run the configuration,
   resolve and chain-loop cells, 14 of them against a trunk that certifies
   every node and two without a trunk; the widen tool's round trip checks the
-  judge-first helpers on its real output. `docs/KNOWN_ISSUES.md` marks the
-  never-judged resume closed and lists, as a LOW, that the JUDGE branch
-  applies no chain check to the target or without a trunk. No digest moves.
+  judge-first helpers on its real output. `docs/KNOWN_ISSUES.md` lists, as a
+  LOW, that the JUDGE branch applies no chain check to the target or without
+  a trunk. No digest moves.
 - **The command-line curriculum seeds model construction and records each
   node's duration, as `train()` does** (decision D-D11; cleanup CU-10b of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior

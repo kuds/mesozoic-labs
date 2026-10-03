@@ -13,8 +13,8 @@ write declares and hashes it like any other
 (``manifest.build_artifact_manifest``), and it is not one of the artifacts
 the bundle writer regenerates, so a ``complete`` bundle certifies it.
 
-:func:`record_trunk_run` (for the resolve cell, once the trunk is known)
-writes it
+:func:`record_trunk_run` (the SB3 notebook's resolve cell calls it once the
+trunk is known, and prints the line it returns) writes it
 
 * never into a run whose bundle is ``complete`` (immutable);
 * while the run holds no ``ancestors/`` record, for this session's trunk:
@@ -22,12 +22,12 @@ writes it
   writes a record, so a run without one is consistent with any trunk;
 * never once the run holds a record: the file then names the trunk the
   records came through (when the resolve cell ran before the chain loop
-  that recorded them).  A run that holds records but no file (opened
-  before ROW-4/6) is left to the resume recipe's manual route, never
-  recorded with a guess.
+  that recorded them; ``docs/KNOWN_ISSUES.md`` documents the other order).
+  A run that holds records but no file (opened before ROW-4/6) is left to
+  the resume recipe's manual route, never recorded with a guess.
 
-``reentry.refuse_trunk_other_than_recorded`` (for the RESUME cell) reads it
-through :func:`read_trunk_record`.
+``reentry.refuse_trunk_other_than_recorded`` (the notebook's RESUME cell
+calls it before it trains) reads it through :func:`read_trunk_record`.
 """
 
 from __future__ import annotations

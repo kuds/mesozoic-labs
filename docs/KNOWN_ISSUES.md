@@ -350,39 +350,72 @@ robustness, **LOW** = cosmetic / QoL.
   it, while on a run sealed `complete` it records no session and the bundle
   still verifies (and since consolidation PR-14a the zero-action cell keeps
   a complete run's copy). Nothing certified is touched, and the next node
-  trained or judged in the run rebuilds the bundle over both files. Remedy:
-  run the auto-disconnect cell (§9) by hand.
-- **LOW (operational)** — **nothing on disk records the trunk a session
-  resolved, so a resume must re-supply it by hand, and a wrong one fails late
-  or trains the run's recorded ancestors again (read from the code at the
-  #558 follow-up, #559).** `TRUNK_FROM = "auto"` is resolved in the kernel
-  (`select_trunk` in the resolve cell, D-A25) and only printed. Each reused
-  node leaves `ancestors/<id>/ancestor.json`, but that names the run that
-  certified the node after following records (`_ancestor_record`,
-  `ancestors.py:644-667`), not the trunk, and the chain loop never follows
-  this run's own records (`follow_records=candidate is not RUN_DIR`). So the
-  resume recipe (section 5) has the operator pin `TRUNK_FROM` to the trunk the
-  interrupted session printed, or derive it from the nearest ancestor record.
-  A wrong trunk goes one of two ways. (a) `"auto"` picks a newer run
-  holding a different certified copy of a reused ancestor: `record_ancestor`
-  refuses ("a run cannot reuse two parents for one node",
-  `ancestors.py:690-700`), but only in the chain loop, after the RESUME cell
-  has trained the remaining budget; re-running with the right trunk then
-  judges the node. (c) `TRUNK_FROM = ""`: ancestors this run
-  holds only as records are trained again here (found by the review of
-  #559's first round, `ee91f51`; review 2 in CLEANUP_PLAN_2026_09.md §5.4).
-  A third way, (b), `"auto"` picking a newer run that certifies the resumed
-  node itself, so that the loop reused that copy and never judged the resumed
-  node, is closed by ROW-4/6's decision 6 (b): the chain loop judges a node
-  this run trained before it consults any trunk, and #559's `BEHAVIOR` route
-  for a node `RETRAIN_FROM` covered is retired. A run that took the trunk's
-  copy of a node that way before ROW-4/6 keeps its `ancestors/` record, and
-  the loop keeps taking the trunk's copy for that node, so a resume of it
-  there still trains and is never judged (executed 2026-10-03). Plan: the
-  other decision in [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2
-  (row 4), which the maintainer took on 2026-10-02 and the notebook PR
-  ROW-4/6 carries out: a run-level record of the resolved trunk that the
-  RESUME cell reads. (#558 reviews)
+  trained or judged in the run rebuilds the bundle over both files. The
+  same holds, since ROW-4/6 (decision 4 (a)), for the run's
+  `trunk_run.json` in such a run without ancestor records: the resolve cell
+  writes it where the run has none yet and rewrites it when this session
+  resolved another trunk, and the next node trained or judged rebuilds the
+  bundle over it too. `verify_artifact_manifest` reports only the first
+  declared file that differs, before any undeclared one, so in a new runtime
+  the cell names `provenance.json` as above (always so for a first write,
+  which only a run opened before ROW-4/6 gets). The file's own messages show
+  after a rewrite in the runtime that last rebuilt the bundle:
+  `artifact hash mismatch: trunk_run.json` when the two values have the same
+  length, as two timestamp run ids do, else
+  `artifact size mismatch: trunk_run.json`, and a first write alone would be
+  `undeclared bundle artifacts: ['trunk_run.json']` (all three verified
+  against the library 2026-10-03; the masking executed the same day).
+  Remedy: run the auto-disconnect cell (§9) by hand.
+- **LOW (operational)** — **a re-entry that is not a resume, under another
+  trunk than the run's `trunk_run.json` records, is only warned (ROW-4/6;
+  executed against the notebook cells 2026-10-03).** Since ROW-4/6's
+  decision 4 (a) the resolve cell records the trunk a session resolved in
+  `RUN_DIR/trunk_run.json`, as the `TRUNK_FROM` value that reproduces it,
+  and keeps that record once the run holds an `ancestors/` record, the trunk
+  those records came through (when the cells ran in order; below). The
+  RESUME cell refuses, before it trains, a resume under another trunk and a
+  resume of a node the run holds as an `ancestors/` record. A session that
+  does not resume gets a WARNING from the resolve cell naming the recorded
+  `TRUNK_FROM`, and then, as before: under another trunk that certifies a
+  recorded node the chain loop refuses a second parent for it
+  (`record_ancestor`: "a run cannot reuse two parents for one node",
+  `ancestors.py:690-700`) before it trains anything there, and under
+  `TRUNK_FROM = ""` it trains the nodes this run holds only as records again
+  here (found by the review of #559's first round, `ee91f51`; review 2 in
+  CLEANUP_PLAN_2026_09.md §5.4), as it does a recorded node that another
+  trunk does not certify. A run opened before ROW-4/6 that holds records has
+  no `trunk_run.json` (the resolve cell never records a guess there and says
+  so), so a resume there is still pinned by section 5's manual route: the
+  trunk the interrupted session printed, or the run the
+  `ancestors/<id>/ancestor.json` record nearest the interrupted node names
+  (a shallower record names the run that certified that node, not
+  necessarily the trunk). A wrong pin there still fails late
+  (`record_ancestor` refuses only after the RESUME cell trained) or, under
+  `TRUNK_FROM = ""`, trains the recorded ancestors again. The record is only
+  as good as the order the cells ran in (found designing ROW-4/6; executed
+  against the notebook cells 2026-10-03; the command-line route by reading
+  `train_base.py`): only the resolve cell writes `trunk_run.json`, and only
+  while the run holds no record, and the chain loop re-derives `TRUNK_DIR`
+  only under `"auto"`, and then from the kernel's last selection. So
+  ancestors a session recorded without running the resolve cell under that
+  trunk came through a trunk the file does not name: the storage cell re-run
+  with another pinned `TRUNK_FROM` and the resolve cell skipped (a stale
+  kernel), an older notebook copy on this library, or the command-line
+  curriculum given the run as its output directory. The resolve cell's
+  WARNING and the RESUME cell's refusal then name that stale value: a resume
+  under the trunk the records came through is refused, one under the
+  recorded trunk fails late (`record_ancestor` refuses a second parent after
+  the resume trained), and under a stale `""` following them trains the
+  recorded ancestors again here, with no warning. Remedy: set `TRUNK_FROM`
+  as the WARNING says and re-run sections 2-3 together, never the chain loop
+  alone after a `TRUNK_FROM` change. If the records came through another
+  trunk than the file names, in a run that is not `complete`, remove the
+  run's `trunk_run.json`: the resolve cell then records nothing (it never
+  guesses), and a resume is pinned by section 5's manual route from the
+  `ancestors/<id>/ancestor.json` record nearest the interrupted node, not
+  from the trunk the resolve cell printed. The run's manifest still declares
+  the removed file (`manifest artifact is missing: trunk_run.json`) until
+  the next node trained or judged rebuilds the bundle. (#558 reviews)
 - **LOW (operational)** — **the chain loop's JUDGE branch applies no chain
   check (reuse rule 4) to the target, or to any node when no trunk is set
   (found reading the code for ROW-4/6; executed against the notebook cells

@@ -39,10 +39,11 @@ naming the way out:
   decision 4 (a)): ``trunk_run.json`` records the trunk a session resolved
   for the run and is fixed once the run holds an ``ancestors/`` record, the
   trunk those records came through when the resolve cell ran before the
-  chain loop that recorded them (:mod:`.trunk_record`).
-  :func:`refuse_trunk_other_than_recorded` (for the RESUME cell, before it
-  trains) refuses a resume under another trunk than the recorded one, and a
-  resume of a node the run holds as such a record.
+  chain loop that recorded them (:mod:`.trunk_record`; the resolve cell
+  writes it).
+  :func:`refuse_trunk_other_than_recorded` (the RESUME cell calls it before
+  it trains) refuses a resume under another trunk than the recorded one, and
+  a resume of a node the run holds as such a record.
 * **A node this run trained but never judged** (cleanup ROW-4/6, decision
   6 (b)), which the chain loop judges before it consults any trunk:
   :func:`unjudged_stage_dir` names its loop directory (a reader; it refuses

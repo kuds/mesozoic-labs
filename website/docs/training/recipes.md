@@ -320,8 +320,14 @@ cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
 certified ancestors cover the most of the chain root-first (the greatest run
 directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
-off. A pinned `TRUNK_FROM` is a run id, resolved under the same directory,
-or an absolute path to a run directory. It must be a run whose
+off. Whatever the trunk, the resolve cell then records it in the run's
+`trunk_run.json`, as the `TRUNK_FROM` value that reproduces it (cleanup
+decision 4 (a)): never in a `complete` run, and never once the run holds
+an `ancestors/` record, where another trunk than the recorded one is
+warned about (the trunk those records came through when the cells ran in
+order; see `docs/KNOWN_ISSUES.md`) and a missing file is never guessed. A
+pinned `TRUNK_FROM` is a run id, resolved under the same directory, or an
+absolute path to a run directory. It must be a run whose
 `provenance.json` names the same species, algorithm and backend, whatever its
 bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
@@ -384,11 +390,20 @@ lineage keys and records the continued-from checkpoint under
 `resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
 node still chains by digest and stays reusable. It sits ahead of the chain
 loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
-to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` pinned to the run the
-interrupted session resolved (`""` only when it trained every node itself),
-then Run all; the loop judges the node after the resume trains it, before it
-consults any trunk, so a node trained here although that trunk run certifies
-it is resumed the same way. A node that already holds
+to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` set to the value the
+run's `trunk_run.json` records (unless the run's `ancestors/` records came
+through another trunk than the file names: then remove the file and pin by
+the nearest ancestor record, as `docs/KNOWN_ISSUES.md` describes; a run
+opened before that file
+existed is pinned by hand to the run the interrupted session resolved, `""`
+only when it trained every node itself), then Run all; the loop judges the
+node after the resume trains it, before it consults any trunk, so a node
+trained here although that trunk run certifies it is resumed the same way.
+Once the run holds an `ancestors/` record, the resume cell refuses a resume
+under another trunk than `trunk_run.json` names, and a resume of a node the
+run holds as such a record (the record stays that node in the run: the loop
+takes it while a trunk certifies the node, and a bundle refuses a node both
+reused and trained here). A node that already holds
 `gate_verdict.json` or an intact final checkpoint pair is never retrained: the
 cell trains nothing and the loop reuses, refuses or judges it (decision
 D-D16).

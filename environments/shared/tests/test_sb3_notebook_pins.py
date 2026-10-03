@@ -10,7 +10,9 @@ D-A15 and D-A17..D-A21 (§6.1) amended that loop with retrain-from, chain-by-
 digest reuse, the occupied-directory guard, recorded durations and the
 ignored-edit warning; cleanup ROW-4/6's decision 6 (b) (amending D-A17 and
 D-C13) has it judge a node ``RUN_DIR`` holds trained but unjudged before it
-consults the trunk.
+consults the trunk, and its decision 4 (a) has the resolve cell record the
+trunk in ``RUN_DIR/trunk_run.json``, which the RESUME cell checks a resume
+against.
 
 These tests read the notebook JSON and pin its STRUCTURE — the order of calls
 inside the ``for NODE in CHAIN:`` body, keyword presence, the absence of
@@ -732,7 +734,8 @@ class TestReuseRule:
         run_dir.mkdir(parents=True, exist_ok=True)
         namespace.update(load_all_stages=load_all_stages, load_stage_manifest=load_stage_manifest)
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=trunk_dir, BEHAVIOR=behavior)
+        # RUN_DIR implies the storage cell ran, which binds LOG_BASE (the resolve cell records the trunk under it).
+        namespace.update(LOG_BASE=run_dir.parent / "logs", RUN_DIR=run_dir, TRUNK_DIR=trunk_dir, BEHAVIOR=behavior)
         exec(_cell(RESOLVE_CELL_MARKER), namespace)
         namespace.update(
             Path=Path,
@@ -1169,11 +1172,13 @@ class TestAutoTrunk:
         assert len(_raises(auto_if, "RuntimeError")) == 1
         assert "WIDEN_FROM" not in src, "D-D14: widening is the command-line tool's; no widen session is special-cased"
 
-    def test_the_resolve_cell_ends_with_the_complete_run_refusal(self):
+    def test_the_resolve_cell_ends_with_the_complete_run_refusal_then_the_trunk_record(self):
         """The guard on a bound ``RUN_DIR`` is last, once ``TRUNK_DIR`` is final. It refuses a session that would
-        write into a complete run. D-C13's widened-root refusal left it with cleanup ROW-4/6 (decision 6 (b)): the
-        chain loop judges a widened root before it consults any trunk (executed: TestJudgeFirst). The function stays
-        exported for a notebook copy older than that change."""
+        write into a complete run, then records the trunk this session resolved in ``RUN_DIR/trunk_run.json``
+        (cleanup ROW-4/6, decision 4 (a); executed: TestTrunkRecord), so a refused session writes nothing, and section
+        3's markdown says so. D-C13's widened-root refusal left it with ROW-4/6's decision 6 (b): the chain loop
+        judges a widened root before it consults any trunk (executed: TestJudgeFirst). The function stays exported
+        for a notebook copy older than that change."""
         import environments.shared.result_bundle as result_bundle
 
         cells = _code_cells()
@@ -1193,12 +1198,19 @@ class TestAutoTrunk:
             ("trunk_dir", "TRUNK_DIR"),
         ):
             assert _keyword_source(src, complete, keyword) == value, keyword
-        imported, last = guard.body
+        imported, refused, recorded = guard.body
         assert isinstance(imported, ast.ImportFrom) and [alias.name for alias in imported.names] == [
-            "refuse_complete_run_session"
+            "record_trunk_run",
+            "refuse_complete_run_session",
         ]
-        assert isinstance(last, ast.Expr) and last.value is complete, "the guard imports and calls this one refusal"
-        for index, cell in enumerate(_all_cell_sources()):
+        assert isinstance(refused, ast.Expr) and refused.value is complete, "the refusal comes first"
+        assert isinstance(recorded, ast.Expr) and ast.unparse(recorded) == (
+            "print(record_trunk_run(RUN_DIR, trunk_dir=TRUNK_DIR, log_dir=LOG_BASE / SPECIES / ALGORITHM.lower()))"
+        ), "then the trunk record, printed, under the directory a TRUNK_FROM id resolves under"
+        every = _all_cell_sources()
+        section = every[every.index(_cell(STORAGE_CELL_MARKER)) - 1]
+        assert section.startswith("## 3. ") and "records the trunk in the run's `trunk_run.json`" in section
+        for index, cell in enumerate(every):
             assert "refuse_trunk_over_unjudged_widened_root" not in cell, f"cell {index} names D-C13's refusal"
         assert "refuse_trunk_over_unjudged_widened_root" in result_bundle.__all__, "it stays exported"
         # A plain refusal: no disconnect (imported later, by the infrastructure cell), and the loop has not run yet.
@@ -1206,7 +1218,8 @@ class TestAutoTrunk:
         assert resolve_at < _cell_index(cells, CHAIN_CELL_MARKER)
 
     def test_the_resolve_cell_refuses_a_complete_run_before_anything_is_written(self, tmp_path):
-        """Executed: a complete run re-entered for a node it lacks refuses; a reuse-only session passes."""
+        """Executed: a complete run re-entered for a node it lacks refuses; a reuse-only session passes. Neither
+        writes a trunk record into it (decision 4 (a): a complete bundle is immutable)."""
         from environments.shared.config import load_all_stages
         from environments.shared.result_bundle import DEFAULT_MANIFEST_NAME, ResultBundleError
         from environments.shared.stage_manifest import stage_dirname
@@ -1219,13 +1232,148 @@ class TestAutoTrunk:
         before = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
+        namespace.update(LOG_BASE=run_dir.parent / "logs", RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
         exec(_cell(RESOLVE_CELL_MARKER), namespace)  # stance is reused in place: nothing to refuse
         namespace["BEHAVIOR"] = "walk"
         with pytest.raises(ResultBundleError, match="would judge or train 'locomotion' here") as excinfo:
             exec(_cell(RESOLVE_CELL_MARKER), namespace)
         assert 'TRUNK_FROM = "20260920_010912"' in str(excinfo.value)
         assert {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()} == before
+        assert not (run_dir / "trunk_run.json").exists(), "nothing is recorded into a complete run"
+
+
+class TestTrunkRecord:
+    """Cleanup ROW-4/6, decision 4 (a): the resolve cell records the trunk this session resolved in
+    ``RUN_DIR/trunk_run.json``, as the ``TRUNK_FROM`` value that reproduces it, and prints the line
+    ``result_bundle.record_trunk_run`` returns. Executed through the configuration and resolve cells for velociraptor,
+    with ``RUN_DIR`` and the trunk under ``LOG_BASE/velociraptor/ppo/`` as the storage cell lays them out (the table of
+    writes is pinned in ``test_result_bundle_trunk_record.py``)."""
+
+    RUN_ID = "20261003_000000"
+    TRUNK_ID = "20260921_000000"
+
+    @classmethod
+    def _resolve(cls, tmp_path, *, trunk: "Path | str | None", namespace: "dict | None" = None, auto=False) -> dict:
+        """Execute the configuration and resolve cells with ``TRUNK_DIR`` = *trunk* (a run id names a run under
+        ``LOG_BASE/velociraptor/ppo/``); with *auto*, ``TRUNK_FROM = "auto"`` and the trunk is what the stubbed
+        ``select_trunk`` returns (the caller patches it). Returns the namespace, which a second call may reuse."""
+        from environments.shared.config import load_all_stages
+
+        log_dir = tmp_path / "logs" / "velociraptor" / "ppo"
+        run_dir = log_dir / cls.RUN_ID
+        run_dir.mkdir(parents=True, exist_ok=True)
+        trunk_dir = log_dir / trunk if isinstance(trunk, str) else trunk
+        if namespace is None:
+            namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+            exec(_cell(CONFIG_CELL_MARKER), namespace)
+        namespace.update(LOG_BASE=tmp_path / "logs", RUN_DIR=run_dir, TRUNK_DIR=trunk_dir, BEHAVIOR="walk")
+        if auto:
+            from environments.shared.plant_contract import current_plant_identity
+
+            namespace.update(AUTO_TRUNK=True, PLANT_IDENTITY=current_plant_identity("velociraptor"))
+        exec(_cell(RESOLVE_CELL_MARKER), namespace)
+        return namespace
+
+    @classmethod
+    def _run_dir(cls, tmp_path: Path) -> Path:
+        return tmp_path / "logs" / "velociraptor" / "ppo" / cls.RUN_ID
+
+    @staticmethod
+    def _ancestor_record(run_dir: Path, node: str) -> None:
+        record = run_dir / "ancestors" / node / "ancestor.json"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text("{}")
+
+    @staticmethod
+    def _recorded(run_dir: Path) -> str:
+        from environments.shared.result_bundle import TRUNK_RECORD_SCHEMA
+
+        record = json.loads((run_dir / "trunk_run.json").read_text(encoding="utf-8"))
+        assert set(record) == {"schema", "trunk_from"} and record["schema"] == TRUNK_RECORD_SCHEMA
+        return str(record["trunk_from"])
+
+    def test_executed_a_fresh_run_records_the_trunk_id_and_a_session_on_the_same_trunk_writes_nothing(
+        self, tmp_path, capsys
+    ):
+        namespace = self._resolve(tmp_path, trunk=self.TRUNK_ID)  # the trunk need not exist: nothing is read
+        path = self._run_dir(tmp_path) / "trunk_run.json"
+        assert path.read_bytes() == (
+            b'{\n  "schema": "mesozoic.trunk-run/v1",\n  "trunk_from": "' + self.TRUNK_ID.encode() + b'"\n}\n'
+        )
+        assert f'Trunk record:  wrote TRUNK_FROM = "{self.TRUNK_ID}" to {path}.' in capsys.readouterr().out
+        written, stamp = path.read_bytes(), path.stat().st_mtime_ns
+        self._resolve(tmp_path, trunk=self.TRUNK_ID, namespace=namespace)
+        assert path.read_bytes() == written and path.stat().st_mtime_ns == stamp, "the same trunk: nothing written"
+        assert f'names TRUNK_FROM = "{self.TRUNK_ID}", this session\'s trunk.' in capsys.readouterr().out
+        assert sorted(entry.name for entry in self._run_dir(tmp_path).iterdir()) == ["trunk_run.json"]
+
+    def test_executed_no_trunk_is_recorded_as_the_empty_value(self, tmp_path):
+        self._resolve(tmp_path, trunk=None)
+        assert self._recorded(self._run_dir(tmp_path)) == ""
+
+    def test_executed_a_trunk_outside_the_log_directory_is_recorded_as_its_absolute_directory(self, tmp_path):
+        """A pinned ``TRUNK_FROM`` may be an absolute path to a run anywhere; its name alone would resolve under
+        ``LOG_BASE/<species>/<algo>/``, another directory."""
+        elsewhere = tmp_path / "elsewhere" / self.TRUNK_ID
+        self._resolve(tmp_path, trunk=elsewhere)
+        assert self._recorded(self._run_dir(tmp_path)) == str(elsewhere.resolve())
+
+    def test_executed_the_auto_selected_trunk_is_recorded_never_auto(self, tmp_path, monkeypatch, capsys):
+        import types
+
+        from environments.shared import ancestors
+
+        selected = tmp_path / "logs" / "velociraptor" / "ppo" / self.TRUNK_ID
+        monkeypatch.setattr(
+            ancestors,
+            "select_trunk",
+            lambda *args, **kwargs: types.SimpleNamespace(run_dir=selected, describe=lambda: "stubbed selection"),
+        )
+        self._resolve(tmp_path, trunk=None, auto=True)
+        assert self._recorded(self._run_dir(tmp_path)) == self.TRUNK_ID
+        assert f'wrote TRUNK_FROM = "{self.TRUNK_ID}"' in capsys.readouterr().out
+
+    def test_executed_a_changed_trunk_is_recorded_again_while_the_run_holds_no_ancestor_record(self, tmp_path, capsys):
+        namespace = self._resolve(tmp_path, trunk=None)
+        self._resolve(tmp_path, trunk=self.TRUNK_ID, namespace=namespace)
+        assert self._recorded(self._run_dir(tmp_path)) == self.TRUNK_ID
+        assert f'TRUNK_FROM = "" -> "{self.TRUNK_ID}"' in capsys.readouterr().out
+
+    def test_executed_the_recorded_trunk_is_kept_once_the_run_holds_an_ancestor_record(self, tmp_path, capsys):
+        """A session under another trunk is warned, not refused (only the RESUME cell refuses), and the record keeps
+        the recorded trunk."""
+        run_dir = self._run_dir(tmp_path)
+        namespace = self._resolve(tmp_path, trunk=self.TRUNK_ID)
+        self._ancestor_record(run_dir, "stance")
+        written = (run_dir / "trunk_run.json").read_bytes()
+        capsys.readouterr()
+        self._resolve(tmp_path, trunk="20260922_000000", namespace=namespace)
+        assert (run_dir / "trunk_run.json").read_bytes() == written
+        out = capsys.readouterr().out
+        assert (
+            f"WARNING: this run's ancestor records ('stance') were reused through TRUNK_FROM = \"{self.TRUNK_ID}\""
+            in out
+        )
+        assert f'Set TRUNK_FROM = "{self.TRUNK_ID}" in the configuration cell' in out
+
+    def test_executed_a_run_with_ancestor_records_but_no_trunk_record_is_never_recorded_with_a_guess(
+        self, tmp_path, capsys
+    ):
+        """A run opened before ROW-4/6 that holds records: the resume recipe's manual route applies."""
+        run_dir = self._run_dir(tmp_path)
+        self._ancestor_record(run_dir, "stance")
+        self._resolve(tmp_path, trunk=self.TRUNK_ID)
+        assert not (run_dir / "trunk_run.json").exists()
+        assert "Trunk record:  none; this run holds ancestor records ('stance')" in capsys.readouterr().out
+
+    def test_executed_an_unreadable_trunk_record_in_a_run_with_records_is_kept_and_warned_about(self, tmp_path, capsys):
+        run_dir = self._run_dir(tmp_path)
+        self._ancestor_record(run_dir, "stance")
+        (run_dir / "trunk_run.json").write_text("{")
+        self._resolve(tmp_path, trunk=self.TRUNK_ID)
+        assert (run_dir / "trunk_run.json").read_text() == "{"
+        out = capsys.readouterr().out
+        assert "WARNING: cannot read the trunk record" in out and "the RESUME cell refuses a resume" in out
 
 
 class TestLoadModeByEdge:
@@ -1686,7 +1834,9 @@ class TestChainLoop:
         before = {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=tmp_path / "20260921_000000", BEHAVIOR="walk")
+        namespace.update(
+            LOG_BASE=run_dir.parent / "logs", RUN_DIR=run_dir, TRUNK_DIR=tmp_path / "20260921_000000", BEHAVIOR="walk"
+        )
         exec(_cell(RESOLVE_CELL_MARKER), namespace)  # the directory alone predicts a reuse-only session
         trained: list = []
         recorded: list = []
@@ -1737,7 +1887,7 @@ class TestChainLoop:
             Path(f"{final}_vecnorm.pkl").unlink()
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        namespace.update(RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
+        namespace.update(LOG_BASE=run_dir.parent / "logs", RUN_DIR=run_dir, TRUNK_DIR=None, BEHAVIOR="stance")
         exec(_cell(RESOLVE_CELL_MARKER), namespace)
 
         def refuse(candidate, **kwargs):
@@ -2634,10 +2784,14 @@ class TestResumeCell:
         steps: int | None = 100_000,
         retrain_from: str | None = None,
         calls: list[dict] | None = None,
+        trunk_dir: "Path | None" = None,
     ) -> list[dict]:
         """Execute the RESUME cell against one intact periodic pair of *reference* at *steps* (none when *steps* is
         None: a widened root holds only its handoff and final pairs); return the train_stage calls. Whatever else the
-        stage directory holds (a verdict, a final pair) is the caller's."""
+        stage directory holds (a verdict, a final pair, an ``ancestors/`` record, ``trunk_run.json``) is the
+        caller's. ``RUN_DIR`` is *tmp_path*, and ``LOG_BASE`` and ``ALGORITHM`` are bound as the storage and
+        configuration cells bind them, so a trunk under ``LOG_BASE/<species>/ppo/`` is recorded by its id;
+        ``TRUNK_DIR`` is *trunk_dir* (cleanup ROW-4/6, decision 4 (a))."""
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
@@ -2661,6 +2815,9 @@ class TestResumeCell:
             "STAGE_CONFIGS": load_all_stages(species),
             "QUICK_TEST": False,
             "RUN_DIR": tmp_path,
+            "LOG_BASE": tmp_path / "logs",
+            "ALGORITHM": "ppo",
+            "TRUNK_DIR": trunk_dir,
             "RUN_LABEL": "",
             "RETRAIN_NODE": manifest.resolve(retrain_from) if retrain_from else None,
             "train_stage": train_stage,
@@ -2929,7 +3086,9 @@ class TestResumeCell:
 
     def test_the_resume_cell_refuses_a_complete_run_before_it_trains(self):
         """A complete bundle is immutable (consolidation PR-14a): nothing is resumed into it; the spent-budget branch
-        and the checkpoint scan stay read-only."""
+        and the checkpoint scan stay read-only. Then, before anything trains, the trunk record (cleanup ROW-4/6,
+        decision 4 (a)): a node the run holds as an ``ancestors/`` record, or another trunk than the recorded one, is
+        refused (executed below)."""
         src = _cell(RESUME_CELL_MARKER)
         tree = ast.parse(src)
         spent = _the_if(tree, src, lambda test: test == "remaining_res == 0", "on a spent budget")
@@ -2938,6 +3097,122 @@ class TestResumeCell:
         first = spent.orelse[0]
         assert isinstance(first, ast.Expr) and first.value is guard, "the first statement of the resuming branch"
         assert guard.lineno < _call(tree, "train_stage").lineno
+        recorded = _call(tree, "refuse_trunk_other_than_recorded")
+        second = spent.orelse[1]
+        assert isinstance(second, ast.Expr) and second.value is recorded, "right after the complete-run guard"
+        assert ast.unparse(recorded) == (
+            "refuse_trunk_other_than_recorded(RUN_DIR, trunk_dir=globals().get('TRUNK_DIR'), "
+            "log_dir=LOG_BASE / SPECIES / ALGORITHM.lower(), what=f'Resuming {stage_res!r}', resumed=entry_res)"
+        ), "the session's trunk, under the directory a TRUNK_FROM id resolves under, and the node to resume"
+        assert recorded.lineno < _call(tree, "train_stage").lineno
+
+    #: The trunk the ``trunk_run.json`` of the resume tests below records, under ``LOG_BASE/compsognathus_robot/ppo/``.
+    RECORDED_TRUNK = "20260921_000000"
+
+    @staticmethod
+    def _ancestor_record(run_dir: Path, node: str) -> None:
+        record = run_dir / "ancestors" / node / "ancestor.json"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text("{}")
+
+    @staticmethod
+    def _trunk_record(run_dir: Path, trunk_from: str) -> None:
+        from environments.shared.result_bundle import TRUNK_RECORD_SCHEMA
+
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "trunk_run.json").write_text(
+            json.dumps({"schema": TRUNK_RECORD_SCHEMA, "trunk_from": trunk_from}, indent=2, sort_keys=True) + "\n"
+        )
+
+    @pytest.mark.parametrize("session", ["no trunk", "another run", "the same name elsewhere"])
+    def test_executed_a_resume_under_another_trunk_than_the_run_records_is_refused_before_it_trains(
+        self, tmp_path, session
+    ):
+        """Cleanup ROW-4/6, decision 4 (a): once the run holds an ``ancestors/`` record, its ``trunk_run.json`` keeps
+        the recorded trunk, the one those records came through when the cells ran in order. Under another, the chain
+        loop would refuse a second parent for a recorded node that trunk certifies only after this resume trained
+        (``record_ancestor``), and train a recorded node it does not certify (every one, under ``TRUNK_FROM = ""``)
+        again here; a run directory with the recorded name elsewhere is another trunk."""
+        from environments.shared.result_bundle import ResultBundleError
+
+        self._ancestor_record(tmp_path, "stance")
+        self._trunk_record(tmp_path, self.RECORDED_TRUNK)
+        written = (tmp_path / "trunk_run.json").read_bytes()
+        trunk_dir = {
+            "no trunk": None,
+            "another run": tmp_path / "logs" / "compsognathus_robot" / "ppo" / "20260922_000000",
+            "the same name elsewhere": tmp_path / "elsewhere" / self.RECORDED_TRUNK,
+        }[session]
+        calls: list[dict] = []
+        with pytest.raises(
+            ResultBundleError, match=r"Resuming 2 under TRUNK_FROM = .* is refused before anything"
+        ) as excinfo:
+            self._run_resume_cell(
+                tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls, trunk_dir=trunk_dir
+            )
+        assert f'Set TRUNK_FROM = "{self.RECORDED_TRUNK}" in the configuration cell' in str(excinfo.value)
+        assert calls == [], "refused before anything trains"
+        assert (tmp_path / "trunk_run.json").read_bytes() == written, "the refusal writes nothing"
+
+    @pytest.mark.parametrize("recorded", ["", RECORDED_TRUNK])
+    def test_executed_a_resume_under_the_trunk_the_run_records_trains(self, tmp_path, capsys, recorded):
+        self._ancestor_record(tmp_path, "stance")
+        self._trunk_record(tmp_path, recorded)
+        trunk_dir = tmp_path / "logs" / "compsognathus_robot" / "ppo" / recorded if recorded else None
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, trunk_dir=trunk_dir)
+        assert call["stage"] == 2
+        assert "WARNING" not in capsys.readouterr().out
+
+    @pytest.mark.parametrize("held", ["another trunk", "an unreadable file"])
+    def test_executed_a_run_without_ancestor_records_resumes_under_any_trunk(self, tmp_path, held):
+        """Only a reuse from a trunk ties a run to that trunk, and every such reuse writes a record."""
+        if held == "another trunk":
+            self._trunk_record(tmp_path, self.RECORDED_TRUNK)
+        else:
+            (tmp_path / "trunk_run.json").write_text("{")
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2)
+        assert call["stage"] == 2
+
+    def test_executed_a_run_with_records_but_no_trunk_record_resumes_by_the_manual_route(self, tmp_path):
+        """A run opened before ROW-4/6: nothing records its trunk, and the recipe's manual route pins it."""
+        self._ancestor_record(tmp_path, "stance")
+        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2)
+        assert call["stage"] == 2
+
+    def test_executed_an_unreadable_trunk_record_in_a_run_with_records_is_refused(self, tmp_path):
+        from environments.shared.result_bundle import ResultBundleError
+
+        self._ancestor_record(tmp_path, "stance")
+        (tmp_path / "trunk_run.json").write_text("{")
+        calls: list[dict] = []
+        with pytest.raises(ResultBundleError, match=r"cannot read the trunk record .* Remove that file") as excinfo:
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls)
+        assert calls == [] and "manual route (section 5, step 1)" in str(excinfo.value)
+
+    def test_executed_a_node_the_run_holds_as_an_ancestor_record_is_never_resumed(self, tmp_path):
+        """A reused ancestor's record stays the node in the run (``result_bundle.unjudged_stage_dir``'s exemption: the
+        chain loop takes it while a trunk certifies the node, and a bundle refuses a node both reused and trained), so a
+        resume of it would train and never be judged into the run's bundle. Refused under the trunk the run records,
+        too."""
+        from environments.shared.result_bundle import ResultBundleError
+
+        self._ancestor_record(tmp_path, "locomotion")
+        self._trunk_record(tmp_path, "")
+        calls: list[dict] = []
+        with pytest.raises(ResultBundleError, match=r"holds 'locomotion' as a reused ancestor .* fresh RUN_ID"):
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls)
+        assert calls == []
+
+    def test_executed_a_finished_record_held_node_left_in_resume_stage_still_only_prints(self, tmp_path, capsys):
+        """D-D16: a ``RESUME_STAGE`` left set on a finished node never stops a later Run all, record or not; the
+        refusal sits in the resuming branch only."""
+        from environments.shared.stage_manifest import stage_dirname
+
+        self._ancestor_record(tmp_path, "locomotion")
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
+        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2) == []
+        assert "Nothing to resume" in capsys.readouterr().out
 
     def test_the_resume_prose_routes_old_checkpoints_to_the_command_line_widen(self):
         """The markdown right before the RESUME cell: ``RUN_ID`` is set in the configuration cell, never into a
@@ -2977,14 +3252,24 @@ class TestResumeCell:
             assert gone not in prose, f"the RESUME prose still names {gone!r}"
 
     def test_the_resume_prose_keeps_the_trunk_recovery_and_d_d16_rules(self):
-        """The recipe is the operator's only guide to the trunk a resume must re-supply (nothing on disk records it:
-        KNOWN_ISSUES, Training / RL, LOW) and states D-D16's rules; cleanup CU-5's cut of the markdown kept them.
-        Since cleanup ROW-4/6 (decision 6 (b)) the chain loop judges a node this run trained before it consults any
-        trunk, so the recipe no longer routes such a node through ``BEHAVIOR``."""
+        """The recipe tells the operator which trunk a resume must re-supply and states D-D16's rules; cleanup CU-5's
+        cut of the markdown kept them. Since cleanup ROW-4/6 the run's ``trunk_run.json`` records the trunk (decision
+        4 (a)) and is the route; the manual route (the trunk the resolve cell printed, or the nearest ancestor record)
+        is the fallback for a run opened before that file existed. The chain loop judges a node this run trained
+        before it consults any trunk (decision 6 (b)), so the recipe no longer routes such a node through
+        ``BEHAVIOR``, and a node the run holds as an ancestor record, beside its own checkpoints, is never resumed."""
         every = _all_cell_sources()
         prose = every[every.index(_cell(RESUME_CELL_MARKER)) - 1]
         for phrase in (
-            # How to find the trunk, and the two ways a guess goes wrong (#559).
+            # The run records its trunk (decision 4 (a)), and the resume takes TRUNK_FROM from that record ...
+            "`TRUNK_FROM` set to the value the run's `trunk_run.json` records",
+            "decision 4 (a)",
+            # ... and the RESUME cell refuses any other trunk once the run holds a record (decision 4 (a)'s reader);
+            # if those records came through a trunk the file does not name (cells run out of order), remove the file.
+            "this cell refuses a resume under any other trunk",
+            "remove the file and pin `TRUNK_FROM`",
+            "A run without `trunk_run.json`",
+            # ... and without that file, how to find the trunk, and the two ways a guess goes wrong (#559).
             "nearest the interrupted node",
             "not necessarily the trunk",
             "may select a newer run",
@@ -3000,6 +3285,8 @@ class TestResumeCell:
             # A node trained here is judged before any trunk is consulted (decision 6 (b)).
             "decision 6 (b)",
             "is judged here too",
+            "A reused ancestor's record stays the node",
+            "holds as an `ancestors/` record is never resumed (this cell refuses it)",
             # The widened root is judged here (D-C13 as amended by D-D14).
             "D-C13",
         ):
