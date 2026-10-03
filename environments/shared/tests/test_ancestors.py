@@ -986,6 +986,14 @@ def _select(log_dir, **overrides):
 class TestSelectTrunk:
     """Decision D-A25: ``TRUNK_FROM = "auto"`` picks the sibling run covering the most of the chain."""
 
+    def test_the_trunk_record_never_takes_the_auto_knob_for_a_run_id(self):
+        """``result_bundle.trunk_record`` spells this knob as a literal (it does not import this module): a run named
+        ``auto`` is recorded by its absolute directory, since ``TRUNK_FROM = "auto"`` would select a trunk instead."""
+        from environments.shared.ancestors import AUTO_TRUNK
+        from environments.shared.result_bundle import trunk_record
+
+        assert AUTO_TRUNK in trunk_record._NOT_RUN_IDS
+
     def test_the_run_covering_the_most_of_the_chain_wins_over_a_newer_shallower_one(self, tmp_path, fixture_tasks):
         older = tmp_path / "20260901_000000"
         deeper = tmp_path / "20260905_000000"
@@ -1085,8 +1093,9 @@ class TestSelectTrunk:
     def test_the_widen_parameter_left_with_the_notebook_knob(self):
         """Decision D-D14: the notebook's WIDEN_FROM was select_trunk's only ``widen_from`` caller; both are gone.
 
-        A root widened on the command line is judged in its new run, and the notebook's resolve cell refuses a
-        resolved trunk until it holds a verdict (``result_bundle.refuse_trunk_over_unjudged_widened_root``)."""
+        A root widened on the command line is judged in its new run: the notebook's chain loop judges it before
+        it consults any resolved trunk (cleanup ROW-4/6, decision 6 (b), which replaced the resolve cell's
+        ``result_bundle.refuse_trunk_over_unjudged_widened_root`` call)."""
         import inspect
 
         from environments.shared.ancestors import select_trunk

@@ -160,9 +160,9 @@ directory and its provenance; (2) `LOG_BASE` is `/content/drive/MyDrive/mesozoic
 `!cd /content/mesozoic-labs && python -m environments.shared.scripts.widen_checkpoint ...` (the tool's module docstring
 lists the same steps). Then run the notebook with `RUN_ID` set to that id, `SEED` to the parent's recorded
 `run.seed` and `TRUNK_FROM = ""`, and its chain loop judges the widened root (BEHAVIOR_RECIPES_PLAN §4.6, decision
-D-C13). The storage cell refuses any other `SEED` before it writes anything (D-C14), and the resolve cell refuses a
-trunk until the widened root holds a verdict. `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this applies
-to.
+D-C13). The storage cell refuses any other `SEED` before it writes anything (D-C14), and the chain loop judges the
+widened root before it consults any trunk (D-C13 as amended by cleanup ROW-4/6's decision 6 (b)).
+`docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this applies to.
 
 ## Backend parity and runtime binding
 

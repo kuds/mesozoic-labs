@@ -68,9 +68,11 @@ from environments.shared.policy_loading import _ensure_sb3, load_sb3_checkpoint 
 from environments.shared.result_bundle import (  # noqa: E402
     GATE_VERDICT_FILENAME,
     ResultBundleError,
+    refuse_judging_off_the_resolved_parent,
     refuse_trunk_over_unjudged_widened_root,
     refuse_widened_seed_mismatch,
     sha256_file,
+    unjudged_stage_dir,
     write_gate_verdict,
 )
 from environments.shared.scripts import widen_checkpoint as widen_module  # noqa: E402
@@ -1653,12 +1655,17 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     assert json.loads((target / "plant_identity.json").read_text()) == current.to_dict()
 
     # Decision D-D14 moved the widen cell's guards onto disk; they read what this tool really writes: D-C14's
-    # seed check in the notebook's storage cell and D-C13's trunk refusal in its resolve cell.
+    # seed check in the notebook's storage cell, and the chain loop's judge-first helpers (cleanup ROW-4/6,
+    # decision 6 (b)): the widened root is a node this run holds trained but unjudged, so the loop judges it
+    # before it consults any trunk, and rule 4 passes it as a root (it records no load lineage).
     manifest = load_stage_manifest(SPECIES)
     walk = (manifest.resolve("stance"), manifest.resolve("locomotion"))
     refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED)
     with pytest.raises(ResultBundleError, match=f"SEED = {PARENT_SEED + 1}.*seed {PARENT_SEED}"):
         refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED + 1)
+    assert unjudged_stage_dir(target.parent, species=SPECIES, entry=walk[0]) == target
+    refuse_judging_off_the_resolved_parent(target, entry=walk[0], parent_model_sha256=None)
+    # D-C13's resolve-cell refusal, which the notebook no longer calls, still refuses the same tree.
     with pytest.raises(ResultBundleError, match="never judge the widened root"):
         refuse_trunk_over_unjudged_widened_root(
             target.parent, species=SPECIES, chain=walk, target=walk[1], retrain_from=None, trunk_dir=tmp_path / "trunk"

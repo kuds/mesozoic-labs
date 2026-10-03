@@ -1,6 +1,6 @@
 # Next steps and program state (2026-10-03)
 
-**Status**: living reference — updated 2026-10-03; `main` = `85f1365` (#589 merged 2026-10-03 00:01 UTC).
+**Status**: living reference — updated 2026-10-03; `main` = `048398a` (#590 merged 2026-10-03 15:06 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,7 +18,7 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-03** (`main` = `85f1365`). The backend retirement is complete:
+**On 2026-10-03** (`main` = `048398a`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete, but
 D-D21's 0.3.9 gate has landed: no gate name remains
@@ -99,13 +99,19 @@ through a per-table `extends`, the form of D-D5's amendment of 2026-10-02
 is byte-identical. CU-15 (reduced) landed as #589 on 2026-10-03: the Drive
 summary notebook checks out `REPO_REF` with the SB3 notebook's Git block,
 mounts Drive and installs the package only when needed, and an executed test
-reads runs in today's layout through its reader cells. CU-10b is carried out,
-which completes CU-10: `train()` and the command-line curriculum train a stage
-through one shared body, whose evaluation environment's seed is
-`eval_env_seed(seed)`, and CLI curriculum runs now seed model construction and
-record each node's duration, as D-D11's amendment of 2026-10-03 says
-([section 5](#5-decisions-taken-2026-09-17)); ROW-4/6 is next, with the
-`full-ci` label. The consolidation's PR-8, PR-9, PR-10, PR-11, the rest of
+reads runs in today's layout through its reader cells. CU-10b landed as #590
+on 2026-10-03, which completes CU-10: `train()` and the command-line
+curriculum train a stage through one shared body, whose evaluation
+environment's seed is `eval_env_seed(seed)`, and CLI curriculum runs now seed
+model construction and record each node's duration, as D-D11's amendment of
+2026-10-03 says ([section 5](#5-decisions-taken-2026-09-17)). ROW-4/6 is
+carried out: the chain loop judges a node the run trained but never judged
+before it consults the trunk (decision 6 (b)), and the resolve cell records
+the trunk in the run's `trunk_run.json`, which the RESUME cell checks a resume
+against (decision 4 (a)); its amendments to D-A17, D-C13, D-A25, D-D15 and
+D-D16 are dated notes, not D-D rows (D-D15's and D-D16's in
+[section 5](#5-decisions-taken-2026-09-17)). CU-6 is next, with the `full-ci`
+label, then CU-17. The consolidation's PR-8, PR-9, PR-10, PR-11, the rest of
 PR-12, PR-13 and PR-15 remain and build on 0.3.9, after the deferred cleanup
 ([section 4](#4-consolidation-the-remaining-prs)).
 The gait audit of 2026-09-28
@@ -182,6 +188,7 @@ gait work in a fresh session.
 | #587 | 2026-10-02 | Cleanup CU-10a (the first of the deferred PRs, in the order the maintainer chose on 2026-10-02), outside the consolidation sequence: `CurriculumCallback` takes an optional `eval_horizon`, which `train_curriculum` sets from the overridden stage config, so the command-line curriculum judges a `stance_quality/v1` stage at an overridden `env.max_episode_steps`; the KNOWN_ISSUES entry deleted; `## [Unreleased]` titled "Into the Wild (v0.4.0)"; #586, the maintainer's decisions of 2026-10-02 and the order recorded; merged with a merge commit (`c090150`, whose tree equals the head's); no digest moves (the change commit 6 files, +198 / −43; 13 files, +383 / −123 in all). Measured on its CI at reduced depth, on the head (`97acf97`, through its merge ref): ten jobs, all green, in 11:05, finishing 1 h 35 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,617 passed and 142 skipped; SB3 job 7:27 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,205 passed, 10 deselected), coverage 88 percent (19,473 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:28 |
 | #588 | 2026-10-02 | Cleanup CU-13 (the second of the deferred PRs), outside the consolidation sequence: the three recovery stage TOMLs inherit their stance's tables through a top-level `extends = { stage = "stance", tables = [...] }`, one level deep, with no chains and never `curriculum` (trex lists `stage`, `env` and `ppo` and stays PPO-only; the compsognathus pair lists `sac` too), the form of D-D5's amendment of 2026-10-02, which it appends; every resolved stage config byte-identical; the website's PPO, SAC and hyperparameter pages describe `extends`; #587 recorded; merged with a merge commit (`44b7d6e`, whose tree equals the head's); no digest moves (the change commit 14 files, +535 / −244; 20 files, +648 / −281 in all). Measured on its CI at reduced depth, on the head (`a281c01`, through its merge ref): ten jobs, all green, in 12:41, finishing 27 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,659 passed and 142 skipped; SB3 job 11:53 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,232 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:14, and the site's Deploy run on `main` built and deployed `44b7d6e` |
 | #589 | 2026-10-03 | Cleanup CU-15, reduced (the third of the deferred PRs), outside the consolidation sequence: the Drive summary notebook checks out `REPO_REF` with the SB3 notebook's Git block (pinned AST-identical; in both notebooks the block also checks out a clone that has no index yet), mounts Drive only from Colab and only once, installs the package only when it is missing and describes today's run layout; an executed test reads runs in today's layout through its reader cells (the SB3 job lists it, for pandas); the `library_version` column's two meanings a KNOWN_ISSUES LOW; the `run_index.py` move not taken; #588 recorded; merged with a merge commit (`85f1365`, whose tree equals the head's); no library code change and no digest moves (the change commit 8 files, +458 / −45; 14 files, +553 / −88 in all). Measured on its CI at reduced depth, on the head (`bd83c3b`, through its merge ref): ten jobs, all green, in 12:04, finishing 54 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,670 passed and 143 skipped; SB3 job 11:23 (its mypy step: no issues in 325 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,238 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,260 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:09; no Deploy run (no website file changed) |
+| #590 | 2026-10-03 | Cleanup CU-10b (the fourth of the deferred PRs, which completes CU-10), outside the consolidation sequence: `train()` and the command-line curriculum train a stage through one private body in `train_base.py`, `_train_stage_body` (the curriculum hands it `CurriculumCallback` as a hook between the entropy decay and the shaping, and gets back both environments open, whether a Ctrl-C ended the node and the time `learn()` took), byte-identical under a frozen clock, and the evaluation environment's seed is `eval_env_seed(seed)`, `seed + 1000`; then the curriculum seeds model construction and records each trained node's `run.duration_seconds`, as D-D11's amendment of 2026-10-03 says (a CLI SAC curriculum run now repeats); the optional `train_base.py` module split not taken; #589 recorded; merged with a merge commit (`048398a`, whose tree equals the head's); no digest moves (the change commits 9 files, +928 / −397, and 7 files, +214 / −58; 18 files, +1,210 / −464 in all). Measured on its CI on the head (`b3c0f17`, through its merge ref), with the `full-ci` label: ten jobs, all green, in 21:39, finishing 10 h 33 min before the merge (the run without the label, at reduced depth, in 11:30); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,684 passed and 143 skipped (CU-10b's 14 new tests); SB3 job 20:53 (its mypy step: no issues in 325 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,258 passed, 4 deselected), coverage 88 percent (19,521 statements, 2,257 missed); the first push run on `main` passed, with the same ten jobs and the reduced head run's counts, in 12:46; the site's Deploy workflow ran for the recipes page, its build green on the head, and on `main` it built and deployed `048398a` in 1:31 |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -209,7 +216,11 @@ follow-up (#559) checks the final pair like a periodic one in both the RESUME
 cell and the chain loop: 1,599 lines; cleanup CU-5 (#575) cuts the markdown
 from 223 to 111 lines and adds `node_budget`: 33 cells, 17 code, 1,468 lines,
 the chain loop at index 20; cleanup CU-8a (#579) has the chain loop call the
-library's fingerprint helper and ignored-edits check: 1,454 lines).
+library's fingerprint helper and ignored-edits check: 1,454 lines; ROW-4/6
+(carried out 2026-10-03) has the chain loop judge an unjudged `RUN_DIR` node
+before the trunk, the resolve cell write `trunk_run.json` (its D-C13 call
+gone) and the RESUME cell check it: 33 cells, 17 code, 1,480 lines, the chain
+loop at index 20).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -493,8 +504,12 @@ Notes:
   parent's recorded `run.seed` and `TRUNK_FROM = ""`. The storage cell
   refuses any other `SEED` before it writes anything (D-C14), so nothing is
   minted under a wrong seed, and its `Run directory:` line reads "re-entering
-  run" with the widened root's directory; the resolve cell refuses a trunk
-  until the widened root holds a verdict (D-C13).
+  run" with the widened root's directory; since ROW-4/6 the chain loop judges
+  the widened root before it consults any trunk (D-C13, amended by the cleanup
+  plan's decision 6 (b); the resolve cell no longer refuses a trunk), and
+  refuses a root widened into a run that already holds it as an `ancestors/`
+  record when the root is an ancestor of `BEHAVIOR`'s node, naming a new run
+  id.
 - A widened root is judged in its new run and every node below it trains
   there (trex `stand` = re-panel stance, then recovery 3M; trex `walk` would
   train locomotion 8M instead). For velociraptor, brachiosaurus and
@@ -679,6 +694,7 @@ Confirmed by the maintainer on 2026-09-20 (recommended on 2026-09-17):
   algorithm block names is kept) and records `run.duration_seconds`, from the
   point it is trained rather than reused to its final save, an interrupted
   node's included; `curriculum_results.csv` keeps the time `learn()` took.
+  CU-10b landed as #590 on 2026-10-03.
 - **D-D12** The dead `lateral_speed_scale` field is dropped when the TOMLs are
   rewritten (PR-11/PR-12).
 
@@ -709,6 +725,14 @@ Taken on 2026-09-24:
   resolve-before-storage reorder is dropped: no widen-seed read is left to
   move, and a root widened on the command line keeps D-C14 and D-C13 through
   on-disk refusals in the storage and resolve cells (amends D-D13's order).
+  Amended 2026-10-03 (the cleanup plan's §2 row 6, ROW-4/6; not a D-D row):
+  the resolve cell no longer refuses a trunk over a widened root without a
+  verdict; D-C13 holds through the chain loop, which judges a node `RUN_DIR`
+  holds trained but unjudged, the widened root among them, before it consults
+  any trunk (a widened pair cut short is refused as an interrupted node), and
+  refuses a root widened into a run that already holds it as an `ancestors/`
+  record when the root is an ancestor of `BEHAVIOR`'s node, naming a new run
+  id.
 
 Taken on 2026-09-25:
 
@@ -723,6 +747,15 @@ Taken on 2026-09-25:
   `<algo>_quick_test/`, outside the trunk selection and a real run's replicate
   scan, and the run memo counts only in the tree it was opened in; the RESUME
   cell moves ahead of the chain loop and the sections regroup.
+  Amended 2026-10-03 (the cleanup plan's §2 rows 4 and 6, ROW-4/6; not a D-D
+  row): the `BEHAVIOR` route is retired. A resume `RETRAIN_FROM` covers is
+  still refused, and its message says to set `RETRAIN_FROM = ""`; a node
+  trained here although the trunk certifies it is then resumed in place like
+  any other, with `TRUNK_FROM` set to the value the run's `trunk_run.json`
+  records (decision 4 (a)), and the chain loop judges it before it consults
+  the trunk (decision 6 (b)). The RESUME cell refuses a node the run holds as
+  an `ancestors/` record and, once the run holds one, a resume under another
+  trunk than the file names.
 
 Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
 ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)):
@@ -1005,7 +1038,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    path, on 2026-09-29 as (c) first, CU-14b's plant-identity cache, and on
    2026-09-30 as (a) for the robot's six real-training runs, CU-14a's; on
    2026-10-02 the maintainer took decision 4 as (a) and decision 6 as (b),
-   which ROW-4/6 carries out, chose decision 9's form for CU-13 and amended
+   which ROW-4/6 carried out, chose decision 9's form for CU-13 and amended
    D-D21 to finish the deferred PRs first, §3.1 item 5), §3 for the PR
    order and §3.5 for the KNOWN_ISSUES entries each PR closes, §4 for
    the frozen MJX interface core and the retirement's acceptance checks, and
