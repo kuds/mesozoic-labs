@@ -891,3 +891,100 @@ def test_changed_sampling_protocol_cannot_override_the_authored_plant_timestep(t
 def test_strict_locomotion_requires_progress_and_one_fixed_panel(updates):
     with pytest.raises(GateSchemaError):
         validate_gate_config(2, curriculum(**updates))
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"min_eval_episodes": 40.0},  # a float count validated, then never matched a rolled panel
+        {"min_complete_cycles_per_foot": 3.0},
+        {"gait_panel_seed_start": 3042.0},
+        {"required_consecutive": 1.0},
+        {"required_consecutive": True},
+        {"min_eval_episodes": True},
+    ],
+)
+def test_integer_criteria_must_be_integers(updates):
+    with pytest.raises((GateSchemaError, ValueError), match="integer"):
+        validate_gate_config(2, curriculum(**updates))
+    with pytest.raises(ValueError):
+        GaitGateThresholds.from_curriculum(curriculum(**updates))
+
+
+@pytest.mark.parametrize("value,valid", [(40, True), (39, False), (0, False), (40.0, False)])
+def test_gait_report_episodes_on_a_gait_gate_must_equal_the_declared_panel(value, valid):
+    block = curriculum(gait_report_episodes=value)
+    if valid:
+        assert validate_gate_config(2, block) == GAIT_GATE_KIND
+    else:
+        with pytest.raises(GateSchemaError, match="gait_report_episodes"):
+            validate_gate_config(2, block)
+
+
+def test_certification_panel_must_lie_inside_the_registered_block():
+    with pytest.raises(GateSchemaError, match="registered block"):
+        validate_gate_config(2, curriculum(min_eval_episodes=41))
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("min_phase_locking", 0.0),  # disables the template: synchronous hops would qualify
+        ("max_alternation_phase_offset", 0.5),
+        ("max_off_gait_fraction", 1.0),
+        ("min_gait_success_lcb", 1e-9),  # 1/40 qualifying would pass
+        ("min_complete_cycles_per_foot", 1),
+        ("min_limb_duty", 0.0),
+        ("min_step_length_over_leg", 0.0),
+        ("min_step_through_stride_fraction", 0.0),
+        ("max_body_support_fraction", 1.0),
+        ("max_flight_fraction", 1.0),
+        ("max_unloaded_fraction", 1.0),
+        ("min_walking_duty", 0.0),
+    ],
+)
+def test_schema_refuses_bars_that_switch_a_profile_off(key, value):
+    with pytest.raises(GateSchemaError, match="vacuous"):
+        validate_gate_config(2, curriculum(**{key: value}))
+
+
+def test_schema_limits_leave_every_provisional_bar_and_the_run_profile_valid():
+    from environments.shared.curriculum.gait_gate import FLIGHT_LIMITS, GAIT_PROFILES, SCHEMA_LIMITS
+
+    for profile in GAIT_PROFILES:
+        block = curriculum(profile)
+        if profile == "quadruped_walk":
+            block["min_episode_forward_vel"] = 0.5
+        assert validate_gate_config(2, block) == GAIT_GATE_KIND
+        for key, value in provisional_gait_criteria(profile).items():
+            op, limit = (
+                ("<=", FLIGHT_LIMITS[profile]) if key == "max_flight_fraction" else SCHEMA_LIMITS.get(key, ("", 0))
+            )
+            assert not op or (value >= limit if op == ">=" else value <= limit), (profile, key)
+    # running stays allowed on the run profile
+    assert validate_gate_config(2, curriculum("biped_alternating", max_flight_fraction=0.75)) == GAIT_GATE_KIND
+
+
+@pytest.mark.parametrize("order", [("fr", "rr", "fl", "rl"), ("rl", "rr", "fl", "fr")])
+def test_feet_are_paired_by_name_whatever_the_recorded_order(order):
+    """A sensor reorder must not turn the contralateral pairs into ipsilateral ones."""
+    canonical = ("fr", "fl", "rr", "rl")
+    trace = gait_trace((0.0, 0.1, 0.5, 0.6), duty=0.7, period=1.0)  # a transverse gallop
+    permuted = {
+        key: value[:, [canonical.index(name) for name in order]]
+        if key in ("floor_force_n", "foot_position_m", "foot_clearance_m", "slip_speed_mps", "touch_force_n")
+        else value
+        for key, value in trace.items()
+    }
+    measured = episode_gait_metrics(
+        trace, body_weight_n=BW, leg_length_m=1.0, foot_names=canonical, protocol=GaitProtocol(), settle_s=1.0
+    )
+    reordered = episode_gait_metrics(
+        permuted, body_weight_n=BW, leg_length_m=1.0, foot_names=order, protocol=GaitProtocol(), settle_s=1.0
+    )
+    assert json.dumps(measured, sort_keys=True) == json.dumps(reordered, sort_keys=True)
+    thresholds = GaitGateThresholds.from_curriculum(curriculum("quadruped_walk"))
+    record = {**json.loads(json.dumps(reordered)), "completed_horizon": True, "seed": 0}
+    passed, reasons = classify_gait_episode(record, thresholds, foot_names=order)
+    assert (passed, reasons) == classify_gait_episode(record, thresholds, foot_names=canonical)
+    assert not passed

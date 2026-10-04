@@ -26,7 +26,10 @@ report-only diagnostics.
 
 Every criterion is explicit: there are no silent defaults in a declared gate.
 ``provisional_gait_criteria`` returns the calibrated development values used
-for report-only panels; a certification config must still spell out each bar.
+for report-only panels; a certification config must still spell out each bar,
+and no bar may be declared more lenient than its ``SCHEMA_LIMITS`` entry, so
+a schema-valid declaration cannot switch a profile's defining rails off.
+Feet are paired by name ((r, l); (fr, fl), (rr, rl)), never by position.
 """
 
 from __future__ import annotations
@@ -204,6 +207,52 @@ _PROVISIONAL_PROFILE: dict[str, dict[str, float | int]] = {
 }
 
 
+#: The most lenient value a declared bar may take: beyond it the rail no
+#: longer tests what its profile promises (a timing tolerance wide enough to
+#: admit an in-phase hop, an off-gait budget larger than the gait, a duty or
+#: load floor near zero, a flight cap near one, a confidence bound near zero).
+#: Each limit lies between the calibrated provisional bar and the vacuous
+#: value; tightening any bar is always allowed. ``(">=", x)`` is a floor's
+#: lowest declarable value, ``("<=", x)`` a cap's highest.
+SCHEMA_LIMITS: dict[str, tuple[str, float]] = {
+    "min_gait_success_lcb": (">=", 0.5),
+    "min_limb_phase_coverage": (">=", 0.5),
+    "min_limb_duty": (">=", 0.05),
+    "min_walking_duty": (">=", 0.3),
+    "min_relative_limb_load_share": (">=", 0.15),
+    "max_light_stance_fraction": ("<=", 0.4),
+    "min_pair_load_ratio": (">=", 0.5),
+    "min_pair_duty_ratio": (">=", 0.5),
+    "min_complete_cycles_per_foot": (">=", 3),
+    "min_valid_swing_fraction": (">=", 0.5),
+    "min_median_swing_clearance_over_leg": (">=", 0.005),
+    "min_stride_length_over_leg": (">=", 0.1),
+    "max_swing_ground_fraction": ("<=", 0.75),
+    "max_swing_slip_fraction": ("<=", 0.3),
+    "min_step_length_over_leg": (">=", 0.01),
+    "min_step_through_stride_fraction": (">=", 0.5),
+    "min_step_symmetry": (">=", 0.05),
+    "min_body_frame_step_to_symmetry": (">=", 0.2),
+    "max_unloaded_fraction": ("<=", 0.3),
+    "max_body_support_fraction": ("<=", 0.1),
+    "max_foot_foot_contact_fraction": ("<=", 0.1),
+    "max_skid_fraction": ("<=", 0.5),
+    "max_glide_stance_fraction": ("<=", 0.3),
+    "max_walk_glide_stance_fraction": ("<=", 0.3),
+    "min_trunk_height_over_leg": (">=", 0.3),
+    "min_girdle_load_share": (">=", 0.1),
+    "min_girdle_duty_ratio": (">=", 0.4),
+    "max_girdle_unloaded_fraction": ("<=", 0.2),
+    "min_phase_locking": (">=", 0.3),
+    "max_alternation_phase_offset": ("<=", 0.2),
+    "max_alternating_overlap_index": ("<=", 0.75),
+    "max_off_gait_fraction": ("<=", 0.35),
+}
+#: Flight is a walking-support bar on the walk profiles and a run allowance
+#: on the run-allowed one.
+FLIGHT_LIMITS = {"biped_walk": 0.2, "quadruped_walk": 0.2, "biped_alternating": 0.8}
+
+
 def default_gait_profile(n_feet: int, speed_bar_mps: float, leg_length_m: float) -> str:
     """Report-only default: a walk, unless a biped stage's speed bar asks for running.
 
@@ -304,13 +353,16 @@ class GaitGateThresholds:
         ):
             if key not in curriculum:
                 continue
-            number = _number(curriculum[key], key)
             if key in _INTEGER_KEYS:
+                # A count is an integer, not a float that equals one: 40.0
+                # would validate here and then never match a rolled panel.
+                value = curriculum[key]
                 minimum = 0 if key == "gait_panel_seed_start" else 1
-                if number < minimum or number != int(number):
-                    raise ValueError(f"{GAIT_GATE_KIND} {key} must be an integer >= {minimum}")
-                values[key] = int(number)
+                if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+                    raise ValueError(f"{GAIT_GATE_KIND} {key} must be an integer >= {minimum}, got {value!r}")
+                values[key] = value
                 continue
+            number = _number(curriculum[key], key)
             if key not in _SIGNED_KEYS and number < 0:
                 raise ValueError(f"{GAIT_GATE_KIND} {key} must be nonnegative")
             if key in _UNIT_KEYS and number > 1:
@@ -325,9 +377,18 @@ class GaitGateThresholds:
         if values["min_gait_success_lcb"] <= 0:
             raise ValueError(f"{GAIT_GATE_KIND} min_gait_success_lcb must be positive")
         if "required_consecutive" in curriculum:
-            consecutive = _number(curriculum["required_consecutive"], "required_consecutive")
-            if consecutive < 1 or consecutive != int(consecutive):
+            consecutive = curriculum["required_consecutive"]
+            if isinstance(consecutive, bool) or not isinstance(consecutive, int) or consecutive < 1:
                 raise ValueError(f"{GAIT_GATE_KIND} required_consecutive must be a positive integer")
+        limits = {**SCHEMA_LIMITS, "max_flight_fraction": ("<=", FLIGHT_LIMITS[profile])}
+        for key, (op, limit) in sorted(limits.items()):
+            if key not in values:
+                continue
+            if values[key] < limit if op == ">=" else values[key] > limit:
+                raise ValueError(
+                    f"{GAIT_GATE_KIND} {profile} {key} {values[key]!r} is vacuous; the declared bar must be "
+                    f"{op} {limit:g} for the profile to mean what it says"
+                )
         return cls(**values)
 
 

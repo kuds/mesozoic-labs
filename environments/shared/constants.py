@@ -32,3 +32,6 @@ TAIL_ANGULAR_VEL_MAX: float = 10.0  # rad/s — normalisation ceiling
 # First seed of the publication_evaluation seed role; the registered panel
 # family is 3042-3081 — see provenance.evaluation_protocols.
 PUBLICATION_SEED_START: int = 3042
+# Size of that registered block: a certification panel lies wholly inside
+# PUBLICATION_SEED_START .. PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES - 1.
+PUBLICATION_PANEL_EPISODES: int = 40
