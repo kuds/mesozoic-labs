@@ -117,7 +117,7 @@ def test_gate_rules_pin_the_documented_thresholds_and_hold_no_comparison_table()
     assert judge_behavior_panel(_report(), _identity(), rules)["rules"] == rules
 
 
-@pytest.mark.parametrize("behavior", ["follow_direction", "mixed_terrain", "difficult_terrain"])
+@pytest.mark.parametrize("behavior", ["follow_direction", "mixed_terrain", "terrain_contact", "difficult_terrain"])
 def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior):
     pytest.importorskip("mujoco")
     from environments.shared.behavior_evaluation import terrain_family_from_reset
@@ -128,7 +128,16 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
     original = create_behavior_env("trex", commands=commands, terrain=terrain, run_seed=17, **kwargs)
     panel = _panel_env("trex", recipe, 910001)
     try:
+        # Consolidation PR-8: the panel is the recipe's own env; its reset option stratifies the families.
+        assert type(panel) is type(original)
+        assert panel.run_seed == 910001
         assert panel.behavior_identity == original.behavior_identity
+        expected = {
+            "follow_direction": ("flat",),
+            "mixed_terrain": ("flat", "mixed"),
+            "terrain_contact": ("flat", "terrain_contact"),
+        }
+        assert panel.terrain_families == expected.get(behavior, ("flat", "sloped", "bumps", "depressions", "mixed"))
         hashes = {}
         for family in panel.terrain_families:
             observation, info = panel.reset(seed=920001, options={"terrain_family": family})

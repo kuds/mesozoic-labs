@@ -12,6 +12,7 @@ from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.species_names import species_display_names
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig, generate_terrain
+from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig, select_terrain_family
 
 ROOT = Path(__file__).resolve().parents[3]
 SPECIES = tuple(species_display_names(backend="stable-baselines3"))
@@ -29,6 +30,7 @@ BEHAVIORS = (
     "combined_mixed_terrain",
 )
 SAMPLER_BEHAVIORS = {"difficult_terrain", "follow_direction_difficult_terrain"}
+PLANE_BEHAVIORS = {"follow_direction", "follow_direction_speed"}
 MODEL_PATHS = {
     "velociraptor": "velociraptor/assets/raptor.xml",
     "trex": "trex/assets/trex.xml",
@@ -61,7 +63,7 @@ def test_every_registered_sb3_species_has_all_supported_behaviors(species):
 def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behavior):
     recipe = _recipe(species, behavior)
     sections = {"behavior", "commands", "terrain", "env", "ppo"}
-    if behavior in SAMPLER_BEHAVIORS:
+    if behavior not in PLANE_BEHAVIORS:
         sections.add("terrain_sampler")
     assert set(recipe) == sections
     assert recipe["behavior"]["species"] == species
@@ -98,7 +100,16 @@ def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behav
             "follow_direction_difficult_terrain": "mixed",
         }.get(behavior, "sloped")
         assert terrain.template == expected_template
-        assert recipe["env"]["flat_probability"] == (0.0 if behavior in SAMPLER_BEHAVIORS else 0.25)
+        assert "flat_probability" not in recipe["env"]
+        own = "terrain_contact" if terrain.mode == "flat" else terrain.template
+        # Consolidation PR-8: the former flat_probability = 0.25 is one plane episode in each block of four.
+        expected_weights = (
+            {**dict.fromkeys(TERRAIN_FAMILIES, 1), "terrain_contact": 0}
+            if behavior in SAMPLER_BEHAVIORS
+            else {**dict.fromkeys(TERRAIN_FAMILIES, 0), "flat": 1, own: 3}
+        )
+        assert recipe["terrain_sampler"] == expected_weights
+        assert list(recipe["terrain_sampler"]) == list(TERRAIN_FAMILIES)
         assert terrain.episode_variation > 0
 
 
@@ -110,12 +121,33 @@ def test_recipe_resolves_its_own_locomotion_parent_and_valid_task(species, behav
 def test_unified_terrain_recipes_cover_all_families_and_preserve_species_profiles(species, behavior, diagnostic):
     recipe = _recipe(species, behavior)
     focused_recipe = _recipe(species, diagnostic)
-    assert recipe["terrain_sampler"] == {"flat": 1, "sloped": 1, "bumps": 1, "depressions": 1, "mixed": 1}
+    assert recipe["terrain_sampler"] == {
+        "flat": 1,
+        "sloped": 1,
+        "bumps": 1,
+        "depressions": 1,
+        "mixed": 1,
+        "terrain_contact": 0,
+    }
     assert recipe["behavior"]["name"] == behavior
     assert recipe["behavior"]["timesteps"] == 3_000_000
     assert recipe["commands"] == focused_recipe["commands"]
     assert recipe["terrain"] == focused_recipe["terrain"]
-    assert recipe["env"] == {**focused_recipe["env"], "flat_probability": 0.0}
+    assert recipe["env"] == focused_recipe["env"]
+
+
+@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("behavior", sorted(set(BEHAVIORS) - PLANE_BEHAVIORS - SAMPLER_BEHAVIORS))
+def test_single_template_recipe_keeps_exactly_one_plane_episode_per_block_of_four(species, behavior):
+    """The section 8 distribution change: a Bernoulli draw (plane with p = 0.25) became balanced blocks."""
+    sampler = TerrainSamplerConfig(**_recipe(species, behavior)["terrain_sampler"])
+    assert sampler.block_size == 4
+    for run_seed, episode_seed in ((0, 1042), (42, 7)):
+        schedule = [
+            select_terrain_family(sampler, run_seed=run_seed, episode_seed=episode_seed, episode_index=i).family
+            for i in range(100)
+        ]
+        assert [schedule[i : i + 4].count("flat") for i in range(0, 100, 4)] == [1] * 25
 
 
 @pytest.mark.parametrize("species", SPECIES)
@@ -201,11 +233,6 @@ _BEHAVIOR_HEADER = '[behavior]\nspecies = "trex"\nname = "bad"\nparent = "locomo
         "[ppo]\nlearning_rate=0.0\n",
         "[ppo]\nwarmup_timesteps=1.5\n",
         "[ppo]\nwarmup_clip_range=0.5\n",
-        "[terrain_sampler]\nflat=1\n",
-        '[terrain]\nenabled=true\nmode="flat"\n[terrain_sampler]\nflat=1\n',
-        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nbumpps=1\n',
-        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=-1\n',
-        '[terrain]\nenabled=true\nmode="gentle"\n[terrain_sampler]\nflat=1\n[env]\nflat_probability=0.25\n',
     ],
 )
 def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, content):
@@ -215,6 +242,65 @@ def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, conte
     path.write_text(_BEHAVIOR_HEADER + content)
     with pytest.raises((ValueError, TypeError)):
         read_recipe(path)
+
+
+def _sampler(**weights):
+    weights = {**dict.fromkeys(TERRAIN_FAMILIES, 0), **weights}
+    return "[terrain_sampler]\n" + "".join(f"{family}={weight}\n" for family, weight in weights.items())
+
+
+_TERRAIN = "[terrain]\nenabled=true\n"
+
+
+@pytest.mark.parametrize(
+    "content,message",
+    [
+        ("[env]\nflat_probability=0.25\n", "env.flat_probability is retired: \\[terrain_sampler\\] states"),
+        (_TERRAIN + _sampler(flat=1, sloped=3) + "[env]\nflat_probability=0.0\n", "flat_probability is retired"),
+        ("[env]\nterrain_sampler=1\n", "Unknown env fields: \\['terrain_sampler'\\]"),
+        (_sampler(flat=1, sloped=3), "terrain_sampler requires enabled terrain"),
+        ("[terrain]\nenabled=false\n" + _sampler(flat=1, sloped=3), "terrain_sampler requires enabled terrain"),
+        (
+            _TERRAIN + "[terrain_sampler]\nflat=1\nsloped=3\n",
+            "state every family's episodes \\(0 disables one\\); missing \\['bumps', 'depressions', 'mixed', "
+            "'terrain_contact'\\]",
+        ),
+        (_TERRAIN + _sampler(flat=1, sloped=3) + "bumpps=1\n", "Unknown terrain_sampler fields: \\['bumpps'\\]"),
+        (_TERRAIN + _sampler(flat=-1, sloped=3), "weight flat must be a nonnegative integer"),
+        (_TERRAIN + _sampler(), "total weight"),
+        (_TERRAIN + _sampler(flat=1, sloped=3) + "[terrain_sampler.extra]\n", "Unknown terrain_sampler fields"),
+    ],
+)
+def test_terrain_recipe_refusals_name_their_fix(tmp_path, content, message):
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "bad.toml"
+    path.write_text(_BEHAVIOR_HEADER + content)
+    with pytest.raises(ValueError, match=message):
+        read_recipe(path)
+
+
+@pytest.mark.parametrize("mode, own", [("flat", "terrain_contact"), ("gentle", "sloped")])
+def test_terrain_sampler_recipe_injects_the_sampler_and_admits_terrain_contact(tmp_path, mode, own):
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "ok.toml"
+    path.write_text(_BEHAVIOR_HEADER + _TERRAIN + f'mode="{mode}"\n' + _sampler(flat=1, **{own: 3}))
+    _, _, terrain, kwargs = read_recipe(path)
+    assert terrain.mode == mode
+    assert kwargs["terrain_sampler"] == TerrainSamplerConfig(
+        **{**dict.fromkeys(TERRAIN_FAMILIES, 0), "flat": 1, own: 3}
+    )
+
+
+def test_terrain_without_a_sampler_stays_one_fixed_surface(tmp_path):
+    """As before PR-8 for a recipe without flat_probability: every episode on the [terrain] surface."""
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "fixed.toml"
+    path.write_text(_BEHAVIOR_HEADER + _TERRAIN)
+    _, _, terrain, kwargs = read_recipe(path)
+    assert terrain is not None and "terrain_sampler" not in kwargs and "flat_probability" not in kwargs
 
 
 @pytest.mark.parametrize(

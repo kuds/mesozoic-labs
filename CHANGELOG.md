@@ -8,6 +8,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **One terrain selector in the behavior env, and every terrain recipe
+  states its blocks** (consolidation PR-8 (a) of
+  `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`
+  takes a `terrain_sampler` and its `reset()` calls `select_terrain_family`
+  itself; the `options={"terrain_family": ...}` override stays, and every
+  behavior env has a `terrain_families` property (the sampler's families,
+  else its one surface). The sampler gains a sixth family, `terrain_contact`
+  (the zero-height heightfield), appended with weight 0, so
+  `TerrainSamplerConfig()` and every existing block are unchanged; each
+  family sets its own surface on the `[terrain]` map, so a sampler may sit
+  on a `mode = "flat"` terrain. The 42 single-template recipes
+  (`flat_probability = 0.25`) carry a `[terrain_sampler]` with `flat = 1`
+  and their own family at 3, the 12 general ones state
+  `terrain_contact = 0`, and a `[terrain_sampler]` table states all six
+  families. This is the distribution change the plan's §8 names: those 42
+  recipes move from an independent per-episode draw to shuffled blocks of
+  four with exactly one plane episode (from the digest harness's reset seed
+  1042, episodes 1, 6 and 9 of 0-9 change surface; every other reset of the
+  54 terrain recipes starts on the same surface with the same command seed,
+  observation and joint positions, and its reset info differs only in its
+  `terrain_sampling` record, new in the 42 and with a `terrain_contact: 0`
+  weight in the general recipes). Evaluation visits every recipe's families
+  in turn (`balanced_round_robin`; the plane alone for `follow_direction`
+  and `follow_direction_speed`, which run without terrain), as the
+  certification panel already did, so a five-episode evaluation of a
+  single-template recipe scores three plane and two terrain episodes.
+  `flat_probability` leaves the settings an `--adapt` transition may change.
+  Every behavior identity moves (its hashed sources changed), so no earlier
+  behavior bundle resumes or adapts; decision D-D9 already made them
+  evaluation-only. A behavior env's reset refuses a seed that is not a
+  nonnegative integer for every recipe, as the sampled env did, and the
+  certification panel refuses a family outside the task with the env's own
+  message, "terrain_family must be an enabled family: ..." (for a recipe
+  without a sampler it was "Certification requested a terrain outside this
+  task"). The digest golden moves only in its behavior section, 932 to 974
+  lines (every identity, the behavior env, command and sampler source lines,
+  the 54 rewritten recipes' digests, and a sampler source line for each of
+  the 42 single-template recipes); no reward, stage, plant, policy or
+  recovery line moves.
+- **Behavior sidecars are plain `VecNormalize` files whose command
+  statistics follow the reseed rule, and the command constants have one
+  source** (consolidation PR-8 (b) and (c), decision D-D3, 2026-10-04).
+  Preparation reseeds the three command inputs' statistics to mean 0 /
+  variance 1 (count kept), so commands enter the policy at O(1); from then
+  on they update, scale and clip like every other input (the recipes plan's
+  invariant 8). A sidecar saved before this change pickles the deleted
+  passthrough class and is refused with a `BehaviorCheckpointError` naming
+  D-D3 (its policy saw other inputs; evaluate it at the commit that trained
+  it); the command line's `--resume` and `--adapt`, and the certification
+  panel, refuse such a bundle earlier, by its identity or recipe. The
+  preparation report's `command_normalization` and `run.json`'s
+  `observation_normalization` say so. `direction_commands.py` imports
+  `COMMAND_WIDTH`, `COMMAND_COMPONENTS` and `COMMAND_RANGE` from
+  `command_frame` (same values); `lateral_speed_scale` stays until PR-11 and
+  PR-12 replace these recipes with stage TOMLs (D-D12).
+- **The direction and terrain guide records where terrain and the notebook
+  stand** (consolidation PR-8; the maintainer's request of 2026-10-04).
+  `docs/TRAIN_DIRECTION_AND_TERRAIN.md` gains a dated status section on the
+  deferral (terrain work waits for the walking gait), the terrain blocker,
+  the node order, an evaluation cell for Colab and a gentle terrain recipe.
 - **The root README is a short front page, and the full species catalog is a
   generated docs page** (cleanup CU-17 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-04; the maintainer's request of 2026-10-03 and choices of
@@ -317,6 +377,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recalibrated, and for the T-Rex a reward-weight edit means re-measuring
   recovery's pushed-statue collapse reference), as each `stance.toml` now
   says.
+
+### Removed
+- **`TerrainSamplingMixin`, `get_sampled_behavior_env_class`,
+  `_PanelTerrainMixin`, `BehaviorVecNormalize` and `flat_probability`**
+  (consolidation PR-8, 2026-10-04). A sampled env is
+  `get_behavior_env_class(species)(terrain=..., terrain_sampler=...)` (or
+  `train_behaviors.create_behavior_env`), and the certification panel is the
+  recipe's own env. `SpeciesBehaviorMixin(flat_probability=...)` is a
+  `TypeError`, the attribute and the identity key are gone, and a recipe's
+  `[env] flat_probability` is refused with the migration in its message:
+  `flat = 1` beside the terrain's own family at 3 is the former 0.25. The
+  reset label `"certification_override"` is no longer written (a forced
+  reset of a sampled env is `"evaluation_override"`; an env without a
+  sampler writes no `terrain_sampling` record).
 
 ### Fixed
 - **The command-line curriculum judges a `stance_quality/v1` stage at an
