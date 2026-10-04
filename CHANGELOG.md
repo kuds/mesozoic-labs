@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moves.
 - **The SB3 notebook's resume walk and archive-load preflight are library
   functions, and the RESUME cell no longer evaluates the node it trains**
-  (cleanup CU-6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-6
+  (#592, cleanup CU-6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-6
   row). A behavior change for a resume session: the RESUME cell prints no
   evaluation report, and the stage directory holds no `evaluation_final.csv`
   or `evaluation_selected.csv` until the chain loop's JUDGE branch, next in
