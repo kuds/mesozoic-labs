@@ -245,8 +245,9 @@ Do not copy observation, action, or compiled-model dimensions into the
 manifest. The generator derives those values from the environment and MJCF,
 and reads stages and gates from the species TOML files.
 
-From the repository root, regenerate the checked-in public data and README
-blocks, then verify that nothing is stale:
+From the repository root, regenerate the checked-in public data (the site's
+JSON, the root README's blocks and `docs/SPECIES_CATALOG.md`), then verify
+that nothing is stale:
 
 ```bash
 python -m environments.shared.species_catalog

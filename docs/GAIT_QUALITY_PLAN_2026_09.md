@@ -478,8 +478,9 @@ contact criteria; `ROADMAP.md:132` claimed a phase-difference metric the code do
 `<plain label>`" (for example "two-footed hop, not a walk"), keeping its certification facts untouched; §3 records
 session 4's re-run and its reuse discrepancy and says that this plan recommends holding session 5 (GQ-3, open), not
 that it is held; rows for the re-panels, pilots and retrains come with the decisions that schedule them; §7 adds the
-risk of a gate without reward changes. `README.md:485` notes that the walker was certified on forward speed, reward
-and episode length with no foot-contact check, and that the audit found it a two-footed hop. CHANGELOG `[Unreleased]`:
+risk of a gate without reward changes. The root README's roadmap line noted that the walker was certified on forward
+speed, reward and episode length with no foot-contact check, and that the audit found it a two-footed hop (cleanup
+CU-17 removed that line; ROADMAP's current focus and NEXT_STEPS §2 carry the finding). CHANGELOG `[Unreleased]`:
 PR-G0 under Added; each revision under Changed, naming the digest lines it moves. Decision rows D-D23 onward (D-D22 went to the cleanup plan's decision 16 on 2026-09-29), append-only, in both plans.
 
 ## 8. Risks

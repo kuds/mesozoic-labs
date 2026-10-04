@@ -8,7 +8,7 @@ the previous one. Items within a phase can often be worked in parallel.
 Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
 > Run metrics in this roadmap are intentionally not copied here. The generated
-> [root catalog](../README.md#training-results), backed by versioned result summaries,
+> [species catalog](SPECIES_CATALOG.md#training-results), backed by versioned result summaries,
 > is the public source for provenance-labelled historical results and current stage budgets.
 
 ---
@@ -42,7 +42,7 @@ which build on 0.3.9. The phase items below are the long-range plan they
 feed.
 Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO, and
 Brachiosaurus PPO; their provenance and metrics are shown in the generated
-catalog.
+[species catalog](SPECIES_CATALOG.md#training-results).
 
 ---
 

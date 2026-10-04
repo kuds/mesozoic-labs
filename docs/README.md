@@ -31,6 +31,10 @@ past a couple of files get their own subdirectory (`investigations/`,
   guide for the #540/#541 pilot pipeline (2026-09-15), command line only since
   the notebook-only PR-12 slice (D-D13); pilot outputs are evaluation-only
   (D-D9) until the nodes are re-homed as manifest nodes (consolidation PR-11).
+- [SPECIES_CATALOG.md](SPECIES_CATALOG.md) — the generated species catalog:
+  every species' specifications, current stages with their budgets and gates,
+  success definitions, and the provenance-labelled historical run summaries;
+  written whole by `python -m environments.shared.species_catalog`, never by hand.
 - [SPECIES_NAMING.md](SPECIES_NAMING.md) — the display names that
   `configs/species_manifest.toml` owns, the stable IDs and the accepted
   aliases of the six species selections.
@@ -131,6 +135,10 @@ findings are in KNOWN_ISSUES),
 - New run analysis or root-cause doc → `investigations/`, dated in the header,
   linked from the table above.
 - New code/repo review → `reviews/`, findings copied into KNOWN_ISSUES.
+- The root README is the repository's front page: what the project is, how
+  to install it, one quick start and where to go next. Run metrics, stage
+  budgets, flag references and status narrative live on the pages it links
+  to; its species and notebook tables, and the species catalog, are generated.
 - Don't rewrite a dated document when conclusions change — append a correction
   note that links to the newer analysis (see the fall-penalty correction in
   STAGE2_INVESTIGATION.md for the pattern).
