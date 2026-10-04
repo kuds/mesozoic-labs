@@ -49,6 +49,9 @@ Reward components:
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
     - Speed penalty (penalise absolute speed above threshold)
+    - Gait reward kit, off by default (environments/shared/gait_rewards.py):
+      floor-force support, gait phase (alternating steps that step through),
+      flight, foot slip, foot collision and leg-on-floor contact
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ import mujoco
 import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.gait_rewards import GaitRewardConfig, GaitRewardKit
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
@@ -106,6 +110,8 @@ class TRexEnv(BaseDinoEnv):
     # The neck never collides (contype/conaffinity 0); the behavior env ends an
     # episode when it penetrates the terrain.  Inert in this env.
     _terrain_contact_probe_geoms = ("neck_geom",)
+    # Always bound in __init__ (inert at the legacy defaults).
+    _gait_reward_kit: GaitRewardKit
 
     def __init__(
         self,
@@ -161,6 +167,20 @@ class TRexEnv(BaseDinoEnv):
         leg_home_pose_broad_fraction: float = 0.0,
         leg_home_pose_broad_scale: float = 6.0,
         nosedive_termination_threshold: float = 0.62,
+        # Gait reward kit (GAIT_QUALITY_PLAN_2026_09 §5.3; every term is
+        # documented in environments/shared/gait_rewards.py).  These defaults
+        # are the kit's legacy values (GAIT_REWARD_KIT_LEGACY): the kit is then
+        # inert and the reward, its info keys and the task digests are the
+        # pre-kit ones.  Setting one in a stage TOML is the task revision.
+        support_source: str = "touch",
+        gait_phase_weight: float = 0.0,
+        gait_phase_step_over_leg: float = 0.64,
+        flight_penalty_weight: float = 0.0,
+        flight_min_feet: int = 1,
+        foot_slip_penalty_weight: float = 0.0,
+        foot_collision_penalty_weight: float = 0.0,
+        leg_contact_penalty_weight: float = 0.0,
+        terminate_on_leg_contact: bool = False,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -269,6 +289,19 @@ class TRexEnv(BaseDinoEnv):
             raise ValueError("leg_home_pose_broad_fraction must be in [0, 1]")
         if self.leg_home_pose_broad_scale <= 1.0:
             raise ValueError("leg_home_pose_broad_scale must exceed 1 (it widens the narrow Gaussian)")
+        # Validated here, before the model loads; bound to the env after the
+        # base init, which the kit reads (feet, touch sensors, terrain).
+        gait_reward_config = GaitRewardConfig(
+            support_source=support_source,
+            gait_phase_weight=gait_phase_weight,
+            gait_phase_step_over_leg=gait_phase_step_over_leg,
+            flight_penalty_weight=flight_penalty_weight,
+            flight_min_feet=flight_min_feet,
+            foot_slip_penalty_weight=foot_slip_penalty_weight,
+            foot_collision_penalty_weight=foot_collision_penalty_weight,
+            leg_contact_penalty_weight=leg_contact_penalty_weight,
+            terminate_on_leg_contact=terminate_on_leg_contact,
+        )
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -329,6 +362,8 @@ class TRexEnv(BaseDinoEnv):
             command_switch_interval=command_switch_interval,
             command_switch_jitter=command_switch_jitter,
         )
+        # Inert at the legacy defaults: no substep hook, no info key, no term.
+        self._gait_reward_kit = GaitRewardKit(self, "trex", gait_reward_config)
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
@@ -599,8 +634,14 @@ class TRexEnv(BaseDinoEnv):
         r_contact, l_contact = self._aggregated_foot_contact_forces()
         info["r_foot_contact"] = r_contact
         info["l_foot_contact"] = l_contact
+        # The bilateral terms (and the alive gate below) read the gait reward
+        # kit's support force: these touch readings themselves under the legacy
+        # support_source "touch", the feet's floor force (same per-foot MIN)
+        # under "floor".  The info keys above stay touch either way.
+        support = self._gait_reward_kit.support_forces((r_contact, l_contact))
+        r_support, l_support = support
 
-        bilateral_support_quality = self._bilateral_support_quality(r_contact, l_contact)
+        bilateral_support_quality = self._bilateral_support_quality(r_support, l_support)
         reward_bilateral_support = self.bilateral_support_weight * bilateral_support_quality
         info["bilateral_support_quality"] = bilateral_support_quality
         info["reward_bilateral_support"] = reward_bilateral_support
@@ -609,7 +650,7 @@ class TRexEnv(BaseDinoEnv):
         # airborne penalty that makes the ordering monotone lives in the
         # reward, so recomputing `-weight * imbalance` here would silently drop
         # it (and did, for the imbalance-only version this replaces).
-        reward_foot_load_balance, foot_load_imbalance = self._foot_load_balance(r_contact, l_contact)
+        reward_foot_load_balance, foot_load_imbalance = self._foot_load_balance(r_support, l_support)
         info["foot_load_imbalance"] = foot_load_imbalance
         info["reward_foot_load_balance"] = reward_foot_load_balance
 
@@ -833,6 +874,11 @@ class TRexEnv(BaseDinoEnv):
             + reward_speed
             + reward_idle
         )
+        # 15. Gait reward kit: flight, foot slip, foot collision, leg contact
+        # and gait phase.  Added only when a kit knob is set, so the legacy sum,
+        # its arithmetic and its info keys are untouched.
+        if self._gait_reward_kit.active:
+            total_reward += self._gait_reward_kit.step_terms(info, support)
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -880,6 +926,12 @@ class TRexEnv(BaseDinoEnv):
         )
         if terminated:
             info["termination_reason"] = reason
+            return True, info
+
+        # A thigh or shank on the floor, with the gait reward kit's
+        # terminate_on_leg_contact (off by default), after every check above.
+        if self._gait_reward_kit.leg_contact_terminates():
+            info["termination_reason"] = "leg_contact"
             return True, info
 
         return False, info

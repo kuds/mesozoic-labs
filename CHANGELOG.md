@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Into the Wild (v0.4.0)
 
+### Added
+- **A gait reward kit, inert until a stage sets it, wired into the T. rex
+  env** (`docs/GAIT_QUALITY_PLAN_2026_09.md` §5.2–§5.3, PR-G6 for T. rex
+  first). `environments/shared/gait_rewards.py` holds the contact terms
+  that price the audited two-footed hops: `support_source` ("touch", or
+  "floor": the registered foot geometries' floor force, MIN over the
+  substeps, feeding T. rex's bilateral terms and alive gate),
+  `gait_phase_weight` with `gait_phase_step_over_leg` (a clock-free reward
+  at each floor-truth step, `w * min(T_i, 5 T_sw) / (feet * dt) * P * A * S`:
+  alternation, swing and step-through along the trunk heading; a step is a
+  debounced touchdown whose stance bears half the foot's share of body
+  weight), `flight_penalty_weight` with `flight_min_feet`,
+  `foot_slip_penalty_weight`, `foot_collision_penalty_weight`, and
+  `leg_contact_penalty_weight` with `terminate_on_leg_contact` (thigh and
+  shank geometries on the floor, reason `leg_contact`). `TRexEnv` takes
+  them as constructor kwargs whose defaults are the pinned legacy values
+  (`GAIT_REWARD_KIT_LEGACY`): the kit then resolves nothing, installs no
+  hook and adds no info key, so every stage's reward, info and termination
+  values are bit for bit the earlier ones (the harness's `--exact` captures,
+  every stage and behavior recipe of every species, diff empty against
+  `a07eafb`). The task fingerprint's effective config and
+  `save_stage_config` leave out each knob a stage does not set and whose
+  default is its legacy value, so no `task_sha256` or `stage_config.json`
+  moves, and the certified r13 stance (`20260914_123816`) stays reusable as
+  the trunk of a locomotion revision; setting a knob in a stage TOML is that
+  revision (`gait-r1`, not part of this change). The kit's floor scan runs
+  in a per-substep hook of its own (`BaseDinoEnv._substep_reward_hook`), and
+  its state resets in `_reset_gait_state`. The digest golden moves only in
+  its behavior section: the `behavior_identity_sha256` and
+  `source:environments/trex/envs/trex_env.py` lines of the 11 T. rex
+  recipes (22 lines), whose identity hashes the env module's bytes; landing
+  before consolidation PR-9 is the plan's GQ-16 (b). No plant, policy,
+  stage, recovery or reward line moves.
+
 ### Changed
 - **One terrain selector in the behavior env, and every terrain recipe
   states its blocks** (consolidation PR-8 (a) of
