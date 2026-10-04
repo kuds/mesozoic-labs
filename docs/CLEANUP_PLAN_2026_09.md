@@ -1,55 +1,18 @@
 # Cleanup and backend retirement plan (2026-09)
 
-**Status**: living plan, updated 2026-10-04. `main` = `d38c785` (#591, ROW-4/6 with the records of #590, merged 2026-10-03 18:12 UTC). Written at `be63a58` (#559, the
-#558 follow-up, merged 2026-09-26 03:42 UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as `f850815`.
+**Status**: living plan, updated 2026-10-04. Written at `be63a58` (#559, the #558 follow-up, merged 2026-09-26
+03:42 UTC; commits `ee91f51`, `634e2b3`, `ad4e621`). #558 (notebook safety, D-D16) merged 2026-09-25 22:44 UTC as
+`f850815`.
 Line numbers are at `f850815` unless marked "at the follow-up", which equals `be63a58` for every file #559 touched
 (`sb3_training.ipynb`, `curriculum/__init__.py`, `curriculum/checkpoints.py`, `test_curriculum_checkpoints.py`,
 `test_sb3_notebook_pins.py`, `CHANGELOG.md`, `docs/NEXT_STEPS.md`, `docs/CONSOLIDATION_PLAN_2026_09.md`,
 `docs/BEHAVIOR_RECIPES_PLAN.md`, `docs/README.md` and `website/docs/training/recipes.md`); every other file is
 byte-identical at `f850815` and `be63a58`. Line numbers drift with every merge, so re-read before editing. This plan
-landed as #560 (merged 2026-09-26 05:03 UTC as `8e03483`). On 2026-09-26 the maintainer took three of §2's decisions
-as D-D17 (row 1, widened), D-D18 (row 8) and D-D19 (row 3), and closed #527 and #498 (row 19); CU-1 is the first PR
-after it (§3.1). CU-1 landed as #561 the same day; the maintainer then took decision 7 as D-D20, carried out by CU-3,
-and moved the Vertex route and GCS upload out of PR-A into a PR of their own, PR-A2, with an end-to-end test of the
-command-line curriculum path (D-D17 amended; §4.5). CU-3 landed as #562 the same day (§3.1). The release cut
-(D-D19) landed as #563 on 2026-09-27, and the maintainer tagged its first commit, `afad625`, as `0.3.8` (a
-lightweight tag, published as a GitHub pre-release). The same day the maintainer settled §2 row 2 as (c), no
-archive tags, and took row 20 as D-D21: 0.3.9 is the clean, refactored base release, cut once its gate has landed.
-PR-A landed as #564 the same day, PR-A2 as #565 on 2026-09-28 and PR-B as #566 the same day, which completes D-D17's
-removals (§3.1). The gait audit and its plan (PR-G0, docs only and outside the cleanup; §1 item 2) landed as #567
-the same day, and CU-2 as #568 on 2026-09-29 (§3.1). The same day the maintainer took §2 row 16 as D-D22, accepted
-splitting CU-7, CU-8, CU-14 and CU-16 into parts (row 20) and the order of the rest of the gate (§3.1 item 4), and
-settled row 10 as (c) first; CU-4 landed as #569 the same day, and CU-14b, decision 10 (c), as #570 (§3.1).
-ROW-16, the digest-snapshot check of D-D22, landed as #571 the same day (§3.1 item 4), and CU-7a, the first
-part of CU-7, as #572 on 2026-09-30 (§3.1 item 4, §3.2). CU-11, the reward, info and termination
-golden and the last PR of wave 1, landed as #573 on 2026-09-30, which completes wave 1 (§3.1 item 4, §3.2). CU-9,
-coverage of the certification code and the first PR of wave 2, landed as #574 on 2026-09-30 (§3.1 item 4, §3.2).
-CU-5, the notebook text and dead parameters, landed as #575 the same day (§3.1 item 4, §3.2), and CU-7b, the
-second and last part of CU-7, as #576 the same day, which completes CU-7 (§3.1 item 4, §3.2). CU-16a, the docs
-text of CU-16 and the last PR of wave 2, landed as #577 the same day, which completes wave 2 (§3.1 item 4, §3.2).
-CU-16b, the orphan assets of CU-16 and the first PR of wave 3, landed as #578 the same day, which completes CU-16; the
-same day the maintainer chose to keep the two apex GIFs, whose blobs the `results/` copies share (§3.1 item 4, §3.2,
-§7). CU-8a, the one derivation of CU-8 and the second PR of wave 3, landed as #579 on 2026-10-01 (§3.1 item 4, §3.2).
-CU-12, the species env dedup and the third PR of wave 3, landed as #580 the same day, which completes CU-12 (§3.1
-item 4, §3.2). CU-14a, the workflow structure of CU-14 and the last PR of wave 3, with decision 10 (a), which the
-maintainer settled on 2026-09-30 without a D-D id, landed as #581 on 2026-10-01, which completes CU-14 and wave 3
-(§2 row 10, §3.1 item 4, §3.2). CU-8b, the SB3 import helper and the sidecar resolver of CU-8 and the first PR of wave
-4, landed as #582 the same day (§3.1 item 4, §3.2). CU-8c, the one reader, one root, one sha256 pattern and one set of
-validators of CU-8 and the second PR of wave 4, landed as #583 the same day, which completes CU-8 and D-D21's gate
-(all thirteen names; §3.1 item 4, §3.2). The 0.3.9 cut (D-D21) landed as #584 on 2026-10-02, and the maintainer
-tagged its first commit, `20ab100`, as `0.3.9` (a lightweight tag, published as a GitHub pre-release), which
-completes D-D21: 0.3.9 is the clean base, and `main` reads `0.4.0.dev0` (§2 row 20, §3.1 item 4). The cut's records
-PR landed as #586 the same day (§3.1 item 4). The same day the maintainer chose to finish the deferred cleanup before
-consolidation PR-8 and the gait plan's code PRs, amending D-D21; split CU-10 into CU-10a, the curriculum horizon fix,
-and CU-10b, the stage body and `eval_env_seed`; and took decisions 4 and 6 and chose decision 9's form for CU-13 (§2
-rows 4, 6, 9 and 20). With those answers the deferred PRs go one at a time, in the order CU-10a, CU-13, CU-15
-(reduced), CU-10b, ROW-4/6 (the notebook PR for decisions 4 and 6), CU-6 and CU-17 (§3.1 item 5). CU-10a, the first
-of them, landed as #587 the same day (§3.1 item 5, §3.2), CU-13, the second, with the D-D5 amendment in the form
-chosen for decision 9, as #588 the same day (§2 row 9, §3.1 item 5, §3.2), CU-15 (reduced), the third, as #589 on
-2026-10-03 (§3.1 item 5, §3.2), CU-10b, the fourth, which completes CU-10, with the D-D11 amendment, as #590 on
-2026-10-03 (§3.1 item 5, §3.2), and ROW-4/6, the fifth, the notebook PR for decisions 4 and 6, as #591 on 2026-10-03
-(§2 rows 4 and 6, §3.1 item 5). CU-6, the sixth, the resume slice, with the D-D7 amendment, is carried out (§2 row 9,
-§3.1 item 5, §3.2); CU-17, the last of the deferred PRs, is next, then PR-8.
+landed as #560 (merged 2026-09-26 05:03 UTC as `8e03483`). Since then the plan records each decision, with its
+outcome, in §2, and the cleanup's records up to CU-17 in §3.1, which is kept as the cleanup's history. From CU-17
+on, landings are recorded only in the consolidation plan's status table and the CHANGELOG
+([README.md](README.md#conventions)); this header's and §1's account of each landing, as it stood before CU-17, is at
+commit `ace8112`.
 
 ## How to use this document
 
@@ -68,65 +31,28 @@ that names a missing `notebooks/<name>.ipynb`, and PR-A and PR-B each delete a n
 
 ## 1. Bottom line
 
-1. **What is left.** The #558 follow-up landed as #559 on 2026-09-26. The backend retirement has landed (PR-A as
-   #564, PR-A2 as #565 and PR-B as #566, §4.6). What remains is one smaller PR, which the maintainer chose on
-   2026-10-02 to finish before consolidation PR-8 (§3.1 item 5), deferred, not dropped: CU-17 (§3; CU-10 is split
-   into CU-10a, which landed as #587 on 2026-10-02, and CU-10b, which completes CU-10 and landed as #590 on
-   2026-10-03; CU-13 landed as #588 on 2026-10-02, CU-15 as #589 on 2026-10-03 and ROW-4/6, the notebook PR for
-   decisions 4 and 6 (§2 rows 4 and 6), as #591 on 2026-10-03; CU-6, the resume slice, is carried out); the CI-signal
-   PR (CU-1, D-D18) landed as #561, CU-3 (D-D20) as #562, the
-   release cut (D-D19) as #563, CU-2 as #568, CU-4 as #569, CU-14b as #570, ROW-16 (D-D22, outside the gate) as #571,
-   CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577, CU-16b as #578, CU-8a as
-   #579, CU-12 as #580, CU-14a as #581, CU-8b as #582, CU-8c as #583 and the 0.3.9 cut (D-D21) as #584. D-D21 (§2
-   row 20) gated the 0.3.9 release on thirteen of these PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9,
-   CU-11, CU-12, CU-14 and CU-16, all of which have landed: the retirement, CU-2 (#568, 2026-09-29), CU-4 (#569,
-   2026-09-29), CU-11 (#573, 2026-09-30), CU-9 (#574, 2026-09-30), CU-5 (#575, 2026-09-30), CU-7 (#572 and #576,
-   2026-09-30), CU-16 (#577 and #578, 2026-09-30), CU-12 (#580, 2026-10-01), CU-14 (#570 and #581, 2026-09-29 and
-   2026-10-01) and CU-8 (#579, #582 and #583, 2026-10-01; on 2026-09-29 the maintainer split CU-7, CU-8, CU-14 and
-   CU-16 into parts that the gate's names cover, §2 row 20 and §3.1 item 4; CU-14b, the first part of CU-14, landed
-   as #570, 2026-09-29; CU-7a, the first part of CU-7, landed as #572, 2026-09-30; CU-11 landed as #573, 2026-09-30;
-   CU-9 landed as #574, 2026-09-30; CU-5 landed as #575, 2026-09-30; CU-7b, the second part of CU-7, landed as #576,
-   2026-09-30, which completes CU-7; CU-16a, the first part of CU-16, landed as #577, 2026-09-30, which completes
-   wave 2; CU-16b, its second and last part, landed as #578, 2026-09-30, which completes CU-16; CU-8a, the first part
-   of CU-8, landed as #579, 2026-10-01; CU-12 landed as #580, 2026-10-01, which completes CU-12; CU-14a, the second
-   and last part of CU-14, landed as #581, 2026-10-01, which completes CU-14 and wave 3; CU-8b, the second part of
-   CU-8, landed as #582, 2026-10-01; CU-8c, the third and last part of CU-8, landed as #583, 2026-10-01, which
-   completes CU-8 and D-D21's gate), and the 0.3.9 cut landed as #584 on 2026-10-02; the maintainer tagged its first
-   commit, `20ab100`, as `0.3.9` (§3.1 item 4), and the cut's records PR landed as #586 the same day. The retirement
-   makes four of the survey's 21 waves wholly moot, most
-   of C15 and half of C1. It also deletes five of the survey's nine live defects along with their code, and #558
-   already fixed two more; CU-2 fixed the render crash (§5.3 defect 2; landed as #568 on 2026-09-29).
-2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) came first, as #561, and CU-3 (atomic run-tree records
-   and checkpoint pairs; D-D20) second, as #562, and the CHANGELOG release cut (D-D19) third, as #563. PR-A (Ray Tune, the Vertex AI
-   tuning sweeps and mjlab; its acceptance runs the digest-snapshot harness this plan adds, §4.4) came fourth, as #564, and PR-A2 (the
-   single-job Vertex route and GCS upload, which D-D17 also retires) fifth, as #565, and PR-B (JAX/MJX, keeping a frozen
-   interface core) sixth, as #566. Then came the rest of D-D21's 0.3.9 gate (§2 row 20), among it the golden-trace (CU-11),
-   one-derivation (CU-8) and env-dedup (CU-12) PRs that consolidation PR-8 and PR-9 need, the CI structure (CU-14)
-   and docs correctness (CU-16), and then the 0.3.9 cut. The deferred PRs follow at their §3.2 points: `extends`
-   (CU-13) before PR-11, and the docs shrink (CU-17) last, before PR-15; on 2026-10-02 the maintainer moved all of
-   them before consolidation PR-8 (§3.1 item 5). The gait audit of 2026-09-28
-   ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)) found that three of the five
-   certified walkers hop, and its plan ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md), whose
-   decisions GQ-1..GQ-18 are all open) places the gait-check code after the 0.3.9 cut, as the maintainer asked;
-   nothing in D-D21's gate changes. Both landed with PR-G0, the docs-only records PR, as #567 on 2026-09-28.
-   CU-2 landed as #568 on 2026-09-29, and the same day the maintainer accepted the order of the rest of the gate,
-   in four waves that open with the digest-snapshot check (D-D22, §2 row 16), CU-4, CU-7a, CU-11 and CU-14b
-   (§3.1 item 4). CU-4, CU-14b, the digest-snapshot check (ROW-16), CU-7a and CU-11 have landed (#569-#573), which
-   completes wave 1; CU-9 and CU-5, the first two of wave 2, landed as #574 and #575 on 2026-09-30,
-   and CU-7b, the third, as #576 the same day, which completes CU-7, and CU-16a, the last, as #577 the same day,
-   which completes wave 2; CU-16b, the first of wave 3, as #578 the same day, which completes CU-16; CU-8a, the
-   second, as #579 on 2026-10-01; CU-12, the third, as #580 the same day, which completes CU-12; CU-14a, the
-   last, as #581 the same day, which completes CU-14 and wave 3; CU-8b, the first of wave 4, as #582 the same day;
-   CU-8c, the second, as #583 the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut landed as #584 on
-   2026-10-02, and the maintainer tagged `0.3.9`; the cut's records PR landed as #586 the same day, CU-10a, the first
-   of the deferred PRs, as #587 the same day, CU-13, the second, as #588 the same day, CU-15, the third, as #589 on
-   2026-10-03, CU-10b, the fourth, as #590 on 2026-10-03, and ROW-4/6, the fifth, as #591 on 2026-10-03. What comes
-   next: CU-17, the last of the deferred PRs, which the maintainer chose on 2026-10-02 to finish first; with that
-   day's answers they go one at a time, in the order CU-10a (landed as #587), CU-13 (landed as #588), CU-15 (reduced;
-   landed as #589), CU-10b (landed as #590), ROW-4/6 (the notebook PR for decisions 4 and 6; landed as #591), CU-6
-   (the resume slice; carried out) and CU-17 (§3.1 item 5's fallback, CU-17 in slot 5 had ROW-4/6 not been ready when
-   CU-10b merged, was not needed); then consolidation PR-8, whose prerequisite CU-11 has landed (§3.4), then PR-9 and
-   PR-10, with the gait plan's G PRs (proposed; its decisions GQ-1..GQ-18 are open) interleaved, PR-G1 first.
+1. **What is left.** §3 lists the cleanup PRs, their order and what each carried out; the consolidation plan's
+   status table records which have landed (from CU-17 on, it and the CHANGELOG are the only landing record; §3.1
+   keeps the records up to CU-17 as the cleanup's history). D-D21 (§2 row 20) gated the 0.3.9 release on thirteen of
+   these PRs: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7, CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16; the maintainer
+   tagged the cut's first commit, `20ab100`, as `0.3.9` (§3.1 item 4). The deferred PRs, deferred, not dropped,
+   follow it and come before consolidation PR-8 (§3.1 item 5). The retirement makes four of the survey's 21 waves
+   wholly moot, most of C15 and half of C1. It also deletes five of the survey's nine live defects along with their
+   code, and #558 already fixed two more; CU-2 fixed the render crash (§5.3 defect 2).
+2. **Order.** CU-1 (mypy with SB3, readable CI logs; D-D18) came first, CU-3 (atomic run-tree records and checkpoint
+   pairs; D-D20) second and the CHANGELOG release cut (D-D19) third. Then the retirement: PR-A (Ray Tune, the Vertex
+   AI tuning sweeps and mjlab; its acceptance runs the digest-snapshot harness this plan adds, §4.4), PR-A2 (the
+   single-job Vertex route and GCS upload, which D-D17 also retires) and PR-B (JAX/MJX, keeping a frozen interface
+   core). Then the rest of D-D21's 0.3.9 gate (§2 row 20), in the four waves of §3.1 item 4, among it the golden-trace
+   (CU-11), one-derivation (CU-8) and env-dedup (CU-12) PRs that consolidation PR-8 and PR-9 need, the CI structure
+   (CU-14) and docs correctness (CU-16), and then the 0.3.9 cut. The deferred PRs follow, one at a time, in the order
+   of §3.1 item 5, which follows the maintainer's answers of 2026-10-02: CU-10a, CU-13, CU-15 (reduced), CU-10b,
+   ROW-4/6 (the notebook PR for decisions 4 and 6), CU-6 and CU-17; then consolidation PR-8, whose prerequisite CU-11
+   is in the gate (§3.4), then PR-9 and PR-10, with the gait plan's G PRs interleaved, PR-G1 first. The gait audit of
+   2026-09-28 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)) found that three of the
+   five certified walkers hop, and its plan ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)) places the
+   gait-check code after the 0.3.9 cut, as the maintainer asked, and after the deferred cleanup, by the maintainer's
+   choice of 2026-10-02; nothing in D-D21's gate changes.
 3. **Measured payoff.** PR-A and PR-B delete 72 whole files and 28,919 lines (PR-A's and PR-B's, measured before
    D-D17 was taken; the Vertex route and GCS upload leave in PR-A2, which derives its own). That covers about 17,459 of the 71,682
    non-test library lines (24%) and about 12,090 test lines. As carried out: PR-A deleted 42 files and 13,222 lines,
@@ -874,6 +800,12 @@ attempt after an early stop is a fresh `RUN_ID`.
    lines, docs and `CHANGELOG.md` +47 / −2). No digest moves: the golden is current at the second commit (932 lines,
    0 errors).
 
+   *2026-10-04 (cleanup CU-17; the maintainer's ruling of 2026-10-02, §3.2's CU-17 row):* the one-landing-record
+   rule ([README.md](README.md#conventions)) governs landings from CU-17 on, so the practice this item
+   opened with ("each one's 'landed as #NNN' record in the next") ends with ROW-4/6's record above: CU-6's
+   landing and every later one go in the consolidation plan's status table and the CHANGELOG, not here, and this
+   section keeps the records above as the cleanup's history.
+
 ### 3.2 The surviving waves (relabelled CU-n; "was" names the survey item)
 
 Sizes are survey estimates of net lines unless marked as measured. "No digest" means the PR touches no hashed
@@ -952,7 +884,7 @@ hardened by #559.
 | PR-11 follow/terrain nodes | Yes | CU-13; PR-11's Breaks line must name `test_every_committed_stage_is_command_mode_none_in_phase_c` (`test_sb3_notebook_pins.py:2333`, :2559 at the follow-up); decisions 11, 13, 14 and 15 | New TOMLs carry no `[jax]` (after PR-B, `config.py:224-231` rejects it) and need no MJX mirror. *Since PR-B (2026-09-28):* the rejection is live (`config.py:225-231` at PR-B's head), and `test_config.py`'s `test_a_retired_jax_table_is_rejected` pins it *CU-13 (carried out 2026-10-02): `load_stage_config` resolves a top-level `extends = { stage = "<parent id>", tables = [...] }`, one level deep, with no chains and never `curriculum` (D-D5 amended, §2 row 9), and the three recovery stages extend stance with it, with every resolved stage config byte-identical: the known answer against which the CU-13 row (§3.2) tests PR-11's mechanism, before PR-11's nodes extend `locomotion`.* *CU-13 landed as #588 on 2026-10-02 (§3.1 item 5).* |
 | PR-12 rest (delete the pilot) | No; it is cleanup that follows PR-11 by design | — | It updates the harness's behavior section when the 66 recipe TOMLs go, and conflicts with the retirement only in `python-ci.yml` |
 | PR-13 terrain_command gate | Yes, to certify terrain | CU-3 (landed as #562 on 2026-09-26, D-D20); decisions 6 and 12 *Decision 6 carried out by ROW-4/6 (2026-10-03; §2 row 6).* *ROW-4/6 landed as #591 on 2026-10-03.* | Invariant 10's new case covers only the SB3 manager. Land PR-B first, because it deletes `test_gate_dispatch_fail_closed.py:161-351`. *Deleted by PR-B (2026-09-28).* |
-| PR-15 | Mostly cleanup | CU-4, CU-17 | No JAX or sweep docs to fold. CHANGELOG Removed inherits the D-D17 entries *2026-10-02: CU-17 lands before PR-8 (§3.1 item 5), so PR-15 adds a residual docs pass for PR-8..PR-13; the D-D17 Removed entries are already released, in `## [0.3.9]`.* |
+| PR-15 | Mostly cleanup | CU-4, CU-17 | No JAX or sweep docs to fold. CHANGELOG Removed inherits the D-D17 entries *2026-10-02: CU-17 lands before PR-8 (§3.1 item 5), so PR-15 adds a residual docs pass for PR-8..PR-13; the D-D17 Removed entries are already released, in `## [0.3.9]`.* *2026-10-04 (CU-17): the consolidation plan's PR-15 goal is restated without its done and stale items; it now names the residual docs pass for PR-8..PR-13, the recipes.md items, the layout constants and the pin budget.* |
 | PR-3b (JAX/SB3 job) | No | — | Superseded by PR-B. The next CI lever is inside `test-sb3` (decision 10). *PR-B deleted the JAX job (`test-jax-cpu`), 2026-09-28.* *CU-14a (#581, 2026-10-01): pull requests and pushes skip the robot's six real-training runs (decision 10 (a)), and `test_phase_c_interface.py` leaves `test-sb3`.* |
 
 ### 3.5 KNOWN_ISSUES entries added with this plan
@@ -1691,6 +1623,7 @@ None of the findings moved a digest. What the reviews left open is decisions 4�
 | #589's CI (CU-15, reduced, with the records of #588; at `bd83c3b` through its merge ref `b1c5a33`, whose tree is the same, run 37074979450; reduced depth, without `full-ci`) | 10 CI jobs, all green, wall time 12:04 (22:54:48 to 23:06:52 UTC), finishing 54 min before the merge; the plant-contract job 2:14, its digest step 1:12 ("932 lines, 0 errors, 71.8 s", current); `test (3.11, shared)`, `(3.12, shared)` and `(3.13, shared)` 7:10, 9:28 and 7:33 (3,670 passed, 143 skipped; CU-15's five mount and install cases, its reader test skipped for want of pandas, the ref-change test's eight cases over both notebooks in place of its three, and the AST-identity pin); `test (3.11, species)`, `(3.12, species)` and `(3.13, species)` 1:23, 1:18 and 1:40 (406 passed); SB3 job 11:23, its mypy step "Success: no issues found in 325 source files" (CU-15's new test module), the notebook training 1 passed (16 deselected), the behavior training 2 passed (10 deselected), the integration step 1,238 passed (10 deselected; CU-15's six `test_drive_summary_notebook.py` cases, the reader test passing there); coverage from 7 artifacts, 88 percent (19,516 statements, 2,260 missed; three lines newly covered, `result_bundle/audit.py` from 44 missed to 43 and `result_schema.py` from 77 to 75, presumably by the reader test, which drives library code in the SB3 job only; per-test coverage not measured; both runs' combine steps read "Combined 7 files, skipped 2"); no JAX job; the first push run on `main` (37080223763, at `85f1365`, reduced depth) took 12:09 (00:01:05 to 00:13:14 UTC, 2026-10-03), with the same counts, its SB3 job 11:28; no Deploy run, since #589 changed no file under the site workflow's paths | job timestamps and logs |
 | #590's CI (CU-10b, with the records of #589; at `b3c0f17` through its merge ref `95db8e5`, whose tree is the same, run 37095730864 with `full-ci` and run 37095728482 at reduced depth) | 10 CI jobs in each run, all green; the full-depth run's wall time 21:39 (04:11:50 to 04:33:29 UTC), finishing 10 h 33 min before the merge, the reduced run's 11:30 (04:11:48 to 04:23:18 UTC); the plant-contract job 1:57 and 2:19, its digest step 0:54 and 1:12 ("932 lines, 0 errors, 54.4 s" and "72.1 s", current); `test (3.11, shared)`, `(3.12, shared)` and `(3.13, shared)` 7:30, 5:49 and 9:07 at full depth and 9:19, 6:18 and 9:12 at reduced depth (3,684 passed, 143 skipped; CU-10b's 13 `TestOneStageBody` tests and its curriculum-walk test); `test (3.11, species)`, `(3.12, species)` and `(3.13, species)` 1:28, 1:38 and 1:46 and 1:35, 1:46 and 1:44 (406 passed); SB3 job 20:53 at full depth, its mypy step "Success: no issues found in 325 source files", the notebook training 4 passed (13 deselected), the behavior training 12 passed, the integration step 1,258 passed (4 deselected), and 10:47 at reduced depth (1 passed, 16 deselected; 2 passed, 10 deselected; 1,252 passed, 10 deselected); coverage from 7 artifacts in both, 88 percent (19,521 statements, 2,257 missed; `train_base.py` from 767 statements and 68 missed to 772 and 65), the combine steps reading "Combined 8 files, skipped 1" and "Combined 7 files, skipped 2"; no JAX job; the site's Deploy workflow, for the recipes page, built in 1:22 on the head (run 37095728446; its deploy job skipped, as on every pull request) and on `main` (run 37132086318) built and deployed `048398a` in 1:31; the first push run on `main` (37132086337, at `048398a`, reduced depth) took 12:46 (15:06:48 to 15:19:34 UTC, 2026-10-03), with the same ten jobs and the reduced head run's counts, its SB3 job 11:57 | job timestamps and logs |
 | #591's CI (ROW-4/6, with the records of #590; at `4a03fac` through its merge ref `a10f3de`, whose tree is the same, run 37139483633 with `full-ci` and run 37139476953 at reduced depth) | 10 CI jobs in each run, all green; the full-depth run's wall time 22:32 (17:09:41 to 17:32:13 UTC), finishing 40 min before the merge, the reduced run's 12:12 (17:09:34 to 17:21:46 UTC); the plant-contract job 2:19 and 2:14, its digest step 1:13 and 1:12 ("932 lines, 0 errors, 72.9 s" and "71.9 s", current); `test (3.11, shared)`, `(3.12, shared)` and `(3.13, shared)` 8:49, 9:48 and 9:06 at full depth and 9:17, 9:55 and 9:19 at reduced depth (3,821 passed, 143 skipped; ROW-4/6's 139 new tests, less the two `TestAutoTrunk` tests one of them replaces); `test (3.11, species)`, `(3.12, species)` and `(3.13, species)` 1:46, 1:59 and 1:50 and 1:53, 1:49 and 1:23 (406 passed); SB3 job 21:43 at full depth, its mypy step "Success: no issues found in 327 source files", the notebook training 4 passed (13 deselected), the behavior training 12 passed, the integration step 1,258 passed (4 deselected), and 11:35 at reduced depth (1 passed, 16 deselected; 2 passed, 10 deselected; 1,252 passed, 10 deselected); coverage from 7 artifacts in both, 89 percent (19,637 statements, 2,257 missed; ROW-4/6's 116 new statements all covered), the combine steps both reading "Combined 7 files, skipped 2"; no JAX job; the site's Deploy workflow, for the recipes page, built in 0:55 on the head (run 37139476977; its deploy job skipped, as on every pull request) and on `main` (run 37143346185) built and deployed `d38c785` in 1:38; the first push run on `main` (37143346271, at `d38c785`, reduced depth) took 12:13 (18:12:43 to 18:24:56 UTC, 2026-10-03), with the same ten jobs and the reduced head run's counts, its SB3 job 11:25 | job timestamps and logs |
+| CI of the PRs from CU-6 on | In each PR's landing record, the consolidation plan's status table (the one-landing-record rule, [README.md](README.md#conventions)); the per-PR rows above stop at ROW-4/6 | cleanup CU-17, 2026-10-04 |
 | Earlier PRs (SB3 / JAX job) | #551 35:37 / 53:34; #556 47:09 / 49:05; #557 30:24 / 47:26 | consolidation plan status rows |
 | Job that sets the finish time | JAX, in 12 of 15 PR/push runs (18 runs, #1210–#1227) | CI-cost inventory |
 | Median PR/push wall time | 52.3 min now; estimated 46.0 min after PR-B (per-run saving 0–18.9 min, median 5.9) | same |

@@ -93,78 +93,44 @@ robustness, **LOW** = cosmetic / QoL.
   widen sessions used, left with consolidation PR-14a); the one certified
   stance parent that needed widening (`20260815_205206`, seed 44, an r11
   archive two revisions behind r13, hence a revision gap of 2, decision
-  D-C17) was widened on 2026-09-20 as `20260920_010912`; seed 42
-  is already certified at r13 by `20260914_123816`** (BEHAVIOR_RECIPES_PLAN
-  §4.6, decisions D-C8–D-C14 and D-C17; PLANT_CONTRACT.md "Widening a
-  checkpoint across a policy-interface bump"). Phase C appended a 3-dim command segment to every
-  species' observation (`policy_interface_revision` trex 12 → 13, velociraptor
-  9 → 10, brachiosaurus 7 → 8, dibothrosuchus 6 → 7, compsognathus and
+  D-C17) was widened on 2026-09-20 as `20260920_010912`; seed 42 is already
+  certified at r13 by `20260914_123816`** (BEHAVIOR_RECIPES_PLAN §4.6,
+  decisions D-C8–D-C14 and D-C17;
+  [PLANT_CONTRACT.md](PLANT_CONTRACT.md#widening-a-checkpoint-across-a-policy-interface-bump)
+  holds the widen command, the three Colab steps, the identity gate and what
+  the tool writes). Phase C appended a 3-dim command segment to every species'
+  observation (`policy_interface_revision` trex 12 → 13, velociraptor 9 → 10,
+  brachiosaurus 7 → 8, dibothrosuchus 6 → 7, compsognathus and
   compsognathus_robot 1 → 2). The task payload carries the plant's
-  `policy_interface_sha256` (`task_fingerprint.py`, the `plant_identity`
-  section), so every stage's `task_sha256` moved with it and reuse rule 3
-  (the verdict's `task_sha256` must equal the fingerprint derived from the
-  CURRENT stage config; `environments/shared/ancestors.py`) refuses every
-  pre-Phase-C verdict; were the hash to match, rule 6 (the checkpoint's
-  recorded plant identity must validate against the current plant, no legacy
-  allowance) refuses the pre-Phase-C archive too (rules are evaluated 1, 2,
-  3, 7, 4, 5, 6, so a pre-Phase-C candidate never reaches 6). As with rule 7
-  the refusal is a
-  log line and the node then TRAINS in the new run. Every existing recovery
-  `gate_resolution.json` — the 2026-08-28 trex freeze included — records a
-  pre-Phase-C `task_sha256`, and `require_gate_resolution` refuses a
-  resolution whose recorded task differs from the current one ("Recalibrate —
-  re-measure the null panels under the current task"), so no recovery run
-  under the new plant can consume one: each is re-frozen from a widened
-  handoff. The two recipes below are dead for pre-Phase-C runs for two
-  concrete reasons: the re-judge path (set `RUN_ID` to the old run, remove
-  the refused verdict, let the JUDGE branch re-panel) dies first in the
-  storage cell — `initialize_result_bundle` compares the existing
-  `provenance.json` against this session's identity, `plant_identity`
-  (now r13) included, and raises `run directory already belongs to a
-  different run: {'plant_identity': …}` before the infra cell exists (the
-  missing `certification_panel` role refuses these two runs the same way,
-  D-B17) — and with `provenance.json` removed to get past that, the JUDGE
-  branch's `evaluate_stage_checkpoints` loads `<stage_label>_final.zip` and
-  calls `validate_model_plant(model, PLANT_IDENTITY, ...)` against the
-  checkout's r13 identity, so the pre-Phase-C archive is refused before any
-  panel rolls (and `backfill_gate_verdict.py --force` could at best mint a
-  verdict under the old task hash, which rule 3 refuses); the republish path
-  (remove
-  `provenance.json`, set `RUN_ID` to the run, re-run the setup and
-  publication cells) dies in the audit, because the storage cell mints the
-  provenance with `current_plant_identity(SPECIES)` (r13) and
-  `validate_result_bundle` compares every stage config's recorded
-  `plant_identity` against it (`stage <N> config plant_identity does not
-  match provenance.json`). The remedy is a NEW run, widened on the command
-  line and judged in the notebook (decision D-D14): `python -m
-  environments.shared.scripts.widen_checkpoint --species <species> --stage
-  stance --from-stage-dir <parent run>/<its stance directory> --to-stage-dir
-  <LOG_BASE>/<species>/<algo>/<new run id>/01_stance [--max-revision-gap N]
-  [--label L]`, with `<new run id>` a new timestamp id `YYYYMMDD_HHMMSS`, run
-  before the notebook's storage cell has opened that run id (on Colab, the
-  three steps of
-  [PLANT_CONTRACT.md](PLANT_CONTRACT.md#widening-a-checkpoint-across-a-policy-interface-bump):
-  section 1, a scratch cell that mounts Drive, never the storage cell, then
-  the tool from `/content/mesozoic-labs`), widens the parent's certified stance handoff
-  into the new run's root stage directory (zero columns for the new dims, the
-  run block's `WIDEN_LINEAGE_KEYS` with the parent's `run.seed`, the identity
-  and task fingerprint re-stamped, no verdict, no `provenance.json`); then the
-  notebook, with `RUN_ID` set to the new run id, `SEED` to the parent's
-  recorded `run.seed` and `TRUNK_FROM = ""`, mints an r13 provenance for it
-  (the storage cell refuses any other `SEED` before it writes anything,
-  D-C14: the provenance publishes `training_seed = SEED` and replication
-  counts distinct seeds; the chain loop judges the widened root before it
-  consults any trunk, D-C13 as amended by ROW-4/6's decision 6 (b), and,
-  when it is an ancestor of `BEHAVIOR`'s node, refuses a root widened into
-  a run that already holds it as an `ancestors/` record, naming a new run
-  id), and the chain loop refuses —
-  loudly — to reuse the verdict-less directory, finds the
-  `<stage_label>_final.*` pair and JUDGES it: a fresh 40-episode panel
-  (seeds 3042–3081) under the current gate, a `gate_verdict.json` minted
-  under the new task hash. Never by pointing `RUN_ID` at the old run: for a
-  pre-Phase-C run the storage cell refuses the directory outright (above),
-  and for a same-plant run whose verdict rule 3 or 7 refuses the chain loop
-  raises "mint a fresh RUN_ID" (D-C13).
+  `policy_interface_sha256` (`task_fingerprint.py`), so every stage's
+  `task_sha256` moved with it: reuse rule 3 (the verdict's `task_sha256` must
+  equal the fingerprint of the CURRENT stage config) refuses every
+  pre-Phase-C verdict, and rule 6 (the checkpoint's recorded plant identity
+  must validate against the current plant, no legacy allowance) would refuse
+  the archive too (rules run 1, 2, 3, 7, 4, 5, 6). As with rule 7 the refusal
+  is a log line, and the node then TRAINS in the new run. Every recovery
+  `gate_resolution.json` frozen before Phase C, the 2026-08-28 trex freeze
+  included, records a pre-Phase-C `task_sha256`, which
+  `require_gate_resolution` refuses ("Recalibrate — re-measure the null
+  panels under the current task"), so each is re-frozen from a widened
+  handoff. The two recipes die for these runs: the re-judge path in the
+  storage cell, where `initialize_result_bundle` raises `run directory already
+  belongs to a different run: {'plant_identity': …}` against the session's r13
+  identity (the missing `certification_panel` role refuses these two runs the
+  same way, D-B17), and, with `provenance.json` removed, in
+  `validate_model_plant` before any panel rolls (`backfill_gate_verdict.py
+  --force` could at best mint a verdict under the old task hash, which rule 3
+  refuses); the republish path in the audit (`stage <N> config
+  plant_identity does not match provenance.json`). The remedy: widen on the
+  command line before the notebook's storage cell has opened the new run id,
+  then run the notebook with `RUN_ID` set to that id, `SEED` to the parent's
+  recorded `run.seed` (D-C14) and `TRUNK_FROM = ""`; the chain loop judges the
+  widened root before it consults any trunk (D-C13 as amended by ROW-4/6's
+  decision 6 (b)) on a fresh 40-episode panel (seeds 3042–3081) under the
+  current gate. Never by pointing `RUN_ID` at the old run: for a pre-Phase-C
+  run the storage cell refuses the directory, and for a same-plant run whose
+  verdict rule 3 or 7 refuses the chain loop raises "mint a fresh RUN_ID"
+  (D-C13).
   Inventory: the two certified stance parents are `20260810_145546` (seed
   42) and `20260815_205206` (seed 44) — and BOTH are policy-interface **r11**
   archives (`sha256:96ef13…`;
@@ -176,34 +142,17 @@ robustness, **LOW** = cosmetic / QoL.
   both had trained, and an archive's identity is stamped at training time.
   The 2026-09-17 Drive survey
   ([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md))
-  adds two facts: neither r11 parent holds a `gate_verdict.json` in its
-  `stage1/` directory (the 2026-08 verdicts live only in the run-level
-  records), and widening does not need one — `widen_checkpoint` reads the
-  parent's `stage_config.json` run block, its handoff pair and the stamped
-  VecNormalize sidecar, and a parent verdict is optional (it must record
-  `passed = true` only if present), so no backfill precedes a widen; and
-  seed 42 no longer needs widening at all, because the fresh r13 run
-  `20260914_123816` certified its stance (and its locomotion) on
-  2026-09-15, which leaves the seed-44 parent `20260815_205206` as the one
-  remaining widen candidate.
-  `widen_checkpoint`'s gate admits a parent at most `max_revision_gap`
-  interface-only revisions behind (`identity_gate_errors`: `1 <= current -
-  parent.policy_interface_revision <= max_revision_gap`; the default 1 is the
-  Phase C bump alone, fail closed), so under the default it refuses both
-  parents with `policy_interface_revision: parent=11, current=13 (gap 2
-  exceeds max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2
-  …)`, and `--allow-legacy-plant` does not apply (it covers only an archive
-  with NO recorded identity). **The remedy is decision D-C17**: pass
-  `--max-revision-gap 2` to the command-line tool (`max_revision_gap=2` in
-  the API; session 1 set the notebook's revision-gap knob to 2, a knob that
-  left with consolidation PR-14a, D-D14). Every other gate field is checked
-  whatever the bound — same species, `physics_sha256`, `nq` / `nv` / `nu`,
-  `action_dim` and `observation_dim + 3 == current` — so only fingerprint-only
-  intermediate bumps can be crossed, and opting in asserts, from
-  `configs/plant_versions.toml`'s numbered notes, that the crossed bumps
-  changed nothing the widening cannot bridge (for trex r11 → r13: note 11
-  recorded the perturbation engine, note 12 appended the command segment).
-  The widened stage's `widen_report.json` then records `revision_gap: 2` /
+  found no `gate_verdict.json` in either parent's `stage1/` (the 2026-08
+  verdicts live only in the run-level records), and widening needs none (a
+  parent verdict, if present, must record `passed = true`). Under the default
+  bound `widen_checkpoint` refuses both parents with
+  `policy_interface_revision: parent=11, current=13 (gap 2 exceeds
+  max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2 …)`, and
+  `--allow-legacy-plant` does not apply (it covers only an archive with NO
+  recorded identity). **The remedy is decision D-C17**: `--max-revision-gap 2`,
+  which for trex r11 → r13 crosses `configs/plant_versions.toml`'s note 11
+  (the perturbation engine) and note 12 (the command segment); the widened
+  stage's `widen_report.json` then records `revision_gap: 2` /
   `max_revision_gap: 2` and its run block
   `widened_from_policy_interface_revision: 11`; a hand re-stamp of the archive
   is never the path. The three r12 stance PASSes on the log tree —
@@ -211,20 +160,12 @@ robustness, **LOW** = cosmetic / QoL.
   ([investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md)
   §2.1) — carry r12 identities and widen under the default bound, but they
   are not the certified, published parents; widening one is a first
-  certification under the new hash with its own `run.seed`, not a re-panel
-  of a certificate. After the first certified parent is
-  widened and re-paneled trex stance publishes as `1 run of 2 seeds;
-  provisional`
-  (replicates are discovered among siblings judged under the SAME
-  `task_sha256`, so the un-widened sibling does not count), and it reads
-  `2 runs of 2 seeds` only once BOTH are widened and re-paneled in two
-  sessions, each with `SEED` set to its parent's seed (42, then 44) —
-  since the 2026-09-17 survey the seed-42 slot is already filled by
-  `20260914_123816`, so one widen session (`SEED = 44`) closes the bar, and
-  it did: session 1 of [NEXT_STEPS.md](NEXT_STEPS.md) §3 ran on 2026-09-20 as
+  certification under the new hash with its own `run.seed`. Replicates count
+  only among siblings judged under the SAME `task_sha256`: session 1 of
+  [NEXT_STEPS.md](NEXT_STEPS.md) §3 widened the seed-44 parent on 2026-09-20 as
   `20260920_010912` (re-panel identical to the r11 certificate, recovery
-  certified 2026-09-21, bundle `complete` with trex stance at replication 2).
-  The outcome table is
+  certified 2026-09-21, bundle `complete` with trex stance at replication 2,
+  beside `20260914_123816`). The outcome table is
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
   (its §1–§3 seed-44 columns filled, §7 and §8 appended; its §6, appended
   2026-09-19, marks Session 1 (the seed-42 widen) and Session 2 superseded by
@@ -232,78 +173,62 @@ robustness, **LOW** = cosmetic / QoL.
   calibrations were restamped, not re-measured, which moved their
   `profile_sha256`, so every compsognathus / compsognathus_robot recovery
   freeze made before Phase C is refused and must be re-frozen from the
-  restamped profile
-  (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
+  restamped profile (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
 - **MEDIUM (operational)** — **SB3 archives are bound to the interpreter that
   saved them; only `policy_loading.load_sb3_model` opens one safely, and the
   Colab image moves without notice.** SB3 stores a model's `learning_rate`,
   `lr_schedule` and `clip_range` members through cloudpickle. A closure — the
   `linear_schedule` every stage TOML with `learning_rate_end` produced before
   2026-09-19, and the nested schedule functions older SB3 releases built for a
-  float learning rate — is pickled by
-  value with its code object, and `PPO.load` / `SAC.load` execute it while
-  rebuilding the optimizer (`_setup_model` → `lr_schedule(1)`). Bytecode
-  compiled by Python 3.12 run by 3.13, or the reverse, segfaults the process
-  with no Python traceback: reproduced both ways in the review container
-  with torch held constant at 2.14 (`faulthandler` places the crash in the
-  closure body, `train_base.py` `linear_schedule.<locals>.schedule`, called
-  from SB3's `FloatSchedule.__call__` inside `policies._build`), so torch is
-  not the cause the 2026-08-28 note
+  float learning rate — is pickled by value with its code object, and
+  `PPO.load` / `SAC.load` execute it while rebuilding the optimizer
+  (`_setup_model` → `lr_schedule(1)`). Bytecode compiled by Python 3.12 run by
+  3.13, or the reverse, segfaults the process with no Python traceback:
+  reproduced both ways in the review container with torch held constant at
+  2.14 (`faulthandler` places the crash in the closure body, called from
+  SB3's `FloatSchedule.__call__` inside `policies._build`), so torch is not the
+  cause the 2026-08-28 note
   ([investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md)
-  §9, "Python 3.13 / torch 2.11") took it for. Merely unpickling the data
-  (what the widen tool's archive read does) does not crash; calling the
-  schedule does. **The incident:** Colab's L4 image moved from Python 3.12.13
-  / numpy 2.0.2 / jax 0.7.2 (the r11 parent `20260815_205206`, 2026-08-15)
-  to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1 (already the image of the
-  runs of 2026-09-14/15, `20260914_123816` and `20260915_160239`). Two
-  trex seed-44 widen sessions of 2026-09-18 at `22c1fc8` (runs
-  `20260918_230155` and `20260918_230335`, on Drive, recorded 2026-09-23)
-  were the first to load an archive saved under the older image and left
-  the same four-file stray, and both first attempts at NEXT_STEPS.md session 1 (runs
-  `20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`,
-  `BEHAVIOR="stand"`, `WIDEN_FROM="20260815_205206"`,
-  `WIDEN_MAX_REVISION_GAP=2`, `SEED=44`) died with
-  `AsyncIOLoopKernelRestarter: restarting kernel` right after the widen tool
-  wrote `robust_best_model.zip`, `robust_best_model_vecnorm.pkl`,
-  `stage1_final.zip` and `stage1_final_vecnorm.pkl` into `01_stance/models/`
-  and before `widen_report.json`, `plant_identity.json`,
-  `task_fingerprint.json` or `stage_config.json`: the self-verification's
-  first load of the r11 parent, saved under an earlier image, was a bare
-  `alg_cls.load`. The notebook's `PPO.load` preflight of the time ran in the
-  infrastructure cell, after the widen cell, on a throwaway model saved by
-  the same interpreter, so it protected nothing. **Fixed on 2026-09-19 (the
-  loader change; CHANGELOG "Fixed"):** every archive load in the repository
-  and both notebooks goes through `load_sb3_model`, which supplies the
-  schedule members through SB3's `custom_objects` instead of unpickling
-  them and refuses an archive whose other members carry another
-  interpreter's bytecode; `linear_schedule` / `cosine_schedule` are
-  picklable-by-reference classes, so archives saved from now on carry no
-  bytecode; the widen tool re-states a parent's schedules from its recorded
-  `hyperparameters` block, or from the current stage config's block when the
-  parent's `stage_config.json` predates that block (`widen_report.json`
-  names the source; the r11 parent's carries the block, and its 2026-09-20
-  widen report reads `parent_stage_config`); and the notebook's load preflight runs right
-  after the resolve cell on a real archive, the trunk run's root handoff when
-  there is one (until consolidation PR-14a moved widening to the command line,
-  the notebook's widen parent's handoff first), through
+  §9, "Python 3.13 / torch 2.11") took it for; merely unpickling the data does
+  not crash, calling the schedule does. **The incident:** Colab's L4 image
+  moved from Python 3.12.13 / numpy 2.0.2 / jax 0.7.2 (the r11 parent
+  `20260815_205206`, 2026-08-15) to Python 3.13.15 / numpy 2.1.3 / jax 0.11.1
+  (already the image of the runs of 2026-09-14/15, `20260914_123816` and
+  `20260915_160239`). Both first attempts at NEXT_STEPS.md session 1
+  (`20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`) died
+  with `AsyncIOLoopKernelRestarter: restarting kernel` in the widen tool's
+  self-verification, a bare `alg_cls.load` of the r11 parent; two trex
+  seed-44 widen sessions of 2026-09-18 at `22c1fc8` (`20260918_230155`,
+  `20260918_230335`, on Drive, recorded 2026-09-23) had been the first to
+  load an archive saved under the older image and left the same four-file
+  stray. **Fixed on
+  2026-09-19 (the loader change; its CHANGELOG `[0.3.8]` "Fixed" entry has the
+  details):** every archive load in the repository and both notebooks goes
+  through `load_sb3_model`, which supplies the schedule members through SB3's
+  `custom_objects` instead of unpickling them and refuses an archive whose
+  other members carry another interpreter's bytecode; archives saved since
+  carry no bytecode; the widen tool re-states a parent's schedules (the
+  2026-09-20 widen report of the r11 parent reads `parent_stage_config`); and
+  the notebook's load preflight loads a real archive, the trunk run's root
+  handoff when there is one, through
   `policy_loading.sb3_archive_load_preflight` since cleanup CU-6
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
   Drive trained before that date — every trex and compsognathus stage
   checkpoint, both r11 stance parents and the compsognathus r1 parent
-  included — embeds its saving interpreter's bytecode in those three
-  members for good, so any path outside the loader (an ad-hoc `PPO.load` in
-  a notebook cell, the SB3 CLI, a third-party tool, an older checkout) still
-  dies on a foreign image with no traceback; a run's `provenance.json`
-  `python_version` names the interpreter its archives belong to, and the
-  image will move again. The four stray run directories `20260918_230155`,
-  `20260918_230335`, `20260919_170528` and `20260919_190251` hold only
-  `provenance.json` and four unverified
-  model files whose archives re-pickled the parent's 3.12 bytecode under a
-  3.13 `system_info.txt`, with no report, identity or fingerprint; nothing
-  can reuse them (`select_trunk` lists them as refused); session 1 re-ran
-  beside them on 2026-09-20 without harm, and they are still to be deleted
-  (housekeeping in [NEXT_STEPS.md](NEXT_STEPS.md) §3).
+  included — embeds its saving interpreter's bytecode in those three members
+  for good, so any path outside the loader (an ad-hoc `PPO.load` in a notebook
+  cell, the SB3 CLI, a third-party tool, an older checkout) still dies on a
+  foreign image with no traceback; a run's `provenance.json` `python_version`
+  names the interpreter its archives belong to, and the image will move
+  again. The four stray run directories `20260918_230155`, `20260918_230335`,
+  `20260919_170528` and `20260919_190251` hold only `provenance.json` and four
+  unverified model files (`robust_best_model.zip`, its `_vecnorm.pkl`,
+  `stage1_final.zip` and its `_vecnorm.pkl`, re-pickling the parent's 3.12
+  bytecode under a 3.13 `system_info.txt`), with no report, identity or
+  fingerprint; nothing can reuse them (`select_trunk` lists them as refused);
+  session 1 re-ran beside them on 2026-09-20 without harm, and they are still
+  to be deleted (housekeeping in [NEXT_STEPS.md](NEXT_STEPS.md) §3).
 - **MEDIUM (operational)** — **run-level records go stale when a run is
   continued in a later session.** The certified r13 trex walker
   `20260914_123816` shows it: its run-level `summary.json`,
@@ -457,51 +382,32 @@ robustness, **LOW** = cosmetic / QoL.
   gate and `--trunk-from` / `TRUNK_FROM` refuses it naming the re-judge
   paths — and then TRAINS the node in the new run (the refusal is only in
   the log: `Not reusing 'stance' from --trunk-from ...: ... Training it in
-  this run instead.`), so the inventory below must be done before the first
-  trunked run or the stance retrains for hours. **Superseded for every
-  pre-Phase-C run (2026-09-14): the two re-judge paths that follow, and the
-  digest measurement at the end of this entry, are dead for a checkpoint
-  minted under the previous policy interface — see the Phase C entry above;
-  the widened copy is re-paneled under the current gate in a new run, which
-  settles the digest question for it. The text is kept as history.** Two
-  re-judge paths existed:
-  the notebook JUDGE branch / `generate_stage_artifacts` for a directory
-  holding no verdict (set `RUN_ID` to the run, remove the refused
-  `gate_verdict.json` from the stage directory, and the chain loop judges
-  the held checkpoints under this session's gate, measuring a fresh stance
-  panel), and `backfill_gate_verdict.py --force` for one that holds a
-  pre-D-A22 verdict. This covers the certified trex stance run `20260810_145546` and the
-  seed-44 replicate `20260815_205206` (assumed backfilled under decision D-A6
-  before the digest existed; the 2026-09-17 Drive survey found no
-  `gate_verdict.json` in either `stage1/`, see the Phase C entry above), and
-  every other backfilled or Phase-A-judged stage directory. Inventory the
-  log tree with
-  `find <LOG_BASE> -name gate_verdict.json -exec grep -L gate_sha256 {} +`
-  and re-backfill each hit with
-  `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir> --force`;
-  when the rule-7 refusal then names a differing threshold — stance's
+  this run instead.`). **Superseded for every pre-Phase-C run (2026-09-14):**
+  the two re-judge paths (the notebook JUDGE branch for a directory holding no
+  verdict, `backfill_gate_verdict.py --force` for a pre-D-A22 verdict) and the
+  digest measurement owed before the first Phase-B trunked run are dead for a
+  checkpoint minted under the previous policy interface, which covers the
+  certified trex stance run `20260810_145546` and the seed-44 replicate
+  `20260815_205206` (the 2026-09-17 Drive survey found no `gate_verdict.json`
+  in either `stage1/`); see the Phase C entry above. The widened copy is
+  re-paneled under the current gate in a new run, which settles the digest
+  question for it. The recipes, kept as history until cleanup CU-17, are in
+  this file at commit `20ab100` (`0.3.9`). What stays true for a same-plant
+  directory: a moved rail or a statue re-measure is a RE-JUDGE of every
+  certified trunk, never a retrain (decisions D-B7/D-B8; stance's
   `min_avg_reward` rail moved 1940.0 → 2100.0 on 2026-08-10, the day
-  `20260810_145546` ran, so its recorded block may not digest to the
-  checkout's — the directory must be re-judged under the current gate (a
-  moved rail or a statue re-measure is a RE-JUDGE of every certified trunk,
-  never a retrain; decisions D-B7/D-B8). For a `reward_and_length/v1`
-  directory that is `--gate current`, which re-aggregates the evidence rows
-  under the checkout's block and records that gate. For a stance directory
-  it is NOT: a `stance_quality/v1` verdict is read off
-  `stance_gate_report.json`, which certifies only the thresholds it scored,
-  so the tool refuses a report scored under the old rail under either
-  `--gate` (a pass at 1950 under the 1940 rail must never be minted as a
-  pass under 2100) — re-judge both stance directories through the notebook
-  JUDGE branch, which measures a fresh panel under the current gate.
-  Recovery verdicts cannot be backfilled and need a notebook re-roll. Measurement still owed before the first Phase-B
-  trunked run: for both stance directories compute
-  `gate_config_sha256(gate_config_view(stage_config.json["curriculum"]))`
-  and compare it with `load_all_stages("trex")[1]["curriculum_kwargs"]`'s
-  digest, recording which of the two backfill paths each needed.
+  `20260810_145546` ran); `--gate current` re-aggregates a
+  `reward_and_length/v1` directory's evidence rows under the checkout's block,
+  but a `stance_quality/v1` verdict is read off `stance_gate_report.json`,
+  which certifies only the thresholds it scored, so the tool refuses a report
+  scored under an old rail under either `--gate` (a pass at 1950 under the
+  1940 rail must never be minted as a pass under 2100) and a stance directory
+  is re-judged through the notebook JUDGE branch; recovery verdicts cannot be
+  backfilled and need a notebook re-roll.
 - **MEDIUM (operational)** — **pre-Phase-B stance bundles need republishing
   with the `certification_panel` seed role, and pre-D-A22 siblings join a
   deliverable's replication count only after re-backfill** (decisions
-  D-B16/D-B17, Phase B WS-B4; plan §4.5). The publication audit now binds
+  D-B16/D-B17, Phase B WS-B4; plan §4.5). The publication audit binds
   `stance_panel_selected.csv` row `i` to `seed_roles.certification_panel + i`
   and a recovery `gate_resolution.json`'s `decision_procedure.panel_seed_start`
   to the role, and REFUSES a recorded `stance_quality/v1` pass whose
@@ -513,28 +419,15 @@ robustness, **LOW** = cosmetic / QoL.
   audit or republish; `initialize_result_bundle` also refuses to resume such
   a run directory from the new notebook (the seed roles are identity, and
   the mismatch reads as "already belongs to a different run"). **Superseded
-  for every pre-Phase-C run (2026-09-14): the republish recipe that follows
-  is dead for these two runs — the storage cell now mints an r13 provenance
-  the audit rejects against their r11 stage configs; the seed-44 run is
+  for every pre-Phase-C run (2026-09-14):** the same-plant republish recipe is
+  dead for these two runs (the storage cell now mints an r13 provenance the
+  audit rejects against their r11 stage configs; it is in this file at commit
+  `20ab100`, `0.3.9`, kept as history until cleanup CU-17); the seed-44 run is
   widened into a new run instead and the seed-42 widen is superseded by the
-  fresh r13 run `20260914_123816` (the Phase C entry above), whose bundles carry the
-  `certification_panel` role from the start. Kept as history.** To
-  republish a bundle under the SAME plant, one would:
-  remove the run's `provenance.json` (a regenerated artifact — the manifest
-  may disagree only on those), set `RUN_ID` to the run and re-run the setup
-  and publication cells, which re-capture the provenance with the role under
-  the same run id and re-audit the stance panel against it. Replication is
+  fresh r13 run `20260914_123816` (the Phase C entry above), whose bundles
+  carry the `certification_panel` role from the start. Replication is
   writer-recorded from `LOG_BASE/<species>/<algo>/` siblings whose verdict
-  carries `gate_sha256`, so the seed-44 run counts as the certified run's
-  replicate (and vice versa) only once BOTH directories are re-backfilled
-  per the D-A22 inventory above and the counting run's publication cell is
-  re-run with the sibling present (a `partial` bundle is rebuilt; a
-  `complete` one regenerates its derived artifacts when the replication
-  record is the only change, and stays immutable in everything else). Until
-  then trex stance
-  publishes at n = 1 against `certification_seeds = 2` and the catalog
-  labels it provisional — which is the honest reading of KNOWN_ISSUES'
-  own 2 pass / 1 fail record. Overtaken for the r13 pair on 2026-09-21: the
+  carries `gate_sha256`. For the r13 pair (2026-09-21): the
   widened seed-44 run `20260920_010912` and the fresh seed-42 run
   `20260914_123816` share the r13 stance `task_sha256`, the seed-44 bundle
   records replication 2, and the seed-42 run's own records stay at
@@ -741,36 +634,31 @@ robustness, **LOW** = cosmetic / QoL.
   peaks at 7.77 against a `Box(-1, 1)` action space. Note `train/std` *fell*
   over the run (1.00 → 0.72) while empirical `action_std` nearly doubled: the
   policy is pushing its **mean** out of bounds, not widening its exploration.
+  The table predates the 2026-08-15 rename (CHANGELOG `[0.3.8]`): its
+  `action_saturation` row is the pre-clip quantity now named
+  `diagnostics/raw_action_saturation`, and `diagnostics/action_saturation` is
+  the env's filtered-command ramp fraction.
 
   **What this is not: the reward is not inflated.** SB3 clips before
   stepping the environment, so `_get_reward_info` receives an in-bound
-  action and both penalties are computed on it:
-
-  - SB3 `on_policy_algorithm.py:214-218` — `clipped_actions = np.clip(actions,
-    low, high)` immediately before `env.step(clipped_actions)`; `policies.py:379`
-    does the same inside `predict()`, which is what both eval loops use.
-  - `base_env.py:_scale_action` says so directly: "SB3 already clips before
-    stepping, but direct callers… would otherwise command out-of-range ctrl."
+  action and both penalties are computed on it (SB3
+  `on_policy_algorithm.py:214-218` clips immediately before `env.step`, and
+  `policies.py:379` inside `predict()`, which both eval loops use). So no
+  `min_avg_reward` gate needs re-deriving, no historical reward comparison is
+  invalidated, and the `r ∝ w^-0.16` smoothness fit in
+  [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) stands (an earlier
+  version of this entry claimed the energy term was inflated ~3.8×
+  (~209/episode, ~7.9% of return) and the fit unsound; retracted by the
+  2026-07 T-Rex telemetry review, whose full retraction is in this file at
+  commit `20ab100`).
 
   **The metric hazard.** `action_mean`, `action_std`, `action_abs_max`,
   `action_abs_mean` and `raw_action_saturation` come from
   `DiagnosticsCallback._on_step`'s read of `self.locals["actions"]` — SB3's
-  **pre-clip** Gaussian sample. `action_delta` arrives by a different route:
-  it is returned by `reward_action_smoothness` from *inside* the env, so it is
-  computed on the **post-clip** action. Five scalars in one namespace describe
-  the policy's raw output; the sixth describes what the plant received.
-  Reading the group as one space is an easy and consequential mistake.
-  It was briefly sharper than that: the 2026-08-10 shaping pack gave the env
-  an `action_saturation` info key (the ramp fraction behind
-  `reward_action_saturation`, measured on the filtered command the plant
-  integrates), and the callback recorded its pre-clip 0.99-threshold fraction
-  under the **same** `diagnostics/action_saturation` key later in the same
-  rollout-end pass, silently overwriting the env's value every rollout. Fixed
-  2026-08-15 by renaming the callback's metric to
-  `diagnostics/raw_action_saturation`; `diagnostics/action_saturation` is now
-  unambiguously the env's. The table above predates the rename — its
-  `action_saturation` row is the pre-clip quantity now named
-  `raw_action_saturation`.
+  **pre-clip** Gaussian sample. `action_delta` is returned by
+  `reward_action_smoothness` from *inside* the env, so it is computed on the
+  **post-clip** action. Reading the group as one space is an easy and
+  consequential mistake.
 
   **What is real.** PPO stores the raw action and its `log_prob`, while the
   environment responds to the clipped one. With 68% of components saturated,
@@ -783,9 +671,7 @@ robustness, **LOW** = cosmetic / QoL.
 
   **Latent trap — now scoped to filter-free species.** `BaseDinoEnv.step`
   passes the raw `action` to `_get_reward_info` while `_scale_action` clips
-  separately on the way to `ctrl` (anchor on the function names; the line
-  numbers this paragraph used to carry rotted by ~250 lines in the August
-  rewrites). Harmless under SB3 today, but any direct
+  separately on the way to `ctrl`. Harmless under SB3 today, but any direct
   caller — a notebook, a custom rollout loop, a diagnostic script — is
   silently charged energy and smoothness penalties for magnitude the plant
   never sees. Since r11 this applies only to species with
@@ -793,15 +679,7 @@ robustness, **LOW** = cosmetic / QoL.
   `_filter_action` clips before the reward terms read the action, so the
   T-Rex's two paths already agree. Clipping once at the top of `step` for the
   filter-free species would close it everywhere and moves no fingerprint.
-
-  **Explicitly retracted.** An earlier version of this entry claimed the energy
-  term was inflated ~3.8× (~209/episode, ~7.9% of return) and that the
-  `r ∝ w^-0.16` smoothness fit in
-  [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) was therefore unsound.
-  Both are wrong: the reward saw clipped actions, and `r` derives from
-  `action_delta`, which is post-clip and so is coupled to the physics. That
-  study stands, no `min_avg_reward` gate needs re-deriving, and no historical
-  reward comparison is invalidated. (2026-07 T-Rex telemetry review)
+  (2026-07 T-Rex telemetry review)
 
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
@@ -866,47 +744,36 @@ robustness, **LOW** = cosmetic / QoL.
   (#540/#541).** The 2026-09-17 review found that the pilots delivered new
   content (a direction controller, a tracking reward, a heightfield terrain
   generator, a replay recorder with terrain maps) beside every canonical
-  concept instead of through it: behavior env classes (two until PR-7 deleted
-  `TRexBehaviorEnv`) that bypass the
-  reserved `BaseDinoEnv._draw_episode_command` hook and write
-  `self._command` directly; a second PPO trainer
+  concept instead of through it: a behavior env class that bypasses the
+  reserved `BaseDinoEnv._draw_episode_command` hook and writes
+  `self._command` directly (consolidation PR-7 deleted the second,
+  `TRexBehaviorEnv`); a second checkpoint preparer
+  (`environments/shared/behavior_checkpoint.py`); a second PPO trainer
   (`environments/shared/train_behaviors.py`, one CPU env) with its own
   recipe dialect; 66 behavior TOMLs under `configs/<species>/behaviors/`
-  (11 templates × 6 species; the 8 trex `[pilot]` twins under
-  `configs/trex/behavior_pilots/` and the `[pilot]` dialect left with PR-6);
-  a second gate outside `GATE_KINDS` (`configs/behavior_certification.toml`,
-  judged by `judge_behavior_panel` and reached only from tests since PR-5
-  deleted its `certification/certificate.json` writer; never a
-  `gate_verdict.json`); a checkpoint identity keyed on source-file hashes (any
-  edit to `behavior_env.py` strands exact resume) — about 7,000 lines of
-  modules at 22c1fc8, tests excluded, with the notebook `COMMAND_TERRAIN_BEHAVIOR`
-  mode switch that 19 of the notebook's 22 code cells referenced (the certified library
-  left with PR-4/PR-5, the mode switch, its ten `BEHAVIOR_*` knobs and
-  `behavior_notebook.py` with the notebook-only PR-12 slice). Pilot outputs
+  (11 templates × 6 species); a second gate outside `GATE_KINDS`
+  (`configs/behavior_certification.toml`, judged by `judge_behavior_panel` and
+  reached only from tests; never a `gate_verdict.json`); a checkpoint identity
+  keyed on source-file hashes (any edit to `behavior_env.py` strands exact
+  resume) — about 7,000 lines of modules at 22c1fc8, tests excluded, with the
+  notebook `COMMAND_TERRAIN_BEHAVIOR` mode switch that 19 of the notebook's 22
+  code cells referenced. Pilot outputs
   (`logs/<species>/ppo/behaviors/<behavior>/<run-id>/`) are evaluation-only
   (decision D-D9): none is reusable through `find_certified_ancestor` or
-  carried forward as a training parent. The fold-back — manifest nodes
-  under `locomotion`, the controller as the body of the reserved hook, one
-  generic opt-in terrain env subclass, a registered gate kind, the library,
-  the mode switch and the second trainer deleted — is
+  carried forward as a training parent. The fold-back — manifest nodes under
+  `locomotion`, the controller as the body of the reserved hook, one generic
+  opt-in terrain env subclass, a registered gate kind, the second trainer
+  deleted — is
   [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md)
-  PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13
-  (PR-3, bounding the SB3 CI job, landed as #546; PR-4, the canonical library
-  wrapper and the notebook's library knobs, landed as #547; PR-5, the
-  certified library and the trainer's library path, landed as #548; PR-6, the T. rex
-  pilot recipes, the `[pilot]` dialect and the trex shim, landed as #549;
-  the notebook-only PR-12 slice, the notebook's direction/terrain mode and
-  `behavior_notebook.py`, landed as #552 on 2026-09-24; PR-14, split into
-  PR-14a, PR-14b and PR-14c (D-D15), landed as #553, #554 and #555 on
-  2026-09-24; PR-7, the ground-height hook and the deletion of
-  `TRexBehaviorEnv`, landed as #556 on 2026-09-25); PR-1 (#542), the
-  auto-trunk PR (#543) and PR-2 (#544) landed. Until PR-11 adds the follow and
-  terrain manifest nodes, the pilots run from the command line only
+  PR-3..PR-15, released 2026-09-20 in the notebook-first order of D-D13; its
+  status table says which of them have landed (the certified library, the
+  `[pilot]` dialect, the notebook mode switch with its knobs and
+  `behavior_notebook.py` are gone). Until PR-11 adds the follow and terrain
+  manifest nodes, the pilots run from the command line only
   (`python -m environments.shared.train_behaviors`, D-D13), with
   [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md) as the
   operator guide and an explicit `--checkpoint` / `--vecnormalize` pair in
-  every load mode and for evaluation (the certified library and
-  `SOURCE_SELECTION` left with PR-5).
+  every load mode and for evaluation.
   **Update (2026-09-28, gait audit):** the certificate has no contact
   criteria. Its rules (`configs/behavior_certification.toml`) are survival,
   success, commanded speed and yaw-rate tracking, settling and course
@@ -1597,7 +1464,7 @@ Still open:
   (:3-15), and its `deploy` job needs only the `build` job (`npm ci`, `tsc`,
   the site build) and the `main` ref (:72-78). A push with a hand-edited or
   stale `website/src/data/species.generated.json` therefore deploys while
-  python-ci's `species_catalog --check` (`python-ci.yml:122-125`) fails on the
+  python-ci's `species_catalog --check` (`python-ci.yml:127-130`) fails on the
   same commit, and `main` has no required checks
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.8 item 2). The
   workflow's comment (:7-11) leaves the wait to a required-checks setting, but

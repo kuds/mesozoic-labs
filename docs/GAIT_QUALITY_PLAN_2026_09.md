@@ -118,6 +118,10 @@ before any trunk stands in for it (unless the run already holds it as an `ancest
 notebook's RESUME cell walks a node's periodic checkpoints through the library and no longer evaluates the node it
 trains, which the chain loop's JUDGE branch evaluates from disk before anything certifies it, and the archive-load
 preflight is one library call; CU-17, the last of the deferred PRs, is next.*
+*Updated 2026-10-04 (cleanup CU-17): from CU-17 on, the cleanup's and the consolidation's landings are recorded
+only in the consolidation plan's status table and the CHANGELOG (the one-landing-record rule,
+[README.md](README.md#conventions)), so this section takes no further landing notes; the order is the cleanup
+plan's §3.1 item 5, then consolidation PR-8, with the code PRs placed as §6 says.*
 
 ## 2. Decisions needed
 

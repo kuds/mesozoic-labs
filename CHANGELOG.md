@@ -33,6 +33,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the list of changes that need the catalog regenerated. The species
   READMEs, ROADMAP and RL_TRAINING_PLAN link the catalog page; the catalog
   JSON is unchanged, and no digest moves.
+- **A PR's landing is recorded once, in the consolidation plan's status table
+  and in the PR's CHANGELOG entry** (cleanup CU-17 of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-04; the maintainer's ruling of
+  2026-10-02). A `docs/README.md` convention states the rule, which governs
+  landings from CU-17 on, and `test_landing_records.py` fails a landing record
+  of a later PR anywhere else in the living docs. The consolidation plan's
+  landed sections (PR-1..PR-7, the notebook-only PR-12 slice, PR-14a..PR-14c)
+  point to their full text at commit `20ab100` (`0.3.9`); NEXT_STEPS.md's
+  section 1 narrative, "Landed on `main`" table, notebook history and section
+  5 restatement of the decisions, the consolidation plan's §4 notebook-size
+  narrative and the cleanup plan's header chronicle and §1 items 1 and 2 point
+  to `ace8112`; the cleanup plan keeps its §3.1 records as the cleanup's
+  history. Moved first, as their only copies: PR-4's reproducibility note and
+  PR-7's parity reason (with a dated correction) into their status rows, and
+  NEXT_STEPS.md section 5's operational choices of 2026-09-20, the
+  coverage-floor rule among them, into its §8. PR-15's goal is restated
+  without its done and stale items, and the conventions NEXT_STEPS.md copied
+  live once, in `docs/README.md`. Six KNOWN_ISSUES entries over 40 lines drop
+  history and dead recipes kept elsewhere (PLANT_CONTRACT.md's widening
+  section, the released CHANGELOG, the status table, or the file at
+  `20ab100`); every measurement stays in its entry, and no entry is renamed or
+  closed. `CONTRIBUTING.md` and `results/README.md`, which the check scans,
+  join both path filters of `python-ci.yml`, so a pull request that edits only
+  one of them runs it. Docs, one test and those two filter entries; no digest
+  moves.
 - **The SB3 notebook's resume walk and archive-load preflight are library
   functions, and the RESUME cell no longer evaluates the node it trains**
   (cleanup CU-6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-6

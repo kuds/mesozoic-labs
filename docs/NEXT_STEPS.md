@@ -1,14 +1,12 @@
 # Next steps and program state (2026-10-04)
 
-**Status**: living reference — updated 2026-10-04; `main` = `d38c785` (#591 merged 2026-10-03 18:12 UTC).
+**Status**: living reference — updated 2026-10-04. Landing status is not kept here (section 1).
 
 Read this first when starting a new session on the behavior-recipes program: what
-has landed, what is certified on Drive, which training sessions to run next, where
-the consolidation stands, and which decisions bind. Repository facts were verified at
-`22c1fc8` and updated through #549 (`25132fc`); Drive facts date from the 2026-09-17
-survey ([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md))
-plus the section 3 session results recorded since, and the maintainer's decisions
-from 2026-09-17, 2026-09-20 and 2026-09-23.
+is certified on Drive, which training sessions to run next, what the consolidation
+has left, and which decisions bind. Drive facts date from the 2026-09-17 survey
+([investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md))
+plus the section 3 session results recorded since.
 Companions: [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) (design of
 record), [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) (per-PR
 sequence, file lists, rationale), [KNOWN_ISSUES.md](KNOWN_ISSUES.md). Update this
@@ -18,108 +16,23 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-04** (`main` = `d38c785`). The backend retirement is complete:
-PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
-only training backend (D-D17). The cleanup is **not** complete, but
-D-D21's 0.3.9 gate has landed: no gate name remains
-([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3), and the
-0.3.9 cut landed as #584 on 2026-10-02; the maintainer tagged its first
-commit, `20ab100`, as `0.3.9` and published it as a GitHub pre-release, so
-0.3.9 is the clean base, and `main` reads `0.4.0.dev0`. CU-2 (the
-`render_mode="human"` crash and the 0.01 s control step
-that stage summaries built from `evaluations.npz` assumed) landed as #568 on
-2026-09-29, and CU-4 (one notebook-cell reader for the tests and CI's
-notebook check, the four duplicated library-only pins deleted, shared test
-helpers) as #569 the same day, and CU-14b (the plant identity cached per process
-and species, the first part of CU-14) as #570 the same day; the same eight names
-remained after it, since CU-14 stayed open until CU-14a landed (#581,
-below). CU-7a (the dead code, the
-unread gym entry points, the package re-exports that made `import environments`
-load SB3, and the MJX probe's one-root check that closes the quadruped-detection
-MEDIUM) landed as #572 on 2026-09-30; with CU-7b (below), CU-7 is complete. CU-11
-(the reward, info and termination golden: a `reward` section of the digest
-snapshot, and `--exact` for a same-machine A/B), the last PR of wave 1, landed
-as #573 on 2026-09-30, which completes wave 1. CU-9 (the certification scripts
-and harnesses counted toward coverage), the first PR of wave 2, landed as #574
-on 2026-09-30, CU-5 (the SB3 notebook's stale text and dead parameters, and
-one budget derivation), the second, as #575 the same day, and CU-7b (the
-retired-backend wording that PR-A, PR-A2 and PR-B left in code, the fingerprint
-comment and the stage-TOML comments that mentioned JAX or MJX; no digest
-moved), the third, as #576 the same day, which completes CU-7. CU-16a (the
-docs text of CU-16: the gap review's status appendix, its open findings moved
-to KNOWN_ISSUES, and the living-doc corrections), the last of wave 2, landed
-as #577 the same day, which completes wave 2. CU-16b (eleven orphan asset
-files deleted, the apex GIFs kept by the maintainer's choice, and the landing
-page's milestones corrected), the first of wave 3, landed as #578 the same
-day, which completes CU-16. CU-8a (one stage-level task-fingerprint helper
-that every derivation site calls, one backend constant, and a public
-ignored-edits check that ends a crash in the notebook's chain loop), the
-second, landed as #579 on 2026-10-01; CU-8 stayed open until CU-8c landed (#583, below). CU-12 (the
-four dual species share `BaseDinoEnv`'s reward-term, contact,
-termination-prefix and keyframe helpers; no number moves, only their behavior
-identities), the third, landed as #580 the same day, which completes CU-12.
-CU-14a (six test jobs instead of eighteen, one path list, no duplicate
-steps, and the robot's six real-training runs left to the nightly schedule),
-the last of wave 3, landed as #581 the same day, which completes CU-14 and
-wave 3; one gate name remained, CU-8. CU-8b (`policy_loading` owns the SB3
-import helper and the sidecar resolver), the first of wave 4, landed as #582
-the same day. CU-8c (one `stage_config.json` reader, one repository root, one
-sha256 pattern and one set of field validators), the second, landed as #583
-the same day, which completes CU-8 and D-D21's gate; the 0.3.9 cut
-landed as #584 on 2026-10-02 (tagged `0.3.9`), and its records PR as #586
-the same day. On 2026-09-29 the
-maintainer took D-D22 (the digest snapshot becomes a golden that CI checks,
-with the full harness run on pull requests; its own PR, ROW-16, builds it, before
-CU-7b, CU-8a, CU-12 and CU-13, and landed as #571 the same day), split CU-7, CU-8, CU-14 and CU-16 into parts
-that D-D21's gate names cover, and accepted the order of the rest of the gate,
-in four waves (the cleanup plan's §3.1 item 4). The same day the maintainer
-settled the cleanup plan's decision 10 (its §2 row 10, the `test-sb3`
-critical path) as (c) first, without a D-D id: CU-14b carries it out, and
-CU-14a decides (a), gating `test_compsognathus_training.py` behind the depth
-switch, from the durations CU-14b's CI produces. On 2026-09-30 the maintainer
-settled (a) for the robot, also without a D-D id: pull requests and pushes
-skip its six real-training parametrisations, which the nightly schedule, a
-manual dispatch and the `full-ci` label still run; CU-14a carried it out (#581).
-CU-6, CU-10, CU-13, CU-15 and CU-17 are deferred, not dropped. On 2026-10-02
-the maintainer chose to finish them before consolidation PR-8 and the gait
-plan's code PRs; they go one PR at a time, in this order (the cleanup plan's
-§3.1 item 5): CU-10a (the curriculum horizon fix), CU-13 (`extends` for
-recovery ← stance), CU-15 (reduced: the Drive summary's bootstrap and reader
-tests), CU-10b (the curriculum's stage body on a helper shared with `train()`,
-and `eval_env_seed`), ROW-4/6 (the notebook PR for the cleanup plan's
-decisions 4 and 6, which the maintainer took the same day), CU-6 (the resume
-slice) and CU-17 (the docs shrink); if ROW-4/6 is not ready when CU-10b
-merges, CU-17 takes its slot. CU-10 is split into CU-10a and CU-10b, and
-CU-10a landed as #587 the same day: the command-line curriculum judges a
-`stance_quality/v1` stage at an overridden `env.max_episode_steps`. CU-13
-landed as #588 the same day: the three recovery stages inherit their stance's
-`[stage]`, `[env]` and `[ppo]` (the compsognathus pair its `[sac]` too)
-through a per-table `extends`, the form of D-D5's amendment of 2026-10-02
-([section 5](#5-decisions-taken-2026-09-17)), and every resolved stage config
-is byte-identical. CU-15 (reduced) landed as #589 on 2026-10-03: the Drive
-summary notebook checks out `REPO_REF` with the SB3 notebook's Git block,
-mounts Drive and installs the package only when needed, and an executed test
-reads runs in today's layout through its reader cells. CU-10b landed as #590
-on 2026-10-03, which completes CU-10: `train()` and the command-line
-curriculum train a stage through one shared body, whose evaluation
-environment's seed is `eval_env_seed(seed)`, and CLI curriculum runs now seed
-model construction and record each node's duration, as D-D11's amendment of
-2026-10-03 says ([section 5](#5-decisions-taken-2026-09-17)). ROW-4/6 landed
-as #591 on 2026-10-03: the chain loop judges a node the run trained but never
-judged before it consults the trunk (decision 6 (b)), and the resolve cell
-records the trunk in the run's `trunk_run.json`, which the RESUME cell checks
-a resume against (decision 4 (a)); its amendments to D-A17, D-C13, D-A25,
-D-D15 and D-D16 are dated notes, not D-D rows (D-D15's and D-D16's in
-[section 5](#5-decisions-taken-2026-09-17)). CU-6 is carried out: the RESUME
-cell's periodic-pair walk and the archive-load preflight are library functions
-(`curriculum.newest_intact_periodic_pair` and
-`policy_loading.sb3_archive_load_preflight`), and the RESUME cell no longer
-evaluates the node it trains, which the chain loop's JUDGE branch evaluates
-from disk next in the same Run all, as D-D7's amendment of 2026-10-03 says
-([section 5](#5-decisions-taken-2026-09-17)). CU-17, the last of the deferred
-PRs, is next, then PR-8. The consolidation's PR-8, PR-9, PR-10, PR-11, the
-rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9, after the deferred
-cleanup ([section 4](#4-consolidation-the-remaining-prs)).
+Landing status (which PR landed, as what number, when, with what CI result) is
+kept in two places only: the status table of
+[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md), whose "Cleanup
+and backend retirement" row carries the cleanup's PRs, and each PR's entry in
+[CHANGELOG.md](../CHANGELOG.md) (the one-landing-record rule of
+[README.md](README.md#conventions), since cleanup CU-17). The cleanup plan's §3.1
+keeps the cleanup's records up to CU-17 as its history. This section's landing
+narrative and its "Landed on `main`" table (#528 .. #591, with the CI
+measurements of most PRs from #546 on), as they stood before CU-17, are at
+commit `ace8112`: `git show ace8112:docs/NEXT_STEPS.md`.
+
+In order: 0.3.9 (`20ab100`) is the clean base release (D-D21), and
+Stable-Baselines3 is the only training backend (D-D17); the deferred cleanup
+(the cleanup plan's §3.1 item 5) comes before consolidation PR-8..PR-15
+([section 4](#4-consolidation-the-remaining-prs)) and before the gait plan's
+code PRs; the training sessions are [section 3](#3-recommended-training-sessions).
+
 The gait audit of 2026-09-28
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md))
 replayed every certified node on Drive: three of the five certified walkers
@@ -134,166 +47,51 @@ No locomotion gate reads a foot contact.
 (floor-truth gait measurement, per-episode gait gates, per-species reward
 revisions) and puts all of its code after the 0.3.9 cut and, by the
 maintainer's choice of 2026-10-02, after the deferred cleanup; every one of
-its decisions (GQ-1..GQ-18) is open. The audit and the plan landed as #567,
-the plan's docs-only PR-G0, outside D-D21's gate. Section 2 labels each
+its decisions (GQ-1..GQ-18) is open. The audit and the plan came with the plan's
+docs-only PR-G0, outside D-D21's gate. Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
 
-### Landed on `main` (all merged since 2026-09-12)
+The notebook ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb)) is the one SB3 training
+notebook; the consolidation plan's §4 maps its cells. Its sizes from consolidation PR-3 on are in the
+consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; the earlier ones (at `22c1fc8` and
+after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
-| PRs | Merged | What landed |
-|---|---|---|
-| #528–#531 | 2026-09-12 | Recipes Phase A: manifest v2, edge-keyed orchestration, per-deliverable publication, `gate_verdict.json`, `ancestors/` records, the notebook chain loop |
-| #532–#536 | 2026-09-13 | Phase B: gate-configuration digest + reuse rule 7 + `backfill_gate_verdict --gate`; the `task_success/v1` hunting gate; seed replication as provenance; decisions D-B1–D-B17 (#536) |
-| #537–#539 | 2026-09-13/14 | Phase C: the 3-dim command segment on all six species, `command_frame.py`, `widen_checkpoint.py`, the notebook `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs; decisions D-C1–D-C17 |
-| #540, #541 | 2026-09-15 | T. rex direction-following and randomized-terrain pilots; all-species terrain behaviors and the certified library — a **separate pipeline** beside the recipes machinery (next paragraph) |
-| #542 | 2026-09-16 | `PUBLISH_CERTIFIED` notebook default flipped to `False` (consolidation PR-1): library publication required a training-origin stamp a widened root handoff lacks, so a `WIDEN_FROM` session would have disconnected the Colab runtime right after the stance passed its gate |
-| #543 | 2026-09-16 | Automatic trunk selection, decision D-A25: `environments/shared/ancestors.select_trunk`, notebook `TRUNK_FROM = "auto"` default, CLI `curriculum --trunk-from auto`. Canonical chains no longer consult the certified library; widen sessions select no trunk |
-| #544 | 2026-09-19 | Consolidation PR-2: this file, the consolidation plan, the Drive survey note, decisions D-D1..D-D12 and G1..G4 in the plan's §6.2, the docs index and CHANGELOG |
-| #545 | 2026-09-19 | The version-safe SB3 archive loader (`policy_loading.load_sb3_model`; picklable `LinearSchedule` / `CosineSchedule`; the widen tool re-states parent schedules) and the notebook's archive-load preflight cell before the widen cell, after two widen sessions died on the Python 3.13 image (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them") |
-| #546 | 2026-09-20 | Consolidation PR-3: the bounded `test-sb3` job (one real-PPO smoke per body of work on pull requests and pushes; the six-species and four-notebook-parameter sets nightly at 05:17 UTC, on `workflow_dispatch` and under the `full-ci` label, which now starts a run when added); the widened-root bundle-write fix (a null `best_eval_reward` for a stage whose deliverable record names `widened_from_run_id`); decisions D-D11..D-D14 recorded. Measured on its CI: lean SB3 job 48:02, labelled full job 45:21, coverage 90 percent |
-| #547 | 2026-09-20 | Consolidation PR-4: `certified_canonical.py`, its test and `test_sb3_notebook_certified.py` deleted; the notebook loses the three library knobs, the stamp, copy and publish blocks (2,563 → 2,477 lines) and never publishes; a reused trunk ancestor is loaded from the run that certified it (A10); `certified_comparison.py` deferred to PR-5; `train_behaviors --auto-source` without `--resume` refuses |
-| #548 | 2026-09-20 | Consolidation PR-5: `certified_library.py`, `certified_comparison.py`, their tests, `test_behavior_publication.py` and `docs/CERTIFIED_MODELS.md` deleted; `train_behaviors` takes an explicit `--checkpoint` / `--vecnormalize` pair in every mode; the behavior certificate writer gone until PR-13 registers the gate kind; the notebook loses `SOURCE_SELECTION` (2,477 → 2,463 lines) and refuses blank source paths in the configuration cell; about −1,880 net code and configuration lines. Measured on its CI: SB3 job 46:12, JAX job 53:46, coverage 90 percent |
-| #549 | 2026-09-20 | Consolidation PR-6: `configs/trex/behavior_pilots/` (8 `[pilot]` TOMLs), its package-data line and the trex shim deleted; `read_recipe` reads `[behavior]` only and refuses a recipe without one; the six pilot aliases and the dead pilot-run schema reader gone; `mesozoic.trex-command-terrain/v1` stays accepted until PR-7 deletes its emitter; −256 net code and configuration lines. Measured on its CI: SB3 job 34:49, JAX job 52:42, coverage 90 percent |
-| #551 | 2026-09-23 | The collapse-backstop fix outside the consolidation sequence: `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M), with replay tests on session 4's evaluation series and no digest moved; session 4 recorded; KNOWN_ISSUES gains three entries (a complete run cannot take a new node in place, an invisible early stop, the gait-symmetry statue payment); a truth pass over the living docs; the consolidation pause lifted. Measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent |
-| #552 | 2026-09-24 | Consolidation PR-12, the notebook-only slice (D-D13): the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, six behavior cells and 15 guard sites gone (2,463 → 2,329 lines), `behavior_notebook.py` and its test deleted, `train_behaviors.py` the pilots' command-line path until PR-11; −996 code, test and CI lines. It carried the curves-cell fix (a completed "Run all" reaches the auto-disconnect again; 2,330 lines) and recorded the Drive cleanup of the three session bundles. Measured on its CI: SB3 job 47:56, JAX job 31:40, coverage 90 percent |
-| #553 | 2026-09-24 | Consolidation PR-14a, the storage path (D-D15): the widen cell, `WIDEN_FROM`, `WIDEN_MAX_REVISION_GAP` and `select_trunk(widen_from=)` gone (D-D14), the widen seed and trunk rules kept as on-disk refusals in the storage and resolve cells; `RUN_ID` a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo; a session that would judge or train a node into a complete run refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the chain loop, manual and resume cells guarding the same write; notebook 2,330 → 2,271 source lines; code +380 / −20 and tests +894 / −680, most of it the new SB3-free `result_bundle/reentry.py` and its tests. Measured on its CI: SB3 job 41:45, JAX job 51:40, coverage 90 percent |
-| #554 | 2026-09-24 | Consolidation PR-14b (D-D15): `disconnect_runtime`, a new `halt` and `display_stage_videos` move from the notebook into the SB3-free `environments/shared/notebook_runtime.py` with explicit knobs (the chain loop's gate refusal calls `halt`); videos play through IPython's `Video`, embedded, autoplaying and looping as before; the random-baseline cell is deleted; the zero-action cell's body moves into `zero_action_baseline.preflight()` (payload and run copy byte-identical); notebook 2,271 → 2,079 source lines; code +183 / −1, tests +245 / −50. Measured on its CI: SB3 job 47:15, JAX job 53:07, coverage 90 percent |
-| #555 | 2026-09-24 | Consolidation PR-14c (D-D7, D-D11, D-D15): the notebook's `train_stage` becomes a 105-line wrapper over `train_base.train` (was a 384-line copy), which gains `parent_run_id`, `vecnorm_path`, `report_metrics` and `save_on_interrupt`, seeds model construction and records the D-A15 stage duration; `evaluate_stage_checkpoints` moves into `reporting/stage_artifacts.py`; the CLI panels, the task-success re-roll and Ray warm starts keep their seeds; notebook 2,079 → 1,492 source lines, code +356 / −31, tests +402 / −278 (code, tests and notebook net −138). PR-14 is complete. Measured on its CI: SB3 job 47:32, JAX job 35:43, coverage 90 percent |
-| #556 | 2026-09-25 | Consolidation PR-7 (D-D10): `BaseDinoEnv._ground_height_at` (the plane's 0.0) and `_clearance`, through which every species height reward, head/snout clearance and height termination reads (canonical plane rollouts bit-identical, `plant_contract --check` current); the behavior mixin overrides only `_ground_height_at`; `TRexBehaviorEnv` (497 lines) and the `mesozoic.trex-command-terrain/v1` schema deleted, the neck probe behind `TRexEnv._terrain_contact_probe_geoms`; the trex behavior tests fold into the shared suites over six species; behavior bundles trained before it are evaluation-only (D-D9); code +192 / −595, tests +1,016 / −1,039 (code, tests and CI net −427). Measured on its CI: SB3 job 47:09, JAX job 49:05, coverage 90 percent |
-| #558 | 2026-09-25 | The notebook-safety PR, outside the consolidation sequence (D-D16): the RESUME cell trains nothing for a node that holds a gate verdict or its final pair and refuses a spent budget without the final pair; `QUICK_TEST` runs move to `<algo>_quick_test/`, out of the trunk selection and a real run's replicate scan; the RESUME cell moves ahead of the chain loop, so a resume is `RUN_ID` + `RESUME_STAGE` + Run all, and the sections regroup. Its follow-up (D-D16 amended) landed as #559 (below). |
-| #557 | 2026-09-25 | The notebook follow-up to PR-7, outside the consolidation sequence: the RESUME cell resolves `RESUME_STAGE` through the manifest, so `"locomotion"` (which raised `KeyError`) and `2` resume the same node, and refuses a node off `BEHAVIOR`'s chain before training (the chain loop would never judge it); section 6 says which number it takes and adds the chain-loop step; the auto-trunk tie-break is described as the greatest run directory name (notebook, `--trunk-from` help, docstrings, website recipes page; D-A25 clarified) and the storage cell no longer calls a trunk a "finished bundle"; no selection or training change for a resume by number; notebook 1,492 → 1,515 source lines. Measured on its CI: SB3 job 30:24, JAX job 47:26, coverage 90 percent |
-| #559 | 2026-09-26 | The #558 follow-up, outside the consolidation sequence (D-D16 amended): the RESUME cell and the chain loop check the final pair like a periodic one through `curriculum.checkpoint_pair_problem`, so a final pair cut short is never judged (within one checkpoint cadence of the budget the RESUME cell resumes over it; further short, the node had stopped early and the cell refuses it as a new attempt); the run memo counts only in the tree `SPECIES`, `ALGORITHM` and `QUICK_TEST` select; a resume `RETRAIN_FROM` covers is refused and the route to resume such a node (`BEHAVIOR` set to it, then a fresh `RUN_ID` trunked from this run) is documented; the docs the post-merge reviews of #558 found wrong are corrected; notebook 1,557 → 1,599 source lines (33 cells, 17 code); no digest moves. Measured on its CI: SB3 job 46:51, JAX job 48:10 |
-| #560 | 2026-09-26 | The cleanup and backend retirement plan ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)), twelve new KNOWN_ISSUES entries (seven corrected) and the hand-run digest-snapshot harness (`environments/shared/harnesses/digest_snapshot.py`), outside the consolidation sequence; no library, training or digest change. The maintainer then took D-D17, D-D18 and D-D19 (section 5); its first follow-up, CU-1, landed as #561 (below) |
-| #561 | 2026-09-26 | Cleanup CU-1 (D-D18), outside the consolidation sequence: CI's SB3 job type-checks with SB3 and torch installed (mypy must report no errors; 23 type-only errors fixed with casts and annotations, the four in the SB3-absent diagnostics fallback with `# type: ignore`), one ruff and one mypy version is pinned in CI, pre-commit and the `dev` extra, pre-commit's hooks stay off the digest data files (MJCF sources, recipe TOMLs, manifests, calibrations), and every pytest step prints test ids, skip reasons and the slowest tests; D-D17..D-D19 recorded; no digest moves. Measured on its CI: SB3 job 48:54 (its mypy step: no issues in 359 source files), JAX job 51:20, coverage 90 percent |
-| #562 | 2026-09-26 | Cleanup CU-3 (D-D20), outside the consolidation sequence: on a Drive/GCS mount `train()` saves the final pair and the best and robust-best handoff pairs to local scratch and publishes them through `curriculum.publish_staged_pair`, and an empty placeholder takes the final zip's place before the final save begins, so a Colab reclaim leaves at worst an incomplete pair its readers reject (a handoff sidecar without its zip, or a final zip `checkpoint_pair_problem` rejects), never a truncated file or a mixed pair they accept, and D-D16's RESUME and chain-loop rules apply unchanged (off a mount nothing changes); `stage_config.json`, `metrics.json`, the stance reports, the three evidence CSVs and the `gate_resolution.json`, `task_fingerprint.json` and `plant_identity.json` sidecars are written through `file_io`'s new `atomic_write_json` / `atomic_write_csv` with their bytes unchanged; the handoff-pair KNOWN_ISSUES entry deleted; D-D20 and D-D17's amendment (PR-A2) recorded; no digest moves. Measured on its CI: SB3 job 47:57 (its mypy step: no issues in 361 source files), JAX job 50:05, coverage 90 percent |
-| #563 | 2026-09-27 | The CHANGELOG release cut (D-D19), outside the consolidation sequence: its first commit `afad625` sets `version = "0.3.8"` and dates `[0.3.8] - 2026-09-27`, `[0.3.2] - 2026-07-21` and `[0.3.0] - 2026-07-09`; its second opens a bare `## [Unreleased]` and sets `0.3.9.dev0`; #562 recorded as landed; no code, notebook, config or digest change. The maintainer tagged `afad625` as `0.3.8` (a lightweight tag) and published it as a GitHub pre-release on 2026-09-27. Measured on its CI: SB3 job 46:21 (its mypy step: no issues in 361 source files), JAX job 35:47, coverage 90 percent |
-| #564 | 2026-09-27 | Cleanup PR-A (D-D17), outside the consolidation sequence: Ray Tune, the Vertex AI tuning sweeps and mjlab removed (42 files, 13,222 lines, with `cloudml-hypertune`, the `[ray]` and `[mjlab]` extras and `visualization.plot_trial_comparison`); #563 and the maintainer's `0.3.8` tag recorded; the archive points settled with no archive tags; D-D21 recorded; no digest moves. Measured on its CI: SB3 job 47:01 (its mypy step: no issues in 334 source files), JAX job 39:11, coverage 91 percent. The run was at reduced depth because the `full-ci` label was missing; the full-depth selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's SB3 environment on `9369d6b` and passed |
-| #565 | 2026-09-28 | Cleanup PR-A2 (D-D17), outside the consolidation sequence: the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the `Dockerfile`, `.dockerignore`, `website/docs/training/vertex-ai.md`; 4 files, 957 lines) and GCS artifact upload (`curriculum --gcs-bucket` / `--gcs-project`, `config.upload_curriculum_artifacts`, the `gs://` branch of `write_results_csv`, the `[gcp]` extra) removed, with an end-to-end test of the command-line curriculum path (`test_curriculum_cli_end_to_end.py`, landed first and passing before and after); #564 recorded; the curriculum horizon defect logged in KNOWN_ISSUES for CU-10; no digest moves. Measured on its CI at `647ca1f` (the merge's tree): SB3 job 34:52 (its mypy step: no issues in 335 source files), JAX job 34:43, all 23 checks green, coverage 91 percent. The run was at full depth, with the `full-ci` label |
-| #566 | 2026-09-28 | Cleanup PR-B (D-D17), outside the consolidation sequence: the JAX/MJX runtime removed (30 files and 15,665 lines: the JAX trainer and evaluator modules, `jax_training.ipynb`, `website/docs/training/jax.md` and their tests; also the stage writer `save_jax_stage_artifacts`, the `[jax]` and `[jax-cpu]` extras, the `[jax]` tables of the 12 stage TOMLs, which `load_stage_config` now refuses, and the `test-jax-cpu` job); the 549-line frozen MJX interface core stays, pinned by `test_plant_contract_frozen_mjx.py`, and so do the readers of recorded JAX runs; #565 and session 6 recorded; D-D17's amendments appended to the decisions it changes; no digest moves. This completes the backend retirement. Measured on its CI at `c8b66a6` (the merge's tree): SB3 job 37:03 (its mypy step: no issues in 309 source files), no JAX job any more, the 22 CI jobs and the site build green (deploy skipped), coverage 91 percent. The run was at reduced depth because the `full-ci` label was missing; the full-depth selections (the 4 notebook-training parameters and the 12 behavior-training cases) were then run by hand in CI's SB3 environment on `2b9219d` and passed |
-| #567 | 2026-09-28 | Gait PR-G0 (docs only), outside the consolidation sequence and D-D21's gate: the 2026-09-28 gait audit ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md); replays of 15 nodes, every certified node on Drive among them, against floor-truth foot contact) with its evidence directory (the hand-run probe `gait_probe.py`, imported by nothing, a per-node CSV and `SHA256SUMS`), the gait-quality plan ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md); GQ-1..GQ-18 all open, every code PR after the 0.3.9 cut), ten KNOWN_ISSUES entries from the audit, each audited node's label in section 2, and the root README's certified-walker line and ROADMAP's gait-symmetry line corrected; #566 recorded; no library, training, configuration or digest change. Measured on its CI at `fcf9f2d` (the merge's tree): SB3 job 46:07 (its mypy step: no issues in 309 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work: docs only, without the `full-ci` label), and no full-depth selection was run by hand, since nothing but docs and the hand-run probe changed |
-| #568 | 2026-09-29 | Cleanup CU-2 (in D-D21's gate), outside the consolidation sequence: `render_mode="human"` loads `mujoco.viewer` itself (it raised `AttributeError` on the first step, so `train_sb3.py eval` without `--no-render` crashed) and aims the viewer's camera under the viewer's lock, through one camera helper shared with `_make_camera`; `generate_stage_artifacts`, when it builds a node's results from `evaluations.npz`, takes the node's own control step (0.02 s for the compsognathus pair) instead of 0.01 s; both KNOWN_ISSUES entries deleted, and one LOW added for the other 0.01 s fallback (a node re-entered from its own `gate_verdict.json`; no cleanup PR owns it yet); #567 recorded; no digest moves. Measured on its CI at `d8ea2a6` (the merge's tree): SB3 job 37:11 (its mypy step: no issues in 309 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-2 changes no training, configuration or digest input |
-| #569 | 2026-09-29 | Cleanup CU-4 (in D-D21's gate), outside the consolidation sequence: one standard-library notebook-cell reader, `environments/shared/tests/notebook_cells.py`, replaces the 16 notebook-extraction sites in nine test files and CI's inline notebook check (the lint job runs it by path); `test_notebook_cells.py` adds a notebook import-resolution check, and the canonical-JSON pin covers both notebooks; the four duplicated library-only pins deleted, each with a twin in the shared matrix (the cleanup plan's decision 9, amended); `ancestors_helpers.py`, `result_bundle_helpers.py` and `tiny_env_helpers.py` replace the test-to-test imports and the eight TinyEnv copies; #568, D-D22, D-D21's amendment (CU-7, CU-8, CU-14 and CU-16 split into parts) and the order of the rest of the gate recorded; its code touches tests, test helpers and the lint step only (25 files, +726 / −642); no digest moves. Measured on its CI at `9d8b53f` (the merge's tree): SB3 job 48:37 (its mypy step: no issues in 313 source files), all 22 CI jobs green, coverage 91 percent; the lint job's new step, `python environments/shared/tests/notebook_cells.py`, printed "all notebook code cells parse"; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-4 changes no training, configuration or digest input |
-| #570 | 2026-09-29 | Cleanup CU-14b (in D-D21's gate, the first part of CU-14; the cleanup plan's decision 10 (c)), outside the consolidation sequence: `current_plant_identity` keeps one build per process and species, reused only while its cache key (the species entry, the plant versions, the repository root, the model path, the source-closure digest, the environment class and the MuJoCo version) is unchanged and the policy layer, re-run on a fresh environment, still matches; the `verify_generated` comparison with the committed manifest runs on every call, and the manifest build and CI's `--check` never read the cache; a review fix checks the compiled physics of every env `config.build_env` builds; #569, decision 10 (c) and CU-14b recorded; no digest moves. Measured on its CI at `e62ce6d` (the merge's tree): SB3 job 17:31 (its mypy step: no issues in 314 source files; its three pytest steps 879 s, against 2,731 s at #569), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-14b changes no training, configuration or digest input |
-| #571 | 2026-09-29 | Cleanup ROW-16 (D-D22, outside D-D21's gate), outside the consolidation sequence: the digest-snapshot harness's full output, 848 lines, is committed as `configs/digest_snapshot.generated.txt`, and the plant-contract job's new step, "Verify the digest snapshot golden", runs the full harness with `--check` on every event, so a change that moves only behavior identities fails its own pull request; the harness gains `--check [PATH]` and `--write [PATH]`; `test_plant_contract_digest_snapshot.py` pins the step, the golden's shape and the `--check`/`--write` wiring; `.gitattributes` joins both path filters; #570 recorded; no digest moves. Measured on its CI at `6ae87e4` (the merge's tree): the new step took 50 s and reported the golden current (848 lines, 0 errors), and the plant-contract job's pytest step passed 186 tests; SB3 job 13:09 (its mypy step: no issues in 316 source files), all 22 CI jobs green, coverage 91 percent; the site build passed. The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); ROW-16 changes no training, configuration or digest input |
-| #572 | 2026-09-30 | Cleanup CU-7a (in D-D21's gate, the first part of CU-7), outside the consolidation sequence: the dead code (14 functions and constants, with the 13 tests that covered only them), the unread gymnasium entry-point groups, the package re-exports that made `import environments` load SB3, torch and wandb, `imageio` in the `viz` extra, and the MJX probe's one-root check that closes the quadruped-detection MEDIUM; #571 recorded; no digest moves. Measured on its CI at `79af481` (the merge's tree): the digest step took 50 s and reported the golden current (848 lines, 0 errors), and the plant-contract job's pytest step passed 187 tests; SB3 job 17:30 (its mypy step: no issues in 316 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-7a changes no training, configuration or digest input |
-| #573 | 2026-09-30 | Cleanup CU-11 (in D-D21's gate, the last PR of wave 1), outside the consolidation sequence: the digest snapshot gains a `reward` section, four lines for each of the 21 stages (a summary, the ends of the posed states, a digest of the discrete records and one of every value rounded to 6 decimals) from a fixed capture (a noisy roll that ends in a held kick, an unseeded second reset, zero action through the pushes of the recovery stages, one-step probes and twelve posed states), which CI's existing digest step checks, and `--exact`, bit-exact digests of the same captures and of every behavior recipe's for a same-machine base/head diff; the first 848 lines of the golden are unchanged; #572 recorded; no existing digest moves. Measured on its CI at `d4496a5` (the merge's tree): the digest step took 73 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 17:47 (its mypy step: no issues in 316 source files), all 22 CI jobs green, coverage 91 percent; no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-11 changes no training, configuration or digest input |
-| #574 | 2026-09-30 | Cleanup CU-9 (in D-D21's gate, the first PR of wave 2), outside the consolidation sequence: coverage's blanket `*/scripts/*` and `environments/shared/harnesses/*` omits become 21 named entries (30 files), each with its reason, so the recovery gate's freeze producer, `widen_checkpoint.py`, `backfill_gate_verdict.py`, the recovery calibration scripts and the statue baselines count toward `fail_under = 70`; `digest_snapshot.py` stays omitted by name; `test_coverage_config.py` pins the list and that no other coverage setting takes a file out of the union; `brace_controller` moves to `recovery_evaluation.py`, which breaks the freeze producer's import cycle; CONTRIBUTING says what coverage counts; #573 recorded; no digest moves. Measured on its CI at `8465ace` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 13:47 (its mypy step: no issues in 317 source files), all 22 CI jobs green, coverage 88 percent (19,626 statements, 2,405 missed, as measured locally; 91 percent before); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-9 changes no training, configuration or digest input |
-| #575 | 2026-09-30 | Cleanup CU-5 (in D-D21's gate, the second PR of wave 2), outside the consolidation sequence: the SB3 notebook's markdown goes from 223 to 111 source lines, keeping every pinned phrase and D-D16 rule, and a new pin reads the resume recipe's trunk-recovery and D-D16 text; the quote of a deleted `configs/trex/stance.toml` comment, "all four" species (there are six), a stale "review F3" note and the chain loop's branch labels (now 1 REUSE, 2 JUDGE, 3 TRAIN) are fixed; the plotting wrappers' dead parameters, `write_training_summary`'s `species=None` and `save_run_bundle`'s `run_dir=None` go, and `train_stage`'s `run_dir` is required; `node_budget()` is the one budget derivation of the chain loop, the RESUME cell and the manual cell (33 cells, 17 code, 1,599 → 1,468 source lines; the notebook pins grow from 115 to 119 tests); #574 recorded; no library, configuration or digest change. Measured on its CI at `a57a967` (the merge's tree): the digest step took 71 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 195 tests; SB3 job 17:07 (its mypy step: no issues in 317 source files), all 22 CI jobs green, coverage 88 percent (19,626 statements, 2,405 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work): the PR asked for the `full-ci` label, which was not applied, so the notebook-training step ran one case (`[ppo-compsognathus_robot]`); the full-depth run (4 cases) passed locally |
-| #576 | 2026-09-30 | Cleanup CU-7b (in D-D21's gate, the second and last part of CU-7 and the third PR of wave 2), outside the consolidation sequence: the sweep, HPT, Ray Tune, Vertex, GCS, JAX and MJX wording that PR-A, PR-A2 and PR-B left in code comments, docstrings and log messages describes the code as it is (the post-training logs read `Recorded metric:` and `Post-training eval:`, and a failed TensorBoard sync names the remote mount); the task-fingerprint comment counts five species constructors; the stage-TOML comments that mentioned JAX or MJX are reworded in place, every key, value and line count unchanged; the species catalog drops its check of the deleted `jax_training` notebook; a new test, `test_retired_tuning_wording.py`, fails any line of the library, the tests, the stage configuration, the SB3 notebook or the build and CI files that names Vertex, Ray or HPT without marking it retired; the byte-hashed species env files keep their MJX comments; #575 recorded; no digest moves (50 code files, +372 / −239). Measured on its CI at `862bf7c` (the merge's tree): the digest step took 69 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests (195 and the new catalog test); SB3 job 15:25 (its mypy step: no issues in 318 source files), all 22 CI jobs green, coverage 88 percent (19,625 statements, 2,404 missed); no site build ran (the website was untouched). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-7b changes no training, configuration value or digest input |
-| #577 | 2026-09-30 | Cleanup CU-16a (in D-D21's gate, the first part of CU-16 and the last PR of wave 2), outside the consolidation sequence: `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` gains an appended status appendix for all 120 of its ids (78 fixed, 16 fixed and then retired with their code by D-D17, 9 retired without a fix, 3 fixed with a residue, 6 duplicates, 8 open); the eight open findings, the three residues and WEBSITE_PLAN's logo size move into KNOWN_ISSUES, each re-checked against the code; the living docs the CU-16 row names are corrected (the API overview's six env ids, the backfill tool's module path, the dated plan headers, ROADMAP and the README, the sentences that said pilot or certificate data is on Drive, and the docs text CU-7b left); the CHANGELOG corrects the 0.3.8 `Images/` entry; #576 recorded; docs only, no digest moves (the docs commit 18 files, +355 / −42; the review follow-up 6 files, +96 / −42). Measured on its CI at `5d4594f` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 10:42 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16a changes no code, configuration or digest input |
-| #578 | 2026-09-30 | Cleanup CU-16b (in D-D21's gate, the second and last part of CU-16 and the first PR of wave 3), outside the consolidation sequence: eleven files that no page, configuration or code named are deleted (2,089,577 bytes: the three `raptor_stage*.mp4` videos and their posters, four icons nothing linked, and `compsognathus/data/robot_camera_view.png`), the two apex GIFs stay by the maintainer's choice, and the landing page's roadmap follows ROADMAP (Phases 2 and 3 in progress, terrain and turning piloted); #577 recorded; no digest moves (the change commit 14 files, +12 / −10 in text, and the 11 binaries). Measured on its CI at `cca1881` (the merge's tree): the digest step took 72 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 17:20 (its mypy step: no issues in 318 source files), all 22 CI jobs and the site build green (deploy skipped), coverage 88 percent (19,625 statements, 2,404 missed). The run was at reduced depth (one real-PPO smoke per body of work, without the `full-ci` label); CU-16b changes no training, configuration value or digest input; CU-16 is complete |
-| #579 | 2026-10-01 | Cleanup CU-8a (in D-D21's gate, the first part of CU-8 and the second PR of wave 3), outside the consolidation sequence: `task_fingerprint.stage_task_fingerprint` is the one stage-level helper every site that derives a task fingerprint calls (training, the curriculum walk, `select_trunk`, the recovery freeze, calibration and restamp, `widen_checkpoint` and the notebook's chain loop), `FINGERPRINT_BACKEND` is defined once, and the ignored-edits check is public as `config.ignored_hyperparameter_edits`, which ends a crash in the notebook's chain loop; #578 recorded; no digest moves (the code commit 16 files, +633 / −177). Measured on its CI at `914e256` (the merge's tree), with the `full-ci` label: the digest step took 54 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 13:11 (its mypy step: no issues in 319 source files), the notebook training at full depth 4 passed and the behavior training 12, all 22 CI jobs green, coverage 88 percent (19,631 statements, 2,403 missed); CU-8 stays open until CU-8c lands |
-| #580 | 2026-10-01 | Cleanup CU-12 (in D-D21's gate, the third PR of wave 3), outside the consolidation sequence: the four dual species (T. rex, velociraptor, Brachiosaurus and Dibothrosuchus) share `BaseDinoEnv`'s reward-term (`_progress_terms`, `_nosedive_term`, `_heading_terms`, `_speed_terms`), contact (`_contact_geom`), termination-prefix (`_root_termination`) and home-keyframe (`_cache_home_keyframe`) helpers, the foot forces use one summation order, `TRexEnv._foot_load_imbalance` is deleted and the MJX comments are reworded (PR-C folded in); #579 recorded; no number moves (`--exact` prints the same 32,389 lines on the base and the head), and the four species' behavior identities move with their files' bytes (the golden's 88 `behavior` lines, regenerated; their pilot behavior bundles stop certifying; the code commit 10 files, +866 / −671). Measured on its CI at `ed409dc` (the merge's tree), with the `full-ci` label: the digest step took 39 s and reported the golden current (932 lines, 0 errors), and the plant-contract job's pytest step passed 196 tests; SB3 job 22:15 (its mypy step: no issues in 319 source files), the notebook training at full depth 4 passed and the behavior training 12, all 22 CI jobs green, coverage 88 percent (19,505 statements, 2,388 missed); CU-12 is complete |
-| #581 | 2026-10-01 | Cleanup CU-14a (in D-D21's gate, the second and last part of CU-14 and the last PR of wave 3; the cleanup plan's decision 10 (a)), outside the consolidation sequence: the `test` matrix is three Pythons × {`shared`, `species`}, six jobs instead of eighteen, so CI runs 10 jobs instead of 22; the two triggers share one anchored path list; the matrix installs the `test` extra; the plant-contract job no longer re-runs its tests; `test_phase_c_interface.py` leaves the SB3 job; pull requests and pushes skip the robot's six real-training parametrisations of `test_compsognathus_training.py`, which the nightly schedule, a manual dispatch and the `full-ci` label still run; #580 recorded; no digest moves (the code commit 8 files, +214 / −110). Measured on its CI at `870830e` (the merge's tree), at reduced depth: exactly the ten new jobs, all green, in 9:50; the digest step took 55 s and reported the golden current (932 lines, 0 errors); SB3 job 8:09 (its mypy step: no issues in 319 source files; the integration step 1,174 passed, 10 deselected), coverage 88 percent (19,505 statements, 2,388 missed); CU-14 and wave 3 are complete |
-| #582 | 2026-10-01 | Cleanup CU-8b (in D-D21's gate, the second part of CU-8 and the first PR of wave 4), outside the consolidation sequence: `policy_loading` owns the SB3 import helper (`_ensure_sb3`), the periodic checkpoint pattern and the VecNormalize sidecar resolver, which keep their private names and stay importable from `train_base` as aliases; every library caller looks them up in `policy_loading` when called, and `resolve_vecnorm_path` no longer imports `train_base`, SB3 or torch; `KNOWN_ISSUES.md` records the final-checkpoint replay's raw observations when its sidecar is missing; #581 recorded; no digest moves (the code commit 14 files, +784 / −136). Measured on its CI at `08f7bdd` (the merge's tree), with the `full-ci` label: ten jobs, all green, in 22:22; the digest step took 73 s and reported the golden current (932 lines, 0 errors); SB3 job 21:29 (its mypy step: no issues in 319 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,204 passed, 4 deselected), coverage 88 percent (19,514 statements, 2,385 missed); one gate name remains, CU-8 |
-| #583 | 2026-10-01 | Cleanup CU-8c (in D-D21's gate, the third and last part of CU-8 and the second PR of wave 4), outside the consolidation sequence: one lenient `stage_config.json` reader (`config.read_recorded_stage_config`, over the new `file_io.read_json_object`) gives the nine lenient readers' answers, and `save_result_bundle`, `audit_result_bundle` and `validate_evaluation_evidence` refuse a record that is not UTF-8 with their own errors; one repository root (`environments/shared/paths.py`; `plant_contract.constants` binds it and stays the patch point); one sha256 pattern and one set of record field validators (`environments/shared/record_fields.py`), whose three regex copies go; `KNOWN_ISSUES.md` records the same non-UTF-8 leak on several of the run directory's other JSON reads; #582 recorded; no digest moves (the code commit 28 files, +1,605 / −243). Measured on its CI at `d1e5654` (the merge's tree), with the `full-ci` label: ten jobs, all green, in 22:43, finishing two minutes after the merge (its SB3 job was still in the integration step when the PR merged); the digest step took 38 s and reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped (192 new tests); SB3 job 21:56 (its mypy step: no issues in 324 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,204 passed, 4 deselected), coverage 88 percent (19,469 statements, 2,281 missed); CU-8 is complete, and D-D21's gate has landed |
-| #584 | 2026-10-02 | The 0.3.9 cut (D-D21), outside the consolidation sequence: its first commit `20ab100` sets `version = "0.3.9"`, dates `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup` and cites #583 in CU-8c's entry; its second opens a bare `## [Unreleased]` and sets `0.4.0.dev0`; #583 recorded as landed; merged with a merge commit, so `20ab100` keeps its SHA on `main`; no code, notebook, config or digest change. The maintainer tagged `20ab100` as `0.3.9` (a lightweight tag) and published it as a GitHub pre-release on 2026-10-02; the tag first pointed at the merge commit `fb9b2a7`, and the maintainer moved it and published the release again. Measured on its CI at reduced depth, on the tagged tree (`20ab100`) and on the head (`9356086`): ten jobs each, all green, in 15:17 and 11:26 (the first finished three minutes after the merge, its SB3 job still in the integration step when the PR merged); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped; SB3 job 14:26 and 10:37 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,198 passed, 10 deselected), coverage 88 percent (19,469 statements, 2,281 missed); the first push run on `main` passed with the same ten jobs; D-D21 is complete |
-| #586 | 2026-10-02 | The records of the 0.3.9 cut and its tag, outside the consolidation sequence, docs only (7 files, +112 / −61): #584 and the maintainer's `0.3.9` tag on `20ab100` recorded as landed, D-D21 complete; merged with a merge commit (`20b7c24`, whose tree equals the head's); no code, notebook, config or digest change. Measured on its CI at reduced depth, on the head (`f6bec14`, through its merge ref): ten jobs, all green, in 12:07, finishing 7 h 40 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,612 passed and 141 skipped; SB3 job 11:18 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,198 passed, 10 deselected), coverage 88 percent (19,469 statements, 2,281 missed); the first push run on `main` passed with the same ten jobs and counts, in 10:23 |
-| #587 | 2026-10-02 | Cleanup CU-10a (the first of the deferred PRs, in the order the maintainer chose on 2026-10-02), outside the consolidation sequence: `CurriculumCallback` takes an optional `eval_horizon`, which `train_curriculum` sets from the overridden stage config, so the command-line curriculum judges a `stance_quality/v1` stage at an overridden `env.max_episode_steps`; the KNOWN_ISSUES entry deleted; `## [Unreleased]` titled "Into the Wild (v0.4.0)"; #586, the maintainer's decisions of 2026-10-02 and the order recorded; merged with a merge commit (`c090150`, whose tree equals the head's); no digest moves (the change commit 6 files, +198 / −43; 13 files, +383 / −123 in all). Measured on its CI at reduced depth, on the head (`97acf97`, through its merge ref): ten jobs, all green, in 11:05, finishing 1 h 35 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,617 passed and 142 skipped; SB3 job 7:27 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,205 passed, 10 deselected), coverage 88 percent (19,473 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:28 |
-| #588 | 2026-10-02 | Cleanup CU-13 (the second of the deferred PRs), outside the consolidation sequence: the three recovery stage TOMLs inherit their stance's tables through a top-level `extends = { stage = "stance", tables = [...] }`, one level deep, with no chains and never `curriculum` (trex lists `stage`, `env` and `ppo` and stays PPO-only; the compsognathus pair lists `sac` too), the form of D-D5's amendment of 2026-10-02, which it appends; every resolved stage config byte-identical; the website's PPO, SAC and hyperparameter pages describe `extends`; #587 recorded; merged with a merge commit (`44b7d6e`, whose tree equals the head's); no digest moves (the change commit 14 files, +535 / −244; 20 files, +648 / −281 in all). Measured on its CI at reduced depth, on the head (`a281c01`, through its merge ref): ten jobs, all green, in 12:41, finishing 27 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,659 passed and 142 skipped; SB3 job 11:53 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,232 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:14, and the site's Deploy run on `main` built and deployed `44b7d6e` |
-| #589 | 2026-10-03 | Cleanup CU-15, reduced (the third of the deferred PRs), outside the consolidation sequence: the Drive summary notebook checks out `REPO_REF` with the SB3 notebook's Git block (pinned AST-identical; in both notebooks the block also checks out a clone that has no index yet), mounts Drive only from Colab and only once, installs the package only when it is missing and describes today's run layout; an executed test reads runs in today's layout through its reader cells (the SB3 job lists it, for pandas); the `library_version` column's two meanings a KNOWN_ISSUES LOW; the `run_index.py` move not taken; #588 recorded; merged with a merge commit (`85f1365`, whose tree equals the head's); no library code change and no digest moves (the change commit 8 files, +458 / −45; 14 files, +553 / −88 in all). Measured on its CI at reduced depth, on the head (`bd83c3b`, through its merge ref): ten jobs, all green, in 12:04, finishing 54 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,670 passed and 143 skipped; SB3 job 11:23 (its mypy step: no issues in 325 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,238 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,260 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:09; no Deploy run (no website file changed) |
-| #590 | 2026-10-03 | Cleanup CU-10b (the fourth of the deferred PRs, which completes CU-10), outside the consolidation sequence: `train()` and the command-line curriculum train a stage through one private body in `train_base.py`, `_train_stage_body` (the curriculum hands it `CurriculumCallback` as a hook between the entropy decay and the shaping, and gets back both environments open, whether a Ctrl-C ended the node and the time `learn()` took), byte-identical under a frozen clock, and the evaluation environment's seed is `eval_env_seed(seed)`, `seed + 1000`; then the curriculum seeds model construction and records each trained node's `run.duration_seconds`, as D-D11's amendment of 2026-10-03 says (a CLI SAC curriculum run now repeats); the optional `train_base.py` module split not taken; #589 recorded; merged with a merge commit (`048398a`, whose tree equals the head's); no digest moves (the change commits 9 files, +928 / −397, and 7 files, +214 / −58; 18 files, +1,210 / −464 in all). Measured on its CI on the head (`b3c0f17`, through its merge ref), with the `full-ci` label: ten jobs, all green, in 21:39, finishing 10 h 33 min before the merge (the run without the label, at reduced depth, in 11:30); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,684 passed and 143 skipped (CU-10b's 14 new tests); SB3 job 20:53 (its mypy step: no issues in 325 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,258 passed, 4 deselected), coverage 88 percent (19,521 statements, 2,257 missed); the first push run on `main` passed, with the same ten jobs and the reduced head run's counts, in 12:46; the site's Deploy workflow ran for the recipes page, its build green on the head, and on `main` it built and deployed `048398a` in 1:31 |
-| #591 | 2026-10-03 | Cleanup ROW-4/6 (the fifth of the deferred PRs, the notebook PR for the cleanup plan's decisions 4 and 6, which the maintainer took on 2026-10-02), outside the consolidation sequence: the SB3 notebook's chain loop judges an ancestor the run trained but never judged before it consults the trunk, under a trunk only on the parent resolved here (reuse rule 4), and refuses an interrupted one toward the RESUME cell (decision 6 (b)); the resolve cell no longer calls D-C13's `refuse_trunk_over_unjudged_widened_root`, and the `BEHAVIOR` route for a resume `RETRAIN_FROM` covers is retired; the resolve cell records the trunk it resolved in the run's `trunk_run.json` (`mesozoic.trunk-run/v1`), which the RESUME cell checks a resume against and the resume recipe and the recipes page read (decision 4 (a)); the KNOWN_ISSUES trunk entry narrowed, not deleted; the amendments to D-A17, D-C13, D-A25, D-D15 and D-D16 dated notes, not D-D rows; #590 recorded; merged with a merge commit (`d38c785`, whose tree equals the head's); no digest moves (the change commits 7 files, +1,226 / −6, 12 files, +631 / −122, and 9 files, +512 / −95; 22 files, +2,489 / −212 in all). Measured on its CI on the head (`4a03fac`, through its merge ref), with the `full-ci` label: ten jobs, all green, in 22:32, finishing 40 min before the merge (the run without the label, at reduced depth, in 12:12); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,821 passed and 143 skipped (ROW-4/6's 137 more); SB3 job 21:43 (its mypy step: no issues in 327 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,258 passed, 4 deselected), coverage 89 percent (19,637 statements, 2,257 missed); the first push run on `main` passed, with the same ten jobs and the reduced head run's counts, in 12:13; the site's Deploy workflow ran for the recipes page, its build green on the head, and on `main` it built and deployed `d38c785` in 1:38 |
-
-The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
-has 40 cells (22 code), 2,526 lines; 19 code cells reference the
-`COMMAND_TERRAIN_BEHAVIOR` mode switch (the 2026-09-19 loader change adds one
-guarded code cell, the SB3 archive-load preflight before the widen cell:
-41 cells, 23 code, 2,563 lines; consolidation PR-4 removes the library hooks,
-about 90 lines: 41 cells, 23 code, 2,477 lines, the chain loop at index 23;
-PR-5 removes `SOURCE_SELECTION` and its prose: 41 cells, 23 code, 2,463 lines;
-the notebook-only PR-12 slice (#552, 2026-09-24) removed the mode switch, its
-six cells and the 15 guard sites, the plan's 14 plus the guarded preflight:
-35 cells, 19 code, 2,329 lines, the chain loop at index 20; 2,330 with the
-curves-cell fix that rode along, CHANGELOG "Fixed"; PR-14a (#553) removed the
-widen cell: 34 cells, 18 code, 2,271 lines; PR-14b (#554) removed the
-random-baseline cell and moved the disconnect and video helpers and the
-zero-action cell's body into the package: 33 cells, 17 code, 2,079 lines, the
-chain loop at index 18; PR-14c (#555) turned `train_stage` into a wrapper
-over `train_base.train` and moved `evaluate_stage_checkpoints` into the
-package: 33 cells, 17 code, 1,492 lines, the chain loop at index 18; the
-follow-up to PR-7 (#557) resolves `RESUME_STAGE` through the manifest and
-rewords the trunk prose: 1,515 lines; the notebook-safety PR (D-D16) moves
-the RESUME cell ahead of the chain loop, guards it against finished and judged
-nodes, moves `QUICK_TEST` runs to `<algo>_quick_test/` and regroups the
-sections: 33 cells, 17 code, 1,557 lines, the chain loop at index 20; its
-follow-up (#559) checks the final pair like a periodic one in both the RESUME
-cell and the chain loop: 1,599 lines; cleanup CU-5 (#575) cuts the markdown
-from 223 to 111 lines and adds `node_budget`: 33 cells, 17 code, 1,468 lines,
-the chain loop at index 20; cleanup CU-8a (#579) has the chain loop call the
-library's fingerprint helper and ignored-edits check: 1,454 lines; ROW-4/6
-(#591) has the chain loop judge an unjudged `RUN_DIR` node before the trunk,
-the resolve cell write `trunk_run.json` (its D-C13 call gone) and the RESUME
-cell check it: 33 cells, 17 code, 1,480 lines, the chain loop at index 20;
-cleanup CU-6 (carried out 2026-10-03) makes the archive-load preflight one
-call of `policy_loading.sb3_archive_load_preflight` and the RESUME cell's walk
-`curriculum.newest_intact_periodic_pair`, and the RESUME cell trains without
-evaluating: 33 cells, 17 code, 1,424 lines, the chain loop at index 20).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
 `TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
-(a configuration-cell knob since consolidation PR-14a; it was hard-coded in the
-storage cell), `SEED = 42`; the library knobs (`CERTIFIED_LIBRARY_ROOT`,
-`PUBLISH_CERTIFIED`, `CERTIFIED_COMPARISON_EPISODES`) left with PR-4,
-`SOURCE_SELECTION` with PR-5, `COMMAND_TERRAIN_BEHAVIOR` with the ten
-`BEHAVIOR_*` knobs with the PR-12 slice, and `WIDEN_FROM` /
-`WIDEN_MAX_REVISION_GAP` with the widen cell in PR-14a (D-D14; 34 cells, 18
-code).
+(a configuration-cell knob since consolidation PR-14a), `SEED = 42`. The knobs the
+consolidation retired are named in the CHANGELOG entries of PR-4, PR-5, the PR-12
+slice and PR-14a.
 
 ### The pilot pipeline (#540/#541) — exists, evaluation-only
 
-The pilots delivered genuinely new content (a direction controller, a tracking
-reward, a heightfield terrain generator, a replay recorder with terrain maps) but
-as a second copy of every canonical concept: behavior env classes (two until
-PR-7 deleted `TRexBehaviorEnv`) that bypass
-the reserved `BaseDinoEnv._draw_episode_command` hook and write `self._command`
-directly, a second checkpoint preparer, a second PPO trainer
-(`environments/shared/train_behaviors.py`, one CPU env, its own recipe dialect),
-66 behavior TOMLs under `configs/<species>/behaviors/` (11 templates x 6 species)
-(the 8 trex `[pilot]` twins under `configs/trex/behavior_pilots/` and the
-`[pilot]` dialect left with PR-6), a second gate outside `GATE_KINDS`
-(`configs/behavior_certification.toml`, judged by `judge_behavior_panel`; its
-`certification/certificate.json` writer left with PR-5, so it is reached only
-from tests until PR-13; never a `gate_verdict.json`), a third identity keyed on
-source-file hashes (any edit to `behavior_env.py` strands exact resume), and the
-notebook mode switch (removed by the notebook-only PR-12 slice, #552) —
-about 7,000 lines of modules at 22c1fc8, tests excluded (the certified library
-left with PR-4/PR-5). Notebook pilot runs wrote to
-`logs/<species>/ppo/behaviors/<behavior>/<run-id>/` (on Drive when it was mounted,
-otherwise in the checkout's `logs/`), but none is on Drive: nothing was trained
-beyond 4,096-step smoke runs ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
-§5.2); from the slice on a
-pilot runs from the command line only (`python -m environments.shared.train_behaviors`,
-D-D13) and, the certified library having left with PR-5, takes an explicit
-`--checkpoint` / `--vecnormalize` pair in every load mode and for evaluation.
-Guide: [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md). Under D-D9 any pilot bundle is
+The direction/terrain pilots are a second pipeline beside every canonical concept; the KNOWN_ISSUES entry
+"the direction/terrain pilots are a second pipeline" ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)) lists its parts, and
+the consolidation folds them back. No pilot output is on Drive: nothing was trained beyond 4,096-step smoke runs
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §5.2). A pilot runs from the command line only
+(`python -m environments.shared.train_behaviors`, D-D13) with an explicit `--checkpoint` / `--vecnormalize`
+pair in every load mode and for evaluation; guide:
+[TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md). Under D-D9 any pilot bundle is
 evaluation-only; none is a training parent.
 
 ### The consolidation (PR-3 .. PR-15): released 2026-09-20, notebook-first
 
 The 2026-09-17 review produced a fifteen-PR sequence folding the pilot pipeline
 back into the recipes machinery ([section 4](#4-consolidation-the-remaining-prs)).
-PR-1 (#542), the auto-trunk PR (#543) and PR-2 (#544) landed. On 2026-09-20 the
-maintainer released the hold with a **notebook-first order** (decision D-D13):
-PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only slice of PR-12 (the
-mode switch, the `BEHAVIOR_*` knobs, the direction/terrain cells and guard
-sites and `behavior_notebook.py` go; `train_behaviors.py` stays CLI-only until
-the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24 into PR-14a,
-PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of PR-12, PR-13 and PR-15.
-D-D1..D-D22 are taken and recorded (D-D11/D-D12 confirmed and D-D13/D-D14 taken
-on 2026-09-20, D-D15 on 2026-09-24, D-D16 on 2026-09-25, D-D17..D-D20 on 2026-09-26, D-D21 on 2026-09-27 and
-D-D22 on 2026-09-29 for the cleanup plan; [section 5](#5-decisions-taken-2026-09-17)). PR-3 .. PR-6 landed
-the same day (#546–#549); the maintainer then paused the sequence while the
-training sessions ran (G3) and lifted the pause on 2026-09-23: the notebook-only
-PR-12 slice landed as #552 and PR-14 as #553, #554 and #555, all on 2026-09-24;
-PR-7 landed as #556 on 2026-09-25; PR-8 is next in the sequence. The cleanup's
-0.3.9 gate has landed and 0.3.9 is cut (D-D21; the cut landed as #584 on
-2026-10-02, tagged `0.3.9`), and on 2026-10-02 the maintainer chose to finish
-the deferred cleanup before PR-8 (the cleanup plan's §3.1 item 5;
-[section 4](#4-consolidation-the-remaining-prs)).
+On 2026-09-20 the maintainer released the hold with a **notebook-first order**
+(decision D-D13): PR-3, then PR-4 and PR-5, then PR-6, then a notebook-only
+slice of PR-12 (the mode switch, the `BEHAVIOR_*` knobs, the direction/terrain
+cells and guard sites and `behavior_notebook.py` go; `train_behaviors.py` stays
+CLI-only until the rest of PR-12, after PR-11), then PR-14 (split on 2026-09-24
+into PR-14a, PR-14b and PR-14c, decision D-D15), then PR-7 .. PR-11, the rest of
+PR-12, PR-13 and PR-15, with the training sessions in parallel (G3). On
+2026-10-02 the maintainer chose to finish the deferred cleanup before PR-8 (the
+cleanup plan's §3.1 item 5). Which of these PRs have landed is in the
+consolidation plan's status table (above); the decisions are recorded where
+[section 5](#5-decisions-taken-2026-09-17) points.
 
 ### The final goal and the goal decisions
 
@@ -550,354 +348,47 @@ re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 (PR-3, PR-4, PR-5, PR-6, the notebook-only PR-12 slice, PR-14, then PR-7 .. PR-11,
 the rest of PR-12, PR-13, PR-15).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
-per-PR file lists, the breaks / mitigation / validation blocks and the target
-architecture table. PR-1 landed as #542, automatic trunk selection as #543,
-PR-2 as #544, PR-3 as #546, PR-4 as #547, PR-5 as #548 and PR-6 as #549 (2026-09-20). The maintainer paused the sequence after PR-6 on 2026-09-20 while the section 3 training sessions ran and lifted the pause on 2026-09-23, after the collapse-backstop fix and docs pass of that day (#551). The notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24, which completes PR-14 (split into PR-14a, PR-14b and PR-14c by D-D15); PR-7 landed as #556 on 2026-09-25 (its D-D14 condition, sessions 1 and 2 decided, was met); PR-8 is next, once the deferred cleanup has landed (2026-10-02). Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above.
-Net removal from here (PR-7 .. PR-15, the table's estimates) about 6,800 lines,
-of which the notebook-only PR-12 slice removes about 1,130 (measured: −996 code,
-test and CI lines, −134 notebook source lines);
-the plan's about 9,500 (band 9,000–12,000) was counted from `22c1fc8`, before
-PR-3 .. PR-6. No PR changes the on-disk format (PR-14c drops six unread
-warm-up/ramp keys from the run block of a notebook node entered from its parent)
-or the reuse of the canonical chain, both r11 parents or the r13 run `20260914_123816`; `TRUNK_FROM` (default
-`"auto"`) and `RETRAIN_FROM` (empty default) keep their names and defaults
-(PR-12 Breaks, PR-14a Breaks), while `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP`
-leave with the widen cell in PR-14a (D-D14), which also makes `RUN_ID` a
-configuration-cell knob and refuses an in-place session into a complete run
-before training; the old widen-seed reorder is dropped (D-D15).
+per-PR file lists, the breaks / mitigation / validation blocks, the target
+architecture table and, in its status table, which PRs have landed and the net
+removal still ahead; PR-8 follows the deferred cleanup (the maintainer's choice
+of 2026-10-02). Sizes: S < 200 changed lines, M < 800, L < 2,000, XL above. No
+remaining PR changes the on-disk format or the reuse of the canonical chain, both
+r11 parents or the r13 run `20260914_123816`; `TRUNK_FROM` (default `"auto"`) and
+`RETRAIN_FROM` (empty default) keep their names and defaults (PR-12 Breaks).
 
-**Cleanup outside the sequence (2026-09-26).**
-[CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) orders the cleanup left
-after #558 and its follow-up (#559): a CI-signal PR (mypy with SB3
-installed), then the retirement of Ray Tune, the Vertex AI tuning sweeps and
-mjlab (PR-A) and of JAX/MJX (PR-B) behind a frozen MJX interface core, so no
-digest moves (D-D17, taken 2026-09-26; the maintainer also retired the
-single-job Vertex AI route and GCS artifact upload, which PR-A2 removes after
-PR-A), then sixteen smaller PRs. Its CI PR (CU-1, D-D18) landed as #561 and
-CU-3 (atomic run-tree records and checkpoint pairs, D-D20) as #562 and the
-CHANGELOG release cut (D-D19) as #563, tagged `0.3.8`, PR-A as #564,
-PR-A2 as #565 and PR-B as #566 (2026-09-28), which completes the retirement, and CU-2 as #568, CU-4 as #569, CU-14b as #570 and ROW-16 as #571 (2026-09-29), and CU-7a as #572, CU-11 as #573, CU-9 as #574, CU-5 as #575, CU-7b as #576, CU-16a as #577 and CU-16b as #578 (2026-09-30), and CU-8a as #579, CU-12 as #580, CU-14a as #581, CU-8b as #582 and CU-8c as #583 (2026-10-01), and the 0.3.9 cut (D-D21) as #584 (2026-10-02), tagged `0.3.9`; the archive points (the plan's decision 2) were settled on 2026-09-27
-with no archive tags, and D-D21 makes 0.3.9, cut once the retirement and ten
-structural cleanup PRs have landed (eight still open on 2026-09-29, once CU-2
-and CU-4 landed; CU-14b, the first part of CU-14, landed as #570; CU-7a
-landed as #572; CU-11 landed as #573,
-which leaves seven, CU-9 as #574, which leaves six, CU-5 as #575, which leaves
-five, and CU-7b as #576, which completes CU-7 and leaves four, and CU-16a, the
-first part of CU-16, as #577, which completes wave 2, and CU-16b, its second
-part, as #578, which completes CU-16 and leaves three, and CU-8a, the first
-part of CU-8, as #579, and CU-12 as #580, which completes CU-12 and leaves
-two, and CU-14a, the second part of CU-14, as #581, which completes CU-14
-and wave 3 and leaves one, and CU-8b, the second part of CU-8, as #582,
-and CU-8c, its third and last part, as #583, which completes CU-8 and
-leaves none; [section 1](#1-where-things-stand) names them),
-the clean base the consolidation builds on. On 2026-09-29 the maintainer took
-D-D22 (the plan's §2 row 16: the digest-snapshot output becomes a golden that
-CI checks, with the full harness run on pull requests, in the plant-contract
-job; its own PR, ROW-16, builds it, before CU-7b, CU-8a, CU-12 and CU-13, and
-landed as #571 the same day), split CU-7,
-CU-8, CU-14 and CU-16 into parts that D-D21's gate names cover, and accepted
-the order of the rest of the gate (the plan's §3.1 item 4). The same day the
-maintainer settled the plan's decision 10 (its §2 row 10) as (c) first,
-without a D-D id: CU-14b caches the plant identity per process and species,
-and CU-14a decides (a), gating `test_compsognathus_training.py` behind the
-depth switch, from the durations CU-14b's CI produces. On 2026-09-30 the
-maintainer settled (a) for the robot's six real-training parametrisations,
-which pull requests and pushes skip from CU-14a (#581) on.
-Within this sequence PR-8 is next: the 0.3.9 cut landed as #584 on 2026-10-02,
-tagged `0.3.9`, and under D-D21 the whole 0.3.9 gate, including the
-reward/termination golden trace (CU-11, landed as #573, 2026-09-30), landed
-before PR-8. On 2026-10-02 the maintainer chose to finish the deferred cleanup
-first (the plan's §3.1 item 5), so PR-8 waits until its seven PRs have landed,
-and the cleanup plan names the cleanup each later PR needs first (its
-§3.4). Its §2 lists the decisions, with the outcome of each one taken. Its §5.1 records the 2026-09-25 eval-only check of the
-three certified walkers: each survived the plane in every episode, but only 1
-of 39 flat-heightfield episodes reached full horizon, so no terrain pilot or
-terrain node should start before the heightfield-contact investigation.
+**Cleanup outside the sequence.** [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) orders the cleanup left
+after #558 and its follow-up (#559): the backend retirement behind a frozen MJX interface core (D-D17), the rest
+of D-D21's 0.3.9 gate, and the deferred PRs, which the maintainer chose on 2026-10-02 to finish before PR-8
+(its §3.1 item 5). Its §2 lists the decisions, with the outcome of each one taken, and its §3.4 the cleanup each
+later consolidation PR needs first. Its §5.1 records the 2026-09-25 eval-only check of the three certified
+walkers: each survived the plane in every episode, but only 1 of 39 flat-heightfield episodes reached full
+horizon, so no terrain pilot or terrain node should start before the heightfield-contact investigation.
+
+The plan's status table says which PRs below have landed; it holds the rows of PR-3 .. PR-7, the PR-12 slice
+and PR-14a .. PR-14c (landed by `0.3.9`), whose sections the plan's §3 keeps as pointers to `20ab100`.
 
 | PR | One-line goal | Size (net) | Prerequisites / decision |
 |---|---|---|---|
-| PR-3 | Bound the SB3 CI job: drop the SB3-free suites the shared/trex matrix already runs, keep one real-PPO smoke per body of work, move the full six-species set to a schedule (test-sb3 went 43 → 69 min from #539 to #541) | S (+10..+40) | none; land before PR-4 so later deletions edit one list; coverage `fail_under = 70` may need a re-baseline; landed as #546 on 2026-09-20 (coverage 90 percent, the floor unchanged) |
-| PR-4 | Delete `certified_canonical.py`, `certified_comparison.py`, their tests and the notebook library hooks (stamp block, the `copy_canonical_ancestor` branch of the chain loop, publish block, and three of the four library knobs; `SOURCE_SELECTION` goes with PR-5) | L (about −2,400) | #542 landed; D-D4; land before PR-5; landed as #547 on 2026-09-20, `certified_comparison.py` and its test moved to PR-5 |
-| PR-5 | Delete `certified_library.py`, its consumers in the behavior trainer (`--auto-source`, `--publish-certified`, `--certified-library`), `docs/CERTIFIED_MODELS.md`, the `.gitignore` line | M/L (about −1,400; measured about −1,880) | PR-4 (#547); landed as #548 on 2026-09-20 |
-| PR-6 | Delete the T. rex pilots (`configs/trex/behavior_pilots/`), the `[pilot]` recipe dialect and the trex shim script | S (about −275; measured −256 code and configuration lines) | none; D-D9; landed as #549 on 2026-09-20 |
-| PR-7 | One behavior env, part 1: `BaseDinoEnv._ground_height_at` / `_clearance`, species rewards and terminations terrain-relative, delete `TRexBehaviorEnv` | M (about −600; measured: code +192 / −595, tests +1,016 / −1,039, CI +1 / −2, docs +186 / −25) | PR-6; D-D10; landed as #556 on 2026-09-25 (canonical plane rollouts bit-identical, `plant_contract --check` current) |
 | PR-8 | One behavior env, part 2: one terrain selector (`terrain_sampler` kwarg, `terrain_contact` family), command constants imported from `command_frame`, delete `BehaviorVecNormalize` | M (about −170) | PR-7; D-D3 |
 | PR-9 | Phase D through the reserved hook: `command_config` replaces the five numeric kwargs, the controller is owned by `BaseDinoEnv`, identity = task fingerprint (source-hash identity deleted) | M (about −150) | PR-7, PR-8; D-D1, D-D2; acceptance = no committed `task_sha256` moves and `plant_contract --check` clean on every species |
 | PR-10 | One command-column primitive in the canonical warm-start path (`policy_loading.neutralize_command_columns` + `assert_command_blind`, called by `_create_or_load_model` on `initialize_next_stage`) | S/M (about +180) | PR-9; D-D3 |
 | PR-11 | Manifest nodes: `follow_direction`, `follow_direction_difficult_terrain`, `difficult_terrain` stage TOMLs with `extends`, `[[stages]]` entries after `behavior`, trained by `train_base` | M (about +370) | PR-9, PR-10; D-D1, D-D5, G1 |
-| PR-12 (notebook-only slice) | Delete the notebook's `COMMAND_TERRAIN_BEHAVIOR` switch, the ten `BEHAVIOR_*` knobs, the eleven direction/terrain dropdown values, the six behavior cells and the 15 guard sites (guarded code dedented, two lint fixes aside), `behavior_notebook.py` with its tests and pins; `train_behaviors.py` stays the pilots' command-line path | L by count (measured −996 code, test and CI lines, −134 notebook source lines) | PR-6; D-D8 as amended by D-D13; landed as #552 on 2026-09-24 |
 | PR-12 (rest) | Delete the parallel trainer, checkpoint module, the 66 TOMLs and their tests; `BEHAVIOR` dropdown gains `follow \| terrain` | XL (about −5,300 less the slice) | PR-11; D-D8, D-D9; `EpisodeManifestRecorder` must survive as an info key |
 | PR-13 | Register the gate kind (`none/v1` for pilots, then `terrain_command/v1`) with an evidence writer in the `write_recovery_evidence` pattern; delete `behavior_certification.py` and the certificate schema | L (about −400) | PR-11, PR-12; D-D6, G4 |
-| PR-14a | Notebook storage path: the widen cell and `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` go (D-D14; `widen_checkpoint` stays a command-line tool, its seed and verdict guards become on-disk refusals in the storage and resolve cells), `RUN_ID` becomes a configuration-cell knob resolved into the `_ACTIVE_RUN_ID` memo, and a session that would judge or train a node into a complete run is refused before anything is written (the KNOWN_ISSUES bug of 2026-09-23), with the zero-action cell's run copy skipped on such a run | L by count (measured: code +380 / −20, tests +894 / −680, notebook 2,330 → 2,271 source lines) | the notebook-only PR-12 slice; D-D14, D-D15; landed as #553 on 2026-09-24 |
-| PR-14b | Notebook: one disconnect path (`halt`, explicit-parameter `disconnect_runtime`) and `display_stage_videos` on IPython Video in `environments/shared/notebook_runtime.py`, the random-baseline cell deleted and the zero-action cell's body folded into its script as `preflight` | M by count (measured: code +183 / −1, tests +245 / −50, notebook 2,271 → 2,079 source lines) | PR-14a; D-D15; landed as #554 on 2026-09-24 |
-| PR-14c | Notebook: `train_stage` becomes a wrapper over `train_base.train` (which gains the seed line, duration recording, `parent_run_id`, an explicit sidecar and the notebook's two switches; four loads of seeded archives pass `seed=None`), `evaluate_stage_checkpoints` beside `generate_stage_artifacts` | L by count (measured: code +356 / −31, tests +402 / −278, notebook 2,079 → 1,492 source lines) | PR-14a, PR-14b; D-D7, D-D11, D-D15; landed as #555 on 2026-09-24 |
-| PR-15 | Docs fold, CHANGELOG `Changed` / `Removed`, one notebook-cell test helper, pin budget | M (about −290) | PR-14c; the notebook-cell helper left with cleanup CU-4 (`notebook_cells.py`, landed as #569 on 2026-09-29) |
+| PR-15 | Docs fold (a residual pass for PR-8 .. PR-13), pin budget; the CHANGELOG half and the notebook-cell helper are done (the plan's PR-15 section) | M (about −290) | PR-14c |
 
 ---
 
 ## 5. Decisions taken 2026-09-17
 
-Recorded in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 (the D-D and
-G series; the D-A/D-B/D-C series keep their numbers). Confirmed by the maintainer:
-
-- **D-D1** Direction-following and terrain traversal are ordinary manifest nodes
-  under locomotion (the plan's Phase D shape), not a standalone pipeline.
-- **D-D2** One `command_config: DirectionCommandConfig | None` kwarg replaces the
-  five numeric reserved kwargs; the task-fingerprint carve-out is extended so no
-  canonical `task_sha256` moves while `command_mode` is `"none"`. Amends D-C3.
-- **D-D3** Command-slice normalisation follows invariant 8 (reseed to mean 0 /
-  var 1, statistics keep updating); `BehaviorVecNormalize` is deleted;
-  #540/#541-trained policies are not continuations.
-- **D-D4** Automatic parent selection is kept as `select_trunk` (D-A25, #543);
-  the certified library is deleted outright (PR-4/PR-5), no pointer survives.
-- **D-D5** Stage TOMLs per species with a ~20-line `extends` key in
-  `load_stage_config` (locomotion as the parent); terrain templates become a
-  `terrain_families` list inside `difficult_terrain`; single-template runs are
-  documented `[env]` overrides, not files. Refined by G1 to three new files.
-  Amended 2026-10-02 (the maintainer, as the cleanup plan's decision 9),
-  carried out by its CU-13: CU-13 pulls this decision's `extends` forward for
-  recovery ← stance in trex, compsognathus and compsognathus_robot, in the
-  form the maintainer chose on 2026-10-02: a per-table list,
-  `extends = { stage = "stance", tables = [...] }`, one level deep, with no
-  chains, never naming `curriculum`, and trex recovery not inheriting `[sac]`.
-  As CU-13 carries it out,
-  `extends = { stage = "<parent id>", tables = [...] }` is a top-level key
-  naming a stage of the same species (resolved through the stage manifest of
-  the file's own directory) and the tables it inherits, each the parent's with
-  the file's own keys overriding in place or appended (a nested table the file
-  declares replaces the parent's whole); trex recovery lists `stage`, `env`
-  and `ppo` and stays PPO-only, and the compsognathus pair lists `sac` too.
-  All 21 resolved stage configs are byte-identical, key order included, so no
-  digest moves. CU-13's step 2 (compsognathus_robot ← compsognathus) waits for
-  PR-12 and for an amendment of this form: a parent id resolves only through
-  the stage manifest of the file's own directory, and the robot's recovery
-  already extends the robot's stance, so a robot stance that extended
-  compsognathus's would put that recovery in a chain. This decision's own
-  nodes wait for PR-11, where each names `locomotion` in this form.
-  CU-13 landed as #588 on 2026-10-02.
-- **D-D6** Honest gate name first: pilots run `none/v1` (recorded, not enforced),
-  then the certificate's per-episode statistic is registered as
-  `terrain_command/v1` with one shared threshold block; the plan's paired-null
-  `command_tracking/v1` (per-event settle/dwell, heading-bin floor) comes later.
-- **D-D7** Notebook depth: only the `train_stage` wrapper over `train_base.train`
-  now (PR-14); moving the chain loop / widen / resume cells into a package module
-  is decided after PR-14.
-  Amended 2026-10-03 (the cleanup plan's §2 row 9), carried out by its CU-6: a
-  slice of the resume cell and the archive-load preflight move into the
-  package ahead of the deferred full move. The RESUME cell's periodic-pair
-  walk is `curriculum.newest_intact_periodic_pair`, which reads
-  `policy_loading._PERIODIC_CHECKPOINT_RE`; the archive-load preflight cell is
-  one call of `policy_loading.sb3_archive_load_preflight`; and `train_stage`
-  takes a keyword-only `evaluate` (default `True`; the RESUME cell passes
-  `False`, since the chain loop's JUDGE branch evaluates, from disk, every
-  node the RESUME cell trains, cleanup ROW-4/6). The chain loop, the rest of
-  the RESUME cell (its refusals, warnings and report), `node_budget` (in the
-  infrastructure cell, read by the chain loop, the RESUME cell and the manual
-  cell), and the storage and resolve cells stay in the notebook, and the
-  recipes plan's §4.7 AST pins on the chain loop stay, as this decision says;
-  the full package move stays deferred (the cleanup plan's §7).
-- **D-D8** No interim behaviors notebook; the mode switch is tolerated until
-  PR-12 deletes it.
-- **D-D9** #540/#541 behavior bundles on Drive are evaluation-only; none is a
-  training parent.
-- **D-D10** Terrain stays an opt-in env subclass; no r14 interface bump to move
-  the model swap into `reset()` (the reset source is fingerprinted).
-
-Confirmed by the maintainer on 2026-09-20 (recommended on 2026-09-17):
-
-- **D-D11** CLI runs record stage duration and seed model construction like the
-  notebook does (PR-14). PR-14c implements it in `train()`: the `train`
-  subcommand and Vertex sweep trials; `curriculum` runs and Ray Tune trials
-  are not aligned. Amended by D-D17: the Vertex sweep trials and the Ray Tune
-  trials are retired (cleanup PR-A).
-  Amended 2026-10-03: CLI curriculum runs now seed model construction and
-  record stage duration as the notebook and `train` do (cleanup CU-10b, as the
-  maintainer chose on 2026-10-02; the cleanup plan's §2 row 20). Each node the
-  `curriculum` subcommand trains builds or warm-starts its model under the
-  run's seed (`alg_kwargs.setdefault("seed", seed)`, so a seed the stage's
-  algorithm block names is kept) and records `run.duration_seconds`, from the
-  point it is trained rather than reused to its final save, an interrupted
-  node's included; `curriculum_results.csv` keeps the time `learn()` took.
-  CU-10b landed as #590 on 2026-10-03.
-- **D-D12** The dead `lateral_speed_scale` field is dropped when the TOMLs are
-  rewritten (PR-11/PR-12).
-
-Taken on 2026-09-20, when the consolidation hold lifted:
-
-- **D-D13** The sequence lands notebook-first: PR-3, PR-4, PR-5, PR-6, a
-  notebook-only slice of PR-12, PR-14, then PR-7 .. PR-11, the rest of PR-12,
-  PR-13, PR-15 (amends D-D8; between the slice and PR-11 the direction/terrain
-  pilots have no notebook path).
-- **D-D14** The widen path stays for sessions 1 and 2 of [section 3](#3-recommended-training-sessions),
-  then becomes CLI-only: the notebook refactor deletes the widen cell and the
-  `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs, and `widen_checkpoint` stays a
-  command-line tool for the next interface bump.
-- Operational choices taken the same day: the full six-species and
-  four-notebook-parameter SB3 sets run nightly and under the `full-ci` label
-  (PR-3); if a PR run drops the union coverage gate below 70, the measured
-  number and a proposed floor are reported rather than the floor lowered; the
-  session results (`gate_verdict.json`, `widen_report.json`,
-  `stance_gate_report.json`) are read from Drive through the maintainer's Drive
-  connector when a session ends.
-
-Taken on 2026-09-24:
-
-- **D-D15** PR-14 lands as three PRs, in the order PR-14a (the storage path:
-  D-D14's widen deletion, `RUN_ID` as a knob, the complete-run refusal), PR-14b
-  (the one disconnect path, videos and the baseline cells) and PR-14c
-  (`train_stage` over `train_base.train`). The old item (b)'s
-  resolve-before-storage reorder is dropped: no widen-seed read is left to
-  move, and a root widened on the command line keeps D-C14 and D-C13 through
-  on-disk refusals in the storage and resolve cells (amends D-D13's order).
-  Amended 2026-10-03 (the cleanup plan's §2 row 6, ROW-4/6; not a D-D row):
-  the resolve cell no longer refuses a trunk over a widened root without a
-  verdict; D-C13 holds through the chain loop, which judges a node `RUN_DIR`
-  holds trained but unjudged, the widened root among them, before it consults
-  any trunk (a widened pair cut short is refused as an interrupted node), and
-  refuses a root widened into a run that already holds it as an `ancestors/`
-  record when the root is an ancestor of `BEHAVIOR`'s node, naming a new run
-  id.
-  ROW-4/6 landed as #591 on 2026-10-03.
-
-Taken on 2026-09-25:
-
-- **D-D16** (#558, the notebook-safety PR, outside the numbered sequence) The
-  SB3 notebook's RESUME cell trains nothing for a node holding
-  `gate_verdict.json` or an intact final pair and refuses a spent budget
-  without one (a further attempt after an early stop is a fresh `RUN_ID`), and
-  refuses a node `RETRAIN_FROM` covers (a node trained here although the trunk
-  certifies it is resumed as `BEHAVIOR`'s target); the chain loop judges only
-  an intact final pair, and a broken one is resumed over only within one
-  checkpoint cadence of the budget; `QUICK_TEST` runs live under
-  `<algo>_quick_test/`, outside the trunk selection and a real run's replicate
-  scan, and the run memo counts only in the tree it was opened in; the RESUME
-  cell moves ahead of the chain loop and the sections regroup.
-  Amended 2026-10-03 (the cleanup plan's §2 rows 4 and 6, ROW-4/6; not a D-D
-  row): the `BEHAVIOR` route is retired. A resume `RETRAIN_FROM` covers is
-  still refused, and its message says to set `RETRAIN_FROM = ""`; a node
-  trained here although the trunk certifies it is then resumed in place like
-  any other, with `TRUNK_FROM` set to the value the run's `trunk_run.json`
-  records (decision 4 (a)), and the chain loop judges it before it consults
-  the trunk (decision 6 (b)). The RESUME cell refuses a node the run holds as
-  an `ancestors/` record and, once the run holds one, a resume under another
-  trunk than the file names.
-  ROW-4/6 landed as #591 on 2026-10-03.
-
-Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
-([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)):
-
-- **D-D17** (its row 1, widened) Stable-Baselines3 is the only training,
-  evaluation and evidence backend until every species' stage chain and
-  behavior is certified. PR-A retires Ray Tune, the Vertex AI tuning sweeps,
-  mjlab, the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the
-  `Dockerfile`) and GCS artifact upload (`curriculum --gcs-bucket`, the `[gcp]`
-  extra); PR-B retires the JAX/MJX runtime. A frozen MJX interface core stays,
-  so no digest moves. The archive points (its row 2) are not part of D-D17 and
-  are still open; the maintainer settles them before PR-A merges. Amended
-  2026-09-26: PR-A is split into two PRs under the same D-D17, each with its
-  own review: PR-A deletes the sweeps and mjlab and stays pure deletion; PR-A2
-  removes the single-job Vertex AI route and GCS upload, with an end-to-end
-  test of the command-line curriculum path (the cleanup plan lands it after
-  PR-A). Archive points settled 2026-09-27 (its row 2, option (c)): no archive
-  tags; the retired code is recoverable from the `0.3.8` tag and git history.
-  As carried out by PR-A: Ray Tune, the Vertex AI tuning sweeps and mjlab are
-  removed; no digest moves. Landed as #564 on 2026-09-27. As carried out by PR-A2:
-  the single-job Vertex AI route (`scripts/setup_vertex_ai.sh`, the `Dockerfile`,
-  `.dockerignore`, `website/docs/training/vertex-ai.md`) and GCS artifact
-  upload (`curriculum --gcs-bucket` / `--gcs-project`, `config.upload_curriculum_artifacts`,
-  the `gs://` branch of `write_results_csv` and the `[gcp]` extra) are
-  removed, with an end-to-end test of the command-line curriculum path;
-  `tb_sync.py` and the `/gcs/` mount detection stay; no digest moves. Landed as
-  #565 on 2026-09-28. As carried out by PR-B: the JAX/MJX runtime (the trainer,
-  evaluator and stage writer, `jax_training.ipynb`, the `[jax]` and `[jax-cpu]`
-  extras, the `[jax]` stage tables, which `load_stage_config` now refuses, and
-  the `test-jax-cpu` job) is removed; the 549-line frozen MJX interface core
-  stays, pinned by `test_plant_contract_frozen_mjx.py`, and so do the readers
-  of recorded JAX runs; no digest moves. Landed as #566 on 2026-09-28.
-- **D-D18** (its row 8) CI type-checks with SB3 and torch installed: the SB3
-  job pins SB3 as the notebook does and runs mypy, which must report no
-  errors, and ruff and mypy are each pinned to one version for CI and
-  pre-commit. As carried out by CU-1: ruff 0.16.9 in the lint job, pre-commit
-  and the `dev` extra; mypy 2.3.1 there and in the SB3 job. Landed as #561.
-- **D-D19** (its row 3) The CHANGELOG release is cut before PR-A: the three
-  undated `[Unreleased]` headings are dated, the version moves to
-  `0.3.9.dev0`, and the maintainer tags `v0.3.8`. As carried out by the release
-  PR: its first commit, the one the maintainer tags, reads `0.3.8` and dates
-  `[0.3.8] - 2026-09-27`, `[0.3.2] - 2026-07-21` and `[0.3.0] - 2026-07-09`;
-  its second opens a bare `## [Unreleased]` and sets `0.3.9.dev0`; no digest
-  moves. Landed as #563; the maintainer tagged `afad625` as `0.3.8`
-  (lightweight, without the `v` prefix) and published it as a GitHub
-  pre-release on 2026-09-27.
-- **D-D20** (its row 7) A Colab reclaim may not leave the final pair or a
-  handoff pair (best, robust-best) truncated, nor mixed with the previous
-  pair in a way the pair's checks accept: on a Drive/GCS mount `train()` stages them locally and publishes them
-  like the periodic pairs, and an empty placeholder takes the final zip's place
-  before the final save begins, so a reclaim leaves at worst an incomplete pair
-  its readers reject (a handoff sidecar without its zip, or a final zip
-  `checkpoint_pair_problem` rejects), never a mixed pair they accept, as with a
-  pair a save straight to the mount cut short (D-D16's RESUME and chain-loop
-  rules, the early-stop refusal included, apply unchanged); off a mount nothing
-  changes. Carried out by CU-3. Landed as #562.
-- Operational choice the same day (its row 19): the stale PRs #527 and #498
-  were closed, each with a comment.
-- **D-D21** (its row 20, taken 2026-09-27) 0.3.9 is the clean, refactored base
-  release the consolidation builds on; 0.3.8 stays the pre-cleanup release. It
-  is cut once its gate has landed: PR-A, PR-A2, PR-B, CU-2, CU-4, CU-5, CU-7,
-  CU-8, CU-9, CU-11, CU-12, CU-14 and CU-16. CU-6, CU-10, CU-13, CU-15, CU-17
-  and consolidation PR-8..PR-15 are deferred, not dropped, each at the point
-  the cleanup plan records for it. Amended 2026-09-29: the maintainer accepted
-  splitting CU-7 into CU-7a (dead code and import cost) and CU-7b
-  (retired-backend wording, with CU-16's stage-TOML comments folded in), with
-  CU-7's sha256 regex and validators moving to CU-8c; CU-8 into CU-8a (one
-  task-fingerprint derivation), CU-8b (`policy_loading` owns the SB3 import
-  and the sidecar resolver) and CU-8c (one reader, root, regex and set of
-  validators); CU-14 into CU-14b (the plant-identity cache, first) and CU-14a
-  (the workflow YAML); and CU-16 into CU-16a (docs text) and CU-16b (orphan
-  assets). The gate's names cover all their parts, so the gate itself is
-  unchanged. As carried out by the 0.3.9 cut PR (2026-10-02), once the gate
-  had landed with CU-8c (#583, 2026-10-01), with the details the maintainer
-  chose on 2026-10-01 (the title kept without its "(v0.3.9)" suffix, the date
-  rule and `0.4.0.dev0` as the next development version): its first commit,
-  the one the maintainer tags, sets `version = "0.3.9"` and dates the section
-  `## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup`, by that commit's
-  UTC author date (re-dated if it is rebuilt on a later UTC day); its second
-  opens a bare `## [Unreleased]` above it, as the 0.3.8 cut did, and sets
-  `0.4.0.dev0`. The digest-snapshot harness reports the golden current (932
-  lines, 0 errors) on the base, the tagged commit and the head. From
-  `## [0.3.9]` to the end, `CHANGELOG.md` has sha256
-  `88c579c35fb4ee3a8a29ce1807e0e98210f5861a4e0fd3e12e8800a43e398dca` at the
-  tagged commit and the head; from `## [0.3.8]` it is unchanged
-  (`c750a3fd…773b`). The cut PR merges with a merge commit, so the tagged
-  commit keeps its SHA on `main`, and never through "Update branch": if `main`
-  moves first, both commits are rebuilt on it. Landed as #584 on 2026-10-02;
-  the maintainer tagged `20ab100` as `0.3.9` (lightweight) and published it as
-  a GitHub pre-release the same day. Amended 2026-10-02 (the maintainer): the
-  deferred PRs land before consolidation PR-8 and the gait plan's code PRs.
-  With the maintainer's answers of that day they go one at a time, in the
-  order CU-10a, CU-13, CU-15 (reduced scope), CU-10b, ROW-4/6 (the notebook PR
-  for the cleanup plan's decisions 4 and 6, which the maintainer took the same
-  day), CU-6 and CU-17, then PR-8. CU-10 is split into CU-10a (the curriculum
-  horizon fix chosen on 2026-09-27) and CU-10b (the stage body on a private
-  helper shared with `train()`, with `eval_env_seed`, then D-D11's alignment
-  for the curriculum as its own last commit), and CU-10's optional split of
-  `train_base.py` into modules is not taken (the cleanup plan's §3.1 item 5).
-  2026-10-03 (the cleanup plan's §3.1 item 5): of the deferred PRs, CU-10a,
-  CU-13, CU-15, CU-10b and ROW-4/6 have landed (#587 to #591), and CU-6 is
-  carried out; CU-17 is the last of them, before PR-8.
-- **D-D22** (its row 16, taken 2026-09-29) The digest-snapshot output
-  (`environments/shared/harnesses/digest_snapshot.py`) is committed as a
-  golden and CI checks it, with the full harness run on pull requests (not
-  `--skip-behaviors`), in the plant-contract job; a PR that deliberately moves
-  a digest updates the golden in its own diff. Its own PR builds the check,
-  not CU-4, and lands before CU-7b, CU-8a, CU-12 and CU-13. As carried out by
-  the ROW-16 PR: the golden is `configs/digest_snapshot.generated.txt`, the
-  plant-contract job's step "Verify the digest snapshot golden" runs the full
-  harness with `--check` on every event, and
-  `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --write`
-  regenerates it. Landed as #571 on 2026-09-29.
-
-Goal decisions **G1–G4** (chain shape and node set, command set, session order,
-first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions).
+The decisions of record are the D-D and G rows of [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2
+(the D-A, D-B and D-C series keep their rows in §6.1), mirrored with the consolidation's rationale in
+[CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) §6 and §7; the cleanup plan's own decisions are
+the rows of its §2. Each row carries its dated amendments. This section restated them until cleanup CU-17;
+that text is at commit `ace8112`. The operational choices of 2026-09-20 are under
+[Branch and validation rules](#branch-and-validation-rules), the one of 2026-09-26 (the stale PRs #527 and #498
+closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are summarized under
+[The final goal and the goal decisions](#the-final-goal-and-the-goal-decisions).
 
 ---
 
@@ -1037,41 +528,19 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    if touching code, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §4–§6
    for the design and decision ids, and the Phase C entry of
    [KNOWN_ISSUES.md](KNOWN_ISSUES.md) ("Training / RL") before any widen session.
-2. The consolidation hold lifted on 2026-09-20 (D-D13 order); the maintainer
-   paused the sequence after PR-6 the same day and lifted the pause on
-   2026-09-23. Continue with the next PR of
-   [section 4](#4-consolidation-the-remaining-prs) (PR-8 next; the notebook-only PR-12 slice landed
-   as #552, PR-14 as #553, #554 and #555, and PR-7 as #556) on the session branch, one PR at a time,
-   restarting the branch from `main` after each merge. Under D-D21, PR-8
-   waited for the 0.3.9 cut, which landed as #584 on 2026-10-02 (tagged
-   `0.3.9`; [section 1](#1-where-things-stand)). On 2026-10-02 the maintainer
-   chose to finish the deferred cleanup first, so before PR-8 continue with
-   the next of its PRs, in the order of
-   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.1 item 5 (CU-10a,
-   CU-13, CU-15, CU-10b, ROW-4/6, CU-6, CU-17; CU-17, the last, is next),
-   each PR recording the one before it as landed.
+2. Continue with the next PR in the order the plans set: the deferred cleanup of
+   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.1 item 5, then the consolidation sequence of
+   [section 4](#4-consolidation-the-remaining-prs) from PR-8, on the session branch, one PR at a time,
+   restarting the branch from `main` after each merge; the consolidation plan's status table says which have
+   landed. A PR records the landing of the one before it only in the two places the one-landing-record rule
+   names ([README.md](README.md#conventions)): that table and the CHANGELOG entry.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
-4. The docs that were stale at `22c1fc8` (the `README.md` roadmap bullet that
-   read "only the command-interface bump and the follow-direction leaf remain
-   pending", the `docs/README.md` plan row and its missing rows for
-   `CERTIFIED_MODELS.md` / `TRAIN_DIRECTION_AND_TERRAIN.md`, the plan's §5 rows
-   C½ / D / E, §7, §9 SS1 and §10, the CHANGELOG entry for #540/#541, and the
-   KNOWN_ISSUES gaps) were corrected by the PR-2 docs pass (#544, 2026-09-19).
-5. Before any cleanup or backend-retirement PR, read
-   [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions
-   (D-D17..D-D20 taken on 2026-09-26, D-D21 on 2026-09-27 and D-D22 on
-   2026-09-29; decision 2, the archive points, was settled on 2026-09-27 as
-   option (c), no archive tags, and decision 10, the `test-sb3` critical
-   path, on 2026-09-29 as (c) first, CU-14b's plant-identity cache, and on
-   2026-09-30 as (a) for the robot's six real-training runs, CU-14a's; on
-   2026-10-02 the maintainer took decision 4 as (a) and decision 6 as (b),
-   which ROW-4/6 carried out, chose decision 9's form for CU-13 and amended
-   D-D21 to finish the deferred PRs first, §3.1 item 5), §3 for the PR
-   order and §3.5 for the KNOWN_ISSUES entries each PR closes, §4 for
-   the frozen MJX interface core and the retirement's acceptance checks, and
-   §7 for the do-not-do list. On any change that claims to move no digest,
+4. Before any cleanup PR, read [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions,
+   with the outcome of each one taken, §3 for the PR order and §3.5 for the KNOWN_ISSUES entries each PR
+   closes, §4 for the frozen MJX interface core and the retirement's acceptance checks, and §7 for the
+   do-not-do list. On any change that claims to move no digest,
    run `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check`
    from the repository root, with the canonical MuJoCo: it compares the full
    run with the committed golden, `configs/digest_snapshot.generated.txt`,
@@ -1084,7 +553,7 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    reward, info or termination code also diffs `--exact` (bit-exact: the 21
    stages and the behavior recipes) on the base and the head, on one machine:
    the golden's `reward` lines are rounded and cannot see an ulp (CU-11).
-6. Before any gait work, or any training session that builds on an audited
+5. Before any gait work, or any training session that builds on an audited
    node (section 2) or is session 4 or 5, read
    [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) and its evidence,
    [investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md).
@@ -1113,19 +582,21 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
   parameter of `test_obs_functions.py` uses it, and it skips without JAX) and
   without IPython (since the notebook-only PR-12 slice deleted
   `test_behavior_notebook.py` no test needs it).
+- Operational choices of 2026-09-20 (moved from section 5 by cleanup CU-17): the
+  full six-species and four-notebook-parameter SB3 sets run nightly and under
+  the `full-ci` label (PR-3); if a PR run drops the union coverage gate below
+  70, the measured number and a proposed floor are reported rather than the
+  floor lowered; the session results (`gate_verdict.json`, `widen_report.json`,
+  `stance_gate_report.json`) are read from Drive through the maintainer's Drive
+  connector when a session ends.
 - Never write an AI model or vendor name into repository files; cite PR numbers,
   branch names or "the maintainer".
 
 ### Doc conventions (from [README.md](README.md))
 
-- `docs/` root = living reference and plans (this file is living reference);
-  dated investigations under `investigations/` are frozen at their date, with
-  corrections appended, and get a dated header and a row in `docs/README.md`;
-  `KNOWN_ISSUES.md` is the single list of verified-but-unfixed findings (fixed
-  items are deleted, context stays in the archived review or investigation).
-- Decision ids are used exactly as they exist in the plan (D1–D5 original,
-  D-A1..D-A25, D-B1..D-B17, D-C1..D-C17, D-D1..D-D22, G1..G4); never renumber.
-  Relative markdown links only; every link must resolve.
+The conventions are kept once, in [README.md](README.md#conventions): where a new
+document goes, how a dated one is corrected, how decision ids are used, links,
+the root README's scope and the one-landing-record rule.
 
 ### The widened-interface template note
 
