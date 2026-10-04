@@ -659,3 +659,261 @@ class TestCheckpointPairProblem:
         zip_path.write_bytes(bytes(data))
         problem = checkpoint_pair_problem(zip_path, vecnorm_path)
         assert problem is not None and "corrupt archive member 'data'" in problem
+
+
+class TestNewestIntactPeriodicPair:
+    """``newest_intact_periodic_pair``: the SB3 notebook RESUME cell's walk, moved into the library by cleanup CU-6.
+
+    It reads the trainer's pattern (``policy_loading._PERIODIC_CHECKPOINT_RE``) and admits exactly the names the
+    cell's own ``_(\\d+)_steps`` pattern admitted under the same glob, with the same steps and walk order (shown
+    exhaustively when it moved): one test per reason the walk skips a candidate, then the naming and order rules.
+    """
+
+    @staticmethod
+    def _pair(models, steps, *, zip_name=None, members=("data", "policy.pth"), sidecar=True):
+        """An intact periodic pair as SB3 names it (or its zip under *zip_name*; the sidecar is named from *steps*)."""
+        import pickle
+        import zipfile
+
+        models.mkdir(parents=True, exist_ok=True)
+        zip_path = models / (zip_name or f"stage2_{steps}_steps.zip")
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            for member in members:
+                archive.writestr(member, b"x" * 64)
+        vecnorm_path = models / f"stage2_vecnormalize_{steps}_steps.pkl"
+        if sidecar:
+            vecnorm_path.write_bytes(pickle.dumps({"obs_rms": list(range(20))}))
+        return zip_path, vecnorm_path
+
+    @staticmethod
+    def _walk(models, name_prefix="stage2"):
+        from environments.shared.curriculum import newest_intact_periodic_pair
+
+        return newest_intact_periodic_pair(models, name_prefix)
+
+    def test_the_newest_intact_pair_is_returned_with_nothing_skipped(self, tmp_path):
+        self._pair(tmp_path, 100_000)
+        zip_path, vecnorm_path = self._pair(tmp_path, 200_000)
+        assert self._walk(tmp_path) == ((200_000, zip_path, vecnorm_path), [])
+        assert self._walk(str(tmp_path)) == ((200_000, zip_path, vecnorm_path), []), "a str directory, Path results"
+
+    def test_the_pair_is_named_under_the_directory_as_given(self, tmp_path):
+        """The paths come back under *model_dir* as given, never resolved: walked through a link to the models
+        directory, the RESUME cell prints the link's paths and trains from them (``stage_config.json``'s
+        ``resume_load_path``), as its own walk did."""
+        import os
+
+        self._pair(tmp_path / "models", 100)
+        link = tmp_path / "link"
+        os.symlink(tmp_path / "models", link)
+        assert self._walk(link) == (
+            (100, link / "stage2_100_steps.zip", link / "stage2_vecnormalize_100_steps.pkl"),
+            [],
+        )
+
+    # ── one test per reason the pair check gives; each falls back to the next older step-point ──
+
+    def test_a_missing_sidecar_is_skipped(self, tmp_path):
+        older = self._pair(tmp_path, 100_000)
+        self._pair(tmp_path, 200_000, sidecar=False)
+        assert self._walk(tmp_path) == (
+            (100_000, *older),
+            ["stage2_200000_steps.zip: missing matched VecNormalize sidecar stage2_vecnormalize_200000_steps.pkl"],
+        )
+
+    def test_a_truncated_zip_is_skipped(self, tmp_path):
+        older = self._pair(tmp_path, 100_000)
+        newest, _ = self._pair(tmp_path, 200_000)
+        newest.write_bytes(newest.read_bytes()[:40])
+        pair, [reason] = self._walk(tmp_path)
+        assert pair == (100_000, *older)
+        assert reason.startswith("stage2_200000_steps.zip: bad/truncated checkpoint zip stage2_200000_steps.zip (")
+
+    def test_a_zip_without_sb3_members_is_skipped(self, tmp_path):
+        older = self._pair(tmp_path, 100_000)
+        self._pair(tmp_path, 200_000, members=("data", "pytorch_variables.pth"))
+        pair, [reason] = self._walk(tmp_path)
+        assert pair == (100_000, *older)
+        assert reason.startswith("stage2_200000_steps.zip: bad/truncated checkpoint zip stage2_200000_steps.zip (")
+        assert "outer archive lacks SB3 members" in reason
+
+    def test_a_zip_member_whose_crc_does_not_match_is_skipped(self, tmp_path):
+        older = self._pair(tmp_path, 100_000)
+        newest, _ = self._pair(tmp_path, 200_000)
+        data = bytearray(newest.read_bytes())
+        data[data.index(b"x" * 64)] = ord("y")
+        newest.write_bytes(bytes(data))
+        pair, [reason] = self._walk(tmp_path)
+        assert pair == (100_000, *older) and "corrupt archive member 'data'" in reason
+
+    def test_a_sidecar_that_does_not_unpickle_is_skipped(self, tmp_path):
+        older = self._pair(tmp_path, 100_000)
+        _, sidecar = self._pair(tmp_path, 200_000)
+        sidecar.write_bytes(sidecar.read_bytes()[:10])
+        pair, [reason] = self._walk(tmp_path)
+        assert pair == (100_000, *older)
+        assert reason.startswith(
+            "stage2_200000_steps.zip: VecNormalize sidecar stage2_vecnormalize_200000_steps.pkl does not unpickle ("
+        )
+
+    def test_a_directory_or_a_dangling_link_named_like_a_checkpoint_is_skipped(self, tmp_path):
+        """The glob lists them, as the cell's did; the pair check refuses them, so each is skipped with a reason."""
+        import os
+        import pickle
+
+        older = self._pair(tmp_path, 100_000)
+        (tmp_path / "stage2_300000_steps.zip").mkdir()
+        os.symlink(tmp_path / "nowhere.zip", tmp_path / "stage2_200000_steps.zip")
+        for steps in (200_000, 300_000):
+            (tmp_path / f"stage2_vecnormalize_{steps}_steps.pkl").write_bytes(pickle.dumps({}))
+        pair, skipped = self._walk(tmp_path)
+        assert pair == (100_000, *older)
+        assert [reason.split(":")[0] for reason in skipped] == ["stage2_300000_steps.zip", "stage2_200000_steps.zip"]
+        assert all(": bad/truncated checkpoint zip " in reason for reason in skipped)
+
+    def test_an_os_error_from_the_pair_check_propagates(self, tmp_path, monkeypatch):
+        """An I/O or permission error the pair check does not catch (``Path.exists`` on a mount) is never turned
+        into a skip: it propagates, as it did out of the RESUME cell's own walk, after a newer candidate was
+        skipped."""
+        import errno
+        import pathlib
+
+        self._pair(tmp_path, 100)
+        self._pair(tmp_path, 200)
+        self._pair(tmp_path, 300, sidecar=False)
+        exists = pathlib.Path.exists
+
+        def failing_exists(path, *args, **kwargs):
+            if path.name == "stage2_vecnormalize_200_steps.pkl":
+                raise OSError(errno.EIO, "Input/output error")
+            return exists(path, *args, **kwargs)
+
+        monkeypatch.setattr(pathlib.Path, "exists", failing_exists)
+        with pytest.raises(OSError) as raised:
+            self._walk(tmp_path)
+        assert raised.value.errno == errno.EIO
+
+    # ── the walk ──
+
+    def test_none_intact_returns_every_reason_newest_first(self, tmp_path):
+        self._pair(tmp_path, 100_000, sidecar=False)
+        _, sidecar = self._pair(tmp_path, 200_000)
+        sidecar.write_bytes(b"not a pickle")
+        newest, _ = self._pair(tmp_path, 300_000)
+        newest.write_bytes(b"PK\x03\x04 truncated")
+        pair, skipped = self._walk(tmp_path)
+        assert pair is None
+        assert [reason.split(": ", 1)[0] for reason in skipped] == [
+            "stage2_300000_steps.zip",
+            "stage2_200000_steps.zip",
+            "stage2_100000_steps.zip",
+        ]
+        assert skipped[2].endswith("missing matched VecNormalize sidecar stage2_vecnormalize_100000_steps.pkl")
+
+    def test_no_candidate_returns_none_and_nothing_skipped(self, tmp_path):
+        """``(None, [])`` is the RESUME cell's "no periodic checkpoint" case, which it tells apart from a walk that
+        skipped every candidate: a missing or empty models directory, or one holding only other checkpoints."""
+        models = tmp_path / "models"
+        assert self._walk(models) == (None, []), "a missing directory"
+        models.mkdir()
+        assert self._walk(models) == (None, []), "an empty directory"
+        self._pair(models, 0, zip_name="stage2_final.zip")
+        self._pair(models, 0, zip_name="robust_best_model.zip")
+        self._pair(models, 0, zip_name="stage1_100_steps.zip")
+        assert self._walk(models) == (None, []), "only the final, handoff and another stage's checkpoints"
+
+    def test_candidates_are_walked_by_step_never_by_name_or_mtime(self, tmp_path):
+        """``stage2_1000000_steps.zip`` sorts before ``stage2_900000_steps.zip`` by name, and on a Drive mount the
+        mtime is upload order: the step in the name decides."""
+        import os
+
+        newest = self._pair(tmp_path, 1_000_000)
+        older = self._pair(tmp_path, 900_000)
+        for path in newest:
+            os.utime(path, (1_000_000, 1_000_000))
+        for path in older:
+            os.utime(path, (2_000_000, 2_000_000))
+        assert self._walk(tmp_path) == ((1_000_000, *newest), [])
+
+    def test_other_prefixes_and_other_names_are_never_candidates(self, tmp_path):
+        """Only ``stage2_<digits>_steps.zip``: not another stage's checkpoints (one whose label extends or prefixes
+        this one), not a sidecar or replay buffer saved as a zip, not a curated pair, not another extension or case,
+        not a name that only looks periodic. Each is a valid zip with a step newer than the real one, so a name let
+        through would be picked or skipped."""
+        intact = self._pair(tmp_path, 100)
+        for name in (
+            "stage2_x_500_steps.zip",
+            "stage2_x_steps.zip",
+            "stage2_stage2_600_steps.zip",
+            "stage20_700_steps.zip",
+            "stage22_700_steps.zip",
+            "stage_700_steps.zip",
+            "xstage2_700_steps.zip",
+            "stage1_800_steps.zip",
+            "stage2_vecnormalize_900_steps.zip",
+            "stage2_replay_buffer_900_steps.zip",
+            "stage2_-1000_steps.zip",
+            "stage2_1e3_steps.zip",
+            "stage2__900_steps.zip",
+            "stage2_900_steps_steps.zip",
+            "stage2_1100_steps.ZIP",
+            "stage2_1200_steps.zip.zip",
+            "stage2_final.zip",
+            "best_model.zip",
+        ):
+            self._pair(tmp_path, 100, zip_name=name)
+        assert self._walk(tmp_path) == ((100, *intact), [])
+
+    def test_a_checkpoint_in_a_subdirectory_is_never_a_candidate(self, tmp_path):
+        """The walk lists *model_dir* itself, as the cell's glob did, never a subdirectory: a valid, newer pair
+        under ``old/`` is neither picked nor skipped."""
+        intact = self._pair(tmp_path, 100)
+        self._pair(tmp_path / "old", 900)
+        assert self._walk(tmp_path) == ((100, *intact), [])
+
+    def test_a_name_with_a_trailing_newline_is_never_a_candidate(self, tmp_path):
+        """The pattern ends in ``$``, which also matches before a trailing newline; the walk matches the whole stem
+        of a ``..._steps.zip`` name."""
+        intact = self._pair(tmp_path, 50)
+        self._pair(tmp_path, 100, zip_name="stage2_100_steps\n.zip")
+        assert self._walk(tmp_path) == ((50, *intact), [])
+
+    @pytest.mark.parametrize("spelled", ["00100", "\u0661\u0660\u0660", "\uff11\uff10\uff10"])
+    def test_the_sidecar_is_named_from_the_parsed_step_count(self, tmp_path, spelled):
+        """SB3 writes the step count with ``str(int)``; a zip spelling it otherwise (leading zeros, other Unicode
+        digits) is paired with ``stage2_vecnormalize_100_steps.pkl``, as the RESUME cell paired it."""
+        zip_path, vecnorm_path = self._pair(tmp_path, 100, zip_name=f"stage2_{spelled}_steps.zip")
+        assert self._walk(tmp_path) == ((100, zip_path, vecnorm_path), [])
+
+    def test_step_ties_are_walked_in_name_order(self, tmp_path, monkeypatch):
+        """Two names of one count are walked in name order whatever order the directory lists them in (tmpfs
+        lists the newest entry first, ext4 by hash): the listing is also replayed in name order and in reverse. When
+        the first name's pair is broken, the second name's is walked, as the cell's walk did."""
+        import pathlib
+
+        first, vecnorm_path = self._pair(tmp_path, 100, zip_name="stage2_00100_steps.zip")
+        self._pair(tmp_path, 100)
+        assert self._walk(tmp_path) == ((100, first, vecnorm_path), [])
+        glob = pathlib.Path.glob
+        for reverse in (False, True):
+
+            def listed(path, pattern, *args, _reverse=reverse, **kwargs):
+                return iter(sorted(glob(path, pattern, *args, **kwargs), reverse=_reverse))
+
+            monkeypatch.setattr(pathlib.Path, "glob", listed)
+            assert self._walk(tmp_path) == ((100, first, vecnorm_path), []), f"listed in reverse: {reverse}"
+        first.write_bytes(b"PK\x03\x04 truncated")
+        pair, skipped = self._walk(tmp_path)
+        assert pair == (100, tmp_path / "stage2_100_steps.zip", vecnorm_path), "the second name is walked too"
+        assert [reason.split(":")[0] for reason in skipped] == ["stage2_00100_steps.zip"]
+
+    def test_the_walk_reads_the_trainers_pattern_when_it_runs(self, tmp_path, monkeypatch):
+        """One pattern and one patch point (cleanup CU-8b): a patch of ``policy_loading._PERIODIC_CHECKPOINT_RE``
+        reaches the walk, which holds no copy of its own."""
+        import re
+
+        from environments.shared import policy_loading
+
+        self._pair(tmp_path, 100)
+        monkeypatch.setattr(policy_loading, "_PERIODIC_CHECKPOINT_RE", re.compile(r"(?!)(.+)_(\d+)_steps$"))
+        assert self._walk(tmp_path) == (None, [])

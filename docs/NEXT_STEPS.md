@@ -1,6 +1,6 @@
-# Next steps and program state (2026-10-03)
+# Next steps and program state (2026-10-04)
 
-**Status**: living reference — updated 2026-10-03; `main` = `048398a` (#590 merged 2026-10-03 15:06 UTC).
+**Status**: living reference — updated 2026-10-04; `main` = `d38c785` (#591 merged 2026-10-03 18:12 UTC).
 
 Read this first when starting a new session on the behavior-recipes program: what
 has landed, what is certified on Drive, which training sessions to run next, where
@@ -18,7 +18,7 @@ file in place when the state changes; it is not a dated investigation.
 
 ## 1. Where things stand
 
-**On 2026-10-03** (`main` = `048398a`). The backend retirement is complete:
+**On 2026-10-04** (`main` = `d38c785`). The backend retirement is complete:
 PR-A (#564), PR-A2 (#565) and PR-B (#566) landed, so Stable-Baselines3 is the
 only training backend (D-D17). The cleanup is **not** complete, but
 D-D21's 0.3.9 gate has landed: no gate name remains
@@ -104,16 +104,22 @@ on 2026-10-03, which completes CU-10: `train()` and the command-line
 curriculum train a stage through one shared body, whose evaluation
 environment's seed is `eval_env_seed(seed)`, and CLI curriculum runs now seed
 model construction and record each node's duration, as D-D11's amendment of
-2026-10-03 says ([section 5](#5-decisions-taken-2026-09-17)). ROW-4/6 is
-carried out: the chain loop judges a node the run trained but never judged
-before it consults the trunk (decision 6 (b)), and the resolve cell records
-the trunk in the run's `trunk_run.json`, which the RESUME cell checks a resume
-against (decision 4 (a)); its amendments to D-A17, D-C13, D-A25, D-D15 and
-D-D16 are dated notes, not D-D rows (D-D15's and D-D16's in
-[section 5](#5-decisions-taken-2026-09-17)). CU-6 is next, with the `full-ci`
-label, then CU-17. The consolidation's PR-8, PR-9, PR-10, PR-11, the rest of
-PR-12, PR-13 and PR-15 remain and build on 0.3.9, after the deferred cleanup
-([section 4](#4-consolidation-the-remaining-prs)).
+2026-10-03 says ([section 5](#5-decisions-taken-2026-09-17)). ROW-4/6 landed
+as #591 on 2026-10-03: the chain loop judges a node the run trained but never
+judged before it consults the trunk (decision 6 (b)), and the resolve cell
+records the trunk in the run's `trunk_run.json`, which the RESUME cell checks
+a resume against (decision 4 (a)); its amendments to D-A17, D-C13, D-A25,
+D-D15 and D-D16 are dated notes, not D-D rows (D-D15's and D-D16's in
+[section 5](#5-decisions-taken-2026-09-17)). CU-6 is carried out: the RESUME
+cell's periodic-pair walk and the archive-load preflight are library functions
+(`curriculum.newest_intact_periodic_pair` and
+`policy_loading.sb3_archive_load_preflight`), and the RESUME cell no longer
+evaluates the node it trains, which the chain loop's JUDGE branch evaluates
+from disk next in the same Run all, as D-D7's amendment of 2026-10-03 says
+([section 5](#5-decisions-taken-2026-09-17)). CU-17, the last of the deferred
+PRs, is next, then PR-8. The consolidation's PR-8, PR-9, PR-10, PR-11, the
+rest of PR-12, PR-13 and PR-15 remain and build on 0.3.9, after the deferred
+cleanup ([section 4](#4-consolidation-the-remaining-prs)).
 The gait audit of 2026-09-28
 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md))
 replayed every certified node on Drive: three of the five certified walkers
@@ -189,6 +195,7 @@ gait work in a fresh session.
 | #588 | 2026-10-02 | Cleanup CU-13 (the second of the deferred PRs), outside the consolidation sequence: the three recovery stage TOMLs inherit their stance's tables through a top-level `extends = { stage = "stance", tables = [...] }`, one level deep, with no chains and never `curriculum` (trex lists `stage`, `env` and `ppo` and stays PPO-only; the compsognathus pair lists `sac` too), the form of D-D5's amendment of 2026-10-02, which it appends; every resolved stage config byte-identical; the website's PPO, SAC and hyperparameter pages describe `extends`; #587 recorded; merged with a merge commit (`44b7d6e`, whose tree equals the head's); no digest moves (the change commit 14 files, +535 / −244; 20 files, +648 / −281 in all). Measured on its CI at reduced depth, on the head (`a281c01`, through its merge ref): ten jobs, all green, in 12:41, finishing 27 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,659 passed and 142 skipped; SB3 job 11:53 (its mypy step: no issues in 324 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,232 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,263 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:14, and the site's Deploy run on `main` built and deployed `44b7d6e` |
 | #589 | 2026-10-03 | Cleanup CU-15, reduced (the third of the deferred PRs), outside the consolidation sequence: the Drive summary notebook checks out `REPO_REF` with the SB3 notebook's Git block (pinned AST-identical; in both notebooks the block also checks out a clone that has no index yet), mounts Drive only from Colab and only once, installs the package only when it is missing and describes today's run layout; an executed test reads runs in today's layout through its reader cells (the SB3 job lists it, for pandas); the `library_version` column's two meanings a KNOWN_ISSUES LOW; the `run_index.py` move not taken; #588 recorded; merged with a merge commit (`85f1365`, whose tree equals the head's); no library code change and no digest moves (the change commit 8 files, +458 / −45; 14 files, +553 / −88 in all). Measured on its CI at reduced depth, on the head (`bd83c3b`, through its merge ref): ten jobs, all green, in 12:04, finishing 54 min before the merge; the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,670 passed and 143 skipped; SB3 job 11:23 (its mypy step: no issues in 325 source files; the notebook training 1 passed, the behavior training 2 passed, the integration step 1,238 passed, 10 deselected), coverage 88 percent (19,516 statements, 2,260 missed); the first push run on `main` passed with the same ten jobs and counts, in 12:09; no Deploy run (no website file changed) |
 | #590 | 2026-10-03 | Cleanup CU-10b (the fourth of the deferred PRs, which completes CU-10), outside the consolidation sequence: `train()` and the command-line curriculum train a stage through one private body in `train_base.py`, `_train_stage_body` (the curriculum hands it `CurriculumCallback` as a hook between the entropy decay and the shaping, and gets back both environments open, whether a Ctrl-C ended the node and the time `learn()` took), byte-identical under a frozen clock, and the evaluation environment's seed is `eval_env_seed(seed)`, `seed + 1000`; then the curriculum seeds model construction and records each trained node's `run.duration_seconds`, as D-D11's amendment of 2026-10-03 says (a CLI SAC curriculum run now repeats); the optional `train_base.py` module split not taken; #589 recorded; merged with a merge commit (`048398a`, whose tree equals the head's); no digest moves (the change commits 9 files, +928 / −397, and 7 files, +214 / −58; 18 files, +1,210 / −464 in all). Measured on its CI on the head (`b3c0f17`, through its merge ref), with the `full-ci` label: ten jobs, all green, in 21:39, finishing 10 h 33 min before the merge (the run without the label, at reduced depth, in 11:30); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,684 passed and 143 skipped (CU-10b's 14 new tests); SB3 job 20:53 (its mypy step: no issues in 325 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,258 passed, 4 deselected), coverage 88 percent (19,521 statements, 2,257 missed); the first push run on `main` passed, with the same ten jobs and the reduced head run's counts, in 12:46; the site's Deploy workflow ran for the recipes page, its build green on the head, and on `main` it built and deployed `048398a` in 1:31 |
+| #591 | 2026-10-03 | Cleanup ROW-4/6 (the fifth of the deferred PRs, the notebook PR for the cleanup plan's decisions 4 and 6, which the maintainer took on 2026-10-02), outside the consolidation sequence: the SB3 notebook's chain loop judges an ancestor the run trained but never judged before it consults the trunk, under a trunk only on the parent resolved here (reuse rule 4), and refuses an interrupted one toward the RESUME cell (decision 6 (b)); the resolve cell no longer calls D-C13's `refuse_trunk_over_unjudged_widened_root`, and the `BEHAVIOR` route for a resume `RETRAIN_FROM` covers is retired; the resolve cell records the trunk it resolved in the run's `trunk_run.json` (`mesozoic.trunk-run/v1`), which the RESUME cell checks a resume against and the resume recipe and the recipes page read (decision 4 (a)); the KNOWN_ISSUES trunk entry narrowed, not deleted; the amendments to D-A17, D-C13, D-A25, D-D15 and D-D16 dated notes, not D-D rows; #590 recorded; merged with a merge commit (`d38c785`, whose tree equals the head's); no digest moves (the change commits 7 files, +1,226 / −6, 12 files, +631 / −122, and 9 files, +512 / −95; 22 files, +2,489 / −212 in all). Measured on its CI on the head (`4a03fac`, through its merge ref), with the `full-ci` label: ten jobs, all green, in 22:32, finishing 40 min before the merge (the run without the label, at reduced depth, in 12:12); the digest step reported the golden current (932 lines, 0 errors); each shared leg 3,821 passed and 143 skipped (ROW-4/6's 137 more); SB3 job 21:43 (its mypy step: no issues in 327 source files; the notebook training 4 passed, the behavior training 12 passed, the integration step 1,258 passed, 4 deselected), coverage 89 percent (19,637 statements, 2,257 missed); the first push run on `main` passed, with the same ten jobs and the reduced head run's counts, in 12:13; the site's Deploy workflow ran for the recipes page, its build green on the head, and on `main` it built and deployed `d38c785` in 1:38 |
 
 The notebook at `22c1fc8` ([notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb))
 has 40 cells (22 code), 2,526 lines; 19 code cells reference the
@@ -217,10 +224,13 @@ cell and the chain loop: 1,599 lines; cleanup CU-5 (#575) cuts the markdown
 from 223 to 111 lines and adds `node_budget`: 33 cells, 17 code, 1,468 lines,
 the chain loop at index 20; cleanup CU-8a (#579) has the chain loop call the
 library's fingerprint helper and ignored-edits check: 1,454 lines; ROW-4/6
-(carried out 2026-10-03) has the chain loop judge an unjudged `RUN_DIR` node
-before the trunk, the resolve cell write `trunk_run.json` (its D-C13 call
-gone) and the RESUME cell check it: 33 cells, 17 code, 1,480 lines, the chain
-loop at index 20).
+(#591) has the chain loop judge an unjudged `RUN_DIR` node before the trunk,
+the resolve cell write `trunk_run.json` (its D-C13 call gone) and the RESUME
+cell check it: 33 cells, 17 code, 1,480 lines, the chain loop at index 20;
+cleanup CU-6 (carried out 2026-10-03) makes the archive-load preflight one
+call of `policy_loading.sb3_archive_load_preflight` and the RESUME cell's walk
+`curriculum.newest_intact_periodic_pair`, and the RESUME cell trains without
+evaluating: 33 cells, 17 code, 1,424 lines, the chain loop at index 20).
 Configuration-cell defaults:
 `BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
 the eleven direction/terrain values leave with the PR-12 slice),
@@ -672,6 +682,20 @@ G series; the D-A/D-B/D-C series keep their numbers). Confirmed by the maintaine
 - **D-D7** Notebook depth: only the `train_stage` wrapper over `train_base.train`
   now (PR-14); moving the chain loop / widen / resume cells into a package module
   is decided after PR-14.
+  Amended 2026-10-03 (the cleanup plan's §2 row 9), carried out by its CU-6: a
+  slice of the resume cell and the archive-load preflight move into the
+  package ahead of the deferred full move. The RESUME cell's periodic-pair
+  walk is `curriculum.newest_intact_periodic_pair`, which reads
+  `policy_loading._PERIODIC_CHECKPOINT_RE`; the archive-load preflight cell is
+  one call of `policy_loading.sb3_archive_load_preflight`; and `train_stage`
+  takes a keyword-only `evaluate` (default `True`; the RESUME cell passes
+  `False`, since the chain loop's JUDGE branch evaluates, from disk, every
+  node the RESUME cell trains, cleanup ROW-4/6). The chain loop, the rest of
+  the RESUME cell (its refusals, warnings and report), `node_budget` (in the
+  infrastructure cell, read by the chain loop, the RESUME cell and the manual
+  cell), and the storage and resolve cells stay in the notebook, and the
+  recipes plan's §4.7 AST pins on the chain loop stay, as this decision says;
+  the full package move stays deferred (the cleanup plan's §7).
 - **D-D8** No interim behaviors notebook; the mode switch is tolerated until
   PR-12 deletes it.
 - **D-D9** #540/#541 behavior bundles on Drive are evaluation-only; none is a
@@ -733,6 +757,7 @@ Taken on 2026-09-24:
   refuses a root widened into a run that already holds it as an `ancestors/`
   record when the root is an ancestor of `BEHAVIOR`'s node, naming a new run
   id.
+  ROW-4/6 landed as #591 on 2026-10-03.
 
 Taken on 2026-09-25:
 
@@ -756,6 +781,7 @@ Taken on 2026-09-25:
   the trunk (decision 6 (b)). The RESUME cell refuses a node the run holds as
   an `ancestors/` record and, once the run holds one, a resume under another
   trunk than the file names.
+  ROW-4/6 landed as #591 on 2026-10-03.
 
 Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
 ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)):
@@ -855,6 +881,9 @@ Taken on 2026-09-26, from the decisions the cleanup plan's §2 lists
   helper shared with `train()`, with `eval_env_seed`, then D-D11's alignment
   for the curriculum as its own last commit), and CU-10's optional split of
   `train_base.py` into modules is not taken (the cleanup plan's §3.1 item 5).
+  2026-10-03 (the cleanup plan's §3.1 item 5): of the deferred PRs, CU-10a,
+  CU-13, CU-15, CU-10b and ROW-4/6 have landed (#587 to #591), and CU-6 is
+  carried out; CU-17 is the last of them, before PR-8.
 - **D-D22** (its row 16, taken 2026-09-29) The digest-snapshot output
   (`environments/shared/harnesses/digest_snapshot.py`) is committed as a
   golden and CI checks it, with the full harness run on pull requests (not
@@ -1019,8 +1048,8 @@ first gate thresholds) are in [section 1](#the-final-goal-and-the-goal-decisions
    chose to finish the deferred cleanup first, so before PR-8 continue with
    the next of its PRs, in the order of
    [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.1 item 5 (CU-10a,
-   CU-13, CU-15, CU-10b, ROW-4/6, CU-6, CU-17), each PR recording the one
-   before it as landed.
+   CU-13, CU-15, CU-10b, ROW-4/6, CU-6, CU-17; CU-17, the last, is next),
+   each PR recording the one before it as landed.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).

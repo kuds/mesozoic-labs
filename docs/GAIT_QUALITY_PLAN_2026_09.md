@@ -114,6 +114,10 @@ carried out: the chain loop judges a node the run trained but never judged befor
 stopped run leaves unjudged (GQ-2's "cleanup decision 6's hazard") is judged, or refused toward the RESUME cell,
 before any trunk stands in for it (unless the run already holds it as an `ancestors/` record), and the run's
 `trunk_run.json` records the trunk, which the RESUME cell checks a resume against; CU-6 is next.*
+*Updated 2026-10-04: ROW-4/6 landed as #591. CU-6 (the resume slice of the cleanup plan) is carried out: the SB3
+notebook's RESUME cell walks a node's periodic checkpoints through the library and no longer evaluates the node it
+trains, which the chain loop's JUDGE branch evaluates from disk before anything certifies it, and the archive-load
+preflight is one library call; CU-17, the last of the deferred PRs, is next.*
 
 ## 2. Decisions needed
 

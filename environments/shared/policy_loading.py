@@ -628,3 +628,102 @@ def load_sb3_checkpoint(
         validate_model_plant(normalizer, plant_identity, artifact=vecnorm_path, allow_legacy=allow_legacy_plant)
 
     return model, normalizer, vecnorm_path
+
+
+# ── the SB3 notebook's archive-load preflight (cleanup CU-6) ─────────────────
+
+
+def _root_handoff_archive(species: str, root_reference: "int | str", run_dir: "str | Path") -> "Path | None":
+    """The chain root's handoff archive under *run_dir* (either stage-directory naming, newest first), or ``None``."""
+    from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.stage_manifest import stage_dir_candidates
+
+    for name in stage_dir_candidates(species, root_reference):
+        handoff = select_handoff_checkpoint(Path(run_dir) / name / "models")
+        if handoff is not None:
+            return Path(handoff[1] + ".zip")
+    return None
+
+
+def _save_throwaway_ppo(path: Path) -> None:
+    """Save a minimal PPO model to *path* with this runtime (a 2-obs/1-action env, an 8-unit net); never trained."""
+    import gymnasium as gym
+    import numpy as np
+    from stable_baselines3 import PPO
+
+    class _PreflightEnv(gym.Env):
+        """Tiny 2-obs/1-action env; exists only to construct a minimal PPO."""
+
+        observation_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
+        action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+
+        def reset(self, *, seed: "int | None" = None, options: "dict[str, Any] | None" = None) -> Any:
+            super().reset(seed=seed)
+            return np.zeros(2, dtype=np.float32), {}
+
+        def step(self, action: Any) -> Any:
+            return np.zeros(2, dtype=np.float32), 0.0, True, False, {}
+
+    PPO("MlpPolicy", _PreflightEnv(), n_steps=32, batch_size=32, policy_kwargs={"net_arch": [8]}, device="cpu").save(
+        str(path)
+    )
+
+
+def sb3_archive_load_preflight(
+    species: str, root_reference: "int | str", *, trunk_dir: "str | Path | None"
+) -> SB3ArchiveInspection:
+    """Prove that this runtime loads a real SB3 archive through :func:`load_sb3_model`, before anything trains.
+
+    The SB3 notebook's section-4 preflight: until cleanup CU-6 the body of the
+    preflight cell, which runs right after the resolve cell (KNOWN_ISSUES, "SB3
+    archives are bound to the interpreter that saved them"). The archive is
+    the chain root's handoff in the trunk run *trunk_dir*: *root_reference*
+    of *species*' manifest, its directory found under either naming
+    (:func:`~environments.shared.stage_manifest.stage_dir_candidates`, newest
+    first) and its handoff chosen as the next node would load it
+    (:func:`~environments.shared.curriculum.checkpoints.select_handoff_checkpoint`).
+    Without a trunk (``trunk_dir=None``), or when the trunk's root holds no
+    complete handoff pair, it is a throwaway PPO this very runtime saves into
+    a temporary directory, removed before this returns; a trunk without a
+    pair is never refused.
+
+    The archive is inspected; then a line naming it, the Python that saved it
+    and its bytecode members is printed and flushed immediately before the
+    one load, so a kernel death (an archive whose cloudpickled bytecode this
+    interpreter cannot execute kills the process with no traceback) is
+    attributable to the load; a "passed" line follows the load.
+
+    Returns the loaded archive's :class:`SB3ArchiveInspection` (a throwaway's
+    ``path`` no longer exists). Catches nothing and adds no refusal:
+    :class:`PolicyLoadError` from :func:`inspect_sb3_archive` (an unreadable
+    handoff) or :func:`load_sb3_model` (foreign bytecode outside the schedule
+    members), SB3's own error when the load fails and ``ImportError`` without
+    SB3 propagate, so a failure halts the notebook's Run all before any
+    training. Trains nothing and writes nothing outside its temporary
+    directory. The project modules, gymnasium, numpy and SB3 are imported
+    when it is called, and ``train_base`` never is.
+    """
+    import tempfile
+
+    archive: "Path | None" = None
+    source = "a throwaway model saved by this runtime"
+    if trunk_dir is not None:
+        archive = _root_handoff_archive(species, root_reference, trunk_dir)
+        if archive is not None:
+            source = f"the trunk run's root handoff {archive}"
+    with tempfile.TemporaryDirectory(prefix="sb3_load_preflight_") as scratch:
+        if archive is None:
+            archive = Path(scratch) / "preflight_ppo.zip"
+            _save_throwaway_ppo(archive)
+        inspection = inspect_sb3_archive(archive)
+        print(
+            f"SB3 archive load preflight: loading {source} (saved by Python "
+            f"{inspection.saved_python_text}; this runtime is Python {sys.version_info[0]}.{sys.version_info[1]}; "
+            f"bytecode members: {', '.join(sorted(inspection.bytecode_members)) or 'none'}) ... "
+            "a kernel death HERE means this image cannot load SB3 archives",
+            flush=True,
+        )
+        model = load_sb3_model(archive, device="cpu")
+        del model
+    print("SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.")
+    return inspection

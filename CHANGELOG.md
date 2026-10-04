@@ -8,9 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **The SB3 notebook's resume walk and archive-load preflight are library
+  functions, and the RESUME cell no longer evaluates the node it trains**
+  (cleanup CU-6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-6
+  row). A behavior change for a resume session: the RESUME cell prints no
+  evaluation report, and the stage directory holds no `evaluation_final.csv`
+  or `evaluation_selected.csv` until the chain loop's JUDGE branch, next in
+  the same Run all, evaluates the node from disk and judges it (since
+  ROW-4/6 it does so for every node the RESUME cell trains). The
+  infrastructure cell's `train_stage` takes `evaluate=True`; the RESUME cell
+  passes `False`, which skips the evaluation of the final and selected
+  checkpoints (up to 60 episodes) and keeps the 6-tuple, and the chain
+  loop's TRAIN branch and the manual cell evaluate as before. New in
+  `environments.shared.curriculum`: `newest_intact_periodic_pair(model_dir,
+  name_prefix)`, the RESUME cell's newest-first walk over a node's periodic
+  checkpoint pairs, which returns the newest pair `checkpoint_pair_problem`
+  passes and the reason for each newer one it skipped. It reads SB3's
+  `<prefix>_<steps>_steps.zip` names through
+  `policy_loading._PERIODIC_CHECKPOINT_RE`, the pattern the trainer and the
+  command line read, instead of the cell's own copy, and picks the pair the
+  cell picked (the same names, step order, sidecar names and tie order); the
+  cell keeps its texts byte for byte: a WARNING per skipped pair, its two
+  refusals and its report. The WARNING lines now print once the walk
+  returns instead of during it, so a walk that raises (an I/O error on a
+  mount, an interrupt) prints none of them. Only the notebook's copy of the
+  pattern is folded: `result_bundle/evidence.py`'s name matcher and
+  `prune_periodic_checkpoints`' glob stay as they are. New in
+  `environments.shared.policy_loading`: `sb3_archive_load_preflight(species,
+  root_reference, *, trunk_dir)`, the body of the section-4 preflight cell,
+  which is now one call: it loads the trunk run's root handoff, else a
+  throwaway PPO saved into a temporary directory, through `load_sb3_model`,
+  prints the cell's two lines, the first flushed immediately before the one
+  load, and returns the archive's inspection; `policy_loading` still imports
+  only the standard library at import time, and the preflight loads no
+  `train_base`. The setup cell's `import numpy as np`, which only the
+  throwaway's env read, goes. The notebook is 1,424 source lines (1,480
+  before). Tests: one per reason the walk skips a pair, and its name, order,
+  sidecar and tie rules; both RESUME refusals executed (no test ran either
+  before) and the report order; the preflight executed on a trunk handoff
+  under each directory name, on the 3.12 and 3.13 fixture archives and on
+  the throwaway, with its flushed line observed before the load starts and a
+  failed load propagating; `train_stage` with and without the evaluation;
+  and a pin that no notebook cell encodes the periodic checkpoint name
+  itself. No digest moves.
 - **The SB3 notebook records the trunk a session resolved in the run's
   `trunk_run.json`, and the RESUME cell checks a resume against it**
-  (decision 4 (a); cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
+  (#591, decision 4 (a); cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-03; §2 row 4). A behavior change for notebook sessions that
   re-enter a run. The resolve cell now writes `RUN_DIR/trunk_run.json`
   (`mesozoic.trunk-run/v1`: the `TRUNK_FROM` value that reproduces the trunk
@@ -54,30 +97,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   order) and adds the file to the reuse-only re-entry entry;
   `docs/RESULT_BUNDLES.md` lists it. No digest moves.
 - **The SB3 notebook's chain loop judges a node the run trained but never
-  judged before it consults the trunk** (decision 6 (b), amending D-A17 and
-  D-C13; cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §2
-  row 6). A behavior change for notebook sessions with a trunk run
-  (`TRUNK_FROM`). For an ancestor whose stage directory in `RUN_DIR` holds
-  any checkpoint (`models/*.zip`) and no `gate_verdict.json`, and that the
-  run does not hold as an `ancestors/` record, the loop no longer asks the
-  trunk: an intact final pair goes to the JUDGE branch, anything else to the
-  interrupted-node refusal, which names `RESUME_STAGE`. Before, a trunk that
-  certified the node stood in for it: a node the RESUME cell had finished
-  was reused from the trunk and never judged, and an interrupted one was
-  abandoned for the trunk's copy. The loop judges such a node only on the
-  parent this session resolved (reuse rule 4): one trained on another parent
-  is refused before anything is judged or trained, naming a fresh `RUN_ID`.
-  It prints why it skips the trunk. A judged node that fails now stops the
-  chain where the trunk's copy used to be reused. A run that already took
-  the trunk's copy over its own keeps that `ancestors/` record, and the loop
-  still consults the trunk for that node. The target, a node `RETRAIN_FROM`
-  covers, a node holding a verdict and a session without a trunk behave as
-  before. A root widened on the command line is judged first the same way
-  (one widened into a run that already holds that root as an `ancestors/`
-  record is refused, with or without a trunk, naming a new run id), so the
-  resolve cell no longer calls D-C13's
-  `refuse_trunk_over_unjudged_widened_root` (still exported and tested).
-  The RESUME cell's refusal under `RETRAIN_FROM`, the resume recipe
+  judged before it consults the trunk** (#591, decision 6 (b), amending
+  D-A17 and D-C13; cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-03; §2 row 6). A behavior change for notebook sessions with a
+  trunk run (`TRUNK_FROM`). For an ancestor whose stage directory in
+  `RUN_DIR` holds any checkpoint (`models/*.zip`) and no
+  `gate_verdict.json`, and that the run does not hold as an `ancestors/`
+  record, the loop no longer asks the trunk: an intact final pair goes to
+  the JUDGE branch, anything else to the interrupted-node refusal, which
+  names `RESUME_STAGE`. Before, a trunk that certified the node stood in for
+  it: a node the RESUME cell had finished was reused from the trunk and
+  never judged, and an interrupted one was abandoned for the trunk's copy.
+  The loop judges such a node only on the parent this session resolved
+  (reuse rule 4): one trained on another parent is refused before anything
+  is judged or trained, naming a fresh `RUN_ID`. It prints why it skips the
+  trunk. A judged node that fails now stops the chain where the trunk's copy
+  used to be reused. A run that already took the trunk's copy over its own
+  keeps that `ancestors/` record, and the loop still consults the trunk for
+  that node. The target, a node `RETRAIN_FROM` covers, a node holding a
+  verdict and a session without a trunk behave as before. A root widened on
+  the command line is judged first the same way (one widened into a run that
+  already holds that root as an `ancestors/` record is refused, with or
+  without a trunk, naming a new run id), so the resolve cell no longer calls
+  D-C13's `refuse_trunk_over_unjudged_widened_root` (still exported and
+  tested). The RESUME cell's refusal under `RETRAIN_FROM`, the resume recipe
   (section 5) and the recipes page no longer route a node through
   `BEHAVIOR`. New in `environments.shared.result_bundle`:
   `unjudged_stage_dir` and `refuse_judging_off_the_resolved_parent`. Tests:

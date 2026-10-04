@@ -54,8 +54,9 @@ MANUAL_CELL_MARKER = "# ===== MANUAL SINGLE NODE"
 RESUME_CELL_MARKER = "# ===== RESUME AN INTERRUPTED STAGE"
 COMPLETION_CELL_MARKER = 'print("Training complete!")'
 #: The archive-load preflight cell: its FIRST line, deliberately not a `# ===== ` marker. It sits right after the
-#: RESOLVE cell and loads a real archive (the trunk run's root handoff, else a throwaway) through `load_sb3_model`
-#: before anything is trained (KNOWN_ISSUES, "SB3 archives are bound to the interpreter that saved them").
+#: RESOLVE cell and calls `policy_loading.sb3_archive_load_preflight`, which loads a real archive (the trunk run's root
+#: handoff, else a throwaway) through `load_sb3_model` before anything is trained (KNOWN_ISSUES, "SB3 archives are
+#: bound to the interpreter that saved them"; the cell's body moved into the library with cleanup CU-6).
 PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / RL": SB3 archives are bound to the interpreter that saved them)'
 
 #: The knobs every ``halt`` / ``disconnect_runtime`` call passes by name, read when it runs (consolidation PR-14b).
@@ -1564,6 +1565,100 @@ class TestJudgeBranch:
         returns = [node for node in ast.walk(train_stage) if isinstance(node, ast.Return)]
         assert len(returns) == 1 and isinstance(returns[0].value, ast.Tuple) and len(returns[0].value.elts) == 6
 
+    def test_train_stage_evaluates_by_default_and_only_the_resume_cell_opts_out(self):
+        """Cleanup CU-6: ``evaluate`` is keyword-only and ``True`` by default; ``False`` skips only the
+        ``evaluate_stage_checkpoints`` call, which sits in an ``if evaluate:`` without ``else``, right after the
+        values the tuple holds without it, so the one 6-tuple ``return`` stays. The chain loop's TRAIN branch and the
+        manual cell keep the default (their ``stage_results`` feed the artifacts); only the RESUME cell passes
+        ``evaluate=False``, since the JUDGE branch evaluates every node the RESUME cell trains, from disk, before
+        anything certifies it (cleanup ROW-4/6)."""
+        src = _cell(INFRA_CELL_MARKER)
+        train_stage = _top_level_def(src, "train_stage")
+        kwonly = [arg.arg for arg in train_stage.args.kwonlyargs]
+        assert "evaluate" in kwonly, "evaluate is a keyword-only argument of train_stage"
+        default = train_stage.args.kw_defaults[kwonly.index("evaluate")]
+        assert isinstance(default, ast.Constant) and default.value is True
+        guard = _the_if(train_stage, src, lambda test: test == "evaluate", "on evaluate")
+        assert guard in train_stage.body and not guard.orelse
+        assert _call(train_stage, "evaluate_stage_checkpoints") in [n for stmt in guard.body for n in ast.walk(stmt)]
+        assert ast.unparse(train_stage.body[train_stage.body.index(guard) - 1]) == (
+            "_model, _handoff_stem, _final_model_path, _handoff_vecnorm, _stage_results = "
+            "(model, None, str(final_path), None, None)"
+        ), "without the evaluation: the trained model, no handoff, the final model path, no results"
+        passed = {}
+        for marker in (CHAIN_CELL_MARKER, MANUAL_CELL_MARKER, RESUME_CELL_MARKER):
+            cell_src = _cell(marker)
+            call = _call(ast.parse(cell_src), "train_stage")
+            passed[marker] = _keyword_source(cell_src, call, "evaluate") if "evaluate" in _keyword_names(call) else None
+        assert passed == {CHAIN_CELL_MARKER: None, MANUAL_CELL_MARKER: None, RESUME_CELL_MARKER: "False"}
+
+    def test_train_stage_without_evaluate_trains_the_same_and_skips_only_the_evaluation(self, tmp_path, capsys):
+        """Executed (cleanup CU-6): the infrastructure cell's real ``train_stage``, with ``train_base.train`` and the
+        evaluation stubbed. ``evaluate=False`` makes the same ``train`` call and the same prints as the default and
+        skips exactly ``evaluate_stage_checkpoints`` (up to 60 episodes and both ``evaluation_*.csv`` files, which the
+        JUDGE branch redoes); the 6-tuple keeps its shape, with the in-memory model, the final model path and the
+        stage directory in their slots. The default evaluates once, on the in-memory model."""
+        from types import SimpleNamespace
+
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname, stage_label
+
+        species = "compsognathus_robot"
+        model = SimpleNamespace(num_timesteps=1_234)
+        trained: list[tuple[tuple, dict]] = []
+        evaluated: list[tuple[tuple, dict]] = []
+
+        def train(*args, **kwargs):
+            trained.append((args, kwargs))
+            return model
+
+        def evaluate_stage_checkpoints(*args, **kwargs):
+            evaluated.append((args, kwargs))
+            return "evaluated model", "handoff stem", "final model path", "handoff sidecar", {"stage": 2}
+
+        namespace = {
+            "train_base": SimpleNamespace(train=train),
+            "evaluate_stage_checkpoints": evaluate_stage_checkpoints,
+            "read_stage_duration": lambda stage_dir: 12.5,
+            "Path": Path,
+            "stage_dirname": stage_dirname,
+            "stage_label": stage_label,
+            "MANIFEST": load_stage_manifest(species),
+            "SPECIES": species,
+            "STAGE_CONFIGS": load_all_stages(species),
+            "SPECIES_CFG": object(),
+            "ALGORITHM": "PPO",
+            "N_ENVS": 4,
+            "SEED": 42,
+            "VERBOSE": 0,
+            "PLANT_IDENTITY": object(),
+            "EVALUATION_SEED": 3042,
+        }
+        exec_top_level_def(_cell(INFRA_CELL_MARKER), "train_stage", namespace)
+        stage_dir = tmp_path / stage_dirname(species, 2)
+
+        evaluated_tuple = namespace["train_stage"](2, 1_000, run_dir=tmp_path, task_load_mode="resume_same_stage")
+        printed = capsys.readouterr().out
+        assert evaluated_tuple == (
+            "evaluated model",
+            "handoff stem",
+            "final model path",
+            stage_dir,
+            "handoff sidecar",
+            {"stage": 2},
+        )
+        [(args, kwargs)] = evaluated
+        assert args[4] == stage_dir and kwargs["model"] is model
+        assert kwargs["timesteps"] == 1_234 and kwargs["duration_seconds"] == 12.5
+
+        skipped = namespace["train_stage"](
+            2, 1_000, run_dir=tmp_path, task_load_mode="resume_same_stage", evaluate=False
+        )
+        assert skipped == (model, None, str(stage_dir / "models" / f"{stage_label(2)}_final"), stage_dir, None, None)
+        assert len(evaluated) == 1, "no evaluation without evaluate"
+        assert len(trained) == 2 and trained[0] == trained[1], "the training itself is the same"
+        assert capsys.readouterr().out == printed and "Final model saved to: " in printed
+
     def test_the_loop_judges_from_disk_with_the_recorded_duration(self):
         src, loop = _chain_loop()
         judge_if = _judge_if(src, loop)
@@ -2709,6 +2804,9 @@ class TestResumeCell:
         assert "vecnorm_path" in _keyword_names(train)
         assert _keyword_source(src, train, "run_dir") == "RUN_DIR"
         assert "parent_run_id" not in _keyword_names(train), "a same-stage resume has no parent run"
+        # Cleanup CU-6: the chain loop's JUDGE branch evaluates the resumed node from disk before it judges it (since
+        # ROW-4/6 for every node this cell trains), so this cell's train_stage skips its own evaluation.
+        assert _keyword_source(src, train, "evaluate") == "False", "the RESUME cell evaluates nothing"
         assert "stage_position" not in _names(tree)
         # It never judges: no verdict, no bundle — the chain loop's JUDGE branch does that.
         for name in (
@@ -2735,20 +2833,19 @@ class TestResumeCell:
             node for node in ast.walk(finished_body) if isinstance(node, ast.Raise)
         ]
         assert train in [node for stmt in finished.orelse for node in ast.walk(stmt)]
-        # ... and the checkpoint scan (with its no-checkpoint refusal) runs only for an unfinished node.
-        scans = [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.For) and "model_dir_res.glob" in ast.unparse(node.iter)
-        ]
-        assert len(scans) == 1 and scans[0] in [node for stmt in finished.orelse for node in ast.walk(stmt)]
+        # ... and the checkpoint walk (with its two refusals) runs only for an unfinished node, over this node's own
+        # models directory and label. Since cleanup CU-6 the walk is the library's, which reads the trainer's
+        # checkpoint-name pattern (test_curriculum_checkpoints.py): the cell globs and parses no name itself.
+        walks = _calls(tree, "newest_intact_periodic_pair")
+        assert [ast.unparse(call) for call in walks] == ["newest_intact_periodic_pair(model_dir_res, label_res)"]
+        assert walks[0] in [node for stmt in finished.orelse for node in ast.walk(stmt)]
+        assert not _calls(tree, "glob") and not _calls(tree, "rglob")
+        imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
+        assert "re" not in imported and "re" not in _names(tree), "the cell compiles no pattern of its own"
         assert "read_gate_verdict(stage_dir_res)" in src
-        # One integrity check for every pair: the final pair and each periodic candidate.
+        # One integrity check for every pair: the final pair here, each periodic candidate inside the walk.
         checks = _calls(tree, "checkpoint_pair_problem")
-        assert [ast.unparse(call) for call in checks] == [
-            "checkpoint_pair_problem(*final_pair_res)",
-            "checkpoint_pair_problem(cand_ckpt, cand_vecnorm)",
-        ]
+        assert [ast.unparse(call) for call in checks] == ["checkpoint_pair_problem(*final_pair_res)"]
         # A spent budget WITHOUT the final pair (the runtime stopped between the last periodic save and the final
         # one) is refused: the JUDGE branch needs the final pair, and there is nothing left to train.
         spent = _the_if(tree, src, lambda test: test == "remaining_res == 0", "on a spent budget")
@@ -2844,6 +2941,7 @@ class TestResumeCell:
         assert call["load_path"] == str(models / f"{stage_label(reference)}_100000_steps.zip")
         budget = load_all_stages(species)[reference]["curriculum_kwargs"]["timesteps"]
         assert call["timesteps"] == budget - 100_000
+        assert call["evaluate"] is False, "the chain loop's JUDGE branch evaluates the resumed node (cleanup CU-6)"
         assert "WARNING" not in capsys.readouterr().out, "an ordinary resume warns about nothing"
 
     def test_the_resume_cell_refuses_a_node_off_the_chain_before_it_trains(self, tmp_path):
@@ -3058,6 +3156,75 @@ class TestResumeCell:
         [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_700_000)
         assert call["load_path"].endswith("stage2_2700000_steps.zip") and call["timesteps"] == 300_000
         assert "WARNING: skipping stage2_2800000_steps.zip: bad/truncated checkpoint zip" in capsys.readouterr().out
+
+    def test_the_resume_report_follows_the_warnings_in_order(self, tmp_path, capsys):
+        """Executed (cleanup CU-6): the library walks, and the operator sees what the cell printed when it walked
+        itself: each skipped candidate's WARNING, then the pair resumed, its sidecar, the skipped count and the
+        budget arithmetic, in that order."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
+        (models / "stage2_vecnormalize_2800000_steps.pkl").unlink()
+        self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_700_000)
+        budget = load_all_stages("compsognathus_robot")[2]["curriculum_kwargs"]["timesteps"]
+        lines = capsys.readouterr().out.splitlines()
+        assert lines[0].startswith("Resuming 'locomotion' (stage 2) from ")
+        assert lines[1:6] == [
+            "WARNING: skipping stage2_2800000_steps.zip: missing matched VecNormalize sidecar "
+            "stage2_vecnormalize_2800000_steps.pkl",
+            f"Newest intact periodic checkpoint: {models / 'stage2_2700000_steps.zip'}",
+            f"Matched VecNormalize:              {models / 'stage2_vecnormalize_2700000_steps.pkl'}",
+            "(1 newer candidate(s) skipped as incomplete/corrupt — see warnings above)",
+            f"Checkpoint steps: 2,700,000 of {budget:,} — remaining budget: {budget - 2_700_000:,}",
+        ]
+
+    def test_a_node_without_a_periodic_checkpoint_is_refused_with_the_knobs_to_check(self, tmp_path, capsys):
+        """Executed (cleanup CU-6; no test ran this refusal before): no ``stage2_*_steps.zip`` at all usually means
+        ``RUN_ID`` or ``RESUME_STAGE`` names the wrong run or node, so the refusal names both knobs and what the number
+        means; nothing trains and nothing is warned about. The library walk returns no pair and no skip for it."""
+        calls: list[dict] = []
+        with pytest.raises(RuntimeError) as refused:
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=None, calls=calls)
+        message = str(refused.value)
+        assert message.startswith("No periodic checkpoint stage2_*_steps.zip in ")
+        assert "RUN_ID in the configuration cell names the interrupted run" in message
+        assert "run the storage cell (section 3) after changing it" in message
+        assert "RESUME_STAGE names its node (it resolved to 'locomotion'" in message
+        assert "not the resolve table's # or the NN_ prefix" in message
+        assert calls == [] and "WARNING" not in capsys.readouterr().out
+
+    def test_a_node_without_an_intact_periodic_pair_is_refused_naming_every_skipped_file(self, tmp_path, capsys):
+        """Executed (cleanup CU-6; no test ran this refusal before): when every candidate fails the pair check the
+        cell warns about each, newest first, and refuses naming them all; it never trains a broken pair."""
+        from environments.shared.stage_manifest import stage_dirname
+
+        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
+        (models / "stage2_2800000_steps.zip").write_bytes(b"PK\x03\x04 truncated")
+        self._write_pair(models / "stage2_2700000_steps.zip", models / "stage2_vecnormalize_2700000_steps.pkl")
+        (models / "stage2_vecnormalize_2700000_steps.pkl").unlink()
+        calls: list[dict] = []
+        with pytest.raises(FileNotFoundError) as refused:
+            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=None, calls=calls)
+        message = str(refused.value)
+        assert message.startswith(
+            "No intact periodic checkpoint pair stage2_<steps>_steps.zip + stage2_vecnormalize_<steps>_steps.pkl in "
+        )
+        skipped = message.split(". Skipped: ", 1)[1]
+        assert skipped.startswith("stage2_2800000_steps.zip: bad/truncated checkpoint zip stage2_2800000_steps.zip (")
+        assert skipped.endswith(
+            "; stage2_2700000_steps.zip: missing matched VecNormalize sidecar stage2_vecnormalize_2700000_steps.pkl. "
+            "Deleting a corrupt newest pair by hand is no longer needed — this cell already fell back through every "
+            "older step-point."
+        )
+        warnings = [line for line in capsys.readouterr().out.splitlines() if line.startswith("WARNING: skipping ")]
+        assert [line.removeprefix("WARNING: skipping ").split(":")[0] for line in warnings] == [
+            "stage2_2800000_steps.zip",
+            "stage2_2700000_steps.zip",
+        ]
+        assert calls == []
 
     @pytest.mark.parametrize("members", [("data",), ("policy.pth",)])
     def test_a_final_zip_without_sb3_members_is_resumed_over(self, tmp_path, members):
@@ -3309,7 +3476,8 @@ class TestArchiveLoadPreflightCell:
     real root handoff (else a throwaway), through ``policy_loading.load_sb3_model`` -- the one loader every
     repository load goes through -- with the print flushed first so a kernel death is attributable. (Until
     consolidation PR-14a it loaded the WIDEN_FROM parent's handoff first; D-D14 moved widening to the command
-    line.)"""
+    line.) Since cleanup CU-6 the cell is one call of ``policy_loading.sb3_archive_load_preflight``, whose load,
+    flushed print, archive choice and temporary directory test_policy_loading.py pins and executes."""
 
     def test_the_preflight_follows_the_resolve_cell(self):
         src, tree = _preflight_cell()
@@ -3328,33 +3496,23 @@ class TestArchiveLoadPreflightCell:
         assert "COMMAND_TERRAIN_BEHAVIOR" not in src
 
     def test_the_preflight_loads_a_real_archive_through_the_loader_with_the_print_flushed_first(self):
+        """Since cleanup CU-6 the cell is one call of the library's preflight on this session's species, chain root
+        and trunk; the one load, the flushed print right before it, the trunk's root handoff under either directory
+        naming else a throwaway in a temporary directory, and the fall-back that never raises are the function's,
+        pinned and executed in test_policy_loading.py. The cell itself neither loads nor prints."""
         src, tree = _preflight_cell()
-        assert "from environments.shared.policy_loading import inspect_sb3_archive, load_sb3_model" in src
-        loads = _calls(tree, "load_sb3_model")
-        assert len(loads) == 1, "exactly one load, the one being proven"
-        (load,) = loads
+        assert "from environments.shared.policy_loading import sb3_archive_load_preflight" in src
+        (call,) = _calls(tree, "sb3_archive_load_preflight")
+        assert ast.unparse(call) == "sb3_archive_load_preflight(SPECIES, CHAIN[0].reference, trunk_dir=TRUNK_DIR)"
+        statements = [node for node in tree.body if not isinstance(node, ast.ImportFrom)]
+        assert len(statements) == 1 and isinstance(statements[0], ast.Assign) and statements[0].value is call, (
+            "one top-level call and nothing around it, its result bound so the notebook shows no repr"
+        )
+        assert not _calls(tree, "load_sb3_model") and not _calls(tree, "print")
         # No bare algorithm load anywhere in the cell: the loader is the path under test.
         assert not re.search(r"\b(PPO|SAC|AlgoClass|alg_cls)\.load\(", src)
-        # The flushed print immediately precedes the load, and names what is loaded and by which Python it was saved.
-        prints = [node for node in _calls(tree, "print") if node.lineno < load.lineno]
-        assert prints, "a print precedes the load"
-        last = prints[-1]
-        assert any(keyword.arg == "flush" and ast.literal_eval(keyword.value) is True for keyword in last.keywords), (
-            "the print before the load is flushed so a kernel death is attributable to the load"
-        )
-        printed = ast.get_source_segment(src, last)
-        assert "saved_python_text" in printed and "bytecode_members" in printed and "kernel death HERE" in printed
-        # The archive is the trunk run's root handoff when there is one, else a throwaway (D-D14 took the
-        # WIDEN_FROM parent's branch with the widen cell); a trunk without a complete pair falls back, never raises.
-        assert "WIDEN_FROM" not in src
-        trunk_if = _the_if(tree, src, lambda test: test == "TRUNK_DIR is not None", "on a trunk run")
-        assert trunk_if in tree.body and "_preflight_root_handoff(TRUNK_DIR)" in _branch_source(src, trunk_if.body)
-        assert not _raises(tree, "RuntimeError")
-        assert "select_handoff_checkpoint(" in src and "stage_dir_candidates(SPECIES, CHAIN[0].reference)" in src
-        assert "tempfile.TemporaryDirectory(" in src, (
-            "the throwaway model lives in a temporary directory the cell removes"
-        )
-        assert 'load_sb3_model(_preflight_archive, device="cpu")' in src
+        # D-D14 took the WIDEN_FROM parent's branch with the widen cell; a trunk without a pair falls back.
+        assert "WIDEN_FROM" not in src and not _raises(tree, "RuntimeError")
 
     def test_the_preflight_trains_nothing_writes_nothing_and_reads_only_earlier_names(self):
         import builtins
@@ -3380,7 +3538,8 @@ class TestArchiveLoadPreflightCell:
         earlier: set[str] = set()
         for marker in ("# Add repo root to path", CONFIG_CELL_MARKER, STORAGE_CELL_MARKER, RESOLVE_CELL_MARKER):
             earlier |= _bound_names(ast.parse(_cell(marker)))
-        # The cell defines a helper and a throwaway env class: their parameters are bound locally, not read.
+        # Parameters of any helper the cell defines are bound locally, not read (until cleanup CU-6 the cell defined
+        # a handoff helper and a throwaway env class).
         parameters = {
             argument.arg
             for node in ast.walk(tree)
@@ -3389,7 +3548,7 @@ class TestArchiveLoadPreflightCell:
         }
         free = _loaded_names(tree) - bound - parameters - set(dir(builtins))
         assert free <= earlier, f"the preflight cell reads names no earlier cell binds: {sorted(free - earlier)}"
-        assert free <= {"SPECIES", "CHAIN", "TRUNK_DIR", "gym", "np", "sys"}, sorted(free)
+        assert free <= {"SPECIES", "CHAIN", "TRUNK_DIR"}, sorted(free)
 
 
 class TestCommandSliceReseed:

@@ -1600,8 +1600,8 @@ def _report_hpt_metrics(
     """Write the stage's metrics to ``<log_path>/metrics.json``.
 
     ``train()`` calls it only with ``report_metrics=True``, i.e. for the CLI
-    ``train`` subcommand; the notebook's ``train_stage`` passes ``False`` and
-    evaluates the node itself.
+    ``train`` subcommand; the notebook's ``train_stage`` passes ``False``, and the notebook
+    evaluates the node itself (``train_stage``, or the JUDGE branch for a resumed node).
     ``reporting.stage_artifacts.build_stage_results_from_eval_data`` reads the
     file back (the training duration, the velocity/success panel and the
     plant identity) for ``backfill_gate_verdict`` and for
