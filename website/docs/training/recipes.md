@@ -133,8 +133,15 @@ root-first. At each node it does exactly one of three things:
    (`widen_checkpoint --max-revision-gap N`).
 2. **Judge** a node that was trained but never gated (the notebook only:
    its final checkpoint exists but `gate_verdict.json` does not, because the
-   resume cell finished its budget or the command-line widen tool wrote a
-   widened root into the run).
+   resume cell finished its budget, the runtime stopped before its verdict,
+   or the command-line widen tool wrote a widened root into the run), even
+   when a trunk run certifies it: the loop does not consult the trunk for an
+   ancestor its run holds trained but unjudged, and judges such an ancestor
+   only on the parent resolved here (cleanup decision 6 (b); a run that
+   already holds the trunk's copy of it as an `ancestors/` record keeps that
+   record, and a root widened beside such a record is refused, naming a new
+   run id). The target, and any node in a session without a trunk, get no
+   such parent check (see `docs/KNOWN_ISSUES.md`).
 3. **Train** it otherwise, warm-started from its parent's handoff checkpoint
    and VecNormalize sidecar along the declared edge, then judge its gate and
    write `gate_verdict.json` beside the handoff.
@@ -221,7 +228,13 @@ tried (a moved `LOG_BASE`), else the refusal names both paths. The notebook's
 chain loop follows records for the `TRUNK_DIR` candidate only: it tries this
 run's own `RUN_DIR` first and takes a hit there as this run's own node, so a
 record in `RUN_DIR` — the reuse an earlier pass made from the trunk — is never
-followed, or the trunk's stance would re-enter as trained here.
+followed, or the trunk's stance would re-enter as trained here. It consults
+`TRUNK_DIR` for every ancestor `RETRAIN_FROM` does not cover, except a node
+`RUN_DIR` holds trained but unjudged, which it judges here instead (or
+refuses as an interrupted node, or as trained on another parent than the one
+resolved here); for a node the run already holds as an `ancestors/` record
+the trunk is still consulted (a root widened into the run beside that record
+is refused instead).
 
 On reuse the child run writes `ancestors/<stage_id>/`: `ancestor.json` plus
 verbatim copies of the ancestor stage's `gate_verdict.json`,
@@ -297,9 +310,9 @@ cell that mounts Drive, never the storage cell, then the tool from
 `/content/mesozoic-labs`), which the notebook then re-enters
 with `RUN_ID` set to that id, `SEED` set to the parent's seed and
 `TRUNK_FROM = ""`: the storage cell refuses any other seed before it writes
-anything (D-C14), the resolve cell refuses a trunk until the widened root
-holds a verdict, and the chain loop judges the widened root (decisions D-C13,
-D-D14). The notebook's `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen
+anything (D-C14), and the chain loop judges the widened root before it
+consults any trunk (decisions D-C13, D-D14, and the cleanup's decision
+6 (b)). The notebook's `WIDEN_FROM` / `WIDEN_MAX_REVISION_GAP` knobs and widen
 cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
@@ -307,8 +320,14 @@ cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
 certified ancestors cover the most of the chain root-first (the greatest run
 directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
-off. A pinned `TRUNK_FROM` is a run id, resolved under the same directory,
-or an absolute path to a run directory. It must be a run whose
+off. Whatever the trunk, the resolve cell then records it in the run's
+`trunk_run.json`, as the `TRUNK_FROM` value that reproduces it (cleanup
+decision 4 (a)): never in a `complete` run, and never once the run holds
+an `ancestors/` record, where another trunk than the recorded one is
+warned about (the trunk those records came through when the cells ran in
+order; see `docs/KNOWN_ISSUES.md`) and a missing file is never guessed. A
+pinned `TRUNK_FROM` is a run id, resolved under the same directory, or an
+absolute path to a run directory. It must be a run whose
 `provenance.json` names the same species, algorithm and backend, whatever its
 bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
@@ -366,18 +385,26 @@ Two escape hatches remain. The manual single-node cell (`MANUAL_NODE`) trains
 one node outside the chain and records its verdict without enforcing it; it
 never feeds the chain. The resume cell (`RESUME_STAGE`) continues an
 interrupted node from its newest intact periodic checkpoint under
-`resume_same_stage`; the re-saved `stage_config.json` keeps the edge's
+`resume_same_stage` and evaluates nothing (the loop's JUDGE branch evaluates
+the node from disk); the re-saved `stage_config.json` keeps the edge's
 lineage keys and records the continued-from checkpoint under
 `resume_load_path` / `resume_checkpoint_sha256`, so a resumed-then-judged
 node still chains by digest and stays reusable. It sits ahead of the chain
 loop, so a resume is: set `RUN_ID` to the interrupted run and `RESUME_STAGE`
-to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` pinned to the run the
-interrupted session resolved (`""` only when it trained every node itself),
-then Run all; the loop judges the node after the resume trains it. A node that
-was trained here although that trunk run certifies it (one `RETRAIN_FROM`
-covered) is resumed with `BEHAVIOR` set to it, because the loop looks for its
-target only in this run; the deeper chain then continues in a fresh `RUN_ID`
-trunked from this run. A node that already holds
+to its node, with `RETRAIN_FROM` empty and `TRUNK_FROM` set to the value the
+run's `trunk_run.json` records (unless the run's `ancestors/` records came
+through another trunk than the file names: then remove the file and pin by
+the nearest ancestor record, as `docs/KNOWN_ISSUES.md` describes; a run
+opened before that file
+existed is pinned by hand to the run the interrupted session resolved, `""`
+only when it trained every node itself), then Run all; the loop judges the
+node after the resume trains it, before it consults any trunk, so a node
+trained here although that trunk run certifies it is resumed the same way.
+Once the run holds an `ancestors/` record, the resume cell refuses a resume
+under another trunk than `trunk_run.json` names, and a resume of a node the
+run holds as such a record (the record stays that node in the run: the loop
+takes it while a trunk certifies the node, and a bundle refuses a node both
+reused and trained here). A node that already holds
 `gate_verdict.json` or an intact final checkpoint pair is never retrained: the
 cell trains nothing and the loop reuses, refuses or judges it (decision
 D-D16).
@@ -512,7 +539,7 @@ The `run` block of each `stage_config.json` records:
 | `resume_load_path`, `resume_checkpoint_sha256` | The periodic checkpoint a same-stage resume continued from; the edge keys above are kept. |
 | `hyperparameters_sha256` | A digest over the stage's `[ppo]` or `[sac]` block plus its `warmup_` / `ramp_` shaping keys, key-order independent, untouched by env kwargs or gate thresholds. Always written. |
 | `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
-| `duration_seconds` | Seconds from `train_base.train`'s start to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` subcommand and the notebook's `train_stage`; not by `curriculum` runs. |
+| `duration_seconds` | Seconds from `train_base.train`'s start (for a `curriculum` node, from the point the node is trained rather than reused) to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` and `curriculum` subcommands (every node a curriculum trains, one a Ctrl-C ended included) and the notebook's `train_stage`. `curriculum_results.csv`'s `training_duration_seconds` is the time `learn()` alone took. |
 
 `gate_verdict.json` (schema `mesozoic.gate-verdict/v1`) records the species,
 stage and stage id, the gate kind and schema version, `passed` and the list
@@ -574,8 +601,9 @@ read):
 
 The species catalog (schema 4) and `configs/species_manifest.toml` (schema 2)
 follow: stage rows carry `deliverable`, `warm_start_from` and `recipe`; the
-README SPECIES table shows Recipe and Warm-start-from columns (a generated
-block, never hand-edited); result rows list one entry per deliverable
+generated species catalog page (`docs/SPECIES_CATALOG.md`) and each model
+page's stage table show Recipe and Warm-start-from columns (generated,
+never hand-edited); result rows list one entry per deliverable
 headlined by its gate kind, with stance and recovery headline values
 rendered as null until a later phase exports per-stage gate metrics
 (decision D-B15); and stage

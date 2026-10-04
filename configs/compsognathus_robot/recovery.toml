@@ -2,35 +2,18 @@
 # Disturbance and physical judge are calibrated against fixed-command PD
 # controls. Qualification targets are pre-registered, not measured RL results.
 # This stage does not automatically feed a checkpoint to locomotion.
+# [stage], [env], [ppo] and [sac] extend stance.toml's through the `extends`
+# key (environments/shared/config.py): [env] adds only the perturbation block
+# below and [ppo] only its entropy-decay horizon. A stance [env] edit therefore
+# moves this stage's task too, and its recovery calibration refuses until
+# recalibrated.
+extends = { stage = "stance", tables = ["stage", "env", "ppo", "sac"] }
+
 [stage]
 name = "recovery"
 description = "Pilot: recover an upright stance after calibrated horizontal pushes"
 
 [env]
-frame_skip = 10
-max_episode_steps = 1000
-reset_noise_scale = 0.01
-reset_height_noise_scale = 0.0
-forward_vel_max = 0.15
-fall_penalty = -25.0
-energy_penalty_weight = 0.02
-smoothness_weight = 0.02
-spin_penalty_weight = 0.02
-lateral_penalty_weight = 0.1
-max_tilt_angle = 0.7
-forward_vel_weight = 0.0
-alive_bonus = 1.0
-posture_weight = 1.0
-height_weight = 1.0
-home_pose_weight = 0.15
-drift_penalty_weight = 0.5
-heading_weight = 0.0
-gait_symmetry_weight = 0.0
-target_approach_weight = 0.0
-target_reach_bonus = 0.0
-prey_distance_range = [0.8, 1.2]
-prey_lateral_range = [0.0, 0.0]
-
 # Plant-scaled finite force pulses. The selected multiple is calibrated separately
 # for each variant; see RECOVERY_CALIBRATION.md and recovery_calibration.json.
 perturbation_capture_velocity_multiple = 1.2
@@ -40,38 +23,7 @@ perturbation_duration = 0.2
 perturbation_direction = "uniform_horizontal"
 
 [ppo]
-learning_rate = 0.00003
-learning_rate_end = 0.00001
-lr_schedule = "linear"
-n_steps = 1024
-batch_size = 64
-n_epochs = 5
-gamma = 0.99
-gae_lambda = 0.95
-clip_range = 0.2
-ent_coef = 0.005
-ent_coef_end = 0.0
 ent_coef_decay_timesteps = 2000000
-target_kl = 0.03
-max_grad_norm = 0.5
-
-[ppo.policy_kwargs]
-net_arch = [128, 128]
-log_std_init = -2.0
-
-[sac]
-learning_rate = 0.0003
-buffer_size = 100000
-learning_starts = 1000
-batch_size = 128
-tau = 0.005
-gamma = 0.99
-train_freq = 4
-gradient_steps = 1
-ent_coef = "auto"
-
-[sac.policy_kwargs]
-net_arch = [128, 128]
 
 [curriculum]
 gate_schema_version = 1

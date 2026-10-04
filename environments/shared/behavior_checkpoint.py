@@ -2,7 +2,8 @@
 
 This module requires the SB3 training extra. Preparation preserves the walker's
 function on zero commands, clears only the reserved command connections and their
-optimizer moments, and carries the observation statistics. Behavior artifacts are
+optimizer moments, and carries the observation statistics with the command slice
+reseeded to mean 0 / variance 1 (invariant 8, decision D-D3). Behavior artifacts are
 marked with a schema the canonical certification pipeline deliberately refuses.
 """
 
@@ -53,25 +54,6 @@ def _species(species: str | None, behavior: Mapping[str, Any]) -> str:
     if recorded is not None and recorded != resolved:
         raise BehaviorCheckpointError("Behavior identity and requested species disagree")
     return resolved
-
-
-class BehaviorVecNormalize(VecNormalize):
-    """Normalize proprioception while passing the three pre-scaled commands unchanged.
-
-    Running statistics still update for all inputs, but command statistics and
-    ``clip_obs`` never affect command values. This survives ``save``/``load``;
-    the wrapper class is part of the saved normalization artifact.
-    """
-
-    def _normalize_obs(self, obs: np.ndarray, obs_rms: RunningMeanStd) -> np.ndarray:
-        normalized = super()._normalize_obs(obs, obs_rms)
-        normalized[..., -COMMAND_WIDTH:] = obs[..., -COMMAND_WIDTH:]
-        return np.asarray(normalized)
-
-    def _unnormalize_obs(self, obs: np.ndarray, obs_rms: RunningMeanStd) -> np.ndarray:
-        restored = super()._unnormalize_obs(obs, obs_rms)
-        restored[..., -COMMAND_WIDTH:] = obs[..., -COMMAND_WIDTH:]
-        return np.asarray(restored)
 
 
 def _paths(model_path: str | Path, vecnorm_path: str | Path) -> tuple[Path, Path]:
@@ -130,7 +112,16 @@ def _load_ppo(model_path: Path, env: VecNormalize, learning_rate: float) -> PPO:
 
 
 def _normalizer(path: Path, venv: VecEnv) -> VecNormalize:
-    normalizer = VecNormalize.load(str(path), venv)
+    try:
+        normalizer = VecNormalize.load(str(path), venv)
+    except AttributeError as exc:
+        if "BehaviorVecNormalize" not in str(exc):
+            raise
+        raise BehaviorCheckpointError(
+            "This normalization file pickles the deleted command-passthrough class BehaviorVecNormalize: its policy "
+            "saw other command inputs and is not a continuation (decision D-D3); evaluate it at the commit that "
+            "trained it (run.json's git_commit)"
+        ) from exc
     if not isinstance(normalizer.obs_rms, RunningMeanStd):
         raise BehaviorCheckpointError("Only flat observation normalization is supported")
     if not normalizer.norm_obs:
@@ -174,14 +165,15 @@ def prepare_behavior_checkpoint(
     learning_rate: float = 5e-5,
     behavior_identity: Mapping[str, Any] | None = None,
     species: str | None = None,
-) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
+) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Initialize a separate behavior task from a canonical current-interface PPO walker.
 
     ``env`` is a Gym environment or unnormalized SB3 VecEnv. Nothing is saved or
     stepped here. Supply the full behavior configuration/source identity for
-    exact task checks on :func:`load_behavior_checkpoint`. The returned wrapper
-    updates proprioceptive statistics during training; the three command inputs
-    retain their pre-scaled values regardless of statistics or clipping.
+    exact task checks on :func:`load_behavior_checkpoint`. The returned plain
+    ``VecNormalize`` carries the walker's statistics with the three command inputs
+    reseeded to mean 0 / variance 1 (count kept), so commands enter the policy at
+    O(1); every statistic, the commands' included, updates during training.
     """
     import torch
 
@@ -214,9 +206,6 @@ def prepare_behavior_checkpoint(
     with torch.no_grad():
         parent_values = model.policy.predict_values(torch.as_tensor(parent_inputs, device=model.device)).cpu().numpy()
     changed = _zero_command_connections(model, current.observation_dim)
-    # Exact same saved state, now with an explicit command passthrough class.
-    normalizer.__class__ = BehaviorVecNormalize
-    normalizer = cast(BehaviorVecNormalize, normalizer)
     reseed_command_slice(normalizer.obs_rms)
     commands = rng.uniform(-1.0, 1.0, size=(len(raw), COMMAND_WIDTH))
     raw[:, -COMMAND_WIDTH:] = commands
@@ -252,7 +241,7 @@ def prepare_behavior_checkpoint(
         "clip_range_vf": None,
         "zeroed_command_parameters": changed,
         "optimizer_command_columns_zeroed": True,
-        "command_normalization": "passthrough; pre-scaled inputs ignore running statistics and clip_obs",
+        "command_normalization": "reseeded to mean 0 / variance 1, count kept; statistics keep updating",
         "command_stats_reseeded": True,
         "noncommand_stats": "preserved at preparation; adapt during training",
         "equivalence_probe_seed": 3042,
@@ -279,7 +268,7 @@ def load_behavior_checkpoint(
     behavior_identity: Mapping[str, Any],
     learning_rate: float = 5e-5,
     species: str | None = None,
-) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
+) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Resume an exact behavior task without resetting learned command connections.
 
     This restores weights, optimizer tensors and normalization statistics.
@@ -300,8 +289,6 @@ def load_behavior_checkpoint(
     validate_recorded_identity(marker.get("parent_plant_identity"), current, artifact="behavior parent plant")
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv)
-    if not isinstance(normalizer, BehaviorVecNormalize):
-        raise BehaviorCheckpointError("Behavior resume requires the saved command-passthrough normalizer")
     if getattr(normalizer, MODEL_IDENTITY_ATTRIBUTE, None) != marker:
         raise BehaviorCheckpointError("Behavior model and normalization identities disagree")
     model = _load_ppo(model_path, normalizer, learning_rate)
@@ -351,9 +338,7 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "idle_velocity_threshold",
     }
 )
-_TRANSITION_TOP_SETTINGS = frozenset(
-    {"terrain", "terrain_sampler", "flat_probability", "tracking_weight", "course_distance"}
-)
+_TRANSITION_TOP_SETTINGS = frozenset({"terrain", "terrain_sampler", "tracking_weight", "course_distance"})
 
 
 def _validate_sampler_identity(identity: Mapping[str, Any]) -> None:
@@ -409,7 +394,7 @@ def adapt_behavior_checkpoint(
     behavior_identity: Mapping[str, Any],
     learning_rate: float = 5e-5,
     species: str | None = None,
-) -> tuple[PPO, BehaviorVecNormalize, dict[str, Any]]:
+) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Warm-start another compatible behavior stage without erasing command learning.
 
     Terrain, balanced family sampling, command sampling/switch schedules, reward

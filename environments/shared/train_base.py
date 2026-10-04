@@ -39,7 +39,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from .constants import (
     DEFAULT_CLIP_OBS,
@@ -603,7 +603,7 @@ def _build_core_callbacks(
     append additional stage-specific callbacks.
 
     ``total_timesteps`` is the cumulative step count this session actually
-    trains to (train()'s resume-aware ``target_timesteps``).  The
+    trains to (the stage body's resume-aware ``target_timesteps``).  The
     budget-anchored advisories — the never-beaten-baseline warning and the
     collapse warm-up sanity log — read it instead of re-reading the TOML
     budget, which a ``--timesteps`` override or a shortened resume budget
@@ -946,6 +946,386 @@ def _wandb_run_tags(config: dict[str, Any], algorithm: str, label: str | None) -
     return tags
 
 
+def eval_env_seed(seed: int) -> int:
+    """The seed of a stage's evaluation environment: the run's ``seed`` plus 1000.
+
+    The evaluation environment (the one ``EvalCallback`` selects checkpoints
+    on and the CLI curriculum's gate judges on) is built with this seed, and
+    the training environments with ``seed`` itself (``make_env`` adds each
+    env's rank).  Both entry points, :func:`train` and :func:`train_curriculum`,
+    build it in :func:`_train_stage_body`.  The SB3 notebook records the same
+    value as its checkpoint-selection seed (``CHECKPOINT_SELECTION_SEED =
+    SEED + 1000``), and a pin keeps the two equal.
+    """
+    return seed + 1000
+
+
+@dataclasses.dataclass
+class _TrainedStage:
+    """What :func:`_train_stage_body` hands back, with both environments still open."""
+
+    model: Any
+    train_env: Any
+    eval_env: Any
+    eval_callback: Any
+    #: What the caller's ``stage_callback`` built (``None`` without one).
+    stage_callback: Any
+    #: The final checkpoint's path, without ``.zip``.
+    final_path: Path
+    #: Cumulative steps trained; on a resume it includes the loaded checkpoint's.
+    actual_timesteps: int
+    #: The wall time of ``model.learn()`` alone.
+    learn_seconds: float
+    #: Whether a ``KeyboardInterrupt`` ended ``learn()`` (only with ``save_on_interrupt``).
+    interrupted: bool
+
+
+def _train_stage_body(
+    sb3: dict,
+    species_cfg: SpeciesConfig,
+    stage_configs: "dict[int | str, dict[str, Any]]",
+    stage: "int | str",
+    *,
+    log_path: Path,
+    model_dir: Path,
+    total_timesteps: int,
+    n_envs: int,
+    seed: int,
+    eval_freq: int,
+    save_freq: int,
+    use_subproc: bool,
+    verbose: int,
+    algorithm: str,
+    use_wandb: bool,
+    use_tensorboard: bool,
+    label: str | None,
+    plant_identity: PlantIdentity,
+    task_fingerprint: dict[str, Any],
+    parent_id: str | None,
+    load_path: str | None,
+    task_load_mode: str,
+    vecnorm_load_path: str | None,
+    vecnorm_path: str | None = None,
+    allow_fresh_vecnorm: bool,
+    allow_legacy_plant: bool = False,
+    stage_callback: Callable[..., Any] | None = None,
+    save_on_interrupt: bool,
+    announce: bool,
+) -> _TrainedStage:
+    """Train one stage: the body :func:`train` and :func:`train_curriculum` share (cleanup CU-10b).
+
+    It builds the training and evaluation environments (the latter seeded
+    :func:`eval_env_seed`), loads the VecNormalize statistics, builds the
+    algorithm kwargs, starts W&B, creates or loads the model, sets up a
+    same-stage resume as a continuation, builds the callbacks, trains, and
+    saves the final pair.  The stage directory (``log_path``), its
+    ``stage_config.json`` and the declared-parent check are the caller's,
+    done before this is called; so are the duration record and everything
+    after the final save.  Both environments are returned open: ``train()``
+    reports on the evaluation environment, and the curriculum selects its
+    handoff and writes its verdict before closing them.
+
+    The statistics load from ``vecnorm_load_path`` (``train()`` passes its
+    ``load_path``, the curriculum its parent's sidecar) unless
+    ``vecnorm_path`` names the sidecar.  Model construction, or a warm
+    start's re-seeding, takes ``seed`` unless the algorithm block names a
+    seed (decision D-D11), for both callers.  A continuation is only ever a
+    ``resume_same_stage`` load, so the curriculum, which loads under
+    ``initialize_next_stage``, never resumes.
+
+    The callbacks are the core set, then entropy decay, then what
+    ``stage_callback`` builds (called as ``stage_callback(eval_env=...,
+    eval_callback=...)``; the curriculum's ``CurriculumCallback``), then the
+    stage-entry shaping.  A ``KeyboardInterrupt`` in ``learn()`` propagates
+    before the final save unless ``save_on_interrupt``, under which it is
+    logged, the stage is saved, and ``interrupted`` is set.  ``announce``
+    logs ``train()``'s own lines (the environments being created, the model
+    architecture, the start of training, "Training ended early"); without
+    it the early end is logged as the curriculum logs it, naming the stage.
+    """
+    from .wandb_integration import init_wandb
+
+    config = stage_configs[stage]
+
+    # Create environments
+    # SAC benefits from SubprocVecEnv: MuJoCo is CPU-bound and SAC's off-policy
+    # nature means env collection and gradient updates can overlap better when
+    # envs run in separate processes.
+    effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
+    if announce and effective_subproc and not use_subproc:
+        logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
+    alg_kwargs_key = f"{algorithm}_kwargs"
+    alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
+    if announce:
+        logger.info("Creating %d training environments...", n_envs)
+    train_env = create_vec_env(
+        species_cfg,
+        stage_configs,
+        stage,
+        n_envs,
+        seed,
+        effective_subproc,
+        algorithm=algorithm,
+        gamma=alg_gamma,
+        plant_identity=plant_identity,
+    )
+
+    if announce:
+        logger.info("Creating evaluation environment...")
+    eval_env = create_vec_env(
+        species_cfg,
+        stage_configs,
+        stage,
+        1,
+        eval_env_seed(seed),
+        use_subproc=False,
+        algorithm=algorithm,
+        gamma=alg_gamma,
+        plant_identity=plant_identity,
+    )
+
+    _load_vecnorm_into_envs(
+        vecnorm_load_path,
+        train_env,
+        eval_env,
+        plant_identity=plant_identity,
+        allow_legacy_plant=allow_legacy_plant,
+        task_load_mode=task_load_mode,
+        allow_fresh_vecnorm=allow_fresh_vecnorm,
+        command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
+        vecnorm_path=vecnorm_path,
+    )
+
+    alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
+        config,
+        algorithm,
+        verbose,
+        log_path,
+        use_tensorboard,
+    )
+    # D-D11: the policy is built (or a warm start re-seeded) under the seed the
+    # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
+    alg_kwargs.setdefault("seed", seed)
+
+    wandb_run = None
+    if use_wandb:
+        wandb_run = init_wandb(
+            species=species_cfg.species,
+            stage=stage,
+            config=config,
+            run_dir=str(log_path),
+            tags=_wandb_run_tags(config, algorithm, label),
+        )
+
+    model = _create_or_load_model(
+        sb3,
+        algorithm,
+        alg_kwargs,
+        train_env,
+        load_path,
+        plant_identity=plant_identity,
+        allow_legacy_plant=allow_legacy_plant,
+        task_fingerprint=task_fingerprint,
+        # train()'s default resume_same_stage: a user --load continues the same
+        # task; its --load-mode initialize_next_stage, and every load the
+        # curriculum makes, crosses a stage boundary deliberately (e.g. recovery
+        # warm-started from stance) and is recorded as lineage.
+        task_load_mode=task_load_mode,
+    )
+
+    if announce:
+        logger.info("Model architecture:")
+        logger.info("  Policy: %s", model.policy)
+        logger.info("  Learning rate: %s", model.learning_rate)
+        logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
+
+    # A same-stage resume of a periodic checkpoint continues the interrupted
+    # run: the loaded step counter is preserved (reset_num_timesteps=False
+    # below), so total_timesteps means "this many MORE steps" and every
+    # step-anchored mechanism (checkpoint numbering, retention, schedule
+    # progress, entropy decay, eval history timesteps) stays on the run's
+    # cumulative axis.  See _is_resume_continuation for what deliberately
+    # does NOT count as a continuation.
+    resuming = _is_resume_continuation(
+        load_path,
+        task_load_mode=task_load_mode,
+        stage_lbl=stage_label(stage),
+        algorithm=algorithm,
+    )
+    loaded_steps = int(getattr(model, "num_timesteps", 0)) if resuming else 0
+    target_timesteps = loaded_steps + total_timesteps
+    if resuming and loaded_steps > 0:
+        logger.info(
+            "Resuming at %s cumulative steps; training %s more (target %s).",
+            f"{loaded_steps:,}",
+            f"{total_timesteps:,}",
+            f"{target_timesteps:,}",
+        )
+    elif load_path and task_load_mode == "resume_same_stage":
+        if algorithm != "ppo":
+            logger.warning(
+                "SAC --load is NOT a continuation: the replay buffer is not persisted, so the "
+                "step counter restarts and SB3's warmup re-collects experience before updates. "
+                "Best-model artifacts in a reused stage directory are unprotected."
+            )
+        else:
+            logger.info(
+                "Loaded checkpoint has no cumulative step count in its name (curated checkpoint); "
+                "training runs with a fresh step counter rather than continuation semantics."
+            )
+
+    callbacks, eval_callback, _ = _build_core_callbacks(
+        sb3,
+        eval_env,
+        model_dir,
+        log_path,
+        stage,
+        n_envs,
+        eval_freq,
+        save_freq,
+        verbose,
+        config,
+        use_wandb,
+        local_tb_dir=local_tb_dir,
+        gcs_tb_path=gcs_tb_path,
+        species=species_cfg.species,
+        # The cumulative target this session trains to, not the TOML budget:
+        # the budget-anchored advisories must follow --timesteps and resumes.
+        total_timesteps=target_timesteps,
+    )
+
+    if resuming:
+        from .curriculum import seed_resume_eval_state
+
+        # Seed best-model trackers and the in-memory eval history from the
+        # published record, so the first post-resume eval cannot overwrite a
+        # better pre-interruption best_model / robust_best_model, and
+        # evaluations.npz keeps the whole run.  The default CLI resume mints
+        # a FRESH stage directory, so when the current one has no record yet,
+        # fall back to the interrupted stage directory the checkpoint came
+        # from (<stage_dir>/models/<ckpt> — two levels up).
+        # `resuming` implies load_path is set; the assert narrows the type.
+        assert load_path is not None
+        seed_candidates = [
+            Path(log_path) / "evaluations.npz",
+            Path(load_path).resolve().parent.parent / "evaluations.npz",
+        ]
+        seed_path = next((p for p in seed_candidates if p.exists()), seed_candidates[0])
+        if seed_path == seed_candidates[1]:
+            logger.info(
+                "Seeding eval history from the interrupted stage directory: %s "
+                "(this run's directory %s had no record yet)",
+                seed_path,
+                log_path,
+            )
+        seed_resume_eval_state(eval_callback, callbacks, seed_path, max_timesteps=loaded_steps)
+
+    # The decay anchor is an ABSOLUTE step count.  On a resume the default
+    # (when the TOML sets no ent_coef_decay_timesteps) must be the cumulative
+    # target, not this call's remaining budget — otherwise a late resume
+    # decays over a compressed horizon.
+    ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, target_timesteps)
+    if ent_decay_cb is not None:
+        callbacks.append(ent_decay_cb)
+
+    # The caller's own callback (the curriculum's CurriculumCallback) goes
+    # after entropy decay and before the stage-entry shaping.
+    built_stage_callback = None
+    if stage_callback is not None:
+        built_stage_callback = stage_callback(eval_env=eval_env, eval_callback=eval_callback)
+        callbacks.append(built_stage_callback)
+
+    # Stage-entry shaping is keyed on the load MODE and the node's declared
+    # EDGE, never on its position: a resume_same_stage --load of a non-root
+    # stage passes the exact task-fingerprint check above and must resume
+    # un-warmed and un-ramped, and a root never warms up.  The shared helper
+    # also applies the forward_vel_weight > 0 ramp guard: a stage that sets
+    # the weight to 0.0 (recovery mirrors stance) must not have a walk
+    # incentive ramped through it.
+    callbacks.extend(
+        _stage_entry_shaping_callbacks(
+            config,
+            task_load_mode=task_load_mode,
+            parent_id=parent_id,
+            load_path=load_path,
+        )
+    )
+
+    callback_list = sb3["CallbackList"](callbacks)
+
+    # Train
+    if announce:
+        logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
+        logger.info("-" * 60)
+
+    interrupted = False
+    learn_start = time.monotonic()
+    try:
+        model.learn(
+            total_timesteps=total_timesteps,
+            callback=callback_list,
+            progress_bar=verbose >= 1,
+            # On resume, keep the checkpoint's cumulative counter: SB3 then
+            # trains total_timesteps MORE steps, checkpoint filenames stay
+            # cumulative (so retention keeps the newest, not the stale
+            # pre-crash set), and progress-based schedules continue from
+            # where the interrupted run left off.
+            reset_num_timesteps=not resuming,
+        )
+    except KeyboardInterrupt:
+        if not save_on_interrupt:
+            raise
+        logger.warning("Training interrupted by user.")
+        interrupted = True
+    learn_seconds = time.monotonic() - learn_start
+
+    # Actual CUMULATIVE steps trained — differs from the target when a
+    # callback (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended training
+    # early.  On a resume this includes the loaded checkpoint's steps.
+    actual_timesteps = int(model.num_timesteps)
+    if actual_timesteps < target_timesteps:
+        if announce:
+            logger.warning(
+                "Training ended early at %s of %s timesteps.",
+                f"{actual_timesteps:,}",
+                f"{target_timesteps:,}",
+            )
+        else:
+            logger.warning(
+                "Stage %s ended early at %s of %s timesteps.",
+                stage,
+                f"{actual_timesteps:,}",
+                f"{target_timesteps:,}",
+            )
+
+    if wandb_run is not None:
+        wandb_run.finish()
+
+    # Save the final checkpoint *before* anything evaluates it, so a failure
+    # (or a second Ctrl-C) during train()'s ~80 serial post-training eval
+    # episodes can't lose the model.
+    final_path = _save_final_and_sync_tb(
+        model,
+        train_env,
+        model_dir,
+        stage,
+        local_tb_dir,
+        gcs_tb_path,
+    )
+
+    return _TrainedStage(
+        model=model,
+        train_env=train_env,
+        eval_env=eval_env,
+        eval_callback=eval_callback,
+        stage_callback=built_stage_callback,
+        final_path=final_path,
+        actual_timesteps=actual_timesteps,
+        learn_seconds=learn_seconds,
+        interrupted=interrupted,
+    )
+
+
 def train(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -1034,7 +1414,9 @@ def train(
     ``metrics.json``: it evaluates the node itself) and
     ``save_on_interrupt=False`` (a ``KeyboardInterrupt`` in training
     propagates before the final save, recording nothing, so its RESUME cell
-    finishes the stage from the periodic checkpoints).
+    finishes the stage from the periodic checkpoints).  Everything from the
+    environments to the final save is :func:`_train_stage_body`, which the
+    command-line curriculum runs for each node it trains (cleanup CU-10b).
     """
     stage_start = time.monotonic()
     _validate_post_eval_episodes(post_eval_episodes)
@@ -1047,7 +1429,6 @@ def train(
         stage_task_fingerprint,
         validate_declared_parent,
     )
-    from .wandb_integration import init_wandb
 
     config = stage_configs[stage]
     species = species_cfg.species
@@ -1133,246 +1514,38 @@ def train(
         # Keep the earlier sessions' sum on disk: this session may stop before its final save.
         record_stage_duration(log_path, prior_duration)
 
-    # Create environments
-    # SAC benefits from SubprocVecEnv: MuJoCo is CPU-bound and SAC's off-policy
-    # nature means env collection and gradient updates can overlap better when
-    # envs run in separate processes.
-    effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
-    if effective_subproc and not use_subproc:
-        logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
-    alg_kwargs_key = f"{algorithm}_kwargs"
-    alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
-    logger.info("Creating %d training environments...", n_envs)
-    train_env = create_vec_env(
-        species_cfg,
-        stage_configs,
-        stage,
-        n_envs,
-        seed,
-        effective_subproc,
-        algorithm=algorithm,
-        gamma=alg_gamma,
-        plant_identity=plant_identity,
-    )
-
-    logger.info("Creating evaluation environment...")
-    eval_env = create_vec_env(
-        species_cfg,
-        stage_configs,
-        stage,
-        1,
-        seed + 1000,
-        use_subproc=False,
-        algorithm=algorithm,
-        gamma=alg_gamma,
-        plant_identity=plant_identity,
-    )
-
-    _load_vecnorm_into_envs(
-        load_path,
-        train_env,
-        eval_env,
-        plant_identity=plant_identity,
-        allow_legacy_plant=allow_legacy_plant,
-        task_load_mode=task_load_mode,
-        allow_fresh_vecnorm=allow_fresh_vecnorm,
-        command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
-        vecnorm_path=vecnorm_path,
-    )
-
-    alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
-        config,
-        algorithm,
-        verbose,
-        log_path,
-        use_tensorboard,
-    )
-    # D-D11: the policy is built (or a warm start re-seeded) under the seed the
-    # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
-    alg_kwargs.setdefault("seed", seed)
-
-    wandb_run = None
-    if use_wandb:
-        wandb_run = init_wandb(
-            species=species,
-            stage=stage,
-            config=config,
-            run_dir=str(log_path),
-            tags=_wandb_run_tags(config, algorithm, label),
-        )
-
-    model = _create_or_load_model(
+    trained = _train_stage_body(
         sb3,
-        algorithm,
-        alg_kwargs,
-        train_env,
-        load_path,
+        species_cfg,
+        stage_configs,
+        stage,
+        log_path=log_path,
+        model_dir=model_dir,
+        total_timesteps=total_timesteps,
+        n_envs=n_envs,
+        seed=seed,
+        eval_freq=eval_freq,
+        save_freq=save_freq,
+        use_subproc=use_subproc,
+        verbose=verbose,
+        algorithm=algorithm,
+        use_wandb=use_wandb,
+        use_tensorboard=use_tensorboard,
+        label=label,
         plant_identity=plant_identity,
-        allow_legacy_plant=allow_legacy_plant,
         task_fingerprint=task_fingerprint,
-        # Default resume_same_stage: a user --load continues the same task.
-        # The CLI's --load-mode initialize_next_stage is the deliberate
-        # boundary-crossing path (e.g. recovery warm-started from stance).
+        # Stage-entry shaping fires on the node's declared edge, never its position.
+        parent_id=entry.warm_start_from,
+        load_path=load_path,
         task_load_mode=task_load_mode,
+        vecnorm_load_path=load_path,
+        vecnorm_path=vecnorm_path,
+        allow_fresh_vecnorm=allow_fresh_vecnorm,
+        allow_legacy_plant=allow_legacy_plant,
+        save_on_interrupt=save_on_interrupt,
+        announce=True,
     )
-
-    logger.info("Model architecture:")
-    logger.info("  Policy: %s", model.policy)
-    logger.info("  Learning rate: %s", model.learning_rate)
-    logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
-
-    # A same-stage resume of a periodic checkpoint continues the interrupted
-    # run: the loaded step counter is preserved (reset_num_timesteps=False
-    # below), so total_timesteps means "this many MORE steps" and every
-    # step-anchored mechanism (checkpoint numbering, retention, schedule
-    # progress, entropy decay, eval history timesteps) stays on the run's
-    # cumulative axis.  See _is_resume_continuation for what deliberately
-    # does NOT count as a continuation.
-    resuming = _is_resume_continuation(
-        load_path,
-        task_load_mode=task_load_mode,
-        stage_lbl=stage_label(stage),
-        algorithm=algorithm,
-    )
-    loaded_steps = int(getattr(model, "num_timesteps", 0)) if resuming else 0
-    target_timesteps = loaded_steps + total_timesteps
-    if resuming and loaded_steps > 0:
-        logger.info(
-            "Resuming at %s cumulative steps; training %s more (target %s).",
-            f"{loaded_steps:,}",
-            f"{total_timesteps:,}",
-            f"{target_timesteps:,}",
-        )
-    elif load_path and task_load_mode == "resume_same_stage":
-        if algorithm != "ppo":
-            logger.warning(
-                "SAC --load is NOT a continuation: the replay buffer is not persisted, so the "
-                "step counter restarts and SB3's warmup re-collects experience before updates. "
-                "Best-model artifacts in a reused stage directory are unprotected."
-            )
-        else:
-            logger.info(
-                "Loaded checkpoint has no cumulative step count in its name (curated checkpoint); "
-                "training runs with a fresh step counter rather than continuation semantics."
-            )
-
-    callbacks, eval_callback, _ = _build_core_callbacks(
-        sb3,
-        eval_env,
-        model_dir,
-        log_path,
-        stage,
-        n_envs,
-        eval_freq,
-        save_freq,
-        verbose,
-        config,
-        use_wandb,
-        local_tb_dir=local_tb_dir,
-        gcs_tb_path=gcs_tb_path,
-        species=species,
-        # The cumulative target this session trains to, not the TOML budget:
-        # the budget-anchored advisories must follow --timesteps and resumes.
-        total_timesteps=target_timesteps,
-    )
-
-    if resuming:
-        from .curriculum import seed_resume_eval_state
-
-        # Seed best-model trackers and the in-memory eval history from the
-        # published record, so the first post-resume eval cannot overwrite a
-        # better pre-interruption best_model / robust_best_model, and
-        # evaluations.npz keeps the whole run.  The default CLI resume mints
-        # a FRESH stage directory, so when the current one has no record yet,
-        # fall back to the interrupted stage directory the checkpoint came
-        # from (<stage_dir>/models/<ckpt> — two levels up).
-        # `resuming` implies load_path is set; the assert narrows the type.
-        assert load_path is not None
-        seed_candidates = [
-            Path(log_path) / "evaluations.npz",
-            Path(load_path).resolve().parent.parent / "evaluations.npz",
-        ]
-        seed_path = next((p for p in seed_candidates if p.exists()), seed_candidates[0])
-        if seed_path == seed_candidates[1]:
-            logger.info(
-                "Seeding eval history from the interrupted stage directory: %s "
-                "(this run's directory %s had no record yet)",
-                seed_path,
-                log_path,
-            )
-        seed_resume_eval_state(eval_callback, callbacks, seed_path, max_timesteps=loaded_steps)
-
-    # The decay anchor is an ABSOLUTE step count.  On a resume the default
-    # (when the TOML sets no ent_coef_decay_timesteps) must be the cumulative
-    # target, not this call's remaining budget — otherwise a late resume
-    # decays over a compressed horizon.
-    ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, target_timesteps)
-    if ent_decay_cb is not None:
-        callbacks.append(ent_decay_cb)
-
-    # Stage-entry shaping is keyed on the load MODE and the node's declared
-    # EDGE, never on its position: a resume_same_stage --load of a non-root
-    # stage passes the exact task-fingerprint check above and must resume
-    # un-warmed and un-ramped, and a root never warms up.
-    callbacks.extend(
-        _stage_entry_shaping_callbacks(
-            config,
-            task_load_mode=task_load_mode,
-            parent_id=entry.warm_start_from,
-            load_path=load_path,
-        )
-    )
-
-    callback_list = sb3["CallbackList"](callbacks)
-
-    # Train
-    logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
-    logger.info("-" * 60)
-
-    train_start = time.monotonic()
-    try:
-        model.learn(
-            total_timesteps=total_timesteps,
-            callback=callback_list,
-            progress_bar=verbose >= 1,
-            # On resume, keep the checkpoint's cumulative counter: SB3 then
-            # trains total_timesteps MORE steps, checkpoint filenames stay
-            # cumulative (so retention keeps the newest, not the stale
-            # pre-crash set), and progress-based schedules continue from
-            # where the interrupted run left off.
-            reset_num_timesteps=not resuming,
-        )
-    except KeyboardInterrupt:
-        if not save_on_interrupt:
-            raise
-        logger.warning("Training interrupted by user.")
-    training_duration = time.monotonic() - train_start
-
-    # Actual CUMULATIVE steps trained — differs from the target when a
-    # callback (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended training
-    # early.  On a resume this includes the loaded checkpoint's steps.
-    actual_timesteps = int(model.num_timesteps)
-    if actual_timesteps < target_timesteps:
-        logger.warning(
-            "Training ended early at %s of %s timesteps.",
-            f"{actual_timesteps:,}",
-            f"{target_timesteps:,}",
-        )
-
-    if wandb_run is not None:
-        wandb_run.finish()
-
-    # Save the final checkpoint *before* the post-training evaluation so a
-    # failure (or second Ctrl-C) during the ~80 serial eval episodes can't
-    # lose the model.
-    final_path = _save_final_and_sync_tb(
-        model,
-        train_env,
-        model_dir,
-        stage,
-        local_tb_dir,
-        gcs_tb_path,
-    )
+    model, train_env, eval_env, final_path = trained.model, trained.train_env, trained.eval_env, trained.final_path
     record_stage_duration(log_path, (prior_duration or 0.0) + (time.monotonic() - stage_start))
 
     if report_metrics:
@@ -1381,13 +1554,13 @@ def train(
             species_cfg,
             model,
             eval_env,
-            eval_callback,
+            trained.eval_callback,
             log_path,
             model_dir,
             stage,
-            actual_timesteps,
+            trained.actual_timesteps,
             algorithm,
-            training_duration_seconds=training_duration,
+            training_duration_seconds=trained.learn_seconds,
             stage_config=config,
             seed=seed,
             plant_identity=plant_identity,
@@ -1428,8 +1601,8 @@ def _report_hpt_metrics(
     """Write the stage's metrics to ``<log_path>/metrics.json``.
 
     ``train()`` calls it only with ``report_metrics=True``, i.e. for the CLI
-    ``train`` subcommand; the notebook's ``train_stage`` passes ``False`` and
-    evaluates the node itself.
+    ``train`` subcommand; the notebook's ``train_stage`` passes ``False``, and the notebook
+    evaluates the node itself (``train_stage``, or the JUDGE branch for a resumed node).
     ``reporting.stage_artifacts.build_stage_results_from_eval_data`` reads the
     file back (the training duration, the velocity/success panel and the
     plant identity) for ``backfill_gate_verdict`` and for
@@ -1705,8 +1878,9 @@ def _post_training_eval_panels(
     if handoff is not None:
         ckpt_name, ckpt_path, ckpt_vecnorm = handoff
         evaluated_handoff = handoff
-        # seed=None: an archive that recorded its training seed (every train()
-        # run, D-D11) would otherwise re-seed eval_env with it on load.
+        # seed=None: an archive that recorded its training seed (every stage
+        # train() or the CLI curriculum trains, D-D11) would otherwise re-seed
+        # eval_env with it on load.
         eval_model = load_sb3_model(ckpt_path, algorithm=alg_cls, env=eval_env, seed=None)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
@@ -2138,6 +2312,16 @@ def train_curriculum(
     in-training verdict (``judged_by`` names it), which is what lets a CLI
     run serve as a later run's trunk.
 
+    A trained node runs :func:`train`'s stage body, :func:`_train_stage_body`
+    (cleanup CU-10b), with ``CurriculumCallback`` between the entropy decay
+    and the stage-entry shaping.  As in :func:`train`, model construction is
+    seeded with ``seed`` unless the stage's algorithm block names one
+    (decision D-D11), and the node's time from its stage directory to its
+    final save is recorded as ``run.duration_seconds`` in its
+    ``stage_config.json`` (D-A15); ``curriculum_results.csv`` records the
+    time ``learn()`` took.  A Ctrl-C saves the node and records its
+    duration, records no verdict for it and stops the curriculum.
+
     ``label`` (``--label``) is recorded in every trained node's ``run``
     block beside its ``hyperparameters_sha256`` and both reach W&B as tags
     (decision D-A21).  Reuse carries the ancestor's recorded recipe, not
@@ -2149,6 +2333,7 @@ def train_curriculum(
     from .ancestors import AUTO_TRUNK, AncestorReuseError, find_certified_ancestor, record_ancestor, select_trunk
     from .config import (
         ignored_hyperparameter_edits,
+        record_stage_duration,
         refuse_occupied_stage_dir,
         save_stage_config,
     )
@@ -2162,7 +2347,6 @@ def train_curriculum(
     from .result_bundle import write_gate_verdict
     from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import stage_task_fingerprint
-    from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
     species = species_cfg.species
@@ -2402,6 +2586,8 @@ def train_curriculum(
                     logger.info("Auto-advanced to stage %d", manager.current_stage)
                 continue
 
+        # D-A15: the node is trained here, and its duration runs from here to its final save.
+        node_start = time.monotonic()
         load_path = parent_node.model_stem if parent_node is not None else None
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
 
@@ -2434,163 +2620,72 @@ def train_curriculum(
             label=label,
         )
 
-        effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
-        alg_kwargs_key = f"{algorithm}_kwargs"
-        alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
-        train_env = create_vec_env(
+        # The previous node's result, environments and callbacks still hold its
+        # model (with SAC's replay buffer): released here, before this node
+        # builds its own, so two nodes' models are never held through learn().
+        trained = train_env = eval_env = eval_callback = curriculum_cb = None
+        trained = _train_stage_body(
+            sb3,
             species_cfg,
             stage_configs,
             stage,
-            n_envs,
-            seed,
-            effective_subproc,
+            log_path=stage_dir,
+            model_dir=model_dir,
+            total_timesteps=total_timesteps,
+            n_envs=n_envs,
+            seed=seed,
+            eval_freq=eval_freq,
+            save_freq=save_freq,
+            use_subproc=use_subproc,
+            verbose=verbose,
             algorithm=algorithm,
-            gamma=alg_gamma,
+            use_wandb=use_wandb,
+            use_tensorboard=use_tensorboard,
+            label=label,
             plant_identity=plant_identity,
-        )
-        eval_env = create_vec_env(
-            species_cfg,
-            stage_configs,
-            stage,
-            1,
-            seed + 1000,
-            use_subproc=False,
-            algorithm=algorithm,
-            gamma=alg_gamma,
-            plant_identity=plant_identity,
-        )
-
-        _load_vecnorm_into_envs(
-            parent_vecnorm_path,
-            train_env,
-            eval_env,
-            plant_identity=plant_identity,
-            # Stage boundary: obs_rms carries, ret_rms resets (the reward
-            # distribution changes with the new stage's terms).
+            task_fingerprint=task_fingerprint,
+            # A node with an edge enters on its parent's promoted checkpoint —
+            # the same initialize_next_stage boundary recorded above; a root
+            # gets no shaping.
+            parent_id=entry.warm_start_from,
+            load_path=load_path,
+            # Inside the curriculum loop, load_path is only ever the declared
+            # parent's promoted checkpoint (resolved through the node's edge
+            # above), so every load here crosses a stage/task boundary
+            # deliberately and is recorded as lineage.  Stage boundary:
+            # obs_rms carries, ret_rms resets (the reward distribution changes
+            # with the new stage's terms).
             task_load_mode="initialize_next_stage",
+            vecnorm_load_path=parent_vecnorm_path,
             # Normally unreachable: _select_handoff_checkpoint only promotes
             # complete pairs, so this fires only when the sidecar vanished
             # afterwards (e.g. a lost mount write).
             allow_fresh_vecnorm=allow_fresh_vecnorm,
-            command_mode=str(config.get("env_kwargs", {}).get("command_mode", "none")),
+            # Called by the body with its eval_env and EvalCallback, after the
+            # entropy decay and before the shaping: this node's arguments are
+            # evaluated there, where the inline body evaluated them.
+            stage_callback=lambda eval_env, eval_callback: CurriculumCallback(
+                curriculum_manager=manager,
+                eval_env=eval_env,
+                eval_freq=eval_freq,
+                n_eval_episodes=_eval_episodes_for_stage(config),
+                eval_callback=eval_callback,
+                supplementary_episodes=cur_kwargs.get("supplementary_episodes", 10),
+                # The horizon eval_env runs: this run's (possibly overridden)
+                # stage config, not the TOML the manager re-reads.
+                eval_horizon=int(config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
+            ),
+            # A Ctrl-C ends the node: it is saved, records no verdict, and stops the curriculum.
+            save_on_interrupt=True,
+            announce=False,
         )
-
-        alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
-            config,
-            algorithm,
-            verbose,
-            stage_dir,
-            use_tensorboard,
-        )
-
-        wandb_run = None
-        if use_wandb:
-            wandb_run = init_wandb(
-                species=species,
-                stage=stage,
-                config=config,
-                run_dir=str(stage_dir),
-                tags=_wandb_run_tags(config, algorithm, label),
-            )
-
-        model = _create_or_load_model(
-            sb3,
-            algorithm,
-            alg_kwargs,
-            train_env,
-            load_path,
-            plant_identity=plant_identity,
-            task_fingerprint=task_fingerprint,
-            # Inside the curriculum loop, load_path is only ever the declared
-            # parent's promoted checkpoint (resolved through the node's edge
-            # above), so every load here crosses a stage/task boundary
-            # deliberately and is recorded as lineage.
-            task_load_mode="initialize_next_stage",
-        )
-
-        callbacks, eval_callback, _ = _build_core_callbacks(
-            sb3,
-            eval_env,
-            model_dir,
-            stage_dir,
-            stage,
-            n_envs,
-            eval_freq,
-            save_freq,
-            verbose,
-            config,
-            use_wandb,
-            local_tb_dir=local_tb_dir,
-            gcs_tb_path=gcs_tb_path,
-            species=species,
-            total_timesteps=total_timesteps,
-        )
-
-        ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
-        if ent_decay_cb is not None:
-            callbacks.append(ent_decay_cb)
-
-        curriculum_cb = CurriculumCallback(
-            curriculum_manager=manager,
-            eval_env=eval_env,
-            eval_freq=eval_freq,
-            n_eval_episodes=_eval_episodes_for_stage(config),
-            eval_callback=eval_callback,
-            supplementary_episodes=cur_kwargs.get("supplementary_episodes", 10),
-        )
-        callbacks.append(curriculum_cb)
-
-        # A node with an edge enters on its parent's promoted checkpoint —
-        # the same initialize_next_stage boundary recorded above; a root
-        # gets no shaping.  The shared helper also applies train()'s
-        # forward_vel_weight > 0 ramp guard: a stage that sets the weight to
-        # 0.0 (recovery mirrors stance) must not have a walk incentive ramped
-        # through it.
-        callbacks.extend(
-            _stage_entry_shaping_callbacks(
-                config,
-                task_load_mode="initialize_next_stage",
-                parent_id=entry.warm_start_from,
-                load_path=load_path,
-            )
-        )
-
-        interrupted = False
-        stage_start = time.monotonic()
-        try:
-            model.learn(
-                total_timesteps=total_timesteps,
-                callback=sb3["CallbackList"](callbacks),
-                progress_bar=verbose >= 1,
-            )
-        except KeyboardInterrupt:
-            logger.warning("Training interrupted by user.")
-            interrupted = True
-        stage_duration = time.monotonic() - stage_start
-
-        # Actual steps trained — differs from total_timesteps when a
-        # callback (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended
-        # training early.
-        actual_timesteps = int(model.num_timesteps)
-        if actual_timesteps < total_timesteps:
-            logger.warning(
-                "Stage %s ended early at %s of %s timesteps.",
-                stage,
-                f"{actual_timesteps:,}",
-                f"{total_timesteps:,}",
-            )
-
-        if wandb_run is not None:
-            wandb_run.finish()
-
-        final_path = _save_final_and_sync_tb(
-            model,
-            train_env,
-            model_dir,
-            stage,
-            local_tb_dir,
-            gcs_tb_path,
-        )
+        train_env, eval_env, eval_callback = trained.train_env, trained.eval_env, trained.eval_callback
+        curriculum_cb, final_path, interrupted = trained.stage_callback, trained.final_path, trained.interrupted
+        actual_timesteps = trained.actual_timesteps
+        # learn() alone: curriculum_results.csv's training_duration_seconds.
+        stage_duration = trained.learn_seconds
+        # The node's whole time, recorded at its final save as train() records it (D-A15).
+        record_stage_duration(stage_dir, time.monotonic() - node_start)
 
         # Prefer loading the risk-adjusted robust_best_model (highest
         # mean - std eval, saved by RobustBestModelCallback), then SB3's

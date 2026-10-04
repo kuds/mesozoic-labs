@@ -174,10 +174,10 @@ def checkpoint_pair_problem(zip_path: Path, vecnorm_path: Path) -> str | None:
 
     A runtime reclaimed mid-write leaves a truncated or orphaned pair, and a pair
     written straight to a Drive mount can be cut short in its sync window. This is
-    the check the notebook's RESUME cell runs over every periodic candidate and the
-    final pair, and the chain loop over the final pair before its JUDGE branch loads
-    it. A zip whose sidecar is missing is never trusted: a loaded policy under fresh
-    normalization statistics collapses silently.
+    the check :func:`newest_intact_periodic_pair` runs over every periodic candidate,
+    the notebook's RESUME cell over the final pair, and the chain loop over the final
+    pair before its JUDGE branch loads it. A zip whose sidecar is missing is never
+    trusted: a loaded policy under fresh normalization statistics collapses silently.
     """
     zip_path, vecnorm_path = Path(zip_path), Path(vecnorm_path)
     if not vecnorm_path.exists():
@@ -203,6 +203,69 @@ def checkpoint_pair_problem(zip_path: Path, vecnorm_path: Path) -> str | None:
     except Exception as exc:
         return f"VecNormalize sidecar {vecnorm_path.name} does not unpickle ({exc})"
     return None
+
+
+def newest_intact_periodic_pair(
+    model_dir: "str | Path", name_prefix: str
+) -> "tuple[tuple[int, Path, Path] | None, list[str]]":
+    """The newest periodic checkpoint pair in *model_dir* that :func:`checkpoint_pair_problem` passes, and the skips.
+
+    SB3's ``CheckpointCallback`` saves ``{name_prefix}_{steps}_steps.zip`` and,
+    with ``save_vecnormalize=True``, a matched
+    ``{name_prefix}_vecnormalize_{steps}_steps.pkl``. A zip is a candidate when
+    ``policy_loading._PERIODIC_CHECKPOINT_RE`` (the pattern the trainer and the
+    command line read) matches its whole stem with *name_prefix* as the prefix:
+    ``stage2_100_steps.zip`` is ``stage2``'s, ``stage22_100_steps.zip`` and
+    ``stage2_x_100_steps.zip`` are not. The newest pair is exactly the one an
+    ungraceful runtime reclaim may have left truncated or orphaned mid-write, so
+    the candidates are walked newest step first, by the count parsed from the
+    name (never the mtime, which on a Drive mount is upload order), and a
+    candidate with a problem falls back to the next older step-point. The
+    sidecar is named from the parsed count, as SB3 names it, and two names of
+    one count are walked in name order.
+
+    Returns ``(pair, skipped)``. *pair* is ``(steps, zip_path, vecnorm_path)``
+    for the first intact candidate, or ``None``; *skipped* holds
+    ``"<zip name>: <problem>"`` for each candidate passed over, newest first.
+    ``(None, [])`` means the glob listed no periodic checkpoint of
+    *name_prefix* in *model_dir*: it holds none, does not exist or is not a
+    directory, or ``Path.glob`` could not list it. The glob drops some
+    listing errors (a ``PermissionError`` on 3.11, any ``OSError`` on 3.12
+    and 3.13), so an unreadable directory that holds pairs also gives
+    ``(None, [])``, as the RESUME cell's own glob did before CU-6.
+    ``(None, skipped)`` with *skipped* non-empty means none of them is
+    intact. Nothing is printed or written here, and nothing is raised of its
+    own: an ``OSError`` the glob does not drop (on 3.11 and 3.12 from its
+    check that *model_dir* is a directory, and on 3.11 from the listing) or
+    one from the pair check's ``Path.exists`` (an I/O or permission error on
+    a mount) propagates, and the skips found before it are not returned. The
+    SB3 notebook's RESUME cell, whose walk this was until cleanup CU-6,
+    prints each skip as a warning once the walk returns and words its own
+    refusals.
+
+    *name_prefix* is a stage label (:func:`~environments.shared.stage_manifest.stage_label`):
+    ``stage{N}`` or a stage id of the form ``[a-z][a-z0-9_]*``, so non-empty,
+    on one line and free of glob metacharacters. The pattern's ``(.+)``
+    admits no other prefix, so an empty one, or one holding a newline (which
+    ``STAGE_ID_PATTERN``'s ``$`` lets through at the end of an id), finds no
+    candidate.
+    """
+    from ..policy_loading import _PERIODIC_CHECKPOINT_RE
+
+    directory = Path(model_dir)
+    candidates: list[tuple[int, Path]] = []
+    for zip_path in sorted(directory.glob(f"{name_prefix}_*_steps.zip")):
+        match = _PERIODIC_CHECKPOINT_RE.fullmatch(zip_path.stem)
+        if match is not None and match.group(1) == name_prefix:
+            candidates.append((int(match.group(2)), zip_path))
+    skipped: list[str] = []
+    for steps, zip_path in sorted(candidates, key=lambda candidate: candidate[0], reverse=True):
+        vecnorm_path = directory / f"{name_prefix}_vecnormalize_{steps}_steps.pkl"
+        problem = checkpoint_pair_problem(zip_path, vecnorm_path)
+        if problem is None:
+            return (steps, zip_path, vecnorm_path), skipped
+        skipped.append(f"{zip_path.name}: {problem}")
+    return None, skipped
 
 
 def seed_resume_eval_state(

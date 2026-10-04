@@ -2,38 +2,42 @@
 
 Every shuffled block contains the configured number of episodes from each
 family. The course changes only at reset; pose, command and terrain-layout
-randomness remain owned by the existing species behavior environment.
+randomness remain owned by the species behavior environment, whose reset
+selects each episode's family with :func:`select_terrain_family`.
 """
 
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict, dataclass, replace
-from functools import lru_cache
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 import numpy as np
 
-from environments.shared.behavior_env import get_behavior_env_class
 from environments.shared.plant_contract import REPOSITORY_ROOT
-from environments.shared.species_names import resolve_species_id
-from environments.shared.terrain import TerrainConfig
 
-TERRAIN_FAMILIES = ("flat", "sloped", "bumps", "depressions", "mixed")
+# "flat" is the original plane and "terrain_contact" a zero-height heightfield on the terrain's map; the rest
+# are gentle templates. A block lists its episodes in this order before the shuffle, and a zero weight adds
+# nothing, so appending "terrain_contact" leaves every block without it unchanged; "flat" stays first.
+TERRAIN_FAMILIES = ("flat", "sloped", "bumps", "depressions", "mixed", "terrain_contact")
 TerrainTemplate = Literal["sloped", "bumps", "depressions", "mixed"]
 _MAX_BLOCK_SIZE = 1000
 
 
 @dataclass(frozen=True)
 class TerrainSamplerConfig:
-    """Integer episode counts per shuffled block; zero disables a family."""
+    """Integer episode counts per shuffled block; zero disables a family.
+
+    ``terrain_contact`` defaults to zero, so ``TerrainSamplerConfig()`` is the five original families.
+    """
 
     flat: int = 1
     sloped: int = 1
     bumps: int = 1
     depressions: int = 1
     mixed: int = 1
+    terrain_contact: int = 0
 
     def __post_init__(self) -> None:
         for family, weight in asdict(self).items():
@@ -84,100 +88,3 @@ def sampler_source_identity() -> dict[str, str]:
     """Exact implementation proof used by behavior checkpoint transitions."""
     path = Path(__file__)
     return {str(path.relative_to(REPOSITORY_ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()}
-
-
-class TerrainSamplingMixin:
-    """Add family selection without changing existing saved-task identities."""
-
-    terrain_config: TerrainConfig
-    flat_probability: float
-    run_seed: int
-    _episode_seed: int
-    _episode_index: int
-
-    def __init__(
-        self,
-        *,
-        terrain_sampler: TerrainSamplerConfig,
-        terrain: TerrainConfig,
-        flat_probability: float = 0.0,
-        **env_kwargs: Any,
-    ):
-        if not isinstance(terrain_sampler, TerrainSamplerConfig):
-            raise ValueError("terrain_sampler must be a TerrainSamplerConfig")
-        if not isinstance(terrain, TerrainConfig) or terrain.mode != "gentle":
-            raise ValueError("terrain sampler requires an enabled gentle terrain configuration")
-        if flat_probability != 0.0:
-            raise ValueError("terrain sampler controls flat episodes; flat_probability must be zero")
-        # Validate every enabled template up front. A valid slope profile may
-        # otherwise have a grid too coarse for the requested bump radius.
-        for family in terrain_sampler.families:
-            if family != "flat":
-                replace(terrain, template=cast(TerrainTemplate, family))
-        self.terrain_sampler = terrain_sampler
-        cast(Any, super()).__init__(terrain=terrain, flat_probability=0.0, **env_kwargs)
-
-    @property
-    def terrain_families(self) -> tuple[str, ...]:
-        return self.terrain_sampler.families
-
-    @property
-    def behavior_identity(self) -> dict[str, Any]:
-        identity = cast(dict[str, Any], cast(Any, super()).behavior_identity)
-        identity.update(
-            terrain_sampler=asdict(self.terrain_sampler),
-            sampler_sources=sampler_source_identity(),
-        )
-        return identity
-
-    def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
-        if seed is not None:
-            seed = _nonnegative_integer(seed, "seed")
-        episode_seed = self._episode_seed if seed is None else seed
-        episode_index = self._episode_index if seed is None else 0
-        selection = select_terrain_family(
-            self.terrain_sampler,
-            run_seed=self.run_seed,
-            episode_seed=episode_seed,
-            episode_index=episode_index,
-        )
-        parent_options = dict(options) if options is not None else None
-        forced_family = None if parent_options is None else parent_options.pop("terrain_family", None)
-        if forced_family is not None and forced_family not in self.terrain_families:
-            raise ValueError(f"terrain_family must be an enabled family: {', '.join(self.terrain_families)}")
-        family = selection.family if forced_family is None else forced_family
-        base_terrain, base_flat_probability = self.terrain_config, self.flat_probability
-        try:
-            # Reuse the species' original plane/heightfield pools, including
-            # its matching contact-probe pool. Only samples change.
-            self.terrain_config = (
-                base_terrain if family == "flat" else replace(base_terrain, template=cast(TerrainTemplate, family))
-            )
-            self.flat_probability = 1.0 if family == "flat" else 0.0
-            observation, info = cast(Any, super()).reset(seed=seed, options=parent_options)
-        finally:
-            # Identity describes the whole training distribution and must not
-            # depend on whichever terrain happened to be sampled most recently.
-            self.terrain_config, self.flat_probability = base_terrain, base_flat_probability
-        info["terrain_sampling"] = {
-            **asdict(selection),
-            "family": family,
-            "mode": "balanced_shuffle" if forced_family is None else "evaluation_override",
-            "weights": asdict(self.terrain_sampler),
-        }
-        return observation, info
-
-
-@lru_cache(maxsize=None)
-def _sampled_behavior_env_class(species: str) -> type[Any]:
-    base = get_behavior_env_class(species)
-    return type(
-        f"{base.__name__.removesuffix('Env')}SampledTerrainEnv",
-        (TerrainSamplingMixin, base),
-        {"species": species, "__module__": __name__},
-    )
-
-
-def get_sampled_behavior_env_class(species: str) -> type[Any]:
-    """Return a sampled-terrain subclass for any supported SB3 species."""
-    return _sampled_behavior_env_class(resolve_species_id(species))

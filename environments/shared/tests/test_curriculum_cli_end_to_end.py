@@ -7,29 +7,32 @@ trainer (``test_train_base.py::TestTrainCurriculumWalksTheManifest`` mocks the
 model, environments, callbacks, config writer, CSV writer and verdict writer;
 ``test_cli.py`` mocks ``train_curriculum`` itself), so nothing ran the path from
 argv to artifacts.  These tests do: the real entry point,
-``environments/velociraptor/scripts/train_sb3.py curriculum``, runs in a
-subprocess with tiny budgets, and ``--override`` opens every gate so that each
-stage advances on its first evaluation.  They check the run's on-disk contract,
-not learning.
+``environments/<species>/scripts/train_sb3.py curriculum``, runs in a
+subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
+every gate so that each stage advances on its first evaluation.  They check
+the run's on-disk contract, not learning.
 
-Velociraptor rather than Compsognathus: all three of its advancing stages gate
-on ``reward_and_length/v1``, which ``--override`` can open at a 32-step
-horizon.  Compsognathus's stance gate (``stance_quality/v1``) needs an
-evaluation episode that reaches the horizon ``CurriculumManager`` re-reads from
-the stage TOML (1,000 steps, not an overridden ``env.max_episode_steps``), so
-its stance evaluation alone costs 40 thousand-step episodes (about 90 s
-measured, against about 16 s for the whole velociraptor ladder; docs/KNOWN_ISSUES.md,
-Training / RL, records the horizon defect).
+The ladder is velociraptor's: all three of its advancing stages gate on
+``reward_and_length/v1``, which ``--override`` opens.  Compsognathus's stance
+node, gated by ``stance_quality/v1``, is run on its own (``--target stance``)
+and judged at the overridden 32-step horizon (cleanup CU-10a):
+``train_curriculum`` hands ``CurriculumCallback`` the horizon of the
+overridden stage config.  Until CU-10a the callback took it from the stage
+TOML that ``CurriculumManager`` re-reads (1,000 steps), so no 32-step episode
+reached the horizon, none supplied an unsupported duty, and the gate could
+not pass.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +74,17 @@ OPEN_GATES = (
     "curriculum.min_avg_forward_vel=0",
     "curriculum.min_success_rate=0",
 )
+# Compsognathus's stance node under stance_quality/v1 at the 32-step horizon
+# (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode is
+# overridden: the settling window (the TOML's 20%, 200 steps, becomes 6) and
+# the reward rail (a 1,000-step return). The duty ceilings, the full-horizon
+# fraction and the 40-episode panel keep the TOML's values.
+STANCE_SPECIES = "compsognathus"
+STANCE_SCRIPT = REPO_ROOT / "environments" / STANCE_SPECIES / "scripts" / "train_sb3.py"
+STANCE_AT_32_STEPS = (
+    "stance.curriculum.settle_steps=6",
+    "stance.curriculum.min_avg_reward=-1000000000",
+)
 # The CLI flags, all real arguments of the `curriculum` subparser.
 FLAGS = ("--n-envs", "1", "--seed", "0", "--eval-freq", "64", "--save-freq", "64", "--verbose", "0")
 
@@ -81,7 +95,7 @@ FLAGS = ("--n-envs", "1", "--seed", "0", "--eval-freq", "64", "--save-freq", "64
 _GOOGLE_CLOUD_IMPORT = re.compile(r"^import time:.*\|\s+google\.cloud(\.|\s*$)")
 
 
-def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES):
+def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES, script: Path = SCRIPT):
     """Run ``train_sb3.py curriculum`` as a user would, and return the finished process."""
     env = dict(os.environ)
     # One thread per process: the SB3 job runs one pytest process on a
@@ -91,7 +105,7 @@ def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHA
         sys.executable,
         "-X",
         "importtime",
-        str(SCRIPT),
+        str(script),
         "curriculum",
         *FLAGS,
         "--label",
@@ -120,10 +134,10 @@ def _assert_no_cloud_imports(result: subprocess.CompletedProcess) -> None:
     assert not [line for line in lines if _GOOGLE_CLOUD_IMPORT.search(line)]
 
 
-def _expected_configs(*overrides: str) -> dict:
+def _expected_configs(*overrides: str, species: str = SPECIES) -> dict:
     """The stage configs the run judged under: the TOMLs with the same overrides applied."""
-    configs = load_all_stages(SPECIES)
-    _apply_overrides(configs, list(overrides), SPECIES)
+    configs = load_all_stages(species)
+    _apply_overrides(configs, list(overrides), species)
     return configs
 
 
@@ -140,6 +154,18 @@ def _rows(run_dir: Path) -> list[dict[str, str]]:
 def _header(run_dir: Path) -> list[str]:
     with (run_dir / "curriculum_results.csv").open(newline="") as handle:
         return next(csv.reader(handle))
+
+
+def _assert_checkpoints_record_the_run_seed(models: Path, run: dict[str, Any]) -> None:
+    """Every SB3 archive a node saved records, in its JSON ``data`` member, the seed and environment count
+    its ``stage_config.json`` run block records (decision D-D11): the model was built, or its warm start
+    re-seeded, under the run's seed."""
+    archives = sorted(models.glob("*.zip"))
+    assert archives, models
+    for archive in archives:
+        with zipfile.ZipFile(archive) as opened:
+            data = json.loads(opened.read("data"))
+        assert (data["seed"], data["n_envs"]) == (run["seed"], run["n_envs"]), archive.name
 
 
 @pytest.fixture(scope="module")
@@ -218,6 +244,11 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
         run = recorded["run"]
         assert (run["seed"], run["n_envs"], run["timesteps"]) == (0, 1, 64)
         assert run["label"] == LABEL
+        # D-D11, as train() does: the root's model is built under the run's seed, and its children, warm-started
+        # from it in this run, record that seed too (the --trunk-from test, run at another seed than its trunk,
+        # tells a re-seeded warm start from one that keeps its parent's seed); the node's duration recorded (D-A15).
+        _assert_checkpoints_record_the_run_seed(models, run)
+        assert math.isfinite(run["duration_seconds"]) and run["duration_seconds"] > 0
         assert run["hyperparameters_sha256"].startswith("sha256:")
         assert "parent_run_id" not in run  # nothing was reused from another run
         if parent_dir is None:
@@ -240,6 +271,10 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     rows = _rows(run_dir)
     assert [row["stage"] for row in rows] == ["1", "2", "3"]
     assert {row["stage_passed"] for row in rows} == {"True"}
+    # The CSV records the time learn() took, a part of the node's recorded duration (to 0.1 s).
+    for row, entry in zip(rows, chain):
+        run = _read(run_dir / stage_dirname(SPECIES, entry.reference) / "stage_config.json")["run"]
+        assert 0 <= float(row["training_duration_seconds"]) <= run["duration_seconds"] + 0.05
     assert {(row["species"], row["algorithm"], row["run_dir"], row["seed"], row["n_envs"]) for row in rows} == {
         (SPECIES, "PPO", run_dir.name, "0", "1")
     }
@@ -257,7 +292,9 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     trunk, trunk_result = ladder
     _assert_succeeded(trunk_result)
     run_dir = trunk.parent / "child"
-    result = _run_cli(run_dir, "--trunk-from", str(trunk))
+    # Another seed than the trunk's 0 (argparse keeps the last --seed): a warm start that kept its parent's
+    # seed would record 0.
+    result = _run_cli(run_dir, "--trunk-from", str(trunk), "--seed", "1")
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
 
@@ -276,10 +313,13 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
 
     parent_verdict = _read(trunk / stage_dirname(SPECIES, 2) / "gate_verdict.json")
     run = _read(run_dir / target_dir / "stage_config.json")["run"]
+    assert run["seed"] == 1  # not the trunk's 0, so a warm start that keeps its parent's seed is caught
     assert Path(run["load_path"]) == trunk / stage_dirname(SPECIES, 2) / parent_verdict["checkpoint"]
     assert run["parent_checkpoint_sha256"] == parent_verdict["checkpoint_sha256"]
     assert run["parent_run_id"] == trunk.name
     assert _read(run_dir / target_dir / "gate_verdict.json")["passed"] is True
+    # Warm-started from the other run's checkpoint (seed 0), and re-seeded under this run's seed 1 (D-D11).
+    _assert_checkpoints_record_the_run_seed(run_dir / target_dir / "models", run)
 
     # A reused node writes no curriculum_results.csv row.
     assert [row["stage"] for row in _rows(run_dir)] == ["3"]
@@ -302,3 +342,49 @@ def test_a_failed_gate_stops_the_cli_curriculum_after_recording_it(tmp_path):
     # The pair is still saved and hash-bound, so the node can be re-judged.
     assert verdict["checkpoint_sha256"] == sha256_file(run_dir / stance_dir / verdict["checkpoint"])
     assert [(row["stage"], row["stage_passed"]) for row in _rows(run_dir)] == [("1", "False")]
+
+
+def test_the_cli_curriculum_judges_a_stance_gate_at_the_overridden_horizon(tmp_path):
+    """Cleanup CU-10a: a ``stance_quality/v1`` node passes at ``--override env.max_episode_steps=32``.
+
+    Its 40 evaluation episodes end at 32 steps, short of the TOML's horizon; the
+    callback must count them as full-horizon for any of them to supply a duty.
+    """
+    toml = load_all_stages(STANCE_SPECIES)[1]
+    assert toml["curriculum_kwargs"]["gate_kind"] == "stance_quality/v1"
+    assert toml["env_kwargs"]["max_episode_steps"] > 32  # the override shortens the TOML's horizon
+
+    run_dir = tmp_path / "stance"
+    result = _run_cli(run_dir, "--target", "stance", overrides=RUN_SHAPE + STANCE_AT_32_STEPS, script=STANCE_SCRIPT)
+    _assert_succeeded(result)
+    _assert_no_cloud_imports(result)
+    assert "Curriculum training complete!" in result.stderr
+
+    stance_dir = run_dir / stage_dirname(STANCE_SPECIES, 1)
+    assert {path.name for path in run_dir.iterdir()} == {
+        stance_dir.name,
+        "plant_identity.json",
+        "curriculum_results.csv",
+    }
+    configs = _expected_configs(*RUN_SHAPE, *STANCE_AT_32_STEPS, species=STANCE_SPECIES)
+    assert configs[1]["env_kwargs"]["max_episode_steps"] == 32
+    cur_kwargs = configs[1]["curriculum_kwargs"]
+
+    verdict = _read(stance_dir / "gate_verdict.json")
+    # The manager's evaluation line (horizon fraction, duty and its bound) is
+    # the diagnosis when the gate does not pass.
+    evaluations = [line for line in result.stderr.splitlines() if "Stage 1 eval:" in line]
+    assert verdict["passed"] is True and verdict["failures"] == [], evaluations
+    assert verdict["species"] == STANCE_SPECIES
+    assert verdict["stage"] == 1 and verdict["stage_id"] == "stance"
+    assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
+    assert verdict["gate_kind"] == "stance_quality/v1"
+    assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(cur_kwargs))
+    thresholds = verdict["gate"]["thresholds"]
+    assert thresholds["settle_steps"] == 6
+    # Judged at the TOML's criteria, not opened ones.
+    for key in ("min_full_horizon_fraction", "max_unsupported_duty", "max_unsupported_duty_ucb", "min_eval_episodes"):
+        assert thresholds[key] == toml["curriculum_kwargs"][key], key
+    assert verdict["checkpoint_sha256"] == sha256_file(stance_dir / verdict["checkpoint"])
+    assert verdict["task_sha256"] == _read(stance_dir / "task_fingerprint.json")["task_sha256"]
+    assert [(row["stage"], row["stage_passed"]) for row in _rows(run_dir)] == [("1", "True")]

@@ -68,6 +68,7 @@ exactly as before. Schema-2 and schema-3 summaries keep their own rules.
 ├── summary.json                 # written whenever >= 1 deliverable is certified
 ├── artifact_manifest.json       # status marker (complete / partial / failed); written last
 ├── training_summary.txt
+├── trunk_run.json               # the trunk the notebook session resolved (mesozoic.trunk-run/v1)
 ├── 01_stance/                   # stage{N} historically, NN_<id> from 2026-08-20 on
 │   ├── stage_config.json
 │   ├── gate_verdict.json        # per-node verdict, hash-bound to the handoff pair
@@ -122,13 +123,15 @@ node that entered from its parent keeps those edge keys and adds
 for the periodic checkpoint it continued from, so a resumed-then-judged node
 still chains by digest. The run block also always records
 `hyperparameters_sha256` and, when set, a `label`; `train_base.train` (the
-CLI `train` subcommand and the notebook's `train_stage`,
-not `curriculum` runs) adds `duration_seconds` at the stage's final save
-(decision D-A15): the training time of the sessions that reached a final save
-in this stage directory. A same-stage resume into the same directory adds its
-session; a session stopped before its final save records nothing, so an
+CLI `train` subcommand and the notebook's `train_stage`) and the CLI
+`curriculum` (each node it trains) add `duration_seconds` at the stage's final
+save (decision D-A15): the training time of the sessions that reached a final
+save in this stage directory. A same-stage resume into the same directory adds
+its session; a session stopped before its final save records nothing, so an
 interrupted-then-resumed notebook node reports the resumed session only, and a
-CLI resume into a fresh directory records its own session.
+CLI resume into a fresh directory records its own session. A curriculum node
+never resumes, and a Ctrl-C saves it, so it records the one session that
+trained it.
 
 A stage directory written by `environments/shared/scripts/widen_checkpoint.py`
 (BEHAVIOR_RECIPES_PLAN §4.6 "Widening instead of retraining"; decisions D-C8,
@@ -194,6 +197,19 @@ longer certifies, or a trunk's copy recorded into a run that lacks the
 record), and the manual and resume cells refuse the same write
 (`environments.shared.result_bundle.reentry`);
 the zero-action cell leaves such a run's `zero_action_baseline.json` as sealed.
+The resolve cell also records the trunk run the session resolved in the run's
+`trunk_run.json` (`mesozoic.trunk-run/v1`: `{"schema", "trunk_from"}`, the
+`TRUNK_FROM` value that reproduces it: `""`, a run id or an absolute run
+directory; no timestamp, so a session on the same trunk writes nothing;
+`environments.shared.result_bundle.trunk_record`). It never writes it into a
+`complete` run, and never over the trunk the run's `ancestors/` records came
+through, when the resolve cell ran before the chain loop that recorded them (a
+chain loop run after a `TRUNK_FROM` change without the resolve cell can record
+from another trunk; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)): once the run holds
+such a record the file is fixed, a session under another trunk is warned, and
+the resume cell refuses to resume under it (cleanup ROW-4/6, decision 4 (a)).
+It is a plain run file, declared and hashed by the next bundle write like any
+other.
 Repeating an identical export is a write-free no-op, so a transient Drive
 failure cannot remove the completion marker from an already valid bundle. A
 partial marker — a chain whose target has not certified yet — is rebuilt
@@ -207,8 +223,9 @@ with it — an export interrupted mid-rewrite, say: the next export rebuilds
 them in place, and only after the rebuilt bundle has passed every check does
 it replace the marker. If a certified artifact — a checkpoint or its
 VecNormalize sidecar, evaluation evidence, a stage config, a gate verdict, an
-ancestor record — changed after publication, the export refuses and names the
-file; that bundle needs a new run ID.
+ancestor record, `trunk_run.json` (a fact about the run, which the export
+does not regenerate) — changed after publication, the export refuses and
+names the file; that bundle needs a new run ID.
 
 ## Source of truth
 

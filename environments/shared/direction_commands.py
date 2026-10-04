@@ -19,6 +19,8 @@ from typing import Any
 
 import numpy as np
 
+from environments.shared.command_frame import COMMAND_COMPONENTS, COMMAND_RANGE, COMMAND_WIDTH
+
 
 def _finite(value: float, name: str) -> float:
     try:
@@ -134,7 +136,7 @@ class DirectionCommandState:
     def __post_init__(self) -> None:
         for name in ("physical", "normalized"):
             values = np.array(getattr(self, name), dtype=np.float32, copy=True)
-            if values.shape != (3,) or not np.all(np.isfinite(values)):
+            if values.shape != (COMMAND_WIDTH,) or not np.all(np.isfinite(values)):
                 raise ValueError(f"{name} must contain three finite command components")
             values.setflags(write=False)
             object.__setattr__(self, name, values)
@@ -199,7 +201,7 @@ class DirectionCommandController:
             "config": asdict(self.config),
             "request_frame": "world_heading_radians_and_speed_metres_per_second",
             "policy_frame": "gravity_aligned_body_heading_vx_vy_yaw_rate",
-            "policy_components": ["v_x_cmd", "v_y_cmd", "yaw_rate_cmd"],
+            "policy_components": list(COMMAND_COMPONENTS),
             "policy_units": ["m/s", "m/s", "rad/s"],
             "time_unit": "seconds",
             "heading_wrap": "[-pi, pi); exact half-turn clockwise",
@@ -331,7 +333,7 @@ class DirectionCommandController:
             heading_error=error,
             heading_active=active,
             physical=physical,
-            normalized=np.clip(physical / scales, -1.0, 1.0),
+            normalized=np.clip(physical / scales, *COMMAND_RANGE),
             event_id=event["event_id"],
             event_start_s=event["start_time_s"],
             target_source=event["source"],

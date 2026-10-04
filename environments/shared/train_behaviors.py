@@ -28,7 +28,7 @@ from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig
-from environments.shared.terrain_sampling import TerrainSamplerConfig, get_sampled_behavior_env_class
+from environments.shared.terrain_sampling import TerrainSamplerConfig
 
 
 def _sha(path: Path) -> str:
@@ -72,9 +72,14 @@ def read_recipe(
         unknown = set(recipe.get(section, {})) - allowed
         if unknown:
             raise ValueError(f"Unknown {section} fields: {sorted(unknown)}")
+    if "flat_probability" in recipe.get("env", {}):
+        raise ValueError(
+            "env.flat_probability is retired: [terrain_sampler] states each family's episodes per shuffled block "
+            "(flat = 1 beside the terrain's own family at 3 is the former 0.25)"
+        )
     env_class = get_behavior_env_class(species)
     allowed_env = set(canonical_env_parameters(species)) | set(inspect.signature(env_class.__init__).parameters)
-    allowed_env -= {"self", "env_kwargs", "commands", "terrain", "run_seed"}
+    allowed_env -= {"self", "env_kwargs", "commands", "terrain", "terrain_sampler", "run_seed"}
     if unknown := set(recipe.get("env", {})) - allowed_env:
         raise ValueError(f"Unknown env fields: {sorted(unknown)}")
     recipe["ppo"] = {
@@ -121,13 +126,15 @@ def read_recipe(
         values = recipe["terrain_sampler"]
         if not isinstance(values, dict):
             raise ValueError("terrain_sampler must be a table")
-        if unknown := set(values) - {f.name for f in fields(TerrainSamplerConfig)}:
+        names = [f.name for f in fields(TerrainSamplerConfig)]
+        if unknown := set(values) - set(names):
             raise ValueError(f"Unknown terrain_sampler fields: {sorted(unknown)}")
+        # The dataclass defaults enable five families; a recipe states its whole block instead.
+        if missing := [name for name in names if name not in values]:
+            raise ValueError(f"terrain_sampler must state every family's episodes (0 disables one); missing {missing}")
         sampler = TerrainSamplerConfig(**values)
-        if terrain is None or terrain.mode != "gentle":
-            raise ValueError("terrain_sampler requires enabled gentle terrain")
-        if recipe.get("env", {}).get("flat_probability", 0.0) != 0:
-            raise ValueError("terrain_sampler owns flat sampling; env.flat_probability must be zero")
+        if terrain is None:
+            raise ValueError("terrain_sampler requires enabled terrain")
     # Keep the measured walker posture/control settings and override only the
     # declared behavior settings. The resolved values enter the task identity.
     parent_stage = load_stage_manifest(species).by_id("locomotion")
@@ -148,9 +155,8 @@ def create_behavior_env(
     run_seed: int,
     **env_kwargs: Any,
 ) -> Any:
-    """Construct the fixed-template or sampled behavior declared by a recipe."""
-    factory = get_sampled_behavior_env_class if "terrain_sampler" in env_kwargs else get_behavior_env_class
-    return factory(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    """Construct the behavior a recipe declares; ``read_recipe`` puts its terrain sampler in ``env_kwargs``."""
+    return get_behavior_env_class(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
 
 
 class EpisodeManifestRecorder(gym.Wrapper):
@@ -386,7 +392,7 @@ def main(argv: list[str] | None = None) -> None:
             "ent_coef": model.ent_coef,
             "target_kl": model.target_kl,
             "device": str(model.device),
-            "observation_normalization": "proprioception only; command passthrough",
+            "observation_normalization": "every input; command statistics reseeded at preparation (D-D3)",
             "reward_normalization": bool(normalizer.norm_reward),
         },
         "canonical_certification": False,

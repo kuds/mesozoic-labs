@@ -11,9 +11,7 @@ import json
 import math
 import tomllib
 from pathlib import Path
-from typing import Any, Mapping, Sequence, cast
-
-import numpy as np
+from typing import Any, Mapping, Sequence
 
 from environments.shared.curriculum.recovery_gate import binomial_lcb
 from environments.shared.direction_commands import wrap_angle
@@ -26,50 +24,12 @@ def load_certification_rules() -> dict[str, Any]:
     return tomllib.loads(RULES_PATH.read_text())
 
 
-class _PanelTerrainMixin:
-    """Stratify existing fixed-template tasks without changing their task identity."""
-
-    @property
-    def terrain_families(self) -> tuple[str, ...]:
-        sampler = getattr(self, "terrain_sampler", None)
-        if sampler is not None:
-            return tuple(sampler.families)
-        terrain = getattr(self, "terrain_config", None)
-        if terrain is None:
-            return ("flat",)
-        family = "terrain_contact" if terrain.mode == "flat" else terrain.template
-        probability = float(getattr(self, "flat_probability", 0.0))
-        return tuple((["flat"] if probability > 0 else []) + ([family] if probability < 1 else []))
-
-    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
-        parent = cast(Any, super())
-        if getattr(self, "terrain_sampler", None) is not None:
-            return cast(tuple[np.ndarray, dict], parent.reset(seed=seed, options=options))
-        options = dict(options or {})
-        family = options.pop("terrain_family", None)
-        if family is not None and family not in self.terrain_families:
-            raise ValueError("Certification requested a terrain outside this task")
-        previous = getattr(self, "flat_probability", 0.0)
-        try:
-            if family is not None:
-                self.flat_probability = 1.0 if family == "flat" else 0.0
-            observation, info = parent.reset(seed=seed, options=options)
-        finally:
-            self.flat_probability = previous
-        if family is not None:
-            info["terrain_sampling"] = {"family": family, "mode": "certification_override"}
-        return observation, info
-
-
 def _panel_env(species: str, recipe_path: Path, run_seed: int) -> Any:
-    from environments.shared.behavior_env import get_behavior_env_class
-    from environments.shared.terrain_sampling import get_sampled_behavior_env_class
-    from environments.shared.train_behaviors import read_recipe
+    """The recipe's own env on a fixed panel seed; its ``terrain_family`` reset option stratifies the panel."""
+    from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
     _, commands, terrain, kwargs = read_recipe(recipe_path, species)
-    factory = get_sampled_behavior_env_class if "terrain_sampler" in kwargs else get_behavior_env_class
-    cls = type("BehaviorCertificationPanelEnv", (_PanelTerrainMixin, factory(species)), {})
-    return cls(commands=commands, terrain=terrain, run_seed=run_seed, **kwargs)
+    return create_behavior_env(species, commands=commands, terrain=terrain, run_seed=run_seed, **kwargs)
 
 
 def evaluate_saved_panel(

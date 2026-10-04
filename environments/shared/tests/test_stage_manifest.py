@@ -622,8 +622,51 @@ class TestCommittedManifestsAreV2:
             assert [stage_dirname(species, entry.id) for entry in manifest.stages] == names
 
 
+#: The tables each species' recovery.toml inherits from its stance.toml
+#: through ``extends`` (CU-13).  Never ``curriculum``; never ``sac`` for the
+#: T-Rex, whose recovery stage is PPO-only (giving it stance's never-run
+#: ``[sac]`` would move two golden digest lines).
+RECOVERY_EXTENDS = {
+    "trex": ["stage", "env", "ppo"],
+    "compsognathus": ["stage", "env", "ppo", "sac"],
+    "compsognathus_robot": ["stage", "env", "ppo", "sac"],
+}
+#: The one ``[env]`` delta, in the order each recovery.toml declares it.
+PERTURBATION_KEYS = [
+    "perturbation_capture_velocity_multiple",
+    "perturbation_interval",
+    "perturbation_jitter",
+    "perturbation_duration",
+    "perturbation_direction",
+]
+#: The T-Rex keys recovery.toml writes out with stance's values rather than
+#: inheriting them (the cleanup plan's CU-13 row).
+TREX_REDECLARED_ENV_KEYS = ["foot_contact_gate", "foot_contact_weight", "foot_contact_saturation_force"]
+
+
+def _ordered(value):
+    """*value* with every mapping turned into its item list, so ``==`` also compares key order."""
+    if isinstance(value, dict):
+        return [(key, _ordered(sub)) for key, sub in value.items()]
+    return value
+
+
+def _raw_stage_toml(species, stage_id):
+    import tomllib
+
+    path = _CONFIGS_DIR / species / load_stage_manifest(species).by_id(stage_id).config_file
+    with open(path, "rb") as handle:
+        return tomllib.load(handle)
+
+
 class TestRecoveryStageConfig:
-    """The recovery stage config is stage 1's task plus exactly one delta."""
+    """The recovery stage config is stance's task plus exactly one delta, inherited through ``extends``.
+
+    The resolved tables are pinned with their KEY ORDER.  Every golden digest
+    hashes sorted JSON, so neither the digest snapshot nor ``--exact`` would
+    see an order change, but ``stage_config.json`` is written unsorted and
+    result bundles hash its bytes.
+    """
 
     def test_loads_by_semantic_id_and_only_by_it(self):
         from environments.shared.config import load_stage_config
@@ -635,37 +678,72 @@ class TestRecoveryStageConfig:
         # Integer loading is untouched: 2 still means locomotion.
         assert load_stage_config("trex", 2)["name"] == load_stage_config("trex", "locomotion")["name"]
 
-    def test_env_mirrors_stance_plus_exactly_the_perturbation_block(self):
-        import tomllib
+    def test_every_recovery_stage_is_covered(self):
+        species_with_recovery = [
+            species
+            for species in COMMITTED_SPECIES
+            if "recovery" in [entry.id for entry in load_stage_manifest(species).stages]
+        ]
+        assert species_with_recovery == sorted(RECOVERY_EXTENDS)
 
-        from environments.shared.stage_manifest import load_stage_manifest
+    @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
+    def test_extends_stance_for_the_declared_tables_never_curriculum(self, species):
+        extends = _raw_stage_toml(species, "recovery")["extends"]
+        assert extends == {"stage": "stance", "tables": RECOVERY_EXTENDS[species]}
+        assert "curriculum" not in extends["tables"]
+        if species == "trex":
+            assert "sac" not in extends["tables"]
 
-        stance_file = load_stage_manifest("trex").resolve("stance").config_file
-        stance = tomllib.load(open(f"configs/trex/{stance_file}", "rb"))
-        recovery = tomllib.load(open("configs/trex/recovery.toml", "rb"))
-        perturbation_keys = {key for key in recovery["env"] if key.startswith("perturbation_")}
-        assert perturbation_keys == {
-            "perturbation_capture_velocity_multiple",
-            "perturbation_interval",
-            "perturbation_jitter",
-            "perturbation_duration",
-            "perturbation_direction",
-        }
-        mirrored = {key: value for key, value in recovery["env"].items() if key not in perturbation_keys}
-        # Freshness pin: a stage-1 shaping change that forgets this file
-        # fails here, with the fix being to re-mirror (and re-derive the
-        # recovery rails once the W4 gate exists).
-        assert mirrored == stance["env"]
-        # [ppo] mirrors stance with exactly one measured delta:
-        # ent_coef_decay_timesteps is anchored to recovery's own 3M budget
-        # (2M, ~2/3 — the same ratio as stance's 7M-of-11M) rather than
-        # mirrored, because the 20260821_142144 pilot trained its whole
-        # budget at ent_coef >= 0.0014 when the mirrored 7M horizon never
-        # completed (2026-08 review §3.4).
-        assert (
-            recovery["ppo"] | {"ent_coef_decay_timesteps": stance["ppo"]["ent_coef_decay_timesteps"]} == stance["ppo"]
-        )
-        assert recovery["ppo"]["ent_coef_decay_timesteps"] == 2_000_000
+    @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
+    def test_the_file_declares_only_its_deltas(self, species):
+        recovery = _raw_stage_toml(species, "recovery")
+        stance = _raw_stage_toml(species, "stance")
+        redeclared = TREX_REDECLARED_ENV_KEYS if species == "trex" else []
+        assert list(recovery) == ["extends", "stage", "env", "ppo", "curriculum"]
+        assert list(recovery["stage"]) == ["name", "description"]
+        assert list(recovery["env"]) == redeclared + PERTURBATION_KEYS
+        assert {key: recovery["env"][key] for key in redeclared} == {key: stance["env"][key] for key in redeclared}
+        assert recovery["ppo"] == {"ent_coef_decay_timesteps": 2_000_000}
+
+    @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
+    def test_resolved_env_is_stance_plus_exactly_the_perturbation_block_in_order(self, species):
+        from environments.shared.config import load_stage_config
+
+        stance = load_stage_config(species, "stance")
+        recovery = load_stage_config(species, "recovery")
+        assert (recovery["name"], recovery["description"]) != (stance["name"], stance["description"])
+        perturbation = [(key, recovery["env_kwargs"][key]) for key in PERTURBATION_KEYS]
+        assert _ordered(recovery["env_kwargs"]) == _ordered(stance["env_kwargs"]) + perturbation
+
+    @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
+    def test_resolved_algorithm_tables_are_stance_but_the_entropy_horizon_in_order(self, species):
+        from environments.shared.config import load_stage_config
+
+        stance = load_stage_config(species, "stance")
+        recovery = load_stage_config(species, "recovery")
+        # [ppo] is stance's with exactly one measured delta, overridden in
+        # place: ent_coef_decay_timesteps is anchored to recovery's own 3M
+        # budget (2M, ~2/3 — the same ratio as stance's 7M-of-11M) because
+        # the 20260821_142144 pilot trained its whole budget at ent_coef >=
+        # 0.0014 when the mirrored 7M horizon never completed (2026-08
+        # review §3.4).  policy_kwargs, nested, comes over whole.
+        assert stance["ppo_kwargs"]["ent_coef_decay_timesteps"] == 7_000_000
+        expected_ppo = {**stance["ppo_kwargs"], "ent_coef_decay_timesteps": 2_000_000}
+        assert _ordered(recovery["ppo_kwargs"]) == _ordered(expected_ppo)
+        assert "policy_kwargs" in recovery["ppo_kwargs"]
+        if "sac" in RECOVERY_EXTENDS[species]:
+            assert recovery["sac_kwargs"] and _ordered(recovery["sac_kwargs"]) == _ordered(stance["sac_kwargs"])
+        else:
+            assert stance["sac_kwargs"] and recovery["sac_kwargs"] == {}
+
+    @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
+    def test_curriculum_is_the_recovery_files_own(self, species):
+        from environments.shared.config import load_stage_config
+
+        curriculum = load_stage_config(species, "recovery")["curriculum_kwargs"]
+        assert _ordered(curriculum) == _ordered(_raw_stage_toml(species, "recovery")["curriculum"])
+        assert curriculum["gate_kind"] == "recovery_quality/v1"
+        assert load_stage_config(species, "stance")["curriculum_kwargs"]["gate_kind"] == "stance_quality/v1"
 
     def test_gate_declares_the_frozen_recovery_kind(self):
         import tomllib

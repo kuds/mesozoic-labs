@@ -32,10 +32,18 @@ wavelength_min = 2.0
 wavelength_max = 5.0
 episode_variation = 0.15
 
+# Each shuffled block of four episodes: one on the original plane, three on this terrain.
+[terrain_sampler]
+flat = 1
+sloped = 0
+bumps = 0
+depressions = 0
+mixed = 0
+terrain_contact = 3
+
 [env]
 max_episode_steps = 2500 # 25 seconds at this species control timestep
 course_distance = 7.5 # Radial progress diagnostic, not a success gate
-flat_probability = 0.25 # Original-plane retention among heightfield episodes
 
 [ppo]
 learning_rate = 0.00005

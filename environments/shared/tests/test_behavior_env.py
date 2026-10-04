@@ -18,6 +18,7 @@ from environments.shared.plant_contract import REPOSITORY_ROOT, current_plant_id
 from environments.shared.species_names import species_display_name
 from environments.shared.species_registry import get_species_config
 from environments.shared.terrain import TerrainConfig, TerrainRealization, apply_terrain
+from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig
 
 SPECIES = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot")
 SPEEDS = {
@@ -72,6 +73,11 @@ def make_env():
 
 def terrain(**kwargs):
     return TerrainConfig(extent=8.0, nrow=81, ncol=81, apron_radius=4.0, **kwargs)
+
+
+def sampler(**weights):
+    """A terrain sampler that enables exactly the named families."""
+    return TerrainSamplerConfig(**{**dict.fromkeys(TERRAIN_FAMILIES, 0), **weights})
 
 
 def zeros(env):
@@ -371,7 +377,7 @@ def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(mak
                 "actuator_gainprm",
             )
         }
-        env = make_env(species, terrain=terrain(), flat_probability=0.5, reset_noise_scale=0.05)
+        env = make_env(species, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), reset_noise_scale=0.05)
         assert (env._substep_probe_hook is not None) == hasattr(env, "_probe_model") == (species == "trex")
         seeds = _mixed_surface_seeds(env)
         props = np.flatnonzero(env.model.body_mocapid >= 0)
@@ -454,6 +460,7 @@ def test_identity_binds_task_options_but_not_episode_draws(make_env, species):
     env = make_env(species, terrain=terrain(), run_seed=42)
     first = copy.deepcopy(env.behavior_identity)
     assert first["schema"] == "mesozoic.command-terrain/v1" and first["species"] == species
+    assert {"flat_probability", "terrain_sampler", "sampler_sources"}.isdisjoint(first)
     assert set(first["sources"]) == {
         "environments/shared/behavior_env.py",
         str(Path(inspect.getfile(get_species_config(species).env_class)).relative_to(REPOSITORY_ROOT)),
@@ -469,11 +476,13 @@ def test_identity_binds_task_options_but_not_episode_draws(make_env, species):
 
 
 @pytest.mark.parametrize("species", SPECIES)
-@pytest.mark.parametrize("flat_probability", [0.0, 1.0])
-def test_flat_retention_uses_plane_and_flat_terrain_keeps_hfield(make_env, species, flat_probability):
-    env = make_env(species, terrain=terrain(mode="flat"), flat_probability=flat_probability, reset_noise_scale=0.0)
-    observation, info = env.reset(seed=1042)
-    is_plane = flat_probability == 1.0
+@pytest.mark.parametrize("family", ["terrain_contact", "flat"])
+def test_flat_family_uses_plane_and_terrain_contact_keeps_hfield(make_env, species, family):
+    env = make_env(
+        species, terrain=terrain(mode="flat"), terrain_sampler=sampler(flat=1, terrain_contact=3), reset_noise_scale=0.0
+    )
+    observation, info = env.reset(seed=1042, options={"terrain_family": family})
+    is_plane = family == "flat"
     expected_type = mujoco.mjtGeom.mjGEOM_PLANE if is_plane else mujoco.mjtGeom.mjGEOM_HFIELD
     expected_model = env._plane_model if is_plane else env._terrain_model
     expected_data = env._plane_data if is_plane else env._terrain_data
@@ -509,7 +518,7 @@ def _mixed_surface_seeds(env):
         seeds.setdefault(env.terrain is None, seed)
         if len(seeds) == 2:
             return seeds
-    pytest.fail("Mixed retention did not produce both plane and heightfield episodes")
+    pytest.fail("Mixed sampling did not produce both plane and heightfield episodes")
 
 
 def _pools(env, is_plane):
@@ -519,7 +528,9 @@ def _pools(env, is_plane):
 
 @pytest.mark.parametrize("species", SPECIES)
 def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, species):
-    env = make_env(species, terrain=terrain(), flat_probability=0.5, run_seed=17, reset_noise_scale=0.05)
+    env = make_env(
+        species, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), run_seed=17, reset_noise_scale=0.05
+    )
     pairs = {is_plane: _pools(env, is_plane) for is_plane in (True, False)}
     for plane_member, terrain_member in zip(pairs[True], pairs[False], strict=True):
         assert plane_member is not terrain_member
@@ -566,7 +577,7 @@ def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, sp
 
 @pytest.mark.parametrize("species", SPECIES)
 def test_switching_surfaces_clears_reused_physics_and_contact_caches(make_env, species):
-    kwargs = dict(terrain=terrain(), flat_probability=0.5, run_seed=17, reset_noise_scale=0.05)
+    kwargs = dict(terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), run_seed=17, reset_noise_scale=0.05)
     env, fresh = make_env(species, **kwargs), make_env(species, **kwargs)
     seeds = _mixed_surface_seeds(env)
     probes = bool(env._terrain_contact_probe_geoms)
@@ -622,7 +633,7 @@ def test_switching_surfaces_clears_reused_physics_and_contact_caches(make_env, s
 def test_model_switch_closes_rendering_resources_bound_to_old_model(make_env):
     from unittest.mock import Mock
 
-    env = make_env("trex", terrain=terrain(), flat_probability=0.5)
+    env = make_env("trex", terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1))
     seeds = _mixed_surface_seeds(env)
     env.reset(seed=seeds[True])
     for is_plane in (False, True):
@@ -680,25 +691,35 @@ def test_each_committed_recipe_instantiates_and_steps(species, name):
     assert recipe["behavior"]["timesteps"] > 0
     env = get_behavior_env_class(species)(commands=recipe_commands, terrain=recipe_terrain, run_seed=42, **kwargs)
     try:
-        obs, info = env.reset(seed=42)
-        assert obs.shape == env.observation_space.shape and np.all(np.isfinite(obs))
-        next_obs, reward, terminated, truncated, step_info = env.step(zeros(env))
-        assert np.all(np.isfinite(next_obs)) and np.isfinite(reward)
-        assert not terminated and not truncated
-        assert step_info["command_event_id"] == 0
-        assert step_info["heading_error_rad"] == pytest.approx(
-            ((step_info["desired_heading"] - step_info["actual_heading"] + np.pi) % (2 * np.pi) - np.pi)
-            if step_info["heading_active"]
-            else 0.0
-        )
-        if env.terrain is None:
-            assert np.isfinite(env.lowest_ground_clearance())
+        # Consolidation PR-8: a terrain recipe runs one plane episode in each shuffled block of four.
+        if recipe_terrain is None:
+            assert env.terrain_families == ("flat",) and env.terrain_sampler is None
         else:
-            expected_schema = (
-                "mesozoic.gentle-terrain/v1" if recipe_terrain.template == "sloped" else "mesozoic.terrain-templates/v2"
+            own = "terrain_contact" if recipe_terrain.mode == "flat" else recipe_terrain.template
+            assert env.terrain_families == ("flat", own)
+            assert env.terrain_sampler == sampler(flat=1, **{own: 3})
+        for family in env.terrain_families:
+            obs, info = env.reset(seed=42, options={"terrain_family": family})
+            assert obs.shape == env.observation_space.shape and np.all(np.isfinite(obs))
+            next_obs, reward, terminated, truncated, step_info = env.step(zeros(env))
+            assert np.all(np.isfinite(next_obs)) and np.isfinite(reward)
+            assert not terminated and not truncated
+            assert step_info["command_event_id"] == 0
+            assert step_info["heading_error_rad"] == pytest.approx(
+                ((step_info["desired_heading"] - step_info["actual_heading"] + np.pi) % (2 * np.pi) - np.pi)
+                if step_info["heading_active"]
+                else 0.0
             )
-            assert info["terrain"]["schema"] == expected_schema
-            with pytest.raises(NotImplementedError, match="heightfield"):
-                env.lowest_ground_clearance()
+            if family == "flat":
+                assert env.terrain is None and np.isfinite(env.lowest_ground_clearance())
+            else:
+                expected_schema = (
+                    "mesozoic.gentle-terrain/v1"
+                    if recipe_terrain.template == "sloped"
+                    else "mesozoic.terrain-templates/v2"
+                )
+                assert info["terrain"]["schema"] == expected_schema
+                with pytest.raises(NotImplementedError, match="heightfield"):
+                    env.lowest_ground_clearance()
     finally:
         env.close()

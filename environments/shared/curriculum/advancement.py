@@ -61,7 +61,16 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             eval when *eval_callback* is provided (default 10).  Drives the
             locomotion report and the compatibility fallback samples.
         verbose: Verbosity level.
+        eval_horizon: Episode length that counts as reaching the horizon in
+            a ``stance_quality/v1`` panel: the ``max_episode_steps`` of the
+            stage config *eval_env* was built from.  ``None`` (the default)
+            reads it from the manager's ``current_config()``, the stage TOML,
+            which an overridden ``env.max_episode_steps`` does not reach.
     """
+
+    #: The class default, so an instance built without ``__init__`` falls
+    #: back to the manager's horizon.
+    eval_horizon: int | None = None
 
     def __init__(
         self,
@@ -72,6 +81,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         eval_callback: Any = None,
         supplementary_episodes: int = 10,
         verbose: int = 0,
+        eval_horizon: int | None = None,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError(
@@ -84,6 +94,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self.n_eval_episodes = n_eval_episodes
         self.eval_callback = eval_callback
         self.supplementary_episodes = supplementary_episodes
+        self.eval_horizon = eval_horizon
         self.ready_to_advance = False
         self._last_eval_step = 0
         self._last_seen_n_evals = 0
@@ -168,7 +179,14 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         )
 
     def _eval_horizon(self) -> int:
-        """Episode-step count that counts as reaching the horizon."""
+        """Episode-step count that counts as reaching the horizon.
+
+        The *eval_horizon* given at construction when set (``train_curriculum``
+        passes the overridden stage config's, the horizon the evaluation env
+        runs); otherwise the stage TOML's, which the manager re-reads.
+        """
+        if self.eval_horizon is not None:
+            return int(self.eval_horizon)
         env_kwargs = self.curriculum_manager.current_config().get("env_kwargs", {})
         return int(env_kwargs.get("max_episode_steps", 1000))
 

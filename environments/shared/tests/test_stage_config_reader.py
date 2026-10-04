@@ -4,8 +4,9 @@
 ``config.read_recorded_stage_config`` applies it to a stage directory's
 ``stage_config.json``.  Every library reader that took a bad record as
 "proves nothing" goes through them; the Drive summary notebook's own readers
-(CU-15's, kept by the cleanup plan's section 4.9) are left alone, two of them
-lenient (``_infer_algorithm``, ``_stage_name``).  These tests hold the shared
+(they stay in the notebook, by the cleanup plan's section 4.9; CU-15 did not
+move them) are left alone, two of them lenient (``_infer_algorithm``,
+``_stage_name``).  These tests hold the shared
 reader and each former reader to the answers they gave before on the eleven
 cases the CU-8c probe measured (missing, a directory, bad JSON, not UTF-8, a
 byte-order mark, the four non-object JSON values, an object holding NaN, an
@@ -305,9 +306,10 @@ STAGE_CONFIG_SELF_PARSERS = {
     # The stage-results builder raises on an unreadable or non-object record rather than reading
     # it as absent (an absent file or key leaves plant_identity out).
     "environments/shared/reporting/stage_artifacts.py::build_stage_results_from_eval_data",
-    # The Drive summary notebook's own readers (CU-15's; kept by the cleanup plan's section 4.9):
-    # scan_run and show_full_config raise on a bad record; _infer_algorithm and _stage_name fall
-    # back (to the directory name and to "") without the shared reader.
+    # The Drive summary notebook's own readers (they stay in the notebook, by the cleanup plan's
+    # section 4.9; CU-15 did not move them): scan_run and show_full_config raise on a bad record;
+    # _infer_algorithm and _stage_name fall back (to the directory name and to "") without the
+    # shared reader.
     "notebooks/google_drive_summary.ipynb::_infer_algorithm",
     "notebooks/google_drive_summary.ipynb::scan_run",
     "notebooks/google_drive_summary.ipynb::_stage_name",
@@ -428,7 +430,7 @@ def test_no_new_lenient_json_reader_beside_the_shared_one():
     ``is_file`` guard, or a handler naming only a narrower ``OSError`` such as
     ``FileNotFoundError``, plus a parse that may raise (lenient only about a missing file); a
     handler that raises; a parser other than ``json.load``/``json.loads``.  Notebooks are left
-    out: the Drive summary's readers are CU-15's.
+    out: the Drive summary's readers stay in the notebook (CU-15 did not move them).
     """
     assert _lenient_json_readers(_non_test_sources()) == OTHER_LENIENT_JSON_READERS
 
@@ -520,7 +522,7 @@ def test_the_library_self_parsers_decode_the_record_as_utf8():
     under any locale.  The suite runs in UTF-8 mode, where a read without it behaves the same, so
     nothing else notices the keyword's loss.  Only reads of the record count (the builder's
     ``metrics.json`` read is not this pin's), and each listed function must have one; the Drive
-    summary's readers are CU-15's."""
+    summary's readers, which stay in the notebook, are left out."""
     library = {entry for entry in STAGE_CONFIG_SELF_PARSERS if entry.startswith("environments/")}
     reads = _record_reads_by_function(_non_test_sources(), library)
     assert {entry: bool(flags) for entry, flags in reads.items()} == dict.fromkeys(library, True)

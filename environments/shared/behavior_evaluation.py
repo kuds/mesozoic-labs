@@ -571,13 +571,6 @@ def evaluate_behavior(
 
     observed_families = list(dict.fromkeys(episode["terrain_family"] for episode in episode_summaries))
     enabled_families = list(terrain_families) if terrain_families else observed_families
-    legacy_terrain = getattr(raw_env, "terrain_config", None)
-    if not terrain_families and legacy_terrain is not None:
-        configured_family = "terrain_contact" if legacy_terrain.mode == "flat" else legacy_terrain.template
-        flat_probability = float(getattr(raw_env, "flat_probability", 0.0))
-        enabled_families = (["flat"] if flat_probability > 0 else []) + (
-            [configured_family] if flat_probability < 1 else []
-        )
     missing_families = [family for family in enabled_families if family not in observed_families]
     report = {
         "schema": "mesozoic.behavior-evaluation-diagnostics/v1",

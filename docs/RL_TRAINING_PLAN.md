@@ -32,7 +32,7 @@
 ## Public Result Baseline
 
 Do not copy run metrics or current stage budgets into this planning document.
-The generated [public catalog](../README.md#training-results) is the authoritative
+The generated [public catalog](SPECIES_CATALOG.md#training-results) is the authoritative
 view of current configs and provenance-labelled result summaries. At this plan's
 last review, T-Rex SAC and Brachiosaurus SAC had no published summary, and the
 published Brachiosaurus PPO Stage 3 result had not met its configured gate.

@@ -115,9 +115,10 @@ the session's ``RUN_LABEL`` when it sets one.  On Colab, in three steps:
 
 Then run the notebook with ``RUN_ID = "<new run id>"``, ``SEED`` = the
 parent's recorded ``run.seed`` (the storage cell refuses any other value
-before it writes anything, D-C14) and ``TRUNK_FROM = ""`` (the resolve cell
-refuses a trunk while the widened root has no verdict, D-C13; nothing below a
-widened root is reusable from another run anyway).
+before it writes anything, D-C14) and ``TRUNK_FROM = ""`` (the chain loop
+judges the widened root before it consults any trunk, D-C13 as amended by
+decision 6 (b); nothing below a widened root is reusable from another run
+anyway).
 
 Stable-Baselines3, torch and gymnasium are imported inside the functions so
 the module stays importable on a bare install (the lint job).

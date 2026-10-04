@@ -18,6 +18,15 @@ ANCESTORS_DIRNAME = "ancestors"
 ANCESTOR_RECORD_NAME = "ancestor.json"
 ANCESTOR_RECORD_SCHEMA = "mesozoic.ancestor-record/v1"
 
+#: The trunk run a session of the SB3 notebook resolved for a run (cleanup
+#: ROW-4/6, decision 4 (a)): ``<run_dir>/trunk_run.json``, naming it as the
+#: ``TRUNK_FROM`` value that reproduces it.  Written and read through
+#: :mod:`.trunk_record` (the notebook's resolve cell writes it);
+#: ``reentry.refuse_trunk_other_than_recorded`` checks the RESUME cell's
+#: resume against it.
+TRUNK_RECORD_NAME = "trunk_run.json"
+TRUNK_RECORD_SCHEMA = "mesozoic.trunk-run/v1"
+
 #: The fields :func:`.provenance.update_provenance` may write after capture.
 #: ``deliverables`` / ``primary_deliverable`` / ``target_deliverable`` /
 #: ``ancestors`` are FINALIZATION fields (decision D-A16), written by

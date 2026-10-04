@@ -60,7 +60,8 @@ the `[sac]` sections in the stage TOML files each species' `stages.toml` names
 Brachiosaurus and Dibothrosuchus; `stance.toml`, `locomotion.toml`,
 `behavior.toml` for T-Rex and both Compsognathus variants — the T-Rex
 `recovery.toml` is PPO-only, while both Compsognathus `recovery.toml` files
-carry a `[sac]` section); copied defaults here would quickly become stale.
+inherit their `stance.toml`'s `[sac]` through `extends`); copied defaults
+here would quickly become stale.
 The main fields are `learning_rate`, `batch_size`, `gamma`, `tau`, `ent_coef`,
 `buffer_size`, `train_freq`, and `gradient_steps`.
 
@@ -77,8 +78,8 @@ each trained node writes `gate_verdict.json` beside its handoff:
 2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
 3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
 
-The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` has no
-`[sac]` section; both Compsognathus variants declare one. Every node is a
+The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
+not inherit stance's `[sac]`; both Compsognathus variants do. Every node is a
 deliverable, so stand, walk and hunt are each certified and published on
 their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
 `--label TEXT` work with `--algorithm sac` exactly as with PPO. Keep SAC

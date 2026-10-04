@@ -81,9 +81,12 @@ and SAC:
 T-Rex, Compsognathus and the Compsognathus robot add a fourth, non-advancing
 node, **`recovery`** (stand; `warm_start_from = "stance"`): balance under
 scheduled pushes. It has no legacy number, the CLI curriculum skips it with a
-log line, and it is trained on its own with `train --stage recovery`. The
-T-Rex `recovery.toml` is PPO-only (it has no `[sac]` section); both
-Compsognathus variants declare one.
+log line, and it is trained on its own with `train --stage recovery`. Each
+`recovery.toml` extends its species' `stance.toml` (a top-level
+`extends = { stage = "stance", tables = [...] }`): it inherits the listed
+tables, changing only the stage's name and description, the push settings
+and the entropy-decay horizon. The T-Rex `recovery.toml` is PPO-only (it
+does not inherit stance's `[sac]`); both Compsognathus variants inherit it.
 Every node is a deliverable: stand, walk and hunt are each certified and
 published on their own, and `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID`
 and `--label TEXT` let a run reuse an earlier run's certified trunk, retrain

@@ -5,7 +5,419 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — Into the Wild (v0.4.0)
+
+### Changed
+- **One terrain selector in the behavior env, and every terrain recipe
+  states its blocks** (consolidation PR-8 (a) of
+  `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`
+  takes a `terrain_sampler` and its `reset()` calls `select_terrain_family`
+  itself; the `options={"terrain_family": ...}` override stays, and every
+  behavior env has a `terrain_families` property (the sampler's families,
+  else its one surface). The sampler gains a sixth family, `terrain_contact`
+  (the zero-height heightfield), appended with weight 0, so
+  `TerrainSamplerConfig()` and every existing block are unchanged; each
+  family sets its own surface on the `[terrain]` map, so a sampler may sit
+  on a `mode = "flat"` terrain. The 42 single-template recipes
+  (`flat_probability = 0.25`) carry a `[terrain_sampler]` with `flat = 1`
+  and their own family at 3, the 12 general ones state
+  `terrain_contact = 0`, and a `[terrain_sampler]` table states all six
+  families. This is the distribution change the plan's §8 names: those 42
+  recipes move from an independent per-episode draw to shuffled blocks of
+  four with exactly one plane episode (from the digest harness's reset seed
+  1042, episodes 1, 6 and 9 of 0-9 change surface; every other reset of the
+  54 terrain recipes starts on the same surface with the same command seed,
+  observation and joint positions, and its reset info differs only in its
+  `terrain_sampling` record, new in the 42 and with a `terrain_contact: 0`
+  weight in the general recipes). Evaluation visits every recipe's families
+  in turn (`balanced_round_robin`; the plane alone for `follow_direction`
+  and `follow_direction_speed`, which run without terrain), as the
+  certification panel already did, so a five-episode evaluation of a
+  single-template recipe scores three plane and two terrain episodes.
+  `flat_probability` leaves the settings an `--adapt` transition may change.
+  Every behavior identity moves (its hashed sources changed), so no earlier
+  behavior bundle resumes or adapts; decision D-D9 already made them
+  evaluation-only. A behavior env's reset refuses a seed that is not a
+  nonnegative integer for every recipe, as the sampled env did, and the
+  certification panel refuses a family outside the task with the env's own
+  message, "terrain_family must be an enabled family: ..." (for a recipe
+  without a sampler it was "Certification requested a terrain outside this
+  task"). The digest golden moves only in its behavior section, 932 to 974
+  lines (every identity, the behavior env, command and sampler source lines,
+  the 54 rewritten recipes' digests, and a sampler source line for each of
+  the 42 single-template recipes); no reward, stage, plant, policy or
+  recovery line moves.
+- **Behavior sidecars are plain `VecNormalize` files whose command
+  statistics follow the reseed rule, and the command constants have one
+  source** (consolidation PR-8 (b) and (c), decision D-D3, 2026-10-04).
+  Preparation reseeds the three command inputs' statistics to mean 0 /
+  variance 1 (count kept), so commands enter the policy at O(1); from then
+  on they update, scale and clip like every other input (the recipes plan's
+  invariant 8). A sidecar saved before this change pickles the deleted
+  passthrough class and is refused with a `BehaviorCheckpointError` naming
+  D-D3 (its policy saw other inputs; evaluate it at the commit that trained
+  it); the command line's `--resume` and `--adapt`, and the certification
+  panel, refuse such a bundle earlier, by its identity or recipe. The
+  preparation report's `command_normalization` and `run.json`'s
+  `observation_normalization` say so. `direction_commands.py` imports
+  `COMMAND_WIDTH`, `COMMAND_COMPONENTS` and `COMMAND_RANGE` from
+  `command_frame` (same values); `lateral_speed_scale` stays until PR-11 and
+  PR-12 replace these recipes with stage TOMLs (D-D12).
+- **The direction and terrain guide records where terrain and the notebook
+  stand** (consolidation PR-8; the maintainer's request of 2026-10-04).
+  `docs/TRAIN_DIRECTION_AND_TERRAIN.md` gains a dated status section on the
+  deferral (terrain work waits for the walking gait), the terrain blocker,
+  the node order, an evaluation cell for Colab and a gentle terrain recipe.
+- **The root README is a short front page, and the full species catalog is a
+  generated docs page** (#593, cleanup CU-17 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-04; the maintainer's request of 2026-10-03 and choices of
+  2026-10-04). `README.md` goes from 536 lines to 134: the title, the
+  historical balance GIF with its provenance caption, what the project is,
+  install, a headless random-action example, one training command, a
+  documentation map, the citation and the license, now stated as "MIT, as
+  declared in `pyproject.toml`". Its generated SPECIES block is one row per
+  species (description, gait, task, observation and action dimensions, and
+  links to the species README, its catalog entry and its model page), and
+  every species anchor (`README.md#velociraptor`, `#t-rex`, ...) still
+  resolves. Each species' full entry (specifications, stages with their
+  recipes, budgets and gates, success definitions) and the published run
+  summaries move to `docs/SPECIES_CATALOG.md`, which
+  `python -m environments.shared.species_catalog` writes whole and `--check`
+  verifies in CI (new: `render_catalog_page`, `render_readme_species_summary`,
+  `--catalog-page`); its RESULTS block stays pinned to the D-A10 golden, with
+  its four source links one directory up (decision D-A10 amended). The
+  velociraptor's external model-card link is dropped. The Quick Start's
+  flag reference and notebook settings live in the behavior recipes guide,
+  the roadmap and the planned species in `docs/ROADMAP.md`, and the
+  development commands in `CONTRIBUTING.md`, which gains a repository layout
+  and the list of changes that need the catalog regenerated. The species
+  READMEs, ROADMAP and RL_TRAINING_PLAN link the catalog page; the catalog
+  JSON is unchanged, and no digest moves.
+- **A PR's landing is recorded once, in the consolidation plan's status table
+  and in the PR's CHANGELOG entry** (#593, cleanup CU-17 of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-04; the maintainer's ruling of
+  2026-10-02). A `docs/README.md` convention states the rule, which governs
+  landings from CU-17 on, and `test_landing_records.py` fails a landing record
+  of a later PR anywhere else in the living docs. The consolidation plan's
+  landed sections (PR-1..PR-7, the notebook-only PR-12 slice, PR-14a..PR-14c)
+  point to their full text at commit `20ab100` (`0.3.9`); NEXT_STEPS.md's
+  section 1 narrative, "Landed on `main`" table, notebook history and section
+  5 restatement of the decisions, the consolidation plan's §4 notebook-size
+  narrative and the cleanup plan's header chronicle and §1 items 1 and 2 point
+  to `ace8112`; the cleanup plan keeps its §3.1 records as the cleanup's
+  history. Moved first, as their only copies: PR-4's reproducibility note and
+  PR-7's parity reason (with a dated correction) into their status rows, and
+  NEXT_STEPS.md section 5's operational choices of 2026-09-20, the
+  coverage-floor rule among them, into its §8. PR-15's goal is restated
+  without its done and stale items, and the conventions NEXT_STEPS.md copied
+  live once, in `docs/README.md`. Six KNOWN_ISSUES entries over 40 lines drop
+  history and dead recipes kept elsewhere (PLANT_CONTRACT.md's widening
+  section, the released CHANGELOG, the status table, or the file at
+  `20ab100`); every measurement stays in its entry, and no entry is renamed or
+  closed. `CONTRIBUTING.md` and `results/README.md`, which the check scans,
+  join both path filters of `python-ci.yml`, so a pull request that edits only
+  one of them runs it. Docs, one test and those two filter entries; no digest
+  moves.
+- **The SB3 notebook's resume walk and archive-load preflight are library
+  functions, and the RESUME cell no longer evaluates the node it trains**
+  (#592, cleanup CU-6 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-6
+  row). A behavior change for a resume session: the RESUME cell prints no
+  evaluation report, and the stage directory holds no `evaluation_final.csv`
+  or `evaluation_selected.csv` until the chain loop's JUDGE branch, next in
+  the same Run all, evaluates the node from disk and judges it (since
+  ROW-4/6 it does so for every node the RESUME cell trains). The
+  infrastructure cell's `train_stage` takes `evaluate=True`; the RESUME cell
+  passes `False`, which skips the evaluation of the final and selected
+  checkpoints (up to 60 episodes) and keeps the 6-tuple, and the chain
+  loop's TRAIN branch and the manual cell evaluate as before. New in
+  `environments.shared.curriculum`: `newest_intact_periodic_pair(model_dir,
+  name_prefix)`, the RESUME cell's newest-first walk over a node's periodic
+  checkpoint pairs, which returns the newest pair `checkpoint_pair_problem`
+  passes and the reason for each newer one it skipped. It reads SB3's
+  `<prefix>_<steps>_steps.zip` names through
+  `policy_loading._PERIODIC_CHECKPOINT_RE`, the pattern the trainer and the
+  command line read, instead of the cell's own copy, and picks the pair the
+  cell picked (the same names, step order, sidecar names and tie order); the
+  cell keeps its texts byte for byte: a WARNING per skipped pair, its two
+  refusals and its report. The WARNING lines now print once the walk
+  returns instead of during it, so a walk that raises (an I/O error on a
+  mount, an interrupt) prints none of them. Only the notebook's copy of the
+  pattern is folded: `result_bundle/evidence.py`'s name matcher and
+  `prune_periodic_checkpoints`' glob stay as they are. New in
+  `environments.shared.policy_loading`: `sb3_archive_load_preflight(species,
+  root_reference, *, trunk_dir)`, the body of the section-4 preflight cell,
+  which is now one call: it loads the trunk run's root handoff, else a
+  throwaway PPO saved into a temporary directory, through `load_sb3_model`,
+  prints the cell's two lines, the first flushed immediately before the one
+  load, and returns the archive's inspection; `policy_loading` still imports
+  only the standard library at import time, and the preflight loads no
+  `train_base`. The setup cell's `import numpy as np`, which only the
+  throwaway's env read, goes. The notebook is 1,424 source lines (1,480
+  before). Tests: one per reason the walk skips a pair, and its name, order,
+  sidecar and tie rules; both RESUME refusals executed (no test ran either
+  before) and the report order; the preflight executed on a trunk handoff
+  under each directory name, on the 3.12 and 3.13 fixture archives and on
+  the throwaway, with its flushed line observed before the load starts and a
+  failed load propagating; `train_stage` with and without the evaluation;
+  and a pin that no notebook cell encodes the periodic checkpoint name
+  itself. No digest moves.
+- **The SB3 notebook records the trunk a session resolved in the run's
+  `trunk_run.json`, and the RESUME cell checks a resume against it**
+  (#591, decision 4 (a); cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-03; §2 row 4). A behavior change for notebook sessions that
+  re-enter a run. The resolve cell now writes `RUN_DIR/trunk_run.json`
+  (`mesozoic.trunk-run/v1`: the `TRUNK_FROM` value that reproduces the trunk
+  it resolved, `""`, a run id or an absolute run directory, with no
+  timestamp) and prints a `Trunk record:` line. It writes nothing into a
+  `complete` run, nothing when the session's trunk is the recorded one, and
+  nothing once the run holds an `ancestors/` record: those records came
+  through the recorded trunk when sections 2-3 ran in order before the chain
+  loop (`docs/KNOWN_ISSUES.md` documents the out-of-order case), so a
+  session under another trunk gets a WARNING naming the `TRUNK_FROM` to set,
+  and a run opened before this change that holds records is never recorded
+  with a guess. Before, nothing on disk recorded the trunk `"auto"`
+  resolved, and a resume re-supplied it by hand. The RESUME cell, right
+  after its complete-run guard and before it trains, refuses three things in
+  a run that is not `complete`: a resume of a node the run holds as an
+  `ancestors/` record, which stays that node in the run (the chain loop
+  takes it while a trunk certifies the node, and a bundle refuses a node
+  both reused and trained here), so the resume could never be certified;
+  and, once the run holds a record, a resume under another trunk than the
+  file names (before, `record_ancestor` refused a second parent only after
+  the resume had trained, and `TRUNK_FROM = ""` trained the recorded
+  ancestors again) or with a file it cannot read. A run without records
+  resumes under any trunk, and one opened before this change keeps the
+  resume recipe's manual route. The resume recipe (section 5, step 1) and
+  the recipes page set `TRUNK_FROM` from `trunk_run.json`. The file is a
+  plain run file: the next bundle write declares and hashes it, and the
+  export does not regenerate it, so a complete bundle certifies it. New in
+  `environments.shared.result_bundle`: `TRUNK_RECORD_NAME`,
+  `TRUNK_RECORD_SCHEMA`, `trunk_from_value`, `read_trunk_record`,
+  `record_trunk_run` and `refuse_trunk_other_than_recorded`. Tests: the pins
+  move with the cells (the resolve cell's guard ends with the printed
+  record; the RESUME cell's resuming branch calls the check right after the
+  complete-run guard; the resume prose names `trunk_run.json`); 8 executed
+  resolve-cell cases (a run id, `""`, an absolute directory, the `"auto"`
+  selection, a rewrite without records, the record kept and warned about
+  once records exist, no guess, an unreadable file) and 11 executed
+  RESUME-cell cases; the executed helpers bind `LOG_BASE` and `ALGORITHM` as
+  the storage and configuration cells do. `docs/KNOWN_ISSUES.md` narrows the
+  trunk entry to what stays open (a session that does not resume is only
+  warned, and the file names the wrong trunk when the cells ran out of
+  order) and adds the file to the reuse-only re-entry entry;
+  `docs/RESULT_BUNDLES.md` lists it. No digest moves.
+- **The SB3 notebook's chain loop judges a node the run trained but never
+  judged before it consults the trunk** (#591, decision 6 (b), amending
+  D-A17 and D-C13; cleanup ROW-4/6 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-03; §2 row 6). A behavior change for notebook sessions with a
+  trunk run (`TRUNK_FROM`). For an ancestor whose stage directory in
+  `RUN_DIR` holds any checkpoint (`models/*.zip`) and no
+  `gate_verdict.json`, and that the run does not hold as an `ancestors/`
+  record, the loop no longer asks the trunk: an intact final pair goes to
+  the JUDGE branch, anything else to the interrupted-node refusal, which
+  names `RESUME_STAGE`. Before, a trunk that certified the node stood in for
+  it: a node the RESUME cell had finished was reused from the trunk and
+  never judged, and an interrupted one was abandoned for the trunk's copy.
+  The loop judges such a node only on the parent this session resolved
+  (reuse rule 4): one trained on another parent is refused before anything
+  is judged or trained, naming a fresh `RUN_ID`. It prints why it skips the
+  trunk. A judged node that fails now stops the chain where the trunk's copy
+  used to be reused. A run that already took the trunk's copy over its own
+  keeps that `ancestors/` record, and the loop still consults the trunk for
+  that node. The target, a node `RETRAIN_FROM` covers, a node holding a
+  verdict and a session without a trunk behave as before. A root widened on
+  the command line is judged first the same way (one widened into a run that
+  already holds that root as an `ancestors/` record is refused, with or
+  without a trunk, naming a new run id), so the resolve cell no longer calls
+  D-C13's `refuse_trunk_over_unjudged_widened_root` (still exported and
+  tested). The RESUME cell's refusal under `RETRAIN_FROM`, the resume recipe
+  (section 5) and the recipes page no longer route a node through
+  `BEHAVIOR`. New in `environments.shared.result_bundle`:
+  `unjudged_stage_dir` and `refuse_judging_off_the_resolved_parent`. Tests:
+  the notebook pins move with the cells (the resolve cell's guard holds the
+  complete-run refusal only, and no cell names D-C13's function; the loop's
+  candidates, rule-4 call and order; the `RETRAIN_FROM` message and the
+  resume prose), and 16 new executed loop cases run the configuration,
+  resolve and chain-loop cells, 14 of them against a trunk that certifies
+  every node and two without a trunk; the widen tool's round trip checks the
+  judge-first helpers on its real output. `docs/KNOWN_ISSUES.md` lists, as a
+  LOW, that the JUDGE branch applies no chain check to the target or without
+  a trunk. No digest moves.
+- **The command-line curriculum seeds model construction and records each
+  node's duration, as `train()` does** (#590, decision D-D11; cleanup CU-10b
+  of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row). A behavior
+  change for CLI curriculum runs. Each node's model is built (the root) or
+  its warm start re-seeded (each child) under the run's `--seed`, unless
+  the stage's algorithm block names a seed (`--override ppo.seed=N`, which
+  is kept), so a run starts from seeded initial weights instead of the
+  state the environments' construction left in the global generators.
+  Without a block seed, every SB3 checkpoint a node saves records the
+  `run.seed` its `stage_config.json` records; with one, the checkpoint
+  records the block's seed, as under `train()`. Each trained node's
+  `stage_config.json` now records `run.duration_seconds` (D-A15), its time
+  from the stage directory to the final save, an interrupted node's
+  included, which the curriculum never wrote; `curriculum_results.csv`
+  still records the time `learn()` took. `docs/RESULT_BUNDLES.md` and the
+  recipes page's run-block table say which runs record the duration.
+  `_train_stage_body` now seeds every stage it trains. No certified result
+  comes from the CLI curriculum (its verdicts are training-time signals),
+  so none changes. Under the next entry's frozen clock, 19 runs before and
+  after this change: the 10 `train()` runs (CLI and the notebook's call)
+  wrote the same 162 files and log lines; with the curriculum's
+  construction seed popped, its 9 runs differ only by the added
+  `duration_seconds` in each trained node's `stage_config.json` and in the
+  ancestor records that copy one (the SAC run without a block seed too,
+  once OS entropy is fixed in both); with it, everything downstream of the
+  initial weights moves (the checkpoints, their sidecars, the evaluations,
+  the hashes the verdicts and the children record, the CSV's rewards; no
+  verdict changes), and a run whose algorithm block names a seed only
+  gains the duration. A SAC curriculum run, whose warm-up actions were
+  drawn unseeded, now repeats byte for byte. Tests: the curriculum's model
+  is built or warm-started under the run's seed and an algorithm-block
+  seed is kept; each node records its duration after its final save and
+  before its verdict, an interrupted node's too; the curriculum mock
+  harness records the durations and refuses one for a node whose config
+  it did not save; and the CLI end-to-end ladder checks that every
+  checkpoint a node saves records the seed and environment count its
+  `stage_config.json` run block records. No digest moves.
+- **`train()` and the command-line curriculum train a stage through one
+  body, and the evaluation environment's seed has a name** (#590, cleanup
+  CU-10b of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-03; §3.2 CU-10 row).
+  `train_curriculum` kept its own copy of `train()`'s stage body; both now
+  call one private helper in `train_base.py`, `_train_stage_body`. It
+  builds the training and evaluation environments, loads the VecNormalize
+  statistics, builds the algorithm kwargs, starts W&B, creates or loads
+  the model, sets up a same-stage resume, builds the callbacks, trains,
+  saves the final pair and returns both environments open. The curriculum
+  hands it `CurriculumCallback`, which still goes after the entropy decay
+  and before the stage-entry shaping, and gets back whether a Ctrl-C ended
+  the node; `curriculum_results.csv` still records the time `learn()`
+  took. What only one side did stays with it: `train()` refuses an
+  undeclared parent, writes `metrics.json` and logs its own lines, and the
+  curriculum loads its parent's sidecar as before and judges no interrupted
+  node; `train()`'s seeded model construction (D-D11) and duration record
+  (D-A15) reach the curriculum in the entry above. The new public
+  `train_base.eval_env_seed(seed)` returns `seed + 1000`, the evaluation
+  environment's seed on both paths; the SB3 notebook's
+  `CHECKPOINT_SELECTION_SEED` stays `SEED + 1000`, and a pin checks the two
+  agree. Under a frozen clock, 16 runs (CLI `train` from scratch, two
+  periodic resumes, `initialize_next_stage`, an interrupt and SAC;
+  `train(report_metrics=False, save_on_interrupt=False)` as the notebook
+  calls it, from scratch, into the next stage, interrupted and resumed; the
+  CLI curriculum's velociraptor ladder, `--trunk-from`, `--retrain-from`, a
+  closed gate, an interrupt and compsognathus's stance node) wrote the same
+  files with the same bytes and the same log lines before and after, SB3
+  archives apart from object addresses, the TensorBoard event files aside
+  (the comparison leaves them out because their names carry the process id).
+  Tests: ten new ones (both entry points reach the body with their own
+  switches, the callback order, the curriculum's callback built where it
+  was, the open environments, the interrupt, the learn-only CSV duration,
+  `eval_env_seed` on both paths, and a node's model released before the next
+  node trains), and the eight source pins that read `train()` or
+  `train_curriculum` now read the body and what each caller passes it. No
+  digest moves.
+- **The Drive summary notebook checks out `REPO_REF`, and its run reader
+  is tested** (#589, cleanup CU-15 of `docs/CLEANUP_PLAN_2026_09.md`,
+  2026-10-02; §3.2 CU-15 row). `google_drive_summary.ipynb`'s setup cell
+  takes the SB3 notebook's `REPO_REF = "main"` knob and its Git block,
+  statement for statement, in place of a `--depth 1` clone of the default
+  branch that a rerun reused without updating: a `--no-checkout` clone, a
+  fetch of `REPO_REF`, `FETCH_HEAD^{commit}`, the refusals after an import
+  of the package or over local edits, and a detached checkout. In both
+  notebooks the block also checks out a clone that has no index yet, as
+  a failed first fetch (a mistyped `REPO_REF`) leaves it; a rerun used to
+  print its commit over an empty tree. Drive is
+  mounted only when `google.colab` imports and `/content/drive` is not
+  mounted yet, and the install cell runs `pip install -e` only when
+  `environments` cannot be found, asking before it puts the checkout on
+  `sys.path`. The layout text, two docstrings, the `show_full_config`
+  example and the strict-validation note describe today's
+  `<algorithm>/<run_id>/NN_<stage id>/` runs and the `canonical-valid`
+  bundle. Tests: the two Git blocks are pinned AST-identical, the
+  ref-change test runs on both notebooks, and the new
+  `test_drive_summary_notebook.py`, which the SB3 job lists for pandas,
+  runs the mount with `google.colab` absent, unmounted and mounted, the
+  install cell with the package found and not, and the reader cells whole
+  and in order on a complete, a partial, a failed, a conflicting and an
+  interrupted run in today's layout, an older flat run, a March 2026
+  sweep and a `sweeps/<algorithm>_<timestamp>/` folder that gives no row
+  (`test_sb3_notebook_pins.py` goes from 121 tests to 127; the new module
+  has 6). Each fails under a mutant: a changed Git-block statement (the
+  pin, and the ref-change test unless it is the clone); a reader that
+  skips `<algorithm>/<run_id>/` runs or runs found only by an
+  `NN_<stage id>` directory, misroutes a partial or failed bundle,
+  renames a summary key, drops the sweep or legacy rows or walks into
+  `sweeps/`; the unguarded mount; an unconditional install, or the path
+  insert moved back into the setup cell. The `run_index.py` move is not
+  taken, and the `library_version` column's two meanings become a
+  KNOWN_ISSUES LOW. No library code or digest changes.
+- **The recovery stage TOMLs inherit from stance through `extends`**
+  (#588, cleanup CU-13 of `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02;
+  §3.2 CU-13 row). A stage TOML may declare a top-level
+  `extends = { stage = "stance", tables = [...] }`: each listed table is the
+  parent's, with the file's own keys overriding in place or appended, one
+  level deep (a nested table such as `[ppo.policy_kwargs]` is replaced
+  whole). The parent id resolves through the manifest of the file's own
+  species directory, so a copy outside it is refused with a clear error, as
+  are `curriculum` or an unknown table in the list, a listed table the
+  parent lacks, a parent that itself extends, a missing parent id, a
+  malformed value and an `extends` written inside any table, sub-tables and
+  arrays of tables included, whether in the file or in its parent. The
+  T-Rex, Compsognathus and Compsognathus robot `recovery.toml` files now
+  declare only their deltas (the stage name and description, the
+  perturbation block and `ent_coef_decay_timesteps`; the T-Rex keeps its
+  three `foot_contact_*` keys written out) besides their own
+  `[curriculum]`. The T-Rex lists `stage`, `env` and `ppo`, never `sac`, so
+  it stays PPO-only; the Compsognathus pair also lists `sac`. All 21
+  resolved stage configs are byte-identical, key order included, so no
+  digest moves, and the hand-mirror test becomes ordered assertions on the
+  resolved tables of all three species. A stance edit to a key its recovery
+  stage inherits now moves that stage with it (for the Compsognathus pair
+  an `[env]` edit also makes its recovery calibration refuse until
+  recalibrated, and for the T-Rex a reward-weight edit means re-measuring
+  recovery's pushed-statue collapse reference), as each `stance.toml` now
+  says.
+
+### Removed
+- **`TerrainSamplingMixin`, `get_sampled_behavior_env_class`,
+  `_PanelTerrainMixin`, `BehaviorVecNormalize` and `flat_probability`**
+  (consolidation PR-8, 2026-10-04). A sampled env is
+  `get_behavior_env_class(species)(terrain=..., terrain_sampler=...)` (or
+  `train_behaviors.create_behavior_env`), and the certification panel is the
+  recipe's own env. `SpeciesBehaviorMixin(flat_probability=...)` is a
+  `TypeError`, the attribute and the identity key are gone, and a recipe's
+  `[env] flat_probability` is refused with the migration in its message:
+  `flat = 1` beside the terrain's own family at 3 is the former 0.25. The
+  reset label `"certification_override"` is no longer written (a forced
+  reset of a sampled env is `"evaluation_override"`; an env without a
+  sampler writes no `terrain_sampling` record).
+
+### Fixed
+- **The command-line curriculum judges a `stance_quality/v1` stage at an
+  overridden `env.max_episode_steps`** (#587, cleanup CU-10a of
+  `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-10 row).
+  `CurriculumCallback._eval_horizon` took the horizon from the stage TOML
+  that `CurriculumManager` re-reads, while the evaluation env ran the
+  overridden stage config. With `curriculum --override
+  env.max_episode_steps=32` no 32-step episode reached the TOML's 1,000-step
+  horizon, none supplied an unsupported duty, and the gate could not pass;
+  an override above the TOML's horizon counted an episode that ended between
+  the two as full (the KNOWN_ISSUES entry, now deleted).
+  `CurriculumCallback` gains an optional `eval_horizon`, after its existing
+  parameters (default `None`: the TOML's horizon, as before), and
+  `train_curriculum` passes the overridden stage config's
+  `max_episode_steps`, the expression the in-training gate-progress
+  diagnostics already use. The notebook and `train --stage` build no
+  `CurriculumCallback` and are unaffected. Tests: the callback given 32 or
+  2,000 under a 1,000-step TOML uses it, and unset reads the TOML; 40
+  episodes of 32 steps all count as full, and under 2,000 an episode ending
+  at 1,500 does not; the constructor takes it after the existing parameters;
+  and an end-to-end CLI run of compsognathus's stance node at 32 steps
+  (`--target stance`), with the settling window, the reward rail and
+  `required_consecutive` (1, for its single evaluation) overridden, writes a
+  passed `gate_verdict.json`. `train_curriculum` without the argument fails
+  the end-to-end test, and `_eval_horizon` reading the TOML again fails it
+  and five of the six unit tests. No digest moves.
 
 ## [0.3.9] - 2026-10-02 — Backend Retirement & Cleanup
 

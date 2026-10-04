@@ -12,10 +12,10 @@ import copy
 import hashlib
 import inspect
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import mujoco
 import numpy as np
@@ -38,6 +38,12 @@ from environments.shared.terrain import (
     apply_terrain,
     build_terrain_model,
     generate_terrain,
+)
+from environments.shared.terrain_sampling import (
+    TerrainSamplerConfig,
+    TerrainTemplate,
+    sampler_source_identity,
+    select_terrain_family,
 )
 
 
@@ -67,10 +73,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         *,
         commands: DirectionCommandConfig | None = None,
         terrain: TerrainConfig | None = None,
+        terrain_sampler: TerrainSamplerConfig | None = None,
         run_seed: int = 42,
         tracking_weight: float = 2.5,
         course_distance: float = 10.0,
-        flat_probability: float = 0.0,
         **env_kwargs: Any,
     ):
         if not isinstance(run_seed, (int, np.integer)) or isinstance(run_seed, bool) or not 0 <= run_seed <= 2**32 - 1:
@@ -79,18 +85,25 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             raise ValueError("tracking_weight must be finite and positive")
         if not np.isfinite(course_distance) or course_distance <= 0:
             raise ValueError("course_distance must be finite and positive")
-        if not np.isfinite(flat_probability) or not 0 <= flat_probability <= 1:
-            raise ValueError("flat_probability must be in [0, 1]")
         if env_kwargs.get("command_mode", "none") != "none":
             raise ValueError("Use the commands argument for this behavior environment")
         self.direction_controller = DirectionCommandController(commands or DirectionCommandConfig())
         self.terrain_config = terrain
+        self.terrain_sampler = terrain_sampler
+        if terrain_sampler is not None:
+            if not isinstance(terrain_sampler, TerrainSamplerConfig):
+                raise ValueError("terrain_sampler must be a TerrainSamplerConfig")
+            if terrain is None:
+                raise ValueError("terrain_sampler requires an enabled terrain configuration")
+            # Build every enabled family's surface before any model is compiled: a valid slope
+            # profile may otherwise have a grid too coarse for the requested bump radius.
+            for family in terrain_sampler.families:
+                self._family_terrain(family)
         self.run_seed = int(run_seed)
         self._episode_index = 0
         self._episode_seed = 0
         self.tracking_weight = float(tracking_weight)
         self.course_distance = float(course_distance)
-        self.flat_probability = float(flat_probability)
         self.terrain: TerrainRealization | None = None
         self._probe_hit_geom: int | None = None
         self._heading_before = 0.0
@@ -293,13 +306,33 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             "tracking_tolerances": self.tracking_tolerances,
             "tracking_velocity_sigma": self.tracking_velocity_sigma,
             "course_distance": self.course_distance,
-            "flat_probability": self.flat_probability,
             "prey_collision": False,
             "sources": {
                 str(p.relative_to(REPOSITORY_ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in source_paths
             },
         }
+        if self.terrain_sampler is not None:
+            identity.update(terrain_sampler=asdict(self.terrain_sampler), sampler_sources=sampler_source_identity())
         return dict(json.loads(json.dumps(identity)))
+
+    @property
+    def terrain_families(self) -> tuple[str, ...]:
+        """The families this task's episodes visit: the sampler's, else its one surface (the plane without terrain)."""
+        if self.terrain_sampler is not None:
+            return self.terrain_sampler.families
+        if self.terrain_config is None:
+            return ("flat",)
+        return ("terrain_contact" if self.terrain_config.mode == "flat" else self.terrain_config.template,)
+
+    def _family_terrain(self, family: str) -> TerrainConfig | None:
+        """A family's surface on the terrain's map: the original plane (None), zero heights, or a gentle template."""
+        if family == "flat":
+            return None
+        if self.terrain_config is None:
+            raise ValueError(f"terrain family {family!r} requires an enabled terrain configuration")
+        if family == "terrain_contact":
+            return replace(self.terrain_config, mode="flat")
+        return replace(self.terrain_config, mode="gentle", template=cast(TerrainTemplate, family))
 
     def _heading(self) -> float:
         rotation = self.data.xmat[self._behavior_root_id].reshape(3, 3)
@@ -420,11 +453,33 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         return super().lowest_ground_clearance(data)
 
     def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
+        # Refused before the episode stream moves: a seed that is not a nonnegative integer, a family
+        # override (options={"terrain_family": ...}, evaluation's round robin) outside this task, or a
+        # family whose surface cannot be built (a sampler reassigned after construction).
         if seed is not None:
-            if seed < 0:
-                raise ValueError("seed must be nonnegative")
-            self._episode_seed = int(seed)
-            self._episode_index = 0
+            if isinstance(seed, bool) or not isinstance(seed, (int, np.integer)) or seed < 0:
+                raise ValueError("seed must be a nonnegative integer")
+            seed = int(seed)
+        options = dict(options) if options is not None else None
+        forced_family = None if options is None else options.pop("terrain_family", None)
+        if forced_family is not None and forced_family not in self.terrain_families:
+            raise ValueError(f"terrain_family must be an enabled family: {', '.join(self.terrain_families)}")
+        episode_seed = self._episode_seed if seed is None else seed
+        episode_index = self._episode_index if seed is None else 0
+        sampler, selection = self.terrain_sampler, None
+        if sampler is not None:
+            selection = select_terrain_family(
+                sampler,
+                run_seed=self.run_seed,
+                episode_seed=episode_seed,
+                episode_index=episode_index,
+            )
+        if forced_family is not None:
+            family = forced_family
+        else:
+            family = selection.family if selection is not None else self.terrain_families[0]
+        surface = self._family_terrain(family)
+        self._episode_seed, self._episode_index = episode_seed, episode_index
         # Independent streams keep command draws from changing a terrain map
         # or the parent's pose-noise sequence.
         terrain_seed = int(np.random.SeedSequence([self.run_seed, self._episode_seed, 0x7E22]).generate_state(1)[0])
@@ -433,19 +488,10 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 0
             ]
         )
-        use_terrain = False
-        if self.terrain_config is not None:
-            draw = np.random.default_rng(
-                np.random.SeedSequence([self.run_seed, self._episode_seed, self._episode_index, 0xF1A7])
-            ).random()
-            use_terrain = bool(draw >= self.flat_probability)
-        self._select_contact_model(use_terrain=use_terrain)
+        self._select_contact_model(use_terrain=surface is not None)
         self.terrain = None
-        if use_terrain:
-            assert self.terrain_config is not None
-            self.terrain = generate_terrain(
-                self.terrain_config, run_seed=terrain_seed, episode_index=self._episode_index
-            )
+        if surface is not None:
+            self.terrain = generate_terrain(surface, run_seed=terrain_seed, episode_index=self._episode_index)
             apply_terrain(self.model, self.terrain, self.data)
             if self._terrain_contact_probe_geoms:
                 apply_terrain(self._probe_model, self.terrain, self._probe_data)
@@ -469,6 +515,13 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 "terrain": self.terrain.manifest() if self.terrain is not None else {"family": "flat_plane"},
             }
         )
+        if sampler is not None and selection is not None:
+            info["terrain_sampling"] = {
+                **asdict(selection),
+                "family": family,
+                "mode": "balanced_shuffle" if forced_family is None else "evaluation_override",
+                "weights": asdict(sampler),
+            }
         self._episode_index += 1
         return self._get_obs(), info
 
