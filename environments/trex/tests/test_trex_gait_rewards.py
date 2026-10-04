@@ -1,11 +1,12 @@
 """The gait reward kit wired into the T. rex env (GAIT_QUALITY_PLAN_2026_09 §5.2-§5.4).
 
 At its legacy values the kit is inert: no hook, no info key, the same reward
-and the same task digests, so the certified r13 stance (run 20260914_123816,
-seed 42) stays reusable as the trunk of a ``gait-r1`` locomotion run.  Set,
-its terms read the real floor contacts without touching the dynamics.  The
-terms themselves are pinned on scripted contact sequences in
-``environments/shared/tests/test_gait_rewards.py``.
+and the same task digests.  Set, its terms read the real floor contacts
+without touching the dynamics.  The locomotion stage sets it (task revision
+``gait-r1``, decision D-D23); every other stage keeps its pre-kit digest, so
+the certified r13 stance (run 20260914_123816, seed 42) stays reusable as the
+trunk of a gait-r1 locomotion run.  The terms themselves are pinned on
+scripted contact sequences in ``environments/shared/tests/test_gait_rewards.py``.
 """
 
 from __future__ import annotations
@@ -22,12 +23,20 @@ from environments.shared.gait.recorder import SubstepContactRecorder
 from environments.shared.gait_rewards import GAIT_REWARD_KIT_LEGACY
 from environments.trex.envs.trex_env import TRexEnv
 
-#: The trex gait-r1 starting values (GAIT_QUALITY_PLAN_2026_09 §5.4), with floor support.
+#: The kit knobs of the trex locomotion task revision gait-r1 (configs/trex/locomotion.toml, decision
+#: D-D23): floor support, gait phase 0.5, flight 1.0, slip 0.2.
 GAIT_R1: dict[str, Any] = {
     "support_source": "floor",
-    "gait_phase_weight": 0.3,
-    "flight_penalty_weight": 0.5,
+    "gait_phase_weight": 0.5,
+    "flight_penalty_weight": 1.0,
     "foot_slip_penalty_weight": 0.2,
+}
+#: The rest of the revision: the speed cap lowered with its slope kept, and the 20 s horizon.
+GAIT_R1_TASK: dict[str, Any] = {
+    **GAIT_R1,
+    "forward_vel_weight": 1.0,
+    "forward_vel_max": 1.25,
+    "max_episode_steps": 2000,
 }
 #: Every knob set, none of them ending an episode.
 ALL_TERMS: dict[str, Any] = {
@@ -298,7 +307,8 @@ R13_PLANT = {
     "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
 }
 #: The task digests the r13 verdicts recorded (docs/NEXT_STEPS.md §2), and the recovery and
-#: behavior stages' pre-kit digests.
+#: behavior stages' pre-kit digests.  The locomotion digest is the task of the certified hops
+#: (20260914_123816, 20260925_033501), which gait-r1 replaces.
 PRE_KIT_TASKS = {
     "stance": "sha256:82528a2ecfefd57172e06ace0a5d90a4b1b08ebe9c9f45ff6405cb78fdf60140",
     "recovery": "sha256:2c6f4a47154ec9f6683adc4509b4de260fb733cf78b6f586e04ff18178739c57",
@@ -327,14 +337,48 @@ def _stage_tasks(overrides: dict | None = None) -> dict[str, dict]:
     return tasks
 
 
-def test_every_trex_stage_keeps_its_pre_kit_task_digest() -> None:
+#: The trex locomotion task under gait-r1 (configs/digest_snapshot.generated.txt).
+GAIT_R1_LOCOMOTION_TASK = "sha256:bb2ed29166edd4dfab7656a7a7a8b4e71926e925b5c614eb6fff57fb247df52f"
+
+
+def test_every_trex_stage_but_locomotion_keeps_its_pre_kit_task_digest() -> None:
+    # The stance keeps the digest its 20260914_123816 verdict recorded, so that run stays the trunk
+    # of a gait-r1 locomotion run; locomotion is the revision, and only it records kit knobs.
     tasks = _stage_tasks()
-    assert {stage: task["task_sha256"] for stage, task in tasks.items()} == PRE_KIT_TASKS
-    for task in tasks.values():
-        assert not set(GAIT_REWARD_KIT_LEGACY) & set(task["env"])
+    assert {stage: task["task_sha256"] for stage, task in tasks.items()} == {
+        **PRE_KIT_TASKS,
+        "locomotion": GAIT_R1_LOCOMOTION_TASK,
+    }
+    for stage, task in tasks.items():
+        kit_keys = set(GAIT_REWARD_KIT_LEGACY) & set(task["env"])
+        assert kit_keys == (set(GAIT_R1) if stage == "locomotion" else set()), stage
+
+
+def test_the_locomotion_toml_is_the_gait_r1_revision() -> None:
+    from environments.shared.config import load_stage_config
+
+    config = load_stage_config("trex", "locomotion")
+    env, curriculum = config["env_kwargs"], config["curriculum_kwargs"]
+    assert {key: env[key] for key in GAIT_R1_TASK} == GAIT_R1_TASK
+    # Inert knobs stay unset: no alive conditioning, no leg or foot-on-foot terms, the default step length.
+    for key in (
+        "support_conditioned_alive_fraction",
+        "gait_phase_step_over_leg",
+        "flight_min_feet",
+        "foot_collision_penalty_weight",
+        "leg_contact_penalty_weight",
+        "terminate_on_leg_contact",
+    ):
+        assert key not in env, key
+    # The gate is not enforced yet; its length rail and the statue reference follow the 2000-step horizon.
+    assert curriculum["gate_kind"] == "reward_and_length/v1"
+    assert curriculum["min_avg_episode_length"] == 1500
+    assert curriculum["collapse_peak_floor_reference"] == pytest.approx(2186.8)
+    assert curriculum["collapse_peak_floor_fraction"] == 0.45
 
 
 def test_gait_r1_knobs_are_a_task_revision() -> None:
+    # Set on any trex stage, the kit knobs move its task digest and are recorded as set.
     tasks = _stage_tasks(GAIT_R1)
     for stage, task in tasks.items():
         assert task["task_sha256"] != PRE_KIT_TASKS[stage]

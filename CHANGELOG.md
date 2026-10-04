@@ -62,6 +62,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stage, recovery or reward line moves.
 
 ### Changed
+- **T. rex locomotion task revision `gait-r1`** (decision D-D23, 2026-10-04;
+  `docs/GAIT_QUALITY_PLAN_2026_09.md` §5.2 item 5 and §5.4).
+  `configs/trex/locomotion.toml` sets the gait reward kit and changes three
+  existing settings:
+  - The kit: `support_source = "floor"`, `gait_phase_weight = 0.5`,
+    `flight_penalty_weight = 1.0` and `foot_slip_penalty_weight = 0.2`.
+  - The speed cap is lowered with its slope kept: `forward_vel_max` 2.5 → 1.25
+    and `forward_vel_weight` 2.0 → 1.0, so a walk at or under 1.25 m/s is paid
+    as before.
+  - The horizon doubles: `max_episode_steps` 1000 → 2000, so the
+    `locomotion_gait/v2` panel, which rolls the task's horizon, sees 17 to 21
+    T. rex strides instead of 8 to 10.
+  - Re-derived for the new horizon: `min_avg_episode_length` 750 → 1500 (75 %
+    of the horizon, as before) and `collapse_peak_floor_reference` 1091.5 →
+    2186.8. The zero-action statue scores 2186.81 ± 9.70 over 40 episodes with
+    `zero_action_baseline.py trex:2 --episodes 40`, 40/40 full horizon; the
+    gait-r1 weights alone give 1091.34 at 1000 steps, against 1091.51 before.
+  - The gate stays `reward_and_length/v1` until a pilot of the revision
+    passes. The `locomotion_gait/v2` block to adopt then is in
+    `docs/GAIT_CERTIFICATION.md`.
+
+  The values come from a CPU re-scoring of the certified hops, a faster hop,
+  the statue and scripted puppet gaits under the kit, recorded in
+  `docs/investigations/TREX_GAIT_R1_RESCORE_2026_10.md` and repeated on the
+  development seed block. Per 1000 steps, a modelled 1.0 m/s walk earns 2251
+  against the best hop's 1522 (legacy: 1853 against 2638), and no hop or
+  statue earns more than before. Three values depart from §5.4's starting set,
+  which leaves the 2.02 m/s hop above the walk: gait phase 0.5 instead of 0.3,
+  flight 1.0 instead of 0.5, and the cap lowered.
+
+  Digest golden: 18 lines move.
+  - The T. rex locomotion `task_sha256` (`31383192…` → `bb2ed291…`),
+    `gate_sha256` (`02602cb0…` → `5647008e…`; `min_avg_episode_length` is a
+    gate threshold) and `stage_config_view_sha256.PPO` and `.SAC`.
+  - The `behavior_identity_sha256` of the 11 T. rex behavior recipes, which
+    read `locomotion.toml`'s `[env]` as their defaults: they inherit the four
+    kit keys. The behavior env zeroes `forward_vel_weight`, so the cap does
+    not reach them, and the recipes set their own horizon.
+  - The T. rex locomotion reward capture (`summary`, `shape_sha256`,
+    `rounded_values_sha256`).
+
+  The stance and recovery tasks are unchanged, so
+  `TRUNK_FROM = "20260914_123816"` stays a valid trunk. Reuse rule 3 refuses
+  both certified hops' locomotion verdicts. The revision is merged just before its training
+  session; the pilot before it runs on `--override` (`docs/NEXT_STEPS.md` §3).
 - **One terrain selector in the behavior env, and every terrain recipe
   states its blocks** (consolidation PR-8 (a) of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`

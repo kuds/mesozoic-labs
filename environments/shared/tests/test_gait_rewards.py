@@ -507,19 +507,30 @@ def _stage_configs() -> list[tuple[str, int | str, dict]]:
     ]
 
 
-def test_no_stage_records_a_kit_knob_it_does_not_set(tmp_path) -> None:
-    # Every species' every stage: neither the task fingerprint's effective config nor the
-    # stage_config.json a run records carries a kit knob, so their digests are the pre-kit ones.
+#: The stages whose TOML sets kit knobs: each is a named task revision ``gait-r1`` (plan §5.2 item 5),
+#: recorded in a decision row (trex locomotion: D-D23).  A knob set anywhere else fails below.
+GAIT_R1_STAGES = {("trex", "locomotion")}
+
+
+def test_a_stage_records_only_the_kit_knobs_it_sets(tmp_path) -> None:
+    # Every species' every stage: the task fingerprint's effective config and the stage_config.json
+    # a run records carry exactly the kit knobs the stage's TOML sets, so a stage that sets none keeps
+    # its pre-kit digests, and only the named gait-r1 revisions set any.
     from environments.shared.config import save_stage_config
     from environments.shared.species_registry import get_species_config
+    from environments.shared.stage_manifest import load_stage_manifest
     from environments.shared.task_fingerprint import _effective_env_kwargs
 
     configs = _stage_configs()
     assert len(configs) >= 20
+    revised = set()
     for species, stage, config in configs:
+        stage_id = load_stage_manifest(species).resolve(stage).id
         env_kwargs = config.get("env_kwargs", {})
-        assert not set(GAIT_REWARD_KIT_LEGACY) & set(env_kwargs), (species, stage)
-        assert not set(GAIT_REWARD_KIT_LEGACY) & set(_effective_env_kwargs(species, env_kwargs)), (species, stage)
+        explicit = set(GAIT_REWARD_KIT_LEGACY) & set(env_kwargs)
+        if explicit:
+            revised.add((species, stage_id))
+        assert set(GAIT_REWARD_KIT_LEGACY) & set(_effective_env_kwargs(species, env_kwargs)) == explicit, stage_id
         path = save_stage_config(
             tmp_path / species / str(stage),
             stage,
@@ -528,7 +539,9 @@ def test_no_stage_records_a_kit_knob_it_does_not_set(tmp_path) -> None:
             env_class=get_species_config(species).env_class,
             species=species,
         )
-        assert not set(GAIT_REWARD_KIT_LEGACY) & set(json.loads(path.read_text())["reward_weights"]), (species, stage)
+        recorded = json.loads(path.read_text())["reward_weights"]
+        assert set(GAIT_REWARD_KIT_LEGACY) & set(recorded) == explicit, (species, stage_id)
+    assert revised == GAIT_R1_STAGES
 
 
 def test_a_knob_a_stage_sets_is_recorded(tmp_path) -> None:
@@ -536,10 +549,11 @@ def test_a_knob_a_stage_sets_is_recorded(tmp_path) -> None:
     from environments.shared.task_fingerprint import _effective_env_kwargs
     from environments.trex.envs.trex_env import TRexEnv
 
-    config = load_stage_config("trex", 2)
+    # The stance sets no kit knob (the locomotion stage is the gait-r1 revision and sets four).
+    config = load_stage_config("trex", "stance")
     config["env_kwargs"] = {**config["env_kwargs"], "gait_phase_weight": 0.3, "flight_min_feet": 1}
     effective = _effective_env_kwargs("trex", config["env_kwargs"])
-    path = save_stage_config(tmp_path, 2, config, "PPO", env_class=TRexEnv, species="trex")
+    path = save_stage_config(tmp_path, 1, config, "PPO", env_class=TRexEnv, species="trex")
     recorded = json.loads(path.read_text())
     for env in (effective, recorded["reward_weights"]):
         # Set knobs stay, the legacy value of flight_min_feet included; unset ones stay carved out.
