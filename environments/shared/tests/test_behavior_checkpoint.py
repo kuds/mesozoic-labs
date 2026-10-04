@@ -25,7 +25,6 @@ from environments.shared.behavior_checkpoint import (  # noqa: E402
     BEHAVIOR_IDENTITY_SCHEMA,
     COMMAND_LAYERS,
     BehaviorCheckpointError,
-    BehaviorVecNormalize,
     load_behavior_checkpoint,
     prepare_behavior_checkpoint,
 )
@@ -126,7 +125,11 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         behavior_identity=BEHAVIOR,
     )
     try:
-        assert isinstance(normalizer, BehaviorVecNormalize)
+        assert type(normalizer) is VecNormalize
+        assert report["command_stats_reseeded"] is True
+        assert report["command_normalization"] == (
+            "reseeded to mean 0 / variance 1, count kept; statistics keep updating"
+        )
         assert report["max_action_delta"] <= 1e-6
         assert report["max_value_delta"] <= 1e-6
         assert report["parent_training_timesteps"] == 32
@@ -163,7 +166,8 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         normalizer.close()
 
 
-def test_commands_bypass_statistics_clipping_and_survive_saved_reload(parent, tmp_path):
+def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tmp_path):
+    """Decision D-D3: invariant 8 is the one rule; no command passthrough survives preparation or a reload."""
     model_path, vecnorm_path, *_ = parent
     model, normalizer, _ = prepare_behavior_checkpoint(
         model_path,
@@ -171,26 +175,31 @@ def test_commands_bypass_statistics_clipping_and_survive_saved_reload(parent, tm
         CommandEnv(live=True),
         behavior_identity=BEHAVIOR,
     )
+    raw = np.ones((2, 64), dtype=np.float32)
+    raw[:, -3:] = [0.7, -0.2, 0.4]
     try:
+        # Reseeded to mean 0 / variance 1: a command c enters as c / sqrt(1 + eps), O(1) from the first step.
+        count = normalizer.obs_rms.count
+        expected = raw[:, -3:] / np.sqrt(1.0 + normalizer.epsilon)
+        np.testing.assert_allclose(normalizer.normalize_obs(raw)[:, -3:], expected, rtol=1e-6)
         normalizer.clip_obs = 0.1
-        normalizer.obs_rms.mean[-3:] = 500
-        normalizer.obs_rms.var[-3:] = 1e-20
-        raw = np.ones((2, 64), dtype=np.float32)
-        raw[:, -3:] = [0.7, -0.2, 0.4]
-        normalized = normalizer.normalize_obs(raw)
-        np.testing.assert_array_equal(normalized[:, -3:], raw[:, -3:])
-        np.testing.assert_array_equal(normalizer.unnormalize_obs(normalized)[:, -3:], raw[:, -3:])
-        assert np.max(np.abs(normalized[:, :-3])) <= 0.1
+        np.testing.assert_allclose(normalizer.normalize_obs(raw)[:, -3:], np.clip(expected, -0.1, 0.1), rtol=1e-6)
+        normalizer.clip_obs = 10.0
         model.learn(32)
+        # The command statistics keep updating: the live commands pull the reseeded mean off zero.
+        assert normalizer.obs_rms.count > count
+        assert np.all(normalizer.obs_rms.mean[-3:] * np.array([0.7, -0.2, 0.4]) > 0)
         assert all(torch.isfinite(t).all() for t in model.policy.state_dict().values())
         assert any(torch.count_nonzero(model.policy.get_submodule(name).weight[:, -3:]) for name in COMMAND_LAYERS)
         state = copy.deepcopy(model.policy.state_dict())
         moments = copy.deepcopy(model.policy.optimizer.state_dict())
         rms = copy.deepcopy(normalizer.obs_rms)
+        normalized = normalizer.normalize_obs(raw)
         model.save(tmp_path / "behavior.zip")
         normalizer.save(str(tmp_path / "behavior.pkl"))
     finally:
         normalizer.close()
+    assert b"BehaviorVecNormalize" not in (tmp_path / "behavior.pkl").read_bytes()
     resumed, loaded, report = load_behavior_checkpoint(
         tmp_path / "behavior.zip",
         tmp_path / "behavior.pkl",
@@ -206,7 +215,8 @@ def test_commands_bypass_statistics_clipping_and_survive_saved_reload(parent, tm
         np.testing.assert_array_equal(loaded.obs_rms.mean, rms.mean)
         np.testing.assert_array_equal(loaded.obs_rms.var, rms.var)
         assert loaded.obs_rms.count == rms.count
-        np.testing.assert_array_equal(loaded.normalize_obs(raw)[:, -3:], raw[:, -3:])
+        assert type(loaded) is VecNormalize
+        np.testing.assert_array_equal(loaded.normalize_obs(raw), normalized)
         assert report["resume_checkpoint_sha256"] == sha256_file(tmp_path / "behavior.zip")
         resumed.learn(16, reset_num_timesteps=False)
         assert resumed.num_timesteps == 48
@@ -218,6 +228,40 @@ def test_commands_bypass_statistics_clipping_and_survive_saved_reload(parent, tm
             tmp_path / "behavior.pkl",
             CommandEnv(),
             behavior_identity={"terrain": "other"},
+        )
+
+
+@pytest.mark.parametrize("name", ["BehaviorVecNormalize", "OtherVecNormalize"])
+def test_sidecar_pickling_the_deleted_passthrough_class_is_refused(parent, tmp_path, monkeypatch, name):
+    """A behavior sidecar saved before PR-8 pickles BehaviorVecNormalize: refused by name (D-D3), never loaded as a
+    plain VecNormalize and never a bare unpickling AttributeError. Only that class: any other class missing from
+    the module stays Python's own AttributeError."""
+    from environments.shared import behavior_checkpoint
+
+    model_path, vecnorm_path, *_ = parent
+    model, normalizer, _ = prepare_behavior_checkpoint(
+        model_path, vecnorm_path, CommandEnv(live=True), behavior_identity=BEHAVIOR
+    )
+    retired = type(name, (VecNormalize,), {"__module__": behavior_checkpoint.__name__})
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(behavior_checkpoint, name, retired, raising=False)
+            normalizer.__class__ = retired
+            model.save(tmp_path / "old.zip")
+            normalizer.save(str(tmp_path / "old.pkl"))
+    finally:
+        normalizer.close()
+    assert not hasattr(behavior_checkpoint, name)
+    assert b"environments.shared.behavior_checkpoint" in (tmp_path / "old.pkl").read_bytes()
+    assert name.encode() in (tmp_path / "old.pkl").read_bytes()
+    refusal = (
+        pytest.raises(BehaviorCheckpointError, match="command-passthrough class BehaviorVecNormalize.*D-D3")
+        if name == "BehaviorVecNormalize"
+        else pytest.raises(AttributeError, match=name)
+    )
+    with refusal:
+        load_behavior_checkpoint(
+            tmp_path / "old.zip", tmp_path / "old.pkl", CommandEnv(live=True), behavior_identity=BEHAVIOR
         )
 
 
@@ -269,7 +313,6 @@ def learned_behavior(parent, tmp_path_factory):
         "env": {"frame_skip": 5, "height_weight": 0.3, "healthy_z_range": [0.7, 1.55]},
         "terrain": None,
         "tracking_weight": 2.5,
-        "flat_probability": 0.0,
     }
     model, normalizer, _ = prepare_behavior_checkpoint(
         model_path,
@@ -286,8 +329,15 @@ def learned_behavior(parent, tmp_path_factory):
     normalizer.close()
 
 
-@pytest.mark.parametrize("sample_terrain", [False, True])
-def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, tmp_path, sample_terrain):
+@pytest.mark.parametrize(
+    "weights",
+    [
+        None,
+        {"flat": 1, "sloped": 3, "bumps": 0, "depressions": 0, "mixed": 0, "terrain_contact": 0},
+        {"flat": 1, "sloped": 1, "bumps": 1, "depressions": 1, "mixed": 1, "terrain_contact": 0},
+    ],
+)
+def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, tmp_path, weights):
     from dataclasses import asdict
 
     from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
@@ -298,10 +348,8 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
     requested["commands"]["speed_range"] = [0.4, 1.2]
     requested["commands"]["switch_interval_s"] = 2.0
     requested["terrain"] = {"mode": "gentle", "max_slope_degrees": 3.0}
-    requested["flat_probability"] = 0.25
-    if sample_terrain:
-        requested["flat_probability"] = 0.0
-        requested["terrain_sampler"] = asdict(TerrainSamplerConfig())
+    if weights is not None:
+        requested["terrain_sampler"] = asdict(TerrainSamplerConfig(**weights))
         requested["sampler_sources"] = sampler_source_identity()
     requested["tracking_weight"] = 3.0
     requested["env"]["height_weight"] = 0.6
@@ -400,6 +448,22 @@ def test_sampler_transition_allows_verified_reweighting_and_return_to_fixed_terr
     reweighted = {**sampled, "terrain_sampler": asdict(TerrainSamplerConfig(flat=2, mixed=0))}
     _validate_behavior_transition(sampled, reweighted)
     _validate_behavior_transition(sampled, fixed)
+
+
+@pytest.mark.parametrize("requested_value", [None, 0.0, 0.25])
+def test_flat_probability_is_no_longer_a_transition_setting(learned_behavior, requested_value):
+    """Consolidation PR-8 removed it from the behavior identity; an identity that carries it is another task."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+
+    previous = {**copy.deepcopy(learned_behavior[-1]), "flat_probability": 0.25}
+    requested = copy.deepcopy(learned_behavior[-1])
+    if requested_value is not None:
+        requested["flat_probability"] = requested_value
+    if requested_value == 0.25:
+        _validate_behavior_transition(previous, requested)
+    else:
+        with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields: flat_probability"):
+            _validate_behavior_transition(previous, requested)
 
 
 def test_retired_trex_identity_schema_cannot_start_a_transition(learned_behavior):
@@ -771,13 +835,21 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
     assert all(torch.isfinite(value).all() for value in saved.policy.state_dict().values())
     normalizer = VecNormalize.load(str(resumed / "vecnormalize.pkl"), DummyVecEnv([PilotEnv]))
     try:
+        assert type(normalizer) is VecNormalize
         raw = np.ones((1, 64), dtype=np.float32)
         raw[:, -3:] = [0.7, -0.2, 0.4]
-        np.testing.assert_array_equal(normalizer.normalize_obs(raw)[:, -3:], raw[:, -3:])
+        rms = normalizer.obs_rms
+        # D-D3: the saved command statistics moved with training and normalise the commands.
+        assert np.all(rms.mean[-3:] * raw[0, -3:] > 0)
+        expected = np.clip((raw - rms.mean) / np.sqrt(rms.var + normalizer.epsilon), -10.0, 10.0)
+        np.testing.assert_allclose(normalizer.normalize_obs(raw), expected, rtol=1e-6)
         assert normalizer.norm_reward and normalizer.gamma == 0.97
     finally:
         normalizer.close()
     run = json.loads((resumed / "run.json").read_text())
     assert run["training"]["requested_additional_steps"] == 32
     assert run["training"]["actual_additional_steps"] == 32
+    assert run["training"]["observation_normalization"] == (
+        "every input; command statistics reseeded at preparation (D-D3)"
+    )
     train_behaviors._verify_bundle(resumed / "model.zip", resumed / "vecnormalize.pkl")

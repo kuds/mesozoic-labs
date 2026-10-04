@@ -291,3 +291,24 @@ def test_calls_require_reset_and_invalid_inputs_do_not_change_target():
     assert controller.events[-1]["desired_heading"] == 0.0
     with pytest.raises(ValueError):
         tracking_metrics(controller.update(0.0, 0.0), np.array([math.nan, 0.0]), 0.0)
+
+
+def test_command_layout_and_range_come_from_command_frame(monkeypatch):
+    """Consolidation PR-8 (b): one source for the command constants, read where each is used."""
+    from environments.shared import command_frame, direction_commands
+
+    # Values, not identities: test_command_frame re-imports command_frame, rebinding the package attribute.
+    names = ("COMMAND_WIDTH", "COMMAND_COMPONENTS", "COMMAND_RANGE")
+    assert [getattr(direction_commands, name) for name in names] == [getattr(command_frame, name) for name in names]
+    controller = _controller(DirectionCommandConfig(cruise_speed=1.2, speed_scale=1.5))
+    assert controller.manifest()["policy_components"] == list(command_frame.COMMAND_COMPONENTS)
+    monkeypatch.setattr(direction_commands, "COMMAND_COMPONENTS", ("a", "b", "c"))
+    assert controller.manifest()["policy_components"] == ["a", "b", "c"]
+    monkeypatch.setattr(direction_commands, "COMMAND_RANGE", (-0.5, 0.5))
+    assert controller.update(0.0, 0.0).normalized[0] == pytest.approx(0.5)
+    # The lower bound too: yaw_rate_max = yaw_rate_scale, so a full-rate turn back to heading 0 normalises to -1.
+    turning = _controller(DirectionCommandConfig(cruise_speed=1.2, speed_scale=1.5, yaw_rate_scale=0.3))
+    assert turning.update(0.0, 1.0).normalized[2] == pytest.approx(-0.5)
+    monkeypatch.setattr(direction_commands, "COMMAND_WIDTH", 4)
+    with pytest.raises(ValueError, match="three finite command components"):
+        controller.update(0.0, 0.0)

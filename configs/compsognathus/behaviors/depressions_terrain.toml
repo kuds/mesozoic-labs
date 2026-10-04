@@ -36,10 +36,18 @@ feature_radius_min = 0.18
 feature_radius_max = 0.32
 feature_density = 6.0 # Planned centers per square metre
 
+# Each shuffled block of four episodes: one on the original plane, three on this terrain.
+[terrain_sampler]
+flat = 1
+sloped = 0
+bumps = 0
+depressions = 3
+mixed = 0
+terrain_contact = 0
+
 [env]
 max_episode_steps = 1250 # 25 seconds at this species control timestep
 course_distance = 0.8 # Radial progress diagnostic, not a success gate
-flat_probability = 0.25 # Original-plane retention among heightfield episodes
 
 [ppo]
 learning_rate = 0.00005

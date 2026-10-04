@@ -33,6 +33,72 @@ normalization file provide the starting gait. Supported training does not mean a
 new policy has already learned the behavior: saved evaluations report measured
 performance, separately from canonical locomotion certification.
 
+## Terrain and the training notebook (status 2026-10-04)
+
+On 2026-10-04 the maintainer deferred terrain work until the walking gait is
+fixed. Every curriculum stage trains on the MuJoCo plane, and no stage TOML
+sets terrain; only the behavior recipes do (see the status above).
+
+The node order is `stance` (the notebook's `stand`), `locomotion` (its
+`walk`), `follow_direction`, then `follow_direction_difficult_terrain`
+(decision G1 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). On
+trex and the two Compsognathus models, `stand` also trains `recovery`, a side
+branch that `walk` does not use. It is second in their manifests, so their
+walker is node `03_locomotion` (`02_locomotion` elsewhere).
+`difficult_terrain` is an optional diagnostic sibling, not a step. The
+sequence under "Follow directions on difficult terrain" is advice for
+command-line pilots, not this chain.
+
+PR-11 will add the last two nodes, which `BEHAVIOR = "follow"` will select
+with no new cell. Their gate will be `none/v1`, which always refuses, and the
+chain loop halts at a refused gate. So the chain will stop after
+`follow_direction` until PR-13 registers `terrain_command/v1` (D-D6). The
+cleanup plan's decision 12 (recommended, not taken) would land it right after
+PR-11.
+
+The blocker is heightfield contact. On 2026-09-25 three certified walkers
+(trex, velociraptor, compsognathus) finished every plane episode. On a flat
+heightfield they finished only 1/13, 0/13 and 0/13 (the HIGH terrain blocker
+in [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Velociraptor's walker also runs at
+3.64–3.66 m/s against its recipes' 2.0 m/s cruise, so its maps are too small.
+The cleanup plan's decisions 11 (investigate heightfield contact first) and 13
+(re-derive recipe speeds and map sizes from each walker) are recommended, not
+taken. Until both are decided, no terrain pilot should start
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1, item 6).
+
+From Colab today, a scratch cell run after the setup cell can evaluate a
+certified walker. The paths in its node's `gate_verdict.json` are relative to
+the node. The recipe names its species, so `--species` is optional. `OUT` must
+be new or empty; the run writes only there, never under `logs/`, and its
+output is evaluation-only. Dropping `--eval-only` trains a pilot, which the
+blocker above says to hold.
+
+```python
+import json, sys
+from pathlib import Path
+from google.colab import drive
+drive.mount("/content/drive")
+WALKER = Path("/content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/<run_id>/03_locomotion")
+verdict = json.loads((WALKER / "gate_verdict.json").read_text())
+assert verdict["passed"], "not a certified walker"
+CKPT, NORM = WALKER / verdict["checkpoint"], WALKER / verdict["normalization"]
+RECIPE = "/content/trex_gentle_contact.toml"  # any recipe file, such as the one below
+OUT = "/content/drive/MyDrive/mesozoic-labs/behavior_pilots/trex_gentle_1"
+!cd /content/mesozoic-labs && {sys.executable} -m environments.shared.train_behaviors --recipe "{RECIPE}" --checkpoint "{CKPT}" --vecnormalize "{NORM}" --output "{OUT}" --eval-only --eval-episodes 25 --seed 1
+```
+
+For a gentle start once terrain resumes, begin with `terrain_contact`, as
+"Follow directions on difficult terrain" advises. Copy trex's
+`terrain_contact.toml` recipe outside `configs/`: CI checks every recipe there
+against a committed digest, and the setup cell refuses to change `REPO_REF` on
+a checkout with local edits. In its `[terrain_sampler]`, set `flat = 3` and
+`terrain_contact = 1`, leaving the other four at 0. Each shuffled block of
+four then has three plane episodes and one on the flat heightfield. Evaluation
+alternates the two families whatever their weights, so 25 episodes score 13 on
+the plane and 12 on the heightfield. For a little shaped ground next, do the
+same with `bumps_terrain.toml` (`flat = 3`, `bumps = 1`; optionally
+`feature_height = 0.01` in `[terrain]`, half the bump height).
+
 ## The eleven behaviors
 
 Each behavior is a recipe that the command-line runner below takes as
@@ -40,13 +106,14 @@ Each behavior is a recipe that the command-line runner below takes as
 species, with PPO.
 
 For general terrain training, use **`difficult_terrain`** or
-**`follow_direction_difficult_terrain`**. Each trains one policy across all five
-ground families, with a new family and randomized course selected at reset.
+**`follow_direction_difficult_terrain`**. Each trains one policy across five of
+the six terrain families (all but `terrain_contact`), with a new family and
+randomized course selected at reset.
 
 | Behavior / TOML filename | Training task | Default additional steps |
 |---|---|---:|
 | **`difficult_terrain`** | Straight locomotion across flat ground, slopes, bumps, depressions, and mixed terrain | 3M |
-| **`follow_direction_difficult_terrain`** | Follow heading/speed commands across all five terrain families | 3M |
+| **`follow_direction_difficult_terrain`** | Follow heading/speed commands across flat ground, slopes, bumps, depressions, and mixed terrain | 3M |
 | `follow_direction` | Change heading while retaining cruise speed | 3M |
 | `follow_direction_speed` | Change heading and speed; stop and restart | 3M |
 | `terrain_contact` | Adapt foot contacts to a flat heightfield | 300k |
@@ -160,7 +227,15 @@ first 100,000 adaptation steps, then 0.2. Exact-task resume retains that warmup
 anchor. Reward normalization adapts during training and is disabled for scoring.
 Preparation zeros only newly activated command columns and their optimizer
 moments, preserving other weights and statistics and checking initial
-policy-action/value equivalence. Resume and adaptation verify bundle hashes.
+policy-action/value equivalence. The three command inputs' statistics restart
+at mean 0 / variance 1, so commands enter the policy at their own scale from
+the first step, and then update like every other input (decision D-D3). The
+normalization file is a plain SB3 `VecNormalize`. A bundle trained before
+consolidation PR-8 neither resumes nor adapts: `--resume` and `--adapt`
+refuse it by its identity or recipe, and its normalization file, which names
+the deleted `BehaviorVecNormalize` class, is refused wherever a behavior
+loader reads it. Evaluate it at the commit that trained it (`run.json`'s
+`git_commit`). Resume and adaptation verify bundle hashes.
 
 ## Follow directions on difficult terrain
 
@@ -171,10 +246,11 @@ sequence is a training recommendation, not an automatic promotion rule. Use the
 individual template presets when diagnosing a particular kind of ground.
 
 Start terrain work with `terrain_contact`. Even a zero-height heightfield changes
-foot contacts compared with the original plane. The general terrain recipes
-include original-plane episodes through their terrain sampler. Focused terrain
-presets retain their existing 25% original-plane episodes. Compare slopes, bumps,
-and depressions separately as well as assessing the combined training run.
+foot contacts compared with the original plane. Every terrain recipe sets its
+original-plane episodes in its terrain sampler: the focused presets, including
+`terrain_contact`, run one plane episode in each shuffled block of four, and the
+general recipes one in each block of five. Compare slopes, bumps, and
+depressions separately as well as assessing the combined training run.
 
 Use `--adapt` when transferring a behavior checkpoint to another compatible
 recipe. For example, after contact adaptation and general terrain training:
@@ -198,7 +274,8 @@ saves a bundle. Resume preserves learning progress and starts fresh episodes.
 
 ## Terrain templates and randomization
 
-The two general terrain recipes configure a weighted, balanced sampler:
+Every terrain recipe configures a weighted, balanced sampler. The two general
+terrain recipes use:
 
 ```toml
 [terrain_sampler]
@@ -207,21 +284,28 @@ sloped = 1
 bumps = 1
 depressions = 1
 mixed = 1
+terrain_contact = 0
 ```
 
-Each shuffled five-episode block visits every family once with these defaults.
-Positive integer weights repeat a family that many times per block; zero disables
-it. The sum must be between 1 and 1,000. The original plane is the `flat` family;
-it is distinct from the flat-heightfield `terrain_contact` adaptation preset.
-`env.flat_probability` is zero in sampler recipes because the sampler already
-controls flat-ground coverage.
+Each shuffled five-episode block visits every enabled family once with these
+weights. Positive integer weights repeat a family that many times per block; zero
+disables it. A table states all six families, and the sum must be between 1 and
+1,000. The original plane is the `flat` family. `terrain_contact` is a
+zero-height heightfield on the recipe's map, which still changes foot contacts
+compared with the plane; the other families are the gentle templates. Each
+focused preset uses `flat = 1` with its own family at 3 (the `terrain_contact`
+preset: `terrain_contact = 3`). A recipe with `[terrain]` and no
+`[terrain_sampler]` runs every episode on that terrain. `env.flat_probability`
+is retired, and a recipe that sets it is refused: `flat = 1` beside the
+terrain's own family at 3 is the former 0.25.
 
 At reset, the sampler chooses the episode's family and creates its seeded course.
 **The family and the physical surface stay fixed throughout that episode.**
 Commands can change during the episode, but the ground does not change underneath
 the animal. The next reset advances the seeded family schedule and course
 variation. The TOML's `[terrain]` section supplies the selected species' common
-map dimensions, smoothness limits, spawn apron, and feature sizes.
+map dimensions, smoothness limits, spawn apron, and feature sizes; each family
+sets its own surface on that map.
 
 Templates define the kind and scale of ground; seeds change its layout. The
 `sloped` template combines a broad grade with small smooth ripples. `bumps`,
@@ -234,10 +318,11 @@ Terrain and command randomness use independent streams. Explicit reset seeds
 repeat complete resets; resets without a seed advance the episode stream.
 Evaluation uses a separate seed stream. Reserve fixed seeds for comparisons and
 unseen seeds to check whether a learned behavior transfers to new layouts.
-For sampler recipes, evaluation visits enabled families in a balanced sequence
-and reports each family separately. Missing families are listed as unevaluated,
-with no invented survival or tracking result. The family counts and coverage flag
-make small evaluation budgets visible.
+Evaluation visits each recipe's enabled families in a balanced sequence (the
+plane alone for `follow_direction` and `follow_direction_speed`, which run
+without terrain) and reports each family separately. Missing families are
+listed as unevaluated, with no invented survival or tracking result. The
+family counts and coverage flag make small evaluation budgets visible.
 
 Every reset is recorded in `training_episodes.jsonl`. Rebuild an episode from its
 saved terrain manifest:

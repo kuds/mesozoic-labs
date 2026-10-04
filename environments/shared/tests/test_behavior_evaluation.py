@@ -382,16 +382,3 @@ def test_legacy_surface_family_is_derived_from_actual_terrain_recipe(terrain, ex
 def test_sampling_metadata_cannot_override_a_different_actual_surface_family():
     with pytest.raises(ValueError, match="disagrees with the reset surface"):
         terrain_family_from_reset({"terrain": {"family": "flat_plane"}, "terrain_sampling": {"family": "bumps"}})
-
-
-def test_legacy_random_flat_episodes_do_not_hide_untested_configured_terrain(tmp_path):
-    vec = _SamplerVecNormalize()
-    del vec.raw.terrain_families
-    vec.raw.terrain_config = SimpleNamespace(mode="gentle", template="mixed")
-    vec.raw.flat_probability = 0.25
-    vec.set_options({"terrain_family": "flat"})
-    report = evaluate_behavior(_Model(), vec, episode_seeds=[42], output_dir=tmp_path)
-    assert report["protocol"]["terrain_selection"] == "seeded_recipe"
-    assert report["terrain_coverage"]["enabled_families"] == ["flat", "mixed"]
-    assert report["terrain_coverage"]["missing_families"] == ["mixed"]
-    assert not report["terrain_coverage"]["complete"]

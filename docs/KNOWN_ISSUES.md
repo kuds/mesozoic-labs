@@ -798,11 +798,11 @@ robustness, **LOW** = cosmetic / QoL.
   20 mm (compsognathus); trex at 100 mm fell 7/7, although its zero-action
   statue survives 3/4 there, so statue results do not predict the walker. The
   cause is open. The two precompiled scenes
-  (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:249`) give
+  (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:262`) give
   the `floor` geom the same `solref`, `solimp`, friction, margin, gap and
   condim and differ only in its type (plane vs hfield; checked 2026-09-26).
   That leaves the hfield collision and the terrain spawn settle
-  (`behavior_env.py:395-413`, which reproduces velociraptor's authored −44.6 mm
+  (`behavior_env.py:428-446`, which reproduces velociraptor's authored −44.6 mm
   toe penetration) as the suspects. Compsognathus-pair foot contact also
   flickers on a heightfield (a statue measurement from the 2026-09-25 readiness
   review). Velociraptor's map exits are a separate mismatch: its recipes cruise
