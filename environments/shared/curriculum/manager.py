@@ -131,6 +131,8 @@ class CurriculumManager:
         # History of evaluation results per stage
         self._eval_history: dict[int, list[dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
         self._consecutive_passes: dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
+        # Gait-gated stages whose in-training refusal has been logged.
+        self._gait_refusal_logged: set[int] = set()
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
@@ -298,12 +300,15 @@ class CurriculumManager:
         elif threshold.gate_kind == GAIT_GATE_KIND:
             # The ordinary EvalCallback has no physics-substep contact panel.
             # Only a fresh, bound selected-handoff report can certify gait.
-            logger.warning(
-                "Stage %d declares %s but ordinary in-training evaluations carry no gait telemetry; "
-                "refusing to advance until the selected handoff's gait panel is certified.",
-                self._current_stage,
-                GAIT_GATE_KIND,
-            )
+            # Said once per stage, not at every evaluation.
+            if self._current_stage not in self._gait_refusal_logged:
+                self._gait_refusal_logged.add(self._current_stage)
+                logger.warning(
+                    "Stage %d declares %s but ordinary in-training evaluations carry no gait telemetry; "
+                    "refusing to advance until the selected handoff's gait panel is certified.",
+                    self._current_stage,
+                    GAIT_GATE_KIND,
+                )
             passes = False
         else:
             # A kind with no evaluator here: a future entry added to

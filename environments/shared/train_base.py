@@ -168,6 +168,11 @@ def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     being run.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") == GAIT_GATE_KIND:
+        # The gait gate's min_eval_episodes sizes its post-training physical
+        # panel; ordinary in-training evaluations carry no gait telemetry and
+        # never advance the stage, so they keep the default size.
+        return _DEFAULT_EVAL_EPISODES
     return max(_DEFAULT_EVAL_EPISODES, int(curriculum.get("min_eval_episodes", 0)))
 
 
@@ -2004,10 +2009,11 @@ def _judge_selected_gait_handoff(
 
     A report failure leaves the stage unpassed while preserving its saved
     training result. The independent reader rechecks the selected pair and
-    every episode rather than trusting the producer's boolean.
+    every episode rather than trusting the producer's boolean; its one
+    reading (one replay of every trace) gives the verdict.
     """
     from .gait.report import write_gait_report
-    from .reporting.gates import evaluate_stage_gate, gait_statistics
+    from .reporting.gates import gait_stage_verdict, gait_statistics
 
     curriculum = stage_config.get("curriculum_kwargs", {})
     try:
@@ -2022,9 +2028,9 @@ def _judge_selected_gait_handoff(
             algorithm=algorithm,
         )
         statistics, binding_failures = gait_statistics(stage_dir, curriculum)
-        if binding_failures:
-            return False, binding_failures, None
-        passed, failures = evaluate_stage_gate(curriculum, statistics or {}, stage=stage, stage_dir=stage_dir)
+        if binding_failures or statistics is None:
+            return False, binding_failures or ["gait evidence could not be read"], None
+        passed, failures = gait_stage_verdict(statistics, [], stage=stage)
         return passed, failures, statistics
     except Exception as error:  # noqa: BLE001 - evaluation must preserve the saved training result
         logger.warning("Stage %s selected gait panel could not be judged", stage, exc_info=True)

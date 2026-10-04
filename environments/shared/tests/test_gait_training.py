@@ -23,11 +23,17 @@ def test_fresh_selected_handoff_is_authoritative(tmp_path, monkeypatch, passed):
         # reader's result. Neither live callback nor producer decides.
         return {"certified": not passed}
 
-    statistics = {"passed": passed, "selected_gait_success_count": 40 if passed else 0}
-    failures = [] if passed else ["gait lower confidence bound below target"]
+    reasons = [] if passed else ["gait lower confidence bound below target"]
+    statistics = {"passed": passed, "selected_gait_success_count": 40 if passed else 0, "failures": reasons}
+    failures = [f"stage 2 {reason}" for reason in reasons]
+    readings = []
     monkeypatch.setattr(report, "write_gait_report", write)
-    monkeypatch.setattr(gates, "gait_statistics", lambda *args: (statistics, []))
-    monkeypatch.setattr(gates, "evaluate_stage_gate", lambda *args, **kwargs: (passed, failures))
+    monkeypatch.setattr(gates, "gait_statistics", lambda *args: readings.append(args) or (statistics, []))
+
+    def second_replay(*args, **kwargs):
+        pytest.fail("the verdict must come from the one gait_statistics reading, not a second trace replay")
+
+    monkeypatch.setattr(gates, "evaluate_stage_gate", second_replay)
     cfg = SimpleNamespace(species="trex")
     result = _judge_selected_gait_handoff(
         cfg,
@@ -39,7 +45,7 @@ def test_fresh_selected_handoff_is_authoritative(tmp_path, monkeypatch, passed):
         algorithm="ppo",
     )
     assert result == (passed, failures, statistics)
-    assert len(calls) == 1
+    assert len(calls) == 1 and len(readings) == 1
     assert calls[0][1] == dict(config, _gait_stage=2)
     assert calls[0][2].endswith("robust_best_model.zip")
     assert calls[0][3].endswith("robust_best_model_vecnorm.pkl")
@@ -84,3 +90,26 @@ def test_failed_fresh_panel_preserves_training_and_refuses(tmp_path, monkeypatch
     )
     assert passed is False and statistics is None
     assert "missing matched normalization" in failures[0]
+
+
+def test_gait_stage_in_training_evaluations_keep_the_default_size():
+    """min_eval_episodes sizes the post-training gait panel; in-training evaluations cannot advance a gait stage."""
+    from environments.shared.train_base import _DEFAULT_EVAL_EPISODES, _eval_episodes_for_stage
+
+    gait = {"curriculum_kwargs": {"gate_kind": "locomotion_gait/v2", "min_eval_episodes": 40}}
+    stance = {"curriculum_kwargs": {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40}}
+    assert _eval_episodes_for_stage(gait) == _DEFAULT_EVAL_EPISODES
+    assert _eval_episodes_for_stage(stance) == 40
+
+
+def test_manager_logs_the_gait_refusal_once_per_stage(caplog):
+    from environments.shared.curriculum import CurriculumManager, thresholds_from_configs
+
+    from .test_gait_gate import curriculum
+
+    thresholds = thresholds_from_configs({2: {"curriculum_kwargs": curriculum()}})
+    manager = CurriculumManager(species="trex", stage_thresholds=thresholds, start_stage=2)
+    with caplog.at_level("WARNING", logger="environments.shared.curriculum.manager"):
+        for _ in range(5):
+            assert not manager.should_advance([1e9] * 30, [1000.0] * 30)
+    assert sum("carry no gait telemetry" in record.getMessage() for record in caplog.records) == 1
