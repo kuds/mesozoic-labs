@@ -10,15 +10,21 @@ gait is a template: limb pairs with target relative-phase sets. Template
 coverage measures how much of the analysis window every templated pair is
 locally on its target; the off-gait fraction measures the time demonstrably
 spent off it (a limb not cycling, a pair locked inside a competing gait's
-template, a sustained uncoordinated bout). Physical rails measure limb and
-girdle participation, swing validity, stride length, swing-phase floor
-contact, sliding, non-foot support, foot-on-foot support and flight.
+template, on four legs an asymmetrical gait, a sustained uncoordinated
+bout), and the asymmetric-bout fraction the time a contralateral pair holds
+a skip-like timing for two strides or more. Physical rails measure limb and
+girdle participation (whole-window and stride by stride), weight-bearing
+stance, swing validity, stride length, swing-phase floor contact, sliding and
+gliding stances, trunk stalls, non-foot support, foot-on-foot support and
+flight.
 
-Fore-aft quantities (lead exchange, step and stride length, skid travel) are
-measured along the local travel heading (the trunk displacement over a
-centred one-stride window), never along the declared task direction, so a
-heading drift or a rigid rotation of the episode cannot change them. Only the
-progress rail (``mean_speed_mps``) is projected on the declared direction.
+Fore-aft quantities (lead exchange, step and stride length, skid travel,
+stall speed) are measured along the local travel heading (the trunk
+displacement over a centred three-stride window), never along the declared
+task direction, so a heading drift or a rigid rotation of the episode cannot
+change them; lead exchange and step length compare footprints (each foot held
+at its last stance position through swing). Only the progress rail
+(``mean_speed_mps``) is projected on the declared direction.
 
 Only recorder keys are read. Every reduction that reaches a stored metric is
 order-deterministic: ``math.fsum`` for global sums, sequential ``np.cumsum``
@@ -72,6 +78,8 @@ _REQUIRED_FIELDS = (
 )
 #: Minimum stance-to-trunk travel denominator of the skid fraction, in L.
 _SKID_MIN_TRAVEL_OVER_LEG = 0.05
+#: A stance resolves its own typical slip speed (glide) only with at least this many samples.
+_GLIDE_MIN_SAMPLES = 3
 #: Duty-normalised stance overlap is undefined when the duty factors leave
 #: less than this between its anti-phase and in-phase extremes.
 _OVERLAP_MIN_SPAN = 0.10
@@ -348,6 +356,14 @@ def _measure(
         for i in range(feet)
     ]
     stance = np.stack([limb.stance for limb in limbs], axis=1)
+    # Footprints: each foot held at its last stance position through swing, so
+    # fore-aft order and step length compare where the feet are planted, not
+    # where a swinging foot passes (swing-leg retraction never flips a lead).
+    samples = np.arange(count)
+    footprint = np.empty((count, feet, 2))
+    for i in range(feet):
+        last_stance = np.maximum.accumulate(np.where(stance[:, i], samples, -1))
+        footprint[:, i, :] = position[np.where(last_stance >= 0, last_stance, samples), i, :2]
 
     # ---- progress ---------------------------------------------------------
     first = max(int(np.searchsorted(time, start, side="right")) - 1, 0)
@@ -411,6 +427,22 @@ def _measure(
         window_heading,
     )
 
+    # ---- trunk progress: stall time ------------------------------------------------
+    # The trunk's speed along the local heading over a centred window, against
+    # an upper percentile of itself: time spent standing, marking time or
+    # creeping in place while the feet keep an alternating rhythm.
+    stall_fraction = _stall_fraction(
+        time,
+        root[:, :2],
+        heading_x,
+        heading_y,
+        protocol.stall_window_strides * pooled_period if math.isfinite(pooled_period) else math.nan,
+        in_window,
+        weights,
+        span,
+        protocol,
+    )
+
     # ---- swings, slip, skid, stride length ---------------------------------------
     valid_fraction: list[float] = []
     clearance_median: list[float] = []
@@ -419,8 +451,11 @@ def _measure(
     slip_p90: list[float] = []
     swing_ground: list[float] = []
     swing_slip: list[float] = []
+    glide: list[float] = []
+    light_stance: list[float] = []
     foot_stride: list[float | None] = []
     ground_height = protocol.swing_ground_clearance_over_leg * leg
+    light_load = protocol.light_load_bw_per_limb * body_weight_n / feet
     for i, limb in enumerate(limbs):
         selected = [k for k, td in enumerate(limb.touchdowns) if start <= time[td] <= end]
         valid_fraction.append(sum(limb.swing_valid[k] for k in selected) / len(selected) if selected else 0.0)
@@ -428,6 +463,8 @@ def _measure(
         slipped = _cumulative(held * slip[:, i])
         distances: list[float] = []
         travels: list[float] = []
+        durations: list[float] = []
+        gliding: list[float] = []
         for s, e in limb.stances:
             if s > 0 and start <= time[s] <= end:
                 distances.append(float(slipped[e] - slipped[s]))
@@ -435,8 +472,29 @@ def _measure(
                 moved = root[last, :2] - root[s, :2]
                 middle = (s + last) // 2
                 travels.append(abs(float(moved[0] * heading_x[middle] + moved[1] * heading_y[middle])))
+                elapsed = float(time[last] - time[s])
+                if e - s >= _GLIDE_MIN_SAMPLES and elapsed > 0.0:
+                    # Glide: the foot's typical (median) slip speed over the
+                    # stance exceeds ``glide_skid_ratio`` of the trunk's speed
+                    # during it. A touchdown skid is a brief spike that leaves
+                    # the median alone; a skating foot slides all stance long.
+                    durations.append(elapsed)
+                    trunk_speed = max(travels[-1], _SKID_MIN_TRAVEL_OVER_LEG * leg) / elapsed
+                    if float(np.median(slip[s:e, i])) > protocol.glide_skid_ratio * trunk_speed:
+                        gliding.append(elapsed)
         skid.append(
             math.fsum(distances) / max(math.fsum(travels), _SKID_MIN_TRAVEL_OVER_LEG * leg) if distances else 0.0
+        )
+        # Share of stance time in gliding stances: skating bouts concentrate
+        # sliding in whole stances, which a whole-window ratio averages away.
+        glide.append(math.fsum(gliding) / math.fsum(durations) if math.fsum(durations) > 0.0 else 0.0)
+        # Light stance: share of stance time (merged unloads included) with the
+        # foot carrying less than ``light_load_bw_per_limb``: a hovering
+        # retouch or a phantom contact that times a stance without bearing weight.
+        stance_weights = weights * stance[:, i]
+        stance_time = _fsum(stance_weights)
+        light_stance.append(
+            _fsum(stance_weights * (force[:, i] < light_load)) / stance_time if stance_time > 0.0 else 0.0
         )
         slip_median.append(_median(distances) / leg if distances else 0.0)
         slip_p90.append(float(np.percentile(distances, 90)) / leg if distances else 0.0)
@@ -533,9 +591,9 @@ def _measure(
     for first_name, second_name in CONTRALATERAL_PAIRS[feet]:
         a, b = index[first_name], index[second_name]
         key = f"{first_name}|{second_name}"
-        # fore-aft offset of b ahead of a along the local travel heading
-        ahead_x = position[:, b, 0] - position[:, a, 0]
-        ahead_y = position[:, b, 1] - position[:, a, 1]
+        # fore-aft offset of b's footprint ahead of a's along the local travel heading
+        ahead_x = footprint[:, b, 0] - footprint[:, a, 0]
+        ahead_y = footprint[:, b, 1] - footprint[:, a, 1]
         ahead = ahead_x * heading_x + ahead_y * heading_y
         flags: list[bool] = []
         for reference in (a, b):
@@ -605,6 +663,8 @@ def _measure(
             "stride_length_over_leg_median": _r(foot_stride[i]),
             "swing_ground_fraction": _r(swing_ground[i]),
             "swing_slip_fraction": _r(swing_slip[i]),
+            "glide_stance_fraction": _r(glide[i]),
+            "light_stance_fraction": _r(light_stance[i]),
             "merged_unloads": limbs[i].merged_unloads,
         }
 
@@ -619,12 +679,21 @@ def _measure(
         undefined = np.zeros(count, dtype=bool)
         unlocked = np.zeros(count, dtype=bool)
         other_gait = np.zeros(count, dtype=bool)
+        asymmetric_pairs: list[NDArray[np.bool_]] = []
         pairs: dict[str, Any] = {}
         locking_values: list[float] = []
         offsets_by_kind: dict[str, list[float]] = {"alternation": [], "synchrony": [], "limb_phase": []}
         overlaps_by_kind: dict[str, list[float]] = {"alternation": [], "synchrony": []}
         for first_name, second_name, targets, kind in template:
-            stats = pair(index[first_name], index[second_name])
+            i, j = index[first_name], index[second_name]
+            stats = pair(i, j)
+            if kind == "alternation":
+                # Anti-phase at touchdown or at mid-stance: with unequal duty
+                # factors evenly spaced mid-stances put the touchdown lag of j
+                # behind i at 0.5 + (d_i - d_j) / 2. Either anchor may be the
+                # symmetric one; the duty asymmetry itself is judged by the pair
+                # duty ratio, not a second time through the phase.
+                targets = targets + (((0.5 + 0.5 * (duty[i] - duty[j])) % 1.0, targets[0][1]),)
             on = stats.local_within(targets, protocol.template_local_extra_tolerance)
             near = stats.local_within(
                 targets, protocol.template_local_extra_tolerance + protocol.template_gross_extra_tolerance
@@ -634,11 +703,20 @@ def _measure(
             wrong |= in_window & stats.locked & ~on
             undefined |= in_window & ~stats.mask
             unlocked |= in_window & stats.mask & ~stats.locked
-            other_gait |= in_window & stats.local_within(_competing_targets(protocol, kind), 0.0) & ~on
+            # Locked inside a competing gait's template and beyond the gross
+            # margin of the pair's own: a walk's limb phase between its band
+            # edge and that margin (a lateral- or diagonal-couplets walk) costs
+            # template coverage only.
+            other_gait |= in_window & stats.local_within(_competing_targets(protocol, kind), 0.0) & ~near
+            if kind == "alternation":
+                # A contralateral pair locked beyond its gross band: a skip or a
+                # staggered hop on two legs, an asymmetrical gait on four.
+                asymmetric_pairs.append(in_window & stats.locked & ~near)
             locking_values.extend((stats.locking, stats.event_locking))
             estimates = (stats.mean, stats.event_mean)
             if kind == "alternation":
-                offsets = [_cdist(m, 0.5) if m is not None else 0.5 for m in estimates]
+                # the better anchor, judged by both estimators
+                offsets = [min(max(_cdist(m, c) if m is not None else 0.5 for m in estimates) for c, _ in targets)]
             elif kind == "synchrony":
                 offsets = [_cdist(m, 0.0) if m is not None else 0.5 for m in estimates]
             else:
@@ -658,6 +736,7 @@ def _measure(
             )
             pairs[f"{first_name}>{second_name}"] = {
                 "kind": kind,
+                "midstance_target_phase": _r(targets[-1][0]) if kind == "alternation" else None,
                 "mean_phase": _r(stats.mean),
                 "locking": _r(stats.locking),
                 "mean_phase_event": _r(stats.event_mean),
@@ -672,6 +751,11 @@ def _measure(
         # uncoordinated stepping (any of the three, unbroken for at least
         # ``off_gait_bout_strides`` pooled strides). Shorter unlocked moments
         # (a stumble, a double step) are not off-gait time.
+        if feet == 4:
+            # Both contralateral pairs of a symmetrical quadruped gait locked
+            # beyond their gross band at once: an asymmetrical gait (canter,
+            # gallop, half-bound), whatever its lags.
+            other_gait |= asymmetric_pairs[0] & asymmetric_pairs[1]
         incoherent = undefined | other_gait | unlocked
         incoherent_time = _cumulative(weights * incoherent)
         bouts = np.zeros(count, dtype=bool)
@@ -679,6 +763,18 @@ def _measure(
             if float(incoherent_time[e] - incoherent_time[s]) >= bout_width:
                 bouts[s:e] = True
         off_gait = undefined | other_gait | bouts
+        # Asymmetric bouts: a contralateral pair held at an asymmetric timing
+        # for at least ``off_gait_bout_strides`` pooled strides at a stretch
+        # (a sustained skip or staggered-hop bout, not a stumble).
+        skewed = np.zeros(count, dtype=bool)
+        for pair_skew in asymmetric_pairs:
+            skewed |= pair_skew
+        skewed_time = _cumulative(weights * skewed)
+        asymmetric_bout_time = math.fsum(
+            float(skewed_time[e] - skewed_time[s])
+            for s, e in boolean_runs(skewed)
+            if float(skewed_time[e] - skewed_time[s]) >= bout_width
+        )
         segments = []
         for k in range(3):
             lo, hi = thirds[k], thirds[k + 1]
@@ -712,6 +808,7 @@ def _measure(
             "undefined_phase_fraction": _r(_fsum(weights * undefined) / span),
             "other_gait_locked_fraction": _r(_fsum(weights * other_gait) / span),
             "uncoordinated_bout_fraction": _r(_fsum(weights * (bouts & ~undefined & ~other_gait)) / span),
+            "asymmetric_bout_fraction": _r(asymmetric_bout_time / span),
             "segment_coverage": [_r(value) for value in segments],
             "min_segment_coverage": _r(min(segments)),
             "gross_off_template_fraction": _r(_fsum(weights * gross) / span),
@@ -727,7 +824,7 @@ def _measure(
     # Share of the foot impulse carried by the lighter girdle (fore pair or
     # hind pair) and the ratio of the girdles' mean duty factors: a rearing,
     # wheelbarrow or token-limb gait leaves one girdle nearly unloaded.
-    fore_share = girdle_share = girdle_duty = None
+    fore_share = girdle_share = girdle_duty = girdle_unloaded = None
     if feet == 4:
         fore_share = load_share[index["fr"]] + load_share[index["fl"]]
         hind_share = load_share[index["rr"]] + load_share[index["rl"]]
@@ -736,6 +833,19 @@ def _measure(
         hind_duty = 0.5 * (duty[index["rr"]] + duty[index["rl"]])
         longer_girdle = max(fore_duty, hind_duty)
         girdle_duty = min(fore_duty, hind_duty) / longer_girdle if longer_girdle > 0.0 else 0.0
+        # Time-local participation: the share of the window in which the lighter
+        # girdle carries less than ``girdle_local_min_share`` of the foot impulse
+        # over a centred one-stride window. Whole-window shares let time spent
+        # quadrupedal pay for time spent rearing or wheelbarrowing.
+        if low_index is not None and high_index is not None:
+            girdle_window = []
+            for names in (("fr", "fl"), ("rr", "rl")):
+                carried = _cumulative(held * (force[:, index[names[0]]] + force[:, index[names[1]]]))
+                girdle_window.append(carried[high_index] - carried[low_index])
+            fore_window, hind_window = girdle_window
+            both = fore_window + hind_window
+            lighter = np.where(both > 0.0, np.minimum(fore_window, hind_window) / np.where(both > 0.0, both, 1.0), 0.0)
+            girdle_unloaded = _fsum(weights * (in_window & (lighter < protocol.girdle_local_min_share))) / span
 
     # ---- diagnostics ---------------------------------------------------------------
     labels = stride_labels(
@@ -787,6 +897,10 @@ def _measure(
         "fore_load_share": _r(fore_share),
         "girdle_load_share_min": _r(girdle_share),
         "girdle_duty_ratio": _r(girdle_duty),
+        "girdle_unloaded_fraction": _r(girdle_unloaded),
+        "stall_fraction": _r(stall_fraction),
+        "glide_stance_fraction_max": aggregate(glide, "max"),
+        "light_stance_fraction_max": aggregate(light_stance, "max"),
         "pair_load_ratio_min": aggregate([record["load_ratio"] for record in pair_records], "min"),
         "pair_duty_ratio_min": aggregate([record["duty_ratio"] for record in pair_records], "min"),
         "lead_exchange_fraction_min": aggregate([record["lead_exchange_fraction"] for record in pair_records], "min"),
@@ -859,6 +973,41 @@ def _travel_heading(
     heading_x[moving] = (dx / safe)[moving]
     heading_y[moving] = (dy / safe)[moving]
     return heading_x, heading_y
+
+
+def _stall_fraction(
+    time: NDArray[np.float64],
+    root_xy: NDArray[np.float64],
+    heading_x: NDArray[np.float64],
+    heading_y: NDArray[np.float64],
+    width: float,
+    in_window: NDArray[np.bool_],
+    weights: NDArray[np.float64],
+    span: float,
+    protocol: GaitProtocol,
+) -> float:
+    """Share of the window in which the trunk is stalled against its own reference speed.
+
+    The local speed is the trunk displacement along the local heading over a
+    centred ``width`` window (truncated at the trace edges) over the window's
+    duration. The reference is an upper percentile of that speed over the
+    analysis window, so it stays on the walking speed even when half the
+    window is spent marking time. A trunk that never advances is stalled
+    throughout.
+    """
+    count = len(time)
+    if not (math.isfinite(width) and width > 0.0) or not np.any(in_window):
+        return 1.0
+    low = np.clip(np.searchsorted(time, time - width / 2.0, side="left"), 0, count - 1)
+    high = np.clip(np.searchsorted(time, time + width / 2.0, side="right") - 1, 0, count - 1)
+    elapsed = time[high] - time[low]
+    along = (root_xy[high, 0] - root_xy[low, 0]) * heading_x + (root_xy[high, 1] - root_xy[low, 1]) * heading_y
+    speed = np.where(elapsed > 0.0, along / np.where(elapsed > 0.0, elapsed, 1.0), 0.0)
+    reference = float(np.percentile(speed[in_window], protocol.stall_reference_percentile))
+    if not reference > 0.0:
+        return 1.0
+    stalled = in_window & (speed < protocol.stall_speed_fraction * reference)
+    return _fsum(weights * stalled) / span
 
 
 def _midstance_means(

@@ -4,8 +4,9 @@ Each case renders a footfall pattern (``gait_trace``), measures it at 2 ms
 (or 10 ms), round-trips the metrics through JSON exactly as a report stores
 them, and judges them under the calibrated ``provisional_gait_criteria``. The
 cases are the defects a gait certificate must not have (D1-D14 of the 2026-10
-gait-checker review and the holes H1-H8 its verification found in the first
-proposal) plus the genuine gaits it must not reject.
+gait-checker review, the holes H1-H8 its verification found in the first
+proposal and the round-2 reward hacks against the hardened checker) plus the
+genuine gaits it must not reject.
 """
 
 from __future__ import annotations
@@ -423,3 +424,155 @@ def test_h7_a_stop_between_normal_strides_is_still_a_pause():
     verdict = judge(stop, speed=0.1)
     assert not verdict["biped_alternating"][0]
     assert "persistence/off_gait_fraction" in rails(verdict)
+
+
+# -- hardening round 2: reward hacks and false rejects found against round 1 -------------
+
+
+def _retracting(trace, foot=1, overshoot=0.06):
+    """The swinging foot passes its planted partner by ``overshoot`` late in swing and retracts to land."""
+    out = {key: np.array(value, copy=True) for key, value in trace.items()}
+    swinging = out["floor_force_n"][:, foot] == 0.0
+    edges = np.flatnonzero(np.diff(np.concatenate(([0], swinging.astype(int), [0]))))
+    for start, end in zip(edges[::2], edges[1::2]):
+        if start == 0 or end == len(swinging):
+            continue
+        fraction = (np.arange(start, end) - start) / (end - start)
+        out["foot_position_m"][start:end, foot, 0] += overshoot * np.exp(-(((fraction - 0.85) / 0.06) ** 2))
+    return out
+
+
+def _zigzag(trace, amplitude, period):
+    """The trunk zig-zags sideways over two strides; the footprints stay put."""
+    out = {key: np.array(value, copy=True) for key, value in trace.items()}
+    out["root_position_m"][:, 1] += amplitude * np.sin(np.pi * out["time_s"] / period)
+    return out
+
+
+@pytest.mark.parametrize("variant", ["retraction", "zigzag"])
+def test_r2_step_to_with_swing_retraction_or_a_zigzag_trunk_never_exchanges_the_lead(variant):
+    """Lead exchange compares footprints along a three-stride heading (round-2 h01/h02)."""
+    step_to = gait_trace((0.0, 0.5), duty=0.6, period=0.5, step_to=True)
+    trace = _retracting(step_to) if variant == "retraction" else _zigzag(step_to, 0.02, 0.5)
+    verdict = judge(trace)
+    assert not verdict["biped_alternating"][0]
+    assert "stepping/lead_exchange_fraction_min" in rails(verdict)
+
+
+def test_r2_skimming_swing_fails_swing_floor_contact():
+    """A foot hovering 0.006 L over the floor with one flick to 0.022 L is a shuffle (round-2 h04)."""
+    walk = scheduled_trace(lambda t: WALK)
+    skim = {key: np.array(value, copy=True) for key, value in walk.items()}
+    for foot in range(2):
+        swinging = skim["floor_force_n"][:, foot] == 0.0
+        edges = np.flatnonzero(np.diff(np.concatenate(([0], swinging.astype(int), [0]))))
+        for start, end in zip(edges[::2], edges[1::2]):
+            fraction = (np.arange(start, end) - start) / max(end - start, 1)
+            height = 0.006 + 0.016 * np.exp(-(((fraction - 0.5) / 0.05) ** 2))
+            skim["foot_clearance_m"][start:end, foot] = height
+            skim["foot_position_m"][start:end, foot, 2] = height
+    verdict = judge(skim)
+    assert rails(verdict) == {"stepping/swing_ground_fraction_max"}
+
+
+@pytest.mark.parametrize(
+    "bout",
+    [
+        ((0.0, 0.5), 0.5, 0.6, 0.03),  # marking time: taps in place in an unbroken rhythm
+        ((0.0, 0.5), 0.9, 0.85, 0.05),  # freezing: slow alternating strides, barely moving
+    ],
+)
+def test_r2_marking_time_and_freeze_bouts_fail_on_stall(bout):
+    """The trunk must keep moving: a quarter of the window spent in place fails (round-2 h06/h07)."""
+    trace = scheduled_trace(_bouts(WALK, (5.0, 3.6, 5.0, bout)), jitter=0.01, seed=1)
+    verdict = judge(trace, speed=0.2)
+    assert "persistence/stall_fraction" in rails(verdict)
+
+
+def test_r2_skating_bouts_fail_on_glide_while_touchdown_skid_does_not():
+    """Skating in a quarter of the stances averages below the whole-window skid bar (round-2 h10)."""
+    skating = scheduled_trace(lambda t: WALK + ((0.9,) if t % 2.0 >= 1.5 else (0.0,)), jitter=0.01, seed=2)
+    assert rails(judge(skating)) == {"support/glide_stance_fraction_max"}
+    assert judge(scheduled_trace(lambda t: WALK, slip=0.25, jitter=0.01, seed=2))["biped_alternating"][0]
+
+
+def test_r2_a_limp_padded_by_a_hovering_retouch_fails_on_light_stance():
+    """The weak foot's stance is padded with 0.4 stance of light touch (round-2 h15)."""
+    limp = scheduled_trace(lambda t: ((0.0, 0.5), 0.5, (0.62, 0.62), 1.0), jitter=0.01, seed=3)
+    for start, end in boolean_runs_of(limp["floor_force_n"][:, 1] > 0.0):
+        limp["floor_force_n"][start + int(0.6 * (end - start)) : end, 1] = 0.02 * BW
+    assert "participation/light_stance_fraction_max" in rails(judge(limp))
+
+
+def boolean_runs_of(mask):
+    edges = np.flatnonzero(np.diff(np.concatenate(([0], mask.astype(int), [0]))))
+    return list(zip(edges[::2], edges[1::2]))
+
+
+def test_r2_light_contacts_cannot_time_a_trot_whose_weight_is_carried_in_pronk_loads():
+    """Phantom contacts set the footfall pattern while the load is carried four feet at a time."""
+    trot = gait_trace(TROT, duty=0.6, period=0.6, jitter=0.01, seed=4)
+    loaded = trot["floor_force_n"] > 0.0
+    together = np.all(loaded, axis=1)
+    spoof = {key: np.array(value, copy=True) for key, value in trot.items()}
+    spoof["floor_force_n"] = np.where(loaded, np.where(together[:, None], BW / 4.0, 0.006 * BW), 0.0)
+    verdict = judge(spoof, QUAD)
+    assert not any(passed(verdict).values())
+    assert "participation/light_stance_fraction_max" in rails(verdict, "quadruped_trot")
+    assert passed(judge(trot, QUAD))["quadruped_trot"]
+
+
+def test_r2_rearing_half_the_window_with_phantom_forelimb_taps_fails_girdle_participation():
+    trot = gait_trace(TROT, duty=0.55, period=0.6, jitter=0.01, seed=5)
+    rearing = {key: np.array(value, copy=True) for key, value in trot.items()}
+    up = (rearing["time_s"] % 4.0) < 2.0
+    force = rearing["floor_force_n"]
+    fore_load = force[:, :2].sum(axis=1)
+    hind_loaded = force[:, 2:] > 0.0
+    hind_count = np.maximum(hind_loaded.sum(axis=1), 1)
+    force[:, 2:] = np.where(up[:, None] & hind_loaded, force[:, 2:] + (fore_load / hind_count)[:, None], force[:, 2:])
+    force[:, :2] = np.where(up[:, None] & (force[:, :2] > 0.0), 0.006 * BW, force[:, :2])
+    verdict = judge(rearing, QUAD)
+    assert not passed(verdict)["quadruped_trot"]
+    assert "participation/girdle_unloaded_fraction" in rails(verdict, "quadruped_trot")
+
+
+def test_r2_canter_bouts_and_a_bound_stride_in_a_walk_are_off_gait():
+    """Both contralateral pairs locked beyond their gross band are an asymmetrical gait; no stride allowance."""
+    walk = (LS_WALK, 1.0, 0.7, 0.8)
+    canter = ((0.5, 0.25, 0.25, 0.0), 1.0, 0.6, 0.8)  # lead fore, then the diagonal pair, then trailing hind
+    cantering = scheduled_trace(_bouts(walk, (6.0, 4.0, 5.5, canter)), feet=4, jitter=0.01, seed=6)
+    assert "persistence/off_gait_fraction" in rails(
+        judge(cantering, QUAD, profiles=("quadruped_walk",)), "quadruped_walk"
+    )
+    long_walk = (LS_WALK, 1.5, 0.75, 0.8)
+    bound = ((0.0, 0.0, 0.5, 0.5), 1.5, 0.6, 0.8)
+    bounding = scheduled_trace(_bouts(long_walk, (20.0, 4.5, 6.0, bound)), feet=4)
+    verdict = judge(bounding, QUAD, profiles=("quadruped_walk",))
+    assert "persistence/off_gait_fraction" in rails(verdict, "quadruped_walk")
+
+
+@pytest.mark.parametrize("lag", [0.17, 0.22])
+def test_r2_staggered_hop_and_skip_bouts_fail_on_asymmetric_bouts(lag):
+    """A three-stride bout of skip or staggered-hop timing in 17 % of the window (round-2 h08)."""
+    bout = ((0.0, lag), 0.5, 0.45, 1.0)
+    trace = scheduled_trace(_bouts(WALK, (6.0, 4.5, 6.0, bout)), jitter=0.01, seed=7)
+    assert rails(judge(trace)) == {"persistence/asymmetric_bout_fraction"}
+
+
+def test_r2_a_left_heavy_walk_symmetric_at_mid_stance_passes():
+    """Touchdown lag 0.6 with duty 0.75 / 0.55: evenly spaced mid-stances; the duty ratio judges the rest."""
+    walk = gait_trace((0.0, 0.6), duty=(0.75, 0.55), period=0.6, jitter=0.01, seed=8, load=(0.85, 1.0))
+    measured = episode_gait_metrics(
+        walk, body_weight_n=BW, leg_length_m=1.0, foot_names=BIPED, protocol=GaitProtocol(), settle_s=SETTLE
+    )
+    assert measured["contralateral"]["r|l"]["alternation_phase_offset_touchdown"] > 0.09
+    verdict = judge(walk)
+    assert verdict["biped_alternating"][0], verdict
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_r2_a_lateral_couplets_walk_near_the_pace_boundary_passes(seed):
+    """Limb phase 0.15 (Hildebrand's lateral couplets) is a walk; only locking at pace timing is off-gait."""
+    walk = gait_trace((0.15, 0.65, 0.0, 0.5), duty=0.7, period=1.0, jitter=0.025, seed=seed)
+    assert passed(judge(walk, QUAD))["quadruped_walk"]

@@ -55,8 +55,9 @@ class GaitProtocol:
     valid_swing_clearance_over_leg: float = 0.01
     valid_swing_travel_over_leg: float = 0.03
     #: Swing-phase floor contact: a swing sample is at the floor when the foot
-    #: carries any floor force or is lower than this (a drag or a skim).
-    swing_ground_clearance_over_leg: float = 0.005
+    #: carries any floor force or is lower than this (a drag or a skim). It is
+    #: the scuff height: a foot below it has not cleared the ground.
+    swing_ground_clearance_over_leg: float = 0.01
     # -- continuous limb phase --------------------------------------------------
     #: A stride longer than this multiple of its local reference is a pause:
     #: phase is undefined (coverage loss) for its whole duration. The
@@ -85,14 +86,35 @@ class GaitProtocol:
     #: bouts that last at least this many pooled strides.
     off_gait_bout_strides: float = 2.0
     # -- local travel frame ------------------------------------------------------
-    #: Fore-aft quantities (lead exchange, step and stride length, skid travel)
-    #: are measured along the local travel heading: the trunk displacement over
-    #: a centred window of this many pooled strides (one stride cancels the
-    #: stride-periodic lateral sway). Where that displacement is shorter than
-    #: ``heading_min_travel_over_leg`` the heading of the whole window is used,
-    #: and the declared direction only when the trunk did not travel at all.
-    heading_window_strides: float = 1.0
+    #: Fore-aft quantities (lead exchange, step and stride length, skid travel,
+    #: stall speed) are measured along the local travel heading: the trunk
+    #: displacement over a centred window of this many pooled strides (a whole
+    #: number of strides cancels the stride-periodic lateral sway; three also
+    #: average out trunk heading wobble at other frequencies, and a centred
+    #: chord still follows a steady turn). Where that displacement is shorter
+    #: than ``heading_min_travel_over_leg`` the heading of the whole window is
+    #: used, and the declared direction only when the trunk did not travel.
+    heading_window_strides: float = 3.0
     heading_min_travel_over_leg: float = 0.05
+    # -- trunk progress, stance quality, girdle participation ---------------------
+    #: Stall: the trunk's speed along the local heading over a centred window
+    #: of ``stall_window_strides`` pooled strides is below
+    #: ``stall_speed_fraction`` of the episode's reference speed, the
+    #: ``stall_reference_percentile`` of that local speed over the window (an
+    #: upper percentile, so dawdling half the window cannot lower it).
+    stall_window_strides: float = 1.0
+    stall_speed_fraction: float = 0.3
+    stall_reference_percentile: float = 75.0
+    #: A stance is a glide when its foot's median slip speed exceeds this
+    #: fraction of the trunk's speed during it (stance travel floored at
+    #: 0.05 L; stances of at least three samples).
+    glide_skid_ratio: float = 0.6
+    #: Light stance: a stance sample whose foot carries less than this fraction
+    #: of body weight divided by the number of limbs (merged unloads included).
+    light_load_bw_per_limb: float = 0.1
+    #: Time-local girdle participation (quadrupeds): the lighter girdle's share
+    #: of the foot impulse over a centred one-stride window falls below this.
+    girdle_local_min_share: float = 0.12
     # -- other measured quantities ----------------------------------------------
     #: Lead-limb exchange: the fore-aft order of a contralateral pair must
     #: flip past +-this distance within a stride.
@@ -126,6 +148,17 @@ class GaitProtocol:
             raise ValueError("gait protocol option pause_neighbour_strides must be a positive integer")
         if self.heading_window_strides <= 0.0:
             raise ValueError("gait protocol option heading_window_strides must be positive")
+        for name in ("stall_window_strides", "stall_speed_fraction", "glide_skid_ratio"):
+            if values[name] <= 0.0:
+                raise ValueError(f"gait protocol option {name} must be positive")
+        if not 0.0 < self.stall_reference_percentile <= 100.0:
+            raise ValueError("gait protocol option stall_reference_percentile must lie in (0, 100]")
+        if self.stall_speed_fraction >= 1.0:
+            raise ValueError("gait protocol option stall_speed_fraction must be below one")
+        if self.light_load_bw_per_limb < self.contact_force_bw_per_limb:
+            raise ValueError("gait protocol option light_load_bw_per_limb must not be below the contact threshold")
+        if self.girdle_local_min_share > 0.5:
+            raise ValueError("gait protocol option girdle_local_min_share must lie in [0, 0.5]")
         for name in ("bounce_swing_fraction", "bounce_clearance_fraction", "local_min_locking"):
             if values[name] > 1.0:
                 raise ValueError(f"gait protocol option {name} must lie in [0, 1]")
