@@ -91,6 +91,7 @@ def gait_trace(
     slip=0.0,
     foot_foot=0.0,
     accumulate_time=False,
+    width=0.2,
 ):
     """Footfall-pattern puppet: a shared stride clock, per-foot phase/duty/load.
 
@@ -100,7 +101,8 @@ def gait_trace(
     carries ``min(load, 1)`` body weights (a token tap stays light).
     ``switch=(t, phases)`` changes the pattern for strides starting after
     ``t``. ``step_to`` places the second foot level with the first instead of
-    passing it. Feet land half a stance travel ahead of the hip.
+    passing it. Feet land half a stance travel ahead of the hip, ``width``
+    apart (the first foot of each pair at +width/2).
     """
     rng = np.random.default_rng(seed)
     feet = len(phases)
@@ -133,7 +135,7 @@ def gait_trace(
     height = np.zeros((count, feet))
     placed: list[list[float]] = []
     for foot in range(feet):
-        lateral = (-1.0 if foot % 2 else 1.0) * 0.1
+        lateral = (-1.0 if foot % 2 else 1.0) * 0.5 * width
         fore = 0.6 if feet == 4 and foot < 2 else 0.0
         placements = []
         for td, lo in stances[foot]:
@@ -545,20 +547,44 @@ def crabbed(trace, degrees):
     return out
 
 
-@pytest.mark.parametrize("degrees", [3.0, 7.0, -12.0])
-def test_step_length_is_measured_along_the_trunk_axis_so_a_crab_cannot_fake_step_through(degrees):
-    """A step-to gait crabbing a few degrees: its 0.2 L stance width projects onto the travel heading
-    (round-2 crab attacks); along the trunk axis from the recorded quaternion it never steps through."""
-    step_to = crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True), degrees)
-    measured = metrics(step_to, settle_s=1.0)
-    assert measured["step_length_over_leg_min"] == pytest.approx(0.0, abs=0.002)
-    assert measured["trunk_crab_angle_deg_median"] == pytest.approx(-degrees, abs=0.05)
-    # the same step-to with a trunk that turned with its path is still a step-to
-    turned = metrics(rotated(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True), degrees))
+@pytest.mark.parametrize("degrees", [3.0, 7.0, -10.0])
+def test_a_crab_or_a_trunk_yaw_moves_one_frame_but_never_both(degrees):
+    """Step length runs along the line of progression; step symmetry is judged in the travel or the trunk frame.
+
+    A step-to crabbing a few degrees (the round-2 crab attacks: feet placed in the body frame while the
+    trunk travels off its axis) projects its 0.6 L stance width onto the travel heading, so it seems to
+    step through there, lopsidedly; along its trunk it is still a step-to. A step-to along the line of
+    travel whose trunk is yawed instead (the walk-first round-1 attacks) is the mirror case. A genuine
+    walk keeps symmetric steps in the frame it walks in, whichever way its trunk points.
+    """
+    # the trailing foot lands beside the leader: its step is the 0.6 L stance width projected on a frame
+    # turned ``degrees`` from the body's lateral line
+    shift = -0.6 * float(np.sin(np.radians(degrees)))
+    sheared = metrics(
+        crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True, width=0.6), degrees),
+        settle_s=1.0,
+    )
+    assert sheared["trunk_crab_angle_deg_median"] == pytest.approx(-degrees, abs=0.05)
+    assert sheared["step_length_trunk_over_leg_min"] == pytest.approx(0.0, abs=0.002)
+    assert sheared["step_length_over_leg_min"] == pytest.approx(shift, abs=0.01)
+    assert sheared["step_symmetry_trunk_min"] == 0.0
+    assert sheared["step_symmetry"] == sheared["step_symmetry_travel_min"] < 0.25
+    yawed = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True, width=0.6)
+    yawed["root_quat_wxyz"] = yaw_quaternion(np.full(len(yawed["time_s"]), np.radians(degrees)))
+    turned = metrics(yawed, settle_s=1.0)
     assert turned["step_length_over_leg_min"] == pytest.approx(0.0, abs=0.002)
-    # a genuine walk crabbing the same way keeps its body-frame steps
-    walk = metrics(crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8), degrees), settle_s=1.0)
-    assert walk["step_length_over_leg_min"] == pytest.approx(0.32, abs=0.02)
+    assert turned["step_length_trunk_over_leg_min"] == pytest.approx(shift, abs=0.01)
+    # a genuine walk keeps symmetric steps along its travel whichever way its trunk points
+    walk = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, width=0.6)
+    walk["root_quat_wxyz"] = yaw_quaternion(np.full(len(walk["time_s"]), np.radians(degrees)))
+    walking = metrics(walk, settle_s=1.0)
+    assert walking["step_length_over_leg_min"] == pytest.approx(0.32, abs=0.02)
+    assert walking["step_symmetry_travel_min"] > 0.9
+    assert walking["step_symmetry"] == walking["step_symmetry_travel_min"]
+    # ... and along its trunk when the feet keep their body-frame placement on a crabbing path
+    crab_walk = metrics(crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, width=0.6), degrees))
+    assert crab_walk["step_symmetry_trunk_min"] > 0.9
+    assert crab_walk["step_symmetry"] == crab_walk["step_symmetry_trunk_min"]
 
 
 def test_trunk_yaw_wobble_within_a_stride_is_averaged_out():
@@ -830,3 +856,35 @@ def test_protocol_validation_and_identity_change_with_measurement_options():
     ):
         changed = replace(PROTOCOL, **{option: getattr(PROTOCOL, option) + step})
         assert changed.sha256 != PROTOCOL.sha256
+
+
+def test_a_stop_is_charged_once_on_the_moving_clock():
+    """Walk-first round 2: the phase clock stops with the trunk, so a 1.2 s stop between 0.8 s strides is
+    standing time only (no undefined, off-template or in-place time around it) and coverage stays whole."""
+    walk = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, jitter=0.01, seed=4)
+    time = walk["time_s"]
+    k = int(np.searchsorted(time, 5.0))
+    hold = int(round(1.2 / float(time[1] - time[0])))
+    stopped = {"time_s": time.copy()}
+    for key, value in walk.items():
+        if key != "time_s":
+            frozen = np.repeat(value[k : k + 1], hold, axis=0)
+            if key == "slip_speed_mps":
+                frozen = np.zeros_like(frozen)
+            stopped[key] = np.concatenate((value[:k], frozen, value[k:]))[: len(time)]
+    template = metrics(stopped, settle_s=1.0)["templates"]["alternation"]
+    assert template["standing_fraction"] == pytest.approx(1.2 / 9.0, abs=0.02)
+    assert template["off_gait_fraction"] == pytest.approx(template["standing_fraction"], abs=0.005)
+    assert template["undefined_phase_fraction"] == 0.0
+    assert metrics(stopped, settle_s=1.0)["limb_phase_coverage_min"] == 1.0
+
+
+def test_unloaded_time_is_flight_measured_on_load():
+    """Feet in light contact (2 % of body weight) through a ballistic phase still leave the body unloaded."""
+    run = gait_trace((0.0, 0.5), duty=0.35, period=0.4, speed=2.0)
+    bridged = {key: np.array(value, copy=True) for key, value in run.items()}
+    airborne = np.all(run["floor_force_n"] == 0.0, axis=1)
+    bridged["floor_force_n"][airborne] = 0.01 * BW
+    measured, reference = metrics(bridged, settle_s=1.0), metrics(run, settle_s=1.0)
+    assert measured["flight_fraction"] == 0.0 < reference["flight_fraction"]
+    assert measured["unloaded_fraction"] == pytest.approx(reference["flight_fraction"], abs=0.01)

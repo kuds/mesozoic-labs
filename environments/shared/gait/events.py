@@ -21,8 +21,13 @@ cadence of its neighbouring strides of the same limb on either side
 (``stride_references``), not the whole-episode median, so a genuine change of
 cadence (a walk-to-run transition halves the stride) is not mistaken for a
 pause, while a stop between normal strides still is. Before the first and after the last
-event the phase is extrapolated with the nearest stride's reference for one
-stride and undefined beyond, because the next event cannot be observed there.
+event the phase is extrapolated with the nearest stride's reference for as long
+as a normal stride may last (``pause_factor`` references) and is undefined
+beyond, because the next event cannot be observed there.
+
+The clock is any nondecreasing time base: the measurement passes the moving
+clock, which stops while the trunk stands, so a stop does not stretch the
+stride around it.
 """
 
 from __future__ import annotations
@@ -162,9 +167,9 @@ def stride_references(periods_s: ArrayLike, neighbours: int) -> NDArray[np.float
 
 
 def stride_is_normal(periods_s: ArrayLike, references_s: ArrayLike, pause_factor: float) -> NDArray[np.bool_]:
-    """Strides that are not pauses: no longer than ``pause_factor`` local references."""
+    """Strides that are not pauses: positive and no longer than ``pause_factor`` local references."""
     periods = np.asarray(periods_s, dtype=float)
-    return cast(NDArray[np.bool_], periods <= pause_factor * np.asarray(references_s, dtype=float))
+    return cast(NDArray[np.bool_], (periods > 0.0) & (periods <= pause_factor * np.asarray(references_s, dtype=float)))
 
 
 def limb_phase(
@@ -201,17 +206,19 @@ def limb_phase(
         inside = (stride >= 0) & (stride < len(events) - 1)
         clipped = np.clip(stride, 0, len(events) - 2)
         period = events[clipped + 1] - events[clipped]
-        normal = inside & (period <= pause_factor * references[clipped])
+        # a stride of zero length on the clock (two touchdowns while the
+        # moving clock stands still) has no phase
+        normal = inside & (period > 0.0) & (period <= pause_factor * references[clipped])
         phase[normal] = (time_s[normal] - events[clipped[normal]]) / period[normal]
         defined |= normal
     if last_reference > 0.0:
         elapsed = time_s - events[-1]
-        after = (stride >= len(events) - 1) & (elapsed < last_reference)
+        after = (stride >= len(events) - 1) & (elapsed < pause_factor * last_reference)
         phase[after] = elapsed[after] / last_reference
         defined |= after
     if first_reference > 0.0:
         lead = events[0] - time_s
-        before = (stride < 0) & (lead <= first_reference)
+        before = (stride < 0) & (lead <= pause_factor * first_reference)
         phase[before] = 1.0 - lead[before] / first_reference
         defined |= before
     return np.mod(phase, 1.0), defined

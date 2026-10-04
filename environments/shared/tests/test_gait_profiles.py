@@ -105,6 +105,44 @@ def _bouts(base, *bouts):
     return plan
 
 
+def yawed(trace, degrees):
+    """The trunk held ``degrees`` off its travel while the footfalls stay where they are."""
+    out = {key: np.array(value, copy=True) for key, value in trace.items()}
+    out["root_quat_wxyz"] = yaw_quaternion(np.full(len(out["time_s"]), np.radians(degrees)))
+    return out
+
+
+def paused(trace, at_s, stop_s):
+    """A genuine stop: every signal freezes for ``stop_s`` at ``at_s`` (feet planted), then the gait resumes."""
+    time = trace["time_s"]
+    dt = float(time[1] - time[0])
+    k = int(np.searchsorted(time, at_s))
+    hold = int(round(stop_s / dt))
+    out = {}
+    for key, value in trace.items():
+        if key == "time_s":
+            continue
+        frozen = np.repeat(value[k : k + 1], hold, axis=0)
+        if key == "slip_speed_mps":
+            frozen = np.zeros_like(frozen)
+        out[key] = np.concatenate((value[:k], frozen, value[k:]))[: len(time)]
+    out["time_s"] = time.copy()
+    return out
+
+
+def merged_girdles(fore, hind):
+    """A quadruped whose fore pair is the biped trace ``fore`` and hind pair ``hind`` (each girdle half the load)."""
+    out = {}
+    for key in ("floor_force_n", "touch_force_n"):
+        out[key] = 0.5 * np.concatenate((fore[key], hind[key]), axis=1)
+    for key in ("foot_position_m", "foot_clearance_m", "slip_speed_mps"):
+        out[key] = np.concatenate((fore[key], hind[key]), axis=1)
+    out["foot_position_m"][:, :2, 0] += 0.6
+    for key in ("time_s", "body_floor_force_n", "foot_foot_force_n", "root_position_m", "root_quat_wxyz"):
+        out[key] = np.array(hind[key], copy=True)
+    return out
+
+
 # -- genuine gaits (D1, D11, D12, D14) ---------------------------------------------------------
 
 
@@ -381,7 +419,7 @@ def test_a_step_to_that_switches_its_leading_foot_fails_on_step_through_strides(
     walk = gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, jitter=0.01, seed=3)
     verdict = judge(_switching_step_to(walk, 0.5, block))
     assert not any(passed(verdict).values())
-    assert rails(verdict) == {"stepping/step_through_stride_fraction_min"}
+    assert rails(verdict) == {"stepping/step_through_stride_fraction_min", "stepping/step_symmetry"}
     assert passed(judge(walk)) == {"biped_walk": True, "biped_alternating": True}
 
 
@@ -503,11 +541,12 @@ def test_h3_toe_drag_swing_fails_on_swing_floor_contact():
 
 
 @pytest.mark.parametrize("glide,qualifies", [(0.25, True), (0.45, False)])
-def test_h4_skating_at_half_trunk_speed_fails_on_skid(glide, qualifies):
+def test_h4_skating_at_half_trunk_speed_fails_on_skid_and_glide(glide, qualifies):
     verdict = judge(scheduled_trace(lambda t: WALK, slip=glide))
     assert verdict["biped_walk"][0] is qualifies
     if not qualifies:
-        assert rails(verdict) == {"support/skid_fraction_max"}
+        assert rails(verdict) == {"support/skid_fraction_max", "support/walk_glide_stance_fraction_max"}
+        assert rails(verdict, "biped_alternating") == {"support/skid_fraction_max"}
 
 
 def test_h5_antalgic_limp_fails_on_pair_load_and_duty_ratios():
@@ -560,8 +599,20 @@ def test_r2_skimming_swing_fails_swing_floor_contact():
 def test_r2_skating_bouts_fail_on_glide_while_touchdown_skid_does_not():
     """Skating in a quarter of the stances averages below the whole-window skid bar (round-2 h10)."""
     skating = scheduled_trace(lambda t: WALK + ((0.9,) if t % 2.0 >= 1.5 else (0.0,)), jitter=0.01, seed=2)
-    assert rails(judge(skating)) == {"support/glide_stance_fraction_max"}
+    verdict = judge(skating)
+    assert rails(verdict) == {"support/glide_stance_fraction_max", "support/walk_glide_stance_fraction_max"}
+    assert rails(verdict, "biped_alternating") == {"support/glide_stance_fraction_max"}
     assert judge(scheduled_trace(lambda t: WALK, slip=0.25, jitter=0.01, seed=2))["biped_walk"][0]
+
+
+def test_walking_feet_skating_at_half_the_trunk_speed_in_a_third_of_the_stances_fail():
+    """Walk-first quadruped skate_2of3_047: stances sliding at 0.47 of trunk speed escape the 0.6 glide ratio."""
+    skating = scheduled_trace(
+        lambda t: (TROT, 0.6, 0.6, 1.0, 0.47 if t % 1.8 < 1.2 else 0.0), feet=4, jitter=0.01, seed=3
+    )
+    verdict = judge(skating, QUAD)
+    assert "support/walk_glide_stance_fraction_max" in rails(verdict, "quadruped_walk")
+    assert "support/glide_stance_fraction_max" not in rails(verdict, "quadruped_walk")
 
 
 def test_r2_a_limp_padded_by_a_hovering_retouch_fails_on_light_stance():
@@ -630,7 +681,7 @@ def test_a_kneeling_trunk_fails_on_trunk_height():
     kneeling = {key: np.array(value, copy=True) for key, value in walk.items()}
     kneeling["root_position_m"][:, 2] = 0.3
     verdict = judge(kneeling, QUAD)
-    assert rails(verdict, "quadruped_walk") == {"support/trunk_height_over_leg_median"}
+    assert rails(verdict, "quadruped_walk") == {"support/trunk_height_over_leg_p10"}
 
 
 def test_trunk_yaw_from_the_quaternion_never_changes_a_walk_verdict():
@@ -638,3 +689,128 @@ def test_trunk_yaw_from_the_quaternion_never_changes_a_walk_verdict():
     walk = gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, jitter=0.01, seed=5)
     walk["root_quat_wxyz"] = yaw_quaternion(np.radians(10.0) * np.sin(2.0 * np.pi * walk["time_s"] / 0.5))
     assert passed(judge(walk)) == {"biped_walk": True, "biped_alternating": True}
+
+
+# -- walk-first round 2: frames, loaded support, girdle coupling, stops ---------------------------
+
+
+@pytest.mark.parametrize("degrees", [7.0, 12.0, -12.0])
+def test_a_step_to_along_the_line_of_travel_fails_whatever_the_trunk_yaw(degrees):
+    """Round-2 walk-first attacks: a 0.6 L stance width turned 7-12 deg projects a step onto the trunk axis."""
+    step_to = gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, step_to=True, jitter=0.01, width=0.6)
+    verdict = judge(yawed(step_to, degrees))
+    assert not any(passed(verdict).values())
+    assert "stepping/step_length_over_leg_min" in rails(verdict)
+
+
+@pytest.mark.parametrize("degrees", [13.0, -13.0, 20.0])
+def test_a_genuine_walk_with_its_trunk_turned_off_its_travel_passes(degrees):
+    """The footfalls decide: a symmetric walk along its travel passes whatever its trunk yaw."""
+    walk = gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, jitter=0.01, seed=2, width=0.6)
+    assert passed(judge(yawed(walk, degrees))) == {"biped_walk": True, "biped_alternating": True}
+
+
+@pytest.mark.parametrize("degrees", [-8.0, -12.0])
+def test_a_body_frame_step_to_on_a_crabbing_path_fails_on_its_lopsided_travel_steps(degrees):
+    """Round-2 crab attack: the trailing foot lands beside the leader in the body frame; along the crabbing
+    path the 0.6 L stance width puts it 0.08-0.12 L through, lopsided against the leader's 0.4 L."""
+    step_to = crabbed(
+        gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, step_to=True, jitter=0.01, width=0.6), degrees
+    )
+    verdict = judge(step_to, speed=0.3)
+    assert not any(passed(verdict).values())
+    assert rails(verdict) == {"stepping/body_frame_step_to_symmetry"}
+    # a genuine walk on the same crabbing path keeps its even body-frame steps
+    walk = crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.5, speed=1.0, jitter=0.01, width=0.6), degrees)
+    assert passed(judge(walk, speed=0.3)) == {"biped_walk": True, "biped_alternating": True}
+
+
+def _toe_lingering(run, linger, force_bw):
+    """After each lift-off the toe stays on the floor for ``linger`` s with ``force_bw`` of body weight."""
+    out = {key: np.array(value, copy=True) for key, value in run.items()}
+    time = out["time_s"]
+    for foot in range(2):
+        for _, end in boolean_runs(run["floor_force_n"][:, foot] > 0.0):
+            if end >= len(time):
+                continue
+            tail = slice(end, int(np.searchsorted(time, time[end] + linger)))
+            out["floor_force_n"][tail, foot] = force_bw * BW
+            out["touch_force_n"][tail, foot] = force_bw * BW
+            out["foot_clearance_m"][tail, foot] = 0.0
+            out["foot_position_m"][tail, foot] = out["foot_position_m"][end - 1, foot]
+    return out
+
+
+def test_a_run_whose_flight_is_bridged_by_a_light_toe_contact_is_not_a_walk():
+    """Walk-first H02: 20 % ballistic flight, a 2.5 % BW toe lingering 6 % of the stride after push-off."""
+    run = gait_trace((0.0, 0.5), duty=0.4, period=0.3, speed=1.2, jitter=0.01, seed=3)
+    bridged = _toe_lingering(run, 0.06 * 0.3, 0.025)
+    verdict = judge(bridged)
+    assert passed(verdict) == {"biped_walk": False, "biped_alternating": True}
+    assert rails(verdict) == {"support/unloaded_fraction"}
+
+
+def test_quadruped_girdles_stepping_at_different_cadences_are_not_a_walk():
+    """Walk-first quadruped attack: each girdle alternates, the fore pair at twice the hind cadence."""
+    fore = gait_trace((0.0, 0.5), duty=0.68, period=0.5, speed=1.0, jitter=0.01, seed=1)
+    hind = gait_trace((0.25, 0.75), duty=0.68, period=1.0, speed=1.0, jitter=0.01, seed=2)
+    verdict = judge(merged_girdles(fore, hind), QUAD)
+    assert not verdict["quadruped_walk"][0]
+    assert "persistence/off_gait_fraction" in rails(verdict, "quadruped_walk")
+    same = gait_trace((0.25, 0.75), duty=0.68, period=1.0, speed=1.0, jitter=0.01, seed=1)
+    assert passed(judge(merged_girdles(same, hind), QUAD)) == {"quadruped_walk": True}
+
+
+def test_phantom_toe_contacts_cannot_hide_a_flying_trot():
+    """Walk-first quadruped attack: 0.03 BW contacts before each touchdown and after each lift-off erase the
+    suspensions of a duty-0.3 trot from the contact record (and lift its contact duty to 0.5)."""
+    trot = gait_trace(TROT, duty=0.5, period=0.5, speed=1.5, jitter=0.01, seed=4)
+    spoof = {key: np.array(value, copy=True) for key, value in trot.items()}
+    time = spoof["time_s"]
+    for foot in range(4):
+        for start, end in boolean_runs(trot["floor_force_n"][:, foot] > 0.0):
+            edge = int(np.searchsorted(time, time[start] + 0.05))
+            tail = int(np.searchsorted(time, time[min(end, len(time) - 1)] - 0.05))
+            spoof["floor_force_n"][start:edge, foot] = 0.03 * BW
+            spoof["floor_force_n"][tail:end, foot] = 0.03 * BW
+    verdict = judge(spoof, QUAD)
+    assert not verdict["quadruped_walk"][0]
+    assert "support/unloaded_fraction" in rails(verdict, "quadruped_walk")
+    assert passed(judge(trot, QUAD)) == {"quadruped_walk": True}
+
+
+def test_a_girdle_unloaded_on_alternate_strides_fails_girdle_participation():
+    """Walk-first wheelbarrow: every other 1 s stride the hind feet only touch (0.03 BW each)."""
+    walk = gait_trace(LS_WALK, duty=0.75, period=1.0, speed=0.8, jitter=0.01, seed=5)
+    wheelbarrow = {key: np.array(value, copy=True) for key, value in walk.items()}
+    force = wheelbarrow["floor_force_n"]
+    odd = (np.floor(wheelbarrow["time_s"] + 2.0) % 2.0) == 1.0
+    fore_loaded = force[:, :2] > 0.0
+    hind_loaded = force[:, 2:] > 0.0
+    lift = odd & np.any(fore_loaded, axis=1)
+    hind_total = np.where(hind_loaded, 0.03 * BW, 0.0)
+    force[:, 2:] = np.where(lift[:, None], hind_total, force[:, 2:])
+    fore_share = (BW - hind_total.sum(axis=1)) / np.maximum(fore_loaded.sum(axis=1), 1)
+    force[:, :2] = np.where(lift[:, None] & fore_loaded, fore_share[:, None], force[:, :2])
+    verdict = judge(wheelbarrow, QUAD)
+    assert not verdict["quadruped_walk"][0]
+    assert "participation/girdle_unloaded_fraction" in rails(verdict, "quadruped_walk")
+
+
+@pytest.mark.parametrize("stop_s,qualifies", [(0.5, True), (1.0, True), (1.6, False)])
+def test_a_stop_at_brachiosaurus_cadence_costs_only_its_standing_time(stop_s, qualifies):
+    """A stop inside a 2 s lateral-sequence stride: the moving clock stops with the trunk, so the stop is
+    charged once (6 % and 11 % of the 9 s window pass) and never stretches its strides into pauses."""
+    walk = gait_trace(LS_WALK, duty=0.75, period=2.0, speed=0.8, jitter=0.01, seed=6)
+    verdict = judge(paused(walk, 5.0, stop_s), QUAD, speed=0.6)
+    assert verdict["quadruped_walk"][0] is qualifies, verdict
+    if not qualifies:
+        assert "persistence/off_gait_fraction" in rails(verdict, "quadruped_walk")
+
+
+def test_kneeling_for_two_fifths_of_the_window_fails_on_trunk_height():
+    """Walk-first kneel bouts: a median trunk height stays high when the trunk kneels 40 % of the time."""
+    walk = gait_trace(LS_WALK, duty=0.7, period=1.0, speed=1.0, jitter=0.01, seed=2)
+    kneeling = {key: np.array(value, copy=True) for key, value in walk.items()}
+    kneeling["root_position_m"][(kneeling["time_s"] % 5.0) >= 3.0, 2] = 0.3
+    assert rails(judge(kneeling, QUAD), "quadruped_walk") == {"support/trunk_height_over_leg_p10"}

@@ -59,6 +59,10 @@ class GaitProtocol:
     #: the scuff height: a foot below it has not cleared the ground.
     swing_ground_clearance_over_leg: float = 0.01
     # -- continuous limb phase --------------------------------------------------
+    #: Stride periods and limb phase run on the moving clock: the analysis
+    #: clock stops while the trunk stands (see ``standing_*`` below), so a
+    #: stop is charged once, as standing time, and never stretches the
+    #: strides around it.
     #: A stride longer than this multiple of its local reference is a pause:
     #: phase is undefined (coverage loss) for its whole duration. The
     #: reference is the larger of the median cadences of up to
@@ -79,34 +83,51 @@ class GaitProtocol:
     #: hop, a bound, a skip or a gallop, whatever the lag).
     off_gait_extra_tolerance: float = 0.05
     #: Off-gait time also counts unlocked (uncoordinated) stepping inside bouts
-    #: that last at least this many pooled strides; shorter unlocked moments
-    #: (a stumble, a double step) are not off-gait time.
+    #: that last at least this many pooled strides or this fraction of the
+    #: analysis window, whichever is shorter; shorter unlocked moments (a
+    #: stumble, a double step) are not off-gait time. On four legs the
+    #: ipsilateral (fore-hind) pairs count as well: girdles stepping at
+    #: different cadences are uncoordinated.
     off_gait_bout_strides: float = 2.0
-    # -- footprints, trunk frame and step-through -------------------------------
+    off_gait_bout_window_fraction: float = 0.10
+    # -- footprints, step-through and step symmetry ------------------------------
     #: A footprint is the load-weighted centre of a stance (force x time), so
     #: a light toe touch or a slide during stance does not move it.
     #: Step length is the footprint's advance past the contralateral foot's
-    #: previous footprint along the trunk's own axis (the root body's x axis,
-    #: from the recorded root quaternion, averaged over a centred window of
-    #: this many pooled strides to remove the stride-periodic yaw wobble).
+    #: previous footprint along the local travel heading (the line of
+    #: progression; see ``heading_*`` below). It is also measured along the
+    #: trunk's own axis (the root body's x axis, from the recorded root
+    #: quaternion, averaged over a centred window of this many pooled strides
+    #: to remove the stride-periodic yaw wobble): step symmetry is judged in
+    #: whichever of the two frames is the more symmetric.
     trunk_axis_window_strides: float = 1.0
     #: A step whose length is below this does not step through: it lands
     #: behind the other foot's footprint. A stride (consecutive steps of the
     #: two feet of a pair) steps through when both of its steps do ...
     step_through_min_over_leg: float = 0.0
     #: ... and at least this many consecutive such steps of one foot are a
-    #: step-to bout (the ``step_to_bout_fraction`` diagnostic; a genuine
-    #: walker crabbing in its trunk frame has such bouts of its weaker foot,
-    #: so they are never off-gait time).
+    #: step-to bout (the ``step_to_bout_fraction`` diagnostic).
     step_to_bout_steps: int = 2
+    #: The line of progression is the travel heading, unless the strides are
+    #: at least this symmetric along the trunk axis and more symmetric there
+    #: than along the travel (a crab walk: the body steps evenly along its own
+    #: axis while it travels off it); then step-through is judged along the trunk.
+    crab_walk_min_symmetry: float = 0.6
+    #: Along the travel heading a foot whose median step along the trunk axis
+    #: is shorter than this lands beside or behind the other foot in the body
+    #: frame (the feet come together relative to the pelvis): the gait is then
+    #: a step-to on a crabbing path unless its travel steps are even, which
+    #: ``body_frame_step_to_symmetry`` reports for the gate.
+    body_step_through_min_over_leg: float = 0.01
     #: A stride whose footprint advances less than this along the local
     #: heading is a stride in place (marking time, tapping, freezing): its
     #: duration is off-gait time. Half the stride floor of the gate.
     in_place_stride_over_leg: float = 0.10
     #: Standing: the trunk's horizontal speed over a centred window of this
-    #: many pooled strides is below ``standing_speed_fraction`` of the upper
-    #: quartile of that speed over the analysis window. Standing time (a
-    #: pause, a freeze, a standing start inside the window) is off-gait time.
+    #: many (wall-clock) pooled strides is below ``standing_speed_fraction`` of
+    #: the upper quartile of that speed over the analysis window. Standing
+    #: time (a pause, a freeze, a standing start or a final stop) is off-gait
+    #: time, and the moving clock stops while the trunk stands.
     standing_window_strides: float = 0.1
     standing_speed_fraction: float = 0.05
     # -- local travel frame ------------------------------------------------------
@@ -123,13 +144,26 @@ class GaitProtocol:
     # -- stance quality and girdle participation -----------------------------------
     #: A stance is a glide when its foot's median slip speed exceeds this
     #: fraction of the trunk's speed during it (stance travel floored at
-    #: 0.05 L; stances of at least three samples).
+    #: 0.05 L; stances of at least three samples) ...
     glide_skid_ratio: float = 0.6
+    #: ... and a walking glide above this fraction: a planted walking foot
+    #: does not slide, so a foot sliding at 40 % of the trunk's speed all
+    #: stance long skates (walking profiles; a run's short stances keep more
+    #: of their touchdown skid in the median).
+    walk_glide_skid_ratio: float = 0.4
     #: Light stance: a stance sample whose foot carries less than this fraction
     #: of body weight divided by the number of limbs (merged unloads included).
     light_load_bw_per_limb: float = 0.1
+    #: Unloaded (ballistic) time: the feet together carry less than this
+    #: fraction of their mean load over moving time (about body weight). It is
+    #: flight measured on load, so light toe contacts bridging a flight phase
+    #: do not hide it.
+    unloaded_load_fraction: float = 0.25
     #: Time-local girdle participation (quadrupeds): the lighter girdle's share
-    #: of the foot impulse over a centred one-stride window falls below this.
+    #: of the foot impulse over a centred window of this many pooled strides
+    #: falls below ``girdle_local_min_share``. Half a stride sees a girdle
+    #: unloaded on alternate strides, which a whole-stride window averages away.
+    girdle_window_strides: float = 0.5
     girdle_local_min_share: float = 0.12
     # -- other measured quantities ----------------------------------------------
     #: Foot-on-foot contact when the force between feet exceeds this.
@@ -154,6 +188,9 @@ class GaitProtocol:
             "heading_window_strides",
             "standing_window_strides",
             "glide_skid_ratio",
+            "walk_glide_skid_ratio",
+            "girdle_window_strides",
+            "off_gait_bout_window_fraction",
         ):
             if values[name] <= 0.0:
                 raise ValueError(f"gait protocol option {name} must be positive")
@@ -166,6 +203,9 @@ class GaitProtocol:
             raise ValueError("gait protocol option light_load_bw_per_limb must not be below the contact threshold")
         if self.girdle_local_min_share > 0.5:
             raise ValueError("gait protocol option girdle_local_min_share must lie in [0, 0.5]")
+        for name in ("unloaded_load_fraction", "off_gait_bout_window_fraction", "crab_walk_min_symmetry"):
+            if values[name] > 1.0:
+                raise ValueError(f"gait protocol option {name} must lie in [0, 1]")
         for name in ("bounce_swing_fraction", "bounce_clearance_fraction", "local_min_locking"):
             if values[name] > 1.0:
                 raise ValueError(f"gait protocol option {name} must lie in [0, 1]")
@@ -177,7 +217,7 @@ class GaitProtocol:
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema": MEASUREMENT_SCHEMA,
-            "default_status": "walk-first calibration on the 2026-10 development split; confirm on fresh panels",
+            "default_status": "walk-first round-2 calibration on the 2026-10 development split; confirm on fresh panels",
             **asdict(self),
         }
 

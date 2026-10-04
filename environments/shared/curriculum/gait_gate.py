@@ -13,12 +13,16 @@ verdict exactly. Checkpoint and evidence binding belongs to reporting.
 
 The profiles are walk-first. ``biped_walk`` and ``quadruped_walk`` certify a
 walk: contralateral limbs alternate, every limb is down roughly half the
-stride or more and there is little or no flight; on four legs any
+stride or more, the feet carry the body (little or no flight, measured on
+contact and on load) and planted feet do not skate; on four legs any
 symmetrical walking gait counts (lateral- or diagonal-sequence walks and
-diagonal- or lateral-couplet walks alike), with no limb-phase partition.
-``biped_alternating`` is the lenient run-allowed alternating profile for
-stages whose speed bar asks for running. Trot, pace, gallop, run and jump
-profiles are deferred; Hildebrand's labels stay report-only diagnostics.
+diagonal- or lateral-couplet walks alike), with no limb-phase partition, as
+long as the girdles step together. ``biped_alternating`` is the lenient
+run-allowed alternating profile for stages whose speed bar asks for running.
+Every profile requires step-through along the line of progression, strides
+whose two steps are not grossly lopsided, and no crabbing step-to. Trot,
+pace, gallop, run and jump profiles are deferred; Hildebrand's labels stay
+report-only diagnostics.
 
 Every criterion is explicit: there are no silent defaults in a declared gate.
 ``provisional_gait_criteria`` returns the calibrated development values used
@@ -83,6 +87,8 @@ _COMMON_CRITERIA = frozenset(
         "max_swing_slip_fraction",
         "min_step_length_over_leg",
         "min_step_through_stride_fraction",
+        "min_step_symmetry",
+        "min_body_frame_step_to_symmetry",
         "min_phase_locking",
         "max_alternation_phase_offset",
         "max_alternating_overlap_index",
@@ -92,7 +98,7 @@ _COMMON_CRITERIA = frozenset(
 #: Bars that only some profiles consume; declaring one for another profile is
 #: an error rather than dead config.
 _GIRDLE_CRITERIA = frozenset({"min_girdle_load_share", "min_girdle_duty_ratio", "max_girdle_unloaded_fraction"})
-_WALK_CRITERIA = frozenset({"min_walking_duty"})
+_WALK_CRITERIA = frozenset({"min_walking_duty", "max_unloaded_fraction", "max_walk_glide_stance_fraction"})
 _PROFILE_CRITERIA: dict[str, frozenset[str]] = {
     "biped_walk": _WALK_CRITERIA,
     "biped_alternating": frozenset(),
@@ -109,6 +115,9 @@ _UNIT_KEYS = frozenset(
     {
         "min_gait_success_lcb",
         "max_flight_fraction",
+        "max_unloaded_fraction",
+        "min_step_symmetry",
+        "min_body_frame_step_to_symmetry",
         "max_body_support_fraction",
         "max_foot_foot_contact_fraction",
         "min_limb_phase_coverage",
@@ -120,6 +129,7 @@ _UNIT_KEYS = frozenset(
         "max_girdle_unloaded_fraction",
         "max_light_stance_fraction",
         "max_glide_stance_fraction",
+        "max_walk_glide_stance_fraction",
         "min_valid_swing_fraction",
         "max_swing_ground_fraction",
         "max_swing_slip_fraction",
@@ -136,10 +146,11 @@ _HALF_CYCLE_KEYS = frozenset({"max_alternation_phase_offset"})
 #: Keys that may be negative (a step length bar below zero is meaningless but well defined).
 _SIGNED_KEYS = frozenset({"min_avg_reward", "min_step_length_over_leg"})
 
-#: Calibrated development criteria (walk-first round 1: bakeoff DEV split,
-#: re-recorded replays with the trunk quaternion, and the previous attack
-#: sets as negatives); docs/GAIT_CERTIFICATION.md tabulates each bar against
-#: the worst genuine development value and the nearest pathological one.
+#: Calibrated development criteria (walk-first round 2: bakeoff DEV split,
+#: re-recorded replays with the trunk quaternion, and every previous attack
+#: set, the walk-first round-1 attacks included, as development cases);
+#: docs/GAIT_CERTIFICATION.md tabulates each bar against the worst genuine
+#: development value and the nearest pathological one.
 _PROVISIONAL_COMMON: dict[str, float | int] = {
     "max_body_support_fraction": 0.01,
     "max_foot_foot_contact_fraction": 0.02,
@@ -160,6 +171,8 @@ _PROVISIONAL_COMMON: dict[str, float | int] = {
     "max_swing_slip_fraction": 0.10,
     "min_step_length_over_leg": 0.05,
     "min_step_through_stride_fraction": 0.60,
+    "min_step_symmetry": 0.10,
+    "min_body_frame_step_to_symmetry": 0.35,
     "min_phase_locking": 0.50,
     "max_alternation_phase_offset": 0.15,
     "max_alternating_overlap_index": 0.50,
@@ -173,13 +186,21 @@ _PROVISIONAL_GIRDLE: dict[str, float | int] = {
     "min_girdle_duty_ratio": 0.60,
     "max_girdle_unloaded_fraction": 0.05,
 }
-#: Walking support: little or no flight, every limb down roughly half the stride.
-_PROVISIONAL_WALK: dict[str, float | int] = {"max_flight_fraction": 0.10, "min_walking_duty": 0.35}
+#: Walking support: little or no flight (on contact and on load), every limb down
+#: roughly half the stride, no skating walking stance.
+_PROVISIONAL_WALK: dict[str, float | int] = {
+    "max_flight_fraction": 0.10,
+    "max_unloaded_fraction": 0.15,
+    "max_walk_glide_stance_fraction": 0.15,
+    "min_walking_duty": 0.35,
+}
 _PROVISIONAL_PROFILE: dict[str, dict[str, float | int]] = {
     "biped_walk": dict(_PROVISIONAL_WALK),
     # running is allowed (sprint duty ~0.2, Weyand et al. 2000)
     "biped_alternating": {"max_flight_fraction": 0.65},
-    "quadruped_walk": {**_PROVISIONAL_GIRDLE, **_PROVISIONAL_WALK},
+    # four legs: every limb down at least 0.42 of the stride (a trot or pace
+    # below it has two suspensions per stride: a flying trot)
+    "quadruped_walk": {**_PROVISIONAL_GIRDLE, **_PROVISIONAL_WALK, "min_walking_duty": 0.42},
 }
 
 
@@ -244,11 +265,15 @@ class GaitGateThresholds:
     max_swing_slip_fraction: float
     min_step_length_over_leg: float
     min_step_through_stride_fraction: float
+    min_step_symmetry: float
+    min_body_frame_step_to_symmetry: float
     min_phase_locking: float
     max_alternation_phase_offset: float
     max_alternating_overlap_index: float
     max_off_gait_fraction: float
     min_walking_duty: float | None = None
+    max_unloaded_fraction: float | None = None
+    max_walk_glide_stance_fraction: float | None = None
     min_girdle_load_share: float | None = None
     min_girdle_duty_ratio: float | None = None
     max_girdle_unloaded_fraction: float | None = None
@@ -335,13 +360,17 @@ RAIL_GROUPS = {
     "swing_slip_fraction_max": "stepping",
     "step_length_over_leg_min": "stepping",
     "step_through_stride_fraction_min": "stepping",
+    "step_symmetry": "stepping",
+    "body_frame_step_to_symmetry": "stepping",
     "walking_duty": "support",
     "flight_fraction": "support",
+    "unloaded_fraction": "support",
     "body_support_fraction": "support",
     "foot_foot_contact_fraction": "support",
     "skid_fraction_max": "support",
     "glide_stance_fraction_max": "support",
-    "trunk_height_over_leg_median": "support",
+    "walk_glide_stance_fraction_max": "support",
+    "trunk_height_over_leg_p10": "support",
     "phase_locking_min": "coupling",
     "alternation_phase_offset_max": "coupling",
     "alternating_overlap_index_max": "coupling",
@@ -360,6 +389,7 @@ _WORST = {
     "swing_slip_fraction_max": ("per_foot", "swing_slip_fraction", max),
     "skid_fraction_max": ("per_foot", "skid_fraction", max),
     "glide_stance_fraction_max": ("per_foot", "glide_stance_fraction", max),
+    "walk_glide_stance_fraction_max": ("per_foot", "walk_glide_stance_fraction", max),
     "light_stance_fraction_max": ("per_foot", "light_stance_fraction", max),
     "step_length_over_leg_min": ("per_foot", "step_length_over_leg_median", min),
     "step_through_stride_fraction_min": ("contralateral", "step_through_stride_fraction", min),
@@ -465,13 +495,15 @@ def classify_gait_episode(
         ("foot_foot_contact_fraction", thresholds.max_foot_foot_contact_fraction, False),
         ("skid_fraction_max", thresholds.max_skid_fraction, False),
         ("glide_stance_fraction_max", thresholds.max_glide_stance_fraction, False),
-        ("trunk_height_over_leg_median", thresholds.min_trunk_height_over_leg, True),
+        ("trunk_height_over_leg_p10", thresholds.min_trunk_height_over_leg, True),
     ):
         _check(failures, episode, episode, key, bar, floor=floor)
     # Step-through: every foot's median step lands ahead of the other foot's
-    # previous footprint along the trunk axis (step-to gaits never do), and in
-    # most strides both feet step through (a step-to gait that switches its
-    # leading foot fails one step of every stride).
+    # previous footprint along the line of progression (step-to gaits never
+    # do), in most strides both feet step through (a step-to gait that
+    # switches its leading foot fails one step of every stride), and the two
+    # steps of a stride are of comparable length in the travel or the trunk
+    # frame (a step-to dressed up by a crab or a trunk yaw is lopsided in both).
     _check(
         failures,
         episode,
@@ -489,11 +521,32 @@ def classify_gait_episode(
         thresholds.min_step_through_stride_fraction,
         floor=True,
     )
-    if thresholds.min_walking_duty is not None:
-        # Walking support: every limb down roughly half the stride or more.
+    _check(failures, episode, episode, "step_symmetry", thresholds.min_step_symmetry, floor=True)
+    if episode.get("body_frame_step_to_symmetry") is not None:
+        # A foot lands behind the other along the trunk axis (feet together in
+        # the body frame) while the travel frame shows a step-through: only
+        # even travel steps make that a crab walk rather than a crabbing step-to.
+        _check(
+            failures,
+            episode,
+            episode,
+            "body_frame_step_to_symmetry",
+            thresholds.min_body_frame_step_to_symmetry,
+            floor=True,
+        )
+    if (
+        thresholds.min_walking_duty is not None
+        and thresholds.max_unloaded_fraction is not None
+        and thresholds.max_walk_glide_stance_fraction is not None
+    ):
+        # Walking support: every limb down roughly half the stride or more,
+        # the feet carry the body (no ballistic phase, light toe contacts
+        # bridging one included), and planted feet do not skate.
         _check(
             failures, episode, episode, "limb_duty_min", thresholds.min_walking_duty, floor=True, label="walking_duty"
         )
+        _check(failures, episode, episode, "unloaded_fraction", thresholds.max_unloaded_fraction)
+        _check(failures, episode, episode, "walk_glide_stance_fraction_max", thresholds.max_walk_glide_stance_fraction)
     if PROFILE_FEET[profile] == 4:
         assert thresholds.min_girdle_load_share is not None and thresholds.min_girdle_duty_ratio is not None
         assert thresholds.max_girdle_unloaded_fraction is not None
@@ -540,13 +593,17 @@ _CAUSES = {
     "stepping/swing_slip_fraction_max": "foot drag (sliding swing)",
     "stepping/step_length_over_leg_min": "step-to (a foot does not step past the other)",
     "stepping/step_through_stride_fraction_min": "step-to strides (a foot lands level with or behind the other)",
+    "stepping/step_symmetry": "lopsided steps (one step much shorter than the other)",
+    "stepping/body_frame_step_to_symmetry": "step-to in the body frame on a crabbing path",
     "support/walking_duty": "not walking (short stance)",
     "support/flight_fraction": "too much flight",
+    "support/unloaded_fraction": "feet not carrying the body (ballistic phases)",
     "support/body_support_fraction": "body-supported",
     "support/foot_foot_contact_fraction": "feet stacked",
     "support/skid_fraction_max": "skidding",
     "support/glide_stance_fraction_max": "skating stances",
-    "support/trunk_height_over_leg_median": "crouched or kneeling trunk",
+    "support/walk_glide_stance_fraction_max": "skating stances",
+    "support/trunk_height_over_leg_p10": "crouched or kneeling trunk",
     "coupling/phase_locking_min": "limbs not phase-locked",
     "coupling/alternation_phase_offset_max": "asymmetric pair timing",
     "coupling/alternating_overlap_index_max": "feet loaded together",

@@ -282,8 +282,11 @@ def test_clean_measured_gaits_qualify_and_reasons_carry_stable_rail_ids():
         ("flight_fraction", -1.0, "support/flight_fraction"),
         ("body_support_fraction", 0.02, "support/body_support_fraction"),
         ("foot_foot_contact_fraction", 0.5, "support/foot_foot_contact_fraction"),
-        ("trunk_height_over_leg_median", 0.4, "support/trunk_height_over_leg_median"),
-        ("trunk_height_over_leg_median", None, "support/trunk_height_over_leg_median"),
+        ("trunk_height_over_leg_p10", 0.4, "support/trunk_height_over_leg_p10"),
+        ("trunk_height_over_leg_p10", None, "support/trunk_height_over_leg_p10"),
+        ("unloaded_fraction", 0.3, "support/unloaded_fraction"),
+        ("unloaded_fraction", None, "support/unloaded_fraction"),
+        ("walk_glide_stance_fraction_max", 0.3, "support/walk_glide_stance_fraction_max"),
         ("limb_duty_min", 0.05, "participation/limb_duty_min"),
         ("limb_duty_min", 0.3, "support/walking_duty"),
         ("relative_limb_load_share_min", 0.06, "participation/relative_limb_load_share_min"),
@@ -304,6 +307,9 @@ def test_clean_measured_gaits_qualify_and_reasons_carry_stable_rail_ids():
         ("step_length_over_leg_min", None, "stepping/step_length_over_leg_min"),
         ("step_through_stride_fraction_min", 0.5, "stepping/step_through_stride_fraction_min"),
         ("step_through_stride_fraction_min", None, "stepping/step_through_stride_fraction_min"),
+        ("step_symmetry", 0.05, "stepping/step_symmetry"),
+        ("step_symmetry", None, "stepping/step_symmetry"),
+        ("body_frame_step_to_symmetry", 0.2, "stepping/body_frame_step_to_symmetry"),
         ("templates", {}, "persistence/template"),
         ("templates.alternation.phase_locking_min", 0.3, "coupling/phase_locking_min"),
         ("templates.alternation.alternating_overlap_index_max", 0.9, "coupling/alternating_overlap_index_max"),
@@ -331,6 +337,33 @@ def test_step_through_is_required_by_every_profile():
         passed, failures = classify_gait_episode(record, thresholds, foot_names=feet)
         assert not passed and [rail_id(reason) for reason in failures] == ["stepping/step_length_over_leg_min"]
     assert "step-to" in describe_gait_episode(step_to, ("stepping/step_length_over_leg_min: -0.02 < 0.05",))
+
+
+def test_a_crabbing_step_to_is_judged_only_when_the_feet_come_together_along_the_trunk():
+    """``body_frame_step_to_symmetry`` is null unless a foot lands beside or behind the other along the trunk."""
+    thresholds = GaitGateThresholds.from_curriculum(curriculum("biped_alternating"))
+    clean = episode()
+    assert clean["body_frame_step_to_symmetry"] is None
+    assert classify_gait_episode(clean, thresholds, foot_names=("r", "l"))[0]
+    even = episode(body_frame_step_to_symmetry=0.5)
+    assert classify_gait_episode(even, thresholds, foot_names=("r", "l"))[0]
+    lopsided = episode(body_frame_step_to_symmetry=0.22)
+    passed, failures = classify_gait_episode(lopsided, thresholds, foot_names=("r", "l"))
+    assert not passed and [rail_id(reason) for reason in failures] == ["stepping/body_frame_step_to_symmetry"]
+    assert "crabbing path" in describe_gait_episode(lopsided, failures)
+
+
+def test_light_toe_contacts_cannot_hide_flight_from_the_walk_profiles():
+    """Loaded support: a run bridged by toe contact has little contact flight but much unloaded time."""
+    bridged = episode(flight_fraction=0.08, unloaded_fraction=0.24)
+    walk = GaitGateThresholds.from_curriculum(curriculum("biped_walk"))
+    passed, failures = classify_gait_episode(bridged, walk, foot_names=("r", "l"))
+    assert not passed and [rail_id(reason) for reason in failures] == ["support/unloaded_fraction"]
+    alternating = GaitGateThresholds.from_curriculum(curriculum("biped_alternating"))
+    assert classify_gait_episode(bridged, alternating, foot_names=("r", "l"))[0]
+    # the run-allowed profile does not consume the walking-support bars
+    with pytest.raises(ValueError, match="does not consume"):
+        GaitGateThresholds.from_curriculum(curriculum("biped_alternating", max_unloaded_fraction=0.15))
 
 
 def test_running_is_refused_by_the_walk_profile_and_accepted_by_the_run_allowed_one():
