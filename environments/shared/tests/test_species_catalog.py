@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import posixpath
 import re
 import shutil
 import tomllib
@@ -17,6 +18,8 @@ from environments.shared.curriculum.gate_schema import GATE_KINDS
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
     _HEADLINE_BY_GATE_KIND,
+    CATALOG_PAGE_DIR,
+    DEFAULT_CATALOG_PAGE_PATH,
     DEFAULT_MANIFEST_PATH,
     DEFAULT_OUTPUT_PATH,
     DEFAULT_PLANT_MANIFEST_PATH,
@@ -35,8 +38,12 @@ from environments.shared.species_catalog import (
     check_catalog,
     current_certification_seeds,
     current_gate_kinds,
+    main,
+    render_catalog_json,
+    render_catalog_page,
     render_readme_results,
     render_readme_species,
+    render_readme_species_summary,
 )
 from environments.shared.stage_manifest import load_stage_manifest, resolve_stage_key
 
@@ -848,6 +855,9 @@ def test_default_paths_are_inside_repository() -> None:
     assert DEFAULT_PLANT_MANIFEST_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_OUTPUT_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_README_PATH.is_relative_to(REPOSITORY_ROOT)
+    assert DEFAULT_CATALOG_PAGE_PATH.is_relative_to(REPOSITORY_ROOT)
+    # The page's links are rendered relative to CATALOG_PAGE_DIR, so the two must agree.
+    assert DEFAULT_CATALOG_PAGE_PATH.parent.relative_to(REPOSITORY_ROOT).as_posix() == CATALOG_PAGE_DIR
 
 
 # Review SS5: a published stage_passed is rendered with the gate it was earned
@@ -1587,13 +1597,188 @@ def test_readme_results_block_is_byte_identical_for_ladder_summaries() -> None:
     README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
     2026-09-12 before any WS4 edit).  A Deliverables line is only emitted
     for a schema-4 result, and the four committed summaries are schema 2.
+    Since cleanup CU-17 the block lives in docs/SPECIES_CATALOG.md (D-A10's
+    amendment), whose links are relative to docs/: the committed block there
+    is the golden with its four source-summary links one directory up, and
+    the root README no longer embeds it.
     """
     golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8")
     assert golden.count("### ") == 4
-    assert render_readme_results(build_catalog()).rstrip() + "\n" == golden
-    committed = DEFAULT_README_PATH.read_text(encoding="utf-8")
+    catalog = build_catalog()
+    assert render_readme_results(catalog).rstrip() + "\n" == golden
+    assert golden.count("](results/") == 4
+    on_page = golden.replace("](results/", "](../results/")
+    assert render_readme_results(catalog, page_dir=CATALOG_PAGE_DIR).rstrip() + "\n" == on_page
+    committed = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
     begin, end = "<!-- BEGIN GENERATED: RESULTS -->\n", "<!-- END GENERATED: RESULTS -->"
-    assert committed.split(begin, 1)[1].split(end, 1)[0] == golden
+    assert committed.count(begin) == 1 and committed.count(end) == 1
+    assert committed.split(begin, 1)[1].split(end, 1)[0] == on_page
+    assert "GENERATED: RESULTS" not in DEFAULT_README_PATH.read_text(encoding="utf-8")
+
+
+def test_readme_species_summary_rows_keep_anchors_and_resolve() -> None:
+    """One README row per species keeps every public anchor, and its three links resolve (cleanup CU-17).
+
+    The anchors are the ids and aliases that older links address
+    (``README.md#velociraptor``, ``#t-rex``, ...).  The catalog-entry link
+    lands on the species' anchor in docs/SPECIES_CATALOG.md.  The model-page
+    link is built from the species id, so ``website/docs/models/<id>.mdx``
+    exists, sets no ``slug`` of its own and renders the entry (``SpeciesCatalog``).
+    """
+    catalog = build_catalog()
+    rendered = render_readme_species_summary(catalog)
+    rows = [line for line in rendered.splitlines() if line.startswith("| <a id=")]
+    assert len(rows) == len(catalog["species"])
+    page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
+    for species, row in zip(catalog["species"], rows, strict=True):
+        assert row.count("|") == 7, "a manifest field must not carry a table pipe"
+        for anchor in [species["id"], *species["aliases"]]:
+            assert f'<a id="{anchor}"></a>' in row
+            assert f'<a id="{anchor}"></a>' in page
+        package_readme = Path(species["model"]["path"]).parent.parent / "README.md"
+        assert f"]({package_readme.as_posix()})" in row
+        assert (REPOSITORY_ROOT / package_readme).is_file()
+        assert f"](docs/SPECIES_CATALOG.md#{species['id']})" in row
+        assert f"](https://mesozoiclabs.com/docs/models/{species['id']})" in row
+        model_page = REPOSITORY_ROOT / "website" / "docs" / "models" / f"{species['id']}.mdx"
+        assert model_page.is_file()
+        model_source = model_page.read_text(encoding="utf-8")
+        assert "slug:" not in model_source.split("---", 2)[1]
+        assert "<SpeciesCatalog species={" in model_source
+    committed = DEFAULT_README_PATH.read_text(encoding="utf-8")
+    begin, end = "<!-- BEGIN GENERATED: SPECIES -->\n", "\n<!-- END GENERATED: SPECIES -->"
+    assert committed.split(begin, 1)[1].split(end, 1)[0] == rendered
+
+
+def _markdown_anchors(path: Path) -> set[str]:
+    """The fragments a Markdown file serves: its ``<a id>`` anchors and GitHub's heading slugs."""
+    anchors: set[str] = set()
+    slugs: dict[str, int] = {}
+    fenced = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        if fenced:
+            continue
+        anchors.update(re.findall(r'<a id="([^"]+)"', line))
+        heading = re.match(r"#{1,6} +(.+?) *$", line)
+        if heading:
+            slug = re.sub(r"[^\w\- ]", "", heading.group(1).replace("`", "").lower()).replace(" ", "-")
+            anchors.add(f"{slug}-{slugs[slug]}" if slug in slugs else slug)
+            slugs[slug] = slugs.get(slug, 0) + 1
+    return anchors
+
+
+def test_catalog_page_is_generated_whole_and_its_links_resolve() -> None:
+    """docs/SPECIES_CATALOG.md is exactly the generator's output, and its links resolve (cleanup CU-17).
+
+    Every relative link on the page, and every link into it from the root
+    README, the species READMEs and docs/, reaches a file and, where it names
+    one, an anchor or heading on it: the page's ``../README.md#species`` and
+    the docs' ``SPECIES_CATALOG.md#training-results`` among them.
+    """
+    page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
+    assert page == render_catalog_page(build_catalog())
+    link = re.compile(r"\]\(([^)\s]+)\)")
+    outbound = [(DEFAULT_CATALOG_PAGE_PATH, target) for target in link.findall(page)]
+    sources = [DEFAULT_README_PATH, *REPOSITORY_ROOT.glob("environments/*/README.md")]
+    inbound = [
+        (source, target)
+        for source in [*sources, *REPOSITORY_ROOT.glob("docs/*.md")]
+        for target in link.findall(source.read_text(encoding="utf-8"))
+        if "SPECIES_CATALOG.md" in target
+    ]
+    assert outbound and inbound
+    for source, target in outbound + inbound:
+        if target.startswith(("http://", "https://")):
+            continue
+        path, _, fragment = target.partition("#")
+        resolved = (source.parent / path).resolve() if path else source
+        assert resolved.exists(), f"{source.name}: {target}"
+        if fragment and resolved.suffix == ".md":
+            assert fragment in _markdown_anchors(resolved), f"{source.name}: {target}"
+
+
+def test_catalog_page_blocks_differ_from_the_root_renderings_only_in_their_links() -> None:
+    """The page's two blocks are the root-relative renderings with each link rewritten for docs/ (CU-17).
+
+    Every link the two renderers write is a repository path, none external: the
+    velociraptor's external model-card link was dropped (cleanup CU-17).
+    """
+    catalog = build_catalog()
+    link = re.compile(r"\]\(([^)\s]+)\)")
+    for render in (render_readme_species, render_readme_results):
+        root_relative = render(catalog)
+        targets = link.findall(root_relative)
+        assert targets
+        assert not [t for t in targets if t.startswith(("http://", "https://", "/", "../", "#"))]
+        rebased = link.sub(lambda m: f"]({posixpath.relpath(m.group(1), CATALOG_PAGE_DIR)})", root_relative)
+        assert render(catalog, page_dir=CATALOG_PAGE_DIR) == rebased
+
+
+def test_check_catalog_refuses_a_stale_or_missing_catalog_page(tmp_path: Path) -> None:
+    """A hand edit of a generated cell, or a missing page, fails ``--check`` (cleanup CU-17)."""
+    page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
+    assert "| Observation dimension | 70 |" in page
+    edited = tmp_path / "SPECIES_CATALOG.md"
+    edited.write_text(
+        page.replace("| Observation dimension | 70 |", "| Observation dimension | 71 |", 1), encoding="utf-8"
+    )
+    with pytest.raises(CatalogError, match="species catalog page is stale"):
+        check_catalog(catalog_page_path=edited)
+    with pytest.raises(CatalogError, match="species catalog page is missing"):
+        check_catalog(catalog_page_path=tmp_path / "absent.md")
+
+
+def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``main`` writes the JSON, the README blocks and the page to the paths given; ``--check`` reads the same.
+
+    A page path that is a directory, or whose directory does not exist, stops it before any output is
+    written (cleanup CU-17).
+    """
+    readme = tmp_path / "README.md"
+    committed_readme = DEFAULT_README_PATH.read_text(encoding="utf-8")
+    first_row = next(line for line in committed_readme.splitlines() if line.startswith("| <a id="))
+    stale_readme = committed_readme.replace(first_row, "| stale |", 1)
+    readme.write_text(stale_readme, encoding="utf-8")
+    output = tmp_path / "data" / "species.generated.json"
+    page = tmp_path / "SPECIES_CATALOG.md"
+    paths = ["--output", str(output), "--readme", str(readme), "--catalog-page", str(page)]
+    assert main(paths) == 0
+    catalog = build_catalog()
+    assert output.read_text(encoding="utf-8") == render_catalog_json(catalog)
+    assert readme.read_text(encoding="utf-8") == committed_readme
+    assert page.read_text(encoding="utf-8") == render_catalog_page(catalog)
+    assert main([*paths, "--check"]) == 0
+    capsys.readouterr()
+    edited = page.read_text(encoding="utf-8").replace(
+        "| Observation dimension | 70 |", "| Observation dimension | 71 |", 1
+    )
+    page.write_text(edited, encoding="utf-8")
+    with pytest.raises(SystemExit) as stale:
+        main([*paths, "--check"])
+    assert stale.value.code == 2 and "species catalog page is stale" in capsys.readouterr().err
+    page.write_text(render_catalog_page(catalog), encoding="utf-8")
+    readme.write_text(stale_readme, encoding="utf-8")
+    with pytest.raises(SystemExit) as stale_blocks:
+        main([*paths, "--check"])
+    assert stale_blocks.value.code == 2 and "README species data is stale" in capsys.readouterr().err
+    readme.write_text(committed_readme, encoding="utf-8")
+    with pytest.raises(SystemExit) as directory:
+        main([*paths[:-1], str(tmp_path), "--check"])
+    assert directory.value.code == 2 and "species catalog page is missing" in capsys.readouterr().err
+    output.unlink()
+    readme.write_text(stale_readme, encoding="utf-8")
+    with pytest.raises(SystemExit) as onto_directory:
+        main([*paths[:-1], str(tmp_path)])
+    assert onto_directory.value.code == 2 and "cannot write the species catalog page" in capsys.readouterr().err
+    assert not output.exists() and readme.read_text(encoding="utf-8") == stale_readme
+    with pytest.raises(SystemExit) as unwritable:
+        main([*paths[:-1], str(tmp_path / "absent" / "SPECIES_CATALOG.md")])
+    assert unwritable.value.code == 2 and "cannot write the species catalog page" in capsys.readouterr().err
+    assert not output.exists()
 
 
 def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1835,8 +2020,8 @@ def test_website_replication_formatter_mirrors_python() -> None:
     """formatReplication in SpeciesCatalog/index.tsx renders the same phrases as _format_replication.
 
     ``{count} run(s) of {N} seed(s)`` plus ``provisional`` (plan §4.5, D-B11) is
-    pinned on both sides so the README line and the site's Runs column cannot
-    drift; ``headlineFor`` carries the same count-of-N phrase into the landing
+    pinned on both sides so the catalog page's line and the site's Runs column
+    cannot drift; ``headlineFor`` carries the same count-of-N phrase into the landing
     headline of a provisional primary.  The gate-formatter pin above keeps its
     own anchors: this test reads only the replication formatters.
     """

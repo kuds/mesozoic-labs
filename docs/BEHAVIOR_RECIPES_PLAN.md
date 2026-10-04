@@ -1064,7 +1064,7 @@ A1–A10 above — which override the original wording where they conflict).
 | D-A7 | Reused nodes write no `curriculum_results.csv` row; `train_curriculum` stops (does not skip past) a node whose declared ancestor has no certified checkpoint; non-advancing nodes are still skipped by the CLI curriculum in Phase A. |
 | D-A8 | Catalog `schema_version` 3 → 4; `species_manifest.toml` `schema_version` 1 → 2. |
 | D-A9 | Stance and recovery deliverable headlines render the metric name with a null value in Phase A; exporting per-stage gate metrics into the summary is Phase B (deferred to a later phase by D-B15; the hunt's `selected_model_success_lcb` is the exception). |
-| D-A10 | The README's generated SPECIES table gains Recipe and Warm-start-from columns; the generated RESULTS block and the website's published run summaries stay byte-identical (golden regression). |
+| D-A10 | The README's generated SPECIES table gains Recipe and Warm-start-from columns; the generated RESULTS block and the website's published run summaries stay byte-identical (golden regression). **Amended 2026-10-04 (cleanup CU-17; the maintainer's choice of 2026-10-04):** the full SPECIES table, with these Recipe and Warm-start-from columns, and the RESULTS block move from the root README to the generated `docs/SPECIES_CATALOG.md`, which `species_catalog` writes whole and `--check` verifies; their links there are relative to `docs/`. The golden regression pins the RESULTS rendering byte for byte, and the committed RESULTS block on that page byte for byte apart from its four source-summary links, which read `../results/`. The root README's SPECIES block is one generated row per species that keeps every species anchor and links the species' catalog entry, its README and its model page; the website's published run summaries are unchanged. |
 | D-A11 | The notebook's `BEHAVIOR` defaults to `"hunt"`; the recovery gate is enforced by the chain under `BEHAVIOR="stand"`; the manual single-node cell never swallows a `ResultBundleError` silently. |
 | D-A12 | Species-free readers (`detect_stage_from_path`, the sweep collector) stay reserved-id only; species-aware readers accept any declared id. Amended by D-D17: the sweep collector is retired (cleanup PR-A); `detect_stage_from_path` is the remaining species-free reader. |
 | D-A13 | The website `RawStage` / index-page defect fix ships inside the catalog workstream. |
@@ -1124,14 +1124,12 @@ lifted), and nothing in §6 or §6.1 is renumbered.
 The sequence of consolidation PRs each row unblocks — fifteen in all, with
 sizes, per-PR file lists and acceptance tests — is
 `docs/CONSOLIDATION_PLAN_2026_09.md` (§3 the sequence, §6 and §7 the same
-decisions with the questions they answered). Of that sequence PR-1 (#542)
-and the auto-trunk PR (#543) landed 2026-09-16, PR-2 (#544) is the
-2026-09-19 documentation pass that records these rows, and **PR-3..PR-15
-were released on 2026-09-20 in the notebook-first order of D-D13** (PR-3,
-bounding the SB3 CI job, landed first as #546, and PR-4..PR-6 as
-#547..#549 the same day; the maintainer paused the sequence after PR-6
-and lifted the pause on 2026-09-23; the notebook-only PR-12 slice
-landed as #552 and PR-14 (split into PR-14a, PR-14b and PR-14c by D-D15) as #553, #554 and #555 on 2026-09-24; PR-7 (the ground-height hook, `TRexBehaviorEnv` deleted) as #556 on 2026-09-25; PR-8 next, once the deferred cleanup, which the maintainer put first on 2026-10-02, has landed). Training runs in parallel
+decisions with the questions they answered). Which PRs of that sequence have
+landed is in its status table (the one-landing-record rule, `docs/README.md`
+Conventions); PR-2 is the 2026-09-19 documentation pass that records these
+rows, **PR-3..PR-15 were released on 2026-09-20 in the notebook-first order of
+D-D13**, and PR-8 follows the deferred cleanup, which the maintainer put first
+on 2026-10-02. Training runs in parallel
 (G3): the walker sessions in `docs/NEXT_STEPS.md` use the current notebook.
 D-D11 and D-D12 were recommended on 2026-09-17 and confirmed by the
 maintainer on 2026-09-20, when the hold lifted (D-D13) and the widen path's

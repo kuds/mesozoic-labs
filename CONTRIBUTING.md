@@ -3,6 +3,29 @@
 Thanks for your interest in contributing! This document covers the development
 workflow, code standards, and how to submit changes.
 
+## Repository Layout
+
+```
+mesozoic-labs/
+├── environments/
+│   ├── <species>/        # one package per species; compsognathus holds the anatomical and the robot model
+│   │   ├── assets/       # MuJoCo MJCF models
+│   │   ├── envs/         # Gymnasium environments
+│   │   ├── scripts/      # train_sb3.py, view_model.py and species tools
+│   │   ├── tests/
+│   │   └── README.md
+│   └── shared/           # base environment, training CLI, stage manifests, curriculum and gates,
+│                         # plant contract, result bundles, species catalog generator, harnesses
+│                         # and the shared tests
+├── configs/              # species_manifest.toml, the plant-contract, certification and digest
+│                         # files, and a directory per species with its stages.toml and stage TOMLs
+├── notebooks/            # the training and Drive summary notebooks
+├── results/              # curated run summaries and GIFs (see results/README.md)
+├── docs/                 # plans, records, living reference and the generated species catalog
+│                         # (map: docs/README.md)
+└── website/              # the documentation site (Docusaurus)
+```
+
 ## Development Setup
 
 ```bash
@@ -82,6 +105,16 @@ pytest environments/velociraptor/tests/ -v
 
 # Run with coverage
 pytest --cov=environments --cov-report=term-missing
+```
+
+After changing a model, a stage config, a manifest entry, a notebook path, a
+video or a result summary, regenerate the generated public data (the root
+README's species and notebook tables, `docs/SPECIES_CATALOG.md` and
+`website/src/data/species.generated.json`) and verify it, as CI does:
+
+```bash
+python -m environments.shared.species_catalog
+python -m environments.shared.species_catalog --check
 ```
 
 All tests must pass before submitting a PR. We target 70%+ code coverage;
@@ -179,7 +212,8 @@ Follow this checklist:
    - Declare success semantics for `stable-baselines3`
    - Declare only existing, provenance-labelled result summaries or stage videos
    - Run `python -m environments.shared.species_catalog` to regenerate the
-     README blocks and `website/src/data/species.generated.json`
+     README blocks, `docs/SPECIES_CATALOG.md` and
+     `website/src/data/species.generated.json`
    - Run `python -m environments.shared.species_catalog --check` to verify that
      generated data and declared artifacts are current
    - Add the species to `REWARD_SPECIES` in

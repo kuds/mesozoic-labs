@@ -118,6 +118,10 @@ before any trunk stands in for it (unless the run already holds it as an `ancest
 notebook's RESUME cell walks a node's periodic checkpoints through the library and no longer evaluates the node it
 trains, which the chain loop's JUDGE branch evaluates from disk before anything certifies it, and the archive-load
 preflight is one library call; CU-17, the last of the deferred PRs, is next.*
+*Updated 2026-10-04 (cleanup CU-17): from CU-17 on, the cleanup's and the consolidation's landings are recorded
+only in the consolidation plan's status table and the CHANGELOG (the one-landing-record rule,
+[README.md](README.md#conventions)), so this section takes no further landing notes; the order is the cleanup
+plan's §3.1 item 5, then consolidation PR-8, with the code PRs placed as §6 says.*
 
 ## 2. Decisions needed
 
@@ -478,8 +482,9 @@ contact criteria; `ROADMAP.md:132` claimed a phase-difference metric the code do
 `<plain label>`" (for example "two-footed hop, not a walk"), keeping its certification facts untouched; §3 records
 session 4's re-run and its reuse discrepancy and says that this plan recommends holding session 5 (GQ-3, open), not
 that it is held; rows for the re-panels, pilots and retrains come with the decisions that schedule them; §7 adds the
-risk of a gate without reward changes. `README.md:485` notes that the walker was certified on forward speed, reward
-and episode length with no foot-contact check, and that the audit found it a two-footed hop. CHANGELOG `[Unreleased]`:
+risk of a gate without reward changes. The root README's roadmap line noted that the walker was certified on forward
+speed, reward and episode length with no foot-contact check, and that the audit found it a two-footed hop (cleanup
+CU-17 removed that line; ROADMAP's current focus and NEXT_STEPS §2 carry the finding). CHANGELOG `[Unreleased]`:
 PR-G0 under Added; each revision under Changed, naming the digest lines it moves. Decision rows D-D23 onward (D-D22 went to the cleanup plan's decision 16 on 2026-09-29), append-only, in both plans.
 
 ## 8. Risks

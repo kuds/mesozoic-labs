@@ -601,8 +601,9 @@ read):
 
 The species catalog (schema 4) and `configs/species_manifest.toml` (schema 2)
 follow: stage rows carry `deliverable`, `warm_start_from` and `recipe`; the
-README SPECIES table shows Recipe and Warm-start-from columns (a generated
-block, never hand-edited); result rows list one entry per deliverable
+generated species catalog page (`docs/SPECIES_CATALOG.md`) and each model
+page's stage table show Recipe and Warm-start-from columns (generated,
+never hand-edited); result rows list one entry per deliverable
 headlined by its gate kind, with stance and recovery headline values
 rendered as null until a later phase exports per-stage gate metrics
 (decision D-B15); and stage

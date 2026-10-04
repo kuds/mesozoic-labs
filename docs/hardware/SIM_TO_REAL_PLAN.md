@@ -229,7 +229,7 @@ idealized plant and would not survive transfer.**
 
 The authors are explicit and consistent: sim-to-real is Phase 6, `not_started`,
 blocked on Phases 2–5; the models are "research abstractions rather than
-validated reconstructions" (`README.md:12`); and DR + sensor noise (the two
+validated reconstructions" (`README.md:14-15`); and DR + sensor noise (the two
 prerequisites the authors themselves name for the HAL) are unchecked Phase 2
 items. This plan agrees with that posture and sequences the work accordingly.
 

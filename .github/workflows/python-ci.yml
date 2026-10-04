@@ -8,6 +8,11 @@ on:
     # so a pattern added here triggers both (test_ci_tool_pins.py, CU-14a).
     paths: &ci-paths
       - "README.md"
+      # test_landing_records.py scans these two with the root README, the
+      # species READMEs and docs/**, so a PR editing only one of them must run
+      # it (cleanup CU-17).
+      - "CONTRIBUTING.md"
+      - "results/README.md"
       - "environments/**"
       - "configs/**"
       # docs/** rather than docs/*.md: the investigations/reviews/hardware
