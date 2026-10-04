@@ -2310,7 +2310,11 @@ def train_curriculum(
 
     Every trained node writes ``gate_verdict.json`` from the manager's
     in-training verdict (``judged_by`` names it), which is what lets a CLI
-    run serve as a later run's trunk.
+    run serve as a later run's trunk; a ``locomotion_gait/v2`` node's
+    verdict instead comes from a fresh certification panel of its selected
+    handoff (``GAIT_HANDOFF_JUDGED_BY``), and every gait-gated node of the
+    chain has its declared protocol digest and panel seeds checked before
+    anything is trained (``gait.preflight.check_gait_stages``).
 
     A trained node runs :func:`train`'s stage body, :func:`_train_stage_body`
     (cleanup CU-10b), with ``CurriculumCallback`` between the entropy decay
@@ -2368,6 +2372,16 @@ def train_curriculum(
                 "retrain_from %r has nothing to cover without trunk_from: every node is trained in this run.",
                 retrain_entry.id,
             )
+
+    # A gait-gated node's declared protocol digest, and its certification
+    # panel's overlap with this run's training, selection and replay seeds,
+    # are checked before anything is trained or written: the panel writer
+    # would refuse either only after the whole budget.
+    from .gait.preflight import check_gait_stages
+
+    check_gait_stages(
+        species_cfg, stage_configs, [entry.reference for entry in chain], training_seed=seed, n_envs=n_envs
+    )
 
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))

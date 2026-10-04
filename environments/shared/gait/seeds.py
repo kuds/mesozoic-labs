@@ -32,6 +32,47 @@ def _read_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def stage_replay_seeds(training_seed: int, stage: int | str, *, species: str | None = None) -> list[int]:
+    """Seeds of the stage replay videos a developer watches (``evaluation.replay_seed``).
+
+    ``generate_stage_artifacts`` rolls them at ``replay_seed(run.seed, stage)``
+    for whichever spelling of the stage its caller passed, so every spelling
+    the species' manifest gives the stage (legacy number and id) is excluded.
+    """
+    from ..evaluation import replay_seed
+    from ..stage_manifest import StageManifestError, load_stage_manifest
+
+    spellings: set[int | str] = {stage}
+    if species is not None:
+        try:
+            entry = load_stage_manifest(species).resolve(stage)
+        except (StageManifestError, OSError, ValueError):
+            pass
+        else:
+            spellings |= {entry.reference, entry.id}
+    return sorted({replay_seed(training_seed, spelling) for spelling in spellings})
+
+
+def refuse_known_seed_overlaps(
+    seed_start: int, episodes: int, *, training_seed: int, training_envs: int, stage: int | str, species: str | None
+) -> list[int]:
+    """Refuse a panel that intersects the run's own training, selection or replay seeds.
+
+    Shared by the certification-time binding below and the pre-training
+    check, so a seed choice that overlaps the panel is refused before a
+    training budget is spent. Returns the stage's replay seeds.
+    """
+    panel_stop = seed_start + episodes
+    if max(seed_start, training_seed) < min(panel_stop, training_seed + training_envs):
+        raise ValueError("gait certification panel overlaps the recorded training environment seed range")
+    if seed_start <= training_seed + 1000 < panel_stop:
+        raise ValueError("gait certification panel overlaps the checkpoint-selection environment seed")
+    replay_seeds = stage_replay_seeds(training_seed, stage, species=species)
+    if any(seed_start <= seed < panel_stop for seed in replay_seeds):
+        raise ValueError("gait certification panel overlaps the stage replay video seed")
+    return replay_seeds
+
+
 def _checkpoint_seed_fields(model: Path) -> tuple[int, int]:
     """Read only scalar JSON metadata, without executing serialized members."""
     try:
