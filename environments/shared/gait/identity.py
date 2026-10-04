@@ -12,6 +12,7 @@ from .types import GaitProtocol
 _SOURCES = (
     "gait/types.py",
     "gait/events.py",
+    "gait/labels.py",
     "gait/metrics.py",
     "gait/morphology.py",
     "gait/recorder.py",
@@ -58,7 +59,7 @@ def measurement_protocol(
     import mujoco
 
     return {
-        "schema": "mesozoic.gait-protocol/v1",
+        "schema": "mesozoic.gait-protocol/v2",
         "detector": protocol.to_dict(),
         "foot_registry_version": FOOT_REGISTRY_VERSION,
         "foot_names": list(FOOT_GEOMETRIES[species]),
@@ -70,6 +71,8 @@ def measurement_protocol(
             "control_dt_s": control_dt_s,
             "contact_timing": "initial reset sample plus latest solved contacts after each mj_step",
             "slip": "normal-force-weighted RMS relative tangential contact-point speed",
+            "skid": "per-limb stance slip distance over trunk travel during the same stances",
+            "phase": "continuous touchdown-to-touchdown limb phase; pair statistics are circular means",
             "clearance": "minimum signed registered-foot to declared-terrain geometry distance",
             "body_support_fraction": "non-foot ground impulse divided by total animal ground impulse",
         },

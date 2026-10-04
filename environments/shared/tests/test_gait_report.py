@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from environments.shared.constants import PUBLICATION_SEED_START
-from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
+from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND, provisional_gait_criteria
 from environments.shared.gait import report as producer
 from environments.shared.gait.identity import measurement_protocol, protocol_sha256
 from environments.shared.gait.types import GaitProtocol
@@ -91,6 +91,7 @@ def _strict_config(config, **updates):
     finally:
         env.close()
     value["curriculum_kwargs"] = {
+        **provisional_gait_criteria("biped_alternating"),
         "gate_kind": GAIT_GATE_KIND,
         "gate_schema_version": 1,
         "gait_profile": "biped_alternating",
@@ -100,13 +101,6 @@ def _strict_config(config, **updates):
         "min_gait_success_lcb": 0.8,
         "min_episode_forward_vel": 0.1,
         "min_episode_duration_s": 0.03,
-        "min_complete_cycles_per_foot": 3,
-        "min_phase_match_fraction": 0.8,
-        "max_simultaneous_fraction": 0.2,
-        "max_flight_fraction": 1.0,
-        "max_flight_s": 0.5,
-        "max_slip_distance_over_leg": 0.1,
-        "max_body_support_fraction": 0.01,
         **updates,
     }
     return value
@@ -429,6 +423,9 @@ def test_strict_saved_pair_with_current_protocol_completes_evidence_but_fails_ga
     assert report["statistics"]["success_count"] == 0
     assert report["threshold_status"] == "explicit declared gate criteria"
     assert report["episode_failure_counts"]
+    # Failures aggregate on stable rail ids, never on per-episode value text.
+    assert all("/" in rail and ":" not in rail for rail in report["episode_failure_counts"])
+    assert len(report["episode_labels"]) == 2
 
 
 def _cli_summary():
@@ -437,7 +434,7 @@ def _cli_summary():
         "certified": False,
         "statistics": {"n_episodes": 2, "success_count": 0},
         "measurement_protocol_sha256": "sha256:" + "a" * 64,
-        "episode_failure_counts": {"complete cycles": 2},
+        "episode_failure_counts": {"participation/complete_cycles_min": 2},
     }
 
 
@@ -445,7 +442,7 @@ def test_cli_loads_raw_task_json_and_protocol_options_and_forwards_explicit_argu
     env_json, protocol_json = tmp_path / "task.json", tmp_path / "protocol.json"
     task = {"max_episode_steps": 3, "reset_noise_scale": 0.01, "alive_bonus": 2.0}
     env_json.write_text(json.dumps(task))
-    protocol_json.write_text(json.dumps({"contact_on_bw": 0.03, "min_stance_s": 0.025}))
+    protocol_json.write_text(json.dumps({"contact_force_bw_per_limb": 0.03, "chatter_fill_s": 0.012}))
     recorded = {}
 
     def writer(species, config, model, norm, output, **options):
@@ -488,7 +485,7 @@ def test_cli_loads_raw_task_json_and_protocol_options_and_forwards_explicit_argu
     assert recorded["episodes"] == 2 and recorded["seed"] == 17
     assert recorded["settle_s"] == 0.25 and recorded["direction_xy"] == (3.0, 4.0)
     assert recorded["allow_legacy_plant"] is True
-    assert recorded["protocol"] == GaitProtocol(contact_on_bw=0.03, min_stance_s=0.025)
+    assert recorded["protocol"] == GaitProtocol(contact_force_bw_per_limb=0.03, chatter_fill_s=0.012)
     output = capsys.readouterr()
     assert not output.err
     assert json.loads(output.out) == {

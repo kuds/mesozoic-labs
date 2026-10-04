@@ -761,20 +761,21 @@ def gait_statistics(stage_dir: str | Path, curriculum: Mapping[str, Any]) -> tup
     thresholds. Old checkpoints, tasks, protocols, and duplicated seeds refuse.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
-    from environments.shared.curriculum.gait_gate import GaitGateThresholds, evaluate_gait_gate
+    from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND, GaitGateThresholds, evaluate_gait_gate
     from environments.shared.curriculum.gate_schema import validate_gate_config
     from environments.shared.gait.identity import validate_measurement_protocol_identity
+    from environments.shared.gait.report import REPORT_SCHEMA
     from environments.shared.gait.seeds import checkpoint_seed_provenance
     from environments.shared.result_bundle.hashing import canonical_json_sha256, sha256_file
     from environments.shared.task_fingerprint import read_checkpoint_task_fingerprint
 
     root = Path(stage_dir)
     try:
-        if validate_gate_config("gait-panel", curriculum) != "locomotion_gait/v1":
-            return None, ["gait evidence can certify only an explicit locomotion_gait/v1 gate"]
+        if validate_gate_config("gait-panel", curriculum) != GAIT_GATE_KIND:
+            return None, [f"gait evidence can certify only an explicit {GAIT_GATE_KIND} gate"]
         thresholds = GaitGateThresholds.from_curriculum(curriculum)
         report = read_json_object(root / "gait_report.json")
-        if report is None or report.get("schema") != "mesozoic.gait-report/v1":
+        if report is None or report.get("schema") != REPORT_SCHEMA:
             return None, ["missing or unsupported gait_report.json"]
         if (
             report.get("status") != "complete"
@@ -864,8 +865,10 @@ def gait_statistics(stage_dir: str | Path, curriculum: Mapping[str, Any]) -> tup
 def _gait_stage_gate(
     curriculum: Mapping[str, Any], *, stage: int | str, stage_dir: str | Path | None
 ) -> tuple[bool, list[str]]:
+    from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
+
     if stage_dir is None:
-        return False, [f"stage {stage} locomotion_gait/v1 requires its selected-handoff gait panel and stage_dir"]
+        return False, [f"stage {stage} {GAIT_GATE_KIND} requires its selected-handoff gait panel and stage_dir"]
     stats, failures = gait_statistics(stage_dir, curriculum)
     if stats is None:
         return False, [f"stage {stage} gait evidence: {failure}" for failure in failures]

@@ -20,7 +20,10 @@ from environments.shared.curriculum.gait_gate import (
     GAIT_GATE_KIND,
     GaitGateThresholds,
     classify_gait_episode,
+    describe_gait_episode,
     evaluate_gait_gate,
+    provisional_gait_criteria,
+    rail_id,
 )
 from environments.shared.curriculum.gate_schema import (
     GateSchemaError,
@@ -31,6 +34,7 @@ from environments.shared.curriculum.gate_schema import (
 )
 from environments.shared.gait.identity import measurement_protocol
 from environments.shared.gait.metrics import episode_gait_metrics
+from environments.shared.gait.report import REPORT_SCHEMA
 from environments.shared.gait.seeds import checkpoint_seed_provenance
 from environments.shared.gait.types import GaitProtocol
 from environments.shared.plant_contract import current_plant_identity
@@ -38,7 +42,7 @@ from environments.shared.reporting.gates import evaluate_recorded_gate, evaluate
 from environments.shared.result_bundle.hashing import canonical_json_sha256, sha256_file
 from environments.shared.task_fingerprint import stage_task_fingerprint
 
-from .test_gait_metrics import BW, stepping_trace
+from .test_gait_metrics import BW, gait_trace, stepping_trace
 
 TASK_RECORD = stage_task_fingerprint("trex", 2, env_kwargs={})
 TASK = TASK_RECORD["task_sha256"]
@@ -72,56 +76,57 @@ def protocol():
     )
 
 
-def curriculum(**updates):
+def curriculum(profile="biped_alternating", **updates):
     return dict(
         {
+            **provisional_gait_criteria(profile),
             "gate_kind": GAIT_GATE_KIND,
             "gate_schema_version": 1,
-            "gait_profile": "biped_alternating",
+            "gait_profile": profile,
             "measurement_protocol_sha256": canonical_json_sha256(protocol()),
             "min_eval_episodes": 40,
             "gait_panel_seed_start": PUBLICATION_SEED_START,
             "min_gait_success_lcb": 0.8,
             "min_episode_forward_vel": 0.5,
             "min_episode_duration_s": 9.0,
-            "min_complete_cycles_per_foot": 3,
-            "min_phase_match_fraction": 0.75,
-            "max_simultaneous_fraction": 0.15,
-            "max_flight_fraction": 0.05,
-            "max_flight_s": 0.1,
-            "max_slip_distance_over_leg": 0.05,
-            "max_body_support_fraction": 0.01,
         },
         **updates,
     )
 
 
-def episode(seed=0, feet=("r", "l"), **updates):
-    return dict(
-        {
-            "seed": seed,
-            "telemetry_valid": True,
-            "completed_horizon": True,
-            "reward": 1000.0,
-            "duration_s": 10.0,
-            "mean_speed_mps": 1.0,
-            "flight_fraction": 0.01,
-            "max_flight_s": 0.02,
-            "max_slip_distance_over_leg": 0.01,
-            "body_support_fraction": 0.0,
-            "foot_foot_contact_fraction": 0.0,
-            "per_foot": {name: {"complete_cycles": 8, "valid_cycles": 8} for name in feet},
-            "pair_phase": {
-                f"{a}|{b}": {
-                    "samples": 8,
-                    "alternation_match_fraction": 1.0,
-                    "simultaneous_touchdown_fraction": 0.0,
-                }
-                for a, b in zip(feet[::2], feet[1::2], strict=True)
-            },
-        },
-        **updates,
+@lru_cache(maxsize=None)
+def _measured(kind):
+    """Stored (JSON round-tripped) metrics of a clean synthetic gait, 10 s at 2 ms, 1 s settle."""
+    feet = ("r", "l") if kind == "biped" else ("fr", "fl", "rr", "rl")
+    phases = {
+        "biped": (0.0, 0.5),
+        "walk": (0.25, 0.75, 0.0, 0.5),
+        "trot": (0.0, 0.5, 0.5, 0.0),
+        "pace": (0.0, 0.5, 0.0, 0.5),
+    }[kind]
+    trace = gait_trace(phases, duty=0.6 if kind == "biped" else 0.7, period=0.8 if kind == "biped" else 1.0)
+    measured = episode_gait_metrics(
+        trace, body_weight_n=BW, leg_length_m=1.0, foot_names=feet, protocol=GaitProtocol(), settle_s=1.0
     )
+    return json.dumps(measured)
+
+
+def episode(seed=0, kind="biped", **updates):
+    record = json.loads(_measured(kind))
+    record.update({"seed": seed, "completed_horizon": True, "reward": 1000.0})
+    record.update(updates)
+    return record
+
+
+def _with(record, path, value):
+    """Copy of an episode with one nested metric replaced (path like 'templates.biped_alternating.x')."""
+    result = copy.deepcopy(record)
+    target = result
+    keys = path.split(".")
+    for key in keys[:-1]:
+        target = target[key]
+    target[keys[-1]] = value
+    return result
 
 
 @pytest.mark.parametrize(
@@ -133,9 +138,13 @@ def episode(seed=0, feet=("r", "l"), **updates):
         ("min_episode_duration_s", 0),
         ("min_gait_success_lcb", 0),
         ("min_episode_forward_vel", "0.5"),
-        ("max_flight_s", float("nan")),
+        ("max_flight_fraction", float("nan")),
         ("max_flight_fraction", -0.1),
         ("max_flight_fraction", 1.1),
+        ("min_template_coverage", 1.5),
+        ("max_alternation_phase_offset", 0.6),
+        ("min_complete_cycles_per_foot", 2.5),
+        ("max_off_template_run_fraction_ceiling", 0.05),
         ("gait_profile", "automatic"),
         ("measurement_protocol_sha256", "old-version"),
         ("required_consecutive", 0),
@@ -156,6 +165,26 @@ def test_missing_measurement_and_gait_criteria_never_default():
         GaitGateThresholds.from_curriculum(block)
     with pytest.raises(GateSchemaError, match="missing required"):
         validate_gate_config(2, block)
+    for key in ("max_foot_foot_contact_fraction", "min_lead_exchange_fraction", "max_wrong_locked_fraction"):
+        block = curriculum()
+        del block[key]
+        with pytest.raises(ValueError, match=key):
+            GaitGateThresholds.from_curriculum(block)
+
+
+def test_profile_specific_criteria_are_required_and_foreign_ones_refused():
+    walk = curriculum("quadruped_walk")
+    del walk["min_walk_limb_phase"]
+    with pytest.raises(ValueError, match="min_walk_limb_phase"):
+        GaitGateThresholds.from_curriculum(walk)
+    with pytest.raises(ValueError, match="does not consume"):
+        GaitGateThresholds.from_curriculum(curriculum(max_synchrony_phase_offset=0.125))
+    with pytest.raises(ValueError, match="does not consume"):
+        GaitGateThresholds.from_curriculum(curriculum("quadruped_trot", min_walk_limb_phase=0.125))
+    with pytest.raises(ValueError, match="below"):
+        GaitGateThresholds.from_curriculum(curriculum("quadruped_walk", min_walk_limb_phase=0.4))
+    for profile in ("biped_alternating", "quadruped_walk", "quadruped_trot", "quadruped_pace"):
+        assert GaitGateThresholds.from_curriculum(curriculum(profile)).gait_profile == profile
 
 
 def test_arbitrary_seeds_are_development_only_and_strict_config_uses_registered_block():
@@ -165,57 +194,94 @@ def test_arbitrary_seeds_are_development_only_and_strict_config_uses_registered_
         validate_gate_config(2, development)
 
 
+def test_clean_measured_gaits_qualify_and_reasons_carry_stable_rail_ids():
+    thresholds = GaitGateThresholds.from_curriculum(curriculum())
+    passed, failures = classify_gait_episode(episode(), thresholds, foot_names=("r", "l"))
+    assert passed, failures
+    hop = _with(episode(), "templates.biped_alternating.alternation_phase_offset_max", 0.48)
+    passed, failures = classify_gait_episode(hop, thresholds, foot_names=("r", "l"))
+    assert not passed
+    assert [rail_id(reason) for reason in failures] == ["coupling/alternation_phase_offset_max"]
+    assert failures[0].endswith("> 0.09")
+    assert describe_gait_episode(hop, failures) == episode()["gait_label"] + "; asymmetric pair timing"
+
+
 @pytest.mark.parametrize(
-    "updates",
+    ("path", "value", "rail"),
     [
-        {"telemetry_valid": False},
-        {"completed_horizon": False},
-        {"mean_speed_mps": float("nan")},
-        {"mean_speed_mps": 0.1},
-        {"duration_s": 8.0},
-        {"max_slip_distance_over_leg": 0.2},
-        {"flight_fraction": 0.4},
-        {"flight_fraction": -1.0},
-        {"max_flight_s": 0.2},
-        {"body_support_fraction": 0.1},
-        {"per_foot": {"r": {"complete_cycles": 8, "valid_cycles": 8}}},
-        {"pair_phase": {}},
-        {"pair_phase": {"r|l": {"samples": 0, "alternation_match_fraction": 1.0}}},
-        {
-            "pair_phase": {
-                "r|l": {"samples": 8, "alternation_match_fraction": 0.0, "simultaneous_touchdown_fraction": 1.0}
-            }
-        },
+        ("telemetry_valid", False, "episode/telemetry_valid"),
+        ("completed_horizon", False, "episode/completed_horizon"),
+        ("mean_speed_mps", float("nan"), "episode/mean_speed_mps"),
+        ("mean_speed_mps", 0.1, "episode/mean_speed_mps"),
+        ("duration_s", 8.0, "episode/duration_s"),
+        ("skid_fraction_max", 0.8, "support/skid_fraction_max"),
+        ("flight_fraction", 0.7, "support/flight_fraction"),
+        ("flight_fraction", -1.0, "support/flight_fraction"),
+        ("body_support_fraction", 0.02, "support/body_support_fraction"),
+        ("foot_foot_contact_fraction", 0.5, "support/foot_foot_contact_fraction"),
+        ("limb_duty_min", 0.05, "participation/limb_duty_min"),
+        ("relative_limb_load_share_min", 0.06, "participation/relative_limb_load_share_min"),
+        ("limb_phase_coverage_min", 0.4, "participation/limb_phase_coverage_min"),
+        ("valid_swing_fraction_min", 0.2, "stepping/valid_swing_fraction_min"),
+        ("median_swing_clearance_over_leg_min", 0.012, "stepping/median_swing_clearance_over_leg_min"),
+        ("lead_exchange_fraction_min", 0.0, "stepping/lead_exchange_fraction_min"),
+        ("templates", {}, "persistence/template"),
+        ("templates.biped_alternating.phase_locking_min", 0.3, "coupling/phase_locking_min"),
+        ("templates.biped_alternating.alternating_overlap_index_max", 0.9, "coupling/alternating_overlap_index_max"),
+        ("templates.biped_alternating.template_coverage", 0.5, "persistence/template_coverage"),
+        ("templates.biped_alternating.min_segment_coverage", 0.2, "persistence/min_segment_coverage"),
+        ("templates.biped_alternating.wrong_locked_fraction", 0.3, "persistence/wrong_locked_fraction"),
+        ("templates.biped_alternating.longest_off_template_fraction", 0.3, "persistence/longest_off_template"),
     ],
 )
-def test_hops_slides_falls_and_unmeasured_episodes_fail(updates):
+def test_hops_slides_falls_and_unmeasured_episodes_fail_on_their_rail(path, value, rail):
     thresholds = GaitGateThresholds.from_curriculum(curriculum())
-    passed, failures = classify_gait_episode(episode(**updates), thresholds, foot_names=("r", "l"))
+    passed, failures = classify_gait_episode(_with(episode(), path, value), thresholds, foot_names=("r", "l"))
     assert not passed
-    assert failures
+    assert rail in [rail_id(reason) for reason in failures]
 
 
-def test_complete_cycles_and_optional_foot_contact_are_joint_requirements():
-    thresholds = GaitGateThresholds.from_curriculum(curriculum(max_foot_foot_contact_fraction=0.01))
+def test_duration_floor_tolerates_float_accumulation_but_not_a_short_episode():
+    thresholds = GaitGateThresholds.from_curriculum(curriculum(min_episode_duration_s=19.0))
+    accumulated = episode(duration_s=18.999999999999794, max_sample_interval_s=0.002)
+    assert classify_gait_episode(accumulated, thresholds, foot_names=("r", "l"))[0]
+    frame_skip = episode(duration_s=18.99, max_sample_interval_s=0.01)
+    assert classify_gait_episode(frame_skip, thresholds, foot_names=("r", "l"))[0]
+    short = episode(duration_s=18.9, max_sample_interval_s=0.01)
+    assert not classify_gait_episode(short, thresholds, foot_names=("r", "l"))[0]
+
+
+def test_long_stride_persistence_allows_a_few_strides_but_never_beyond_the_ceiling():
+    thresholds = GaitGateThresholds.from_curriculum(curriculum())
+    base = episode()
+    two_strides = _with(base, "templates.biped_alternating.longest_off_template_fraction", 0.13)
+    two_strides["templates"]["biped_alternating"]["longest_off_template_strides"] = 1.5
+    assert classify_gait_episode(two_strides, thresholds, foot_names=("r", "l"))[0]
+    many = _with(two_strides, "templates.biped_alternating.longest_off_template_strides", 12.0)
+    assert not classify_gait_episode(many, thresholds, foot_names=("r", "l"))[0]
+    ceiling = _with(two_strides, "templates.biped_alternating.longest_off_template_fraction", 0.16)
+    assert not classify_gait_episode(ceiling, thresholds, foot_names=("r", "l"))[0]
+
+
+def test_optional_step_length_rail_and_foot_registry():
+    thresholds = GaitGateThresholds.from_curriculum(curriculum(min_step_length_over_leg=0.05))
     assert classify_gait_episode(episode(), thresholds, foot_names=("r", "l"))[0]
-    assert not classify_gait_episode(episode(foot_foot_contact_fraction=0.02), thresholds, foot_names=("r", "l"))[0]
+    behind = episode(step_length_over_leg_min=-0.08)
+    assert not classify_gait_episode(behind, thresholds, foot_names=("r", "l"))[0]
+    assert classify_gait_episode(behind, GaitGateThresholds.from_curriculum(curriculum()), foot_names=("r", "l"))[0]
     assert not classify_gait_episode(episode(), thresholds, foot_names=("r", "r"))[0]
 
 
-@pytest.mark.parametrize(
-    ("profile", "metric"),
-    [
-        ("quadruped_walk", "four_beat_fraction"),
-        ("quadruped_trot", "diagonal_phase_match_fraction"),
-        ("quadruped_pace", "ipsilateral_phase_match_fraction"),
-    ],
-)
-def test_quadruped_profiles_have_distinct_contact_timing(profile, metric):
+@pytest.mark.parametrize("kind", ["walk", "trot", "pace"])
+def test_quadruped_profiles_are_mutually_exclusive(kind):
     feet = ("fr", "fl", "rr", "rl")
-    thresholds = GaitGateThresholds.from_curriculum(curriculum(gait_profile=profile))
-    assert not classify_gait_episode(episode(feet=feet), thresholds, foot_names=feet)[0]
-    assert classify_gait_episode(episode(feet=feet, **{metric: 1.0}), thresholds, foot_names=feet)[0]
-    assert not classify_gait_episode(episode(feet=feet, **{metric: 0.2}), thresholds, foot_names=feet)[0]
+    verdicts = {
+        profile: classify_gait_episode(
+            episode(kind=kind), GaitGateThresholds.from_curriculum(curriculum(profile)), foot_names=feet
+        )[0]
+        for profile in ("quadruped_walk", "quadruped_trot", "quadruped_pace")
+    }
+    assert verdicts == {profile: profile == f"quadruped_{kind}" for profile in verdicts}
 
 
 def test_panel_joint_success_uses_exact_bound_and_cannot_pool_speed_and_survival():
@@ -325,7 +391,7 @@ def _panel(root: Path, *, episodes=None):
         writer.writeheader()
         writer.writerows({**digests, "metrics_json": json.dumps(row)} for row in rows)
     report = {
-        "schema": "mesozoic.gait-report/v1",
+        "schema": REPORT_SCHEMA,
         "species": "trex",
         "stage": 2,
         "plant_identity": current_plant_identity("trex").to_dict(),

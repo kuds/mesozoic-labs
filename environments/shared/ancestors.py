@@ -586,7 +586,9 @@ def _find_certified_ancestor(
     # A physical gait verdict also needs reproducible contact evidence under
     # this build's detector/registry. A bare historical boolean cannot admit
     # an ancestor after its measurement implementation has changed.
-    if current_view["gate_kind"] == "locomotion_gait/v1":
+    from .curriculum.gait_gate import GAIT_GATE_KIND
+
+    if current_view["gate_kind"] == GAIT_GATE_KIND:
         from .reporting.gates import gait_statistics
 
         gait_stats, gait_failures = gait_statistics(stage_dir, current_gate_config)

@@ -17,7 +17,14 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from ..constants import PUBLICATION_SEED_START
-from ..curriculum.gait_gate import GAIT_GATE_KIND, GaitGateThresholds, evaluate_gait_gate
+from ..curriculum.gait_gate import (
+    GAIT_GATE_KIND,
+    GaitGateThresholds,
+    describe_gait_episode,
+    evaluate_gait_gate,
+    provisional_gait_criteria,
+    rail_id,
+)
 from ..curriculum.gate_schema import validate_gate_config
 from ..file_io import atomic_savez, atomic_write_csv, atomic_write_json
 from ..policy_loading import load_sb3_checkpoint
@@ -31,7 +38,7 @@ from .recorder import SubstepContactRecorder
 from .seeds import checkpoint_seed_provenance
 from .types import GaitProtocol
 
-REPORT_SCHEMA = "mesozoic.gait-report/v1"
+REPORT_SCHEMA = "mesozoic.gait-report/v2"
 PANEL_FIELDS = (
     "episode",
     "seed",
@@ -40,11 +47,12 @@ PANEL_FIELDS = (
     "duration_s",
     "reward",
     "mean_speed_mps",
-    "phase_match_fraction",
-    "simultaneous_fraction",
+    "gait_label",
+    "qualified",
+    "limb_duty_min",
+    "lead_exchange_fraction_min",
     "flight_fraction",
-    "max_flight_s",
-    "max_slip_distance_over_leg",
+    "skid_fraction_max",
     "body_support_fraction",
     "telemetry_valid",
     "checkpoint_sha256",
@@ -74,11 +82,12 @@ def _json_safe(value: Any) -> Any:
 def _provisional_thresholds(
     profile: str, digest: str, curriculum: dict[str, Any], episodes: int, duration_s: float
 ) -> GaitGateThresholds:
-    # These are interpretable development diagnostics, never a certificate.
-    # Flight is permitted for the alternating-biped profile: a real running
-    # gait must not be rejected merely because it has an aerial phase.
+    # Calibrated development diagnostics, never a certificate. Every physical
+    # bar comes from provisional_gait_criteria(profile); only the panel and
+    # the task's own speed bar are filled in here.
     return GaitGateThresholds.from_curriculum(
         {
+            **provisional_gait_criteria(profile),
             "gait_profile": profile,
             "measurement_protocol_sha256": digest,
             "min_eval_episodes": episodes,
@@ -86,13 +95,6 @@ def _provisional_thresholds(
             "min_gait_success_lcb": 0.8,
             "min_episode_forward_vel": max(0.0, float(curriculum.get("min_avg_forward_vel", 0.0))),
             "min_episode_duration_s": duration_s,
-            "min_complete_cycles_per_foot": 3,
-            "min_phase_match_fraction": 0.8,
-            "max_simultaneous_fraction": 0.2,
-            "max_flight_fraction": 1.0 if profile == "biped_alternating" else 0.05,
-            "max_flight_s": 0.5 if profile == "biped_alternating" else 0.08,
-            "max_slip_distance_over_leg": 0.1,
-            "max_body_support_fraction": 0.01,
         }
     )
 
@@ -340,7 +342,8 @@ def write_gait_report(
             and not allow_legacy_plant
             and unique_resets == episodes
         )
-        reasons = Counter(reason for failures in result.episode_failures for reason in failures)
+        # Aggregate on the stable rail id; values in the reason text vary per episode.
+        reasons = Counter(rail_id(reason) for failures in result.episode_failures for reason in failures)
         bindings = {
             "checkpoint_sha256": digest_checkpoint,
             "normalization_sha256": digest_normalization,
@@ -348,10 +351,15 @@ def write_gait_report(
             "measurement_protocol_sha256": digest_protocol,
         }
         csv_rows = []
-        for row in rows:
+        for row, failures in zip(rows, result.episode_failures, strict=True):
+            summary = {
+                **row,
+                "gait_label": describe_gait_episode(row, failures),
+                "qualified": not failures,
+            }
             csv_rows.append(
                 {
-                    **{key: row.get(key) for key in PANEL_FIELDS if key not in {*bindings, "metrics_json"}},
+                    **{key: summary.get(key) for key in PANEL_FIELDS if key not in {*bindings, "metrics_json"}},
                     **bindings,
                     "metrics_json": json.dumps(row, sort_keys=True, separators=(",", ":"), allow_nan=False),
                 }
@@ -403,6 +411,10 @@ def write_gait_report(
             },
             "failures": list(result.failures),
             "episode_failure_counts": dict(reasons),
+            "episode_labels": [
+                describe_gait_episode(row, failures)
+                for row, failures in zip(rows, result.episode_failures, strict=True)
+            ],
         }
         report = cast(dict[str, Any], _json_safe(report))
         atomic_write_json(output / "gait_report.json", report, allow_nan=False)

@@ -302,7 +302,7 @@ def _write_gait_report(
     """Roll a fresh physical gait panel on the actual selected handoff pair.
 
     Existing locomotion recipes receive report-only diagnostics; an explicit
-    locomotion_gait/v1 declaration makes the same evidence authoritative.
+    locomotion_gait/v2 declaration makes the same evidence authoritative.
     Failure preserves the training artifacts and leaves certification closed.
     """
     from ..curriculum.gait_gate import GAIT_GATE_KIND
@@ -1146,7 +1146,9 @@ def _apply_stage_gate(
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") == "locomotion_gait/v1" and stage_dir is not None:
+    from ..curriculum.gait_gate import GAIT_GATE_KIND
+
+    if curriculum.get("gate_kind") == GAIT_GATE_KIND and stage_dir is not None:
         try:
             from .gates import gait_statistics
 

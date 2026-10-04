@@ -6,7 +6,7 @@ python -m environments.shared.scripts.gait_report trex --stage locomotion \
 
 Every episode saves a substep trace. Existing reward-gated stages produce
 development reports only. Enforcement requires an explicitly configured
-locomotion_gait/v1 with a pinned protocol and fixed certification panel.
+locomotion_gait/v2 with a pinned protocol and fixed certification panel.
 """
 
 from __future__ import annotations

@@ -1,13 +1,24 @@
-"""Versioned measurement options for the reporting-only gait audit.
+"""Versioned measurement options for the physical gait audit.
 
-These defaults are provisional detector settings, not biological acceptance
-limits. Certification thresholds belong to the separately calibrated gate.
+``GaitProtocol`` holds every setting that shapes a *measured* value: contact
+segmentation, swing validity, the continuous-phase construction and the gait
+templates whose local tolerances define template coverage and persistence.
+All of them are hashed into the measurement identity, so changing one forces
+a fresh panel. Pass/fail bars that are compared against stored metrics live
+in the separately declared gate (``curriculum/gait_gate.py``) and can be
+re-judged from stored evidence without re-rolling a panel.
+
+Every length is a fraction of the declared leg length ``L``, every force a
+fraction of body weight, every timing tolerance a fraction of a stride or of
+the analysis window. The few absolute times (chatter fill, blip) are below
+any real swing or stance and were calibrated from 2 ms to 10 ms sampling.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -15,44 +26,103 @@ import numpy as np
 from numpy.typing import NDArray
 
 FloatArray = NDArray[np.float64]
-MEASUREMENT_SCHEMA = "mesozoic.gait-measurement/v1"
+MEASUREMENT_SCHEMA = "mesozoic.gait-measurement/v2"
 
 
 @dataclass(frozen=True)
 class GaitProtocol:
-    """Time- and morphology-scaled event detector; defaults are provisional."""
+    """Metric-shaping detector settings; defaults are the calibrated v2 values."""
 
-    contact_on_bw: float = 0.02
-    contact_off_bw: float = 0.01
-    min_stance_s: float = 0.02
-    min_swing_s: float = 0.02
-    phase_tolerance: float = 0.15
-    simultaneous_s: float = 0.02
-    min_clearance_over_leg: float = 0.01
-    min_reposition_over_leg: float = 0.02
+    # -- contact segmentation (per limb) --------------------------------------
+    #: A foot is loaded when its floor normal force exceeds this fraction of
+    #: body weight divided by the number of limbs.
+    contact_force_bw_per_limb: float = 0.01
+    #: Unloads no longer than this are sub-dwell chatter and stay stance.
+    chatter_fill_s: float = 0.010
+    #: Loads shorter than this (after merging) are blips, not stances.
+    blip_s: float = 0.006
+    #: An unload that never clears this height and moves the foot less than
+    #: ``scuff_travel_over_leg`` (or is short, see below) is a scuff: stance.
+    scuff_clearance_over_leg: float = 0.01
+    scuff_travel_over_leg: float = 0.03
+    #: An unload shorter than this fraction of the limb's reference swing
+    #: (upper quartile of its clear swings) and lower than
+    #: ``bounce_clearance_fraction`` of the reference clearance is an impact
+    #: bounce: stance. The touchdown stays at the first contact.
+    bounce_swing_fraction: float = 0.25
+    bounce_clearance_fraction: float = 0.30
+    #: A valid swing clears this height and repositions the foot this far.
+    valid_swing_clearance_over_leg: float = 0.01
+    valid_swing_travel_over_leg: float = 0.03
+    # -- continuous limb phase --------------------------------------------------
+    #: A stride longer than this multiple of the limb's median stride is a
+    #: pause: phase is undefined (coverage loss) for its whole duration.
+    pause_factor: float = 2.0
+    #: Centred sliding window for local phase statistics, in pooled strides.
+    local_window_strides: float = 1.0
+    #: Local mean resultant length below which a pair is locally unlocked.
+    local_min_locking: float = 0.5
+    # -- gait templates (cycles) shaping coverage and persistence ---------------
+    template_alternation_tolerance: float = 0.09
+    template_synchrony_tolerance: float = 0.125
+    template_walk_band_low: float = 0.125
+    template_walk_band_high: float = 0.375
+    #: A sample is on-template when its local mean lies inside the target set
+    #: widened by this much ...
+    template_local_extra_tolerance: float = 0.05
+    #: ... and grossly off-template when it lies this much further out, or
+    #: the pair is unlocked or a limb's phase is undefined.
+    template_gross_extra_tolerance: float = 0.05
+    # -- other measured quantities ----------------------------------------------
+    #: Lead-limb exchange: the fore-aft order of a contralateral pair must
+    #: flip past +-this distance within a stride.
+    lead_hysteresis_over_leg: float = 0.01
+    #: Foot-on-foot contact when the force between feet exceeds this.
+    foot_foot_force_bw: float = 0.01
+    #: Biped hop-flight diagnostic: a flight's opener/closer search window.
+    hop_flight_window_strides: float = 0.25
 
     def __post_init__(self) -> None:
         values = asdict(self)
-        if not all(np.isfinite(value) for value in values.values()):
-            raise ValueError("gait protocol options must be finite")
-        if not 0.0 <= self.contact_off_bw < self.contact_on_bw:
-            raise ValueError("contact thresholds require 0 <= off < on")
-        if not 0.0 < self.phase_tolerance < 0.5:
-            raise ValueError("phase tolerance must lie strictly between 0 and 0.5")
+        for name, value in values.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError(f"gait protocol option {name} must be a finite number")
+            if value < 0.0:
+                raise ValueError(f"gait protocol option {name} must be nonnegative")
         for name in (
-            "min_stance_s",
-            "min_swing_s",
-            "simultaneous_s",
-            "min_clearance_over_leg",
-            "min_reposition_over_leg",
+            "contact_force_bw_per_limb",
+            "local_window_strides",
+            "lead_hysteresis_over_leg",
+            "foot_foot_force_bw",
+            "hop_flight_window_strides",
+            "template_alternation_tolerance",
+            "template_synchrony_tolerance",
         ):
-            if values[name] < 0.0:
-                raise ValueError(f"{name} must be nonnegative")
+            if values[name] <= 0.0:
+                raise ValueError(f"gait protocol option {name} must be positive")
+        if self.pause_factor <= 1.0:
+            raise ValueError("gait protocol option pause_factor must exceed one stride")
+        for name in ("bounce_swing_fraction", "bounce_clearance_fraction", "local_min_locking"):
+            if values[name] > 1.0:
+                raise ValueError(f"gait protocol option {name} must lie in [0, 1]")
+        if not 0.0 < self.template_walk_band_low < self.template_walk_band_high < 0.5:
+            raise ValueError("gait protocol walk limb-phase band requires 0 < low < high < 0.5")
+        widest = (
+            max(
+                self.template_alternation_tolerance,
+                self.template_synchrony_tolerance,
+                0.5 * (self.template_walk_band_high - self.template_walk_band_low),
+            )
+            + self.template_local_extra_tolerance
+            + self.template_gross_extra_tolerance
+        )
+        if widest >= 0.5:
+            raise ValueError("gait protocol template tolerances plus local/gross widening must stay below 0.5")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema": MEASUREMENT_SCHEMA,
-            "default_status": "provisional; requires calibration",
+            "default_status": "calibrated on the 2026-10 development split; confirm on fresh panels",
             **asdict(self),
         }
 
@@ -68,14 +138,18 @@ def measurement_protocol_sha256(protocol: GaitProtocol) -> str:
 
 
 @dataclass(frozen=True)
-class ContactEvents:
-    """Debounced load state and observed event indices for one foot.
+class LimbContacts:
+    """Merged stance intervals of one limb, in sample indices ``[start, end)``.
 
-    Initial load is a boundary condition, never a synthetic touchdown. A change
-    at the final boundary is emitted only if its minimum dwell was observed.
+    ``touchdowns`` are the first samples of stances that begin after the first
+    sample (a trace edge is never an event). ``swing_*`` tuples are aligned
+    with ``touchdowns``: the swing that ends at each touchdown.
     """
 
-    loaded: NDArray[np.bool_]
+    stance: NDArray[np.bool_]
+    stances: tuple[tuple[int, int], ...]
     touchdowns: tuple[int, ...]
-    liftoffs: tuple[int, ...]
-    complete_cycles: tuple[tuple[int, int, int], ...]
+    swing_clearance_m: tuple[float, ...]
+    swing_travel_m: tuple[float, ...]
+    swing_valid: tuple[bool, ...]
+    merged_unloads: int
