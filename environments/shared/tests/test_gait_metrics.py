@@ -888,3 +888,63 @@ def test_unloaded_time_is_flight_measured_on_load():
     measured, reference = metrics(bridged, settle_s=1.0), metrics(run, settle_s=1.0)
     assert measured["flight_fraction"] == 0.0 < reference["flight_fraction"]
     assert measured["unloaded_fraction"] == pytest.approx(reference["flight_fraction"], abs=0.01)
+
+
+def test_a_diverged_trace_is_invalid_telemetry_whatever_it_holds():
+    trace = gait_trace((0.0, 0.5))
+    assert metrics({**trace, "physics_diverged": np.asarray(False)}, settle_s=1.0)["telemetry_valid"] is True
+    diverged = metrics({**trace, "physics_diverged": np.asarray(True)}, settle_s=1.0)
+    assert diverged["telemetry_valid"] is False
+    assert diverged["telemetry_errors"] == [
+        "physics_diverged: MuJoCo reset the simulation after a numerical instability"
+    ]
+    # even a one-sample trace (divergence on the first substep) fails as divergence, not as a short trace
+    single = {key: value[:1] for key, value in trace.items()}
+    assert metrics({**single, "physics_diverged": np.asarray(True)})["telemetry_errors"][0].startswith(
+        "physics_diverged"
+    )
+
+
+def test_non_terrain_contact_is_reported_as_a_diagnostic_fraction():
+    trace = gait_trace((0.0, 0.5))
+    assert metrics(trace, settle_s=1.0)["nonterrain_contact_fraction"] is None
+    pressed = np.zeros(len(trace["time_s"]))
+    pressed[trace["time_s"] >= 6.0] = 0.5 * BW
+    measured = metrics({**trace, "nonterrain_contact_force_n": pressed}, settle_s=1.0)
+    end = float(trace["time_s"][-1])
+    assert measured["nonterrain_contact_fraction"] == pytest.approx((end - 6.0) / (end - 1.0), abs=0.01)
+    clean = metrics({**trace, "nonterrain_contact_force_n": np.zeros(len(trace["time_s"]))}, settle_s=1.0)
+    assert clean["nonterrain_contact_fraction"] == 0.0
+    # it is never a support share: the verdict-bearing values do not move
+    assert measured["body_support_fraction"] == clean["body_support_fraction"]
+    bad = metrics({**trace, "nonterrain_contact_force_n": -pressed - 1.0}, settle_s=1.0)
+    assert bad["telemetry_valid"] is False
+
+
+def test_stored_metrics_reproduce_across_blas_kernels():
+    """A reader on another machine replays the same numbers: no stored metric goes through BLAS.
+
+    numpy's bundled OpenBLAS picks its kernel per CPU (``OPENBLAS_CORETYPE``
+    forces one); a dot product's last bits differ between them, which is how
+    an exact-hash replay used to refuse a genuine certificate elsewhere.
+    """
+    import os
+    import subprocess
+    import sys
+
+    script = (
+        "from environments.shared.tests.test_gait_metrics import gait_trace, metrics\n"
+        "from environments.shared.result_bundle.hashing import canonical_json_sha256\n"
+        "trace = gait_trace((0.0, 0.5), jitter=0.02, stride_cv=0.03, seed=11)\n"
+        "print(canonical_json_sha256(metrics(trace, settle_s=1.0)))\n"
+    )
+    digests = set()
+    for kernel in (None, "Haswell"):
+        env = {key: value for key, value in os.environ.items() if key != "OPENBLAS_CORETYPE"}
+        if kernel is not None:
+            env["OPENBLAS_CORETYPE"] = kernel
+        result = subprocess.run(
+            [sys.executable, "-c", script], env=env, capture_output=True, text=True, check=True, timeout=300
+        )
+        digests.add(result.stdout.strip())
+    assert len(digests) == 1

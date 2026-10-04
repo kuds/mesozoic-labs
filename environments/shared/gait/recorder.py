@@ -8,6 +8,11 @@ import numpy as np
 
 from .morphology import GaitMorphology
 
+#: MuJoCo's instability warnings. ``mj_step`` that raises one resets the
+#: simulation (``mj_resetData``: time 0, the model's qpos0) and continues, so
+#: whatever the env reports afterwards is not this policy's motion.
+_DIVERGENCE_WARNINGS = ("mjWARN_BADQPOS", "mjWARN_BADQVEL", "mjWARN_BADQACC")
+
 
 class SubstepContactRecorder:
     """Attach after reset and detach before the next reset.
@@ -17,6 +22,12 @@ class SubstepContactRecorder:
     dynamics step is introduced. A previously installed hook (e.g. terrain
     probing) continues to run first. The recorder never changes physics,
     sensors, actions, observations, rewards, or random-generator state.
+
+    A numerical divergence that MuJoCo answers with its automatic reset (an
+    instability warning raised inside ``mj_step``) stops the recording at
+    the last valid sample and sets ``diverged``; the trace carries
+    ``physics_diverged`` so the episode fails as invalid telemetry rather than
+    aborting the panel. Resetting the env while attached is still refused.
     """
 
     def __init__(self, env: Any, morphology: GaitMorphology):
@@ -29,6 +40,8 @@ class SubstepContactRecorder:
         self._contact_wrench = np.zeros(6, dtype=np.float64)
         self._terrain = frozenset(morphology.terrain_geom_ids)
         self._hook = self._record_substep
+        self._warning_counts: tuple[int, ...] = ()
+        self.diverged = False
 
     def __enter__(self) -> SubstepContactRecorder:
         if self._attached:
@@ -38,6 +51,7 @@ class SubstepContactRecorder:
         self._previous_hook = self.env._substep_probe_hook
         self.env._substep_probe_hook = self._hook
         self._attached = True
+        self._warning_counts = self._divergence_counts()
         try:
             self.capture()
         except BaseException:
@@ -58,7 +72,14 @@ class SubstepContactRecorder:
     def _record_substep(self) -> None:
         if self._previous_hook is not None:
             self._previous_hook()
-        self.capture()
+        if not self.diverged:
+            self.capture()
+
+    def _divergence_counts(self) -> tuple[int, ...]:
+        import mujoco
+
+        warnings = self.env.data.warning
+        return tuple(int(warnings[int(getattr(mujoco.mjtWarning, name))].number) for name in _DIVERGENCE_WARNINGS)
 
     def _point_velocity(self, body: int, point: np.ndarray) -> np.ndarray:
         import mujoco
@@ -84,6 +105,12 @@ class SubstepContactRecorder:
         morph, model, data = self.morphology, self.env.model, self.env.data
         if model is not morph.model:
             raise RuntimeError("model changed while gait recorder was attached; resolve morphology after reset")
+        counts = self._divergence_counts()
+        if self._rows and counts != self._warning_counts and any(counts):
+            # mj_step reset the state after an instability warning; the
+            # samples so far are the episode's valid physics.
+            self.diverged = True
+            return
         if self._rows and float(data.time) <= self._rows[-1]["time_s"]:
             raise RuntimeError("gait sample time did not increase; detach the recorder before resetting")
         count = len(morph.foot_names)
@@ -91,6 +118,9 @@ class SubstepContactRecorder:
         weighted_slip_sq = np.zeros(count)
         body_force = 0.0
         foot_foot_force = 0.0
+        # Animal contacts with neither terrain nor the animal itself (mocap
+        # prey or props): never support, reported as a diagnostic.
+        nonterrain_force = 0.0
         for ci in range(data.ncon):
             contact = data.contact[ci]
             if int(contact.efc_address) < 0:
@@ -112,6 +142,8 @@ class SubstepContactRecorder:
             elif g2 in self._terrain and g1 in morph.animal_geom_ids:
                 terrain, animal, foot = g2, g1, f1
             else:
+                if (g1 in morph.animal_geom_ids) != (g2 in morph.animal_geom_ids):
+                    nonterrain_force += force
                 continue
             if foot < 0:
                 body_force += force
@@ -125,13 +157,10 @@ class SubstepContactRecorder:
             tangential = relative_velocity - normal * float(relative_velocity @ normal)
             weighted_slip_sq[foot] += force * float(tangential @ tangential)
         slip = np.sqrt(np.divide(weighted_slip_sq, floor_force, out=np.zeros(count), where=floor_force > 0))
-        clearance = np.empty(count)
-        for foot, geoms in enumerate(morph.foot_geom_ids):
-            clearance[foot] = min(
-                float(mujoco.mj_geomDistance(model, data, g, terrain, 2 * morph.leg_length_m, None))
-                for g in geoms
-                for terrain in morph.terrain_geom_ids
-            )
+        clearance = np.asarray(
+            [morph.foot_clearance(data, foot) for foot in range(count)],
+            dtype=np.float64,
+        )
         root_address = morph.root_qpos_address
         self._rows.append(
             {
@@ -142,6 +171,7 @@ class SubstepContactRecorder:
                 "slip_speed_mps": slip,
                 "body_floor_force_n": body_force,
                 "foot_foot_force_n": foot_foot_force,
+                "nonterrain_contact_force_n": nonterrain_force,
                 "root_position_m": np.asarray(data.qpos[root_address : root_address + 3]).copy(),
                 # Trunk orientation (free-joint quaternion, w x y z): step length
                 # and lead exchange are measured in the trunk's own frame.
@@ -153,4 +183,6 @@ class SubstepContactRecorder:
     def trace(self) -> dict[str, np.ndarray]:
         if not self._rows:
             raise ValueError("gait recorder contains no samples")
-        return {key: np.asarray([row[key] for row in self._rows]) for key in self._rows[0]}
+        arrays = {key: np.asarray([row[key] for row in self._rows]) for key in self._rows[0]}
+        arrays["physics_diverged"] = np.asarray(self.diverged)
+        return arrays
