@@ -298,14 +298,22 @@ def _write_gait_report(
     model_dir: Path,
     algorithm: str,
     allow_legacy_plant: bool = False,
+    development_panel: bool = True,
 ) -> dict[str, Any] | None:
     """Roll a fresh physical gait panel on the actual selected handoff pair.
 
-    Existing locomotion recipes receive report-only diagnostics; an explicit
-    locomotion_gait/v2 declaration makes the same evidence authoritative.
-    Failure preserves the training artifacts and leaves certification closed.
+    An explicit locomotion_gait/v2 declaration rolls exactly its declared
+    certification panel (``min_eval_episodes`` from ``gait_panel_seed_start``)
+    and makes the evidence authoritative. Every other locomotion recipe gets
+    a short report-only development panel (``gait_report_episodes``, default
+    ``gait.report.DEFAULT_DEVELOPMENT_EPISODES``; ``0`` skips it) from the
+    development block, never the reserved certification block, and only when
+    *development_panel* is set (``generate_stage_artifacts`` ties it to
+    ``generate_graphs`` unless told otherwise). Failure preserves the
+    training artifacts and leaves certification closed.
     """
     from ..curriculum.gait_gate import GAIT_GATE_KIND
+    from ..curriculum.gate_schema import GateSchemaError, validate_gate_config
     from ..stage_manifest import StageManifestError, load_stage_manifest
 
     curriculum = stage_config.get("curriculum_kwargs", {})
@@ -324,9 +332,23 @@ def _write_gait_report(
     # Derived evidence must not survive a failed fresh generation attempt.
     # The immutable-bundle guard precedes even this invalidation.
     (stage_dir / "gait_report.json").unlink(missing_ok=True)
-    episodes = curriculum.get("gait_report_episodes", curriculum.get("min_eval_episodes", 40) if gated else 40)
-    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
-        logger.info("Gait report skipped for stage %s: gait_report_episodes=%r", stage, episodes)
+    if gated:
+        try:
+            validate_gate_config(stage, curriculum)
+        except GateSchemaError:
+            logger.warning("Gait certification panel skipped for stage %s: invalid gate", stage, exc_info=True)
+            return None
+    elif not development_panel:
+        logger.info("Report-only gait panel skipped for stage %s (development diagnostics off).", stage)
+        return None
+    from ..gait.report import stage_panel
+
+    episodes, seed = stage_panel(curriculum)
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 0:
+        logger.warning("Gait report skipped for stage %s: gait_report_episodes=%r is not a count", stage, episodes)
+        return None
+    if episodes == 0:
+        logger.info("Report-only gait panel skipped for stage %s: gait_report_episodes = 0", stage)
         return None
     handoff = select_handoff_checkpoint(model_dir)
     if handoff is None:
@@ -344,7 +366,7 @@ def _write_gait_report(
             vecnorm_path,
             stage_dir,
             episodes=episodes,
-            seed=curriculum["gait_panel_seed_start"] if gated else PUBLICATION_SEED_START,
+            seed=seed,
             algorithm=algorithm,
             allow_legacy_plant=allow_legacy_plant,
         )
@@ -1507,6 +1529,7 @@ def generate_stage_artifacts(
     generate_graphs: bool = True,
     allow_legacy_plant: bool = False,
     recovery_successes_by_seed: "dict[int, bool] | None" = None,
+    gait_diagnostics: bool | None = None,
 ) -> dict[str, Any]:
     """Write stage summary, record replay videos, and generate training graphs.
 
@@ -1522,6 +1545,13 @@ def generate_stage_artifacts(
     When *generate_graphs* is ``True`` (the default), training curves and
     diagnostic graphs are saved to the stage directory.  Requires
     ``matplotlib``.
+
+    A locomotion node without a gait gate also gets a report-only gait panel
+    (``gait_report.json``, ``gait_panel.csv`` and ``gait_traces/``: 10
+    episodes by default, 0.8-1.4 MB of compressed trace per full-horizon
+    episode, and a substep recorder that slows ``env.step`` 1.5-3.8x). *gait_diagnostics* turns it on or off; ``None``
+    (the default) follows *generate_graphs*. A ``locomotion_gait/v2`` node
+    always rolls its certification panel: that panel is its evidence.
 
     For a ``recovery_quality/v1`` stage, pass *recovery_successes_by_seed*
     (``RecoveryPanelEvidence.successes_by_seed()`` from the post-training
@@ -1573,6 +1603,7 @@ def generate_stage_artifacts(
         model_dir=model_dir,
         algorithm=algorithm,
         allow_legacy_plant=allow_legacy_plant,
+        development_panel=generate_graphs if gait_diagnostics is None else gait_diagnostics,
     )
     # A task_success/v1 stage is judged from evaluation_selected.csv; make
     # sure the directory holds one bound to the handoff before the gate

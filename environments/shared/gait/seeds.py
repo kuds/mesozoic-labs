@@ -1,22 +1,31 @@
-"""Bind a gait panel to recorded training and selection seed exclusions.
+"""Bind a gait panel to recorded training, selection and replay seed exclusions.
 
 Only JSON archive metadata is read; this module never deserializes a saved
 policy. These known exclusions cannot prove that a human never used the
 panel while tuning. A certification panel must also remain locked and unused
-for development, as required by the evaluation protocol.
+for development, as required by the evaluation protocol: report-only panels
+roll the separate development block (``constants.DEVELOPMENT_GAIT_SEED_START``).
 """
 
 from __future__ import annotations
 
 import json
+import re
 import zipfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from ..file_io import read_json_object
 from ..result_bundle.hashing import canonical_json_sha256
 
-SEED_PROVENANCE_SCHEMA = "mesozoic.gait-seed-provenance/v1"
+SEED_PROVENANCE_SCHEMA = "mesozoic.gait-seed-provenance/v2"
+#: Roles a certification panel may share seeds with: the certification panel
+#: itself and the publication protocol's evaluations of the selected
+#: checkpoint (``result_bundle.provenance`` writes exactly these names). Every
+#: other recorded role is a used seed (deny by default), whatever its name.
+_PUBLICATION_ROLES = frozenset({"certification_panel", "publication_evaluation"})
+_ADDITIONAL_EVALUATION_ROLE = re.compile(r"additional_evaluation_[0-9]+")
 
 
 def _integer(value: Any, name: str, *, minimum: int = 0) -> int:
@@ -30,6 +39,21 @@ def _read_object(path: Path) -> dict[str, Any]:
     if value is None:
         raise ValueError(f"gait seed provenance {path.name} must contain a JSON object")
     return value
+
+
+def _role_block(role: str, value: Any) -> tuple[int, int]:
+    """``[start, stop)`` of a recorded role: an integer is one seed, ``{start, episodes}`` a block.
+
+    A panel recorded by its start seed alone is one seed: record a panel's
+    whole block as ``{"start": ..., "episodes": ...}`` so it is excluded whole.
+    """
+    if isinstance(value, Mapping):
+        if set(value) != {"start", "episodes"}:
+            raise ValueError(f"gait seed provenance seed_roles.{role} block must hold exactly start and episodes")
+        start = _integer(value["start"], f"seed_roles.{role}.start")
+        return start, start + _integer(value["episodes"], f"seed_roles.{role}.episodes", minimum=1)
+    seed = _integer(value, f"seed_roles.{role}")
+    return seed, seed + 1
 
 
 def stage_replay_seeds(training_seed: int, stage: int | str, *, species: str | None = None) -> list[int]:
@@ -87,21 +111,33 @@ def _checkpoint_seed_fields(model: Path) -> tuple[int, int]:
     return _integer(data.get("seed"), "checkpoint seed"), _integer(data.get("n_envs"), "checkpoint n_envs", minimum=1)
 
 
-def checkpoint_seed_provenance(model_path: str | Path, *, seed_start: int, episodes: int) -> dict[str, Any]:
+def checkpoint_seed_provenance(
+    model_path: str | Path,
+    *,
+    seed_start: int,
+    episodes: int,
+    stage: int | str,
+    species: str | None = None,
+) -> dict[str, Any]:
     """Refuse missing seed evidence and overlaps with known used seed roles.
 
     The stage's recorded ``run.seed`` and ``run.n_envs`` describe reset seeds
     ``seed+rank``. Both repository SB3 trainers use one selection environment
-    at ``seed+1000``. The checkpoint's safe JSON metadata must corroborate the
-    seed and environment count. A nearby optional run provenance contributes
-    any explicitly recorded training, selection, calibration or development
-    seed roles. Publication and certification roles may refer to this panel.
+    at ``seed+1000``, and the stage replay videos roll at
+    ``evaluation.replay_seed(seed, stage)``. The checkpoint's safe JSON
+    metadata must corroborate the seed and environment count. A nearby
+    optional run provenance contributes every other recorded seed role, as a
+    single seed or a ``{start, episodes}`` block; only the certification panel
+    and the publication evaluations may share the panel's seeds. An
+    unrecognised role is a used seed (deny by default), whatever its name.
 
     The returned payload and its digest are portable across copied bundles;
     unrelated configuration/provenance changes do not alter this seed binding.
     """
     seed_start = _integer(seed_start, "panel seed_start")
     episodes = _integer(episodes, "panel episodes", minimum=1)
+    if isinstance(stage, bool) or not isinstance(stage, (int, str)):
+        raise ValueError("gait seed provenance requires the panel's stage reference")
     model = Path(model_path)
     if not model.is_file() and not model.name.endswith(".zip"):
         model = model.with_name(model.name + ".zip")
@@ -124,15 +160,17 @@ def checkpoint_seed_provenance(model_path: str | Path, *, seed_start: int, episo
     if model_seed != training_seed or model_envs != training_envs:
         raise ValueError("gait seed provenance checkpoint seed/n_envs do not match the recorded stage run")
 
+    replay_seeds = refuse_known_seed_overlaps(
+        seed_start, episodes, training_seed=training_seed, training_envs=training_envs, stage=stage, species=species
+    )
     panel_stop = seed_start + episodes
     training_stop = training_seed + training_envs
-    if max(seed_start, training_seed) < min(panel_stop, training_stop):
-        raise ValueError("gait certification panel overlaps the recorded training environment seed range")
     selection_seed = training_seed + 1000
-    if seed_start <= selection_seed < panel_stop:
-        raise ValueError("gait certification panel overlaps the checkpoint-selection environment seed")
 
-    additional_roles: dict[str, int] = {}
+    def overlaps(start: int, stop: int) -> bool:
+        return max(seed_start, start) < min(panel_stop, stop)
+
+    additional_roles: dict[str, Any] = {}
     provenance = next(
         (
             candidate
@@ -148,20 +186,21 @@ def checkpoint_seed_provenance(model_path: str | Path, *, seed_start: int, episo
         for role, value in (roles or {}).items():
             if not isinstance(role, str):
                 raise ValueError("gait seed provenance role names must be strings")
-            if role == "training" or any(
-                token in role.lower() for token in ("selection", "calibration", "development")
-            ):
-                role_seed = _integer(value, f"seed_roles.{role}")
-                if role == "training" and role_seed != training_seed:
-                    raise ValueError("gait seed provenance training role does not match the recorded stage run")
-                if seed_start <= role_seed < panel_stop:
-                    raise ValueError(f"gait certification panel overlaps the recorded {role} seed")
-                # A later-created ordinary run provenance must not change a
-                # binding merely by repeating exclusions already proved from
-                # the stage and checkpoint. Distinct known used seeds remain
-                # part of the portable evidence.
-                if not training_seed <= role_seed < training_stop and role_seed != selection_seed:
-                    additional_roles[role] = role_seed
+            start, stop = _role_block(role, value)
+            if role in _PUBLICATION_ROLES or _ADDITIONAL_EVALUATION_ROLE.fullmatch(role):
+                continue
+            if role == "training" and (isinstance(value, Mapping) or start != training_seed):
+                raise ValueError("gait seed provenance training role does not match the recorded stage run")
+            if overlaps(start, stop):
+                raise ValueError(f"gait certification panel overlaps the recorded {role} seed")
+            # A later-created ordinary run provenance must not change a
+            # binding merely by repeating exclusions already proved from
+            # the stage and checkpoint. Distinct known used seeds remain
+            # part of the portable evidence.
+            proven = training_seed <= start and stop <= training_stop
+            proven |= stop - start == 1 and (start == selection_seed or start in replay_seeds)
+            if not proven:
+                additional_roles[role] = dict(value) if isinstance(value, Mapping) else start
 
     payload = {
         "schema": SEED_PROVENANCE_SCHEMA,
@@ -170,6 +209,7 @@ def checkpoint_seed_provenance(model_path: str | Path, *, seed_start: int, episo
         "checkpoint_model_seed": model_seed,
         "checkpoint_n_envs": model_envs,
         "selection_seed": selection_seed,
+        "replay_seeds": replay_seeds,
         "panel_seed_start": seed_start,
         "panel_episodes": episodes,
         "additional_seed_roles": additional_roles,

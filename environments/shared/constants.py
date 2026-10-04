@@ -35,3 +35,8 @@ PUBLICATION_SEED_START: int = 3042
 # Size of that registered block: a certification panel lies wholly inside
 # PUBLICATION_SEED_START .. PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES - 1.
 PUBLICATION_PANEL_EPISODES: int = 40
+# First seed of report-only (development) gait panels and the gait report
+# command's default. Disjoint from the publication block above, so a gait
+# certificate never replays an episode a developer has already inspected
+# (docs/GAIT_CERTIFICATION.md, "Freeze the protocol without viewing the panel").
+DEVELOPMENT_GAIT_SEED_START: int = 9000

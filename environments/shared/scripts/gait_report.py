@@ -2,24 +2,37 @@
 
 python -m environments.shared.scripts.gait_report trex --stage locomotion \
     --model RUN/models/robust_best_model.zip --vecnorm RUN/models/robust_best_model_vecnorm.pkl \
-    --out-dir FRESH_DIRECTORY --episodes 40 --seed 104042
+    --out-dir FRESH_DIRECTORY --episodes 10 --seed 9000
 
 Every episode saves a substep trace. Existing reward-gated stages produce
-development reports only. Enforcement requires an explicitly configured
-locomotion_gait/v2 with a pinned protocol and fixed certification panel.
+development reports only, by default 10 episodes from the development block
+(seed 9000); a report-only panel never rolls the reserved certification block
+3042-3081. Enforcement requires an explicitly configured locomotion_gait/v2
+with a pinned protocol and fixed certification panel, which is the default
+panel for such a config. Exit 2 is a usage error (including an invalid
+number or protocol option), 3 an evaluation refusal; an invalid argument
+never touches an existing report.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 
 from environments.shared.config import load_stage_config
-from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.constants import PUBLICATION_PANEL_EPISODES, PUBLICATION_SEED_START
+from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
 from environments.shared.file_io import read_json_object
-from environments.shared.gait.identity import measurement_protocol, protocol_sha256
-from environments.shared.gait.report import write_gait_report
+from environments.shared.gait.identity import (
+    DEFAULT_DIRECTION_XY,
+    DEFAULT_SETTLE_S,
+    normalized_direction,
+    protocol_sha256,
+    stage_measurement_protocol,
+)
+from environments.shared.gait.report import stage_panel, write_gait_report
 from environments.shared.gait.types import GaitProtocol
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import load_stage_manifest
@@ -39,15 +52,39 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", help="Explicit stage TOML")
     parser.add_argument("--env-json", help="Frozen task env kwargs, e.g. downloaded replay_kwargs.json")
     parser.add_argument("--protocol-json", help="Explicit GaitProtocol option object; defaults are provisional")
-    parser.add_argument("--episodes", type=int)
-    parser.add_argument("--seed", type=int)
-    parser.add_argument("--settle-s", type=float, default=1.0)
-    parser.add_argument("--direction", type=float, nargs=2, default=(1.0, 0.0), metavar=("X", "Y"))
+    parser.add_argument("--episodes", type=int, help="Panel size (default: the stage's declared panel, else 10)")
+    parser.add_argument("--seed", type=int, help="First panel seed (default: the declared panel, else 9000)")
+    parser.add_argument("--settle-s", type=float, default=DEFAULT_SETTLE_S)
+    parser.add_argument("--direction", type=float, nargs=2, default=DEFAULT_DIRECTION_XY, metavar=("X", "Y"))
     parser.add_argument("--allow-legacy-plant", action="store_true", help="Legacy diagnostic only; can never certify")
     parser.add_argument("--out-dir", help="Fresh evaluation directory, outside a completed source bundle")
     args = parser.parse_args(argv)
     if not args.protocol_only and not args.out_dir:
         parser.error("--out-dir is required for a gait evaluation")
+    # Pure arguments are usage errors (exit 2), checked before anything is
+    # loaded or written: a typo never replaces an existing report.
+    if args.episodes is not None and args.episodes < 1:
+        parser.error("--episodes must be a positive integer")
+    if args.seed is not None and args.seed < 0:
+        parser.error("--seed must be a nonnegative integer")
+    if not math.isfinite(args.settle_s) or args.settle_s < 0:
+        parser.error("--settle-s must be finite and nonnegative")
+    try:
+        direction = normalized_direction(args.direction)
+    except ValueError:
+        parser.error("--direction must be a finite nonzero 2-vector")
+    protocol = GaitProtocol()
+    if args.protocol_json:
+        try:
+            options = read_json_object(args.protocol_json)
+        except (OSError, ValueError) as error:
+            parser.error(f"--protocol-json cannot be read: {error}")
+        if options is None:
+            parser.error("--protocol-json must contain a detector options object")
+        try:
+            protocol = GaitProtocol(**options)
+        except (TypeError, ValueError) as error:
+            parser.error(f"--protocol-json is not a valid detector option object: {error}")
     try:
         species_cfg = get_species_config(args.species)
         stage = load_stage_manifest(species_cfg.species).resolve(args.stage).reference
@@ -58,48 +95,37 @@ def main(argv: list[str] | None = None) -> int:
             if value is None:
                 raise ValueError("--env-json must contain an environment kwargs object")
             config["env_kwargs"] = value
-        protocol = GaitProtocol()
-        if args.protocol_json:
-            options = read_json_object(args.protocol_json)
-            if options is None:
-                raise ValueError("--protocol-json must contain a detector options object")
-            protocol = GaitProtocol(**options)
-        curriculum = config.get("curriculum_kwargs", {})
-        episodes = args.episodes if args.episodes is not None else int(curriculum.get("min_eval_episodes", 40))
-        seed = (
-            args.seed if args.seed is not None else int(curriculum.get("gait_panel_seed_start", PUBLICATION_SEED_START))
+    except Exception as error:
+        print(f"Gait evaluation refused: {type(error).__name__}: {error}", file=sys.stderr)
+        return 3
+    curriculum = config.get("curriculum_kwargs", {})
+    default_episodes, default_seed = stage_panel(curriculum)
+    episodes = args.episodes if args.episodes is not None else default_episodes
+    seed = args.seed if args.seed is not None else default_seed
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
+        parser.error("--episodes is required: the stage config declares no usable panel size")
+    report_only = curriculum.get("gate_kind") != GAIT_GATE_KIND
+    if (
+        report_only
+        and not args.protocol_only
+        and seed < PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES
+        and seed + episodes > PUBLICATION_SEED_START
+    ):
+        parser.error(
+            f"a report-only panel never rolls the reserved certification block {PUBLICATION_SEED_START}-"
+            f"{PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES - 1}; choose a disjoint --seed"
         )
+    try:
         if args.protocol_only:
-            import numpy as np
-
-            from environments.shared.plant_contract import current_plant_identity, validate_environment_plant
-
-            if episodes < 1 or seed < 0 or not np.isfinite(args.settle_s) or args.settle_s < 0:
-                raise ValueError("protocol requires positive episodes and nonnegative seed/settle time")
-            direction = np.asarray(args.direction, dtype=float)
-            norm = float(np.linalg.norm(direction))
-            if not np.all(np.isfinite(direction)) or norm <= 0:
-                raise ValueError("protocol direction must be finite and nonzero")
-            direction /= norm
-            env = species_cfg.env_class(**config.get("env_kwargs", {}))
-            try:
-                validate_environment_plant(env, current_plant_identity(species_cfg.species), artifact="gait protocol")
-                horizon = int(config.get("env_kwargs", {}).get("max_episode_steps", 1000))
-                if horizon * float(env.dt) <= args.settle_s:
-                    raise ValueError("protocol must leave a positive analysis window")
-                payload = measurement_protocol(
-                    species_cfg.species,
-                    protocol,
-                    settle_s=args.settle_s,
-                    direction_xy=(float(direction[0]), float(direction[1])),
-                    horizon=horizon,
-                    physics_dt_s=float(env.model.opt.timestep),
-                    control_dt_s=float(env.dt),
-                    episodes=episodes,
-                    seed_start=seed,
-                )
-            finally:
-                env.close()
+            payload = stage_measurement_protocol(
+                species_cfg,
+                config,
+                episodes=episodes,
+                seed_start=seed,
+                protocol=protocol,
+                settle_s=args.settle_s,
+                direction_xy=direction,
+            )
             print(
                 json.dumps(
                     {"measurement_protocol_sha256": protocol_sha256(payload), "measurement_protocol": payload}, indent=2

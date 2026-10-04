@@ -168,12 +168,21 @@ def atomic_savez(path: "str | Path", **arrays) -> None:
     The archive is written to local scratch first (fast, reliable local
     disk), then published to *path* via :func:`atomic_copy`.
     """
+    _atomic_npz(path, arrays, compressed=False)
+
+
+def atomic_savez_compressed(path: "str | Path", **arrays) -> None:
+    """``np.savez_compressed`` to *path* atomically, like :func:`atomic_savez`."""
+    _atomic_npz(path, arrays, compressed=True)
+
+
+def _atomic_npz(path: "str | Path", arrays: dict, *, compressed: bool) -> None:
     import numpy as np
 
     fd, tmp_local = tempfile.mkstemp(suffix=".npz")
     os.close(fd)
     try:
-        np.savez(tmp_local, **arrays)
+        (np.savez_compressed if compressed else np.savez)(tmp_local, **arrays)
         atomic_copy(tmp_local, path)
     finally:
         try:

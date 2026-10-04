@@ -498,7 +498,65 @@ def test_manager_and_history_refuse_ordinary_reward_evidence():
     assert not passed and "stage_dir" in failures[0]
 
 
-def _panel(root: Path, *, episodes=None):
+@lru_cache(maxsize=1)
+def _stepping_base():
+    """A clean 10 s stepping trace at the T. rex timestep, scaled to its body weight."""
+    morphology, physics_dt, _ = _authored_morphology()
+    trace = stepping_trace(duration=10.0, dt=physics_dt)
+    trace["floor_force_n"] *= morphology["body_weight_n"] / BW
+    trace["touch_force_n"] *= morphology["body_weight_n"] / BW
+    return trace
+
+
+@lru_cache(maxsize=None)
+def _seed_tied(seed: int):
+    """``(trace, metrics, reset digest)`` of a stepping episode that starts from ``reset(seed)``.
+
+    The reader re-resets every panel seed, so the trace stores that seed's
+    reset state and its first sample is that state; the stepping that
+    follows is the synthetic gait (whose analysis window starts at 1 s).
+    """
+    from environments.shared.gait.morphology import GaitMorphology
+    from environments.shared.gait.report import json_safe, reset_state_digest
+    from environments.trex.envs.trex_env import TRexEnv
+
+    morphology, _, _ = _authored_morphology()
+    trace = {key: np.array(value, copy=True) for key, value in _stepping_base().items()}
+    env = TRexEnv()
+    try:
+        env.reset(seed=seed)
+        data = env.data
+        morph = GaitMorphology.from_env(env, "trex")
+        root = morph.root_qpos_address
+        trace["root_position_m"][0] = data.qpos[root : root + 3]
+        trace["root_quat_wxyz"][0] = data.qpos[root + 3 : root + 7]
+        trace["foot_position_m"][0] = data.site_xpos[list(morph.foot_site_ids)]
+        trace["reset_qpos"] = np.array(data.qpos, dtype=np.float64)
+        trace["reset_qvel"] = np.array(data.qvel, dtype=np.float64)
+        trace["reset_mocap_pos"] = np.array(data.mocap_pos, dtype=np.float64)
+    finally:
+        env.close()
+    trace["physics_diverged"] = np.asarray(False)
+    metrics = json_safe(
+        episode_gait_metrics(
+            trace,
+            body_weight_n=morphology["body_weight_n"],
+            leg_length_m=morphology["leg_length_m"],
+            foot_names=("r", "l"),
+            protocol=GaitProtocol(),
+            settle_s=1.0,
+        )
+    )
+    digest = reset_state_digest(trace["reset_qpos"], trace["reset_qvel"], trace["reset_mocap_pos"])
+    return trace, json.dumps(metrics), digest
+
+
+def _panel(root: Path, *, episodes=None, trace_for=None):
+    """A certifying selected-handoff stage directory whose every trace is tied to its seed.
+
+    ``trace_for(index, seed, trace)`` may replace an episode's trace before
+    it is written; the stored metrics are then recomputed from it.
+    """
     models = root / "models"
     models.mkdir()
     checkpoint = models / "robust_best_model.zip"
@@ -515,23 +573,29 @@ def _panel(root: Path, *, episodes=None):
         "task_sha256": TASK,
         "measurement_protocol_sha256": canonical_json_sha256(measured),
     }
-    morphology, physics_dt, _ = _authored_morphology()
+    morphology, _, _ = _authored_morphology()
     morphology = copy.deepcopy(morphology)
-    trace = stepping_trace(duration=10.0, dt=physics_dt)
-    trace["floor_force_n"] *= morphology["body_weight_n"] / BW
-    trace["touch_force_n"] *= morphology["body_weight_n"] / BW
-    derived = episode_gait_metrics(
-        trace,
-        body_weight_n=morphology["body_weight_n"],
-        leg_length_m=morphology["leg_length_m"],
-        foot_names=("r", "l"),
-        protocol=GaitProtocol(),
-        settle_s=1.0,
-    )
     metadata = episodes if episodes is not None else [episode(PUBLICATION_SEED_START + i) for i in range(40)]
     rows = []
     traces = []
     for i, recorded in enumerate(metadata):
+        trace, derived_json, reset_digest = _seed_tied(recorded["seed"])
+        derived = json.loads(derived_json)
+        trace = {key: np.array(value, copy=True) for key, value in trace.items()}
+        if trace_for is not None:
+            trace = trace_for(i, recorded["seed"], trace)
+            from environments.shared.gait.report import json_safe
+
+            derived = json_safe(
+                episode_gait_metrics(
+                    trace,
+                    body_weight_n=morphology["body_weight_n"],
+                    leg_length_m=morphology["leg_length_m"],
+                    foot_names=("r", "l"),
+                    protocol=GaitProtocol(),
+                    settle_s=1.0,
+                )
+            )
         rows.append(
             {
                 **derived,
@@ -542,7 +606,8 @@ def _panel(root: Path, *, episodes=None):
                 "reward": recorded["reward"],
                 "terminated": not recorded["completed_horizon"],
                 "truncated": recorded["completed_horizon"],
-                "reset_state_sha256": canonical_json_sha256({"synthetic_reset": i}),
+                "physics_diverged": False,
+                "reset_state_sha256": reset_digest,
             }
         )
         relative = f"gait_traces/episode_{i:04d}.npz"
@@ -572,7 +637,9 @@ def _panel(root: Path, *, episodes=None):
         "gait_profile": "biped_walk",
         "foot_names": ["r", "l"],
         "morphology": morphology,
-        "seed_provenance": checkpoint_seed_provenance(checkpoint, seed_start=PUBLICATION_SEED_START, episodes=40),
+        "seed_provenance": checkpoint_seed_provenance(
+            checkpoint, seed_start=PUBLICATION_SEED_START, episodes=40, stage=2, species="trex"
+        ),
         "traces": traces,
         "episodes": rows,
         "panel_csv": {"path": panel.name, "sha256": sha256_file(panel)},
@@ -682,11 +749,9 @@ def test_stage_artifacts_write_selected_gait_statistics_into_verdict_and_summary
     assert summary["selected_gait_success_lcb"] > 0.9
 
 
-def test_report_generation_uses_exact_selected_pair_and_fixed_gate_seed(tmp_path, monkeypatch):
-    from environments.shared.reporting.stage_artifacts import _write_gait_report
+def _fake_report_module(monkeypatch, observed):
+    from environments.shared.gait import report as real
 
-    _panel(tmp_path)
-    observed = []
     module = ModuleType("environments.shared.gait.report")
 
     def fake_writer(*args, **kwargs):
@@ -694,7 +759,16 @@ def test_report_generation_uses_exact_selected_pair_and_fixed_gate_seed(tmp_path
         return {"status": "complete"}
 
     module.write_gait_report = fake_writer
+    module.stage_panel = real.stage_panel
     monkeypatch.setitem(sys.modules, module.__name__, module)
+
+
+def test_report_generation_uses_exact_selected_pair_and_fixed_gate_seed(tmp_path, monkeypatch):
+    from environments.shared.reporting.stage_artifacts import _write_gait_report
+
+    _panel(tmp_path)
+    observed = []
+    _fake_report_module(monkeypatch, observed)
     config = {"curriculum_kwargs": curriculum()}
     result = _write_gait_report(
         species_cfg=SimpleNamespace(species="trex"),
@@ -722,6 +796,111 @@ def test_report_generation_uses_exact_selected_pair_and_fixed_gate_seed(tmp_path
         is None
     )
     assert not observed
+
+
+@pytest.mark.parametrize(
+    "updates,development_panel,expected",
+    [
+        ({}, True, (10, 9000)),  # report-only: a short panel on the development block
+        ({"gait_report_episodes": 4}, True, (4, 9000)),
+        ({"gait_report_episodes": 0}, True, None),
+        ({}, False, None),  # development diagnostics switched off (generate_graphs=False)
+    ],
+)
+def test_report_only_panels_roll_the_development_block_never_the_certification_block(
+    tmp_path, monkeypatch, updates, development_panel, expected
+):
+    from environments.shared.constants import DEVELOPMENT_GAIT_SEED_START
+    from environments.shared.reporting.stage_artifacts import _write_gait_report
+
+    _panel(tmp_path)
+    observed = []
+    _fake_report_module(monkeypatch, observed)
+    config = {
+        "curriculum_kwargs": {
+            "gate_kind": "reward_and_length/v1",
+            "gate_schema_version": 1,
+            "min_avg_reward": 1.0,
+            **updates,
+        }
+    }
+    result = _write_gait_report(
+        species_cfg=SimpleNamespace(species="trex"),
+        stage=2,
+        stage_config=config,
+        stage_dir=tmp_path,
+        model_dir=tmp_path / "models",
+        algorithm="PPO",
+        development_panel=development_panel,
+    )
+    if expected is None:
+        assert result is None and not observed
+    else:
+        _, kwargs = observed.pop()
+        assert (kwargs["episodes"], kwargs["seed"]) == expected
+        assert kwargs["seed"] == DEVELOPMENT_GAIT_SEED_START
+        assert not PUBLICATION_SEED_START <= kwargs["seed"] < PUBLICATION_SEED_START + 40
+    # Any earlier report is invalidated either way.
+    assert not (tmp_path / "gait_report.json").exists()
+
+
+def test_generate_stage_artifacts_ties_development_panel_to_graphs_unless_told(monkeypatch, tmp_path):
+    from environments.shared.reporting import stage_artifacts
+
+    calls = []
+    monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", lambda **kwargs: None)
+    monkeypatch.setattr(stage_artifacts, "_write_gait_report", lambda **kwargs: calls.append(kwargs) or None)
+    monkeypatch.setattr(stage_artifacts, "_write_task_success_evidence", lambda **kwargs: None)
+    monkeypatch.setattr(stage_artifacts, "_apply_stage_gate", lambda **kwargs: None)
+    monkeypatch.setattr(stage_artifacts, "_run_stance_probes", lambda **kwargs: None)
+    monkeypatch.setattr(stage_artifacts.text_summaries, "write_stage_summary", lambda *args, **kwargs: None)
+    for graphs, diagnostics, expected in ((True, None, True), (False, None, False), (False, True, True)):
+        stage_artifacts.generate_stage_artifacts(
+            SimpleNamespace(species="trex"),
+            {"curriculum_kwargs": {}},
+            2,
+            "PPO",
+            tmp_path,
+            42,
+            stage_results={},
+            record_videos=False,
+            generate_graphs=graphs,
+            gait_diagnostics=diagnostics,
+        )
+        assert calls.pop()["development_panel"] is expected
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"min_eval_episodes": 40.0},  # a float count validated, then never matched a rolled panel
+        {"min_complete_cycles_per_foot": 3.0},
+        {"gait_panel_seed_start": 3042.0},
+        {"required_consecutive": 1.0},
+        {"required_consecutive": True},
+        {"min_eval_episodes": True},
+    ],
+)
+def test_integer_criteria_must_be_integers(updates):
+    with pytest.raises((GateSchemaError, ValueError), match="integer"):
+        validate_gate_config(2, curriculum(**updates))
+    with pytest.raises(ValueError):
+        GaitGateThresholds.from_curriculum(curriculum(**updates))
+
+
+@pytest.mark.parametrize("value,valid", [(40, True), (39, False), (0, False), (40.0, False)])
+def test_gait_report_episodes_on_a_gait_gate_must_equal_the_declared_panel(value, valid):
+    block = curriculum(gait_report_episodes=value)
+    if valid:
+        assert validate_gate_config(2, block) == GAIT_GATE_KIND
+    else:
+        with pytest.raises(GateSchemaError, match="gait_report_episodes"):
+            validate_gate_config(2, block)
+
+
+def test_certification_panel_must_lie_inside_the_registered_block():
+    with pytest.raises(GateSchemaError, match="registered block"):
+        validate_gate_config(2, curriculum(min_eval_episodes=41))
 
 
 def test_publication_rederives_gait_and_rejects_unbound_or_laundered_claims(tmp_path):
@@ -754,13 +933,13 @@ def test_publication_rederives_gait_and_rejects_unbound_or_laundered_claims(tmp_
         _validate_gait_evidence(tmp_path, curriculum(), **params)
 
 
-@pytest.mark.parametrize("reason", ["skipped", "no_handoff"])
+@pytest.mark.parametrize("reason", ["invalid_gate", "no_handoff"])
 def test_failed_fresh_generation_invalidates_older_certificate(tmp_path, reason):
     from environments.shared.reporting.stage_artifacts import _write_gait_report
 
     _panel(tmp_path)
     config = {"curriculum_kwargs": curriculum()}
-    if reason == "skipped":
+    if reason == "invalid_gate":
         config["curriculum_kwargs"]["gait_report_episodes"] = 0
     else:
         (tmp_path / "models" / "robust_best_model_vecnorm.pkl").unlink()
@@ -893,37 +1072,158 @@ def test_strict_locomotion_requires_progress_and_one_fixed_panel(updates):
         validate_gate_config(2, curriculum(**updates))
 
 
+def _float_paths(record, prefix=""):
+    """Every (path, value) of a float in a nested metrics record."""
+    if isinstance(record, dict):
+        for key, value in record.items():
+            yield from _float_paths(value, f"{prefix}.{key}" if prefix else key)
+    elif isinstance(record, float):
+        yield prefix, record
+
+
+def test_reader_accepts_last_digit_differences_and_judges_the_replayed_metrics(tmp_path, monkeypatch):
+    """A replay on another machine or BLAS kernel may differ in the last digit of a stored value.
+
+    The stored numbers only have to agree with the replay within one
+    six-decimal storage quantum; the verdict is formed from the replayed
+    values, so nudging a stored number cannot move it.
+    """
+    from environments.shared.curriculum import gait_gate
+
+    report = _panel(tmp_path)
+    nudged = 0
+    for row in report["episodes"]:
+        for path, value in list(_float_paths(row)):
+            if path in {"reward"} or not value:
+                continue
+            target = row
+            keys = path.split(".")
+            for key in keys[:-1]:
+                target = target[key]
+            # one ulp on some values, one storage quantum (1e-6) on others
+            target[keys[-1]] = float(np.nextafter(value, np.inf)) if nudged % 2 else value + 1e-6
+            nudged += 1
+    assert nudged > 100
+    _rewrite_panel(tmp_path, report)
+    judged = []
+    real = gait_gate.evaluate_gait_gate
+
+    def capture(episodes, *args, **kwargs):
+        judged.extend(episodes)
+        return real(episodes, *args, **kwargs)
+
+    monkeypatch.setattr(gait_gate, "evaluate_gait_gate", capture)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert not failures and stats is not None and stats["passed"]
+    replayed = json.loads(_seed_tied(PUBLICATION_SEED_START)[1])
+    assert judged[0]["mean_speed_mps"] == replayed["mean_speed_mps"]
+    assert judged[0]["mean_speed_mps"] != report["episodes"][0]["mean_speed_mps"]
+
+
 @pytest.mark.parametrize(
-    "updates",
+    "path,value",
     [
-        {"min_eval_episodes": 40.0},  # a float count validated, then never matched a rolled panel
-        {"min_complete_cycles_per_foot": 3.0},
-        {"gait_panel_seed_start": 3042.0},
-        {"required_consecutive": 1.0},
-        {"required_consecutive": True},
-        {"min_eval_episodes": True},
+        ("complete_cycles_min", 2),  # a count must reproduce exactly
+        ("per_foot.r.complete_cycles", 1),
+        ("telemetry_valid", False),
+        ("gait_label", "pronk"),
+        ("mean_speed_mps", 0.5),  # far outside the storage quantum
     ],
 )
-def test_integer_criteria_must_be_integers(updates):
-    with pytest.raises((GateSchemaError, ValueError), match="integer"):
-        validate_gate_config(2, curriculum(**updates))
-    with pytest.raises(ValueError):
-        GaitGateThresholds.from_curriculum(curriculum(**updates))
+def test_reader_refuses_a_count_label_or_value_that_does_not_reproduce(tmp_path, path, value):
+    report = _panel(tmp_path)
+    report["episodes"][3] = _with(report["episodes"][3], path, value)
+    _rewrite_panel(tmp_path, report)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert stats is None and "do not reproduce" in failures[0]
 
 
-@pytest.mark.parametrize("value,valid", [(40, True), (39, False), (0, False), (40.0, False)])
-def test_gait_report_episodes_on_a_gait_gate_must_equal_the_declared_panel(value, valid):
-    block = curriculum(gait_report_episodes=value)
-    if valid:
-        assert validate_gate_config(2, block) == GAIT_GATE_KIND
+def _rewrite_trace(root, report, index, trace):
+    path = root / report["traces"][index]["path"]
+    np.savez_compressed(path, **trace)
+    report["traces"][index]["sha256"] = sha256_file(path)
+
+
+def _load_trace(root, report, index):
+    with np.load(root / report["traces"][index]["path"]) as archive:
+        return {key: archive[key] for key in archive.files}
+
+
+@pytest.mark.parametrize("mutation", ["duplicate", "swap", "fabricated_reset", "moved_first_sample", "copied_reset"])
+def test_reader_ties_every_trace_to_its_own_seed(tmp_path, mutation):
+    """Duplicated, swapped or relabelled rollouts are not independent seeded episodes."""
+    report = _panel(tmp_path)
+    first, second = _load_trace(tmp_path, report, 0), _load_trace(tmp_path, report, 1)
+    if mutation == "duplicate":
+        # episode 1 replaced by a copy of episode 0, its metrics copied too
+        _rewrite_trace(tmp_path, report, 1, first)
+        report["episodes"][1] = {**report["episodes"][0], "seed": report["episodes"][1]["seed"], "episode": 1}
+        report["episodes"][1]["reset_state_sha256"] = canonical_json_sha256({"other": 1})
+        match = "duplicates another episode's trace"
+    elif mutation == "swap":
+        _rewrite_trace(tmp_path, report, 0, second)
+        _rewrite_trace(tmp_path, report, 1, first)
+        for key in ("reset_state_sha256",):
+            report["episodes"][0][key], report["episodes"][1][key] = (
+                report["episodes"][1][key],
+                report["episodes"][0][key],
+            )
+        match = "fresh reset of seed"
+    elif mutation == "fabricated_reset":
+        report["episodes"][2]["reset_state_sha256"] = "sha256:" + "1" * 64
+        match = "reset digest"
+    elif mutation == "moved_first_sample":
+        moved = _load_trace(tmp_path, report, 2)
+        moved["root_position_m"][0, 0] += 0.01
+        _rewrite_trace(tmp_path, report, 2, moved)
+        match = "first sample"
     else:
-        with pytest.raises(GateSchemaError, match="gait_report_episodes"):
-            validate_gate_config(2, block)
+        # episode 2's stored reset state replaced by episode 3's (and its digest)
+        relabelled = _load_trace(tmp_path, report, 2)
+        third = _load_trace(tmp_path, report, 3)
+        for key in ("reset_qpos", "reset_qvel", "reset_mocap_pos"):
+            relabelled[key] = third[key]
+        _rewrite_trace(tmp_path, report, 2, relabelled)
+        report["episodes"][2]["reset_state_sha256"] = report["episodes"][3]["reset_state_sha256"]
+        match = "missing or duplicated"
+    _rewrite_panel(tmp_path, report)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert stats is None and match in failures[0]
 
 
-def test_certification_panel_must_lie_inside_the_registered_block():
-    with pytest.raises(GateSchemaError, match="registered block"):
-        validate_gate_config(2, curriculum(min_eval_episodes=41))
+def test_reader_requires_the_reset_state_and_divergence_record(tmp_path):
+    report = _panel(tmp_path)
+    trace = _load_trace(tmp_path, report, 0)
+    del trace["reset_qvel"]
+    _rewrite_trace(tmp_path, report, 0, trace)
+    _rewrite_panel(tmp_path, report)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert stats is None and "reset state or divergence record" in failures[0]
+
+
+def test_reader_accepts_a_diverged_episode_as_a_failed_one(tmp_path):
+    """A MuJoCo divergence ends that episode's trace; the panel stays readable and the episode fails."""
+
+    def diverge(index, seed, trace):
+        if index != 5:
+            return trace
+        cut = 2001  # 4 s of 10 s
+        trace = {key: (value[:cut] if value.ndim and len(value) == 5001 else value) for key, value in trace.items()}
+        trace["physics_diverged"] = np.asarray(True)
+        return trace
+
+    report = _panel(tmp_path, trace_for=diverge)
+    report["episodes"][5].update(physics_diverged=True, completed_horizon=False)
+    _rewrite_panel(tmp_path, report)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert not failures and stats is not None
+    assert stats["selected_gait_success_count"] == 39
+    assert stats["episode_failures"][5] == ["episode/telemetry_valid: telemetry is invalid or missing"]
+    # The divergence flag must agree with the trace.
+    report["episodes"][5]["physics_diverged"] = False
+    _rewrite_panel(tmp_path, report)
+    stats, failures = gait_statistics(tmp_path, curriculum())
+    assert stats is None and "divergence record" in failures[0]
 
 
 @pytest.mark.parametrize(
