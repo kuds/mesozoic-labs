@@ -20,6 +20,7 @@ from ..constants import PUBLICATION_SEED_START
 from ..curriculum.gait_gate import (
     GAIT_GATE_KIND,
     GaitGateThresholds,
+    default_gait_profile,
     describe_gait_episode,
     evaluate_gait_gate,
     provisional_gait_criteria,
@@ -50,7 +51,7 @@ PANEL_FIELDS = (
     "gait_label",
     "qualified",
     "limb_duty_min",
-    "lead_exchange_fraction_min",
+    "step_length_over_leg_min",
     "flight_fraction",
     "skid_fraction_max",
     "body_support_fraction",
@@ -304,8 +305,8 @@ def write_gait_report(
             seed_start=seed,
         )
         digest_protocol = protocol_sha256(payload)
-        profile = curriculum.get(
-            "gait_profile", "biped_alternating" if len(morph.foot_names) == 2 else "quadruped_walk"
+        profile = curriculum.get("gait_profile") or default_gait_profile(
+            len(morph.foot_names), float(curriculum.get("min_avg_forward_vel", 0.0)), morph.leg_length_m
         )
         if report_only:
             thresholds = _provisional_thresholds(profile, digest_protocol, curriculum, episodes, measured_duration)

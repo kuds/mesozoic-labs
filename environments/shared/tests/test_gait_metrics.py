@@ -24,6 +24,15 @@ BIPED = ("r", "l")
 QUAD = ("fr", "fl", "rr", "rl")
 
 
+def yaw_quaternion(yaw_rad):
+    """Root quaternions (w, x, y, z) of a level trunk whose body x axis points at ``yaw_rad``."""
+    yaw = np.asarray(yaw_rad, dtype=float)
+    out = np.zeros(yaw.shape + (4,))
+    out[..., 0] = np.cos(yaw / 2.0)
+    out[..., 3] = np.sin(yaw / 2.0)
+    return out
+
+
 def stepping_trace(phases=(0.0, 0.5), duty=0.625, dt=0.01, duration=4.8, slip=0.0, speed=0.8):
     """Continuous periodic feet evaluated at any requested physics sample rate."""
     time = np.arange(round(duration / dt) + 1, dtype=float) * dt
@@ -59,6 +68,7 @@ def stepping_trace(phases=(0.0, 0.5), duty=0.625, dt=0.01, duration=4.8, slip=0.
         "body_floor_force_n": np.zeros(len(time)),
         "foot_foot_force_n": np.zeros(len(time)),
         "root_position_m": root,
+        "root_quat_wxyz": yaw_quaternion(np.zeros(len(time))),
         "touch_force_n": force.copy(),
     }
 
@@ -160,6 +170,7 @@ def gait_trace(
         "body_floor_force_n": np.zeros(count),
         "foot_foot_force_n": np.full(count, foot_foot),
         "root_position_m": root,
+        "root_quat_wxyz": yaw_quaternion(np.zeros(count)),
         "touch_force_n": force.copy(),
     }
 
@@ -261,12 +272,13 @@ def scheduled_trace(
         "body_floor_force_n": np.zeros(count),
         "foot_foot_force_n": np.zeros(count),
         "root_position_m": root,
+        "root_quat_wxyz": yaw_quaternion(np.zeros(count)),
         "touch_force_n": force.copy(),
     }
 
 
 def rotated(trace, degrees, about=(0.0, 0.0)):
-    """Every horizontal position rotated about +z (the declared task direction is not touched)."""
+    """The whole episode (positions and trunk) rotated about +z; the declared task direction is not touched."""
     angle = np.radians(degrees)
     cos, sin = float(np.cos(angle)), float(np.sin(angle))
     out = {key: np.array(value, copy=True) for key, value in trace.items()}
@@ -275,11 +287,15 @@ def rotated(trace, degrees, about=(0.0, 0.0)):
         y = out[key][..., 1] - about[1]
         out[key][..., 0] = about[0] + cos * x - sin * y
         out[key][..., 1] = about[1] + sin * x + cos * y
+    # q -> q_z(angle) * q
+    w, x, y, z = (out["root_quat_wxyz"][:, k].copy() for k in range(4))
+    c, s = float(np.cos(angle / 2.0)), float(np.sin(angle / 2.0))
+    out["root_quat_wxyz"] = np.stack([c * w - s * z, c * x - s * y, c * y + s * x, c * z + s * w], axis=1)
     return out
 
 
 def mirrored(trace):
-    """Left/right mirror image with the canonical foot order kept."""
+    """Left/right mirror image (across the x-z plane) with the canonical foot order kept."""
     feet = trace["floor_force_n"].shape[1]
     order = [1, 0] if feet == 2 else [1, 0, 3, 2]
     out = {key: np.array(value, copy=True) for key, value in trace.items()}
@@ -287,6 +303,8 @@ def mirrored(trace):
         out[key] = out[key][:, order]
     out["foot_position_m"][..., 1] *= -1.0
     out["root_position_m"][..., 1] *= -1.0
+    out["root_quat_wxyz"][:, 1] *= -1.0  # a mirrored body: (w, x, y, z) -> (w, -x, y, -z)
+    out["root_quat_wxyz"][:, 3] *= -1.0
     return out
 
 
@@ -312,7 +330,7 @@ def test_alternating_walk_has_cycles_support_and_locked_antiphase():
     pair = result["pair_phase"]["r>l"]
     assert pair["mean_phase"] == pytest.approx(0.5, abs=1e-6)
     assert pair["locking"] == pytest.approx(1.0)
-    template = result["templates"]["biped_alternating"]
+    template = result["templates"]["alternation"]
     assert template["alternation_phase_offset_max"] == pytest.approx(0.0, abs=1e-6)
     assert template["template_coverage"] == pytest.approx(1.0)
     assert template["alternating_overlap_index_max"] == pytest.approx(0.0, abs=1e-6)
@@ -320,7 +338,17 @@ def test_alternating_walk_has_cycles_support_and_locked_antiphase():
         assert foot["duty_factor"] == pytest.approx(0.625, abs=0.01)
         assert foot["valid_swing_fraction"] == 1.0
         assert foot["median_swing_clearance_over_leg"] == pytest.approx(0.05, abs=1e-3)
-    assert result["contralateral"]["r|l"]["lead_exchange_fraction"] == 1.0
+    for foot in result["per_foot"].values():
+        # each footprint lands half a stride (0.32 L) past the other one, every step
+        assert foot["step_length_over_leg_median"] == pytest.approx(0.32, abs=0.01)
+        assert foot["step_through_fraction"] == 1.0
+    assert result["step_length_over_leg_min"] == pytest.approx(0.32, abs=0.01)
+    # every stride (a step of each foot) steps through with both feet
+    assert result["contralateral"]["r|l"]["step_through_stride_fraction"] == 1.0
+    assert result["step_through_stride_fraction_min"] == 1.0
+    assert result["trunk_height_over_leg_median"] == 1.0
+    assert result["trunk_crab_angle_deg_median"] == pytest.approx(0.0, abs=1e-6)
+    assert template["off_gait_fraction"] == 0.0
     assert result["gait_label"].startswith("walk")
     # JSON never contains non-standard NaN tokens, including unavailable fields.
     json.dumps(result, allow_nan=False)
@@ -333,8 +361,8 @@ def test_elapsed_time_metrics_are_sampling_rate_invariant(dt):
     for name in ("duration_s", "mean_speed_mps", "limb_duty_min", "skid_fraction_max"):
         assert result[name] == pytest.approx(baseline[name], abs=1e-6)
     for name in ("alternation_phase_offset_max", "template_coverage", "phase_locking_min"):
-        assert result["templates"]["biped_alternating"][name] == pytest.approx(
-            baseline["templates"]["biped_alternating"][name], abs=0.02
+        assert result["templates"]["alternation"][name] == pytest.approx(
+            baseline["templates"]["alternation"][name], abs=0.02
         )
 
 
@@ -342,7 +370,7 @@ def test_aerial_alternating_run_is_measured_without_a_blanket_flight_veto():
     result = metrics(stepping_trace(duty=0.375))
     assert result["flight_fraction"] == pytest.approx(0.25, abs=0.01)
     assert result["max_flight_s"] == pytest.approx(0.1, abs=0.011)
-    assert result["templates"]["biped_alternating"]["alternation_phase_offset_max"] < 0.01
+    assert result["templates"]["alternation"]["alternation_phase_offset_max"] < 0.01
     assert result["hop_flight_fraction"] == pytest.approx(0.0, abs=1e-6)
     assert result["gait_label"].startswith("aerial_run")
 
@@ -350,18 +378,19 @@ def test_aerial_alternating_run_is_measured_without_a_blanket_flight_veto():
 @pytest.mark.parametrize("duty", [0.375, 0.625])
 def test_synchronous_hop_is_far_from_alternation_by_independent_statistics(duty):
     result = metrics(stepping_trace(phases=(0.0, 0.0), duty=duty))
-    template = result["templates"]["biped_alternating"]
+    template = result["templates"]["alternation"]
     assert template["alternation_phase_offset_max"] == pytest.approx(0.5, abs=1e-6)
     assert template["alternating_overlap_index_max"] == pytest.approx(1.0)
     assert template["template_coverage"] == 0.0
-    assert result["contralateral"]["r|l"]["lead_exchange_fraction"] == 0.0
+    assert template["off_gait_fraction"] == pytest.approx(1.0, abs=0.01)
+    assert result["step_length_over_leg_min"] == pytest.approx(0.0, abs=1e-6)
     assert result["gait_label"].startswith("hop")
 
 
 def test_staggered_hop_and_circular_phase_wrap_do_not_average_to_alternation():
     result = metrics(stepping_trace(phases=(0.0, 0.025), duty=0.375))
     assert result["pair_phase"]["r>l"]["mean_phase"] == pytest.approx(0.025, abs=1e-3)
-    assert result["templates"]["biped_alternating"]["alternation_phase_offset_max"] == pytest.approx(0.475, abs=1e-3)
+    assert result["templates"]["alternation"]["alternation_phase_offset_max"] == pytest.approx(0.475, abs=1e-3)
     np.testing.assert_allclose(circular_distance([0.99, 0.01], 0.0), [0.01, 0.01])
     np.testing.assert_allclose(circular_distance([0.99, 0.01], 0.5), [0.49, 0.49])
 
@@ -377,7 +406,7 @@ def test_phase_zero_jitter_keeps_a_synchronous_pair_synchronous():
 def test_unaligned_sample_grid_has_only_time_resolution_error():
     result = metrics(stepping_trace(duty=0.375, dt=0.007))
     assert result["flight_fraction"] == pytest.approx(0.25, abs=0.014 / PERIOD)
-    assert result["templates"]["biped_alternating"]["alternation_phase_offset_max"] < 0.01
+    assert result["templates"]["alternation"]["alternation_phase_offset_max"] < 0.01
     assert result["per_foot"]["r"]["complete_cycles"] == 5
 
 
@@ -413,7 +442,7 @@ def test_standing_has_no_steps_and_undefined_phase():
     assert result["mean_speed_mps"] == 0.0
     assert result["complete_cycles_min"] == 0
     assert result["limb_phase_coverage_min"] == 0.0
-    assert result["templates"]["biped_alternating"]["template_coverage"] == 0.0
+    assert result["templates"]["alternation"]["template_coverage"] == 0.0
     assert result["gait_label"].startswith("no_complete_stride")
 
 
@@ -481,12 +510,12 @@ def test_pause_rule_uses_the_cadence_on_both_sides_not_the_episode_median():
     assert np.all(defined[(time >= 1.0) & (time < 5.0)])
 
 
-def test_fore_aft_metrics_are_measured_in_the_local_travel_frame():
+def test_fore_aft_metrics_are_measured_in_the_travel_and_trunk_frames():
     walk = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, jitter=0.01, seed=1)
     reference = metrics(walk, settle_s=1.0)
     for degrees in (5.0, -12.0, 30.0):
         turned = metrics(rotated(walk, degrees), settle_s=1.0)
-        for name in ("lead_exchange_fraction_min", "stride_length_over_leg_min", "skid_fraction_max"):
+        for name in ("step_length_over_leg_min", "stride_length_over_leg_min", "skid_fraction_max"):
             assert turned[name] == pytest.approx(reference[name], abs=2e-6), (degrees, name)
         for foot in ("r", "l"):
             assert turned["per_foot"][foot]["step_length_over_leg_median"] == pytest.approx(
@@ -497,10 +526,48 @@ def test_fore_aft_metrics_are_measured_in_the_local_travel_frame():
             reference["mean_speed_mps"] * np.cos(np.radians(degrees)), 1e-3
         )
     assert reference["stride_length_over_leg_min"] == pytest.approx(0.64, abs=0.02)
-    # an exact step-to gait walking a few degrees off the task axis never exchanges the lead
+    assert reference["step_length_over_leg_min"] == pytest.approx(0.32, abs=0.02)
+    # an exact step-to gait walking a few degrees off the task axis never steps through
     step_to = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True)
     for degrees in (0.0, 1.5, -3.0):
-        assert metrics(rotated(step_to, degrees), settle_s=1.0)["lead_exchange_fraction_min"] == 0.0
+        assert metrics(rotated(step_to, degrees), settle_s=1.0)["step_length_over_leg_min"] == pytest.approx(
+            0.0, abs=1e-6
+        )
+
+
+def crabbed(trace, degrees):
+    """The trunk travels ``degrees`` off its body axis: the path is sheared sideways while every
+    foot keeps its body-frame placement (the trunk orientation stays on +x)."""
+    out = {key: np.array(value, copy=True) for key, value in trace.items()}
+    shear = float(np.tan(np.radians(degrees)))
+    for key in ("foot_position_m", "root_position_m"):
+        out[key][..., 1] += shear * out[key][..., 0]
+    return out
+
+
+@pytest.mark.parametrize("degrees", [3.0, 7.0, -12.0])
+def test_step_length_is_measured_along_the_trunk_axis_so_a_crab_cannot_fake_step_through(degrees):
+    """A step-to gait crabbing a few degrees: its 0.2 L stance width projects onto the travel heading
+    (round-2 crab attacks); along the trunk axis from the recorded quaternion it never steps through."""
+    step_to = crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True), degrees)
+    measured = metrics(step_to, settle_s=1.0)
+    assert measured["step_length_over_leg_min"] == pytest.approx(0.0, abs=0.002)
+    assert measured["trunk_crab_angle_deg_median"] == pytest.approx(-degrees, abs=0.05)
+    # the same step-to with a trunk that turned with its path is still a step-to
+    turned = metrics(rotated(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True), degrees))
+    assert turned["step_length_over_leg_min"] == pytest.approx(0.0, abs=0.002)
+    # a genuine walk crabbing the same way keeps its body-frame steps
+    walk = metrics(crabbed(gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8), degrees), settle_s=1.0)
+    assert walk["step_length_over_leg_min"] == pytest.approx(0.32, abs=0.02)
+
+
+def test_trunk_yaw_wobble_within_a_stride_is_averaged_out():
+    walk = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8)
+    wobbling = {key: np.array(value, copy=True) for key, value in walk.items()}
+    wobbling["root_quat_wxyz"] = yaw_quaternion(np.radians(10.0) * np.sin(2.0 * np.pi * walk["time_s"] / 0.8))
+    steady = metrics(walk, settle_s=1.0)
+    wobble = metrics(wobbling, settle_s=1.0)
+    assert wobble["step_length_over_leg_min"] == pytest.approx(steady["step_length_over_leg_min"], abs=0.01)
 
 
 def test_swing_floor_contact_stride_length_and_girdle_shares_are_measured():
@@ -511,7 +578,6 @@ def test_swing_floor_contact_stride_length_and_girdle_shares_are_measured():
     assert clean["stride_length_over_leg_min"] == pytest.approx(0.64, abs=0.01)
     assert clean["girdle_load_share_min"] is None
     assert clean["girdle_unloaded_fraction"] is None
-    assert clean["stall_fraction"] == 0.0
     assert clean["glide_stance_fraction_max"] == 0.0
     assert clean["light_stance_fraction_max"] == 0.0
     walk = (((0.0, 0.5), 0.8, 0.6, 0.8),)
@@ -530,10 +596,13 @@ def test_swing_floor_contact_stride_length_and_girdle_shares_are_measured():
     assert metrics(trot, foot_names=QUAD, settle_s=1.0)["girdle_unloaded_fraction"] == 0.0
 
 
-def test_footprints_hold_through_swing_so_swing_leg_retraction_is_no_lead_change():
-    """A step-to gait whose trailing foot swings 0.03 L past the planted foot and retracts to land level."""
+def test_footprints_are_load_weighted_so_swing_retraction_toe_reach_and_slides_do_not_count():
+    """A step-to gait whose trailing foot (a) swings 0.03 L past the planted foot and retracts to land
+    level, (b) touches down lightly 0.06 L ahead and slides back before loading, or (c) lands 0.01 L
+    behind and slides 0.03 L forward under load: its weight-bearing footprint never steps through."""
     step_to = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True)
     retracting = {key: np.array(value, copy=True) for key, value in step_to.items()}
+    toe_reach = {key: np.array(value, copy=True) for key, value in step_to.items()}
     swinging = retracting["floor_force_n"][:, 1] == 0.0
     for start, end in boolean_runs(swinging):
         if start == 0 or end == len(swinging):
@@ -542,17 +611,44 @@ def test_footprints_hold_through_swing_so_swing_leg_retraction_is_no_lead_change
         retracting["foot_position_m"][start:end, 1, 0] += 0.06 * np.exp(-(((fraction - 0.85) / 0.06) ** 2))
     ahead = retracting["foot_position_m"][:, 1, 0] - retracting["foot_position_m"][:, 0, 0]
     assert np.max(ahead) > 0.02  # the swinging foot does pass the planted one
-    measured = metrics(retracting, settle_s=1.0)
-    assert measured["lead_exchange_fraction_min"] == 0.0
-    assert measured["step_length_over_leg_min"] == pytest.approx(0.0, abs=1e-6)
+    for start, end in boolean_runs(toe_reach["floor_force_n"][:, 1] > 0.0):
+        if start == 0:
+            continue
+        reach = start + int(0.15 * (end - start))  # light toe contact ahead, sliding back
+        fraction = (np.arange(start, reach) - start) / max(reach - start, 1)
+        toe_reach["foot_position_m"][start:reach, 1, 0] += 0.06 * (1.0 - fraction)
+        toe_reach["floor_force_n"][start:reach, 1] = 0.02 * BW
+    for trace in (retracting, toe_reach):
+        measured = metrics(trace, settle_s=1.0)
+        assert measured["per_foot"]["l"]["step_length_over_leg_median"] == pytest.approx(0.0, abs=0.003)
+        assert measured["step_length_over_leg_min"] == pytest.approx(0.0, abs=0.003)
+    # a trailing foot that lands 0.01 L behind and slides 0.03 L forward under load is centred on its load
+    sliding = {key: np.array(value, copy=True) for key, value in step_to.items()}
+    for start, end in boolean_runs(sliding["floor_force_n"][:, 1] > 0.0):
+        if start == 0:
+            continue
+        sliding["foot_position_m"][start:end, 1, 0] += -0.01 + 0.03 * np.linspace(0.0, 1.0, end - start)
+    slid = metrics(sliding, settle_s=1.0)
+    assert slid["per_foot"]["l"]["step_length_over_leg_median"] == pytest.approx(0.005, abs=0.003)
 
 
-def test_stall_glide_and_light_stance_are_measured():
+def test_standing_in_place_strides_glide_and_light_stance_are_measured():
     walk = ((0.0, 0.5), 0.5, 0.6, 1.0)
     # marking time: 1.5 s of in-place strides out of every 5 s, the rhythm unbroken
     marking = scheduled_trace(lambda t: ((0.0, 0.5), 0.5, 0.6, 0.02) if t % 5.0 >= 3.5 else walk)
-    assert metrics(marking, settle_s=1.0)["stall_fraction"] == pytest.approx(0.3, abs=0.06)
-    assert metrics(scheduled_trace(lambda t: walk), settle_s=1.0)["stall_fraction"] == 0.0
+    template = metrics(marking, settle_s=1.0)["templates"]["alternation"]
+    assert template["in_place_stride_fraction"] == pytest.approx(0.3, abs=0.06)
+    assert template["off_gait_fraction"] >= template["in_place_stride_fraction"]
+    clean = metrics(scheduled_trace(lambda t: walk), settle_s=1.0)["templates"]["alternation"]
+    assert clean["in_place_stride_fraction"] == clean["standing_fraction"] == clean["off_gait_fraction"] == 0.0
+    # standing: the trunk stops for 0.25 s twice a second while the feet keep their clock
+    frozen = scheduled_trace(lambda t: walk)
+    stops = (frozen["time_s"] % 1.0) >= 0.75
+    for start, end in boolean_runs(stops):
+        frozen["root_position_m"][start:end] = frozen["root_position_m"][start]
+        frozen["root_position_m"][end:, 0] -= frozen["root_position_m"][end, 0] - frozen["root_position_m"][start, 0]
+    standing = metrics(frozen, settle_s=1.0)["templates"]["alternation"]["standing_fraction"]
+    assert 0.15 <= standing <= 0.26
     # skating in one stride of four, at 0.9 of trunk speed; touchdown skid alone never glides
     skating = scheduled_trace(lambda t: walk + ((0.9,) if t % 2.0 >= 1.5 else (0.0,)))
     skated = metrics(skating, settle_s=1.0)
@@ -581,6 +677,7 @@ def test_settling_is_excluded_from_the_window():
         "body_floor_force_n",
         "foot_foot_force_n",
         "root_position_m",
+        "root_quat_wxyz",
         "touch_force_n",
     ],
 )
@@ -595,13 +692,30 @@ def test_nonfinite_telemetry_fails_closed_and_remains_json_safe(field):
 
 
 @pytest.mark.parametrize(
-    "problem", ["missing", "reset", "shape", "transposed", "negative", "no_window", "feet", "weight"]
+    "problem",
+    [
+        "missing",
+        "no_quaternion",
+        "zero_quaternion",
+        "reset",
+        "shape",
+        "transposed",
+        "negative",
+        "no_window",
+        "feet",
+        "weight",
+    ],
 )
 def test_missing_or_invalid_telemetry_is_not_a_successful_measurement(problem):
     trace = stepping_trace()
     kwargs = {}
     if problem == "missing":
         del trace["slip_speed_mps"]
+    elif problem == "no_quaternion":
+        # the trunk-frame step-through test fails closed; there is no travel-heading fallback
+        del trace["root_quat_wxyz"]
+    elif problem == "zero_quaternion":
+        trace["root_quat_wxyz"][50] = 0.0
     elif problem == "reset":
         trace["time_s"][240:] -= trace["time_s"][240]
     elif problem == "shape":
@@ -624,23 +738,36 @@ def test_missing_or_invalid_telemetry_is_not_a_successful_measurement(problem):
 
 
 @pytest.mark.parametrize(
-    "phases,label,trot,pace,walk",
+    "phases,label,limb_phase",
     [
-        ((0.0, 0.5, 0.5, 0.0), "trot", 0.0, 0.5, None),
-        ((0.0, 0.5, 0.0, 0.5), "pace", 0.5, 0.0, None),
-        ((0.25, 0.75, 0.0, 0.5), "walk", 0.25, 0.25, 0.25),
+        ((0.0, 0.5, 0.5, 0.0), "trot", 0.5),
+        ((0.0, 0.5, 0.0, 0.5), "pace", 0.0),
+        ((0.25, 0.75, 0.0, 0.5), "walk", 0.25),
     ],
 )
-def test_quadruped_patterns_keep_leg_pair_distinctions(phases, label, trot, pace, walk):
+def test_quadruped_symmetrical_gaits_share_one_alternation_template_and_keep_their_labels(phases, label, limb_phase):
     result = metrics(gait_trace(phases, duty=0.7, period=1.0), foot_names=QUAD, settle_s=1.0)
-    templates = result["templates"]
-    for profile in ("quadruped_walk", "quadruped_trot", "quadruped_pace"):
-        assert templates[profile]["alternation_phase_offset_max"] < 0.01
-    assert templates["quadruped_trot"]["synchrony_phase_offset_max"] == pytest.approx(trot, abs=0.01)
-    assert templates["quadruped_pace"]["synchrony_phase_offset_max"] == pytest.approx(pace, abs=0.01)
-    if walk is not None:
-        assert templates["quadruped_walk"]["walk_limb_phase_min"] == pytest.approx(walk, abs=0.01)
+    template = result["templates"]["alternation"]
+    assert set(template["pairs"]) == {"fr>fl", "rr>rl"}
+    assert template["alternation_phase_offset_max"] < 0.01
+    assert template["off_gait_fraction"] == 0.0
+    assert template["asymmetric_stride_fraction"] == 0.0
+    # Hildebrand's limb phase and label stay report-only diagnostics
+    assert min(result["limb_phase_mean"], 1.0 - result["limb_phase_mean"]) == pytest.approx(
+        min(limb_phase, 1.0 - limb_phase), abs=0.01
+    )
     assert label in result["gait_label"]
+
+
+def test_quadruped_strides_with_both_pairs_off_anti_phase_are_asymmetric_off_gait_time():
+    """A canter-like gait: both contralateral pairs land 0.3 cycle apart in every stride."""
+    canter = gait_trace((0.3, 0.0, 0.3, 0.0), duty=0.6, period=0.8, jitter=0.005, seed=3)
+    template = metrics(canter, foot_names=QUAD, settle_s=1.0)["templates"]["alternation"]
+    assert template["asymmetric_stride_fraction"] > 0.9
+    assert template["off_gait_fraction"] > 0.9
+    # one pair off by itself is a stumble, not an asymmetrical stride
+    limp = gait_trace((0.3, 0.0, 0.5, 0.0), duty=0.6, period=0.8, jitter=0.005, seed=3)
+    assert metrics(limp, foot_names=QUAD, settle_s=1.0)["templates"]["alternation"]["asymmetric_stride_fraction"] == 0.0
 
 
 def test_metrics_are_order_deterministic_rounded_and_layout_independent():
@@ -667,21 +794,21 @@ def test_protocol_validation_and_identity_change_with_measurement_options():
     assert replace(PROTOCOL, chatter_fill_s=0.02).sha256 != PROTOCOL.sha256
     assert replace(PROTOCOL, template_alternation_tolerance=0.1).sha256 != PROTOCOL.sha256
     with pytest.raises(ValueError):
-        GaitProtocol(template_walk_band_low=0.3, template_walk_band_high=0.2)
+        GaitProtocol(template_alternation_tolerance=0.4, off_gait_extra_tolerance=0.1)
     with pytest.raises(ValueError):
         GaitProtocol(chatter_fill_s=float("nan"))
     with pytest.raises(ValueError):
         GaitProtocol(pause_factor=1.0)
     with pytest.raises(ValueError):
-        GaitProtocol(template_synchrony_tolerance=0.3, template_gross_extra_tolerance=0.2)
-    with pytest.raises(ValueError):
         GaitProtocol(pause_neighbour_strides=0)
+    with pytest.raises(ValueError):
+        GaitProtocol(step_to_bout_steps=0)
     with pytest.raises(ValueError):
         GaitProtocol(heading_window_strides=0.0)
     with pytest.raises(ValueError):
-        GaitProtocol(stall_speed_fraction=1.0)
+        GaitProtocol(trunk_axis_window_strides=0.0)
     with pytest.raises(ValueError):
-        GaitProtocol(stall_reference_percentile=0.0)
+        GaitProtocol(standing_speed_fraction=1.0)
     with pytest.raises(ValueError):
         GaitProtocol(glide_skid_ratio=0.0)
     with pytest.raises(ValueError):
@@ -691,8 +818,13 @@ def test_protocol_validation_and_identity_change_with_measurement_options():
     for option, step in (
         ("pause_neighbour_strides", 1),
         ("heading_window_strides", 1),
+        ("trunk_axis_window_strides", 1),
         ("off_gait_bout_strides", 1),
-        ("stall_window_strides", 1),
+        ("off_gait_extra_tolerance", 0.01),
+        ("in_place_stride_over_leg", 0.01),
+        ("standing_window_strides", 0.1),
+        ("standing_speed_fraction", 0.01),
+        ("step_through_min_over_leg", 0.01),
         ("glide_skid_ratio", 0.1),
         ("girdle_local_min_share", 0.01),
     ):

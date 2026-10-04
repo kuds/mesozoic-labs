@@ -91,10 +91,10 @@ def _strict_config(config, **updates):
     finally:
         env.close()
     value["curriculum_kwargs"] = {
-        **provisional_gait_criteria("biped_alternating"),
+        **provisional_gait_criteria("biped_walk"),
         "gate_kind": GAIT_GATE_KIND,
         "gate_schema_version": 1,
-        "gait_profile": "biped_alternating",
+        "gait_profile": "biped_walk",
         "measurement_protocol_sha256": protocol_sha256(protocol),
         "min_eval_episodes": 2,
         "gait_panel_seed_start": PUBLICATION_SEED_START,

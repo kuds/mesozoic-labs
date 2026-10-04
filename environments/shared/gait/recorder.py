@@ -143,6 +143,9 @@ class SubstepContactRecorder:
                 "body_floor_force_n": body_force,
                 "foot_foot_force_n": foot_foot_force,
                 "root_position_m": np.asarray(data.qpos[root_address : root_address + 3]).copy(),
+                # Trunk orientation (free-joint quaternion, w x y z): step length
+                # and lead exchange are measured in the trunk's own frame.
+                "root_quat_wxyz": np.asarray(data.qpos[root_address + 3 : root_address + 7]).copy(),
                 "touch_force_n": np.asarray([sum(data.sensordata[list(group)]) for group in morph.touch_addresses]),
             }
         )

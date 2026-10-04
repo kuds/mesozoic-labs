@@ -38,6 +38,11 @@ PAIR_TOGETHER_BAND = 0.05
 FOUR_BEAT_MIN_GAP = 0.0625
 AERIAL_FLIGHT_FRACTION = 0.02
 STUTTER_FACTOR = 0.5
+#: Hildebrand limb-phase class boundaries (folded limb phase, cycles): pace
+#: below 1/8, trot above 3/8, lateral- or diagonal-sequence walk between.
+#: Report-only: no profile certifies trot, pace or the walk subclasses.
+LIMB_PHASE_PACE_BELOW = 0.125
+LIMB_PHASE_TROT_ABOVE = 0.375
 
 FAMILY = {
     "walk": "alternating",
@@ -134,9 +139,9 @@ def _label_quad(
             return "irregular", None, None
         aerial = flight > AERIAL_FLIGHT_FRACTION
         folded = _cdist(limb_phase, 0.0)
-        if folded < protocol.template_walk_band_low:
+        if folded < LIMB_PHASE_PACE_BELOW:
             kind = "pace"
-        elif folded > protocol.template_walk_band_high:
+        elif folded > LIMB_PHASE_TROT_ABOVE:
             kind = "trot"
         else:
             ordered = sorted([fr, fl, rr, rl])

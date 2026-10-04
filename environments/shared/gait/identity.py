@@ -74,6 +74,10 @@ def measurement_protocol(
             "skid": "per-limb stance slip distance over trunk travel during the same stances",
             "phase": "continuous touchdown-to-touchdown limb phase; pair statistics are circular means",
             "clearance": "minimum signed registered-foot to declared-terrain geometry distance",
+            "footprint": "load-weighted (force x time) centre of each stance",
+            "step_length": "footprint ahead of the contralateral foot's previous footprint along the trunk axis "
+            "(root-quaternion body x axis, averaged over one stride)",
+            "step_through_stride": "consecutive steps of the two feet of a contralateral pair, both stepping through",
             "body_support_fraction": "non-foot ground impulse divided by total animal ground impulse",
         },
         "panel": {
