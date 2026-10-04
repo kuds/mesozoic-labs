@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deferral (terrain work waits for the walking gait), the terrain blocker,
   the node order, an evaluation cell for Colab and a gentle terrain recipe.
 - **The root README is a short front page, and the full species catalog is a
-  generated docs page** (cleanup CU-17 of `docs/CLEANUP_PLAN_2026_09.md`,
+  generated docs page** (#593, cleanup CU-17 of `docs/CLEANUP_PLAN_2026_09.md`,
   2026-10-04; the maintainer's request of 2026-10-03 and choices of
   2026-10-04). `README.md` goes from 536 lines to 134: the title, the
   historical balance GIF with its provenance caption, what the project is,
@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   READMEs, ROADMAP and RL_TRAINING_PLAN link the catalog page; the catalog
   JSON is unchanged, and no digest moves.
 - **A PR's landing is recorded once, in the consolidation plan's status table
-  and in the PR's CHANGELOG entry** (cleanup CU-17 of
+  and in the PR's CHANGELOG entry** (#593, cleanup CU-17 of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-04; the maintainer's ruling of
   2026-10-02). A `docs/README.md` convention states the rule, which governs
   landings from CU-17 on, and `test_landing_records.py` fails a landing record
