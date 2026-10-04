@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The T. rex locomotion enforcement step and the gait-r1 pilot, documented
+  but not enabled** (`docs/GAIT_CERTIFICATION.md`, "T. rex locomotion: the
+  enforcement step"; `docs/NEXT_STEPS.md` §3;
+  `docs/investigations/TREX_GAIT_R1_RESCORE_2026_10.md`). Three parts:
+  - **The enforcement block.** This is the `locomotion_gait/v2` `biped_walk`
+    block T. rex locomotion adopts once a pilot of its task revision
+    `gait-r1` passes. It has every walk-first bar, with the stride floor
+    tightened to 0.40 `L` for T. rex (the hops stride 0.17-0.21 `L`). Its
+    panel is 40 episodes from seed 3042, passing at 37 of 40, over a 19 s
+    analysis window on the revision's 2000-step horizon. The section also
+    gives the `--protocol-only` command that plans the block's measurement
+    hash.
+  - **The pilot.** A command-line pilot runs 1.5M steps from the seed-42
+    stance `20260914_123816`, with seed 45, into a scratch run directory,
+    taking the revision's values through `--override`. The steps include
+    judging it on the development seed block, and when to proceed or stop.
+  - **The re-scoring note.** A dated note records the CPU re-scoring that
+    chose the revision's values, repeated on the development seeds.
+
+  No code, configuration or digest changes.
 - **A gait reward kit, inert until a stage sets it, wired into the T. rex
   env** (`docs/GAIT_QUALITY_PLAN_2026_09.md` §5.2–§5.3, PR-G6 for T. rex
   first). `environments/shared/gait_rewards.py` holds the contact terms
