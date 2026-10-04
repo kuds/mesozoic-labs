@@ -6,7 +6,14 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from environments.shared.gait.events import boolean_runs, circular_distance, limb_phase, segment_limb
+from environments.shared.gait.events import (
+    boolean_runs,
+    circular_distance,
+    limb_phase,
+    segment_limb,
+    stride_is_normal,
+    stride_references,
+)
 from environments.shared.gait.metrics import episode_gait_metrics
 from environments.shared.gait.types import GaitProtocol, measurement_protocol_sha256
 
@@ -155,6 +162,118 @@ def gait_trace(
         "root_position_m": root,
         "touch_force_n": force.copy(),
     }
+
+
+def scheduled_trace(
+    plan,
+    *,
+    feet=2,
+    duration=10.0,
+    dt=0.002,
+    clearance=0.05,
+    jitter=0.0,
+    seed=0,
+    load=None,
+    slip=0.0,
+    swing_drag=0.0,
+    flick=0.2,
+):
+    """Footfall puppet whose every stride follows ``plan(start) -> (phases, period, duty, speed)``.
+
+    Stride-by-stride schedules give bouts (hop bouts, scrambles) and cadence
+    changes (a walk-to-run transition); the trunk integrates the scheduled
+    speed and each foot lands half its stance travel ahead of the trunk.
+    ``slip`` is the stance glide as a fraction of trunk speed. ``swing_drag``
+    > 0 keeps the swing foot on the floor with that force (x BW) and sliding,
+    except for a ``flick`` fraction of the swing in mid-swing (a toe drag).
+    """
+    rng = np.random.default_rng(seed)
+    loads = np.ones(feet) if load is None else np.asarray(load, dtype=float)
+    time = np.arange(round(duration / dt) + 1, dtype=float) * dt
+    count = len(time)
+    strides = []
+    start = -1.0
+    while start < duration + 1.0:
+        phases, period, duty, speed = plan(start)
+        strides.append((start, period, phases, np.broadcast_to(np.asarray(duty, dtype=float), (feet,)), speed))
+        start += period
+    speed_at = np.zeros(count)
+    for start, period, _, _, speed in strides:
+        speed_at[(time >= start) & (time < start + period)] = speed
+    root_x = np.concatenate(([0.0], np.cumsum(speed_at[:-1] * dt)))
+    stances: list[list[tuple[float, float, float]]] = [[] for _ in range(feet)]
+    for start, period, phases, duties, speed in strides:
+        for foot in range(feet):
+            touchdown = start + (phases[foot] % 1.0) * period + jitter * period * rng.standard_normal()
+            stances[foot].append((touchdown, touchdown + duties[foot] * period, speed))
+    loaded = np.zeros((count, feet), dtype=bool)
+    position = np.zeros((count, feet, 3))
+    height = np.zeros((count, feet))
+    drag = np.zeros((count, feet), dtype=bool)
+    glide = np.zeros((count, feet))
+    for foot in range(feet):
+        ordered = sorted(stances[foot])
+        ordered = [
+            (td, min(lo, ordered[k + 1][0] - 0.04) if k + 1 < len(ordered) else lo, v)
+            for k, (td, lo, v) in enumerate(ordered)
+        ]
+        lateral = (-1.0 if foot % 2 else 1.0) * 0.1
+        fore = 0.6 if feet == 4 and foot < 2 else 0.0
+        placements = [float(np.interp(td, time, root_x)) + 0.5 * v * (lo - td) + fore for td, lo, v in ordered]
+        x = np.full(count, placements[0])
+        for k, (td, lo, v) in enumerate(ordered):
+            stance = (time >= td) & (time < lo)
+            loaded[stance, foot] = True
+            x[time >= td] = placements[k]
+            x[stance] = placements[k] + slip * v * (time[stance] - td)
+            glide[stance, foot] = slip * v
+            if k + 1 < len(ordered):
+                next_td = ordered[k + 1][0]
+                swing = (time >= lo) & (time < next_td)
+                fraction = (time[swing] - lo) / (next_td - lo)
+                lift = x[swing][0] if np.any(swing) else placements[k]
+                x[swing] = lift + (placements[k + 1] - lift) * (3 * fraction**2 - 2 * fraction**3)
+                bell = clearance * np.sin(np.pi * fraction)
+                if swing_drag > 0.0:
+                    airborne = np.abs(fraction - 0.5) < 0.5 * flick
+                    bell = np.where(airborne, clearance * np.sin(np.pi * (fraction - 0.5 + 0.5 * flick) / flick), 0.0)
+                    drag[np.flatnonzero(swing)[~airborne], foot] = True
+                height[swing, foot] = bell
+        position[:, foot, 0] = x
+        position[:, foot, 1] = lateral
+        position[:, foot, 2] = height[:, foot]
+    weighted = loaded * loads
+    force = BW * weighted / np.maximum(np.sum(weighted, axis=1, keepdims=True), 1.0)
+    force = np.where(drag, swing_drag * BW, force)
+    velocity = np.abs(np.gradient(position[:, :, 0], time, axis=0))
+    slip_speed = np.where(loaded, glide, np.where(drag, velocity, 0.0))
+    root = np.zeros((count, 3))
+    root[:, 0] = root_x
+    root[:, 2] = 1.0
+    return {
+        "time_s": time,
+        "floor_force_n": force,
+        "foot_position_m": position,
+        "foot_clearance_m": np.where(loaded | drag, 0.0, height),
+        "slip_speed_mps": slip_speed,
+        "body_floor_force_n": np.zeros(count),
+        "foot_foot_force_n": np.zeros(count),
+        "root_position_m": root,
+        "touch_force_n": force.copy(),
+    }
+
+
+def rotated(trace, degrees, about=(0.0, 0.0)):
+    """Every horizontal position rotated about +z (the declared task direction is not touched)."""
+    angle = np.radians(degrees)
+    cos, sin = float(np.cos(angle)), float(np.sin(angle))
+    out = {key: np.array(value, copy=True) for key, value in trace.items()}
+    for key in ("foot_position_m", "root_position_m"):
+        x = out[key][..., 0] - about[0]
+        y = out[key][..., 1] - about[1]
+        out[key][..., 0] = about[0] + cos * x - sin * y
+        out[key][..., 1] = about[1] + sin * x + cos * y
+    return out
 
 
 def mirrored(trace):
@@ -342,6 +461,65 @@ def test_continuous_phase_pauses_and_edges():
     assert boolean_runs(np.array([0, 1, 1, 0, 1], dtype=bool)) == [(1, 3), (4, 5)]
 
 
+def test_pause_rule_uses_the_cadence_on_both_sides_not_the_episode_median():
+    def pauses(periods):
+        periods = np.asarray(periods, dtype=float)
+        return (~stride_is_normal(periods, stride_references(periods, 3), 2.0)).nonzero()[0].tolist()
+
+    assert pauses([1.0, 1.0, 1.0, 3.0, 1.0, 1.0]) == [3]  # a stop between normal strides
+    assert pauses([1.0, 1.0, 1.0, 3.0, 3.0, 1.0, 1.0, 1.0]) == [3, 4]  # a second stop next to the first
+    assert pauses([3.0, 1.0, 1.0, 1.0]) == [0]  # a stop before the first normal stride
+    # walk-to-run: the stride halves; every stride matches the cadence of its own side
+    assert pauses([0.95, 0.95, 0.95, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42]) == []
+    assert pauses([0.946, 0.976, 0.436, 0.456, 0.47, 0.436]) == []  # only one walk stride before the change
+    assert pauses([1.0]) == []
+    time = np.arange(0.0, 8.0, 0.01)
+    events = np.array([1.0, 1.95, 2.9, 3.32, 3.74, 4.16, 4.58, 5.0])
+    _, defined = limb_phase(time, events, stride_references(np.diff(events), 3), 2.0)
+    assert np.all(defined[(time >= 1.0) & (time < 5.0)])
+
+
+def test_fore_aft_metrics_are_measured_in_the_local_travel_frame():
+    walk = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, jitter=0.01, seed=1)
+    reference = metrics(walk, settle_s=1.0)
+    for degrees in (5.0, -12.0, 30.0):
+        turned = metrics(rotated(walk, degrees), settle_s=1.0)
+        for name in ("lead_exchange_fraction_min", "stride_length_over_leg_min", "skid_fraction_max"):
+            assert turned[name] == pytest.approx(reference[name], abs=2e-6), (degrees, name)
+        for foot in ("r", "l"):
+            assert turned["per_foot"][foot]["step_length_over_leg_median"] == pytest.approx(
+                reference["per_foot"][foot]["step_length_over_leg_median"], abs=2e-6
+            )
+        # progress is still measured along the declared task direction
+        assert turned["mean_speed_mps"] == pytest.approx(
+            reference["mean_speed_mps"] * np.cos(np.radians(degrees)), 1e-3
+        )
+    assert reference["stride_length_over_leg_min"] == pytest.approx(0.64, abs=0.02)
+    # an exact step-to gait walking a few degrees off the task axis never exchanges the lead
+    step_to = gait_trace((0.0, 0.5), duty=0.6, period=0.8, speed=0.8, step_to=True)
+    for degrees in (0.0, 1.5, -3.0):
+        assert metrics(rotated(step_to, degrees), settle_s=1.0)["lead_exchange_fraction_min"] == 0.0
+
+
+def test_swing_floor_contact_stride_length_and_girdle_shares_are_measured():
+    clean = metrics(stepping_trace())
+    assert clean["swing_slip_fraction_max"] == 0.0
+    assert clean["swing_ground_fraction_max"] < 0.1  # only the lift-off and landing ends of the bell
+    assert clean["stride_length_over_leg_min"] == pytest.approx(0.64, abs=0.01)
+    assert clean["girdle_load_share_min"] is None
+    walk = (((0.0, 0.5), 0.8, 0.6, 0.8),)
+    dragged = metrics(scheduled_trace(lambda t: walk[0], swing_drag=0.002), settle_s=1.0)
+    assert dragged["swing_ground_fraction_max"] > 0.75
+    assert dragged["swing_slip_fraction_max"] > 0.5
+    rearing = scheduled_trace(
+        lambda t: ((0.0, 0.5, 0.5, 0.0), 0.6, (0.18, 0.18, 0.5, 0.5), 1.0), feet=4, load=(0.3, 0.3, 1.0, 1.0)
+    )
+    quad = metrics(rearing, foot_names=QUAD, settle_s=1.0)
+    assert quad["girdle_duty_ratio"] == pytest.approx(0.36, abs=0.02)
+    assert quad["girdle_load_share_min"] < 0.15
+    assert quad["fore_load_share"] == quad["girdle_load_share_min"]
+
+
 def test_settling_is_excluded_from_the_window():
     settled = metrics(stepping_trace(), settle_s=0.7)
     assert settled["duration_s"] == pytest.approx(4.1)
@@ -451,3 +629,10 @@ def test_protocol_validation_and_identity_change_with_measurement_options():
         GaitProtocol(pause_factor=1.0)
     with pytest.raises(ValueError):
         GaitProtocol(template_synchrony_tolerance=0.3, template_gross_extra_tolerance=0.2)
+    with pytest.raises(ValueError):
+        GaitProtocol(pause_neighbour_strides=0)
+    with pytest.raises(ValueError):
+        GaitProtocol(heading_window_strides=0.0)
+    for option in ("pause_neighbour_strides", "heading_window_strides", "off_gait_bout_strides"):
+        changed = replace(PROTOCOL, **{option: getattr(PROTOCOL, option) + 1})
+        assert changed.sha256 != PROTOCOL.sha256

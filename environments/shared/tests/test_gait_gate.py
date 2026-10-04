@@ -144,7 +144,10 @@ def _with(record, path, value):
         ("min_template_coverage", 1.5),
         ("max_alternation_phase_offset", 0.6),
         ("min_complete_cycles_per_foot", 2.5),
-        ("max_off_template_run_fraction_ceiling", 0.05),
+        ("max_off_gait_fraction", 1.5),
+        ("max_swing_ground_fraction", -0.1),
+        ("max_swing_slip_fraction", 2.0),
+        ("min_stride_length_over_leg", float("inf")),
         ("gait_profile", "automatic"),
         ("measurement_protocol_sha256", "old-version"),
         ("required_consecutive", 0),
@@ -165,8 +168,20 @@ def test_missing_measurement_and_gait_criteria_never_default():
         GaitGateThresholds.from_curriculum(block)
     with pytest.raises(GateSchemaError, match="missing required"):
         validate_gate_config(2, block)
-    for key in ("max_foot_foot_contact_fraction", "min_lead_exchange_fraction", "max_wrong_locked_fraction"):
+    for key in (
+        "max_foot_foot_contact_fraction",
+        "min_lead_exchange_fraction",
+        "max_off_gait_fraction",
+        "min_stride_length_over_leg",
+        "max_swing_ground_fraction",
+        "max_swing_slip_fraction",
+    ):
         block = curriculum()
+        del block[key]
+        with pytest.raises(ValueError, match=key):
+            GaitGateThresholds.from_curriculum(block)
+    for key in ("min_girdle_load_share", "min_girdle_duty_ratio", "max_off_gait_strides"):
+        block = curriculum("quadruped_walk")
         del block[key]
         with pytest.raises(ValueError, match=key):
             GaitGateThresholds.from_curriculum(block)
@@ -183,6 +198,15 @@ def test_profile_specific_criteria_are_required_and_foreign_ones_refused():
         GaitGateThresholds.from_curriculum(curriculum("quadruped_trot", min_walk_limb_phase=0.125))
     with pytest.raises(ValueError, match="below"):
         GaitGateThresholds.from_curriculum(curriculum("quadruped_walk", min_walk_limb_phase=0.4))
+    # girdle bars are quadruped-only; the long-stride off-gait allowance is walk-only
+    with pytest.raises(ValueError, match="does not consume"):
+        GaitGateThresholds.from_curriculum(curriculum(min_girdle_load_share=0.18))
+    with pytest.raises(ValueError, match="does not consume"):
+        GaitGateThresholds.from_curriculum(curriculum("quadruped_trot", max_off_gait_strides=0.9))
+    with pytest.raises(ValueError, match="max_off_gait_fraction_ceiling"):
+        GaitGateThresholds.from_curriculum(curriculum("quadruped_walk", max_off_gait_fraction_ceiling=0.01))
+    with pytest.raises(ValueError, match="min_girdle_load_share"):
+        GaitGateThresholds.from_curriculum(curriculum("quadruped_trot", min_girdle_load_share=0.6))
     for profile in ("biped_alternating", "quadruped_walk", "quadruped_trot", "quadruped_pace"):
         assert GaitGateThresholds.from_curriculum(curriculum(profile)).gait_profile == profile
 
@@ -215,23 +239,29 @@ def test_clean_measured_gaits_qualify_and_reasons_carry_stable_rail_ids():
         ("mean_speed_mps", 0.1, "episode/mean_speed_mps"),
         ("duration_s", 8.0, "episode/duration_s"),
         ("skid_fraction_max", 0.8, "support/skid_fraction_max"),
+        ("skid_fraction_max", 0.47, "support/skid_fraction_max"),
         ("flight_fraction", 0.7, "support/flight_fraction"),
         ("flight_fraction", -1.0, "support/flight_fraction"),
         ("body_support_fraction", 0.02, "support/body_support_fraction"),
         ("foot_foot_contact_fraction", 0.5, "support/foot_foot_contact_fraction"),
         ("limb_duty_min", 0.05, "participation/limb_duty_min"),
         ("relative_limb_load_share_min", 0.06, "participation/relative_limb_load_share_min"),
+        ("pair_load_ratio_min", 0.62, "participation/pair_load_ratio_min"),
+        ("pair_duty_ratio_min", 0.63, "participation/pair_duty_ratio_min"),
         ("limb_phase_coverage_min", 0.4, "participation/limb_phase_coverage_min"),
         ("valid_swing_fraction_min", 0.2, "stepping/valid_swing_fraction_min"),
         ("median_swing_clearance_over_leg_min", 0.012, "stepping/median_swing_clearance_over_leg_min"),
+        ("stride_length_over_leg_min", 0.09, "stepping/stride_length_over_leg_min"),
+        ("stride_length_over_leg_min", None, "stepping/stride_length_over_leg_min"),
+        ("swing_ground_fraction_max", 0.85, "stepping/swing_ground_fraction_max"),
+        ("swing_slip_fraction_max", 0.68, "stepping/swing_slip_fraction_max"),
         ("lead_exchange_fraction_min", 0.0, "stepping/lead_exchange_fraction_min"),
         ("templates", {}, "persistence/template"),
         ("templates.biped_alternating.phase_locking_min", 0.3, "coupling/phase_locking_min"),
         ("templates.biped_alternating.alternating_overlap_index_max", 0.9, "coupling/alternating_overlap_index_max"),
         ("templates.biped_alternating.template_coverage", 0.5, "persistence/template_coverage"),
-        ("templates.biped_alternating.min_segment_coverage", 0.2, "persistence/min_segment_coverage"),
-        ("templates.biped_alternating.wrong_locked_fraction", 0.3, "persistence/wrong_locked_fraction"),
-        ("templates.biped_alternating.longest_off_template_fraction", 0.3, "persistence/longest_off_template"),
+        ("templates.biped_alternating.off_gait_fraction", 0.06, "persistence/off_gait_fraction"),
+        ("templates.biped_alternating.off_gait_fraction", None, "persistence/off_gait_fraction"),
     ],
 )
 def test_hops_slides_falls_and_unmeasured_episodes_fail_on_their_rail(path, value, rail):
@@ -251,16 +281,35 @@ def test_duration_floor_tolerates_float_accumulation_but_not_a_short_episode():
     assert not classify_gait_episode(short, thresholds, foot_names=("r", "l"))[0]
 
 
-def test_long_stride_persistence_allows_a_few_strides_but_never_beyond_the_ceiling():
-    thresholds = GaitGateThresholds.from_curriculum(curriculum())
-    base = episode()
-    two_strides = _with(base, "templates.biped_alternating.longest_off_template_fraction", 0.13)
-    two_strides["templates"]["biped_alternating"]["longest_off_template_strides"] = 1.5
-    assert classify_gait_episode(two_strides, thresholds, foot_names=("r", "l"))[0]
-    many = _with(two_strides, "templates.biped_alternating.longest_off_template_strides", 12.0)
-    assert not classify_gait_episode(many, thresholds, foot_names=("r", "l"))[0]
-    ceiling = _with(two_strides, "templates.biped_alternating.longest_off_template_fraction", 0.16)
-    assert not classify_gait_episode(ceiling, thresholds, foot_names=("r", "l"))[0]
+def test_off_gait_budget_has_a_long_stride_allowance_for_walks_only():
+    biped = GaitGateThresholds.from_curriculum(curriculum())
+    one_stride = _with(episode(), "templates.biped_alternating.off_gait_fraction", 0.08)
+    one_stride["templates"]["biped_alternating"]["off_gait_strides"] = 0.5
+    assert not classify_gait_episode(one_stride, biped, foot_names=("r", "l"))[0]  # bipeds: 5 % of the window
+    feet = ("fr", "fl", "rr", "rl")
+    walk = GaitGateThresholds.from_curriculum(curriculum("quadruped_walk"))
+    mistimed = _with(episode(kind="walk"), "templates.quadruped_walk.off_gait_fraction", 0.12)
+    mistimed["templates"]["quadruped_walk"]["off_gait_strides"] = 0.8
+    assert classify_gait_episode(mistimed, walk, foot_names=feet)[0]  # one mistimed footfall of a long stride
+    two = _with(mistimed, "templates.quadruped_walk.off_gait_strides", 1.2)
+    assert not classify_gait_episode(two, walk, foot_names=feet)[0]
+    ceiling = _with(mistimed, "templates.quadruped_walk.off_gait_fraction", 0.16)
+    passed, failures = classify_gait_episode(ceiling, walk, foot_names=feet)
+    assert not passed and [rail_id(reason) for reason in failures] == ["persistence/off_gait_fraction"]
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [("girdle_load_share_min", 0.16), ("girdle_duty_ratio", 0.36), ("girdle_load_share_min", None)],
+)
+def test_quadruped_girdle_participation_rails(key, value):
+    feet = ("fr", "fl", "rr", "rl")
+    for profile, kind in (("quadruped_walk", "walk"), ("quadruped_trot", "trot"), ("quadruped_pace", "pace")):
+        thresholds = GaitGateThresholds.from_curriculum(curriculum(profile))
+        assert classify_gait_episode(episode(kind=kind), thresholds, foot_names=feet)[0]
+        passed, failures = classify_gait_episode(_with(episode(kind=kind), key, value), thresholds, foot_names=feet)
+        assert not passed
+        assert [rail_id(reason) for reason in failures] == [f"participation/{key}"]
 
 
 def test_optional_step_length_rail_and_foot_registry():

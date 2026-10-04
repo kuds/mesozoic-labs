@@ -54,10 +54,17 @@ class GaitProtocol:
     #: A valid swing clears this height and repositions the foot this far.
     valid_swing_clearance_over_leg: float = 0.01
     valid_swing_travel_over_leg: float = 0.03
+    #: Swing-phase floor contact: a swing sample is at the floor when the foot
+    #: carries any floor force or is lower than this (a drag or a skim).
+    swing_ground_clearance_over_leg: float = 0.005
     # -- continuous limb phase --------------------------------------------------
-    #: A stride longer than this multiple of the limb's median stride is a
-    #: pause: phase is undefined (coverage loss) for its whole duration.
+    #: A stride longer than this multiple of its local reference is a pause:
+    #: phase is undefined (coverage loss) for its whole duration. The
+    #: reference is the larger of the median cadences of up to
+    #: ``pause_neighbour_strides`` strides of the same limb on either side
+    #: (the stride itself excluded), so a cadence change is not a pause.
     pause_factor: float = 2.0
+    pause_neighbour_strides: int = 3
     #: Centred sliding window for local phase statistics, in pooled strides.
     local_window_strides: float = 1.0
     #: Local mean resultant length below which a pair is locally unlocked.
@@ -73,6 +80,19 @@ class GaitProtocol:
     #: ... and grossly off-template when it lies this much further out, or
     #: the pair is unlocked or a limb's phase is undefined.
     template_gross_extra_tolerance: float = 0.05
+    #: Off-gait time counts undefined phase and time locked inside a competing
+    #: gait's template, plus uncoordinated (unlocked) stepping only inside
+    #: bouts that last at least this many pooled strides.
+    off_gait_bout_strides: float = 2.0
+    # -- local travel frame ------------------------------------------------------
+    #: Fore-aft quantities (lead exchange, step and stride length, skid travel)
+    #: are measured along the local travel heading: the trunk displacement over
+    #: a centred window of this many pooled strides (one stride cancels the
+    #: stride-periodic lateral sway). Where that displacement is shorter than
+    #: ``heading_min_travel_over_leg`` the heading of the whole window is used,
+    #: and the declared direction only when the trunk did not travel at all.
+    heading_window_strides: float = 1.0
+    heading_min_travel_over_leg: float = 0.05
     # -- other measured quantities ----------------------------------------------
     #: Lead-limb exchange: the fore-aft order of a contralateral pair must
     #: flip past +-this distance within a stride.
@@ -102,6 +122,10 @@ class GaitProtocol:
                 raise ValueError(f"gait protocol option {name} must be positive")
         if self.pause_factor <= 1.0:
             raise ValueError("gait protocol option pause_factor must exceed one stride")
+        if isinstance(self.pause_neighbour_strides, float) or self.pause_neighbour_strides < 1:
+            raise ValueError("gait protocol option pause_neighbour_strides must be a positive integer")
+        if self.heading_window_strides <= 0.0:
+            raise ValueError("gait protocol option heading_window_strides must be positive")
         for name in ("bounce_swing_fraction", "bounce_clearance_fraction", "local_min_locking"):
             if values[name] > 1.0:
                 raise ValueError(f"gait protocol option {name} must lie in [0, 1]")

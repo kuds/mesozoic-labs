@@ -15,10 +15,14 @@ Segmentation (per limb, floor normal force only):
 
 The continuous phase of a limb rises linearly from 0 to 1 between consecutive
 events (touchdowns, or mid-stances for the diagnostic anchor). A stride longer
-than ``pause_factor`` median strides is a pause: the phase is undefined for
-its whole duration. Before the first and after the last event the phase is
-extrapolated with the median stride for one stride and undefined beyond,
-because the next event cannot be observed there.
+than ``pause_factor`` times its *local reference* is a pause: the phase is
+undefined for its whole duration. The local reference of a stride is the
+cadence of its neighbouring strides of the same limb on either side
+(``stride_references``), not the whole-episode median, so a genuine change of
+cadence (a walk-to-run transition halves the stride) is not mistaken for a
+pause, while a stop between normal strides still is. Before the first and after the last
+event the phase is extrapolated with the nearest stride's reference for one
+stride and undefined beyond, because the next event cannot be observed there.
 """
 
 from __future__ import annotations
@@ -128,30 +132,86 @@ def segment_limb(
     )
 
 
+def stride_references(periods_s: ArrayLike, neighbours: int) -> NDArray[np.float64]:
+    """Local cadence reference of each stride, from its neighbours on either side.
+
+    Each side's cadence is the median of up to ``neighbours`` strides of the
+    same limb on that side; the reference is the larger of the two. The
+    stride itself is excluded, so a stop cannot raise its own reference, and
+    a stride is a pause only when it is long against the cadence on *both*
+    sides: at a walk-to-run transition every stride matches the cadence of
+    its own side. A side median of three strides still sees through a second
+    stop next to the first. The first and last strides have one side only;
+    there the stride itself joins that side's median, so a cadence change
+    right after the first stride is not a pause while a stop followed by
+    normal strides still is. A limb with a single stride has no neighbours;
+    its reference is the stride itself (never a pause).
+    """
+    periods = np.asarray(periods_s, dtype=float)
+    count = len(periods)
+    references = np.empty(count)
+    for k in range(count):
+        before, after = periods[max(0, k - neighbours) : k], periods[k + 1 : k + 1 + neighbours]
+        if len(before) and len(after):
+            references[k] = max(float(np.median(before)), float(np.median(after)))
+        elif len(before) or len(after):
+            references[k] = float(np.median(np.concatenate((before, periods[k : k + 1], after))))
+        else:
+            references[k] = float(periods[k])
+    return references
+
+
+def stride_is_normal(periods_s: ArrayLike, references_s: ArrayLike, pause_factor: float) -> NDArray[np.bool_]:
+    """Strides that are not pauses: no longer than ``pause_factor`` local references."""
+    periods = np.asarray(periods_s, dtype=float)
+    return cast(NDArray[np.bool_], periods <= pause_factor * np.asarray(references_s, dtype=float))
+
+
 def limb_phase(
-    time_s: NDArray[np.float64], event_times_s: ArrayLike, median_period_s: float, pause_factor: float
+    time_s: NDArray[np.float64],
+    event_times_s: ArrayLike,
+    reference_period_s: float | ArrayLike,
+    pause_factor: float,
 ) -> tuple[NDArray[np.float64], NDArray[np.bool_]]:
-    """Continuous phase in ``[0, 1)`` on every sample and its definedness mask."""
+    """Continuous phase in ``[0, 1)`` on every sample and its definedness mask.
+
+    ``reference_period_s`` is either one reference for every stride or the
+    per-stride local references (``stride_references``, one per interval
+    between consecutive events).
+    """
     count = len(time_s)
     phase = np.zeros(count)
     defined = np.zeros(count, dtype=bool)
     events = np.asarray(event_times_s, dtype=float)
-    if len(events) == 0 or not median_period_s > 0.0:
+    if len(events) == 0:
         return phase, defined
+    reference = np.asarray(reference_period_s, dtype=float)
+    if reference.ndim == 0:
+        references = np.full(max(len(events) - 1, 0), float(reference))
+        first_reference = last_reference = float(reference)
+    else:
+        if reference.shape != (max(len(events) - 1, 0),):
+            raise ValueError("per-stride references must have one value per interval between events")
+        if len(reference) == 0:
+            return phase, defined
+        references = reference
+        first_reference, last_reference = float(reference[0]), float(reference[-1])
     stride = np.searchsorted(events, time_s, side="right") - 1
     if len(events) >= 2:
         inside = (stride >= 0) & (stride < len(events) - 1)
         clipped = np.clip(stride, 0, len(events) - 2)
         period = events[clipped + 1] - events[clipped]
-        normal = inside & (period <= pause_factor * median_period_s)
+        normal = inside & (period <= pause_factor * references[clipped])
         phase[normal] = (time_s[normal] - events[clipped[normal]]) / period[normal]
         defined |= normal
-    elapsed = time_s - events[-1]
-    after = (stride >= len(events) - 1) & (elapsed < median_period_s)
-    phase[after] = elapsed[after] / median_period_s
-    defined |= after
-    lead = events[0] - time_s
-    before = (stride < 0) & (lead <= median_period_s)
-    phase[before] = 1.0 - lead[before] / median_period_s
-    defined |= before
+    if last_reference > 0.0:
+        elapsed = time_s - events[-1]
+        after = (stride >= len(events) - 1) & (elapsed < last_reference)
+        phase[after] = elapsed[after] / last_reference
+        defined |= after
+    if first_reference > 0.0:
+        lead = events[0] - time_s
+        before = (stride < 0) & (lead <= first_reference)
+        phase[before] = 1.0 - lead[before] / first_reference
+        defined |= before
     return np.mod(phase, 1.0), defined
