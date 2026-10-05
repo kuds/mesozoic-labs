@@ -22,9 +22,11 @@ import numpy as np
 
 from .action_filter import apply_low_pass as _apply_low_pass
 from .action_filter import low_pass_alpha as _low_pass_alpha
+from .command_frame import COMMAND_MODE_NONE
 from .command_frame import validate_command_mode as _validate_command_mode
 from .command_frame import zero_command as _zero_command
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
+from .direction_commands import DirectionCommandConfig, DirectionCommandController, DirectionCommandState
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
@@ -170,11 +172,12 @@ class BaseDinoEnv(gym.Env, ABC):
     # contract: ``_command`` (float32[3], pre-scaled to [-1, 1]) is appended
     # LAST by every species' _get_obs; reset() refreshes it exactly once per
     # episode through ``_draw_episode_command()``, called after the push
-    # block and before _get_obs.  Phase C implements only command_mode
-    # "none": the hook returns zeros and draws no RNG, so the seeded reset
-    # draw stream is unchanged (pinned by tests/fixtures/phase_c_reset_golden.json).
-    # Phase D replaces the HOOK BODY and never reset() itself, whose source is
-    # fingerprinted as the home_reset policy interface.
+    # block and before _get_obs, and step() advances it last through
+    # ``_update_command()``.  Under command_mode "none" the hook returns
+    # zeros and draws no RNG, so the seeded reset draw stream is unchanged
+    # (pinned by tests/fixtures/phase_c_reset_golden.json), and step() never
+    # updates.  Phase D replaced the HOOK BODY and never reset() itself, whose
+    # source is fingerprinted as the home_reset policy interface.
     _command: "np.ndarray"
 
     # Optional zero-argument callable invoked after EVERY physics substep in
@@ -216,11 +219,7 @@ class BaseDinoEnv(gym.Env, ABC):
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
-        command_speed_range: tuple[float, float] = (0.0, 0.0),
-        command_lateral_range: tuple[float, float] = (0.0, 0.0),
-        command_yaw_rate_max: float = 0.0,
-        command_switch_interval: float = 0.0,
-        command_switch_jitter: float = 0.0,
+        command_config: DirectionCommandConfig | None = None,
     ):
         super().__init__()
 
@@ -315,18 +314,34 @@ class BaseDinoEnv(gym.Env, ABC):
             self._push_force_n = float(self._push_params["force_n"])
 
         # Body-relative command frame (BEHAVIOR_RECIPES_PLAN §4.6).  Task-level
-        # like perturbation_*: the six kwargs enter the task fingerprint through
-        # the constructor signature, never the plant interface.  Phase C
-        # implements only command_mode "none" -- validate_command_mode refuses
-        # every live mode on this backend until Phase D -- and the segment is
+        # like perturbation_*: command_mode and command_config (decision D-D2)
+        # enter the task fingerprint through the constructor signature, and the
+        # controller's manifest is its command section; never the plant
+        # interface.  Under "none" nothing is built or drawn and the segment is
         # constant zero, appended LAST by each species' _get_obs (see the
         # _command class attribute for the hook contract).
         self.command_mode = _validate_command_mode(command_mode, backend="stable-baselines3")
-        self.command_speed_range = command_speed_range
-        self.command_lateral_range = command_lateral_range
-        self.command_yaw_rate_max = command_yaw_rate_max
-        self.command_switch_interval = command_switch_interval
-        self.command_switch_jitter = command_switch_jitter
+        self.command_config = command_config
+        self.direction_controller: DirectionCommandController | None = None
+        if self.command_mode != COMMAND_MODE_NONE:
+            # A live mode runs exactly the config it is given: the dataclass
+            # defaults are T. rex-scale, and "heading" holds cruise_speed.
+            if command_config is None:
+                raise ValueError(
+                    f"command_mode={self.command_mode!r} needs a command_config (a DirectionCommandConfig)"
+                )
+            self.direction_controller = DirectionCommandController(command_config)
+            if self.command_mode == "heading" and (
+                command_config.speed_range is not None or command_config.stop_probability > 0.0
+            ):
+                raise ValueError(
+                    "command_mode='heading' holds cruise_speed: speed_range and stops need 'heading_and_speed'"
+                )
+        elif command_config is not None:
+            raise ValueError("command_config needs a live command_mode ('heading' or 'heading_and_speed'), not 'none'")
+        self._command_state: DirectionCommandState | None = None
+        free_joints = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
+        self._root_body_id = int(self.model.jnt_bodyid[free_joints[0]])
         self._command = _zero_command()
 
         # Define action space (normalized to [-1, 1])
@@ -1133,24 +1148,45 @@ class BaseDinoEnv(gym.Env, ABC):
     def _draw_episode_command(self) -> np.ndarray:
         """The per-episode body-relative command (BEHAVIOR_RECIPES_PLAN §4.6).
 
-        Phase C: zeros, no RNG draw, so the seeded reset draw stream is
-        byte-identical to the pre-Phase-C plant (pinned by
-        tests/fixtures/phase_c_reset_golden.json).  Phase D replaces THIS
-        body -- never reset(), whose source is fingerprinted as the
-        home_reset policy interface (plant_contract/policy_layer.py) -- and
-        draws only when command_mode != "none", AFTER every existing draw.
+        Under command_mode "none": zeros, no RNG draw, so the seeded reset draw
+        stream is byte-identical to the pre-Phase-C plant (pinned by
+        tests/fixtures/phase_c_reset_golden.json).  Under a live mode: the
+        controller's episode start, seeded from :meth:`_command_rng` AFTER every
+        existing draw, at the root's heading; the full state is kept for the
+        reward.  Phase D replaced THIS body -- never reset(), whose source is
+        fingerprinted as the home_reset policy interface
+        (plant_contract/policy_layer.py).
         """
-        command: np.ndarray = _zero_command()
-        return command
+        if self.direction_controller is None:
+            command: np.ndarray = _zero_command()
+            return command
+        self._command_state = self.direction_controller.reset(self._command_rng(), self._heading())
+        return self._command_state.normalized.copy()
+
+    def _command_rng(self) -> np.random.Generator:
+        """The generator a live mode seeds each episode's schedule from: one draw on the reset stream."""
+        return self.np_random
+
+    def _update_command(self) -> np.ndarray:
+        """Advance a live mode's controller to this step's time and heading; return the new command."""
+        assert self.direction_controller is not None
+        self._command_state = self.direction_controller.update(self._step_count * self.dt, self._heading())
+        return self._command_state.normalized.copy()
+
+    def _heading(self) -> float:
+        """World yaw of the free-floating root body, in radians."""
+        rotation = self.data.xmat[self._root_body_id].reshape(3, 3)
+        return float(np.arctan2(rotation[1, 0], rotation[0, 0]))
 
     def command_manifest(self) -> "dict[str, Any] | None":
-        """Command-sampler provenance for run records; ``None`` while command_mode is "none".
+        """The command controller's provenance; ``None`` while command_mode is "none".
 
-        Mirrors :meth:`perturbation_manifest`: Phase D records the sampler
-        ranges and the switch-schedule implementation here so the task
-        fingerprint can carry them (``compute_task_fingerprint(command_manifest=...)``).
+        Mirrors :meth:`perturbation_manifest`: the task fingerprint carries it
+        as its ``command`` section (``compute_task_fingerprint(command_manifest=...)``).
         """
-        return None
+        if self.direction_controller is None:
+            return None
+        return self.direction_controller.manifest()
 
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
@@ -1289,6 +1325,12 @@ class BaseDinoEnv(gym.Env, ABC):
         # "successes" array). CurriculumCallback reads these for gating.
         if terminated or truncated:
             info["is_success"] = bool(term_info.get("success", False))
+
+        if self.direction_controller is not None:
+            # The reward scored the command the action was chosen under; the
+            # returned observation carries the next one.
+            self._command = self._update_command()
+            obs = self._get_obs()
 
         # Render if needed
         if self.render_mode == "human":

@@ -9,12 +9,9 @@ overrides only ``_ground_height_at``.
 from __future__ import annotations
 
 import copy
-import hashlib
 import inspect
-import json
 from dataclasses import asdict, replace
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, cast
 
 import mujoco
@@ -23,8 +20,6 @@ import numpy as np
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import (
     DirectionCommandConfig,
-    DirectionCommandController,
-    DirectionCommandState,
     gaussian_tracking_reward,
     tracking_metrics,
     wrap_angle,
@@ -32,6 +27,7 @@ from environments.shared.direction_commands import (
 from environments.shared.plant_contract import REPOSITORY_ROOT, current_plant_identity, validate_compiled_plant
 from environments.shared.species_names import resolve_species_id
 from environments.shared.species_registry import get_species_config
+from environments.shared.task_fingerprint import FINGERPRINT_BACKEND, compute_task_fingerprint
 from environments.shared.terrain import (
     TerrainConfig,
     TerrainRealization,
@@ -42,22 +38,17 @@ from environments.shared.terrain import (
 from environments.shared.terrain_sampling import (
     TerrainSamplerConfig,
     TerrainTemplate,
-    sampler_source_identity,
     select_terrain_family,
 )
 
-
-def canonical_env_parameters(species: str) -> dict[str, Any]:
-    """Constructor defaults, including inherited robot-species parameters."""
-    env_class = get_species_config(species).env_class
-    parameters: dict[str, Any] = {}
-    for cls in reversed(env_class.__mro__):
-        if cls is BaseDinoEnv:
-            continue
-        for key, value in inspect.signature(getattr(cls, "__init__")).parameters.items():
-            if key != "self" and value.default is not inspect.Parameter.empty:
-                parameters[key] = value.default
-    return parameters
+#: The task fingerprint's ``stage`` for every recipe env.  Versioned like
+#: ``task_fingerprint.SCHEDULE_IMPLEMENTATION``, in place of the source hashes
+#: the retired ``behavior_identity`` carried: bump it when this module,
+#: terrain.py or terrain_sampling.py changes what a recipe's task means, not
+#: merely its shape (direction_commands.py is versioned by its manifest).  It
+#: is never a stage id (``STAGE_ID_PATTERN``), so no manifest node takes a
+#: recipe checkpoint as its parent (decision D-D9).
+RECIPE_TASK_STAGE = "command-terrain/v2"
 
 
 class SpeciesBehaviorMixin(BaseDinoEnv):
@@ -85,9 +76,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             raise ValueError("tracking_weight must be finite and positive")
         if not np.isfinite(course_distance) or course_distance <= 0:
             raise ValueError("course_distance must be finite and positive")
-        if env_kwargs.get("command_mode", "none") != "none":
-            raise ValueError("Use the commands argument for this behavior environment")
-        self.direction_controller = DirectionCommandController(commands or DirectionCommandConfig())
+        commands = commands or DirectionCommandConfig()
         self.terrain_config = terrain
         self.terrain_sampler = terrain_sampler
         if terrain_sampler is not None:
@@ -107,19 +96,18 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self.terrain: TerrainRealization | None = None
         self._probe_hit_geom: int | None = None
         self._heading_before = 0.0
-        self._command_state: DirectionCommandState | None = None
         self._command_metrics: dict[str, Any] = {}
         self._tracking_dwell_s = 0.0
         self._max_radius = 0.0
         # Tolerances are fractions of the command's physical speed scale;
         # millimetre-scale robots must not pass a walk command while standing.
-        speed_ratio = self.direction_controller.config.speed_scale / 1.5
+        speed_ratio = commands.speed_scale / 1.5
         self.tracking_tolerances = {
             "velocity_tolerance": 0.2 * speed_ratio,
             "stop_speed_tolerance": 0.1 * speed_ratio,
         }
         self.tracking_velocity_sigma = 0.25 * speed_ratio
-        parameters = canonical_env_parameters(self.species)
+        parameters = inspect.signature(self._canonical_env_class).parameters
         # Fixed target, straight-line and stationary objectives conflict with
         # requested turns/stops. Only pass parameters the species supports.
         for name in (
@@ -150,7 +138,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             if name in parameters:
                 env_kwargs[name] = 0.0
         env_kwargs.setdefault("max_episode_steps", 2500)
-        super().__init__(**env_kwargs)
+        super().__init__(command_mode="heading_and_speed", command_config=commands, **env_kwargs)
         self.parent_plant_identity = current_plant_identity(self.species)
         validate_compiled_plant(self.model, self.parent_plant_identity)
         self._home_ground_clearance_m = self.home_ground_clearance()
@@ -206,11 +194,9 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 ]
             )
             self._substep_probe_hook = self._probe_terrain_contacts
-        free = np.flatnonzero(self.model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
-        self._behavior_root_id = int(self.model.jnt_bodyid[free[0]])
-        parameters.update(env_kwargs)
-        parameters.pop("render_mode", None)
-        self._behavior_parameters = parameters
+        # The task's constructor kwargs (run_seed is a seed, not task); task_fingerprint adds the
+        # subclass's own four, read live as reset, the reward and the step read them.
+        self._task_env_kwargs = {**env_kwargs, "command_mode": self.command_mode, "command_config": commands}
 
     @staticmethod
     def _assert_matching_ids(parent: mujoco.MjModel, child: mujoco.MjModel) -> None:
@@ -287,33 +273,23 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             mujoco.mj_resetData(self._probe_model, self._probe_data)
 
     @property
-    def behavior_identity(self) -> dict[str, Any]:
-        source_paths = (
-            Path(__file__),
-            Path(inspect.getfile(self._canonical_env_class)),
-            Path(inspect.getfile(DirectionCommandController)),
-            Path(inspect.getfile(TerrainConfig)),
-        )
-        identity = {
-            "schema": "mesozoic.command-terrain/v1",
-            "species": self.species,
-            "backend": "stable-baselines3",
-            "parent_plant": self.parent_plant_identity.to_dict(),
-            "commands": asdict(self.direction_controller.config),
-            "terrain": asdict(self.terrain_config) if self.terrain_config is not None else None,
-            "env": self._behavior_parameters,
-            "tracking_weight": self.tracking_weight,
-            "tracking_tolerances": self.tracking_tolerances,
-            "tracking_velocity_sigma": self.tracking_velocity_sigma,
-            "course_distance": self.course_distance,
-            "prey_collision": False,
-            "sources": {
-                str(p.relative_to(REPOSITORY_ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in source_paths
+    def task_fingerprint(self) -> dict[str, Any]:
+        """This task's identity: plant, effective constructor kwargs (its own four read live) and command manifest."""
+        return compute_task_fingerprint(
+            species=self.species,
+            stage=RECIPE_TASK_STAGE,
+            backend=FINGERPRINT_BACKEND,
+            env_kwargs={
+                **self._task_env_kwargs,
+                "terrain": self.terrain_config,
+                "terrain_sampler": self.terrain_sampler,
+                "tracking_weight": float(self.tracking_weight),
+                "course_distance": float(self.course_distance),
             },
-        }
-        if self.terrain_sampler is not None:
-            identity.update(terrain_sampler=asdict(self.terrain_sampler), sampler_sources=sampler_source_identity())
-        return dict(json.loads(json.dumps(identity)))
+            plant_identity=self.parent_plant_identity.to_dict(),
+            perturbation_manifest=self.perturbation_manifest(),
+            command_manifest=self.command_manifest(),
+        )
 
     @property
     def terrain_families(self) -> tuple[str, ...]:
@@ -333,10 +309,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         if family == "terrain_contact":
             return replace(self.terrain_config, mode="flat")
         return replace(self.terrain_config, mode="gentle", template=cast(TerrainTemplate, family))
-
-    def _heading(self) -> float:
-        rotation = self.data.xmat[self._behavior_root_id].reshape(3, 3)
-        return float(np.arctan2(rotation[1, 0], rotation[0, 0]))
 
     def _probe_terrain_contacts(self) -> None:
         """Substep hook: latch the first probe geom that penetrates the floor."""
@@ -361,7 +333,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         # snout and categorized contact checks; their heights are clearances
         # above the surface through _ground_height_at below.
         terminated, info = self._canonical_env_class._is_terminated(self)
-        info["pelvis_clearance"] = self._clearance(self.data.xpos[self._behavior_root_id])
+        info["pelvis_clearance"] = self._clearance(self.data.xpos[self._root_body_id])
         if not terminated and self._probe_hit_geom is not None:
             name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, self._probe_hit_geom)
             terminated = True
@@ -401,9 +373,6 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             self._tracking_dwell_s = self._tracking_dwell_s + self.dt if metrics["tracking_in_tolerance"] else 0.0
         info["reward_total"] = reward
         return reward, info
-
-    def command_manifest(self) -> dict[str, Any]:
-        return self.direction_controller.manifest()
 
     def _ground_height_at(self, xy: np.ndarray) -> float:
         if self.terrain is None:
@@ -503,9 +472,8 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         self._probe_hit_geom = None
         self._tracking_dwell_s = 0.0
         self._max_radius = 0.0
-        _, info = super().reset(seed=seed, options=options)
-        self._command_state = self.direction_controller.reset(np.random.default_rng(command_seed), self._heading())
-        self._command = self._command_state.normalized.copy()
+        self._command_seed = command_seed
+        obs, info = super().reset(seed=seed, options=options)
         info.update(
             {
                 "run_seed": self.run_seed,
@@ -523,16 +491,20 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 "weights": asdict(sampler),
             }
         self._episode_index += 1
-        return self._get_obs(), info
+        return obs, info
+
+    def _command_rng(self) -> np.random.Generator:
+        # Its own stream (0xC044 above), so commands never shift the parent's reset draws or a terrain map.
+        return np.random.default_rng(self._command_seed)
 
     def set_direction(self, heading: float, speed: float) -> np.ndarray:
         """Set a persistent world heading (radians) and speed (m/s).
 
         Returns the updated observation to use for the next policy action.
         """
+        assert self.direction_controller is not None
         self.direction_controller.set_target(heading, speed, time_s=self._step_count * self.dt)
-        self._command_state = self.direction_controller.update(self._step_count * self.dt, self._heading())
-        self._command = self._command_state.normalized.copy()
+        self._command = self._update_command()
         self._tracking_dwell_s = 0.0
         return self._get_obs()
 
@@ -541,7 +513,8 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
             raise RuntimeError("reset must be called before step")
         self._heading_before = self._heading()
         self._probe_hit_geom = None
-        _, reward, terminated, truncated, info = super().step(action)
+        previous_event = self._command_state.event_id
+        obs, reward, terminated, truncated, info = super().step(action)
         info.update(self._command_metrics)
         radius = float(np.linalg.norm(self.data.qpos[:2] - self._initial_pos_2d))
         self._max_radius = max(self._max_radius, radius)
@@ -550,15 +523,13 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
         info["course_progress_m"] = radius
         info["course_reached"] = bool(self._max_radius >= self.course_distance)
         info["tracking_dwell_s"] = self._tracking_dwell_s
-        info["terrain_height_m"] = self._ground_height_at(self.data.xpos[self._behavior_root_id, :2])
+        info["terrain_height_m"] = self._ground_height_at(self.data.xpos[self._root_body_id, :2])
         # Keep the base is_success=False: radial displacement alone cannot
-        # certify command following or a terrain route.
-        previous_event = self._command_state.event_id
-        self._command_state = self.direction_controller.update(self._step_count * self.dt, self._heading())
-        self._command = self._command_state.normalized.copy()
+        # certify command following or a terrain route.  The base step has
+        # advanced the command; a new event restarts the dwell after it is reported.
         if previous_event != self._command_state.event_id:
             self._tracking_dwell_s = 0.0
-        return self._get_obs(), reward, terminated, truncated, info
+        return obs, reward, terminated, truncated, info
 
 
 @lru_cache(maxsize=None)

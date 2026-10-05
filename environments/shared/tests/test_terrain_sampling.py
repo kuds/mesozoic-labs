@@ -16,7 +16,6 @@ from environments.shared.terrain import TerrainConfig
 from environments.shared.terrain_sampling import (
     TERRAIN_FAMILIES,
     TerrainSamplerConfig,
-    sampler_source_identity,
     select_terrain_family,
 )
 
@@ -161,7 +160,7 @@ def sampled_env(request):
 def test_resets_balance_families_without_changing_task_identity(sampled_env):
     env = sampled_env
     base = env.terrain_config
-    identity = env.behavior_identity
+    identity = env.task_fingerprint
     selected = []
     for episode in range(10):
         _, info = env.reset(seed=29 if episode == 0 else None)
@@ -172,7 +171,7 @@ def test_resets_balance_families_without_changing_task_identity(sampled_env):
             "mode": "balanced_shuffle",
             "weights": asdict(TerrainSamplerConfig()),
         }
-        assert env.behavior_identity == identity
+        assert env.task_fingerprint == identity
         assert env.terrain_config is base
         assert terrain_family_from_reset(info) == selection["family"]
         if selection["family"] == "flat":
@@ -188,17 +187,20 @@ def test_resets_balance_families_without_changing_task_identity(sampled_env):
             np.testing.assert_array_equal(env._probe_model.hfield_data, env.model.hfield_data)
     assert Counter(selected[:5]) == Counter(TerrainSamplerConfig().families)
     assert Counter(selected[5:]) == Counter(TerrainSamplerConfig().families)
-    assert identity["terrain_sampler"] == asdict(TerrainSamplerConfig())
-    assert identity["sampler_sources"] == sampler_source_identity()
+    assert identity["env"]["terrain_sampler"] == asdict(TerrainSamplerConfig())
     fixed = get_behavior_env_class(env.species)(terrain=terrain(), **ENV_KWARGS)
     try:
-        fixed_identity = fixed.behavior_identity
+        fixed_identity = fixed.task_fingerprint
     finally:
         fixed.close()
-    assert {"terrain_sampler", "sampler_sources", "flat_probability"}.isdisjoint(fixed_identity)
-    assert {key: value for key, value in identity.items() if key not in ("terrain_sampler", "sampler_sources")} == (
-        fixed_identity
-    )
+    assert fixed_identity["env"]["terrain_sampler"] is None and "flat_probability" not in fixed_identity["env"]
+
+    def without_sampler(fingerprint):
+        env_section = {key: value for key, value in fingerprint["env"].items() if key != "terrain_sampler"}
+        return {**{key: value for key, value in fingerprint.items() if key != "task_sha256"}, "env": env_section}
+
+    assert without_sampler(identity) == without_sampler(fixed_identity)
+    assert identity["task_sha256"] != fixed_identity["task_sha256"]
 
 
 def test_explicit_seed_repeats_course_and_commands_while_unseeded_reset_changes_layout(sampled_env):
@@ -242,13 +244,13 @@ def test_course_and_identity_stay_fixed_during_episode(sampled_env):
     env = sampled_env
     env.reset(seed=81, options={"terrain_family": "depressions"})
     field = env.model.hfield_data.copy()
-    identity = env.behavior_identity
+    identity = env.task_fingerprint
     manifestation = env.terrain.manifest()
     for _ in range(3):
         env.step(np.zeros(env.action_space.shape))
         np.testing.assert_array_equal(env.model.hfield_data, field)
         assert env.terrain.manifest() == manifestation
-        assert env.behavior_identity == identity
+        assert env.task_fingerprint == identity
 
 
 def test_invalid_override_does_not_advance_episode(sampled_env):
@@ -348,6 +350,31 @@ def test_each_family_sets_its_own_surface_on_the_terrain_map(species, base_mode)
         env.close()
 
 
+@pytest.mark.parametrize("species", ["trex", "velociraptor"])
+def test_the_task_fingerprint_follows_a_reassigned_sampler(species):
+    """Reset reads the sampler, the reward the tracking weight and the step the course distance as they stand, so
+    the task fingerprint does too: after a reassignment it is the fingerprint of an env built with the new values."""
+    env_class = get_behavior_env_class(species)
+    env = env_class(terrain=terrain(), terrain_sampler=only(flat=1, sloped=1), **ENV_KWARGS)
+    fresh = env_class(terrain=terrain(), terrain_sampler=only(bumps=1), **ENV_KWARGS)
+    retuned = env_class(
+        terrain=terrain(), terrain_sampler=only(bumps=1), tracking_weight=7, course_distance=12, **ENV_KWARGS
+    )
+    try:
+        before = env.task_fingerprint["task_sha256"]
+        env.terrain_sampler = only(bumps=1)
+        _, info = env.reset(seed=9)
+        assert info["terrain_sampling"]["family"] == "bumps"
+        assert env.task_fingerprint["task_sha256"] != before
+        assert env.task_fingerprint == fresh.task_fingerprint
+        env.tracking_weight, env.course_distance = 7, 12
+        assert env.task_fingerprint == retuned.task_fingerprint != fresh.task_fingerprint
+    finally:
+        env.close()
+        fresh.close()
+        retuned.close()
+
+
 def test_a_task_without_a_sampler_has_one_family_and_no_sampling_record():
     """The plane, or the terrain's own surface on every episode, as before; only its own family is accepted."""
     plane = get_behavior_env_class("trex")(**ENV_KWARGS)
@@ -356,7 +383,8 @@ def test_a_task_without_a_sampler_has_one_family_and_no_sampling_record():
         assert plane.terrain_families == ("flat",)
         assert contact.terrain_families == ("terrain_contact",)
         for env in (plane, contact):
-            assert {"terrain_sampler", "sampler_sources", "flat_probability"}.isdisjoint(env.behavior_identity)
+            assert env.task_fingerprint["env"]["terrain_sampler"] is None
+            assert "flat_probability" not in env.task_fingerprint["env"]
         for index in range(3):
             _, info = plane.reset(seed=3 if index == 0 else None, options={"terrain_family": "flat"})
             assert plane.terrain is None and "terrain_sampling" not in info

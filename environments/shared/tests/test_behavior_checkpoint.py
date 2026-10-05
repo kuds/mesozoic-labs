@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -22,7 +23,6 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # noqa: 
 
 from environments.shared import train_behaviors  # noqa: E402
 from environments.shared.behavior_checkpoint import (  # noqa: E402
-    BEHAVIOR_IDENTITY_SCHEMA,
     COMMAND_LAYERS,
     BehaviorCheckpointError,
     load_behavior_checkpoint,
@@ -36,9 +36,16 @@ from environments.shared.plant_contract import (  # noqa: E402
     validate_model_plant,
 )
 from environments.shared.result_bundle import sha256_file  # noqa: E402
-from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE  # noqa: E402
+from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, MODEL_TASK_LINEAGE_ATTRIBUTE  # noqa: E402
 
-BEHAVIOR = {"schema": "test-behavior/v1", "terrain": "flat", "command_speed": 1.0}
+BEHAVIOR = {"schema": "test-behavior/v1", "species": "trex", "env": {"terrain": "flat"}, "task_sha256": "sha256:b"}
+#: The stamp every behavior checkpoint carried before consolidation PR-9 (D-D9: evaluation-only).
+OLD_MARKER = {
+    "schema": "mesozoic.behavior-artifact/v1",
+    "species": "trex",
+    "behavior_identity": {"schema": "mesozoic.command-terrain/v1"},
+    "canonical_certification": False,
+}
 PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behaviors"
 
 
@@ -85,7 +92,11 @@ def parent(tmp_path_factory):
     identity = current_plant_identity("trex")
     for obj in (model, normalizer):
         attach_plant_identity(obj, identity)
-    setattr(model, MODEL_TASK_ATTRIBUTE, {"schema": "mesozoic.task-fingerprint/v2", "species": "trex", "stage": 2})
+    setattr(
+        model,
+        MODEL_TASK_ATTRIBUTE,
+        {"schema": "mesozoic.task-fingerprint/v2", "species": "trex", "stage": 2, "task_sha256": "sha256:walker"},
+    )
     # Nonzero synthetic moments make accidental carryover into the newly live
     # command connections observable, without changing the parent's function.
     for name in COMMAND_LAYERS:
@@ -122,7 +133,7 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         model_path,
         vecnorm_path,
         CommandEnv(live=True),
-        behavior_identity=BEHAVIOR,
+        task_fingerprint=BEHAVIOR,
     )
     try:
         assert type(normalizer) is VecNormalize
@@ -156,11 +167,16 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         np.testing.assert_array_equal(normalizer.obs_rms.var[-3:], 1)
         assert normalizer.obs_rms.count == stats.obs_rms.count
         assert normalizer.training and not normalizer.norm_reward
-        assert getattr(prepared, MODEL_IDENTITY_ATTRIBUTE)["schema"] == BEHAVIOR_IDENTITY_SCHEMA
+        # Consolidation PR-9: the canonical stamps -- the plant, the task fingerprint, the lineage.
         for artifact in (prepared, normalizer):
-            for allow_legacy in (False, True):
-                with pytest.raises(PlantCompatibilityError, match="unsupported plant identity schema"):
-                    validate_model_plant(artifact, identity, allow_legacy=allow_legacy)
+            validate_model_plant(artifact, identity)
+            assert getattr(artifact, MODEL_IDENTITY_ATTRIBUTE) == identity.to_dict()
+            assert getattr(artifact, MODEL_TASK_ATTRIBUTE) == BEHAVIOR
+            assert getattr(artifact, MODEL_TASK_LINEAGE_ATTRIBUTE) == report
+            assert not hasattr(artifact, "mesozoic_behavior_preparation")
+        assert report["mode"] == "initialize_next_stage" and report["task_fingerprint"] == BEHAVIOR
+        assert (report["parent_task_sha256"], report["child_task_sha256"]) == ("sha256:walker", "sha256:b")
+        assert report["schema"] == "mesozoic.behavior-preparation/v2"
         assert source_hashes == (sha256_file(model_path), sha256_file(vecnorm_path))
     finally:
         normalizer.close()
@@ -173,7 +189,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         model_path,
         vecnorm_path,
         CommandEnv(live=True),
-        behavior_identity=BEHAVIOR,
+        task_fingerprint=BEHAVIOR,
     )
     raw = np.ones((2, 64), dtype=np.float32)
     raw[:, -3:] = [0.7, -0.2, 0.4]
@@ -204,7 +220,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         tmp_path / "behavior.zip",
         tmp_path / "behavior.pkl",
         CommandEnv(live=True),
-        behavior_identity=BEHAVIOR,
+        task_fingerprint=BEHAVIOR,
     )
     try:
         for name, value in state.items():
@@ -218,17 +234,60 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         assert type(loaded) is VecNormalize
         np.testing.assert_array_equal(loaded.normalize_obs(raw), normalized)
         assert report["resume_checkpoint_sha256"] == sha256_file(tmp_path / "behavior.zip")
+        # The preparation report travels as the task lineage and comes back on resume.
+        assert report["schema"] == "mesozoic.behavior-preparation/v2" and report["task_fingerprint"] == BEHAVIOR
         resumed.learn(16, reset_num_timesteps=False)
         assert resumed.num_timesteps == 48
     finally:
         loaded.close()
-    with pytest.raises(BehaviorCheckpointError, match="configuration/source identity differs"):
+    with pytest.raises(BehaviorCheckpointError, match=r"differs from the saved task in \['env'\]"):
         load_behavior_checkpoint(
             tmp_path / "behavior.zip",
             tmp_path / "behavior.pkl",
             CommandEnv(),
-            behavior_identity={"terrain": "other"},
+            task_fingerprint={**BEHAVIOR, "env": {"terrain": "other"}},
         )
+
+
+def test_a_normalizer_stamped_for_another_task_is_refused(parent, tmp_path):
+    """The normalizer's task stamp must be the model's: a sidecar prepared for another task is not this pair."""
+    model_path, vecnorm_path, *_ = parent
+    for name, task in (("this", BEHAVIOR), ("other", {**BEHAVIOR, "task_sha256": "sha256:other"})):
+        model, normalizer, _ = prepare_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=task
+        )
+        try:
+            model.save(tmp_path / f"{name}.zip")
+            normalizer.save(str(tmp_path / f"{name}.pkl"))
+        finally:
+            normalizer.close()
+    with pytest.raises(BehaviorCheckpointError, match="model and normalization identities disagree"):
+        load_behavior_checkpoint(
+            tmp_path / "this.zip", tmp_path / "other.pkl", CommandEnv(live=True), task_fingerprint=BEHAVIOR
+        )
+
+
+@pytest.mark.parametrize("mode", ["resume", "adapt"])
+def test_a_behavior_checkpoint_from_before_the_task_fingerprint_is_refused_by_name(parent, tmp_path, mode):
+    """Decision D-D9: every older behavior bundle is evaluation-only; nothing loads one as a parent."""
+    from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
+
+    model_path, vecnorm_path, *_ = parent
+    model, normalizer, _ = prepare_behavior_checkpoint(
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
+    )
+    try:
+        model.save(tmp_path / "new.zip")
+        normalizer.save(str(tmp_path / "new.pkl"))
+    finally:
+        normalizer.close()
+    # Before PR-9 the marker was both stamps: the plant identity and the task fingerprint.
+    _metadata_copy(tmp_path / "new.zip", tmp_path / "half.zip", MODEL_IDENTITY_ATTRIBUTE, OLD_MARKER)
+    _metadata_copy(tmp_path / "half.zip", tmp_path / "old.zip", MODEL_TASK_ATTRIBUTE, OLD_MARKER)
+    load = load_behavior_checkpoint if mode == "resume" else adapt_behavior_checkpoint
+    requested = OLD_MARKER if mode == "resume" else BEHAVIOR
+    with pytest.raises(BehaviorCheckpointError, match="records no task fingerprint.*D-D9.*git_commit"):
+        load(tmp_path / "old.zip", tmp_path / "new.pkl", CommandEnv(live=True), task_fingerprint=requested)
 
 
 @pytest.mark.parametrize("name", ["BehaviorVecNormalize", "OtherVecNormalize"])
@@ -240,7 +299,7 @@ def test_sidecar_pickling_the_deleted_passthrough_class_is_refused(parent, tmp_p
 
     model_path, vecnorm_path, *_ = parent
     model, normalizer, _ = prepare_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), behavior_identity=BEHAVIOR
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
     )
     retired = type(name, (VecNormalize,), {"__module__": behavior_checkpoint.__name__})
     try:
@@ -261,7 +320,7 @@ def test_sidecar_pickling_the_deleted_passthrough_class_is_refused(parent, tmp_p
     )
     with refusal:
         load_behavior_checkpoint(
-            tmp_path / "old.zip", tmp_path / "old.pkl", CommandEnv(live=True), behavior_identity=BEHAVIOR
+            tmp_path / "old.zip", tmp_path / "old.pkl", CommandEnv(live=True), task_fingerprint=BEHAVIOR
         )
 
 
@@ -274,11 +333,59 @@ def test_parent_identity_is_checked_before_policy_load(parent, tmp_path, identit
     elif identity_kind == "old":
         raw["policy_interface_revision"] -= 1
     else:
-        raw = {"schema": BEHAVIOR_IDENTITY_SCHEMA}
+        raw = OLD_MARKER
     source = tmp_path / "incompatible.zip"
     _metadata_copy(model_path, source, MODEL_IDENTITY_ATTRIBUTE, raw)
     with pytest.raises(PlantCompatibilityError):
-        prepare_behavior_checkpoint(source, vecnorm_path, CommandEnv())
+        prepare_behavior_checkpoint(source, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR)
+
+
+@pytest.mark.parametrize("fingerprint", [None, {}, {"schema": "test-behavior/v1", "species": "trex"}])
+def test_preparation_requires_the_recipe_task_fingerprint(parent, fingerprint):
+    """An artifact stamped without the recipe env's task_sha256 could never be resumed or adapted (the loaders would
+    refuse it as one from before the task fingerprint, D-D9), so preparation refuses it before loading anything."""
+    model_path, vecnorm_path, *_ = parent
+    if fingerprint is None:
+        with pytest.raises(TypeError, match="task_fingerprint"):
+            prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True))
+        return
+    message = r"needs the recipe env's task fingerprint \(env\.task_fingerprint\) with its task_sha256: .*adapted$"
+    with pytest.raises(BehaviorCheckpointError, match=message):
+        prepare_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=fingerprint)
+
+
+@pytest.mark.parametrize("task", ["locomotion", "stage_id"])
+def test_preparation_refuses_a_task_a_manifest_node_could_resume(parent, task):
+    """D-D9 under the canonical stamps: a stage id stamped on a behavior artifact would let canonical train_base
+    resume or warm-start from it, so preparation refuses one before loading anything (the recipe env's stage never
+    is one): the canonical locomotion task's own fingerprint, and a stage-id string."""
+    from environments.shared.task_fingerprint import stage_task_fingerprint
+
+    model_path, vecnorm_path, *_ = parent
+    fingerprint = {**BEHAVIOR, "stage": "behavior"}
+    if task == "locomotion":
+        fingerprint = stage_task_fingerprint("trex", "locomotion")
+    with pytest.raises(BehaviorCheckpointError, match="whose stage is never a stage id"):
+        prepare_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=fingerprint)
+
+
+def test_a_behavior_checkpoint_is_not_a_walker_parent(parent, tmp_path):
+    """Consolidation PR-9: its plant stamp is now the plant identity, so preparation refuses it by its task."""
+    from environments.shared.behavior_env import RECIPE_TASK_STAGE
+
+    model_path, vecnorm_path, *_ = parent
+    model, normalizer, _ = prepare_behavior_checkpoint(
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint={**BEHAVIOR, "stage": RECIPE_TASK_STAGE}
+    )
+    try:
+        model.save(tmp_path / "behavior.zip")
+        normalizer.save(str(tmp_path / "behavior.pkl"))
+    finally:
+        normalizer.close()
+    with pytest.raises(BehaviorCheckpointError, match="must record the trex locomotion task"):
+        prepare_behavior_checkpoint(
+            tmp_path / "behavior.zip", tmp_path / "behavior.pkl", CommandEnv(), task_fingerprint=BEHAVIOR
+        )
 
 
 def test_refuses_wrong_task_missing_sidecar_and_existing_normalization(parent, tmp_path):
@@ -286,39 +393,47 @@ def test_refuses_wrong_task_missing_sidecar_and_existing_normalization(parent, t
     wrong_task = tmp_path / "stance.zip"
     _metadata_copy(model_path, wrong_task, MODEL_TASK_ATTRIBUTE, {"species": "trex", "stage": 1})
     with pytest.raises(BehaviorCheckpointError, match="locomotion task"):
-        prepare_behavior_checkpoint(wrong_task, vecnorm_path, CommandEnv())
+        prepare_behavior_checkpoint(wrong_task, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR)
     with pytest.raises(BehaviorCheckpointError, match="must exist"):
-        prepare_behavior_checkpoint(model_path, tmp_path / "absent.pkl", CommandEnv())
+        prepare_behavior_checkpoint(model_path, tmp_path / "absent.pkl", CommandEnv(), task_fingerprint=BEHAVIOR)
     wrapped = VecNormalize(DummyVecEnv([CommandEnv]))
     try:
         with pytest.raises(BehaviorCheckpointError, match="unnormalized"):
-            prepare_behavior_checkpoint(model_path, vecnorm_path, wrapped)
+            prepare_behavior_checkpoint(model_path, vecnorm_path, wrapped, task_fingerprint=BEHAVIOR)
     finally:
         wrapped.close()
 
 
 @pytest.fixture(scope="module")
 def learned_behavior(parent, tmp_path_factory):
-    from dataclasses import asdict
-
-    from environments.shared.direction_commands import DirectionCommandConfig
+    from environments.shared.behavior_env import RECIPE_TASK_STAGE
+    from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
+    from environments.shared.task_fingerprint import compute_task_fingerprint
 
     model_path, vecnorm_path, _, _, identity = parent
-    task = {
-        "schema": "mesozoic.command-terrain/v1",
-        "backend": "stable-baselines3",
-        "parent_plant": identity.to_dict(),
-        "sources": {"behavior_env.py": "fixed-source-digest"},
-        "commands": asdict(DirectionCommandConfig()),
-        "env": {"frame_skip": 5, "height_weight": 0.3, "healthy_z_range": [0.7, 1.55]},
-        "terrain": None,
-        "tracking_weight": 2.5,
-    }
+    config = DirectionCommandConfig()
+    task = compute_task_fingerprint(
+        species="trex",
+        stage=RECIPE_TASK_STAGE,
+        backend="stable-baselines3",
+        env_kwargs={
+            "height_weight": 0.3,
+            "command_mode": "heading_and_speed",
+            "command_config": config,
+            "terrain": None,
+            "terrain_sampler": None,
+            "tracking_weight": 2.5,
+            "course_distance": 10.0,
+        },
+        plant_identity=identity.to_dict(),
+        perturbation_manifest=None,
+        command_manifest=DirectionCommandController(config).manifest(),
+    )
     model, normalizer, _ = prepare_behavior_checkpoint(
         model_path,
         vecnorm_path,
         CommandEnv(live=True),
-        behavior_identity=task,
+        task_fingerprint=task,
     )
     model.learn(32)
     root = tmp_path_factory.mktemp("learned-behavior")
@@ -337,27 +452,28 @@ def learned_behavior(parent, tmp_path_factory):
         {"flat": 1, "sloped": 1, "bumps": 1, "depressions": 1, "mixed": 1, "terrain_contact": 0},
     ],
 )
-def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, tmp_path, weights):
+def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavior, parent, tmp_path, weights):
     from dataclasses import asdict
 
     from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
-    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+    from environments.shared.terrain_sampling import TerrainSamplerConfig
 
     model_path, vecnorm_path, parent_model, parent_stats, previous = learned_behavior
     requested = copy.deepcopy(previous)
-    requested["commands"]["speed_range"] = [0.4, 1.2]
-    requested["commands"]["switch_interval_s"] = 2.0
-    requested["terrain"] = {"mode": "gentle", "max_slope_degrees": 3.0}
+    requested["command"]["config"]["speed_range"] = [0.4, 1.2]
+    requested["command"]["config"]["switch_interval_s"] = 2.0
+    requested["env"]["command_config"] = copy.deepcopy(requested["command"]["config"])
+    requested["env"]["terrain"] = {"mode": "gentle", "max_slope_degrees": 3.0}
     if weights is not None:
-        requested["terrain_sampler"] = asdict(TerrainSamplerConfig(**weights))
-        requested["sampler_sources"] = sampler_source_identity()
-    requested["tracking_weight"] = 3.0
+        requested["env"]["terrain_sampler"] = asdict(TerrainSamplerConfig(**weights))
+    requested["env"]["tracking_weight"] = 3.0
     requested["env"]["height_weight"] = 0.6
+    requested["task_sha256"] = "sha256:requested"
     adapted, normalizer, report = adapt_behavior_checkpoint(
         model_path,
         vecnorm_path,
         CommandEnv(live=True),
-        behavior_identity=requested,
+        task_fingerprint=requested,
     )
     try:
         assert any(
@@ -376,9 +492,14 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
         transition = report["transitions"][-1]
         assert transition["parent_checkpoint_sha256"] == sha256_file(model_path)
         assert transition["parent_normalization_sha256"] == sha256_file(vecnorm_path)
-        assert transition["previous_behavior_identity"]["terrain"] is None
-        assert transition["behavior_identity"] == requested
-        assert getattr(adapted, MODEL_IDENTITY_ATTRIBUTE)["behavior_identity"] == requested
+        assert transition["previous_task_fingerprint"] == previous
+        assert transition["task_fingerprint"] == requested
+        assert transition["schema"] == "mesozoic.behavior-transition/v2"
+        assert (report["task_fingerprint"], report["child_task_sha256"]) == (requested, "sha256:requested")
+        for artifact in (adapted, normalizer):
+            assert getattr(artifact, MODEL_TASK_ATTRIBUTE) == requested
+            assert getattr(artifact, MODEL_IDENTITY_ATTRIBUTE) == parent[4].to_dict()
+            assert getattr(artifact, MODEL_TASK_LINEAGE_ATTRIBUTE) == report
         adapted.learn(16, reset_num_timesteps=False)
         assert adapted.num_timesteps == 48
         adapted.save(tmp_path / "adapted.zip")
@@ -389,45 +510,103 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
         tmp_path / "adapted.zip",
         tmp_path / "adapted.pkl",
         CommandEnv(live=True),
-        behavior_identity=requested,
+        task_fingerprint=requested,
     )
     try:
         assert resumed.num_timesteps == 48
     finally:
         loaded.close()
-    with pytest.raises(BehaviorCheckpointError, match="configuration/source identity differs"):
+    with pytest.raises(BehaviorCheckpointError, match="task fingerprint differs from the saved task"):
         load_behavior_checkpoint(
             tmp_path / "adapted.zip",
             tmp_path / "adapted.pkl",
             CommandEnv(live=True),
-            behavior_identity=previous,
+            task_fingerprint=previous,
         )
 
 
-@pytest.mark.parametrize("change", ["stale_source", "unknown_source", "missing_source", "missing_config", "bad_weight"])
+def test_the_lineage_names_the_task_an_adaptation_stamps(learned_behavior):
+    """After an adaptation the lineage agrees with the stamps: its task fingerprint and child_task_sha256 name the
+    requested task, its parent stays the walker, and the step from the prepared task is its transition."""
+    from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
+
+    model_path, vecnorm_path, _, _, previous = learned_behavior
+    requested = copy.deepcopy(previous)
+    requested["command"]["config"]["switch_interval_s"] = 2.0
+    requested["env"]["command_config"] = copy.deepcopy(requested["command"]["config"])
+    requested["task_sha256"] = "sha256:requested"
+    adapted, normalizer, report = adapt_behavior_checkpoint(
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=requested
+    )
+    try:
+        lineage = getattr(adapted, MODEL_TASK_LINEAGE_ATTRIBUTE)
+        assert lineage == report == getattr(normalizer, MODEL_TASK_LINEAGE_ATTRIBUTE)
+        assert getattr(adapted, MODEL_TASK_ATTRIBUTE)["task_sha256"] == "sha256:requested"
+        assert lineage["task_fingerprint"] == requested and lineage["child_task_sha256"] == "sha256:requested"
+        assert (lineage["mode"], lineage["parent_task_sha256"]) == ("initialize_next_stage", "sha256:walker")
+        assert [step["previous_task_fingerprint"] for step in lineage["transitions"]] == [previous]
+    finally:
+        normalizer.close()
+
+
+@pytest.mark.parametrize("fingerprint", ["empty", "allowed_transition"])
+def test_adaptation_requires_the_recipe_task_fingerprint(learned_behavior, fingerprint):
+    """As for preparation: the adapted artifacts are stamped with the requested fingerprint, and one without its
+    task_sha256 could never be resumed or adapted again (the loaders would refuse it as one from before the task
+    fingerprint, D-D9), so adaptation refuses it before anything is loaded or stamped, even for a transition that
+    is otherwise allowed."""
+    from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
+
+    model_path, vecnorm_path, _, _, previous = learned_behavior
+    requested = {} if fingerprint == "empty" else copy.deepcopy(previous)
+    if fingerprint == "allowed_transition":
+        requested["command"]["config"]["switch_interval_s"] = 2.0
+        requested["env"]["command_config"] = copy.deepcopy(requested["command"]["config"])
+        del requested["task_sha256"]
+    message = (
+        r"^Adaptation needs the recipe env's task fingerprint \(env\.task_fingerprint\) with its task_sha256: "
+        r"an artifact stamped without one could never be resumed or adapted$"
+    )
+    with pytest.raises(BehaviorCheckpointError, match=message):
+        adapt_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=requested)
+
+
+@pytest.mark.parametrize("field", ["stage", "command.schema", "command.adapter"])
+def test_transition_refuses_another_implementation_version(learned_behavior, field):
+    """Versioned strings replace the source hashes (consolidation PR-9): the recipe stage names this module's,
+    terrain.py's and terrain_sampling.py's implementation, the command manifest direction_commands.py's."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+
+    previous = copy.deepcopy(learned_behavior[-1])
+    requested = copy.deepcopy(previous)
+    if field == "stage":
+        requested["stage"] = "command-terrain/v3"
+    else:
+        requested["command"][field.split(".")[1]] += "+next"
+    with pytest.raises(BehaviorCheckpointError, match=f"Incompatible behavior transition fields: {re.escape(field)}$"):
+        _validate_behavior_transition(previous, requested)
+
+
+@pytest.mark.parametrize("change", ["bad_weight", "not_a_table", "unknown_family"])
 @pytest.mark.parametrize("source_side", [False, True])
-def test_sampler_transition_refuses_unverified_sources_and_invalid_weights(learned_behavior, change, source_side):
+def test_sampler_transition_refuses_an_invalid_sampler_table(learned_behavior, change, source_side):
+    """A transition may add, remove or reweight the sampling layer, never carry an invalid table on either side:
+    consolidation PR-9 deleted the source hashes beside the table, not the table's own check."""
     from dataclasses import asdict
 
     from environments.shared.behavior_checkpoint import _validate_behavior_transition
-    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+    from environments.shared.terrain_sampling import TerrainSamplerConfig
 
     previous = copy.deepcopy(learned_behavior[-1])
     sampled = copy.deepcopy(previous)
-    sampled["terrain_sampler"] = asdict(TerrainSamplerConfig())
-    sampled["sampler_sources"] = sampler_source_identity()
-    if change == "stale_source":
-        key = next(iter(sampled["sampler_sources"]))
-        sampled["sampler_sources"][key] = "stale"
-    elif change == "unknown_source":
-        sampled["sampler_sources"]["unknown.py"] = "unverified"
-    elif change == "missing_source":
-        del sampled["sampler_sources"]
-    elif change == "missing_config":
-        del sampled["terrain_sampler"]
+    sampled["env"]["terrain_sampler"] = asdict(TerrainSamplerConfig())
+    if change == "bad_weight":
+        sampled["env"]["terrain_sampler"]["flat"] = -1
+    elif change == "not_a_table":
+        sampled["env"]["terrain_sampler"] = "not-a-table"
     else:
-        sampled["terrain_sampler"]["flat"] = -1
-    with pytest.raises(BehaviorCheckpointError, match="terrain sampler"):
+        sampled["env"]["terrain_sampler"]["lava"] = 1
+    with pytest.raises(BehaviorCheckpointError, match="^Invalid terrain sampler configuration$"):
         _validate_behavior_transition(sampled, previous) if source_side else _validate_behavior_transition(
             previous, sampled
         )
@@ -437,15 +616,11 @@ def test_sampler_transition_allows_verified_reweighting_and_return_to_fixed_terr
     from dataclasses import asdict
 
     from environments.shared.behavior_checkpoint import _validate_behavior_transition
-    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+    from environments.shared.terrain_sampling import TerrainSamplerConfig
 
     fixed = copy.deepcopy(learned_behavior[-1])
-    sampled = {
-        **fixed,
-        "terrain_sampler": asdict(TerrainSamplerConfig()),
-        "sampler_sources": sampler_source_identity(),
-    }
-    reweighted = {**sampled, "terrain_sampler": asdict(TerrainSamplerConfig(flat=2, mixed=0))}
+    sampled = {**fixed, "env": {**fixed["env"], "terrain_sampler": asdict(TerrainSamplerConfig())}}
+    reweighted = {**sampled, "env": {**fixed["env"], "terrain_sampler": asdict(TerrainSamplerConfig(flat=2, mixed=0))}}
     _validate_behavior_transition(sampled, reweighted)
     _validate_behavior_transition(sampled, fixed)
 
@@ -455,28 +630,41 @@ def test_flat_probability_is_no_longer_a_transition_setting(learned_behavior, re
     """Consolidation PR-8 removed it from the behavior identity; an identity that carries it is another task."""
     from environments.shared.behavior_checkpoint import _validate_behavior_transition
 
-    previous = {**copy.deepcopy(learned_behavior[-1]), "flat_probability": 0.25}
+    previous = copy.deepcopy(learned_behavior[-1])
+    previous["env"]["flat_probability"] = 0.25
     requested = copy.deepcopy(learned_behavior[-1])
     if requested_value is not None:
-        requested["flat_probability"] = requested_value
+        requested["env"]["flat_probability"] = requested_value
     if requested_value == 0.25:
         _validate_behavior_transition(previous, requested)
     else:
-        with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields: flat_probability"):
+        with pytest.raises(
+            BehaviorCheckpointError, match="Incompatible behavior transition fields: env.flat_probability"
+        ):
             _validate_behavior_transition(previous, requested)
 
 
-def test_retired_trex_identity_schema_cannot_start_a_transition(learned_behavior):
-    """Consolidation PR-7 deleted its only emitter (TRexBehaviorEnv); D-D9 keeps those bundles evaluation-only."""
+@pytest.mark.parametrize("schema", ["mesozoic.trex-command-terrain/v1", "mesozoic.command-terrain/v1"])
+def test_retired_identity_schemas_cannot_start_a_transition(learned_behavior, schema):
+    """Consolidation PR-7 deleted the trex emitter and PR-9 the shared one; D-D9 keeps those bundles
+    evaluation-only, and a canonical stage fingerprint (no command section) is not a behavior task either."""
     from environments.shared.behavior_checkpoint import _validate_behavior_transition
 
-    previous = {**copy.deepcopy(learned_behavior[-1]), "schema": "mesozoic.trex-command-terrain/v1"}
-    with pytest.raises(BehaviorCheckpointError, match="Only supported command/terrain tasks"):
-        _validate_behavior_transition(previous, learned_behavior[-1])
+    retired = {
+        "schema": schema,
+        "backend": "stable-baselines3",
+        "commands": learned_behavior[-1]["command"]["config"],
+        "env": learned_behavior[-1]["env"],
+        "sources": {"behavior_env.py": "fixed-source-digest"},
+    }
+    canonical = {key: value for key, value in learned_behavior[-1].items() if key != "command"}
+    for previous in (retired, canonical):
+        with pytest.raises(BehaviorCheckpointError, match="Only supported command/terrain tasks"):
+            _validate_behavior_transition(previous, learned_behavior[-1])
 
 
 @pytest.mark.parametrize(
-    "field", ["command_scale", "frame_skip", "health_threshold", "source", "parent_plant", "backend"]
+    "field", ["command_scale", "frame_skip", "health_threshold", "implementation", "parent_plant", "backend"]
 )
 def test_adaptation_refuses_interface_source_or_dynamics_changes(learned_behavior, field):
     from environments.shared.behavior_checkpoint import adapt_behavior_checkpoint
@@ -484,19 +672,19 @@ def test_adaptation_refuses_interface_source_or_dynamics_changes(learned_behavio
     model_path, vecnorm_path, _, _, previous = learned_behavior
     requested = copy.deepcopy(previous)
     if field == "command_scale":
-        requested["commands"]["speed_scale"] = 2.0
+        requested["command"]["config"]["speed_scale"] = 2.0
     elif field == "frame_skip":
         requested["env"]["frame_skip"] = 10
     elif field == "health_threshold":
         requested["env"]["healthy_z_range"] = [0.1, 9.0]
-    elif field == "source":
-        requested["sources"]["behavior_env.py"] = "changed-source"
+    elif field == "implementation":
+        requested["stage"] = "command-terrain/v3"
     elif field == "parent_plant":
-        requested["parent_plant"]["physics_revision"] += 1
+        requested["plant"]["physics_sha256"] = "sha256:other"
     elif field == "backend":
         requested["backend"] = "jax-mjx"
     with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields"):
-        adapt_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(), behavior_identity=requested)
+        adapt_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(), task_fingerprint=requested)
 
 
 def _bundle(tmp_path):
@@ -504,7 +692,7 @@ def _bundle(tmp_path):
     model.write_bytes(b"selected-model")
     normalizer.write_bytes(b"paired-stats")
     manifest = {
-        "schema": "mesozoic.behavior-bundle/v1",
+        "schema": train_behaviors.BUNDLE_SCHEMA,
         "model": model.name,
         "normalizer": normalizer.name,
         "model_sha256": hashlib.sha256(model.read_bytes()).hexdigest(),
@@ -526,6 +714,15 @@ def test_resume_refuses_missing_or_altered_pair(tmp_path, changed):
     else:
         (tmp_path / "bundle.json").unlink()
     with pytest.raises(ValueError, match="bundle|hash"):
+        train_behaviors._verify_bundle(model, normalizer)
+
+
+def test_resume_refuses_a_bundle_saved_before_the_task_fingerprint_by_name(tmp_path):
+    """Decision D-D9: a v1 bundle.json (saved before consolidation PR-9) is refused before anything is loaded."""
+    model, normalizer = _bundle(tmp_path)
+    manifest = json.loads((tmp_path / "bundle.json").read_text())
+    (tmp_path / "bundle.json").write_text(json.dumps({**manifest, "schema": "mesozoic.behavior-bundle/v1"}))
+    with pytest.raises(ValueError, match=r"'mesozoic.behavior-bundle/v1'.*evaluation-only \(decision D-D9\)"):
         train_behaviors._verify_bundle(model, normalizer)
 
 
@@ -807,7 +1004,7 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
     class PilotEnv(CommandEnv):
         def __init__(self, **kwargs):
             super().__init__(live=True)
-            self.behavior_identity = {"schema": "runner-test/v1", "task": "live-commands"}
+            self.task_fingerprint = {"schema": "runner-test/v1", "task": "live-commands", "task_sha256": "sha256:r"}
 
     monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda species: PilotEnv)
     config = tmp_path / "short.toml"

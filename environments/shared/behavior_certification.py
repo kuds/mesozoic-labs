@@ -51,10 +51,10 @@ def evaluate_saved_panel(
     original_hashes = sha256_file(model_path), sha256_file(normalization_path)
     env = _panel_env(species, recipe_path, run_seed)
     try:
-        if env.behavior_identity != dict(identity):
-            raise ValueError("Certification environment differs from the saved behavior identity")
+        if env.task_fingerprint != dict(identity):
+            raise ValueError("Certification environment differs from the saved task fingerprint")
         model, normalizer, _ = load_behavior_checkpoint(
-            model_path, normalization_path, env, behavior_identity=identity, species=species
+            model_path, normalization_path, env, task_fingerprint=identity, species=species
         )
     except BaseException:
         env.close()
@@ -165,14 +165,14 @@ def judge_behavior_panel(
         not isinstance(seed, int) or isinstance(seed, bool) for seed in seen_seeds
     ):
         failures.append("Certification episodes require distinct integer seeds")
-    require_stop = identity["commands"]["stop_probability"] > 0
-    require_turn = identity["commands"]["turn_increment_max"] > 0
+    require_stop = identity["command"]["config"]["stop_probability"] > 0
+    require_turn = identity["command"]["config"]["turn_increment_max"] > 0
     per_family: dict[str, Any] = {}
     for family in families:
         departure_radius = 0.0
         needs_terrain_departure = family not in ("flat", "terrain_contact")
         if needs_terrain_departure:
-            terrain = identity.get("terrain")
+            terrain = identity["env"].get("terrain")
             if not isinstance(terrain, Mapping) or any(
                 isinstance(terrain.get(name), bool)
                 or not isinstance(terrain.get(name), (int, float))
@@ -199,7 +199,7 @@ def judge_behavior_panel(
                     or horizon < rules["minimum_horizon_s"]
                 ):
                     raise ValueError("Episode horizon is too short for certification")
-                samples.append(episode_measurements(episode, float(identity["course_distance"])))
+                samples.append(episode_measurements(episode, float(identity["env"]["course_distance"])))
             except ValueError as exc:
                 failures.append(f"{family}: {exc}")
         n = len(samples)

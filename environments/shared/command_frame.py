@@ -13,18 +13,18 @@ Design contract:
   of every species' observation, so every existing slice offset is
   unchanged and ``obs[-COMMAND_WIDTH:]`` is the command on every plant.
 * **Pre-scaled to [-1, 1].**  The environment emits each component already
-  divided by the stage's declared range (``command_speed_range``,
-  ``command_lateral_range``, ``command_yaw_rate_max``), so a live command
+  divided by the task's declared scale (``DirectionCommandConfig.speed_scale``,
+  ``lateral_speed_scale``, ``yaw_rate_scale``), so a live command
   normalises to O(1) from the first step after a reseeded load (plan §4.6
   "Normalization of the command slice", invariant 8).
 * **``"none"`` is byte-inert.**  Under ``command_mode = "none"`` the
   segment is constant zero, no RNG is drawn, and every trajectory is
   identical to the pre-Phase-C environment (the seeded draw stream is
   pinned by ``tests/fixtures/phase_c_reset_golden.json``).
-* **Fail closed on every backend.**  The MJX backend refuses any live mode
-  until its command path lands (invariant 9); the SB3 backend refuses
-  every live mode until Phase D implements the sampler (decision D-C7).
-  Phase D deletes only the SB3 branch of :func:`validate_command_mode`.
+* **MJX fails closed.**  The MJX backend refuses any live mode until its
+  command path lands (invariant 9).  The SB3 backend implements both live
+  modes since Phase D (consolidation PR-9), which deleted only the SB3
+  branch of :func:`validate_command_mode`.
 """
 
 from __future__ import annotations
@@ -42,11 +42,17 @@ COMMAND_COMPONENTS = ("v_x_cmd", "v_y_cmd", "yaw_rate_cmd")
 COMMAND_RANGE = (-1.0, 1.0)
 COMMAND_MODE_NONE = "none"
 COMMAND_MODES = ("none", "heading", "heading_and_speed")
-#: The six ``[env]`` keys / constructor kwargs (both backends, identical
-#: names and defaults).  Task-level like ``perturbation_*``: they enter the
-#: task fingerprint, never the plant interface.
-COMMAND_ENV_KEYS = (
-    "command_mode",
+#: The two ``[env]`` keys / constructor kwargs: the mode and ONE
+#: ``DirectionCommandConfig`` (decision D-D2 replaced five numeric kwargs).
+#: Task-level like ``perturbation_*``: they enter the task fingerprint, never
+#: the plant interface.
+COMMAND_ENV_KEYS = ("command_mode", "command_config")
+#: The five numeric kwargs decision D-D2 retired (consolidation PR-9).  The
+#: constructors refuse them (``TypeError``) and the task fingerprint refuses
+#: them by name; a ``stage_config.json`` written before PR-9 records them
+#: (``reward_weights``), so a reader that rebuilds an env or re-derives a
+#: task from such a record drops these keys first.
+RETIRED_COMMAND_ENV_KEYS = (
     "command_speed_range",
     "command_lateral_range",
     "command_yaw_rate_max",
@@ -64,9 +70,6 @@ MJX_COMMAND_REFUSAL = (
     "command path lands (BEHAVIOR_RECIPES_PLAN §4.6, A7: SB3 is the evidence backend and MJX fails closed on "
     "command-mode configs)"
 )
-SB3_COMMAND_REFUSAL = (
-    "command_mode={mode!r} is reserved for BEHAVIOR_RECIPES_PLAN §4.6 Phase D; only 'none' is implemented"
-)
 
 
 def zero_command(xp: Any = np) -> Any:
@@ -79,17 +82,14 @@ def validate_command_mode(mode: str, *, backend: str) -> str:
 
     An unknown mode is refused on every backend, naming the valid set.  The
     jax-mjx backend refuses every live mode (:data:`MJX_COMMAND_REFUSAL`);
-    the stable-baselines3 backend refuses them until Phase D
-    (:data:`SB3_COMMAND_REFUSAL`) — Phase D deletes only that branch.
+    the stable-baselines3 backend accepts them all.
     """
     if mode not in COMMAND_MODES:
         raise ValueError(f"command_mode={mode!r} is not one of {COMMAND_MODES}")
     if backend not in COMMAND_BACKENDS:
         raise ValueError(f"unknown training backend {backend!r} for command_mode validation; known: {COMMAND_BACKENDS}")
-    if mode != COMMAND_MODE_NONE:
-        if backend == "jax-mjx":
-            raise ValueError(MJX_COMMAND_REFUSAL.format(mode=mode))
-        raise ValueError(SB3_COMMAND_REFUSAL.format(mode=mode))
+    if mode != COMMAND_MODE_NONE and backend == "jax-mjx":
+        raise ValueError(MJX_COMMAND_REFUSAL.format(mode=mode))
     return mode
 
 

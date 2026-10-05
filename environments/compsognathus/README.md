@@ -87,8 +87,8 @@ The observation contains joint positions/velocities, pelvis orientation,
 angular velocity, world linear velocity, acceleration, ideal foot forces,
 target direction/distance, and — appended last — the 3-dim body-relative
 command segment (`v_x_cmd`, `v_y_cmd`, `yaw_rate_cmd`, pre-scaled to
-`[-1, 1]`; constant zero under the only implemented `command_mode`,
-`"none"`, per `BEHAVIOR_RECIPES_PLAN.md` §4.6). **These are privileged
+`[-1, 1]`; constant zero under `command_mode = "none"`, the mode of every
+committed stage, per `BEHAVIOR_RECIPES_PLAN.md` §4.6). **These are privileged
 simulator-state MLP policies.** They do not consume camera images and cannot be deployed as-is
 on the robot. `env.render_head_camera()` exposes the single 640 × 480 RGB
 camera separately. Real pose/velocity estimation, noisy sensors, control

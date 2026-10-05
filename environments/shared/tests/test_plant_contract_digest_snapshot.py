@@ -242,10 +242,12 @@ def test_golden_holds_every_recovery_calibration_and_behavior_recipe() -> None:
     recipes = sorted((path.parent.parent.name, path.stem) for path in configs.glob("*/behaviors/*.toml"))
     assert recipes, "no behavior recipe is committed"
     behavior = [fields for fields in lines if fields[0] == "behavior"]
-    for name in ("recipe_sha256", "behavior_identity_sha256"):
+    for name in ("recipe_sha256", "task_sha256"):
         assert sorted((fields[1], fields[2]) for fields in behavior if fields[3] == name) == recipes, name
-    with_sources = {(fields[1], fields[2]) for fields in behavior if fields[3].startswith("source:")}
-    assert with_sources == set(recipes), "every recipe's identity records its source digests"
+    assert len(behavior) == 2 * len(recipes), "a recipe's identity is its task fingerprint, not source digests"
+    recipe_tasks = [fields[4] for fields in behavior if fields[3] == "task_sha256"]
+    stage_tasks = {fields[4] for fields in lines if fields[0] == "stage" and fields[3] == "task_sha256"}
+    assert len(set(recipe_tasks)) == len(recipes) and stage_tasks and not stage_tasks & set(recipe_tasks)
 
 
 # -- the reward captures ------------------------------------------------------

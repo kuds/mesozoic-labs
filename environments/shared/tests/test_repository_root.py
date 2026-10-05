@@ -7,8 +7,8 @@ under the name each module already exposed: ``plant_contract.constants``
 rebinds it as its own attribute and stays the patch point its consumers read
 at call time; ``train_behaviors.REPO_ROOT`` (CI's installed-wheel step imports
 it) and ``species_catalog.REPOSITORY_ROOT`` keep their public names.  The
-value enters the repository-relative paths ``behavior_identity`` and the
-plant source closure hash, so it is pinned here too.
+value enters the repository-relative paths the plant source closure hashes,
+so it is pinned here too.
 """
 
 from __future__ import annotations
@@ -100,7 +100,7 @@ def _import_time_nodes(tree: ast.AST) -> Iterator[ast.AST]:
 
 def test_plant_contract_modules_read_the_root_only_through_constants():
     """Static form of the patch-point rule: outside ``constants`` (and ``__init__``, which re-exports
-    it for the byte-hashed behavior and sampler modules), no plant-contract module imports the root
+    it for ``behavior_env.py``), no plant-contract module imports the root
     or ``paths`` (``from ... import``, or ``import <...>.paths [as name]``), reads a bare
     ``REPOSITORY_ROOT``, or reads ``<name>.REPOSITORY_ROOT`` when it is imported (at the top level,
     in a class body, a decorator or a default argument), which would bind the value before a

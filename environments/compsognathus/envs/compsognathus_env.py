@@ -19,6 +19,7 @@ import numpy as np
 from environments.compsognathus import MODEL_PATHS
 from environments.compsognathus.model import robot_body_ids
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.stance_diagnostics import derive_stance_info
 
 
@@ -68,11 +69,7 @@ class CompsognathusEnv(BaseDinoEnv):
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
-        command_speed_range: tuple[float, float] = (0.0, 0.0),
-        command_lateral_range: tuple[float, float] = (0.0, 0.0),
-        command_yaw_rate_max: float = 0.0,
-        command_switch_interval: float = 0.0,
-        command_switch_jitter: float = 0.0,
+        command_config: DirectionCommandConfig | None = None,
     ):
         if render_mode not in (None, "human", "rgb_array"):
             raise ValueError(f"Unsupported render mode: {render_mode!r}")
@@ -151,11 +148,7 @@ class CompsognathusEnv(BaseDinoEnv):
             perturbation_duration=perturbation_duration,
             perturbation_direction=perturbation_direction,
             command_mode=command_mode,
-            command_speed_range=command_speed_range,
-            command_lateral_range=command_lateral_range,
-            command_yaw_rate_max=command_yaw_rate_max,
-            command_switch_interval=command_switch_interval,
-            command_switch_jitter=command_switch_jitter,
+            command_config=command_config,
         )
         self.metadata = {**self.metadata, "render_fps": round(1 / self.dt)}
 

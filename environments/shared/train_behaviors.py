@@ -22,13 +22,17 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 
-from environments.shared.behavior_env import canonical_env_parameters, get_behavior_env_class
+from environments.shared.behavior_env import get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.species_names import resolve_species_id, species_display_names
+from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig
 from environments.shared.terrain_sampling import TerrainSamplerConfig
+
+#: bundle.json's schema; a bundle saved before the task-fingerprint identity (v1) is refused by name.
+BUNDLE_SCHEMA = "mesozoic.behavior-bundle/v2"
 
 
 def _sha(path: Path) -> str:
@@ -78,8 +82,11 @@ def read_recipe(
             "(flat = 1 beside the terrain's own family at 3 is the former 0.25)"
         )
     env_class = get_behavior_env_class(species)
-    allowed_env = set(canonical_env_parameters(species)) | set(inspect.signature(env_class.__init__).parameters)
+    canonical = inspect.signature(get_species_config(species).env_class).parameters
+    allowed_env = set(canonical) | set(inspect.signature(env_class.__init__).parameters)
+    # [commands] states the command task; the env passes it to the base as command_config.
     allowed_env -= {"self", "env_kwargs", "commands", "terrain", "terrain_sampler", "run_seed"}
+    allowed_env -= {"command_mode", "command_config"}
     if unknown := set(recipe.get("env", {})) - allowed_env:
         raise ValueError(f"Unknown env fields: {sorted(unknown)}")
     recipe["ppo"] = {
@@ -156,6 +163,8 @@ def create_behavior_env(
     **env_kwargs: Any,
 ) -> Any:
     """Construct the behavior a recipe declares; ``read_recipe`` puts its terrain sampler in ``env_kwargs``."""
+    if given := sorted({"command_mode", "command_config"} & env_kwargs.keys()):
+        raise ValueError(f"{given}: a behavior env runs command_mode 'heading_and_speed' on commands=")
     return get_behavior_env_class(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
 
 
@@ -178,13 +187,19 @@ def _verify_bundle(model: Path, normalizer: Path, recipe: dict[str, Any] | None 
     if not manifest_path.is_file():
         raise ValueError("Resume requires bundle.json beside the checkpoint")
     manifest = json.loads(manifest_path.read_text())
+    if manifest.get("schema") != BUNDLE_SCHEMA:
+        raise ValueError(
+            f"bundle.json is {manifest.get('schema')!r}, not {BUNDLE_SCHEMA!r}: a bundle saved before the task "
+            "fingerprint identity is evaluation-only (decision D-D9); evaluate it at the commit that trained it "
+            "(run.json's git_commit)"
+        )
     if manifest.get("model_sha256") != _sha(model) or manifest.get("normalizer_sha256") != _sha(normalizer):
         raise ValueError("Checkpoint or normalization file does not match the saved bundle hashes")
     if recipe is not None and manifest.get("training_recipe") != recipe:
         raise ValueError("Exact resume requires the saved training recipe, including PPO settings and stage budget")
 
 
-def _save_bundle(model: Any, normalizer: Any, output: Path, identity: dict, recipe: dict) -> None:
+def _save_bundle(model: Any, normalizer: Any, output: Path, task: dict, recipe: dict) -> None:
     output.mkdir(parents=True, exist_ok=True)
     model_path, norm_path = output / "model.zip", output / "vecnormalize.pkl"
     model.save(str(model_path))
@@ -192,12 +207,12 @@ def _save_bundle(model: Any, normalizer: Any, output: Path, identity: dict, reci
     _write(
         output / "bundle.json",
         {
-            "schema": "mesozoic.behavior-bundle/v1",
+            "schema": BUNDLE_SCHEMA,
             "model": model_path.name,
             "normalizer": norm_path.name,
             "model_sha256": _sha(model_path),
             "normalizer_sha256": _sha(norm_path),
-            "behavior_identity": identity,
+            "task_fingerprint": task,
             "training_recipe": recipe,
             "num_timesteps": model.num_timesteps,
             "canonical_certification": False,
@@ -292,7 +307,7 @@ def main(argv: list[str] | None = None) -> None:
         except Exception:
             env.close()
             raise
-    behavior_identity = env.behavior_identity
+    task_fingerprint = env.task_fingerprint
     wrapped: gym.Env = Monitor(EpisodeManifestRecorder(env, args.output / "training_episodes.jsonl"))
     learning_rate = float(recipe.get("ppo", {}).get("learning_rate", 5e-5))
     loader = (
@@ -308,7 +323,7 @@ def main(argv: list[str] | None = None) -> None:
             args.vecnormalize,
             wrapped,
             learning_rate=learning_rate,
-            behavior_identity=behavior_identity,
+            task_fingerprint=task_fingerprint,
             species=species,
         )
     except BaseException:
@@ -358,7 +373,7 @@ def main(argv: list[str] | None = None) -> None:
     git = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True, capture_output=True)
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True, capture_output=True)
     manifest: dict[str, Any] = {
-        "schema": "mesozoic.behavior-run/v1",
+        "schema": "mesozoic.behavior-run/v2",
         "species": species,
         "parent_behavior": "walk",
         "parent_stage": "locomotion",
@@ -366,7 +381,7 @@ def main(argv: list[str] | None = None) -> None:
         "run_seed": run_seed,
         "recipe": recipe,
         "recipe_sha256": _sha(args.config),
-        "behavior_identity": behavior_identity,
+        "task_fingerprint": task_fingerprint,
         "preparation": preparation,
         "git_commit": git.stdout.strip() if git.returncode == 0 else None,
         "git_dirty": bool(dirty.stdout.strip()),
@@ -422,7 +437,7 @@ def main(argv: list[str] | None = None) -> None:
                 return
             directory = args.output / "checkpoints" / f"step-{self.model.num_timesteps}"
             temporary = directory.with_name(directory.name + ".tmp")
-            _save_bundle(self.model, normalizer, temporary, behavior_identity, recipe)
+            _save_bundle(self.model, normalizer, temporary, task_fingerprint, recipe)
             temporary.replace(directory)
             _write(
                 args.output / "latest_checkpoint.json",
@@ -439,7 +454,7 @@ def main(argv: list[str] | None = None) -> None:
                 model.learn(total_timesteps=steps, reset_num_timesteps=False, callback=callbacks)
             except KeyboardInterrupt:
                 interrupted = True
-        _save_bundle(model, normalizer, args.output, behavior_identity, recipe)
+        _save_bundle(model, normalizer, args.output, task_fingerprint, recipe)
         bundle_saved = True
         manifest["training"]["actual_additional_steps"] = model.num_timesteps - start_steps
         manifest["training"]["elapsed_seconds"] = time.monotonic() - started
@@ -457,7 +472,7 @@ def main(argv: list[str] | None = None) -> None:
                 replay_context={
                     "model_sha256": "sha256:" + _sha(args.output / "model.zip"),
                     "normalizer_sha256": "sha256:" + _sha(args.output / "vecnormalize.pkl"),
-                    "behavior_identity": behavior_identity,
+                    "task_fingerprint": task_fingerprint,
                 },
             )
         manifest["status"] = "interrupted" if interrupted else "complete"
@@ -467,7 +482,7 @@ def main(argv: list[str] | None = None) -> None:
         # Keep their already-saved checkpoint, and finish a save interrupted
         # before its matched bundle was published, without restarting scoring.
         if not bundle_saved:
-            _save_bundle(model, normalizer, args.output, behavior_identity, recipe)
+            _save_bundle(model, normalizer, args.output, task_fingerprint, recipe)
         manifest["training"]["actual_additional_steps"] = model.num_timesteps - start_steps
         manifest["training"]["elapsed_seconds"] = time.monotonic() - started
         manifest["status"] = "interrupted"

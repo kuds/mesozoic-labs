@@ -8,8 +8,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **Commands come through the reserved hook, and a behavior recipe's
+  identity is its task fingerprint** (consolidation PR-9 of
+  `docs/CONSOLIDATION_PLAN_2026_09.md`, decisions D-D2 and D-D9,
+  2026-10-05). `BaseDinoEnv` and the five species constructors take
+  `command_mode` and one `command_config: DirectionCommandConfig | None` in
+  place of `command_speed_range`, `command_lateral_range`,
+  `command_yaw_rate_max`, `command_switch_interval` and
+  `command_switch_jitter`, which nothing read. Under `"heading"` or
+  `"heading_and_speed"` the env builds a `DirectionCommandController`,
+  seeds it in `_draw_episode_command()` with one draw appended to the reset
+  stream (`_command_rng()`) and advances it at the end of `step()` through
+  `_update_command()`, after the reward, so the returned observation
+  carries the next command; `command_manifest()` is the controller's
+  manifest and `_heading()` is the base env's. A live mode needs a
+  `command_config`, `"none"` refuses one, and `"heading"` holds
+  `cruise_speed` (it refuses `speed_range` and stops). SB3 accepts both
+  live modes (`validate_command_mode` keeps its MJX refusal); under
+  `"none"` nothing is built or drawn. The task fingerprint's carve-out pops
+  `command_mode` and `command_config` while the effective mode is
+  `"none"`, so no committed `task_sha256` moves, and records the config
+  field by field otherwise. Its `command` section is the controller's
+  manifest, passed exactly when the mode is live (a live `[env]` without
+  one, or one under `"none"`, is refused), and `stage_task_fingerprint`
+  takes an optional `command_manifest`, forwarded only when given.
+  Following D-D2 strictly is the maintainer's choice of 2026-10-05: runs
+  recorded before PR-9 are not kept rebuildable from their recorded
+  constructor kwargs (a reader must drop
+  `command_frame.RETIRED_COMMAND_ENV_KEYS`, the five names, first, and no
+  path on main does so today: the gait audit's hand-run probe,
+  `docs/investigations/gait_2026_09/gait_probe.py`, run with
+  `--use-recorded-env-kwargs`, is one such reader and now refuses a pre-PR-9
+  record), and committed stage fingerprints, and so the reuse of certified
+  walkers as trunks, are unchanged. The constructors refuse the five
+  (`TypeError`); by this PR's own default, the task fingerprint refuses each
+  by name in every mode rather than hash a task that matches nothing. The
+  behavior env runs `"heading_and_speed"` with its `commands`
+  (`create_behavior_env` refuses `command_mode` and `command_config` by
+  name) and keeps its own command stream, so every recipe's resets,
+  observations, rewards and infos are bit-identical (`--exact`, 32,389 lines
+  on base and head). A behavior checkpoint carries the canonical stamps: the
+  plant identity, the recipe env's task fingerprint (its stage,
+  `command-terrain/v2`, names the implementation and is never a stage id, so
+  no manifest node resumes or warm-starts from one) and the preparation
+  report as its task lineage, whose `child_task_sha256` an adaptation moves
+  to the adapted task; preparation requires that fingerprint and refuses one
+  whose stage is a stage id, and preparation and adaptation refuse one
+  without its `task_sha256` by name, since nothing could resume or adapt the
+  artifact. `run.json` and `bundle.json` (`mesozoic.behavior-bundle/v2`)
+  record `task_fingerprint`, and `--adapt` compares fingerprint sections
+  under the same transition settings. A bundle or checkpoint saved earlier
+  records no task fingerprint and is refused by name (D-D9:
+  evaluation-only). `stage_config.json` records `command_config` in place of
+  the five keys, so the digest golden's 42 `stage_config_view_sha256` lines
+  move, a measured consequence of D-D2 and D-D22 (the golden pins each
+  stage's recorded view); its behavior section goes from 450 to 132 lines
+  (one `task_sha256` per recipe replaces the identity digest and its 318
+  source lines), and no reward, plant, policy, recovery, task, gate or
+  hyperparameter line moves.
 - **One terrain selector in the behavior env, and every terrain recipe
-  states its blocks** (consolidation PR-8 (a) of
+  states its blocks** (#594, consolidation PR-8 (a) of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`
   takes a `terrain_sampler` and its `reset()` calls `select_terrain_family`
   itself; the `options={"terrain_family": ...}` override stays, and every
@@ -49,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery line moves.
 - **Behavior sidecars are plain `VecNormalize` files whose command
   statistics follow the reseed rule, and the command constants have one
-  source** (consolidation PR-8 (b) and (c), decision D-D3, 2026-10-04).
+  source** (#594, consolidation PR-8 (b) and (c), decision D-D3,
+  2026-10-04).
   Preparation reseeds the three command inputs' statistics to mean 0 /
   variance 1 (count kept), so commands enter the policy at O(1); from then
   on they update, scale and clip like every other input (the recipes plan's
@@ -64,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `command_frame` (same values); `lateral_speed_scale` stays until PR-11 and
   PR-12 replace these recipes with stage TOMLs (D-D12).
 - **The direction and terrain guide records where terrain and the notebook
-  stand** (consolidation PR-8; the maintainer's request of 2026-10-04).
+  stand** (#594, consolidation PR-8; the maintainer's request of
+  2026-10-04).
   `docs/TRAIN_DIRECTION_AND_TERRAIN.md` gains a dated status section on the
   deferral (terrain work waits for the walking gait), the terrain blocker,
   the node order, an evaluation cell for Colab and a gentle terrain recipe.
@@ -379,9 +439,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The five numeric `command_*` kwargs, `SB3_COMMAND_REFUSAL`,
+  `behavior_identity`, `canonical_env_parameters`,
+  `sampler_source_identity`, `BEHAVIOR_IDENTITY_SCHEMA` and
+  `PREPARATION_ATTRIBUTE`** (consolidation PR-9, 2026-10-05). Pass
+  `command_config=DirectionCommandConfig(...)` with a live `command_mode`
+  (the five names are `command_frame.RETIRED_COMMAND_ENV_KEYS`); a behavior
+  env's identity is `env.task_fingerprint`, and the behavior loaders take
+  `task_fingerprint=` (was `behavior_identity=`), which
+  `prepare_behavior_checkpoint` now requires. The preparation report is the
+  checkpoint's `mesozoic_task_lineage` (was
+  `mesozoic_behavior_preparation`); `judge_behavior_panel` reads the
+  fingerprint's `command.config`, `env.terrain` and `env.course_distance`
+  (was the identity's `commands`, `terrain` and `course_distance`); and the
+  mixin's `_heading()` and `command_manifest()` are `BaseDinoEnv`'s.
 - **`TerrainSamplingMixin`, `get_sampled_behavior_env_class`,
   `_PanelTerrainMixin`, `BehaviorVecNormalize` and `flat_probability`**
-  (consolidation PR-8, 2026-10-04). A sampled env is
+  (#594, consolidation PR-8, 2026-10-04). A sampled env is
   `get_behavior_env_class(species)(terrain=..., terrain_sampler=...)` (or
   `train_behaviors.create_behavior_env`), and the certification panel is the
   recipe's own env. `SpeciesBehaviorMixin(flat_probability=...)` is a
