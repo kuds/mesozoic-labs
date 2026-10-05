@@ -198,3 +198,105 @@ For `k` joint successes out of fixed `N`, the one-sided exact 95% Clopper–Pear
 CLI exit 0 means a report or preflight completed, **not that a certificate passed**. Read `report_only`, `certification_eligible`, `certified`, failures and statistics. Exit 2 indicates command usage errors, an invalid number or `--protocol-json` option among them, and never touches an existing report; exit 3 indicates an evaluation refusal.
 
 Mac CPU replay is fresh evidence on that runtime, not confirmation of an original GPU trajectory. Contact-sensitive runs can diverge across hardware/backends; preserve runtime and plant bindings, and do not certify unverified model/physics revisions. The observer does not modify frozen MJX code or species physics. The [historical audit's replay limitations](investigations/GAIT_AUDIT_2026_09.md) explain this distinction.
+
+## T. rex locomotion: the enforcement step
+
+**Prepared 2026-10-04; apply after the gait-r1 pilot passes, not before.** `configs/trex/locomotion.toml` keeps `gate_kind = "reward_and_length/v1"` through the T. rex locomotion task revision `gait-r1` (the gait reward kit, the speed cap at 1.25 m/s and a 2000-step horizon). The plan's pilot runs that revision first ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) §5.5; the command-line steps are in [NEXT_STEPS.md](NEXT_STEPS.md) §3). Only when the pilot passes is the `[curriculum]` change below committed. It is a gate revision of its own, landed after the gait-r1 commit and before the training session. Its commit names the moved `gate_sha256` and `stage_config_view_sha256` lines of T. rex locomotion. From then on, reuse rule 7 refuses every T. rex locomotion verdict judged under `reward_and_length/v1`.
+
+### Why the panel is 20 s
+
+A panel rolls the task's own horizon. `gait/report.py` reads `max_episode_steps` from the stage's environment kwargs, and the panel's task fingerprint must equal the checkpoint's. Judging on 20 s therefore means training on 20 s, and gait-r1 sets `max_episode_steps = 2000`.
+
+- After the 1 s settle, a 9 s window holds 8 to 10 T. rex strides (0.9 to 1.1 s each). A 19 s window holds 17 to 21.
+- The off-gait budget is 15 % of the window: 1.35 s of a 9 s window, little more than one stride. A single stumble, or a slow standing start (standing time counts against the budget), can use most of it.
+- The walk-first verification of 2026-10-04 ran a T. rex-cadence walk with two trips 35 % late on development data. In a 9 s window it passed 4, 3 and 3 of 6 episodes (2, 10 and 20 ms sampling), with 0.095 to 0.188 of the window off-gait. The same trips take 0.045 to 0.089 of a 19 s window, inside the budget. That figure is arithmetic, not a measured panel.
+- At 37 of 40, a policy whose episodes qualify 95 % of the time already fails 14 % of panels (GQ-7). Thin per-episode margins cost a whole retrain.
+- `min_complete_cycles_per_foot` (3) is met in either window. The margin that matters is the budget's.
+
+The cost is training time. The in-training evaluations (30 episodes every 50,000 steps) double in length, so the estimate for an 8M session is 13 to 15 h, against 8h46m for the certified run on 1000-step episodes. That is still inside Colab's roughly 24 h cap.
+
+### The block
+
+The block replaces `reward_and_length/v1`'s gate keys in `[curriculum]`. It removes `min_avg_episode_length` and `min_avg_forward_vel`, which the schema refuses under `locomotion_gait/v2`, and keeps `timesteps`, the collapse keys and the warm-up and ramp keys as they are. Every bar is the walk-first `biped_walk` value (`provisional_gait_criteria("biped_walk")`, margin table above), except the stride floor, which is tightened for T. rex (below).
+
+```toml
+gate_schema_version = 1
+gate_kind = "locomotion_gait/v2"
+gait_profile = "biped_walk"                  # Froude 0.12 at the bar: a walk
+measurement_protocol_sha256 = "sha256:..."   # the --protocol-only output below
+min_eval_episodes = 40
+gait_panel_seed_start = 3042                 # the registered certification block, 3042-3081
+min_gait_success_lcb = 0.80                  # 37/40 passes, 36/40 fails
+required_consecutive = 1
+min_avg_reward = 100.0                       # optional panel reward rail, kept from v1
+min_episode_forward_vel = 1.0                # the stage's speed bar, per episode
+min_episode_duration_s = 19.0                # 2000 steps x 0.01 s, less the 1 s settle
+# support (walking)
+max_flight_fraction = 0.10
+max_unloaded_fraction = 0.15
+min_walking_duty = 0.35
+max_walk_glide_stance_fraction = 0.15
+max_body_support_fraction = 0.01
+max_foot_foot_contact_fraction = 0.02
+max_skid_fraction = 0.35
+max_glide_stance_fraction = 0.10
+min_trunk_height_over_leg = 0.50
+# participation
+min_limb_phase_coverage = 0.80
+min_limb_duty = 0.10
+min_relative_limb_load_share = 0.36
+max_light_stance_fraction = 0.18
+min_pair_load_ratio = 0.70
+min_pair_duty_ratio = 0.70
+min_complete_cycles_per_foot = 3
+# stepping
+min_valid_swing_fraction = 0.75
+min_median_swing_clearance_over_leg = 0.02
+min_stride_length_over_leg = 0.40            # T. rex: 0.20 for the profile (below)
+max_swing_ground_fraction = 0.50
+max_swing_slip_fraction = 0.10
+min_step_length_over_leg = 0.05
+min_step_through_stride_fraction = 0.60
+min_step_symmetry = 0.10
+min_body_frame_step_to_symmetry = 0.35
+# coupling and persistence
+min_phase_locking = 0.50
+max_alternation_phase_offset = 0.15
+max_alternating_overlap_index = 0.50
+max_off_gait_fraction = 0.15
+```
+
+Leave `gait_report_episodes` out: on a `locomotion_gait/v2` stage it must be absent or equal `min_eval_episodes`.
+
+The block was checked on 2026-10-04 in a scratch merge of this branch with the PR #585 plumbing fixes:
+
+- `gate_schema.validate_gate_config` and `GaitGateThresholds.from_curriculum` accept it.
+- Left in place, `min_avg_episode_length` and `min_avg_forward_vel` are refused.
+- With the digest planned there, the gait preflight passes for run seed 45 and refuses run seeds 3040, 2045 and 1040, whose training, selection and replay seeds collide with the block.
+
+**The T. rex stride floor, 0.40 `L`** (`L` = 0.877 m, so 0.351 m), tightened from the profile's 0.20:
+
+- The audited hops stride 0.11 to 0.22 `L` (plan §4.4; the seed-42 and seed-44 hops 0.17 to 0.21 `L`). The profile's 0.20 sits among them: on its own it would pass the longest hops, which the other rails refuse.
+- At the 1.0 m/s speed bar, a stride under 0.40 `L` takes more than 2.85 strides a second, a period under 0.35 s. That is shorter than T. rex's 0.39 s swing reference (1.3 √(`L`/g)) alone.
+- The re-scoring's T. rex puppet walks at 1.04 m/s were designed with 0.44 and 0.51 m steps (strides of 0.88 and 1.02 m, 1.00 to 1.16 `L`), and Alexander's prediction at Froude 0.12 is 1.21 `L`. A walk at the bar sits at least 2.5 times above the floor, and the longest hop 45 % below it.
+- The profile's 0.20 rests on a synthetic fast walk at a generic scale (0.293 `L`) and stays the value for the other species.
+- Replayed with the gait report CLI on development seeds 9000 to 9003, the seed-42 hop measures a stride of 0.16 to 0.17 `L` (7.7 Hz).
+
+No other bar is tightened. The swing clearance floor (0.02 `L`, 17.5 mm) sits at the T. rex hops' 17 to 25 mm, and the margin table's nearest refused value is a T. rex hop at 0.0199 `L`. No T. rex walk has been measured to calibrate a higher floor, and the hops fail the coupling, support and step-through rails regardless.
+
+### Planning the hash
+
+Run this on the commit that will train, with the gait-r1 commit merged (it supplies the 2000-step horizon) and the measurement code final:
+
+```bash
+python -m environments.shared.scripts.gait_report trex --stage locomotion \
+  --protocol-only --episodes 40 --seed 3042 --settle-s 1.0 > planned_protocol.json
+```
+
+- The committed `configs/trex/locomotion.toml` supplies the task, so `--env-json` is not needed.
+- `--protocol-only` rolls no episode. It prints `measurement_protocol_sha256` and the payload it hashes, whose `panel.horizon_control_steps` must read 2000.
+- Copy the digest into the block, then check that the stage validates with the gait preflight, `python -m environments.shared.gait.preflight --check`, which CI also runs.
+- Re-plan if the measurement code changes before the session: the preflight refuses a stale digest before anything is trained.
+- The session's `SEED` must keep its training (`SEED`+rank), selection (`SEED`+1000) and replay seeds off 3042 to 3081. The pilot's seed, 45, does.
+
+Do not use 3042 to 3081 for anything else in the meantime: no pilot judging, no reward design and no retries. The pilot is judged on the development block (9000 onward). The re-scoring that chose the gait-r1 weights replayed the old hops on part of the certification block, and repeated its measurements on the development block before the weights were committed ([investigations/TREX_GAIT_R1_RESCORE_2026_10.md](investigations/TREX_GAIT_R1_RESCORE_2026_10.md)).

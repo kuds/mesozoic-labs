@@ -406,12 +406,14 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             **task_success_null,
         }
         # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
-        # export as nulls.
+        # export as nulls. The trex locomotion task revision gait-r1 (D-D23)
+        # doubles its horizon to 2000 steps and its length rail with it, to
+        # the same 75 %.
         assert stage_two | {"min_avg_forward_velocity": None} == {
             "gate_kind": "reward_and_length/v1",
             "pending_gate_kind": None,
             "min_avg_reward": 100.0,
-            "min_avg_episode_length": 750,
+            "min_avg_episode_length": 1500 if species_id == "trex" else 750,
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
             "min_eval_episodes": 10,

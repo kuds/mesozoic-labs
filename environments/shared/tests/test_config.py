@@ -240,11 +240,21 @@ class TestCurriculumInvariants:
         assert stages[2]["env_kwargs"]["bite_bonus"] == 0.0
         assert stages[3]["env_kwargs"]["bite_bonus"] > 0.0
 
+    #: Stage horizons a named task revision lengthens on purpose: T. rex locomotion gait-r1 (D-D23)
+    #: runs 2000 steps because its locomotion_gait/v2 panel rolls the task's own horizon, and 1000
+    #: steps hold too few T. rex strides; the stance keeps 1000 (configs/trex/locomotion.toml).
+    LENGTHENED_HORIZONS = {"trex": (1000, 2000)}
+
     @pytest.mark.parametrize("species", SPECIES)
     def test_consistent_episode_length(self, species):
-        """All stages should use the same max_episode_steps for consistent return horizons."""
+        """All stages should use the same max_episode_steps for consistent return horizons, except
+        where a named revision lengthens one (LENGTHENED_HORIZONS)."""
         stages = load_all_stages(species)
-        assert stages[1]["env_kwargs"]["max_episode_steps"] == stages[2]["env_kwargs"]["max_episode_steps"]
+        horizons = (stages[1]["env_kwargs"]["max_episode_steps"], stages[2]["env_kwargs"]["max_episode_steps"])
+        if species in self.LENGTHENED_HORIZONS:
+            assert horizons == self.LENGTHENED_HORIZONS[species]
+        else:
+            assert horizons[0] == horizons[1]
 
 
 class TestCatastrophicForgettingMitigation:

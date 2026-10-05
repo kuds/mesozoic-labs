@@ -176,6 +176,15 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
     if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
         for name in COMMAND_ENV_KEYS:
             effective.pop(name, None)
+    # GAIT_QUALITY_PLAN_2026_09 §5.2 item 2: the gait reward kit's knobs
+    # (T. rex first) are inert at their pinned legacy values.  Each knob the
+    # [env] does not set and whose default is its legacy value is carved out,
+    # so a stage that sets none keeps its pre-kit task_sha256; a knob a stage
+    # sets (even to the legacy value) or a default retuned away from it stays,
+    # and setting one in a stage TOML is the task revision.
+    from .gait_rewards import drop_inert_kit_keys
+
+    drop_inert_kit_keys(effective, env_kwargs)
     return effective
 
 

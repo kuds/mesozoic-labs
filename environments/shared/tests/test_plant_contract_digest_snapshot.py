@@ -285,13 +285,16 @@ def test_exact_streams_see_an_ulp_that_the_rounded_golden_does_not() -> None:
     assert digest_snapshot._summary(_capture(0.3)) == "roll=1:fallen:1.5000"
 
 
-def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("species", ["compsognathus", "trex"])
+def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch, species: str) -> None:
     # CI's digest step runs every stage on Python 3.12; this runs one species in each shared leg of the test matrix,
-    # where Python 3.11's float sum() moves the compsognathus reward by an ulp that the golden rounds away.
-    monkeypatch.setattr("environments.shared.config.SPECIES_NAMES", ("compsognathus",))
+    # where Python 3.11's float sum() moves the compsognathus reward by an ulp that the golden rounds away.  T. rex
+    # wires the gait reward kit (environments/shared/gait_rewards.py), inert at its legacy values: its stages keep
+    # their golden reward, info and termination lines.
+    monkeypatch.setattr("environments.shared.config.SPECIES_NAMES", (species,))
     out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
     digest_snapshot.reward_section(out)
-    assert out.kept == [line for line in _golden_lines() if line.startswith("reward\tcompsognathus\t")]
+    assert out.kept == [line for line in _golden_lines() if line.startswith(f"reward\t{species}\t")]
 
 
 def test_state_probes_keep_clear_of_the_thresholds() -> None:

@@ -333,6 +333,85 @@ Notes:
   (0.0069 / UCB 0.0117), so the fresh trex stance with `SEED = 45` held in
   reserve (about 13 h for the stance alone) is not run.
 
+**T. rex gait-r1 pilot (prepared 2026-10-04, not run).** The T. rex locomotion task revision `gait-r1` is a
+commit of its own, merged just before its training session ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
+§5.2 item 5; the evidence for its values is
+[investigations/TREX_GAIT_R1_RESCORE_2026_10.md](investigations/TREX_GAIT_R1_RESCORE_2026_10.md)). Before it
+merges, a 1.5M-step pilot runs the same values from the command line (the plan's §5.5 step 3).
+
+**Setting up.** On Colab, run notebook section 1 only, with `REPO_REF` set to a pushed branch carrying the gait
+reward kit, the walk-first gait checker and its plumbing fixes. Then mount Drive in a scratch cell (never the
+storage cell) and run from `/content/mesozoic-labs`:
+
+```bash
+python environments/trex/scripts/train_sb3.py curriculum --target walk \
+  --trunk-from /content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/20260914_123816 \
+  --seed 45 --n-envs 4 --label gait-r1-pilot \
+  --output-dir /content/drive/MyDrive/mesozoic-labs/scratch/trex_gait_r1_pilot/<UTC timestamp> \
+  --override locomotion.env.support_source=floor locomotion.env.gait_phase_weight=0.5 \
+    locomotion.env.flight_penalty_weight=1.0 locomotion.env.foot_slip_penalty_weight=0.2 \
+    locomotion.env.forward_vel_max=1.25 locomotion.env.forward_vel_weight=1.0 \
+    locomotion.env.max_episode_steps=2000 locomotion.curriculum.min_avg_episode_length=1500 \
+    locomotion.curriculum.collapse_peak_floor_reference=2186.8 locomotion.curriculum.timesteps=1500000 \
+    locomotion.ppo.learning_rate_end=4.25e-05
+```
+
+- **The trunk is pinned.** `auto` picks the seed-44 run on the tie, and its stance hops in 6 of 40 episodes.
+  The log must show `Reusing certified 'stance' from run 20260914_123816`. A `Not reusing 'stance'` line means
+  interrupt at once: the CLI would train a new stance for 11M steps.
+- **Every override is stage-qualified,** so the stance task, and with it the reuse, is untouched.
+- **Seed 45 is new.** Seed 42 would replay the hop run's seeds. Seed 45's training, selection and replay seeds
+  stay off both the certification block and the development block.
+- **The run directory lies outside `logs/trex/ppo/`,** so a pilot is never a trunk.
+- **`learning_rate_end` keeps the 8M schedule's first 1.5M steps.**
+- **The pilot's `task_sha256` (`3ce1d7e9…`) differs from the revision's,** because the CLI casts `1.0` to the
+  integer `1`. The reward arithmetic is identical, and the difference keeps a pilot verdict from ever standing
+  in for the session's.
+- **Wall time is estimated at about 3 h.**
+
+**Judging.** Judge the handoff on the development block, never on 3042-3081:
+
+```bash
+python -m environments.shared.scripts.gait_report trex --stage locomotion \
+  --model <run>/03_locomotion/models/robust_best_model.zip \
+  --vecnorm <run>/03_locomotion/models/robust_best_model_vecnorm.pkl \
+  --env-json <the "env" object of <run>/03_locomotion/task_fingerprint.json, saved as JSON> \
+  --episodes 20 --seed 9000 --settle-s 1.0 --out-dir <run>/gait_dev_9000
+```
+
+The plan's §5.5 T. rex row, read on the walk-first measurement, decides what follows. The seed-42 hop's
+development-seed values are in brackets.
+
+**Proceed** if either holds:
+
+- At least 11 of 20 episodes walk (they qualify under the provisional `biped_walk` bars, or fail only the speed
+  rail, since the pilot ends inside the forward ramp), with a median speed of at least 0.5 m/s.
+- The medians read as a walk, and at least 18 of 20 episodes complete:
+  - `alternation_phase_offset_max` at most 0.2 cycle [0.48];
+  - `off_gait_fraction` at most 0.3 [0.999];
+  - `step_through_stride_fraction_min` at least 0.5 [0.35];
+  - flight and unloaded time each at most 0.2 [0.35 and 0.40];
+  - stride at least 0.40 `L` [0.17].
+
+**Stop** if any holds:
+
+- The median speed is under 0.5 m/s.
+- It is still a hop: phase offset above 0.3, or flight above 0.3.
+- A new exploit appears: a shuffle, a one-legged gait, a step-to, a run at the cap (flight 0.1 to 0.3 above
+  1.2 m/s), or the body on the floor.
+- Fewer than 16 of 20 episodes complete.
+
+**After a proceed:**
+
+1. Merge `gait-r1`.
+2. Merge the enforcement block of [GAIT_CERTIFICATION.md](GAIT_CERTIFICATION.md) ("T. rex locomotion: the
+   enforcement step").
+3. Train the 8M session from the notebook with `BEHAVIOR = "walk"`, `TRUNK_FROM = "20260914_123816"` and
+   `SEED = 45`, in about 13-15 h.
+
+In between, or on a stop, bring the report back: a re-scoring comes before any weight change. Record the
+pilot's run, commit, wall time and verdict here.
+
 Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
 line only from the notebook-only PR-12 slice on, with `--checkpoint` /
 `--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);
