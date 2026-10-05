@@ -1,6 +1,6 @@
-# Next steps and program state (2026-10-04)
+# Next steps and program state (2026-10-05)
 
-**Status**: living reference — updated 2026-10-04. Landing status is not kept here (section 1).
+**Status**: living reference — updated 2026-10-05. Landing status is not kept here (section 1).
 
 Read this first when starting a new session on the behavior-recipes program: what
 is certified on Drive, which training sessions to run next, what the consolidation
@@ -346,7 +346,9 @@ re-judge or republish a pre-Phase-C run in place (KNOWN_ISSUES, Phase C entry).
 
 **Status: released 2026-09-20 in the notebook-first order of decision D-D13**
 (PR-3, PR-4, PR-5, PR-6, the notebook-only PR-12 slice, PR-14, then PR-7 .. PR-11,
-the rest of PR-12, PR-13, PR-15).
+the rest of PR-12, PR-13, PR-15). **Paused after PR-10 on 2026-10-05** by the
+maintainer: PR-11 .. PR-13, the rest of PR-12 and PR-15 wait until one or two
+species walk well (the consolidation plan's status table).
 [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) carries the
 per-PR file lists, the breaks / mitigation / validation blocks, the target
 architecture table and, in its status table, which PRs have landed and the net
@@ -534,7 +536,9 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
    [section 4](#4-consolidation-the-remaining-prs) from PR-8, on the session branch, one PR at a time,
    restarting the branch from `main` after each merge; the consolidation plan's status table says which have
    landed. A PR records the landing of the one before it only in the two places the one-landing-record rule
-   names ([README.md](README.md#conventions)): that table and the CHANGELOG entry.
+   names ([README.md](README.md#conventions)): that table and the CHANGELOG entry. On 2026-10-05 the
+   maintainer paused the sequence after PR-10 until one or two species walk well (the status table's
+   "Pause after PR-10" row): the next work is training the walkers, and PR-11 resumes in a later session.
 3. Check Drive for run directories newer than 2026-09-17 (through the Drive
    connector when the maintainer has attached one) and update
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).

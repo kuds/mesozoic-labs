@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **A live child warm-started from a parent that never saw a command
-  starts exactly command-blind** (consolidation PR-10 of
+  starts exactly command-blind** (#597, consolidation PR-10 of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-05). Under
   `initialize_next_stage`, when the child's task fingerprint has a
   `command` section and the parent's recorded one has none (or the parent
