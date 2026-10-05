@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   optimizer table from `policy_loading`. Every committed stage is
   `"none"`, so no stage trains differently and no digest moves.
 - **Commands come through the reserved hook, and a behavior recipe's
-  identity is its task fingerprint** (consolidation PR-9 of
+  identity is its task fingerprint** (#595, consolidation PR-9 of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, decisions D-D2 and D-D9,
   2026-10-05). `BaseDinoEnv` and the five species constructors take
   `command_mode` and one `command_config: DirectionCommandConfig | None` in
@@ -467,7 +467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The five numeric `command_*` kwargs, `SB3_COMMAND_REFUSAL`,
   `behavior_identity`, `canonical_env_parameters`,
   `sampler_source_identity`, `BEHAVIOR_IDENTITY_SCHEMA` and
-  `PREPARATION_ATTRIBUTE`** (consolidation PR-9, 2026-10-05). Pass
+  `PREPARATION_ATTRIBUTE`** (#595, consolidation PR-9, 2026-10-05). Pass
   `command_config=DirectionCommandConfig(...)` with a live `command_mode`
   (the five names are `command_frame.RETIRED_COMMAND_ENV_KEYS`); a behavior
   env's identity is `env.task_fingerprint`, and the behavior loaders take
