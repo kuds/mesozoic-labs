@@ -841,6 +841,22 @@ TOML. MJX: `EnvState.command`, the same tracking terms, and **`command_mode
 there today (`mjx_env.py:136-153`), which would otherwise train a different
 task silently.
 
+*Consolidation PR-9 (2026-10-05, decision D-D2): the keys are `command_mode`
+and one `command_config`, a `DirectionCommandConfig` (cruise speed, speed
+range, stop and straight probabilities, turn increment, switch interval and
+jitter, the scales and the adapter gains), so the follow node's cruise is
+its `cruise_speed` rather than a fixed point of `command_speed_range`; the
+five numeric kwargs are `command_frame.RETIRED_COMMAND_ENV_KEYS`, refused
+by the constructors and, by name, by the task fingerprint. A
+live mode needs a config, `"none"` refuses one, and `"heading"` holds
+`cruise_speed` (it refuses `speed_range` and stops). `BaseDinoEnv` builds
+the controller under a live mode, seeds it in the reset hook after every
+existing draw and advances it at the end of `step()`, after the reward;
+the task fingerprint records the config in its `env` section and the
+controller's manifest as its `command` section, passed exactly when the
+mode is live. The tracking reward and its `info` keys stay in the recipe
+env until PR-11.*
+
 **Gate `command_tracking/v1`.** Per command *event* (episode start and each
 switch): success iff the velocity error is within
 `tracking_velocity_tolerance` and the yaw-rate error within
@@ -1266,7 +1282,9 @@ on 2026-09-29 (its row 16) and carried out by its own PR, ROW-16, which landed a
    velociraptor, brachiosaurus and dibothrosuchus the plant-contract probe
    runs `build_mjx_observation` on the frozen MJX interface core, and
    `validate_environment_plant` requires SB3/MJX observation equality, with
-   the non-zero probe command of D-C4.
+   the non-zero probe command of D-C4. *Consolidation PR-9 (2026-10-05)
+   rewrote `command_frame.py` and kept the MJX refusal: only the SB3 branch
+   went.*
 10. For every new gate kind: the fail-closed dispatch test and the
     "what code would have to be deleted for it to stop being consulted"
     test (`test_gate_dispatch_fail_closed.py`; for `task_success/v1`,

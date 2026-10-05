@@ -244,6 +244,38 @@ def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, conte
         read_recipe(path)
 
 
+@pytest.mark.parametrize(
+    "content,refused",
+    [
+        ('[env]\ncommand_mode = "heading"\n', "command_mode"),
+        ("[env]\ncommand_config = { cruise_speed = 0.5 }\n", "command_config"),
+        ("[env]\ndrift_penalty_weight = 0.25\n", None),
+    ],
+)
+def test_env_takes_the_species_signature_but_not_the_command_keys(tmp_path, content, refused):
+    """Consolidation PR-9: [env] takes the species constructor's keys (canonical_env_parameters is gone), here a
+    T. rex reward weight BaseDinoEnv does not declare, but not command_mode or command_config: [commands] states
+    the command task."""
+    from environments.shared.train_behaviors import read_recipe
+
+    path = tmp_path / "recipe.toml"
+    path.write_text(_BEHAVIOR_HEADER + content)
+    if refused is None:
+        assert read_recipe(path)[3]["drift_penalty_weight"] == 0.25
+    else:
+        with pytest.raises(ValueError, match=rf"Unknown env fields: \['{refused}'\]"):
+            read_recipe(path)
+
+
+@pytest.mark.parametrize("key", ["command_mode", "command_config"])
+def test_create_behavior_env_refuses_the_command_kwargs_by_name(key):
+    """The behavior env runs "heading_and_speed" on its commands; either kwarg is refused by name, not as a duplicate."""
+    from environments.shared.train_behaviors import create_behavior_env
+
+    with pytest.raises(ValueError, match=rf"\['{key}'\]: a behavior env runs command_mode 'heading_and_speed'"):
+        create_behavior_env("trex", commands=DirectionCommandConfig(), terrain=None, run_seed=0, **{key: None})
+
+
 def _sampler(**weights):
     weights = {**dict.fromkeys(TERRAIN_FAMILIES, 0), **weights}
     return "[terrain_sampler]\n" + "".join(f"{family}={weight}\n" for family, weight in weights.items())

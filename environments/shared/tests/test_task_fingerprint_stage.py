@@ -204,6 +204,43 @@ def test_the_helper_hands_the_derivation_exactly_its_five_inputs(monkeypatch):
     assert derived[0]["plant_identity"] is not identity, "the identity mapping is copied, never aliased"
 
 
+def test_the_helper_forwards_a_command_manifest_only_when_given(monkeypatch):
+    """Consolidation PR-9 (the CU-8a amendment): a live command mode's manifest goes through the helper; without
+    one the derivation still receives exactly its five inputs."""
+    derived: list[dict[str, Any]] = []
+
+    def derive(**kwargs):
+        derived.append(kwargs)
+        return {"task_sha256": "sha256:derived"}
+
+    monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
+    identity = {"physics_sha256": "sha256:plant"}
+    manifest = {"schema": "mesozoic.direction-commands/v1"}
+    task_fingerprint.stage_task_fingerprint("trex", "stance", env_kwargs={}, plant_identity=identity)
+    task_fingerprint.stage_task_fingerprint(
+        "trex", "stance", env_kwargs={}, plant_identity=identity, command_manifest=manifest
+    )
+    assert "command_manifest" not in derived[0] and len(derived[0]) == 5
+    assert derived[1] == {**derived[0], "command_manifest": manifest}
+
+
+def test_a_live_stage_is_derived_with_its_manifest_and_refused_without_it():
+    """The helper's real derivation (no monkeypatch): a live [env] gets its command section through the forwarded
+    manifest, and a live [env] without one is refused rather than hashed without its section."""
+    from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
+
+    config = DirectionCommandConfig(cruise_speed=0.5, speed_range=(0.25, 0.5), stop_probability=0.2)
+    manifest = DirectionCommandController(config).manifest()
+    env = {**load_stage_config("trex", "locomotion")["env_kwargs"], "command_mode": "heading_and_speed"}
+    live = task_fingerprint.stage_task_fingerprint(
+        "trex", "locomotion", env_kwargs={**env, "command_config": config}, command_manifest=manifest
+    )
+    assert live["command"] == json.loads(json.dumps(manifest)) and live["env"]["command_mode"] == "heading_and_speed"
+    assert live["task_sha256"] != task_fingerprint.stage_task_fingerprint("trex", "locomotion")["task_sha256"]
+    with pytest.raises(task_fingerprint.TaskFingerprintError, match="exactly when command_mode is not 'none'"):
+        task_fingerprint.stage_task_fingerprint("trex", "locomotion", env_kwargs={**env, "command_config": config})
+
+
 def test_a_stage_config_and_a_measured_env_together_are_refused(monkeypatch):
     """The task has one ``[env]`` block: naming two sources is a caller error, refused before any lookup."""
 

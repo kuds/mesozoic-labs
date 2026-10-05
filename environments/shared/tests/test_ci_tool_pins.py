@@ -10,10 +10,11 @@ with. Every file read here is in both of the workflow's path filters, so a PR
 that edits only one of them still runs these checks. Pre-commit's hooks never
 touch the digest data files (the MJCF plant sources and meshes the plant
 manifest records, the recipe TOMLs, the plant manifests, plant_versions.toml,
-the recovery calibrations), and they still see every Python file; the
-byte-hashed Python modules stay under the hooks, which CI's pinned ruff keeps
-from changing them. Ruff itself skips the frozen MJX core (pyproject.toml's
-extend-exclude, D-D17), which test_plant_contract_frozen_mjx.py checks.
+the recovery calibrations), and they still see every Python file: no digest
+hashes a Python file's bytes, and the policy-interface digests hash function
+tokens, which CI's pinned ruff keeps from changing. Ruff itself skips the
+frozen MJX core (pyproject.toml's extend-exclude, D-D17), which
+test_plant_contract_frozen_mjx.py checks.
 
 The workflow's structure is pinned here too (CU-14a). The pull_request trigger
 reuses the push trigger's path list by a YAML alias, so the two cannot drift.

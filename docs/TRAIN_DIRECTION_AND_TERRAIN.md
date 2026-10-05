@@ -232,10 +232,20 @@ at mean 0 / variance 1, so commands enter the policy at their own scale from
 the first step, and then update like every other input (decision D-D3). The
 normalization file is a plain SB3 `VecNormalize`. A bundle trained before
 consolidation PR-8 neither resumes nor adapts: `--resume` and `--adapt`
-refuse it by its identity or recipe, and its normalization file, which names
+refuse it, and its normalization file, which names
 the deleted `BehaviorVecNormalize` class, is refused wherever a behavior
 loader reads it. Evaluate it at the commit that trained it (`run.json`'s
-`git_commit`). Resume and adaptation verify bundle hashes.
+`git_commit`). Resume and adaptation verify bundle hashes. Since
+consolidation PR-9 a behavior checkpoint carries the canonical stamps: the
+plant identity, the recipe env's task fingerprint (`run.json` and
+`bundle.json` record it as `task_fingerprint`) and the preparation report
+as its task lineage. `--resume` requires the same fingerprint; `--adapt`
+the same species, plant, command mode, scales and adapter, and the same
+versioned implementation (the fingerprint's stage, `command-terrain/v2`,
+not source-file hashes). A bundle saved earlier records no task
+fingerprint: `--resume` and `--adapt` refuse it by name (its
+`mesozoic.behavior-bundle/v1` schema), and the certification panel as
+another task.
 
 ## Follow directions on difficult terrain
 
@@ -267,7 +277,8 @@ python -m environments.shared.train_behaviors \
 Use `--resume` for the same recipe. Without `--steps`, resume trains only the
 remaining recipe budget; explicit steps are additional. Compatible command
 schedules and terrain parameters can change through adaptation, while changes
-to the animal, command scaling, control timing, or source semantics are rejected.
+to the animal, command scaling or adapter, control timing, or the versioned
+implementation are rejected.
 Matched snapshots are saved about every 100,000 steps after completed updates;
 `latest_checkpoint.json` identifies the newest one. Keyboard interruption also
 saves a bundle. Resume preserves learning progress and starts fresh episodes.
@@ -408,6 +419,8 @@ Consolidation PR-7 (#556) deleted the separate T. rex behavior class
 (`environments/trex/envs/behavior_env.py`); T. rex now uses the same behavior
 environment as every species. Its bundles carried the
 `mesozoic.trex-command-terrain/v1` identity, which `--adapt` no longer accepts,
-and every species' identity hashes the behavior sources that PR-7 changed. A
+and every species' identity hashed the behavior sources that PR-7 changed. A
 behavior bundle trained before PR-7, for any species, therefore cannot be
 resumed, adapted or re-paneled; keep it as evaluation-only evidence (D-D9).
+Since PR-9 the identity is the recipe env's task fingerprint, and every
+bundle saved before PR-9 is refused by name.

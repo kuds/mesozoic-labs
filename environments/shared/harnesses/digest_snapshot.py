@@ -20,7 +20,7 @@ checkout paths, so two runs on the same tree are byte-identical:
 The sections are the plant identities and their policy-interface payload
 (whole and per key), each stage's task fingerprint, gate, hyperparameter and
 ``stage_config.json`` digests for PPO and SAC, the recovery calibrations,
-every behavior recipe's identity with its source digests, and (CU-11) what
+every behavior recipe's file and task fingerprint digests, and (CU-11) what
 each stage's reward, info and termination code computes: a fixed capture per
 stage (a noisy roll that ends in a held kick, an unseeded second reset, zero
 action through the pushes of a stage that has them, one-step probes: the
@@ -378,17 +378,14 @@ def recovery_section(out: _Snapshot) -> None:
 
 
 def behavior_section(out: _Snapshot) -> None:
-    """Every behavior recipe: its file digest, its identity, its source digests."""
+    """Every behavior recipe: its file digest and its task fingerprint's digest."""
     for recipe_path in sorted(Path("configs").glob("*/behaviors/*.toml")):
         species = recipe_path.parent.parent.name
         label = f"{species}\t{recipe_path.stem}"
         out.emit("behavior", label, "recipe_sha256", _file_sha(recipe_path))
-        value = out.guard(f"behavior.{species}.{recipe_path.stem}", _behavior_identity, recipe_path, species)
+        value = out.guard(f"behavior.{species}.{recipe_path.stem}", _behavior_task, recipe_path, species)
         if value is not None:
-            out.emit("behavior", label, "behavior_identity_sha256", _sha(value))
-            sources = {**value.get("sources", {}), **value.get("sampler_sources", {})}
-            for source, digest in sorted(sources.items()):
-                out.emit("behavior", label, f"source:{source}", digest)
+            out.emit("behavior", label, "task_sha256", value["task_sha256"])
 
 
 def _behavior_env(recipe_path: Path, species: str) -> Any:
@@ -399,11 +396,11 @@ def _behavior_env(recipe_path: Path, species: str) -> Any:
     return create_behavior_env(species, commands=commands, terrain=terrain, run_seed=0, **kwargs)
 
 
-def _behavior_identity(recipe_path: Path, species: str) -> Any:
-    """The identity the recipe's environment records."""
+def _behavior_task(recipe_path: Path, species: str) -> Any:
+    """The task fingerprint the recipe's environment records."""
     env = _behavior_env(recipe_path, species)
     try:
-        return env.behavior_identity
+        return env.task_fingerprint
     finally:
         env.close()
 

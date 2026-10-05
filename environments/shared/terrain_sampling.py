@@ -8,14 +8,10 @@ selects each episode's family with :func:`select_terrain_family`.
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
-
-from environments.shared.plant_contract import REPOSITORY_ROOT
 
 # "flat" is the original plane and "terrain_contact" a zero-height heightfield on the terrain's map; the rest
 # are gentle templates. A block lists its episodes in this order before the shuffle, and a zero weight adds
@@ -82,9 +78,3 @@ def select_terrain_family(
     block = [family for family in TERRAIN_FAMILIES for _ in range(getattr(config, family))]
     np.random.default_rng(selection_seed).shuffle(block)
     return TerrainSelection(block[block_position], block_index, block_position, config.block_size, selection_seed)
-
-
-def sampler_source_identity() -> dict[str, str]:
-    """Exact implementation proof used by behavior checkpoint transitions."""
-    path = Path(__file__)
-    return {str(path.relative_to(REPOSITORY_ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()}

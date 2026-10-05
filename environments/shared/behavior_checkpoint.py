@@ -3,8 +3,11 @@
 This module requires the SB3 training extra. Preparation preserves the walker's
 function on zero commands, clears only the reserved command connections and their
 optimizer moments, and carries the observation statistics with the command slice
-reseeded to mean 0 / variance 1 (invariant 8, decision D-D3). Behavior artifacts are
-marked with a schema the canonical certification pipeline deliberately refuses.
+reseeded to mean 0 / variance 1 (invariant 8, decision D-D3). Behavior artifacts carry
+the canonical stamps: the plant identity, the recipe env's task fingerprint and, as its
+task lineage, the preparation report. That fingerprint's stage is never a stage id
+(preparation refuses one), so no canonical node resumes or warm-starts from a behavior
+artifact (decision D-D9).
 """
 
 from __future__ import annotations
@@ -31,11 +34,14 @@ from environments.shared.plant_contract import (
 from environments.shared.policy_loading import _checkpoint_algorithm, load_sb3_model
 from environments.shared.result_bundle import sha256_file
 from environments.shared.species_names import resolve_species_id, species_display_names
-from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, read_checkpoint_attribute
+from environments.shared.stage_manifest import STAGE_ID_PATTERN
+from environments.shared.task_fingerprint import (
+    MODEL_TASK_ATTRIBUTE,
+    MODEL_TASK_LINEAGE_ATTRIBUTE,
+    read_checkpoint_attribute,
+)
 
-BEHAVIOR_IDENTITY_SCHEMA = "mesozoic.behavior-artifact/v1"
-PREPARATION_ATTRIBUTE = "mesozoic_behavior_preparation"
-PREPARATION_SCHEMA = "mesozoic.behavior-preparation/v1"
+PREPARATION_SCHEMA = "mesozoic.behavior-preparation/v2"
 COMMAND_LAYERS = ("mlp_extractor.policy_net.0", "mlp_extractor.value_net.0")
 ACTION_EQUIVALENCE_ATOL = 1e-6
 
@@ -44,15 +50,14 @@ class BehaviorCheckpointError(ValueError):
     """A checkpoint cannot safely initialize or resume this behavior experiment."""
 
 
-def _species(species: str | None, behavior: Mapping[str, Any]) -> str:
+def _species(species: str | None, task: Mapping[str, Any]) -> str:
     """Resolve the requested plant, retaining old T-Rex API calls without metadata."""
-    parent = behavior.get("parent_plant", {})
-    recorded = parent.get("species") if isinstance(parent, Mapping) else None
+    recorded = task.get("species")
     resolved = resolve_species_id(species or recorded or "trex")
     if resolved not in species_display_names(backend="stable-baselines3"):
         raise BehaviorCheckpointError(f"Species {resolved!r} has no supported SB3 behavior interface")
     if recorded is not None and recorded != resolved:
-        raise BehaviorCheckpointError("Behavior identity and requested species disagree")
+        raise BehaviorCheckpointError("Behavior task fingerprint and requested species disagree")
     return resolved
 
 
@@ -67,11 +72,23 @@ def _identity(value: Mapping[str, Any] | None) -> dict[str, Any]:
     if value is None:
         return {}
     if not isinstance(value, Mapping):
-        raise BehaviorCheckpointError("behavior_identity must be a JSON object")
+        raise BehaviorCheckpointError("task_fingerprint must be a JSON object")
     try:
         return dict(json.loads(json.dumps(dict(value), allow_nan=False, sort_keys=True)))
     except (TypeError, ValueError) as exc:
-        raise BehaviorCheckpointError("behavior_identity must contain finite JSON values") from exc
+        raise BehaviorCheckpointError("task_fingerprint must contain finite JSON values") from exc
+
+
+def _recorded_task(model_path: Path) -> dict[str, Any]:
+    """The task fingerprint a behavior checkpoint records; an older marker is refused by name (D-D9)."""
+    recorded = read_checkpoint_attribute(model_path, MODEL_TASK_ATTRIBUTE)
+    if not isinstance(recorded, Mapping) or "task_sha256" not in recorded:
+        raise BehaviorCheckpointError(
+            "The checkpoint records no task fingerprint: a behavior artifact from before the task-fingerprint "
+            "identity is evaluation-only (decision D-D9); evaluate it at the commit that trained it "
+            "(run.json's git_commit)"
+        )
+    return dict(recorded)
 
 
 def _venv(env: Any, observation_dim: int, action_dim: int) -> VecEnv:
@@ -163,14 +180,15 @@ def prepare_behavior_checkpoint(
     env: Any,
     *,
     learning_rate: float = 5e-5,
-    behavior_identity: Mapping[str, Any] | None = None,
+    task_fingerprint: Mapping[str, Any],
     species: str | None = None,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Initialize a separate behavior task from a canonical current-interface PPO walker.
 
     ``env`` is a Gym environment or unnormalized SB3 VecEnv. Nothing is saved or
-    stepped here. Supply the full behavior configuration/source identity for
-    exact task checks on :func:`load_behavior_checkpoint`. The returned plain
+    stepped here. ``task_fingerprint`` is the recipe env's, required with its
+    ``task_sha256`` (an artifact stamped without one could never be resumed or
+    adapted), for exact task checks on :func:`load_behavior_checkpoint`. The returned plain
     ``VecNormalize`` carries the walker's statistics with the three command inputs
     reseeded to mean 0 / variance 1 (count kept), so commands enter the policy at
     O(1); every statistic, the commands' included, updates during training.
@@ -178,8 +196,21 @@ def prepare_behavior_checkpoint(
     import torch
 
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
-    behavior = _identity(behavior_identity)
+    behavior = _identity(task_fingerprint)
     species = _species(species, behavior)
+    if "task_sha256" not in behavior:
+        raise BehaviorCheckpointError(
+            "Preparation needs the recipe env's task fingerprint (env.task_fingerprint) with its task_sha256: "
+            "an artifact stamped without one could never be resumed or adapted"
+        )
+    stage = behavior.get("stage")
+    if (isinstance(stage, int) and not isinstance(stage, bool)) or (
+        isinstance(stage, str) and STAGE_ID_PATTERN.match(stage) is not None
+    ):
+        raise BehaviorCheckpointError(
+            "Preparation stamps the recipe env's task fingerprint, whose stage is never a stage id: stage "
+            f"{stage!r} would let a manifest node resume or warm-start from the artifact (decision D-D9)"
+        )
     current = current_plant_identity(species)
     raw_plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
     validate_recorded_identity(raw_plant, current, artifact="parent walker checkpoint")
@@ -222,18 +253,17 @@ def prepare_behavior_checkpoint(
     if not np.isfinite(value_delta) or value_delta > ACTION_EQUIVALENCE_ATOL:
         raise BehaviorCheckpointError(f"Command preparation changed parent values: max delta {value_delta}")
 
-    marker = {
-        "schema": BEHAVIOR_IDENTITY_SCHEMA,
+    report = {
+        "schema": PREPARATION_SCHEMA,
+        "mode": "initialize_next_stage",
+        "parent_task_sha256": task.get("task_sha256"),
+        "child_task_sha256": behavior.get("task_sha256"),
         "species": species,
-        "behavior_identity": behavior,
+        "task_fingerprint": behavior,
         "parent_plant_identity": current.to_dict(),
         "parent_checkpoint_sha256": sha256_file(model_path),
         "parent_normalization_sha256": sha256_file(vecnorm_path),
         "canonical_certification": False,
-    }
-    report = {
-        **marker,
-        "schema": PREPARATION_SCHEMA,
         "parent_task_fingerprint": dict(task),
         "parent_training_timesteps": model.num_timesteps,
         "learning_rate": float(learning_rate),
@@ -250,9 +280,9 @@ def prepare_behavior_checkpoint(
         "max_value_delta": value_delta,
     }
     for artifact in (model, normalizer):
-        setattr(artifact, MODEL_IDENTITY_ATTRIBUTE, copy.deepcopy(marker))
-        setattr(artifact, MODEL_TASK_ATTRIBUTE, copy.deepcopy(marker))
-        setattr(artifact, PREPARATION_ATTRIBUTE, copy.deepcopy(report))
+        setattr(artifact, MODEL_IDENTITY_ATTRIBUTE, current.to_dict())
+        setattr(artifact, MODEL_TASK_ATTRIBUTE, copy.deepcopy(behavior))
+        setattr(artifact, MODEL_TASK_LINEAGE_ATTRIBUTE, copy.deepcopy(report))
     normalizer.training = True
     normalizer.norm_reward = False
     model._last_obs = None
@@ -265,7 +295,7 @@ def load_behavior_checkpoint(
     vecnorm_path: str | Path,
     env: Any,
     *,
-    behavior_identity: Mapping[str, Any],
+    task_fingerprint: Mapping[str, Any],
     learning_rate: float = 5e-5,
     species: str | None = None,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
@@ -276,27 +306,27 @@ def load_behavior_checkpoint(
     the explicit constant learning rate is installed safely before deserialization.
     """
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
-    marker = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
-    expected_behavior = _identity(behavior_identity)
-    if not isinstance(marker, Mapping) or marker.get("schema") != BEHAVIOR_IDENTITY_SCHEMA:
-        raise BehaviorCheckpointError("The checkpoint is not an explicitly marked behavior artifact")
-    if marker.get("behavior_identity") != expected_behavior or marker.get("canonical_certification") is not False:
-        raise BehaviorCheckpointError("Behavior configuration/source identity differs from the saved task")
-    species = _species(species, expected_behavior)
-    if marker.get("species") != species:
-        raise BehaviorCheckpointError("Behavior checkpoint and requested species disagree")
+    recorded, requested = _recorded_task(model_path), _identity(task_fingerprint)
+    if recorded != requested:
+        differing = sorted(key for key in recorded.keys() | requested.keys() if recorded.get(key) != requested.get(key))
+        raise BehaviorCheckpointError(f"Behavior task fingerprint differs from the saved task in {differing}")
+    species = _species(species, recorded)
     current = current_plant_identity(species)
-    validate_recorded_identity(marker.get("parent_plant_identity"), current, artifact="behavior parent plant")
+    plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
+    validate_recorded_identity(plant, current, artifact="behavior checkpoint plant")
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv)
-    if getattr(normalizer, MODEL_IDENTITY_ATTRIBUTE, None) != marker:
+    if (
+        getattr(normalizer, MODEL_IDENTITY_ATTRIBUTE, None) != plant
+        or getattr(normalizer, MODEL_TASK_ATTRIBUTE, None) != recorded
+    ):
         raise BehaviorCheckpointError("Behavior model and normalization identities disagree")
     model = _load_ppo(model_path, normalizer, learning_rate)
-    if getattr(model, MODEL_TASK_ATTRIBUTE, None) != marker:
-        raise BehaviorCheckpointError("Behavior task marker differs from its artifact identity")
+    if getattr(model, MODEL_TASK_ATTRIBUTE, None) != recorded:
+        raise BehaviorCheckpointError("Behavior task fingerprint differs from its artifact stamp")
     normalizer.training = True
     normalizer.norm_reward = False
-    report = copy.deepcopy(getattr(model, PREPARATION_ATTRIBUTE, {}))
+    report = copy.deepcopy(getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE, {}))
     report["resume_checkpoint_sha256"] = sha256_file(model_path)
     report["resume_normalization_sha256"] = sha256_file(vecnorm_path)
     report["resume_learning_rate"] = float(learning_rate)
@@ -304,7 +334,8 @@ def load_behavior_checkpoint(
 
 
 # A transition changes a task's requested behavior, not the meaning/order of
-# policy inputs, its actuator dynamics, or the implementation interpreting them.
+# policy inputs, its actuator dynamics, or the implementation interpreting them
+# (the fingerprint's stage, command schema and adapter name that implementation).
 _TRANSITION_COMMAND_SETTINGS = frozenset(
     {
         "cruise_speed",
@@ -338,18 +369,18 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "idle_velocity_threshold",
     }
 )
-_TRANSITION_TOP_SETTINGS = frozenset({"terrain", "terrain_sampler", "tracking_weight", "course_distance"})
+# command_config is the command section's config again, checked there.
+_TRANSITION_ENV_SETTINGS = frozenset(
+    {"max_episode_steps", "command_config", "terrain", "terrain_sampler", "tracking_weight", "course_distance"}
+)
 
 
-def _validate_sampler_identity(identity: Mapping[str, Any]) -> None:
-    """Only add/remove the known sampling layer; never waive a source mismatch."""
-    if "terrain_sampler" not in identity and "sampler_sources" not in identity:
+def _validate_sampler_config(config: Any) -> None:
+    """A transition may add, remove or reweight the sampling layer, never carry an invalid one."""
+    if config is None:
         return
-    from environments.shared.terrain_sampling import TerrainSamplerConfig, sampler_source_identity
+    from environments.shared.terrain_sampling import TerrainSamplerConfig
 
-    config = identity.get("terrain_sampler")
-    if not isinstance(config, Mapping) or identity.get("sampler_sources") != sampler_source_identity():
-        raise BehaviorCheckpointError("Incompatible terrain sampler configuration/source identity")
     try:
         TerrainSamplerConfig(**config)
     except (TypeError, ValueError) as exc:
@@ -357,30 +388,30 @@ def _validate_sampler_identity(identity: Mapping[str, Any]) -> None:
 
 
 def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mapping[str, Any]) -> None:
-    required = {"schema", "backend", "parent_plant", "sources", "commands", "env"}
-    if not required <= previous.keys() or not required <= requested.keys():
-        raise BehaviorCheckpointError("Behavior transitions require complete source and requested task identities")
-    if previous["schema"] != "mesozoic.command-terrain/v1":
-        raise BehaviorCheckpointError("Only supported command/terrain tasks allow behavior transitions")
-    for name in ("commands", "env", "sources", "parent_plant"):
-        if not isinstance(previous[name], Mapping) or not isinstance(requested[name], Mapping):
-            raise BehaviorCheckpointError(f"Behavior identity {name} must be an object")
-    _validate_sampler_identity(previous)
-    _validate_sampler_identity(requested)
-    differences = []
-    for name in previous.keys() | requested.keys():
-        if name not in _TRANSITION_TOP_SETTINGS | {"commands", "env", "sampler_sources"} and previous.get(
-            name
-        ) != requested.get(name):
-            differences.append(name)
-    old_commands, new_commands = previous["commands"], requested["commands"]
-    for name in old_commands.keys() | new_commands.keys():
-        if name not in _TRANSITION_COMMAND_SETTINGS and old_commands.get(name) != new_commands.get(name):
-            differences.append(f"commands.{name}")
+    for fingerprint in (previous, requested):
+        command = fingerprint.get("command")
+        if not isinstance(fingerprint.get("env"), Mapping) or not isinstance(command, Mapping):
+            raise BehaviorCheckpointError("Only supported command/terrain tasks allow behavior transitions")
+        if not isinstance(command.get("config"), Mapping):
+            raise BehaviorCheckpointError("Behavior task fingerprint command config must be an object")
+        _validate_sampler_config(fingerprint["env"].get("terrain_sampler"))
+    differences = [
+        name
+        for name in ("schema", "species", "stage", "backend", "plant", "perturbation")
+        if previous.get(name) != requested.get(name)
+    ]
+    old_command, new_command = previous["command"], requested["command"]
+    for name in old_command.keys() | new_command.keys():
+        if name != "config" and old_command.get(name) != new_command.get(name):
+            differences.append(f"command.{name}")
+    old_config, new_config = old_command["config"], new_command["config"]
+    for name in old_config.keys() | new_config.keys():
+        if name not in _TRANSITION_COMMAND_SETTINGS and old_config.get(name) != new_config.get(name):
+            differences.append(f"command.config.{name}")
     old_env, new_env = previous["env"], requested["env"]
     for name in old_env.keys() | new_env.keys():
         reward_setting = name.endswith(("_weight", "_bonus")) or name in _TRANSITION_REWARD_SETTINGS
-        if not reward_setting and name != "max_episode_steps" and old_env.get(name) != new_env.get(name):
+        if not reward_setting and name not in _TRANSITION_ENV_SETTINGS and old_env.get(name) != new_env.get(name):
             differences.append(f"env.{name}")
     if differences:
         raise BehaviorCheckpointError("Incompatible behavior transition fields: " + ", ".join(sorted(differences)))
@@ -391,7 +422,7 @@ def adapt_behavior_checkpoint(
     vecnorm_path: str | Path,
     env: Any,
     *,
-    behavior_identity: Mapping[str, Any],
+    task_fingerprint: Mapping[str, Any],
     learning_rate: float = 5e-5,
     species: str | None = None,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
@@ -399,48 +430,48 @@ def adapt_behavior_checkpoint(
 
     Terrain, balanced family sampling, command sampling/switch schedules, reward
     settings and horizon/course length may change. Input scales and adapters,
-    source code, parent plant and all other environment mechanics must match.
-    Every transition records immediate parent hashes and the previous full task
-    identity; it never promotes the result into canonical certification.
+    the implementation versions, parent plant and all other environment mechanics
+    must match. Every transition records immediate parent hashes and the previous
+    task fingerprint; it never promotes the result into canonical certification.
+    ``task_fingerprint`` is the recipe env's, required with its ``task_sha256``
+    as for preparation: the adapted artifacts are stamped with it.
     """
+    requested = _identity(task_fingerprint)
+    if "task_sha256" not in requested:
+        raise BehaviorCheckpointError(
+            "Adaptation needs the recipe env's task fingerprint (env.task_fingerprint) with its task_sha256: "
+            "an artifact stamped without one could never be resumed or adapted"
+        )
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
-    previous_marker = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
-    if not isinstance(previous_marker, Mapping) or previous_marker.get("schema") != BEHAVIOR_IDENTITY_SCHEMA:
-        raise BehaviorCheckpointError("Behavior adaptation requires a marked behavior checkpoint")
-    previous = previous_marker.get("behavior_identity")
-    requested = _identity(behavior_identity)
+    previous = _recorded_task(model_path)
     species = _species(species, requested)
-    if not isinstance(previous, Mapping):
-        raise BehaviorCheckpointError("Source behavior identity is missing")
     _validate_behavior_transition(previous, requested)
     model, normalizer, report = load_behavior_checkpoint(
         model_path,
         vecnorm_path,
         env,
-        behavior_identity=previous,
+        task_fingerprint=previous,
         learning_rate=learning_rate,
         species=species,
     )
     transition = {
-        "schema": "mesozoic.behavior-transition/v1",
+        "schema": "mesozoic.behavior-transition/v2",
         "parent_checkpoint_sha256": sha256_file(model_path),
         "parent_normalization_sha256": sha256_file(vecnorm_path),
         "parent_training_timesteps": model.num_timesteps,
-        "previous_behavior_identity": copy.deepcopy(dict(previous)),
-        "behavior_identity": copy.deepcopy(requested),
+        "previous_task_fingerprint": copy.deepcopy(previous),
+        "task_fingerprint": copy.deepcopy(requested),
         "learning_rate": float(learning_rate),
         "command_weights_preserved": True,
         "optimizer_tensors_preserved": True,
         "normalization_statistics_preserved": True,
     }
-    marker = copy.deepcopy(dict(previous_marker))
-    marker["behavior_identity"] = requested
-    marker["transition_parent_checkpoint_sha256"] = transition["parent_checkpoint_sha256"]
-    marker["transition_parent_normalization_sha256"] = transition["parent_normalization_sha256"]
-    report["behavior_identity"] = copy.deepcopy(requested)
+    # The lineage names the task the artifacts now record; the walker parent stays
+    # its parent and each step from it is a transition.
+    report["child_task_sha256"] = requested.get("task_sha256")
+    report["task_fingerprint"] = copy.deepcopy(requested)
     report.setdefault("transitions", []).append(transition)
     for artifact in (model, normalizer):
-        setattr(artifact, MODEL_IDENTITY_ATTRIBUTE, copy.deepcopy(marker))
-        setattr(artifact, MODEL_TASK_ATTRIBUTE, copy.deepcopy(marker))
-        setattr(artifact, PREPARATION_ATTRIBUTE, copy.deepcopy(report))
+        setattr(artifact, MODEL_TASK_ATTRIBUTE, copy.deepcopy(requested))
+        setattr(artifact, MODEL_TASK_LINEAGE_ATTRIBUTE, copy.deepcopy(report))
     return model, normalizer, report

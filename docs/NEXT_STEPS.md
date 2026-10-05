@@ -467,8 +467,9 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   `parent_normalization_sha256` (~15 lines).
 - `EpisodeManifestRecorder` (per-episode terrain manifests) must survive PR-12 as
   an info key under `train_base`'s Monitor/DiagnosticsCallback;
-  `canonical_env_parameters`' allowed-`[env]`-keys check must be re-homed in
-  `load_stage_config` when `read_recipe` goes (PR-9/PR-11).
+  `read_recipe`'s allowed-`[env]`-keys check (the species constructor's
+  signature since PR-9 deleted `canonical_env_parameters`) must be re-homed
+  in `load_stage_config` by PR-11, before `read_recipe` goes with PR-12.
 - PR-8 moves single-template recipes from a Bernoulli `flat_probability` draw to
   balanced blocks: a distribution change to state in the decision record.
 - PR-9 touches five species constructors and the fingerprint carve-out
