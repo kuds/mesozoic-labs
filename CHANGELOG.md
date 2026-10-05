@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source lines), and no reward, plant, policy, recovery, task, gate or
   hyperparameter line moves.
 - **One terrain selector in the behavior env, and every terrain recipe
-  states its blocks** (consolidation PR-8 (a) of
+  states its blocks** (#594, consolidation PR-8 (a) of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`
   takes a `terrain_sampler` and its `reset()` calls `select_terrain_family`
   itself; the `options={"terrain_family": ...}` override stays, and every
@@ -107,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery line moves.
 - **Behavior sidecars are plain `VecNormalize` files whose command
   statistics follow the reseed rule, and the command constants have one
-  source** (consolidation PR-8 (b) and (c), decision D-D3, 2026-10-04).
+  source** (#594, consolidation PR-8 (b) and (c), decision D-D3,
+  2026-10-04).
   Preparation reseeds the three command inputs' statistics to mean 0 /
   variance 1 (count kept), so commands enter the policy at O(1); from then
   on they update, scale and clip like every other input (the recipes plan's
@@ -122,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `command_frame` (same values); `lateral_speed_scale` stays until PR-11 and
   PR-12 replace these recipes with stage TOMLs (D-D12).
 - **The direction and terrain guide records where terrain and the notebook
-  stand** (consolidation PR-8; the maintainer's request of 2026-10-04).
+  stand** (#594, consolidation PR-8; the maintainer's request of
+  2026-10-04).
   `docs/TRAIN_DIRECTION_AND_TERRAIN.md` gains a dated status section on the
   deferral (terrain work waits for the walking gait), the terrain blocker,
   the node order, an evaluation cell for Colab and a gentle terrain recipe.
@@ -453,7 +455,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mixin's `_heading()` and `command_manifest()` are `BaseDinoEnv`'s.
 - **`TerrainSamplingMixin`, `get_sampled_behavior_env_class`,
   `_PanelTerrainMixin`, `BehaviorVecNormalize` and `flat_probability`**
-  (consolidation PR-8, 2026-10-04). A sampled env is
+  (#594, consolidation PR-8, 2026-10-04). A sampled env is
   `get_behavior_env_class(species)(terrain=..., terrain_sampler=...)` (or
   `train_behaviors.create_behavior_env`), and the certification panel is the
   recipe's own env. `SpeciesBehaviorMixin(flat_probability=...)` is a
