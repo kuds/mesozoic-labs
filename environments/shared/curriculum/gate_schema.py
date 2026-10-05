@@ -39,7 +39,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
-from ..constants import PUBLICATION_SEED_START
+from ..constants import PUBLICATION_PANEL_EPISODES, PUBLICATION_SEED_START
 from .gait_gate import GAIT_GATE_KIND, GAIT_REQUIRED_KEYS, GAIT_THRESHOLD_KEYS, GaitGateThresholds
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
@@ -563,11 +563,30 @@ def validate_gate_config(
                 f"{_describe(stage)}: gait_panel_seed_start must equal the registered certification "
                 f"block {PUBLICATION_SEED_START}; arbitrary seeds are for report-only development panels"
             )
+        if curriculum_kwargs["min_eval_episodes"] > PUBLICATION_PANEL_EPISODES:
+            raise GateSchemaError(
+                f"{_describe(stage)}: a gait certification panel lies inside the registered block "
+                f"{PUBLICATION_SEED_START}-{PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES - 1}; "
+                f"min_eval_episodes must be at most {PUBLICATION_PANEL_EPISODES}"
+            )
         if curriculum_kwargs["min_episode_forward_vel"] <= 0:
             raise GateSchemaError(f"{_describe(stage)}: locomotion min_episode_forward_vel must be positive")
-        if curriculum_kwargs.get("required_consecutive", 1) != 1:
+        consecutive = curriculum_kwargs.get("required_consecutive", 1)
+        if isinstance(consecutive, bool) or consecutive != 1 or not isinstance(consecutive, int):
             raise GateSchemaError(
                 f"{_describe(stage)}: locomotion gait judges one fixed panel; required_consecutive must be 1"
+            )
+        # The report-only override would make the artifact judge roll a panel
+        # other than the declared one (and refuse) while the curriculum judge
+        # rolls min_eval_episodes: one config, two verdicts.
+        if "gait_report_episodes" in curriculum_kwargs and (
+            curriculum_kwargs["gait_report_episodes"] != curriculum_kwargs["min_eval_episodes"]
+            or isinstance(curriculum_kwargs["gait_report_episodes"], bool)
+            or not isinstance(curriculum_kwargs["gait_report_episodes"], int)
+        ):
+            raise GateSchemaError(
+                f"{_describe(stage)}: a {GAIT_GATE_KIND} stage always rolls its declared panel; "
+                "gait_report_episodes must be absent or equal min_eval_episodes"
             )
 
     for table in sorted(BACKEND_OVERRIDE_TABLES & set(curriculum_kwargs)):

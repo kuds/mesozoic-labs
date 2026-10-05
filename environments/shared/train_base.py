@@ -168,6 +168,11 @@ def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     being run.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") == GAIT_GATE_KIND:
+        # The gait gate's min_eval_episodes sizes its post-training physical
+        # panel; ordinary in-training evaluations carry no gait telemetry and
+        # never advance the stage, so they keep the default size.
+        return _DEFAULT_EVAL_EPISODES
     return max(_DEFAULT_EVAL_EPISODES, int(curriculum.get("min_eval_episodes", 0)))
 
 
@@ -2004,10 +2009,11 @@ def _judge_selected_gait_handoff(
 
     A report failure leaves the stage unpassed while preserving its saved
     training result. The independent reader rechecks the selected pair and
-    every episode rather than trusting the producer's boolean.
+    every episode rather than trusting the producer's boolean; its one
+    reading (one replay of every trace) gives the verdict.
     """
     from .gait.report import write_gait_report
-    from .reporting.gates import evaluate_stage_gate, gait_statistics
+    from .reporting.gates import gait_stage_verdict, gait_statistics
 
     curriculum = stage_config.get("curriculum_kwargs", {})
     try:
@@ -2022,9 +2028,9 @@ def _judge_selected_gait_handoff(
             algorithm=algorithm,
         )
         statistics, binding_failures = gait_statistics(stage_dir, curriculum)
-        if binding_failures:
-            return False, binding_failures, None
-        passed, failures = evaluate_stage_gate(curriculum, statistics or {}, stage=stage, stage_dir=stage_dir)
+        if binding_failures or statistics is None:
+            return False, binding_failures or ["gait evidence could not be read"], None
+        passed, failures = gait_stage_verdict(statistics, [], stage=stage)
         return passed, failures, statistics
     except Exception as error:  # noqa: BLE001 - evaluation must preserve the saved training result
         logger.warning("Stage %s selected gait panel could not be judged", stage, exc_info=True)
@@ -2310,7 +2316,11 @@ def train_curriculum(
 
     Every trained node writes ``gate_verdict.json`` from the manager's
     in-training verdict (``judged_by`` names it), which is what lets a CLI
-    run serve as a later run's trunk.
+    run serve as a later run's trunk; a ``locomotion_gait/v2`` node's
+    verdict instead comes from a fresh certification panel of its selected
+    handoff (``GAIT_HANDOFF_JUDGED_BY``), and every gait-gated node of the
+    chain has its declared protocol digest and panel seeds checked before
+    anything is trained (``gait.preflight.check_gait_stages``).
 
     A trained node runs :func:`train`'s stage body, :func:`_train_stage_body`
     (cleanup CU-10b), with ``CurriculumCallback`` between the entropy decay
@@ -2368,6 +2378,16 @@ def train_curriculum(
                 "retrain_from %r has nothing to cover without trunk_from: every node is trained in this run.",
                 retrain_entry.id,
             )
+
+    # A gait-gated node's declared protocol digest, and its certification
+    # panel's overlap with this run's training, selection and replay seeds,
+    # are checked before anything is trained or written: the panel writer
+    # would refuse either only after the whole budget.
+    from .gait.preflight import check_gait_stages
+
+    check_gait_stages(
+        species_cfg, stage_configs, [entry.reference for entry in chain], training_seed=seed, n_envs=n_envs
+    )
 
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))

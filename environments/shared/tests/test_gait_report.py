@@ -11,6 +11,7 @@ import copy
 import csv
 import json
 import shutil
+import zipfile
 from types import SimpleNamespace
 
 import numpy as np
@@ -123,6 +124,12 @@ def test_real_zero_action_panel_writes_replayable_traces_and_matching_csv(tmp_pa
     assert report["checkpoint_sha256"] is report["normalization_sha256"] is None
     assert [row["seed"] for row in report["episodes"]] == [17, 18]
     assert report["panel"]["unique_reset_states"] == 2
+    # The report records the seeds it actually rolled, in its role.
+    assert report["panel"]["seed_role"] == "development"
+    assert report["seed_start"] == report["thresholds"]["gait_panel_seed_start"] == 17
+    # Runtime versions are informational, outside the hashed protocol.
+    assert set(report["runtime"]) == {"mujoco", "numpy", "python"}
+    assert "mujoco_version" not in json.dumps(report["measurement_protocol"])
     assert report["measurement_protocol_sha256"] == protocol_sha256(report["measurement_protocol"])
     assert json.loads((tmp_path / "gait_report.json").read_text()) == report
     assert sha256_file(tmp_path / "gait_panel.csv") == report["panel_csv"]["sha256"]
@@ -137,7 +144,14 @@ def test_real_zero_action_panel_writes_replayable_traces_and_matching_csv(tmp_pa
         assert all(foot["complete_cycles"] == 0 for foot in episode["per_foot"].values())
         path = tmp_path / trace_binding["path"]
         assert sha256_file(path) == trace_binding["sha256"]
+        with zipfile.ZipFile(path) as archive:
+            assert {info.compress_type for info in archive.infolist()} == {zipfile.ZIP_DEFLATED}
         with np.load(path, allow_pickle=False) as trace:
+            assert bool(trace["physics_diverged"]) is False
+            assert episode["physics_diverged"] is False
+            assert episode["reset_state_sha256"] == producer.reset_state_digest(
+                trace["reset_qpos"], trace["reset_qvel"], trace["reset_mocap_pos"]
+            )
             samples = len(trace["time_s"])
             assert trace["floor_force_n"].shape == (samples, 2)
             assert trace["foot_position_m"].shape == (samples, 2, 3)
@@ -171,15 +185,69 @@ def test_real_zero_action_panel_writes_replayable_traces_and_matching_csv(tmp_pa
         ({"direction_xy": (0.0, 0.0)}, "direction"),
         ({"direction_xy": (1.0,)}, "direction"),
         ({"direction_xy": (float("inf"), 0.0)}, "direction"),
+        ({"settle_s": "1"}, "settle_s"),
+        # A report-only panel never rolls the reserved certification block 3042-3081.
+        ({"seed": PUBLICATION_SEED_START}, "certification block"),
+        ({"seed": PUBLICATION_SEED_START - 5, "episodes": 6}, "certification block"),
+        ({"seed": PUBLICATION_SEED_START + 39}, "certification block"),
     ],
 )
-def test_invalid_arguments_invalidate_prior_certificate(tmp_path, species_config, stage_config, options, match):
-    _prior_certificate(tmp_path)
+def test_invalid_arguments_are_refused_before_touching_a_prior_report(
+    tmp_path, species_config, stage_config, options, match
+):
+    prior = _prior_certificate(tmp_path)
+    before = prior.read_bytes()
     kwargs = {"episodes": 1, "seed": 0, "settle_s": 0.0, **options}
     with pytest.raises(ValueError, match=match):
         producer.write_gait_report(species_config, stage_config, None, None, tmp_path, **kwargs)
-    _assert_incomplete(tmp_path)
+    # A typo invalidates nothing: the earlier report stays as it was.
+    assert prior.read_bytes() == before
     assert not (tmp_path / "gait_panel.csv").exists()
+
+
+def test_report_only_panel_beside_the_certification_block_is_allowed(tmp_path, species_config, stage_config):
+    report = producer.write_gait_report(
+        species_config, stage_config, None, None, tmp_path, episodes=1, seed=PUBLICATION_SEED_START + 40, settle_s=0.0
+    )
+    assert report["seed_start"] == PUBLICATION_SEED_START + 40
+
+
+def test_default_report_only_panel_is_short_and_on_the_development_block(tmp_path, species_config, stage_config):
+    from environments.shared.constants import DEVELOPMENT_GAIT_SEED_START
+
+    report = producer.write_gait_report(species_config, stage_config, None, None, tmp_path, settle_s=0.0)
+    assert report["panel"]["episodes"] == producer.DEFAULT_DEVELOPMENT_EPISODES == 10
+    assert report["seed_start"] == DEVELOPMENT_GAIT_SEED_START
+    assert [row["seed"] for row in report["episodes"]] == list(range(9000, 9010))
+
+
+def test_rewrite_clears_every_earlier_panel_file(tmp_path, species_config, stage_config):
+    """A stale trace from an earlier, larger panel never survives into a new report."""
+    producer.write_gait_report(species_config, stage_config, None, None, tmp_path, episodes=3, seed=9000, settle_s=0.0)
+    (tmp_path / "gait_traces" / "episode_0007.npz").write_bytes(b"stray")
+    report = producer.write_gait_report(
+        species_config, stage_config, None, None, tmp_path, episodes=2, seed=9100, settle_s=0.0
+    )
+    assert sorted(path.name for path in (tmp_path / "gait_traces").iterdir()) == [
+        "episode_0000.npz",
+        "episode_0001.npz",
+    ]
+    assert [entry["path"] for entry in report["traces"]] == [
+        "gait_traces/episode_0000.npz",
+        "gait_traces/episode_0001.npz",
+    ]
+    with (tmp_path / "gait_panel.csv").open(newline="") as handle:
+        assert [row["seed"] for row in csv.DictReader(handle)] == ["9100", "9101"]
+
+
+def test_failed_rewrite_removes_earlier_traces_with_the_report(tmp_path, species_config, stage_config):
+    producer.write_gait_report(species_config, stage_config, None, None, tmp_path, episodes=2, seed=9000, settle_s=0.0)
+    with pytest.raises(ValueError, match="positive analysis window"):
+        producer.write_gait_report(
+            species_config, stage_config, None, None, tmp_path, episodes=2, seed=9000, settle_s=5.0
+        )
+    _assert_incomplete(tmp_path, error="positive analysis window")
+    assert not (tmp_path / "gait_traces").exists() and not (tmp_path / "gait_panel.csv").exists()
 
 
 def test_settling_that_removes_entire_panel_window_is_refused(tmp_path, species_config, stage_config):
@@ -381,12 +449,13 @@ def test_strict_panel_requires_declared_episode_count_and_seed_start(
     tmp_path, species_config, stage_config, episodes, seed
 ):
     config = _strict_config(stage_config)
-    _prior_certificate(tmp_path)
+    prior = _prior_certificate(tmp_path)
+    before = prior.read_bytes()
     with pytest.raises(ValueError, match="fixed episode count and seed start"):
         producer.write_gait_report(
             species_config, config, None, None, tmp_path, episodes=episodes, seed=seed, settle_s=0.0
         )
-    _assert_incomplete(tmp_path)
+    assert prior.read_bytes() == before
 
 
 def test_zero_action_reference_cannot_enter_certification(tmp_path, species_config, stage_config):
@@ -494,7 +563,9 @@ def test_cli_loads_raw_task_json_and_protocol_options_and_forwards_explicit_argu
     }
 
 
-def test_cli_committed_stage_defaults_use_publication_panel_and_zero_controller(tmp_path, monkeypatch):
+def test_cli_committed_stage_defaults_use_development_panel_and_zero_controller(tmp_path, monkeypatch):
+    from environments.shared.constants import DEVELOPMENT_GAIT_SEED_START
+
     recorded = {}
 
     def writer(species, config, model, norm, output, **options):
@@ -504,9 +575,51 @@ def test_cli_committed_stage_defaults_use_publication_panel_and_zero_controller(
     monkeypatch.setattr(cli, "write_gait_report", writer)
     assert cli.main(["trex", "--zero-action", "--out-dir", str(tmp_path)]) == 0
     assert recorded["model"] is recorded["norm"] is None
-    assert recorded["episodes"] == 40
-    assert recorded["seed"] == PUBLICATION_SEED_START
+    # A reward-gated stage gets a short development panel, never the certification block.
+    assert recorded["episodes"] == 10
+    assert recorded["seed"] == DEVELOPMENT_GAIT_SEED_START
     assert recorded["protocol"] == GaitProtocol()
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        ["--episodes", "0"],
+        ["--episodes", "-3"],
+        ["--seed", "-1"],
+        ["--settle-s", "nan"],
+        ["--settle-s", "-0.5"],
+        ["--direction", "0", "0"],
+        ["--direction", "inf", "0"],
+        ["--seed", "3042"],  # a report-only panel on the certification block
+        ["--seed", "3000", "--episodes", "50"],
+    ],
+)
+def test_cli_invalid_numbers_are_usage_errors_that_leave_an_existing_report(tmp_path, monkeypatch, capsys, options):
+    monkeypatch.setattr(
+        cli, "write_gait_report", lambda *args, **kwargs: pytest.fail("invalid usage reached the writer")
+    )
+    prior = _prior_certificate(tmp_path)
+    before = prior.read_bytes()
+    with pytest.raises(SystemExit) as error:
+        cli.main(["trex", "--zero-action", "--out-dir", str(tmp_path), *options])
+    assert error.value.code == 2
+    assert "usage:" in capsys.readouterr().err
+    assert prior.read_bytes() == before
+
+
+@pytest.mark.parametrize("content", ['{"no_such_option": 1}', '{"chatter_fill_s": -1}', "[]"])
+def test_cli_invalid_protocol_options_are_usage_errors(tmp_path, monkeypatch, capsys, content):
+    monkeypatch.setattr(
+        cli, "write_gait_report", lambda *args, **kwargs: pytest.fail("invalid usage reached the writer")
+    )
+    options = tmp_path / "protocol.json"
+    options.write_text(content)
+    with pytest.raises(SystemExit) as error:
+        cli.main(["trex", "--zero-action", "--out-dir", str(tmp_path / "panel"), "--protocol-json", str(options)])
+    assert error.value.code == 2
+    assert "--protocol-json" in capsys.readouterr().err
+    assert not (tmp_path / "panel").exists()
 
 
 def test_cli_writer_refusal_returns_three_and_prints_a_clear_error(tmp_path, monkeypatch, capsys):
@@ -628,22 +741,31 @@ def test_protocol_only_cli_prints_exact_identity_without_rolling_or_writing(
 @pytest.mark.parametrize(
     "options,match",
     [
-        (["--episodes", "0"], "positive episodes"),
-        (["--episodes", "-1"], "positive episodes"),
-        (["--seed", "-1"], "nonnegative seed"),
-        (["--settle-s", "-0.1"], "settle time"),
-        (["--settle-s", "nan"], "settle time"),
-        (["--direction", "0", "0"], "direction"),
-        (["--direction", "nan", "1"], "direction"),
-        (["--direction", "inf", "1"], "direction"),
-        (["--settle-s", "1000"], "positive analysis window"),
+        (["--episodes", "0"], "--episodes"),
+        (["--episodes", "-1"], "--episodes"),
+        (["--seed", "-1"], "--seed"),
+        (["--settle-s", "-0.1"], "--settle-s"),
+        (["--settle-s", "nan"], "--settle-s"),
+        (["--direction", "0", "0"], "--direction"),
+        (["--direction", "nan", "1"], "--direction"),
+        (["--direction", "inf", "1"], "--direction"),
     ],
 )
-def test_protocol_only_cli_invalid_protocol_is_refused_without_output(tmp_path, capsys, options, match):
-    assert cli.main(["trex", "--protocol-only", "--out-dir", str(tmp_path / "unused_panel"), *options]) == 3
+def test_protocol_only_cli_invalid_numbers_are_usage_errors_without_output(tmp_path, capsys, options, match):
+    with pytest.raises(SystemExit) as error:
+        cli.main(["trex", "--protocol-only", "--out-dir", str(tmp_path / "unused_panel"), *options])
+    assert error.value.code == 2
     output = capsys.readouterr()
     assert not output.out
-    assert "Gait evaluation refused:" in output.err and match in output.err
+    assert "usage:" in output.err and match in output.err
+    assert not list(tmp_path.iterdir())
+
+
+def test_protocol_only_cli_refuses_a_window_the_plant_cannot_hold(tmp_path, capsys):
+    assert cli.main(["trex", "--protocol-only", "--out-dir", str(tmp_path / "unused_panel"), "--settle-s", "1000"]) == 3
+    output = capsys.readouterr()
+    assert not output.out
+    assert "Gait evaluation refused:" in output.err and "positive analysis window" in output.err
     assert not list(tmp_path.iterdir())
 
 
@@ -670,3 +792,77 @@ def test_protocol_only_cli_invalid_horizon_is_refused_without_a_panel(tmp_path, 
     assert not output.out
     assert "Gait evaluation refused:" in output.err
     assert not (tmp_path / "panel").exists()
+
+
+class _DivergingRecorder(producer.SubstepContactRecorder):
+    """Blows the second episode's velocities up after two substeps, as an unstable policy would.
+
+    MuJoCo answers with its automatic reset inside the next ``mj_step``.
+    """
+
+    created = 0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        type(self).created += 1
+        self._inject = type(self).created == 2
+
+    def _record_substep(self):
+        super()._record_substep()
+        if self._inject and len(self._rows) == 3:
+            self.env.data.qvel[:] = 1e12
+            self._inject = False
+
+
+def test_divergence_fails_one_episode_and_the_panel_completes(tmp_path, species_config, stage_config, monkeypatch):
+    _DivergingRecorder.created = 0
+    monkeypatch.setattr(producer, "SubstepContactRecorder", _DivergingRecorder)
+    report = producer.write_gait_report(
+        species_config, stage_config, None, None, tmp_path, episodes=3, seed=9000, settle_s=0.0
+    )
+    assert report["status"] == "complete"
+    first, diverged, third = report["episodes"]
+    assert first["telemetry_valid"] and third["telemetry_valid"]
+    assert diverged["telemetry_valid"] is False and diverged["physics_diverged"] is True
+    assert diverged["telemetry_errors"] == [
+        "physics_diverged: MuJoCo reset the simulation after a numerical instability"
+    ]
+    assert diverged["termination_reason"] == "physics_diverged" and diverged["completed_horizon"] is False
+    with np.load(tmp_path / report["traces"][1]["path"]) as trace:
+        assert bool(trace["physics_diverged"]) and len(trace["time_s"]) == 3
+
+
+def _certifiable_stage_dir(root, saved_pair_source):
+    models = root / "models"
+    models.mkdir(parents=True)
+    shutil.copyfile(saved_pair_source / "policy.zip", models / "robust_best_model.zip")
+    shutil.copyfile(saved_pair_source / "policy_vecnorm.pkl", models / "robust_best_model_vecnorm.pkl")
+    shutil.copyfile(saved_pair_source / "stage_config.json", root / "stage_config.json")
+    return models / "robust_best_model.zip", models / "robust_best_model_vecnorm.pkl"
+
+
+def test_producer_to_reader_accepts_a_genuine_panel_in_a_reused_directory(
+    tmp_path, species_config, stage_config, saved_pair_source, monkeypatch
+):
+    """The real writer's evidence is readable by the real reader: seed-tied traces, replayed metrics.
+
+    The directory first holds a larger report-only panel (stale traces), and
+    one certification episode diverges; neither makes the evidence unreadable.
+    """
+    from environments.shared.reporting.gates import gait_statistics
+
+    root = tmp_path / "stage"
+    model, norm = _certifiable_stage_dir(root, saved_pair_source)
+    producer.write_gait_report(species_config, stage_config, model, norm, root, episodes=4, seed=9000, settle_s=0.0)
+    assert len(list((root / "gait_traces").iterdir())) == 4
+    config = _strict_config(stage_config)
+    _DivergingRecorder.created = 0
+    monkeypatch.setattr(producer, "SubstepContactRecorder", _DivergingRecorder)
+    report = producer.write_gait_report(
+        species_config, config, model, norm, root, episodes=2, seed=PUBLICATION_SEED_START, settle_s=0.0
+    )
+    assert report["certification_eligible"] is True and report["episodes"][1]["physics_diverged"] is True
+    stats, failures = gait_statistics(root, config["curriculum_kwargs"])
+    assert not failures and stats is not None
+    assert stats["selected_gait_n_episodes"] == 2 and stats["passed"] is False
+    assert stats["episode_failures"][1] == ["episode/telemetry_valid: telemetry is invalid or missing"]

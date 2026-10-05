@@ -424,3 +424,188 @@ def test_trace_copies_live_arrays_and_refuses_empty_trace(real_env):
     np.testing.assert_array_equal(trace["foot_position_m"][0], initial["foot_position_m"][0])
     trace["root_position_m"][:] = np.nan
     assert np.isfinite(recorder.trace()["root_position_m"]).all()
+
+
+def test_contact_with_a_non_terrain_body_is_a_diagnostic_never_support():
+    """A prop (prey) pressing on a foot is neither floor support, body support nor foot-on-foot."""
+    prop = '<worldbody><geom name="prop" type="box" size=".05 .05 .05" pos=".079 0 .49"/></worldbody>'
+    env, morphology = _toy_env(SPHERE_FEET, root_z=0.0899, contact_xml=prop)
+    recorder = SubstepContactRecorder(env, morphology)
+    recorder.capture()
+    trace = recorder.trace()
+    assert trace["nonterrain_contact_force_n"][0] > 0
+    assert trace["floor_force_n"][0, 1] == 0  # the l foot touches only the prop
+    assert trace["body_floor_force_n"][0] == trace["foot_foot_force_n"][0] == 0
+
+
+def test_divergence_reset_stops_recording_but_a_user_reset_is_still_refused(real_env):
+    recorder = SubstepContactRecorder(real_env, GaitMorphology.from_env(real_env, "velociraptor"))
+    with recorder:
+        real_env.step(np.zeros(real_env.action_space.shape))
+        samples = len(recorder.trace()["time_s"])
+        real_env.data.qvel[6] = 2e10  # MuJoCo resets the state inside the next mj_step
+        real_env.step(np.zeros(real_env.action_space.shape))
+        real_env.step(np.zeros(real_env.action_space.shape))
+    assert recorder.diverged
+    trace = recorder.trace()
+    assert len(trace["time_s"]) == samples
+    assert bool(trace["physics_diverged"]) is True
+    assert np.all(np.diff(trace["time_s"]) > 0)
+
+
+def test_velociraptor_sickle_claw_is_not_a_foot_and_every_registered_geometry_reaches_the_terrain(monkeypatch):
+    from environments.shared.gait import morphology as morphology_module
+
+    assert all("claw" not in name for names in FOOT_GEOMETRIES["velociraptor"].values() for name in names)
+    env = RaptorEnv(reset_noise_scale=0.0)
+    try:
+        env.reset(seed=0)
+        claw = int(env.model.geom("r_claw_geom").id)
+        floor = int(env.model.geom("floor").id)
+        assert not morphology_module._can_collide(env.model, claw, floor)
+        registry = dict(FOOT_GEOMETRIES)
+        registry["velociraptor"] = {
+            side: (*names, f"{side}_claw_geom") for side, names in FOOT_GEOMETRIES["velociraptor"].items()
+        }
+        monkeypatch.setattr(morphology_module, "FOOT_GEOMETRIES", registry)
+        with pytest.raises(ValueError, match="claw_geom cannot collide with the declared terrain"):
+            GaitMorphology.from_env(env, "velociraptor")
+    finally:
+        env.close()
+
+
+# --- heightfield terrain -----------------------------------------------------
+
+
+def _surface_oracle(model, geom, count=3000):
+    """Independent dense random surface samples of a primitive geometry, in its own frame."""
+    kind = int(model.geom_type[geom])
+    size = model.geom_size[geom]
+    rng = np.random.default_rng(geom)
+    unit = rng.normal(size=(count, 3))
+    unit /= np.linalg.norm(unit, axis=1, keepdims=True)
+    if kind == mujoco.mjtGeom.mjGEOM_SPHERE:
+        return size[0] * unit
+    if kind == mujoco.mjtGeom.mjGEOM_ELLIPSOID:
+        return unit * size[:3]
+    if kind == mujoco.mjtGeom.mjGEOM_CAPSULE:
+        cap = size[0] * unit
+        cap[:, 2] += np.where(cap[:, 2] >= 0, size[1], -size[1])
+        angle = rng.uniform(0, 2 * np.pi, count)
+        side = np.stack(
+            [size[0] * np.cos(angle), size[0] * np.sin(angle), rng.uniform(-size[1], size[1], count)], axis=1
+        )
+        return np.concatenate([cap, side])
+    if kind == mujoco.mjtGeom.mjGEOM_BOX:
+        points = rng.uniform(-1, 1, size=(count, 3))
+        face = rng.integers(0, 3, size=count)
+        points[np.arange(count), face] = np.sign(points[np.arange(count), face])
+        corners = np.array([[a, b, c] for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)], dtype=float)
+        return np.concatenate([points, corners]) * size[:3]
+    raise AssertionError(f"oracle has no sampler for geom type {kind}")
+
+
+def _oracle_clearance(model, data, geoms, height_at):
+    gaps = []
+    for geom in geoms:
+        points = data.geom_xpos[geom] + _surface_oracle(model, geom) @ data.geom_xmat[geom].reshape(3, 3).T
+        gaps.append(float(np.min(points[:, 2] - height_at(points[:, 0], points[:, 1]))))
+    return min(gaps)
+
+
+@pytest.fixture(scope="module")
+def terrain_env():
+    from environments.shared.paths import REPOSITORY_ROOT
+    from environments.shared.train_behaviors import create_behavior_env, read_recipe
+
+    _, commands, terrain, env_kwargs = read_recipe(
+        REPOSITORY_ROOT / "configs/trex/behaviors/bumps_terrain.toml", "trex"
+    )
+    env = create_behavior_env("trex", commands=commands, terrain=terrain, run_seed=42, **env_kwargs)
+    try:
+        yield env
+    finally:
+        env.close()
+
+
+def test_heightfield_clearance_follows_the_terrain_surface(terrain_env):
+    """mj_geomDistance to a heightfield is not a surface distance; the recorder measures the real gap."""
+    env = terrain_env
+    env.reset(seed=0, options={"terrain_family": "bumps"})
+    unwrapped = env.unwrapped
+    morphology = GaitMorphology.from_env(env, "trex")
+    height_at = unwrapped.terrain.height_at
+    assert morphology.terrain_height is not None
+    assert morphology.describe()["terrain_clearance"].startswith("vertical gap")
+    data = mujoco.MjData(unwrapped.model)
+    data.qpos[:] = unwrapped.data.qpos
+    base_z = float(data.qpos[2])
+    apron = unwrapped.terrain.config.apron_radius
+    checked = 0
+    for xy in ((apron + 2.0, 0.5), (apron + 4.0, -1.0), (-apron - 3.0, 2.0)):
+        for lift in (0.0, 0.004, 0.02, 0.1):
+            data.qpos[0:2] = xy
+            data.qpos[2] = base_z + height_at(*xy)
+            mujoco.mj_kinematics(unwrapped.model, data)
+            lowest = min(_oracle_clearance(unwrapped.model, data, ids, height_at) for ids in morphology.foot_geom_ids)
+            data.qpos[2] += lift - lowest
+            mujoco.mj_kinematics(unwrapped.model, data)
+            for foot, ids in enumerate(morphology.foot_geom_ids):
+                reference = _oracle_clearance(unwrapped.model, data, ids, height_at)
+                measured = morphology.foot_clearance(data, foot)
+                assert measured == pytest.approx(reference, abs=1.5e-3), (xy, lift, foot)
+                legacy = min(
+                    float(mujoco.mj_geomDistance(unwrapped.model, data, g, t, 2 * morphology.leg_length_m, None))
+                    for g in ids
+                    for t in morphology.terrain_geom_ids
+                )
+                assert abs(legacy - reference) > 0.1  # the old reading, about -1 m whatever the height
+                checked += 1
+    assert checked == 24
+
+
+def test_recorder_on_heightfield_reports_resting_contact_not_a_metre_underground(terrain_env):
+    env = terrain_env
+    env.reset(seed=1, options={"terrain_family": "bumps"})
+    morphology = GaitMorphology.from_env(env, "trex")
+    with SubstepContactRecorder(env, morphology) as recorder:
+        for _ in range(10):
+            env.step(np.zeros(env.action_space.shape))
+    trace = recorder.trace()
+    loaded = trace["floor_force_n"] > 0
+    assert loaded.any()
+    assert np.all(np.abs(trace["foot_clearance_m"][loaded]) < 0.01)
+
+
+def test_heightfield_without_a_matching_height_map_is_refused(terrain_env):
+    from environments.shared.terrain import generate_terrain
+
+    env = terrain_env
+    env.reset(seed=2, options={"terrain_family": "bumps"})
+    unwrapped = env.unwrapped
+    realization = unwrapped.terrain
+    try:
+        unwrapped.terrain = None
+        with pytest.raises(ValueError, match="height map"):
+            GaitMorphology.from_env(env, "trex")
+        unwrapped.terrain = generate_terrain(realization.config, run_seed=realization.run_seed + 1, episode_index=0)
+        with pytest.raises(ValueError, match="does not describe its compiled heightfield"):
+            GaitMorphology.from_env(env, "trex")
+    finally:
+        unwrapped.terrain = realization
+    assert GaitMorphology.from_env(env, "trex").terrain_height is not None
+
+
+def test_plane_clearance_is_unchanged_on_the_flat_family(terrain_env):
+    env = terrain_env
+    env.reset(seed=3, options={"terrain_family": "flat"})
+    morphology = GaitMorphology.from_env(env, "trex")
+    assert morphology.terrain_height is None and "terrain_clearance" not in morphology.describe()
+    unwrapped = env.unwrapped
+    for foot, ids in enumerate(morphology.foot_geom_ids):
+        expected = min(
+            float(mujoco.mj_geomDistance(unwrapped.model, unwrapped.data, g, t, 2 * morphology.leg_length_m, None))
+            for g in ids
+            for t in morphology.terrain_geom_ids
+        )
+        assert morphology.foot_clearance(unwrapped.data, foot) == expected

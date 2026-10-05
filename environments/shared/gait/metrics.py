@@ -86,6 +86,9 @@ _REQUIRED_FIELDS = (
     "root_position_m",
     "root_quat_wxyz",
 )
+#: Diagnostic telemetry, validated when present: touch sensors and the
+#: animal's contact with bodies that are neither terrain nor itself (prey).
+_OPTIONAL_FIELDS = ("touch_force_n", "nonterrain_contact_force_n")
 #: Minimum stance-to-trunk travel denominator of the skid fraction, in L.
 _SKID_MIN_TRAVEL_OVER_LEG = 0.05
 #: A stance resolves its own typical slip speed (glide) only with at least this many samples.
@@ -159,6 +162,7 @@ def _empty(errors: list[str], foot_names: tuple[str, ...]) -> dict[str, Any]:
         "flight_fraction": None,
         "body_support_fraction": None,
         "foot_foot_contact_fraction": None,
+        "nonterrain_contact_fraction": None,
         "per_foot": {},
         "contralateral": {},
         "pair_phase": {},
@@ -190,13 +194,23 @@ def episode_gait_metrics(
     ``settle_s`` after the first sample. Arrays are never mutated.
     """
     foot_names = tuple(foot_names)
+    if "physics_diverged" in trace:
+        # The recorder stops at a MuJoCo divergence (its automatic reset):
+        # the rest of such an episode is not the policy's physics.
+        try:
+            diverged = bool(np.asarray(trace["physics_diverged"], dtype=bool).any())
+        except (TypeError, ValueError) as error:
+            return _empty([f"non-boolean telemetry: physics_diverged ({error})"], foot_names)
+        if diverged:
+            return _empty(["physics_diverged: MuJoCo reset the simulation after a numerical instability"], foot_names)
     missing = [name for name in _REQUIRED_FIELDS if name not in trace]
     if missing:
         return _empty([f"missing telemetry: {name}" for name in missing], foot_names)
     try:
         arrays = {name: np.asarray(trace[name], dtype=float) for name in _REQUIRED_FIELDS}
-        if "touch_force_n" in trace:
-            arrays["touch_force_n"] = np.asarray(trace["touch_force_n"], dtype=float)
+        for optional in _OPTIONAL_FIELDS:
+            if optional in trace:
+                arrays[optional] = np.asarray(trace[optional], dtype=float)
     except (TypeError, ValueError) as error:
         return _empty([f"non-numeric telemetry: {error}"], foot_names)
     time = arrays["time_s"]
@@ -213,6 +227,7 @@ def episode_gait_metrics(
         "root_position_m": (count, 3),
         "root_quat_wxyz": (count, 4),
         "touch_force_n": (count, feet),
+        "nonterrain_contact_force_n": (count,),
     }
     errors = [
         f"invalid shape: {name}" for name, shape in shapes.items() if name in arrays and arrays[name].shape != shape
@@ -231,7 +246,14 @@ def episode_gait_metrics(
     direction = np.asarray(direction_xy, dtype=float).copy()
     if direction.shape != (2,) or not np.all(np.isfinite(direction)) or math.hypot(*direction.tolist()) <= 0.0:
         errors.append("direction_xy must be a finite, nonzero two-dimensional direction")
-    for name in ("floor_force_n", "body_floor_force_n", "foot_foot_force_n", "slip_speed_mps", "touch_force_n"):
+    for name in (
+        "floor_force_n",
+        "body_floor_force_n",
+        "foot_foot_force_n",
+        "slip_speed_mps",
+        "touch_force_n",
+        "nonterrain_contact_force_n",
+    ):
         if name in arrays and np.any(arrays[name] < 0.0):
             errors.append(f"negative telemetry: {name}")
     quaternion = arrays["root_quat_wxyz"]
@@ -393,6 +415,12 @@ def _measure(
     duty = [_fsum(moving * stance[:, i]) / moving_span for i in range(feet)]
     body_share = body_impulse / (body_impulse + window_foot) if body_impulse > 0.0 else 0.0
     foot_foot_fraction = _fsum(weights * (foot_foot > protocol.foot_foot_force_bw * body_weight_n)) / span
+    nonterrain = arrays.get("nonterrain_contact_force_n")
+    nonterrain_fraction = (
+        None
+        if nonterrain is None
+        else _fsum(weights * (nonterrain > protocol.foot_foot_force_bw * body_weight_n)) / span
+    )
     support = np.sum(stance, axis=1)
     airborne = support == 0
     flight = _fsum(moving * airborne) / moving_span
@@ -997,6 +1025,7 @@ def _measure(
         else None,
         "body_support_fraction": _r(body_share),
         "foot_foot_contact_fraction": _r(foot_foot_fraction),
+        "nonterrain_contact_fraction": _r(nonterrain_fraction),
         "weight_support_ratio": _r((window_foot + body_impulse) / (body_weight_n * span)),
         "support_count_fraction": {str(n): _r(_fsum(weights * (support == n)) / span) for n in range(feet + 1)},
         "trunk_height_over_leg_median": _r(trunk_height),
