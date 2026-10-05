@@ -337,47 +337,46 @@ Notes:
 commit of its own, merged just before its training session ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
 §5.2 item 5; the evidence for its values is
 [investigations/TREX_GAIT_R1_RESCORE_2026_10.md](investigations/TREX_GAIT_R1_RESCORE_2026_10.md)). Before it
-merges, a 1.5M-step pilot runs the same values from the command line (the plan's §5.5 step 3).
+merges, a pilot judges the first 1.5M steps of a notebook session trained from its branch (the plan's §5.5 step 3).
 
-**Setting up.** On Colab, run notebook section 1 only, with `REPO_REF` set to a pushed branch carrying the gait
-reward kit, the walk-first gait checker and its plumbing fixes (branch `claude/gait-checker-trex-gait-r1` at or after
-`d4c8f3e`, whose review fixes change the gait-phase reward without moving the task digest). Then mount Drive in a scratch cell (never the
-storage cell) and run from `/content/mesozoic-labs`:
+**Running it.** In Colab, open `notebooks/sb3_training.ipynb` from branch `claude/gait-checker-trex-gait-r1` (at or
+after `d4c8f3e`, whose review fixes change the gait-phase reward without moving the task digest), set these
+knobs and run all:
 
-```bash
-python environments/trex/scripts/train_sb3.py curriculum --target walk \
-  --trunk-from /content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/20260914_123816 \
-  --seed 45 --n-envs 4 --label gait-r1-pilot \
-  --output-dir /content/drive/MyDrive/mesozoic-labs/scratch/trex_gait_r1_pilot/<UTC timestamp> \
-  --override locomotion.env.support_source=floor locomotion.env.gait_phase_weight=0.5 \
-    locomotion.env.flight_penalty_weight=1.0 locomotion.env.foot_slip_penalty_weight=0.2 \
-    locomotion.env.forward_vel_max=1.25 locomotion.env.forward_vel_weight=1.0 \
-    locomotion.env.max_episode_steps=2000 locomotion.curriculum.min_avg_episode_length=1500 \
-    locomotion.curriculum.collapse_peak_floor_reference=2186.8 locomotion.curriculum.timesteps=1500000 \
-    locomotion.ppo.learning_rate_end=4.25e-05
-```
+| Knob | Value |
+|---|---|
+| `REPO_REF` | `"claude/gait-checker-trex-gait-r1"` |
+| `SPECIES` | `"Tyrannosaurus Rex"` |
+| `BEHAVIOR` | `"walk"` |
+| `TRUNK_FROM` | `"20260914_123816"` |
+| `SEED` | `45` |
+| `RUN_LABEL` | `"gait-r1-pilot"` (optional) |
+
+The branch's `configs/trex/locomotion.toml` is the revision, so nothing is overridden and the session trains
+under the revision's own task digest.
 
 - **The trunk is pinned.** `auto` picks the seed-44 run on the tie, and its stance hops in 6 of 40 episodes.
-  The log must show `Reusing certified 'stance' from run 20260914_123816`. A `Not reusing 'stance'` line means
-  interrupt at once: the CLI would train a new stance for 11M steps.
-- **Every override is stage-qualified,** so the stance task, and with it the reuse, is untouched.
-- **Seed 45 is new.** Seed 42 would replay the hop run's seeds. Seed 45's training, selection and replay seeds
-  stay off both the certification block and the development block.
-- **The run directory lies outside `logs/trex/ppo/`,** so a pilot is never a trunk.
-- **`learning_rate_end` keeps the 8M schedule's first 1.5M steps.**
-- **The pilot's `task_sha256` (`3ce1d7e9…`) differs from the revision's,** because the CLI casts `1.0` to the
-  integer `1`. The reward arithmetic is identical, and the difference keeps a pilot verdict from ever standing
-  in for the session's.
-- **Wall time is estimated at about 3 h.**
+  The chain loop must print `Reusing certified 'stance' from run 20260914_123816`. A `Not reusing 'stance'`
+  line means interrupt at once: the session would train a new stance for 11M steps.
+- **Seed 45 is new.** Seed 42 would replay the hop run's seeds. Seed 45's training and selection seeds stay off
+  both the certification block and the development block.
+- **The pilot is the session's first 1.5M steps.** The node keeps its 8M budget and learning-rate schedule. The
+  periodic checkpoint pair nearest 1.5M steps is judged while training continues, about 2.5-3 h in:
+  `03_locomotion/models/stage2_<steps>_steps.zip` with `stage2_vecnormalize_<steps>_steps.pkl`. Retention
+  keeps the newest five pairs, so each pair stays on Drive for about 500k steps.
+- **Stop the runtime after the verdict, either way.** The certified walker comes from the gait-gated session
+  below. A pilot stopped before its node finishes writes no locomotion verdict, so it certifies nothing and is
+  never a replicate.
+- **The run lives in `logs/trex/ppo/`.** Its stance is an `ancestors/` record that leads back to
+  `20260914_123816`, so a later `auto` stand or walk session that picks it reuses the same seed-42 stance.
 
-**Judging.** Judge the handoff on the development block, never on 3042-3081:
+**Judging.** Judge the pair on the development block, never on 3042-3081:
 
 ```bash
 python -m environments.shared.scripts.gait_report trex --stage locomotion \
-  --model <run>/03_locomotion/models/robust_best_model.zip \
-  --vecnorm <run>/03_locomotion/models/robust_best_model_vecnorm.pkl \
-  --env-json <the "env" object of <run>/03_locomotion/task_fingerprint.json, saved as JSON> \
-  --episodes 20 --seed 9000 --settle-s 1.0 --out-dir <run>/gait_dev_9000
+  --model <run>/03_locomotion/models/stage2_<steps>_steps.zip \
+  --vecnorm <run>/03_locomotion/models/stage2_vecnormalize_<steps>_steps.pkl \
+  --episodes 20 --seed 9000 --settle-s 1.0 --out-dir <fresh directory>
 ```
 
 The plan's §5.5 T. rex row, read on the walk-first measurement, decides what follows. The seed-42 hop's
@@ -407,8 +406,8 @@ development-seed values are in brackets.
 1. Merge `gait-r1`.
 2. Merge the enforcement block of [GAIT_CERTIFICATION.md](GAIT_CERTIFICATION.md) ("T. rex locomotion: the
    enforcement step").
-3. Train the 8M session from the notebook with `BEHAVIOR = "walk"`, `TRUNK_FROM = "20260914_123816"` and
-   `SEED = 45`, in about 13-15 h.
+3. Train the 8M session from the notebook on `main`, with the pilot's `SPECIES`, `BEHAVIOR`, `TRUNK_FROM`
+   and `SEED`, in about 13-15 h.
 
 In between, or on a stop, bring the report back: a re-scoring comes before any weight change. Record the
 pilot's run, commit, wall time and verdict here.

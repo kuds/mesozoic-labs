@@ -20,10 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     analysis window on the revision's 2000-step horizon. The section also
     gives the `--protocol-only` command that plans the block's measurement
     hash.
-  - **The pilot.** A command-line pilot runs 1.5M steps from the seed-42
-    stance `20260914_123816`, with seed 45, into a scratch run directory,
-    taking the revision's values through `--override`. The steps include
-    judging it on the development seed block, and when to proceed or stop.
+  - **The pilot.** A notebook session trains the revision from its
+    unmerged branch, from the seed-42 stance `20260914_123816` with seed 45,
+    and its checkpoint nearest 1.5M steps is judged on the development seed
+    block. The steps include when to proceed or stop.
   - **The re-scoring note.** A dated note records the CPU re-scoring that
     chose the revision's values, repeated on the development seeds.
 
@@ -177,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The stance and recovery tasks are unchanged, so
   `TRUNK_FROM = "20260914_123816"` stays a valid trunk. Reuse rule 3 refuses
   both certified hops' locomotion verdicts. The revision is merged just before its training
-  session; the pilot before it runs on `--override` (`docs/NEXT_STEPS.md` §3).
+  session; the pilot before it trains from the unmerged branch (`docs/NEXT_STEPS.md` §3).
 - **One terrain selector in the behavior env, and every terrain recipe
   states its blocks** (#594, consolidation PR-8 (a) of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-04). `SpeciesBehaviorMixin`
