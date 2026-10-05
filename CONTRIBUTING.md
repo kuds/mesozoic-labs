@@ -83,9 +83,10 @@ hooks and CI pin one ruff version and one mypy version
 and the ruff hooks cover `environments/`, as CI's ruff does. No hook touches
 the digest data files (the plant MJCF sources and meshes, the recipe TOMLs, the
 plant manifests, `plant_versions.toml` and the recovery calibrations): a
-whitespace fix there would move a digest. The Python modules whose bytes a
-digest hashes stay under the hooks; CI's pinned ruff keeps them from changing,
-and any edit to them moves the behavior identities anyway. The one exception is
+whitespace fix there would move a digest. Every Python module stays under the
+hooks: no digest hashes a Python file's bytes, and the policy-interface digests
+hash the tokens of named functions only (not comments, docstrings or blank
+lines), which CI's pinned ruff keeps from changing. The one exception is
 the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
 `mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the four
 `mjx_config.py` registrations): four species' policy-interface digests hash its

@@ -5,11 +5,12 @@
 # compsognathus MJCF files and move both compsognathus plant identities.
 # test_ci_tool_pins.py checks this pattern against the sources the plant
 # manifest records and the other data files, and that it catches no Python
-# file. The Python modules a digest hashes stay under the ruff and whitespace
-# hooks: CI's pinned ruff keeps them from changing, and any edit to them moves
-# the behavior identities anyway. The one exception is the frozen MJX core
-# (D-D17), which pyproject.toml's [tool.ruff] extend-exclude keeps from ruff
-# (these hooks pass --force-exclude); the whitespace hooks still cover it.
+# file. Every Python module stays under the ruff and whitespace hooks: no
+# digest hashes a Python file's bytes, and the policy-interface digests hash
+# only function tokens, which CI's pinned ruff keeps from changing. The one
+# exception is the frozen MJX core (D-D17), which pyproject.toml's [tool.ruff]
+# extend-exclude keeps from ruff (these hooks pass --force-exclude); the
+# whitespace hooks still cover it.
 exclude: '^(environments/[^/]+/(assets|references|data)/|configs/(plant_manifest\.generated\.json|plant_versions\.toml|[^/]+/recovery_calibration\.json|[^/]+/behaviors/))'
 
 repos:

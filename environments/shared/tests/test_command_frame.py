@@ -1,10 +1,9 @@
 """The command frame helpers and the command-slice reseed plumbing (BEHAVIOR_RECIPES_PLAN §4.6, WS-C0).
 
 Invariant 8: normalised command values are O(1) from the first step after a
-command-mode load.  The plumbing under test is the Phase D hook — in Phase C
-every stage runs ``command_mode = "none"`` and the environments refuse
-anything else — pinned now so the reseed cannot be forgotten when the
-channel goes live.
+command-mode load.  The plumbing under test is the Phase D hook — every
+committed stage runs ``command_mode = "none"`` — pinned so the reseed
+cannot be forgotten when a stage goes live.
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ from environments.shared.command_frame import (
     COMMAND_RANGE,
     COMMAND_SEGMENT_NAME,
     COMMAND_WIDTH,
+    RETIRED_COMMAND_ENV_KEYS,
     command_slice,
     pad_running_stats,
     reseed_command_slice,
@@ -88,14 +88,17 @@ def test_constants_match_plan():
     assert COMMAND_RANGE == (-1.0, 1.0)
     assert COMMAND_MODE_NONE == "none"
     assert COMMAND_MODES == ("none", "heading", "heading_and_speed")
-    assert COMMAND_ENV_KEYS == (
-        "command_mode",
+    # Decision D-D2: ONE command_config replaced the five numeric kwargs.
+    assert COMMAND_ENV_KEYS == ("command_mode", "command_config")
+    # The retired five, exported (the maintainer's answer of 2026-10-05), in their Phase C order.
+    assert RETIRED_COMMAND_ENV_KEYS == (
         "command_speed_range",
         "command_lateral_range",
         "command_yaw_rate_max",
         "command_switch_interval",
         "command_switch_jitter",
     )
+    assert not set(RETIRED_COMMAND_ENV_KEYS) & set(COMMAND_ENV_KEYS)
     probe = np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float64)
     assert probe.shape == (COMMAND_WIDTH,)
     assert np.all(np.isfinite(probe)) and np.all(probe != 0.0)
@@ -169,18 +172,19 @@ def test_pad_running_stats_appends_a_reseeded_slice_and_carries_count():
 
 @pytest.mark.parametrize("backend", ["stable-baselines3", "jax-mjx"])
 @pytest.mark.parametrize("mode", list(COMMAND_MODES) + ["bogus"])
-def test_validate_command_mode_accepts_none_on_both_backends_and_refuses_the_rest(backend, mode):
-    if mode == "none":
-        assert validate_command_mode(mode, backend=backend) == "none"
-        return
+def test_validate_command_mode_accepts_every_mode_on_sb3_and_only_none_on_mjx(backend, mode):
     if mode not in COMMAND_MODES:
         with pytest.raises(ValueError, match=r"is not one of \('none', 'heading', 'heading_and_speed'\)"):
             validate_command_mode(mode, backend=backend)
         return
-    expected = "not implemented on the jax-mjx backend" if backend == "jax-mjx" else "Phase D"
-    with pytest.raises(ValueError, match=expected) as excinfo:
+    if mode == "none" or backend == "stable-baselines3":
+        # Phase D (consolidation PR-9) deleted only the SB3 branch: both live modes are implemented there.
+        assert validate_command_mode(mode, backend=backend) == mode
+        return
+    with pytest.raises(ValueError, match="not implemented on the jax-mjx backend") as excinfo:
         validate_command_mode(mode, backend=backend)
     assert repr(mode) in str(excinfo.value)
+    assert not hasattr(command_frame, "SB3_COMMAND_REFUSAL")
 
 
 def test_validate_command_mode_refuses_an_unknown_backend():

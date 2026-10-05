@@ -141,7 +141,7 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
         normalization_path=adapted / "vecnormalize.pkl",
         recipe_path=short_recipe,
         species=species,
-        identity=reports[2]["behavior_identity"],
+        identity=reports[2]["task_fingerprint"],
         output_dir=tmp_path / "saved-panel",
         run_seed=910001,
         seed_start=920001,
@@ -167,7 +167,7 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
         adapted / "model.zip",
         adapted / "vecnormalize.pkl",
         env,
-        behavior_identity=env.behavior_identity,
+        task_fingerprint=env.task_fingerprint,
         species=species,
     )
     try:
@@ -184,11 +184,11 @@ def test_explicit_species_cannot_disagree_with_behavior_parent(walker):
     species, checkpoint, stats = walker
     other = next(name for name in species_display_names() if name != species)
     # Check before loading a network: some different species share tensor shapes.
-    with pytest.raises(BehaviorCheckpointError, match="identity and requested species disagree"):
+    with pytest.raises(BehaviorCheckpointError, match="task fingerprint and requested species disagree"):
         prepare_behavior_checkpoint(
             checkpoint,
             stats,
             None,
             species=other,
-            behavior_identity={"parent_plant": {"species": species}},
+            task_fingerprint={"species": species},
         )

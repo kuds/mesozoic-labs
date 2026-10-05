@@ -58,6 +58,7 @@ import mujoco
 import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.direction_commands import DirectionCommandConfig
 
 
 class RaptorEnv(BaseDinoEnv):
@@ -110,11 +111,7 @@ class RaptorEnv(BaseDinoEnv):
         perturbation_duration: float = 0.20,
         perturbation_direction: str = "uniform_horizontal",
         command_mode: str = "none",
-        command_speed_range: tuple[float, float] = (0.0, 0.0),
-        command_lateral_range: tuple[float, float] = (0.0, 0.0),
-        command_yaw_rate_max: float = 0.0,
-        command_switch_interval: float = 0.0,
-        command_switch_jitter: float = 0.0,
+        command_config: DirectionCommandConfig | None = None,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "raptor.xml")
 
@@ -183,11 +180,7 @@ class RaptorEnv(BaseDinoEnv):
             perturbation_duration=perturbation_duration,
             perturbation_direction=perturbation_direction,
             command_mode=command_mode,
-            command_speed_range=command_speed_range,
-            command_lateral_range=command_lateral_range,
-            command_yaw_rate_max=command_yaw_rate_max,
-            command_switch_interval=command_switch_interval,
-            command_switch_jitter=command_switch_jitter,
+            command_config=command_config,
         )
 
     def _cache_ids(self):

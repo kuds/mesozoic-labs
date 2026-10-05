@@ -566,12 +566,12 @@ robustness, **LOW** = cosmetic / QoL.
   these species, not with a backstop setting.
   **Update (2026-09-28, gait audit):** the biped `_compute_gait_symmetry` has
   been measured: a synchronous two-foot landing appends `"R"` then `"L"`
-  (`base_env.py:745-748`), so a bounce scores 1.000, as do a true alternating
+  (`base_env.py:760-763`), so a bounce scores 1.000, as do a true alternating
   walk and the statue ([STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) §6
   item 7). Its weight is 0.0 in every biped stage, so only its
   `alternation_ratio` diagnostic misleads. The quadruped version likewise pays
   a pronk, bound or pace in full, since a simultaneous landing appends both
-  pairs (:845-848; [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). The
+  pairs (:868-871; [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). The
   gait plan keeps the code byte-identical and sets the weight to 0 in the
   quadruped `gait-r1` revisions ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)
   §5.3, PR-G7); this entry stays while any TOML uses the term.
@@ -695,8 +695,8 @@ robustness, **LOW** = cosmetic / QoL.
   needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
-  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:141-142`,
-  `dibothrosuchus_env.py:108-109`) and no SB3 reward reads them: they were
+  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:142-143`,
+  `dibothrosuchus_env.py:109-110`) and no SB3 reward reads them: they were
   knobs of the MJX reward, which left with the JAX/MJX runtime (D-D17, cleanup
   PR-B). They stay, with their six `[env]` keys (`configs/trex/stance.toml:13-14`,
   `configs/trex/recovery.toml:57-58`, `configs/dibothrosuchus/stage1_balance.toml:13-14`),
@@ -782,6 +782,13 @@ robustness, **LOW** = cosmetic / QoL.
   the command ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). The
   gait plan recommends a per-episode gait clause in that kind
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G10; GQ-18, open).
+  **Update (2026-10-05, consolidation PR-9):** the behavior env's commands
+  now come through the reserved hook and `step()`'s `_update_command()`
+  (`BaseDinoEnv` owns the controller), and a behavior checkpoint's identity
+  is its task fingerprint, whose versioned stage (`command-terrain/v2`)
+  replaces the source-file hashes, so an edit that changes no meaning no
+  longer strands exact resume; the rest of the second pipeline stays until
+  PR-10 .. PR-13.
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair
@@ -798,11 +805,11 @@ robustness, **LOW** = cosmetic / QoL.
   20 mm (compsognathus); trex at 100 mm fell 7/7, although its zero-action
   statue survives 3/4 there, so statue results do not predict the walker. The
   cause is open. The two precompiled scenes
-  (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:262`) give
+  (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:248`) give
   the `floor` geom the same `solref`, `solimp`, friction, margin, gap and
   condim and differ only in its type (plane vs hfield; checked 2026-09-26).
   That leaves the hfield collision and the terrain spawn settle
-  (`behavior_env.py:428-446`, which reproduces velociraptor's authored −44.6 mm
+  (`behavior_env.py:397-415`, which reproduces velociraptor's authored −44.6 mm
   toe penetration) as the suspects. Compsognathus-pair foot contact also
   flickers on a heightfield (a statue measurement from the 2026-09-25 readiness
   review). Velociraptor's map exits are a separate mismatch: its recipes cruise
@@ -848,7 +855,7 @@ robustness, **LOW** = cosmetic / QoL.
   0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
   pushing 1.12 body weights into each touch sensor, so the support flag that
   scales its alive, posture and height rewards (touch sum above 4% of body
-  weight, `compsognathus_env.py:189,239`) is on 99.6% of steps by touch and
+  weight, `compsognathus_env.py:182,232`) is on 99.6% of steps by touch and
   34.3% by floor: about 838 of its about 2627 reward pays for support the
   floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
   Plan: the robot's `gait-r1` revisions, with floor-contact support and a
@@ -913,14 +920,14 @@ robustness, **LOW** = cosmetic / QoL.
   success flag and pays the 1,000 bonus whenever the contact or reach holds,
   but `_is_terminated` runs every fall check except floor contact before its
   success check, so such a step ends as a fall with `is_success` False
-  (`base_env.py:1291`). The post-training panel reads the flag on every step
+  (`base_env.py:1327`). The post-training panel reads the flag on every step
   (`evaluation.py:100`) and counts the episode, for trex in the `task_success`
   that `task_success/v1` judges; training reads `is_success` and does not.
   Executed on each hunt env with the body rolled past `max_tilt_angle` and the
   prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
   success (trex 30/30, gate PASS) and 0 in training; a floor-contact fall on
   the contact step ends as a success in both. The compsognathus pair reads
-  success after its fall checks (`compsognathus_env.py:240-241`) and is
+  success after its fall checks (`compsognathus_env.py:233-234`) and is
   unaffected. Leaves with each hunt's task revision, which the gait plan does
   not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
   [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
@@ -939,9 +946,9 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
-  only the torso (and belly), head and distal tail (`trex_env.py:361-368`,
-  `raptor_env.py:219-226`, `brachio_env.py:231-237`,
-  `dibothrosuchus_env.py:247-254`; velociraptor adds its neck), so a policy
+  only the torso (and belly), head and distal tail (`trex_env.py:354-361`,
+  `raptor_env.py:212-219`, `brachio_env.py:224-230`,
+  `dibothrosuchus_env.py:240-247`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
   clearance of the lowest such geom, then the root drop allowed: trex tibia
   0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
@@ -956,7 +963,7 @@ robustness, **LOW** = cosmetic / QoL.
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
   (`stance_diagnostics.py:75`) takes `r_foot_contact` and `l_foot_contact`,
   which the brachiosaurus and dibothrosuchus envs set to their front feet
-  (`brachio_env.py:410-411`, `dibothrosuchus_env.py:449-450`), so its
+  (`brachio_env.py:403-404`, `dibothrosuchus_env.py:442-443`), so its
   unsupported duty and balance ignore the hind feet, which carry 79% of the
   certified dibothrosuchus stance's floor load
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
@@ -1024,8 +1031,8 @@ robustness, **LOW** = cosmetic / QoL.
   and SS4)
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
-  (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1173-1297`, its
-  frame-skip loop at :1224) never reads `data.warning`, and on a bad `qvel`
+  (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1209-1339`, its
+  frame-skip loop at :1260) never reads `data.warning`, and on a bad `qvel`
   or `qacc` MuJoCo resets the state to the model's default pose (`qpos0`) and
   carries on. On the trex stance config, setting `qvel` to 1e12 and taking
   one zero-action step printed MuJoCo's "The simulation is unstable" warning
@@ -1050,12 +1057,12 @@ robustness, **LOW** = cosmetic / QoL.
   lane disjoint from {`k*2`, `k*2+1`} (renumbering the lanes would silently
   change every existing schedule and its null-controller pairing), and it
   changes the transition, so `SCHEDULE_IMPLEMENTATION`
-  (`task_fingerprint.py:75`) and every recovery task digest move. No cleanup
+  (`task_fingerprint.py:76`) and every recovery task digest move. No cleanup
   PR owns it. (2026-08 gap review EP2)
 
 - **LOW** — **after a noisy reset one foot spawns just above the floor and
   reads 0 N for the first few steps (executed 2026-09-30).**
-  `_settle_root_on_ground` (`base_env.py:1469-1500`) shifts the root so the
+  `_settle_root_on_ground` (`base_env.py:1511-1542`) shifts the root so the
   lowest geom sits at the home clearance, which grounds one foot and can
   leave the other millimetres up. On the trex stance config
   (`reset_noise_scale` 0.05, zero action), seeds 0–3 read 0.0 N on one foot
@@ -1259,7 +1266,7 @@ re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
 **Update (2026-09-28, gait audit):** a second under-read, shared by every species, comes from how
 substeps are combined rather than from sensor scope. The contact-shaped rewards and foot-contact
 info keys read `_aggregated_foot_contact_forces()`, the per-foot **minimum** over a control step's
-physics substeps (`base_env.py:956-969`), so a foot touching on only some substeps reads as
+physics substeps (`base_env.py:971-984`), so a foot touching on only some substeps reads as
 airborne. Against the floor's normal force on the leg (above 0.1 N on at least half the substeps),
 the velociraptor run `20260922_125248` reads 49% flight by touch against 33% (its stance 25% against
 15%), and the in-training dibothrosuchus re-run `20260928_012318` reads 0.39 body weights against

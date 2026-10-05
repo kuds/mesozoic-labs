@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import copy
 import inspect
+import json
+from dataclasses import asdict
 from functools import cache
 from pathlib import Path
 
@@ -12,11 +14,19 @@ import numpy as np
 import pytest
 
 from environments.shared import behavior_env as behavior_module
-from environments.shared.behavior_env import SpeciesBehaviorMixin, canonical_env_parameters, get_behavior_env_class
+from environments.shared.base_env import BaseDinoEnv
+from environments.shared.behavior_env import RECIPE_TASK_STAGE, SpeciesBehaviorMixin, get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig, gaussian_tracking_reward
-from environments.shared.plant_contract import REPOSITORY_ROOT, current_plant_identity, validate_compiled_plant
+from environments.shared.plant_contract import current_plant_identity, validate_compiled_plant
 from environments.shared.species_names import species_display_name
 from environments.shared.species_registry import get_species_config
+from environments.shared.stage_manifest import STAGE_ID_PATTERN, load_stage_manifest
+from environments.shared.task_fingerprint import (
+    TaskFingerprintError,
+    stage_task_fingerprint,
+    validate_declared_parent,
+    validate_recorded_task,
+)
 from environments.shared.terrain import TerrainConfig, TerrainRealization, apply_terrain
 from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig
 
@@ -102,7 +112,7 @@ def test_factory_preserves_canonical_inheritance(species):
     canonical = get_species_config(species).env_class
     assert issubclass(behavior, canonical) and issubclass(behavior, SpeciesBehaviorMixin)
     assert behavior.__mro__[1:3] == (SpeciesBehaviorMixin, canonical)
-    assert "forward_vel_weight" in canonical_env_parameters(species)
+    assert "forward_vel_weight" in inspect.signature(canonical).parameters
     assert behavior is get_behavior_env_class(species) is get_behavior_env_class(species_display_name(species))
     # The species declaration must not be hidden by a mixin default earlier in the MRO.
     assert behavior._terrain_contact_probe_geoms == (("neck_geom",) if species == "trex" else ())
@@ -139,7 +149,7 @@ def test_species_has_real_surface_command_inputs_and_reproducible_rollout(make_e
         np.testing.assert_allclose(qpos, canonical.data.qpos, atol=1e-12, rtol=0)
         np.testing.assert_array_equal(qvel, canonical.data.qvel)
         assert observation[-3] > 0
-        assert env.behavior_identity["parent_plant"]["species"] == species
+        assert env.task_fingerprint["species"] == species
         assert env.model.nhfield == 1
         assert info["terrain"]["template"] == "mixed"
         props = np.flatnonzero(env.model.body_mocapid >= 0)
@@ -171,7 +181,9 @@ def test_plane_and_terrain_free_behavior_env_score_identically(make_env, species
     terminations and reasons; the behavior env only adds command tracking.
     """
     env = make_env(species, terrain=None, reset_noise_scale=0.05)
-    plane = get_species_config(species).env_class(**env._behavior_parameters)
+    canonical = get_species_config(species).env_class
+    accepted = set(inspect.signature(canonical).parameters) - {"command_mode", "command_config"}
+    plane = canonical(**{key: value for key, value in env._task_env_kwargs.items() if key in accepted})
     try:
         terminations = 0
         for seed in range(4):
@@ -216,7 +228,7 @@ def test_rewards_and_terminations_follow_a_translated_surface(make_env, species,
     env.reset(seed=42)
     action = zeros(env)
     reward, original = env._get_reward_info(action)
-    root = env._behavior_root_id
+    root = env._root_body_id
     original_clearance = env._clearance(env.data.xpos[root])
     _translate_surface_and_animal(env, height)
     assert env._clearance(env.data.xpos[root]) == pytest.approx(original_clearance, abs=1e-12)
@@ -267,7 +279,8 @@ def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, spe
     env._get_reward_info(zeros(env))
     assert not env._command_metrics["tracking_in_tolerance"]
     assert env._command_metrics["tracking_error_requested_speed"] == pytest.approx(SPEEDS[species])
-    assert env.behavior_identity["tracking_tolerances"] == env.tracking_tolerances
+    ratio = env.task_fingerprint["command"]["config"]["speed_scale"] / 1.5
+    assert env.tracking_tolerances == {"velocity_tolerance": 0.2 * ratio, "stop_speed_tolerance": 0.1 * ratio}
     assert env.tracking_velocity_sigma == pytest.approx(env.direction_controller.config.speed_scale / 6)
 
 
@@ -456,23 +469,106 @@ def test_external_direction_takes_effect_on_next_action_and_masks_stops(make_env
 
 
 @pytest.mark.parametrize("species", SPECIES)
+def test_recipe_commands_draw_from_their_own_stream_through_the_base_hook(make_env, species):
+    """Consolidation PR-9: the base hook seeds the controller from the recipe env's own command stream
+    (0xC044), so the reset stream stays the canonical env's and the reported command seed is the one used."""
+    env = make_env(species, reset_noise_scale=0.01)
+    canonical = get_species_config(species).env_class(reset_noise_scale=0.01)
+    try:
+        for seed in (5, None, None):
+            observation, info = env.reset(seed=seed)
+            canonical.reset(seed=seed)
+            assert env.np_random.bit_generator.state == canonical.np_random.bit_generator.state
+            drawn = int(np.random.default_rng(info["command_seed"]).integers(0, 2**32, dtype=np.uint64))
+            assert env.direction_controller.schedule_seed == drawn
+            np.testing.assert_array_equal(observation[-3:], env._command_state.normalized)
+    finally:
+        canonical.close()
+
+
+def test_the_behavior_env_has_no_command_source_of_its_own():
+    """Consolidation PR-9: the commands come through BaseDinoEnv's controller, hook and step update only; of the
+    three direct writes of self._command one is left, set_direction applying its target through the base update."""
+    import ast
+
+    for name in ("_draw_episode_command", "_update_command", "command_manifest", "_heading", "behavior_identity"):
+        assert name not in vars(SpeciesBehaviorMixin), name
+    assert get_behavior_env_class("trex")._draw_episode_command is BaseDinoEnv._draw_episode_command
+    tree = ast.parse(Path(inspect.getfile(SpeciesBehaviorMixin)).read_text())
+    writes = [
+        ast.unparse(node)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Attribute) and target.attr in ("_command", "_command_state", "direction_controller")
+    ]
+    assert writes == ["self._command = self._update_command()"]
+
+
+@pytest.mark.parametrize("species", ("velociraptor", "dibothrosuchus"))
+def test_dwell_is_reported_before_a_new_command_event_restarts_it(make_env, species):
+    """Consolidation PR-9: the base step advances the command; the mixin still reports the dwell the executed
+    command earned and restarts it afterwards (a stand-still stop stays in tolerance for these two)."""
+    env = make_env(
+        species, commands=commands(species, stop_probability=1.0, switch_interval_s=0.05), reset_noise_scale=0.0
+    )
+    env.reset(seed=5)
+    rows = [env.step(zeros(env))[4] for _ in range(2 * round(0.05 / env.dt))]
+    assert all(info["tracking_in_tolerance"] for info in rows)
+    switch = [info["command_event_id"] for info in rows].index(1)
+    assert [info["tracking_dwell_s"] for info in rows[: switch + 1]] == pytest.approx(
+        [(index + 1) * env.dt for index in range(switch)] + [env.dt]
+    )
+
+
+@pytest.mark.parametrize("species", SPECIES)
 def test_identity_binds_task_options_but_not_episode_draws(make_env, species):
+    """Consolidation PR-9: the identity is the task fingerprint; terrain enters its env section as constructor
+    kwargs and the commands its command section, and the implementation is a versioned stage, not source hashes."""
     env = make_env(species, terrain=terrain(), run_seed=42)
-    first = copy.deepcopy(env.behavior_identity)
-    assert first["schema"] == "mesozoic.command-terrain/v1" and first["species"] == species
-    assert {"flat_probability", "terrain_sampler", "sampler_sources"}.isdisjoint(first)
-    assert set(first["sources"]) == {
-        "environments/shared/behavior_env.py",
-        str(Path(inspect.getfile(get_species_config(species).env_class)).relative_to(REPOSITORY_ROOT)),
-        "environments/shared/direction_commands.py",
-        "environments/shared/terrain.py",
-    }
+    first = copy.deepcopy(env.task_fingerprint)
+    assert first["schema"] == "mesozoic.task-fingerprint/v2" and first["species"] == species
+    plant = behavior_module.current_plant_identity(species).to_dict()
+    assert first["plant"] == {key: plant[key] for key in ("physics_sha256", "policy_interface_sha256")}
+    assert first["stage"] == RECIPE_TASK_STAGE and first["backend"] == "stable-baselines3"
+    assert set(first) == set("schema species stage backend plant env perturbation command task_sha256".split())
+    assert first["command"] == env.direction_controller.manifest()
+    assert first["env"]["command_mode"] == "heading_and_speed"
+    assert first["env"]["command_config"] == first["command"]["config"]
+    assert first["env"]["terrain"] == json.loads(json.dumps(asdict(env.terrain_config)))
+    assert first["env"]["terrain_sampler"] is None and "flat_probability" not in first["env"]
+    assert {"run_seed", "render_mode"}.isdisjoint(first["env"])
+    assert first["env"]["forward_vel_weight"] == 0.0 and first["env"]["max_episode_steps"] == 2500
     env.reset(seed=1)
     env.step(zeros(env))
     env.reset(seed=2)
-    assert env.behavior_identity == first
+    assert env.task_fingerprint == first
+    assert make_env(species, terrain=terrain(), run_seed=7).task_fingerprint == first
     changed = make_env(species, terrain=terrain(max_slope_degrees=1.0), run_seed=44)
-    assert changed.behavior_identity != first
+    assert changed.task_fingerprint["task_sha256"] != first["task_sha256"]
+    for option in ({"tracking_weight": 3.0}, {"course_distance": 12.0}):
+        moved = make_env(species, terrain=terrain(), run_seed=42, **option).task_fingerprint
+        assert moved["env"] == {**first["env"], **option} and moved["task_sha256"] != first["task_sha256"]
+
+
+@pytest.mark.parametrize("species", SPECIES)
+def test_a_recipe_task_neither_resumes_nor_parents_a_canonical_stage(make_env, species):
+    """Decision D-D9 under the canonical stamps: the recipe stage is never a stage id, so no manifest node
+    resumes from a recipe checkpoint (the task differs) or warm-starts from one (not its declared parent)."""
+    recorded = make_env(species).task_fingerprint
+    assert STAGE_ID_PATTERN.match(recorded["stage"]) is None
+    for entry in load_stage_manifest(species).stages:
+        current = stage_task_fingerprint(species, entry.id)
+        with pytest.raises(TaskFingerprintError, match="different task"):
+            validate_recorded_task(recorded, current, mode="resume_same_stage")
+        with pytest.raises(TaskFingerprintError, match="command-terrain"):
+            validate_declared_parent(
+                recorded,
+                declared_parent=entry.warm_start_from,
+                species=species,
+                child_stage=entry.reference,
+                artifact="recipe checkpoint",
+            )
 
 
 @pytest.mark.parametrize("species", SPECIES)
@@ -536,7 +632,7 @@ def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, sp
         assert plane_member is not terrain_member
     models = {key: pair[::2] for key, pair in pairs.items()}
     geom_types = {key: [model.geom_type.copy() for model in value] for key, value in models.items()}
-    identity = copy.deepcopy(env.behavior_identity)
+    identity = copy.deepcopy(env.task_fingerprint)
     actions = np.random.default_rng(921).uniform(-0.01, 0.01, (3, *env.action_space.shape))
 
     def replay():
@@ -572,7 +668,7 @@ def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, sp
         for first_step, second_step in zip(a[3], b[3], strict=True):
             np.testing.assert_array_equal(first_step[0], second_step[0])
             assert first_step[1:] == second_step[1:]
-    assert env.behavior_identity == identity
+    assert env.task_fingerprint == identity
 
 
 @pytest.mark.parametrize("species", SPECIES)

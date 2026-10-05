@@ -10,11 +10,10 @@ five older anchors of the ``configs`` directory kept under their own names
 
 ``plant_contract.constants`` rebinds the root as its own attribute and stays
 the patch point for the plant contract: its consumers read
-``constants.REPOSITORY_ROOT`` at call time, and the byte-hashed
-``behavior_env.py`` and ``terrain_sampling.py`` import it as
-``plant_contract.REPOSITORY_ROOT``.  The value enters repository-relative
-paths that ``behavior_identity`` and the plant source closure hash, so it
-must not change.
+``constants.REPOSITORY_ROOT`` at call time, and ``behavior_env.py``
+imports it as ``plant_contract.REPOSITORY_ROOT``.  The value enters the
+repository-relative paths the plant source closure hashes, so it must not
+change.
 
 Expressed via a named anchor (``environments/shared``, this module's own
 directory) rather than a bare ``parents[N]`` count, because a raw count

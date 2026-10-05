@@ -17,11 +17,11 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def _identity():
+    """The task fingerprint's sections the judge reads (consolidation PR-9)."""
     return {
-        "parent_plant": {"species": "trex"},
-        "commands": {"stop_probability": 0.15, "turn_increment_max": 0.5},
-        "course_distance": 10.0,
-        "terrain": {"apron_radius": 3.0, "blend_width": 1.5},
+        "species": "trex",
+        "command": {"config": {"stop_probability": 0.15, "turn_increment_max": 0.5}},
+        "env": {"course_distance": 10.0, "terrain": {"apron_radius": 3.0, "blend_width": 1.5}},
     }
 
 
@@ -131,7 +131,7 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
         # Consolidation PR-8: the panel is the recipe's own env; its reset option stratifies the families.
         assert type(panel) is type(original)
         assert panel.run_seed == 910001
-        assert panel.behavior_identity == original.behavior_identity
+        assert panel.task_fingerprint == original.task_fingerprint
         expected = {
             "follow_direction": ("flat",),
             "mixed_terrain": ("flat", "mixed"),
@@ -143,7 +143,7 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
             observation, info = panel.reset(seed=920001, options={"terrain_family": family})
             assert terrain_family_from_reset(info) == family
             assert np.isfinite(observation).all()
-            assert panel.behavior_identity == original.behavior_identity
+            assert panel.task_fingerprint == original.task_fingerprint
             hashes[family] = None if panel.terrain is None else panel.terrain.normalized_heights.copy()
             _, info2 = panel.reset(seed=920001, options={"terrain_family": family})
             assert info == info2
@@ -152,6 +152,53 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
     finally:
         panel.close()
         original.close()
+
+
+def test_the_saved_panel_scores_a_checkpoint_only_on_its_own_task(monkeypatch, tmp_path):
+    """The panel compares its env's task fingerprint with the saved one: the only guard that a checkpoint is scored
+    on its own recipe's env (the loader compares the saved stamp with the handed fingerprint and reads the env for
+    shapes only), so another recipe's env is refused before anything is loaded."""
+    pytest.importorskip("mujoco")
+    import sys
+    from types import SimpleNamespace
+
+    from environments.shared.behavior_certification import evaluate_saved_panel
+
+    class Reached(Exception):
+        """The loader or the evaluator was called: the panel accepted its env."""
+
+    def reached(*args, **kwargs):
+        raise Reached
+
+    # Stand-ins for the SB3 modules the panel imports, so this runs without SB3 and loads nothing.
+    for name, attribute in (
+        ("behavior_checkpoint", "load_behavior_checkpoint"),
+        ("behavior_evaluation", "evaluate_behavior"),
+    ):
+        monkeypatch.setitem(sys.modules, f"environments.shared.{name}", SimpleNamespace(**{attribute: reached}))
+    recipes = ROOT / "configs/trex/behaviors"
+    env = _panel_env("trex", recipes / "follow_direction.toml", 910001)
+    try:
+        saved = env.task_fingerprint
+    finally:
+        env.close()
+    model, normalization = tmp_path / "model.zip", tmp_path / "vecnormalize.pkl"
+    model.write_bytes(b"selected-model")
+    normalization.write_bytes(b"paired-stats")
+    panel = {
+        "model_path": model,
+        "normalization_path": normalization,
+        "species": "trex",
+        "identity": saved,
+        "output_dir": tmp_path,
+        "run_seed": 910001,
+        "seed_start": 920001,
+        "episodes": 1,
+    }
+    with pytest.raises(ValueError, match="^Certification environment differs from the saved task fingerprint$"):
+        evaluate_saved_panel(recipe_path=recipes / "sloped_terrain.toml", **panel)
+    with pytest.raises(Reached):
+        evaluate_saved_panel(recipe_path=recipes / "follow_direction.toml", **panel)
 
 
 @pytest.mark.parametrize("command", ["stop", "turn"])
@@ -185,8 +232,8 @@ def test_unexposed_episodes_cannot_hide_command_specific_failures(command):
 @pytest.mark.parametrize("distance", [0.2, 0.5, 0.75])
 def test_small_species_must_leave_the_flat_apron_and_blend(distance):
     identity = _identity()
-    identity["course_distance"] = 0.4
-    identity["terrain"] = {"apron_radius": 0.5, "blend_width": 0.25}
+    identity["env"]["course_distance"] = 0.4
+    identity["env"]["terrain"] = {"apron_radius": 0.5, "blend_width": 0.25}
     report = _report()
     for episode in report["episodes"]:
         episode["max_course_progress_m"] = distance
@@ -204,7 +251,7 @@ def test_small_species_must_leave_the_flat_apron_and_blend(distance):
 @pytest.mark.parametrize("terrain", [None, {}, {"apron_radius": 0.5, "blend_width": float("nan")}])
 def test_nonflat_gate_refuses_missing_or_invalid_surface_dimensions(terrain):
     identity = _identity()
-    identity["terrain"] = terrain
+    identity["env"]["terrain"] = terrain
     result = judge_behavior_panel(_report(), identity)
     assert not result["passed"]
     assert any("apron and blend dimensions" in failure for failure in result["failures"])

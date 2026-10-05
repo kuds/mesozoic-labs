@@ -49,6 +49,7 @@ declared ``warm_start_from`` parent, read off the checkpoint archive by
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import inspect
 import json
@@ -56,7 +57,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE
+from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -107,7 +108,7 @@ class TaskFingerprintError(RuntimeError):
 
 
 def _canonical(value: Any) -> Any:
-    """JSON-stable form: tuples to lists, dict keys sorted by dumps below."""
+    """JSON-stable form: tuples to lists, a dataclass field by field, dict keys sorted by dumps below."""
     if isinstance(value, Mapping):
         return {str(key): _canonical(sub) for key, sub in value.items()}
     if isinstance(value, (list, tuple)):
@@ -119,6 +120,9 @@ def _canonical(value: Any) -> Any:
     if isinstance(value, float):
         # repr round-trips exactly; float() collapses numpy scalars first.
         return float(value)
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        # A command_config or a terrain kwarg of the opt-in subclass (PR-9).
+        return _canonical(dataclasses.asdict(value))
     return str(value)
 
 
@@ -133,6 +137,15 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
     """
     from .species_registry import get_species_config
 
+    # Decision D-D2 retired five numeric command kwargs (consolidation PR-9),
+    # and a record written before PR-9 still carries them: one is refused by
+    # name, whatever the mode, rather than hashed into a task nothing matches.
+    if retired := [name for name in RETIRED_COMMAND_ENV_KEYS if name in env_kwargs]:
+        raise TaskFingerprintError(
+            f"[env] {', '.join(retired)}: retired by decision D-D2 (consolidation PR-9), which replaced the "
+            "five numeric command kwargs with command_mode and one command_config; a record written before "
+            "PR-9 carries them, so drop command_frame.RETIRED_COMMAND_ENV_KEYS from its env kwargs first"
+        )
     try:
         env_class = get_species_config(species).env_class
     except ValueError as exc:
@@ -166,13 +179,14 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
     ):
         for name in push_keys:
             effective.pop(name, None)
-    # BEHAVIOR_RECIPES_PLAN §4.6 (Phase C, amendment A1): the six command
-    # kwargs landed on every species with inert defaults.  While the
-    # EFFECTIVE command_mode is "none" they change no trajectory and no
-    # reset draw, so they are carved out for EVERY species: off-configs keep
-    # their pre-Phase-C env encoding and a stage's task_sha256 moves only
-    # through the plant's policy_interface_sha256.  A live mode keeps all
-    # six (its ranges and switch schedule ARE the task).
+    # BEHAVIOR_RECIPES_PLAN §4.6 (Phase C, amendment A1; decision D-D2): the
+    # command kwargs (command_mode and command_config) sit on every species
+    # with inert defaults.  While the EFFECTIVE command_mode is "none" they
+    # change no trajectory and no reset draw, so they are carved out for
+    # EVERY species: off-configs keep their pre-Phase-C env encoding and a
+    # stage's task_sha256 moves only through the plant's
+    # policy_interface_sha256.  A live mode keeps both (its configuration IS
+    # the task; _canonical records the dataclass field by field).
     if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
         for name in COMMAND_ENV_KEYS:
             effective.pop(name, None)
@@ -244,9 +258,11 @@ def compute_task_fingerprint(
     multiple means different newtons on different plants, and the newtons
     are the task.  ``command_manifest`` is the environment's command-sampler
     provenance (``command_manifest()``, BEHAVIOR_RECIPES_PLAN §4.6): the
-    payload carries a ``command`` section ONLY when one is passed, so every
-    ``command_mode = "none"`` stage keeps its Phase C hash; Phase D records
-    the sampler ranges and switch-schedule implementation there.
+    payload carries a ``command`` section exactly when the effective
+    ``command_mode`` is live, and a manifest under ``"none"`` or a live mode
+    without one is refused, so every ``command_mode = "none"`` stage keeps its
+    Phase C hash and no live task is hashed without its controller's manifest
+    (its schema, adapter and configuration).
     """
     plant = None
     if plant_identity is not None:
@@ -267,6 +283,12 @@ def compute_task_fingerprint(
         "env": _canonical(_effective_env_kwargs(species, env_kwargs)),
         "perturbation": perturbation,
     }
+    # The carve-out leaves command_mode in the env section exactly when it is live.
+    if (command_manifest is not None) != ("command_mode" in payload["env"]):
+        raise TaskFingerprintError(
+            "a live [env] command_mode is hashed with its controller's command_manifest, and only a live one: "
+            "pass command_manifest exactly when command_mode is not 'none'"
+        )
     if command_manifest is not None:
         payload["command"] = _canonical(dict(command_manifest))
     digest = hashlib.sha256(
@@ -633,6 +655,7 @@ def stage_task_fingerprint(
     stage_config: Mapping[str, Any] | None = None,
     env_kwargs: Mapping[str, Any] | None = None,
     plant_identity: "PlantIdentity | Mapping[str, Any] | None" = None,
+    command_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """A stage's task fingerprint, derived the one way every caller derives it.
 
@@ -645,7 +668,9 @@ def stage_task_fingerprint(
     committed stage config's; passing both is refused.  *plant_identity*
     defaults to the species' current plant; a :class:`PlantIdentity` or its
     ``to_dict()`` mapping gives the same digest.  The backend is always
-    :data:`FINGERPRINT_BACKEND`.
+    :data:`FINGERPRINT_BACKEND`.  *command_manifest* (a live command mode's
+    controller manifest) is forwarded only when given, so every
+    ``command_mode = "none"`` stage derives from the same five inputs.
 
     Delegates to :func:`derive_stage_task_fingerprint`, looked up when
     called, so a test that replaces it sees every derivation.
@@ -668,10 +693,12 @@ def stage_task_fingerprint(
 
         plant_identity = current_plant_identity(species)
     identity = dict(plant_identity) if isinstance(plant_identity, Mapping) else plant_identity.to_dict()
+    command = {} if command_manifest is None else {"command_manifest": command_manifest}
     return derive_stage_task_fingerprint(
         species=species,
         stage=reference,
         backend=FINGERPRINT_BACKEND,
         env_kwargs=env_kwargs,
         plant_identity=identity,
+        **command,
     )
