@@ -182,6 +182,57 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         normalizer.close()
 
 
+def test_the_shared_probe_refuses_a_preparation_that_leaves_commands_live(parent, monkeypatch):
+    """The preparation's probe is policy_loading's (consolidation PR-10); its refusal keeps this module's type and
+    the message the preparation always gave."""
+    from environments.shared import behavior_checkpoint
+
+    model_path, vecnorm_path, *_ = parent
+    monkeypatch.setattr(
+        behavior_checkpoint,
+        "neutralize_command_columns",
+        lambda model, *, observation_dim: [f"{name}.weight" for name in COMMAND_LAYERS],
+    )
+    with pytest.raises(
+        BehaviorCheckpointError, match=r"^Command preparation changed parent actions: max delta "
+    ) as caught:
+        prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR)
+    assert float(str(caught.value).rsplit(" ", 1)[1]) > 1e-6
+
+
+def test_the_preparation_still_compares_the_prepared_walker_with_its_parent(parent, monkeypatch):
+    """A zeroing that also changes a non-command weight leaves a command-blind policy that is not the parent's: the
+    shared probe takes its reference before the preparation, so it is refused."""
+    from environments.shared import behavior_checkpoint
+
+    model_path, vecnorm_path, *_ = parent
+    neutralize = behavior_checkpoint.neutralize_command_columns
+
+    def over_reach(model, *, observation_dim):
+        changed = neutralize(model, observation_dim=observation_dim)
+        with torch.no_grad():
+            model.policy.get_submodule(COMMAND_LAYERS[0]).weight[:, -4] = 0.0
+        return changed
+
+    monkeypatch.setattr(behavior_checkpoint, "neutralize_command_columns", over_reach)
+    with pytest.raises(BehaviorCheckpointError, match=r"^Command preparation changed parent actions: max delta "):
+        prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR)
+
+
+def test_the_report_records_the_shared_primitives_result(parent):
+    """The zeroed names and the probe's seed, size and deltas come from policy_loading, under the report's keys."""
+    model_path, vecnorm_path, *_ = parent
+    _, normalizer, report = prepare_behavior_checkpoint(
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
+    )
+    normalizer.close()
+    assert report["zeroed_command_parameters"] == [f"{name}.weight" for name in COMMAND_LAYERS]
+    assert report["optimizer_command_columns_zeroed"] is True
+    assert (report["equivalence_probe_seed"], report["equivalence_probe_observations"]) == (3042, 64)
+    assert (report["max_action_delta"], report["max_value_delta"]) == (0.0, 0.0)
+    assert not {"max_probe_vector_action_delta", "prepared"} & set(report)
+
+
 def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tmp_path):
     """Decision D-D3: invariant 8 is the one rule; no command passthrough survives preparation or a reload."""
     model_path, vecnorm_path, *_ = parent
