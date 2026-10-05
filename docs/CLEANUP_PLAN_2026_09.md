@@ -1527,7 +1527,9 @@ compsognathus, whose gaits are far above cruise.
   `terrain_contact`; PR-9, because every live command mode is refused (`command_frame.py:89-92`); PR-10, because the
   warm start does not zero the command columns; PR-11, for the new nodes. *Updated 2026-10-05: PR-8's and
   PR-9's blockers are gone (the sampler expresses `terrain_contact`; SB3 runs both live command modes through
-  the reserved hook); PR-10's and PR-11's remain.*
+  the reserved hook); PR-10's and PR-11's remain.* *Updated 2026-10-05: PR-10's is gone too (a live child's warm
+  start from a parent that never saw a command zeroes the command columns and their optimizer moments and proves
+  the policy command-blind); PR-11's remains.*
 - **Parents** (per [NEXT_STEPS.md](NEXT_STEPS.md)): certified walkers exist for trex seed 42 (1.07 m/s), trex seed 44
   (1.57 m/s), velociraptor and compsognathus; compsognathus_robot's locomotion stopped at the Colab cap at 2.8M of
   3.0M steps, so it needs a resume (session 6); dibothrosuchus locomotion failed (session 4); brachiosaurus has no run

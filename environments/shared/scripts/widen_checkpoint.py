@@ -140,6 +140,7 @@ from typing import Any, Mapping, cast
 import numpy as np
 
 from environments.shared.command_frame import COMMAND_PROBE_VECTOR, COMMAND_WIDTH, pad_running_stats
+from environments.shared.policy_loading import _OPTIMIZER_MEMBERS, ACTION_DELTA_ATOL, VERIFICATION_ROLLOUT_SEED
 
 logger = logging.getLogger(__name__)
 
@@ -155,22 +156,16 @@ HANDOFF_NAMES = ("robust_best_model", "best_model")
 #: How many interface revisions behind the parent may be by default (D-C17):
 #: exactly one bump, r -> r+1; ``max_revision_gap`` widens the bound.
 DEFAULT_MAX_REVISION_GAP = 1
-#: The seeded verification rollout (plan §4.6 "Exact transfer").
-VERIFICATION_ROLLOUT_SEED = 3042
-VERIFICATION_ROLLOUT_STEPS = 200
-#: Action-equality tolerance (amendment A13b): the padded columns are an
+#: The seeded verification rollout (plan §4.6 "Exact transfer").  Its seed
+#: (``VERIFICATION_ROLLOUT_SEED``), the action-equality tolerance
+#: (``ACTION_DELTA_ATOL``, amendment A13b: the padded columns are an
 #: exact-zero pin; the actions differ only by summation order over a wider
-#: first layer, so they are compared allclose and the measured delta recorded.
-ACTION_DELTA_ATOL = 1e-6
-#: Optimizer members per algorithm and the ``params['policy']`` key prefix
-#: their state indices count along (SB3 2.9.0: ``policy.optimizer`` over the
-#: whole PPO policy; SAC's ``actor.optimizer`` / ``critic.optimizer`` over
-#: ``actor.*`` / ``critic.*`` — ``critic_target`` has no optimizer and
-#: ``ent_coef_optimizer`` touches no observation).
-_OPTIMIZER_MEMBERS: dict[str, dict[str, str]] = {
-    "ppo": {"policy.optimizer": ""},
-    "sac": {"actor.optimizer": "actor.", "critic.optimizer": "critic."},
-}
+#: first layer, so they are compared allclose and the measured delta
+#: recorded) and the optimizer members per algorithm with the
+#: ``params['policy']`` key prefix their state indices count along
+#: (``_OPTIMIZER_MEMBERS``) are policy_loading's, the objects its
+#: command-column primitive uses (consolidation PR-10).
+VERIFICATION_ROLLOUT_STEPS = 200
 _MOMENT_KEYS = ("exp_avg", "exp_avg_sq", "max_exp_avg_sq")
 #: Files the tool must never leave behind (the judge, the bundle export and
 #: the evidence audit each read them as claims about a run that trained).

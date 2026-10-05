@@ -50,6 +50,21 @@ each caller (:func:`resolve_vecnorm_path` raises :class:`PolicyLoadError`,
 ``evaluation.evaluate`` and ``train_base._load_vecnorm_into_envs`` raise
 ``FileNotFoundError``, each with its own escape hatch).
 
+:func:`neutralize_command_columns` and :func:`assert_command_blind` are the
+one command-column primitive (consolidation PR-10). A policy trained under
+``command_mode = "none"`` saw constant-zero command inputs, so the weights
+that read them keep their random initial values, and a live command would
+turn them into action noise. The first zeroes those columns in every layer
+that reads the observation, with their optimizer moments; the second proves
+on seeded observations that the actions and values are unchanged on zero
+commands and do not move with live ones. ``train_base`` calls them when a
+live node warm-starts from a parent that never saw a command, and the
+behavior preparation for its walker. The widen tool's self-verification
+shares the probe's seed and tolerance (:data:`VERIFICATION_ROLLOUT_SEED`,
+:data:`ACTION_DELTA_ATOL`), the optimizer table
+(:data:`_OPTIMIZER_MEMBERS`) and ``command_frame.COMMAND_PROBE_VECTOR``; it
+binds the first three from here.
+
 SB3 is imported inside the functions, per the repository's lazy-SB3
 convention, so the module stays importable without it; no project module is
 imported at import time, and ``train_base`` never is. The loaders raise
@@ -127,7 +142,10 @@ class PolicyLoadError(RuntimeError):
     :func:`load_sb3_model` when an archive saved by another Python minor
     version embeds bytecode outside its schedule members, and by
     :func:`load_sb3_checkpoint` when the normalisation statistics cannot be
-    resolved or read.
+    resolved or read, and by :func:`neutralize_command_columns` and
+    :func:`assert_command_blind` when a warm start cannot be made exactly
+    command-blind (a policy without its SB3 ``MlpPolicy`` first layer
+    raises ``AttributeError`` instead; see :func:`neutralize_command_columns`).
 
     An ordinary exception (a ``RuntimeError`` subclass) rather than
     ``SystemExit`` on purpose: the stance gate report runs inside the
@@ -580,8 +598,11 @@ def load_sb3_checkpoint(
     live node (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8).  A checkpoint saved
     by a live-command node already carries the slice statistics it trained
     under; loading it with the flag would score the policy under a
-    normaliser it never saw, so the default stays ``False`` and Phase D
-    wires the flag from the stage config only for that never-live case.
+    normaliser it never saw, so the default stays ``False``.  No caller
+    passes it yet; the never-live case is the one
+    ``train_base._create_or_load_model`` recognises from the checkpoint's
+    recorded task fingerprint (no ``command`` section) before it neutralizes
+    a warm start's command columns.
     """
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -727,3 +748,200 @@ def sb3_archive_load_preflight(
         del model
     print("SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.")
     return inspection
+
+
+# ── the command columns of a never-live parent (consolidation PR-10) ─────────
+
+#: The command-blindness probe's seed (:func:`assert_command_blind`), which is
+#: also the widen tool's verification rollout seed (BEHAVIOR_RECIPES_PLAN §4.6
+#: "Exact transfer"; the widen tool binds this object).
+VERIFICATION_ROLLOUT_SEED = 3042
+#: Action-equality tolerance (amendment A13b), shared the same way: neutralized
+#: or zero-padded command columns are an exact-zero pin, while actions may
+#: differ by summation order, so they are compared allclose and the measured
+#: delta is recorded.
+ACTION_DELTA_ATOL = 1e-6
+#: Optimizer members per algorithm and the ``params['policy']`` key prefix
+#: their state indices count along (SB3 2.9.0: ``policy.optimizer`` over the
+#: whole PPO policy; SAC's ``actor.optimizer`` / ``critic.optimizer`` over
+#: ``actor.*`` / ``critic.*`` -- ``critic_target`` has no optimizer and
+#: ``ent_coef_optimizer`` touches no observation).  A member's name is also its
+#: attribute path on a loaded model; the widen tool pads a saved archive's
+#: moments by this same table (it binds this object).
+_OPTIMIZER_MEMBERS: dict[str, dict[str, str]] = {
+    "ppo": {"policy.optimizer": ""},
+    "sac": {"actor.optimizer": "actor.", "critic.optimizer": "critic."},
+}
+#: How many seeded synthetic observations :func:`assert_command_blind` draws.
+_COMMAND_PROBE_OBSERVATIONS = 64
+
+
+def _command_model_algorithm(model: Any) -> str:
+    """``"ppo"`` or ``"sac"`` for a loaded SB3 model; anything else raises :class:`PolicyLoadError`."""
+    from stable_baselines3 import PPO, SAC
+
+    if isinstance(model, PPO):
+        return "ppo"
+    if isinstance(model, SAC):
+        return "sac"
+    raise PolicyLoadError(f"Command columns are handled for PPO and SAC models only, not {type(model).__name__}")
+
+
+def _command_input_widths(model: Any, algorithm: str, observation_dim: int) -> dict[str, int]:
+    """The first layers that read the observation, by ``model.policy`` name, with their input widths.
+
+    PPO's ``MlpPolicy``: the actor's and the critic's first layers. SAC: the
+    actor's first layer and the first layer of every Q network of the critic
+    and of its target, whose input is the observation followed by the action.
+    """
+    if algorithm == "ppo":
+        return {"mlp_extractor.policy_net.0": observation_dim, "mlp_extractor.value_net.0": observation_dim}
+    critic_width = observation_dim + int(model.action_space.shape[0])
+    widths = {"actor.latent_pi.0": observation_dim}
+    for network in ("critic", "critic_target"):
+        for index in range(len(model.policy.get_submodule(network).q_networks)):
+            widths[f"{network}.qf{index}.0"] = critic_width
+    return widths
+
+
+def neutralize_command_columns(model: Any, *, observation_dim: int) -> list[str]:
+    """Zero a loaded policy's command columns and their optimizer moments, in place; return the zeroed names.
+
+    A parent trained under ``command_mode = "none"`` saw constant-zero command
+    inputs, so the weights that read them never received a gradient: a live
+    child warm-started from it would react to commands it was never taught.
+    In each first layer that reads the observation the columns of the
+    observation's trailing command slice (``command_frame.command_slice``) --
+    in a SAC Q network, whose input is the observation followed by the action,
+    the ones just before the action -- are set to exactly zero, and so is the
+    same block of every per-element tensor the optimizers of
+    :data:`_OPTIMIZER_MEMBERS` hold for those weights (Adam's moments; the
+    scalar ``step`` is left alone), so the first update carries no history
+    into them.  Nothing else changes, so on zero commands the policy computes
+    exactly what the parent computed.
+
+    A layer that is not a ``Linear`` reading ``observation_dim`` inputs (plus
+    the action, for a SAC Q network), an optimizer tensor shaped unlike its
+    weight, or a model that is neither PPO nor SAC raises
+    :class:`PolicyLoadError`, in the layers' order and before any tensor
+    changes.  A first layer missing under its SB3 2.9.0 ``MlpPolicy`` name (a
+    PPO or SAC policy without hidden layers, or a renamed layer) raises
+    ``AttributeError`` from ``get_submodule`` instead, also before any tensor
+    changes, as the behavior preparation always did.  Returns the zeroed
+    ``params['policy']`` names.  Prove the result with
+    :func:`assert_command_blind`, passing this call as its *prepare*.
+    """
+    from operator import attrgetter
+
+    import torch
+
+    from environments.shared.command_frame import command_slice
+
+    algorithm = _command_model_algorithm(model)
+    columns = command_slice(observation_dim)
+    optimizers = [attrgetter(member)(model) for member in _OPTIMIZER_MEMBERS[algorithm]]
+    layers, moments = [], []
+    for name, width in _command_input_widths(model, algorithm, observation_dim).items():
+        layer = model.policy.get_submodule(name)
+        if not isinstance(layer, torch.nn.Linear) or layer.in_features != width:
+            raise PolicyLoadError(f"Unsupported policy input layer: {name}")
+        for optimizer in optimizers:
+            for key, value in optimizer.state.get(layer.weight, {}).items():
+                if not torch.is_tensor(value) or value.ndim == 0:
+                    continue
+                if value.shape != layer.weight.shape:
+                    raise PolicyLoadError(f"Unsupported optimizer tensor {name}.{key}: {tuple(value.shape)}")
+                moments.append(value)
+        layers.append((name, layer))
+    with torch.no_grad():  # every check has passed: nothing changed before this point
+        for _, layer in layers:
+            layer.weight[:, columns].zero_()
+        for value in moments:
+            value[:, columns].zero_()
+    return [f"{name}.weight" for name, _ in layers]
+
+
+def assert_command_blind(
+    model: Any,
+    normalizer: Any,
+    *,
+    seed: int = VERIFICATION_ROLLOUT_SEED,
+    atol: float = ACTION_DELTA_ATOL,
+    prepare: "Callable[[], Any] | None" = None,
+) -> dict[str, Any]:
+    """Refuse a policy whose actions or values move with the command; return the probe's measurements.
+
+    The exact-transfer probe (BEHAVIOR_RECIPES_PLAN §4.6): 64 raw observations
+    drawn from ``numpy.random.default_rng(seed)`` around *normalizer*'s
+    statistics (``mean + N(0, 1) * sqrt(var + epsilon)``) go through the
+    complete normalisation -> network path with the command slice zero; the
+    deterministic actions and the critic's estimates on them (PPO's values;
+    SAC's Q-values of every critic and target critic, at those actions) are
+    the reference.  With *prepare* -- the preparation, such as
+    ``lambda: neutralize_command_columns(model, observation_dim=...)`` -- the
+    reference is taken BEFORE ``prepare()`` runs, so the probe also proves
+    that the preparation changed nothing on zero commands (the parent's own
+    outputs).  Then the same rows carry uniform commands in ``[-1, 1]`` from
+    the same generator, and then ``command_frame.COMMAND_PROBE_VECTOR`` (the
+    widen tool's probe), and the actions and values must stay within *atol*
+    of the reference; otherwise :class:`PolicyLoadError` names the delta.
+    *normalizer* is the ``VecNormalize`` the model trains under: its
+    statistics are read, never updated, nothing is stepped and no global RNG
+    is drawn.
+
+    Returns ``equivalence_probe_seed``, ``equivalence_probe_observations``,
+    ``max_action_delta`` / ``max_value_delta`` (the uniform commands),
+    ``max_probe_vector_action_delta`` / ``max_probe_vector_value_delta``, and
+    ``prepared``, what ``prepare()`` returned (``None`` without it).
+    """
+    import numpy as np
+    import torch
+
+    from environments.shared.command_frame import COMMAND_PROBE_VECTOR, COMMAND_WIDTH, command_slice
+
+    algorithm = _command_model_algorithm(model)
+    stats = normalizer.obs_rms
+    columns = command_slice(len(stats.mean))
+    rng = np.random.default_rng(seed)
+    raw = rng.normal(size=(_COMMAND_PROBE_OBSERVATIONS, len(stats.mean)))
+    raw = stats.mean + raw * np.sqrt(stats.var + normalizer.epsilon)
+    raw[:, columns] = 0.0
+    reference_inputs = normalizer.normalize_obs(raw)
+    reference_actions = model.predict(reference_inputs, deterministic=True)[0]
+    critic_actions = None
+    if algorithm == "sac":
+        with torch.no_grad():
+            critic_actions = model.actor(torch.as_tensor(reference_inputs, device=model.device), deterministic=True)
+
+    def values(inputs: Any) -> Any:
+        observations = torch.as_tensor(inputs, device=model.device)
+        with torch.no_grad():
+            if critic_actions is None:
+                return model.policy.predict_values(observations).cpu().numpy()
+            q_values = (*model.critic(observations, critic_actions), *model.critic_target(observations, critic_actions))
+            return torch.cat(q_values, dim=1).cpu().numpy()
+
+    reference_values = values(reference_inputs)
+    prepared = prepare() if prepare is not None else None
+    deltas: dict[str, float] = {}
+    for label, commands in (
+        ("", rng.uniform(-1.0, 1.0, size=(len(raw), COMMAND_WIDTH))),
+        ("probe_vector_", np.asarray(COMMAND_PROBE_VECTOR)),
+    ):
+        raw[:, columns] = commands
+        inputs = normalizer.normalize_obs(raw)
+        action_delta = float(np.max(np.abs(model.predict(inputs, deterministic=True)[0] - reference_actions)))
+        value_delta = float(np.max(np.abs(values(inputs) - reference_values)))
+        where = f" on the probe command {COMMAND_PROBE_VECTOR}" if label else ""
+        if not np.isfinite(action_delta) or action_delta > atol:
+            raise PolicyLoadError(f"Command preparation changed parent actions{where}: max delta {action_delta}")
+        if not np.isfinite(value_delta) or value_delta > atol:
+            raise PolicyLoadError(f"Command preparation changed parent values{where}: max delta {value_delta}")
+        deltas[f"max_{label}action_delta"] = action_delta
+        deltas[f"max_{label}value_delta"] = value_delta
+    return {
+        "equivalence_probe_seed": seed,
+        "equivalence_probe_observations": len(raw),
+        **deltas,
+        "prepared": prepared,
+    }

@@ -450,11 +450,14 @@ def _load_vecnorm_into_envs(
     ``resume_same_stage`` parent is the same task, so its sidecar already
     holds the statistics the policy trained under and reseeding them would
     restart the run under a normaliser it never saw (the ``carry_ret_rms``
-    reasoning above, applied to the command slice).  In Phase C every stage
-    is ``"none"`` — the environments refuse anything else at construction —
-    so this is the Phase D hook, pinned now; a cross-stage load from a
-    parent whose own channel was live is Phase D's to decide when it
-    records the parent's mode.
+    reasoning above, applied to the command slice).  Every committed stage
+    is ``"none"``, so no load reseeds today.  The rule follows the node, not
+    the parent: a cross-stage load from a parent whose own command slice was
+    live (its recorded task fingerprint has a ``command`` section) is
+    reseeded too, while :func:`_create_or_load_model` neutralizes the
+    policy's command columns only for a parent that never saw a command; no
+    such live parent exists until a live manifest node does, and that edge
+    is settled with it.
     """
     from .curriculum import load_vecnorm_stats
     from .policy_loading import _resolve_vecnorm_sidecar
@@ -514,7 +517,14 @@ def _create_or_load_model(
     contract, which cannot see a ``step()``-level task change like the
     scheduled pushes.  ``resume_same_stage`` requires an exact match;
     ``initialize_next_stage`` records the boundary as lineage on the new
-    checkpoint instead of forbidding it.
+    checkpoint instead of forbidding it.  When that child is live (its
+    fingerprint has a ``command`` section) and the parent's recorded
+    fingerprint has none, or there is none, the parent's command columns and
+    their optimizer moments are zeroed and the policy proven unchanged on
+    zero commands and blind to live ones before the first update
+    (:func:`~environments.shared.policy_loading.neutralize_command_columns`,
+    :func:`~environments.shared.policy_loading.assert_command_blind`); the
+    lineage records the zeroed names as ``zeroed_command_parameters``.
     """
     from .task_fingerprint import attach_task_fingerprint, attach_task_lineage, validate_model_task
 
@@ -546,6 +556,27 @@ def _create_or_load_model(
                 artifact=str(load_path),
                 allow_unfingerprinted=True,
             )
+            if task_load_mode == "initialize_next_stage" and task_lineage is not None and "command" in task_fingerprint:
+                # A live child.  A parent whose recorded fingerprint has no
+                # ``command`` section (read before attach_task_fingerprint
+                # below overwrites it) never saw a live command: the weights
+                # that read its command inputs never received a gradient.
+                # Zero them and their optimizer moments, proving the policy
+                # unchanged on zero commands and blind to live ones before the
+                # first update (BEHAVIOR_RECIPES_PLAN §4.6, "Exact transfer");
+                # a live parent keeps what it learned.
+                from .policy_loading import assert_command_blind, neutralize_command_columns
+                from .task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+                parent_task = getattr(model, MODEL_TASK_ATTRIBUTE, None)
+                if not isinstance(parent_task, Mapping) or "command" not in parent_task:
+                    observation_dim = int(model.observation_space.shape[0])
+                    probe = assert_command_blind(
+                        model,
+                        train_env,
+                        prepare=lambda: neutralize_command_columns(model, observation_dim=observation_dim),
+                    )
+                    task_lineage["zeroed_command_parameters"] = probe["prepared"]
         if task_load_mode == "resume_same_stage":
             # A checkpoint saved inside a stage-entry warm-up window pickles
             # ENT_COEF_WARMUP_MARKER=True.  The resume path deliberately

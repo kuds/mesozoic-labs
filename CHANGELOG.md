@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Changed
+- **A live child warm-started from a parent that never saw a command
+  starts exactly command-blind** (consolidation PR-10 of
+  `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-05). Under
+  `initialize_next_stage`, when the child's task fingerprint has a
+  `command` section and the parent's recorded one has none (or the parent
+  records none), `train_base._create_or_load_model` zeroes the command
+  columns of the policy's first layers and their optimizer moments
+  (`policy_loading.neutralize_command_columns`: PPO's actor and critic;
+  SAC's actor and every Q network of its critic and target critic, whose
+  command columns sit before the action) and proves on the child's
+  normalizer, before the first update, that the actions and values are
+  the parent's on zero commands and do not move with live ones
+  (`policy_loading.assert_command_blind`: 64 seeded observations, the
+  reference taken before the zeroing, then uniform commands and the
+  probe vector, within 1e-6). The task lineage records
+  `zeroed_command_parameters`. A parent trained under `"none"` never gave
+  those columns a gradient, so a live child would otherwise start from a
+  policy that reacts to commands it was never taught; a parent whose
+  fingerprint has a `command` section keeps its columns. The behavior
+  preparation zeroes and probes through the same two functions, with the
+  same zeroed parameters, report, refusals and messages, plus one refusal
+  on the probe vector that an exact zeroing never triggers; the widen
+  tool binds `VERIFICATION_ROLLOUT_SEED`, `ACTION_DELTA_ATOL` and its
+  optimizer table from `policy_loading`. Every committed stage is
+  `"none"`, so no stage trains differently and no digest moves.
 - **Commands come through the reserved hook, and a behavior recipe's
   identity is its task fingerprint** (consolidation PR-9 of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, decisions D-D2 and D-D9,

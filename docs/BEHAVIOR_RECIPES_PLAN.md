@@ -819,7 +819,12 @@ command dims are zero (so an allclose test on zero-padded observations
 cannot tell the two apart) and a measurable perturbation once commands are
 live. Hence the two pins above: the columns must be *exactly* zero, and the
 follow leaf's warm-start asserts a zero action delta on non-zero commands
-before its first update.
+before its first update. *Consolidation PR-10 (2026-10-05): `train_base`'s
+warm start does both for every live child whose parent never saw a
+command (`policy_loading.neutralize_command_columns`, proven by
+`assert_command_blind` on the seeded probe against the parent's own
+outputs on zero commands) and records the zeroed parameters in the task
+lineage.*
 
 **Env changes (Phase D).** `[env]` keys `command_mode` (`none` |
 `heading` | `heading_and_speed`), `command_speed_range`,

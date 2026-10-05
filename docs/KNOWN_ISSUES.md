@@ -358,7 +358,7 @@ robustness, **LOW** = cosmetic / QoL.
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
   `config.refuse_occupied_stage_dir` (`config.py:550-573`, called at
-  `train_base.py:1482`) lets any same-stage resume through. Against a
+  `train_base.py:1513`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -788,7 +788,10 @@ robustness, **LOW** = cosmetic / QoL.
   is its task fingerprint, whose versioned stage (`command-terrain/v2`)
   replaces the source-file hashes, so an edit that changes no meaning no
   longer strands exact resume; the rest of the second pipeline stays until
-  PR-10 .. PR-13.
+  PR-10 .. PR-13. **Update (2026-10-05, consolidation PR-10):** the
+  preparation's command-column zeroing and its probe are now the canonical
+  warm start's (`policy_loading.neutralize_command_columns` and
+  `assert_command_blind`); the rest stays until PR-11 .. PR-13.
 - **HIGH (terrain blocker)** — **every certified walker survives the plane and
   falls on a flat heightfield (measured 2026-09-25).** An eval-only run (seed
   1, nothing trained or written under `logs/`) of the `robust_best_model` pair
@@ -992,14 +995,14 @@ robustness, **LOW** = cosmetic / QoL.
   `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
   stage's weight over 500k steps by default). A `resume_same_stage` load
   attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
-  mode (`train_base.py:839-840`, called at :1244-1251), so the env trains at
+  mode (`train_base.py:870-871`, called at :1275-1282), so the env trains at
   the stage's full `forward_vel_weight` from the first resumed step. Since the
   gap review's TC1 fix a continuation keeps the checkpoint's step counter
-  (`train_base.py:1141-1155`, `reset_num_timesteps=not resuming` at :1272),
+  (`train_base.py:1172-1186`, `reset_num_timesteps=not resuming` at :1303),
   and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
   its position is recoverable; nothing re-applies it. The warm-up marker is
   cleared with a warning that the rest of the warm-up is not re-applied
-  (`train_base.py:549-563`); the ramp's remainder goes without a log line. It bites when a
+  (`train_base.py:580-594`); the ramp's remainder goes without a log line. It bites when a
   session dies early in a locomotion or behavior stage and the RESUME cell
   continues it: 200k steps into a 0.1 → 1.0 ramp, the policy meets the other
   0.54 of the weight in one step. Fix: re-attach the shaping on a

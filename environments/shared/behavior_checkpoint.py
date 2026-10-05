@@ -31,7 +31,14 @@ from environments.shared.plant_contract import (
     validate_model_plant,
     validate_recorded_identity,
 )
-from environments.shared.policy_loading import _checkpoint_algorithm, load_sb3_model
+from environments.shared.policy_loading import (
+    ACTION_DELTA_ATOL,
+    PolicyLoadError,
+    _checkpoint_algorithm,
+    assert_command_blind,
+    load_sb3_model,
+    neutralize_command_columns,
+)
 from environments.shared.result_bundle import sha256_file
 from environments.shared.species_names import resolve_species_id, species_display_names
 from environments.shared.stage_manifest import STAGE_ID_PATTERN
@@ -42,8 +49,9 @@ from environments.shared.task_fingerprint import (
 )
 
 PREPARATION_SCHEMA = "mesozoic.behavior-preparation/v2"
+#: The two first layers ``policy_loading.neutralize_command_columns`` zeroes in a PPO walker.
 COMMAND_LAYERS = ("mlp_extractor.policy_net.0", "mlp_extractor.value_net.0")
-ACTION_EQUIVALENCE_ATOL = 1e-6
+ACTION_EQUIVALENCE_ATOL = ACTION_DELTA_ATOL
 
 
 class BehaviorCheckpointError(ValueError):
@@ -154,26 +162,6 @@ def _normalizer(path: Path, venv: VecEnv) -> VecNormalize:
     return normalizer
 
 
-def _zero_command_connections(model: PPO, observation_dim: int) -> list[str]:
-    import torch
-
-    changed = []
-    for name in COMMAND_LAYERS:
-        layer = model.policy.get_submodule(name)
-        if not isinstance(layer, torch.nn.Linear) or layer.in_features != observation_dim:
-            raise BehaviorCheckpointError(f"Unsupported policy input layer: {name}")
-        with torch.no_grad():
-            layer.weight[:, -COMMAND_WIDTH:].zero_()
-            for key, value in model.policy.optimizer.state.get(layer.weight, {}).items():
-                if not torch.is_tensor(value) or value.ndim == 0:
-                    continue
-                if value.shape != layer.weight.shape:
-                    raise BehaviorCheckpointError(f"Unsupported optimizer tensor {name}.{key}: {tuple(value.shape)}")
-                value[:, -COMMAND_WIDTH:].zero_()
-        changed.append(f"{name}.weight")
-    return changed
-
-
 def prepare_behavior_checkpoint(
     model_path: str | Path,
     vecnorm_path: str | Path,
@@ -193,8 +181,6 @@ def prepare_behavior_checkpoint(
     reseeded to mean 0 / variance 1 (count kept), so commands enter the policy at
     O(1); every statistic, the commands' included, updates during training.
     """
-    import torch
-
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
     behavior = _identity(task_fingerprint)
     species = _species(species, behavior)
@@ -226,32 +212,21 @@ def prepare_behavior_checkpoint(
     model = _load_ppo(model_path, normalizer, learning_rate)
     validate_model_plant(model, current, artifact="loaded parent walker")
 
-    # Seeded synthetic raw observations exercise the complete normalization ->
-    # network path without consuming reset draws from the training environment.
-    rng = np.random.default_rng(3042)
-    raw = rng.normal(size=(64, current.observation_dim))
-    raw = normalizer.obs_rms.mean + raw * np.sqrt(normalizer.obs_rms.var + normalizer.epsilon)
-    raw[:, -COMMAND_WIDTH:] = 0.0
-    parent_inputs = normalizer.normalize_obs(raw)
-    parent_actions = model.predict(parent_inputs, deterministic=True)[0]
-    with torch.no_grad():
-        parent_values = model.policy.predict_values(torch.as_tensor(parent_inputs, device=model.device)).cpu().numpy()
-    changed = _zero_command_connections(model, current.observation_dim)
-    reseed_command_slice(normalizer.obs_rms)
-    commands = rng.uniform(-1.0, 1.0, size=(len(raw), COMMAND_WIDTH))
-    raw[:, -COMMAND_WIDTH:] = commands
-    prepared_inputs = normalizer.normalize_obs(raw)
-    prepared_actions = model.predict(prepared_inputs, deterministic=True)[0]
-    with torch.no_grad():
-        prepared_values = (
-            model.policy.predict_values(torch.as_tensor(prepared_inputs, device=model.device)).cpu().numpy()
-        )
-    action_delta = float(np.max(np.abs(prepared_actions - parent_actions)))
-    value_delta = float(np.max(np.abs(prepared_values - parent_values)))
-    if not np.isfinite(action_delta) or action_delta > ACTION_EQUIVALENCE_ATOL:
-        raise BehaviorCheckpointError(f"Command preparation changed parent actions: max delta {action_delta}")
-    if not np.isfinite(value_delta) or value_delta > ACTION_EQUIVALENCE_ATOL:
-        raise BehaviorCheckpointError(f"Command preparation changed parent values: max delta {value_delta}")
+    # The command-column primitive (policy_loading): seeded synthetic raw
+    # observations exercise the complete normalization -> network path without
+    # consuming reset draws from the training environment; the parent's actions
+    # and values on zero commands are taken before the command columns are
+    # zeroed and the slice reseeded, and must be unchanged on live commands
+    # afterwards.
+    def prepare() -> list[str]:
+        changed = neutralize_command_columns(model, observation_dim=current.observation_dim)
+        reseed_command_slice(normalizer.obs_rms)
+        return changed
+
+    try:
+        probe = assert_command_blind(model, normalizer, atol=ACTION_EQUIVALENCE_ATOL, prepare=prepare)
+    except PolicyLoadError as exc:
+        raise BehaviorCheckpointError(str(exc)) from exc
 
     report = {
         "schema": PREPARATION_SCHEMA,
@@ -269,15 +244,15 @@ def prepare_behavior_checkpoint(
         "learning_rate": float(learning_rate),
         "clip_range": 0.2,
         "clip_range_vf": None,
-        "zeroed_command_parameters": changed,
+        "zeroed_command_parameters": probe["prepared"],
         "optimizer_command_columns_zeroed": True,
         "command_normalization": "reseeded to mean 0 / variance 1, count kept; statistics keep updating",
         "command_stats_reseeded": True,
         "noncommand_stats": "preserved at preparation; adapt during training",
-        "equivalence_probe_seed": 3042,
-        "equivalence_probe_observations": len(raw),
-        "max_action_delta": action_delta,
-        "max_value_delta": value_delta,
+        "equivalence_probe_seed": probe["equivalence_probe_seed"],
+        "equivalence_probe_observations": probe["equivalence_probe_observations"],
+        "max_action_delta": probe["max_action_delta"],
+        "max_value_delta": probe["max_value_delta"],
     }
     for artifact in (model, normalizer):
         setattr(artifact, MODEL_IDENTITY_ATTRIBUTE, current.to_dict())

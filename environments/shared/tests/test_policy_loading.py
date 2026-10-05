@@ -23,11 +23,13 @@ resolver that moved here from ``train_base`` (cleanup CU-8b): one definition
 each, every caller importing them from this module at call time so one patch
 reaches all of them, ``train_base``'s old names bound to the same objects and
 read by no other code or test, and a bare ``policy_loading`` that resolves a
-sidecar without importing SB3, torch or ``train_base``. The last two sections
+sidecar without importing SB3, torch or ``train_base``. Two later sections
 hold the SB3 notebook's archive-load preflight, which moved here from its
 cell, and a pin that no notebook cell encodes SB3's periodic checkpoint name
 itself, as the RESUME cell's walk did until it moved into the library (both
-cleanup CU-6).
+cleanup CU-6). The last section holds the command-column primitive
+(consolidation PR-10) on small PPO and SAC models; ``test_train_base`` runs it
+through the canonical warm start on a walker-shaped T. rex model.
 """
 
 from __future__ import annotations
@@ -1620,3 +1622,431 @@ def test_no_notebook_cell_encodes_the_periodic_checkpoint_name():
         if (hits := _periodic_name_encodings(ast.parse(strip_magics(source))))
     }
     assert not offenders
+
+
+# ── consolidation PR-10: the command-column primitive ────────────────────────
+#
+# ``neutralize_command_columns`` and ``assert_command_blind`` on small PPO and SAC
+# models reading a 10-entry observation whose last three entries are the command
+# slice, constant zero while they trained, so their command columns hold random
+# initial weights. Every first layer's per-element moments are set to 0.123 in
+# all columns (a real "none" run leaves the command columns' moments exactly
+# zero), which makes a missed or an over-wide zeroing observable.
+
+_OBS, _ACT, _INJECTED = 10, 4, 0.123
+_COMMAND = slice(_OBS - 3, _OBS)
+
+
+def _first_layers(algorithm: str, n_critics: int = 2) -> list[str]:
+    if algorithm == "ppo":
+        return ["mlp_extractor.policy_net.0.weight", "mlp_extractor.value_net.0.weight"]
+    return ["actor.latent_pi.0.weight"] + [
+        f"{network}.qf{index}.0.weight" for network in ("critic", "critic_target") for index in range(n_critics)
+    ]
+
+
+def _optimizers(model: Any, algorithm: str) -> dict[str, Any]:
+    if algorithm == "ppo":
+        return {"": model.policy.optimizer}
+    return {"actor.": model.actor.optimizer, "critic.": model.critic.optimizer}
+
+
+def _command_model(algorithm: str, **policy_kwargs: Any) -> tuple[Any, Any]:
+    """A small PPO or SAC trained 16 steps on constant-zero commands, with its normalizer."""
+    pytest.importorskip("stable_baselines3")
+    import gymnasium as gym
+    import numpy as np
+    import torch
+    from stable_baselines3 import PPO, SAC
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    class CommandBox(gym.Env):
+        observation_space = gym.spaces.Box(-np.inf, np.inf, shape=(_OBS,), dtype=np.float32)
+        action_space = gym.spaces.Box(-1.0, 1.0, shape=(_ACT,), dtype=np.float32)
+
+        def _obs(self) -> Any:
+            obs = self.np_random.normal(0.0, 1.0, _OBS).astype(np.float32)
+            obs[_COMMAND] = 0.0
+            return obs
+
+        def reset(self, *, seed: "int | None" = None, options: Any = None) -> Any:
+            super().reset(seed=seed)
+            return self._obs(), {}
+
+        def step(self, action: Any) -> Any:
+            return self._obs(), float(-np.square(action - 0.2).sum()), False, False, {}
+
+    normalizer = VecNormalize(DummyVecEnv([CommandBox]), norm_reward=False)
+    kwargs: dict[str, Any] = {"seed": 5, "device": "cpu", "policy_kwargs": {"net_arch": [8, 8], **policy_kwargs}}
+    model: Any
+    if algorithm == "ppo":
+        model = PPO("MlpPolicy", normalizer, n_steps=16, batch_size=8, n_epochs=1, **kwargs)
+    else:
+        model = SAC("MlpPolicy", normalizer, learning_starts=4, batch_size=4, buffer_size=64, train_freq=4, **kwargs)
+    model.learn(16)
+    weights = dict(model.policy.named_parameters())
+    for optimizer in _optimizers(model, algorithm).values():
+        for name in _first_layers(algorithm, policy_kwargs.get("n_critics", 2)):
+            for value in optimizer.state.get(weights[name], {}).values():
+                if torch.is_tensor(value) and value.ndim == 2:
+                    value.fill_(_INJECTED)
+    return model, normalizer
+
+
+def _snapshot(model: Any, algorithm: str) -> tuple[dict[str, Any], dict[Any, Any]]:
+    """Every policy tensor, and every optimizer state entry keyed by its optimizer, parameter name and key."""
+    weights = {name: value.detach().clone() for name, value in model.policy.state_dict().items()}
+    names = {id(param): name for name, param in model.policy.named_parameters()}
+    moments = {
+        (prefix, names[id(param)], key): value.clone()
+        for prefix, optimizer in _optimizers(model, algorithm).items()
+        for param, fields in optimizer.state.items()
+        for key, value in fields.items()
+    }
+    return weights, moments
+
+
+def _assert_unchanged(model: Any, algorithm: str, snapshot: tuple[dict[str, Any], dict[Any, Any]]) -> None:
+    import torch
+
+    weights, moments = snapshot
+    now = _snapshot(model, algorithm)
+    assert now[0].keys() == weights.keys() and now[1].keys() == moments.keys()
+    for name, value in now[0].items():
+        assert torch.equal(value, weights[name]), name
+    for key, value in now[1].items():
+        assert torch.equal(value, moments[key]), key
+
+
+def test_the_command_probe_constants_are_one_definition():
+    """The widen tool and the behavior preparation bind policy_loading's objects; the probe defaults to them."""
+    import inspect
+
+    pytest.importorskip("numpy")
+    from environments.shared.scripts import widen_checkpoint as widen_module
+
+    assert (policy_loading.VERIFICATION_ROLLOUT_SEED, policy_loading.ACTION_DELTA_ATOL) == (3042, 1e-6)
+    assert widen_module.VERIFICATION_ROLLOUT_SEED is policy_loading.VERIFICATION_ROLLOUT_SEED
+    assert widen_module.ACTION_DELTA_ATOL is policy_loading.ACTION_DELTA_ATOL
+    assert widen_module._OPTIMIZER_MEMBERS is policy_loading._OPTIMIZER_MEMBERS
+    parameters = inspect.signature(policy_loading.assert_command_blind).parameters
+    assert list(parameters) == ["model", "normalizer", "seed", "atol", "prepare"]
+    assert parameters["seed"].default is policy_loading.VERIFICATION_ROLLOUT_SEED
+    assert parameters["atol"].default is policy_loading.ACTION_DELTA_ATOL
+    assert parameters["prepare"].default is None
+    assert all(parameters[name].kind is inspect.Parameter.KEYWORD_ONLY for name in ("seed", "atol", "prepare"))
+    observation_dim = inspect.signature(policy_loading.neutralize_command_columns).parameters["observation_dim"]
+    assert observation_dim.kind is inspect.Parameter.KEYWORD_ONLY
+    pytest.importorskip("stable_baselines3")
+    from environments.shared import behavior_checkpoint
+
+    assert behavior_checkpoint.ACTION_EQUIVALENCE_ATOL is policy_loading.ACTION_DELTA_ATOL
+
+
+def test_one_command_column_primitive_serves_both_preparations():
+    """The behavior preparation and the canonical warm start call the primitive once each and keep no copy of it.
+
+    The canonical warm start passes the model, its normalizer and the zeroing as ``prepare``, and nothing else: the
+    reference is the parent's own policy, and the seed and tolerance are the shared defaults.
+    """
+    probes: dict[str, ast.Call] = {}
+    for path, function in (
+        ("environments/shared/behavior_checkpoint.py", "prepare_behavior_checkpoint"),
+        ("environments/shared/train_base.py", "_create_or_load_model"),
+    ):
+        source = (REPO_ROOT / path).read_text(encoding="utf-8")
+        (tree,) = [
+            node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == function
+        ]
+        assert len(_named_calls(tree, "neutralize_command_columns")) == 1, path
+        calls = _named_calls(tree, "assert_command_blind")
+        assert len(calls) == 1, path
+        probes[function] = calls[0]
+        assert "_zero_command_connections" not in source, path
+    assert ".zero_()" not in (REPO_ROOT / "environments/shared/behavior_checkpoint.py").read_text(encoding="utf-8")
+    warm_start = probes["_create_or_load_model"]
+    assert len(warm_start.args) == 2 and [keyword.arg for keyword in warm_start.keywords] == ["prepare"]
+    assert len(_named_calls(warm_start.keywords[0].value, "neutralize_command_columns")) == 1
+
+
+@pytest.mark.parametrize(
+    "algorithm,policy_kwargs",
+    [
+        ("ppo", {}),
+        ("ppo", {"share_features_extractor": False}),
+        ("sac", {}),
+        ("sac", {"share_features_extractor": True}),
+        ("sac", {"n_critics": 3}),
+    ],
+)
+def test_neutralize_zeroes_exactly_the_command_columns_and_their_moments(algorithm, policy_kwargs):
+    """The observation's command columns of every first layer and of every per-element moment, and nothing else.
+
+    A SAC Q network reads the observation followed by the action, so its command columns sit before the action
+    block: the action columns, and every other tensor and moment, keep their values; ``step`` is untouched. Every
+    Q network of the critic and of its target is found, whether the extractors are shared or not; the targets have
+    no optimizer.
+    """
+    torch = pytest.importorskip("torch")
+    model, normalizer = _command_model(algorithm, **policy_kwargs)
+    try:
+        before = _snapshot(model, algorithm)
+        zeroed = policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+        assert zeroed == _first_layers(algorithm, policy_kwargs.get("n_critics", 2))
+        for name, value in model.policy.state_dict().items():
+            if name in zeroed:
+                assert torch.count_nonzero(before[0][name][:, _COMMAND]) > 0, f"{name} had random command columns"
+                assert torch.count_nonzero(value[:, _COMMAND]) == 0, name
+                assert torch.equal(value[:, : _OBS - 3], before[0][name][:, : _OBS - 3]), name
+                assert torch.equal(value[:, _OBS:], before[0][name][:, _OBS:]), f"{name}: the action columns"
+            else:
+                assert torch.equal(value, before[0][name]), name
+        after = _snapshot(model, algorithm)
+        assert after[1].keys() == before[1].keys()
+        trained = {(prefix, name) for prefix, name, _ in after[1]}
+        for prefix in _optimizers(model, algorithm):
+            for name in zeroed:
+                assert ((prefix, name) in trained) == (name.startswith(prefix) and "target" not in name), name
+        for (prefix, name, key), value in after[1].items():
+            old = before[1][(prefix, name, key)]
+            if name in zeroed and value.ndim == 2:
+                assert torch.all(old == _INJECTED), (name, key)
+                assert torch.count_nonzero(value[:, _COMMAND]) == 0, (name, key)
+                assert torch.all(torch.cat([value[:, : _OBS - 3], value[:, _OBS:]], dim=1) == _INJECTED), (name, key)
+            else:
+                assert key == "step" or name not in zeroed, (name, key)
+                assert torch.equal(value, old), (name, key)
+    finally:
+        normalizer.close()
+
+
+def test_neutralize_refuses_what_it_cannot_zero_exactly_and_changes_nothing():
+    """A non-SB3 model, a first layer that does not read the observation's width and a moment of another shape are
+    refused by name, in the layers' order and before any tensor changes (the foreign moment is on the SECOND layer)."""
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("stable_baselines3")
+    with pytest.raises(PolicyLoadError, match="PPO and SAC models only, not SimpleNamespace"):
+        policy_loading.neutralize_command_columns(SimpleNamespace(), observation_dim=_OBS)
+    with pytest.raises(PolicyLoadError, match="PPO and SAC models only, not SimpleNamespace"):
+        policy_loading.assert_command_blind(SimpleNamespace(), SimpleNamespace())
+    for algorithm in ("ppo", "sac"):
+        model, normalizer = _command_model(algorithm)
+        try:
+            first, second = (name.removesuffix(".weight") for name in _first_layers(algorithm)[:2])
+            before = _snapshot(model, algorithm)
+            with pytest.raises(PolicyLoadError, match=rf"^Unsupported policy input layer: {re.escape(first)}$"):
+                policy_loading.neutralize_command_columns(model, observation_dim=_OBS + 1)
+            _assert_unchanged(model, algorithm, before)
+            optimizer = model.policy.optimizer if algorithm == "ppo" else model.critic.optimizer
+            optimizer.state[model.policy.get_parameter(f"{second}.weight")]["exp_avg"] = torch.zeros(3)
+            before = _snapshot(model, algorithm)
+            with pytest.raises(
+                PolicyLoadError, match=rf"^Unsupported optimizer tensor {re.escape(second)}\.exp_avg: \(3,\)$"
+            ):
+                policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+            _assert_unchanged(model, algorithm, before)
+        finally:
+            normalizer.close()
+
+
+@pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+def test_the_probe_refuses_a_command_aware_policy_and_passes_it_neutralized(algorithm):
+    """Random command columns move the actions; neutralized ones leave actions and values exactly unchanged."""
+    model, normalizer = _command_model(algorithm)
+    try:
+        with pytest.raises(PolicyLoadError, match=r"^Command preparation changed parent actions: max delta "):
+            policy_loading.assert_command_blind(model, normalizer)
+        measured = policy_loading.assert_command_blind(model, normalizer, seed=7, atol=math.inf)
+        assert measured["equivalence_probe_seed"] == 7 and measured["max_action_delta"] > 1e-6
+        result = policy_loading.assert_command_blind(
+            model,
+            normalizer,
+            prepare=lambda: policy_loading.neutralize_command_columns(model, observation_dim=_OBS),
+        )
+        assert result == {
+            "equivalence_probe_seed": 3042,
+            "equivalence_probe_observations": 64,
+            "max_action_delta": 0.0,
+            "max_value_delta": 0.0,
+            "max_probe_vector_action_delta": 0.0,
+            "max_probe_vector_value_delta": 0.0,
+            "prepared": _first_layers(algorithm),
+        }
+        assert policy_loading.assert_command_blind(model, normalizer)["prepared"] is None
+    finally:
+        normalizer.close()
+
+
+@pytest.mark.parametrize(
+    "algorithm,left_live,message",
+    [
+        ("ppo", "mlp_extractor.value_net.0.weight", "values"),
+        ("sac", "critic.qf1.0.weight", "values"),
+        ("sac", "critic_target.qf0.0.weight", "values"),
+        ("sac", "actor.latent_pi.0.weight", "actions"),
+    ],
+)
+def test_the_probe_sees_every_layer_that_reads_the_command(algorithm, left_live, message):
+    """A command column left live in any one first layer -- a critic's or a target critic's included -- fails."""
+    torch = pytest.importorskip("torch")
+    model, normalizer = _command_model(algorithm)
+    try:
+        with torch.no_grad():
+            for name in _first_layers(algorithm):
+                if name != left_live:
+                    model.policy.get_parameter(name)[:, _COMMAND] = 0.0
+        with pytest.raises(PolicyLoadError, match=rf"^Command preparation changed parent {message}: max delta "):
+            policy_loading.assert_command_blind(model, normalizer)
+    finally:
+        normalizer.close()
+
+
+@pytest.mark.parametrize(
+    "algorithm,layer,message",
+    [
+        ("ppo", "mlp_extractor.policy_net.0.weight", "actions"),
+        ("ppo", "mlp_extractor.value_net.0.weight", "values"),
+        ("sac", "critic.qf0.0.weight", "values"),
+    ],
+)
+def test_the_probe_compares_with_the_policy_before_its_preparation(algorithm, layer, message):
+    """With ``prepare`` the reference is taken first, as the behavior preparation always compared the parent with
+    the prepared policy: a preparation that also zeroes a non-command column -- the actor's, or a critic's alone --
+    is refused, although its result is command-blind and a probe of the result alone passes."""
+    torch = pytest.importorskip("torch")
+    model, normalizer = _command_model(algorithm)
+    try:
+
+        def over_reach() -> list[str]:
+            zeroed = policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+            with torch.no_grad():
+                model.policy.get_parameter(layer)[:, _OBS - 4] = 0.0
+            return zeroed
+
+        with pytest.raises(PolicyLoadError, match=rf"^Command preparation changed parent {message}: max delta "):
+            policy_loading.assert_command_blind(model, normalizer, prepare=over_reach)
+        policy_loading.assert_command_blind(model, normalizer)
+    finally:
+        normalizer.close()
+
+
+@pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+def test_the_probe_draws_the_behavior_preparations_rows_and_moves_no_state(algorithm):
+    """By default seed 3042, and otherwise the seed given: 64 normal rows scaled by the statistics with the command
+    slice zero, then 64 x 3 uniform commands in [-1, 1] from the same generator (the behavior preparation's sequence
+    before PR-10), then ``COMMAND_PROBE_VECTOR``; no global RNG is drawn (SAC's actor acts deterministically) and no
+    statistic moves."""
+    import random
+
+    np = pytest.importorskip("numpy")
+    torch = pytest.importorskip("torch")
+    from environments.shared.command_frame import COMMAND_PROBE_VECTOR
+
+    model, normalizer = _command_model(algorithm)
+    try:
+        policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+        statistics = [normalizer.obs_rms.mean.copy(), normalizer.obs_rms.var.copy(), normalizer.obs_rms.count]
+        numpy_state, torch_state, python_state = np.random.get_state(), torch.get_rng_state(), random.getstate()
+        seen: list[Any] = []
+        normalize = normalizer.normalize_obs
+        normalizer.normalize_obs = lambda raw: seen.append(raw.copy()) or normalize(raw)
+        for seed, arguments in ((3042, {}), (7, {"seed": 7})):
+            seen.clear()
+            assert policy_loading.assert_command_blind(model, normalizer, **arguments)["equivalence_probe_seed"] == seed
+            assert torch.equal(torch_state, torch.get_rng_state()) and python_state == random.getstate()
+            assert np.array_equal(numpy_state[1], np.random.get_state()[1])
+            assert numpy_state[2] == np.random.get_state()[2]
+            np.testing.assert_array_equal(normalizer.obs_rms.mean, statistics[0])
+            np.testing.assert_array_equal(normalizer.obs_rms.var, statistics[1])
+            assert normalizer.obs_rms.count == statistics[2]
+            rng = np.random.default_rng(seed)
+            rows = statistics[0] + rng.normal(size=(64, _OBS)) * np.sqrt(statistics[1] + normalizer.epsilon)
+            rows[:, _COMMAND] = 0.0
+            assert len(seen) == 3
+            np.testing.assert_array_equal(seen[0], rows)
+            rows[:, _COMMAND] = rng.uniform(-1.0, 1.0, size=(64, 3))
+            np.testing.assert_array_equal(seen[1], rows)
+            rows[:, _COMMAND] = COMMAND_PROBE_VECTOR
+            np.testing.assert_array_equal(seen[2], rows)
+    finally:
+        normalizer.close()
+
+
+@pytest.mark.parametrize("message,blind", [("actions", None), ("values", "mlp_extractor.policy_net.0.weight")])
+def test_the_probe_vector_catches_a_command_the_uniform_rows_miss(message, blind):
+    """The widen tool's probe command is checked after the uniform rows, in its own words: here the normalizer hands
+    the policy the zero command's inputs for the uniform rows, so only the probe vector reaches the live columns --
+    the actor's, or the critic's alone when the actor's are zeroed -- and its actions or values are refused."""
+    torch = pytest.importorskip("torch")
+    model, normalizer = _command_model("ppo")
+    try:
+        if blind is not None:
+            with torch.no_grad():
+                model.policy.get_parameter(blind)[:, _COMMAND] = 0.0
+        calls: list[int] = []
+        normalize = normalizer.normalize_obs
+
+        def hide_the_uniform_commands(raw: Any) -> Any:
+            calls.append(1)
+            if len(calls) == 2:
+                raw = raw.copy()
+                raw[:, _COMMAND] = 0.0
+            return normalize(raw)
+
+        normalizer.normalize_obs = hide_the_uniform_commands
+        with pytest.raises(
+            PolicyLoadError,
+            match=rf"^Command preparation changed parent {message} on the probe command \(0\.25, -0\.5, 0\.75\): max delta ",
+        ):
+            policy_loading.assert_command_blind(model, normalizer)
+    finally:
+        normalizer.close()
+
+
+def test_the_probe_refuses_a_delta_it_cannot_measure():
+    """A non-finite delta is a refusal, not a pass hidden in a comparison with NaN: one NaN among the actions is
+    enough (a reduction that skips NaN would hide it)."""
+    np = pytest.importorskip("numpy")
+    model, normalizer = _command_model("ppo")
+    try:
+        policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+        predict = model.predict
+        calls: list[int] = []
+
+        def nan_after_the_reference(*args: Any, **kwargs: Any) -> Any:
+            actions, state = predict(*args, **kwargs)
+            calls.append(1)
+            if len(calls) > 1:
+                actions = actions.copy()
+                actions[0, 0] = np.nan
+            return actions, state
+
+        model.predict = nan_after_the_reference
+        with pytest.raises(PolicyLoadError, match=r"^Command preparation changed parent actions: max delta nan$"):
+            policy_loading.assert_command_blind(model, normalizer)
+    finally:
+        normalizer.close()
+
+
+def test_the_probe_refuses_a_value_delta_it_cannot_measure():
+    """The same for the critic: one NaN among the values is refused in the values' words."""
+    torch = pytest.importorskip("torch")
+    model, normalizer = _command_model("ppo")
+    try:
+        policy_loading.neutralize_command_columns(model, observation_dim=_OBS)
+        predict_values = model.policy.predict_values
+        calls: list[int] = []
+
+        def nan_after_the_reference(observations: Any) -> Any:
+            values = predict_values(observations)
+            calls.append(1)
+            if len(calls) > 1:
+                values = values.clone()
+                values[0, 0] = torch.nan
+            return values
+
+        model.policy.predict_values = nan_after_the_reference
+        with pytest.raises(PolicyLoadError, match=r"^Command preparation changed parent values: max delta nan$"):
+            policy_loading.assert_command_blind(model, normalizer)
+    finally:
+        normalizer.close()

@@ -1,5 +1,6 @@
 """Tests for shared training infrastructure (train_base.py)."""
 
+import copy
 import dataclasses
 import json
 import logging
@@ -2944,3 +2945,376 @@ class TestOneStageBody:
         monkeypatch.setattr(train_base, "_build_core_callbacks", build_core_callbacks)
         self._run_curriculum(tmp_path)
         assert earlier_alive == [[], [False], [False, False]]
+
+
+# ── consolidation PR-10: the command columns at a live child's warm start ────
+#
+# A walker-shaped T. rex model per algorithm (64 observations, 15 actions, the stance
+# stage's net_arch [512, 256]) trained 64 steps under "none": its command columns hold
+# their random initial weights. Non-zero moments are injected into every first
+# layer's command columns (a real walker's are exactly zero: zero inputs give zero
+# gradients) and the sidecar's command variance is a real walker's 1e-11. Each
+# load runs as ``_train_stage_body`` runs it: ``_load_vecnorm_into_envs`` with
+# the child's command mode, then ``_create_or_load_model`` with its fingerprint.
+
+_COMMAND_LAYERS = {
+    "ppo": ["mlp_extractor.policy_net.0.weight", "mlp_extractor.value_net.0.weight"],
+    "sac": [
+        "actor.latent_pi.0.weight",
+        "critic.qf0.0.weight",
+        "critic.qf1.0.weight",
+        "critic_target.qf0.0.weight",
+        "critic_target.qf1.0.weight",
+    ],
+}
+
+
+def _walker_optimizers(model, algorithm):
+    if algorithm == "ppo":
+        return {"": model.policy.optimizer}
+    return {"actor.": model.actor.optimizer, "critic.": model.critic.optimizer}
+
+
+def _restamped(stem, target, fingerprint):
+    """A copy of the archive *stem* (and its sidecar) recording *fingerprint* as its task (None: no fingerprint)."""
+    import shutil
+    import zipfile
+
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+    with zipfile.ZipFile(f"{stem}.zip") as archive, zipfile.ZipFile(f"{target}.zip", "w") as out:
+        for info in archive.infolist():
+            data = archive.read(info.filename)
+            if info.filename == "data":
+                metadata = json.loads(data)
+                metadata.pop(MODEL_TASK_ATTRIBUTE, None)
+                if fingerprint is not None:
+                    metadata[MODEL_TASK_ATTRIBUTE] = fingerprint
+                data = json.dumps(metadata).encode()
+            out.writestr(info, data)
+    shutil.copyfile(f"{stem}_vecnorm.pkl", f"{target}_vecnorm.pkl")
+    return target
+
+
+@pytest.fixture(scope="module")
+def never_live_walkers(tmp_path_factory):
+    pytest.importorskip("stable_baselines3")
+    torch = pytest.importorskip("torch")
+    from stable_baselines3 import PPO, SAC
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.config import load_stage_config
+    from environments.shared.direction_commands import DirectionCommandConfig
+    from environments.shared.species_registry import get_species_config
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, stage_task_fingerprint
+
+    root = tmp_path_factory.mktemp("never-live-walkers")
+    cfg = get_species_config("trex")
+    identity = current_plant_identity("trex")
+    stance, locomotion = load_stage_config("trex", 1), load_stage_config("trex", 2)
+    live_kwargs = dict(
+        locomotion["env_kwargs"], command_mode="heading_and_speed", command_config=DirectionCommandConfig()
+    )
+    probe_env = cfg.env_class(**live_kwargs)
+    manifest = probe_env.command_manifest()
+    probe_env.close()
+    fingerprints = {
+        "stance": stage_task_fingerprint("trex", 1, plant_identity=identity),
+        "locomotion": stage_task_fingerprint("trex", 2, plant_identity=identity),
+        "live": stage_task_fingerprint(
+            "trex", 2, env_kwargs=live_kwargs, plant_identity=identity, command_manifest=manifest
+        ),
+    }
+    assert "command" in fingerprints["live"] and "command" not in fingerprints["locomotion"]
+    walkers = {}
+    for algorithm, alg_cls, kwargs in (
+        ("ppo", PPO, {"n_steps": 32, "batch_size": 32, "n_epochs": 1}),
+        ("sac", SAC, {"learning_starts": 8, "batch_size": 16, "buffer_size": 200, "train_freq": 8}),
+    ):
+        venv = VecNormalize(
+            DummyVecEnv([lambda: cfg.env_class(**stance["env_kwargs"])]), norm_reward=algorithm == "ppo"
+        )
+        net_arch = stance[f"{algorithm}_kwargs"]["policy_kwargs"]["net_arch"]
+        model = alg_cls("MlpPolicy", venv, seed=3, device="cpu", policy_kwargs={"net_arch": net_arch}, **kwargs)
+        model.learn(64)
+        weights = dict(model.policy.named_parameters())
+        for prefix, optimizer in _walker_optimizers(model, algorithm).items():
+            for name in _COMMAND_LAYERS[algorithm]:
+                if name.startswith(prefix):
+                    for value in optimizer.state[weights[name]].values():
+                        if torch.is_tensor(value) and value.ndim == 2:
+                            assert torch.count_nonzero(value[:, 61:64]) == 0, "zero inputs, zero gradients"
+                            value[:, 61:64] = 0.123
+        venv.obs_rms.var[-3:] = 1e-11
+        for artifact in (model, venv):
+            attach_plant_identity(artifact, identity)
+        setattr(model, MODEL_TASK_ATTRIBUTE, fingerprints["stance"])
+        stem = root / algorithm
+        model.save(stem)
+        venv.save(f"{stem}_vecnorm.pkl")
+        venv.training = False
+        walkers[algorithm] = {
+            "stem": stem,
+            "model": model,
+            "normalizer": venv,
+            "weights": {name: value.detach().clone() for name, value in model.policy.state_dict().items()},
+            "moments": {
+                prefix: copy.deepcopy(optimizer.state_dict())
+                for prefix, optimizer in _walker_optimizers(model, algorithm).items()
+            },
+            "live_parent": _restamped(stem, root / f"{algorithm}_live", fingerprints["live"]),
+            "unfingerprinted": _restamped(stem, root / f"{algorithm}_unfingerprinted", None),
+        }
+    yield {
+        "cfg": cfg,
+        "identity": identity,
+        "stages": {"stance": stance, "locomotion": locomotion, "live": dict(locomotion, env_kwargs=live_kwargs)},
+        "fingerprints": fingerprints,
+        "live_kwargs": live_kwargs,
+        **walkers,
+    }
+    for algorithm in ("ppo", "sac"):
+        walkers[algorithm]["normalizer"].close()
+
+
+class TestCommandColumnWarmStart:
+    """A live child warm-started from a never-live parent starts exactly command-blind (consolidation PR-10)."""
+
+    def _warm_start(self, walkers, algorithm, stem, child, mode):
+        from environments.shared.policy_loading import _ensure_sb3
+        from environments.shared.train_base import create_vec_env
+
+        stage = 1 if child == "stance" else 2
+        stage_configs = {stage: walkers["stages"][child]}
+        envs = [
+            create_vec_env(
+                walkers["cfg"], stage_configs, stage, 1, seed, algorithm=algorithm, plant_identity=walkers["identity"]
+            )
+            for seed in (0, 1000)
+        ]
+        _load_vecnorm_into_envs(
+            str(stem),
+            *envs,
+            plant_identity=walkers["identity"],
+            task_load_mode=mode,
+            command_mode="heading_and_speed" if child == "live" else "none",
+        )
+        model = _create_or_load_model(
+            _ensure_sb3(),
+            algorithm,
+            {"device": "cpu", "seed": 0},
+            envs[0],
+            str(stem),
+            plant_identity=walkers["identity"],
+            task_fingerprint=walkers["fingerprints"][child],
+            task_load_mode=mode,
+        )
+        return model, envs
+
+    @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+    def test_a_live_child_starts_command_blind_from_a_never_live_parent_then_learns_its_commands(
+        self, never_live_walkers, algorithm, tmp_path
+    ):
+        np = pytest.importorskip("numpy")
+        torch = pytest.importorskip("torch")
+        from environments.shared.task_fingerprint import MODEL_TASK_LINEAGE_ATTRIBUTE, read_checkpoint_attribute
+
+        walkers = never_live_walkers
+        walker = walkers[algorithm]
+        model, (train_env, eval_env) = self._warm_start(
+            walkers, algorithm, walker["stem"], "live", "initialize_next_stage"
+        )
+        try:
+            names = _COMMAND_LAYERS[algorithm]
+            assert getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE) == {
+                "mode": "initialize_next_stage",
+                "parent_task_sha256": walkers["fingerprints"]["stance"]["task_sha256"],
+                "child_task_sha256": walkers["fingerprints"]["live"]["task_sha256"],
+                "parent_species": "trex",
+                "parent_stage": 1,
+                "zeroed_command_parameters": names,
+            }
+            # The command columns (the observation's 61..63, before a Q network's action block) and their moments
+            # are zero; every other weight, column and moment is the parent's.
+            for name, value in model.policy.state_dict().items():
+                parent = walker["weights"][name]
+                if name in names:
+                    assert torch.count_nonzero(parent[:, 61:64]) > 0
+                    assert torch.count_nonzero(value[:, 61:64]) == 0, name
+                    assert torch.equal(value[:, :61], parent[:, :61]) and torch.equal(value[:, 64:], parent[:, 64:])
+                else:
+                    assert torch.equal(value, parent), name
+            for prefix, optimizer in _walker_optimizers(model, algorithm).items():
+                saved = walker["moments"][prefix]["state"]
+                for index, fields in optimizer.state_dict()["state"].items():
+                    for key, value in fields.items():
+                        expected = torch.as_tensor(saved[index][key]).clone()
+                        if expected.ndim == 2 and torch.all(expected[:, 61:64] == 0.123):
+                            expected[:, 61:64] = 0.0
+                        assert torch.equal(torch.as_tensor(value), expected), (prefix, index, key)
+            # Exact transfer on real-env observations: the same action with and without a live command,
+            # and the parent's own action on zero commands under its own statistics.
+            env = walkers["cfg"].env_class(**walkers["live_kwargs"])
+            parent, parent_stats = walker["model"], walker["normalizer"]
+            try:
+                obs, _ = env.reset(seed=11)
+                for _ in range(20):
+                    assert np.count_nonzero(obs[-3:]) > 0, "a live command"
+                    zero = obs.copy()
+                    zero[-3:] = 0.0
+                    action = model.predict(train_env.normalize_obs(obs), deterministic=True)[0]
+                    np.testing.assert_array_equal(
+                        action, model.predict(train_env.normalize_obs(zero), deterministic=True)[0]
+                    )
+                    np.testing.assert_array_equal(
+                        action, parent.predict(parent_stats.normalize_obs(zero), deterministic=True)[0]
+                    )
+                    obs, _, terminated, truncated, _ = env.step(action)
+                    if terminated or truncated:
+                        obs, _ = env.reset()
+            finally:
+                env.close()
+            # The lineage travels with every later save.
+            model.save(tmp_path / "child")
+            lineage = read_checkpoint_attribute(tmp_path / "child.zip", MODEL_TASK_LINEAGE_ATTRIBUTE)
+            assert lineage["zeroed_command_parameters"] == names
+            # Training on live commands moves the command columns off zero.
+            model.learn(32, reset_num_timesteps=False)
+            weights = dict(model.policy.named_parameters())
+            for name in names if algorithm == "ppo" else names[:3]:
+                assert torch.count_nonzero(weights[name][:, 61:64]) > 0, name
+                assert torch.isfinite(weights[name]).all()
+        finally:
+            train_env.close()
+            eval_env.close()
+
+    @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+    @pytest.mark.parametrize(
+        "parent,child,mode",
+        [
+            ("stem", "locomotion", "initialize_next_stage"),  # every committed stage: command_mode "none"
+            ("stem", "stance", "resume_same_stage"),
+            ("live_parent", "live", "initialize_next_stage"),  # a parent that saw commands keeps what it learned
+            ("live_parent", "live", "resume_same_stage"),
+            ("unfingerprinted", "live", "resume_same_stage"),  # minted before 2026-08-15: no lineage, no zeroing
+        ],
+    )
+    def test_any_other_load_leaves_the_policy_untouched_and_never_calls_the_primitive(
+        self, never_live_walkers, monkeypatch, algorithm, parent, child, mode
+    ):
+        torch = pytest.importorskip("torch")
+        from environments.shared import policy_loading
+        from environments.shared.task_fingerprint import MODEL_TASK_LINEAGE_ATTRIBUTE
+
+        def refuse(*args, **kwargs):
+            raise AssertionError("the command-column primitive must not run here")
+
+        monkeypatch.setattr(policy_loading, "neutralize_command_columns", refuse)
+        monkeypatch.setattr(policy_loading, "assert_command_blind", refuse)
+        walker = never_live_walkers[algorithm]
+        model, envs = self._warm_start(never_live_walkers, algorithm, walker[parent], child, mode)
+        try:
+            for name, value in model.policy.state_dict().items():
+                assert torch.equal(value, walker["weights"][name]), name
+            for prefix, optimizer in _walker_optimizers(model, algorithm).items():
+                saved = walker["moments"][prefix]["state"]
+                for index, fields in optimizer.state_dict()["state"].items():
+                    for key, value in fields.items():
+                        assert torch.equal(torch.as_tensor(value), torch.as_tensor(saved[index][key]))
+            lineage = getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE, None)
+            if mode == "resume_same_stage":
+                assert lineage is None
+            else:
+                assert set(lineage) == {
+                    "mode",
+                    "parent_task_sha256",
+                    "child_task_sha256",
+                    "parent_species",
+                    "parent_stage",
+                }
+        finally:
+            for env in envs:
+                env.close()
+
+    def test_a_parent_without_a_fingerprint_counts_as_never_live(self, never_live_walkers):
+        """Minted before 2026-08-15: nothing records a command, so the columns are neutralized (parentless lineage)."""
+        from environments.shared.task_fingerprint import MODEL_TASK_LINEAGE_ATTRIBUTE
+
+        walker = never_live_walkers["ppo"]
+        model, envs = self._warm_start(
+            never_live_walkers, "ppo", walker["unfingerprinted"], "live", "initialize_next_stage"
+        )
+        try:
+            assert getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE) == {
+                "mode": "initialize_next_stage",
+                "parent_task_sha256": None,
+                "child_task_sha256": never_live_walkers["fingerprints"]["live"]["task_sha256"],
+                "zeroed_command_parameters": _COMMAND_LAYERS["ppo"],
+            }
+        finally:
+            for env in envs:
+                env.close()
+
+    @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+    def test_the_zeroing_and_its_probe_draw_no_global_rng(self, never_live_walkers, algorithm):
+        """The load reseeds the global generators (seed 0), so a live child, zeroed and probed, leaves torch's,
+        numpy's and Python's where a "none" child of the same parent leaves them: its training draws what it would
+        have drawn (SAC's actor is probed deterministically)."""
+        import random
+
+        np = pytest.importorskip("numpy")
+        torch = pytest.importorskip("torch")
+        from environments.shared.task_fingerprint import MODEL_TASK_LINEAGE_ATTRIBUTE
+
+        walker = never_live_walkers[algorithm]
+        states = {}
+        for child in ("locomotion", "live"):
+            model, envs = self._warm_start(
+                never_live_walkers, algorithm, walker["stem"], child, "initialize_next_stage"
+            )
+            try:
+                states[child] = (torch.get_rng_state(), np.random.get_state(), random.getstate())
+                zeroed = getattr(model, MODEL_TASK_LINEAGE_ATTRIBUTE).get("zeroed_command_parameters")
+                assert zeroed == (_COMMAND_LAYERS[algorithm] if child == "live" else None)
+            finally:
+                for env in envs:
+                    env.close()
+        (none_torch, none_numpy, none_python), (live_torch, live_numpy, live_python) = states.values()
+        assert torch.equal(none_torch, live_torch) and none_python == live_python
+        assert np.array_equal(none_numpy[1], live_numpy[1]) and none_numpy[2:] == live_numpy[2:]
+
+    @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+    def test_a_zeroing_that_reaches_past_the_command_is_refused_against_the_parent(
+        self, never_live_walkers, monkeypatch, algorithm
+    ):
+        """The reference is the parent's policy, taken before the zeroing: a zeroing that also clears a non-command
+        column (the observation's 60, just before the command slice) leaves a command-blind policy that is not the
+        parent's, and the warm start refuses it."""
+        torch = pytest.importorskip("torch")
+        from environments.shared import policy_loading
+
+        neutralize = policy_loading.neutralize_command_columns
+
+        def over_reach(model, *, observation_dim):
+            zeroed = neutralize(model, observation_dim=observation_dim)
+            with torch.no_grad():
+                model.policy.get_parameter(_COMMAND_LAYERS[algorithm][0])[:, 60] = 0.0
+            return zeroed
+
+        monkeypatch.setattr(policy_loading, "neutralize_command_columns", over_reach)
+        walker = never_live_walkers[algorithm]
+        with pytest.raises(
+            policy_loading.PolicyLoadError, match=r"^Command preparation changed parent actions: max delta "
+        ):
+            self._warm_start(never_live_walkers, algorithm, walker["stem"], "live", "initialize_next_stage")
+
+    def test_a_policy_left_command_aware_is_refused_before_training(self, never_live_walkers, monkeypatch):
+        """The probe, not the zeroing alone, is what lets training start."""
+        from environments.shared import policy_loading
+
+        monkeypatch.setattr(
+            policy_loading, "neutralize_command_columns", lambda model, *, observation_dim: _COMMAND_LAYERS["ppo"]
+        )
+        walker = never_live_walkers["ppo"]
+        with pytest.raises(policy_loading.PolicyLoadError, match="^Command preparation changed parent actions"):
+            self._warm_start(never_live_walkers, "ppo", walker["stem"], "live", "initialize_next_stage")
