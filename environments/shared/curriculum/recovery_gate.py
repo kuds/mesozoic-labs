@@ -11,8 +11,10 @@ Why an exact binomial bound: recovery success is a genuine binary event
 per episode (unlike stance duty, which is continuous), so the Student-t
 machinery the stance gate uses is the wrong shape here.  The bounds are
 exact Clopper-Pearson, computed scipy-free by bisection on the binomial
-tail; the split plan's own pinned figures are the regression tests
-(LCB95 of 34/40 = 0.72526; one-sided 95% upper bound of 0/40 = 7.216%).
+tail (the lower bound lives in ``binomial.py``, which the gait measurement
+identity hashes, and is re-exported here); the split plan's own pinned
+figures are the regression tests (LCB95 of 34/40 = 0.72526; one-sided 95%
+upper bound of 0/40 = 7.216%).
 
 The paired null-superiority statistic lives here too: the same seeds and
 the same push schedules are run under the policy and under each null
@@ -35,51 +37,10 @@ import math
 from dataclasses import dataclass
 from typing import Sequence
 
+from .binomial import _binom_cdf, binomial_lcb
 from .stance_gate import one_sided_t95
 
 RECOVERY_GATE_KIND = "recovery_quality/v1"
-
-
-def _log_binom_pmf(k: int, n: int, p: float) -> float:
-    if p <= 0.0:
-        return 0.0 if k == 0 else -math.inf
-    if p >= 1.0:
-        return 0.0 if k == n else -math.inf
-    return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1) + k * math.log(p) + (n - k) * math.log1p(-p)
-
-
-def _binom_cdf(k: int, n: int, p: float) -> float:
-    """P(X <= k) for X ~ Binomial(n, p), in a numerically safe direct sum."""
-    if k < 0:
-        return 0.0
-    if k >= n:
-        return 1.0
-    total = 0.0
-    for i in range(0, k + 1):
-        total += math.exp(_log_binom_pmf(i, n, p))
-    return min(total, 1.0)
-
-
-def binomial_lcb(successes: int, trials: int, *, alpha: float = 0.05) -> float:
-    """Exact one-sided Clopper-Pearson LOWER bound on a success probability.
-
-    The smallest p that the data cannot reject at level *alpha*: solves
-    ``P(X >= successes | p) = alpha``.  0.0 when there are no successes.
-    """
-    if trials <= 0:
-        raise ValueError("trials must be positive")
-    if not 0 <= successes <= trials:
-        raise ValueError("successes must be in [0, trials]")
-    if successes == 0:
-        return 0.0
-    lo, hi = 0.0, 1.0
-    for _ in range(80):
-        mid = (lo + hi) / 2.0
-        if 1.0 - _binom_cdf(successes - 1, trials, mid) < alpha:
-            lo = mid
-        else:
-            hi = mid
-    return lo
 
 
 def binomial_ucb(failures_complement_successes: int, trials: int, *, alpha: float = 0.05) -> float:

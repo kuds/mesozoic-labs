@@ -18,9 +18,12 @@ def _provenance(model, **panel):
     return checkpoint_seed_provenance(model, stage=2, species="trex", **panel)
 
 
-def _checkpoint(root: Path, *, run_seed=42, run_envs=4, model_seed=42, model_envs=4, models=True):
+def _checkpoint(root: Path, *, run_seed=42, run_envs=4, model_seed=42, model_envs=4, models=True, hyperparameters=None):
     root.mkdir(parents=True, exist_ok=True)
-    (root / "stage_config.json").write_text(json.dumps({"run": {"seed": run_seed, "n_envs": run_envs}}))
+    record = {"run": {"seed": run_seed, "n_envs": run_envs}}
+    if hyperparameters is not None:
+        record["hyperparameters"] = hyperparameters
+    (root / "stage_config.json").write_text(json.dumps(record))
     directory = root / "models" if models else root
     directory.mkdir(exist_ok=True)
     path = directory / "robust_best_model.zip"
@@ -230,3 +233,42 @@ def test_malformed_role_blocks_refuse(tmp_path, value):
 def test_stage_reference_is_required(tmp_path):
     with pytest.raises(ValueError, match="stage reference"):
         checkpoint_seed_provenance(_checkpoint(tmp_path), seed_start=3042, episodes=40, stage=None)  # type: ignore[arg-type]
+
+
+def test_a_policy_seed_the_algorithm_block_names_binds_the_checkpoint(tmp_path):
+    """PL-3: under D-D11 (``--override ppo.seed=N``) the checkpoint records the block's seed, not ``run.seed``.
+
+    The training environments are seeded with ``run.seed+rank`` and then reset
+    at ``policy_seed+rank`` when Stable-Baselines3 seeds the policy, so the
+    policy seed's range is a used one as well.
+    """
+    model = _checkpoint(tmp_path, model_seed=7, hyperparameters={"seed": 7, "n_steps": 2048})
+    evidence = _provenance(model, seed_start=3042, episodes=40)
+    assert evidence["training_seed"] == 42 and evidence["checkpoint_model_seed"] == 7
+    # Without a block seed the binding is what it always was.
+    plain = _provenance(
+        _checkpoint(tmp_path / "plain", hyperparameters={"n_steps": 2048}), seed_start=3042, episodes=40
+    )
+    assert plain == _provenance(_checkpoint(tmp_path / "bare"), seed_start=3042, episodes=40)
+    with pytest.raises(ValueError, match="seed/n_envs do not match"):
+        _provenance(
+            _checkpoint(tmp_path / "unseeded", model_seed=42, hyperparameters={"seed": 7}), seed_start=3042, episodes=40
+        )
+    with pytest.raises(ValueError, match="hyperparameters.seed"):
+        _provenance(
+            _checkpoint(tmp_path / "bad", model_seed=7, hyperparameters={"seed": 7.0}), seed_start=3042, episodes=40
+        )
+
+
+@pytest.mark.parametrize("seed_start,episodes", [(7, 1), (10, 1), (5, 3)])
+def test_the_policy_seed_training_range_is_a_used_seed_range(tmp_path, seed_start, episodes):
+    model = _checkpoint(tmp_path, model_seed=7, hyperparameters={"seed": 7})
+    with pytest.raises(ValueError, match="policy seed"):
+        _provenance(model, seed_start=seed_start, episodes=episodes)
+    assert _provenance(model, seed_start=11, episodes=31)
+
+
+def test_a_role_inside_the_policy_seed_range_is_proven_and_adds_nothing(tmp_path):
+    model = _checkpoint(tmp_path, model_seed=7, hyperparameters={"seed": 7})
+    (tmp_path / "provenance.json").write_text(json.dumps({"seed_roles": {"policy": 7}}))
+    assert _provenance(model, seed_start=3042, episodes=40)["additional_seed_roles"] == {}

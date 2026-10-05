@@ -31,6 +31,13 @@ MEASUREMENT_SOURCES = {
     "environments/shared/gait/morphology.py",
     "environments/shared/gait/recorder.py",
     "environments/shared/curriculum/gait_gate.py",
+    "environments/shared/curriculum/binomial.py",
+}
+#: In-repo modules a hashed source may import without being hashed, each
+#: because it shapes no stored metric or verdict.
+UNHASHED_IMPORTS = {
+    "environments.shared.record_fields": "checks the declared protocol digest's format",
+    "environments.shared.species_names": "maps a species alias to its registry id",
 }
 
 
@@ -58,7 +65,8 @@ def test_protocol_hash_covers_only_the_measurement_and_classification_code():
 def _tree(root, *, edit=None, crlf=None):
     """A copy of the hashed sources (plus the unrelated shared readers) under *root*."""
     shared = root / "environments" / "shared"
-    for relative in (*MEASUREMENT_SOURCES, "environments/shared/reporting/gates.py"):
+    unrelated = ("environments/shared/reporting/gates.py", "environments/shared/curriculum/recovery_gate.py")
+    for relative in (*MEASUREMENT_SOURCES, *unrelated):
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPOSITORY_ROOT / relative, target)
@@ -77,6 +85,9 @@ def _tree(root, *, edit=None, crlf=None):
         ("environments/shared/reporting/gates.py", False),  # a comment in the shared reader revokes nothing
         ("environments/shared/gait/metrics.py", True),
         ("environments/shared/curriculum/gait_gate.py", True),
+        # PL-2: the success bound the gait verdict is judged on.
+        ("environments/shared/curriculum/binomial.py", True),
+        ("environments/shared/curriculum/recovery_gate.py", False),
     ],
 )
 def test_only_measurement_edits_move_the_planned_hash(tmp_path, monkeypatch, edit, moves):
@@ -88,6 +99,38 @@ def test_only_measurement_edits_move_the_planned_hash(tmp_path, monkeypatch, edi
 
     base = hashes(tmp_path / "base")
     assert (hashes(tmp_path / "edited", edit=edit) != base) is moves
+
+
+def _in_repo_imports(relative):
+    """The ``environments`` modules *relative* imports, at any depth of the file, relative imports resolved."""
+    import ast
+
+    package = relative.removesuffix(".py").replace("/", ".").rsplit(".", 1)[0]
+    found = set()
+    for node in ast.walk(ast.parse((REPOSITORY_ROOT / relative).read_text())):
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = package.rsplit(".", node.level - 1)[0] if node.level > 1 else package
+                module = f"{base}.{node.module}" if node.module else base
+            else:
+                module = node.module or ""
+            if module.startswith("environments."):
+                found.add(module)
+        elif isinstance(node, ast.Import):
+            found.update(alias.name for alias in node.names if alias.name.startswith("environments."))
+    return found
+
+
+def test_every_module_a_hashed_source_imports_is_hashed():
+    """PL-2: code that forms a gait verdict cannot sit outside the identity in an imported module.
+
+    ``gait_gate`` once judged its success bound with ``recovery_gate.binomial_lcb``,
+    which the identity did not hash: an edit there changed which panels certify
+    while every planned hash stayed valid.
+    """
+    hashed = {relative.removesuffix(".py").replace("/", ".") for relative in MEASUREMENT_SOURCES}
+    imported = set().union(*(_in_repo_imports(relative) for relative in MEASUREMENT_SOURCES))
+    assert imported - hashed == set(UNHASHED_IMPORTS)
 
 
 def test_a_crlf_checkout_is_the_same_implementation(tmp_path, monkeypatch):
@@ -153,6 +196,70 @@ def test_panel_overlapping_the_run_seeds_is_refused_before_training(seed, n_envs
     assert check_gait_stage(SPECIES, 2, _gait_stage(), training_seed=42, n_envs=4)
 
 
+def test_a_policy_seed_override_is_checked_before_training():
+    """PL-3: a seed the run's algorithm block names (D-D11) resets the training environments too."""
+    config = _gait_stage()
+    config["ppo_kwargs"] = {"seed": 3040}
+    with pytest.raises(GaitPreflightError, match="policy seed"):
+        check_gait_stage(SPECIES, 2, config, training_seed=42, n_envs=4, algorithm="PPO")
+    with pytest.raises(GaitPreflightError, match="policy seed"):
+        check_gait_stages(SPECIES, {2: config}, [2], training_seed=42, n_envs=4, algorithm="ppo")
+    # Another algorithm's block is not this run's policy seed.
+    assert check_gait_stage(SPECIES, 2, config, training_seed=42, n_envs=4, algorithm="SAC")
+    config["ppo_kwargs"] = {"seed": 7}
+    assert check_gait_stage(SPECIES, 2, config, training_seed=42, n_envs=4, algorithm="PPO")
+    config["ppo_kwargs"] = {"seed": "7"}
+    with pytest.raises(GaitPreflightError, match="not an integer"):
+        check_gait_stage(SPECIES, 2, config, training_seed=42, n_envs=4, algorithm="PPO")
+
+
+def test_a_policy_seed_override_trains_into_a_panel_its_binding_accepts(tmp_path):
+    """PL-3 end to end: ``--override ppo.seed=7`` passes the preflight, and the checkpoint it trains binds.
+
+    The checkpoint records the block's seed (train_base's ``setdefault``) beside
+    ``stage_config.json``'s ``run.seed``; the binding used to refuse it after
+    the whole budget.
+    """
+    pytest.importorskip("stable_baselines3")
+    import json
+
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.vec_env import DummyVecEnv
+
+    from environments.shared.cli import _apply_overrides
+    from environments.shared.config import save_stage_config
+    from environments.shared.gait.seeds import checkpoint_seed_provenance
+
+    configs = {2: {**_gait_stage(), "ppo_kwargs": {"n_steps": 4}}}
+    _apply_overrides(configs, ["ppo.seed=7"], "trex")
+    assert configs[2]["ppo_kwargs"]["seed"] == 7
+    assert check_gait_stage(SPECIES, 2, configs[2], training_seed=42, n_envs=2, algorithm="PPO")
+    model = PPO(
+        "MlpPolicy",
+        DummyVecEnv([lambda: TRexEnv(max_episode_steps=5)] * 2),
+        n_steps=4,
+        batch_size=4,
+        n_epochs=1,
+        policy_kwargs={"net_arch": [8]},
+        seed=configs[2]["ppo_kwargs"]["seed"],
+        device="cpu",
+    )
+    (tmp_path / "models").mkdir()
+    model.save(tmp_path / "models" / "robust_best_model.zip")
+    save_stage_config(
+        tmp_path, 2, configs[2], "PPO", extra={"seed": 42, "n_envs": 2}, env_class=TRexEnv, species="trex"
+    )
+    assert json.loads((tmp_path / "stage_config.json").read_text())["hyperparameters"]["seed"] == 7
+    evidence = checkpoint_seed_provenance(
+        tmp_path / "models" / "robust_best_model.zip",
+        seed_start=PUBLICATION_SEED_START,
+        episodes=40,
+        stage=2,
+        species="trex",
+    )
+    assert evidence["training_seed"] == 42 and evidence["checkpoint_model_seed"] == 7
+
+
 def test_check_gait_stages_names_every_failure():
     stale = _gait_stage(measurement_protocol_sha256="sha256:" + "0" * 64)
     with pytest.raises(GaitPreflightError) as error:
@@ -173,6 +280,25 @@ def test_train_curriculum_refuses_a_stale_gait_declaration_before_writing(tmp_pa
     output = tmp_path / "run"
     with pytest.raises(GaitPreflightError, match="declares measurement_protocol_sha256"):
         train_curriculum(get_species_config("trex"), configs, output_dir=str(output), target=2)
+    assert not output.exists()
+
+
+def test_train_curriculum_checks_the_policy_seed_of_its_algorithm_before_writing(tmp_path):
+    pytest.importorskip("stable_baselines3")
+    from environments.shared.config import load_all_stages
+    from environments.shared.species_registry import get_species_config
+    from environments.shared.train_base import train_curriculum
+
+    configs = load_all_stages("trex")
+    gated = _gait_stage()
+    gated["env_kwargs"] = dict(configs[2]["env_kwargs"], **gated["env_kwargs"])
+    gated["curriculum_kwargs"]["measurement_protocol_sha256"] = protocol_sha256(
+        stage_measurement_protocol(SPECIES, gated, episodes=40, seed_start=PUBLICATION_SEED_START)
+    )
+    configs[2] = dict(configs[2], **gated, ppo_kwargs={**configs[2]["ppo_kwargs"], "seed": 3040})
+    output = tmp_path / "run"
+    with pytest.raises(GaitPreflightError, match="policy seed"):
+        train_curriculum(get_species_config("trex"), configs, output_dir=str(output), target=2, seed=42, n_envs=4)
     assert not output.exists()
 
 

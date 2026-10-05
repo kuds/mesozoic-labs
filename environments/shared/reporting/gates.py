@@ -701,7 +701,7 @@ def _replay_gait_traces(
     from environments.shared.record_fields import is_sha256_digest
     from environments.shared.result_bundle.hashing import canonical_json_sha256, sha256_file
     from environments.shared.species_registry import get_species_config
-    from environments.shared.task_fingerprint import stage_task_fingerprint
+    from environments.shared.task_fingerprint import constructor_task_differences, stage_task_fingerprint
 
     detector = protocol_payload.get("detector")
     panel = protocol_payload.get("panel")
@@ -745,14 +745,29 @@ def _replay_gait_traces(
         validate_environment_plant(env, plant, artifact="gait raw evidence replay")
         if report.get("plant_identity") != plant.to_dict():
             raise ValueError("gait report plant identity does not match the current compiled plant")
+        # The recorded task must be what today's code derives from its own
+        # env section on the current plant, and the recorded constructor
+        # must build it.  The constructor is compared key by key, never
+        # re-hashed: save_stage_config writes every default out, and a
+        # re-derived compsognathus task then keeps the quiet push keys its
+        # trainer carved out.
+        recorded_task = report.get("task_fingerprint")
+        recorded_env = recorded_task.get("env") if isinstance(recorded_task, Mapping) else None
+        if not isinstance(recorded_env, Mapping):
+            raise ValueError("gait report records no task fingerprint environment")
         try:
             task = stage_task_fingerprint(
-                report["species"], report["stage"], env_kwargs=dict(env_kwargs), plant_identity=plant
+                report["species"], report["stage"], env_kwargs=dict(recorded_env), plant_identity=plant
             )
+            differing = constructor_task_differences(report["species"], env_kwargs, task)
         except RuntimeError as exc:
             raise ValueError(f"gait task cannot be re-derived: {exc}") from exc
-        if report.get("task_fingerprint") != task or report.get("task_sha256") != task["task_sha256"]:
-            raise ValueError("gait report task fingerprint does not match the current recorded constructor")
+        if recorded_task != task or report.get("task_sha256") != task["task_sha256"]:
+            raise ValueError("gait report task fingerprint does not re-derive on the current code and plant")
+        if differing:
+            raise ValueError(
+                "the recorded environment constructor does not build the gait report's task: " + ", ".join(differing)
+            )
         actual_morphology = GaitMorphology.from_env(env, report["species"])
         if canonical_json_sha256(actual_morphology.describe()) != canonical_json_sha256(morphology):
             raise ValueError("gait morphology scales or geometry differ from the current recorded plant")

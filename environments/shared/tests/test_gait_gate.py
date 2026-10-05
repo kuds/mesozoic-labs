@@ -760,6 +760,7 @@ def _fake_report_module(monkeypatch, observed):
 
     module.write_gait_report = fake_writer
     module.stage_panel = real.stage_panel
+    module.clear_panel_files = real.clear_panel_files
     monkeypatch.setitem(sys.modules, module.__name__, module)
 
 
@@ -933,16 +934,26 @@ def test_publication_rederives_gait_and_rejects_unbound_or_laundered_claims(tmp_
         _validate_gait_evidence(tmp_path, curriculum(), **params)
 
 
-@pytest.mark.parametrize("reason", ["invalid_gate", "no_handoff"])
+@pytest.mark.parametrize("reason", ["invalid_gate", "no_handoff", "development_off", "no_development_episodes"])
 def test_failed_fresh_generation_invalidates_older_certificate(tmp_path, reason):
+    """A skipped or failed panel removes the earlier report with every earlier panel file (PL-7)."""
     from environments.shared.reporting.stage_artifacts import _write_gait_report
 
     _panel(tmp_path)
+    assert (tmp_path / "gait_panel.csv").is_file() and any((tmp_path / "gait_traces").iterdir())
     config = {"curriculum_kwargs": curriculum()}
+    development_panel = True
     if reason == "invalid_gate":
         config["curriculum_kwargs"]["gait_report_episodes"] = 0
-    else:
+    elif reason == "no_handoff":
         (tmp_path / "models" / "robust_best_model_vecnorm.pkl").unlink()
+    else:
+        # A report-only locomotion stage whose development panel is not rolled.
+        config["curriculum_kwargs"] = {"gate_kind": "reward_and_length/v1", "min_avg_reward": 1.0}
+        if reason == "development_off":
+            development_panel = False
+        else:
+            config["curriculum_kwargs"]["gait_report_episodes"] = 0
     assert (
         _write_gait_report(
             species_cfg=SimpleNamespace(species="trex"),
@@ -951,10 +962,12 @@ def test_failed_fresh_generation_invalidates_older_certificate(tmp_path, reason)
             stage_dir=tmp_path,
             model_dir=tmp_path / "models",
             algorithm="PPO",
+            development_panel=development_panel,
         )
         is None
     )
     assert not (tmp_path / "gait_report.json").exists()
+    assert not (tmp_path / "gait_panel.csv").exists() and not (tmp_path / "gait_traces").exists()
 
 
 def test_immutable_bundle_guard_precedes_certificate_invalidation(tmp_path):

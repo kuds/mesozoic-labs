@@ -866,3 +866,173 @@ def test_producer_to_reader_accepts_a_genuine_panel_in_a_reused_directory(
     assert not failures and stats is not None
     assert stats["selected_gait_n_episodes"] == 2 and stats["passed"] is False
     assert stats["episode_failures"][1] == ["episode/telemetry_valid: telemetry is invalid or missing"]
+
+
+def _recorded_stage_dir(root, species):
+    """A stage directory recorded the way ``train_curriculum`` records one, for *species*' locomotion.
+
+    ``save_stage_config`` writes ``stage_config.json`` (every constructor
+    default out, under ``reward_weights``) with the task fingerprint the
+    trainer derives from the stage's own ``[env]``; a tiny PPO pair carries
+    the same fingerprint.  Returns the strict stage config and the pair.
+    """
+    sb3 = pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.config import load_all_stages, save_stage_config
+    from environments.shared.gait.identity import stage_measurement_protocol
+    from environments.shared.species_registry import get_species_config
+
+    species_cfg = get_species_config(species)
+    config = copy.deepcopy(load_all_stages(species)[2])
+    config["env_kwargs"]["max_episode_steps"] = 3
+    config["curriculum_kwargs"] = {
+        **provisional_gait_criteria("biped_walk"),
+        "gate_kind": GAIT_GATE_KIND,
+        "gate_schema_version": 1,
+        "gait_profile": "biped_walk",
+        "min_eval_episodes": 2,
+        "gait_panel_seed_start": PUBLICATION_SEED_START,
+        "min_gait_success_lcb": 0.8,
+        "min_episode_forward_vel": 0.1,
+        "min_episode_duration_s": 0.03,
+    }
+    config["curriculum_kwargs"]["measurement_protocol_sha256"] = protocol_sha256(
+        stage_measurement_protocol(species_cfg, config, episodes=2, seed_start=PUBLICATION_SEED_START, settle_s=0.0)
+    )
+    plant = current_plant_identity(species)
+    task = stage_task_fingerprint(species, 2, stage_config=config, plant_identity=plant)
+    models = root / "models"
+    models.mkdir(parents=True)
+    normalizer = VecNormalize(
+        DummyVecEnv([lambda: species_cfg.env_class(**config["env_kwargs"])]), norm_obs=True, norm_reward=True
+    )
+    try:
+        model = sb3.PPO(
+            "MlpPolicy",
+            normalizer,
+            n_steps=4,
+            batch_size=4,
+            n_epochs=1,
+            policy_kwargs={"net_arch": [8]},
+            seed=77,
+            device="cpu",
+        )
+        attach_plant_identity(model, plant)
+        attach_plant_identity(normalizer, plant)
+        attach_task_fingerprint(model, task)
+        model.save(models / "robust_best_model.zip")
+        normalizer.save(models / "robust_best_model_vecnorm.pkl")
+    finally:
+        normalizer.close()
+    save_stage_config(
+        root,
+        2,
+        config,
+        "PPO",
+        extra={"seed": 77, "n_envs": 1},
+        env_class=species_cfg.env_class,
+        species=species,
+        plant_identity=plant,
+        task_fingerprint=task,
+    )
+    return species_cfg, config, models / "robust_best_model.zip", models / "robust_best_model_vecnorm.pkl"
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "trex"])
+def test_producer_to_reader_reads_the_stage_config_the_trainer_records(tmp_path, species):
+    """PL-1: the reader accepts a genuine panel beside the ``stage_config.json`` ``save_stage_config`` writes.
+
+    Compsognathus' quiet-push carve-out depends on which push keys the stage
+    set, which ``reward_weights`` (every default written out) cannot say, so
+    a task re-derived from it kept the five push keys and the reader refused
+    every compsognathus panel after the whole training budget.
+    """
+    from environments.shared.reporting.gates import gait_statistics
+
+    root = tmp_path / "stage"
+    species_cfg, config, model, norm = _recorded_stage_dir(root, species)
+    saved = json.loads((root / "stage_config.json").read_text())
+    if species == "compsognathus":
+        recorded_env = saved["task_fingerprint"]["env"]
+        assert "perturbation_interval" in saved["reward_weights"] and "perturbation_interval" not in recorded_env
+    report = producer.write_gait_report(
+        species_cfg,
+        dict(config, _gait_stage=2),
+        model,
+        norm,
+        root,
+        episodes=2,
+        seed=PUBLICATION_SEED_START,
+        settle_s=0.0,
+    )
+    assert report["status"] == "complete" and report["certification_eligible"] is True
+    stats, failures = gait_statistics(root, config["curriculum_kwargs"])
+    assert not failures and stats is not None and stats["selected_gait_n_episodes"] == 2
+
+
+def test_reader_refuses_a_recorded_constructor_that_builds_another_task(tmp_path):
+    """A constructor value the recorded task names, changed in ``stage_config.json``, is named and refused."""
+    from environments.shared.reporting.gates import gait_statistics
+
+    root = tmp_path / "stage"
+    species_cfg, config, model, norm = _recorded_stage_dir(root, "compsognathus")
+    producer.write_gait_report(
+        species_cfg,
+        dict(config, _gait_stage=2),
+        model,
+        norm,
+        root,
+        episodes=2,
+        seed=PUBLICATION_SEED_START,
+        settle_s=0.0,
+    )
+    path = root / "stage_config.json"
+    saved = json.loads(path.read_text())
+    saved["reward_weights"]["forward_vel_weight"] = saved["reward_weights"]["forward_vel_weight"] + 1.0
+    path.write_text(json.dumps(saved))
+    stats, failures = gait_statistics(root, config["curriculum_kwargs"])
+    assert stats is None
+    assert failures == [
+        "gait evidence could not be read: ValueError: the recorded environment constructor does not build "
+        "the gait report's task: forward_vel_weight"
+    ]
+
+
+def test_constructor_task_differences_ignores_carved_out_keys_and_names_changed_ones():
+    """Every key the task names is compared as the fingerprint hashes it; carved-out keys are not named."""
+    from environments.shared.task_fingerprint import constructor_task_differences
+
+    task = stage_task_fingerprint("compsognathus", 2, env_kwargs={})
+    assert "perturbation_interval" not in task["env"]
+    explicit = {**{key: value for key, value in task["env"].items()}, "perturbation_interval": 2.0}
+    assert constructor_task_differences("compsognathus", explicit, task) == []
+    assert constructor_task_differences("compsognathus", {}, task) == []
+    healthy = task["env"]["max_episode_steps"]
+    assert constructor_task_differences("compsognathus", {"max_episode_steps": float(healthy)}, task) == [
+        "max_episode_steps"
+    ]
+    assert constructor_task_differences("compsognathus", {}, {"task_sha256": "x"}) == ["env"]
+
+
+@pytest.mark.parametrize("missing,flag", [("min_eval_episodes", "--episodes"), ("gait_panel_seed_start", "--seed")])
+def test_cli_gait_block_without_a_panel_key_is_a_usage_error_or_a_refusal(tmp_path, monkeypatch, capsys, missing, flag):
+    """PL-4: a ``locomotion_gait/v2`` block missing a panel key never ends in a traceback (exit 1).
+
+    Without the explicit option it is a usage error (2); given explicitly,
+    the protocol is planned, and a panel is refused by the writer's
+    validation of the block (3) before anything is written.
+    """
+    gated = _strict_config({"env_kwargs": {"max_episode_steps": 3, "reset_noise_scale": 0.01}})
+    del gated["curriculum_kwargs"][missing]
+    monkeypatch.setattr(cli, "load_stage_config", lambda species, stage, config_path=None: copy.deepcopy(gated))
+    with pytest.raises(SystemExit) as error:
+        cli.main(["trex", "--protocol-only"])
+    assert error.value.code == 2 and flag in capsys.readouterr().err
+    explicit = ["--episodes", "2", "--seed", str(PUBLICATION_SEED_START), "--settle-s", "0"]
+    assert cli.main(["trex", "--protocol-only", *explicit]) == 0
+    assert json.loads(capsys.readouterr().out)["measurement_protocol_sha256"].startswith("sha256:")
+    output = tmp_path / "panel"
+    assert cli.main(["trex", "--zero-action", "--out-dir", str(output), *explicit]) == 3
+    assert missing in capsys.readouterr().err
+    assert not output.exists()

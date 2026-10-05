@@ -114,16 +114,19 @@ def reset_state_digest(qpos: Any, qvel: Any, mocap_pos: Any) -> str:
     )
 
 
-def stage_panel(curriculum: dict[str, Any]) -> tuple[int, int]:
+def stage_panel(curriculum: dict[str, Any]) -> tuple[Any, Any]:
     """``(episodes, seed_start)`` of a stage's gait panel.
 
     A ``locomotion_gait/v2`` stage rolls exactly its declared certification
     panel. Any other locomotion stage gets a report-only development panel:
     ``gait_report_episodes`` episodes (default ``DEFAULT_DEVELOPMENT_EPISODES``)
-    from the development block, never the certification block.
+    from the development block, never the certification block. A gait block
+    that omits a panel key gives ``None`` for it, unvalidated: the panel
+    writer's ``validate_gate_config`` refuses the block, and the command line
+    asks for the missing ``--episodes`` or ``--seed``.
     """
     if curriculum.get("gate_kind") == GAIT_GATE_KIND:
-        return curriculum["min_eval_episodes"], curriculum["gait_panel_seed_start"]
+        return curriculum.get("min_eval_episodes"), curriculum.get("gait_panel_seed_start")
     return curriculum.get("gait_report_episodes", DEFAULT_DEVELOPMENT_EPISODES), DEVELOPMENT_GAIT_SEED_START
 
 
@@ -168,7 +171,7 @@ def _validate_panel_request(
     return report_only, direction, horizon
 
 
-def _clear_panel_files(output: Path) -> None:
+def clear_panel_files(output: Path) -> None:
     """Remove every earlier panel file (traces and CSV) before a new panel is rolled."""
     traces = output / TRACE_DIRECTORY
     if traces.is_symlink() or traces.is_file():
@@ -327,7 +330,7 @@ def write_gait_report(
     # Invalidate an earlier result, and every earlier panel file, before
     # loading or rolling can fail.
     atomic_write_json(output / "gait_report.json", placeholder, allow_nan=False)
-    _clear_panel_files(output)
+    clear_panel_files(output)
     env = normalizer = None
     try:
         plant = current_plant_identity(species)

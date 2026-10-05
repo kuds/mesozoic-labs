@@ -2,14 +2,18 @@
 
 The implementation identity covers only the code that shapes a stored
 metric or a verdict: the recorder, morphology, segmentation, labels and
-metrics in ``gait/``, and the pure gate in ``curriculum/gait_gate.py``. The
-panel plumbing (seed provenance, report writing, this module) and the shared
-readers of other gate kinds are not hashed, so editing them neither revokes
-a certificate nor makes a planned hash stale. ``MEASUREMENT_VERSION`` names
-the measurement semantics explicitly; bump it with any change to what a
-stored metric means. Runtime versions (MuJoCo, NumPy, Python) are recorded
-beside a report for information, never hashed: the reader replays the raw
-traces rather than trusting a build.
+metrics in ``gait/``, the pure gate in ``curriculum/gait_gate.py`` and the
+exact binomial bound it judges the success count with
+(``curriculum/binomial.py``). Every in-repo module a hashed file imports is
+hashed too, except ``record_fields`` (a digest-format check) and
+``species_names`` (the species alias table), which shape no metric;
+``test_gait_preflight`` keeps it so. The panel plumbing (seed provenance,
+report writing, this module) and the shared readers are not hashed, so
+editing them neither revokes a certificate nor makes a planned hash stale.
+``MEASUREMENT_VERSION`` names the measurement semantics explicitly; bump it
+with any change to what a stored metric means. Runtime versions (MuJoCo,
+NumPy, Python) are recorded beside a report for information, never hashed:
+the reader replays the raw traces rather than trusting a build.
 """
 
 from __future__ import annotations
@@ -44,6 +48,7 @@ _SOURCES = (
     "gait/morphology.py",
     "gait/recorder.py",
     "curriculum/gait_gate.py",
+    "curriculum/binomial.py",
 )
 
 

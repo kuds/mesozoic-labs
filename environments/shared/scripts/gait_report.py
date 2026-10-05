@@ -104,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
     seed = args.seed if args.seed is not None else default_seed
     if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
         parser.error("--episodes is required: the stage config declares no usable panel size")
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        parser.error("--seed is required: the stage config declares no usable panel seed start")
     report_only = curriculum.get("gate_kind") != GAIT_GATE_KIND
     if (
         report_only

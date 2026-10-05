@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..record_fields import is_sha256_digest
-from .recovery_gate import binomial_lcb
+from .binomial import binomial_lcb
 
 GAIT_GATE_KIND = "locomotion_gait/v2"
 GAIT_PROFILES = frozenset({"biped_walk", "biped_alternating", "quadruped_walk"})

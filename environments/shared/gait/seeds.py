@@ -44,8 +44,8 @@ def _read_object(path: Path) -> dict[str, Any]:
 def _role_block(role: str, value: Any) -> tuple[int, int]:
     """``[start, stop)`` of a recorded role: an integer is one seed, ``{start, episodes}`` a block.
 
-    A panel recorded by its start seed alone is one seed: record a panel's
-    whole block as ``{"start": ..., "episodes": ...}`` so it is excluded whole.
+    ``initialize_result_bundle`` records integers only, so an in-repo bundle
+    never holds a block; one written by other tooling is excluded whole.
     """
     if isinstance(value, Mapping):
         if set(value) != {"start", "episodes"}:
@@ -78,17 +78,30 @@ def stage_replay_seeds(training_seed: int, stage: int | str, *, species: str | N
 
 
 def refuse_known_seed_overlaps(
-    seed_start: int, episodes: int, *, training_seed: int, training_envs: int, stage: int | str, species: str | None
+    seed_start: int,
+    episodes: int,
+    *,
+    training_seed: int,
+    training_envs: int,
+    stage: int | str,
+    species: str | None,
+    policy_seed: int | None = None,
 ) -> list[int]:
     """Refuse a panel that intersects the run's own training, selection or replay seeds.
 
     Shared by the certification-time binding below and the pre-training
     check, so a seed choice that overlaps the panel is refused before a
-    training budget is spent. Returns the stage's replay seeds.
+    training budget is spent. *policy_seed* is a seed the stage's algorithm
+    block names (decision D-D11, ``--override ppo.seed=N``): the policy is
+    built under it, and Stable-Baselines3 then resets the training
+    environments at ``policy_seed+rank`` as well as the run's ``seed+rank``.
+    Returns the stage's replay seeds.
     """
     panel_stop = seed_start + episodes
     if max(seed_start, training_seed) < min(panel_stop, training_seed + training_envs):
         raise ValueError("gait certification panel overlaps the recorded training environment seed range")
+    if policy_seed is not None and max(seed_start, policy_seed) < min(panel_stop, policy_seed + training_envs):
+        raise ValueError("gait certification panel overlaps the training environment seeds of the policy seed")
     if seed_start <= training_seed + 1000 < panel_stop:
         raise ValueError("gait certification panel overlaps the checkpoint-selection environment seed")
     replay_seeds = stage_replay_seeds(training_seed, stage, species=species)
@@ -125,11 +138,14 @@ def checkpoint_seed_provenance(
     ``seed+rank``. Both repository SB3 trainers use one selection environment
     at ``seed+1000``, and the stage replay videos roll at
     ``evaluation.replay_seed(seed, stage)``. The checkpoint's safe JSON
-    metadata must corroborate the seed and environment count. A nearby
-    optional run provenance contributes every other recorded seed role, as a
-    single seed or a ``{start, episodes}`` block; only the certification panel
-    and the publication evaluations may share the panel's seeds. An
-    unrecognised role is a used seed (deny by default), whatever its name.
+    metadata must corroborate the environment count and the policy seed: the
+    seed the recorded algorithm block (``hyperparameters``) names, or else
+    ``run.seed``. A block seed's ``seed+rank`` resets are used seeds too. A
+    nearby optional run provenance contributes every other recorded seed
+    role, as a single seed or a ``{start, episodes}`` block; only the
+    certification panel and the publication evaluations may share the
+    panel's seeds. An unrecognised role is a used seed (deny by default),
+    whatever its name.
 
     The returned payload and its digest are portable across copied bundles;
     unrelated configuration/provenance changes do not alter this seed binding.
@@ -151,17 +167,29 @@ def checkpoint_seed_provenance(
     )
     if config is None:
         raise ValueError("gait seed provenance requires the checkpoint's saved stage_config.json")
-    run = _read_object(config).get("run")
+    record = _read_object(config)
+    run = record.get("run")
     if not isinstance(run, dict):
         raise ValueError("gait seed provenance requires stage_config.json run seed and n_envs")
     training_seed = _integer(run.get("seed"), "run.seed")
     training_envs = _integer(run.get("n_envs"), "run.n_envs", minimum=1)
+    # D-D11: a seed the stage's algorithm block names builds the policy, and
+    # the checkpoint records it; the run seed still seeds the environments.
+    hyperparameters = record.get("hyperparameters")
+    block_seed = hyperparameters.get("seed") if isinstance(hyperparameters, Mapping) else None
+    policy_seed = training_seed if block_seed is None else _integer(block_seed, "hyperparameters.seed")
     model_seed, model_envs = _checkpoint_seed_fields(model)
-    if model_seed != training_seed or model_envs != training_envs:
+    if model_seed != policy_seed or model_envs != training_envs:
         raise ValueError("gait seed provenance checkpoint seed/n_envs do not match the recorded stage run")
 
     replay_seeds = refuse_known_seed_overlaps(
-        seed_start, episodes, training_seed=training_seed, training_envs=training_envs, stage=stage, species=species
+        seed_start,
+        episodes,
+        training_seed=training_seed,
+        training_envs=training_envs,
+        stage=stage,
+        species=species,
+        policy_seed=policy_seed,
     )
     panel_stop = seed_start + episodes
     training_stop = training_seed + training_envs
@@ -198,6 +226,7 @@ def checkpoint_seed_provenance(
             # the stage and checkpoint. Distinct known used seeds remain
             # part of the portable evidence.
             proven = training_seed <= start and stop <= training_stop
+            proven |= policy_seed <= start and stop <= policy_seed + training_envs
             proven |= stop - start == 1 and (start == selection_seed or start in replay_seeds)
             if not proven:
                 additional_roles[role] = dict(value) if isinstance(value, Mapping) else start

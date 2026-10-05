@@ -21,6 +21,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from ..config import _algorithm_kwargs_key
 from ..curriculum.gait_gate import GAIT_GATE_KIND
 from ..curriculum.gate_schema import GateSchemaError, validate_gate_config
 from .identity import protocol_sha256, stage_measurement_protocol
@@ -38,6 +39,7 @@ def check_gait_stage(
     *,
     training_seed: int | None = None,
     n_envs: int | None = None,
+    algorithm: str | None = None,
 ) -> str | None:
     """The planned protocol digest of a gait-gated stage; ``None`` for any other kind.
 
@@ -45,6 +47,9 @@ def check_gait_stage(
     declared ``measurement_protocol_sha256`` differs from the digest this
     build plans for its panel, or (given ``training_seed`` and ``n_envs``)
     the panel overlaps the run's own training, selection or replay seeds.
+    Given the run's *algorithm*, a seed its block names (decision D-D11,
+    ``--override ppo.seed=N``) is checked too: the policy is built under it,
+    and its ``seed+rank`` environment resets are used seeds.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
     if curriculum.get("gate_kind") != GAIT_GATE_KIND:
@@ -67,7 +72,11 @@ def check_gait_stage(
             f"--protocol-only --episodes {episodes} --seed {seed_start}"
         )
     if training_seed is not None:
+        block = stage_config.get(_algorithm_kwargs_key(algorithm), {}) if algorithm is not None else {}
+        policy_seed = block.get("seed") if isinstance(block, Mapping) else None
         try:
+            if policy_seed is not None and (isinstance(policy_seed, bool) or not isinstance(policy_seed, int)):
+                raise ValueError(f"the {algorithm} block's seed {policy_seed!r} is not an integer")
             refuse_known_seed_overlaps(
                 seed_start,
                 episodes,
@@ -75,6 +84,7 @@ def check_gait_stage(
                 training_envs=1 if n_envs is None else n_envs,
                 stage=stage,
                 species=species,
+                policy_seed=policy_seed,
             )
         except ValueError as error:
             raise GaitPreflightError(f"{species} stage {stage}: {error}; choose another run seed") from error
@@ -88,6 +98,7 @@ def check_gait_stages(
     *,
     training_seed: int | None = None,
     n_envs: int | None = None,
+    algorithm: str | None = None,
 ) -> dict[int | str, str]:
     """Check every gait-gated stage of *stages*; one error names every failure."""
     planned: dict[int | str, str] = {}
@@ -95,7 +106,12 @@ def check_gait_stages(
     for stage in stages:
         try:
             digest = check_gait_stage(
-                species_cfg, stage, stage_configs[stage], training_seed=training_seed, n_envs=n_envs
+                species_cfg,
+                stage,
+                stage_configs[stage],
+                training_seed=training_seed,
+                n_envs=n_envs,
+                algorithm=algorithm,
             )
         except GaitPreflightError as error:
             failures.append(str(error))

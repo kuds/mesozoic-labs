@@ -329,9 +329,13 @@ def _write_gait_report(
     resolved = stage_dir.resolve()
     for ancestor in (resolved, *resolved.parents):
         refuse_write_into_complete_run(ancestor, what="Gait artifact generation")
-    # Derived evidence must not survive a failed fresh generation attempt.
-    # The immutable-bundle guard precedes even this invalidation.
+    # Derived evidence must not survive a failed fresh generation attempt,
+    # nor a skipped one: the earlier report goes with every panel file (its
+    # traces and CSV). The immutable-bundle guard precedes even this.
+    from ..gait.report import clear_panel_files
+
     (stage_dir / "gait_report.json").unlink(missing_ok=True)
+    clear_panel_files(stage_dir)
     if gated:
         try:
             validate_gate_config(stage, curriculum)

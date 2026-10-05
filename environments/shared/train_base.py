@@ -2382,11 +2382,18 @@ def train_curriculum(
     # A gait-gated node's declared protocol digest, and its certification
     # panel's overlap with this run's training, selection and replay seeds,
     # are checked before anything is trained or written: the panel writer
-    # would refuse either only after the whole budget.
+    # would refuse either only after the whole budget.  Every chain node is
+    # checked, one a trunk should supply as well: reuse is decided only at
+    # the node's turn, and a refused reuse trains it here under these seeds.
     from .gait.preflight import check_gait_stages
 
     check_gait_stages(
-        species_cfg, stage_configs, [entry.reference for entry in chain], training_seed=seed, n_envs=n_envs
+        species_cfg,
+        stage_configs,
+        [entry.reference for entry in chain],
+        training_seed=seed,
+        n_envs=n_envs,
+        algorithm=algorithm,
     )
 
     thresholds = thresholds_from_configs(stage_configs)

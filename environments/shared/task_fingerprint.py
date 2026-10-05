@@ -188,6 +188,37 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
     return effective
 
 
+def constructor_task_differences(
+    species: str, env_kwargs: Mapping[str, Any], fingerprint: Mapping[str, Any]
+) -> list[str]:
+    """The keys of *fingerprint*'s ``env`` section that *env_kwargs* would construct with another value.
+
+    For a reader that holds a stage's recorded constructor
+    (``stage_config.json``'s ``reward_weights``) beside its recorded task.
+    ``save_stage_config`` writes every constructor default out, so that
+    record cannot say which keys the stage set, and a fingerprint re-derived
+    from it moves wherever a carve-out depends on that: compsognathus' quiet
+    pushes above, whose explicit defaults keep all five push keys.  Instead
+    every key the task names must take the same value here (compared as the
+    fingerprint hashes it, so ``1`` and ``1.0`` differ); a key the task
+    leaves out is one a carve-out drops as inert.  A task without an ``env``
+    section returns ``["env"]``.
+    """
+    recorded = fingerprint.get("env")
+    if not isinstance(recorded, Mapping):
+        return ["env"]
+    effective = _canonical(_effective_env_kwargs(species, env_kwargs))
+
+    def encoded(value: Any) -> str:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+    return sorted(
+        str(name)
+        for name, value in recorded.items()
+        if name not in effective or encoded(effective[name]) != encoded(value)
+    )
+
+
 def compute_task_fingerprint(
     *,
     species: str,
