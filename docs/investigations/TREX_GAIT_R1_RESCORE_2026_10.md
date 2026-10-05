@@ -208,7 +208,8 @@ weights and 1091.51 ± 5.46 under the legacy ones.
 - **A skimming foot.** The gait-phase term has no clearance requirement:
   - a foot carrying under 4.2 N counts as swinging, so a skimming foot earns swing and step-through credit;
   - it pays no slip, which counts only feet carrying at least 42 N;
-  - the scripted shuffle earns 16 % of a gate-speed walk's gait-phase rate.
+  - the scripted shuffle earns about a third of a gate-speed walk's gait-phase rate (28.5 per second at
+    weight 1, against 78–89 for the walks; 16 % before the §7 fixes).
 
   The gate's clearance and swing-ground rails catch skimming. A follow-up could make swing credit depend on
   clearance.
@@ -251,6 +252,14 @@ scale, scored with this note's per-step constants.
   foot's steps alternate: 0.442 per control step, 89 % of a walk's rate, or 2075 per 1000 steps against about
   1949 under legacy. A step now needs its stance to hold the load for 30 ms in all. The spiked-tap hop earns no
   gait phase, like the same hop without the tap (1633).
+
+Two puppet rows of §3 move as a side effect:
+
+- **The shuffle and the limp.** The 30 ms hold also stops impact bounces from restarting a foot's stride
+  clock, so the scripted shuffle's gait-phase pay rises from 13.9 to 28.5 per second at weight 1, about a
+  third of a gate-speed walk's rate (§5 is updated), and the limp's falls from 7.6 to 6.0. Under `gait-r1`
+  both still earn less than under legacy (shuffle 1303 against 1435, limp 1359 against 1432 per 1000 steps)
+  and less than any walk at the gate speed, so criteria (a) and (b) hold.
 
 Nothing else in this note moves:
 

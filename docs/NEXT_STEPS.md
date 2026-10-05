@@ -340,7 +340,8 @@ commit of its own, merged just before its training session ([GAIT_QUALITY_PLAN_2
 merges, a 1.5M-step pilot runs the same values from the command line (the plan's §5.5 step 3).
 
 **Setting up.** On Colab, run notebook section 1 only, with `REPO_REF` set to a pushed branch carrying the gait
-reward kit, the walk-first gait checker and its plumbing fixes. Then mount Drive in a scratch cell (never the
+reward kit, the walk-first gait checker and its plumbing fixes (`gait-checker-proposal` at or after `d4c8f3e`,
+whose review fixes change the gait-phase reward without moving the task digest). Then mount Drive in a scratch cell (never the
 storage cell) and run from `/content/mesozoic-labs`:
 
 ```bash
