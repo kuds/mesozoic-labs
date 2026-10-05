@@ -146,10 +146,11 @@ gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_sc
                                         # [curriculum] block to apply then, with its protocol hash, is in
                                         # docs/GAIT_CERTIFICATION.md, "T. rex locomotion: the enforcement step").
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
-min_avg_reward = 100.0                  # Kept at 100 through gait-r1's 2000-step horizon: it sits about 22x
-                                        # below the statue at either horizon, and since the per-step reward is
-                                        # unchanged it still bounds the same thing (episodes that fall within
-                                        # the first ~100 steps), which min_avg_episode_length also covers.
+min_avg_reward = 100.0                  # Kept at 100 through gait-r1's 2000-step horizon: it sits about 11x
+                                        # below the statue on 1000-step episodes (1091.3) and 22x on 2000-step
+                                        # ones (2186.8), and since the per-step reward is unchanged it still
+                                        # bounds the same thing (episodes that fall within the first ~100
+                                        # steps), which min_avg_episode_length also covers.
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
 # collapse_peak_floor = 100.0 — which sat 11x BELOW the measured do-nothing

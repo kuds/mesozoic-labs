@@ -231,3 +231,39 @@ weights and 1091.51 ± 5.46 under the legacy ones.
   recorded trajectories ([GAIT_AUDIT_2026_09.md](GAIT_AUDIT_2026_09.md) §2).
 - The modelled walk and the re-optimised alternatives are arithmetic on measured per-step rates, not
   trained policies. Only a pilot shows what PPO finds under the new reward.
+
+## 7. Correction (2026-10-05): two non-walks the re-scoring did not model
+
+A review of the kit found two contact patterns that the gait-phase term paid and §3 did not model. Both broke
+criterion (a). They are fixed in `environments/shared/gait_rewards.py` before any training under `gait-r1`, and
+the revision's TOML values are unchanged. The figures below come from scripted contact sequences at the T. rex
+scale, scored with this note's per-step constants.
+
+- **Marching in place in a split stance.** `S` measured only how far the landing foot lands past the other
+  foot's footprint. A T. rex stepping in place with one foot always ahead therefore earned gait phase at zero
+  speed: 0.250 per control step with the feet 0.56 m apart, half a 1.0 m/s walk's 0.497. That is 1340 per
+  1000 steps, against the statue's 1094. `S` is now capped at half the foot's own stride, measured touchdown
+  to touchdown along the same heading (the checker's in-place stride test). A walk is paid as before. A split
+  or level march earns 0, and so do feet sliding back under a body that stays put (1090 per 1000 steps).
+- **A one-legged hop whose other foot taps with an impact spike.** A stance counted as a step once a single
+  substep reached half the foot's share of body weight. In the 2 ms traces of the certified hop runs, 33 of
+  the 34 contacts shorter than 30 ms reach that load, for 9 ms at the median. Such a tap made the hopping
+  foot's steps alternate: 0.442 per control step, 89 % of a walk's rate, or 2075 per 1000 steps against about
+  1949 under legacy. A step now needs its stance to hold the load for 30 ms in all. The spiked-tap hop earns no
+  gait phase, like the same hop without the tap (1633).
+
+Nothing else in this note moves:
+
+- **The hop rows of §3.** Rescored from the certified runs' traces, the recorded hops' gait-phase rate falls
+  from at most 0.0009 to at most 0.0004 per control step.
+- **The modelled walk.** Its steps advance by half their stride, and its stances hold the load for hundreds
+  of milliseconds.
+- **§4 item 4's step-to.** A step-to's leading foot is now credited for half its own stride. At 1.0 m/s and
+  the walk's 1.12 s cadence, that stride is 1.12 m, twice `l`, so the step-to keeps half the alternation
+  credit (about 2050). A step-to whose lead steps are only `l` long now earns a quarter of a walk's gait-phase
+  rate instead of half.
+
+A step now registers when its stance completes the 30 ms, about 30 ms after touchdown instead of a few
+milliseconds. In the digest harness's T. rex locomotion capture, the roll's two steps (each foot's first, which
+pays nothing) register two control steps later, and the three-step truncation probe ends before its step
+completes. No reward value in that capture changes.

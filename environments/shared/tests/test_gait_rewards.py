@@ -6,8 +6,10 @@ scale (2 ms substeps, 10 ms control steps, 840 N, L = 0.8766 m, so
 T_sw = 0.389 s and the step length l = 0.561 m), and the per-control-step
 flight and slip terms by the per-foot support those sequences produce.  A
 statue, a two-footed hop, a staggered hop, a one-legged hop with a tapping
-foot and tapping in place earn no gait phase; a walk earns ``w`` per control
-step; a step-to earns its leading foot's half.  The legacy table, the
+foot (an impact spike or not), tapping in place, marching in place in a split
+stance and feet sliding back under a body that stays put earn no gait phase;
+a walk earns ``w`` per control step; a step-to earns its leading foot's half
+of its own stride.  The legacy table, the
 carve-out of the task fingerprint and ``stage_config.json`` and the
 configuration checks are pinned here too; the T. rex wiring is in
 ``environments/trex/tests/test_trex_gait_rewards.py``.
@@ -48,13 +50,20 @@ DOWN_N = 0.1 * BODY_WEIGHT / 2
 
 @dataclass(frozen=True)
 class Stance:
-    """One scripted stance: loaded on ``[on, off)`` seconds at ``x`` (and ``y``), carrying ``load``."""
+    """One scripted stance: loaded on ``[on, off)`` seconds at ``x`` (and ``y``), carrying ``load``.
+
+    ``spike`` replaces the load of the first ``spike_samples`` samples (an impact transient);
+    ``slide`` moves the foot that far along x, linearly, while it is loaded.
+    """
 
     on: float
     off: float
     x: float
     y: float = 0.0
     load: float = LOAD
+    spike: float | None = None
+    spike_samples: int = 1
+    slide: float = 0.0
 
 
 @dataclass
@@ -81,8 +90,10 @@ def _tracker(weight: float = 1.0, step_over_leg: float = 0.64) -> GaitPhaseTrack
 
 def _sample(stances: Sequence[Stance], index: int) -> tuple[float, float, float]:
     for stance in stances:
-        if round(stance.on / SUBSTEP) <= index < round(stance.off / SUBSTEP):
-            return stance.load, stance.x, stance.y
+        first, stop = round(stance.on / SUBSTEP), round(stance.off / SUBSTEP)
+        if first <= index < stop:
+            load = stance.spike if stance.spike is not None and index < first + stance.spike_samples else stance.load
+            return load, stance.x + stance.slide * (index - first) / (stop - first), stance.y
     return 0.0, float("nan"), 0.0
 
 
@@ -227,6 +238,37 @@ def test_fast_tapping_in_place_earns_nothing() -> None:
     assert episode.reward == 0.0
 
 
+@pytest.mark.parametrize("split", [0.147, 0.3, 0.6, 0.9])
+def test_marching_in_place_in_a_split_stance_earns_nothing(split: float) -> None:
+    """R1: the front foot lands ``split`` ahead of the other at every step, and neither foot goes anywhere."""
+    right = [Stance(0.0, 0.1, 0.0)] + [Stance(0.5 + k, 1.1 + k, 0.0) for k in range(10)]
+    left = [Stance(0.0, 0.6, split, y=0.3)] + [Stance(1.0 + k, 1.6 + k, split, y=0.3) for k in range(10)]
+    episode = run(right, left, 10.0)
+    assert episode.steps > 15
+    assert episode.reward == 0.0
+
+
+def test_feet_sliding_back_under_a_body_that_stays_put_earn_nothing() -> None:
+    """A treadmill in place: each stance slides 0.6 m back and the next one lands where the last one did."""
+    right, left = walk(step=0.0)
+    right = [Stance(s.on, s.off, s.x, s.y, slide=-0.6) for s in right]
+    left = [Stance(s.on, s.off, s.x, s.y, slide=-0.6) for s in left]
+    episode = run(right, left, 10.0)
+    assert episode.steps > 15
+    assert episode.reward == 0.0
+
+
+def test_one_legged_hop_with_a_spiked_tap_earns_nothing() -> None:
+    """R2: the tap's impact transient reaches the step load for one substep, then the tap carries 20 N."""
+    right = [Stance(0.1 + k, 0.1 + k + 0.7, 1.12 * k) for k in range(10)]
+    left = [
+        Stance(0.6 + k, 0.6 + k + 0.008, 1.12 * k + 0.56, y=0.3, load=20.0, spike=0.55 * BODY_WEIGHT) for k in range(10)
+    ]
+    episode = run(right, left, 10.0)
+    assert episode.steps > 5  # the hopping foot steps; the taps are no steps
+    assert episode.reward == 0.0
+
+
 def test_fast_tapping_that_creeps_forward_earns_little() -> None:
     # 5 cm steps at 5 Hz: S = 0.09, A = 0.08 / 0.389: under 3% of a walk's rate.
     right, left = walk(stride=0.2, duty=0.6, step=0.05)
@@ -257,22 +299,39 @@ def test_walk_earns_the_weight_per_control_step() -> None:
     assert sum(fast_paid) / (len(fast_paid) / 2 * 0.8 / CONTROL_DT) == pytest.approx(weight, rel=1e-12)
 
 
-def test_walk_steps_are_paid_when_their_stance_takes_load() -> None:
+def test_walk_steps_are_paid_once_their_stance_has_held_the_step_load_for_30_ms() -> None:
     right, left = walk(duration=4.0)
     episode = run(right, left, 4.0)
-    # Touchdowns at 0.5 + k (right) and 1.0 + k (left): each is a step at its third loaded sample.
+    # Touchdowns at 0.5 + k (right) and 1.0 + k (left): each is a step at its fifteenth loaded sample.
     times = [round(time, 3) for time, _ in episode.events]
-    assert times[:4] == [0.504, 1.004, 1.504, 2.004]
+    assert times[:4] == [0.528, 1.028, 1.528, 2.028]
 
 
-def test_step_to_earns_the_leading_foots_half() -> None:
+@pytest.mark.parametrize("held,step", [(14, False), (15, True)])
+def test_a_stance_is_a_step_once_it_has_held_the_step_load_for_30_ms_in_all(held: int, step: bool) -> None:
+    """R2: the step load is held for 30 ms, in all; touching it for a substep is not a step."""
+    # The left foot's stances bear 50 N but for ``held`` samples at 1.2 times the step load.
+    right, left = walk(duration=6.0)
+    heavy = [
+        Stance(s.on, s.off, s.x, s.y, load=TAP, spike=1.2 * BODY_WEIGHT / 4, spike_samples=held) if s.on > 0.0 else s
+        for s in left
+    ]
+    episode = run(right, heavy, 6.0)
+    clean = run(right, left, 6.0)
+    assert (episode.steps == clean.steps) is step
+
+
+def test_step_to_earns_its_leading_foots_half_of_its_own_stride() -> None:
     through = run(*walk(step=0.6), 10.0)
     step_to = run(*walk(step=0.6, left_step=0.0), 10.0)  # the left foot lands level with the right
     assert [time for time, _ in step_to.events] == [time for time, _ in through.events]
-    for (time, reward), (_, walked) in zip(step_to.events, through.events, strict=True):
-        # Right touchdowns at 0.5 + k pay as in the walk; left ones (at whole seconds) pay nothing.
-        left_foot = round(time - 0.004, 6) % 1.0 == 0.0
-        assert reward == (0.0 if left_foot else walked)
+    # The leading (right) foot lands 0.6 m ahead of the left one, but its own stride is 0.6 m, so
+    # its step is credited 0.3 m: S = 0.3 / l, where the walk's 0.6 m steps credit S = 1.
+    paid_right = [(0.0 if walked == 0.0 else 0.3 / STEP_LENGTH * walked) for _, walked in through.events]
+    for (time, reward), expected in zip(step_to.events, paid_right, strict=True):
+        # Right touchdowns at 0.5 + k pay; left ones (at whole seconds) pay nothing.
+        left_foot = round(time - 0.028, 6) % 1.0 == 0.0
+        assert reward == pytest.approx(0.0 if left_foot else expected, rel=1e-9, abs=1e-12)
     assert step_to.reward > 0.0
 
 
@@ -339,11 +398,11 @@ def test_s_is_measured_along_the_trunk_heading() -> None:
     backwards = run(right, left, 10.0, axis=(-1.0, 0.0))
     assert straight.reward > 0.0
     assert backwards.reward == 0.0
-    # The trunk faces +y while the feet advance along x: only the left foot, which sits 0.3 m to
-    # the trunk's left (+y), lands "ahead" of the right one, by that 0.3 m.
+    # The trunk faces +y while the feet advance along x: the left foot, which sits 0.3 m to the
+    # trunk's left (+y), lands "ahead" of the right one by that 0.3 m, but neither foot's own
+    # stride advances along the heading, so a crab walk earns nothing.
     sideways = run(right, left, 10.0, axis=(0.0, 1.0))
-    paid = sorted({round(reward, 9) for _, reward in sideways.events})
-    assert paid == [0.0, round(0.3 / STEP_LENGTH / (2 * CONTROL_DT), 9)]
+    assert sideways.steps > 15 and sideways.reward == 0.0
 
 
 def test_a_long_pause_is_credited_five_reference_swings() -> None:

@@ -36,9 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   substeps, feeding T. rex's bilateral terms and alive gate),
   `gait_phase_weight` with `gait_phase_step_over_leg` (a clock-free reward
   at each floor-truth step, `w * min(T_i, 5 T_sw) / (feet * dt) * P * A * S`:
-  alternation, swing and step-through along the trunk heading; a step is a
-  debounced touchdown whose stance bears half the foot's share of body
-  weight), `flight_penalty_weight` with `flight_min_feet`,
+  alternation, swing and step-through along the trunk heading, capped at
+  half the foot's own stride; a step is a debounced touchdown whose stance
+  holds half the foot's share of body weight for 30 ms),
+  `flight_penalty_weight` with `flight_min_feet`,
   `foot_slip_penalty_weight`, `foot_collision_penalty_weight`, and
   `leg_contact_penalty_weight` with `terminate_on_leg_contact` (thigh and
   shank geometries on the floor, reason `leg_contact`). `TRexEnv` takes
@@ -60,6 +61,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recipes (22 lines), whose identity hashes the env module's bytes; landing
   before consolidation PR-9 is the plan's GQ-16 (b). No plant, policy,
   stage, recovery or reward line moves.
+
+  Corrected on 2026-10-05, before any training under `gait-r1`, for two
+  non-walks the gait-phase term paid
+  (`docs/investigations/TREX_GAIT_R1_RESCORE_2026_10.md` §7). Marching in
+  place in a split stance earned half a walk's rate, because step-through
+  measured only the landing foot's lead over the other foot; it is now
+  capped at half the foot's own stride, touchdown to touchdown. A one-legged
+  hop whose other foot taps earned 89 % of it, because the tap's impact
+  spike reached the step load for one substep; a step now holds that load
+  for 30 ms in all. Both now earn no gait phase, and a walk is paid as
+  before. One digest line moves: the T. rex locomotion reward capture's
+  `rounded_values_sha256`, whose two steps register two control steps
+  later; no reward value in it changes.
 
 ### Changed
 - **T. rex locomotion task revision `gait-r1`** (decision D-D23, 2026-10-04;

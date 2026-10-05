@@ -40,27 +40,38 @@ A species env wires it through constructor kwargs (T. rex only, for now; see
     * ``A``, swing: ``min(swing, T_sw) / T_sw`` with ``T_sw = 1.3 sqrt(L / g)``
       (0.39 s on T. rex), the swing being the time from the foot's lift-off to
       this touchdown: a tap or an impact bounce earns almost nothing.
-    * ``S``, step-through: ``clip(advance / l, 0, 1)``, the landing footprint's
-      advance past the other foot's latest footprint along the trunk heading,
-      as the walk-first checker measures a step (a footprint is the
-      load-weighted centre of the stance's foot-site positions; the heading is
-      the root body's x axis on the floor, averaged over the two steps' moments
-      of loading).  ``l = gait_phase_step_over_leg * L`` (0.56 m on T. rex).  A
-      foot that lands level with or behind the other (a step-to, a staggered
-      hop's trailing foot, marking time) earns 0.
+    * ``S``, step-through: ``clip(min(advance, stride / 2) / l, 0, 1)``.
+      ``advance`` is the landing footprint's advance past the other foot's
+      latest footprint along the trunk heading, as the walk-first checker
+      measures a step (a footprint is the load-weighted centre of the stance's
+      foot-site positions; the heading is the root body's x axis on the floor,
+      averaged over the two steps' moments of loading), and ``stride`` the
+      foot's own advance along the same heading from its previous step's
+      touchdown to this one (the checker's in-place stride test); in a walk
+      ``advance`` is half the ``stride``.  ``l = gait_phase_step_over_leg * L``
+      (0.56 m on T. rex).  A foot that lands level with or behind the other (a
+      step-to's trailing foot, a staggered hop's trailing foot) earns 0, and
+      so does a foot that goes nowhere: marching in place, even in a split
+      stance whose front foot lands ahead of the other at every step, and feet
+      sliding back under a body that stays put.
 
     A step is a touchdown (a load above 0.01 body weight per foot lasting at
     least 6 ms; unloads of up to 10 ms are chatter inside the stance: the
-    checker's segmentation values) whose stance reaches half of the foot's
-    share of body weight; it is paid in the substep that load is reached, a
-    few milliseconds after first contact in a walk.  A tap that never carries
-    that load is not a step, for itself or as the other foot of P.  The stance
-    the feet hold through the reset is not a step and the first step of each
-    foot only starts its stride clock, so a statue earns 0 and the reset never
-    counts as a touchdown.  Statue, two-footed hop, staggered hop (lag under a
-    tenth of a stride), one-legged hop whose other foot only taps, tapping
-    beside a standing foot and marching in place earn 0; a step-to earns its
-    leading foot's half, and taps that creep forward a few percent of a walk.
+    checker's segmentation values) whose stance has borne half of the foot's
+    share of body weight for 30 ms in all; it is paid in the substep that
+    completes the 30 ms, about 30 ms after first contact in a walk.  A tap is
+    not a step, for itself or as the other foot of P, even when its impact
+    transient reaches that load for a substep or two (33 of the 34 contacts
+    shorter than 30 ms in the certified T. rex hop runs reach it, for 9 ms at
+    the median).  The stance the feet hold through the reset is not a step and
+    the first step of each foot only starts its stride clock, so a statue earns
+    0 and the reset never counts as a touchdown.  Statue, two-footed hop,
+    staggered hop (lag under a tenth of a stride), one-legged hop whose other
+    foot only taps, tapping beside a standing foot, marching in place (level or
+    in a split stance) and feet sliding back in place earn 0; a step-to earns
+    its leading foot's credit for half its stride (a quarter of a walk's rate
+    at lead steps of ``l``), and taps that creep forward a few percent of a
+    walk.
 ``flight_penalty_weight`` (0), ``flight_min_feet`` (1)
     ``-w`` on control steps with fewer than ``flight_min_feet`` feet down (1
     for a biped walk, 2 for a quadruped walk).  A foot is down for a control
@@ -138,8 +149,10 @@ BLIP_S = 0.006
 #: An unload no longer than this is chatter inside a stance (seconds).
 CHATTER_FILL_S = 0.010
 
-#: A touchdown is a step once its stance bears this fraction of the foot's share of body weight.
+#: A touchdown is a step once its stance has borne this fraction of the foot's share of body weight ...
 STEP_LOAD_BW_PER_FOOT = 0.5
+#: ... for this long in all (seconds): an impact spike of a tap reaches the load for a substep or two.
+STEP_HOLD_S = 0.03
 #: A foot is down for a control step when its support force stays at or above this fraction of its share.
 SUPPORT_LOAD_BW_PER_FOOT = 0.1
 #: Width of the alternation factor P around anti-phase, in cycles (the checker's template tolerance).
@@ -230,18 +243,19 @@ class _Stance:
     load: float = 0.0
     load_dx: float = 0.0
     load_dy: float = 0.0
-    peak_n: float = 0.0
+    #: Samples at or above the step load.
+    held: int = 0
     step: bool = False
     axis: tuple[float, float] = (0.0, 0.0)
 
-    def add(self, force: float, x: float, y: float) -> None:
+    def add(self, force: float, x: float, y: float, step_load_n: float) -> None:
         if self.origin is None:
             self.origin = (x, y)
         self.load += force
         self.load_dx += force * (x - self.origin[0])
         self.load_dy += force * (y - self.origin[1])
-        if force > self.peak_n:
-            self.peak_n = force
+        if force >= step_load_n:
+            self.held += 1
 
     def footprint(self) -> tuple[float, float]:
         assert self.origin is not None
@@ -311,6 +325,7 @@ class GaitPhaseTracker:
         # substep_s from the last loaded sample to the next one.
         self._blip_samples = max(1, math.ceil(BLIP_S / substep_s - 1e-9))
         self._liftoff_samples = max(1, math.floor(CHATTER_FILL_S / substep_s + 1e-9))
+        self._hold_samples = max(1, math.ceil(STEP_HOLD_S / substep_s - 1e-9))
         self._feet: list[_Foot] | None = None
         self._samples = 0
 
@@ -338,7 +353,7 @@ class GaitPhaseTracker:
                 force = float(force)
                 if force > self.contact_n:
                     foot.stance = _Stance(start_s=None, swing_s=None)
-                    foot.stance.add(force, float(x), float(y))
+                    foot.stance.add(force, float(x), float(y), self.step_load_n)
             return 0.0, 0, 0.0
         completed: list[int] = []
         for index, (foot, force, (x, y)) in enumerate(zip(self._feet, forces, foot_xy, strict=True)):
@@ -355,15 +370,15 @@ class GaitPhaseTracker:
                 start = foot.pending[0][0]
                 stance = _Stance(start_s=start, swing_s=None if foot.liftoff_s is None else start - foot.liftoff_s)
                 for _, pending_force, pending_x, pending_y in foot.pending:
-                    stance.add(pending_force, pending_x, pending_y)
+                    stance.add(pending_force, pending_x, pending_y, self.step_load_n)
                 foot.pending.clear()
                 foot.stance = stance
             elif loaded:
                 # An unload that ended within the chatter fill stays inside the stance.
                 for unloaded_force, unloaded_x, unloaded_y in foot.unloaded:
-                    stance.add(unloaded_force, unloaded_x, unloaded_y)
+                    stance.add(unloaded_force, unloaded_x, unloaded_y, self.step_load_n)
                 foot.unloaded.clear()
-                stance.add(force, x, y)
+                stance.add(force, x, y, self.step_load_n)
             else:
                 if not foot.unloaded:
                     foot.unload_start_s = time_s
@@ -373,7 +388,7 @@ class GaitPhaseTracker:
                     foot.unloaded.clear()
                     foot.stance = None
                 continue
-            if not stance.step and stance.start_s is not None and stance.peak_n >= self.step_load_n:
+            if not stance.step and stance.start_s is not None and stance.held >= self._hold_samples:
                 stance.step = True
                 completed.append(index)
         if not completed:
@@ -422,7 +437,14 @@ class GaitPhaseTracker:
         own_x, own_y = stance.footprint()
         other_x, other_y = partner.footprint()
         advance = ((own_x - other_x) * heading_x + (own_y - other_y) * heading_y) / length
-        s = min(max(advance / self.step_length_m, 0.0), 1.0)
+        # Capped at half the foot's own stride, touchdown to touchdown: a foot
+        # marking time in a split stance lands ahead of the other every step
+        # but goes nowhere, and feet sliding back under a body that stays put
+        # land where they landed before.
+        assert stance.origin is not None and previous.origin is not None
+        stride_x, stride_y = stance.origin[0] - previous.origin[0], stance.origin[1] - previous.origin[1]
+        half_stride = 0.5 * (stride_x * heading_x + stride_y * heading_y) / length
+        s = min(max(min(advance, half_stride) / self.step_length_m, 0.0), 1.0)
         quality = p * a * s
         return self.scale * min(period, self.credit_cap_s) * quality, quality
 
