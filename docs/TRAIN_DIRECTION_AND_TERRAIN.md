@@ -33,11 +33,14 @@ normalization file provide the starting gait. Supported training does not mean a
 new policy has already learned the behavior: saved evaluations report measured
 performance, separately from canonical locomotion certification.
 
-## Terrain and the training notebook (status 2026-10-04)
+## Terrain and the training notebook (status 2026-10-05)
 
 On 2026-10-04 the maintainer deferred terrain work until the walking gait is
 fixed. Every curriculum stage trains on the MuJoCo plane, and no stage TOML
 sets terrain; only the behavior recipes do (see the status above).
+On 2026-10-05 the maintainer paused the consolidation after PR-10: PR-11
+onward waits until one or two species walk well (the consolidation plan's
+status table).
 
 The node order is `stance` (the notebook's `stand`), `locomotion` (its
 `walk`), `follow_direction`, then `follow_direction_difficult_terrain`
