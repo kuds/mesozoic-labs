@@ -420,6 +420,47 @@ class TestHeightTargetTracksStance:
             env.close()
 
 
+class TestSettledPoseTargetsTrackTheStatue:
+    """The settled-pose reward targets are measured constants, like ``target_z``.
+
+    ``_NECK_SETTLED_QPOS`` (the neck term under ``neck_posture_reference =
+    "settled"``) and ``_TAIL_SETTLED_QPOS`` are the noise-free statue's pose
+    over the post-settle window, measured on physics r8.  Nothing derives them
+    from the plant at run time, so a gain, spring or mass edit that moves the
+    neck or tail would silently re-centre the statue off its own targets; this
+    re-measures them instead, as TestHeightTargetTracksStance does for the
+    height target that went stale exactly that way.
+    """
+
+    SETTLE_STEPS = 200
+    HORIZON = 1000
+
+    @classmethod
+    def _post_settle_means(cls) -> tuple[np.ndarray, np.ndarray]:
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            action = np.zeros(env.model.nu, dtype=np.float32)
+            neck, tail = [], []
+            for step in range(cls.HORIZON):
+                _, _, terminated, _, _ = env.step(action)
+                assert not terminated
+                if step >= cls.SETTLE_STEPS:
+                    neck.append(env.data.qpos[env._neck_home_qpos_indices].copy())
+                    tail.append(env.data.qpos[env._tail_home_qpos_indices].copy())
+            return np.mean(neck, axis=0), np.mean(tail, axis=0)
+        finally:
+            env.close()
+
+    def test_settled_targets_are_the_statues_post_settle_pose(self):
+        neck, tail = self._post_settle_means()
+        # Measured 0.21432 / 0.0 / 0.21963 (to 3e-7) and -0.21069 / 0.0 /
+        # -0.20280 / -0.09252; the 40-seed spread at reset noise 0.05 is
+        # under 2e-4 rad.
+        np.testing.assert_allclose(neck, TRexEnv._NECK_SETTLED_QPOS, atol=1e-4)
+        np.testing.assert_allclose(tail, TRexEnv._TAIL_SETTLED_QPOS, atol=5e-4)
+
+
 class TestStage1ResetStaysInsideTheHealthyEnvelope:
     """No stage-1 seed may start already terminated.
 

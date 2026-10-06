@@ -441,6 +441,52 @@ def reward_soft_home_pose(
     return weight * pose_quality, rms_error, pose_quality
 
 
+def reward_sole_flatness(
+    sole_tilts_deg: Array,
+    tolerance_deg: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Reward feet that stand flat on their soles.
+
+    Each foot's quality is ``exp(-(tilt/tol)^2)`` of its sole's tilt from
+    level, in degrees, and the term is the mean over the feet, so one foot
+    rolled onto an edge forfeits at most its own share.  Contact-based support
+    signals cannot see this: a sole balanced on one corner transmits the same
+    normal force as a flat one.
+
+    Returns:
+        ``(reward, flatness_quality)`` with quality in ``[0, 1]``.
+    """
+    xp = _array_mod(sole_tilts_deg)
+    safe_tolerance = xp.maximum(tolerance_deg, 1e-8)
+    flatness_quality = xp.mean(xp.exp(-xp.square(sole_tilts_deg / safe_tolerance)))
+    return weight * flatness_quality, flatness_quality
+
+
+def reward_stance_width(
+    stance_width: Array,
+    home_width: float,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array, Array]:
+    """Gaussian reward on the stance width around the home pose's own.
+
+    ``stance_width`` is the planar (x-y) distance between the feet, which no
+    heading change moves; a fore-aft stagger adds to it, so a staggered
+    stance scores as a width error too.  An absolute deviation of one
+    ``tolerance`` from ``home_width`` receives ``exp(-1)`` quality, wider and
+    narrower alike.
+
+    Returns:
+        ``(reward, absolute_width_error, width_quality)``.
+    """
+    xp = _array_mod(stance_width)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    width_error = xp.abs(stance_width - home_width)
+    width_quality = xp.exp(-xp.square(width_error / safe_tolerance))
+    return weight * width_quality, width_error, width_quality
+
+
 def reward_action_saturation(
     action: Array,
     weight: float,

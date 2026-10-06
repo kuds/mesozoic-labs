@@ -491,8 +491,8 @@
         "nu": 15,
         "dynamic_mass_kg": 85.72,
         "plant_contract": {
-          "bundle_sha256": "sha256:350ac0367dc193dda140e57602273211f841e70436305652f3cd1d789488da44",
-          "source_closure_sha256": "sha256:e3919447fc76fbcd6396284afa028ad2831797461d03bbe6c9b52a5fc1c50753",
+          "bundle_sha256": "sha256:d65650ca182b4e37aea2c3b8268bc769273a75758a455f8ea86f6238cf7e6e2e",
+          "source_closure_sha256": "sha256:6b1742b7badfcee9d1bbc251014ec8d0f7ed17f73eaa719da5691bb595fe6f98",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
             "revision": 13,
@@ -501,8 +501,8 @@
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
-            "revision": 7,
-            "sha256": "sha256:72c662858639193e24a503b98e06d84737150ae6888a50a3620c2c99804cb97b"
+            "revision": 8,
+            "sha256": "sha256:19575f51bd0b8fad7bee3a0d5d1ce4bc6af7a63ebd43dc3ce484600381cb0862"
           },
           "visual": {
             "schema": "mesozoic.mujoco-visual/v1",
@@ -540,8 +540,8 @@
             "stable-baselines3"
           ],
           "key": "stance_quality",
-          "label": "Stance quality (stance_quality/v1)",
-          "definition": "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
+          "label": "Stance quality (stance_quality/v2)",
+          "definition": "The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
         },
         {
           "deliverable": "recovery",
@@ -600,22 +600,44 @@
           "recipe": "stand",
           "certification_seeds": 2,
           "advancement_gate": {
-            "gate_kind": "stance_quality/v1",
+            "gate_kind": "stance_quality/v2",
             "pending_gate_kind": null,
-            "min_avg_reward": 2100.0,
+            "min_avg_reward": 2260.0,
             "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,
             "min_success_rate": null,
             "min_full_horizon_fraction": 0.95,
-            "max_unsupported_duty": 0.02,
-            "max_unsupported_duty_ucb": 0.02,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
             "min_recovery_success_lcb": null,
             "min_paired_success_delta_lcb": null,
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_success_lcb": null,
             "min_eval_episodes": 40,
-            "required_consecutive": 3
+            "required_consecutive": 3,
+            "max_actuator_saturation_fraction": 0.1,
+            "max_foot_contact_fraction": 0.02,
+            "max_nonfoot_load_fraction": 0.02,
+            "max_phantom_support_fraction": 0.05,
+            "max_settle_airborne_substeps": 0,
+            "max_settle_peak_floor_force_bw": 1.5,
+            "max_settle_stance_width_change_m": null,
+            "max_sole_corner_lift_m": 0.004,
+            "max_sole_tilt_deg": 2.0,
+            "max_sole_tilt_excess_deg": null,
+            "max_touchdown_rate": 0.25,
+            "max_window_displacement_m": 0.1,
+            "min_all_feet_support": 0.98,
+            "min_avg_reward_statue_ratio": 0.6,
+            "min_clean_stance_lcb": 0.8,
+            "min_foot_load_share": 0.4,
+            "min_foot_load_share_statue_ratio": null,
+            "min_foot_load_share_windowed": 0.35,
+            "min_sole_contacts": 1.5,
+            "min_support_geom_coverage": null,
+            "min_support_geom_duty": null,
+            "settle_steps": 200
           },
           "video": {
             "path": "/videos/trex_ppo_stage1_best.mp4",
@@ -797,7 +819,7 @@
               "training_time": "3:35:24",
               "stage_passed": true,
               "gate_kind": null,
-              "current_gate_kind": "stance_quality/v1",
+              "current_gate_kind": "stance_quality/v2",
               "gate_retired": true
             },
             {

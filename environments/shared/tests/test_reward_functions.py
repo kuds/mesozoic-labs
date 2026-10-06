@@ -28,7 +28,9 @@ from environments.shared.reward_functions import (
     reward_posture,
     reward_proximity,
     reward_soft_home_pose,
+    reward_sole_flatness,
     reward_speed_penalty,
+    reward_stance_width,
     reward_target_centered_height,
 )
 
@@ -509,6 +511,41 @@ class TestActionSaturation:
         # Raw policy outputs can exceed [-1, 1]; the ramp saturates at 1.
         _, fraction = reward_action_saturation(np.array([3.0]), 1.0, 0.9)
         assert float(fraction) == pytest.approx(1.0)
+
+
+class TestSoleFlatness:
+    def test_level_soles_earn_the_full_weight(self):
+        reward, quality = reward_sole_flatness(np.zeros(2), 3.0, 0.15)
+        assert float(quality) == pytest.approx(1.0)
+        assert float(reward) == pytest.approx(0.15)
+
+    def test_mean_of_per_foot_gaussians(self):
+        # One foot at one tolerance, the other level: (exp(-1) + 1) / 2.
+        _, quality = reward_sole_flatness(np.array([3.0, 0.0]), 3.0, 1.0)
+        assert float(quality) == pytest.approx((np.exp(-1.0) + 1.0) / 2.0)
+
+    def test_one_rolled_foot_forfeits_at_most_half(self):
+        _, quality = reward_sole_flatness(np.array([90.0, 0.0]), 3.0, 1.0)
+        assert float(quality) == pytest.approx(0.5)
+
+    def test_quality_falls_monotonically_with_tilt(self):
+        tilts = [0.5, 1.0, 2.0, 4.0, 8.0]
+        qualities = [float(reward_sole_flatness(np.array([t, t]), 3.0, 1.0)[1]) for t in tilts]
+        assert all(a > b for a, b in zip(qualities, qualities[1:]))
+
+
+class TestStanceWidth:
+    def test_home_width_earns_the_full_weight(self):
+        reward, error, quality = reward_stance_width(np.asarray(0.28), 0.28, 0.05, 0.1)
+        assert float(error) == pytest.approx(0.0)
+        assert float(quality) == pytest.approx(1.0)
+        assert float(reward) == pytest.approx(0.1)
+
+    @pytest.mark.parametrize("width", [0.33, 0.23])
+    def test_wider_and_narrower_price_alike(self, width):
+        _, error, quality = reward_stance_width(np.asarray(width), 0.28, 0.05, 1.0)
+        assert float(error) == pytest.approx(0.05)
+        assert float(quality) == pytest.approx(np.exp(-1.0))
 
 
 class TestSoftHomePoseBroadTail:

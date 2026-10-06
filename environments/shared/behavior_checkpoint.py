@@ -331,6 +331,7 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "head_clearance_tolerance",
         "height_target_tolerance",
         "neck_posture_tolerance",
+        "neck_posture_reference",
         "foot_contact_gate",
         "foot_contact_saturation_force",
         "foot_load_balance_min_support_force",
@@ -340,6 +341,8 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "leg_home_pose_broad_fraction",
         "leg_home_pose_broad_scale",
         "tail_home_pose_tolerance",
+        "foot_flatness_tolerance_deg",
+        "stance_width_tolerance_m",
         "action_saturation_threshold",
         "idle_velocity_threshold",
     }

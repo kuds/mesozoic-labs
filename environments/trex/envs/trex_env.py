@@ -42,6 +42,7 @@ Reward components:
     - Height maintenance
     - Bilateral foot support and load balance
     - Home leg-pose retention
+    - Sole flatness and stance width (around the home keyframe's width)
     - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -78,6 +79,12 @@ from environments.shared.reward_functions import (
     reward_soft_home_pose as _reward_soft_home_pose_pure,
 )
 from environments.shared.reward_functions import (
+    reward_sole_flatness as _reward_sole_flatness_pure,
+)
+from environments.shared.reward_functions import (
+    reward_stance_width as _reward_stance_width_pure,
+)
+from environments.shared.reward_functions import (
     reward_target_centered_height as _reward_target_centered_height_pure,
 )
 
@@ -100,6 +107,12 @@ class TRexEnv(BaseDinoEnv):
     # order (tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch); see the
     # provenance comment in _cache_ids.
     _TAIL_SETTLED_QPOS = (-0.2107, 0.0, -0.2029, -0.0926)
+    # Settled neck pose for the neck_posture term under
+    # neck_posture_reference = "settled", in neck_home_joint_names order
+    # (neck_pitch, neck_yaw, head_pitch); see the provenance comment in
+    # _cache_ids.
+    _NECK_SETTLED_QPOS = (0.21432, 0.0, 0.21963)
+    _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
     _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -155,12 +168,17 @@ class TRexEnv(BaseDinoEnv):
         head_clearance_tolerance: float = 0.48,
         neck_posture_weight: float = 0.0,
         neck_posture_tolerance: float = 0.35,
+        neck_posture_reference: str = "keyframe",
         tail_home_pose_weight: float = 0.0,
         tail_home_pose_tolerance: float = 0.10,
         action_saturation_weight: float = 0.0,
         action_saturation_threshold: float = 0.9,
         leg_home_pose_broad_fraction: float = 0.0,
         leg_home_pose_broad_scale: float = 6.0,
+        foot_flatness_weight: float = 0.0,
+        foot_flatness_tolerance_deg: float = 3.0,
+        stance_width_weight: float = 0.0,
+        stance_width_tolerance_m: float = 0.05,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -238,12 +256,17 @@ class TRexEnv(BaseDinoEnv):
         self.head_clearance_tolerance = head_clearance_tolerance
         self.neck_posture_weight = neck_posture_weight
         self.neck_posture_tolerance = neck_posture_tolerance
+        self.neck_posture_reference = neck_posture_reference
         self.tail_home_pose_weight = tail_home_pose_weight
         self.tail_home_pose_tolerance = tail_home_pose_tolerance
         self.action_saturation_weight = action_saturation_weight
         self.action_saturation_threshold = action_saturation_threshold
         self.leg_home_pose_broad_fraction = leg_home_pose_broad_fraction
         self.leg_home_pose_broad_scale = leg_home_pose_broad_scale
+        self.foot_flatness_weight = foot_flatness_weight
+        self.foot_flatness_tolerance_deg = foot_flatness_tolerance_deg
+        self.stance_width_weight = stance_width_weight
+        self.stance_width_tolerance_m = stance_width_tolerance_m
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -258,6 +281,11 @@ class TRexEnv(BaseDinoEnv):
             raise ValueError("head_clearance_tolerance must be positive")
         if self.neck_posture_tolerance <= 0.0:
             raise ValueError("neck_posture_tolerance must be positive")
+        if self.neck_posture_reference not in self._NECK_POSTURE_REFERENCES:
+            raise ValueError(
+                f"neck_posture_reference must be one of {self._NECK_POSTURE_REFERENCES}, "
+                f"got {self.neck_posture_reference!r}"
+            )
         if self.tail_home_pose_tolerance <= 0.0:
             raise ValueError("tail_home_pose_tolerance must be positive")
         if not 0.0 <= self.action_saturation_threshold < 1.0:
@@ -266,6 +294,10 @@ class TRexEnv(BaseDinoEnv):
             raise ValueError("leg_home_pose_broad_fraction must be in [0, 1]")
         if self.leg_home_pose_broad_scale <= 1.0:
             raise ValueError("leg_home_pose_broad_scale must exceed 1 (it widens the narrow Gaussian)")
+        if self.foot_flatness_tolerance_deg <= 0.0:
+            raise ValueError("foot_flatness_tolerance_deg must be positive")
+        if self.stance_width_tolerance_m <= 0.0:
+            raise ValueError("stance_width_tolerance_m must be positive")
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -428,7 +460,26 @@ class TRexEnv(BaseDinoEnv):
         self._tail_home_qpos_indices = self._joint_qpos_indices(tail_home_joint_names)
         home_qpos = self.model.key_qpos[self.home_keyframe_id]
         self._leg_home_qpos = home_qpos[self._leg_home_qpos_indices].copy()
-        self._neck_home_qpos = home_qpos[self._neck_home_qpos_indices].copy()
+        # The neck target.  "keyframe" (the legacy default) prices the
+        # authored zeros, which the neck servos cannot hold: kp 200 against
+        # the 42.85 N.m gravity torque about neck_pitch, and kp 80 against
+        # 17.55 N.m about head_pitch, settle the statue 0.2143 / 0.2196 rad
+        # below them.  The statue then scores only 0.787 quality, and lifting
+        # the head back to the keyframe pays +45.6/episode (+41.9 neck, +5.8
+        # clearance, -2.1 energy) -- the raised head of every 2026-09 stance.
+        # "settled" targets the statue's own pose instead (the precedent is
+        # the settled tail below), so the same lift costs 36.4/episode.
+        # Measured on the physics-r8 plant as the noise-free statue's mean
+        # over the post-settle window (steps 200-1000): neck_pitch 0.21432,
+        # neck_yaw 0.0, head_pitch 0.21963 rad.  The 40-seed window means at
+        # reset noise 0.05 are 0.21438 / -0.00002 / 0.21955 (sd <= 0.0002),
+        # and the long-run equilibrium is 0.21424 / 0.21957.  The r8 hip-roll
+        # servo revision did not move it: r7's 40-seed means agree to 1e-4.
+        # Re-measure whenever neck or head masses, springs, or gains change.
+        if self.neck_posture_reference == "settled":
+            self._neck_home_qpos = np.array(self._NECK_SETTLED_QPOS)
+        else:
+            self._neck_home_qpos = home_qpos[self._neck_home_qpos_indices].copy()
         # Statue-derived, NOT the keyframe: the passive tail cannot hold the
         # authored zeros against gravity -- under the home controller it
         # settles onto its ventral stops (tail_1/tail_2 pitch at
@@ -439,6 +490,51 @@ class TRexEnv(BaseDinoEnv):
         # 0.9260 m settled height target in _get_reward_info).  Re-measure
         # whenever tail masses, springs, or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
+
+        # Sole flatness reads the plantar boxes' own frames: each box's local
+        # z is its pad normal.  The pads are level at the home keyframe
+        # (5.6e-5 deg) and tilt 0.10 deg, all of it pitch, under the
+        # noise-free statue, so level is the target without an offset.
+        self._plantar_geom_ids = np.asarray(
+            [self._geom_id(name) for name in ("r_plantar_geom", "l_plantar_geom")],
+            dtype=np.int64,
+        )
+        # The stance-width target is the authored home keyframe's horizontal
+        # foot-site distance (0.280 m; the noise-free statue settles at
+        # 0.27998), from the plant rather than a duplicated number: forward
+        # kinematics on a scratch MjData, so self.data is untouched.
+        home_data = mujoco.MjData(self.model)
+        home_data.qpos[:] = home_qpos
+        mujoco.mj_kinematics(self.model, home_data)
+        self._home_stance_width = self._stance_width(home_data)
+
+    def _geom_id(self, geom_name: str) -> int:
+        """Resolve a geom id, failing on model drift."""
+        geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, geom_name)
+        if geom_id < 0:
+            raise ValueError(f"T-Rex model must define geom {geom_name!r}")
+        return int(geom_id)
+
+    def _stance_width(self, data: mujoco.MjData) -> float:
+        """Planar (x-y) distance between the two foot sites, free of heading.
+
+        Not the lateral separation alone: a fore-aft stagger adds to it, so
+        the width term prices a staggered stance as a width error too.
+        ``stance_diagnostics`` records a different quantity under the same
+        name, the world-frame lateral offset ``|dy|`` of the foot sites.
+        """
+        foot_offset = data.site_xpos[self.r_foot_site_id, :2] - data.site_xpos[self.l_foot_site_id, :2]
+        return float(np.linalg.norm(foot_offset))
+
+    def _sole_tilts_deg(self) -> np.ndarray:
+        """Each plantar pad's tilt from level, in degrees (right, left).
+
+        ``geom_xmat`` is row-major, so element 8 is the world-z component of
+        the box's local z axis: the cosine of the angle between the pad
+        normal and vertical, whichever way the pad rolls or pitches.
+        """
+        cos_tilt = np.clip(self.data.geom_xmat[self._plantar_geom_ids, 8], -1.0, 1.0)
+        return np.asarray(np.degrees(np.arccos(cos_tilt)))
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
         """Resolve scalar hinge-joint qpos addresses, failing on model drift."""
@@ -658,7 +754,8 @@ class TRexEnv(BaseDinoEnv):
         # 6c. Head clearance and neck posture.  Clearance is a smoothstep:
         # zero one configured tolerance below the target and saturated at the
         # target so lifting the head ever higher cannot farm reward.  The neck
-        # target is the authored home keyframe, not a duplicated angle list.
+        # target is the authored home keyframe, or the statue's settled neck
+        # under neck_posture_reference = "settled" (see _cache_ids).
         head_tip_z = self._clearance(head_tip_pos)
         head_clearance_quality = self._head_clearance_quality(head_tip_z)
         reward_head_clearance = self.head_clearance_weight * head_clearance_quality
@@ -750,6 +847,41 @@ class TRexEnv(BaseDinoEnv):
         info["leg_home_pose_quality"] = leg_home_pose_quality
         info["reward_leg_home_pose"] = reward_leg_home_pose
 
+        # 8e. Sole flatness.  The ankle has no roll joint, so hip roll alone
+        # sets each pad's roll: the 2026-09 stances splayed one leg by
+        # 2.5-4.4 deg and stood that foot on the pad's front-inner corner
+        # (the 2026-10 audit: back-outer corner 12-18 mm up, outer toe off
+        # the floor on 77-95% of steps), which the touch sensors, the support
+        # terms above and the leg pose term (about 21/episode for that hip
+        # roll) all priced as a sound stance.  Per-pad exp(-(tilt/tol)^2), averaged over the feet,
+        # so one rolled foot forfeits at most half the term.
+        sole_tilts = self._sole_tilts_deg()
+        reward_foot_flatness, foot_flatness_quality = _reward_sole_flatness_pure(
+            sole_tilts, self.foot_flatness_tolerance_deg, self.foot_flatness_weight
+        )
+        info["r_sole_tilt_deg"] = float(sole_tilts[0])
+        info["l_sole_tilt_deg"] = float(sole_tilts[1])
+        info["foot_flatness_quality"] = float(foot_flatness_quality)
+        info["reward_foot_flatness"] = float(reward_foot_flatness)
+
+        # 8f. Stance width.  A Gaussian on the planar foot-site distance
+        # (_stance_width: a fore-aft stagger counts too) around the home
+        # keyframe's own (_cache_ids).  The same 2026-09 stances settled
+        # 0.344-0.347 m wide on average against the statue's 0.279; the
+        # propped leg is what widens the stance, so width and flatness price
+        # one exploit through two independent measurements.
+        stance_width = self._stance_width(self.data)
+        reward_stance_width, stance_width_error, stance_width_quality = _reward_stance_width_pure(
+            np.asarray(stance_width),
+            self._home_stance_width,
+            self.stance_width_tolerance_m,
+            self.stance_width_weight,
+        )
+        info["stance_width"] = stance_width
+        info["stance_width_error"] = float(stance_width_error)
+        info["stance_width_quality"] = float(stance_width_quality)
+        info["reward_stance_width"] = float(reward_stance_width)
+
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight
@@ -816,6 +948,8 @@ class TRexEnv(BaseDinoEnv):
             + reward_bilateral_support
             + reward_foot_load_balance
             + reward_leg_home_pose
+            + reward_foot_flatness
+            + reward_stance_width
             + reward_gait
             + reward_smoothness
             + reward_action_jerk

@@ -122,6 +122,42 @@ class TestNeutralActionStability(NeutralActionStabilityBase):
             assert truncated is (step == env.max_episode_steps)
 
 
+class TestLateralSwayStiffness:
+    """The hip-roll servos must out-stiffen the body's lateral gravity moment (plant_versions note 13).
+
+    With both feet planted the two hip-roll servos and their joint springs
+    resist lateral sway in parallel, so the stance is stable only while
+    ``2 x (kp + k)`` exceeds ``m.g.h``: the animal's weight times its CoM
+    height, measured on the settled statue (704.4 N.m/rad).  Physics r7 kept
+    the raptor-era kp 150, which gave 380 (0.54x): the servos could not pull
+    the reset's hip-roll noise back, and the statue stood rolled onto its pad
+    edges with the outer digit lifted, like the trained stances' propped
+    leg.  kp 600 gives 1280 (1.82x).  The bar is 1.5x, so a later re-sizing
+    has to keep real margin rather than just clear the instability.
+    """
+
+    def test_hip_roll_servos_out_stiffen_the_lateral_gravity_moment(self, env):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        for _ in range(600):
+            env.step(action)
+        model = env.model
+        mass = float(model.body_subtreemass[env.pelvis_id])
+        com_height = env._clearance(env.data.subtree_com[env.pelvis_id])
+        gravity_stiffness = mass * -float(model.opt.gravity[2]) * com_height
+        assert gravity_stiffness == pytest.approx(704.4, rel=0.01)
+
+        servo_stiffness = []
+        for side in ("r", "l"):
+            actuator_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, f"{side}_hip_roll_act")
+            joint_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, f"{side}_hip_roll")
+            servo_stiffness.append(float(model.actuator_gainprm[actuator_id, 0] + model.jnt_stiffness[joint_id]))
+        assert servo_stiffness[0] == servo_stiffness[1], "hip-roll servos must be symmetric"
+        assert sum(servo_stiffness) > 1.5 * gravity_stiffness, (
+            f"2 x (kp + k) = {sum(servo_stiffness):.0f} N.m/rad against m.g.h = {gravity_stiffness:.1f}: "
+            f"{sum(servo_stiffness) / gravity_stiffness:.2f}x, under the 1.5x lateral-sway margin"
+        )
+
+
 class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):
     species_name = "T-Rex"
     root_body_id_attr = "pelvis_id"

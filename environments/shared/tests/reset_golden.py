@@ -52,11 +52,32 @@ The script imports the repository only through ``sys.path`` (PYTHONPATH or
 the working directory), never through a hard-coded checkout path, so the
 same file re-captures byte-for-byte from any pristine checkout of the
 source commit.
+
+A later PHYSICS revision of one species moves that species' observation and
+trajectory halves by design (dynamics feed the reset observation through the
+sensors) while its reset half must still hold.  Run
+``test_reset_draw_stream_matches_the_pre_bump_golden`` on the new tree
+first -- a pass proves the revision consumed no reset draw -- then re-take
+only that species' captures, leaving every other capture byte-identical::
+
+    PYTHONPATH=. python environments/shared/tests/reset_golden.py \\
+        --recapture trex/stance trex/recovery \\
+        --reason "trex physics r8 (plant_versions note 13)"
+
+``recaptures`` then records, per re-taken capture, the plant it was taken
+on and why; its observation is captured with the command segment already
+appended.  A recapture's ``source_commit`` means something narrower than the
+top-level one: it is the commit the revision was applied to (the working
+tree's ``HEAD`` while the revision is still uncommitted, or
+``--source-commit``), not a commit that reproduces the capture.  What binds
+the capture is its ``physics_sha256``; it re-takes byte-for-byte from any
+pristine checkout of the commit that adds the recapture.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import platform
 import re
@@ -184,6 +205,50 @@ def build_fixture(
     }
 
 
+def recapture_fixture(
+    fixture: dict[str, Any],
+    keys: Sequence[str],
+    *,
+    reason: str,
+    source_commit: str | None = None,
+) -> dict[str, Any]:
+    """*fixture* with the captures named by *keys* re-taken on the current tree.
+
+    Every other capture, and the top-level provenance of the original
+    capture, stays byte-identical.  Each re-taken capture is recorded under
+    ``recaptures`` with the species' plant identity at re-capture time, so a
+    later physics move is reported as a stale recapture rather than as an
+    unexplained trajectory mismatch.
+    """
+    import mujoco
+
+    from environments.shared.plant_contract import current_plant_identity
+
+    spec = {
+        capture_key(species, stage): (species, stage, seeds, steps) for species, stage, seeds, steps in DEFAULT_SPEC
+    }
+    unknown = sorted(set(keys) - set(spec))
+    if unknown:
+        raise ValueError(f"no capture named {unknown}; the spec names {sorted(spec)}")
+    updated = copy.deepcopy(fixture)
+    recaptures = updated.setdefault("recaptures", {})
+    for key in keys:
+        species, stage, seeds, steps = spec[key]
+        updated["captures"][key] = capture(species, stage, seeds, steps)
+        plant = current_plant_identity(species)
+        recaptures[key] = {
+            "reason": reason,
+            "source_commit": _source_commit() if source_commit is None else source_commit,
+            "physics_revision": int(plant.physics_revision),
+            "physics_sha256": plant.physics_sha256,
+            "observation_includes_command_segment": True,
+            "mujoco_version": mujoco.__version__,
+            "numpy_version": np.__version__,
+            "platform": platform.platform(),
+        }
+    return updated
+
+
 _NUMERIC_ARRAY = re.compile(r"\[\s*((?:-?\d[\d.e+-]*,\s*)*-?\d[\d.e+-]*)\s*\]")
 
 
@@ -208,8 +273,22 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="record this commit instead of `git rev-parse --short=7 HEAD` of the working directory",
     )
+    parser.add_argument(
+        "--recapture",
+        nargs="+",
+        metavar="SPECIES/STAGE",
+        help="re-take only these captures in the existing --out fixture, leaving every other one untouched",
+    )
+    parser.add_argument("--reason", help="why the --recapture captures moved (recorded with them)")
     args = parser.parse_args(argv)
-    fixture = build_fixture(source_commit=args.source_commit)
+    if args.recapture:
+        if not args.reason:
+            parser.error("--recapture needs --reason")
+        fixture = recapture_fixture(
+            load_fixture(args.out), args.recapture, reason=args.reason, source_commit=args.source_commit
+        )
+    else:
+        fixture = build_fixture(source_commit=args.source_commit)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render_fixture(fixture), encoding="utf-8")
     print(args.out)

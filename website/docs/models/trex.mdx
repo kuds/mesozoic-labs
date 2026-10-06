@@ -20,8 +20,12 @@ walk and hunt — every one of them a published deliverable:
 
 1. **`stance`** (recipe `stand`; root, historical stage 1) — settle from a
    randomized spawn and hold a stable upright pose; gated on physical stance
-   quality (`stance_quality/v1`), not reward, because a zero-action "statue"
-   is the reward optimum of the undisturbed task.
+   quality, not reward, because a zero-action "statue" earns nearly all the
+   reward the undisturbed task pays. Since physics r8 the gate is `stance_quality/v2`:
+   every episode of a 40-episode panel is judged on the floor's force under
+   each foot (no hop at reset, both feet planted, pads flat, no actuator
+   held at its limit), and the stance certifies when at least 37 of 40 are
+   clean.
 2. **`recovery`** (recipe `stand`; `warm_start_from = "stance"`; no legacy
    number, addressed by id) — the same task plus scheduled external pushes
    (165.5 N for 0.20 s on the current plant, derived from the plant's own
@@ -53,7 +57,7 @@ The T-Rex model includes:
 - **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
 - **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
 - **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
-- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7)
+- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7; hip-roll servos sized for the body mass since physics r8)
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
 

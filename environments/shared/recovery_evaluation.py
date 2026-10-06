@@ -90,6 +90,13 @@ CALIBRATED_POSTURE_ONLY = {
 #: uses, because the reset height differs from settled stance by the settle
 #: transient plus reset noise, which is comparable to the calibrated
 #: 0.0168 m tolerance itself.
+#:
+#: Both T. rex constants are stale since physics r8 (decision D-D24,
+#: 2026-10-06): they were measured on the r7 certified stance, which that
+#: revision retires.  They stay as written until the first r8 stance
+#: certifies under ``stance_quality/v2``; re-measure them on it with the
+#: §4 protocol, then re-freeze the gate resolution
+#: (``harnesses/freeze_recovery_gate.py``).
 CALIBRATED_HEIGHT_REFERENCE_M = 0.9267
 
 

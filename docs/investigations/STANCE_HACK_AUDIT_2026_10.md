@@ -439,3 +439,106 @@ stage_config=..., model_path=..., vecnorm_path=...)` with `stage_config = load_s
 `curriculum_kwargs` replaced by the stage's non-threshold keys plus the §5.1 block (`zero_action=True` for the
 statue), then `write_stance_gate_report`; about 2 minutes per panel on one CPU core. The numbers are deterministic on
 one machine; across machines the counts may move by the realization effect of §2.3.
+
+## 7. Addendum 2026-10-06: the T. rex adoption on physics r8 (appended)
+
+*Appended 2026-10-06; §1–§6 above are unchanged.* The maintainer chose on 2026-10-06 to land the T. rex plant
+revision this note's §5.3 asks for (physics r7 → r8: the hip-roll servos kp 150 → 600, forcerange ±120 → ±480;
+`configs/plant_versions.toml` note 13) with a revised stance task, and to adopt `stance_quality/v2` on the T. rex
+stance with it, as decision D-D24 ([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2). The bars are
+re-measured on the r8 statue, as §2.3 requires, and committed in `configs/trex/stance.toml`, each with its statue and
+hack values in its comment.
+
+**Method.** The r8 statue was rolled through `build_stance_gate_report` on the r8 stance stage (its new `[env]`
+included), with the block below swapped in for its v1 gate and accepted by `validate_gate_config`; the committed
+block's gate view is identical to it. The four audited checkpoints load only on the r7 plant (the plant contract
+compares `physics_sha256`), so they and the r7 statue were rolled the same way on a checkout of the commit that
+registers the kind, with the same block swapped in, the plant contract enforced and the sha256 of every checkpoint
+and sidecar matching §2.1's. Floor truth does not read the reward, so the r7 `[env]` they ran under moves only the
+reward rails, which none of these panels is near. Every verdict was re-derived from its CSV and matched. Then the
+committed stage was put through the post-stage pipeline itself, with the r8 statue as a scripted checkpoint (the
+loader stubbed to return the zero command, the handoff pair two byte files, as the kind's own tests do):
+`stage_artifacts._write_stance_gate_report` rolled the panel and, for the statue-relative rail, a separate statue
+panel; `_apply_stage_gate` judged it PASS and wrote `gate_verdict.json` (gate `sha256:3571f209…`, the stage's
+`task_sha256` `sha256:6da0b7dd…`); publication's re-derivation from `stance_panel_selected.csv` and the backfill tool
+both admitted it; and all four declared probes ran on the v2 report (one episode per row, 300-step horizon) and
+wrote their files, leaving the panel CSV untouched.
+
+**The block.** `min_eval_episodes = 40`, `min_clean_stance_lcb = 0.80`, `settle_steps = 200`; the required
+`min_all_feet_support = 0.98`, `max_touchdown_rate = 0.25`, `max_window_displacement_m = 0.10`,
+`min_foot_load_share = 0.40`, `max_actuator_saturation_fraction = 0.10`, `max_settle_airborne_substeps = 0`,
+`max_settle_peak_floor_force_bw = 1.5`; the pad bars `max_sole_tilt_deg = 2.0`, `max_sole_corner_lift_m = 0.004`,
+`min_sole_contacts = 1.5`; the guards `min_foot_load_share_windowed = 0.35`, `max_foot_contact_fraction = 0.02`,
+`max_phantom_support_fraction = 0.05`, `max_nonfoot_load_fraction = 0.02`; and the rails `min_full_horizon_fraction
+= 0.95`, `min_avg_reward = 2260.0` (0.60 × the r8 statue's 3766.1) and `min_avg_reward_statue_ratio = 0.60`. Against
+§5.1's candidate, the corner-lift bar tightens 6 → 4 mm and the load share rises 0.30 → 0.40 because the r8 statue
+allows it; the tilt bar, the windowed load-share guard and the non-foot load guard are added (foot-on-foot and phantom
+support were already in §5.1), and so are the three rails.
+
+| Panel (seeds 3042–3081) | Plant | Clean | LCB | Verdict | Fewest bars failed per unclean episode | Mean reward |
+|---|---|---|---|---|---|---|
+| statue | r8 | 40/40 | 0.928 | PASS | — | 3766.1 |
+| statue, seeds 3082–3161 | r8 | 80/80 | 0.963 | PASS | — | 3766.6 |
+| statue, seeds 3162–3201 | r8 | 39/40 | 0.887 | PASS | 4, and the horizon | 3694.0 |
+| statue | r7 | 36/40 | 0.786 | FAIL | 2 | 3495.2 |
+| `20260914_123816` (seed 42) | r7 | 0/40 | 0.000 | FAIL | 3 | 3459.8 |
+| `20260920_010912` (seed 44) | r7 | 0/40 | 0.000 | FAIL | 3 | 3418.0 |
+| `20260930_024929` (seed 44) | r7 | 0/40 | 0.000 | FAIL | 4 | 3439.5 |
+| `20261001_225601` (seed 45) | r7 | 0/40 | 0.000 | FAIL | 7 | 2781.5 |
+
+The r7 statue's four unclean episodes (seeds 3047, 3059, 3074, 3077) each fail tilt (2.47–3.42°) and corner lift
+(4.07–5.54 mm). On r7 a looser flatness bar still separates the statue from the props, as §5.2 found at 6 mm (alone,
+6 mm leaves the r7 statue clean on 40/40 and `20260920` on 7/40, bound 0.085; 5 mm, 37/40 and 0/40), but only by sub-millimetre and
+sub-degree margins (corner lift 5.54 mm against the nearest hack episode's 5.06, tilt 3.42° against 2.11°). The plant
+revision is what lets the bars tighten to 4 mm and 2°.
+
+The third r8 statue block (seeds 3162–3201, rolled the same way once the bars were committed) was not part of the
+calibration: its one unclean episode is seed 3174, which nosedives at step 265 on reset noise alone (the r7 statue
+nosedives on the same seed, at step 228); its worst settle peak is 1.331 BW (seed 3169), tilt 1.353°, corner lift
+2.6 mm, sole contacts 2.17 and windowed share 0.469. So the statue figures in the margins table are the extremes of
+the panels named, not bounds.
+
+Episodes failing each bar (of 40):
+
+| Panel | Bars failed (episodes) |
+|---|---|
+| seed 42 | settle peak 40, tilt 40, corner lift 40, sole contacts 39, settle airborne 30 |
+| `20260920_010912` | tilt 40, corner lift 40, settle airborne 37, settle peak 37, sole contacts 16, saturation 8, support, touchdowns and displacement 5 each |
+| `20260930_024929` | settle peak 40, tilt 40, corner lift 40, settle airborne 39, sole contacts 39, displacement 3, touchdowns 2, support and saturation 1 each |
+| seed 45 | support, touchdowns, saturation, settle airborne, settle peak, tilt and corner lift 40 each, displacement 37, sole contacts 2 |
+
+Margins: the r8 statue's least favourable episode in sample (out of sample) against each bar, and the nearest-passing
+hack episode:
+
+| Bar | r8 statue | Nearest hack episodes |
+|---|---|---|
+| tilt ≤ 2° | ≤ 1.154° (1.534°) | ≥ 2.107° (`20260920`), 3.03° (seed 42), 3.98° (`20260930`), 4.28° (seed 45) |
+| corner lift ≤ 4 mm | ≤ 2.27 mm (2.80 mm) | ≥ 5.06 mm (`20260920`), 6.65 mm (`20260930`), 8.44 mm (seed 42), 11.1 mm (seed 45) |
+| sole contacts ≥ 1.5 | ≥ 2.35 (2.00) | ≤ 2.53 (`20260920`), 1.99 (`20260930`), 1.55 (seed 45), 1.54 (seed 42) |
+| settle peak ≤ 1.5 BW | ≤ 1.272 (1.276) | ≥ 1.41 (`20260920`), 1.55 (seed 42), 1.84 (`20260930`), 2.48 (seed 45) |
+| settle airborne 0 | 0 (0) | 0 in some episodes of each passing node; ≥ 175 (seed 45) |
+| support ≥ 0.98 | 1.000 (1.000) | 1.000 on the passing nodes; ≤ 0.724 (seed 45) |
+| touchdowns ≤ 0.25/s | 0 (0) | 0 on the passing nodes; ≥ 9.5 (seed 45) |
+| displacement ≤ 0.10 m | ≤ 0.023 m (0.023 m) | ≤ 0.069 m on seed 42 (never fails); hop drift up to 0.49, 0.62 and 0.82 m on `20260920`, `20260930` and seed 45 |
+| load share ≥ 0.40 | ≥ 0.498 (0.498) | ≥ 0.436 on every hack episode (a guard, not a separator) |
+| saturation ≤ 0.10 | 0 (0) | 0 on the passing nodes; ≥ 0.81 (seed 45) |
+| windowed share ≥ 0.35 | ≥ 0.477 (0.474) | ≥ 0.372 on every hack episode (a guard) |
+| foot-on-foot, phantom, non-foot | 0 (0) | 0 on every hack episode (guards) |
+
+The two families back each other up. The pad bars alone fail every hack episode (tilt alone does too, its nearest
+hack episode 0.11° over the bar); the settle bars alone fail all but one, a `20260920_010912` episode (seed 3045: no
+airborne substep and a 1.496 BW peak, 4 mBW under the bar, on a pad tilted 5.2° with its corners 12.2 mm apart);
+without both, the window bars pass seed 42 on 40/40 and `20260930_024929` on 37/40 (bound 0.817, a PASS). So the pad
+bars are load-bearing on trex and the margins to the nearest hack episodes are thin on both families;
+`environments/shared/tests/test_stance_gate_config.py` pins that both stay declared, with the seed-3045 episode as
+its case.
+
+**Push capacity.** Note 13 and the CHANGELOG quote the statue's quasi-static capacity as 3.3% of body weight
+laterally on r7, 5.1% on r8, and 3.2% fore-aft on both: a horizontal force on the pelvis through `xfrc_applied`
+after a 200-step settle, ramped over 0.5 s, held 2.5 s and released for 2 s, reset noise 0, bisected on the largest
+force the zero-action statue survives. §3.1's "about 6% BW in every direction" was measured under a different
+protocol, so the two sets of figures are not comparable with each other; each compares only within its own protocol.
+
+**Limits.** The hacks are r7 policies on the r7 plant: the r8 policies a retrain produces may find what none of them
+found, and a v2 verdict on one is only as good as these bars. The realization effect of §2.3 applies. The statue is
+the only r8 policy measured.

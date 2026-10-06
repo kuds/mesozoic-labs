@@ -130,11 +130,17 @@ collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's rewar
                                         # weight OR the plant changes: a weight change rescales the statue's
                                         # terms exactly and cheaply; a plant change moves its trajectory, so
                                         # only a re-run is evidence. Forgetting either is silent.
+                                        # Re-measured on physics r8 (plant_versions note 13) with the same
+                                        # command: 601.94 +/- 175.17, 40/40 full horizon, so the reference
+                                        # and the rail (round(0.6 x 601.94) = 361) carry: the move is 0.2
+                                        # against a 27.7 standard error, and this stage's [env] sets none of
+                                        # the stance shaping keys.
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance, locomotion and recovery; floor = 0.45 x
                                         # 602.0 = 270.9. The ratio, not the product, is what carries across
                                         # a reward change.
-statue_constants_physics_revision = 7   # The trex PHYSICS revision the 602.0 reference and the 361 rail
-                                        # were measured on (2026-09-13; configs/plant_manifest.generated.json
+statue_constants_physics_revision = 8   # The trex PHYSICS revision the 602.0 reference and the 361 rail
+                                        # were measured on (2026-09-13 on r7, re-measured on r8 above;
+                                        # configs/plant_manifest.generated.json
                                         # plants.trex.physics.revision). test_statue_constant_freshness.py
                                         # holds this pin against the plant manifest, so a plant bump that
                                         # forgets the re-measure fails CI instead of silently training

@@ -70,6 +70,19 @@ robustness, **LOW** = cosmetic / QoL.
   at 0.33. The open question is no longer whether the configuration can
   pass (it usually does) but what decides the anneal's endpoint; the
   seed-43 postmortem's candidate responses stand.
+  **Update 4 (2026-10-06):** the passes were not what they looked like, and
+  the configuration they passed is gone. The stance-hack audit
+  ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
+  §3.1) found every current trex PASS (seed 42 `20260914_123816`, seed 44
+  `20260920_010912` and `20260930_024929`) hopping at reset and standing on
+  a propped, rolled pad, which v1 admits. Decision D-D24 then changed the
+  plant (physics r7 → r8: hip-roll servos kp 150 → 600), the stance task (a
+  settled neck target, pad flatness, stance width) and the gate
+  (`stance_quality/v2`, on which those three stances score 0/40), so every
+  number above, and every trex checkpoint, belongs to a plant and a task
+  that no longer exist. No r8 stance has trained yet: the ask is the same
+  one, now for r8 under v2 — how often a seed certifies, at
+  `certification_seeds = 2`.
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -174,6 +187,11 @@ robustness, **LOW** = cosmetic / QoL.
   `profile_sha256`, so every compsognathus / compsognathus_robot recovery
   freeze made before Phase C is refused and must be re-frozen from the
   restamped profile (`environments/compsognathus/RECOVERY_CALIBRATION.md`).
+  **Update (2026-10-06):** moot for the T. rex since its physics revision
+  r7 → r8 (D-D24): the plant contract refuses every trex checkpoint, the r13
+  `20260914_123816` and the widened `20260920_010912` included, and no widen
+  crosses a physics revision, so every trex node retrains from a fresh r8
+  stance and its recovery re-freezes on that stance.
 - **MEDIUM (operational)** — **SB3 archives are bound to the interpreter that
   saved them; only `policy_loading.load_sb3_model` opens one safely, and the
   Colab image moves without notice.** SB3 stores a model's `learning_rate`,
@@ -695,11 +713,11 @@ robustness, **LOW** = cosmetic / QoL.
   needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
-  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:142-143`,
+  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:155-156`,
   `dibothrosuchus_env.py:109-110`) and no SB3 reward reads them: they were
   knobs of the MJX reward, which left with the JAX/MJX runtime (D-D17, cleanup
   PR-B). They stay, with their six `[env]` keys (`configs/trex/stance.toml:13-14`,
-  `configs/trex/recovery.toml:57-58`, `configs/dibothrosuchus/stage1_balance.toml:13-14`),
+  `configs/trex/recovery.toml:62-63`, `configs/dibothrosuchus/stage1_balance.toml:13-14`),
   because `task_sha256` hashes the constructor defaults overlaid with `[env]`:
   removing either moves the trex and dibothrosuchus task digests (stripping the
   dibothrosuchus keys moved its certified stance task from `083e2966` to
@@ -821,7 +839,9 @@ robustness, **LOW** = cosmetic / QoL.
   and consolidation PR-11 copies the terrain keys verbatim. Plan: a dated
   heightfield-contact investigation before PR-11, decided together with the
   recipe speeds and map sizes
-  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1).
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1). The trex
+  walker no longer loads since trex physics r8 (D-D24, 2026-10-06); the
+  finding stands for the walker that replaces it.
 
 <!-- The items below come from the 2026-09-28 gait audit: CPU replays of
      the certified nodes and zero-action rollouts of every stage gate, with
@@ -841,7 +861,8 @@ robustness, **LOW** = cosmetic / QoL.
   length and forward velocity, with reward floors 3–22× below the zero-action
   statue, so beyond mean length the only test is mean root speed. On floor
   contact, trex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
-  both feet at 7.7 and 9.2 Hz, airborne 35% and 43% of steps, and
+  both feet at 7.7 and 9.2 Hz, airborne 35% and 43% of steps (both retired
+  by trex physics r8, D-D24, which refuses every r7 trex checkpoint), and
   compsognathus_robot `20260924_031815` micro-hops at 9.2 Hz, airborne 48%;
   only compsognathus `20260921_203149` walks and velociraptor
   `20260922_125248` runs. The in-training dibothrosuchus re-run
@@ -889,12 +910,15 @@ robustness, **LOW** = cosmetic / QoL.
   episodes ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). The
   floor-truth gate kind `stance_quality/v2` exists (D-D23, 2026-10-06): on
   40-episode panels it fails every one of these checkpoints while every statue
-  is clean on 40/40 (the stance-hack audit's §5), but no stage declares it, so
-  every stance stage still certifies under v1 or its reward rail. Plan: each
-  stance stage adopts v2, a gate revision with bars re-measured on that
-  species' own statue panel ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11 and
-  PR-G8; GQ-10 and GQ-12, open); each species stays open until its stance
-  certifies under v2.
+  is clean on 40/40 (the stance-hack audit's §5). The trex stance adopted it
+  with trex physics r8 (D-D24, 2026-10-06), on bars set on the r8 statue
+  (clean on 40/40; the three trex stances above and the failed seed-45 node
+  on 0/40 each, the audit's §7); every other stance stage still certifies
+  under v1 or its reward rail. Plan: each remaining stance stage adopts v2, a
+  gate revision with bars re-measured on that species' own statue panel
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11, §12 and PR-G8; GQ-10, open);
+  each species stays open until its stance certifies under v2, the trex
+  included (no r8 trex stance has trained yet).
 
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
@@ -962,7 +986,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
-  only the torso (and belly), head and distal tail (`trex_env.py:354-361`,
+  only the torso (and belly), head and distal tail (`trex_env.py:386-393`,
   `raptor_env.py:212-219`, `brachio_env.py:224-230`,
   `dibothrosuchus_env.py:240-247`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
@@ -1028,8 +1052,10 @@ robustness, **LOW** = cosmetic / QoL.
   policy that happens to fit the block passes every re-check; by the review's
   arithmetic, one with a true full-horizon rate near 0.93 fits about 46% of
   blocks and would fail a fresh one about 54% of the time. The blocks do
-  differ: the statue scores 119/120 over three of them
-  (`configs/trex/stance.toml:318`). Seed replication (`certification_seeds`,
+  differ: on physics r7 the statue scored 119/120 over three of them
+  (`configs/trex/stance.toml:453`), and on r8 it is clean on 40/40, 80/80
+  and 39/40 of three disjoint blocks under `stance_quality/v2` (seed 3174
+  nosedives on reset noise alone). Seed replication (`certification_seeds`,
   the review's SS1 fix) counts training seeds, not fresh evaluation seeds.
   Fix: run the confirmation panel on a disjoint seed block before a stance is
   certified and record both blocks (`stance_gate_report.py --episodes`
@@ -1361,6 +1387,26 @@ stance (PR #464).
 
 Still open:
 
+- **MEDIUM** — **the T-Rex's passive fore-aft balance is marginal on both
+  physics r7 and r8: a 1.5° ankle offset topples the zero-action statue in
+  most episodes, and reset noise alone topples it on some seeds (measured
+  2026-10-06).** Constant ankle commands of ±0.03 (±1.5° on both ankles, zero
+  action otherwise; the stance env, reset noise 0.05, seeds 3042–3081): +0.03
+  reaches the horizon on 14/40 episodes on r8 and 13/40 on r7, the rest
+  ending `tail_contact`; −0.03 on 18/40 on both, the rest `nosedive`. The
+  plain statue nosedives on seed 3174 on both plants (step 265 on r8, 228 on
+  r7). Quasi-static push capacity (`configs/plant_versions.toml` note 13's
+  protocol) is 3.2% of body weight forward and backward on both plants
+  against 5.1% laterally on r8, and the pushed recovery statue's 40 ends on
+  r8 are all fore-aft (nosedive 27, `tail_contact` 13). The limit is the leg
+  chain's pitch compliance, not the hips, digits or tail: the centre of
+  pressure saturates at a pad edge while the centre of mass creeps, and
+  stiffer passive digits (300 / 600 N·m/rad) raise forward capacity only
+  11% / 17% and backward not at all (note 13). Physics r8 changed the hip
+  roll only, so every r8 stance and recovery policy has to hold fore-aft
+  balance actively. A fix re-derives the ankle gains and their 5.5° gravity
+  preload (`trex.xml`'s actuator comment), a physics revision that retires
+  every T-Rex checkpoint again.
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
@@ -1385,26 +1431,6 @@ Still open:
   1739.08 ± 1.17 (was 0/40 at 163.35 ± 81.40). The full-horizon neutral test
   this entry asked for now exists on the brachiosaurus
   `TestNeutralActionStability` subclass.
-- **LOW** — the T-Rex `tail_1_geom` overlaps both thigh capsules by 18.8 mm at
-  the home keyframe, injecting a constant self-contact force into the stance
-  (pre-existing; unchanged by the July 2026 plant revision, which measured it
-  rather than fixing it). Either exclude the pair like the sibling toes, or
-  reshape `tail_1` so the overlap is gone; re-measure the home stance after.
-- **LOW** — the T-Rex home keyframe's re-measurement checklist
-  (`environments/trex/assets/trex.xml:552-556`) points at two things that no
-  longer hold what it names: `configs/trex/stage1_balance.toml` (renamed
-  `stance.toml`) and `mjx_config.py`'s `target_standing_z`, `_NATURAL_PITCH`
-  and `healthy_z_range` (the frozen MJX registration keeps none of them since
-  D-D17, cleanup PR-B). `trex_env.py`'s pointer was fixed (gap review SM7, #519);
-  this one was left because any byte change to `trex.xml` moves the plant's
-  source digest (`source_closure_sha256`), which the plant manifest, the
-  species catalog and the digest-snapshot golden record, so the PR that edits
-  the file regenerates all three (no checkpoint is invalidated: plant
-  compatibility ignores source revisions). Fix it with the next deliberate
-  `trex.xml` edit; the same stale `mjx_config.py` pointers in `trex_env.py`
-  were reworded by cleanup CU-12, which folded in optional PR-C
-  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §3.2). (read from the
-  model 2026-09-30; 2026-08 gap review SM7)
 - **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is
   worth running (halves sim cost if stable).
 

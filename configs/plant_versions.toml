@@ -230,8 +230,50 @@ observation_schema = "bipedal-target/v1"
 #     the contract records cutoff + filter fingerprint and asserts backend
 #     agreement.  See
 #     docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
+# 13. T-Rex hip-roll servos sized for the plant's mass.  r/l_hip_roll_act go kp
+#     150 -> 600 and forcerange +/-120 -> +/-480, keeping the 0.8x kp spike cap;
+#     ctrlrange, joints, keyframe, sites and sensors are untouched.  The July
+#     home-equilibrium repair mass-scaled hip pitch, knee and ankle only, so hip
+#     roll kept its raptor-era gain.  With both feet planted the two hip-roll
+#     servos and their 40 N.m/rad joint springs resist lateral sway in parallel,
+#     which is stable only while 2 x (kp + 40) exceeds the settled statue's
+#     m.g.h = 85.72 kg x 9.81 x 0.8377 m = 704.4 N.m/rad; kp 150 gave 380, kp
+#     600 gives 1280 (1.8x).  Measured on the 40-episode statue panel (seeds
+#     3042-3081, reset noise 0.05): the soft servos left the reset's hip-roll
+#     noise in the stance, rolling the worse pad up to 3.42 deg over the
+#     post-settle window, unloading the outer digit on 4/40 episodes and
+#     spreading the settled foot-site width over 0.218-0.337 m -- the
+#     propped-foot signature the trained stances showed, on the statue itself.
+#     On this plant the worst pad is 1.15 deg (1.53 over 80 more seeds) and the
+#     width 0.244-0.316 m.  Quasi-static lateral push capacity rises from 3.3%
+#     to 5.1% of body weight (fore-aft stays 3.2%, set by leg-chain compliance,
+#     not the hips; KNOWN_ISSUES records the fore-aft fragility), and the
+#     pushed recovery statue loses all 20 of its lateral "fallen" ends.  The
+#     capacity protocol: the zero-action statue at reset noise 0, a 200-step
+#     settle, then a horizontal force on the pelvis through xfrc_applied (as
+#     the perturbation engine applies it) ramped over 0.5 s, held 2.5 s and
+#     released for 2 s, bisected on the largest force it survives.  The
+#     stance-hack audit's "about 6% BW in every direction" used a different
+#     protocol, so compare these figures with each other, not with it.  The symmetric settle does not move: the noise-free
+#     statue's 1000-step reward (3517.26), pelvis height 0.9260 m and forward_z
+#     -0.0279 equal r7's, so target_z, natural_pitch and
+#     nosedive_termination_threshold carry.  Measured and left out: stiffer
+#     passive digits (300 / 600 N.m/rad: forward push capacity +11% / +17%,
+#     backward and lateral +0, statue pad roll and outer-digit lift unchanged or
+#     worse), and tail_1 authority (at kp 100 the servo cannot lift tail_1 off
+#     its -12 deg stop -- 42.0 + 16.9 N.m against 68.3 N.m of gravity -- but kp
+#     300 moves _TAIL_SETTLED_QPOS and forward_z, slows the tail's settle past
+#     200 steps and opens a new actuated balance channel: a new task, not a
+#     plant fix).  PHYSICS moves; the POLICY INTERFACE (0b43de..) and VISUAL
+#     (7042dc..) digests are unchanged, so policy stays 13 and visual 4.  Every
+#     existing T-Rex checkpoint is invalidated (the plant check compares
+#     physics_sha256), including the certified seed-42/44 stances, the seed-44
+#     recovery and both walkers; no widen applies.  The statue-derived constants
+#     of all four configs/trex stage files were re-measured on this plant:
+#     stance 3766.1 (with the r8 stance task), recovery 1337.5, locomotion
+#     1091.5 and behavior 602.0 (both unchanged).
 [plants.trex]
-physics_revision = 7
+physics_revision = 8
 policy_interface_revision = 13
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
