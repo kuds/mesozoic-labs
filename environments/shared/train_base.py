@@ -49,6 +49,7 @@ from .constants import (
     PUBLICATION_SEED_START,
 )
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
+from .curriculum.gait_gate import GAIT_GATE_KIND
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .plant_contract import (
@@ -2017,6 +2018,48 @@ def _post_training_eval_panels(
 #: (decision D-A5): the CurriculumManager's advancement decision, not the
 #: evidence-backed post-stage judgement ``generate_stage_artifacts`` makes.
 CURRICULUM_MANAGER_JUDGED_BY = "train_base.train_curriculum/CurriculumManager"
+GAIT_HANDOFF_JUDGED_BY = "train_base.train_curriculum/selected_gait_panel"
+
+
+def _judge_selected_gait_handoff(
+    species_cfg: SpeciesConfig,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    *,
+    stage: int | str,
+    model_stem: str,
+    vecnorm_path: str,
+    algorithm: str,
+) -> tuple[bool, list[str], dict[str, Any] | None]:
+    """Judge the saved handoff on a fresh fixed panel, never callback averages.
+
+    A report failure leaves the stage unpassed while preserving its saved
+    training result. The independent reader rechecks the selected pair and
+    every episode rather than trusting the producer's boolean.
+    """
+    from .gait.report import write_gait_report
+    from .reporting.gates import evaluate_stage_gate, gait_statistics
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    try:
+        write_gait_report(
+            species_cfg,
+            dict(stage_config, _gait_stage=stage),
+            model_stem + ".zip",
+            vecnorm_path,
+            stage_dir,
+            episodes=curriculum["min_eval_episodes"],
+            seed=curriculum["gait_panel_seed_start"],
+            algorithm=algorithm,
+        )
+        statistics, binding_failures = gait_statistics(stage_dir, curriculum)
+        if binding_failures:
+            return False, binding_failures, None
+        passed, failures = evaluate_stage_gate(curriculum, statistics or {}, stage=stage, stage_dir=stage_dir)
+        return passed, failures, statistics
+    except Exception as error:  # noqa: BLE001 - evaluation must preserve the saved training result
+        logger.warning("Stage %s selected gait panel could not be judged", stage, exc_info=True)
+        return False, [f"fresh selected gait evaluation refused: {type(error).__name__}: {error}"], None
 
 
 def _in_training_task_success_result(
@@ -2709,6 +2752,19 @@ def train_curriculum(
         # evidence CSV, which this path does not write); record the count
         # it was judged on so the verdict is auditable.
         verdict_stage_result = _in_training_task_success_result(manager, stage, cur_kwargs)
+        verdict_failures = [] if passed else ["stage budget exhausted without meeting advancement thresholds"]
+        judged_by = CURRICULUM_MANAGER_JUDGED_BY
+        if not interrupted and cur_kwargs.get("gate_kind") == GAIT_GATE_KIND:
+            passed, verdict_failures, verdict_stage_result = _judge_selected_gait_handoff(
+                species_cfg,
+                config,
+                stage_dir,
+                stage=stage,
+                model_stem=handoff_stem,
+                vecnorm_path=handoff_vecnorm,
+                algorithm=algorithm,
+            )
+            judged_by = GAIT_HANDOFF_JUDGED_BY
         if interrupted:
             logger.warning(
                 "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
@@ -2725,9 +2781,9 @@ def train_curriculum(
                     gate_kind=cur_kwargs.get("gate_kind"),
                     gate_schema_version=cur_kwargs.get("gate_schema_version"),
                     passed=passed,
-                    failures=[] if passed else ["stage budget exhausted without meeting advancement thresholds"],
+                    failures=verdict_failures,
                     task_sha256=task_fingerprint.get("task_sha256"),
-                    judged_by=CURRICULUM_MANAGER_JUDGED_BY,
+                    judged_by=judged_by,
                     checkpoint=Path(handoff_stem + ".zip"),
                     normalization=Path(handoff_vecnorm),
                     # D-A22: the manager judged under this run's block.
@@ -2766,6 +2822,7 @@ def train_curriculum(
             curriculum_cb,
             training_duration_seconds=stage_duration,
             plant_identity=plant_identity,
+            stage_passed=passed,
         )
 
         if interrupted:
@@ -2810,6 +2867,7 @@ def _record_stage_result(
     curriculum_cb,
     training_duration_seconds: float | None = None,
     plant_identity: PlantIdentity | None = None,
+    stage_passed: bool | None = None,
 ):
     """Record stage hyperparameters and outcome to CSV."""
     import numpy as _np
@@ -2883,7 +2941,9 @@ def _record_stage_result(
         "full_horizon_fraction_threshold": cur_kwargs.get("min_full_horizon_fraction", ""),
         "unsupported_duty_ceiling": cur_kwargs.get("max_unsupported_duty", ""),
         "unsupported_duty_ucb_ceiling": cur_kwargs.get("max_unsupported_duty_ucb", ""),
-        "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
+        "stage_passed": stage_passed
+        if stage_passed is not None
+        else bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
     }
     if plant_identity is not None:
         result_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})

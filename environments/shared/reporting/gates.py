@@ -50,6 +50,9 @@ no arm here is refused by name, never routed to the reward conjunction.
 
 from __future__ import annotations
 
+import csv
+import json
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -76,8 +79,13 @@ def evaluate_recorded_gate(
     count — ``evaluations.npz`` carries none — is incomplete (``None``),
     never a pass on the reward rail the hunting statue clears.
     """
+    from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 
+    if curriculum.get("gate_kind") == GAIT_GATE_KIND:
+        # Aggregate eval history has neither selected-pair binding nor the
+        # physics-substep traces needed to reconstruct physical gait.
+        return None
     if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
         return _recorded_task_success_gate(curriculum, evaluations)
     criteria: list[tuple[str, float]] = []
@@ -614,6 +622,256 @@ def _recovery_stage_gate(
     return bool(result.passed and not rail_failures), failures
 
 
+def _replay_gait_traces(
+    root: Path,
+    report: Mapping[str, Any],
+    protocol_payload: Mapping[str, Any],
+    episodes: list[Mapping[str, Any]],
+    foot_names: list[str],
+) -> None:
+    """Require reproducible raw physics evidence, its authored scales, and timing."""
+    import numpy as np
+
+    from environments.shared.gait.metrics import episode_gait_metrics
+    from environments.shared.gait.morphology import GaitMorphology
+    from environments.shared.gait.types import GaitProtocol
+    from environments.shared.plant_contract import current_plant_identity, validate_environment_plant
+    from environments.shared.record_fields import is_sha256_digest
+    from environments.shared.result_bundle.hashing import canonical_json_sha256, sha256_file
+    from environments.shared.species_registry import get_species_config
+    from environments.shared.task_fingerprint import stage_task_fingerprint
+
+    detector = protocol_payload.get("detector")
+    panel = protocol_payload.get("panel")
+    sampling = protocol_payload.get("sampling")
+    morphology = report.get("morphology")
+    if not all(isinstance(block, Mapping) for block in (detector, panel, sampling, morphology)):
+        raise ValueError("gait replay requires detector, panel, sampling, and morphology records")
+    assert isinstance(detector, Mapping) and isinstance(panel, Mapping)
+    assert isinstance(sampling, Mapping) and isinstance(morphology, Mapping)
+    settings = GaitProtocol(
+        **{key: value for key, value in detector.items() if key not in {"schema", "default_status"}}
+    )
+    saved = read_json_object(root / "stage_config.json")
+    env_kwargs = None if saved is None else saved.get("reward_weights", saved.get("env_kwargs", {}))
+    if not isinstance(env_kwargs, Mapping):
+        raise ValueError("gait replay requires the recorded environment constructor")
+    env = get_species_config(report["species"]).env_class(**env_kwargs)
+    try:
+        plant = current_plant_identity(report["species"])
+        validate_environment_plant(env, plant, artifact="gait raw evidence replay")
+        if report.get("plant_identity") != plant.to_dict():
+            raise ValueError("gait report plant identity does not match the current compiled plant")
+        try:
+            task = stage_task_fingerprint(
+                report["species"], report["stage"], env_kwargs=dict(env_kwargs), plant_identity=plant
+            )
+        except RuntimeError as exc:
+            raise ValueError(f"gait task cannot be re-derived: {exc}") from exc
+        if report.get("task_fingerprint") != task or report.get("task_sha256") != task["task_sha256"]:
+            raise ValueError("gait report task fingerprint does not match the current recorded constructor")
+        actual_morphology = GaitMorphology.from_env(env, report["species"])
+        if canonical_json_sha256(actual_morphology.describe()) != canonical_json_sha256(morphology):
+            raise ValueError("gait morphology scales or geometry differ from the current recorded plant")
+        physical_dt = float(env.model.opt.timestep)
+        control_dt = float(env.dt)
+        if sampling.get("physics_dt_s") != physical_dt or sampling.get("control_dt_s") != control_dt:
+            raise ValueError("gait sampling timesteps differ from the current recorded plant")
+    finally:
+        env.close()
+    horizon = panel.get("horizon_control_steps")
+    settle = panel.get("settle_s")
+    direction = panel.get("direction_xy")
+    if isinstance(horizon, bool) or not isinstance(horizon, int) or horizon < 1:
+        raise ValueError("gait replay has no positive integer horizon")
+    if isinstance(settle, bool) or not isinstance(settle, (int, float)) or not math.isfinite(settle) or settle < 0:
+        raise ValueError("gait replay has no finite settle time")
+    if not isinstance(direction, list) or len(direction) != 2:
+        raise ValueError("gait replay has no two-dimensional direction")
+    traces = report.get("traces")
+    if not isinstance(traces, list) or len(traces) != len(episodes):
+        raise ValueError("gait report requires one raw NPZ trace per declared episode")
+    expected_paths = {f"gait_traces/episode_{index:04d}.npz" for index in range(len(episodes))}
+    actual_paths = {path.relative_to(root).as_posix() for path in (root / "gait_traces").glob("*.npz")}
+    if actual_paths != expected_paths:
+        raise ValueError("gait raw trace files do not match the declared fixed panel")
+    reset_hashes = [episode.get("reset_state_sha256") for episode in episodes]
+    if any(not is_sha256_digest(digest) for digest in reset_hashes) or len(set(reset_hashes)) != len(episodes):
+        raise ValueError("gait panel reset states are missing or duplicated")
+    for index, (entry, episode) in enumerate(zip(traces, episodes, strict=True)):
+        relative = f"gait_traces/episode_{index:04d}.npz"
+        if not isinstance(entry, Mapping) or entry.get("path") != relative:
+            raise ValueError(f"gait trace {index} has an unexpected local path")
+        path = root / relative
+        path.resolve().relative_to(root.resolve())
+        if not path.is_file() or entry.get("sha256") != sha256_file(path):
+            raise ValueError(f"gait trace {index} is missing or its digest changed")
+        with np.load(path, allow_pickle=False) as archive:
+            trace = {key: archive[key] for key in archive.files}
+        time = np.asarray(trace["time_s"], dtype=float)
+        length = episode.get("length")
+        if isinstance(length, bool) or not isinstance(length, int) or not 1 <= length <= horizon:
+            raise ValueError(f"gait episode {index} has an invalid control-step length")
+        if (
+            time.ndim != 1
+            or len(time) < 2
+            or not np.all(np.isfinite(time))
+            or not np.allclose(np.diff(time), physical_dt, rtol=1e-6, atol=1e-9)
+            or not math.isclose(float(time[-1] - time[0]), length * control_dt, rel_tol=1e-6, abs_tol=1e-9)
+        ):
+            raise ValueError(f"gait episode {index} raw trace duration/timesteps do not match its recorded length")
+        if not isinstance(episode.get("terminated"), bool) or not isinstance(episode.get("truncated"), bool):
+            raise ValueError(f"gait episode {index} has no termination evidence")
+        completed = length == horizon and not episode["terminated"]
+        if episode.get("completed_horizon") is not completed:
+            raise ValueError(f"gait episode {index} completion contradicts its length/termination")
+        measured = episode_gait_metrics(
+            trace,
+            body_weight_n=actual_morphology.body_weight_n,
+            leg_length_m=actual_morphology.leg_length_m,
+            foot_names=tuple(foot_names),
+            protocol=settings,
+            settle_s=float(settle),
+            direction_xy=(float(direction[0]), float(direction[1])),
+        )
+        if canonical_json_sha256(measured) != canonical_json_sha256({key: episode[key] for key in measured}):
+            raise ValueError(f"gait episode {index} metrics do not reproduce from its raw physics trace")
+
+
+def _read_gait_panel_episodes(path: Path, bindings: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """Decode strict per-row metric objects; malformed rows raise to the judge."""
+    episodes: list[Mapping[str, Any]] = []
+    with path.open(newline="", encoding="utf-8") as handle:
+        for index, row in enumerate(csv.DictReader(handle)):
+            if any(row.get(key) != expected for key, expected in bindings.items()):
+                raise ValueError(f"gait_panel.csv row {index} describes a different checkpoint/task/protocol")
+            episode = json.loads(row.get("metrics_json", ""))
+            if not isinstance(episode, Mapping):
+                raise ValueError(f"gait_panel.csv row {index} has no episode metrics object")
+            episodes.append(episode)
+    return episodes
+
+
+def gait_statistics(stage_dir: str | Path, curriculum: Mapping[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    """Read and rejudge the selected handoff's hash-bound physical gait panel.
+
+    A recorded ``passed`` flag is never evidence. The hashed CSV's complete
+    episode payloads must agree with the report, and the shared classifier
+    recomputes every episode and the confidence bound under today's declared
+    thresholds. Old checkpoints, tasks, protocols, and duplicated seeds refuse.
+    """
+    from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.curriculum.gait_gate import GaitGateThresholds, evaluate_gait_gate
+    from environments.shared.curriculum.gate_schema import validate_gate_config
+    from environments.shared.gait.identity import validate_measurement_protocol_identity
+    from environments.shared.gait.seeds import checkpoint_seed_provenance
+    from environments.shared.result_bundle.hashing import canonical_json_sha256, sha256_file
+    from environments.shared.task_fingerprint import read_checkpoint_task_fingerprint
+
+    root = Path(stage_dir)
+    try:
+        if validate_gate_config("gait-panel", curriculum) != "locomotion_gait/v1":
+            return None, ["gait evidence can certify only an explicit locomotion_gait/v1 gate"]
+        thresholds = GaitGateThresholds.from_curriculum(curriculum)
+        report = read_json_object(root / "gait_report.json")
+        if report is None or report.get("schema") != "mesozoic.gait-report/v1":
+            return None, ["missing or unsupported gait_report.json"]
+        if (
+            report.get("status") != "complete"
+            or any(
+                report.get(key) is not True for key in ("plant_validated", "task_validated", "certification_eligible")
+            )
+            or report.get("report_only") is not False
+        ):
+            return None, ["gait report is incomplete, unvalidated, or report-only and cannot certify advancement"]
+        handoff = select_handoff_checkpoint(root / "models")
+        if handoff is None:
+            return None, ["no selected checkpoint with matching normalization statistics"]
+        _, model_path, vecnorm_path = handoff
+        current = {
+            "checkpoint_sha256": sha256_file(f"{model_path}.zip"),
+            "normalization_sha256": sha256_file(vecnorm_path),
+            "task_sha256": _current_task_sha256(root),
+            "measurement_protocol_sha256": thresholds.measurement_protocol_sha256,
+        }
+        if current["task_sha256"] is None:
+            return None, ["stage task fingerprint is missing"]
+        for key, expected in current.items():
+            if report.get(key) != expected:
+                return None, [f"gait report {key} does not match the selected handoff/current task/protocol"]
+        expected_seed_provenance = checkpoint_seed_provenance(
+            f"{model_path}.zip", seed_start=thresholds.gait_panel_seed_start, episodes=thresholds.min_eval_episodes
+        )
+        if report.get("seed_provenance") != expected_seed_provenance:
+            return None, ["gait seed provenance is missing or does not match the selected checkpoint"]
+        if read_checkpoint_task_fingerprint(f"{model_path}.zip") != report.get("task_fingerprint"):
+            return None, ["gait task fingerprint does not match the selected checkpoint's recorded task"]
+        if report.get("gait_profile") != thresholds.gait_profile:
+            return None, ["gait report gait_profile does not match the declared profile"]
+        protocol = report.get("measurement_protocol")
+        if (
+            not isinstance(protocol, Mapping)
+            or canonical_json_sha256(protocol) != thresholds.measurement_protocol_sha256
+        ):
+            return None, ["gait report measurement protocol payload does not match its declared digest"]
+        species = report.get("species")
+        if not isinstance(species, str) or not validate_measurement_protocol_identity(dict(protocol), species):
+            return None, ["gait measurement implementation or foot registry is stale or unknown"]
+        declared_panel = protocol.get("panel")
+        if not isinstance(declared_panel, Mapping) or (
+            declared_panel.get("episodes") != thresholds.min_eval_episodes
+            or declared_panel.get("seed_start") != thresholds.gait_panel_seed_start
+        ):
+            return None, ["gait measurement protocol does not describe the declared fixed panel"]
+        panel = report.get("panel_csv")
+        if not isinstance(panel, Mapping) or panel.get("path") != "gait_panel.csv":
+            return None, ["gait report has no local gait_panel.csv evidence binding"]
+        path = root / "gait_panel.csv"
+        if not path.is_file() or panel.get("sha256") != sha256_file(path):
+            return None, ["gait_panel.csv is missing or its digest changed"]
+        episodes = _read_gait_panel_episodes(path, current)
+        if not episodes or episodes != report.get("episodes"):
+            return None, ["gait report episodes do not agree with the hashed CSV panel"]
+        seeds = [episode.get("seed") for episode in episodes]
+        if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds) or len(set(seeds)) != len(seeds):
+            return None, ["gait panel episode seeds are missing or duplicated"]
+        if seeds != list(
+            range(thresholds.gait_panel_seed_start, thresholds.gait_panel_seed_start + thresholds.min_eval_episodes)
+        ):
+            return None, ["gait panel seeds do not match the fixed declared panel"]
+        if report.get("seed_start") != thresholds.gait_panel_seed_start:
+            return None, ["gait report seed_start does not match the fixed declared panel"]
+        foot_names = report.get("foot_names")
+        if not isinstance(foot_names, list) or any(not isinstance(name, str) for name in foot_names):
+            return None, ["gait report foot registry is missing"]
+        if foot_names != protocol.get("foot_names"):
+            return None, ["gait report foot order differs from its measurement registry"]
+        _replay_gait_traces(root, report, protocol, episodes, foot_names)
+        result = evaluate_gait_gate(episodes, thresholds, foot_names=foot_names)
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        return None, [f"gait evidence could not be read: {type(exc).__name__}: {exc}"]
+    return {
+        **current,
+        "selected_gait_success_count": result.success_count,
+        "selected_gait_n_episodes": result.n_episodes,
+        "selected_gait_success_lcb": result.success_lcb,
+        "passed": result.passed,
+        "failures": list(result.failures),
+        "episode_failures": [list(failures) for failures in result.episode_failures],
+    }, []
+
+
+def _gait_stage_gate(
+    curriculum: Mapping[str, Any], *, stage: int | str, stage_dir: str | Path | None
+) -> tuple[bool, list[str]]:
+    if stage_dir is None:
+        return False, [f"stage {stage} locomotion_gait/v1 requires its selected-handoff gait panel and stage_dir"]
+    stats, failures = gait_statistics(stage_dir, curriculum)
+    if stats is None:
+        return False, [f"stage {stage} gait evidence: {failure}" for failure in failures]
+    return stats["passed"], [f"stage {stage} {failure}" for failure in stats["failures"]]
+
+
 def _reward_and_length_stage_gate(
     curriculum: Mapping[str, Any],
     stage_results: Mapping[str, Any],
@@ -731,6 +989,7 @@ def evaluate_stage_gate(
     # SB3-optionality comes from `curriculum.sb3_compat`, which makes the
     # callbacks raise at construction rather than at import; the whole test
     # suite passes with stable-baselines3 absent because of that, not this.
+    from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
     from environments.shared.curriculum.gate_schema import GATE_KINDS
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
@@ -764,6 +1023,8 @@ def evaluate_stage_gate(
         )
     if gate_kind == STANCE_GATE_KIND:
         return _stance_stage_gate(gate_kind, stance_report, stage)
+    if gate_kind == GAIT_GATE_KIND:
+        return _gait_stage_gate(curriculum, stage=stage, stage_dir=stage_dir)
     if gate_kind == TASK_SUCCESS_GATE_KIND:
         # The hunting verdict comes ONLY from the selected checkpoint's
         # per-episode evidence (plan §4.4): the reward conjunction below

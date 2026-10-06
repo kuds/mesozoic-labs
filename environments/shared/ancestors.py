@@ -583,6 +583,19 @@ def _find_certified_ancestor(
             "--gate current) to reuse it"
         )
 
+    # A physical gait verdict also needs reproducible contact evidence under
+    # this build's detector/registry. A bare historical boolean cannot admit
+    # an ancestor after its measurement implementation has changed.
+    if current_view["gate_kind"] == "locomotion_gait/v1":
+        from .reporting.gates import gait_statistics
+
+        gait_stats, gait_failures = gait_statistics(stage_dir, current_gate_config)
+        if gait_stats is None or not gait_stats["passed"]:
+            reasons = gait_failures if gait_stats is None else gait_stats["failures"]
+            raise AncestorReuseError(
+                f"{stage_dir} cannot reproduce its physical gait certificate: " + "; ".join(reasons)
+            )
+
     # (4) The chain: the candidate descends from the checkpoint resolved for
     # the node's declared parent, or from nothing when the node is a root.
     _check_chain(stage_dir, entry=entry, parent_model_sha256=parent_model_sha256)

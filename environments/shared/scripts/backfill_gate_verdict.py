@@ -302,6 +302,18 @@ def backfill_gate_verdict(
             "model_path": model_stem,
             "vecnorm_path": normalization,
         }
+    from environments.shared.curriculum.gait_gate import GAIT_GATE_KIND
+    from environments.shared.reporting.gates import gait_statistics
+
+    gait_stats: dict[str, Any] | None = None
+    if gate_kind == GAIT_GATE_KIND:
+        gait_stats, gait_failures = gait_statistics(stage_path, curriculum)
+        if gait_stats is None:
+            raise BackfillError(
+                f"{entry.id!r} declares {GAIT_GATE_KIND}: no reproducible selected-handoff gait evidence: "
+                + "; ".join(gait_failures)
+            )
+        stage_results.update({key: value for key, value in gait_stats.items() if key.startswith("selected_gait_")})
     selected = selected_evidence_metrics(stage_path, model_zip=model_zip, normalization=normalization_path)
     if selected is not None:
         stage_results.update(selected)
@@ -312,7 +324,7 @@ def backfill_gate_verdict(
             f"{entry.id!r} declares task_success/v1: no {SELECTED_EVIDENCE_CSV} hash-bound to the handoff, "
             "so the verdict cannot be re-derived"
         )
-    elif stance_report is None and not (stage_path / "evaluations.npz").is_file():
+    elif gait_stats is None and stance_report is None and not (stage_path / "evaluations.npz").is_file():
         raise BackfillError(
             f"{stage_path} holds neither {SELECTED_EVIDENCE_CSV} nor evaluations.npz, so there is no measurement "
             f"to judge {gate_kind!r} on"
