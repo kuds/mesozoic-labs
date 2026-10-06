@@ -97,3 +97,83 @@ class TestBackendOverrideTable:
         assert curriculum["jax"] == {"min_avg_rewrad": 40.0}
         with pytest.raises(GateSchemaError, match="cannot be overridden"):
             _validate(curriculum)
+
+
+#: A complete stance_quality/v2 declaration: exactly its required keys (decision D-D23).
+_STANCE_V2 = {
+    "gate_schema_version": GATE_SCHEMA_VERSION,
+    "gate_kind": "stance_quality/v2",
+    "min_eval_episodes": 40,
+    "min_clean_stance_lcb": 0.80,
+    "settle_steps": 200,
+    "min_all_feet_support": 0.98,
+    "max_touchdown_rate": 0.25,
+    "max_window_displacement_m": 0.10,
+    "min_foot_load_share": 0.30,
+    "max_actuator_saturation_fraction": 0.10,
+    "max_settle_airborne_substeps": 0,
+    "max_settle_peak_floor_force_bw": 1.5,
+}
+
+
+class TestStanceQualityV2Declaration:
+    """The v2 block is validated like every kind: required keys by name, other kinds' keys misplaced."""
+
+    def test_a_complete_block_validates(self):
+        assert _validate(_STANCE_V2) == "stance_quality/v2"
+        assert _validate(dict(_STANCE_V2, max_sole_corner_lift_m=0.006, min_avg_reward_statue_ratio=0.6)) == (
+            "stance_quality/v2"
+        )
+
+    @pytest.mark.parametrize(
+        "missing",
+        sorted(set(_STANCE_V2) - {"gate_schema_version", "gate_kind"}),
+    )
+    def test_each_required_key_is_reported_missing_by_name(self, missing):
+        block = {key: value for key, value in _STANCE_V2.items() if key != missing}
+        with pytest.raises(GateSchemaError, match=rf"missing required threshold field\(s\) \['{missing}'\]"):
+            _validate(block)
+
+    @pytest.mark.parametrize("key", ["max_unsupported_duty", "max_unsupported_duty_ucb"])
+    def test_a_v1_only_key_left_in_a_v2_block_is_misplaced(self, key):
+        """A switch from v1 that leaves the duty ceilings behind would imply a gate nobody enforces."""
+        with pytest.raises(GateSchemaError, match=rf"does not consume threshold field\(s\) \['{key}'\]"):
+            _validate(dict(_STANCE_V2, **{key: 0.02}))
+
+    @pytest.mark.parametrize("key", ["min_clean_stance_lcb", "max_sole_corner_lift_m", "min_avg_reward_statue_ratio"])
+    def test_a_v2_key_in_a_v1_block_is_misplaced(self, key):
+        with pytest.raises(GateSchemaError, match=rf"does not consume threshold field\(s\) \['{key}'\]"):
+            _validate(dict(_STANCE, **{key: 0.5}))
+
+    def test_the_gate_view_holds_exactly_the_declared_keys(self):
+        """Registration moves no digest: only DECLARED keys of the kind enter the view."""
+        from environments.shared.curriculum.gate_schema import gate_config_view
+
+        block = dict(_STANCE_V2, max_sole_corner_lift_m=0.006, timesteps=11_000_000, stance_report_episodes=40)
+        view = gate_config_view(block)
+        assert view["gate_kind"] == "stance_quality/v2" and view["gate_schema_version"] == 1
+        assert set(view["thresholds"]) == set(_STANCE_V2) - {"gate_schema_version", "gate_kind"} | {
+            "max_sole_corner_lift_m"
+        }
+
+    def test_the_v2_keys_reach_the_threshold_and_the_manager_refuses_the_kind(self):
+        from environments.shared.curriculum import CurriculumManager, StageThreshold
+
+        thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_STANCE_V2, max_sole_corner_lift_m=0.006)}})
+        assert thresholds[1]["gate_kind"] == "stance_quality/v2"
+        assert thresholds[1]["min_clean_stance_lcb"] == 0.80 and thresholds[1]["max_sole_corner_lift_m"] == 0.006
+        threshold = StageThreshold(**thresholds[1])
+        copied = threshold.stance_v2_thresholds()
+        assert copied.min_clean_stance_lcb == 0.80 and copied.settle_steps == 200
+        assert copied.max_sole_corner_lift_m == 0.006 and copied.min_sole_contacts is None
+        assert copied.min_avg_reward is None and copied.min_full_horizon_fraction is None
+        manager = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        assert not manager.should_advance([1e9] * 40, [1000.0] * 40)
+
+    def test_an_unpopulated_threshold_cannot_be_field_copied_into_a_gate(self):
+        from environments.shared.curriculum import StageThreshold
+
+        with pytest.raises(ValueError, match="never populated"):
+            StageThreshold(gate_kind="stance_quality/v2").stance_v2_thresholds()
+        # The bar's own default is +inf: no bound clears it.
+        assert StageThreshold().min_clean_stance_lcb == float("inf")

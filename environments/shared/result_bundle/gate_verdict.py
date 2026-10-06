@@ -107,6 +107,16 @@ _PERSISTED_STAGE_RESULT_KEYS = (
     "best_model_success_lcb",
     "success_count",
     "n_success_samples",
+    # stance_quality/v2 (decision D-D23): the clean count, panel size,
+    # clean fraction and bound the floor-truth verdict was re-derived on, and
+    # the statue panel's full-horizon mean reward its statue-relative rail
+    # scaled (None when no statue panel was rolled), copied from the admitted
+    # report by _apply_stage_gate and the CLI curriculum's post-training judge.
+    "stance_clean_count",
+    "stance_n_episodes",
+    "stance_clean_fraction",
+    "stance_clean_lcb",
+    "stance_statue_mean_reward",
     "model_path",
     "vecnorm_path",
     "plant_identity",

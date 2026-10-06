@@ -17,6 +17,7 @@ from typing import Any, Mapping, Sequence
 from ..constants import PUBLICATION_SEED_START
 from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
+from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from ..record_fields import is_sha256_digest
 from ..stage_manifest import find_stage_dir
@@ -438,7 +439,18 @@ def _validate_stance_panel_evidence(
     rewards: list[float] = []
     reached_flags: list[bool | None] = []
     with panel_path.open(newline="", encoding="utf-8") as source:
-        for index, row in enumerate(csv.DictReader(source), start=1):
+        reader = csv.DictReader(source)
+        # A stance_quality/v2 panel carries every column read below (its
+        # length, reward and touch duties among its own), so without this a
+        # v2 file would be scored as a v1 panel; its measurement stamp is the
+        # column no v1 panel has.
+        if "measurement_version" in (reader.fieldnames or ()):
+            raise ResultBundleError(
+                f"stage {stage} declares gate_kind {STANCE_GATE_KIND!r} but {panel_path.name} is a "
+                f"{STANCE_GATE_V2_KIND} floor-truth panel (it records measurement_version), which this gate "
+                "does not score"
+            )
+        for index, row in enumerate(reader, start=1):
             panel_seed = _integral(_optional_csv_number(row.get("panel_seed")))
             expected_seed = panel_seed_start + index - 1
             if panel_seed != expected_seed:
@@ -512,6 +524,165 @@ def _validate_stance_panel_evidence(
         raise ResultBundleError(
             f"stage {stage} publication gate fails {STANCE_GATE_KIND}, re-derived from "
             f"{panel_path.name}: " + "; ".join(failures)
+        )
+
+
+def _recorded_task_sha256(fingerprint: Any) -> str | None:
+    """The ``task_sha256`` of a recorded task fingerprint, ``None`` when it records none."""
+    recorded = fingerprint.get("task_sha256") if isinstance(fingerprint, Mapping) else None
+    return recorded if isinstance(recorded, str) and recorded else None
+
+
+def _validate_stance_v2_panel_evidence(
+    panel_path: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    env_kwargs: Mapping[str, Any],
+    stage: "int | str",
+    panel_seed_start: int,
+    certified_hash: "str | None",
+    certified_normalization: "str | None",
+    species: str,
+    task_sha256: "str | None",
+) -> None:
+    """Re-derive a ``stance_quality/v2`` pass from the panel's per-episode floor-truth rows.
+
+    The v2 twin of :func:`_validate_stance_panel_evidence`, and stricter on
+    the binding the way the task_success arm is: the published claim must be
+    reproducible from ``stance_panel_selected.csv`` alone, and those rows
+    must be shown to describe the published policy.  Refused:
+
+    * an absent file, a v1 panel file (it lacks the v2 columns), or any row
+      ``read_stance_v2_panel`` cannot read;
+    * a row that did not run on ``panel_seed_start + i`` (D-B17);
+    * rows that record no ``checkpoint_sha256``, a stage with no certified
+      checkpoint to bind them to, or rows for another checkpoint -- and,
+      when the provenance certifies a VecNormalize sidecar, rows that record
+      none or another one;
+    * rows rolled under another task than the one the stage records
+      (*task_sha256*: ``task_fingerprint.json`` / ``stage_config.json``), or
+      a stage that records none -- another ``[env]`` block or plant scores
+      another number under the same rows;
+    * rows measured under another ``MEASUREMENT_VERSION`` than this
+      checkout's, or under another measurement DEFINITION -- the constants
+      and *species*' support-registry entry, whose digest
+      (``gait.constants.measurement_definition_sha256``) every row stamps --
+      even with the version unbumped: the same key names would score other
+      quantities;
+    * no ``max_episode_steps`` (the horizon decides which episodes count);
+    * a recorded ``reached_horizon`` or ``clean`` flag that the
+      re-derivation contradicts;
+    * and, of course, a re-derived verdict that fails --
+      :func:`~environments.shared.curriculum.stance_gate_v2.evaluate_stance_v2_gate`
+      with strict thresholds, the statue reference the rows record, and the
+      settle window checked against the stage's control step.
+
+    Without this arm a recorded v2 PASS would take the legacy loop below and
+    publish on ``min_avg_reward`` alone, the rail the statue clears.
+    """
+    from ..curriculum.stance_gate_v2 import StanceV2Thresholds, evaluate_stance_v2_gate, read_stance_v2_panel
+    from ..gait.constants import MEASUREMENT_VERSION, measurement_definition_sha256
+    from ..gait.morphology import measurement_definition
+
+    kind = STANCE_GATE_V2_KIND
+    if not panel_path.is_file():
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but {panel_path.name} is missing, so no episode's "
+            "floor-truth classification can be re-derived. Certifying on min_avg_reward alone would pass a "
+            "zero-action statue, which is what this gate kind exists to reject."
+        )
+    try:
+        evidence = read_stance_v2_panel(panel_path)
+    except (OSError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} {kind} panel evidence cannot be read: {exc}") from exc
+    for index, seed in enumerate(evidence.panel_seeds):
+        if seed != panel_seed_start + index:
+            raise ResultBundleError(
+                f"stance panel row {index} for stage {stage} ran on panel_seed {seed}, not the "
+                f"certification_panel seed {panel_seed_start + index}"
+            )
+    if evidence.checkpoint_sha256 is None:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence records no checkpoint_sha256, so it cannot be bound to the "
+            "published checkpoint"
+        )
+    if certified_hash is None:
+        raise ResultBundleError(
+            f"stage {stage} records no certified selected checkpoint in provenance, so a {kind} pass cannot be "
+            "bound to the published checkpoint"
+        )
+    if evidence.checkpoint_sha256 != certified_hash:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was rolled on checkpoint {evidence.checkpoint_sha256}, not "
+            f"the certified selected checkpoint {certified_hash}"
+        )
+    if certified_normalization is not None and evidence.normalization_sha256 != certified_normalization:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence ran under VecNormalize statistics "
+            f"{evidence.normalization_sha256}, not the certified selected statistics {certified_normalization}"
+        )
+    if not task_sha256:
+        raise ResultBundleError(
+            f"stage {stage} records no task fingerprint, so the task its {kind} panel rolled cannot be shown to be "
+            "the one the stage ran"
+        )
+    if evidence.task_sha256 != task_sha256:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was rolled under task {evidence.task_sha256}, not the task the "
+            f"stage ran ({task_sha256})"
+        )
+    if evidence.measurement_version != MEASUREMENT_VERSION:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was measured under {evidence.measurement_version!r}, not "
+            f"this checkout's {MEASUREMENT_VERSION!r}; its metrics would be scored under other definitions"
+        )
+    # The version is a promise to bump; the definition digest is what the
+    # promise is about.  A constant or registry edit with no bump would
+    # otherwise publish rows measured under definitions this checkout no
+    # longer implements, as the judge (which compares them key by key) would
+    # not have admitted.
+    expected_definition = measurement_definition_sha256(measurement_definition(species))
+    if evidence.measurement_definition_sha256 != expected_definition:
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence was measured under definition "
+            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {species} "
+            "(its constants and support-registry entry); its metrics would be scored under other definitions"
+        )
+    horizon_value = env_kwargs.get("max_episode_steps")
+    if horizon_value is None or isinstance(horizon_value, bool) or not isinstance(horizon_value, (int, float)):
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but its config records no integer max_episode_steps "
+            f"({horizon_value!r}), so which episodes reached the horizon cannot be determined"
+        )
+    horizon = int(horizon_value)
+    for index, (episode, claimed) in enumerate(zip(evidence.episodes, evidence.reached_horizon)):
+        if claimed != (episode.length >= horizon):
+            raise ResultBundleError(
+                f"stage {stage} stance panel episode {index} claims reached_horizon={claimed} but its length "
+                f"{episode.length} against horizon {horizon} says otherwise"
+            )
+    try:
+        thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        raise ResultBundleError(f"stage {stage} declares {kind} without a scorable gate: {exc}") from exc
+    try:
+        control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records an unreadable timestep or frame_skip: {exc}") from exc
+    result = evaluate_stance_v2_gate(
+        evidence.episodes, thresholds, horizon=horizon, statue=evidence.statue, control_dt=control_dt
+    )
+    rederived = [not reasons for reasons in result.episode_reasons]
+    if rederived != evidence.recorded_clean:
+        index = next(i for i, (a, b) in enumerate(zip(rederived, evidence.recorded_clean)) if a != b)
+        raise ResultBundleError(
+            f"stage {stage} stance panel episode {index} records clean={evidence.recorded_clean[index]} but "
+            f"re-derives clean={rederived[index]} under the declared gate"
+        )
+    if not result.passed:
+        raise ResultBundleError(
+            f"stage {stage} publication gate fails {kind}, re-derived from {panel_path.name}: "
+            + "; ".join(result.failures)
         )
 
 
@@ -891,6 +1062,33 @@ def validate_evaluation_evidence(
                 env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
                 panel_seed_start=certification_panel_seed,
+            )
+        elif recorded_pass and gate_kind == STANCE_GATE_V2_KIND:
+            # The floor-truth stance gate (D-D23) is re-derived from the
+            # panel's own per-episode rows, bound to the certification panel
+            # seeds AND to the certified handoff pair -- it REPLACES the
+            # legacy loop below exactly as the v1 arm does, because that loop
+            # would publish a v2 stage on min_avg_reward, the rail the statue
+            # clears.
+            if certification_panel_seed is None:
+                raise ResultBundleError(
+                    f"provenance seed_roles must declare certification_panel for a {STANCE_GATE_V2_KIND} pass "
+                    f"(stage {stage}): the stance panel rows are bound to that seed block"
+                )
+            recorded_task = config_value.get("task_fingerprint")
+            _validate_stance_v2_panel_evidence(
+                find_stage_dir(run_path, stage) / "stance_panel_selected.csv",
+                curriculum,
+                env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
+                stage=stage,
+                panel_seed_start=certification_panel_seed,
+                certified_hash=certified_hash,
+                certified_normalization=certified_normalization,
+                species=str(summary.get("species")),
+                # The task the stage ran: the fingerprint snapshot
+                # save_stage_config writes into stage_config.json beside
+                # task_fingerprint.json (the pair the judge reads).
+                task_sha256=_recorded_task_sha256(recorded_task),
             )
         elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
             # The hunting gate (plan §4.4) is re-derived from the SAME

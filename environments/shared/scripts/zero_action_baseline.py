@@ -39,6 +39,7 @@ if _repo_root not in sys.path:
 
 from environments.shared.config import SPECIES_NAMES, build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.result_bundle import read_bundle_status
 from environments.shared.species_names import resolve_species_id, species_display_name
@@ -156,12 +157,52 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         env.close()
 
 
+def statue_stance_verdict(species: str, stage: int, stage_cfg: dict, *, episodes: int, seed: int) -> dict:
+    """The stance gate's verdict on the statue, for a stage that declares a stance kind.
+
+    A stance gate is the opposite of a reward gate here: the statue is the
+    quality ceiling a stance policy must MATCH, not a floor to beat
+    (``curriculum/stance_gate.py``), so the check is that the statue PASSES
+    the gate as configured -- the acceptance check every stance TOML needs,
+    and for ``stance_quality/v2`` the >= 37/40-clean check on its declared
+    bars.  The verdict is ``reporting.stance_report.build_stance_gate_report``
+    with ``zero_action=True`` on the same seeds, so it is the one the
+    pipeline would reach: the floor-truth panel for v2, the touch-duty panel
+    for v1.
+    """
+    from environments.shared.reporting.stance_report import build_stance_gate_report
+
+    report = build_stance_gate_report(
+        species, stage, stage_config=stage_cfg, zero_action=True, episodes=episodes, seed=seed
+    )
+    record = {
+        "gate_kind": report["gate_kind"],
+        "scored_gate_kind": report.get("scored_gate_kind"),
+        "passed": bool(report["passed"]),
+        "failures": list(report["failures"]),
+    }
+    if "result" in report:
+        record.update(
+            {
+                "n_clean": report["result"]["n_clean"],
+                "n_episodes": report["result"]["n_episodes"],
+                "clean_lcb": report["result"]["clean_lcb"],
+            }
+        )
+    return record
+
+
 def preflight(species_names, *, stage: int, episodes: int, seed: int, species: str, log_base, run_dir) -> None:
     """The notebook's pre-flight: judge each species' stage gate against its zero-action floor and print the table.
 
     Saves one record per species under ``<log_base>/<species>/zero_action_baselines/`` and the table beside the
     record of *species* (the species the notebook trains), whose record is also copied into *run_dir* (what
     ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.
+
+    A stage that declares a stance kind (``gate_schema.STANCE_GATE_KINDS``) is judged by the stance gate's own
+    verdict on the statue (:func:`statue_stance_verdict`), recorded under ``stance_gate``, rather than by its
+    reward RAIL -- which the statue clears by design, so the old reading printed "FAILS — a statue clears this
+    gate" for every stance stage while saying nothing about the stance criteria.
     """
     results = {}
     for species_input in species_names:
@@ -174,9 +215,20 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
 
         stage_cfg = load_stage_config(name, stage)
         gate = stage_cfg["curriculum_kwargs"].get("min_avg_reward")
+        stance_gate = None
+        if stage_cfg["curriculum_kwargs"].get("gate_kind") in STANCE_GATE_KINDS:
+            stance_gate = statue_stance_verdict(name, stage, stage_cfg, episodes=episodes, seed=seed)
 
         # A gate only means something if it sits above the floor a statue reaches.
-        if gate is None:
+        if stance_gate is not None:
+            # ...except a stance gate, which the statue must PASS: it is the
+            # quality ceiling, and a gate that refuses it is miscalibrated.
+            verdict = (
+                "OK — the statue passes the stance gate"
+                if stance_gate["passed"]
+                else "CHECK GATE — the stance gate refuses the statue"
+            )
+        elif gate is None:
             verdict = "NO GATE"
         elif gate <= result["reward_mean"]:
             verdict = "FAILS — a statue clears this gate"
@@ -199,6 +251,7 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
                 "verdict": verdict,
                 "margin_over_mean": gate_margin(gate, result["reward_mean"]),
                 "margin_over_standing": gate_margin(gate, result["reward_mean_standing"]),
+                **({} if stance_gate is None else {"stance_gate": stance_gate}),
                 "env_kwargs": stage_cfg["env_kwargs"],
                 "plant_identity": current_plant_identity(name).to_dict(),
             }
@@ -221,11 +274,21 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
             f"{standing_text:>10}{r['full_horizon_share']:>8.0%}"
             f"{gate_text:>9}  {r['verdict']}"
         )
+    refused = [
+        (name, r["stance_gate"]) for name, r in results.items() if r.get("stance_gate", {}).get("passed") is False
+    ]
+    for name, stance_gate in refused:
+        lines += ["", f"{species_display_name(name)}: the {stance_gate['gate_kind']} gate refuses the statue:"]
+        lines += [f"  - {failure}" for failure in stance_gate["failures"]]
     lines += [
         "",
         "A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have",
         "learned to balance at all, and 'standing' to have learned more than 'do not fall'.",
     ]
+    if any("stance_gate" in r for r in results.values()):
+        lines.append(
+            "A stance-gated stage is the exception: the statue is its quality ceiling and must PASS the stance gate."
+        )
     report_text = "\n".join(lines)
     print(report_text)
 

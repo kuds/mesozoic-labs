@@ -1,4 +1,4 @@
-"""Build, render and write the ``stance_quality/v1`` gate report for a checkpoint.
+"""Build, render and write the stance gate report for a checkpoint (``stance_quality/v1`` and ``/v2``).
 
 The library half of ``environments/shared/scripts/stance_gate_report.py``:
 everything that rolls a policy on the stage's own configured environment,
@@ -8,6 +8,15 @@ runs, and renders the verdict criterion by criterion -- plus the three probes
 built on the same rollout (the low-pass action filter, the constant-hold
 family and the root impulse) and the per-episode panel evidence.  The script
 keeps only its CLI and re-imports these names.
+
+A stage that declares ``stance_quality/v2`` (decision D-D23) is scored by
+:mod:`~environments.shared.curriculum.stance_gate_v2` instead: the same
+rollout with the floor-truth recorder (``environments.shared.gait``)
+attached, a statue panel on the same seeds when the gate's statue-relative
+criteria need one, and a ``mesozoic.stance-gate-report/v3`` report that
+records what scored it, under which thresholds and measurement, for which
+handoff pair -- everything ``reporting.gates`` checks before it re-derives
+the verdict.  Probes on such a stage stay v1-shaped and unrecorded.
 
 It lives in the reporting package because the training pipeline emits the
 same report automatically: :mod:`~environments.shared.reporting.stage_artifacts`
@@ -40,13 +49,31 @@ import numpy as np
 
 from ..action_filter import low_pass_alpha
 from ..constants import PUBLICATION_SEED_START
+from ..curriculum.gate_schema import STANCE_GATE_KINDS, gate_config_view
 from ..curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
     evaluate_stance_gate,
     stance_panel_from_episode_duties,
 )
+from ..curriculum.stance_gate_v2 import (
+    EPISODE_CRITERIA,
+    HORIZON_REASON,
+    STANCE_GATE_V2_KIND,
+    STANCE_V2_PANEL_FIELDNAMES,
+    STANCE_V2_REPORT_SCHEMA,
+    STATUE_POLICY,
+    StanceV2Thresholds,
+    evaluate_stance_v2_gate,
+    statue_reference,
+)
 from ..file_io import atomic_write_csv, atomic_write_json, atomic_write_text
+from ..gait.stance_metrics import (
+    STANCE_METRIC_FIELDS,
+    STANCE_METRIC_FOOT_FIELDS,
+    StanceEpisodeMetrics,
+    episode_stance_metrics,
+)
 from ..policy_loading import PolicyLoadError, load_sb3_checkpoint
 from ..species_registry import SPECIES_FACTORIES
 from ..stance_diagnostics import derive_stance_info
@@ -148,6 +175,7 @@ def run_panel(
     plant_identity: Any = None,
     control_dt: float = 0.01,
     impulse: "RootImpulse | None" = None,
+    floor_truth: bool = False,
 ) -> dict[str, Any]:
     """Roll ``episodes`` deterministic episodes and reduce them for the gate.
 
@@ -157,6 +185,20 @@ def run_panel(
 
     Returns the panel plus the per-episode evidence it was reduced from, so a
     caller can serialize the measurements rather than only their summary.
+
+    ``floor_truth=True`` (the ``stance_quality/v2`` panel) also attaches a
+    :class:`~environments.shared.gait.recorder.SubstepContactRecorder` to the
+    rollout env for the whole panel -- attached after the env is built and
+    detached in the same ``finally`` that closes it, so a rollout that raises
+    never leaves the hook installed -- and adds ``stance_metrics`` (one
+    :class:`~environments.shared.gait.stance_metrics.StanceEpisodeMetrics`
+    per episode, measured with ``settle_steps``) and ``measurement`` (the
+    :func:`~environments.shared.gait.constants.measurement_manifest` the
+    metrics mean what they mean under) to the result.  The recorder reads
+    the physics and never writes it (the trajectory is bit-identical,
+    ``test_gait_recorder.py``), so every other number in the result is the
+    one an unrecorded panel would produce.  Without it the rollout is
+    exactly the v1 one.
     """
     env_class = SPECIES_FACTORIES[species]().env_class
     env = env_class(**env_kwargs)
@@ -186,10 +228,23 @@ def run_panel(
     action_stats = _new_action_stats()
     joint_names: list[str] = []
     pose_mapping: list[dict[str, Any]] = []
+    recorder: Any = None
+    measurement: dict[str, Any] | None = None
+    stance_metrics: list[StanceEpisodeMetrics] = []
 
     try:
         joint_names = _actuator_joint_names(env)
         pose_mapping = _actuator_pose_mapping(env)
+        if floor_truth:
+            # Imported here: the recorder and the morphology import mujoco
+            # and walk the model, which only a floor-truth panel needs.
+            from ..gait.constants import measurement_manifest
+            from ..gait.morphology import Morphology
+            from ..gait.recorder import SubstepContactRecorder
+
+            morphology = Morphology.from_env(env, species)
+            measurement = measurement_manifest(morphology, env.unwrapped.model)
+            recorder = SubstepContactRecorder(env, morphology).attach()
         _roll_episodes(
             env,
             predict=predict,
@@ -205,9 +260,15 @@ def run_panel(
             components=components,
             action_stats=action_stats,
             impulse=impulse,
+            recorder=recorder,
+            stance_metrics=stance_metrics,
         )
     finally:
-        env.close()
+        try:
+            if recorder is not None:
+                recorder.detach()
+        finally:
+            env.close()
 
     panel = stance_panel_from_episode_duties(
         episode_lengths=lengths,
@@ -231,7 +292,7 @@ def run_panel(
         kept = [value for value, length in zip(values, lengths) if length >= horizon and not np.isnan(value)]
         return float(np.mean(kept)) if kept else float("nan")
 
-    return {
+    result: dict[str, Any] = {
         "panel": panel,
         "lengths": np.asarray(lengths),
         "rewards": np.asarray(rewards),
@@ -260,6 +321,10 @@ def run_panel(
             )
         ],
     }
+    if floor_truth:
+        result["stance_metrics"] = stance_metrics
+        result["measurement"] = measurement
+    return result
 
 
 def _new_action_stats() -> dict[str, Any]:
@@ -594,11 +659,19 @@ def _roll_episodes(
     components: dict[str, float],
     action_stats: dict[str, Any],
     impulse: "RootImpulse | None" = None,
+    recorder: Any = None,
+    stance_metrics: "list[StanceEpisodeMetrics] | None" = None,
 ) -> None:
     """Roll the panel, appending per-episode measurements to the given lists.
 
     Split out only so ``run_panel`` can wrap it in the ``finally`` that closes
     the environment; the accumulation is unchanged.
+
+    With an attached *recorder* every step is closed with the policy's
+    action and the env's reward right after ``env.step``, and every episode
+    is reduced to its floor-truth metrics (appended to *stance_metrics*)
+    once it ends.  The recorder learns of a new episode from its own hook
+    (the first substep after ``env.reset``), so nothing is called at reset.
     """
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
@@ -624,6 +697,8 @@ def _roll_episodes(
             # transient does not read as tremor.
             measure_step = steps >= settle_steps
             obs, reward, terminated, truncated, info = env.step(action)
+            if recorder is not None:
+                recorder.end_step(action, float(reward))
             if measure_step:
                 # ``data.ctrl`` is the target the environment actually
                 # applied.  Reading it after ``step`` avoids a second call to
@@ -652,6 +727,11 @@ def _roll_episodes(
             if terminated or truncated:
                 reason = info.get("termination_reason", "terminated" if terminated else "truncated")
                 terminations[reason] = terminations.get(reason, 0) + 1
+                if recorder is not None and stance_metrics is not None:
+                    trace = recorder.end_episode(
+                        terminated=bool(terminated), truncated=bool(truncated), termination_reason=str(reason)
+                    )
+                    stance_metrics.append(episode_stance_metrics(trace, settle_steps=settle_steps))
                 break
         # An episode boundary is not an action difference.
         action_stats["prev"] = None
@@ -665,8 +745,15 @@ def _roll_episodes(
         single_duties.append(single / measured if measured else float("nan"))
 
 
-#: Bumped when the JSON report's field meanings change.
+#: Bumped when the JSON report's field meanings change.  This is the schema
+#: of a report that scored the ``stance_quality/v1`` criteria (every probe
+#: report among them); "v2" here is the REPORT's revision, not the gate kind's.
 REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
+
+#: A report that scored ``stance_quality/v2`` (decision D-D23) has another
+#: shape (per-episode floor-truth rows, the measurement manifest, the handoff
+#: digests, the statue block) and its own revision,
+#: ``stance_gate_v2.STANCE_V2_REPORT_SCHEMA`` = ``mesozoic.stance-gate-report/v3``.
 
 
 def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
@@ -906,7 +993,7 @@ def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
 
 def build_stance_gate_report(
     species: str,
-    stage: int,
+    stage: "int | str",
     *,
     stage_config: dict[str, Any],
     model_path: str | None = None,
@@ -935,6 +1022,18 @@ def build_stance_gate_report(
     ``episodes`` of ``None`` means the stage's own ``min_eval_episodes``,
     the panel size the bound's power is specified at. ``0`` is rejected
     rather than silently treated as absent.
+
+    A stage declaring ``stance_quality/v2`` is scored under THAT kind
+    (:func:`_stance_v2_report`): strict thresholds, the floor-truth recorder
+    on the panel, a statue panel on the same seeds when a statue-relative
+    criterion is declared, and a ``mesozoic.stance-gate-report/v3`` report
+    that records which code scored it (``scored_gate_kind``), the handoff
+    digests and the measurement manifest, so the judge can refuse a report
+    that does not describe this gate, this checkpoint or this measurement.
+    A PROBE (``filter_actions_hz`` / ``hold_constant`` / ``impulse``) on a
+    v2 stage keeps the v1-shaped report it always produced, with no
+    recorder and no statue panel: a probe annotates, it never certifies,
+    and its readers (the sweep and table writers) read that shape.
     """
     if episodes is not None and episodes < 1:
         raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
@@ -944,10 +1043,19 @@ def build_stance_gate_report(
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
     control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
+    probing = filter_actions_hz is not None or hold_constant is not None or impulse is not None
+    v2_thresholds: StanceV2Thresholds | None = None
+    if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND and not probing:
+        # Strict, and checked before anything is rolled: a v2 block with a
+        # missing bar, or a settle window inside the spawn grace, would cost
+        # a whole panel to produce a report the judge then refuses.
+        v2_thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+        v2_thresholds.validate_settle_window(control_dt)
     # Lenient on purpose (require_criteria=False): a stage that does not gate
     # on stance still gets a readable report rather than a spuriously strict one.
     thresholds = StanceGateThresholds.from_curriculum(curriculum, require_criteria=False)
-    panel_episodes = thresholds.min_eval_episodes if episodes is None else episodes
+    default_episodes = thresholds.min_eval_episodes if v2_thresholds is None else v2_thresholds.min_eval_episodes
+    panel_episodes = default_episodes if episodes is None else episodes
 
     from environments.shared.plant_contract import current_plant_identity
 
@@ -955,14 +1063,8 @@ def build_stance_gate_report(
 
     env_class = SPECIES_FACTORIES[species]().env_class
     if zero_action:
-        probe = env_class(**env_kwargs)
-        zero = np.zeros(probe.action_space.shape[0], dtype=np.float32)
-        probe.close()
-
-        def predict(_obs: np.ndarray) -> np.ndarray:
-            return zero
-
-        description = "zero action (do-nothing reference)"
+        predict = _zero_action_predict(env_class, env_kwargs)
+        description = _ZERO_ACTION_DESCRIPTION
     else:
         if model_path is None:
             raise ValueError("model_path is required unless zero_action is set")
@@ -995,6 +1097,27 @@ def build_stance_gate_report(
             else f" — commanded action held constant from step {hold_constant.handoff_steps}"
         )
 
+    if v2_thresholds is not None:
+        return _stance_v2_report(
+            species,
+            stage,
+            curriculum=curriculum,
+            env_class=env_class,
+            env_kwargs=env_kwargs,
+            thresholds=v2_thresholds,
+            predict=predict,
+            description=description,
+            zero_action=zero_action,
+            model_path=model_path,
+            vecnorm_path=vecnorm_path,
+            episodes=panel_episodes,
+            seed=seed,
+            horizon=horizon,
+            control_dt=control_dt,
+            plant_identity=plant_identity,
+            allow_legacy_plant=allow_legacy_plant,
+        )
+
     result = run_panel(
         species,
         predict=predict,
@@ -1015,6 +1138,11 @@ def build_stance_gate_report(
         "species": species,
         "stage": stage,
         "gate_kind": curriculum.get("gate_kind"),
+        # Which criteria THIS code scored, whatever the stage declares: the
+        # report echoes the declared kind above, and a v1-scored report
+        # labelled stance_quality/v2 (a probe on a v2 stage, or a report
+        # from before the kind existed) must never read as a v2 verdict.
+        "scored_gate_kind": STANCE_GATE_KIND,
         "policy": description,
         "episodes": panel_episodes,
         "seed": seed,
@@ -1078,6 +1206,227 @@ def build_stance_gate_report(
     }
 
 
+#: The zero-action policy's description, in every report shape: the v2
+#: judge refuses a statue block that records any other
+#: (``stance_gate_v2.STATUE_POLICY``, the one definition).
+_ZERO_ACTION_DESCRIPTION = STATUE_POLICY
+
+
+def _zero_action_predict(env_class: Any, env_kwargs: dict[str, Any]) -> Any:
+    """The statue: a predict that commands ``action = 0`` (the named home control) every step."""
+    probe = env_class(**env_kwargs)
+    zero = np.zeros(probe.action_space.shape[0], dtype=np.float32)
+    probe.close()
+
+    def predict(_obs: np.ndarray) -> np.ndarray:
+        return zero
+
+    return predict
+
+
+def _stance_v2_episode_rows(
+    metrics: list[StanceEpisodeMetrics],
+    reasons: "tuple[tuple[str, ...], ...] | None",
+    touch_rows: list[dict[str, Any]],
+    *,
+    seed: int,
+    horizon: int,
+) -> list[dict[str, Any]]:
+    """One evidence row per episode: seed, classification, every floor-truth metric, the touch duties.
+
+    *reasons* is ``None`` for the statue panel, which is a reference and is
+    not classified.  The touch duties (v1's measure, from the same rollout)
+    ride along report-only, so the two readings of one episode sit side by
+    side.
+    """
+    rows = []
+    for index, episode in enumerate(metrics):
+        touch = touch_rows[index] if index < len(touch_rows) else {}
+        row: dict[str, Any] = {
+            "episode": index,
+            "seed": seed + index,
+            "reached_horizon": episode.length >= horizon,
+            "unsupported_duty": touch.get("unsupported_duty"),
+            "bilateral_support_duty": touch.get("bilateral_support_duty"),
+            "single_support_duty": touch.get("single_support_duty"),
+        }
+        if reasons is not None:
+            row["clean"] = not reasons[index]
+            row["reasons"] = list(reasons[index])
+        row.update(episode.as_row())
+        rows.append(row)
+    return rows
+
+
+def _stance_v2_report(
+    species: str,
+    stage: "int | str",
+    *,
+    curriculum: dict[str, Any],
+    env_class: Any,
+    env_kwargs: dict[str, Any],
+    thresholds: StanceV2Thresholds,
+    predict: Any,
+    description: str,
+    zero_action: bool,
+    model_path: str | None,
+    vecnorm_path: str | None,
+    episodes: int,
+    seed: int,
+    horizon: int,
+    control_dt: float,
+    plant_identity: Any,
+    allow_legacy_plant: bool,
+) -> dict[str, Any]:
+    """Roll and score the ``stance_quality/v2`` panel, and the statue panel its ratios need.
+
+    The policy panel runs through the floor-truth recorder (``run_panel(...,
+    floor_truth=True)``).  When the gate declares a statue-relative
+    criterion, a zero-action panel is rolled through the same recorder on
+    the same env kwargs and seeds, and reduced to the
+    :class:`~environments.shared.curriculum.stance_gate_v2.StatueReference`
+    the ratios divide by -- except when the policy IS the statue
+    (``zero_action``), whose own panel is that reference, rolled once.  The
+    verdict is :func:`~environments.shared.curriculum.stance_gate_v2.evaluate_stance_v2_gate`,
+    the same function the judge re-derives the verdict with and publication
+    re-derives it from the panel CSV with.
+
+    Recorded so a reader can refuse what does not describe this gate:
+    ``scored_gate_kind``; ``thresholds`` as the gate view projects them
+    (``settle_steps`` included, unlike the v1 report); the ``measurement``
+    manifest and its sha256; the ``handoff`` digests of the checkpoint and
+    VecNormalize sidecar that were scored (``None`` for the statue); the
+    ``task_sha256`` of the ``[env]`` block and plant the panel rolled,
+    derived the one way training derives the fingerprint it records
+    (``task_fingerprint.stage_task_fingerprint``), so the judge can refuse a
+    panel rolled under another task than the stage ran; the ``statue``
+    block with its own episode rows; and every episode's metrics and
+    reasons.
+    """
+    from ..gait.constants import measurement_sha256
+    from ..result_bundle.hashing import sha256_file
+    from ..species_names import resolve_species_id
+    from ..task_fingerprint import stage_task_fingerprint
+
+    # Derived before anything is rolled, under the manifest id training
+    # derives it under (``raptor`` is ``velociraptor``): a task that cannot be
+    # fingerprinted (a live command mode without its manifest) could only
+    # produce a report the judge refuses.
+    task_sha256 = stage_task_fingerprint(
+        resolve_species_id(species), stage, env_kwargs=env_kwargs, plant_identity=plant_identity
+    )["task_sha256"]
+    result = run_panel(
+        species,
+        predict=predict,
+        episodes=episodes,
+        seed=seed,
+        settle_steps=thresholds.settle_steps,
+        horizon=horizon,
+        env_kwargs=env_kwargs,
+        plant_identity=plant_identity,
+        control_dt=control_dt,
+        floor_truth=True,
+    )
+    metrics: list[StanceEpisodeMetrics] = result["stance_metrics"]
+    measurement: dict[str, Any] = result["measurement"]
+
+    statue = None
+    statue_block: dict[str, Any] | None = None
+    if thresholds.declares_statue_criteria():
+        if zero_action:
+            statue_result = result
+        else:
+            statue_result = run_panel(
+                species,
+                predict=_zero_action_predict(env_class, env_kwargs),
+                episodes=episodes,
+                seed=seed,
+                settle_steps=thresholds.settle_steps,
+                horizon=horizon,
+                env_kwargs=env_kwargs,
+                plant_identity=plant_identity,
+                control_dt=control_dt,
+                floor_truth=True,
+            )
+        statue_metrics: list[StanceEpisodeMetrics] = statue_result["stance_metrics"]
+        statue = statue_reference(statue_metrics, horizon=horizon)
+        statue_block = {
+            "policy": _ZERO_ACTION_DESCRIPTION,
+            # The statue's panel is the policy's own when the policy commands
+            # zero: the same env kwargs, seeds and recorder, rolled once.  The
+            # judge refuses a checkpoint report that says True here.
+            "reused_policy_panel": zero_action,
+            "seed": seed,
+            "reference": statue.as_dict(),
+            "episode_evidence": _stance_v2_episode_rows(
+                statue_metrics, None, statue_result["episodes"], seed=seed, horizon=horizon
+            ),
+        }
+
+    verdict = evaluate_stance_v2_gate(metrics, thresholds, horizon=horizon, statue=statue, control_dt=control_dt)
+    panel = result["panel"]
+    return {
+        "schema": STANCE_V2_REPORT_SCHEMA,
+        "species": species,
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "scored_gate_kind": STANCE_GATE_V2_KIND,
+        "policy": description,
+        "episodes": episodes,
+        "seed": seed,
+        "settle_steps": thresholds.settle_steps,
+        "horizon": horizon,
+        "control_dt": control_dt,
+        "passed": verdict.passed,
+        "failures": list(verdict.failures),
+        # The gate view's projection of the declared block, which is exactly
+        # what reporting.gates compares against the block the stage is judged
+        # under (gate_config_differences) -- so a report scored under any
+        # other threshold, settle_steps included, is refused there.
+        "thresholds": gate_config_view(curriculum)["thresholds"],
+        "measurement": measurement,
+        "measurement_sha256": measurement_sha256(measurement),
+        # The pair that was scored, by content: the judge binds these to the
+        # handoff select_handoff_checkpoint picks, and the panel CSV stamps
+        # them on every row for publication to bind to the certified pair.
+        "handoff": {
+            "checkpoint": None if zero_action or model_path is None else Path(model_path).name,
+            "checkpoint_sha256": None if zero_action or model_path is None else sha256_file(model_path),
+            "normalization_sha256": None if zero_action or vecnorm_path is None else sha256_file(vecnorm_path),
+        },
+        "task_sha256": task_sha256,
+        "statue": statue_block,
+        "result": verdict.as_dict(),
+        "metrics": {
+            "reward_mean": float(result["rewards"].mean()),
+            "reward_std": float(result["rewards"].std()),
+            "episode_length_mean": float(result["lengths"].mean()),
+            "full_horizon_fraction": verdict.full_horizon_fraction,
+            "n_clean": verdict.n_clean,
+            "clean_fraction": verdict.clean_fraction,
+            "clean_lcb": verdict.clean_lcb,
+            # Not gated: the v1 touch reading of the same rollout, kept so a
+            # reader can see where touch and floor truth disagree.
+            "mean_unsupported_duty": panel.mean_unsupported_duty,
+            "bilateral_support_duty": result["bilateral_duty"],
+            "single_support_duty": result["single_duty"],
+        },
+        "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
+        # Always None: a probe on a v2 stage takes the v1 path above, so a
+        # v3 report is never a probe -- but the keys stay, so probe_stem and
+        # every reader of them answer the same way for both shapes.
+        "filter_actions_hz": None,
+        "hold_constant": None,
+        "impulse": None,
+        "action": result.get("action", {}),
+        "terminations": result["terminations"],
+        "reward_components": result["components"],
+        "episode_evidence": _stance_v2_episode_rows(
+            metrics, verdict.episode_reasons, result["episodes"], seed=seed, horizon=horizon
+        ),
+    }
+
+
 #: Report keys that mark a rollout as a PROBE rather than a verdict, mapped to
 #: the filename stem that probe writes under. Each names a modification applied
 #: between the policy and the plant, so a report carrying any of them scored
@@ -1134,18 +1483,33 @@ def _probe_banner(report: dict[str, Any]) -> list[str]:
     ]
 
 
+def _kind_note(report: dict[str, Any]) -> list[str]:
+    """The NOTE a report carries when the criteria it scored are not the ones its stage advances on."""
+    declared = report["gate_kind"]
+    scored = report.get("scored_gate_kind", STANCE_GATE_KIND)
+    if declared == scored:
+        return []
+    if declared in STANCE_GATE_KINDS:
+        return [
+            f"NOTE: {report['species']} stage {report['stage']} declares gate_kind {declared!r}; this "
+            f"report scored the {scored!r} criteria, which are reported but are not what this stage "
+            "advances on.",
+            "",
+        ]
+    return [
+        f"NOTE: {report['species']} stage {report['stage']} declares gate_kind {declared!r}, not a "
+        "stance kind. The stance criteria below are reported but are not what this stage advances on.",
+        "",
+    ]
+
+
 def render_stance_gate_report(report: dict[str, Any]) -> str:
     """Render a report dict as the human-readable text form."""
+    if report.get("scored_gate_kind") == STANCE_GATE_V2_KIND:
+        return _render_stance_v2_report(report)
     thresholds = report["thresholds"]
     metrics = report["metrics"]
-    lines: list[str] = []
-    if report["gate_kind"] != STANCE_GATE_KIND:
-        lines.append(
-            f"NOTE: {report['species']} stage {report['stage']} declares gate_kind "
-            f"{report['gate_kind']!r}, not {STANCE_GATE_KIND!r}. The stance criteria "
-            "below are reported but are not what this stage advances on."
-        )
-        lines.append("")
+    lines: list[str] = _kind_note(report)
     # Before the verdict, not after: a probe rollout scores a MODIFIED policy,
     # so its PASS/FAIL is not a statement about the checkpoint and a reader must
     # not reach the verdict line without knowing that.
@@ -1236,6 +1600,111 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
     return "\n".join(lines)
+
+
+def _finite_values(rows: list[dict[str, Any]], field_name: str) -> list[float]:
+    values = []
+    for row in rows:
+        value = row.get(field_name)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)):
+            values.append(float(value))
+    return values
+
+
+def _render_stance_v2_report(report: dict[str, Any]) -> str:
+    """The text form of a ``stance_quality/v2`` report: the bound, then each criterion, then the episodes.
+
+    One line per declared criterion with its bar, the episodes it failed and
+    the panel's median and worst value, so a near miss and a gross failure
+    read differently; then the statue reference, the report-only floor-truth
+    readings, and the first unclean episodes with every reason.
+    """
+    thresholds = report["thresholds"]
+    result = report["result"]
+    metrics = report["metrics"]
+    rows = report.get("episode_evidence") or []
+    n = int(result["n_episodes"])
+    measured = report["horizon"] - report["settle_steps"]
+    lines = _kind_note(report)
+    lines += [
+        f"policy              {report['policy']}",
+        f"stage               {report['species']} stage {report['stage']} ({report['scored_gate_kind']}, floor truth)",
+        f"panel               {report['episodes']} episodes, "
+        f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
+        f"settle_steps        {report['settle_steps']} (window criteria over the remaining {measured}; settle "
+        f"criteria after the {report['measurement']['constants']['spawn_grace_s']:g} s spawn grace)",
+        f"measurement         {report['measurement']['constants']['measurement_version']} "
+        f"({report['measurement_sha256']})",
+        f"task                {report.get('task_sha256')}",
+        "",
+        f"clean episodes         {result['n_clean']:4d} / {n}   LCB95 {_fmt(result['clean_lcb'], '.4f')}   "
+        f"(>= {float(thresholds['min_clean_stance_lcb']):.4f}, min_eval_episodes "
+        f"{thresholds['min_eval_episodes']})",
+        f"full_horizon_fraction  {_fmt(result['full_horizon_fraction'], '9.4f')}",
+        f"reward                 {metrics['reward_mean']:9.1f} +/- {metrics['reward_std']:.1f}",
+        f"terminations           {report['terminations']}",
+        "",
+        "per-episode criteria (fails = episodes failing it; median and worst over the panel):",
+    ]
+    failing = result.get("criterion_failures") or {}
+    lines.append(
+        f"  {HORIZON_REASON:36s} reach {report['horizon']} steps         fails {failing.get(HORIZON_REASON, 0):3d}/{n}"
+    )
+    for key, metric, direction in EPISODE_CRITERIA:
+        if key not in thresholds:
+            continue
+        values = _finite_values(rows, metric)
+        median = float(np.median(values)) if values else float("nan")
+        worst = (min(values) if direction == "min" else max(values)) if values else float("nan")
+        unmeasured = len(rows) - len(values)
+        lines.append(
+            f"  {key:36s} {'>=' if direction == 'min' else '<='} {float(thresholds[key]):<12.6g} fails "
+            f"{failing.get(key, 0):3d}/{n}   median {median:.4g}, worst {worst:.4g}"
+            + (f", {unmeasured} unmeasured" if unmeasured else "")
+        )
+    if "min_foot_load_share_statue_ratio" in thresholds:
+        key = "min_foot_load_share_statue_ratio"
+        lines.append(f"  {key:36s} >= {float(thresholds[key]):<12.6g} fails {failing.get(key, 0):3d}/{n}")
+    for key in ("min_avg_reward", "min_avg_reward_statue_ratio", "min_full_horizon_fraction"):
+        if key in thresholds:
+            lines.append(f"  {key:36s} {float(thresholds[key]):g} (panel rail)")
+    statue = report.get("statue")
+    if statue:
+        reference = statue["reference"]
+        shares = ", ".join(_fmt(share, ".3f") for share in reference["foot_load_share"])
+        lines += [
+            "",
+            f"statue reference ({'the policy panel itself' if statue.get('reused_policy_panel') else 'zero action'}, "
+            f"same seeds): {reference['n_full_horizon']}/{reference['n_episodes']} full-horizon, mean reward "
+            f"{_fmt(reference['mean_reward'], '.1f')}, foot load shares [{shares}]",
+        ]
+    report_only = (
+        ("episode_yaw_change_deg", "yaw change over the episode (deg)"),
+        ("touch_floor_agreement", "touch agrees with floor truth"),
+        ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
+        ("settle_touchdowns", "settle-window touchdowns"),
+    )
+    lines += ["", "report-only (not gated; median and max over the panel):"]
+    for metric, label in report_only:
+        values = _finite_values(rows, metric)
+        if values:
+            lines.append(f"  {label:36s} {float(np.median(values)):.4g}, max {max(values):.4g}")
+    lines.append(f"  {'touch unsupported duty (v1 measure)':36s} {_fmt(metrics.get('mean_unsupported_duty'), '.4f')}")
+    unclean = [row for row in rows if not row.get("clean", True)]
+    if unclean:
+        lines += ["", f"unclean episodes ({len(unclean)}; first {min(len(unclean), 5)} shown):"]
+        for row in unclean[:5]:
+            lines.append(f"  seed {row['seed']}: " + "; ".join(row.get("reasons") or ()))
+    lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
+    lines += [f"  - {failure}" for failure in report["failures"]]
+    return "\n".join(lines)
+
+
+def _fmt(value: Any, spec: str) -> str:
+    """*value* formatted with *spec*, or ``nan`` for an unmeasured (``None``/non-finite) value."""
+    if value is None or (isinstance(value, float) and not math.isfinite(value)):
+        return "nan"
+    return format(float(value), spec)
 
 
 def _json_safe(value: Any) -> Any:
@@ -2170,6 +2639,8 @@ def write_stance_panel_evidence(stage_dir: "str | Path", report: dict[str, Any])
     episodes = report.get("episode_evidence")
     if not episodes:
         return None
+    if report.get("scored_gate_kind") == STANCE_GATE_V2_KIND:
+        return _write_stance_v2_panel_evidence(Path(stage_dir), report)
     rows = []
     for episode in episodes:
         duty = episode.get("unsupported_duty")
@@ -2193,3 +2664,70 @@ def write_stance_panel_evidence(stage_dir: "str | Path", report: dict[str, Any])
 
 def _optional_float_cell(value: Any) -> str | float:
     return "" if value is None else float(value)
+
+
+def _float_cell(value: Any) -> str:
+    """A float column's cell: ``repr`` round-trips exactly; an unmeasured value is ``nan``, never blank-as-zero."""
+    if value is None:
+        return "nan"
+    return repr(float(value))
+
+
+def _floats_cell(values: Any) -> str:
+    return "[" + ", ".join(_float_cell(value) for value in values) + "]"
+
+
+def _write_stance_v2_panel_evidence(stage_dir: Path, report: dict[str, Any]) -> Path:
+    """The ``stance_quality/v2`` panel CSV: every episode's floor-truth row, stamped with the panel's binding.
+
+    Columns are :data:`~environments.shared.curriculum.stance_gate_v2.STANCE_V2_PANEL_FIELDNAMES`.
+    Every metric is written so ``StanceEpisodeMetrics.from_row`` reads it back
+    bit for bit (``repr`` floats, ``nan`` for unmeasured), and every row
+    carries the scored pair's digests, the measurement version and digest
+    and the statue reference, so publication can re-derive the verdict from
+    this file alone and bind it to the certified checkpoint, the task the
+    stage recorded and this checkout's measurement definition -- the
+    re-derivation ``result_bundle.evidence`` performs.
+    """
+    from ..gait.constants import measurement_definition_sha256
+
+    handoff = report.get("handoff") or {}
+    measurement = report.get("measurement") or {}
+    statue = (report.get("statue") or {}).get("reference")
+    stamps = {
+        "checkpoint_sha256": handoff.get("checkpoint_sha256") or "",
+        "normalization_sha256": handoff.get("normalization_sha256") or "",
+        "task_sha256": report.get("task_sha256") or "",
+        "measurement_version": (measurement.get("constants") or {}).get("measurement_version") or "",
+        "measurement_sha256": report.get("measurement_sha256") or "",
+        "measurement_definition_sha256": measurement_definition_sha256(measurement) if measurement else "",
+        "statue_n_episodes": "" if statue is None else int(statue["n_episodes"]),
+        "statue_n_full_horizon": "" if statue is None else int(statue["n_full_horizon"]),
+        "statue_mean_reward": "" if statue is None else _float_cell(statue["mean_reward"]),
+        "statue_foot_load_share": "" if statue is None else _floats_cell(statue["foot_load_share"]),
+    }
+    rows = []
+    for episode in report["episode_evidence"]:
+        row: dict[str, Any] = {
+            "episode": episode["episode"],
+            "panel_seed": episode["seed"],
+            "reached_horizon": bool(episode["reached_horizon"]),
+            "unsupported_duty": _optional_float_cell(episode.get("unsupported_duty")),
+            "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
+            "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
+            "clean": bool(episode["clean"]),
+            "reasons": "; ".join(episode.get("reasons") or ()),
+        }
+        for name in STANCE_METRIC_FIELDS:
+            value = episode[name]
+            if name in ("length", "settle_steps"):
+                row[name] = int(value)
+            elif name == "terminated":
+                row[name] = bool(value)
+            else:
+                row[name] = _float_cell(value)
+        for name in STANCE_METRIC_FOOT_FIELDS:
+            row[name] = _floats_cell(episode[name])
+        row.update(stamps)
+        rows.append(row)
+    return atomic_write_csv(stage_dir / "stance_panel_selected.csv", STANCE_V2_PANEL_FIELDNAMES, rows)

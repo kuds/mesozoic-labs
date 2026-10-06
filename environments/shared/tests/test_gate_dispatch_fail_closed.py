@@ -306,3 +306,171 @@ class TestTaskSuccessGateIsConsulted:
         monkeypatch.setattr(task_success_gate, "binomial_lcb", consulted)
         with pytest.raises(RuntimeError, match="consulted"):
             self._judge(tmp_path)
+
+
+class TestStanceV2GateIsConsulted:
+    """Plan §8 invariant 10 for ``stance_quality/v2`` (decision D-D23): fail-closed in every dispatch.
+
+    Registering the kind without its arms would route a v2 stage to the
+    reward conjunction at JUDGE and to the generic arm of the recorded-gate
+    reader, both of which certify on ``min_avg_reward`` -- the rail the
+    statue clears -- and, naively wired into the v1 stance arm, would accept
+    a v1-scored report labelled v2.  These pin that the manager refuses it,
+    that the judge's v2 arm is what is consulted (before the reward return,
+    and down to the binomial bound), and that the substitutes are refused.
+    """
+
+    @staticmethod
+    def _curriculum():
+        from .stance_v2_helpers import V2_CURRICULUM
+
+        return dict(V2_CURRICULUM)
+
+    def test_the_manager_never_advances_on_sky_high_reward(self, caplog):
+        mgr = _manager("stance_quality/v2")
+        with caplog.at_level(logging.ERROR, logger="environments.shared.curriculum.manager"):
+            for _ in range(5):
+                assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+        assert mgr.summary()["consecutive_passes"][1] == 0
+        assert "stance_quality/v2" in caplog.text and "cannot evaluate" in caplog.text
+        assert "handoff pair" in caplog.text and "3042-3081" in caplog.text
+
+    def test_a_schema_valid_v2_config_still_refuses_end_to_end(self):
+        thresholds = thresholds_from_configs(
+            {1: {"curriculum_kwargs": dict(self._curriculum(), required_consecutive=1)}}
+        )
+        assert thresholds[1]["gate_kind"] == "stance_quality/v2"
+        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        for _ in range(3):
+            assert not mgr.should_advance(_SKY_HIGH_PANEL * 2, _FULL_PANEL * 2)
+
+    def test_the_v1_arm_is_never_used_for_a_v2_stage(self, monkeypatch):
+        from environments.shared.curriculum.manager import CurriculumManager as Manager
+
+        monkeypatch.setattr(Manager, "_stance_gate_passes", lambda *a, **k: pytest.fail("v1 arm consulted"))
+        assert not _manager("stance_quality/v2").should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
+
+    def test_the_recorded_history_reader_never_reads_reward_for_v2(self):
+        from environments.shared.reporting import evaluate_recorded_gate
+
+        history = [{"mean_reward": 1e9, "mean_episode_length": 1000.0, "n_episodes": 40}] * 5
+        assert evaluate_recorded_gate({**self._curriculum(), "min_avg_reward": 1.0}, history) is None
+        counted = [{"stance_clean_count": 40, "n_stance_samples": 40}] * 3
+        assert evaluate_recorded_gate(self._curriculum(), counted) is True
+        assert (
+            evaluate_recorded_gate(self._curriculum(), [{"stance_clean_count": 36, "n_stance_samples": 40}] * 3)
+            is False
+        )
+
+    def test_the_judge_certifies_a_valid_report_and_refuses_its_substitutes(self, tmp_path):
+        from environments.shared.reporting import evaluate_stage_gate
+
+        from .stance_v2_helpers import v2_report
+
+        report = v2_report(tmp_path)
+
+        def judge(stance_report, **curriculum):
+            return evaluate_stage_gate(
+                {**self._curriculum(), **curriculum},
+                {"best_model_reward": 1e9},
+                stage=1,
+                stance_report=stance_report,
+                stage_dir=tmp_path,
+            )
+
+        assert judge(report) == (True, [])
+        assert judge(None)[0] is False
+        v1_scored = {**report, "scored_gate_kind": "stance_quality/v1"}
+        assert any("was scored by 'stance_quality/v1'" in f for f in judge(v1_scored)[1])
+        assert any("scored under other thresholds" in f for f in judge(report, min_all_feet_support=0.99)[1])
+        (tmp_path / "models" / "robust_best_model.zip").write_bytes(b"another checkpoint")
+        assert any("not the handoff robust_best_model's" in f for f in judge(report)[1])
+
+    def test_a_recomputed_verdict_that_disagrees_is_refused(self, tmp_path):
+        from environments.shared.reporting import evaluate_stage_gate
+
+        from .stance_v2_helpers import v2_report
+
+        report = v2_report(tmp_path, n_clean=36, defect={"settle_airborne_substeps": 4.0})
+        assert report["passed"] is False
+        laundered = {**report, "passed": True, "failures": [], "result": {**report["result"], "n_clean": 40}}
+        laundered["episode_evidence"] = [{**row, "clean": True, "reasons": []} for row in report["episode_evidence"]]
+        passed, failures = evaluate_stage_gate(
+            self._curriculum(), {}, stage=1, stance_report=laundered, stage_dir=tmp_path
+        )
+        assert passed is False and any("disagrees with the one re-derived" in failure for failure in failures)
+
+    def test_what_would_have_to_be_deleted_for_the_v2_bound_to_stop_being_consulted(self, tmp_path, monkeypatch):
+        """The consulted test (plan §8 invariant 10): the call chain, by AST and at runtime.
+
+        evaluate_stage_gate dispatches on STANCE_GATE_V2_KIND into
+        _stance_v2_stage_gate BEFORE the reward_and_length return; that arm
+        and stance_v2_report_refusals (the backfill tool's check) both read
+        _admit_stance_v2_report, which re-derives through
+        _rederive_stance_v2_verdict; that calls evaluate_stance_v2_gate; and
+        that calls binomial_lcb.  Then the runtime half: with binomial_lcb
+        raising, judging a valid v2 report raises -- the bound was consulted.
+        """
+        from environments.shared.curriculum import stance_gate_v2
+        from environments.shared.reporting import evaluate_stage_gate, gates
+
+        from .stance_v2_helpers import v2_report
+
+        module = ast.parse(inspect.getsource(gates))
+        functions = {node.name: node for node in module.body if isinstance(node, ast.FunctionDef)}
+        dispatch = functions["evaluate_stage_gate"]
+        v2_branch = reward_return = None
+        for node in ast.walk(dispatch):
+            if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
+                names = {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+                if {"gate_kind", "STANCE_GATE_V2_KIND"} <= names:
+                    calls = {
+                        c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+                    }
+                    assert "_stance_v2_stage_gate" in calls
+                    v2_branch = node.lineno
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Call):
+                func = node.value.func
+                if isinstance(func, ast.Name) and func.id == "_reward_and_length_stage_gate":
+                    reward_return = node.lineno
+        assert v2_branch is not None and reward_return is not None
+        assert v2_branch < reward_return
+
+        def calls_in(name: str) -> set[str]:
+            return {
+                c.func.id for c in ast.walk(functions[name]) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+            }
+
+        assert "_admit_stance_v2_report" in calls_in("_stance_v2_stage_gate")
+        assert "_admit_stance_v2_report" in calls_in("stance_v2_report_refusals")
+        assert "_rederive_stance_v2_verdict" in calls_in("_admit_stance_v2_report")
+        assert "evaluate_stance_v2_gate" in calls_in("_rederive_stance_v2_verdict")
+
+        gate_module = ast.parse(inspect.getsource(stance_gate_v2))
+        evaluator = next(
+            node
+            for node in gate_module.body
+            if isinstance(node, ast.FunctionDef) and node.name == "evaluate_stance_v2_gate"
+        )
+        assert "binomial_lcb" in {
+            c.func.id for c in ast.walk(evaluator) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
+        }
+
+        report = v2_report(tmp_path)
+
+        def consulted(*args, **kwargs):
+            raise RuntimeError("consulted")
+
+        monkeypatch.setattr(stance_gate_v2, "binomial_lcb", consulted)
+        with pytest.raises(RuntimeError, match="consulted"):
+            evaluate_stage_gate(self._curriculum(), {}, stage=1, stance_report=report, stage_dir=tmp_path)
+
+    def test_publication_has_a_v2_arm_before_the_legacy_reward_loop(self):
+        """Without it a recorded v2 PASS takes the legacy loop and publishes on min_avg_reward alone."""
+        from environments.shared.result_bundle import evidence
+
+        source = inspect.getsource(evidence.validate_evaluation_evidence)
+        v2_arm = source.index("elif recorded_pass and gate_kind == STANCE_GATE_V2_KIND:")
+        legacy_loop = source.index("elif recorded_pass:")
+        assert v2_arm < legacy_loop
+        assert "_validate_stance_v2_panel_evidence(" in source[v2_arm:legacy_loop]

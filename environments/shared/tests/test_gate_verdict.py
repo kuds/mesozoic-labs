@@ -177,6 +177,26 @@ class TestWrite:
             "n_success_samples": 30,
         }
 
+    def test_stance_v2_numbers_are_persisted_in_stage_result(self, tmp_path):
+        """The clean count, panel size, bound and statue reference a stance_quality/v2 verdict was judged on."""
+        stage_dir = _stage_dir(tmp_path)
+        stage_result = {
+            "stance_clean_count": 38,
+            "stance_n_episodes": 40,
+            "stance_clean_lcb": 0.8508,
+            "stance_statue_mean_reward": 3495.2,
+            "episode_evidence": [{"clean": True}] * 40,  # not persisted: per-episode rows live in the report
+        }
+        _write(stage_dir, gate_kind="stance_quality/v2", stage_result=stage_result)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None
+        assert verdict["stage_result"] == {
+            "stance_clean_count": 38,
+            "stance_n_episodes": 40,
+            "stance_clean_lcb": 0.8508,
+            "stance_statue_mean_reward": 3495.2,
+        }
+
     def test_a_semantic_stage_records_its_id_as_the_stage(self, tmp_path):
         stage_dir = _stage_dir(tmp_path)
         _write(stage_dir, stage="recovery", stage_id="recovery", gate_kind="recovery_quality/v1")

@@ -48,7 +48,13 @@ No locomotion gate reads a foot contact.
 revisions) and puts all of its code after the 0.3.9 cut and, by the
 maintainer's choice of 2026-10-02, after the deferred cleanup; every one of
 its decisions (GQ-1..GQ-18) is open. The audit and the plan came with the plan's
-docs-only PR-G0, outside D-D21's gate. Section 2 labels each
+docs-only PR-G0, outside D-D21's gate. *2026-10-06: the maintainer took GQ-6 (a)
+and GQ-7 (a) for stance only, as D-D23: the floor-truth stance gate
+`stance_quality/v2` is registered, with the stance part of the gait library,
+and no stage declares it; the 2026-10 stance-hack audit
+([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md))
+found no current stance node standing as its statue does, the trex seed-42
+stance included (the gait plan's §11).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -562,7 +568,8 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
    node (section 2) or is session 4 or 5, read
    [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) and its evidence,
    [investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md).
-   The plan's §2 lists the decisions GQ-1..GQ-18, all open on 2026-09-28; its
+   The plan's §2 lists the decisions GQ-1..GQ-18, all open on 2026-09-28
+   (GQ-6 and GQ-7 taken for stance only on 2026-10-06, as D-D23; its §11); its
    §6 puts every gait code PR after the 0.3.9 cut and, by the maintainer's
    choice of 2026-10-02, after the deferred cleanup (the cleanup plan's §3.1
    item 5); its §10 is a prompt for continuing the gait work in a fresh
@@ -628,6 +635,7 @@ the seed-42 columns stay empty with a pointer to `20260914_123816`.
 | Consolidation sequence, per-PR file lists, target architecture | [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md) |
 | Remaining cleanup, the backend retirement and its frozen core, open cleanup decisions | [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) |
 | Gait audit of the certified nodes (2026-09-28), the gait-quality plan and its open decisions GQ-1..GQ-18 | [investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md), its evidence files in [investigations/gait_2026_09/](investigations/gait_2026_09/README.md); [GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) |
+| Stance-hack audit (2026-10-06) and the floor-truth stance gate `stance_quality/v2` (D-D23) | [investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md); `environments/shared/gait/` (the measurement), `environments/shared/curriculum/stance_gate_v2.py` (the statistic) |
 | Digest snapshot (every plant, policy, stage, recovery and behavior digest and the 21 stages' reward, info and termination captures, one value per line; `--exact` for a same-machine A/B) | `environments/shared/harnesses/digest_snapshot.py`; its committed golden, which CI checks, `configs/digest_snapshot.generated.txt` |
 | Drive state as surveyed 2026-09-17 | [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md) |
 | Bundle layout, `gate_verdict.json`, `ancestors/` records | [RESULT_BUNDLES.md](RESULT_BUNDLES.md) |

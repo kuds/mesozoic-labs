@@ -830,7 +830,8 @@ robustness, **LOW** = cosmetic / QoL.
      half of a control step's substeps). Full evidence in
      investigations/GAIT_AUDIT_2026_09.md; the plan that acts on them is
      GAIT_QUALITY_PLAN_2026_09.md, whose decisions (GQ-1..GQ-18) are all
-     open and whose code PRs build on 0.3.9. The lunge-then-fall and
+     open and whose code PRs build on 0.3.9 (2026-10-06: GQ-6 (a) and
+     GQ-7 (a) taken for stance only, as D-D23). The lunge-then-fall and
      falling-step hunt items were executed through the repository's own
      code before they were entered. -->
 
@@ -867,21 +868,33 @@ robustness, **LOW** = cosmetic / QoL.
   robot's next policy-interface revision.
 
 - **HIGH** — **the stance gates admit stances that chatter, march, stand on
-  one foot or hop (replayed 2026-09-28).** `stance_quality/v1` counts only
-  steps with neither foot above 0.1 N, averaged over the panel, and the other
-  three stances gate on a reward rail at 0.60× the statue; the zero-action
-  statue passes all six by design (`stance_gate.py:13-20`), as it would the
-  planned v2. Of the six certified stances only trex seed 42 `20260914_123816`
-  is clean: trex seed 44 `20260920_010912` hops to rebalance in 6 of 40
-  episodes (duty 0.02–0.07 each, drift up to 0.57 m) under a panel mean of
-  0.0069; compsognathus `20260921_203149` marches in place at 3.05 Hz, both
-  feet down 10% of steps; velociraptor `20260922_125248` chatters at about
-  10 Hz and slides 0.65 m; the robot stands on one foot; dibothrosuchus
-  `20260923_020654` is the statue, three-legged in some episodes
-  ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
-  `stance_quality/v2` per species inside its `gait-r1`
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G8; GQ-10 and GQ-12, open);
-  compsognathus and velociraptor stay open until their optional revisions.
+  one foot, stack their feet, prop a leg on a rolled pad or hop (replayed
+  2026-09-28; re-measured 2026-10-06).** `stance_quality/v1` counts only steps
+  with neither foot's touch sensors above 0.1 N, averaged over the panel after
+  an unscored 200-step settle window, and the other three stances gate on a
+  reward rail at 0.60× the statue; the zero-action statue passes all six by
+  design (`stance_gate.py:13-20`). No current stance node stands as its statue
+  does ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §3):
+  all three passing trex stances (seed 42 `20260914_123816`, which the
+  2026-09-28 audit called clean, and seed 44 `20260920_010912` and
+  `20260930_024929`) hop at reset inside the settle window, replant their feet
+  5–7 cm wider and stand with one leg splayed on a pad rolled 3–4.4° onto its
+  front-inner corner, and `20260920_010912` also hops to rebalance in 6 of 40
+  episodes under a panel mean of 0.0069; compsognathus `20260921_203149` and
+  `20261001_225856` march in place on the tip of one toe at about 3 Hz;
+  velociraptor `20260922_125248` holds a saturated crouch, chatters at about
+  20 Hz and slides 0.6 m; the robot `20260924_031815` stands on one foot with
+  the other stacked on it; dibothrosuchus `20260923_020654` and
+  `20261004_025237` certified the untrained statue, three-legged in some
+  episodes ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). The
+  floor-truth gate kind `stance_quality/v2` exists (D-D23, 2026-10-06): on
+  40-episode panels it fails every one of these checkpoints while every statue
+  is clean on 40/40 (the stance-hack audit's §5), but no stage declares it, so
+  every stance stage still certifies under v1 or its reward rail. Plan: each
+  stance stage adopts v2, a gate revision with bars re-measured on that
+  species' own statue panel ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11 and
+  PR-G8; GQ-10 and GQ-12, open); each species stays open until its stance
+  certifies under v2.
 
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
@@ -899,7 +912,7 @@ robustness, **LOW** = cosmetic / QoL.
   judge also compares the speed rounded to two decimals (:1356): a 0.996 m/s
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
-  GQ-7, open).
+  GQ-7, open for locomotion; taken for stance only, as D-D23, on 2026-10-06).
 
 - **MEDIUM** — **the recovery safe set has no support clause, and the
   certified trex recovery answers forward pushes with two-footed hops
@@ -972,16 +985,6 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
   reads it today. Plan: a four-foot `derive_stance_info`
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G2).
-
-- **LOW** — **`zero_action_baseline.py`'s verdict judges a `stance_quality`
-  stage by its reward rail alone (read from the code 2026-09-28).** It
-  compares the statue with `min_avg_reward` whatever the gate kind
-  (`scripts/zero_action_baseline.py:176-190`), so the trex, compsognathus and
-  compsognathus_robot stances print "FAILS — a statue clears this gate"
-  because the statue clears the collapse rail, not because of the stance
-  gate's criteria, which the statue passes by design. Plan: PR-G2 prints the
-  stance-gate verdict for `stance_quality` stages
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)).
 
 <!-- The items below come from the 2026-08-28 RL pipeline gap review
      (reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md, whose appendix B records
@@ -1275,7 +1278,9 @@ the velociraptor run `20260922_125248` reads 49% flight by touch against 33% (it
 15%), and the in-training dibothrosuchus re-run `20260928_012318` reads 0.39 body weights against
 1.00 with all of its floor load inside the touch-site volumes, its 10–30 ms contacts lost to the
 minimum ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §2.2). The gait plan measures gait on
-floor contact instead ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §3.2; GQ-6, open). The opposite
+floor contact instead ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §3.2; GQ-6, open for gait and
+rewards; taken for the stance gate, as D-D23, on 2026-10-06, whose `stance_quality/v2` reads floor
+truth and never touch). The opposite
 error, touch over-reporting through compsognathus_robot's stacked soles, is under Training / RL.
 
 ### Velociraptor plant — open (July 2026 raptor review)

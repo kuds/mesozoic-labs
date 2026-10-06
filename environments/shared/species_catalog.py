@@ -33,6 +33,11 @@ from environments.shared.curriculum.gate_schema import (
     declared_certification_seeds,
 )
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
+from environments.shared.curriculum.stance_gate_v2 import (
+    EPISODE_CRITERION_KEYS,
+    STANCE_GATE_V2_KIND,
+    STANCE_V2_THRESHOLD_KEYS,
+)
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
@@ -137,6 +142,18 @@ def _stance_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     ]
 
 
+def _stance_v2_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The floor-truth stance gate (D-D23) certifies the exact binomial lower
+    # bound on the fraction of panel episodes classified clean; the raw
+    # fraction follows it so a reader sees both the bound and what it
+    # bounds.  The summary does not carry either yet (D-B15), so both
+    # publish null with the key named, exactly as the v1 stance pair does.
+    return [
+        ("stance_clean_lcb", "clean stance episodes LCB95", "ratio"),
+        ("stance_clean_fraction", "clean stance episodes", "percent"),
+    ]
+
+
 def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     return [("recovery_success_lcb", "recovery success LCB95", "ratio")]
 
@@ -171,6 +188,7 @@ def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
 
 _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]]] = {
     STANCE_GATE_KIND: _stance_headline_specs,
+    STANCE_GATE_V2_KIND: _stance_v2_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
     TASK_SUCCESS_GATE_KIND: _task_success_headline_specs,
@@ -449,9 +467,26 @@ def _stage_config_path(species_id: str, stage_ref: "int | str", configs_dir: "Pa
     return root / species_id / entry.config_file
 
 
+#: The ``stance_quality/v2`` keys the catalog exports beside the shared ones,
+#: on a stage that declares the kind and on no other.  Exported only there
+#: so a stage on any other kind exports exactly the keys it always did: no
+#: committed stage declares v2 yet, and the website adapter
+#: (``website/src/data/species.ts`` ``RawStage.advancement_gate``) declares
+#: exactly the keys the catalog exports, which
+#: ``test_website_adapter_declares_every_exported_key`` pins both ways -- the
+#: first stage to adopt v2 therefore cannot regenerate the catalog without
+#: also teaching the site these keys and its ``formatGate`` the v2 arm below.
+_STANCE_V2_EXPORTED_KEYS = tuple(
+    sorted(
+        STANCE_V2_THRESHOLD_KEYS
+        - {"min_avg_reward", "min_eval_episodes", "required_consecutive", "min_full_horizon_fraction"}
+    )
+)
+
+
 def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
     """The stage's effective early-advancement gate as the catalog exports it."""
-    return {
+    gate = {
         # The declared gate KIND drives rendering: a none/v1
         # pilot must read as "non-advancing", never as an empty
         # criteria list that looks like a free pass.
@@ -486,6 +521,12 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
             curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
         ),
     }
+    if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
+        # stance_quality/v2 (D-D23): its own criteria, declared or null, so
+        # the published gate is the floor-truth one actually enforced rather
+        # than a list that shows only the shared rail and panel size.
+        gate.update({key: curriculum.get(key) for key in _STANCE_V2_EXPORTED_KEYS})
+    return gate
 
 
 def current_advancement_gates(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, dict[str, Any]]:
@@ -1368,6 +1409,35 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             ]
         )
         return "; ".join(task_criteria)
+    # A stance_quality/v2 verdict is produced once, post-stage, from the
+    # floor-truth stance_gate_report.json rolled on the handoff pair at the
+    # certification panel seeds (D-D23); the in-training manager refuses the
+    # kind outright, so the consecutive-passes tail is not rendered. Every
+    # declared per-episode criterion is listed under its key, because the
+    # keys are what the TOML and the report name; both rails are rendered as
+    # "reward rail" so the generic path's "reward ≥ " stays unique to it.
+    if gate.get("gate_kind") == "stance_quality/v2":
+        stance_criteria = [
+            f"clean stance episodes LCB95 ≥ {gate['min_clean_stance_lcb']:g} over ≥ {gate['min_eval_episodes']} "
+            f"episodes (settle {gate['settle_steps']:g} steps)"
+        ]
+        per_episode = [
+            f"{key} {'≥' if key.startswith('min_') else '≤'} {gate[key]:g}"
+            for key in EPISODE_CRITERION_KEYS
+            if gate.get(key) is not None
+        ]
+        stance_criteria.append("an episode is clean when it reaches the horizon with " + ", ".join(per_episode))
+        if gate.get("min_full_horizon_fraction") is not None:
+            stance_criteria.append(f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])}")
+        if gate["min_avg_reward"] is not None:
+            stance_criteria.append(f"reward rail ≥ {gate['min_avg_reward']:g}")
+        if gate.get("min_avg_reward_statue_ratio") is not None:
+            stance_criteria.append(f"reward rail ≥ {gate['min_avg_reward_statue_ratio']:g} × the statue's")
+        stance_criteria.append(
+            "verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed "
+            "when absent)"
+        )
+        return "; ".join(stance_criteria)
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")

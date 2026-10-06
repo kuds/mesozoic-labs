@@ -968,3 +968,116 @@ def test_evaluate_stage_checkpoints_takes_every_session_fact_explicitly():
     ]
     assert parameters["model"].default is None
     assert all(p.default is inspect.Parameter.empty for name, p in parameters.items() if name != "model")
+
+
+class TestStanceV2StageGate:
+    """stance_quality/v2 through the post-stage entry points (decision D-D23).
+
+    ``_write_stance_gate_report`` rolls the report for a v2 stage too (the
+    stance-kind predicate), and ``_apply_stage_gate`` judges it through the
+    v2 arm and copies the clean count, panel size, bound and statue reward
+    onto ``stage_results`` -- and into ``gate_verdict.json`` -- only from a
+    report the judge admits.
+    """
+
+    @staticmethod
+    def _config():
+        from .stance_v2_helpers import V2_CURRICULUM
+
+        return {"name": "Balance", "description": "Stand", "curriculum_kwargs": dict(V2_CURRICULUM), "env_kwargs": {}}
+
+    def test_the_report_is_rolled_for_a_v2_stage(self, tmp_path, monkeypatch):
+        import environments.shared.reporting.stance_report as stance_report
+        from environments.shared.reporting.stage_artifacts import _write_stance_gate_report
+
+        from .stance_v2_helpers import handoff_pair, v2_report
+
+        handoff_pair(tmp_path)
+        seen = {}
+
+        def fake_build(species, stage, *, stage_config, model_path, vecnorm_path, episodes):
+            seen.update(model_path=model_path, episodes=episodes)
+            return v2_report(tmp_path)
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", fake_build)
+        report = _write_stance_gate_report(
+            species="trex", stage=1, stage_config=self._config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+        )
+        assert report is not None and report["scored_gate_kind"] == "stance_quality/v2"
+        assert seen == {"model_path": str(tmp_path / "models" / "robust_best_model.zip"), "episodes": 40}
+        assert (tmp_path / "stance_gate_report.json").is_file() and (tmp_path / "stance_panel_selected.csv").is_file()
+
+    def test_an_admitted_report_passes_and_its_numbers_travel_with_the_verdict(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+        from environments.shared.result_bundle import read_gate_verdict
+
+        from .stance_v2_helpers import v2_report
+
+        report = v2_report(tmp_path)
+        results: dict = {"stage": 1, "best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=report,
+            stage_dir=tmp_path,
+            species="trex",
+        )
+        assert results["gate_passed"] is True and results["gate_failures"] == []
+        assert results["stance_clean_count"] == 40 and results["stance_n_episodes"] == 40
+        assert results["stance_clean_fraction"] == 1.0
+        assert results["stance_clean_lcb"] == pytest.approx(0.9278, abs=1e-4)
+        assert results["stance_statue_mean_reward"] == pytest.approx(1000.0)
+        verdict = read_gate_verdict(tmp_path)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["stance_clean_count"] == 40
+        assert verdict["stage_result"]["stance_clean_fraction"] == 1.0
+
+    def test_a_refused_report_fails_and_copies_none_of_its_numbers(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        from .stance_v2_helpers import v2_report
+
+        report = v2_report(tmp_path)
+        (tmp_path / "models" / "robust_best_model.zip").write_bytes(b"another checkpoint")
+        results: dict = {"stage": 1}
+        _apply_stage_gate(
+            stage=1, stage_config=self._config(), stage_results=results, stance_report=report, stage_dir=tmp_path
+        )
+        assert results["gate_passed"] is False
+        assert any("not the handoff robust_best_model's" in failure for failure in results["gate_failures"])
+        assert not {"stance_clean_count", "stance_clean_lcb"} & set(results)
+
+    def test_a_v2_stage_without_a_report_fails_closed(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        results: dict = {"stage": 1, "best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=1, stage_config=self._config(), stage_results=results, stance_report=None, stage_dir=tmp_path
+        )
+        assert results["publication_gate_passed"] is False
+        assert any("no stance gate report was produced" in failure for failure in results["gate_failures"])
+
+
+def test_collected_results_carry_the_v2_bar_on_a_v2_row_only():
+    """csv_output: the certifying bar and what was measured on a stance_quality/v2 row; no new column elsewhere."""
+    from environments.shared.reporting.csv_output import build_results_csv_rows
+
+    from .stance_v2_helpers import V2_CURRICULUM
+
+    v2_config = {"name": "Balance", "curriculum_kwargs": dict(V2_CURRICULUM)}
+    other_config = {"name": "Walk", "curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 1.0}}
+    base = {"timesteps": 1, "publication_gate_passed": True}
+    rows = build_results_csv_rows(
+        [
+            {**base, "stage": 1, "stance_clean_count": 38, "stance_clean_lcb": 0.85079},
+            {**base, "stage": 2},
+        ],
+        {1: v2_config, 2: other_config},
+        "trex",
+        "PPO",
+        42,
+    )
+    assert rows[0]["clean_stance_lcb_threshold"] == 0.8 and rows[0]["stance_eval_episodes"] == 40
+    assert rows[0]["stance_clean_count"] == 38 and rows[0]["stance_clean_lcb"] == 0.8508
+    assert not {"clean_stance_lcb_threshold", "stance_clean_count"} & set(rows[1])

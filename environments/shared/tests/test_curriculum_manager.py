@@ -588,17 +588,40 @@ class TestPublicationKeys:
     """``certification_seeds`` configures publication, not the gate (plan §4.5, decision D-B9)."""
 
     def test_it_is_accepted_beside_every_registered_gate_kind(self):
-        """Every kind trex declares (stance, reward_and_length, task_success, recovery) plus the pilot."""
-        from environments.shared.config import load_all_stages
+        """Every kind a committed stage declares, plus a synthetic block for each kind none declares yet.
 
-        stages = load_all_stages("trex")
+        The committed blocks of every species (stance v1, reward_and_length,
+        task_success, recovery) are validated as they stand; the pilot and
+        ``stance_quality/v2`` -- registered by D-D23 before any stage adopts
+        it -- get a minimal schema-valid block each, so the loop still covers
+        exactly ``GATE_KINDS`` whichever kinds the TOMLs happen to declare.
+        """
+        from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS
+        from environments.shared.stage_manifest import _CONFIGS_DIR
+
         seen = set()
-        for stage, cfg in stages.items():
-            block = {**cfg["curriculum_kwargs"], "certification_seeds": 3}
-            kind = validate_gate_config(stage, block, advancement_enabled=isinstance(stage, int))
-            seen.add(kind)
+        for species in sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml")):
+            for stage, cfg in load_all_stages(species).items():
+                block = {**cfg["curriculum_kwargs"], "certification_seeds": 3}
+                kind = validate_gate_config(stage, block, advancement_enabled=isinstance(stage, int))
+                seen.add(kind)
         assert validate_gate_config(1, {**_PILOT, "certification_seeds": 3}, advancement_enabled=False) == "none/v1"
         seen.add("none/v1")
+        synthetic = {
+            STANCE_GATE_V2_KIND: {
+                "gate_schema_version": GATE_SCHEMA_VERSION,
+                "gate_kind": STANCE_GATE_V2_KIND,
+                **{
+                    key: 200 if key == "settle_steps" else 40 if key == "min_eval_episodes" else 0.5
+                    for key in STANCE_V2_REQUIRED_KEYS
+                },
+            }
+        }
+        for kind, block in synthetic.items():
+            if kind not in seen:
+                assert validate_gate_config(1, {**block, "certification_seeds": 3}) == kind
+                seen.add(kind)
         assert seen == set(GATE_KINDS)
 
     @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-"""Score a saved checkpoint against its stage's ``stance_quality/v1`` gate.
+"""Score a saved checkpoint against its stage's stance gate (``stance_quality/v1`` or ``/v2``).
 
 Answers one question: **would this policy advance?** It rolls the checkpoint
 on the stage's own configured environment, reduces the episodes with the same

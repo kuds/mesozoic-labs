@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .formatting import _optional_metric, parse_optional_bool
 
 logger = logging.getLogger(__name__)
@@ -291,6 +292,15 @@ def build_results_csv_rows(
         row["full_horizon_fraction_threshold"] = cur.get("min_full_horizon_fraction", "")
         row["unsupported_duty_ceiling"] = cur.get("max_unsupported_duty", "")
         row["unsupported_duty_ucb_ceiling"] = cur.get("max_unsupported_duty_ucb", "")
+        if cur.get("gate_kind") == STANCE_GATE_V2_KIND:
+            # stance_quality/v2: the certifying bar and the panel it is
+            # specified at, so the row does not read as gated on its rail
+            # (every v2 criterion is also in its curriculum_* column).  Only
+            # on a v2 row, so every other kind's row keeps its columns.
+            row["clean_stance_lcb_threshold"] = cur.get("min_clean_stance_lcb", "")
+            row["stance_eval_episodes"] = cur.get("min_eval_episodes", "")
+            row["stance_clean_count"] = _optional_metric(r.get("stance_clean_count"))
+            row["stance_clean_lcb"] = _optional_metric(r.get("stance_clean_lcb"), digits=4)
         row["stage_passed"] = r.get("publication_gate_passed", "")
         row["publication_gate_passed"] = r.get("publication_gate_passed", "")
 

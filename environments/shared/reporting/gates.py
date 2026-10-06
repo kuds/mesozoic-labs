@@ -44,19 +44,36 @@ per-episode task successes, hash-bound to the handoff pair
 (:func:`task_success_statistics` reads and binds the evidence).  A rounded
 mean cannot recover ``k/n``, so the CSV is the ONLY input the kind accepts:
 an absent file, an unbound one, or one for another checkpoint is a refusal.
+``stance_quality/v2`` (the floor-truth stance gate, decision D-D23) is
+judged from the stage's v2 stance gate report, and unlike v1 the arm trusts
+none of it: :func:`stance_v2_report_refusals` refuses a report not scored by
+the v2 code (``scored_gate_kind``), scored under other thresholds or another
+measurement definition, for another checkpoint than the handoff pair
+``select_handoff_checkpoint`` picks now, or on another task than the one the
+stage's own records say it ran (``task_sha256``: the ``[env]`` block and
+plant), and the verdict is then RE-DERIVED from the report's per-episode
+rows through
+:func:`~environments.shared.curriculum.stance_gate_v2.evaluate_stance_v2_gate`
+and must agree with the recorded one -- a report that cannot be re-derived
+is refused, never judged a FAIL.
+
 The dispatch is closed at the end: a kind registered in ``GATE_KINDS`` with
 no arm here is refused by name, never routed to the reward conjunction.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..config import STAGE_CONFIG_FILENAME
 from ..curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from ..file_io import read_json_object
+
+if TYPE_CHECKING:
+    from ..curriculum.stance_gate_v2 import StanceV2Result
 
 
 def evaluate_recorded_gate(
@@ -75,11 +92,20 @@ def evaluate_recorded_gate(
     binomial bound the gate certifies with; a history that records no
     count — ``evaluations.npz`` carries none — is incomplete (``None``),
     never a pass on the reward rail the hunting statue clears.
+
+    A ``stance_quality/v2`` history is read the same way, from each
+    evaluation's ``stance_clean_count`` / ``n_stance_samples`` — and since
+    the in-training manager refuses the kind and records neither today, it
+    reads ``None``: never the generic arm below, which would judge a v2
+    stage on the reward rail its statue clears.
     """
+    from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 
     if curriculum.get("gate_kind") == TASK_SUCCESS_GATE_KIND:
         return _recorded_task_success_gate(curriculum, evaluations)
+    if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
+        return _recorded_stance_v2_gate(curriculum, evaluations)
     criteria: list[tuple[str, float]] = []
     ceilings: list[tuple[str, float]] = []
     if curriculum.get("min_avg_reward") is not None:
@@ -182,6 +208,54 @@ def _recorded_task_success_gate(
     return None if incomplete else False
 
 
+def _recorded_stance_v2_gate(
+    curriculum: Mapping[str, Any],
+    evaluations: list[dict[str, Any]],
+) -> bool | None:
+    """The ``stance_quality/v2`` reading of a recorded evaluation history.
+
+    Each evaluation needs ``stance_clean_count`` and ``n_stance_samples``
+    (the scalars an in-training screen would record); the binomial bound
+    over them must clear ``min_clean_stance_lcb`` at ``n_stance_samples >=
+    min_eval_episodes``, ``required_consecutive`` times in a row.  This is a
+    reading of the RECORDED history only, so it is never a certificate: the
+    v2 verdict is the post-stage report's, and the statue-relative criteria
+    cannot be read from a history at all.  An evaluation missing a count is
+    incomplete and resets the streak; a history that never proves a pass
+    reads ``None`` when any evaluation was incomplete (every history today:
+    the manager refuses the kind and records no count) and ``False``
+    otherwise.  An undeclared or unreadable bar is ``None``.
+    """
+    from environments.shared.curriculum.recovery_gate import binomial_lcb
+    from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds
+
+    try:
+        thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    except ValueError:
+        return None
+    if not evaluations:
+        return None
+    consecutive = 0
+    incomplete = False
+    for evaluation in evaluations:
+        count = evaluation.get("stance_clean_count")
+        n_samples = evaluation.get("n_stance_samples")
+        if count is None or n_samples is None:
+            incomplete = True
+            consecutive = 0
+            continue
+        k, n = int(count), int(n_samples)
+        if n <= 0 or k < 0 or k > n:
+            incomplete = True
+            consecutive = 0
+            continue
+        passes = n >= thresholds.min_eval_episodes and binomial_lcb(k, n) >= thresholds.min_clean_stance_lcb
+        consecutive = consecutive + 1 if passes else 0
+        if consecutive >= thresholds.required_consecutive:
+            return True
+    return None if incomplete else False
+
+
 def _gate_metric(stage_results: Mapping[str, Any], *keys: str) -> float | None:
     """First finite float among *keys*, or ``None`` when none is present.
 
@@ -250,6 +324,455 @@ def _stance_stage_gate(
     reported = stance_report.get("failures", ())
     failures = [reported] if isinstance(reported, str) else [str(failure) for failure in reported]
     return False, failures or [f"stage {stage} failed {gate_kind} without naming a criterion"]
+
+
+def _same_reading(a: Any, b: Any) -> bool:
+    """Equality that reads NaN and ``None`` (JSON's spelling of NaN) as the same unmeasured value."""
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        return set(a) == set(b) and all(_same_reading(a[key], b[key]) for key in a)
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(_same_reading(x, y) for x, y in zip(a, b))
+    unmeasured_a = a is None or (isinstance(a, float) and math.isnan(a))
+    unmeasured_b = b is None or (isinstance(b, float) and math.isnan(b))
+    if unmeasured_a or unmeasured_b:
+        return unmeasured_a and unmeasured_b
+    return bool(a == b)
+
+
+def _measurement_refusals(report: Mapping[str, Any], *, stage: int | str) -> list[str]:
+    """Every way *report*'s ``measurement`` block fails to be the one this checkout measures with.
+
+    The manifest's constants must be exactly the library's
+    (``gait.constants.measurement_constants``), its registry entry exactly
+    the species' current ``SUPPORT_REGISTRY`` entry
+    (``gait.morphology.measurement_definition``), and its recorded sha256
+    the digest of the block as recorded: a report measured under other
+    definitions scores other keys under the same names, and changing any of
+    them after adoption needs a new ``MEASUREMENT_VERSION``.  The
+    model-read entries (``dt``, ``frame_skip``, ``body_weight_n``,
+    ``feet``) are bound elsewhere: the step against the stage's recorded
+    ``[env]`` block (:func:`_admit_stance_v2_report`), the rest through the
+    plant hashes the task fingerprint carries.
+    """
+    from environments.shared.gait.constants import (
+        MEASUREMENT_MANIFEST_SCHEMA,
+        measurement_constants,
+        measurement_sha256,
+    )
+    from environments.shared.gait.morphology import measurement_definition
+    from environments.shared.species_names import resolve_species_id
+
+    manifest = report.get("measurement")
+    if not isinstance(manifest, Mapping):
+        return [f"stage {stage} stance report records no measurement manifest, so what its metrics mean is unknown"]
+    refusals: list[str] = []
+    if manifest.get("schema") != MEASUREMENT_MANIFEST_SCHEMA:
+        refusals.append(
+            f"stage {stage} stance report's measurement manifest is {manifest.get('schema')!r}, not "
+            f"{MEASUREMENT_MANIFEST_SCHEMA!r}"
+        )
+    if not _same_reading(manifest.get("constants"), measurement_constants()):
+        refusals.append(
+            f"stage {stage} stance report was measured under constants {manifest.get('constants')!r}, not this "
+            f"checkout's {measurement_constants()!r}; a floor-truth key means what its constants make it mean"
+        )
+    try:
+        recorded_digest = measurement_sha256(dict(manifest))
+    except (TypeError, ValueError) as exc:
+        recorded_digest = f"unhashable ({exc})"
+    if report.get("measurement_sha256") != recorded_digest:
+        refusals.append(
+            f"stage {stage} stance report's measurement_sha256 {report.get('measurement_sha256')!r} is not the "
+            f"digest of its own manifest ({recorded_digest}); the block was edited after it was measured"
+        )
+    try:
+        species = resolve_species_id(str(report.get("species")))
+    except ValueError:
+        species = str(report.get("species"))
+    if manifest.get("species") != species:
+        refusals.append(f"stage {stage} stance report was measured on {manifest.get('species')!r}, not {species!r}")
+    expected = measurement_definition(species)["registry"]
+    if not _same_reading(manifest.get("registry"), expected):
+        refusals.append(
+            f"stage {stage} stance report used the support registry entry {manifest.get('registry')!r}, not the "
+            f"current {expected!r} for {species}"
+        )
+    return refusals
+
+
+def _recorded_stage_env(stage_dir: Path) -> "tuple[dict[str, Any] | None, str | None]":
+    """The ``[env]`` block *stage_dir*'s ``stage_config.json`` records, else ``None`` and why it records none.
+
+    ``reward_weights`` is the name :func:`~environments.shared.config.save_stage_config`
+    writes (the constructor defaults overlaid with the stage's kwargs);
+    ``env_kwargs`` is the in-memory name the same dict carries, which a
+    hand-built record may use instead.  A record carrying both must agree on
+    every key they share -- otherwise which block the stage ran is unknown --
+    and is read as their union, so a key one block omits (a horizon among
+    them) is never read as absent while the other records it.
+    """
+    from ..config import read_recorded_stage_config
+
+    record = read_recorded_stage_config(stage_dir)
+    if record is None:
+        return None, f"{stage_dir / STAGE_CONFIG_FILENAME} is absent or unreadable"
+    blocks = [record[name] for name in ("reward_weights", "env_kwargs") if isinstance(record.get(name), Mapping)]
+    if not blocks:
+        return None, f"{stage_dir / STAGE_CONFIG_FILENAME} records no [env] block (reward_weights)"
+    if len(blocks) == 2:
+        differing = sorted(key for key in set(blocks[0]) & set(blocks[1]) if blocks[0][key] != blocks[1][key])
+        if differing:
+            return None, (
+                f"{stage_dir / STAGE_CONFIG_FILENAME} records reward_weights and env_kwargs that disagree on "
+                f"{', '.join(differing)}"
+            )
+    return {key: value for block in reversed(blocks) for key, value in block.items()}, None
+
+
+def stance_v2_report_refusals(
+    curriculum: Mapping[str, Any],
+    stance_report: Mapping[str, Any] | None,
+    *,
+    stage: int | str,
+    stage_dir: "str | Path | None",
+) -> list[str]:
+    """Every reason *stance_report* cannot be the ``stance_quality/v2`` evidence for this stage and handoff.
+
+    Empty exactly when the judge would re-derive a verdict from it
+    (:func:`_stance_v2_stage_gate`, which reads the verdict off the same
+    :func:`_admit_stance_v2_report`).  Shared with the backfill tool, which
+    refuses a directory on these reasons rather than writing a FAIL -- so
+    every way a report can fail to be re-derived is HERE, and a FAIL is only
+    ever a panel that re-derives cleanly to a failing verdict.  Refused,
+    each by name:
+
+    * no report, or one whose ``schema`` is not the v3 report a v2 panel writes;
+    * ``scored_gate_kind`` other than ``stance_quality/v2`` -- the report
+      echoes the DECLARED kind in ``gate_kind``, so a v1-scored report
+      labelled v2 would otherwise pass on full horizon and the rail -- and a
+      declared kind or a probe marker that says it is not this verdict;
+    * ``thresholds`` that differ from the gate view of the block judged
+      under on any key (:func:`~environments.shared.curriculum.gate_schema.gate_config_differences`;
+      ``settle_steps`` included);
+    * a checkpoint scored with the plant contract waived
+      (``checkpoint_plant_validated`` not true: ``--allow-legacy-plant``);
+    * a ``measurement`` block that is not this checkout's
+      (:func:`_measurement_refusals`);
+    * a statue block that is not a separately rolled zero-action panel
+      (``reused_policy_panel`` not false, or another ``policy``): a
+      checkpoint's statue-relative ratios to its own panel are 1 by
+      construction;
+    * no stage directory, no handoff pair in it, or handoff digests that are
+      not the pair's -- including the statue's ``None`` digests: a report
+      that scored no checkpoint certifies none;
+    * a stage directory whose ``stage_config.json`` is absent or records no
+      ``[env]`` block or horizon, or no task fingerprint; a report whose
+      ``task_sha256`` is not the task the stage ran (another ``[env]``
+      block -- reward weights, reset noise, terrain, horizon -- or another
+      plant), whose horizon is not the stage's, or whose manifest's control
+      step or ``frame_skip`` is not the stage's;
+    * a non-boolean ``passed``;
+    * and, once all of that holds, a report whose verdict cannot be
+      re-derived from its own rows -- no rows, a row off the certification
+      panel (seed ``PUBLICATION_SEED_START + i``), a statue-relative
+      criterion declared with no statue rows, or a recorded statue reference
+      its rows do not reduce to -- or whose recorded ``passed``, clean count
+      or per-episode clean flags disagree with the re-derivation.
+    """
+    refusals, _ = _admit_stance_v2_report(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
+    return refusals
+
+
+def _admit_stance_v2_report(
+    curriculum: Mapping[str, Any],
+    stance_report: Mapping[str, Any] | None,
+    *,
+    stage: int | str,
+    stage_dir: "str | Path | None",
+) -> "tuple[list[str], StanceV2Result | None]":
+    """``(refusals, result)``: the :func:`stance_v2_report_refusals` reasons, and the re-derived verdict.
+
+    ``result`` is the :class:`~environments.shared.curriculum.stance_gate_v2.StanceV2Result`
+    re-derived from the report's rows exactly when ``refusals`` is empty,
+    else ``None``.  The binding checks run first and the re-derivation only
+    on a report that passes them all: rows of a report for another
+    checkpoint, task or gate are not worth reading.
+    """
+    from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.curriculum.gate_schema import gate_config_differences, gate_config_view
+    from environments.shared.curriculum.stance_gate_v2 import (
+        STANCE_GATE_V2_KIND,
+        STANCE_V2_REPORT_SCHEMA,
+        STATUE_POLICY,
+    )
+    from environments.shared.result_bundle.hashing import sha256_file
+
+    kind = STANCE_GATE_V2_KIND
+    if stance_report is None:
+        return [
+            f"stage {stage} declares {kind} but no stance gate report was produced, so no episode was classified. "
+            "The gate does not fall back to the reward rail, which the zero-action statue clears."
+        ], None
+    refusals: list[str] = []
+    if stance_report.get("schema") != STANCE_V2_REPORT_SCHEMA:
+        refusals.append(
+            f"stage {stage} stance report has schema {stance_report.get('schema')!r}, not {STANCE_V2_REPORT_SCHEMA!r}"
+        )
+    scored = stance_report.get("scored_gate_kind")
+    if scored != kind:
+        refusals.append(
+            f"stage {stage} declares {kind} but the stance report was scored by {scored!r}; a report the "
+            f"{kind} code did not score cannot certify it, whatever kind it echoes"
+        )
+    if stance_report.get("gate_kind") != kind:
+        refusals.append(
+            f"stage {stage} stance report records declared gate_kind {stance_report.get('gate_kind')!r}, not {kind!r}"
+        )
+    probes = [key for key in ("filter_actions_hz", "hold_constant", "impulse") if stance_report.get(key) is not None]
+    if probes:
+        refusals.append(f"stage {stage} stance report is a probe ({', '.join(probes)}), which never certifies")
+    recorded = stance_report.get("thresholds")
+    if not isinstance(recorded, Mapping):
+        refusals.append(f"stage {stage} stance report records no thresholds, so the gate it scored is unknown")
+    else:
+        differences = gate_config_differences(recorded, gate_config_view(curriculum))
+        if differences:
+            refusals.append(
+                f"stage {stage} stance report was scored under other thresholds than the gate judged under "
+                f"({'; '.join(differences)}); its verdict certifies only the gate it scored"
+            )
+    # A zero-action report records None here and is refused below for its
+    # None digests; a checkpoint report records False only when it was
+    # scored with --allow-legacy-plant, which judges a checkpoint the plant
+    # contract would have refused -- a verdict about another plant.
+    if stance_report.get("checkpoint_plant_validated") is not True:
+        refusals.append(
+            f"stage {stage} stance report records checkpoint_plant_validated="
+            f"{stance_report.get('checkpoint_plant_validated')!r}: the checkpoint was not validated against the "
+            "current plant (--allow-legacy-plant), so its panel is not a verdict about this plant's policy"
+        )
+    refusals.extend(_measurement_refusals(stance_report, stage=stage))
+    statue = stance_report.get("statue")
+    if statue is not None:
+        if not isinstance(statue, Mapping):
+            refusals.append(f"stage {stage} stance report's statue block is {type(statue).__name__}, not an object")
+        else:
+            # The builder reuses the policy's panel as the statue only when
+            # the policy IS the zero command; on a checkpoint report that
+            # would divide each episode by its own panel's means.
+            if statue.get("reused_policy_panel") is not False:
+                refusals.append(
+                    f"stage {stage} stance report's statue panel is not a separately rolled one "
+                    f"(reused_policy_panel={statue.get('reused_policy_panel')!r}); a checkpoint's ratios to its "
+                    "own panel are 1 by construction"
+                )
+            if statue.get("policy") != STATUE_POLICY:
+                refusals.append(
+                    f"stage {stage} stance report's statue panel scored {statue.get('policy')!r}, not the "
+                    f"{STATUE_POLICY!r} statue the ratios are defined against"
+                )
+    horizon: int | None = None
+    control_dt: float | None = None
+    if stage_dir is None:
+        refusals.append(
+            f"stage {stage} declares {kind}, whose report is bound to the stage directory's handoff pair and "
+            "recorded task; no stage_dir was given"
+        )
+    else:
+        root = Path(stage_dir)
+        handoff = select_handoff_checkpoint(root / "models")
+        recorded_handoff = stance_report.get("handoff")
+        recorded_handoff = recorded_handoff if isinstance(recorded_handoff, Mapping) else {}
+        if handoff is None:
+            refusals.append(
+                f"{root / 'models'} has no complete handoff pair, so there is no checkpoint the stance report "
+                "could be shown to have scored"
+            )
+        else:
+            name, stem, vecnorm = handoff
+            for label, path, recorded_digest in (
+                ("checkpoint", Path(stem + ".zip"), recorded_handoff.get("checkpoint_sha256")),
+                ("VecNormalize sidecar", Path(vecnorm), recorded_handoff.get("normalization_sha256")),
+            ):
+                digest = sha256_file(path)
+                if recorded_digest != digest:
+                    refusals.append(
+                        f"stage {stage} stance report scored {label} {recorded_digest!r}, not the handoff "
+                        f"{name}'s {path.name} ({digest}); a panel of another policy certifies nothing here"
+                    )
+        # The task: the same policy scores another number under another
+        # [env] block, and only the horizon was ever compared -- a panel
+        # rolled with tripled alive_bonus and no reset noise certified
+        # against a rail its own stage's panel fails.  The fingerprint is
+        # the one training recorded (task_fingerprint.json / stage_config.json),
+        # and absence refuses: a stage whose task is unknown cannot be shown
+        # to be the task the panel rolled.
+        task = _current_task_sha256(root)
+        if task is None:
+            refusals.append(
+                f"{root} records no task fingerprint (task_fingerprint.json / stage_config.json), so the task the "
+                "stance panel rolled cannot be shown to be the one the stage ran"
+            )
+        elif stance_report.get("task_sha256") != task:
+            refusals.append(
+                f"stage {stage} stance report rolled task {stance_report.get('task_sha256')!r}, but the stage ran "
+                f"task {task}; a panel under another [env] block or plant scores another task"
+            )
+        env, missing = _recorded_stage_env(root)
+        if env is None:
+            refusals.append(f"{missing}, so the horizon and control step the stage ran are unknown")
+        else:
+            value = env.get("max_episode_steps")
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                refusals.append(
+                    f"{root / STAGE_CONFIG_FILENAME} records no integer max_episode_steps ({value!r}), so which "
+                    "episodes reached the horizon is unknown"
+                )
+            else:
+                horizon = int(value)
+                if stance_report.get("horizon") != horizon:
+                    refusals.append(
+                        f"stage {stage} stance report scored a {stance_report.get('horizon')!r}-step horizon, but "
+                        f"the stage ran {horizon} steps (stage_config.json)"
+                    )
+            # The defaults stance_report and publication read the step with.
+            try:
+                frame_skip = int(env.get("frame_skip", 5))
+                control_dt = float(env.get("timestep", 0.002)) * frame_skip
+            except (TypeError, ValueError):
+                refusals.append(f"{root / STAGE_CONFIG_FILENAME} records an unreadable timestep or frame_skip")
+            else:
+                manifest = stance_report.get("measurement")
+                manifest = manifest if isinstance(manifest, Mapping) else {}
+                measured_dt = manifest.get("dt")
+                if (
+                    manifest.get("frame_skip") != frame_skip
+                    or isinstance(measured_dt, bool)
+                    or not isinstance(measured_dt, (int, float))
+                    or abs(float(measured_dt) - control_dt) > 1e-9
+                ):
+                    refusals.append(
+                        f"stage {stage} stance report was measured at dt {measured_dt!r} / frame_skip "
+                        f"{manifest.get('frame_skip')!r}, but the stage ran dt {control_dt:g} / frame_skip "
+                        f"{frame_skip} (stage_config.json); every seconds-defined window is another length"
+                    )
+    if not isinstance(stance_report.get("passed"), bool):
+        refusals.append(
+            f"stage {stage} stance report carries no boolean verdict (passed={stance_report.get('passed')!r})"
+        )
+    if refusals or horizon is None or control_dt is None:
+        return refusals, None
+    return _rederive_stance_v2_verdict(curriculum, stance_report, stage=stage, horizon=horizon, control_dt=control_dt)
+
+
+def _rederive_stance_v2_verdict(
+    curriculum: Mapping[str, Any],
+    stance_report: Mapping[str, Any],
+    *,
+    stage: int | str,
+    horizon: int,
+    control_dt: float,
+) -> "tuple[list[str], StanceV2Result | None]":
+    """``(refusals, result)``: the verdict re-derived from an otherwise admissible report's own rows.
+
+    Recomputed -- on the registered certification panel (seed
+    ``PUBLICATION_SEED_START + i``), with the statue reference re-reduced
+    from the statue's own rows when a statue-relative criterion is
+    declared, at the STAGE's horizon and control step -- through
+    :func:`~environments.shared.curriculum.stance_gate_v2.evaluate_stance_v2_gate`,
+    and refused unless it agrees with the recorded verdict, clean count and
+    per-episode classification.  A report's ``passed`` is therefore never
+    what certifies the stage: the rows are.
+    """
+    from environments.shared.constants import PUBLICATION_SEED_START
+    from environments.shared.curriculum.stance_gate_v2 import (
+        STANCE_GATE_V2_KIND,
+        StanceV2Thresholds,
+        StatueReference,
+        evaluate_stance_v2_gate,
+        statue_reference,
+    )
+    from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
+
+    try:
+        thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        return [f"stage {stage} declares {STANCE_GATE_V2_KIND} without a judgeable gate: {exc}"], None
+
+    def episodes_of(rows: Any, *, what: str) -> list[StanceEpisodeMetrics]:
+        if not isinstance(rows, list) or not rows:
+            raise ValueError(f"the {what} records no episode rows")
+        episodes = []
+        for index, row in enumerate(rows):
+            if not isinstance(row, Mapping) or row.get("seed") != PUBLICATION_SEED_START + index:
+                seed = row.get("seed") if isinstance(row, Mapping) else row
+                raise ValueError(
+                    f"{what} row {index} ran on seed {seed!r}, not the certification panel seed "
+                    f"{PUBLICATION_SEED_START + index}"
+                )
+            episodes.append(StanceEpisodeMetrics.from_row(row))
+        return episodes
+
+    try:
+        rows = stance_report["episode_evidence"]
+        episodes = episodes_of(rows, what="stance report")
+        statue: StatueReference | None = None
+        if thresholds.declares_statue_criteria():
+            block = stance_report.get("statue")
+            if not isinstance(block, Mapping):
+                raise ValueError("a statue-relative criterion is declared but the report rolled no statue panel")
+            statue = statue_reference(episodes_of(block.get("episode_evidence"), what="statue panel"), horizon=horizon)
+            recorded_statue = StatueReference.from_dict(block.get("reference") or {})
+            if not _same_reading(statue.as_dict(), recorded_statue.as_dict()):
+                raise ValueError(
+                    f"the recorded statue reference {recorded_statue.as_dict()} is not the one its own rows "
+                    f"reduce to ({statue.as_dict()})"
+                )
+        result = evaluate_stance_v2_gate(episodes, thresholds, horizon=horizon, statue=statue, control_dt=control_dt)
+    except (KeyError, TypeError, ValueError) as exc:
+        return [
+            f"stage {stage} stance report cannot be re-derived ({type(exc).__name__}: {exc}); a verdict that "
+            "cannot be recomputed from its rows proves nothing"
+        ], None
+    recorded_result = stance_report.get("result")
+    recorded_clean = [row.get("clean") for row in rows]
+    disagreements = []
+    if result.passed != stance_report["passed"]:
+        disagreements.append(f"passed {stance_report['passed']} recorded, {result.passed} re-derived")
+    if not isinstance(recorded_result, Mapping) or recorded_result.get("n_clean") != result.n_clean:
+        recorded_n = recorded_result.get("n_clean") if isinstance(recorded_result, Mapping) else None
+        disagreements.append(f"{recorded_n!r} clean episodes recorded, {result.n_clean} re-derived")
+    if recorded_clean != [not reasons for reasons in result.episode_reasons]:
+        disagreements.append("the per-episode clean flags differ from the re-derived classification")
+    if disagreements:
+        return [
+            f"stage {stage} stance report's verdict disagrees with the one re-derived from its own rows "
+            f"({'; '.join(disagreements)}); the report was edited or scored by other code"
+        ], None
+    return [], result
+
+
+def _stance_v2_stage_gate(
+    curriculum: Mapping[str, Any],
+    stance_report: Mapping[str, Any] | None,
+    *,
+    stage: int | str,
+    stage_dir: "str | Path | None",
+) -> tuple[bool, list[str]]:
+    """Judge ``stance_quality/v2`` by re-deriving the report's verdict, refusing every substitute.
+
+    :func:`_admit_stance_v2_report` -- the :func:`stance_v2_report_refusals`
+    binding checks, then the re-derivation from the report's own rows
+    (:func:`_rederive_stance_v2_verdict`) -- and the verdict is the
+    re-derived one.  A refused report fails with its refusals; an admitted
+    one passes or fails on the re-derived reasons.
+    """
+    refusals, result = _admit_stance_v2_report(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
+    if refusals or result is None:
+        return False, refusals or [f"stage {stage} stance report could not be judged"]
+    if result.passed:
+        return True, []
+    return False, [f"stage {stage} {failure}" for failure in result.failures]
 
 
 #: Stage-directory artifacts that record the task the stage actually ran
@@ -699,16 +1222,18 @@ def evaluate_stage_gate(
             checkpoint's metrics (``best_model_*``, falling back to
             ``best_eval_*`` and then the live-eval means).
         stage: Stage identifier, used only in failure messages.
-        stance_report: The ``mesozoic.stance-gate-report/v2`` dict produced for
-            this stage, required by ``stance_quality/v1`` and ignored by every
-            other kind.
+        stance_report: The stance gate report dict produced for this stage
+            (``mesozoic.stance-gate-report/v2`` for ``stance_quality/v1``,
+            ``/v3`` for ``stance_quality/v2``), required by both stance kinds
+            and ignored by every other kind.
         stage_dir: The stage's own directory, required by
             ``recovery_quality/v1`` (it holds the frozen
             ``gate_resolution.json`` and the task fingerprint that resolution
             is checked against) and by ``task_success/v1`` (it holds the
             selected checkpoint's ``evaluation_selected.csv`` and the handoff
-            pair it is bound to), ignored by every other kind.  Omitting it
-            does not soften either gate — both refuse.
+            pair it is bound to) and by ``stance_quality/v2`` (the handoff
+            pair its report must have scored), ignored by every other kind.
+            Omitting it does not soften any of them — all three refuse.
         recovery_successes_by_seed: The pushed panel's per-episode successes
             keyed by panel seed (``RecoveryPanelEvidence.successes_by_seed()``),
             required by ``recovery_quality/v1`` and ignored by every other
@@ -734,6 +1259,7 @@ def evaluate_stage_gate(
     from environments.shared.curriculum.gate_schema import GATE_KINDS
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+    from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 
     gate_kind = curriculum.get("gate_kind")
@@ -764,6 +1290,12 @@ def evaluate_stage_gate(
         )
     if gate_kind == STANCE_GATE_KIND:
         return _stance_stage_gate(gate_kind, stance_report, stage)
+    if gate_kind == STANCE_GATE_V2_KIND:
+        # The floor-truth stance verdict comes ONLY from a v2-scored report
+        # bound to this stage's handoff pair, re-derived from its rows; never
+        # the v1 arm above (which reads `passed` and re-derives nothing) and
+        # never the reward conjunction below, which the statue clears.
+        return _stance_v2_stage_gate(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
     if gate_kind == TASK_SUCCESS_GATE_KIND:
         # The hunting verdict comes ONLY from the selected checkpoint's
         # per-episode evidence (plan §4.4): the reward conjunction below

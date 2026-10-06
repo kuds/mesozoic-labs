@@ -209,3 +209,57 @@ def test_preflight_table_records_and_run_copy(tmp_path, monkeypatch, capsys, wit
         assert list(record["results"]) == [name] and record["results"][name]["verdict"] == verdict
     run_copy = (run_dir / "zero_action_baseline.json").read_text()
     assert run_copy == (log_base / "velociraptor/zero_action_baselines/20260924_120000.json").read_text()
+
+
+@pytest.mark.parametrize("passed", [True, False])
+def test_a_stance_gated_stage_is_judged_by_the_stance_gate_on_the_statue(tmp_path, monkeypatch, capsys, passed):
+    """KNOWN_ISSUES LOW (2026-09-28): a stance stage used to be judged by its reward RAIL, which the statue
+    clears by design, so every stance stage printed "FAILS — a statue clears this gate". The statue is a
+    stance gate's quality ceiling and must PASS it; the verdict is the stance report's own, on the same
+    seeds, for both stance kinds."""
+    import environments.shared.reporting.stance_report as stance_report
+
+    baseline_module = _stub_stage(monkeypatch, {"compsognathus": [1000] * 4}, {"compsognathus": 100.0})
+    monkeypatch.setattr(
+        baseline_module,
+        "load_stage_config",
+        lambda species, stage: {
+            "curriculum_kwargs": {"gate_kind": "stance_quality/v2", "min_avg_reward": 100.0},
+            "env_kwargs": {},
+        },
+    )
+    calls = []
+
+    def fake_report(species, stage, *, stage_config, zero_action, episodes, seed):
+        calls.append((species, stage, zero_action, episodes, seed))
+        return {
+            "gate_kind": "stance_quality/v2",
+            "scored_gate_kind": "stance_quality/v2",
+            "passed": passed,
+            "failures": [] if passed else ["clean_stance_lcb 0.7856 < 0.8000 (36/40 episodes clean)"],
+            "result": {"n_clean": 40 if passed else 36, "n_episodes": 40, "clean_lcb": 0.93 if passed else 0.79},
+        }
+
+    monkeypatch.setattr(stance_report, "build_stance_gate_report", fake_report)
+    baseline_module.preflight(
+        ["compsognathus"],
+        stage=1,
+        episodes=4,
+        seed=7,
+        species="compsognathus",
+        log_base=tmp_path / "logs",
+        run_dir=None,
+    )
+    assert calls == [("compsognathus", 1, True, 4, 7)]
+    out = capsys.readouterr().out
+    record = json.loads(
+        next((tmp_path / "logs" / "compsognathus" / "zero_action_baselines").glob("*.json")).read_text()
+    )
+    result = record["results"]["compsognathus"]
+    assert result["stance_gate"]["passed"] is passed and result["stance_gate"]["n_episodes"] == 40
+    if passed:
+        assert result["verdict"] == "OK — the statue passes the stance gate"
+    else:
+        assert result["verdict"] == "CHECK GATE — the stance gate refuses the statue"
+        assert "36/40 episodes clean" in out
+    assert "FAILS — a statue clears this gate" not in out
