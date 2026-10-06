@@ -14,6 +14,7 @@ from typing import Any, cast
 
 import pytest
 
+from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_schema import GATE_KINDS
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
@@ -1378,6 +1379,12 @@ def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -
             {"min_success_lcb": 0.5},
             [("selected_model_success_lcb", None, "ratio"), ("selected_model_success_rate", None, "percent")],
         ),
+        (
+            "stance_quality/v2",
+            {"mean_success_rate": 1.0},
+            {"min_clean_stance_lcb": 0.8},
+            [("stance_clean_lcb", None, "ratio"), ("stance_clean_fraction", None, "percent")],
+        ),
         ("none/v1", {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
         # Unrecorded gate kind: nothing measured, nothing headlined.
         (None, {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
@@ -1406,6 +1413,35 @@ def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
     """A kind the registry does not know is a catalog failure that names the registry."""
     with pytest.raises(CatalogError, match="_HEADLINE_BY_GATE_KIND"):
         _deliverable_headline("tracking_quality/v1", {}, {})
+
+
+def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
+    """stance_quality/v2 (D-D23): its keys are exported on a v2 stage and on no other, and rendered by key.
+
+    No committed stage declares the kind yet, so every generated catalog row
+    keeps exactly the keys it had (the website adapter pins those both ways);
+    the v2 rendering names the bound, the per-episode criteria under their
+    TOML keys, both rails as "reward rail", and where the verdict comes from
+    -- and no consecutive-passes tail, since the manager refuses the kind.
+    """
+    from environments.shared.species_catalog import _advancement_gate, _format_advancement_gate
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    from .stance_v2_helpers import V2_CURRICULUM
+
+    entry = load_stage_manifest("trex").resolve(1)
+    v1_gate = _advancement_gate(entry, load_stage_config("trex", 1)["curriculum_kwargs"])
+    assert "min_clean_stance_lcb" not in v1_gate and "max_sole_corner_lift_m" not in v1_gate
+    gate = _advancement_gate(entry, {**V2_CURRICULUM, "min_avg_reward_statue_ratio": 0.6})
+    assert set(gate) - set(v1_gate) >= {"min_clean_stance_lcb", "settle_steps", "max_sole_corner_lift_m"}
+    assert gate["min_clean_stance_lcb"] == 0.8 and gate["min_support_geom_duty"] is None
+    text = _format_advancement_gate(gate)
+    assert text.startswith("clean stance episodes LCB95 ≥ 0.8 over ≥ 40 episodes (settle 200 steps)")
+    assert "min_all_feet_support ≥ 0.98" in text and "max_settle_peak_floor_force_bw ≤ 1.5" in text
+    assert "min_foot_load_share_statue_ratio ≥ 0.8" in text
+    assert "reward rail ≥ 0.6 × the statue's" in text
+    assert "min_support_geom_duty" not in text  # undeclared criteria are not rendered
+    assert "consecutive passes" not in text and "verdict from the floor-truth stance_gate_report.json" in text
 
 
 def test_every_registered_gate_kind_has_a_headline() -> None:

@@ -431,13 +431,25 @@ class TestEvaluateStageGateFailsClosed:
         assert any("no gate_kind" in failure for failure in failures)
 
     def test_an_unknown_gate_kind_cannot_pass(self):
+        # stance_quality/v2 was the stand-in unknown kind here until D-D23
+        # registered it; the next unregistered stance revision takes its place.
         passed, failures = evaluate_stage_gate(
-            {"gate_kind": "stance_quality/v2", "gate_schema_version": 1},
+            {"gate_kind": "stance_quality/v9", "gate_schema_version": 1},
             {"best_model_reward": 9999.0},
             stage=1,
         )
         assert passed is False
         assert any("unknown gate_kind" in failure for failure in failures)
+
+    def test_stance_quality_v2_without_a_report_cannot_pass_on_reward(self):
+        """The registered v2 kind with no report is refused by its own arm, never the reward conjunction."""
+        passed, failures = evaluate_stage_gate(
+            {"gate_kind": "stance_quality/v2", "gate_schema_version": 1, "min_avg_reward": 100.0},
+            {"best_model_reward": 9999.0},
+            stage=1,
+        )
+        assert passed is False
+        assert any("no stance gate report was produced" in failure for failure in failures)
 
     def test_none_v1_refuses_to_advance(self):
         passed, failures = evaluate_stage_gate(

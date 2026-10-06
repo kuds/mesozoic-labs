@@ -491,3 +491,115 @@ class TestCommandLine:
         with pytest.raises(SystemExit):
             main([str(stage_dir), "--gate", "edited"])
         assert read_gate_verdict(stage_dir) is None
+
+
+class TestStanceV2Reports:
+    """``stance_quality/v2`` (decision D-D23): admitted on the judge's own check, or refused -- never a FAIL written.
+
+    The v2 report records which code scored it, the full gate view, the
+    measurement manifest and the handoff digests, so unlike v1 the tool can
+    prove the report describes this gate and this checkpoint; one that does
+    not is a refusal naming why, leaving the directory without a verdict
+    (absence never reads as a pass, and a FAIL would read as "judged").
+    """
+
+    @staticmethod
+    def _stage(tmp_path: Path, *, recorded: dict[str, Any] | None = None, **report_kwargs: Any) -> Path:
+        from environments.shared.reporting.stance_report import write_stance_gate_report
+
+        from .stance_v2_helpers import stage_record, v2_report
+
+        stage_dir = tmp_path / "20261010_120000" / "01_stance"
+        stage_dir.mkdir(parents=True)
+        # The record the stage ran under (its block may differ from the one
+        # the report scored), written first so v2_report keeps it.
+        stage_record(stage_dir, recorded)
+        report = v2_report(stage_dir, **report_kwargs)
+        write_stance_gate_report(stage_dir, report)
+        return stage_dir
+
+    def test_an_admissible_report_is_re_derived_into_a_verdict_with_its_numbers(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None
+        assert verdict["passed"] is True and verdict["failures"] == []
+        assert verdict["gate_kind"] == "stance_quality/v2" and verdict["judged_by"] == BACKFILL_JUDGED_BY
+        assert verdict["stage_result"]["stance_clean_count"] == 40
+        assert verdict["stage_result"]["stance_n_episodes"] == 40
+        assert verdict["stage_result"]["stance_clean_fraction"] == 1.0  # what the catalog headlines beside the bound
+        assert verdict["stage_result"]["stance_clean_lcb"] == pytest.approx(0.9278, abs=1e-4)
+        assert verdict["stage_result"]["stance_statue_mean_reward"] == pytest.approx(1000.0)
+
+    def test_a_failing_report_is_written_as_the_fail_it_re_derives_to(self, tmp_path):
+        stage_dir = self._stage(tmp_path, n_clean=36, defect={"settle_airborne_substeps": 4.0})
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is False
+        assert any("36/40 episodes clean" in failure for failure in verdict["failures"])
+
+    def test_a_missing_report_is_refused_and_writes_nothing(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "stance_gate_report.json").unlink()
+        with pytest.raises(BackfillError, match="stance_gate_report.json is missing"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_a_report_scored_under_other_thresholds_is_refused(self, tmp_path):
+        from .stance_v2_helpers import V2_CURRICULUM
+
+        stage_dir = self._stage(tmp_path, recorded={**V2_CURRICULUM, "settle_steps": 150})
+        with pytest.raises(BackfillError, match=r"scored under other thresholds.*settle_steps"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_a_report_for_another_checkpoint_is_refused(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "models" / "robust_best_model.zip").write_bytes(b"retrained weights")
+        with pytest.raises(BackfillError, match="not the handoff robust_best_model's"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_a_v1_scored_report_in_a_v2_directory_is_refused(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        path = stage_dir / "stance_gate_report.json"
+        report = json.loads(path.read_text(encoding="utf-8"))
+        report["scored_gate_kind"] = "stance_quality/v1"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with pytest.raises(BackfillError, match="was scored by 'stance_quality/v1'"):
+            backfill_gate_verdict(stage_dir)
+
+    @pytest.mark.parametrize(
+        ("edit", "message"),
+        [
+            (
+                lambda r: [row.update(seed=5000 + i) for i, row in enumerate(r["episode_evidence"])],
+                "not the certification panel seed 3042",
+            ),
+            (lambda r: r.update(statue=None), "rolled no statue panel"),
+            (lambda r: r.update(episode_evidence=[]), "records no episode rows"),
+            (
+                lambda r: r["episode_evidence"][0].update(settle_airborne_substeps=4.0),
+                "disagrees with the one re-derived",
+            ),
+            (lambda r: r.update(task_sha256="sha256:" + "0" * 64), "but the stage ran task"),
+        ],
+        ids=["off-panel-seeds", "no-statue-rows", "no-rows", "row-edited", "other-task"],
+    )
+    def test_a_report_that_cannot_be_re_derived_is_refused_never_written_as_a_fail(self, tmp_path, edit, message):
+        """The judge's re-derivation is part of its admission check, so backfill refuses on it too.
+
+        Each of these used to be written as ``passed = False`` -- a FAIL that
+        reads as "judged and failed" to every later ``--trunk-from`` and needs
+        ``--force`` to undo -- although no panel was ever judged.  Only a
+        panel that re-derives cleanly to a failing verdict is a FAIL
+        (``test_a_failing_report_is_written_as_the_fail_it_re_derives_to``).
+        """
+        stage_dir = self._stage(tmp_path)
+        path = stage_dir / "stance_gate_report.json"
+        report = json.loads(path.read_text(encoding="utf-8"))
+        edit(report)
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with pytest.raises(BackfillError, match=message):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()

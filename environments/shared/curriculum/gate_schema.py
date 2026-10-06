@@ -41,6 +41,7 @@ from typing import Any
 
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
+from .stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS, STANCE_V2_THRESHOLD_KEYS
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
@@ -85,6 +86,20 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
+    # The floor-truth stance gate (decision D-D23): every panel episode is
+    # classified clean or not on the floor normal force under each leg
+    # (environments/shared/gait), and the gate certifies an exact binomial
+    # LCB on the clean fraction over the 40-episode panel -- v1's touch duty
+    # mean was met by policies that hop, chatter, stand on a pad edge or
+    # saturate their legs (the 2026-10 stance-hack audit).  The key set is
+    # the gate module's own (``STANCE_V2_THRESHOLD_KEYS``), so the registry
+    # and the implementation cannot drift: the per-episode criteria, the
+    # statue-relative ratios judged against a statue panel rolled in the same
+    # report, ``min_avg_reward`` as an optional rail and
+    # ``required_consecutive`` as hysteresis.  No stage declares it yet, so
+    # registering it moves no digest (gate_config_view projects declared keys
+    # only).  See :mod:`environments.shared.curriculum.stance_gate_v2`.
+    STANCE_GATE_V2_KIND: STANCE_V2_THRESHOLD_KEYS,
     # The recovery stage's gate (stage 1b): certifies per-shove recovery
     # under the scheduled pushes via an exact binomial LCB on episode
     # success, with an optional paired null-superiority criterion that
@@ -129,6 +144,12 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     "none/v1": frozenset(),
 }
 
+#: The gate kinds whose verdict is read off a stance gate report
+#: (``reporting.stance_report``): the post-stage pipeline rolls the report for
+#: a stage declaring any of them, and each kind's judge arm then checks the
+#: report was scored under that kind (``stance_quality/v2`` re-derives it).
+STANCE_GATE_KINDS: frozenset[str] = frozenset({STANCE_GATE_KIND, STANCE_GATE_V2_KIND})
+
 #: Gate kinds judged against a FROZEN null resolution: the stage's
 #: ``gate_resolution.json`` (pre-registered null panels and thresholds) must
 #: be frozen BEFORE the node trains, and the trained policy is rolled over
@@ -159,6 +180,13 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
             "max_unsupported_duty_ucb",
         }
     ),
+    # The panel size and the bar (a binomial bound's power is a function of
+    # the declared n, as for task_success/v1), the settle window that splits
+    # every episode, and the seven criteria every audit hack fails at least
+    # one of while every statue clears all of them.  The species-specific
+    # flatness and coverage keys, the statue-relative ratios and the rails
+    # stay optional (``STANCE_V2_REQUIRED_KEYS`` documents the choice).
+    STANCE_GATE_V2_KIND: STANCE_V2_REQUIRED_KEYS,
     # The LCB and both event-definition constants are load-bearing: without
     # t_recover/dwell the success event is undefined, and without the LCB
     # the gate would rest on a raw fraction.  min_paired_success_delta_lcb

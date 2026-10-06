@@ -9,6 +9,9 @@ D-D21's 0.3.9 gate; every code PR builds on 0.3.9.
 `20ab100`, as `0.3.9`, so the code PRs no longer wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
 *Updated 2026-10-02: the maintainer chose to finish the deferred cleanup (the cleanup plan's §3.1 item 5) before
 consolidation PR-8 and the code PRs here, so the code PRs now wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
+*Updated 2026-10-06: the maintainer took GQ-6 (a) and GQ-7 (a) for stance only, as D-D23: the floor-truth stance
+gate `stance_quality/v2` and the stance part of the gait library come first, with no stage adopting the kind; the
+other decisions, GQ-6 and GQ-7 for locomotion and recovery included, stay open (§11, the dated amendment).*
 
 ## How to use this document
 
@@ -565,3 +568,54 @@ House rules (binding):
 - Before any push: the checks in docs/NEXT_STEPS.md §8 "Branch and validation rules" (ruff, mypy with SB3 and torch
   installed, the test suites, the notebook checks), and an adversarial review of the diff.
 ```
+
+## 11. Amendment (2026-10-06): the floor-truth stance gate comes first
+
+*Appended 2026-10-06; §1–§10 above are unchanged.* The maintainer chose on 2026-10-06, in the session that
+commissioned the stance work, to take GQ-6 (a) and GQ-7 (a) for stance only: decision D-D23
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the consolidation plan's table). Its evidence is the
+2026-10 stance-hack audit, [investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md),
+which also holds the design and the 40-episode validation summarized here. GQ-10 and GQ-12 are not answered by D-D23,
+which registers the kind and adopts it nowhere; each species' adoption is a decision of its own.
+
+**What changes in the plan.**
+
+- **Order (§6).** The stance subset of PR-G1..PR-G3 comes first, as one PR, ahead of the locomotion library and gate.
+  `environments/shared/gait/` holds the stance measurement only: `constants.py` (the measurement constants,
+  `MEASUREMENT_VERSION = "floor-truth/v1"` and the manifest a report records), `morphology.py` (feet, legs and an
+  explicit support-geom registry for all six species), `recorder.py` (`SubstepContactRecorder` on
+  `_substep_probe_hook`), `events.py` and `stance_metrics.py`. §3.1's `metrics.py`, `report.py`,
+  `episode_gait_metrics` and `curriculum/gait_gate.py` stay PR-G1's and PR-G3's, for `locomotion_gait/v1`, and
+  `recovery_quality/v2` stays PR-G9's.
+- **Measurement (§3.1).** The normal force is decoded per substep exactly as `mj_contactForce` reports it, and the
+  contacts are reduced once per episode, not looped in Python on each substep: +0.19 to +0.41 ms per control step on a
+  quiet machine (measured on its prototype), on evaluation envs only, never on training envs. The down rule is §3.1's whole-limb rule. The
+  registry differs from the generic rule on four species (trex without the metatarsus capsule; velociraptor with d4
+  and the metatarsus and no sole; the robot without its roll cheeks; brachiosaurus without the metapodial capsule),
+  and every statue puts all of its post-settle floor load on registered support geoms, the test §3.1 asked for before
+  the non-foot split is gated; `max_nonfoot_load_fraction` is therefore declarable.
+- **Keys (§4.1).** The `stance_quality/v2` row of §4.1's table becomes: required `min_eval_episodes`,
+  `min_clean_stance_lcb`, `settle_steps`, `min_all_feet_support`, `max_touchdown_rate`, `max_window_displacement_m`
+  (the unit in the name), `min_foot_load_share`, `max_actuator_saturation_fraction`, `max_settle_airborne_substeps`
+  and `max_settle_peak_floor_force_bw`; optional, applied only when declared, `min_full_horizon_fraction`,
+  `min_avg_reward`, `min_avg_reward_statue_ratio`, `min_foot_load_share_statue_ratio`, `min_foot_load_share_windowed`,
+  `max_foot_contact_fraction`, `max_phantom_support_fraction`, `max_nonfoot_load_fraction`,
+  `max_settle_stance_width_change_m`, `min_support_geom_duty`, `min_support_geom_coverage`, `max_sole_tilt_deg`,
+  `max_sole_tilt_excess_deg`, `max_sole_corner_lift_m`, `min_sole_contacts` and `required_consecutive`. The
+  settle-window keys read the window after a 0.1 s spawn grace: five of the six statues reach 2.06–3.05 body weights
+  at spawn (trex 1.34), a plant property no policy controls, and all are at or below 1.52 after it. The two
+  statue-relative ratios divide by a zero-action panel rolled in the same report, on the same seeds, through the same
+  recorder, so they add no statue constant for `test_statue_constant_freshness.py` to police. Yaw change,
+  touch-against-floor agreement, the per-foot tuples, the spawn peak and settle touchdowns are reported, never gated.
+- **Calibration (§4.3 C).** Table C is superseded for stance by the note's 40-episode panels (its §5): every
+  zero-action statue is clean on 40/40 under per-species candidate bars, and every audited stance checkpoint's panel
+  fails. The bars are candidates for each adopting TOML to re-measure on its own plant; none is committed.
+- **Plumbing (§4.5).** §4.5's pattern, for stance: the post-stage report (`mesozoic.stance-gate-report/v3`, which
+  records the code that scored it, the measurement manifest, the handoff digests and the statue block) feeds the
+  judge, which refuses a report that does not describe the stage's gate, measurement, handoff or recorded task and
+  re-derives its verdict; publication re-derives the verdict from `stance_panel_selected.csv`; backfill refuses
+  without an admissible, re-derivable report; the Drive-summary reader never falls into the reward arm; the catalog gains the kind's headline. In training
+  the manager refuses the kind with a log, and the command-line curriculum judges a v2 node after training on its
+  handoff pair. The in-training screen (§4.5's recorder on the evaluation env) is not built.
+- **PR-G2.** `zero_action_baseline.py` now prints the stance gate's verdict on the statue for both stance kinds, so
+  its KNOWN_ISSUES entry is gone; the four-foot `derive_stance_info` stays PR-G2's (v2 reads every foot itself).

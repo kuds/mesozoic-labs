@@ -1136,3 +1136,146 @@ def test_a_recorded_task_success_lcb_must_match_the_evidence(tmp_path: Path, sta
     summary["stages"]["3"]["selected_model_success_lcb"] = 0.9
     with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_success_lcb differs"):
         validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+# ── stance_quality/v2 (decision D-D23) ───────────────────────────────────────
+
+
+def _make_stance_v2_gated(run_dir: Path, stage: int = 1) -> dict[str, Any]:
+    """Declare stance_quality/v2 on a stage of an otherwise complete bundle; returns the block.
+
+    The stage records the synthetic task the helper's panel rolled under, as
+    ``save_stage_config`` records a trained stage's fingerprint.
+    """
+    from .stance_v2_helpers import TASK_SHA256, V2_CURRICULUM
+
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    block: dict[str, Any] = dict(V2_CURRICULUM)
+    config["curriculum_kwargs"] = block
+    config["env_kwargs"] = {**config.get("env_kwargs", {}), "max_episode_steps": _STANCE_HORIZON}
+    config["task_fingerprint"] = {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": TASK_SHA256}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return block
+
+
+def _write_stance_v2_panel(run_dir: Path, tmp_path: Path, stage: int = 1, **report_kwargs: Any) -> Path:
+    """The v2 panel CSV a report of synthetic statue episodes writes, stamped with the certified pair's digests."""
+    from environments.shared.reporting.stance_report import write_stance_panel_evidence
+
+    from .stance_v2_helpers import v2_report
+
+    report = v2_report(tmp_path / "scratch_stage", species="velociraptor", **report_kwargs)
+    models = run_dir / f"stage{stage}" / "models"
+    report["handoff"] = {
+        "checkpoint": "best_model.pkl",
+        "checkpoint_sha256": sha256_file(models / "best_model.pkl"),
+        "normalization_sha256": sha256_file(models / "best_model_vecnorm.pkl"),
+    }
+    path = write_stance_panel_evidence(run_dir / f"stage{stage}", report)
+    assert path is not None
+    return path
+
+
+def test_a_stance_v2_pass_publishes_when_its_panel_re_derives_it(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    _write_stance_v2_panel(run_dir, tmp_path)
+
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    assert paths["summary"].is_file()
+
+
+def test_a_stance_v2_pass_without_its_panel_is_refused_not_published_on_the_rail(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """The fail-open the arm closes: a recorded v2 PASS would otherwise take the legacy reward loop."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    block = _make_stance_v2_gated(run_dir)
+    block["min_avg_reward"] = 0.0  # a rail the evidence clears by construction
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["curriculum_kwargs"] = block
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match=r"stance_quality/v2.*stance_panel_selected\.csv is missing"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_v2_pass_on_a_v1_panel_file_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.0))
+
+    with pytest.raises(ResultBundleError, match="is not a stance_quality/v2 panel"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_v2_panel_that_fails_its_gate_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    _write_stance_v2_panel(run_dir, tmp_path, n_clean=36, defect={"settle_airborne_substeps": 4.0})
+
+    with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v2.*36/40 episodes clean"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_v2_panel_rolled_on_another_checkpoint_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    path = _write_stance_v2_panel(run_dir, tmp_path)
+    certified = sha256_file(run_dir / "stage1" / "models" / "best_model.pkl")
+    path.write_text(path.read_text(encoding="utf-8").replace(certified, "sha256:" + "0" * 64), encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match="not the certified selected checkpoint"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_v2_panel_on_a_stage_with_no_or_another_task_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """The rows re-derive, but nothing shows they were rolled under the task the stage ran."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    path = _write_stance_v2_panel(run_dir, tmp_path)
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    del config["task_fingerprint"]
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with pytest.raises(ResultBundleError, match="stage 1 records no task fingerprint"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+    from .stance_v2_helpers import TASK_SHA256
+
+    _make_stance_v2_gated(run_dir)
+    path.write_text(path.read_text(encoding="utf-8").replace(TASK_SHA256, "sha256:" + "0" * 64), encoding="utf-8")
+    with pytest.raises(ResultBundleError, match="not the task the stage ran"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_v1_stance_pass_on_a_v2_panel_file_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """The reverse of the file-shape refusal: v1's columns are a subset of v2's, so only the stamp tells them apart."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_v2_panel(run_dir, tmp_path)
+
+    with pytest.raises(ResultBundleError, match=r"is a stance_quality/v2 floor-truth panel"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_v2_panel_off_the_certification_panel_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_v2_gated(run_dir)
+    path = _write_stance_v2_panel(run_dir, tmp_path)
+    _rewrite_csv_cell(path, field="panel_seed", value="3043")
+
+    with pytest.raises(ResultBundleError, match="ran on panel_seed 3043, not the certification_panel seed 3042"):
+        _save_bundle(run_dir, stage_results, stage_configs)

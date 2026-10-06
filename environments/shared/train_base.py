@@ -50,6 +50,7 @@ from .constants import (
 )
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
 from .curriculum.schedules import CosineSchedule, LinearSchedule
+from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .plant_contract import (
     PlantIdentity,
@@ -2057,6 +2058,61 @@ def _in_training_task_success_result(
     }
 
 
+#: What ``train_curriculum``'s verdict records as ``judged_by`` for a
+#: ``stance_quality/v2`` node (decision D-D23): not the manager's in-training
+#: decision (the manager refuses the kind) but the post-training judgement of
+#: the floor-truth stance report rolled on the node's handoff pair at the
+#: certification panel seeds -- the same report and judge
+#: ``generate_stage_artifacts`` uses, reached from the CLI.
+STANCE_V2_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/stance_gate_report"
+
+
+def _post_training_stance_v2_verdict(
+    species: str,
+    stage: "int | str",
+    config: dict[str, Any],
+    *,
+    stage_dir: Path,
+    model_dir: Path,
+) -> "tuple[bool, list[str], dict[str, Any]]":
+    """Judge a ``stance_quality/v2`` node after its training: ``(passed, failures, stage_result)``.
+
+    The in-training manager refuses the kind (its certificate is a panel the
+    EvalCallback cannot roll), so without this a CLI curriculum could never
+    advance a v2 node and would record the fixed "budget exhausted" FAIL
+    whatever the policy did.  Instead the stance report is rolled on the
+    handoff pair ``select_handoff_checkpoint`` picks -- the pair the verdict
+    is hash-bound to and the next node loads -- by the same
+    ``stage_artifacts._write_stance_gate_report`` the post-stage pipeline
+    calls (written beside the stage's other artifacts), and judged through
+    ``reporting.gates.evaluate_stage_gate``, which refuses a report that is
+    not v2-scored for this gate, measurement and handoff and re-derives the
+    verdict from its rows.  Never raises: a report that could not be rolled
+    or judged is a FAIL naming why, which is the fail-closed reading.
+    """
+    from .reporting.gates import evaluate_stage_gate
+    from .reporting.stage_artifacts import _write_stance_gate_report, admitted_stance_v2_stage_result
+
+    curriculum = config.get("curriculum_kwargs", {})
+    report = _write_stance_gate_report(
+        species=species, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
+    )
+    try:
+        passed, failures = evaluate_stage_gate(curriculum, {}, stage=stage, stance_report=report, stage_dir=stage_dir)
+    except Exception as exc:  # noqa: BLE001 - a verdict that cannot be formed is a FAIL, never a crash mid-curriculum
+        logger.warning("Stage %s stance_quality/v2 verdict could not be formed", stage, exc_info=True)
+        passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
+    stage_result: dict[str, Any] = {
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "gate_schema_version": curriculum.get("gate_schema_version"),
+        "gate_passed": passed,
+        "gate_failures": failures,
+        **admitted_stance_v2_stage_result(curriculum, report, stage=stage, stage_dir=stage_dir),
+    }
+    return passed, failures, stage_result
+
+
 @dataclasses.dataclass(frozen=True)
 class _ResolvedNode:
     """A node with a certified handoff another node may warm-start from.
@@ -2704,11 +2760,21 @@ def train_curriculum(
         # reads as a pass, so the node stays exactly what it is — unjudged
         # until it is resumed or re-judged.
         passed = bool(curriculum_cb.ready_to_advance) and not interrupted
+        verdict_failures = [] if passed else ["stage budget exhausted without meeting advancement thresholds"]
+        verdict_judged_by = CURRICULUM_MANAGER_JUDGED_BY
         # A task_success/v1 node's in-training verdict is the manager's
         # bound over the LAST EvalCallback panel (never the post-stage
         # evidence CSV, which this path does not write); record the count
         # it was judged on so the verdict is auditable.
         verdict_stage_result = _in_training_task_success_result(manager, stage, cur_kwargs)
+        if not interrupted and cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND:
+            # The manager refuses stance_quality/v2 in-training, so the node is
+            # judged here instead, after its budget: the floor-truth report on
+            # the handoff pair, judged by evaluate_stage_gate (D-D23).
+            passed, verdict_failures, verdict_stage_result = _post_training_stance_v2_verdict(
+                species, stage, config, stage_dir=stage_dir, model_dir=model_dir
+            )
+            verdict_judged_by = STANCE_V2_POST_TRAINING_JUDGED_BY
         if interrupted:
             logger.warning(
                 "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
@@ -2725,9 +2791,9 @@ def train_curriculum(
                     gate_kind=cur_kwargs.get("gate_kind"),
                     gate_schema_version=cur_kwargs.get("gate_schema_version"),
                     passed=passed,
-                    failures=[] if passed else ["stage budget exhausted without meeting advancement thresholds"],
+                    failures=verdict_failures,
                     task_sha256=task_fingerprint.get("task_sha256"),
-                    judged_by=CURRICULUM_MANAGER_JUDGED_BY,
+                    judged_by=verdict_judged_by,
                     checkpoint=Path(handoff_stem + ".zip"),
                     normalization=Path(handoff_vecnorm),
                     # D-A22: the manager judged under this run's block.
@@ -2766,6 +2832,10 @@ def train_curriculum(
             curriculum_cb,
             training_duration_seconds=stage_duration,
             plant_identity=plant_identity,
+            # A v2 node's verdict is the post-training judgement above, not
+            # the manager's (which refuses the kind); the row records it.
+            stage_passed=passed if cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND else None,
+            stance_v2_result=verdict_stage_result if cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND else None,
         )
 
         if interrupted:
@@ -2810,8 +2880,16 @@ def _record_stage_result(
     curriculum_cb,
     training_duration_seconds: float | None = None,
     plant_identity: PlantIdentity | None = None,
+    stage_passed: bool | None = None,
+    stance_v2_result: Mapping[str, Any] | None = None,
 ):
-    """Record stage hyperparameters and outcome to CSV."""
+    """Record stage hyperparameters and outcome to CSV.
+
+    ``stage_passed`` overrides the manager's ``ready_to_advance`` as the
+    recorded outcome -- a ``stance_quality/v2`` node is judged after
+    training, not by the manager -- and ``stance_v2_result`` is that
+    judgement's ``stage_result`` (its clean count and bound).
+    """
     import numpy as _np
 
     from .config import append_stage_result_csv
@@ -2883,8 +2961,25 @@ def _record_stage_result(
         "full_horizon_fraction_threshold": cur_kwargs.get("min_full_horizon_fraction", ""),
         "unsupported_duty_ceiling": cur_kwargs.get("max_unsupported_duty", ""),
         "unsupported_duty_ucb_ceiling": cur_kwargs.get("max_unsupported_duty_ucb", ""),
-        "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
+        "stage_passed": (
+            stage_passed
+            if stage_passed is not None
+            else bool(curriculum_cb is not None and curriculum_cb.ready_to_advance)
+        ),
     }
+    if cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND:
+        # stance_quality/v2: the certifying bar, its panel size, and what the
+        # post-training judgement measured -- the same columns
+        # reporting.csv_output adds to a v2 row, and only on one.
+        judged = stance_v2_result or {}
+        result_row.update(
+            {
+                "clean_stance_lcb_threshold": cur_kwargs.get("min_clean_stance_lcb", ""),
+                "stance_eval_episodes": cur_kwargs.get("min_eval_episodes", ""),
+                "stance_clean_count": judged.get("stance_clean_count", ""),
+                "stance_clean_lcb": judged.get("stance_clean_lcb", ""),
+            }
+        )
     if plant_identity is not None:
         result_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
     append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)

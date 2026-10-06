@@ -18,6 +18,18 @@ evidence the directory already holds, through the one shared judge
   refused (a stance directory whose rail moved is re-judged through the
   notebook JUDGE branch / ``generate_stage_artifacts``, which measures a
   fresh panel under the current gate — never through ``--gate current``);
+* ``stance_quality/v2`` — from ``stance_gate_report.json`` too, and
+  refused (never written as a FAIL) unless the report is admissible for
+  the judged block and the handoff picked now: scored by the v2 code
+  (``scored_gate_kind``), under the judged block's thresholds over every v2
+  key (``settle_steps`` included), under this checkout's measurement
+  definition, for the handoff pair's own checkpoint and sidecar digests,
+  which the v2 report records, on the task the directory records it ran,
+  and re-derivable from its own rows on the certification panel seeds to
+  the verdict it records (``reporting.gates.stance_v2_report_refusals``,
+  the judge's own check, which includes the re-derivation).  So a FAIL is
+  written only for a panel that re-derives cleanly to a failing verdict; a
+  missing report is a refusal;
 * ``reward_and_length/v1`` — from the selected checkpoint's
   ``evaluation_selected.csv`` when its rows are hash-bound to the handoff
   checkpoint, else from ``evaluations.npz`` / ``metrics.json`` (the
@@ -36,10 +48,11 @@ evidence the directory already holds, through the one shared judge
 Every missing input is a refusal, never a default: a verdict re-derived
 from nothing would be exactly the pass-by-absence the record exists to
 prevent.  The verdict binds to the handoff pair ``select_handoff_checkpoint``
-picks NOW (robust_best_model, then best_model); the stance report records
-no checkpoint path, so the tool cannot prove the report scored that pair —
-it says so in the log.  An existing verdict is never overwritten without
-``--force``.
+picks NOW (robust_best_model, then best_model); the v1 stance report records
+no checkpoint path, so the tool cannot prove a v1 report scored that pair —
+it says so in the log (a v2 report records the digests, and is refused
+unless they are the pair's).  An existing verdict is never overwritten
+without ``--force``.
 
 Decision D-A22 (Phase B): the verdict records the gate configuration it was
 judged under (``gate`` / ``gate_sha256``), and reuse rule 7 compares it
@@ -204,9 +217,11 @@ def backfill_gate_verdict(
     from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+    from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
-    from environments.shared.reporting.gates import _current_task_sha256
+    from environments.shared.reporting.gates import _current_task_sha256, stance_v2_report_refusals
+    from environments.shared.reporting.stage_artifacts import stance_v2_stage_result
     from environments.shared.result_bundle import GATE_VERDICT_FILENAME, write_gate_verdict
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
@@ -279,6 +294,23 @@ def backfill_gate_verdict(
             "(%s). Confirm the report scored that checkpoint before trusting the backfill.",
             handoff_name,
         )
+    elif gate_kind == STANCE_GATE_V2_KIND:
+        stance_report = _load_json(stage_path / "stance_gate_report.json", what="stance_gate_report.json")
+        if not isinstance(stance_report, Mapping):
+            raise BackfillError(f"{stage_path / 'stance_gate_report.json'} must hold a JSON object")
+        stance_report = dict(stance_report)
+        # The judge's own admissibility check, run here so a report that does
+        # not describe this gate, measurement, handoff or task -- or that
+        # cannot be re-derived from its own rows -- is a REFUSAL naming why;
+        # the judge below would otherwise write it as a FAIL verdict, which
+        # reads as "judged and failed" to every later --trunk-from.
+        refusals = stance_v2_report_refusals(curriculum, stance_report, stage=entry.reference, stage_dir=stage_path)
+        if refusals:
+            raise BackfillError(
+                f"{stage_path / 'stance_gate_report.json'} cannot back a {gate_kind} verdict under the {gate} "
+                f"{entry.id!r} block: {'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch "
+                "/ generate_stage_artifacts, which rolls a fresh panel on the handoff pair under the current gate"
+            )
 
     stage_config = {
         "name": record.get("name", ""),
@@ -325,6 +357,9 @@ def backfill_gate_verdict(
         stance_report=stance_report,
         stage_dir=stage_path,
     )
+    if gate_kind == STANCE_GATE_V2_KIND:
+        # The numbers the re-derived verdict was judged on (admitted above).
+        stage_results.update(stance_v2_stage_result(stance_report))
     stage_results["gate_kind"] = gate_kind
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed

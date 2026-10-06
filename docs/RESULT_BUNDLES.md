@@ -97,7 +97,10 @@ stage directories are re-judged — by `generate_stage_artifacts`, or by
 which re-derives a `stance_quality/v1`, `reward_and_length/v1` or
 `task_success/v1` verdict from the evidence the directory already holds
 (`judged_by = "backfill"`; the last only from an `evaluation_selected.csv`
-hash-bound to the handoff pair), refuses
+hash-bound to the handoff pair), re-derives a `stance_quality/v2` verdict only
+from a `stance_gate_report.json` the judge admits for the stage's gate,
+measurement definition, handoff pair and recorded task and can re-derive
+from its own rows (decision D-D23), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
 the panel). The verdict also records the gate it was judged under —
@@ -249,10 +252,14 @@ validator treats disagreements as conflicts.
   rows and a recovery stage's frozen `gate_resolution.json` are bound to at
   publication — row `i` must carry `panel_seed == role + i`, and the
   resolution's `decision_procedure.panel_seed_start` must equal the role; a
-  recorded `stance_quality/v1` PASS in a bundle whose provenance lacks the
-  role is refused, and so is a role naming any block other than the
-  registered one (the rows are checked against the role, so the role itself
-  is pinned).  The role is bound per evidence file, not through
+  recorded `stance_quality/v1` or `stance_quality/v2` PASS in a bundle whose
+  provenance lacks the role is refused (a v2 pass is also re-derived from the
+  panel's floor-truth rows, which must record the certified checkpoint's
+  digest, the certified sidecar's when there is one, the task the stage's
+  `stage_config.json` records, and this checkout's measurement version and
+  definition), and so is a role naming any block other than the
+  registered one (the rows are checked against the role, so the role itself is
+  pinned).  The role is bound per evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;
 - deterministic evaluation protocols and episode counts;

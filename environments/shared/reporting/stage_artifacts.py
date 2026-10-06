@@ -183,7 +183,7 @@ def build_stage_results_from_eval_data(
 def _write_stance_gate_report(
     *,
     species: str,
-    stage: int,
+    stage: "int | str",
     stage_config: dict[str, Any],
     stage_dir: Path,
     model_dir: Path,
@@ -191,12 +191,15 @@ def _write_stance_gate_report(
     """Score the selected checkpoint against the stance gate, into the run dir.
 
     Returns the report dict, or ``None`` when no panel was rolled.  The return
-    value is what :func:`_apply_stage_gate` certifies a ``stance_quality/v1``
-    stage from, so ``None`` fails that stage closed.
+    value is what :func:`_apply_stage_gate` certifies a stance-gated stage
+    from, so ``None`` fails that stage closed.
 
-    Only for stages that actually declare ``stance_quality/v1``: rolling a
-    40-episode panel costs a few minutes, which is nothing beside a multi-hour
-    stage but is pure waste for a stage the criteria do not govern.
+    Only for stages that actually declare a stance kind
+    (``gate_schema.STANCE_GATE_KINDS``: ``stance_quality/v1``, or
+    ``stance_quality/v2``, whose report is scored on floor truth with a
+    statue panel when its criteria need one): rolling a 40-episode panel
+    costs a few minutes, which is nothing beside a multi-hour stage but is
+    pure waste for a stage the criteria do not govern.
 
     Runs here rather than in the notebook so it happens for every SB3 run
     without anyone remembering, and lands beside
@@ -217,10 +220,10 @@ def _write_stance_gate_report(
     a stance-gated stage with no panel fails, because the alternative is
     certifying stance quality nobody measured.
     """
-    from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+    from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
 
     curriculum = stage_config.get("curriculum_kwargs", {})
-    if curriculum.get("gate_kind") != STANCE_GATE_KIND:
+    if curriculum.get("gate_kind") not in STANCE_GATE_KINDS:
         return None
 
     declared_episodes = int(curriculum.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES_STANCE))
@@ -276,13 +279,24 @@ def _write_stance_gate_report(
             episodes=report_episodes,
         )
         written = write_stance_gate_report(stage_dir, report)
-        logger.info(
-            "Stance gate report: %s (duty %.4f, bilateral %.4f) -> %s",
-            "PASS" if report["passed"] else "FAIL",
-            report["metrics"]["mean_unsupported_duty"],
-            report["metrics"]["bilateral_support_duty"],
-            written["stance_gate_report_txt"],
-        )
+        if "result" in report:
+            # stance_quality/v2: the clean count and its bound are the verdict.
+            logger.info(
+                "Stance gate report: %s (%d/%d episodes clean, LCB95 %.4f) -> %s",
+                "PASS" if report["passed"] else "FAIL",
+                report["result"]["n_clean"],
+                report["result"]["n_episodes"],
+                report["result"]["clean_lcb"],
+                written["stance_gate_report_txt"],
+            )
+        else:
+            logger.info(
+                "Stance gate report: %s (duty %.4f, bilateral %.4f) -> %s",
+                "PASS" if report["passed"] else "FAIL",
+                report["metrics"]["mean_unsupported_duty"],
+                report["metrics"]["bilateral_support_duty"],
+                written["stance_gate_report_txt"],
+            )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
@@ -1024,6 +1038,59 @@ def _warn_if_judged_under_another_gate(stage: "int | str", stage_dir: Path, curr
     )
 
 
+def stance_v2_stage_result(stance_report: "Mapping[str, Any] | None") -> dict[str, Any]:
+    """The ``stage_result`` numbers a ``stance_quality/v2`` verdict was judged on, from its report.
+
+    ``stance_clean_count``, ``stance_n_episodes``, ``stance_clean_fraction``
+    (the fraction the bound bounds, which the catalog headlines beside it),
+    ``stance_clean_lcb`` and ``stance_statue_mean_reward`` (``None`` when no
+    statue panel was rolled), which ``gate_verdict._PERSISTED_STAGE_RESULT_KEYS``
+    persists.
+    Empty for no report or one not scored as v2.  Shared by the post-stage
+    verdict here and the CLI curriculum's post-training v2 judge.
+    """
+    from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+
+    if not isinstance(stance_report, Mapping) or stance_report.get("scored_gate_kind") != STANCE_GATE_V2_KIND:
+        return {}
+    result = stance_report.get("result")
+    if not isinstance(result, Mapping):
+        return {}
+    return {
+        "stance_clean_count": result.get("n_clean"),
+        "stance_n_episodes": result.get("n_episodes"),
+        "stance_clean_fraction": result.get("clean_fraction"),
+        "stance_clean_lcb": result.get("clean_lcb"),
+        "stance_statue_mean_reward": result.get("statue_mean_reward"),
+    }
+
+
+def admitted_stance_v2_stage_result(
+    curriculum: Mapping[str, Any],
+    stance_report: "Mapping[str, Any] | None",
+    *,
+    stage: "int | str",
+    stage_dir: "str | Path | None",
+) -> dict[str, Any]:
+    """:func:`stance_v2_stage_result` of a report the judge ADMITS, else ``{}``.
+
+    Admitted means ``reporting.gates.stance_v2_report_refusals`` finds
+    nothing: scored as v2, under this gate and measurement, for this
+    stage's handoff pair.  So a refused report's numbers never sit in a
+    verdict's ``stage_result`` beside the refusal as though they were the
+    stage's.  Never raises: a re-check that fails copies nothing.
+    """
+    try:
+        from .gates import stance_v2_report_refusals
+
+        if stance_v2_report_refusals(curriculum, stance_report, stage=stage, stage_dir=stage_dir):
+            return {}
+    except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
+        logger.warning("Stage %s stance report could not be re-checked for its numbers", stage, exc_info=True)
+        return {}
+    return stance_v2_stage_result(stance_report)
+
+
 def _apply_stage_gate(
     *,
     stage: int,
@@ -1109,6 +1176,18 @@ def _apply_stage_gate(
             ):
                 if key in stats:
                     stage_results[key] = stats[key]
+    from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+
+    if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
+        # The same for the floor-truth stance gate: the clean count, the
+        # panel size, the bound and the statue's reference reward travel with
+        # the verdict into gate_verdict.json's stage_result -- copied only
+        # from a report the judge admits (scored as v2, under this gate and
+        # measurement, for this handoff), so a refused report's numbers never
+        # sit beside the refusal as though they were the stage's.
+        stage_results.update(
+            admitted_stance_v2_stage_result(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
+        )
     # The verdict travels with the gate it was earned under, so a summary
     # re-served after the gate changes can say so instead of re-serving a
     # bare boolean beneath the current gate's description (review SS5).

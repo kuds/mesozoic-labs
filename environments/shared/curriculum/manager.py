@@ -22,6 +22,7 @@ from .stance_gate import (
     StancePanel,
     evaluate_stance_gate,
 )
+from .stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS, StanceV2Thresholds
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,36 @@ class StageThreshold:
     # default for a floor (the schema requires the real value of the kind).
     min_success_lcb: float = np.inf
 
+    # stance_quality/v2 (decision D-D23).  The bar defaults to +inf, the
+    # fail-closed default for a floor, exactly as min_success_lcb does.
+    # Every per-episode criterion defaults to None, meaning "not declared":
+    # the gate module applies only declared criteria and the schema
+    # guarantees the required ones are present, so v1's +inf ceilings --
+    # which read as "declared, no limit" -- are deliberately not reused.
+    # Carried so the threshold states the gate the schema validated; the
+    # manager itself refuses the kind (_stance_v2_gate_refuses).
+    min_clean_stance_lcb: float = np.inf
+    min_all_feet_support: float | None = None
+    max_touchdown_rate: float | None = None
+    max_window_displacement_m: float | None = None
+    min_foot_load_share: float | None = None
+    max_actuator_saturation_fraction: float | None = None
+    max_settle_airborne_substeps: float | None = None
+    max_settle_peak_floor_force_bw: float | None = None
+    min_avg_reward_statue_ratio: float | None = None
+    min_foot_load_share_statue_ratio: float | None = None
+    min_foot_load_share_windowed: float | None = None
+    max_foot_contact_fraction: float | None = None
+    max_phantom_support_fraction: float | None = None
+    max_nonfoot_load_fraction: float | None = None
+    max_settle_stance_width_change_m: float | None = None
+    min_support_geom_duty: float | None = None
+    min_support_geom_coverage: float | None = None
+    max_sole_tilt_deg: float | None = None
+    max_sole_tilt_excess_deg: float | None = None
+    max_sole_corner_lift_m: float | None = None
+    min_sole_contacts: float | None = None
+
     # Shared
     min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
     required_consecutive: int = 3
@@ -89,6 +120,29 @@ class StageThreshold:
             min_eval_episodes=self.min_eval_episodes,
             min_avg_reward=self.min_avg_reward,
             required_consecutive=self.required_consecutive,
+        )
+
+    def stance_v2_thresholds(self) -> StanceV2Thresholds:
+        """The ``stance_quality/v2`` fields, as :func:`~.stance_gate_v2.evaluate_stance_v2_gate` reads them.
+
+        A field copy, like :meth:`stance_thresholds`, for the in-training
+        screen a later tier adds; the shared ``min_full_horizon_fraction`` and
+        ``min_avg_reward`` map their "no floor" defaults (0.0 and -inf) to the
+        gate module's "not declared".  Raises ``ValueError`` when a required
+        criterion was never populated, rather than judging a gate with a
+        missing bar.
+        """
+        values: dict[str, Any] = {name: getattr(self, name) for name in _STANCE_V2_COPIED_KEYS}
+        missing = sorted(name for name in STANCE_V2_REQUIRED_KEYS & set(values) if values[name] is None)
+        if missing:
+            raise ValueError(f"{STANCE_GATE_V2_KIND} threshold(s) {missing} were never populated")
+        return StanceV2Thresholds(
+            min_eval_episodes=self.min_eval_episodes,
+            settle_steps=self.settle_steps,
+            min_full_horizon_fraction=self.min_full_horizon_fraction or None,
+            min_avg_reward=None if self.min_avg_reward == -np.inf else self.min_avg_reward,
+            required_consecutive=self.required_consecutive,
+            **values,
         )
 
 
@@ -266,7 +320,10 @@ class CurriculumManager:
             required number of consecutive evaluations.  Always False for
             ``recovery_quality/v1``: that verdict comes only from the frozen
             gate resolution, whose inputs this path structurally cannot
-            supply — see :meth:`_recovery_gate_refuses`.
+            supply — see :meth:`_recovery_gate_refuses`.  Always False for
+            ``stance_quality/v2`` too: its certificate is the post-stage
+            floor-truth panel on the handoff pair — see
+            :meth:`_stance_v2_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
             self.record_eval(rewards, episode_lengths, forward_velocities, success_rates, stance_panel)
@@ -294,6 +351,11 @@ class CurriculumManager:
             passes = self._task_success_gate_passes(latest, threshold)
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
+        elif threshold.gate_kind == STANCE_GATE_V2_KIND:
+            # Never routed into _stance_gate_passes: a v1 touch-duty panel
+            # cannot certify a floor-truth gate, and that arm would judge it
+            # on v1's +inf defaults.
+            passes = self._stance_v2_gate_refuses()
         else:
             # A kind with no evaluator here: a future entry added to
             # gate_schema.GATE_KINDS (the schema's documented extension path
@@ -439,6 +501,43 @@ class CurriculumManager:
         )
         return False
 
+    def _stance_v2_gate_refuses(self) -> bool:
+        """Refuse ``stance_quality/v2`` here, naming where its certificate comes from instead.
+
+        The v2 verdict (decision D-D23) is a per-episode floor-truth
+        classification of the 40-episode certification panel -- seeds
+        3042-3081, the registered ``certification_panel`` block -- rolled on
+        the stage's HANDOFF pair (``select_handoff_checkpoint``) through the
+        substep contact recorder, plus a statue panel on the same seeds when
+        a statue-relative criterion is declared.  The in-training evaluation
+        has none of that: ``EvalCallback`` rolls its own seeds, on whatever
+        checkpoint is current, with no recorder attached, so nothing it
+        records can be classified against the v2 criteria.
+
+        So the verdict is produced once, after the stage, by
+        ``reporting.stance_report.build_stance_gate_report`` judged through
+        ``reporting.gates.evaluate_stage_gate`` -- ``generate_stage_artifacts``
+        on the notebook path, the post-training judge in
+        ``train_base.train_curriculum`` on the CLI path.  Returning ``False``
+        never counts toward the consecutive-pass streak and never falls
+        through to the reward gate, which ``StageThreshold``'s permissive
+        reward defaults would pass on any evaluation.  An in-training SCREEN
+        (a recorder on the eval env and the statue-relative criteria
+        skipped) is a later tier, not this arm.
+        """
+        logger.error(
+            "Stage %d declares gate_kind %r, which the in-training curriculum cannot "
+            "evaluate: its certificate is the floor-truth classification of the certification "
+            "panel (seeds 3042-3081) rolled on the stage's handoff pair through the substep "
+            "contact recorder, and an in-training evaluation rolls other seeds on another "
+            "checkpoint with no recorder. Refusing to advance; the verdict comes after the "
+            "stage from the post-stage stance gate report, through "
+            "reporting.gates.evaluate_stage_gate.",
+            self._current_stage,
+            STANCE_GATE_V2_KIND,
+        )
+        return False
+
     def _stance_gate_passes(self, latest: dict[str, float]) -> bool:
         """Evaluate ``stance_quality/v1`` against one evaluation.
 
@@ -574,7 +673,14 @@ def thresholds_from_configs(
         # per-episode successes (the same bound the post-stage judge forms
         # from the evidence CSV), so the bar must reach StageThreshold —
         # whose +inf default otherwise refuses every evaluation.
+        #
+        # stance_quality/v2's keys are copied too, unlike recovery's: they
+        # are read from the config (there is no frozen record to defer to),
+        # so the threshold states the gate the schema validated, and the
+        # in-training screen a later tier adds reads them from here.  The
+        # manager refuses the kind until then (_stance_v2_gate_refuses).
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
+        v2_keys = _STANCE_V2_COPIED_KEYS if gate_kind == STANCE_GATE_V2_KIND else ()
         for key in (
             "min_avg_reward",
             "min_avg_episode_length",
@@ -587,8 +693,38 @@ def thresholds_from_configs(
             "min_success_lcb",
             "min_eval_episodes",
             "required_consecutive",
+            *v2_keys,
         ):
             if key in cur:
                 threshold_fields[key] = cur[key]
         thresholds[stage] = threshold_fields
     return thresholds
+
+
+#: The ``stance_quality/v2`` keys :func:`thresholds_from_configs` copies onto
+#: a v2 stage's threshold, beyond the shared ones it copies for every kind
+#: (``settle_steps``, ``min_eval_episodes``, ``min_avg_reward``,
+#: ``min_full_horizon_fraction``, ``required_consecutive``).
+_STANCE_V2_COPIED_KEYS: tuple[str, ...] = (
+    "min_clean_stance_lcb",
+    "min_all_feet_support",
+    "max_touchdown_rate",
+    "max_window_displacement_m",
+    "min_foot_load_share",
+    "max_actuator_saturation_fraction",
+    "max_settle_airborne_substeps",
+    "max_settle_peak_floor_force_bw",
+    "min_avg_reward_statue_ratio",
+    "min_foot_load_share_statue_ratio",
+    "min_foot_load_share_windowed",
+    "max_foot_contact_fraction",
+    "max_phantom_support_fraction",
+    "max_nonfoot_load_fraction",
+    "max_settle_stance_width_change_m",
+    "min_support_geom_duty",
+    "min_support_geom_coverage",
+    "max_sole_tilt_deg",
+    "max_sole_tilt_excess_deg",
+    "max_sole_corner_lift_m",
+    "min_sole_contacts",
+)

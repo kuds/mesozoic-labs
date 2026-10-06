@@ -7,6 +7,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Into the Wild (v0.4.0)
 
+### Added
+- **A floor-truth stance gate, `stance_quality/v2`, and the measurement
+  library it reads** (decision D-D23, 2026-10-06;
+  `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`, and the dated §11 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`). The 2026-10 stance-hack audit
+  replayed every current stance node and found none standing as its
+  zero-action statue does: the three passing trex stances, seed 42 included,
+  hop at reset inside the unscored settle window and prop a leg on a rolled
+  pad; velociraptor crouches on saturated servos and chatters; compsognathus
+  marches on one toe; the robot stacks its feet; dibothrosuchus certified
+  the untrained statue, three-legged in some episodes. v1 reads the touch
+  sensors, averages duty over the panel and skips the settle window, so it
+  admits all of them, as the reward rails do. The new package
+  `environments/shared/gait/` measures stance on floor truth:
+  `SubstepContactRecorder` attaches to `_substep_probe_hook` (chaining any
+  hook already there, detached in a `finally`), decodes each contact's
+  normal force exactly as `mj_contactForce` reports it and reduces an
+  episode at once into an `EpisodeTrace`; `episode_stance_metrics` turns
+  that into a `StanceEpisodeMetrics` row (NaN when unmeasured), which
+  round-trips through CSV. A leg is down when its floor force exceeds 0.1 N
+  on at least half a step's substeps (`MEASUREMENT_VERSION =
+  "floor-truth/v1"`, with a 20 ms debounce, a 0.1 s spawn grace, a 1 s load
+  window, saturation at |a| ≥ 0.99 and a 2° rolled-sole bar;
+  `measurement_manifest` and its sha256 record them). `morphology.py` holds
+  an explicit support-geom registry for all six species, four of which
+  differ from the generic rule (trex without the metatarsus capsule,
+  velociraptor with digit IV and the metatarsus and no sole, the robot
+  without its roll cheeks, brachiosaurus without the metapodial capsule).
+  The recorder leaves the trajectory bit-identical, its forces equal a
+  per-contact `mj_contactForce` loop exactly, and it costs +0.19 to +0.41 ms
+  per control step on a quiet machine (measured on its prototype, which
+  recorded less), so it runs on evaluation envs only. No species env module
+  imports the package.
+
+  The kind (`curriculum/stance_gate_v2.py`, pure) classifies each episode of
+  the 40-episode certification panel (seeds 3042 + i) clean when it reaches
+  the horizon and every declared criterion holds on a finite metric, and
+  certifies the exact Clopper-Pearson bound on the clean count
+  (`recovery_gate.binomial_lcb`; a bar of 0.80 admits 37/40). Required:
+  `min_eval_episodes`, `min_clean_stance_lcb`, `settle_steps`,
+  `min_all_feet_support`, `max_touchdown_rate`, `max_window_displacement_m`,
+  `min_foot_load_share`, `max_actuator_saturation_fraction`,
+  `max_settle_airborne_substeps` and `max_settle_peak_floor_force_bw` (the
+  settle keys after the spawn grace); optional, applied only when declared:
+  foot-on-foot, phantom support, non-foot load, the windowed load share, the
+  settle width change, support-geom duty and coverage, sole tilt and tilt
+  excess, sole corner lift, loaded sole contacts, the reward rail, a
+  full-horizon floor and two statue-relative ratios judged against a
+  zero-action panel rolled in the same report on the same seeds.
+  `GATE_SCHEMA_VERSION` stays 1.
+
+  Its plumbing fails closed at every entry point: the stance report writes a
+  `mesozoic.stance-gate-report/v3` report for the kind (the code that scored
+  it, the thresholds with `settle_steps`, the measurement manifest, the
+  handoff digests, the `task_sha256` of the `[env]` block and plant it
+  rolled, the statue block, every episode's metrics and reasons) and a v2
+  `stance_panel_selected.csv` with its own columns; probes on a v2 stage
+  keep v1's report; the judge refuses a report scored by other code, under
+  other thresholds or another measurement, for another checkpoint, task,
+  horizon, control step or seed block, with the plant contract waived, with
+  a statue panel that is not a separate zero-action one, or with a statue
+  reference its rows contradict, refuses a stage that records no task or
+  horizon, and re-derives the verdict, refusing a report it cannot
+  re-derive; publication re-derives it from the CSV, bound to the certified
+  pair, the stage's recorded task and this checkout's measurement
+  definition (constants and registry entry), and v1's reader refuses a v2
+  file; backfill refuses rather than write a FAIL for any report the judge
+  cannot re-derive; `evaluate_recorded_gate` never falls into the reward
+  arm; `gate_verdict.json` persists the clean count, panel size, clean
+  fraction, bound and statue reward; the species catalog gains the kind's
+  headline; `zero_action_baseline.py` prints the stance gate's verdict on
+  the statue for both stance kinds, which closes its KNOWN_ISSUES entry. A
+  v1 report gains a `scored_gate_kind` key (`stance_quality/v1`), which the
+  v2 judge reads, and its text NOTE on a stage of another kind says "not a
+  stance kind" where it named v1; v1's panel CSV and its stance-stage text
+  are unchanged. In training
+  `CurriculumManager` refuses the kind with a log, and `train_curriculum`
+  judges a v2 node after training from the stance report on its handoff pair
+  (`judged_by` `train_base.train_curriculum/stance_gate_report`). CI's SB3
+  job runs `test_gait_vec_path.py`.
+
+  Validated on 2026-10-06 on 40-episode panels through the report path, with
+  per-species candidate bars: every statue of the six species is clean on
+  40/40, and every one of the twelve audited trex, velociraptor,
+  compsognathus, compsognathus_robot and dibothrosuchus checkpoints fails
+  (ten at 0/40; the two untrained dibothrosuchus nodes at 27/40 and 21/40).
+  Out of scope: no stage TOML declares the kind, so every stance stage still
+  certifies as before and no digest moves (the golden is current at 656
+  lines); the in-training screen (the recorder on the evaluation env) is not
+  built; the website's gate adapter has no v2 arm yet, which a stage's
+  adoption needs; each species' adoption is a gate revision of its own, with
+  bars re-measured on its own statue. Records: D-D23 in
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the consolidation plan's table;
+  KNOWN_ISSUES's stance-gate entry carries the audit's findings and the new
+  kind, and its `zero_action_baseline.py` entry is deleted.
+
 ### Changed
 - **A live child warm-started from a parent that never saw a command
   starts exactly command-blind** (#597, consolidation PR-10 of
