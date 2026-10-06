@@ -939,6 +939,14 @@ def save_stage_config(
         if isinstance(value, tuple):
             env_kwargs[key] = list(value)
 
+    # The gait reward kit's carve-out, as the task fingerprint's effective
+    # config applies it (GAIT_QUALITY_PLAN_2026_09 §5.2 item 2): a knob the
+    # stage does not set, at its legacy default, is not recorded, so a stage
+    # that sets none records the pre-kit reward_weights.
+    from .gait_rewards import drop_inert_kit_keys
+
+    drop_inert_kit_keys(env_kwargs, stage_config.get("env_kwargs", {}))
+
     data: dict[str, Any] = {
         "species": species or "",
         "stage": stage,

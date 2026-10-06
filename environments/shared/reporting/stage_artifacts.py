@@ -289,6 +289,97 @@ def _write_stance_gate_report(
     return None
 
 
+def _write_gait_report(
+    *,
+    species_cfg: Any,
+    stage: int | str,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_dir: Path,
+    algorithm: str,
+    allow_legacy_plant: bool = False,
+    development_panel: bool = True,
+) -> dict[str, Any] | None:
+    """Roll a fresh physical gait panel on the actual selected handoff pair.
+
+    An explicit locomotion_gait/v2 declaration rolls exactly its declared
+    certification panel (``min_eval_episodes`` from ``gait_panel_seed_start``)
+    and makes the evidence authoritative. Every other locomotion recipe gets
+    a short report-only development panel (``gait_report_episodes``, default
+    ``gait.report.DEFAULT_DEVELOPMENT_EPISODES``; ``0`` skips it) from the
+    development block, never the reserved certification block, and only when
+    *development_panel* is set (``generate_stage_artifacts`` ties it to
+    ``generate_graphs`` unless told otherwise). Failure preserves the
+    training artifacts and leaves certification closed.
+    """
+    from ..curriculum.gait_gate import GAIT_GATE_KIND
+    from ..curriculum.gate_schema import GateSchemaError, validate_gate_config
+    from ..stage_manifest import StageManifestError, load_stage_manifest
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    gated = curriculum.get("gate_kind") == GAIT_GATE_KIND
+    try:
+        locomotion = load_stage_manifest(species_cfg.species).resolve(stage).id == "locomotion"
+    except StageManifestError:
+        locomotion = stage == 2
+    if not gated and not locomotion:
+        return None
+    from ..result_bundle.reentry import refuse_write_into_complete_run
+
+    resolved = stage_dir.resolve()
+    for ancestor in (resolved, *resolved.parents):
+        refuse_write_into_complete_run(ancestor, what="Gait artifact generation")
+    # Derived evidence must not survive a failed fresh generation attempt,
+    # nor a skipped one: the earlier report goes with every panel file (its
+    # traces and CSV). The immutable-bundle guard precedes even this.
+    from ..gait.report import clear_panel_files
+
+    (stage_dir / "gait_report.json").unlink(missing_ok=True)
+    clear_panel_files(stage_dir)
+    if gated:
+        try:
+            validate_gate_config(stage, curriculum)
+        except GateSchemaError:
+            logger.warning("Gait certification panel skipped for stage %s: invalid gate", stage, exc_info=True)
+            return None
+    elif not development_panel:
+        logger.info("Report-only gait panel skipped for stage %s (development diagnostics off).", stage)
+        return None
+    from ..gait.report import stage_panel
+
+    episodes, seed = stage_panel(curriculum)
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 0:
+        logger.warning("Gait report skipped for stage %s: gait_report_episodes=%r is not a count", stage, episodes)
+        return None
+    if episodes == 0:
+        logger.info("Report-only gait panel skipped for stage %s: gait_report_episodes = 0", stage)
+        return None
+    handoff = select_handoff_checkpoint(model_dir)
+    if handoff is None:
+        logger.warning("Gait report skipped for stage %s: no matched selected checkpoint/normalization pair", stage)
+        return None
+    selected_name, model_path, vecnorm_path = handoff
+    try:
+        from ..gait.report import write_gait_report
+
+        logger.info("Gait report scoring stage %s checkpoint: %s", stage, selected_name)
+        report: dict[str, Any] = write_gait_report(
+            species_cfg,
+            dict(stage_config, _gait_stage=stage),
+            f"{model_path}.zip",
+            vecnorm_path,
+            stage_dir,
+            episodes=episodes,
+            seed=seed,
+            algorithm=algorithm,
+            allow_legacy_plant=allow_legacy_plant,
+        )
+        return report
+    except Exception:  # noqa: BLE001 - losing diagnostics must preserve a completed run
+        logger.warning("Gait report failed for stage %s", stage, exc_info=True)
+    return None
+
+
 def _write_task_success_evidence(
     *,
     species_cfg: Any,
@@ -1081,6 +1172,19 @@ def _apply_stage_gate(
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     curriculum = stage_config.get("curriculum_kwargs", {})
+    from ..curriculum.gait_gate import GAIT_GATE_KIND
+
+    if curriculum.get("gate_kind") == GAIT_GATE_KIND and stage_dir is not None:
+        try:
+            from .gates import gait_statistics
+
+            gait_stats, _ = gait_statistics(stage_dir, curriculum)
+        except Exception:  # noqa: BLE001 - copying statistics must preserve the run artifacts
+            logger.warning("Stage %s gait statistics could not be read", stage, exc_info=True)
+            gait_stats = None
+        if gait_stats:
+            for key in ("selected_gait_success_count", "selected_gait_n_episodes", "selected_gait_success_lcb"):
+                stage_results[key] = gait_stats[key]
     if curriculum.get("gate_kind") == "task_success/v1" and stage_dir is not None:
         # The numbers the verdict was judged on travel with it: the count,
         # the panel size and the bound go onto stage_results, hence into
@@ -1429,6 +1533,7 @@ def generate_stage_artifacts(
     generate_graphs: bool = True,
     allow_legacy_plant: bool = False,
     recovery_successes_by_seed: "dict[int, bool] | None" = None,
+    gait_diagnostics: bool | None = None,
 ) -> dict[str, Any]:
     """Write stage summary, record replay videos, and generate training graphs.
 
@@ -1444,6 +1549,13 @@ def generate_stage_artifacts(
     When *generate_graphs* is ``True`` (the default), training curves and
     diagnostic graphs are saved to the stage directory.  Requires
     ``matplotlib``.
+
+    A locomotion node without a gait gate also gets a report-only gait panel
+    (``gait_report.json``, ``gait_panel.csv`` and ``gait_traces/``: 10
+    episodes by default, 0.8-1.4 MB of compressed trace per full-horizon
+    episode, and a substep recorder that slows ``env.step`` 1.5-3.8x). *gait_diagnostics* turns it on or off; ``None``
+    (the default) follows *generate_graphs*. A ``locomotion_gait/v2`` node
+    always rolls its certification panel: that panel is its evidence.
 
     For a ``recovery_quality/v1`` stage, pass *recovery_successes_by_seed*
     (``RecoveryPanelEvidence.successes_by_seed()`` from the post-training
@@ -1486,6 +1598,16 @@ def generate_stage_artifacts(
         stage_config=stage_config,
         stage_dir=stage_dir,
         model_dir=model_dir,
+    )
+    _write_gait_report(
+        species_cfg=species_cfg,
+        stage=stage,
+        stage_config=stage_config,
+        stage_dir=stage_dir,
+        model_dir=model_dir,
+        algorithm=algorithm,
+        allow_legacy_plant=allow_legacy_plant,
+        development_panel=generate_graphs if gait_diagnostics is None else gait_diagnostics,
     )
     # A task_success/v1 stage is judged from evaluation_selected.csv; make
     # sure the directory holds one bound to the handoff before the gate

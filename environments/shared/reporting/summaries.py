@@ -126,6 +126,9 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         "selected_model_success_count": ("best_model_success_count", 0),
         "selected_model_n_episodes": ("best_model_n_episodes", 0),
         "selected_model_success_lcb": ("best_model_success_lcb", 4),
+        "selected_gait_success_count": ("selected_gait_success_count", 0),
+        "selected_gait_n_episodes": ("selected_gait_n_episodes", 0),
+        "selected_gait_success_lcb": ("selected_gait_success_lcb", 4),
     }
     for output_key, (result_key, digits) in selected_metrics.items():
         if result_key in result:

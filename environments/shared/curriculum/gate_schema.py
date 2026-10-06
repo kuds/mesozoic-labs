@@ -39,6 +39,8 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
+from ..constants import PUBLICATION_PANEL_EPISODES, PUBLICATION_SEED_START
+from .gait_gate import GAIT_GATE_KIND, GAIT_REQUIRED_KEYS, GAIT_THRESHOLD_KEYS, GaitGateThresholds
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
@@ -52,6 +54,9 @@ GATE_SCHEMA_VERSION = 1
 #: the threshold keys belonging to the kind it declares, so a field left over
 #: from a different gate is an error rather than dead config.
 GATE_KINDS: dict[str, frozenset[str]] = {
+    # Physical gait evidence is a fresh panel of the selected handoff pair.
+    # Its declared measurement identity participates in reuse compatibility.
+    GAIT_GATE_KIND: frozenset(GAIT_THRESHOLD_KEYS),
     # The historical gate: a conjunction of per-evaluation means, repeated
     # ``required_consecutive`` times.  Named so a future capability gate can
     # coexist with it rather than silently replace it.
@@ -146,6 +151,7 @@ FROZEN_NULL_GATE_KINDS: frozenset[str] = frozenset({RECOVERY_GATE_KIND})
 #: path (retired by D-D17) raised.  Requiring the core field here closes that
 #: hole for every gate reader.
 _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
+    GAIT_GATE_KIND: GAIT_REQUIRED_KEYS,
     "reward_and_length/v1": frozenset({"min_avg_reward"}),
     # All three stance criteria are required.  The UCB in particular is the
     # one that certifies -- omitting it would leave the gate resting on raw
@@ -228,6 +234,7 @@ _DIAGNOSTIC_KEYS = frozenset(
         "diagnostics_plateau_min_relative_variation",
         "supplementary_episodes",
         "stance_report_episodes",
+        "gait_report_episodes",
         "task_success_panel_episodes",
         "baseline_warn_after_budget_fraction",
         "stance_probe_filter_hz",
@@ -369,7 +376,14 @@ def gate_config_differences(recorded_thresholds: Mapping[str, Any], current_view
     for key in sorted(set(recorded_thresholds) | set(current_thresholds)):
         recorded = recorded_thresholds.get(key)
         configured = current_thresholds.get(key)
-        if not same_threshold(recorded, configured):
+        # Gait profile and measurement identity are categorical criteria;
+        # numeric coercion would always call two equal digests different.
+        agrees = (
+            isinstance(recorded, str) and isinstance(configured, str) and recorded == configured
+            if key in {"gait_profile", "measurement_protocol_sha256"}
+            else same_threshold(recorded, configured)
+        )
+        if not agrees:
             differences.append(f"{key}: judged at {recorded!r}, configured {configured!r} now")
     return differences
 
@@ -538,6 +552,42 @@ def validate_gate_config(
             f'{_describe(stage)}: gate_kind "none/v1" declares a non-advancing '
             "pilot, so it cannot be used in a run that advances between stages."
         )
+
+    if declared_kind == GAIT_GATE_KIND:
+        try:
+            GaitGateThresholds.from_curriculum(curriculum_kwargs)
+        except ValueError as exc:
+            raise GateSchemaError(f"{_describe(stage)}: {exc}") from exc
+        if curriculum_kwargs["gait_panel_seed_start"] != PUBLICATION_SEED_START:
+            raise GateSchemaError(
+                f"{_describe(stage)}: gait_panel_seed_start must equal the registered certification "
+                f"block {PUBLICATION_SEED_START}; arbitrary seeds are for report-only development panels"
+            )
+        if curriculum_kwargs["min_eval_episodes"] > PUBLICATION_PANEL_EPISODES:
+            raise GateSchemaError(
+                f"{_describe(stage)}: a gait certification panel lies inside the registered block "
+                f"{PUBLICATION_SEED_START}-{PUBLICATION_SEED_START + PUBLICATION_PANEL_EPISODES - 1}; "
+                f"min_eval_episodes must be at most {PUBLICATION_PANEL_EPISODES}"
+            )
+        if curriculum_kwargs["min_episode_forward_vel"] <= 0:
+            raise GateSchemaError(f"{_describe(stage)}: locomotion min_episode_forward_vel must be positive")
+        consecutive = curriculum_kwargs.get("required_consecutive", 1)
+        if isinstance(consecutive, bool) or consecutive != 1 or not isinstance(consecutive, int):
+            raise GateSchemaError(
+                f"{_describe(stage)}: locomotion gait judges one fixed panel; required_consecutive must be 1"
+            )
+        # The report-only override would make the artifact judge roll a panel
+        # other than the declared one (and refuse) while the curriculum judge
+        # rolls min_eval_episodes: one config, two verdicts.
+        if "gait_report_episodes" in curriculum_kwargs and (
+            curriculum_kwargs["gait_report_episodes"] != curriculum_kwargs["min_eval_episodes"]
+            or isinstance(curriculum_kwargs["gait_report_episodes"], bool)
+            or not isinstance(curriculum_kwargs["gait_report_episodes"], int)
+        ):
+            raise GateSchemaError(
+                f"{_describe(stage)}: a {GAIT_GATE_KIND} stage always rolls its declared panel; "
+                "gait_report_episodes must be absent or equal min_eval_episodes"
+            )
 
     for table in sorted(BACKEND_OVERRIDE_TABLES & set(curriculum_kwargs)):
         _validate_backend_override_table(stage, table, curriculum_kwargs[table], allowed)

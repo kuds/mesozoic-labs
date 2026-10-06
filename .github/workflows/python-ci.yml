@@ -129,6 +129,12 @@ jobs:
           python -m environments.shared.plant_contract --check
           python -m environments.shared.species_catalog --check
 
+      # Every committed stage declaring locomotion_gait/v2 must declare the
+      # measurement_protocol_sha256 this build plans for its panel; a stale
+      # one would otherwise be found only after a whole training budget.
+      - name: Verify declared gait protocol digests
+        run: python -m environments.shared.gait.preflight --check
+
       - name: Enforce plant revision monotonicity against the PR base
         if: github.event_name == 'pull_request'
         env:
@@ -365,6 +371,7 @@ jobs:
             environments/shared/tests/test_diagnostics.py \
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
+            environments/shared/tests/test_gait_report.py \
             environments/shared/tests/test_policy_loading.py \
             environments/shared/tests/test_report_script_vecnorm.py \
             environments/shared/tests/test_resume_continuation.py \

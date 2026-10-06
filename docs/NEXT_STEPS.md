@@ -333,6 +333,85 @@ Notes:
   (0.0069 / UCB 0.0117), so the fresh trex stance with `SEED = 45` held in
   reserve (about 13 h for the stance alone) is not run.
 
+**T. rex gait-r1 pilot (prepared 2026-10-04, not run).** The T. rex locomotion task revision `gait-r1` is a
+commit of its own, merged just before its training session ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md)
+§5.2 item 5; the evidence for its values is
+[investigations/TREX_GAIT_R1_RESCORE_2026_10.md](investigations/TREX_GAIT_R1_RESCORE_2026_10.md)). Before it
+merges, a pilot judges the first 1.5M steps of a notebook session trained from its branch (the plan's §5.5 step 3).
+
+**Running it.** In Colab, open `notebooks/sb3_training.ipynb` from branch `claude/gait-checker-trex-gait-r1` (at or
+after `d4c8f3e`, whose review fixes change the gait-phase reward without moving the task digest), set these
+knobs and run all:
+
+| Knob | Value |
+|---|---|
+| `REPO_REF` | `"claude/gait-checker-trex-gait-r1"` |
+| `SPECIES` | `"Tyrannosaurus Rex"` |
+| `BEHAVIOR` | `"walk"` |
+| `TRUNK_FROM` | `"20260914_123816"` |
+| `SEED` | `45` |
+| `RUN_LABEL` | `"gait-r1-pilot"` (optional) |
+
+The branch's `configs/trex/locomotion.toml` is the revision, so nothing is overridden and the session trains
+under the revision's own task digest.
+
+- **The trunk is pinned.** `auto` picks the seed-44 run on the tie, and its stance hops in 6 of 40 episodes.
+  The chain loop must print `Reusing certified 'stance' from run 20260914_123816`. A `Not reusing 'stance'`
+  line means interrupt at once: the session would train a new stance for 11M steps.
+- **Seed 45 is new.** Seed 42 would replay the hop run's seeds. Seed 45's training and selection seeds stay off
+  both the certification block and the development block.
+- **The pilot is the session's first 1.5M steps.** The node keeps its 8M budget and learning-rate schedule. The
+  periodic checkpoint pair nearest 1.5M steps is judged while training continues, about 2.5-3 h in:
+  `03_locomotion/models/stage2_<steps>_steps.zip` with `stage2_vecnormalize_<steps>_steps.pkl`. Retention
+  keeps the newest five pairs, so each pair stays on Drive for about 500k steps.
+- **Stop the runtime after the verdict, either way.** The certified walker comes from the gait-gated session
+  below. A pilot stopped before its node finishes writes no locomotion verdict, so it certifies nothing and is
+  never a replicate.
+- **The run lives in `logs/trex/ppo/`.** Its stance is an `ancestors/` record that leads back to
+  `20260914_123816`, so a later `auto` stand or walk session that picks it reuses the same seed-42 stance.
+
+**Judging.** Judge the pair on the development block, never on 3042-3081:
+
+```bash
+python -m environments.shared.scripts.gait_report trex --stage locomotion \
+  --model <run>/03_locomotion/models/stage2_<steps>_steps.zip \
+  --vecnorm <run>/03_locomotion/models/stage2_vecnormalize_<steps>_steps.pkl \
+  --episodes 20 --seed 9000 --settle-s 1.0 --out-dir <fresh directory>
+```
+
+The plan's §5.5 T. rex row, read on the walk-first measurement, decides what follows. The seed-42 hop's
+development-seed values are in brackets.
+
+**Proceed** if either holds:
+
+- At least 11 of 20 episodes walk (they qualify under the provisional `biped_walk` bars, or fail only the speed
+  rail, since the pilot ends inside the forward ramp), with a median speed of at least 0.5 m/s.
+- The medians read as a walk, and at least 18 of 20 episodes complete:
+  - `alternation_phase_offset_max` at most 0.2 cycle [0.48];
+  - `off_gait_fraction` at most 0.3 [0.999];
+  - `step_through_stride_fraction_min` at least 0.5 [0.35];
+  - flight and unloaded time each at most 0.2 [0.35 and 0.40];
+  - stride at least 0.40 `L` [0.17].
+
+**Stop** if any holds:
+
+- The median speed is under 0.5 m/s.
+- It is still a hop: phase offset above 0.3, or flight above 0.3.
+- A new exploit appears: a shuffle, a one-legged gait, a step-to, a run at the cap (flight 0.1 to 0.3 above
+  1.2 m/s), or the body on the floor.
+- Fewer than 16 of 20 episodes complete.
+
+**After a proceed:**
+
+1. Merge `gait-r1`.
+2. Merge the enforcement block of [GAIT_CERTIFICATION.md](GAIT_CERTIFICATION.md) ("T. rex locomotion: the
+   enforcement step").
+3. Train the 8M session from the notebook on `main`, with the pilot's `SPECIES`, `BEHAVIOR`, `TRUNK_FROM`
+   and `SEED`, in about 13-15 h.
+
+In between, or on a stop, bring the report back: a re-scoring comes before any weight change. Record the
+pilot's run, commit, wall time and verdict here.
+
 Not recommended yet: direction/terrain pilots (evaluation only, D-D9; command
 line only from the notebook-only PR-12 slice on, with `--checkpoint` /
 `--vecnormalize` naming the pair, [TRAIN_DIRECTION_AND_TERRAIN.md](TRAIN_DIRECTION_AND_TERRAIN.md);

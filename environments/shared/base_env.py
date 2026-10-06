@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
 import mujoco
@@ -47,6 +47,9 @@ from .reward_functions import reward_lean_aware_posture as _reward_lean_aware_po
 from .reward_functions import reward_nosedive as _reward_nosedive_pure
 from .reward_functions import reward_posture as _reward_posture_pure
 from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
+
+if TYPE_CHECKING:
+    from .gait_rewards import GaitRewardKit
 
 # Clearance in METRES kept between a reset spawn and the nearer end of
 # healthy_z_range.  Reset must never generate an already-terminal state: an
@@ -187,6 +190,18 @@ class BaseDinoEnv(gym.Env, ABC):
     # that can silently drift from it.  None (the default) costs one
     # comparison per substep.
     _substep_probe_hook: "Callable[[], None] | None" = None
+
+    # The gait reward kit's per-substep hook (environments/shared/gait_rewards.py):
+    # a read-only scan of the solved contacts after EVERY physics substep, for
+    # its floor-force support, step and contact terms.  A slot of its own, not
+    # _substep_probe_hook, which evaluation recorders, the behavior env's
+    # terrain probe and the diagnostics scripts install and clear.  Installed
+    # by the kit only when a knob needs it; None (the default, and every legacy
+    # config) costs one comparison per substep.  _gait_reward_kit is the kit a
+    # species env wires (None for the species that do not), reset with the
+    # gait state in _reset_gait_state.
+    _substep_reward_hook: "Callable[[], None] | None" = None
+    _gait_reward_kit: "GaitRewardKit | None" = None
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
@@ -721,13 +736,18 @@ class BaseDinoEnv(gym.Env, ABC):
         self._touchdown_sequence: list[str] = []
 
     def _reset_gait_state(self) -> None:
-        """Reset gait symmetry tracking for a new episode.
+        """Reset gait symmetry tracking, and the gait reward kit's state, for a new episode.
 
-        Call this from the subclass ``_spawn_target`` / reset path.
+        Call this from the subclass ``_spawn_target`` / reset path.  The kit
+        resets here (GAIT_QUALITY_PLAN_2026_09 §5.2 item 3) because every
+        species' ``_spawn_target`` already calls this, while ``reset()`` itself
+        is fingerprinted as the home_reset policy interface.
         """
         self._prev_r_in_contact = False
         self._prev_l_in_contact = False
         self._touchdown_sequence = []
+        if self._gait_reward_kit is not None:
+            self._gait_reward_kit.reset()
 
     def _compute_gait_symmetry(
         self,
@@ -1011,6 +1031,8 @@ class BaseDinoEnv(gym.Env, ABC):
         self._substep_floor_hit_geom = None
         self._substep_min_heights = None
         self._substep_contact_step = -1
+        if self._gait_reward_kit is not None:
+            self._gait_reward_kit.invalidate()
 
     def _check_floor_contact(
         self, body_ground_geoms: set, floor_geom_id: int, geom_categories: "dict[str, set] | None" = None
@@ -1261,6 +1283,8 @@ class BaseDinoEnv(gym.Env, ABC):
             mujoco.mj_step(self.model, self.data)
             if self._substep_probe_hook is not None:
                 self._substep_probe_hook()
+            if self._substep_reward_hook is not None:
+                self._substep_reward_hook()
             if track_feet:
                 forces = np.asarray(self._foot_contact_forces(), dtype=np.float64)
                 min_forces = forces if min_forces is None else np.minimum(min_forces, forces)

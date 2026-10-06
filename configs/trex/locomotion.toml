@@ -2,18 +2,63 @@
 name = "locomotion"
 description = "Learn forward walking/running"
 
+# Task revision gait-r1 (decision D-D23, 2026-10-04; docs/GAIT_QUALITY_PLAN_2026_09.md §5.2 item 5 and §5.4).
+# The certified walkers on this task hop on both feet together (seed 42 at 1.05 m/s, seed 44 at 1.57 m/s;
+# docs/investigations/GAIT_AUDIT_2026_09.md), and the reward paid those hops more than a 1.0 m/s walk.
+# Seven [env] keys change: support_source, gait_phase_weight, flight_penalty_weight and
+# foot_slip_penalty_weight set the gait reward kit (environments/shared/gait_rewards.py);
+# forward_vel_weight and forward_vel_max lower the speed cap with the slope kept; max_episode_steps
+# doubles. Re-scoring the hops and the statue on CPU (docs/investigations/TREX_GAIT_R1_RESCORE_2026_10.md,
+# development seeds) gives, per 1000 steps: a modelled 1.0 m/s walk 2251, the best hop 1522 (legacy: walk
+# 1853, best hop 2638); no hop or statue earns more than it did. The values depart from §5.4's starting
+# values (gait phase 0.3, flight 0.5, cap unchanged) for the reasons in each comment. The stance (stance.toml) is unchanged, so TRUNK_FROM = "20260914_123816" stays a valid trunk.
+# Every trex behavior recipe reads this table as its defaults (environments/shared/train_behaviors.py),
+# so the four kit keys reach them too; the behavior env zeroes forward_vel_weight, so the speed cap does
+# not, and the recipes set their own max_episode_steps.
 [env]
-forward_vel_weight = 2.0               # Match raptor: was 0.8, far too low. Primary driver of locomotion speed.
-                                       # At 2.0, forward velocity dominates the reward landscape and
-                                       # pushes the agent past the slow-walking local optimum.
+forward_vel_weight = 1.0               # gait-r1: was 2.0 (raised from 0.8 in 2026-08 to match the raptor).
+                                       # Halved together with forward_vel_max so that pay below the cap keeps
+                                       # its 0.8 per m/s slope: a walk at or under 1.25 m/s earns exactly what
+                                       # it earned before (800 per 1000 steps at 1.0 m/s), and the statue is
+                                       # unchanged. Lowering only the cap would steepen the slope and pay every
+                                       # hop more (up to +366 per 1000 steps; rescore note T6, T7).
 alive_bonus = 0.5                      # Keep: already reduced from Stage 1
 fall_penalty = -150.0                  # Raised from -50: hedge against late-episode falls, which stay cheap
                                        # in the discounted objective at gamma=0.995 (corrected break-even math
                                        # in docs/investigations/STAGE2_RECOMMENDATIONS.md section 2.1).
-forward_vel_max = 2.5                  # NEW: was unset (env default 8.0 -> effectively uncapped speed
-                                       # incentive). Saturate just past the 2.0 m/s gate instead of paying
-                                       # for robustness-destroying top speed — the trap that collapsed
-                                       # velociraptor stage 2 (STAGE2_RECOMMENDATIONS.md R4).
+forward_vel_max = 1.25                 # gait-r1: was 2.5, set when the gate was 2.0 m/s (25% headroom; the
+                                       # trap that collapsed velociraptor stage 2, STAGE2_RECOMMENDATIONS.md
+                                       # R4). The gate has been 1.0 m/s since 2026-08, so 2.5 paid speed up to
+                                       # 2.5x the gate, where the re-scored hops run (1.04-2.02 m/s). 1.25 keeps the
+                                       # 25% headroom. A non-walk can then out-earn a 1.0 m/s walk on speed by
+                                       # at most 0.8 x 0.25 per step. With a 1.5 cap a jog at the cap still beats
+                                       # a 1.0 m/s walk (2369 vs 2251 per 1000 steps); at 1.25 every modelled
+                                       # alternative loses to it (rescore note T8).
+support_source = "floor"               # gait-r1 (plan §5.3, GQ-6 (a)): the kit's feet-down flags and the
+                                       # bilateral terms read the registered feet's floor force, the contact
+                                       # the gait gate measures, not the touch sensors. The observation keeps
+                                       # its touch channels.
+gait_phase_weight = 0.5                # gait-r1: §5.4 starts at 0.3. Paid at each floor-truth step for
+                                       # alternation x swing x step-through (gait_phase_step_over_leg stays
+                                       # 0.64: a full step is 0.561 m). Once the cap and the flight penalty
+                                       # sink the hops, 0.5 ranks a 1.0 m/s walk (2251 per 1000 steps) above
+                                       # the other grounded gaits (a step-to about 2050, a limp or a shuffle
+                                       # about 1900, no qualifying step 1851). At the start of the forward
+                                       # ramp it moves the stance checkpoint off the statue (walk minus statue
+                                       # +517, legacy +38; T10). A slow perfect walk still loses (0.6 m/s:
+                                       # 2006). 0.3 also passes the criterion, by 569 instead of 729.
+flight_penalty_weight = 1.0            # gait-r1: §5.4 starts at 0.5. A step with no foot carrying a tenth of
+                                       # its share of body weight nets -0.5 against alive_bonus 0.5. That
+                                       # doubles what the hops lose (-393 to -519 per 1000 steps) and makes a
+                                       # run at the cap lose to a 1.0 m/s walk (2178 vs 2251). The gate-speed
+                                       # puppet walks pay 0 to 57 for it. flight_min_feet stays 1.
+foot_slip_penalty_weight = 0.2         # gait-r1: §5.4's value. About -2 per 1000 steps for a walk and -10 for
+                                       # a hop; it decides nothing.
+# support_conditioned_alive_fraction stays at its 0.0 default: it pays alive only with both feet loaded,
+# and a gate-speed walk has both feet loaded on about 4% of its steps. At 1.0 it would cost the walk about
+# 480 per 1000 steps (the hops 245-350, the statue 1) and make standing pay more than walking at the
+# start of the ramp (-201). foot_collision_penalty_weight, leg_contact_penalty_weight and
+# terminate_on_leg_contact stay off: neither contact occurred on any step of any hop or puppet.
 energy_penalty_weight = 0.002          # Increase from 0.001: CoT was near 0, provide some efficiency signal
 tail_stability_weight = 0.05           # Reduce from 0.08 to match raptor: tail oscillation is less
                                        # critical than forward progress at this stage
@@ -30,8 +75,19 @@ lateral_penalty_weight = 0.1           # Reduce from 0.3 to match raptor: allow 
 bite_bonus = 0.0
 bite_approach_weight = 0.0
 prey_distance_range = [8.0, 12.0]
-max_episode_steps = 1000
-reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
+max_episode_steps = 2000               # gait-r1: was 1000. 20 s, because the locomotion_gait/v2 panel rolls
+                                       # this horizon (the panel env is the task env: gait/report.py reads
+                                       # max_episode_steps, and the task fingerprint covers it), so judging on
+                                       # 20 s means training on 20 s. After the 1 s settle a 9 s window holds 8-10
+                                       # T. rex strides (0.9-1.1 s each), where one stumble or a slow start uses
+                                       # most of the 15% off-gait budget; 19 s holds 17-21 strides
+                                       # (docs/GAIT_CERTIFICATION.md, "T. rex locomotion: the enforcement
+                                       # step"). Re-derived with it: min_avg_episode_length and
+                                       # collapse_peak_floor_reference below. Cost: in-training evaluations
+                                       # (30 episodes every 50k steps) double, so a full 8M session runs about
+                                       # 13-15 h instead of 8h46m. stance.toml keeps 1000 (its own gate, its own
+                                       # horizon); the behavior recipes set their own 2500.
+reset_noise_scale = 0.05              # Was omitted, so SB3 silently fell back to the class default 0.01
                                        # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
                                        # inherited a 5x narrower reset distribution by accident.
 
@@ -85,9 +141,16 @@ net_arch = [512, 256]            # Match raptor width; T-Rex obs is 64 (arms/dis
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py. Kept through gait-r1:
+                                        # the gait gate is enforced only after a gait-r1 pilot passes (the
+                                        # [curriculum] block to apply then, with its protocol hash, is in
+                                        # docs/GAIT_CERTIFICATION.md, "T. rex locomotion: the enforcement step").
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
-min_avg_reward = 100.0
+min_avg_reward = 100.0                  # Kept at 100 through gait-r1's 2000-step horizon: it sits about 11x
+                                        # below the statue on 1000-step episodes (1091.3) and 22x on 2000-step
+                                        # ones (2186.8), and since the per-step reward is unchanged it still
+                                        # bounds the same thing (episodes that fall within the first ~100
+                                        # steps), which min_avg_episode_length also covers.
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
 # collapse_peak_floor = 100.0 — which sat 11x BELOW the measured do-nothing
@@ -96,26 +159,35 @@ min_avg_reward = 100.0
 # not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
 # lets an explicit collapse_peak_floor win over the pair, so leaving it in
 # place would silently keep the old floor.
-collapse_peak_floor_reference = 1091.5  # The zero-action locomotion statue's reward at noise 0.05:
-                                        # 1091.51 ± 5.46 over 40 episodes, 40/40 full horizon, measured
-                                        # 2026-08-23 with environments/shared/scripts/
-                                        # zero_action_baseline.py trex:2 (2026-08 review §5.3). Re-measure
-                                        # with the same script whenever a reward weight OR the plant
+collapse_peak_floor_reference = 2186.8  # The zero-action locomotion statue's reward at noise 0.05 under
+                                        # gait-r1: 2186.81 ± 9.70 over 40 episodes (seeds 3042-3081), 40/40
+                                        # full horizon (2000 steps), measured 2026-10-04 with
+                                        # environments/shared/scripts/zero_action_baseline.py trex:2
+                                        # --episodes 40. Was 1091.5 (1091.51 ± 5.46, 1000 steps, 2026-08-23,
+                                        # 2026-08 review §5.3), which the same script still reproduces
+                                        # exactly on the pre-gait-r1 table; the gait-r1 weights alone move it
+                                        # to 1091.34 ± 5.48 at 1000 steps (foot slip; the statue never flies
+                                        # and takes no step), so the horizon doubles it. Re-measure with the
+                                        # same script whenever a reward weight, the horizon OR the plant
                                         # changes: a weight change rescales the statue's terms exactly and
                                         # cheaply; a plant change moves its trajectory, so only a re-run is
                                         # evidence. Forgetting either is silent.
-collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1091.5 =
-                                        # 491.2. The interrupted run 20260821_142144's best eval (1494.47
-                                        # at 5.3M) clears it, and even its ~1100 ramp-window plateau does,
-                                        # so the backstop arms as soon as collapse_min_evals is met and
-                                        # watches the rest of the run. The ratio, not the product, is what
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 2186.8 =
+                                        # 984.1 (was 0.45 x 1091.5 = 491.2 on 1000-step episodes). The
+                                        # interrupted run 20260821_142144's best eval (1494.47 at 5.3M) and
+                                        # its ~1100 ramp-window plateau cleared the old floor about 3x and
+                                        # 2.2x on 1000 steps; the same per-step rewards over 2000 steps clear
+                                        # this one by the same ratios, so the backstop still arms as soon as
+                                        # collapse_min_evals is met. The ratio, not the product, is what
                                         # carries across a reward change.
-statue_constants_physics_revision = 7   # The trex PHYSICS revision the 1091.5 reference was measured on
-                                        # (2026-08-23). test_statue_constant_freshness.py holds this pin
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 2186.8 reference was measured on
+                                        # (2026-10-04; 1091.5 was measured on r7 too).
+                                        # test_statue_constant_freshness.py holds this pin
                                         # against the plant manifest, so a plant bump that forgets the
                                         # re-measure fails CI instead of silently training against a
                                         # backstop calibrated on a plant that no longer exists.
-min_avg_episode_length = 750            # Reduce from 800: T-Rex best run reached 682, 800 is too strict
+min_avg_episode_length = 1500           # gait-r1: was 750 (reduced from 800: T-Rex best run reached 682, 800
+                                        # was too strict); the same 75% of the horizon on 2000-step episodes.
 min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plant (2026-08 review §5.3
                                         # decision (b)). The previous 2.0 was a velociraptor copy: on this
                                         # plant 2.0 m/s is Froude 0.46-0.57 (CoM height 0.72-0.88 m) — the
@@ -140,3 +212,8 @@ warmup_clip_range = 0.02                # Small clip range during warm-up to lim
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
 ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
 ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)
+                                        # An absolute weight (RewardRampCallback ramps forward_vel_weight from it
+                                        # to the [env] value), so under gait-r1 it is 20% of the final 1.0, not
+                                        # 10% of 2.0: 0.16 per m/s below the cap at the ramp start instead of
+                                        # 0.08. Kept deliberately: the re-scoring's ramp-start table (T10) has a
+                                        # 1.0 m/s walk 517 above the statue with it, against 38 under legacy.

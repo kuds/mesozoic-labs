@@ -9,6 +9,10 @@ D-D21's 0.3.9 gate; every code PR builds on 0.3.9.
 `20ab100`, as `0.3.9`, so the code PRs no longer wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
 *Updated 2026-10-02: the maintainer chose to finish the deferred cleanup (the cleanup plan's §3.1 item 5) before
 consolidation PR-8 and the code PRs here, so the code PRs now wait for it; GQ-1..GQ-18 stay open (§1.3, §6).*
+*Updated 2026-10-04: decision D-D23 takes the T. rex locomotion task revision `gait-r1` (§5.4's T. rex row), with
+the values its §5.5 re-scoring chose ([investigations/TREX_GAIT_R1_RESCORE_2026_10.md](investigations/TREX_GAIT_R1_RESCORE_2026_10.md)):
+gait phase 0.5, flight 1.0, slip 0.2, floor support, the speed cap 1.25 m/s with its slope kept, and a 2000-step
+horizon for the `locomotion_gait/v2` panel. GQ-1..GQ-18 stay open.*
 
 ## How to use this document
 

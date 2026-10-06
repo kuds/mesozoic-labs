@@ -68,7 +68,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 |---|---|---|---|---:|---:|
 | 1 — Balance | stand (deliverable) | — | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
 | recovery — Recovery | stand (deliverable) | 1 — Balance | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs each required frozen null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
-| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 1500; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | hunt (deliverable) | 2 — Locomotion | Sprint to prey and make contact with the head bite proxy | 8M | task success LCB95 ≥ 0.5; reward rail ≥ 361; ≥ 30 episodes/evaluation; verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent) |
 
 **Backend-specific success semantics:**
