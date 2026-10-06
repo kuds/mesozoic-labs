@@ -423,9 +423,28 @@
          under these gains are 48.9 / 7.2 / 54.4 N.m against 1800 / 2250 /
          1350 of authority; the knee's is near zero because the flexed limb
          puts that joint almost on the line of the vertical ground reaction
-         force, which is the mechanically sound place for it. -->
+         force, which is the mechanically sound place for it.
+
+         Hip roll was left out of that mass scaling and kept the raptor-era
+         kp 150 until physics r8.  With both feet planted the two hip-roll
+         servos and their joint springs hold the whole body against lateral
+         sway in parallel, so they are stable only while 2 x (kp + 40)
+         exceeds the gravity stiffness m.g.h of the settled statue: 85.72 kg
+         x 9.81 x 0.8377 m (subtree CoM height) = 704.4 N.m/rad.  kp 150
+         gave 380, so the servos could not pull the reset's hip-roll noise
+         back: a wide spawn stayed wide on the pads' inner edges and a
+         narrow one on their outer edges, up to 3.4 deg of pad roll with the
+         outer digit unloaded on 4/40 statue episodes, the same signature as
+         the trained stances' propped leg.  kp 600 gives 1280 (1.8x); the
+         statue's worst pad tilt falls from 3.4 to 1.2 deg (1.5 over 80
+         more seeds), its settled foot-site width from 0.218-0.337 m to
+         0.244-0.316 m about the home 0.280, and its quasi-static lateral
+         push capacity rises from 3.3% to 5.1% of body weight.
+         forcerange keeps the 0.8x kp spike cap of every actuator outside
+         the gait-headroom six; the statue uses under 3% of it.  ctrlrange,
+         and so what an action means, is unchanged. -->
     <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-1.17984 1.08908"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="600" forcerange="-480 480" ctrlrange="-0.4363 0.4363"/>
     <position name="r_knee_act" joint="r_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
     <position name="r_ankle_act" joint="r_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
     <!-- Toes are passive: leg_joint stiffness 40 with springref 12.5 holds
@@ -437,7 +456,7 @@
 
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-1.17984 1.08908"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="600" forcerange="-480 480" ctrlrange="-0.4363 0.4363"/>
     <position name="l_knee_act" joint="l_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
     <position name="l_ankle_act" joint="l_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
 
@@ -550,10 +569,13 @@
        Under the home controller this settles to pelvis 0.9260 m (sd 0.00001)
        at forward_z -0.027.  Those two numbers are load-bearing constants
        elsewhere and must be re-measured together with any edit here:
-         trex_env.py    target_z, natural_pitch, healthy_z_range
-         mjx_config.py  target_standing_z, _NATURAL_PITCH, healthy_z_range
-         configs/trex/stage1_balance.toml
-                        nosedive_termination_threshold, min_avg_reward
+         trex_env.py    target_z, natural_pitch, healthy_z_range, and the
+                        settled-pose targets _TAIL_SETTLED_QPOS and
+                        _NECK_SETTLED_QPOS
+         configs/trex/stance.toml
+                        nosedive_termination_threshold
+       plus every statue-derived constant the four configs/trex stage files
+       pin with statue_constants_physics_revision, as for any physics edit.
        environments/trex/tests/test_trex_env.py::TestHeightTargetTracksStance
        pins target_z to the settled stance so it cannot drift silently. -->
 

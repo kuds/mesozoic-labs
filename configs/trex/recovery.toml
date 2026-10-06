@@ -7,7 +7,7 @@
 # through the `extends` key below (environments/shared/config.py), so
 # every inherited value's derivation record lives THERE. [env] adds exactly
 # one delta: the five perturbation_* keys, at the adopted §3.3 values. On
-# the r7 plant the multiple derives to 165.5 N over 0.20 s (capture-point
+# the r7 and r8 plants the multiple derives to 165.5 N over 0.20 s (capture-point
 # argument; pinned in test_perturbation.py). The same reward,
 # observations, and terminations are deliberate: the push changes the
 # task, not the interface, and the recovery gate (W4) measures per-shove
@@ -54,6 +54,15 @@ description = "Hold the stance against scheduled external pushes and recover fro
 # Written out with stance's values rather than inherited, as the cleanup
 # plan's CU-13 row requires (its §4.2 and §7 keep the gate and weight
 # keys); test_stage_manifest.py pins all three equal to stance's.
+# The physics-r8 stance terms (neck_posture_reference, foot_flatness_*,
+# stance_width_*) are inherited on purpose, not pinned here: recovering
+# from a shove means returning to that stance, a level-footed one at the
+# home width with the head at its settled pose. The width term reads the
+# planar foot-site distance, so a recovery step forward or back counts as
+# width error too and forfeits up to its 0.1 per step until the feet
+# return; against the 1.0 alive bonus and the -100 fall that cannot make
+# falling pay. That it costs only until the stance is restored is reasoned,
+# not measured: no r8 recovery policy exists yet.
 foot_contact_gate = 0.0
 foot_contact_weight = 0.0
 foot_contact_saturation_force = 350.0
@@ -134,6 +143,14 @@ timesteps = 3_000_000                   # Measured, no longer provisional: both 
 # future support term must be windowed and re-derived from certified stance
 # before it can gate.
 #
+# Stale since physics r8 (2026-10-06, decision D-D24): the safe set and its
+# 0.9267 m reference were measured on the r7 certified stance, which r8
+# retires, and every gate_resolution.json frozen on r7 records an r7
+# task_sha256 that require_gate_resolution refuses. The thresholds below
+# stay; at the first r8 stance certified under stance_quality/v2, re-measure
+# the safe set on it (the first-runs record's §4 protocol) and re-freeze
+# with freeze_recovery_gate.py before a recovery node trains.
+#
 # Every value below must AGREE with the stage's frozen gate_resolution.json:
 # reporting/gates.py::_recovery_spec_disagreements refuses on any mismatch, so
 # editing this block without re-freezing does not move the gate, it BLOCKS it.
@@ -210,17 +227,30 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # panel (roll_recovery_panel, environments/shared/recovery_evaluation.py,
 # same seeds and episode count) whenever a reward weight, the
 # perturbation_* block, or the plant changes.
-collapse_peak_floor_reference = 974.7   # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081 (first-runs record §3/§6.5; reproduced exactly
-                                        # 2026-08-23, review §5.1).
+#
+# Re-measured for physics r8 (plant_versions note 13) with the r8 stance
+# task this file inherits, by the same roll_recovery_panel judge, 40
+# episodes, seeds 3042-3081: 1337.5 ± 506.8, mean length 431.4, 0/40 full
+# horizon, ends nosedive 27 / tail_contact 13 (r7: fallen 20, nosedive 13,
+# tail_contact 7). The same judge reproduces r7's 974.7 ± 216.6 and 360.2
+# exactly on the r7 tree. The move decomposes as +275.4 plant (1250.1 on r8
+# under the r7 task: the stiffer hip-roll servos remove all 20 lateral
+# 'fallen' ends, and the statue lasts longer before a fore-aft one) and
+# +87.4 from the new stance terms over those longer episodes. Floor = 0.45 x 1337.5 = 601.9; the r7 5M pilot's
+# post-warmup minimum (1910.45, an r7 run under the r7 task) would clear it
+# 3.2x, so the backstop still arms early and sits far below a warm-started
+# policy, but no r8 recovery run exists yet to confirm that.
+collapse_peak_floor_reference = 1337.5  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081, physics r8 (above). 974.7 on r7 (first-runs record
+                                        # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 7   # The trex PHYSICS revision the 974.7 reference was measured on
-                                        # (the 2026-08-23 panel, review §5.1 — the same r7 plant as the
-                                        # frozen first-runs panels; the perturbation engine, plant_versions
-                                        # note 11, bumped only the POLICY interface, so the pushed dynamics
-                                        # are r7's). The freshness test holds this pin against the manifest
-                                        # so any real physics move forces a re-measure or a conscious
-                                        # update here.
+statue_constants_physics_revision = 8   # The trex PHYSICS revision the 1337.5 reference was measured on
+                                        # (the r8 panel above). The 974.7 it replaced was r7's: the 2026-08-23
+                                        # panel, review §5.1 — the same r7 plant as the frozen first-runs
+                                        # panels; the perturbation engine, plant_versions note 11, bumped only
+                                        # the POLICY interface. The freshness test holds this pin against
+                                        # the manifest so any real physics move forces a re-measure or a
+                                        # conscious update here.
 collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget —
                                         # stale while the budget was 5M (commit 0836043), true again since
                                         # the reversal above — and inside the companion budget test's

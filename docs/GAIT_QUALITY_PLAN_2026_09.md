@@ -12,6 +12,9 @@ consolidation PR-8 and the code PRs here, so the code PRs now wait for it; GQ-1.
 *Updated 2026-10-06: the maintainer took GQ-6 (a) and GQ-7 (a) for stance only, as D-D23: the floor-truth stance
 gate `stance_quality/v2` and the stance part of the gait library come first, with no stage adopting the kind; the
 other decisions, GQ-6 and GQ-7 for locomotion and recovery included, stay open (§11, the dated amendment).*
+*Updated 2026-10-06: the maintainer took D-D24 the same day: the T. rex plant revision (physics r8) lands with a
+revised stance task and the T. rex stance on `stance_quality/v2`, which overtakes GQ-12's keep-v1 for the trex stance
+and §5.4's trex `TRUNK_FROM` (§12, the dated amendment).*
 
 ## How to use this document
 
@@ -619,3 +622,33 @@ which registers the kind and adopts it nowhere; each species' adoption is a deci
   handoff pair. The in-training screen (§4.5's recorder on the evaluation env) is not built.
 - **PR-G2.** `zero_action_baseline.py` now prints the stance gate's verdict on the statue for both stance kinds, so
   its KNOWN_ISSUES entry is gone; the four-foot `derive_stance_info` stays PR-G2's (v2 reads every foot itself).
+
+## 12. Amendment (2026-10-06): the T. rex stance adopts the floor-truth gate with physics r8
+
+*Appended 2026-10-06; §1–§11 above are unchanged.* The maintainer chose on 2026-10-06, in the session that
+commissioned the stance work, to land the T. rex plant revision the stance-hack audit asked for (physics r7 → r8: the
+hip-roll servos kp 150 → 600, forcerange ±120 → ±480; `configs/plant_versions.toml` note 13) with a revised stance task
+and to adopt `stance_quality/v2` on the T. rex stance now: decision D-D24
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the consolidation plan's table). The validation, the r8
+statue clean on 40/40 and the four audited r7 stance checkpoints on 0/40 each, is the dated §7 appended to
+[investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md).
+
+**What changes in the plan.**
+
+- **GQ-12 and PR-G8, for the trex.** The trex stance adopts v2 before its retrain rather than after it, at the bar
+  GQ-12 recommends (0.80, 37/40). On r7 the flatness bars separated the statue from the audited props only by
+  sub-millimetre and sub-degree margins (the statue's corner lift reached 5.54 mm against the nearest hack episode's
+  5.06, its tilt 3.42° against 2.11°); the r8 statue's worst, 2.27 mm and 1.15°, lets the bars tighten to 4 mm and 2°,
+  under which the r7 statue is clean on only 36/40 (bound 0.786). So the gate lands with the plant revision, which
+  retrains the chain anyway. The revision leaves `certification_seeds` at 2; GQ-12's third seed is not part of D-D24
+  and stays the maintainer's to schedule.
+- **§5.4, trex locomotion.** `TRUNK_FROM = "20260914_123816"` is no longer possible: the plant contract refuses every
+  r7 trex checkpoint and reuse rule 3 refuses every recorded trex node, so the trex `gait-r1` walk trains on a fresh
+  r8 stance certified under v2. Its other starting values are unchanged.
+- **§5, the trex stance's incentives.** The audit's trex stance exploits (the raised head, the rolled pad, the wider
+  replant; §5.1 has no row for them) are priced inside this revision by trex-only `TRexEnv` kwargs whose legacy
+  defaults reproduce the old arithmetic (§5.2 item 1): the neck term centred on the statue's settled pose, pad flatness
+  and stance width. They need no §5.2 item 2 carve-out, because the plant revision moves every trex digest anyway, and
+  they are not §5.3's shared kit.
+- **GQ-17.** The trex now needs a stance retrain (two seeds at today's `certification_seeds`) before any trex walk;
+  the order of the retrains stays the maintainer's.

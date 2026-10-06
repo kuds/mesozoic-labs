@@ -124,6 +124,8 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_head_clearance",
         "reward_neck_posture",
         "reward_tail_home_pose",
+        "reward_foot_flatness",
+        "reward_stance_width",
         "reward_action_saturation",
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching

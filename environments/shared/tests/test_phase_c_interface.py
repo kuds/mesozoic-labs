@@ -18,7 +18,11 @@ contract code:
   record is a prefix contract (byte-inert except the trailing zeros).  Its
   ``trajectory`` half (qpos after each zero-action step) crosses the
   solver, so it is ADVISORY: ``assert_allclose(atol=1e-5)`` and skipped
-  unless the running MuJoCo is the fixture's (amendment A4).
+  unless the running MuJoCo is the fixture's (amendment A4).  The trex
+  captures were re-taken for trex physics r8 (plant_versions note 13; the
+  fixture's ``recaptures`` record): their reset halves were unchanged,
+  which is what proves that revision drew nothing extra, and only their
+  observation and trajectory halves moved, as dynamics edits must.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -140,6 +144,31 @@ def test_golden_fixture_records_its_provenance():
     assert set(GOLDEN_KEYS) == {reset_golden.capture_key(s, st) for s, st, _, _ in reset_golden.DEFAULT_SPEC}
 
 
+#: Captures re-taken after 7db7f8e, each by a named plant revision of its species.
+RECAPTURED = {"trex/stance": 8, "trex/recovery": 8}
+
+
+def test_recaptured_goldens_record_the_plant_they_were_taken_on():
+    """A recapture is bound to its species' current physics: a later physics move fails HERE, by name.
+
+    Without the binding the next dynamics edit would surface only as an
+    unexplained trajectory mismatch; with it the failure says which capture
+    to re-take (``reset_golden.py --recapture``) after the reset half has
+    been shown to hold.
+    """
+    recaptures = GOLDEN.get("recaptures", {})
+    assert {key: record["physics_revision"] for key, record in recaptures.items()} == RECAPTURED
+    for key, record in recaptures.items():
+        species = GOLDEN["captures"][key]["species"]
+        plant = current_plant_identity(species)
+        assert (record["physics_revision"], record["physics_sha256"]) == (
+            plant.physics_revision,
+            plant.physics_sha256,
+        ), f"{key} was recaptured on another {species} plant; re-take it with reset_golden.py --recapture"
+        assert record["observation_includes_command_segment"] is True
+        assert record["mujoco_version"] == GOLDEN["mujoco_version"] and record["reason"]
+
+
 @pytest.mark.parametrize("key", GOLDEN_KEYS)
 def test_reset_draw_stream_matches_the_pre_bump_golden(key):
     """THE CONTRACT: qpos/qvel/targets/push schedules after reset(seed), exact at 6 decimals.
@@ -171,6 +200,12 @@ def test_reset_observation_is_byte_inert_except_the_trailing_zeros(key):
     for seed, record in golden["seeds"].items():
         before = np.asarray(record["observation"], dtype=np.float64)
         after = np.asarray(current["seeds"][seed]["observation"], dtype=np.float64)
+        if key in GOLDEN.get("recaptures", {}):
+            # Re-taken after the bump, so the capture already ends in the
+            # command segment: the whole observation must reproduce.
+            np.testing.assert_array_equal(after, before, err_msg=f"{key} seed {seed}")
+            np.testing.assert_array_equal(before[-COMMAND_WIDTH:], np.zeros(COMMAND_WIDTH))
+            continue
         assert after.shape == (before.shape[0] + COMMAND_WIDTH,)
         np.testing.assert_array_equal(after[: before.shape[0]], before, err_msg=f"{key} seed {seed}")
         np.testing.assert_array_equal(after[before.shape[0] :], np.zeros(COMMAND_WIDTH))

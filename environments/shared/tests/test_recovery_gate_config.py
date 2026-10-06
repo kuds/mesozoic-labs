@@ -166,10 +166,10 @@ class TestFrozenDeclaration:
         capability spec records none, so declaring one would gate on a number
         nobody measured.  The discarded-return failure mode a rail catches is
         covered by the collapse backstop, which is anchored to the pushed
-        statue (974.7, first-runs record §3/§6.5).
+        statue (1337.5 on physics r8; 974.7 on r7, first-runs record §3/§6.5).
         """
         assert "min_avg_reward" not in curriculum
-        assert curriculum["collapse_peak_floor_reference"] == 974.7
+        assert curriculum["collapse_peak_floor_reference"] == 1337.5
 
 
 class TestFrozenThresholds:

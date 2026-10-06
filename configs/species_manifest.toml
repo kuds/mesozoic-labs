@@ -159,8 +159,8 @@ definition = "The head-tip site comes within 0.35 m of the prey target position 
 deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
-label = "Stance quality (stance_quality/v1)"
-definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
+label = "Stance quality (stance_quality/v2)"
+definition = "The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.deliverable_metrics]]
 deliverable = "recovery"

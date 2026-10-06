@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **A floor-truth stance gate, `stance_quality/v2`, and the measurement
-  library it reads** (decision D-D23, 2026-10-06;
+  library it reads** (#599, decision D-D23, 2026-10-06;
   `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`, and the dated §11 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`). The 2026-10 stance-hack audit
   replayed every current stance node and found none standing as its
@@ -103,7 +103,133 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   KNOWN_ISSUES's stance-gate entry carries the audit's findings and the new
   kind, and its `zero_action_baseline.py` entry is deleted.
 
+### Migration
+- **Every T-Rex checkpoint must be retrained; none can be widened**
+  (T-Rex physics revision 7 → 8, decision D-D24). Each load path compares
+  the checkpoint's recorded `physics_sha256` with the plant's and refuses a
+  mismatch (`PlantCompatibilityError`); `allow_legacy_plant` covers only
+  unstamped artifacts, and `widen_checkpoint.py` needs the same physics
+  digest, so it refuses too. Ancestor reuse refuses every recorded T-Rex
+  node (its `task_sha256` moved, and stance's `gate_sha256` too), so
+  `TRUNK_FROM = "auto"` and `--trunk-from` find no T-Rex trunk: the
+  certified seed-42 and seed-44 stances (`20260914_123816`,
+  `20260920_010912`), the seed-44 recovery, both walkers
+  (`20260914_123816`, `20260925_033501`) and the hunt start again from a
+  fresh stance, which now certifies under `stance_quality/v2`. A recovery
+  session also re-freezes its `gate_resolution.json`
+  (`harnesses/freeze_recovery_gate.py`) on the new certified stance. The
+  bundles already published stay as they are; the catalog labels their
+  verdicts with the gate they were earned under.
+
 ### Changed
+- **T-Rex hip-roll servos sized for the plant's mass, with the stance task
+  and gate revised on the new plant** (breaking — plant change, physics
+  revision 7 → 8; all existing T-Rex checkpoints are invalidated; decision
+  D-D24, which the maintainer chose on 2026-10-06). `trex.xml`'s
+  `r/l_hip_roll_act` go kp 150 → 600 and forcerange ±120 → ±480 N·m,
+  keeping the 0.8× spike cap `test_actuator_bounds.py` pins; ctrlrange,
+  joints, bodies, keyframe, sites and sensors do not move, so the policy
+  interface stays revision 13 (`0b43de…`) and the visual layer revision 4
+  (`7042dc…`), with observation 64 and action 15. The stale keyframe
+  checklist in its comment now names `stance.toml` and the settled-pose
+  constants. Motivation, measured on the zero-action statue's 40-episode
+  panel (seeds 3042–3081, reset noise 0.05): the July home-equilibrium
+  repair mass-scaled hip pitch, knee and ankle only, and with both feet
+  planted the hip-roll servos and their 40 N·m/rad springs hold lateral
+  sway only while 2 × (kp + 40) exceeds the settled m·g·h of 704.4 N·m/rad
+  — kp 150 gave 380, kp 600 gives 1280 — so the reset's hip-roll noise
+  stayed in the stance: the worse pad rolled up to 3.42° and the outer
+  digit lifted on 4/40 episodes, the propped-foot signature of the audited
+  stances on the statue itself, which the new gate scores clean on only
+  36/40 on r7. On r8 the worst pad is 1.15° (1.53° over 80 more seeds),
+  quasi-static lateral push capacity rises from 3.3% to 5.1% of body weight
+  (note 13 names the protocol; fore-aft stays 3.2%, set by leg-chain
+  compliance, a fragility KNOWN_ISSUES now records), and the pushed
+  recovery statue loses all 20 of its lateral falls. The symmetric settle
+  does not move (noise-free reward 3517.26, pelvis 0.9260 m, `forward_z`
+  −0.0279), so `target_z`, `natural_pitch` and
+  `nosedive_termination_threshold` keep their pins. Stiffer passive digits
+  and `tail_1` authority were measured and left out (note 13 of
+  `configs/plant_versions.toml` has why).
+  The stance task (`configs/trex/stance.toml` `[env]`, which recovery
+  inherits) takes three new `TRexEnv` kwargs, each inert at its default
+  (at the defaults the new code's reward and every existing info stream are
+  bitwise equal to the old code's, measured on r7): `neck_posture_reference
+  = "settled"` centres the neck
+  term on the statue's own settle (`_NECK_SETTLED_QPOS = (0.21432, 0.0,
+  0.21963)` rad, with a freshness test) instead of the keyframe, so lifting
+  the head to the keyframe, which paid +45.6 per episode, costs 36.4;
+  `foot_flatness_weight = 0.15` at `foot_flatness_tolerance_deg = 3.0`
+  rewards level plantar pads; `stance_width_weight = 0.1` at
+  `stance_width_tolerance_m = 0.05` the home stance width (0.280 m between
+  the foot sites). Re-scored on replays of the four audited r7 stances, the
+  three terms cost them 184.6–234.6 per episode against the 29.0–51.3 each
+  gained over the statue, and on r8 no constant deviation in a hack
+  direction beats the statue (40 seeds: raising the head to the keyframe
+  costs 36.4, a ±0.05 hip-roll splay 3.7–5.2). The statue is 23.2 short of
+  the terms' maxima, inside its 25.9 episode sd, and it is not the reward
+  optimum: a policy that corrects its own spawn can gain about 15 per
+  episode from flatness and width together (the best constant hip-roll
+  offset per seed, better on 36/40 seeds) and about 2 by holding its head
+  up through the settle (a 0.05–0.10 neck lift, better on 40/40), both in
+  the intended direction. At initialisation the terms only add reward
+  (+0.052 per step), so they cost nothing against the alive bonus. New
+  pure terms `reward_sole_flatness` and `reward_stance_width`
+  (`reward_functions.py`; the width is the planar foot-site distance, so a
+  fore-aft stagger counts as width error), reward keys
+  `reward_foot_flatness` and `reward_stance_width` and their info keys.
+  The stance gate moves from `stance_quality/v1` to the floor-truth
+  `stance_quality/v2` (D-D23), the first stage to adopt it: the clean-episode
+  bound ≥ 0.80 over the 40-episode panel, `settle_steps` 200 (now measured:
+  the statue's floor force has settled by step 47), every required bar, the
+  pad bars trex needs (window-mean tilt ≤ 2°, corner lift ≤ 4 mm, loaded
+  contact points ≥ 1.5), four guards and the rails (full horizon ≥ 95%,
+  reward ≥ 2260 and ≥ 0.60 of the statue panel each report rolls). v1's
+  duty pair and settle prefix stay in the file as a superseded record; the
+  four probes keep running, on v1-shaped reports. Validated through the
+  report path, verdicts re-derived from the CSVs: the r8 statue is clean on
+  40/40 (bound 0.928) and on 80/80 more seeds (and on 39/40 of a third
+  block, rolled after calibration: seed 3174 nosedives on reset noise
+  alone, on r7 too, so the statue figures are sample extremes); the four
+  audited checkpoints (`20260914_123816`, `20260920_010912`,
+  `20260930_024929`, `20261001_225601`), rolled on the r7 plant they load
+  on with the block swapped in, are clean on 0/40 each, every unclean
+  episode failing at least 3 bars; the r7 statue is clean on 36/40 (bound
+  0.786). Without the pad and settle bars, seed 42's stance would pass
+  40/40. The committed stage also passed the post-stage pipeline end to
+  end with the r8 statue as a scripted checkpoint (report, judge,
+  `gate_verdict.json`, publication's re-derivation, backfill, probes).
+  Panels, per-bar counts and margins are in the dated §7 appended to
+  `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`; the website's gate
+  adapter gains the v2 arm (`species.ts`, `formatGate`), pinned both ways
+  by the catalog tests.
+  Statue constants re-measured on r8, with `statue_constants_physics_revision
+  = 8` in all four files: stance 3766.1 ± 25.6 (`zero_action_baseline.py
+  trex --episodes 40 --seed 3042`; `stance_quality_baseline.py 0.05 40`
+  agrees; +270.9 over 3495.2 = +1.8 plant, +41.2 neck target, +141.4
+  flatness, +86.5 width), so `min_avg_reward` 2100 → 2260 and
+  `collapse_peak_floor_reference` 3495.2 → 3766.1; recovery's pushed
+  statue 974.7 → 1337.5 (`roll_recovery_panel`, 40 episodes: +275.4 from
+  the plant, +87.4 from the inherited terms); locomotion 1091.5 and
+  behavior 602.0 (rail 361) re-measured and kept. Unchanged: the recovery
+  gate's frozen `recovery_quality/v1` thresholds, the locomotion, behavior
+  and recipe `[env]` blocks, the reset draw stream, and every other
+  species. `CALIBRATED_POSTURE_ONLY` and `CALIBRATED_HEIGHT_REFERENCE_M`
+  (`recovery_evaluation.py`) were measured on the retired r7 stance and
+  are re-measured on the next certified one. Records: note 13, both plant
+  manifests and the species catalog; the phase-C reset golden re-takes only
+  its trex captures, whose reset halves were unchanged (the revision draws
+  nothing extra), and records each recapture with the physics it was taken
+  on; KNOWN_ISSUES's trex and stance-gate entries, and NEXT_STEPS's trex
+  certification rows, say what the revision strands.
+  Digest golden (656 lines): 39 lines move, all trex — plant
+  `physics_revision`, `physics_sha256` and `source_closure_sha256`; stage
+  `task_sha256`, `stage_config_view_sha256.PPO` and
+  `stage_config_view_sha256.SAC` of stance, recovery, locomotion and
+  behavior, and stance `gate_sha256`; the 11 behavior recipes'
+  `task_sha256`; and `summary`, `shape_sha256` and `rounded_values_sha256`
+  of the four trex reward stages. The `poses` lines and every other line
+  hold.
 - **A live child warm-started from a parent that never saw a command
   starts exactly command-blind** (#597, consolidation PR-10 of
   `docs/CONSOLIDATION_PLAN_2026_09.md`, 2026-10-05). Under

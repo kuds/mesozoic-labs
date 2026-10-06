@@ -107,6 +107,34 @@ function formatGate(gate: AdvancementGate): string {
     );
     return taskCriteria.join('; ');
   }
+  // A stance_quality/v2 verdict is produced once, post-stage, from the
+  // floor-truth stance_gate_report.json rolled on the handoff pair at the
+  // certification panel seeds; the in-training manager refuses the kind, so
+  // the consecutive-passes tail is not rendered. Every declared per-episode
+  // criterion is listed under its TOML key, in the gate's order; both rails
+  // read "reward rail" so the generic path's "reward ≥ " stays unique to it.
+  if (gate.gateKind === 'stance_quality/v2') {
+    const lcb = requireCriterion(gate, gate.minCleanStanceLcb, 'min_clean_stance_lcb').toLocaleString();
+    const settle = requireCriterion(gate, gate.settleSteps, 'settle_steps').toLocaleString();
+    const stanceCriteria = [
+      `clean stance episodes LCB95 ≥ ${lcb} over ≥ ${gate.minEvaluationEpisodes} episodes (settle ${settle} steps)`,
+    ];
+    const perEpisode = gate.stanceEpisodeCriteria.map(
+      ({key, bar}) => `${key} ${key.startsWith('min_') ? '≥' : '≤'} ${bar.toLocaleString()}`,
+    );
+    stanceCriteria.push(`an episode is clean when it reaches the horizon with ${perEpisode.join(', ')}`);
+    if (gate.minFullHorizonFraction !== null) {
+      stanceCriteria.push(`full-horizon episodes ≥ ${formatPercent(gate.minFullHorizonFraction)}`);
+    }
+    if (gate.minAverageReward !== null) stanceCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()}`);
+    if (gate.minAverageRewardStatueRatio !== null) {
+      stanceCriteria.push(`reward rail ≥ ${gate.minAverageRewardStatueRatio.toLocaleString()} × the statue's`);
+    }
+    stanceCriteria.push(
+      'verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed when absent)',
+    );
+    return stanceCriteria.join('; ');
+  }
   const criteria: string[] = [];
   if (gate.minAverageReward !== null) criteria.push(`reward ≥ ${gate.minAverageReward.toLocaleString()}`);
   if (gate.minAverageEpisodeLength !== null) {

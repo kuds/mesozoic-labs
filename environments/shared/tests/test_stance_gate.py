@@ -139,14 +139,33 @@ def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
         assert "mean_reward" in failures[0] and "(rail)" in failures[0]
 
 
+#: The trex stance's stance_quality/v1 block as it stood until trex physics r8 moved the stance to
+#: stance_quality/v2 (decision D-D24): the source of truth the compsognathus pair's v1 blocks copied.
+TREX_STANCE_V1_CURRICULUM = {
+    "gate_schema_version": 1,
+    "gate_kind": "stance_quality/v1",
+    "min_full_horizon_fraction": 0.95,
+    "max_unsupported_duty": 0.02,
+    "max_unsupported_duty_ucb": 0.02,
+    "settle_steps": 200,
+    "min_eval_episodes": 40,
+    "min_avg_reward": 2100.0,
+    "required_consecutive": 3,
+}
+
+
 @pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
 def test_compsognathus_mechanical_gate_matches_trex(species):
-    """T-Rex is the source of truth; only the species reward rail differs."""
-    trex = load_all_stages("trex")[1]
+    """T-Rex's last v1 block is the source of truth; only the species reward rail differs.
+
+    The trex stance itself left v1 with physics r8; the compsognathus pair keeps v1 until its own
+    adoption of stance_quality/v2, so it is held to the block it copied, not to trex's current one.
+    """
+    assert load_all_stages("trex")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality/v2"
     config = load_all_stages(species)[1]
-    assert config["curriculum_kwargs"]["gate_kind"] == trex["curriculum_kwargs"]["gate_kind"]
+    assert config["curriculum_kwargs"]["gate_kind"] == TREX_STANCE_V1_CURRICULUM["gate_kind"]
     assert StanceGateThresholds.from_curriculum(config["curriculum_kwargs"]) == replace(
-        StanceGateThresholds.from_curriculum(trex["curriculum_kwargs"]), min_avg_reward=1800.0
+        StanceGateThresholds.from_curriculum(TREX_STANCE_V1_CURRICULUM), min_avg_reward=1800.0
     )
 
 

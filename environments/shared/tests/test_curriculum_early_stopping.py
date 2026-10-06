@@ -934,7 +934,8 @@ class TestTrexBehaviorCollapseFloor:
 
     The absolute ``collapse_peak_floor = 100.0`` sat 6x below the measured
     do-nothing reward (602.13 +/- 175.35, n = 40, seed 3042, 40/40 full
-    horizon, physics r7), so it armed on the first qualifying evaluation of
+    horizon, physics r7; 601.94 +/- 175.17 re-measured on physics r8), so
+    it armed on the first qualifying evaluation of
     every run and encoded nothing.  ``collapse_settings_from_config`` lets an
     explicit absolute floor win over the pair, so the key must be ABSENT,
     not shadowed.
@@ -959,11 +960,11 @@ class TestTrexBehaviorCollapseFloor:
         # Explicit, at locomotion's tuned values rather than the 12/8/0.4 defaults.
         assert (settings["min_evals"], settings["patience"], settings["drop_fraction"]) == (20, 10, 0.5)
         # The freshness pin that lets test_statue_constant_freshness.py guard it.
-        assert cur["statue_constants_physics_revision"] == 7
+        assert cur["statue_constants_physics_revision"] == 8
 
     def test_trex_behavior_rail_sits_below_the_statue(self):
         """D-B4: the rail is round(0.6 x reference); a statue must clear it, a collapse must not."""
         cur = self._behavior_curriculum()
         assert 0 < cur["min_avg_reward"] < cur["collapse_peak_floor_reference"]
-        assert cur["min_avg_reward"] == round(0.6 * 602.13)
+        assert cur["min_avg_reward"] == round(0.6 * 602.13) == round(0.6 * 601.94)
         assert cur["min_avg_reward"] == 361

@@ -98,6 +98,63 @@ leg_home_pose_broad_fraction = 0.25            # Mixes a second Gaussian 6x wide
 leg_home_pose_broad_scale = 6.0                # Width multiplier of the broad component. 6x0.10 = 0.60 rad
                                                # reaches the measured knee-lock offsets (~0.87 rad commanded)
                                                # with usable gradient; 4x dies by 0.6 rad.
+foot_flatness_weight = 0.15                    # Prices each plantar pad's tilt from level, exp(-(tilt/tol)^2) per
+                                               # pad averaged over both feet (TRexEnv reads the boxes' own frames).
+                                               # The ankle has no roll joint, so hip roll alone sets a pad's roll,
+                                               # and every 2026-09 stance (20260914 seed 42, 20260920 and 20260930
+                                               # seed 44) propped one splayed leg on its pad's front-inner corner:
+                                               # 2.2-8.3 deg on the worse foot (episode means), which the touch
+                                               # sensors, the support terms and stance_quality/v1 all counted as
+                                               # full support.
+                                               #
+                                               # CALIBRATED on replays of those checkpoints on the physics-r7 plant
+                                               # they were trained on (40 episodes, seeds 3042-3081; a trajectory
+                                               # does not depend on the reward, so re-scoring it is exact), against
+                                               # the r7 statue on the same seeds. This term costs the three propped
+                                               # stances 61.4 / 56.5 / 68.4 per episode and the failed seed-45
+                                               # hopper (20261001, both pads rocking 3.6-5.2 deg) 104.7. Each one's
+                                               # whole positive-component advantage over the statue under the r7
+                                               # reward was 35.6 / 29.0 / 32.0 / 51.3 (head clearance, neck posture
+                                               # and nosedive: the head-lift payoff), so this term alone prices
+                                               # every one of them above its gain. The r8 statue earns 141.4 +/- 7.2
+                                               # of the 150 available (worst pad 1.15 deg over the post-settle
+                                               # window, against 3.42 on r7); the 8.6 it misses is the reset's own
+                                               # hip-roll noise, inside its 25.9 episode sd, and a policy that
+                                               # corrects its spawn wins part of it back (stance_width_weight below
+                                               # has the measurement). A constant +-0.05
+                                               # hip-roll splay now costs the statue 3.7-5.2 per episode against
+                                               # 0.5 before (40 seeds), and 0.1 of inward roll 19.0 against 2.0.
+foot_flatness_tolerance_deg = 3.0              # deg; a pad at 2 deg keeps 0.64 of its share, one at 5 deg 0.06.
+                                               # Per unit weight on the same replays: 2 deg would double the
+                                               # statue's shortfall (57 -> 110) for -4% to +10% hack cost; 4 deg
+                                               # would cut the hacks' cost 7-17% (377-698 -> 315-583).
+stance_width_weight = 0.1                      # Gaussian on the planar (x-y) foot-site distance around the home
+                                               # keyframe's own 0.280 m (computed plant-side, so it tracks the XML).
+                                               # Planar, not lateral: a fore-aft stagger counts as width error too
+                                               # (feet 0.28 m apart laterally and 0.10 / 0.20 / 0.30 m fore-aft
+                                               # score 0.89 / 0.19 / 0.001), unlike the lateral stance_width column
+                                               # of stance_diagnostics.
+                                               # The same stances settled 0.314-0.388 m wide (means 0.344-0.347,
+                                               # +6.5 cm) where the r7 statue settled 0.218-0.337: the propped leg is
+                                               # what widens them, so this prices the exploit through a second,
+                                               # independent measurement. Same replays: it costs them 53.3 / 55.6 /
+                                               # 60.1 per episode, each again above its 29.0-35.6 gain. The hopper
+                                               # keeps its width (0.268-0.291) and gains 16.5 here, which its -714
+                                               # total deficit (mostly support and survival terms) swamps. The r8
+                                               # statue earns 86.5 +/- 13.1 of the 100: its settled width is set by
+                                               # the reset's hip-roll noise (0.244-0.316 m on the stiff r8 hips), so
+                                               # the statue is not this term's optimum. A policy that reads its
+                                               # spawn wins part of the 13.5 back without a step: the best constant
+                                               # hip-roll offset per seed (+-0.03 / 0.05 / 0.10 on both legs) beats
+                                               # the statue on 36/40 seeds, by 15.2 per episode on average (width
+                                               # +8.7, flatness +4.2; +53.4 on the narrow-spawn seed 3074), which is
+                                               # the correction this term asks for. No constant offset in a hack
+                                               # direction pays: over 40 seeds 0.1 of inward roll on both legs loses
+                                               # 19.0 in all and 0.1 outward 16.0.
+stance_width_tolerance_m = 0.05                # m; between the statue's settled spread (at most 3.6 cm from home)
+                                               # and the hacks' +6.5 cm. Per unit weight: 0.04 would raise the
+                                               # statue's shortfall 135 -> 190 for 5-7% more hack cost; 0.06 or
+                                               # 0.08 would cut the hacks' cost 11% / 32-34%.
 tail_home_pose_weight = 0.25                   # Prices tail JOINT positions. tail_stability reads only the
                                                # tail-tip gyro, so a tail parked motionless against a hard stop is
                                                # optimal for it -- the 20260809 run parked tail_1_yaw, tail_2_pitch
@@ -120,8 +177,25 @@ action_saturation_threshold = 0.9              # Ramp start; below this saturati
 head_clearance_weight = 0.35                   # Prevent the learned head-droop posture
 head_clearance_target = 0.90                   # m; settled home head tip is ~0.94 m
 head_clearance_tolerance = 0.15                # Smooth transition from zero credit at 0.75 m
-neck_posture_weight = 0.20                     # Softly retain the authored neck/head pose
-neck_posture_tolerance = 0.35                  # rad; accommodates the passive settled offset from the XML keyframe
+neck_posture_weight = 0.20                     # Softly retain the statue's settled neck/head pose
+neck_posture_tolerance = 0.35                  # rad. Sized while the target was the XML keyframe, to absorb the
+                                               # statue's 0.21 rad passive sag below it; kept at 0.35 when the target
+                                               # moved to the settled pose (physics r8), where it no longer has to:
+                                               # the statue's own error is 0.005-0.011 rad rms, the head lift to the
+                                               # keyframe costs 36.4 per episode, and the 2026-09 stances' raised
+                                               # heads (0.21-0.34 rad rms from the settled pose) each lose 96-106
+                                               # against the statue relative to the keyframe target. 0.20 would add
+                                               # 38-51 to that at a 1.6 statue cost, but the swing at 0.35 already
+                                               # prices every audited head lift at 1.9-3.7x its whole gain.
+neck_posture_reference = "settled"             # Centres the term on TRexEnv._NECK_SETTLED_QPOS (0.21432, 0.0,
+                                               # 0.21963 rad: the r8 statue's post-settle neck) instead of the
+                                               # keyframe the kp 200 / kp 80 neck servos cannot hold against
+                                               # gravity. On the keyframe target the statue scored 0.787 quality and
+                                               # lifting the head back to the keyframe PAID +45.6 per episode (+41.9
+                                               # neck, +5.8 clearance, -2.1 energy; 40 seeds, physics r8): the
+                                               # raised head every 2026-09 stance learned (+16 to +38 neck posture
+                                               # per checkpoint over the statue). Settled, the statue earns 198.9 of
+                                               # 200 (+41.2) and the same lift costs it 36.4.
 energy_penalty_weight = 0.075                  # Setting 4 sweep: 0.075 forces efficient posture. Led to best downstream S2/S3 results (03-16, 03-17).
 tail_stability_weight = 0.15
 posture_weight = 1.5                           # Tilt penalty: with the reduced alive_bonus it, not survival, drives the
@@ -283,7 +357,7 @@ net_arch = [512, 256]            # Match PPO architecture (obs is 64: arms/dista
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "stance_quality/v1"         # environments/shared/curriculum/gate_schema.py
+gate_kind = "stance_quality/v2"         # environments/shared/curriculum/gate_schema.py
 timesteps = 11000000
 
 # ---------------------------------------------------------------------------
@@ -315,35 +389,145 @@ timesteps = 11000000
 # threshold — deliberately NOT the reward's 42 N min_support_force. Every
 # calibration point below is measured at 0.1 N.
 # ---------------------------------------------------------------------------
+# Superseded by stance_quality/v2 on 2026-10-06 (decision D-D24), kept for
+# the record as they read: v1's certifying pair and the unscored settle prefix
+# it judged after. v2's schema rejects both duty keys; settle_steps and
+# min_full_horizon_fraction carry on below, with v2's meaning.
+# max_unsupported_duty = 0.02              # Screening ceiling. Statue 0.000; the chatterer we must reject 0.319, i.e.
+#                                          # 16x over. Set well above 0.000 so ordinary weight-shifting is not
+#                                          # penalised — note the repaired plant moved raw contact-switch count UP
+#                                          # (0.86 -> 1.00 /s) while duty went to zero, because the extra switches are
+#                                          # weight shifts. Gate on duty; switch rate stays diagnostic until it is
+#                                          # decomposed into bilateral<->single vs bilateral<->airborne.
+# max_unsupported_duty_ucb = 0.02          # The CERTIFYING criterion: one-sided 95% UPPER bound on mean duty.
+#                                          # Binarising instead costs nearly all the power at this panel size — a
+#                                          # binomial LCB95 >= 0.90 at n=40 needs a clean 40/40 and would reject the
+#                                          # statue 28% of the time (true rate 0.9917 -> P(40/40) = 71.6%). Duty is
+#                                          # continuous with tiny variance, so an interval on it has real power at 40
+#                                          # where the pass/fail count has almost none. UCB >= mean by construction,
+#                                          # so this subsumes the screening ceiling while both sit at 0.02; both are
+#                                          # kept configurable in case a tighter screen than bound is ever wanted.
+# settle_steps = 200                       # [inferred], NOT measured. Duty is scored only after this prefix, because
+#                                          # a policy that corrects reset randomisation may legitimately move a foot
+#                                          # doing it — and settling is the capability 1a exists to certify. 20% of
+#                                          # the horizon. Calibrate against rollout data before treating as evidence.
+
+# ---------------------------------------------------------------------------
+# stance_quality/v2: each panel episode judged on floor truth (decision D-D24,
+# adopted 2026-10-06 with physics r8; the kind itself is D-D23).
+#
+# v1 certified two panel numbers -- the full-horizon share and the upper bound
+# on touch-sensor unsupported duty after an unscored 200-step prefix -- and the
+# 2026-10 stance-hack audit (docs/investigations/STANCE_HACK_AUDIT_2026_10.md
+# §3.1) found both met by policies that are not standing. All three v1 passes
+# (seed 42 20260914_123816, seed 44 20260920_010912 and 20260930_024929) push
+# off at 2.0-2.4 BW right after reset, replant 5-7 cm wider inside the unscored
+# prefix and then stand on one pad rolled 3-4.4 degrees onto its corner, at a
+# touch duty under 0.005 and within 2.2% of the statue's reward. v2 reads the
+# floor normal force under each leg on every substep (environments/shared/
+# gait/), scores the settle window too, and certifies the exact one-sided 95%
+# lower bound on the share of CLEAN episodes: an episode is clean when it
+# reaches the horizon and every bar below holds on a finite metric.
+#
+# Calibration. Each bar's comment gives the zero-action statue's least
+# favourable episode on the certification panel (physics r8, this [env],
+# seeds 3042-3081; "out of sample": 80 more seeds, 3082-3161) and the
+# nearest-passing episode of the four audited r7 checkpoints ("hacks": the
+# three v1 passes above and the failed seed-45 node 20261001_225601, which
+# micro-hops on both feet at 11.6 Hz; 0914, 0920, 0930 and 1001 for short).
+# The hacks load only on the r7 plant, so they were rolled on a checkout of
+# the commit that registered the kind, with this block swapped in; floor truth
+# does not read the reward, so the r7 [env] they ran under moves no bar.
+# Result: the statue is clean on 40/40 (bound 0.928) and 80/80 out of sample;
+# every hack is clean on 0/40, each unclean episode failing at least 3 bars
+# (0914, 0920), 4 (0930) or 7 (1001). The two families back each other up:
+# the sole bars alone fail every hack episode, the settle bars alone all but
+# one (0920 on seed 3045, 4 mBW under the peak bar), and without both the
+# window bars pass 0914 on 40/40 and 0930 on 37/40 (bound 0.817, a PASS),
+# which is why trex declares both. The r7 statue is clean on only 36/40 here
+# (bound 0.786; pads rolled up to 3.4 degrees, corners up to 5.5 mm, on the
+# soft hip-roll servos). On r7 a flatness bar loose enough for its statue
+# still refuses the props (6 mm of corner lift: the statue clean on 40/40,
+# every hack panel failing; the audit note's §5.2), but the margins are
+# sub-millimetre and sub-degree (statue corner lift up to 5.54 mm against the
+# nearest hack's 5.06, tilt up to 3.42 degrees against 2.11); the r8 statue's
+# 2.27 mm and 1.15 degrees are what let the bars tighten to 4 mm and 2
+# degrees, which is why these bars need physics r8. Every statue figure below
+# is the extreme of the panels named, not a bound: a further 40 seeds
+# (3162-3201) leave the statue clean on 39/40 (bound 0.887, a PASS; seed 3174
+# nosedives at step 265 on reset noise alone) with its settle peak at 1.331 BW
+# and its windowed share at 0.469. The audit note's appended §7 holds the
+# panels, per-bar counts and margins.
+# ---------------------------------------------------------------------------
+min_eval_episodes = 40                   # The panel the bound is specified at (seeds 3042-3081, D-B17); n_eval_episodes
+                                         # must match. At n = 40 the bound is 0.928 at 40 clean, 0.887 at 39, 0.851
+                                         # at 38, 0.817 at 37 and 0.786 at 36.
+min_clean_stance_lcb = 0.80              # Admits 37/40 and refuses 36/40 (the gait plan's GQ-7 (a), GQ-12's 0.80). A
+                                         # policy clean on 99% of its episodes fails 0.1% of panels at this bar.
+settle_steps = 200                       # Splits each episode: the max_settle_* bars read steps 10-199 (after the
+                                         # 0.1 s spawn grace, the reset pop being a plant property), every other bar
+                                         # steps 200-999. Measured on the r8 statue: the floor force peaks at step 26
+                                         # (29 at most) and stays within 5% BW of its weight from step 44 (47 at
+                                         # most), so 200 holds the settle 4x over; the hacks push off at steps 5-9
+                                         # and replant within 40 steps, inside the scored window. v1 judged after
+                                         # the same 200 steps and never scored them (the record above).
 min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three independent 40-seed blocks (119/120).
                                          # A floor to MATCH, not beat. Replaces min_avg_episode_length = 950, which
                                          # encoded the same §12 requirement through the only field the old gate had.
-max_unsupported_duty = 0.02              # Screening ceiling. Statue 0.000; the chatterer we must reject 0.319, i.e.
-                                         # 16x over. Set well above 0.000 so ordinary weight-shifting is not
-                                         # penalised — note the repaired plant moved raw contact-switch count UP
-                                         # (0.86 -> 1.00 /s) while duty went to zero, because the extra switches are
-                                         # weight shifts. Gate on duty; switch rate stays diagnostic until it is
-                                         # decomposed into bilateral<->single vs bilateral<->airborne.
-max_unsupported_duty_ucb = 0.02          # The CERTIFYING criterion: one-sided 95% UPPER bound on mean duty.
-                                         # Binarising instead costs nearly all the power at this panel size — a
-                                         # binomial LCB95 >= 0.90 at n=40 needs a clean 40/40 and would reject the
-                                         # statue 28% of the time (true rate 0.9917 -> P(40/40) = 71.6%). Duty is
-                                         # continuous with tiny variance, so an interval on it has real power at 40
-                                         # where the pass/fail count has almost none. UCB >= mean by construction,
-                                         # so this subsumes the screening ceiling while both sit at 0.02; both are
-                                         # kept configurable in case a tighter screen than bound is ever wanted.
-settle_steps = 200                       # [inferred], NOT measured. Duty is scored only after this prefix, because
-                                         # a policy that corrects reset randomisation may legitimately move a foot
-                                         # doing it — and settling is the capability 1a exists to certify. 20% of
-                                         # the horizon. Calibrate against rollout data before treating as evidence.
-min_eval_episodes = 40                   # The panel size every figure above is specified at. n_eval_episodes must
-                                         # match: at n=30 the bound's power and the 28%-rejection analysis no longer
-                                         # describe this gate.
-min_avg_reward = 2100.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
-                                        # can separate a competent policy from a statue, because the statue is the
-                                        # reward optimum. Sized to the one job a rail CAN do — rejecting a policy
-                                        # that discarded most of the available return — at 0.60 x the statue's
-                                        # standing reward at the 0.05 operating point.
+                                         # Kept under v2 as a panel rail beside the bound (an episode that ends
+                                         # early is unclean anyway). The 119/120 above is physics r7's; the r8
+                                         # statue reaches the horizon on 40/40 and 80/80 out of sample, and on
+                                         # 39/40 of seeds 3162-3201 (seed 3174 nosedives at step 265).
+min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode;
+                                         # 1001 at most 0.724 (fails 40/40), 0920 fails 5, 0930 1. The props stand
+                                         # on both feet (best 1.000): the sole bars catch them.
+max_touchdown_rate = 0.25                # Debounced touchdowns per foot per second over the window. Statue 0;
+                                         # 1001 at least 9.5 (fails 40/40), 0920 fails 5 and 0930 2 episodes
+                                         # (catch-up hops); 0914's best is 0.
+max_window_displacement_m = 0.10         # Horizontal root travel over the window. Statue at most 0.023 m, out of
+                                         # sample too; hop drift reaches 0.49 m (0920, fails 5), 0.62 m (0930,
+                                         # fails 3) and 0.82 m (1001, fails 37).
+min_foot_load_share = 0.40               # The lighter foot's share of the window's floor load. Statue at least
+                                         # 0.498 (out of sample 0.498; 0.500 is symmetric); no hack episode goes
+                                         # below 0.436, so this guards against standing on one leg rather than
+                                         # separating the hacks. 0.40, not the pre-adoption candidates' 0.30,
+                                         # because the r8 statue is symmetric to 0.002.
+max_actuator_saturation_fraction = 0.10  # The most saturated actuator's share of window steps at |a| >= 0.99. Statue
+                                         # 0 (it commands zero); 1001 at least 0.81 (fails 40/40), 0920 fails 8 and
+                                         # 0930 1 episode.
+max_settle_airborne_substeps = 0         # Substeps with both legs unloaded in steps 10-199. Statue 0 on every
+                                         # episode, out of sample too: its feet never leave the floor after the
+                                         # spawn grace, so 0 is structural rather than a tuned margin. The reset hop
+                                         # fails 30 (0914), 37 (0920), 39 (0930) and 40 (1001, at least 175) episodes.
+max_settle_peak_floor_force_bw = 1.5     # Peak total floor force in steps 10-199, in body weights. Statue at most
+                                         # 1.272 (1.276 out of sample); the hacks' push-off and landing at least
+                                         # 1.41 (0920, fails 37), 1.55 (0914, fails 40), 1.84 (0930, fails 40) and
+                                         # 2.48 (1001, fails 40).
+min_foot_load_share_windowed = 0.35      # The lowest foot share over the window's 1 s blocks. Statue at least 0.477
+                                         # (0.474 out of sample); no hack episode goes below 0.372: a guard against
+                                         # shifting the weight onto one leg a second at a time.
+max_foot_contact_fraction = 0.02         # Substeps with one foot on the other. Statue and hacks 0: a guard (the
+                                         # stacked soles of the compsognathus_robot stance the audit found).
+max_phantom_support_fraction = 0.05      # Window steps where touch reads a load the floor does not. Statue and
+                                         # hacks 0 (trex touch agrees with the floor): a guard.
+max_nonfoot_load_fraction = 0.02         # Floor load on the tail, trunk or head. Statue and hacks 0: a guard.
+max_sole_tilt_deg = 2.0                  # The worse pad's window-mean tilt from level. Statue at most 1.15 deg (1.53
+                                         # out of sample; the r7 statue 3.42); hacks at least 2.11 (0920), 3.03
+                                         # (0914), 3.98 (0930) and 4.28 (1001): every episode of each fails.
+max_sole_corner_lift_m = 0.004           # The worse pad's window-mean highest-minus-lowest bottom corner. Statue at
+                                         # most 2.3 mm (2.8 out of sample; the r7 statue 5.5); hacks at least 5.1 mm
+                                         # (0920), 6.6 (0930), 8.4 (0914) and 11.1 (1001): every episode fails.
+min_sole_contacts = 1.5                  # The worse pad's window-mean loaded contact points (4 flat, 2 on an edge,
+                                         # 1 on a corner). Statue at least 2.35, and exactly 2.0 on one out-of-sample
+                                         # episode, which is why the bar is 1.5 rather than 2; the props stand on an
+                                         # edge or a corner: 0914 fails 39, 0920 16, 0930 39 and 1001 2 episodes.
+min_avg_reward = 2260.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+                                        # can separate a competent policy from a statue, because the statue is at
+                                        # or near the reward optimum (on r8 a spawn-correcting policy can beat it
+                                        # by about 15 of 3766; stance_width_weight above). Sized to the one job a
+                                        # rail CAN do — rejecting a policy that discarded most of the available
+                                        # return — at 0.60 x the statue's standing reward at the 0.05 operating
+                                        # point.
                                         #
                                         # 0.60 x 3271.8, the statue at leg_home_pose_weight 0.5. Briefly 2550 while
                                         # that weight was 1.5, which moved the statue to 4250.40 +/- 13.86;
@@ -375,6 +559,17 @@ min_avg_reward = 2100.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # sag; saturation adds 0 (the statue commands zero). 0.60 x 3495.2 =
                                         # 2097.1, rounded to 2100 per the nearest-10 convention.
                                         #
+                                        # Re-derived for physics r8 (plant_versions note 13: hip-roll servos kp
+                                        # 150 -> 600) with the r8 stance task (neck_posture_reference settled,
+                                        # foot_flatness 0.15 at 3 deg, stance_width 0.1 at 0.05 m): statue
+                                        # 3766.1 +/- 25.6, zero_action_baseline.py seed 3042, 40 episodes
+                                        # (stance_quality_baseline.py agrees). The +270.9 over 3495.2 decomposes
+                                        # exactly as +1.8 plant (3497.0 on r8 under the r7 task: the stiffer
+                                        # hips trim the spawn noise's foot roll, not the symmetric settle, whose
+                                        # noise-free reward 3517.26 is unchanged), +41.2 settled neck target,
+                                        # +141.4 flatness, +86.5 width. 0.60 x 3766.1 = 2259.7, rounded to 2260
+                                        # per the nearest-10 convention.
+                                        #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
                                         # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
@@ -393,16 +588,29 @@ min_avg_reward = 2100.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # the only field reward_and_length/v1 had. min_full_horizon_fraction states
                                         # the same requirement directly, so the schema now rejects this key for this
                                         # gate kind rather than letting both express it.
+min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue panel each report rolls for itself
+                                        # (zero action, this [env], the same seeds and recorder) rather than a
+                                        # stored constant, so it re-derives itself when a reward weight or the plant
+                                        # moves and min_avg_reward above was not re-measured. It costs a second
+                                        # 40-episode panel per report. Neither rail refuses the hacks, which score
+                                        # 0.80-0.99 of their statue's reward: the rails catch a collapse, the bars
+                                        # above catch the hacks.
 required_consecutive = 3                # Scheduler hysteresis ONLY. Re-running a deterministic panel is not
                                         # statistical replication (§3.4 caution 3) — the certified claim comes from
                                         # the bound above, not from repeating the same evaluation three times.
+                                        # Under stance_quality/v2 the in-training manager refuses the kind (the
+                                        # certificate is the post-stage report on the handoff pair), so nothing
+                                        # reads this until the in-training screen exists.
 certification_seeds = 2                 # Publication bar, not a gate threshold (BEHAVIOR_RECIPES_PLAN §4.5, decision
                                         # D-B9): distinct-seed runs that must certify this node before its
                                         # deliverable stops being labelled provisional. 2 because this configuration
                                         # is measured seed-sensitive — docs/KNOWN_ISSUES.md records seed 42 PASS,
                                         # seed 43 FAIL (run 20260815_014118) and seed 44 PASS (run 20260815_205206)
                                         # on the identical configuration, so one passing seed distinguishes "solved"
-                                        # from "lucky" no better than a coin. Every other stage keeps the default 1.
+                                        # from "lucky" no better than a coin (measured on physics r7 under
+                                        # stance_quality/v1; the r8 task under v2 has no seed record yet, and the
+                                        # third seed the gait plan's GQ-12 asks for stays the maintainer's to
+                                        # schedule). Every other stage keeps the default 1.
                                         # Enters neither gate_sha256 nor hyperparameters_sha256 nor task_sha256:
                                         # raising it relabels published bundles and invalidates no verdict.
 max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
@@ -459,8 +667,10 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # post-150k rolling median in that run is 580.5, well under 1472.3. A
                                          # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
                                          # budget protected, 2.5M only 72%.
-collapse_peak_floor_reference = 3495.2   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
-                                         # measured on the passive-toes plant (physics r7) with the 20260810
+collapse_peak_floor_reference = 3766.1   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+                                         # measured on the hip-roll revision (physics r8) with the r8 stance
+                                         # task: +270.9 over r7's 3495.2, decomposed at min_avg_reward above.
+                                         # 3495.2 was the passive-toes plant (physics r7) with the 20260810
                                          # shaping pack. History: 3271.8 on the r6 plant, 3270.3 on r7 at
                                          # tolerance 0.20, 3241.3 at tolerance 0.10; now +254 from the tail
                                          # home-pose term paying ~1.0 at its settled-droop targets plus the
@@ -470,7 +680,7 @@ collapse_peak_floor_reference = 3495.2   # The zero-action statue's standing rew
                                          # weight OR the plant changes: a weight change rescales the statue's
                                          # terms exactly and cheaply; a plant change moves its trajectory, so
                                          # only a re-run is evidence. Forgetting either is silent.
-statue_constants_physics_revision = 7    # The trex physics revision the statue-derived constants above
+statue_constants_physics_revision = 8    # The trex physics revision the statue-derived constants above
                                          # (min_avg_reward, collapse_peak_floor_reference) were measured on.
                                          # test_statue_constant_freshness.py cross-checks this against the
                                          # plant manifest, so a plant revision bump that forgets to re-measure
@@ -514,6 +724,12 @@ stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re
                                          #
                                          # The probe scores a MODIFIED policy: its own filenames, never
                                          # stance_panel_selected.csv, and its verdict is not a gate result.
+                                         #
+                                         # Unchanged under stance_quality/v2: every probe here re-scores the
+                                         # selected checkpoint into the v1-shaped report it always wrote, with no
+                                         # floor-truth recorder and no statue panel, beside the v2 gate report
+                                         # (whose per-actuator DC and settle_steps the hold, release and impulse
+                                         # probes read).
 stance_probe_hold_constant = true        # After the gate report, re-score the SAME checkpoint with its commanded
                                          # action FROZEN to the constant it averages, and write
                                          # stance_gate_probe_constant.{txt,json}. Unset to skip.

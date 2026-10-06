@@ -39,8 +39,50 @@ export interface AdvancementGate {
   recoveryDwellSteps: number | null;
   /** task_success/v1 bar (the binomial LCB95 on task success); null on every other gate kind. */
   minSuccessLcb: number | null;
+  /** stance_quality/v2 bar (the binomial LCB95 on clean episodes) and settle window; null on every other gate kind. */
+  minCleanStanceLcb: number | null;
+  settleSteps: number | null;
+  /** stance_quality/v2 statue-relative reward rail (a fraction of the statue panel's mean); null when undeclared. */
+  minAverageRewardStatueRatio: number | null;
+  /** stance_quality/v2 per-episode criteria the stage declares, in report order; empty on every other gate kind. */
+  stanceEpisodeCriteria: StanceEpisodeCriterion[];
   minEvaluationEpisodes: number;
   requiredConsecutive: number;
+}
+
+/**
+ * The stance_quality/v2 per-episode criteria, in the order the gate scores and
+ * reports them (stance_gate_v2.EPISODE_CRITERION_KEYS, which
+ * test_website_stance_criteria_follow_the_gate pins this list to).
+ */
+export const STANCE_V2_EPISODE_CRITERIA = [
+  'min_all_feet_support',
+  'max_touchdown_rate',
+  'max_window_displacement_m',
+  'min_foot_load_share',
+  'max_actuator_saturation_fraction',
+  'max_settle_airborne_substeps',
+  'max_settle_peak_floor_force_bw',
+  'min_foot_load_share_windowed',
+  'max_foot_contact_fraction',
+  'max_phantom_support_fraction',
+  'max_nonfoot_load_fraction',
+  'max_settle_stance_width_change_m',
+  'min_support_geom_duty',
+  'min_support_geom_coverage',
+  'max_sole_tilt_deg',
+  'max_sole_tilt_excess_deg',
+  'max_sole_corner_lift_m',
+  'min_sole_contacts',
+  'min_foot_load_share_statue_ratio',
+] as const;
+
+export type StanceEpisodeCriterionKey = (typeof STANCE_V2_EPISODE_CRITERIA)[number];
+
+/** One declared stance_quality/v2 criterion: its TOML key (min_* a floor, max_* a ceiling) and its bar. */
+export interface StanceEpisodeCriterion {
+  key: StanceEpisodeCriterionKey;
+  bar: number;
 }
 
 export interface PlantLayerContract {
@@ -244,6 +286,30 @@ interface RawStage {
     min_success_lcb: number | null;
     min_eval_episodes: number;
     required_consecutive: number;
+    // stance_quality/v2 (species_catalog._STANCE_V2_EXPORTED_KEYS): exported
+    // on a stage that declares the kind and on no other, so optional here.
+    min_clean_stance_lcb?: number | null;
+    settle_steps?: number | null;
+    min_avg_reward_statue_ratio?: number | null;
+    min_all_feet_support?: number | null;
+    max_touchdown_rate?: number | null;
+    max_window_displacement_m?: number | null;
+    min_foot_load_share?: number | null;
+    max_actuator_saturation_fraction?: number | null;
+    max_settle_airborne_substeps?: number | null;
+    max_settle_peak_floor_force_bw?: number | null;
+    min_foot_load_share_windowed?: number | null;
+    max_foot_contact_fraction?: number | null;
+    max_phantom_support_fraction?: number | null;
+    max_nonfoot_load_fraction?: number | null;
+    max_settle_stance_width_change_m?: number | null;
+    min_support_geom_duty?: number | null;
+    min_support_geom_coverage?: number | null;
+    max_sole_tilt_deg?: number | null;
+    max_sole_tilt_excess_deg?: number | null;
+    max_sole_corner_lift_m?: number | null;
+    min_sole_contacts?: number | null;
+    min_foot_load_share_statue_ratio?: number | null;
   };
   video: {
     path: string;
@@ -425,6 +491,16 @@ function adaptDeliverableMetric(metric: RawDeliverableMetric): DeliverableMetric
   };
 }
 
+/** The stance_quality/v2 criteria a stage declares, in gate order; empty on a stage of any other kind. */
+function adaptStanceEpisodeCriteria(gate: RawStage['advancement_gate']): StanceEpisodeCriterion[] {
+  const criteria: StanceEpisodeCriterion[] = [];
+  for (const key of STANCE_V2_EPISODE_CRITERIA) {
+    const bar = gate[key];
+    if (bar !== undefined && bar !== null) criteria.push({key, bar});
+  }
+  return criteria;
+}
+
 function adaptHeadlineMetric(metric: RawHeadlineMetric): HeadlineMetric {
   return {
     key: metric.key,
@@ -564,6 +640,10 @@ function adaptSpecies(raw: RawSpecies): Species {
         recoveryTRecoverSteps: stage.advancement_gate.recovery_t_recover_steps,
         recoveryDwellSteps: stage.advancement_gate.recovery_dwell_steps,
         minSuccessLcb: stage.advancement_gate.min_success_lcb,
+        minCleanStanceLcb: stage.advancement_gate.min_clean_stance_lcb ?? null,
+        settleSteps: stage.advancement_gate.settle_steps ?? null,
+        minAverageRewardStatueRatio: stage.advancement_gate.min_avg_reward_statue_ratio ?? null,
+        stanceEpisodeCriteria: adaptStanceEpisodeCriteria(stage.advancement_gate),
         minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
         requiredConsecutive: stage.advancement_gate.required_consecutive,
       },

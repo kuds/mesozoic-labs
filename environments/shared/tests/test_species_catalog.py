@@ -16,9 +16,11 @@ import pytest
 
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_schema import GATE_KINDS
+from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERION_KEYS
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
     _HEADLINE_BY_GATE_KIND,
+    _STANCE_V2_EXPORTED_KEYS,
     CATALOG_PAGE_DIR,
     DEFAULT_CATALOG_PAGE_PATH,
     DEFAULT_MANIFEST_PATH,
@@ -182,6 +184,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # Phase C (BEHAVIOR_RECIPES_PLAN §4.6, plant_versions note 12) bumped
     # every policy revision once more: the 3-dim command segment is appended
     # to all six observations. Physics and visual are again untouched.
+    # T-Rex physics r8 (plant_versions note 13) re-sized the hip-roll servos
+    # (kp 150 -> 600): PHYSICS only, policy and visual unchanged.
     expected_policy_revisions = {
         "velociraptor": 10,
         "trex": 13,
@@ -190,7 +194,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "compsognathus": 2,
         "compsognathus_robot": 2,
     }
-    expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 8, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update(compsognathus=1, compsognathus_robot=1)
@@ -246,11 +250,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3495.2
-    # (physics r7 with the 20260810 shaping pack: tail_home_pose 0.25 at the
-    # settled-droop targets, action_saturation 0.5, leg broad fraction 0.25;
-    # 3241.3 before the pack, 3270.3 at tolerance 0.20, 3271.8 on the r6
-    # plant), velociraptor 1745.8, brachiosaurus 1739.1 (on
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3766.1
+    # (physics r8 with the r8 stance task: settled neck target, foot flatness
+    # and stance width; 3495.2 on r7 with the 20260810 shaping pack:
+    # tail_home_pose 0.25 at the settled-droop targets, action_saturation
+    # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 1745.8,
+    # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8), dibothrosuchus 2598.3.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
@@ -273,18 +279,20 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # with it in issue #491. The FRACTION is the invariant, not the reward.
         # Re-derived at tolerance 0.10 (statue 3241.3 -> rail 1940), then
         # again for the 20260810 shaping pack: statue 3495.2, x0.60 = 2097.1
-        # -> 2100 nearest-10.
-        "trex": 2100.0,
+        # -> 2100 nearest-10, and for physics r8 with its stance task: statue
+        # 3766.1, x0.60 = 2259.7 -> 2260.
+        "trex": 2260.0,
         "velociraptor": 1050.0,
         "brachiosaurus": 1040.0,
         "dibothrosuchus": 1560.0,
     }
 
-    # T-Rex 1a has moved to stance_quality/v1, which does not consume
-    # min_avg_episode_length: min_full_horizon_fraction states section 12's
-    # >= 95% requirement directly instead of encoding it as a step count. Its
-    # min_avg_reward stays, demoted to a rail. The other three species are
-    # still on reward_and_length/v1 pending their own stance calibration.
+    # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
+    # stance_quality/v2 (D-D24); neither consumes min_avg_episode_length:
+    # min_full_horizon_fraction states section 12's >= 95% requirement
+    # directly instead of encoding it as a step count. Its min_avg_reward
+    # stays, demoted to a rail. The other three species are still on
+    # reward_and_length/v1 pending their own stance calibration.
     stage_one_length = {"trex": None, "velociraptor": 950, "brachiosaurus": 950, "dibothrosuchus": 950}
     # The stance bound's power is specified at n=40; the other species keep
     # the historical default.
@@ -295,11 +303,34 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_unsupported_duty": None,
         "max_unsupported_duty_ucb": None,
     }
+    # T-Rex 1a's stance_quality/v2 block (configs/trex/stance.toml, D-D24):
+    # v1's duty pair exports null, and the kind's own keys are exported beside
+    # the shared ones on this stage alone, each declared value or null.
+    trex_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
+        "min_clean_stance_lcb": 0.80,
+        "settle_steps": 200,
+        "min_all_feet_support": 0.98,
+        "max_touchdown_rate": 0.25,
+        "max_window_displacement_m": 0.10,
+        "min_foot_load_share": 0.40,
+        "max_actuator_saturation_fraction": 0.10,
+        "max_settle_airborne_substeps": 0,
+        "max_settle_peak_floor_force_bw": 1.5,
+        "min_foot_load_share_windowed": 0.35,
+        "max_foot_contact_fraction": 0.02,
+        "max_phantom_support_fraction": 0.05,
+        "max_nonfoot_load_fraction": 0.02,
+        "max_sole_tilt_deg": 2.0,
+        "max_sole_corner_lift_m": 0.004,
+        "min_sole_contacts": 1.5,
+        "min_avg_reward_statue_ratio": 0.60,
+    }
     stage_one_stance: dict[str, dict[str, float | None]] = {
         "trex": {
             "min_full_horizon_fraction": 0.95,
-            "max_unsupported_duty": 0.02,
-            "max_unsupported_duty_ucb": 0.02,
+            "max_unsupported_duty": None,
+            "max_unsupported_duty_ucb": None,
+            **trex_stance_v2,
         },
         "velociraptor": stance_null,
         "brachiosaurus": stance_null,
@@ -336,7 +367,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     stage_one_gate_kind = {
-        "trex": "stance_quality/v1",
+        "trex": "stance_quality/v2",
         "velociraptor": "reward_and_length/v1",
         "brachiosaurus": "reward_and_length/v1",
         "dibothrosuchus": "reward_and_length/v1",
@@ -864,7 +895,7 @@ def test_default_paths_are_inside_repository() -> None:
 # Review SS5: a published stage_passed is rendered with the gate it was earned
 # under.  The committed summaries predate gate provenance and were certified
 # by the retired reward gate, while trex's stance stage now declares
-# stance_quality/v1 — a bare "Yes" beneath that description misstates what
+# stance_quality/v2 — a bare "Yes" beneath that description misstates what
 # was measured.
 
 
@@ -872,7 +903,7 @@ def test_current_gate_kinds_follow_the_manifest() -> None:
     # The trex hunt adopted task_success/v1 (plan §4.4, WS-B2); every other
     # species' hunt stays on reward_and_length/v1 (D-B14).
     assert current_gate_kinds("trex") == {
-        "stance": "stance_quality/v1",
+        "stance": "stance_quality/v2",
         "recovery": "recovery_quality/v1",
         "locomotion": "reward_and_length/v1",
         "behavior": "task_success/v1",
@@ -890,7 +921,7 @@ def test_published_verdicts_carry_gate_provenance() -> None:
     stance = next(stage for stage in trex["historical_results"][0]["stages"] if stage["id"] == "stance")
     assert stance["stage_passed"] is True
     assert stance["gate_kind"] is None
-    assert stance["current_gate_kind"] == "stance_quality/v1"
+    assert stance["current_gate_kind"] == "stance_quality/v2"
     assert stance["gate_retired"] is True
 
     rendered = render_readme_results(catalog)
@@ -902,7 +933,7 @@ def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path,
     from environments.shared import species_catalog
 
     summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
-    summary["stages"]["1"]["gate_kind"] = "stance_quality/v1"
+    summary["stages"]["1"]["gate_kind"] = "stance_quality/v2"
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
@@ -1130,7 +1161,7 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
         ("behavior", "3", "3", "hunt", False),
     ]
     by_id = {row["id"]: row for row in result["deliverables"]}
-    assert by_id["stance"]["gate_kind"] == "stance_quality/v1"
+    assert by_id["stance"]["gate_kind"] == "stance_quality/v2"
     assert by_id["stance"]["model_hash"] == _SHA
     assert by_id["stance"]["replication_count"] == 1
     # Seed replication (plan §4.5, D-B10/D-B11): the bar is the CURRENT
@@ -1140,8 +1171,8 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert (by_id["locomotion"]["certification_seeds"], by_id["locomotion"]["provisional"]) == (1, False)
     assert (by_id["behavior"]["certification_seeds"], by_id["behavior"]["provisional"]) == (1, False)
     assert by_id["stance"]["headline"] == [
-        {"key": "unsupported_duty_ucb", "label": "unsupported duty 95% UCB", "value": None, "unit": "ratio"},
-        {"key": "full_horizon_fraction", "label": "full-horizon episodes", "value": None, "unit": "percent"},
+        {"key": "stance_clean_lcb", "label": "clean stance episodes LCB95", "value": None, "unit": "ratio"},
+        {"key": "stance_clean_fraction", "label": "clean stance episodes", "value": None, "unit": "percent"},
     ]
     assert by_id["locomotion"]["headline"] == [
         {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
@@ -1215,7 +1246,19 @@ def test_stage_rows_carry_the_current_certification_seeds() -> None:
             assert stage["certification_seeds"] == (2 if (species["id"], stage["id"]) == ("trex", "stance") else 1)
 
 
-def test_v4_headline_reads_the_statistic_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
+@pytest.mark.parametrize(
+    ("gate_kind", "statistics"),
+    [
+        # A stance certified under v1 (every trex stance before physics r8)
+        # headlines v1's statistics even now that the stage declares v2: the
+        # headline follows the gate that certified the deliverable.
+        ("stance_quality/v1", {"unsupported_duty_ucb": 0.01, "full_horizon_fraction": 0.99}),
+        ("stance_quality/v2", {"stance_clean_lcb": 0.887, "stance_clean_fraction": 0.975}),
+    ],
+)
+def test_v4_headline_reads_the_statistic_the_summary_records(
+    tmp_path: Path, monkeypatch: Any, gate_kind: str, statistics: dict[str, float]
+) -> None:
     """A stance statistic recorded in the summary stage row surfaces in the headline.
 
     Phase A summaries record none (so the value is null, D-A9), but the
@@ -1224,18 +1267,17 @@ def test_v4_headline_reads_the_statistic_the_summary_records(tmp_path: Path, mon
     B's export must surface without a second catalog edit.
     """
     summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
-    summary["stages"]["1"]["unsupported_duty_ucb"] = 0.01
-    summary["stages"]["1"]["full_horizon_fraction"] = 0.99
+    summary["stages"]["1"]["gate_kind"] = gate_kind
+    summary["provenance"]["deliverables"]["1"]["gate_kind"] = gate_kind
+    summary["stages"]["1"].update(statistics)
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
 
     stance = next(row for row in result["deliverables"] if row["id"] == "stance")
-    assert [(metric["key"], metric["value"]) for metric in stance["headline"]] == [
-        ("unsupported_duty_ucb", 0.01),
-        ("full_horizon_fraction", 0.99),
-    ]
+    assert stance["gate_kind"] == gate_kind
+    assert [(metric["key"], metric["value"]) for metric in stance["headline"]] == list(statistics.items())
     # The ladder row keeps its fixed columns: the statistic is not projected there.
-    assert "unsupported_duty_ucb" not in result["stages"][0]
+    assert not set(statistics) & set(result["stages"][0])
 
 
 def test_v4_headline_reads_the_task_success_lcb_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1418,19 +1460,22 @@ def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
 def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
     """stance_quality/v2 (D-D23): its keys are exported on a v2 stage and on no other, and rendered by key.
 
-    No committed stage declares the kind yet, so every generated catalog row
-    keeps exactly the keys it had (the website adapter pins those both ways);
-    the v2 rendering names the bound, the per-episode criteria under their
-    TOML keys, both rails as "reward rail", and where the verdict comes from
-    -- and no consecutive-passes tail, since the manager refuses the kind.
+    A stage on any other kind (compsognathus's stance keeps v1) exports
+    exactly the keys it always did, and the website adapter declares the v2
+    keys as optional (it pins the exported keys both ways); the v2 rendering
+    names the bound, the per-episode criteria under their TOML keys, both
+    rails as "reward rail", and where the verdict comes from -- and no
+    consecutive-passes tail, since the manager refuses the kind.
     """
     from environments.shared.species_catalog import _advancement_gate, _format_advancement_gate
     from environments.shared.stage_manifest import load_stage_manifest
 
     from .stance_v2_helpers import V2_CURRICULUM
 
-    entry = load_stage_manifest("trex").resolve(1)
-    v1_gate = _advancement_gate(entry, load_stage_config("trex", 1)["curriculum_kwargs"])
+    entry = load_stage_manifest("compsognathus").resolve(1)
+    v1_curriculum = load_stage_config("compsognathus", 1)["curriculum_kwargs"]
+    assert v1_curriculum["gate_kind"] == "stance_quality/v1"
+    v1_gate = _advancement_gate(entry, v1_curriculum)
     assert "min_clean_stance_lcb" not in v1_gate and "max_sole_corner_lift_m" not in v1_gate
     gate = _advancement_gate(entry, {**V2_CURRICULUM, "min_avg_reward_statue_ratio": 0.6})
     assert set(gate) - set(v1_gate) >= {"min_clean_stance_lcb", "settle_steps", "max_sole_corner_lift_m"}
@@ -1544,8 +1589,14 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
         assert "reward_and_length/v1" in definition, species_id
         assert "statue" in definition, species_id
         assert "certified stance quality" in definition, species_id
+    # A stance-quality stance names the kind its stage declares today: trex moved to
+    # stance_quality/v2 with physics r8 (D-D24), the compsognathus pair keeps v1.
     for species_id in ("trex", "compsognathus", "compsognathus_robot"):
-        assert "stance_quality/v1" in stance_definition(species_id), species_id
+        kind = current_gate_kinds(species_id)["stance"]
+        assert kind == ("stance_quality/v2" if species_id == "trex" else "stance_quality/v1"), species_id
+        assert kind in stance_definition(species_id), species_id
+        other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"
+        assert other not in stance_definition(species_id), species_id
 
 
 def test_species_manifest_schema_version_is_2(tmp_path: Path) -> None:
@@ -1830,8 +1881,8 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
 
     assert "**Deliverables:** " in rendered
     assert (
-        "1 — stand (certified; gate stance_quality/v1; 1 run of 2 seeds; provisional; "
-        "unsupported duty 95% UCB not recorded; full-horizon episodes not recorded) · "
+        "1 — stand (certified; gate stance_quality/v2; 1 run of 2 seeds; provisional; "
+        "clean stance episodes LCB95 not recorded; clean stance episodes not recorded) · "
         "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s) · "
         "3 — hunt (not certified; gate task_success/v1; 1 run of 1 seed; task success LCB95 not recorded; "
         "task success not recorded)"
@@ -1997,10 +2048,12 @@ def test_website_gate_formatter_mirrors_python() -> None:
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
     order pin (none/v1, then recovery_quality/v1, then task_success/v1, then
-    the generic path) keeps the frozen-verdict sentence on the recovery row,
-    the evidence-CSV sentence on the hunting row, and the consecutive-passes
-    tail off both, on both sides.  The task_success rail is rendered as
-    "reward rail" so the generic path's "reward ≥ " stays unique to it.
+    stance_quality/v2, then the generic path) keeps the frozen-verdict
+    sentence on the recovery row, the evidence-CSV sentence on the hunting
+    row, the floor-truth report sentence on the v2 stance row, and the
+    consecutive-passes tail off all three, on both sides.  The task_success
+    and stance_quality/v2 rails are rendered as "reward rail" so the generic
+    path's "reward ≥ " stays unique to it.
     """
     python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
     python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
@@ -2018,6 +2071,12 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "task success LCB95 ≥ ",
         "reward rail ≥ ",
         "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
+        "clean stance episodes LCB95 ≥ ",
+        " over ≥ ",
+        "episodes (settle ",
+        "an episode is clean when it reaches the horizon with ",
+        " × the statue's",
+        "verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed ",
         "reward ≥ ",
         "episode length ≥ ",
         "avg. velocity ≥ ",
@@ -2039,10 +2098,14 @@ def test_website_gate_formatter_mirrors_python() -> None:
         none_branch = body.index("none/v1")
         recovery_branch = body.index("recovery_quality/v1")
         task_success_branch = body.index("task_success/v1")
+        stance_v2_branch = body.index("stance_quality/v2")
         # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
         # resolve inside a branch that rendered its rail with the same words.
         generic_path = body.index("avg. velocity ≥ ")
-        assert none_branch < recovery_branch < task_success_branch < generic_path
+        assert none_branch < recovery_branch < task_success_branch < stance_v2_branch < generic_path
+        # The floor-truth sentences belong to the stance_quality/v2 branch.
+        assert stance_v2_branch < body.index("clean stance episodes LCB95 ≥ ") < generic_path
+        assert stance_v2_branch < body.index("verdict from the floor-truth stance_gate_report.json") < generic_path
         # The consecutive-passes tail belongs to the generic path only.
         assert body.index(" consecutive passes") > generic_path
         assert body.index("verdict from the frozen gate_resolution.json") < task_success_branch
@@ -2050,6 +2113,19 @@ def test_website_gate_formatter_mirrors_python() -> None:
         # The hunting rail is "reward rail ≥ "; the plain criterion is generic.
         assert task_success_branch < body.index("reward rail ≥ ") < generic_path
         assert body.index("reward ≥ ") > body.index("reward rail ≥ ")
+
+
+def test_website_stance_criteria_follow_the_gate() -> None:
+    """species.ts lists the stance_quality/v2 per-episode criteria in the gate's own order.
+
+    The site renders a v2 stage's criteria from ``STANCE_V2_EPISODE_CRITERIA``
+    as the catalog renders them from ``stance_gate_v2.EPISODE_CRITERION_KEYS``,
+    so the two lists must be one list: a criterion the gate adds that the site
+    never lists is a declared bar the site drops from the published gate.
+    """
+    source = _website_source("data/species.ts")
+    block = source.split("export const STANCE_V2_EPISODE_CRITERIA = [", 1)[1].split("] as const;", 1)[0]
+    assert re.findall(r"'([a-z0-9_]+)'", block) == list(EPISODE_CRITERION_KEYS)
 
 
 def test_website_replication_formatter_mirrors_python() -> None:

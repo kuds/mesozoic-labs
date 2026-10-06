@@ -27,9 +27,30 @@ def recompute(record, **changes):
     )
 
 
+#: The constructor kwargs the T-Rex physics-r8 task revision added (plant_versions note 13), at the
+#: legacy defaults every task that does not set them resolves to.
+TREX_R8_TASK_KEYS = {
+    "neck_posture_reference": "keyframe",
+    "foot_flatness_weight": 0.0,
+    "foot_flatness_tolerance_deg": 3.0,
+    "stance_width_weight": 0.0,
+    "stance_width_tolerance_m": 0.05,
+}
+
+
 @pytest.mark.parametrize("record", FIXTURE["fingerprints"], ids=lambda record: f"{record['species']}-{record['stage']}")
 def test_pre_recovery_quiet_checkpoint_identity_is_preserved(record):
     current = recompute(record)
+    if record["species"] == "trex":
+        # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8,
+        # whose task revision added constructor kwargs: they enter each trex task at their legacy
+        # defaults (no carve-out exists for them), and nothing else in the payload moved.
+        assert {key: value for key, value in current["env"].items() if key not in record["env"]} == TREX_R8_TASK_KEYS
+        assert {key: value for key, value in current["env"].items() if key in record["env"]} == record["env"]
+        unchanged = {key: value for key, value in record.items() if key not in ("env", "task_sha256")}
+        assert {key: value for key, value in current.items() if key not in ("env", "task_sha256")} == unchanged
+        assert current["task_sha256"] != record["task_sha256"]
+        return
     assert current == record
     assert validate_recorded_task(record, current, mode="resume_same_stage") is None
 

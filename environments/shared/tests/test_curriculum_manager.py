@@ -495,10 +495,13 @@ class TestThresholdsFromConfigs:
         from environments.shared.config import load_all_stages
 
         curriculum = load_all_stages("trex")[1]["curriculum_kwargs"]
-        assert curriculum["gate_kind"] == "stance_quality/v1"
-        # The statue scores 3271.8 at 1000.0 steps, so the retired reward and
-        # length criteria were both cleared by doing nothing.
-        assert curriculum["min_avg_reward"] < 3271.8, "reward must be a rail below the statue, not a gate"
+        # stance_quality/v2 since physics r8 (D-D24), stance_quality/v1 before it: a stance kind either way.
+        assert curriculum["gate_kind"] == "stance_quality/v2"
+        # The statue scores 3766.1 at 1000.0 steps on the r8 task (3271.8 when the reward gate was
+        # retired), so the retired reward and length criteria were both cleared by doing nothing.
+        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 3766.1, (
+            "reward must be a rail below the statue, not a gate"
+        )
         assert "min_avg_episode_length" not in curriculum
         # The bound's power is specified at this panel size.
         assert curriculum["min_eval_episodes"] == 40

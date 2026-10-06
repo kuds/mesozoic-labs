@@ -16,7 +16,7 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 
 ### Body Structure
 - **Head/Neck**: Heavy head with a fixed contact geom, 3 actuated joints (neck pitch/yaw, head pitch), and no jaw joint
-- **Legs**: Powerful digitigrade legs with 7 joints each (hip pitch/roll, knee, ankle, toe d2/d3/d4); the 4 proximal joints are actuated, the 3 toe digits ride passive springs
+- **Legs**: Powerful digitigrade legs with 7 joints each (hip pitch/roll, knee, ankle, toe d2/d3/d4); the 4 proximal joints are actuated, the 3 toe digits ride passive springs. Since physics r8 (`configs/plant_versions.toml` note 13) the hip-roll servos are kp 600 / ±480 N·m, stiff enough that both legs together out-resist the body's lateral sway (2 × (kp + 40) = 1280 against m·g·h = 704 N·m/rad); at kp 150 the zero-action statue stood on a rolled pad in some episodes
 - **Tail**: 5 segments, 4 actuated (pitch 1, yaw 1, pitch 2, pitch 3), heavy counterbalance to skull
 
 ### Reward Components
@@ -26,6 +26,16 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Tail stability** - Penalizes tail angular velocity
 - **Bite bonus** - Large reward when the fixed head contact geom touches prey
 - **Approach shaping** - Reward for closing distance to prey
+- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and the home stance width (`stance_width_weight`), each a `TRexEnv` kwarg that is inert at its default and set in `configs/trex/stance.toml`
+
+### Stance gate
+The stance stage certifies under `stance_quality/v2` (decision D-D24): each episode of the 40-episode panel (seeds
+3042-3081) is classified on floor truth, the floor's normal force under each leg on every physics substep, and the
+stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40). An episode is clean when
+it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded, no drift or chatter, no
+actuator held at its limit and flat pads (tilt, corner lift and contact points); the bars and their measured
+provenance are in `configs/trex/stance.toml`. The verdict is the post-stage `stance_gate_report.json` on the handoff
+checkpoint pair, never an in-training evaluation.
 
 ## Quick Start
 

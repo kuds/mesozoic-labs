@@ -416,31 +416,45 @@ class TestStanceReports:
         assert verdict["gate"]["thresholds"]["min_avg_reward"] == 1940.0
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(STANCE_CURRICULUM_AT_1940))
 
-    def test_gate_current_refuses_a_report_scored_under_another_rail(self, tmp_path):
+    def test_gate_current_refuses_a_report_scored_under_another_gate(self, tmp_path):
         """The one real-world use of ``--gate current`` on a stance directory: refused, never a false
-        certificate under the moved rail (the panel's 1950 would fail the 2100 rail)."""
+        certificate under the moved gate.  Trex stance now declares ``stance_quality/v2`` (D-D24), whose
+        arm admits only a v3 report the v2 code scored on this handoff pair; a v1 report scored under the
+        1940 rail (whose 1950 would also fail the current 2260 rail) describes neither."""
         current = load_all_stages("trex")[1]["curriculum_kwargs"]
-        assert current["gate_kind"] == "stance_quality/v1" and current["min_avg_reward"] == 2100.0
+        assert current["gate_kind"] == "stance_quality/v2" and current["min_avg_reward"] == 2260.0
         stage_dir = _stance_stage_dir(
             tmp_path, recorded=STANCE_CURRICULUM_AT_1940, report=_stance_report(STANCE_CURRICULUM_AT_1940)
         )
         with pytest.raises(BackfillError) as excinfo:
             backfill_gate_verdict(stage_dir, gate="current", force=True)
         message = str(excinfo.value)
-        assert "min_avg_reward: report scored at 1940.0, judging under 2100.0 now" in message
-        assert "notebook JUDGE branch" in message and "current 'stance' block" in message
+        assert "cannot back a stance_quality/v2 verdict under the current 'stance' block" in message
+        assert "not 'mesozoic.stance-gate-report/v3'" in message
+        assert "min_avg_reward: judged at 1940.0, configured 2260.0 now" in message
+        assert "notebook JUDGE branch" in message
         assert read_gate_verdict(stage_dir) is None
         # The same evidence still backfills under the gate it was scored under.
         backfill_gate_verdict(stage_dir, gate="recorded")
         assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(
             gate_config_view(STANCE_CURRICULUM_AT_1940)
         )
-        # And under the current gate once the report itself was scored under it.
-        (stage_dir / "stance_gate_report.json").write_text(
-            json.dumps(_stance_report(current, mean_reward=2200.0)) + "\n", encoding="utf-8"
-        )
-        backfill_gate_verdict(stage_dir, gate="current", force=True)
-        assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(current))
+        # And under the current gate once a report scored under it is on disk: the
+        # synthetic v2 panel re-derives, so its verdict is written -- the FAIL it
+        # re-derives to, since its statue-like episodes score 1000 against the
+        # 2260 rail, which still applies under v2.
+        from environments.shared.reporting.stance_report import write_stance_gate_report
+
+        from .stance_v2_helpers import stage_record, v2_report
+
+        v2_dir = tmp_path / "20261010_120000" / "01_stance"
+        stage_record(v2_dir, current)
+        write_stance_gate_report(v2_dir, v2_report(v2_dir, current))
+        backfill_gate_verdict(v2_dir, gate="current")
+        verdict = read_gate_verdict(v2_dir)
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
+        assert verdict["passed"] is False and verdict["stage_result"]["stance_clean_count"] == 40
+        assert verdict["failures"] == ["stage 1 mean_reward 1000.0 < 2260.0 (rail)"]
 
     def test_a_report_that_disagrees_with_the_recorded_block_is_refused_under_the_default_too(self, tmp_path):
         """A stale report beside an edited stage_config.json proves nothing about the recorded gate either."""

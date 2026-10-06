@@ -5,6 +5,7 @@ step, zero forward weight) are tested in
 environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 """
 
+import mujoco
 import numpy as np
 import pytest
 
@@ -53,6 +54,8 @@ class TestTRexRewardComponents:
             + info["reward_bilateral_support"]
             + info["reward_foot_load_balance"]
             + info["reward_leg_home_pose"]
+            + info["reward_foot_flatness"]
+            + info["reward_stance_width"]
             + info["reward_gait"]
             + info["reward_smoothness"]
             + info["reward_heading"]
@@ -202,6 +205,8 @@ class TestTRexRewardWeightEffects:
         assert info["reward_leg_home_pose"] == 0.0
         assert info["reward_head_clearance"] == 0.0
         assert info["reward_neck_posture"] == 0.0
+        assert info["reward_foot_flatness"] == 0.0
+        assert info["reward_stance_width"] == 0.0
         assert info["alive_gate"] == 1.0
         assert info["reward_alive"] == info["raw_alive"]
         env.close()
@@ -405,6 +410,169 @@ class TestStageOneStanceRewardPrimitives:
         finally:
             env.close()
 
+    def test_settled_neck_reference_targets_the_statue_not_the_keyframe(self):
+        tolerance = 0.25
+        env = TRexEnv(
+            neck_posture_weight=2.0,
+            neck_posture_tolerance=tolerance,
+            neck_posture_reference="settled",
+            reset_noise_scale=0.0,
+        )
+        try:
+            env.reset(seed=0)
+            settled = np.asarray(TRexEnv._NECK_SETTLED_QPOS)
+            np.testing.assert_array_equal(env._neck_home_qpos, settled)
+            # The noise-free reset holds the keyframe's zeros, a full servo
+            # sag away from the settled target.
+            keyframe_info = self._reward_info(env)
+            assert keyframe_info["neck_posture_error"] == pytest.approx(np.sqrt(np.mean(settled**2)))
+            assert keyframe_info["neck_posture_quality"] == pytest.approx(
+                np.mean(np.exp(-((settled / tolerance) ** 2)))
+            )
+
+            env.data.qpos[env._neck_home_qpos_indices] = settled
+            settled_info = self._reward_info(env)
+            assert settled_info["neck_posture_error"] == pytest.approx(0.0)
+            assert settled_info["neck_posture_quality"] == pytest.approx(1.0)
+            assert settled_info["reward_neck_posture"] == pytest.approx(2.0)
+        finally:
+            env.close()
+
+    def test_foot_flatness_averages_a_gaussian_of_each_pad_tilt(self):
+        tolerance = 3.0
+        env = TRexEnv(foot_flatness_weight=2.0, foot_flatness_tolerance_deg=tolerance, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            level_info = self._reward_info(env)
+            assert level_info["r_sole_tilt_deg"] == pytest.approx(0.0, abs=1e-3)
+            assert level_info["l_sole_tilt_deg"] == pytest.approx(0.0, abs=1e-3)
+            assert level_info["foot_flatness_quality"] == pytest.approx(1.0)
+            assert level_info["reward_foot_flatness"] == pytest.approx(2.0)
+
+            # One pad rolled by a tolerance forfeits that foot's share only.
+            env._sole_tilts_deg = lambda: np.array([0.0, tolerance])
+            rolled_info = self._reward_info(env)
+            assert rolled_info["l_sole_tilt_deg"] == pytest.approx(tolerance)
+            assert rolled_info["foot_flatness_quality"] == pytest.approx((1.0 + np.exp(-1.0)) / 2.0)
+            assert rolled_info["reward_foot_flatness"] == pytest.approx(1.0 + np.exp(-1.0))
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("axis", [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)], ids=["roll", "pitch"])
+    def test_sole_tilt_reads_the_plantar_pad_frames(self, axis):
+        """Tipping the whole animal by a known angle tips both level pads by exactly that angle."""
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            angle = np.radians(4.0)
+            env.data.qpos[3:7] = [np.cos(angle / 2.0), *(np.sin(angle / 2.0) * np.asarray(axis))]
+            mujoco.mj_forward(env.model, env.data)
+            np.testing.assert_allclose(env._sole_tilts_deg(), [4.0, 4.0], atol=1e-3)
+        finally:
+            env.close()
+
+    def test_stance_width_is_a_gaussian_around_the_home_keyframe_width(self):
+        tolerance = 0.05
+        env = TRexEnv(stance_width_weight=2.0, stance_width_tolerance_m=tolerance, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            # Computed plant-side from the home keyframe's foot sites.
+            assert env._home_stance_width == pytest.approx(0.280, abs=1e-6)
+            home_info = self._reward_info(env)
+            assert home_info["stance_width"] == pytest.approx(env._home_stance_width)
+            assert home_info["stance_width_error"] == pytest.approx(0.0, abs=1e-9)
+            assert home_info["reward_stance_width"] == pytest.approx(2.0)
+
+            # Wider and narrower by one tolerance are priced alike.
+            for offset in (tolerance, -tolerance):
+                env._stance_width = lambda data, width=env._home_stance_width + offset: width
+                info = self._reward_info(env)
+                assert info["stance_width_error"] == pytest.approx(tolerance)
+                assert info["stance_width_quality"] == pytest.approx(np.exp(-1.0))
+                assert info["reward_stance_width"] == pytest.approx(2.0 * np.exp(-1.0))
+        finally:
+            env.close()
+
+    def test_stance_width_is_free_of_heading(self):
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            home_width = env._stance_width(env.data)
+            yaw = np.radians(30.0)
+            env.data.qpos[3:7] = [np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)]
+            mujoco.mj_forward(env.model, env.data)
+            assert env._stance_width(env.data) == pytest.approx(home_width, abs=1e-12)
+        finally:
+            env.close()
+
+    def test_legacy_defaults_leave_the_total_reward_bit_identical(self):
+        """The physics-r8 terms are opt-in: at their defaults the total is the pre-r8 sum, bit for bit.
+
+        Summed here in the order ``_get_reward_info`` summed before the terms
+        existed, with exact equality, on the shipped stance shaping minus the
+        new keys, so every legacy term is live.
+        """
+        from environments.shared.config import load_stage_config
+
+        new_keys = {
+            "neck_posture_reference",
+            "foot_flatness_weight",
+            "foot_flatness_tolerance_deg",
+            "stance_width_weight",
+            "stance_width_tolerance_m",
+        }
+        kwargs = {k: v for k, v in load_stage_config("trex", "stance")["env_kwargs"].items() if k not in new_keys}
+        legacy_terms = (
+            "reward_forward",
+            "reward_backward",
+            "reward_drift",
+            "reward_alive",
+            "reward_energy",
+            "reward_tail",
+            "reward_bite",
+            "reward_approach",
+            "reward_head_proximity",
+            "reward_head_clearance",
+            "reward_neck_posture",
+            "reward_tail_home_pose",
+            "reward_posture",
+            "reward_nosedive",
+            "reward_height",
+            "reward_bilateral_support",
+            "reward_foot_load_balance",
+            "reward_leg_home_pose",
+            "reward_gait",
+            "reward_smoothness",
+            "reward_action_jerk",
+            "reward_action_saturation",
+            "reward_heading",
+            "reward_lateral",
+            "reward_spin",
+            "reward_speed",
+            "reward_idle",
+        )
+        env = TRexEnv(**kwargs)
+        try:
+            assert env.neck_posture_reference == "keyframe"
+            np.testing.assert_array_equal(
+                env._neck_home_qpos, env.model.key_qpos[env.home_keyframe_id][env._neck_home_qpos_indices]
+            )
+            env.reset(seed=3042)
+            rng = np.random.default_rng(0)
+            for _ in range(60):
+                _, reward, terminated, _, info = env.step(rng.uniform(-0.3, 0.3, env.action_space.shape))
+                assert not terminated
+                legacy_total = info[legacy_terms[0]]
+                for name in legacy_terms[1:]:
+                    legacy_total = legacy_total + info[name]
+                assert reward == legacy_total
+                assert info["reward_foot_flatness"] == 0.0 and info["reward_stance_width"] == 0.0
+                # The diagnostics are live even while the terms are off.
+                assert 0.0 < info["foot_flatness_quality"] <= 1.0
+                assert 0.0 < info["stance_width_quality"] <= 1.0
+        finally:
+            env.close()
+
     def test_head_clearance_is_smooth_and_saturates_at_target(self):
         env = TRexEnv(
             head_clearance_target=0.60,
@@ -456,6 +624,9 @@ class TestStageOneStanceRewardPrimitives:
             ({"leg_home_pose_tolerance": 0.0}, "leg_home_pose_tolerance"),
             ({"head_clearance_tolerance": 0.0}, "head_clearance_tolerance"),
             ({"neck_posture_tolerance": 0.0}, "neck_posture_tolerance"),
+            ({"neck_posture_reference": "home"}, "neck_posture_reference"),
+            ({"foot_flatness_tolerance_deg": 0.0}, "foot_flatness_tolerance_deg"),
+            ({"stance_width_tolerance_m": -0.01}, "stance_width_tolerance_m"),
         ],
     )
     def test_invalid_stance_settings_fail_fast(self, kwargs, message):
