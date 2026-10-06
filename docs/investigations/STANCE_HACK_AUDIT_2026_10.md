@@ -542,3 +542,137 @@ protocol, so the two sets of figures are not comparable with each other; each co
 **Limits.** The hacks are r7 policies on the r7 plant: the r8 policies a retrain produces may find what none of them
 found, and a v2 verdict on one is only as good as these bars. The realization effect of §2.3 applies. The statue is
 the only r8 policy measured.
+
+## 8. Addendum 2026-10-06: the velociraptor adoption on physics r3 (appended)
+
+*Appended 2026-10-06; §1–§7 above are unchanged.* The maintainer chose on 2026-10-06 to land the velociraptor plant
+revision §3.2's findings ask for (physics r2 → r3, policy interface r10 → r11, visual r3 → r4;
+`configs/plant_versions.toml` note 14: the leg springs anchored at the standing pose, a flat-footed keyframe whose home
+ctrl carries the gravity preload, and the metatarsus and digit-IV touch sensors summed per foot), to declare the
+velociraptor SB3-only with it, to revise its stance task, and to adopt `stance_quality/v2` on the velociraptor stance,
+as decision D-D25 ([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2). The bars are re-measured on the
+r3 statue, as §2.3 requires, and committed in `configs/velociraptor/stage1_balance.toml`, each with its statue and
+hack values in its comment.
+
+**Method.** As §7's. The r3 statue was rolled through `build_stance_gate_report` on the committed r3 stance stage (its
+new `[env]` and the committed `[curriculum]`, whose gate view equals the block below). The audited stance's two
+checkpoints load only on the r2 plant, so they and the r2 statue were rolled on a checkout of the commit before the
+revision, with the block swapped in for the r2 stage's `reward_and_length/v1` gate, the plant contract enforced and the
+sha256 of every checkpoint and sidecar matching §2.1's. Floor truth does not read the reward, so the r2 `[env]` they
+ran under moves only the reward rails, which the hacks clear (1.006 and 1.015 of their own statue). Every verdict was
+re-derived from its CSV and matched. Then the committed stage was put through the post-stage pipeline with the r3
+statue as a scripted checkpoint: `stage_artifacts._write_stance_gate_report` rolled the panel and a separate statue
+panel for the statue-relative bars, `_apply_stage_gate` judged it PASS and wrote `gate_verdict.json` (gate
+`sha256:f0ef0a6c…`, the stage's `task_sha256` `sha256:d19abe5c…`), and publication's re-derivation from
+`stance_panel_selected.csv` and the backfill tool both admitted it. The velociraptor stance declares no probes.
+
+**The block.** `min_eval_episodes = 40`, `min_clean_stance_lcb = 0.80`, `settle_steps = 100` (the r3 statue has both
+feet down by step 5 and its floor force within 10% of its weight by step 15, and it classifies identically at any value
+from 25 to 200); the required `min_all_feet_support = 0.98`, `max_touchdown_rate = 0.25`, `max_window_displacement_m
+= 0.10`, `min_foot_load_share = 0.40`, `max_actuator_saturation_fraction = 0.10`, `max_settle_airborne_substeps = 0`,
+`max_settle_peak_floor_force_bw = 2.0`; the foot bars of a foot with no box sole, `min_support_geom_duty = 0.50` and
+`min_support_geom_coverage = 0.80` (digit III, digit IV and the metatarsus: the gait library's registry); the settle
+splay `max_settle_stance_width_change_m = 0.05`; the statue-relative `min_foot_load_share_statue_ratio = 0.80`; the
+guards `min_foot_load_share_windowed = 0.35`, `max_foot_contact_fraction = 0.02`, `max_phantom_support_fraction =
+0.05`, `max_nonfoot_load_fraction = 0.01`; and the rails `min_full_horizon_fraction = 0.95`, `min_avg_reward = 1710.0`
+(0.60 × the r3 statue's 2842.76, recorded as `collapse_peak_floor_reference = 2842.8` with
+`statue_constants_physics_revision = 3`) and `min_avg_reward_statue_ratio = 0.60`. Against §5.1's candidate, the load
+share rises 0.30 → 0.40 because the r3 statue allows it (its reset pop is gone: 1.01 BW noise-free against 2.26 on r2),
+the coverage, splay, statue-ratio and windowed guards and the rails are added, and the settle peak (1.75 → 2.0 BW) and
+the foot duty (0.90 → 0.50) sit in the middle of the statue–hack gap, for the reason below.
+
+**Why the foot bars and the settle peak sit mid-gap.** The bars were first set just under the statue's worst: duty
+0.90, coverage 0.95, settle peak 1.5 BW. Those refused a near-statue. The statue with N(0, σ) noise added to its zero
+command on every step, rolled through the same report path (seeds 3042–3081), keeps 98.5% of its reward at σ = 0.03,
+but its digit IV, keyed 0.17 mm into the floor at 0.087 BW, unloads on part of the window:
+
+| σ | Mean reward | Clean, edge bars (0.90 / 0.95 / 1.5) | Clean, committed bars (0.50 / 0.80 / 2.0) | Worst duty, coverage, settle peak |
+|---|---|---|---|---|
+| 0.02 | 2831.6 | 40/40 | 40/40 | 0.966, 0.989, 1.36 BW |
+| 0.03 | 2798.7 | 13/40 and 16/40 (two noise draws) | 40/40 and 40/40 | 0.842, 0.947, 1.54 BW |
+| 0.04 | 2750.4 | 0/40 | 40/40 | 0.680, 0.893, 1.72 BW |
+| 0.05 | 2697.1 | 0/40 | 40/40 | 0.553, 0.844, 1.89 BW |
+| 0.06 | 2643.5 | — | 31/40 (bound 0.64, FAIL) | 0.448, 0.799, 2.07 BW |
+
+At σ = 0.03 the duty bar alone refused 23 of the 27 unclean episodes. Constant offsets do not do this: digit IV
+held ±0.02 or ±0.05 off its home command, or digit III or the ankle +0.02, stay clean on 20/20, so it is jitter, not a
+posture, that unloads the digit. The reward cannot see it: the bilateral support term reads each foot's summed touch, which digit III
+and the metatarsus keep saturated, the leg-pose tolerance is 0.20 rad, and the jerk term charges about 0.3 per episode
+at σ = 0.03. A gate bar that the reward does not shape would have refused a trained near-statue policy for a loss its
+training never priced. At the committed bars the jittered statue is clean up to σ = 0.05; coverage 0.80 sits above
+2/3, a foot standing on two of its three support geoms throughout, so a digit that never loads still fails it whatever
+the duty reads; and every audited hack episode stays far outside (duty ≤ 0.023, coverage ≤ 0.667, settle peak
+≥ 2.78 BW). A reward term that sees per-geom support, from the r3 sensors at sensordata 10/27/28 and 11/29/30, would let
+the bars move back toward the statue; it is not part of this revision.
+
+| Panel (seeds 3042–3081) | Plant | Clean | LCB | Verdict | Fewest bars failed per unclean episode | Mean reward |
+|---|---|---|---|---|---|---|
+| statue | r3 | 40/40 | 0.928 | PASS | — | 2842.8 |
+| statue, seeds 3082–3161 | r3 | 80/80 | 0.963 | PASS | — | 2842.2 |
+| statue, seeds 3162–3201 | r3 | 40/40 | 0.928 | PASS | — | 2843.0 |
+| statue, seeds 5042–5241 (fresh) | r3 | 200/200 | — | PASS (5 × 40) | — | 2841.4 |
+| statue | r2 | 40/40 | 0.928 | PASS | — | 1745.8 |
+| `20260922_125248` robust_best | r2 | 0/40 | 0.000 | FAIL | 9 | 1755.6 |
+| `20260922_125248` final | r2 | 0/40 | 0.000 | FAIL | 6 | 1771.4 |
+
+Mean rewards are each plant's own stance `[env]`, so the r2 and r3 rows are not comparable. The third r3 statue block
+was rolled after the bars were first set, and the fresh blocks after that; their seed 5202–5241 block was rolled
+again through the committed stage and is clean on 40/40. Every row's verdict under the committed block is re-derived
+from its recorded per-episode metrics, the CSV where the panel wrote one (floor truth reads no threshold, so a panel
+need not be re-rolled when only a bar moves). Under the edge
+bars the r2 statue scored 39/40, its seed 3046 failing on a 1.516 BW settle peak from the reset pop the r3 keyframe
+removed. Each hack reaches the horizon on 39/40 (robust_best
+falls at step 69 on seed 3066, final at step 318 on seed 3077).
+
+Episodes failing each bar (of 40):
+
+| Panel | Bars failed (episodes) |
+|---|---|
+| robust_best | support, touchdowns, displacement, saturation, settle airborne, settle peak, splay, support-geom duty and coverage 40 each, load share and statue-ratio share 11 each, windowed share 2, foot-on-foot, phantom and non-foot 1 each (the fall, whose window is empty, so unmeasured) |
+| final | saturation, settle airborne, settle peak, splay, support-geom duty and coverage 40 each, support 29, touchdowns 27, displacement 5, foot-on-foot 1 (the fall) |
+
+Margins: the r3 statue's least favourable episode in sample (out of sample; third block; the 200 fresh seeds)
+against each bar, and the nearest-passing hack episode:
+
+| Bar | r3 statue | Nearest hack episodes |
+|---|---|---|
+| saturation ≤ 0.10 | 0 (0; 0; 0) | ≥ 0.899 (final), 1.000 (robust_best) |
+| settle airborne 0 | 0 (0; 0; 0) | ≥ 35 substeps (final), ≥ 51 (robust_best) |
+| settle peak ≤ 2.0 BW | ≤ 1.285 (1.290; 1.166; 1.400) | ≥ 2.78 (final), ≥ 2.98 (robust_best) |
+| support-geom duty ≥ 0.50 | 1.000 (0.979; 0.996; 0.956) | ≤ 0.023 (final), ≤ 0.001 (robust_best) |
+| support-geom coverage ≥ 0.80 | 1.000 (0.993; 0.999; 0.985) | ≤ 0.667 (final), ≤ 0.342 (robust_best) |
+| splay ≤ 0.05 m | ≤ 0.016 m (0.020; 0.021; 0.022) | ≥ 0.116 m (robust_best), ≥ 0.134 m (final) |
+| support ≥ 0.98 | 1.000 (1.000; 1.000; 1.000) | ≤ 0.97 (robust_best); ≥ 0.98 on 11 final episodes |
+| touchdowns ≤ 0.25/s | 0 (0; 0; 0) | ≥ 0.56 (robust_best); ≤ 0.25 on 13 final episodes, 0 on 11 |
+| displacement ≤ 0.10 m | ≤ 0.018 m (0.019; 0.014; 0.031) | ≥ 0.110 m (robust_best); ≥ 0.011 m on final, 5 over |
+| load share ≥ 0.40 | ≥ 0.494 (0.494; 0.494; 0.488) | down to 0.368 (robust_best, 11 under); ≥ 0.426 (final) |
+| statue-ratio share ≥ 0.80 | ≥ 0.987 (0.988; 0.988; 0.977) | down to 0.735 (robust_best, 11 under); ≥ 0.851 (final) |
+| windowed share ≥ 0.35 | ≥ 0.457 (0.460; 0.457; 0.416) | down to 0.344 (robust_best, 2 under); ≥ 0.374 (final) |
+| foot-on-foot, phantom, non-foot | 0 (0; 0; 0) | 0 on every full-horizon hack episode; final's fall reaches 0.026 foot-on-foot and 0.023 phantom (guards) |
+
+The fresh seeds' tails are wider than the first 160 seeds' on every measured bar, which is why their column is the
+statue's side of each margin. The settle peak's tail was checked further, with the gait library's recorder on the
+settle window alone: over 1200 fresh seeds (5042–5241 and 10000–10999) it reaches 1.400 BW at most (seed 5046), p99
+1.255, and never 1.5. The bar still reads part of the reset transient: on 36% of those seeds the window's peak is its
+first step, step 10, just after the spawn grace (seed 5046: 1.145 BW over steps 0–9, 1.400 at step 10), and with a
+15-step grace the worst would be 1.089. Support-geom duty was checked the same way over 600 more seeds and never falls
+below 0.95.
+
+Report-only, never gated: the r3 statue yaws up to 10.6° (11.1°; 12.0°; 16.1°) over an episode, and its spawn peak
+(the first 0.1 s, before the grace ends) reaches 1.76 BW (1.94; 1.86; 2.12); the summed touch agrees with the floor on
+every r3 statue step (1.000), against 0.70–1.00 on the hacks' r2 plant, whose touch saw digit III only.
+
+The families do not back each other up on these two checkpoints the way §7's did on trex: each of them alone refuses
+every hack episode. Saturation alone, the two settle bars alone, the two foot bars alone and the splay bar alone each
+fail all 80; the window bars alone (support, touchdowns, displacement and the load shares) admit 10 of the final
+checkpoint's 40 (bound 0.142, still a FAIL). The quietest hack episode, final seed 3043, clears every window bar (both
+feet down throughout, no touchdown, 27 mm of travel, load split 0.547 / 0.453) and fails exactly the four families:
+saturation 1.000, 42 settle airborne substeps and a 4.46 BW landing, a 0.20 m splay, and digit IV never loaded (duty 0,
+coverage 0.667). `environments/shared/tests/test_raptor_stance_gate_config.py` pins that the four families stay
+declared, with that episode as its case, and that the jittered statue's least favourable episodes at σ = 0.05 are clean
+under the committed bars and were refused by the edge bars.
+
+**Limits.** The hacks are r2 policies on the r2 plant; the r3 policies a retrain produces may find what neither found,
+and a v2 verdict on one is only as good as these bars. The realization effect of §2.3 applies. The statue, and the
+statue with command jitter, are the only r3 policies measured; the stance reward revision priced the audited stance from its r2 replays
+(`configs/velociraptor/stage1_balance.toml`'s `[env]` comments), not from an r3 policy.

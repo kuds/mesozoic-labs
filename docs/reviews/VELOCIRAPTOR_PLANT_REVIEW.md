@@ -730,3 +730,45 @@ cost minutes and it changed the conclusion.
 - `docs/TREX_LEG_FLEXING_PLAN.md` — the stance argument §3.5 declines to port.
 - `docs/investigations/STAGE2_RECOMMENDATIONS.md` R2 — the actuator
   `forcerange` convention §3.3 says the claws never joined.
+
+---
+
+## Appendix — Outcome 2026-10-06 (appended)
+
+*Appended 2026-10-06; the review above is unchanged and describes the plant as reviewed.* The sequencing decision of
+§5 (execute after the T-Rex clears stages 1–3) was overtaken by the maintainer on 2026-10-06, as decision D-D25
+([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): velociraptor physics r2 → r3, policy interface
+r10 → r11 and visual r3 → r4 (`configs/plant_versions.toml` note 14). The open items now live in
+[../KNOWN_ISSUES.md](../KNOWN_ISSUES.md) ("Velociraptor plant"). Measured on the r3 plant (zero action, reset noise
+0.05, seeds 3042–3081 unless stated):
+
+- **R1 (finding 1).** Done twice: the stage-1 rail became 0.60× the statue on 2026-09-28, and with r3 the stance gate
+  is `stance_quality/v2` (D-D23), which judges every panel episode on floor truth. The statue still passes it, as
+  every species' statue passes its stance gate by design, but the audited stance `20260922_125248` fails on 0/40
+  ([../investigations/STANCE_HACK_AUDIT_2026_10.md](../investigations/STANCE_HACK_AUDIT_2026_10.md) §8).
+- **R2 (finding 2): done, without re-sizing the leg actuators.** Every leg joint's `springref` is the standing pose,
+  and §3.2's counterfactual is right that this alone falls: with the home ctrl at the pose the statue lands on its body
+  in 1.1–1.34 s on 10 of 10 seeds. What it lacked was not authority but the gravity preload a position servo needs to
+  hold torque at its setpoint, which the T-Rex already carries in its ankle: the home ctrl now sits at the pose plus
+  the gravity torque over kp (hip −0.606°, knee +0.166°, ankle +3.206°, toes +2.651° / +1.127°), and the nominal servos,
+  kp, forcerange and ctrlrange unchanged, hold the stance with 1.60 / 0.48 / 5.56 / 2.33 N·m (0.2–5.8% of
+  forcerange), on 40/40 episodes even with every leg spring deleted. So §3.2's "the position actuators cannot hold the
+  pose on their own" and §5's "re-size the leg actuators together" are refuted by measurement, and the hardware note
+  that the springs hid an actuator requirement with it. The keyframe also moves: the toes sat 20° toe-down, digit III
+  44.6 mm inside the floor, so the ankle (100 → 90.5536°) and toes (10 → −0.5536 / 0.6464°) flatten the foot, while
+  hip 38° and knee −50° stay. Reading the keyframe comment's "38 deg (= 18 deg crouch + 20 deg lean compensation)" as
+  a hip of 18° flattens the toes too but puts the support 7.6 cm ahead of the centre of mass, and the statue falls
+  backward in 0.66 s even with near-rigid legs.
+- **R3 (finding 5): settled the other way.** The r3 keyframe settles at 20.10° (0.3508 rad), so `natural_pitch` stays
+  0.35 and the statue's nosedive charge falls from −95.3 to −3.0 per episode. R3's "free" no longer holds in any case:
+  `natural_pitch` is a constructor default, which every velociraptor `task_sha256` hashes since task fingerprint v2.
+- **R4 (finding 3): done.** Metatarsus and digit-IV touch sites and sensors are appended and summed per foot; the sum
+  equals the floor force (1.000). The frozen MJX registration cannot mirror the sum (D-D17), so the velociraptor
+  declares itself SB3-only in the same revision and its `mjx_config.py` is deleted; finding 7 had already retired with
+  the MJX runtime.
+- **Finding 8.** The ankle now holds 90.55°, 30.6% up its range, against 20.2%.
+- **Still open:** R5 and finding 6 (the claw motors), R7, R8 and finding 4 (the metatarsus, which keeps its length and
+  carries 28% of each foot's load at the r3 stance), and findings 9–11.
+
+Every velociraptor checkpoint trained before r3 is refused by the plant contract, the certified stance and walker of
+`20260922_125248` included.

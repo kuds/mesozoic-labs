@@ -13,7 +13,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
-| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B), the other 10 open — **execution deferred until the T-Rex clears stages 1–3**; see below |
+| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings; finding 7 (MJX termination) retired with the JAX/MJX runtime (D-D17, cleanup PR-B); execution was deferred until the T-Rex clears stages 1–3, until the maintainer's D-D25 (2026-10-06): velociraptor physics r3 fixes findings 2, 3 and 5 and replaces finding 1's reward gate with `stance_quality/v2`, and 4, 6 and 8–11 stay open; see below |
 | [reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md](reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md) (2026-08-28) | SB3 training core, notebooks, env/physics, evaluation, JAX/MJX, configs and sweeps, CI, scripts; cleanup opportunities | 120 ids: 78 fixed (#514–#517, #519, #530, #534, #535), 25 retired by D-D17 (16 of them after a fix), 3 fixed with a residue, 6 duplicates; the 8 open ones and the three residues (SM7, DU4, CI8) are below (its appendix B, 2026-09-30) |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
@@ -552,6 +552,8 @@ robustness, **LOW** = cosmetic / QoL.
   `zero_action_baseline.py <species>:2 --episodes 40 --seed 3042`), and
   velociraptor stage 1 has the same shape with no warm-up (its session-3 run
   `20260922_125248` trained the full 6M by its trajectory, not by protection).
+  **Update 2026-10-06:** velociraptor physics r3 (D-D25) re-derived its floor
+  as 0.75× the r3 statue's 2842.76, 1300 → 2130, still absolute.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -840,8 +842,10 @@ robustness, **LOW** = cosmetic / QoL.
   heightfield-contact investigation before PR-11, decided together with the
   recipe speeds and map sizes
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1). The trex
-  walker no longer loads since trex physics r8 (D-D24, 2026-10-06); the
-  finding stands for the walker that replaces it.
+  walker no longer loads since trex physics r8 (D-D24, 2026-10-06), nor the
+  velociraptor walker since velociraptor physics r3 (D-D25, the same day),
+  whose keyframe puts the toes at −0.5 mm of contact instead of −44.6 mm; the
+  finding stands for the walkers that replace them.
 
 <!-- The items below come from the 2026-09-28 gait audit: CPU replays of
      the certified nodes and zero-action rollouts of every stage gate, with
@@ -865,7 +869,8 @@ robustness, **LOW** = cosmetic / QoL.
   by trex physics r8, D-D24, which refuses every r7 trex checkpoint), and
   compsognathus_robot `20260924_031815` micro-hops at 9.2 Hz, airborne 48%;
   only compsognathus `20260921_203149` walks and velociraptor
-  `20260922_125248` runs. The in-training dibothrosuchus re-run
+  `20260922_125248` runs (retired by velociraptor physics r3, D-D25, which
+  refuses every r2 velociraptor checkpoint). The in-training dibothrosuchus re-run
   `20260928_012318` skids on three legs at 4.3M and clears its gate as written
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). Plan:
   `locomotion_gait/v1` in the six locomotion TOMLs, then retrains
@@ -913,12 +918,16 @@ robustness, **LOW** = cosmetic / QoL.
   is clean on 40/40 (the stance-hack audit's §5). The trex stance adopted it
   with trex physics r8 (D-D24, 2026-10-06), on bars set on the r8 statue
   (clean on 40/40; the three trex stances above and the failed seed-45 node
-  on 0/40 each, the audit's §7); every other stance stage still certifies
-  under v1 or its reward rail. Plan: each remaining stance stage adopts v2, a
-  gate revision with bars re-measured on that species' own statue panel
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11, §12 and PR-G8; GQ-10, open);
-  each species stays open until its stance certifies under v2, the trex
-  included (no r8 trex stance has trained yet).
+  on 0/40 each, the audit's §7), and the velociraptor stance with
+  velociraptor physics r3 (D-D25, the same day), on bars set on the r3
+  statue (clean on 40/40; both audited checkpoints of `20260922_125248` on
+  0/40, the audit's §8); the other three stance stages still certify under v1
+  or their reward rail. Plan: each remaining stance stage adopts v2, a gate
+  revision with bars re-measured on that species' own statue panel
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§13 and PR-G8; GQ-10, open);
+  each species stays open until its stance certifies under v2, the trex and
+  velociraptor included (no r8 trex or r3 velociraptor stance has trained
+  yet).
 
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
@@ -987,7 +996,7 @@ robustness, **LOW** = cosmetic / QoL.
   episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
   only the torso (and belly), head and distal tail (`trex_env.py:386-393`,
-  `raptor_env.py:212-219`, `brachio_env.py:224-230`,
+  `raptor_env.py:298-305`, `brachio_env.py:224-230`,
   `dibothrosuchus_env.py:240-247`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
   clearance of the lowest such geom, then the root drop allowed: trex tibia
@@ -1265,7 +1274,7 @@ Neutral-action stability and truly actuator-disabled passive behavior are now
 separate test contracts. Layered policy, physics, visual, and source identities
 are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
 
-### Foot touch sensors under-report on two species — open (July 2026 sensor audit)
+### Foot touch sensors under-report on two species — fixed (July 2026 sensor audit); a substep under-read is open
 
 A MuJoCo touch sensor sums only contacts on geoms belonging to its site's **own body**, so a
 site on a parent segment silently misses whatever the child geoms carry. Auditing all four
@@ -1274,24 +1283,16 @@ species wrong:
 
 | species | sensor / measured contact | missing |
 |---|---|---|
-| velociraptor | **0.553** | `metatarsus` 17.54 N + `toe_d4` 12.03 N per foot; the site is on `toe_d3` only |
+| velociraptor | ~~0.553~~ **FIXED** — now 1.000 | was `metatarsus` 17.54 N + `toe_d4` 12.03 N per foot, the site being on `toe_d3` only; repaired per plant_versions note 14 (metatarsus and digit-IV touch sites and sensors appended, sensordata 27–30, and summed per foot; physics r3, policy interface r11, D-D25, 2026-10-06) |
 | brachiosaurus | ~~0.000~~ **FIXED** — now 1.000 | was everything; repaired per plant_versions note 8 (pad sites enlarged, meta sensors appended, pad + meta summed on both backends) |
 
-Total floor reaction equals body weight on all four species, so the contacts are real and the
-plants are in equilibrium; these are sensor-scope defects, not physics ones. `aa3395c` fixed the
-raptor site's *size* but not its *body scope*, one repair short of `aa87445`.
-
-The remaining raptor defect does not reach a stage-1 reward term today — its stage-1 config sets
-none of `foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` or
-`foot_load_balance_weight`, and its `gait_symmetry_weight` is 0.0. It does reach the
-**observation**: the raptor's policy sees 55% of true per-foot load. (Brachiosaurus's four
-permanently-zero input channels were revived by the note-8 repair.)
-
-Repair is an MJCF change of the `aa87445` shape — per-geom touch sites and sensors, appended so
-existing sensor indices keep their positions, summed per foot in the SB3 env (for velociraptor the
-frozen MJX registration is not edited, so under D-D17 that policy-interface revision is where it
-declares itself SB3-only, [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1) — and moves that
-species' physics and policy fingerprints. Full evidence, method and reproduction in
+Total floor reaction equals body weight on all four species, so the contacts were real and the
+plants in equilibrium; these were sensor-scope defects, not physics ones. `aa3395c` fixed the
+raptor site's *size* but not its *body scope*; note 14 is the `aa87445`-shaped repair, and since
+the frozen MJX registration cannot sum it (D-D17), the velociraptor declared itself SB3-only in
+the same policy-interface revision ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1).
+The raptor's observation and its `r_foot_contact` / `l_foot_contact` info keys now carry the
+whole foot's load, which its stage-1 support terms read. Evidence, method and reproduction in
 [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
 re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
 
@@ -1311,61 +1312,20 @@ error, touch over-reporting through compsognathus_robot's stacked soles, is unde
 
 ### Velociraptor plant — open (July 2026 raptor review)
 
-**The stance-referenced-spring migration above never reached the raptor.** It
-is the only species still carrying the pre-fix arrangement, and the
-consequences compound. Full evidence and method in
-[reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md).
-**Execution is deferred until the T-Rex clears stages 1–3** on the corrected
-stance (PR #464).
+The review's spring, keyframe, touch-sensor, `natural_pitch` and stage-1
+gate findings are closed by velociraptor physics r3 (D-D25, 2026-10-06;
+`configs/plant_versions.toml` note 14 and the outcome appended to
+[reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md));
+its other findings follow.
 
-| species | \|leg spring torque\| at home | `springref` outside the joint limit |
-|---|---|---|
-| **velociraptor** | **145.21 N·m** | **4 joints** |
-| trex | 0.00 N·m | 0 |
-| brachiosaurus | 0.47 N·m | 0 |
-| dibothrosuchus | 0.00 N·m | 0 |
-
-- **HIGH — stage 1 is already solved by doing nothing.** A zero-action policy
-  scores 1704.93 ± 259.12 at 98% full-horizon survival against
-  `min_avg_reward = 100.0`; it clears the gate **17×** and is promoted into
-  stage 2. Same failure the T-Rex config fixed by re-deriving its gate from the
-  measured statue floor. The reset-noise calibration was not carried over
-  either — the raptor is still at 0.05, measured at 97% statue survival, where
-  0.10 gives 80%. *Config-only fix, no checkpoint cost.*
-  **Update (2026-09-28):** the stage now declares a collapse rail of 1050,
-  0.60× the statue's 1745.8 (`configs/velociraptor/stage1_balance.toml:67`),
-  which the statue still clears by design: it passes the gate on the certified
-  stance's 30 resets (1694 ± 277), and that stance, `20260922_125248`,
-  chatters and slides (the stance-gate HIGH under Training / RL;
-  [gait audit](investigations/GAIT_AUDIT_2026_09.md) §4).
-- **HIGH — the plant does not stand on its actuators.** No raptor leg joint
-  sets `springref`, so the springs are neutral at `qpos = 0` — which is
-  *outside the legal range* for the knee and ankle, making them a permanent
-  one-directional bias rather than a restoring element. Zero-action survival is
-  95% as committed, **0% with the springs deleted, and 0% with the same
-  stiffness anchored at the stance** (falls in ~1.4 s either way). The support
-  comes from the offset, not the stiffness. Deleting the T-Rex's leg springs,
-  by contrast, changes nothing (55% → 55%). Fixing this requires re-sizing the
-  leg actuators at the same time — exactly the pairing the brachiosaurus fix
-  needed.
-- **HIGH — foot touch sensors report 55.6% of transmitted force.** The
-  `r_foot`/`l_foot` sites sit on the `toe_d3` bodies, so digit IV (12.07 N) and
-  the metatarsus (17.36 N) are invisible against 36.79 N sensed of 66.22 N
-  real. This is the *same defect* as the T-Rex foot-contact repair (which was
-  at 77.6%); the raptor is worse and was never brought along. Foot contact is
-  a trained observation.
 - **HIGH (fidelity) — the metatarsus is 78% too long** relative to the femur:
   model MT III/femur 0.741 against 0.416 (Persons & Currie 2016, *Sci Rep*
   6:19828, Table 1, IGM 100/986) and ~0.51 from a second specimen (Norell &
   Makovicky 1999, *AMNH Novitates* 3282). It also bears 26.2% of each foot's
-  load and forms the *rear* edge of the support polygon, so the "digitigrade"
+  load (28% at the physics-r3 stance, which keeps its length) and forms the
+  *rear* edge of the support polygon, so the "digitigrade"
   foot is functionally part-plantigrade. tibia:femur is within 3.6% and correct
   — leave it alone.
-- **MEDIUM — `natural_pitch` is stale by 4.0°.** Configured 0.35, the plant
-  settles at 0.4200. Because the raptor centres its posture reward on that
-  angle, standing naturally costs **~104 reward/episode** (1.745 → 1.850 per
-  step). *Verified free — the plant manifest stays current, so no checkpoint is
-  invalidated.*
 - **MEDIUM — the two claw motors are the only unbounded actuators** in any
   plant (`forcelimited=False`, `gear=50`): 693 N at the claw tip, 5.2× body
   weight, on the geom that scores stage 3. The July 2026 `forcerange` sweep
@@ -1375,11 +1335,6 @@ stance (PR #464).
   near-singular joint, and the raptor env has **no height reward at all** —
   `height` appears in `raptor_env.py` only in the `pelvis_height` diagnostic
   and the shared height/tilt termination, never in a reward term.
-- **Note for the hardware track:** because the springs are load-bearing, the
-  raptor's true actuator requirement is *higher* than its sim actuator forces
-  suggest, which pushes against the torque crux already flagged in
-  [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) §2.1. Magnitude needs
-  the retune; only the direction is known.
 
 > **Note:** these changes alter the physics plant. Policies trained before the
 > change are incompatible by contract, including when a change seems marginal;

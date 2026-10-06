@@ -44,7 +44,7 @@ def test_bundled_runtime_manifest_matches_repository_manifest():
     assert BUNDLED_MANIFEST_PATH.read_bytes() == GENERATED_MANIFEST_PATH.read_bytes()
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot", "velociraptor"])
 def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
     from environments.shared.plant_contract import policy_layer
     from environments.shared.species_registry import get_species_config
@@ -62,19 +62,31 @@ def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
         )
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     assert payload["backend_observation_equal"] is None
-    # 43 / 53 before the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6).
-    assert payload["observation"]["shape"] == [46 if species.endswith("_robot") else 56]
+    # 43 / 53 before the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6);
+    # velociraptor left the frozen MJX core at policy-interface revision 11.
+    expected_width = {"compsognathus": 56, "compsognathus_robot": 46, "velociraptor": 70}[species]
+    assert payload["observation"]["shape"] == [expected_width]
 
 
-def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("species", "action_dim"),
+    [("velociraptor", 22), ("trex", 15), ("compsognathus", 14), ("compsognathus_robot", 12)],
+)
+def test_runtime_identity_falls_back_to_bundled_manifest(species, action_dim, monkeypatch, tmp_path):
+    """The bundled manifest resolves dual-backend and SB3-only species alike.
+
+    It records no training backends, so an SB3-only species (both
+    compsognathus plants, and velociraptor since policy-interface revision 11)
+    must not be checked against the dual-backend default it never declared.
+    """
     monkeypatch.setattr(plant_contract.constants, "SPECIES_MANIFEST_PATH", tmp_path / "missing-species.toml")
     monkeypatch.setattr(plant_contract.constants, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
     monkeypatch.setattr(plant_contract.constants, "GENERATED_MANIFEST_PATH", tmp_path / "missing-manifest.json")
 
-    identity = plant_contract.current_plant_identity("velociraptor")
+    identity = plant_contract.current_plant_identity(species)
 
-    assert identity.species == "velociraptor"
-    assert identity.nu == identity.action_dim == 22
+    assert identity.species == species
+    assert identity.nu == identity.action_dim == action_dim
 
 
 @pytest.mark.parametrize(

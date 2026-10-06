@@ -162,10 +162,65 @@ canonical_mujoco_version = "3.10.0"
 #     profile_sha256 therefore moves and every compsognathus recovery freeze
 #     made before this revision must be re-frozen.
 
+# 14. The velociraptor stands on its servos, on flat toes, and feels its whole
+#     foot.  Four measured defects of the r2 plant, fixed together so the
+#     species' digests move once (D-D25):
+#
+#     a) Every leg spring pulled toward qpos 0.  No leg joint set springref,
+#        and MuJoCo's default is 0, not ref, so the stiffness-20 springs
+#        pulled the settled hip, knee and ankle (34.0 / -45.2 / 80.2 deg)
+#        toward zero with 11.9 / 15.8 / 28.0 N.m, and the statue stood by
+#        spending 10.4 / 15.1 / 34.5 N.m of servo torque mostly cancelling
+#        them.  Every leg joint's springref is now the standing pose.
+#     b) The keyframe kept every leg joint at ref, which tips the toes 20 deg
+#        toe-down: digit 3 sat 44.6 mm inside the floor, and since note 6
+#        every reset settles to the keyframe's own clearance, so every episode
+#        began that deep (reset peak floor force 2.08 BW mean, 2.42 max).  The
+#        ankle and toes now flatten the foot (ankle 100 -> 90.5536 deg, toes
+#        10 -> -0.5536 / 0.6464) while hip 38 and knee -50 keep the CoM over
+#        it -- the hip-18 keyframe alone moves the support 7.6 cm ahead of the
+#        CoM and the statue falls backward in 0.66 s -- and the root sits at
+#        0.505543 m, 0.5 mm of contact as on the T-Rex.
+#     c) Springs anchored at the stance alone make the statue fall: with the
+#        home ctrl at the pose it lands on its body within 1.1-1.34 s on 10 of
+#        10 seeds, because a servo with no error holds no torque, so the
+#        joints sag 3-4 deg and the CoM rolls past the toe tips.  The home
+#        ctrl now carries the gravity preload (ctrl - qpos = hip -0.606, knee
+#        +0.166, ankle +3.206, toe_d3 +2.651, toe_d4 +1.127 deg: tau_g / kp,
+#        with tau_g measured by a near-rigid hold), and the nominal servos --
+#        kp, forcerange and ctrlrange unchanged -- hold it with 1.60 / 0.48 /
+#        5.56 / 2.33 N.m (0.2-5.8% of forcerange), 40/40 even with every leg
+#        spring deleted.  Re-sizing the leg actuators, which
+#        VELOCIRAPTOR_PLANT_REVIEW and KNOWN_ISSUES said this fix required, is
+#        not needed.
+#     d) The foot touch sensor saw digit 3 only, 54% of the foot's floor load;
+#        the rest sits on the metatarsal head and digit 4, other bodies.  Their
+#        touch sites and sensors are APPENDED (sensordata 27-30, right foot
+#        first) so existing indices keep their positions, and the env sums
+#        d3 + metatarsus + d4 per foot: the summed reading equals the floor
+#        force to rel 1e-6.  Observation width is unchanged (70).
+#
+#     Zero action, 40 episodes, noise 0.05, seeds 3042-3081, r2 -> r3: full
+#     horizon 40/40 -> 40/40; settled pitch 24.02 -> 20.10 deg, so the 0.35
+#     rad natural_pitch is right again (it settles at 0.3508); pelvis 0.4932
+#     -> 0.5052 m; reset peak floor force 2.08 / 2.42 -> 1.34 / 1.76 BW (mean
+#     / max); nosedive charge -95.3 -> -3.0 per episode.
+#
+#     PHYSICS moves (springref, key qpos and ctrl, and nsite / nsensor by the
+#     layer's own definition).  The POLICY INTERFACE moves (the home ctrl that
+#     action zero commands, the sensor layout, the observation values), and
+#     with it the backend declaration: the summed foot cannot be mirrored by
+#     the frozen MJX registration (D-D17), so velociraptor is now SB3-only and
+#     environments/velociraptor/mjx_config.py is deleted, as KNOWN_ISSUES and
+#     CLEANUP_PLAN_2026_09 section 4.1 prescribed for this revision.  VISUAL
+#     moves (four group-4 touch sites).  Every velociraptor checkpoint is
+#     invalidated, the certified stance and walker of 20260922_125248
+#     included, and the statue-derived constants in
+#     configs/velociraptor/stage1_balance.toml were re-measured on this plant.
 [plants.velociraptor]
-physics_revision = 2
-policy_interface_revision = 10
-visual_revision = 3
+physics_revision = 3
+policy_interface_revision = 11
+visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
 # 4. The T-Rex theropod stance correction.  The home keyframe stood the animal

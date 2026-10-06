@@ -53,7 +53,9 @@ ROOT = {"dibothrosuchus": "torso", "brachiosaurus": "torso"}  # pelvis elsewhere
 #: Per foot, the support geoms the generic rule takes and the registry drops ...
 GENERIC_ONLY = {
     "trex": ("{s}_metatarsus_geom",),  # the capsule above the plantar box: 0 statue load
-    "velociraptor": (),
+    # Digit II's sickle claw hangs off the metatarsus, a touch-site body since physics r3 (D-D25): it
+    # is held clear of the floor and bears no statue load.
+    "velociraptor": ("{s}_claw_geom",),
     "compsognathus": (),
     "compsognathus_robot": ("{side}_roll_cheek_-1", "{side}_roll_cheek_1"),  # a cheek down is a rolled foot
     "dibothrosuchus": (),
@@ -62,7 +64,9 @@ GENERIC_ONLY = {
 #: ... and the ones the registry adds that the generic rule misses.
 REGISTRY_ONLY = {
     "trex": (),
-    "velociraptor": ("{s}_toe_d4_geom", "{s}_metatarsus_geom"),  # 0.18 and 0.26 of the statue's foot load
+    # Before physics r3 the toe_d3 site was the foot's only touch site, so the generic rule missed digit IV
+    # and the metatarsus (0.18 and 0.26 of the r2 statue's foot load); the r3 sensors made it see both.
+    "velociraptor": (),
     "compsognathus": (),
     "compsognathus_robot": (),
     "dibothrosuchus": (),
@@ -191,7 +195,8 @@ def test_an_alias_reaches_the_registry_and_an_unknown_name_gets_the_generic_rule
     assert Morphology.from_env(env, "raptor").registry_entry is SUPPORT_REGISTRY["velociraptor"]
     unknown = Morphology.from_env(env, "not-a-species")
     assert unknown.species == "not-a-species" and unknown.registry_entry is None
-    assert [len(foot.support_geoms) for foot in unknown.feet] == [1, 1]  # toe_d3 alone
+    # Digit III, digit IV, the metatarsus and the claw it carries: the touch-site bodies since physics r3.
+    assert [len(foot.support_geoms) for foot in unknown.feet] == [4, 4]
 
 
 def test_building_a_morphology_leaves_the_env_untouched(stance_env):

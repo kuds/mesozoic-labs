@@ -86,14 +86,17 @@ class FootRegistryEntry:
 #: * ``trex`` drops ``{s}_metatarsus_geom``, the capsule above the plantar
 #:   box: it carries 0 load in the statue, and as a REQUIRED support geom it
 #:   would fail every statue's coverage.
-#: * ``velociraptor`` adds ``{s}_toe_d4_geom`` and ``{s}_metatarsus_geom`` to
-#:   the ``{s}_toe_d3_geom`` the generic rule finds (the only touch sensor is
-#:   on d3): the statue stands on d3 / d4 / metatarsus at 0.557 / 0.182 /
-#:   0.261 of each foot's load.  It has no sole (capsules only).  The d2
-#:   sickle claw ``{s}_claw_geom`` is contype/conaffinity 2/2 against the
+#: * ``velociraptor`` drops ``{s}_claw_geom``, digit II's sickle claw.  Since
+#:   physics r3 the metatarsus, digit III and digit IV each carry a touch site,
+#:   so the generic rule finds all three support geoms, and with them the claw
+#:   that hangs off the metatarsus: it is contype/conaffinity 2/2 against the
 #:   floor's 1/1, so it never touches the floor and is not support.  The
-#:   reference site is pinned to ``{s}_foot`` so the planned sensor revision,
-#:   which adds metatarsus and d4 touch sensors to the groups, cannot move it.
+#:   statue stands on d3 / d4 / metatarsus at 0.540 / 0.176 / 0.284 of each
+#:   foot's load.  It has no sole (capsules only).  The reference site is
+#:   pinned to ``{s}_foot``, digit III's, which leads the touch group.  The
+#:   entry predates the r3 sensors, when digit III's site was the foot's only
+#:   one and the generic rule missed digit IV and the metatarsus; pinning the
+#:   support set and the site then is why the r3 sensors moved neither.
 #: * ``compsognathus`` equals the generic answer: plantar pad plus d2-d4.  Its
 #:   metatarsus is a TERMINATING geom (``_body_ground_geoms``), not support.
 #: * ``compsognathus_robot`` drops the two ``{side}_roll_cheek_*`` geoms that

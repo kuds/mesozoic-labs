@@ -496,8 +496,9 @@ pipeline and its notebook, the species ports) and dropped its open items
 (JAX-native SAC, large-scale training experiments) and its exit criteria. The
 removed code is recoverable from the `0.3.8` tag (`afad625`) and git history.
 A frozen MJX interface core stays, unedited, because the policy-interface
-digests of T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus hash it;
-nothing trains on it ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Adding a backend
+digests of T-Rex, Brachiosaurus and Dibothrosuchus hash it (Velociraptor's
+did until it declared itself SB3-only on 2026-10-06, D-D25); nothing trains
+on it ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Adding a backend
 back is a new decision ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md)
 §4.10). The mjlab pilot item was retired unrun by D-D17 as well; its scaffold is
 recoverable from the same tag._

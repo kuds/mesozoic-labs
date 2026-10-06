@@ -255,29 +255,98 @@ class TestNominalPoseActionScaling:
         assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)
 
 
-class TestFootContactSensors:
-    """The foot touch sensors must report real stance contact.
+def _true_floor_force_per_foot(env) -> dict[str, float]:
+    """Sum the real floor normal force under each foot, straight from contacts."""
+    floor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    totals = {"r": 0.0, "l": 0.0}
+    for index in range(env.data.ncon):
+        contact = env.data.contact[index]
+        if floor_id not in (contact.geom1, contact.geom2):
+            continue
+        other = contact.geom2 if contact.geom1 == floor_id else contact.geom1
+        name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, other) or ""
+        side = name[:1]
+        if side in totals:
+            force = np.zeros(6)
+            mujoco.mj_contactForce(env.model, env.data, index, force)
+            totals[side] += float(force[0])
+    return totals
 
-    The raptor is digitigrade: ground force goes through the toe capsules,
-    and a lying capsule contacts the plane near its ENDS. The original
-    r=0.02 touch sites at the toe midpoint missed both end contacts, so
-    both sensors (and the two foot-contact observation dims fed from them)
-    read 0 during normal stance. The sites now envelop the whole toe_d3
-    capsule, and the adjacent-digit contact exclude keeps the reading free
-    of the d3/d4 interpenetration force that would otherwise register even
-    airborne.
+
+#: Each foot's touch sensors, toe d3 first (the pinned summation order).
+FOOT_TOUCH_SENSORS = {
+    "r": ("r_foot_touch", "r_meta_touch", "r_d4_touch"),
+    "l": ("l_foot_touch", "l_meta_touch", "l_d4_touch"),
+}
+FOOT_SUPPORT_GEOMS = {
+    "r": ("r_toe_d3_geom", "r_metatarsus_geom", "r_toe_d4_geom"),
+    "l": ("l_toe_d3_geom", "l_metatarsus_geom", "l_toe_d4_geom"),
+}
+
+
+class TestFootContactSensors:
+    """The foot touch observation must measure the whole foot's floor load.
+
+    The raptor is digitigrade: ground force goes through the toe capsules and
+    the metatarsal head, and a lying capsule contacts the plane near its ENDS.
+    The original r=0.02 toe-d3 sites missed both end contacts and read 0; the
+    enlarged site then read digit 3 alone -- 54% of the floor load, because a
+    touch sensor only sums contacts on geoms of its site's OWN body and the
+    metatarsus and digit 4 are other bodies.  Since physics revision 3 each
+    load-bearing body carries its own sensor and the env sums the three, so
+    these assert against the measured contact forces rather than a threshold.
     """
 
-    def test_sensors_read_ground_force_at_settled_stance(self):
+    def test_every_load_bearing_foot_body_carries_a_touch_sensor(self, env):
+        for side in ("r", "l"):
+            sensor_bodies = set()
+            for name in FOOT_TOUCH_SENSORS[side]:
+                sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                assert sensor_id >= 0, f"missing touch sensor {name}"
+                sensor_bodies.add(int(env.model.site_bodyid[env.model.sensor_objid[sensor_id]]))
+            for geom_name in FOOT_SUPPORT_GEOMS[side]:
+                geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_name)
+                assert int(env.model.geom_bodyid[geom_id]) in sensor_bodies, (
+                    f"{geom_name} bears load on a body with no touch sensor; "
+                    "its contacts would be invisible to the foot-contact signal"
+                )
+
+    def test_foot_sensor_groups_follow_the_sensor_layout(self, env):
+        """Appended sensors keep every older index; each group lists d3 first."""
+        addresses = {
+            name: int(env.model.sensor_adr[mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)])
+            for names in FOOT_TOUCH_SENSORS.values()
+            for name in names
+        }
+        assert env._foot_sensor_groups == (
+            tuple(addresses[name] for name in FOOT_TOUCH_SENSORS["r"]),
+            tuple(addresses[name] for name in FOOT_TOUCH_SENSORS["l"]),
+        )
+        assert env._foot_sensor_groups == ((10, 27, 28), (11, 29, 30))
+
+    def test_sensors_account_for_all_floor_force_at_settled_stance(self):
         env = RaptorEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             info = {}
             for _ in range(200):
-                _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape))
+                _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
                 assert not terminated
-            assert info["r_foot_contact"] > 1.0, "right foot touch sensor dead at stance"
-            assert info["l_foot_contact"] > 1.0, "left foot touch sensor dead at stance"
+
+            truth = _true_floor_force_per_foot(env)
+            assert truth["r"] > 1.0, "right foot carries no measurable load at stance"
+            assert truth["l"] > 1.0, "left foot carries no measurable load at stance"
+            assert info["r_foot_contact"] == pytest.approx(truth["r"], rel=1e-6)
+            assert info["l_foot_contact"] == pytest.approx(truth["l"], rel=1e-6)
+
+            # Guard the specific regression: digit 3 alone must not be
+            # mistaken for the whole foot while the metatarsal head and digit
+            # 4 bear load (at the settled stance it reads about 54%).
+            d3_only = float(env.data.sensordata[env._sensor_r_foot])
+            assert d3_only < 0.7 * truth["r"], (
+                "the metatarsus and digit 4 carry no load at stance, so this test can no longer detect a "
+                "toe-d3-only foot-contact signal"
+            )
         finally:
             env.close()
 
@@ -291,16 +360,17 @@ class TestFootContactSensors:
             mujoco.mj_forward(model, data)
             for _ in range(10):
                 mujoco.mj_step(model, data)
-            for name in ("r_foot_touch", "l_foot_touch"):
-                sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, name)
-                adr = model.sensor_adr[sensor_id]
-                assert data.sensordata[adr] == pytest.approx(0.0, abs=1e-9), (
-                    f"{name} reads force while airborne — the site is summing a self-contact, not ground contact"
-                )
+            for names in FOOT_TOUCH_SENSORS.values():
+                for name in names:
+                    sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                    adr = model.sensor_adr[sensor_id]
+                    assert data.sensordata[adr] == pytest.approx(0.0, abs=1e-9), (
+                        f"{name} reads force while airborne — the site is summing a self-contact, not ground contact"
+                    )
         finally:
             env.close()
 
-    def test_observation_foot_contact_dims_are_live(self):
+    def test_observation_foot_contact_dims_are_the_summed_feet(self):
         env = RaptorEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
@@ -310,5 +380,45 @@ class TestFootContactSensors:
             # foot contacts sit before prey direction (3) + distance (1) + command (3).
             foot_dims = obs[-9:-7]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
+            np.testing.assert_array_equal(foot_dims, np.asarray(env._foot_contact_forces(), dtype=np.float32))
+            assert env.observation_space.shape == (70,)
         finally:
             env.close()
+
+
+class TestNaturalPitchTracksStance:
+    """``natural_pitch`` is a measured constant: the plant's settled lean.
+
+    Posture shaping, the nosedive penalty and nosedive termination are all
+    measured from it, so it must track the stance the plant actually holds.
+    It did not: the r2 plant settled 24.0 deg nose-down against the 0.35 rad
+    (20.05 deg) default, and the statue paid -95 per episode of nosedive
+    charge for standing still.  The r3 keyframe settles at 20.10 deg (0.3508
+    rad over 40 seeds at noise 0.05), so the default is right again; this
+    pins the property, not the literal, so a plant edit that moves the settle
+    has to move ``natural_pitch`` with it.
+    """
+
+    def test_noise_free_statue_settles_at_the_natural_pitch(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            action = np.zeros(env.action_space.shape, dtype=np.float32)
+            for _ in range(600):
+                _, _, terminated, _, info = env.step(action)
+                assert not terminated
+            natural_pitch = math.asin(-env._natural_forward_z)
+            settled_pitch = math.asin(-float(info["forward_z"]))
+            assert abs(settled_pitch - natural_pitch) < 0.01, (
+                f"the statue settles at {settled_pitch:.4f} rad against natural_pitch {natural_pitch:.4f}: "
+                "re-measure natural_pitch for this plant (raptor_env.py default) together with the nosedive "
+                "threshold and stage1_balance.toml's statue-derived constants"
+            )
+            assert natural_pitch == pytest.approx(0.35)
+        finally:
+            env.close()
+
+
+def test_velociraptor_is_sb3_only():
+    """The summed foot cannot be mirrored by the frozen MJX registration (D-D17)."""
+    assert RaptorEnv.supported_training_backends == ("stable-baselines3",)

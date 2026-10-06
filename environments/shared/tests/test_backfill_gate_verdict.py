@@ -64,7 +64,12 @@ TASK_SUCCESS_CURRICULUM: dict[str, Any] = {
 
 
 def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evidence: bool = True) -> Path:
-    """A velociraptor stance directory as a pre-Phase-A run left it: config, handoff pair, evidence."""
+    """A dibothrosuchus stance directory as a pre-Phase-A run left it: config, handoff pair, evidence.
+
+    Dibothrosuchus because its stance still declares ``reward_and_length/v1``, the kind ``--gate current``
+    re-judges this evidence under; the velociraptor stance these tests used moved to ``stance_quality/v2``
+    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.
+    """
     stage_dir = tmp_path / "20260801_120000" / "stage1"
     models = stage_dir / "models"
     models.mkdir(parents=True)
@@ -75,7 +80,7 @@ def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evid
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
-                "species": "velociraptor",
+                "species": "dibothrosuchus",
                 "stage": 1,
                 "name": "Balance",
                 "description": "Stand",
@@ -219,7 +224,7 @@ class TestBackfill:
         verdict = read_gate_verdict(stage_dir)
         assert verdict is not None
         assert verdict["passed"] is True and verdict["failures"] == []
-        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("velociraptor", 1, "stance")
+        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("dibothrosuchus", 1, "stance")
         assert verdict["gate_kind"] == "reward_and_length/v1" and verdict["gate_schema_version"] == 1
         assert verdict["judged_by"] == BACKFILL_JUDGED_BY
         assert verdict["checkpoint"] == "models/best_model.zip"
@@ -266,10 +271,10 @@ class TestBackfill:
 
     def test_gate_current_judges_and_digests_the_checkouts_block(self, tmp_path, caplog):
         """``--gate current``: the re-judge-after-a-threshold-edit path.  The verdict is judged
-        under the checkout's velociraptor stance block (whose floors this evidence does not clear)
+        under the checkout's dibothrosuchus stance block (whose floors this evidence does not clear)
         and records THAT gate — not the block the directory trained under."""
         stage_dir = _stage_dir(tmp_path)
-        current = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
+        current = load_all_stages("dibothrosuchus")[1]["curriculum_kwargs"]
         assert current["gate_kind"] == "reward_and_length/v1"
         assert gate_config_sha256(gate_config_view(current)) != gate_config_sha256(
             gate_config_view(RECORDED_CURRICULUM)
@@ -284,7 +289,7 @@ class TestBackfill:
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
         assert verdict["passed"] is False
         assert any("best model reward 200.00 <" in failure for failure in verdict["failures"])
-        assert "under the checkout's current velociraptor 'stance' gate" in caplog.text
+        assert "under the checkout's current dibothrosuchus 'stance' gate" in caplog.text
         # The recorded block on disk is untouched: only the verdict names the gate judged under.
         recorded = json.loads((stage_dir / "stage_config.json").read_text(encoding="utf-8"))["curriculum"]
         assert recorded == RECORDED_CURRICULUM
@@ -497,7 +502,7 @@ class TestCommandLine:
         assert main([str(stage_dir)]) == 1
         assert "gate_sha256" not in read_gate_verdict(stage_dir)
         assert main([str(stage_dir), "--force", "--gate", "current"]) == 0
-        current = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
+        current = load_all_stages("dibothrosuchus")[1]["curriculum_kwargs"]
         assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(current))
 
     def test_an_unknown_gate_source_is_rejected_by_the_parser(self, tmp_path):

@@ -186,3 +186,16 @@ worth avoiding:
   against 4.6–6.0 kN·steps for the metatarsus across a 15-episode sweep. Enumerate from actual
   contacts instead. This is the same mistake class as the sensor-scope defects above: a
   plausible-looking name filter silently omitting the primary load path.
+
+## 7. Update 2026-10-06: the velociraptor under-read is repaired (appended)
+
+*Appended 2026-10-06; §1–§6 above are unchanged.* §3's defect is fixed by velociraptor physics r3
+(`configs/plant_versions.toml` note 14, decision D-D25): each foot's metatarsus and digit IV carry their own touch
+site and sensor, appended after the existing sensors (sensordata 27–30, the right foot first) so no index moves, and
+the env sums digit III, metatarsus and digit IV per foot, in the observation and in the contact info keys. Rerun with
+`environments/shared/scripts/foot_sensor_report.py`, the velociraptor reads 1.000 of the floor force (was 0.553); the
+summed reading equals the floor force on every loaded substep of 40 statue episodes (1.0000 at four decimals), and
+`test_raptor_env.py` pins it to a relative 1e-6 at a settled stance. The frozen MJX
+registration cannot mirror the sum, so the velociraptor declared itself SB3-only in the same policy-interface
+revision. §5's "latent in reward" no longer holds for it: its stance stage now pays bilateral support on the summed
+reading.

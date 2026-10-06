@@ -726,23 +726,20 @@ class TestSubstepHeightTermination:
 
 
 class TestFootSensorGroupLockstep:
-    """Each species' SB3 _foot_sensor_groups must mirror its frozen MJX registration.
+    """Each dual-backend species' SB3 _foot_sensor_groups must mirror its frozen MJX registration.
 
     The registration (D-D17 frozen core) feeds the plant contract's MJX
     observation probe; if the two declarations drift, the probe and the SB3
     env read different foot sensors.  Built from the registered MJX config, so
-    a new species or an index edit on either side fails here."""
+    a new species or an index edit on either side fails here.  Velociraptor
+    left the frozen core as SB3-only at its policy-interface revision 11
+    (plant_versions note 14), when its foot groups gained the metatarsus and
+    digit-4 sensors its registration never had."""
 
     @pytest.mark.parametrize(
         "species, env_factory",
         [
             ("trex", lambda: TRexEnv(reset_noise_scale=0.0)),
-            (
-                "velociraptor",
-                lambda: __import__("environments.velociraptor.envs.raptor_env", fromlist=["RaptorEnv"]).RaptorEnv(
-                    reset_noise_scale=0.0
-                ),
-            ),
             (
                 "brachiosaurus",
                 lambda: __import__("environments.brachiosaurus.envs.brachio_env", fromlist=["BrachioEnv"]).BrachioEnv(

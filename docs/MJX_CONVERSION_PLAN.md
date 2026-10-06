@@ -4,7 +4,8 @@
 > the JAX/MJX runtime this plan built (trainer, evaluator, stage writer,
 > notebook, `[jax]` extras and stage tables, CI job); it is recoverable from the
 > `0.3.8` tag (`afad625`) and git history. A frozen MJX interface core stays
-> because four species' policy-interface digests hash it
+> because three species' policy-interface digests hash it (four until the
+> velociraptor declared itself SB3-only on 2026-10-06, D-D25)
 > ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Sections 1–8 describe the original
 > target architecture, not current code.
 

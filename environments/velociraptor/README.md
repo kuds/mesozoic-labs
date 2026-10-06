@@ -55,7 +55,7 @@ python scripts/view_model.py
 ```
 
 This opens a passive viewer. Check that:
-- The raptor settles into a stable crouch
+- The raptor settles into a stable stance, toes flat on the floor
 - No body parts explode or clip through each other
 - The tail oscillates briefly then stabilizes
 
@@ -110,6 +110,23 @@ keyframe: zero commands the standing pose, while -1 and +1 still reach each actu
 piecewise-linear interpolation. The evidence and compatibility rationale are in the
 [Stage-1 basin investigation](../../docs/investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
 
+Since physics r3 (`configs/plant_versions.toml` note 14, decision D-D25) the home keyframe is the standing equilibrium:
+every leg spring is anchored at it (`springref`), the ankle and toes put the toes flat at 0.5 mm of floor contact, and
+the home controls carry the gravity preload, so the nominal leg servos hold the stance (0.2-5.8% of their forcerange)
+with or without the springs, and the statue settles at the 0.35 rad natural lean. Each foot's contact observation is
+the sum of three touch sensors, on the middle toe, the outer toe and the metatarsus, and equals the floor force under
+the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
+interface revision 11; it has no `mjx_config.py`.
+
+### Stance gate
+The stance stage certifies under `stance_quality/v2` (decision D-D25): each episode of the 40-episode panel (seeds
+3042-3081) is classified on floor truth, the floor's normal force under each leg on every physics substep, and the
+stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40). An episode is clean when
+it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded, every support geom of
+each foot (both toes and the metatarsal head) loaded, no splay, drift or chatter and no actuator held at its limit; the
+bars and their measured provenance are in `configs/velociraptor/stage1_balance.toml`. The verdict is the post-stage
+`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation.
+
 ### Reward Components
 
 Reward weights vary by stage. The `[env]` section of each
@@ -117,7 +134,11 @@ Reward weights vary by stage. The `[env]` section of each
 copy numeric weights. Components include locomotion, survival, posture, energy,
 tail stability, approach shaping, target contact, and fall penalties. Posture
 shaping is direction-aware and centred on the raptor's natural forward lean;
-absolute tilt remains the safety signal for termination.
+absolute tilt remains the safety signal for termination. The stance stage also
+pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
+and charges commands parked at their limits and command chatter (action jerk),
+with part of the alive bonus conditioned on support; each is a `RaptorEnv` kwarg
+that is inert at its default and set in `configs/velociraptor/stage1_balance.toml`.
 
 ### Termination Conditions
 - Pelvis height < 0.25m (fallen)

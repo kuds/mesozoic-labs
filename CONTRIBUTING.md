@@ -88,8 +88,8 @@ hooks: no digest hashes a Python file's bytes, and the policy-interface digests
 hash the tokens of named functions only (not comments, docstrings or blank
 lines), which CI's pinned ruff keeps from changing. The one exception is
 the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
-`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the four
-`mjx_config.py` registrations): four species' policy-interface digests hash its
+`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the three
+`mjx_config.py` registrations): three species' policy-interface digests hash its
 function tokens, so `pyproject.toml`'s `[tool.ruff]` `extend-exclude`, with
 `force-exclude`, keeps every ruff run off it (the hooks, CI, and a file named
 on the command line), and `test_plant_contract_frozen_mjx.py` pins the list.
@@ -176,9 +176,9 @@ Follow this checklist:
      (decision D-D17); without the attribute the plant contract treats the
      species as dual-backend and fails with "cannot import MJX plant
      registration"
-   - Do not add an `mjx_config.py`: the four that exist belong to the frozen
+   - Do not add an `mjx_config.py`: the three that exist belong to the frozen
      MJX interface core, which the policy-interface digests of T-Rex,
-     Velociraptor, Brachiosaurus and Dibothrosuchus hash and which is never
+     Brachiosaurus and Dibothrosuchus hash and which is never
      edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
      binding")
 

@@ -28,7 +28,6 @@ from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 DUAL_BACKEND_SPECIES = (
-    pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
     pytest.param(TRexEnv, "trex", id="trex"),
     pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
     pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
@@ -64,5 +63,26 @@ def test_plant_contract_probe_exercises_a_non_zero_command_on_both_backends(env_
             _policy_interface_payload(env.model, env, version, require_backend_parity=True)
         relaxed = _policy_interface_payload(env.model, env, version, require_backend_parity=False)
         assert relaxed["backend_observation_equal"] is False
+    finally:
+        env.close()
+
+
+def test_sb3_only_velociraptor_probe_still_exercises_a_non_zero_command():
+    """The SB3 half of the pin survives the velociraptor's exit from the frozen MJX core.
+
+    Since policy-interface revision 11 (plant_versions note 14) there is no
+    MJX probe to compare against, but the SB3 probe must still inject the
+    non-zero command, or a dropped command slot would hash like a zero one.
+    """
+    expected_tail = np.round(np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float64), 6)
+    env = RaptorEnv(reset_noise_scale=0.0)
+    try:
+        version = load_plant_versions()[1]["velociraptor"]
+        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        sb3_values = np.asarray(payload["observation_probe"]["values"])
+        np.testing.assert_array_equal(sb3_values[-COMMAND_WIDTH:], expected_tail)
+        assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
+        assert payload["backend_observation_equal"] is None
+        np.testing.assert_array_equal(env._command, np.zeros(COMMAND_WIDTH, dtype=np.float32))
     finally:
         env.close()

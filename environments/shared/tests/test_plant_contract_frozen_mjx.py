@@ -1,12 +1,14 @@
 """Pins the frozen MJX interface core (D-D17; docs/CLEANUP_PLAN_2026_09.md §4.1-§4.3).
 
-Nothing trains on MJX, but trex, velociraptor, brachiosaurus and dibothrosuchus
-still declare ``jax-mjx``: their policy-interface digests hash the tokens of the
+Nothing trains on MJX, but trex, brachiosaurus and dibothrosuchus still
+declare ``jax-mjx``: their policy-interface digests hash the tokens of the
 functions below (``action_filter``'s through trex's low-pass filter), and the
 plant contract's MJX probe reads the ``mjx_config`` registrations.
 ``plant_contract --check`` reports an edit as a stale manifest; these pins name
-what moved. Delete this file with the frozen core, once the last of the four
-species has declared itself SB3-only inside a ``policy_interface_revision`` bump.
+what moved. Velociraptor declared itself SB3-only inside its policy-interface
+revision 11 (plant_versions note 14) and its registration was deleted with it.
+Delete this file with the frozen core, once the last of the three species has
+done the same inside a ``policy_interface_revision`` bump.
 """
 
 from __future__ import annotations
@@ -41,7 +43,6 @@ _PROBED |= {"sensor_gyro_start", "sensor_accel_start", "sensor_quat_start"}
 REGISTRATION_KEYS = {
     "trex": _PROBED | {"sensor_foot_aux_indices", "action_filter_cutoff_hz"},
     "brachiosaurus": _PROBED | {"sensor_foot_aux_indices"},
-    "velociraptor": _PROBED,
     "dibothrosuchus": _PROBED,
 }
 
@@ -57,7 +58,9 @@ def test_frozen_function_keeps_its_hashed_tokens(target: str) -> None:
             "trex policy_interface_revision bump and update this pin, otherwise revert the change."
         )
     else:
-        why = "It is frozen by D-D17: its tokens are part of four species' policy-interface digests. Revert the change."
+        why = (
+            "It is frozen by D-D17: its tokens are part of three species' policy-interface digests. Revert the change."
+        )
     assert _callable_semantics(function) == expected, (
         f"environments/shared/{module}.py: {name} was edited, reformatted or moved. {why}"
     )
@@ -91,5 +94,5 @@ def test_ruff_leaves_the_frozen_modules_alone() -> None:
         ruff = tomllib.load(handle)["tool"]["ruff"]
     assert frozen <= set(ruff.get("extend-exclude", ())) and ruff.get("force-exclude") is True, (
         "pyproject.toml's [tool.ruff] must extend-exclude (with force-exclude) the D-D17 frozen modules, "
-        f"{sorted(frozen)}: a formatter or autofix change to them moves four species' policy-interface digests"
+        f"{sorted(frozen)}: a formatter or autofix change to them moves three species' policy-interface digests"
     )

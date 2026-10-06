@@ -10,12 +10,18 @@ import {VELOCIRAPTOR} from '@site/src/data/species';
 
 A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor/stages.toml`) declares three published behaviors on one trunk: `stance` (stand), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
+The stance node certifies stance quality, not reward: since physics r3 its gate is `stance_quality/v2`, which judges
+every episode of a 40-episode panel on the floor's force under each foot (no hop at reset, both feet planted, both
+toes and the metatarsal head loaded, no splay or drift, no actuator held at its limit) and certifies the stance when
+at least 37 of 40 are clean. Velociraptor trains on Stable-Baselines3 only.
+
 <SpeciesCatalog species={VELOCIRAPTOR} />
 
 ## Anatomy
 
 - **Torso** - Elongated body with simplified head/neck
-- **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle, 2 toe digits per leg)
+- **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle, 2 toe digits per leg); since physics r3 the leg springs are anchored at the standing pose and the toes stand flat, so the leg servos hold the stance
+- **Feet** - Touch sensors on both toes and the metatarsus of each foot, summed into one contact reading per foot
 - **Sickle claws** - Actuated claw geom on digit 2 of each foot
 - **Arms** - Stub forelimbs with shoulder pitch/roll actuators
 - **Tail** - 5-segment counterbalance (4 actuated segments)
