@@ -12,8 +12,10 @@ subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
 every gate so that each stage advances on its first evaluation.  They check
 the run's on-disk contract, not learning.
 
-The ladder is velociraptor's: all three of its advancing stages gate on
-``reward_and_length/v1``, which ``--override`` opens.  Compsognathus's stance
+The ladder is dibothrosuchus's: all three of its advancing stages gate on
+``reward_and_length/v1``, which ``--override`` opens (velociraptor's was, until
+its stance moved to ``stance_quality/v2`` with physics r3, decision D-D25: the
+overrides that open a reward gate are keys v2 refuses).  Compsognathus's stance
 node, gated by ``stance_quality/v1``, is run on its own (``--target stance``)
 and judged at the overridden 32-step horizon (cleanup CU-10a):
 ``train_curriculum`` hands ``CurriculumCallback`` the horizon of the
@@ -50,7 +52,7 @@ from environments.shared.stage_manifest import load_stage_manifest, stage_dirnam
 from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SPECIES = "velociraptor"
+SPECIES = "dibothrosuchus"
 SCRIPT = REPO_ROOT / "environments" / SPECIES / "scripts" / "train_sb3.py"
 LABEL = "cli-e2e"
 

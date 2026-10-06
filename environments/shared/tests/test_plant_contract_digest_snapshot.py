@@ -75,7 +75,7 @@ _POSE_REASONS = {
     "compsognathus_robot": {"fallen", "too_high", "excessive_tilt", "body_contact", "nonfinite_state"},
     "dibothrosuchus": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact", "head_contact"},
     "trex": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact"},
-    "velociraptor": {"fallen", "too_high", "excessive_tilt", "tail_contact"},
+    "velociraptor": {"fallen", "too_high", "excessive_tilt", "tail_contact", "body_contact"},
 }
 
 

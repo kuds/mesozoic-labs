@@ -10,7 +10,10 @@
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: firm support for grounded locomotion -->
+    <!-- Leg joints: firm support for grounded locomotion.  The passive spring
+         is anchored at the standing pose by a springref on each leg joint
+         below; it cannot live here because every joint stands at its own
+         angle, and MuJoCo's default springref is 0, not ref. -->
     <default class="leg_joint">
       <joint damping="10.0" armature="0.05" stiffness="20.0"/>
     </default>
@@ -111,30 +114,65 @@
       </body>
 
       <!-- ==================== RIGHT LEG ==================== -->
+      <!--
+      Reading the leg joints.  ``ref``, ``springref`` and the home ``ctrl``
+      name three different poses here, and the difference is deliberate:
+
+        ref        the joint value at which the bodies sit exactly as the
+                   geoms below author them: hip 38, knee -50, ankle 100,
+                   toes 10.  MuJoCo applies the rotation (qpos - ref) and the
+                   observation reports qpos, so ref is left alone; moving it
+                   would re-label every leg angle the policy reads.
+        springref  the standing pose of the home keyframe: hip 38, knee -50,
+                   ankle 90.5536, toe_d3 -0.5536, toe_d4 0.6464.  The leg
+                   spring (stiffness 20, leg_joint class) is therefore
+                   neutral where the animal actually stands.  Before physics
+                   revision 3 no leg joint set one, and the default is 0, not
+                   ref: the springs pulled the settled hip, knee and ankle
+                   (34.0 / -45.2 / 80.2 deg) back toward zero with 11.9 /
+                   15.8 / 28.0 N.m, and the statue stood by spending 10.4 /
+                   15.1 / 34.5 N.m of servo torque mostly cancelling them.
+                   The old keyframe note credited ref with making "joint
+                   springs hold this pose at rest"; ref never moves a spring.
+        home ctrl  carries the load the springs no longer do: each servo is
+                   commanded a small preload past the pose, sized so that its
+                   steady-state error is the gravity torque.  See the
+                   KEYFRAMES block.
+      -->
 
       <body name="r_thigh" pos="0 -0.08 0">
         <!-- Hip: 2 DOF (flexion/extension + abduction) -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"/>
-        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"
+               springref="38"/>
+        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30" springref="0"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
 
         <body name="r_tibia" pos="0.02 0 -0.18">
           <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"/>
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"
+                 springref="-50"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.02 0 -0.2">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"/>
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"
+                   springref="90.5536"/>
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
+            <!-- Metatarsal-head touch volume.  A touch sensor only sums
+                 contacts on geoms of its site's OWN body, and the toes are
+                 child bodies, so r_foot on toe_d3 cannot see this capsule
+                 however large it is made.  At the settled stance the
+                 metatarsal head carries about 28% of the foot's load. -->
+            <site name="r_meta_touch" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.045" group="4"/>
 
             <!-- Toes: 3 separate digits (anatomically correct) -->
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="r_toe_d3" pos="0.06 0 -0.12">
-              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
+                     springref="-0.5536"/>
               <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
                     mass="0.06" material="body_mat"/>
               <!-- Foot contact sensor (on primary weight-bearing digit).
@@ -142,7 +180,10 @@
                    contacts the floor near its ENDS, and a touch sensor only
                    counts contact points inside the site volume. The original
                    r=0.02 sphere at the capsule midpoint missed both end
-                   contacts, so the sensor read 0 during normal stance. -->
+                   contacts, so the sensor read 0 during normal stance.
+                   This digit alone carries about 54% of the foot's load; the
+                   metatarsal-head and digit-4 sensors carry the rest, and the
+                   env sums all three into the one contact value per foot. -->
               <site name="r_foot" pos="0.05 0 0" size="0.08" group="4"/>
               <!-- group="4": sensor volume only — groups 3+ are hidden in
                    default rendering, so the enlarged site doesn't draw as a
@@ -152,9 +193,13 @@
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
             <body name="r_toe_d4" pos="0.06 -0.015 -0.12">
-              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
+                     springref="0.6464"/>
               <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 -0.01 0" size="0.018"
                     mass="0.04" material="body_mat"/>
+              <!-- Digit-4 touch volume, on its own body for the same reason;
+                   it envelops the whole capsule like r_foot does for d3. -->
+              <site name="r_d4_touch" pos="0.04 -0.005 0" size="0.07" group="4"/>
             </body>
 
             <!-- Sickle claw (digit 2) - THE WEAPON -->
@@ -172,26 +217,32 @@
       <!-- ==================== LEFT LEG ==================== -->
 
       <body name="l_thigh" pos="0 0.08 0">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"/>
-        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"
+               springref="38"/>
+        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30" springref="0"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
 
         <body name="l_tibia" pos="0.02 0 -0.18">
           <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"/>
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"
+                 springref="-50"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.02 0 -0.2">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"/>
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"
+                   springref="90.5536"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
+            <!-- Same own-body rationale as r_meta_touch above. -->
+            <site name="l_meta_touch" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.045" group="4"/>
 
             <!-- Toes: 3 separate digits (anatomically correct) -->
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="l_toe_d3" pos="0.06 0 -0.12">
-              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
+                     springref="-0.5536"/>
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
                     mass="0.06" material="body_mat"/>
               <!-- Same coverage and group="4" rationale as r_foot above. -->
@@ -200,9 +251,11 @@
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
             <body name="l_toe_d4" pos="0.06 0.015 -0.12">
-              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"
+                     springref="0.6464"/>
               <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 0.01 0" size="0.018"
                     mass="0.04" material="body_mat"/>
+              <site name="l_d4_touch" pos="0.04 0.005 0" size="0.07" group="4"/>
             </body>
 
             <!-- Sickle claw (digit 2) - THE WEAPON -->
@@ -251,7 +304,12 @@
          excitation (3-4 Hz, full amplitude), so it carries the same 1.5x
          headroom before faster-gait training.
          1.5x keeps impact spikes bounded while leaving gait
-         torques unclipped. See docs/investigations/STAGE2_RECOMMENDATIONS.md R2. -->
+         torques unclipped. See docs/investigations/STAGE2_RECOMMENDATIONS.md R2.
+         Standing costs these servos almost nothing: from the gravity-preloaded
+         home ctrl (see the keyframe) the settled statue holds hip / knee /
+         ankle / toe_d3 at 1.60 / 0.48 / 5.56 / 2.33 N.m, 0.2-5.8% of
+         forcerange, where the pre-r3 stance spent 10.4 / 15.1 / 34.5 / 4.3 N.m
+         fighting springs anchored at qpos 0. -->
     <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" forcerange="-225 225" ctrlrange="-1.0472 1.5708"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
     <position name="r_knee_act" joint="r_knee" kp="180" forcerange="-270 270" ctrlrange="-2.0944 -0.0872"/>
@@ -285,15 +343,21 @@
   <!-- ==================== SENSORS ==================== -->
 
   <sensor>
-    <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
-         accel 3-5, quat 6-9, touch 10-11, ...).  Do not reorder or insert
-         sensors without updating mjx_config.py / obs_functions.py. -->
+    <!-- WARNING: the Python env indexes sensordata by POSITION (gyro 0-2,
+         accel 3-5, quat 6-9, touch 10-11 and 27-30, ...).  Do not reorder or
+         insert sensors without updating RaptorEnv._cache_ids, whose foot
+         sensor groups the plant contract fingerprints. -->
     <!-- IMU-like sensors -->
     <gyro name="pelvis_gyro" site="imu"/>
     <accelerometer name="pelvis_accel" site="imu"/>
     <framequat name="pelvis_orientation" objtype="site" objname="imu"/>
 
-    <!-- Foot contact forces -->
+    <!-- Foot contact forces.  These two see digit 3 ONLY: a touch sensor
+         sums contacts on geoms of its site's own body, and the metatarsus
+         and digit 4 are other bodies.  Alone they read about 54% of the
+         floor load.  The metatarsal-head and digit-4 sensors at the end of
+         this block carry the rest; the env sums d3 + metatarsus + d4 into one
+         contact value per foot, which equals the floor force. -->
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
 
@@ -305,6 +369,13 @@
     <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
     <velocimeter name="tail_tip_linvel" site="tail_tip"/>
     <gyro name="tail_tip_angvel" site="tail_tip"/>
+
+    <!-- Metatarsal-head and digit-4 contact forces (indices 27-30, right
+         foot first).  Appended last so every index above stays put. -->
+    <touch name="r_meta_touch" site="r_meta_touch"/>
+    <touch name="r_d4_touch" site="r_d4_touch"/>
+    <touch name="l_meta_touch" site="l_meta_touch"/>
+    <touch name="l_d4_touch" site="l_d4_touch"/>
   </sensor>
 
   <!-- ==================== CONTACT EXCLUSIONS ==================== -->
@@ -331,24 +402,66 @@
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->
-  <!-- Standing pose with forward-leaning torso (~20 deg pitch), matching
+  <!-- Standing pose with forward-leaning torso (20 deg pelvis pitch), matching
        dromaeosaurid biomechanics: horizontal torso counterbalanced by tail,
-       with COM balanced over the digitigrade feet.
-       Hip ref angles are set to 38 deg (= 18 deg crouch + 20 deg lean
-       compensation) so joint springs hold this pose at rest.
-       Without the keyframe, knee (range -120..-5) and ankle (range 60..160)
-       start at 0 deg which is outside their limits, causing violent
-       constraint-force corrections on the first simulation step. -->
+       with the CoM balanced over flat digitigrade feet and a shallow (0.5 mm)
+       floor contact.  The leg ctrl carries a preload against gravity.
+
+       Leg qpos, in degrees:  hip 38   knee -50       ankle 90.5536
+                              toe_d3 -0.5536   toe_d4 0.6464
+       Leg ctrl, in degrees:  hip 37.3939   knee -49.8339   ankle 93.7599
+                              toe_d3 2.0971    toe_d4 1.7735
+
+       Hip and knee stay at ref (38 = 18 deg of crouch + 20 deg of lean
+       compensation), which is what puts the feet under the CoM: it projects
+       0.05 m inside the floor-contact hull, mid-way along digit 3.  The
+       ankle and toes flatten the foot instead: the pelvis pitch plus every
+       rotation from ref along hip, knee, ankle and toe sums to zero, so
+       digit 3 lies level.  The earlier keyframe kept every joint at ref and
+       stood on toes tipped 20 deg toe-down, 44.6 mm inside the floor, and
+       every reset settles to the keyframe's own clearance.  Re-posing the
+       hip to 18 deg flattens the toes too, but moves the support 7.6 cm
+       ahead of the CoM and the statue falls backward in 0.66 s.  Digit 4 is
+       keyed 1.2 deg toe-down of digit 3: its capsule is 2 mm thinner, so a
+       level digit 4 hovers; 1.2 deg gives each foot d3 / metatarsus / d4
+       loads of 0.272 / 0.141 / 0.087 BW at the settled stance.  Root z
+       0.505543 is the height at which digit 3 and the metatarsal head sit
+       0.5 mm into the floor (digit 4 0.17 mm) at this pose; it is a
+       consequence of the joint values, not an independent choice, and must
+       be re-solved if they change.
+
+       ctrl - qpos is tau_g / kp: the gravity torque each servo must hold,
+       measured with the leg servos temporarily near-rigid (kp x 20), over
+       its kp.  A position servo holds torque only through its error, so
+       with the springs neutral at this pose (see the leg block) a ctrl equal
+       to the pose lets the joints sag 3-4 deg and the statue falls onto its
+       body within 1.1-1.34 s.  Preloaded, the nominal servos hold the pose
+       within 0.1 deg on every leg joint, and still do with every leg spring
+       deleted.
+
+       Under the home controller this settles to 20.10 deg of pelvis pitch
+       (0.3508 rad over 40 seeds at reset noise 0.05) and pelvis 0.5052 m.
+       Those are load-bearing constants elsewhere and must be re-measured
+       together with any edit here, along with the ctrl preload
+       (re-measure tau_g):
+         raptor_env.py  natural_pitch (0.35), the leg_home_pose target (this
+                        key)
+         configs/velociraptor/stage1_balance.toml
+                        the stance-quality weights and min_avg_reward /
+                        collapse_peak_floor (statue-derived)
+       environments/velociraptor/tests/test_static_balance.py
+       (TestHomeKeyframeStance) and test_raptor_env.py
+       (TestNaturalPitchTracksStance) pin them to the settled stance. -->
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.50 0.984808 0 0.173648 0
+         qpos="0 0 0.505543 0.984808 0 0.173648 0
                0 0 0 0 0 0
-               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
-               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
+               0.663225 0 -0.872665 1.580458 -0.009662 0.011282 0
+               0.663225 0 -0.872665 1.580458 -0.009662 0.011282 0
                0 0 0 0"
-         ctrl="0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
-               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
+         ctrl="0.652647 0 -0.869766 1.636419 0.036602 0.030953 0
+               0.652647 0 -0.869766 1.636419 0.036602 0.030953 0
                0 0 0 0
                0 0 0 0"/>
   </keyframe>

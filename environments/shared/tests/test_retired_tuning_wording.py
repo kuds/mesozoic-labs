@@ -11,7 +11,7 @@ MJCF ``vertex`` attributes, the harness's blocked ``ray`` module and the kept
 ``_report_hpt_metrics`` identifier are all lowercase.
 
 Not covered, because each still has a live meaning: JAX and MJX (the frozen MJX
-interface core and the four dual declarations), "sweep" (the probe and noise
+interface core and the three dual declarations), "sweep" (the probe and noise
 sweeps, ``--sweep-noise``) and GCS (the ``/gcs/`` mount detection the trainer
 keeps). Not scanned: ``docs/`` and ``CHANGELOG.md`` (records), the Drive
 summary notebook (§4.9 keeps its reader of legacy sweep directories) and

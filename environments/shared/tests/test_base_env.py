@@ -1079,7 +1079,8 @@ class TestRootTermination:
 
 
 class TestCacheHomeKeyframe:
-    """``_cache_home_keyframe``: the ``home`` keyframe lookup the four dual species' ``_cache_ids`` share."""
+    """``_cache_home_keyframe``: the ``home`` keyframe lookup the trex, velociraptor, brachiosaurus and
+    dibothrosuchus ``_cache_ids`` share."""
 
     _XML = """
     <mujoco>

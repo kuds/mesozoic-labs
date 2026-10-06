@@ -54,7 +54,7 @@ def test_mass_change_changes_physics_without_changing_interface(raptor_layers):
 
 def test_home_control_change_updates_policy_and_physics_fingerprints(raptor_layers):
     source, interface, version, original = raptor_layers
-    changed_source = source.replace('ctrl="0.663225', 'ctrl="0.650000', 1)
+    changed_source = source.replace('ctrl="0.652647', 'ctrl="0.650000', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
 
@@ -233,9 +233,18 @@ def test_biped_policy_contract_records_home_residual_action_mapping(env_class, s
         assert mapping["mode"] == "home-keyframe-residual/v1"
         assert mapping["origin"]["keyframe"] == "home"
         np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
-        assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
-        assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
-        assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
+        implementations = payload["interface_implementations"]
+        if "jax-mjx" in getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")):
+            assert set(implementations["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
+            assert set(implementations["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
+            assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
+        else:
+            # Velociraptor is SB3-only since policy-interface revision 11: the
+            # payload declares the missing backend instead of probing it.
+            assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
+            assert "jax_action_mapping" not in implementations
+            assert set(implementations["home_reset"]) == {"sb3"}
+            assert implementations["supported_training_backends"] == ["stable-baselines3"]
     finally:
         env.close()
 
@@ -289,26 +298,32 @@ def test_human_revision_counters_do_not_change_semantic_fingerprints(raptor_laye
     assert revised == original
 
 
-def test_mjx_probe_rejects_a_registration_with_both_root_bodies(raptor_layers, monkeypatch):
+def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
     """The MJX probe requires exactly one registered root body.
 
     ``build_mjx_observation`` (frozen core) roots on ``torso`` whenever one is
     registered, while the probe takes the root from the observation schema.  A
     biped that also maps a ``torso`` body must fail the probe rather than build
-    its MJX observation from the wrong root.
+    its MJX observation from the wrong root.  Runs on the T-Rex, the biped
+    still registered with the frozen core since the velociraptor left it.
     """
-    source, interface, version, _original = raptor_layers
-    changed_source = source.replace("</worldbody>", '  <body name="torso" pos="0.3 0 1.0"/>\n  </worldbody>', 1)
-    assert changed_source != source
-    model = mujoco.MjModel.from_xml_string(changed_source)
-    registration_module = importlib.import_module("environments.velociraptor.mjx_config")
-    registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
-    if version.species not in registry:
-        importlib.reload(registration_module)
-    registration = dict(registry[version.species])
-    torso_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "torso")
-    registration["body_ids"] = {**registration["body_ids"], "torso": torso_id}
-    monkeypatch.setitem(registry, version.species, registration)
+    interface = TRexEnv(reset_noise_scale=0.0)
+    try:
+        source = (GENERATED_MANIFEST_PATH.parent.parent / "environments/trex/assets/trex.xml").read_text()
+        version = load_plant_versions()[1]["trex"]
+        changed_source = source.replace("</worldbody>", '  <body name="torso" pos="0.3 0 1.5"/>\n  </worldbody>', 1)
+        assert changed_source != source
+        model = mujoco.MjModel.from_xml_string(changed_source)
+        registration_module = importlib.import_module("environments.trex.mjx_config")
+        registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
+        if version.species not in registry:
+            importlib.reload(registration_module)
+        registration = dict(registry[version.species])
+        torso_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "torso")
+        registration["body_ids"] = {**registration["body_ids"], "torso": torso_id}
+        monkeypatch.setitem(registry, version.species, registration)
 
-    with pytest.raises(PlantContractError, match="exactly one root body, 'pelvis'"):
-        _jax_policy_interface_payload(model, interface, version)
+        with pytest.raises(PlantContractError, match="exactly one root body, 'pelvis'"):
+            _jax_policy_interface_payload(model, interface, version)
+    finally:
+        interface.close()

@@ -405,3 +405,15 @@ configured gate, not an invariant cross-reward score.
 Pending a fresh A+B PPO Stage-1 run. Append its run ID, exact commit, selected
 and terminal evaluation distributions, gate outcome, termination mix, and the
 next decision here. Do not rewrite the A-only evidence above.
+
+**Note appended 2026-10-06 (velociraptor physics r3, decision D-D25).** Not the A+B run outcome this section waits
+for; the sections above are unchanged. The plant these runs trained on never set a leg `springref`, so the leg
+springs pulled toward qpos 0, and its keyframe's toes sat 20° toe-down inside the floor; on physics r2, as the July
+plant review measured it ([../reviews/VELOCIRAPTOR_PLANT_REVIEW.md](../reviews/VELOCIRAPTOR_PLANT_REVIEW.md) §3.6),
+the zero-action statue settled at 24.0° of forward pitch (0.42 rad), not at the "supported natural pitch of 0.35 rad
+(about 20°)" the executive summary and Commit B centre posture shaping on. Velociraptor physics r3 (`configs/plant_versions.toml` note 14) anchors the springs at
+the standing pose, flattens the toes and preloads the home ctrl against gravity; its statue settles at 20.10°
+(0.3508 rad), so Commit B's 0.35 target is now the plant's own settle and the statue's nosedive charge falls from
+−95.3 to −3.0 per episode. The plant contract refuses every earlier velociraptor checkpoint, these runs' included; a
+fresh r3 stance certifies under `stance_quality/v2`
+([STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md) §8).

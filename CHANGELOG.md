@@ -104,6 +104,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every Velociraptor checkpoint must be retrained; none can be widened**
+  (Velociraptor physics revision 2 → 3, policy interface revision 10 → 11,
+  visual revision 3 → 4; decision D-D25). The plant contract refuses each
+  recorded Velociraptor checkpoint on its `physics_sha256` and
+  `policy_interface_sha256`, `widen_checkpoint.py` needs the same physics
+  digest, and ancestor reuse refuses every recorded node (its `task_sha256`
+  moved, and stance's `gate_sha256` too), so `TRUNK_FROM = "auto"` finds no
+  Velociraptor trunk: the certified stance and walker of `20260922_125248`
+  and the run `20260929_112244` that reuses that stance start again from a
+  fresh stance, which now certifies under `stance_quality/v2`. The bundles
+  already published stay as they are; the catalog labels their verdicts with
+  the gate they were earned under.
 - **Every T-Rex checkpoint must be retrained; none can be widened**
   (T-Rex physics revision 7 → 8, decision D-D24). Each load path compares
   the checkpoint's recorded `physics_sha256` with the plant's and refuses a
@@ -122,8 +134,167 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The Velociraptor stands on its servos on flat toes, feels its whole foot,
+  leaves the frozen MJX core, and its stance is judged on floor truth**
+  (breaking — plant change, physics revision 2 → 3, policy interface revision
+  10 → 11, visual revision 3 → 4; all existing Velociraptor checkpoints are
+  invalidated; decision D-D25, which the maintainer chose on 2026-10-06). Four
+  measured defects of the r2 plant
+  (`docs/reviews/VELOCIRAPTOR_PLANT_REVIEW.md`, the stance-hack audit's §3.2),
+  fixed in one revision so the species' digests move once
+  (`configs/plant_versions.toml` note 14):
+  every leg spring pulled toward qpos 0, because no leg joint set `springref`
+  (MuJoCo's default is 0, not `ref`), so the stiffness-20 springs pulled the
+  settled hip, knee and ankle with 11.9 / 15.8 / 28.0 N·m and the servos spent
+  10.4 / 15.1 / 34.5 N·m cancelling them; the keyframe kept every leg joint at
+  `ref`, which tips the toes 20° toe-down, digit III 44.6 mm inside the floor,
+  and every reset settles to the keyframe's own clearance (reset peak floor
+  force 2.08 BW mean, 2.42 max); the foot touch sensor saw digit III only, 55%
+  of the foot's floor load; and the r2 statue settled at 24.0°, 4° past
+  `natural_pitch`, paying −95.3 per episode of nosedive charge. In
+  `raptor.xml` every leg joint's `springref` is now the standing pose; the
+  ankle (100 → 90.5536°) and toes (10 → −0.5536 / 0.6464°) flatten the foot
+  while hip 38° and knee −50° keep the centre of mass over it, with the root
+  at 0.505543 m (0.5 mm of contact, the T-Rex convention). Re-posing the hip
+  instead, to the 18° crouch the keyframe comment named (38° = 18° + 20° of
+  lean), flattens the toes but moves the support 7.6 cm ahead of the centre of
+  mass: the statue falls backward in 0.66 s on 10 of 10 seeds, still with the
+  legs held near-rigid (kp × 20 and × 100), so it is geometry, not servo
+  strength. Springs anchored at the stance are not enough on their own either:
+  with the home ctrl at the pose the statue lands on its body within 1.1–1.34
+  s on 10 of 10 seeds, because a servo with no error holds no torque, so the
+  joints sag 3–4° and the centre of mass rolls past the toe tips. The home
+  ctrl therefore carries the gravity preload (ctrl − qpos = hip −0.606°, knee
+  +0.166°, ankle +3.206°, digit III +2.651°, digit IV +1.127°: the gravity
+  torque of a near-rigid hold over kp), and the nominal servos, kp, forcerange
+  and ctrlrange unchanged, hold the pose with 1.60 / 0.48 / 5.56 / 2.33 N·m
+  (0.2–5.8% of forcerange), on 40 of 40 episodes even with every leg spring
+  deleted (r2: 0 of 20). The review's "re-size the leg actuators at the same
+  time" is not needed. Metatarsus and digit-IV touch sites and sensors are
+  appended (sensordata 27–30, right foot first), so existing indices hold and
+  the appended sensors alone move no dynamics (max |dq| = 0 over 2000
+  perturbed steps); the env sums digit III, metatarsus and digit IV per foot
+  (`_foot_sensor_groups`, and `_get_obs` through `_foot_contact_forces()`),
+  and the summed reading equals the floor force (`foot_sensor_report.py`:
+  0.553 → 1.000). Observation 70 and action 22 are unchanged.
+  The summed foot cannot be mirrored by the frozen MJX registration, which
+  D-D17 never edits, so the Velociraptor leaves the core inside this
+  policy-interface revision, as KNOWN_ISSUES and
+  `docs/CLEANUP_PLAN_2026_09.md` §4.1 prescribed:
+  `RaptorEnv.supported_training_backends = ("stable-baselines3",)`,
+  `training_backends = ["stable-baselines3"]` in
+  `configs/species_manifest.toml` (its two JAX/MJX success metrics go), and
+  `environments/velociraptor/mjx_config.py` is deleted with its
+  `pyproject.toml` ruff exclusion. Three species (trex, brachiosaurus and
+  dibothrosuchus) stay on the core; §4.1's batched checklist (one base
+  `_scale_action` and `_get_obs`, the midpoint mapping and the reset height
+  channel) is not part of this revision.
+  Zero action, 40 episodes, reset noise 0.05, seeds 3042–3081, r2 → r3: full
+  horizon 40/40 → 40/40; settled pitch 24.02° → 20.10° (0.3508 rad, so the
+  0.35 `natural_pitch` default is right again, now pinned by a freshness
+  test); pelvis 0.4932 → 0.5052 m; reset peak floor force 2.08 / 2.42 → 1.34 /
+  1.76 BW (mean / max; noise-free 2.26 → 1.01); nosedive charge −95.3 → −3.0
+  per episode; reward at the old weights 1745.8 → 1845.9.
+  The stance task (`configs/velociraptor/stage1_balance.toml` `[env]`) takes
+  five reward terms through eight new `RaptorEnv` kwargs with the `TRexEnv`
+  names, inert at their
+  defaults (there the new code's reward, its 19 components and qpos are
+  bitwise equal to the old code's over 800 steps, measured on r2):
+  `support_conditioned_alive_fraction = 0.2`, `bilateral_support_weight = 0.5`
+  at `foot_contact_saturation_force = 50.0` N (floor-true since the sensor
+  sum), `leg_home_pose_weight = 0.5` at `leg_home_pose_tolerance = 0.20` rad
+  (the keyframe is now the standing equilibrium), `action_saturation_weight =
+  0.5` at `action_saturation_threshold = 0.9`, and `action_jerk_weight = 1.0`
+  (computed before smoothness), with reward keys `reward_bilateral_support`,
+  `reward_leg_home_pose`, `reward_action_jerk` and `reward_action_saturation`
+  and their info keys. The statue stays the reward optimum (2842.8 ± 2.6 of a
+  2850 ceiling, every new term at its maximum). Re-scored from replays of the
+  audited stance `20260922_125248` (robust_best and final, on the r2 plant
+  they load on), which gained 53.5 and 58.2 per episode over the r2 statue by
+  escaping its nosedive charge, the terms price the least-priced episode 876
+  and 724 below the r3 statue, and each family alone prices it above that
+  gain; jerk is a guard against command chatter only (9.3 and 4.7). At
+  initialisation the penalties cost 0.70 per step, 40% of the 1.75 alive
+  bonus. The gait plan's metatarsus penalty is not used: the r3 statue carries
+  28% of each foot's load on the metatarsal head; nor is `foot_load_balance`,
+  since the bilateral term already pays the weaker foot.
+  `leg_home_pose_error` is one of the keys that switch on stance diagnostics,
+  so training logs and evaluation metrics now report them for the
+  Velociraptor (reporting only).
+  The stance gate moves from `reward_and_length/v1`, which the statue cleared
+  by design and which certified the audited crouch, to the floor-truth
+  `stance_quality/v2` (D-D23), the second stage to adopt it: the clean-episode
+  bound ≥ 0.80 over the 40-episode panel, `settle_steps` 100 (measured: both
+  feet down by step 5, floor force settled by step 15), every required bar
+  (`min_foot_load_share` 0.40, settle airborne substeps 0, settle peak 2.0 BW,
+  saturation 0.10), the flatness bars of a foot with no box sole
+  (`min_support_geom_duty` 0.50 and `min_support_geom_coverage` 0.80: digit
+  III, digit IV and the metatarsal head each loaded), the settle width change
+  ≤ 0.05 m, the load share ≥ 0.80 of the statue's, four guards and the rails
+  (full horizon ≥ 95%, reward ≥ 1710 and ≥ 0.60 of the statue panel each
+  report rolls). `min_avg_episode_length` stays in the file as a superseded
+  record (v2 refuses the key). The foot bars and the settle peak sit mid-gap
+  between the statue and the audited hacks: first set just under the statue's
+  worst (duty 0.90, coverage 0.95, peak 1.5 BW), they refused the statue with
+  N(0, 0.03) command jitter on 24–27 of 40 episodes, at 98.5% of its reward,
+  because its lightly loaded digit IV unloads on part of the window, a loss
+  no reward term sees; at the committed bars the jittered statue is clean on
+  40/40 at every sigma from 0.02 to 0.05. Validated through the report path,
+  verdicts re-derived from the CSVs: the r3 statue is clean on 40/40 (bound
+  0.928), on 80/80 more seeds, on 40/40 of a third block rolled after
+  calibration and on 200/200 fresh seeds; the
+  audited stance's two checkpoints, rolled on the r2 plant with the block
+  swapped in, are clean on 0/40 each, every unclean episode failing at least 9
+  (robust_best) and 6 (final) bars, and saturation, the settle bars, the foot
+  bars and the width bar each refuse every one of their episodes alone; the r2
+  statue is clean on 40/40. The committed stage also passed the post-stage
+  pipeline end to end with the r3 statue as a scripted checkpoint (report,
+  judge, `gate_verdict.json`, publication's re-derivation, backfill; the stage
+  declares no probes). Panels, per-bar counts and margins are in the dated §8
+  appended to `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`.
+  Statue constants re-measured on r3: stance 2842.76 ± 2.62
+  (`zero_action_baseline.py velociraptor --episodes 40 --seed 3042`; the v2
+  report's own statue panel agrees), so `min_avg_reward` 1050 → 1710 and
+  `collapse_peak_floor` 1300 → 2130 (0.75 ×, still absolute), with
+  `collapse_peak_floor_reference = 2842.8` and
+  `statue_constants_physics_revision = 3` recorded beside them, so the
+  freshness test fails a later physics bump that forgets to re-measure the
+  statue (the explicit floor still wins over the reference); locomotion and
+  strike carry placeholder rails and no statue-derived constant, and neither
+  do the 11 recipes. Unchanged: kp, forcerange and ctrlrange, the joint ranges
+  and `ref`, `natural_pitch`, the claw motors, the locomotion, strike and
+  recipe `[env]` blocks, the reset draw stream and every other species.
+  Records: note 14, both plant manifests and the species catalog (the
+  Velociraptor stand is published as `stance_quality/v2`, and its JAX/MJX
+  success lines go); the phase-C reset golden holds no Velociraptor capture
+  and does not move; KNOWN_ISSUES closes the foot-sensor entry and deletes
+  the stage-1 gate, spring, touch-sensor, natural-pitch and hardware-note
+  items; `docs/PLANT_CONTRACT.md` counts
+  three dual-backend species; the cleanup plan's §4.1 and §4.2 and the gait
+  plan (its §13) take dated amendments, and NEXT_STEPS's Velociraptor rows say
+  what the revision strands.
+  Digest golden (656 → 649 lines): every moved line is a Velociraptor line —
+  plant `physics_revision`, `physics_sha256`, `policy_interface_revision`,
+  `policy_interface_sha256`, `visual_revision`, `visual_sha256` and
+  `source_closure_sha256`; policy `WHOLE`, `action_mapping`,
+  `backend_observation_equal`, `dimensions`, `interface_implementations`,
+  `jax_interface`, `observation_probe`, `observation_segments`, `sensors`,
+  `sites`, `interface_implementations.home_reset` and
+  `interface_implementations.sb3_observation`, with the eight
+  `jax_interface.*` lines and `interface_implementations`'
+  `backend_neutral_observation`, `jax_action_mapping` and
+  `jax_observation_callers` gone and
+  `interface_implementations.sb3_sensor_cache`,
+  `interface_implementations.supported_training_backends`,
+  `jax_interface.backend` and `jax_interface.supported` added (the SB3-only
+  payload); stage `task_sha256`, `stage_config_view_sha256.PPO` and
+  `stage_config_view_sha256.SAC` of stance, locomotion and behavior, and
+  stance `gate_sha256`; the 11 behavior recipes' `task_sha256`; and `summary`,
+  `poses`, `shape_sha256` and `rounded_values_sha256` of the three
+  Velociraptor reward stages (`poses` because the neck-low state probe now
+  ends on `body_contact`, which the golden structure test admits).
 - **T-Rex hip-roll servos sized for the plant's mass, with the stance task
-  and gate revised on the new plant** (breaking — plant change, physics
+  and gate revised on the new plant** (#600; breaking — plant change, physics
   revision 7 → 8; all existing T-Rex checkpoints are invalidated; decision
   D-D24, which the maintainer chose on 2026-10-06). `trex.xml`'s
   `r/l_hip_roll_act` go kp 150 → 600 and forcerange ±120 → ±480 N·m,
@@ -686,6 +857,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **`environments/velociraptor/mjx_config.py`, the Velociraptor's frozen
+  MJX registration** (decision D-D25, 2026-10-06), with its `pyproject.toml`
+  ruff exclusion: the Velociraptor is SB3-only since its policy interface
+  revision 11 (the Velociraptor entry under Changed).
 - **The five numeric `command_*` kwargs, `SB3_COMMAND_REFUSAL`,
   `behavior_identity`, `canonical_env_parameters`,
   `sampler_source_identity`, `BEHAVIOR_IDENTITY_SCHEMA` and
@@ -714,6 +889,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **The bundled plant manifest resolves an SB3-only species** (with the
+  Velociraptor revision, decision D-D25, 2026-10-06). When the repository's
+  species manifest is absent, `current_plant_identity` builds the species
+  entries from the bundled `plant_manifest.generated.json`, which records no
+  training backends, and checked each environment against the dual-backend
+  default it never declared, so an SB3-only species raised "backends
+  differ": both compsognathus plants did, untested. A bundled entry now
+  declares none (`training_backends = None`) and the environment's own
+  `supported_training_backends` stands
+  (`plant_contract/versions.py`, `manifest.py`); neither file feeds a
+  digest, and `test_runtime_identity_falls_back_to_bundled_manifest` covers
+  velociraptor, trex and both compsognathus plants.
 - **The command-line curriculum judges a `stance_quality/v1` stage at an
   overridden `env.max_episode_steps`** (#587, cleanup CU-10a of
   `docs/CLEANUP_PLAN_2026_09.md`, 2026-10-02; §3.2 CU-10 row).

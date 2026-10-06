@@ -15,6 +15,10 @@ other decisions, GQ-6 and GQ-7 for locomotion and recovery included, stay open (
 *Updated 2026-10-06: the maintainer took D-D24 the same day: the T. rex plant revision (physics r8) lands with a
 revised stance task and the T. rex stance on `stance_quality/v2`, which overtakes GQ-12's keep-v1 for the trex stance
 and §5.4's trex `TRUNK_FROM` (§12, the dated amendment).*
+*Updated 2026-10-06: and D-D25: the velociraptor plant revision (physics r3, with the foot-sensor repair §9 left out
+of this plan) and its SB3-only exit land with a revised stance task and the velociraptor stance on
+`stance_quality/v2`, which strands the genuine velociraptor walker GQ-10 and GQ-11 protect (§13, the dated
+amendment).*
 
 ## How to use this document
 
@@ -652,3 +656,39 @@ statue clean on 40/40 and the four audited r7 stance checkpoints on 0/40 each, i
   they are not §5.3's shared kit.
 - **GQ-17.** The trex now needs a stance retrain (two seeds at today's `certification_seeds`) before any trex walk;
   the order of the retrains stays the maintainer's.
+
+## 13. Amendment (2026-10-06): the velociraptor plant revision and its stance on the floor-truth gate
+
+*Appended 2026-10-06; §1–§12 above are unchanged.* The maintainer chose on 2026-10-06, in the session that
+commissioned the stance work, to land the velociraptor plant revision now (physics r2 → r3, policy interface r10 →
+r11, visual r3 → r4; `configs/plant_versions.toml` note 14): the leg springs anchored at the standing pose, a
+flat-footed keyframe whose home ctrl carries the gravity preload, and the metatarsus and digit-IV touch sensors summed
+with digit III's per foot. The summed foot is what the frozen MJX registration cannot mirror, so the velociraptor
+declares itself SB3-only inside the same revision. The stance task is revised and the velociraptor stance adopts
+`stance_quality/v2`: decision D-D25 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the consolidation
+plan's table). The validation, the r3 statue clean on 40/40 and the two audited checkpoints of the
+`20260922_125248` stance on 0/40 each, is the dated §8 appended to
+[investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md).
+
+**What changes in the plan.**
+
+- **§9, the velociraptor foot sensor.** The repair this plan left out is done, inside the velociraptor's own plant
+  revision rather than as a prerequisite of floor truth, which it never was: the summed touch now equals the floor
+  force under each foot (1.000 against digit III's 0.553), so the velociraptor's touch-based support terms are
+  floor-true without GQ-6 (a)'s `support_source` kit. Touch stays in the observation, as GQ-6 says.
+- **GQ-10 and GQ-11, for the velociraptor.** GQ-10 (a) puts a species' stance on v2 only inside a revision that
+  retrains that chain; D-D25 is such a revision, and it accepts the cost GQ-10 names: the plant contract refuses
+  every r2 velociraptor checkpoint, so the genuine run of `20260922_125248` (and `20260929_112244`, which reuses its
+  stance) is stranded rather than re-panelled. GQ-11 (a)'s re-panel can no longer re-certify that walker on the
+  current plant; it stays the answer for the compsognathus walker, and the velociraptor walk is re-earned from a fresh
+  r3 stance.
+- **PR-G5, its calibration.** `locomotion_gait/v1` was to be calibrated on both genuine walkers. The velociraptor
+  walker's replays (`docs/investigations/gait_2026_09/gait_probe.py` reads recorded checkpoints and needs their plant)
+  now run only in a checkout of a commit before D-D25, on the r2 plant; the numbers in §4.3 stand as r2 evidence.
+- **§5.4's optional velociraptor stance row.** Taken inside D-D25 with velociraptor-only `RaptorEnv` kwargs named as
+  the T. rex's (bilateral support 0.5 at 50 N, support-conditioned alive 0.2, the home leg pose 0.5, action
+  saturation 0.5 at 0.9, action jerk 1.0), not §5.3's shared kit. The row's flight term is not used and neither is
+  its metatarsus penalty: the r3 statue carries 28% of each foot's load on the metatarsal head, so the penalty would
+  charge the optimum, and the stance gate's support-geom duty and coverage bars require that load instead.
+- **GQ-17.** The velociraptor now needs a stance retrain before any velociraptor walk; the order of the retrains
+  stays the maintainer's.

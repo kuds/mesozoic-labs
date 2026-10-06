@@ -60,6 +60,7 @@ specialty = "Sickle-claw contact attacks"
 aliases = ["raptor"]
 env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"
 model_path = "environments/velociraptor/assets/raptor.xml"
+training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = [
     "results/velociraptor/ppo/summary.json",
@@ -72,18 +73,12 @@ key = "strike_success"
 label = "Sickle-claw contact success"
 definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
 
-[[species.success_metrics]]
-backends = ["jax-mjx"]
-key = "strike_proximity_success"
-label = "Sickle-claw proximity success"
-definition = "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
-
 [[species.deliverable_metrics]]
 deliverable = "stand"
 backends = ["stable-baselines3"]
-key = "stance_reward_rail"
-label = "Reward-gated stance (reward_and_length/v1)"
-definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a foot-sensor repair (the single toe site reads about 55% of true load) (plan §4.8)."
+key = "stance_quality"
+label = "Stance quality (stance_quality/v2)"
+definition = "The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, both toes and the metatarsal head of each foot loaded, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.deliverable_metrics]]
 deliverable = "walk"
@@ -98,13 +93,6 @@ backends = ["stable-baselines3"]
 key = "strike_success"
 label = "Sickle-claw contact success"
 definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
-
-[[species.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["jax-mjx"]
-key = "strike_proximity_success"
-label = "Sickle-claw proximity success"
-definition = "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
 
 [[species.stage_videos]]
 stage = "stance"

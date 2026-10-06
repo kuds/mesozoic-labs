@@ -68,23 +68,23 @@
         "nu": 22,
         "dynamic_mass_kg": 13.5,
         "plant_contract": {
-          "bundle_sha256": "sha256:d8233f1438407a3b6ecf50b9618c5c85d302b4bf4a3489677cfe9ca2fb4df617",
-          "source_closure_sha256": "sha256:ae2ebacf577a7247484e8954fecce421b007246ead904a83ce319babb1efdec5",
+          "bundle_sha256": "sha256:9613551609c778a5a130aa5f2d71ce19994587fcc8392845ea65579da36a7e70",
+          "source_closure_sha256": "sha256:f77b21bbe35c938d267224a3b5e773b3d2d1174023086c35725cec1d723447f5",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 10,
+            "revision": 11,
             "observation_schema": "bipedal-target/v1",
-            "sha256": "sha256:b088792969513e80db841d9325d0b73ba8db7b8fcbc3ccd5b6cd7e92cedae03c"
+            "sha256": "sha256:f1225162483ec0e000baa619ffaea6165f4214e5884d01503bff62c8be946b6f"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
-            "revision": 2,
-            "sha256": "sha256:c10e6102bbe0a5ca0fc4a33e439f8e199704bbf4c27e922796787da736b65352"
+            "revision": 3,
+            "sha256": "sha256:841b2c09f789da2addf3abfddd3895ab2746642acf191a2701c49c7700294b91"
           },
           "visual": {
             "schema": "mesozoic.mujoco-visual/v1",
-            "revision": 3,
-            "sha256": "sha256:eb92e0ba239ec53fe4d611f9e5eae287bc765557d6f68be04f49ea94e2c9910c"
+            "revision": 4,
+            "sha256": "sha256:1bf2430b170ed55f545d5e7f58ca370d21c7352db108e9fc826f9e907ff11ea2"
           }
         }
       },
@@ -99,14 +99,6 @@
           "key": "strike_success",
           "label": "Sickle-claw contact success",
           "definition": "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
-        },
-        {
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "strike_proximity_success",
-          "label": "Sickle-claw proximity success",
-          "definition": "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
         }
       ],
       "deliverable_metrics": [
@@ -116,9 +108,9 @@
           "backends": [
             "stable-baselines3"
           ],
-          "key": "stance_reward_rail",
-          "label": "Reward-gated stance (reward_and_length/v1)",
-          "definition": "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a foot-sensor repair (the single toe site reads about 55% of true load) (plan §4.8)."
+          "key": "stance_quality",
+          "label": "Stance quality (stance_quality/v2)",
+          "definition": "The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, both toes and the metatarsal head of each foot loaded, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
         },
         {
           "deliverable": "walk",
@@ -139,16 +131,6 @@
           "key": "strike_success",
           "label": "Sickle-claw contact success",
           "definition": "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "strike_proximity_success",
-          "label": "Sickle-claw proximity success",
-          "definition": "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
         }
       ],
       "stages": [
@@ -167,13 +149,13 @@
           "recipe": "stand",
           "certification_seeds": 1,
           "advancement_gate": {
-            "gate_kind": "reward_and_length/v1",
+            "gate_kind": "stance_quality/v2",
             "pending_gate_kind": null,
-            "min_avg_reward": 1050.0,
-            "min_avg_episode_length": 950,
+            "min_avg_reward": 1710.0,
+            "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,
             "min_success_rate": null,
-            "min_full_horizon_fraction": null,
+            "min_full_horizon_fraction": 0.95,
             "max_unsupported_duty": null,
             "max_unsupported_duty_ucb": null,
             "min_recovery_success_lcb": null,
@@ -181,8 +163,30 @@
             "recovery_t_recover_steps": null,
             "recovery_dwell_steps": null,
             "min_success_lcb": null,
-            "min_eval_episodes": 10,
-            "required_consecutive": 3
+            "min_eval_episodes": 40,
+            "required_consecutive": 3,
+            "max_actuator_saturation_fraction": 0.1,
+            "max_foot_contact_fraction": 0.02,
+            "max_nonfoot_load_fraction": 0.01,
+            "max_phantom_support_fraction": 0.05,
+            "max_settle_airborne_substeps": 0,
+            "max_settle_peak_floor_force_bw": 2.0,
+            "max_settle_stance_width_change_m": 0.05,
+            "max_sole_corner_lift_m": null,
+            "max_sole_tilt_deg": null,
+            "max_sole_tilt_excess_deg": null,
+            "max_touchdown_rate": 0.25,
+            "max_window_displacement_m": 0.1,
+            "min_all_feet_support": 0.98,
+            "min_avg_reward_statue_ratio": 0.6,
+            "min_clean_stance_lcb": 0.8,
+            "min_foot_load_share": 0.4,
+            "min_foot_load_share_statue_ratio": 0.8,
+            "min_foot_load_share_windowed": 0.35,
+            "min_sole_contacts": null,
+            "min_support_geom_coverage": 0.8,
+            "min_support_geom_duty": 0.5,
+            "settle_steps": 100
           },
           "video": {
             "path": "/videos/velociraptor_ppo_stage1_best.mp4",
@@ -330,7 +334,7 @@
               "training_time": "2:57:25",
               "stage_passed": true,
               "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
+              "current_gate_kind": "stance_quality/v2",
               "gate_retired": true
             },
             {
@@ -421,7 +425,7 @@
               "training_time": "5:08:59",
               "stage_passed": true,
               "gate_kind": null,
-              "current_gate_kind": "reward_and_length/v1",
+              "current_gate_kind": "stance_quality/v2",
               "gate_retired": true
             },
             {

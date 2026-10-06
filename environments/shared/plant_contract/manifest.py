@@ -87,8 +87,10 @@ def _manifest_entry_for_identity(
     env_class = _load_environment(str(entry["env_entrypoint"]))
     env = env_class(reset_noise_scale=0.0)
     try:
-        declared_backends = set(entry.get("training_backends", ("stable-baselines3", "jax-mjx")))
         implemented_backends = set(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
+        declared = entry.get("training_backends", ("stable-baselines3", "jax-mjx"))
+        # None: a bundled-manifest entry, which carries no declaration to check.
+        declared_backends = implemented_backends if declared is None else set(declared)
         if declared_backends != implemented_backends:
             raise PlantContractError(f"{species} manifest/environment training backends differ")
         model = env.model
@@ -323,8 +325,11 @@ def _policy_interface_unchanged(entry: Mapping[str, Any], version: PlantVersion,
             _semantic_digest(POLICY_INTERFACE_SCHEMA, payload) == identity.policy_interface_sha256
             and int(np.prod(env.observation_space.shape)) == identity.observation_dim
             and int(np.prod(env.action_space.shape)) == identity.action_dim
-            and set(entry.get("training_backends", default))
-            == set(getattr(env, "supported_training_backends", default))
+            and (
+                entry.get("training_backends", default) is None
+                or set(entry.get("training_backends", default))
+                == set(getattr(env, "supported_training_backends", default))
+            )
         )
     except Exception:
         return False

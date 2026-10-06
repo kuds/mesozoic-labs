@@ -10,7 +10,7 @@ Observation space (total dimension is generated in the public species catalog):
     - Pelvis angular velocity (gyroscope) — 3
     - Pelvis linear velocity — 3
     - Pelvis acceleration — 3
-    - Foot contact states — 2
+    - Foot contact — 2 (per-foot sum of the toe d3, metatarsus and toe d4 touch sensors)
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
@@ -30,7 +30,8 @@ Reward components:
     - Forward velocity
     - Backward velocity penalty
     - Drift penalty (horizontal displacement from spawn)
-    - Alive bonus
+    - Alive bonus (optionally conditioned in part on bilateral support)
+    - Bilateral support (load on the weaker-loaded foot)
     - Fall penalty
     - Energy penalty
     - Tail stability
@@ -42,6 +43,9 @@ Reward components:
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
+    - Action jerk (penalize the second difference of actions, i.e. chatter)
+    - Action saturation (penalize commands parked at their range limits)
+    - Leg home pose (soft retention of the home keyframe leg stance)
     - Spin penalty (penalize pelvis angular velocity)
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
@@ -59,11 +63,27 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.reward_functions import (
+    reward_action_saturation as _reward_action_saturation_pure,
+)
+from environments.shared.reward_functions import (
+    reward_bilateral_support as _reward_bilateral_support_pure,
+)
+from environments.shared.reward_functions import (
+    reward_soft_home_pose as _reward_soft_home_pose_pure,
+)
 
 
 class RaptorEnv(BaseDinoEnv):
     """Velociraptor locomotion and strike environment."""
 
+    # SB3-only since policy-interface revision 11 (plant_versions note 14).
+    # The foot observation sums three touch sensors per foot, and the frozen
+    # MJX registration (D-D17) reads the toe-d3 sensor alone and is never
+    # edited, so the two backends would observe different feet; KNOWN_ISSUES
+    # and CLEANUP_PLAN_2026_09 section 4.1 prescribe exactly this exit at the
+    # species' next policy-interface revision.
+    supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 2.0
     _camera_azimuth = 135
@@ -100,6 +120,17 @@ class RaptorEnv(BaseDinoEnv):
         speed_penalty_threshold: float = 0.10,
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
+        # Stance-quality terms, named as on TRexEnv.  Every default is inert:
+        # a zero weight (or alive fraction) reproduces the reward that
+        # predates them bit for bit.
+        bilateral_support_weight: float = 0.0,
+        foot_contact_saturation_force: float = 50.0,
+        support_conditioned_alive_fraction: float = 0.0,
+        action_jerk_weight: float = 0.0,
+        action_saturation_weight: float = 0.0,
+        action_saturation_threshold: float = 0.9,
+        leg_home_pose_weight: float = 0.0,
+        leg_home_pose_tolerance: float = 0.35,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -135,11 +166,32 @@ class RaptorEnv(BaseDinoEnv):
         self.speed_penalty_threshold = speed_penalty_threshold
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
+        self.bilateral_support_weight = bilateral_support_weight
+        self.foot_contact_saturation_force = foot_contact_saturation_force
+        self.support_conditioned_alive_fraction = support_conditioned_alive_fraction
+        self.action_jerk_weight = action_jerk_weight
+        self.action_saturation_weight = action_saturation_weight
+        self.action_saturation_threshold = action_saturation_threshold
+        self.leg_home_pose_weight = leg_home_pose_weight
+        self.leg_home_pose_tolerance = leg_home_pose_tolerance
+
+        if self.foot_contact_saturation_force <= 0.0:
+            raise ValueError("foot_contact_saturation_force must be positive")
+        if not 0.0 <= self.support_conditioned_alive_fraction <= 1.0:
+            raise ValueError("support_conditioned_alive_fraction must be in [0, 1]")
+        if not 0.0 <= self.action_saturation_threshold < 1.0:
+            raise ValueError("action_saturation_threshold must be in [0, 1)")
+        if self.leg_home_pose_tolerance <= 0.0:
+            raise ValueError("leg_home_pose_tolerance must be positive")
 
         # Natural forward pitch (~20°). Posture shaping, the nosedive penalty,
         # and nosedive termination are measured relative to this angle so the
         # raptor is not rewarded for abandoning its biomechanically supported
-        # forward lean.
+        # forward lean.  Measured, not authored: the physics-r3 statue settles
+        # at 20.10° (0.3508 rad over 40 seeds at reset noise 0.05), where the
+        # r2 plant settled at 24.0° and the statue paid -95 per episode of
+        # nosedive charge for standing still.  TestNaturalPitchTracksStance
+        # pins the default to the settled stance.
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # Raptor-specific env settings
@@ -182,6 +234,40 @@ class RaptorEnv(BaseDinoEnv):
             command_mode=command_mode,
             command_config=command_config,
         )
+
+        # Leg-pose target for the leg_home_pose term, hips to toes: the named
+        # home keyframe, which is the standing equilibrium since physics
+        # revision 3 (springs anchored there, servos preloaded against
+        # gravity) -- the noise-free statue settles within 0.1 deg of it on
+        # every leg joint.  Resolved here rather than in _cache_ids, whose
+        # tokens are part of this SB3-only species' policy-interface digest:
+        # a reward target is not part of what a checkpoint observes.
+        leg_home_joint_names = (
+            "r_hip_pitch",
+            "r_hip_roll",
+            "r_knee",
+            "r_ankle",
+            "r_toe_d3_joint",
+            "r_toe_d4_joint",
+            "l_hip_pitch",
+            "l_hip_roll",
+            "l_knee",
+            "l_ankle",
+            "l_toe_d3_joint",
+            "l_toe_d4_joint",
+        )
+        self._leg_home_qpos_indices = self._joint_qpos_indices(leg_home_joint_names)
+        self._leg_home_qpos = self.model.key_qpos[self.home_keyframe_id][self._leg_home_qpos_indices].copy()
+
+    def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
+        """Resolve scalar hinge-joint qpos addresses, failing on model drift."""
+        indices = []
+        for name in joint_names:
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+            if joint_id < 0:
+                raise ValueError(f"Velociraptor model must define joint {name!r}")
+            indices.append(int(self.model.jnt_qposadr[joint_id]))
+        return np.asarray(indices, dtype=np.int32)
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
@@ -237,9 +323,22 @@ class RaptorEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
-        # Per-foot groups for the base class's substep MIN aggregation --
-        # mirrors mjx_config's sensor_foot_indices (no aux sensors here).
-        self._foot_sensor_groups = ((self._sensor_r_foot,), (self._sensor_l_foot,))
+        # The toe-d3 sensors above see that digit only: a touch sensor sums
+        # contacts on geoms of its site's own body, and the metatarsal head
+        # and digit 4 are other bodies.  Their own sensors are appended after
+        # the tail block, so d3 + metatarsus + d4 is the force the foot
+        # actually transmits -- at the settled stance 36.0 + 18.7 + 11.6 N
+        # against 66.2 N of floor contact, where d3 alone reads 54%.
+        self._sensor_r_foot_aux = (27, 28)
+        self._sensor_l_foot_aux = (29, 30)
+        # Per-foot groups for the base class's substep MIN aggregation, d3
+        # first (the pinned group[0] + sum(rest) order).  They feed the
+        # observation, the contact-shaped rewards and the r/l_foot_contact
+        # info keys alike.
+        self._foot_sensor_groups = (
+            (self._sensor_r_foot, *self._sensor_r_foot_aux),
+            (self._sensor_l_foot, *self._sensor_l_foot_aux),
+        )
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -281,13 +380,8 @@ class RaptorEnv(BaseDinoEnv):
         # Pelvis linear velocity (from root freejoint)
         pelvis_linvel = self.data.qvel[0:3].copy()
 
-        # Foot contact (from touch sensors)
-        foot_contact = np.array(
-            [
-                self.data.sensordata[self._sensor_r_foot],
-                self.data.sensordata[self._sensor_l_foot],
-            ]
-        )
+        # Foot contact (from touch sensors: d3 + metatarsus + d4 per foot)
+        foot_contact = np.array(self._foot_contact_forces())
 
         # Prey info (relative to pelvis)
         pelvis_pos = self.data.xpos[self.pelvis_id]
@@ -329,8 +423,37 @@ class RaptorEnv(BaseDinoEnv):
             info, vel_2d, forward_ref_2d, pelvis_pos[:2]
         )
 
-        # 2. Alive bonus (shared helper)
-        reward_alive = self._reward_alive()
+        # 1d. Bilateral support.  Since physics revision 3 the per-foot touch
+        # sum (d3 + metatarsus + d4) IS the floor force under that foot, so
+        # the weaker-loaded foot's fraction of the saturation force is a
+        # floor-true support quality; saturating it keeps an impact spike
+        # from being worth more than quiet support.  Substep-MIN aggregated:
+        # the info keys feed the stance diagnostics, and a touchdown that
+        # unloads between control-boundary samples must not read as
+        # continuous support.
+        r_contact, l_contact = self._aggregated_foot_contact_forces()
+        info["r_foot_contact"] = float(r_contact)
+        info["l_foot_contact"] = float(l_contact)
+
+        _, support_quality = _reward_bilateral_support_pure(
+            np.asarray((r_contact, l_contact)),
+            self.foot_contact_saturation_force,
+            1.0,
+        )
+        bilateral_support_quality = float(support_quality)
+        reward_bilateral_support = self.bilateral_support_weight * bilateral_support_quality
+        info["bilateral_support_quality"] = bilateral_support_quality
+        info["reward_bilateral_support"] = reward_bilateral_support
+
+        # 2. Alive bonus (shared helper), optionally conditioned in part on
+        # bilateral support.  A fraction below 1 leaves recovery headroom
+        # after a noisy reset; the zero default is exactly the legacy bonus.
+        raw_alive = self._reward_alive()
+        alive_fraction = self.support_conditioned_alive_fraction
+        alive_gate = (1.0 - alive_fraction) + alive_fraction * bilateral_support_quality
+        reward_alive = raw_alive * alive_gate
+        info["raw_alive"] = raw_alive
+        info["alive_gate"] = alive_gate
         info["reward_alive"] = reward_alive
 
         # 3. Energy penalty (shared helper)
@@ -407,6 +530,22 @@ class RaptorEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = self._clearance(self.data.xpos[self.pelvis_id])
 
+        # 8b2. Soft leg-pose retention around the home keyframe, hips to toes.
+        # The mean per-joint Gaussian gives corrective signal without
+        # hard-locking a joint, and averaging keeps one joint from dominating.
+        _, leg_rms_error, leg_quality = _reward_soft_home_pose_pure(
+            self.data.qpos[self._leg_home_qpos_indices],
+            self._leg_home_qpos,
+            self.leg_home_pose_tolerance,
+            1.0,
+        )
+        leg_home_pose_error = float(leg_rms_error)
+        leg_home_pose_quality = float(leg_quality)
+        reward_leg_home_pose = self.leg_home_pose_weight * leg_home_pose_quality
+        info["leg_home_pose_error"] = leg_home_pose_error
+        info["leg_home_pose_quality"] = leg_home_pose_quality
+        info["reward_leg_home_pose"] = reward_leg_home_pose
+
         # 8c. Pelvis angular velocity (for spinning detection in eval metrics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
         info["pelvis_angular_vel"] = pelvis_angular_vel
@@ -417,14 +556,8 @@ class RaptorEnv(BaseDinoEnv):
         info["spin_instability"] = spin_instability
         info["reward_spin"] = reward_spin
 
-        # 9. Gait symmetry (reward alternating foot contacts, shared helper).
-        # Substep-MIN aggregated: the info keys feed the stance diagnostics,
-        # and a touchdown that unloads between control-boundary samples must
-        # not read as continuous support.
-        r_contact, l_contact = self._aggregated_foot_contact_forces()
-        info["r_foot_contact"] = float(r_contact)
-        info["l_foot_contact"] = float(l_contact)
-
+        # 9. Gait symmetry (reward alternating foot contacts, shared helper),
+        # on the substep-MIN foot forces read in 1d.
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight
         )
@@ -433,9 +566,26 @@ class RaptorEnv(BaseDinoEnv):
         info["reward_gait"] = reward_gait
 
         # 10. Action smoothness (shared helper)
+        # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
+        # history, so calling it first would leave the jerk term reading this
+        # step's own action as its first lag.
+        reward_action_jerk, action_jerk = self._reward_action_jerk(action)
+        info["action_jerk"] = action_jerk
+        info["reward_action_jerk"] = reward_action_jerk
+
         reward_smoothness, action_delta = self._reward_action_smoothness(action)
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
+
+        # 10b. Saturation cost.  A command pinned at a range limit is
+        # invisible to the smoothness/jerk penalties above -- it cannot
+        # oscillate -- so parking joints at stops was the cheapest way to be
+        # smooth.  Price the parked fraction directly.
+        reward_action_saturation, action_saturation = _reward_action_saturation_pure(
+            action, self.action_saturation_weight, self.action_saturation_threshold
+        )
+        info["action_saturation"] = float(action_saturation)
+        info["reward_action_saturation"] = float(reward_action_saturation)
 
         # 11-12. Heading alignment and lateral velocity penalty
         reward_heading, reward_lateral = self._heading_terms(info, pelvis_quat, forward_ref_2d, vel_2d)
@@ -449,6 +599,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_backward
             + reward_drift
             + reward_alive
+            + reward_bilateral_support
             + reward_energy
             + reward_tail
             + reward_strike
@@ -457,9 +608,12 @@ class RaptorEnv(BaseDinoEnv):
             + reward_claw_proximity
             + reward_posture
             + reward_nosedive
+            + reward_leg_home_pose
             + reward_spin
             + reward_gait
             + reward_smoothness
+            + reward_action_jerk
+            + reward_action_saturation
             + reward_heading
             + reward_lateral
             + reward_speed
@@ -506,6 +660,7 @@ class RaptorEnv(BaseDinoEnv):
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
         self._prev_action = None
+        self._prev_prev_action = None
 
         # Reset gait symmetry tracking
         self._reset_gait_state()

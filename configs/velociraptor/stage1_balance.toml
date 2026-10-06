@@ -7,6 +7,62 @@ forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
 alive_bonus = 1.75                                # Setting 4 sweep: all best end-to-end runs (03-15: S1→S2→S3 all passed) used 1.75.
+# Stance-quality terms (TRexEnv's names), added with the physics-r3 plant (plant_versions note 14; D-D25). Each
+# weight is MEASURED, on three panels: the r3 statue (zero action, noise 0.05, seeds 3042-3081); the audit's
+# crouch/chatter stance 20260922_125248 (robust_best and final, 40 episodes each on the same seeds), replayed on the
+# r2 plant its checkpoints load on and re-scored under these terms from its recorded actions, joint angles and
+# per-foot floor force; and a fresh PPO policy (log_std_init = 0, so actions ~ clip(N(0, 1))) on r3.
+#   * The statue stays the reward optimum: it scores the maximum of every term below (support 0.997, leg pose
+#     0.9993, no saturation, no jerk), standing at 2842.8 +/- 2.6 of a 2850 ceiling for this [env].
+#   * The audit policy GAINED 53.5 (robust_best) / 58.2 (final) per full-horizon episode over the r2 statue, by
+#     escaping the -95/episode nosedive charge that statue paid on its 24-degree settle (the r3 statue pays -3).
+#     These terms price its least-priced episode 876 / 724 below the r3 statue, and each family alone prices it
+#     above that gain (least-priced episode: support 384/138, leg pose 334/351, saturation 112/175). Jerk does
+#     not: its parked commands barely move.
+#   * At init the penalties cost 0.70/step, 40% of the alive bonus (conditioned alive 0.34, jerk 0.19, saturation
+#     0.17), 0.35/step net of the leg-pose credit: surviving still pays.
+# The gait plan's suggested metatarsus penalty (§5.4) is not used: the r3 statue carries 28% of each foot's load
+# on the metatarsal head, so it would charge the optimum. Nor is foot_load_balance: the bilateral term below already
+# pays the weaker-loaded foot. No term sees a single digit unloading (the per-foot sums stay saturated), which is
+# why the stance gate's support-geom bars sit mid-gap ([curriculum]). Re-measure all of this with any plant or
+# [env] change.
+support_conditioned_alive_fraction = 0.2       # Fraction of alive_bonus paid in proportion to bilateral support.
+                                               # Costs the audit policy 239/188 per episode against the statue's
+                                               # 1.1, and 0.34/step at init, where random commands keep the
+                                               # weaker foot at 2.8 N on average (support 0.024). 0.5 (the T-Rex
+                                               # value) would cost 0.85/step there on its own -- the whole budget.
+bilateral_support_weight = 0.5                 # Pays the weaker-loaded foot, so both feet must carry weight. Since
+                                               # r3 the summed touch IS the floor force (d3 + metatarsus + d4, rel
+                                               # 1e-6), so this is floor-true support. The audit policy averaged
+                                               # 0.32/0.46 support (its feet chatter at ~10 touchdowns/s) against
+                                               # the statue's 0.997: 341/269 per episode. Free at init (+0.01/step).
+foot_contact_saturation_force = 50.0           # N per foot, 0.38 BW (body weight 132.4 N): the quiet statue stands
+                                               # at 66.2 N per foot (p5 of the per-step weaker foot 60.7 N), so it
+                                               # earns full credit, and an impact spike cannot earn more than that.
+leg_home_pose_weight = 0.5                     # Soft retention of the home keyframe's leg stance, hips to toes (12
+                                               # joints): since r3 the keyframe IS the standing equilibrium (springs
+                                               # anchored there, servos preloaded against gravity). The audit's
+                                               # crouch held hip pitch +42 deg, knee 45-59 deg and the right d4 toe
+                                               # 20-22 deg from home: 344/381 per episode. +0.34/step at init.
+leg_home_pose_tolerance = 0.20                 # rad. The statue's p99 per-joint settle error is 1.85 deg (hip roll;
+                                               # every other joint <= 0.44 deg), worth 0.9993 of the maximum. 0.10
+                                               # would price the crouch only 18-26% more (434/451) with no capture
+                                               # range past ~0.2 rad, and this env has no broad component.
+action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold. A saturated
+                                               # command cannot oscillate, so smoothness and jerk cannot see it, and
+                                               # the audit policy parked both hip pitches, the right knee and the
+                                               # right shoulder roll at +-1 on 92-98% of steps (the final also the
+                                               # left knee, the left hip roll, the right d4 toe and tail_1 pitch):
+                                               # 128/184 per episode. 0.17/step at init, where a third of every
+                                               # clip(N(0, 1)) command sits at a limit.
+action_saturation_threshold = 0.9              # Ramp start; below this saturation is free (the T-Rex value).
+action_jerk_weight = 1.0                       # Second difference of actions: the guard against command chatter
+                                               # that the first-difference smoothness term is blind to (the T-Rex's
+                                               # 2026-08 stance runs stood on 16.8-18.7 Hz chatter). It is NOT a
+                                               # lever on the audit policy -- 9.3/4.7 per episode at this weight --
+                                               # whose chatter is contact chatter under parked commands. Sized to the
+                                               # init budget: 0.19/step, against a full-scale Nyquist toggle on one
+                                               # actuator at 45 per episode.
 fall_penalty = -50.0                    # Match stage 2 and T-Rex stage 1; default -100 is disproportionate with alive_bonus=2.0
 energy_penalty_weight = 0.075                      # Setting 4 sweep: 0.075 forces efficient standing posture. Proven across all three species.
 tail_stability_weight = 0.02
@@ -62,21 +118,172 @@ net_arch = [512, 256]            # Match PPO architecture for fair comparison
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+gate_kind = "stance_quality/v2"         # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 1050.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
+
+# ---------------------------------------------------------------------------
+# The stance gate: physical stance quality on floor truth, not return.
+#
+# Adopted 2026-10-06 with the physics-r3 plant (decision D-D25), replacing
+# reward_and_length/v1. That gate was passable by doing nothing: the r2
+# statue scored 1745.8 against its 1050 rail at 100% of the horizon. Worse,
+# it certified run 20260922_125248's stance, which the 2026-10 stance-hack
+# audit (docs/investigations/STANCE_HACK_AUDIT_2026_10.md §3.2) found holding
+# a saturated hip-extension crouch on a wide stance, one outer toe carrying
+# no load, its feet chattering at about 20 Hz and its body sliding 0.6 m --
+# and scoring 0.6% ABOVE the statue (1755.6, 40 episodes), so no reward rail
+# could have refused it.
+#
+# Every bar below was measured through the report path
+# (build_stance_gate_report) on the r3 statue: zero action, this [env], reset
+# noise 0.05, the 40-episode panel (seeds 3042-3081), clean on 40/40, and
+# again on seeds 3082-3161 (80/80). "Out of sample" below means those 80. A
+# third block, seeds 3162-3201, rolled once the bars were set, is clean on
+# 40/40 too. "Fresh" below means 200 more seeds (5042-5241), all clean, whose
+# tails are wider than the first 160 seeds' and are the statue's side of
+# every margin.
+# The audit's two checkpoints of that stance (robust_best and final) load
+# only on the r2 plant (the plant contract compares physics_sha256), so they
+# were rolled there with this block swapped in for the r2 gate: 0/40 each,
+# every unclean episode failing at least 9 (robust_best) and 6 (final) bars.
+# The r2 statue scores 40/40 under it. Floor truth reads no reward, so the
+# r2 [env] they ran under moves only the rails.
+#
+# The two foot bars and the settle peak sit in the MIDDLE of the gap between
+# the statue and the hacks, not at the statue's edge. They were first set
+# just under its worst (duty 0.90, coverage 0.95, peak 1.5 BW), and that
+# refused a near-statue: the statue with N(0, sigma) noise added to its zero
+# command on every step, which keeps 98.5% of its reward at sigma 0.03, was
+# clean on 13/40 and 16/40 (two noise draws) at sigma 0.03 and on 0/40 at
+# 0.04 and 0.05, because its digit IV, keyed 0.17 mm into the floor at 0.087
+# BW, unloads on part of the window. No reward term above can see that loss,
+# so a trained policy would have been refused on a criterion its reward never
+# shaped. Constant offsets stay clean either way (digit IV at +-0.02 and
+# +-0.05, digit III or the ankle at +0.02): the jitter unloads the digit, not
+# a posture. At the bars below the jittered statue is clean on 40/40 at every
+# sigma from 0.02 to 0.05 (31/40 at 0.06), and the foot bars alone, like the
+# settle bars alone, still refuse every audited episode.
+# Panels, per-bar counts and margins: the audit note's dated §8.
+#
+# Superseded, kept for the record as it read under reward_and_length/v1:
+# min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
+# v2's schema rejects the key; min_full_horizon_fraction below states the
+# same requirement directly.
+# ---------------------------------------------------------------------------
+min_eval_episodes = 40                   # The panel the bound is specified at (seeds 3042-3081, D-B17). At n = 40
+                                         # the bound is 0.928 at 40 clean, 0.887 at 39, 0.851 at 38, 0.817 at 37
+                                         # and 0.786 at 36.
+min_clean_stance_lcb = 0.80              # Admits 37/40 and refuses 36/40 (the gait plan's GQ-7 (a), as on trex).
+settle_steps = 100                       # Splits each episode: the max_settle_* bars read steps 10-99 (after the
+                                         # 0.1 s spawn grace), every other bar steps 100-999. Measured on the r3
+                                         # statue: both feet are down by step 5, the floor force is within 10% BW
+                                         # of its weight by step 15 and the joint speeds under 0.1 rad/s by step
+                                         # 37; the per-foot load shares reach 0.45-0.55 by step 104 (p90; 138 at
+                                         # most), which the window's load-share bars absorb. The statue classifies
+                                         # identically at any value from 25 to 200. The audit stance's reset hop
+                                         # (35 or more airborne substeps on every episode) falls inside the window.
+min_full_horizon_fraction = 0.95         # Statue 40/40 and 80/80. A floor to MATCH, not beat. Replaces
+                                         # min_avg_episode_length = 950 (above). Kept under v2 as a panel rail
+                                         # beside the bound (an episode that ends early is unclean anyway); both
+                                         # audit checkpoints reach the horizon on 39/40, so the bars below refuse
+                                         # them, not this.
+min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode,
+                                         # out of sample and fresh too; the robust_best checkpoint at most 0.97
+                                         # (fails 40/40), the final 29 episodes (its best 1.000).
+max_touchdown_rate = 0.25                # Debounced touchdowns per foot per second over the window. Statue 0;
+                                         # robust_best at least 0.56 (fails 40/40, up to 12.9), final 27 episodes.
+max_window_displacement_m = 0.10         # Horizontal root travel over the window. Statue at most 0.018 m (0.019 out
+                                         # of sample; 0.031 fresh); robust_best at least 0.110 m (fails 40/40, up to
+                                         # 1.22), final 5 episodes (up to 0.34).
+min_foot_load_share = 0.40               # The lighter foot's share of the window's floor load. Statue at least
+                                         # 0.4935 (0.4938 out of sample; 0.4885 fresh; 0.500 is symmetric); the
+                                         # audit stance's right-biased split goes to 0.368 (robust_best fails 11,
+                                         # final none, at least 0.426). 0.40, not the phase-A candidate's 0.30,
+                                         # because the r3 statue is symmetric to 0.012, as the trex stance's bar
+                                         # reasons.
+max_actuator_saturation_fraction = 0.10  # The most saturated actuator's share of window steps at |a| >= 0.99. Statue
+                                         # 0 (it commands zero); robust_best 1.000 on every episode, final at least
+                                         # 0.899: both fail 40/40 (the hips and a knee parked at their limits).
+max_settle_airborne_substeps = 0         # Substeps with both legs unloaded in steps 10-99. Statue 0 on every
+                                         # episode, out of sample and fresh too, so 0 is structural rather than a
+                                         # tuned margin; robust_best at least 51, final at least 35: both fail 40/40.
+max_settle_peak_floor_force_bw = 2.0     # Peak total floor force in steps 10-99, in body weights (132.4 N). Statue
+                                         # at most 1.285 (1.290 out of sample; 1.400 fresh, seed 5046; 1.395 on 1000
+                                         # more seeds, 10000-10999, p99 1.255 over the 1200); the hop's landing at
+                                         # least 2.98 (robust_best) and 2.78 (final): both fail 40/40. Mid-gap
+                                         # (above): the jittered statue peaks at 1.89 at sigma 0.05. The bar still
+                                         # reads some of the reset transient: on 36% of those 1200 seeds the window's
+                                         # peak is its first step, step 10 (with a 15-step grace the worst would be
+                                         # 1.089). The
+                                         # r2 statue reached 1.52 on one seed (3046), the reset pop the r3 keyframe
+                                         # removed (r2 reset peak 2.26 BW noise-free, r3 1.01).
+min_support_geom_duty = 0.50             # The flatness bar of a foot with no box sole: the least-loaded support geom
+                                         # of either foot (toe_d3, toe_d4 and the metatarsus; the gait library's
+                                         # morphology registry) must carry load on this share of window steps.
+                                         # Statue 1.000, every geom loaded on every step (0.979 out of sample; 0.956
+                                         # fresh, seed 5229's left digit IV); robust_best at most 0.001 and final at
+                                         # most 0.023 (the right digit IV carries no load): both fail 40/40.
+                                         # Mid-gap (above): the jittered statue's digit IV keeps at least 0.553 at
+                                         # sigma 0.05.
+min_support_geom_coverage = 0.80         # The worse foot's window-mean share of its support geoms loaded. Statue
+                                         # 1.000 (0.993 out of sample; 0.985 fresh); robust_best at most 0.34, final
+                                         # at most 0.67: both fail 40/40. 0.80 sits above 2/3, a foot standing on two
+                                         # of its three geoms throughout, so a digit never loaded fails this bar
+                                         # whatever the duty bar reads; the jittered statue keeps at least 0.844 at
+                                         # sigma 0.05.
+max_settle_stance_width_change_m = 0.05  # |Foot-site distance at the last settle step - at spawn|. Statue at
+                                         # most 0.016 m (0.020 out of sample; 0.022 fresh); the audit stance's splay
+                                         # at least 0.116 m (robust_best) and 0.134 m (final): both fail 40/40.
+min_foot_load_share_windowed = 0.35      # The lowest foot share over the window's 1 s blocks. Statue at least 0.457
+                                         # (0.460 out of sample; 0.416 fresh); robust_best down to 0.344 (fails 2),
+                                         # final at least 0.374: a guard against shifting the weight onto one leg a
+                                         # second at a time.
+min_foot_load_share_statue_ratio = 0.80  # The lowest foot's share over the statue panel's mean share for that foot,
+                                         # the statue rolled in the same report. Statue at least 0.987 (0.988 out of
+                                         # sample; 0.977 fresh); robust_best down to 0.735 (fails 11), final at least
+                                         # 0.851.
+max_foot_contact_fraction = 0.02         # Substeps with one foot on the other. Statue 0; final 0.026 on one episode
+                                         # (fails 1): a guard (the robot's stacked soles the audit found).
+max_phantom_support_fraction = 0.05      # Window steps where touch reads a load the floor does not. Statue 0 (since
+                                         # r3 the summed touch IS the floor force); final at most 0.023: a guard.
+max_nonfoot_load_fraction = 0.01         # Floor load on the tail, trunk, arms or head. Statue and hacks 0: a guard.
+min_avg_reward = 1710.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
                                         # reward optimum, so this sits at 0.60 x its standing reward at noise 0.05
-                                        # (1745.8 +/- 5.0, 40 episodes) and only rejects a policy that discarded
-                                        # most of the available return. 0.60 rather than §12's 0.89 because the
-                                        # measured collapse bottoms at 0.27 x statue, while 0.89 lands within a
-                                        # few percent of a competent policy's ceiling; see the trex config for the
-                                        # full derivation. The old 100.0 was cleared by the statue (17x over) and
-                                        # certified nothing.
-collapse_peak_floor = 1300.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
-                                        # below a plausible active-policy peak. The old 100.0 armed on any
-                                        # positive blip. Absolute pending §14 item 3 (relative floors).
-min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
-required_consecutive = 3
+                                        # (collapse_peak_floor_reference below: 0.60 x 2842.8 = 1705.7 -> 1710
+                                        # nearest-10) and only rejects a policy that discarded most of the
+                                        # available return. 0.60 rather than §12's 0.89 because the measured
+                                        # collapse bottoms at 0.27 x statue, while 0.89 lands within a few percent
+                                        # of a competent policy's ceiling; see the trex config for the full
+                                        # derivation. Was 1050 on the r2 plant (statue 1745.8 +/- 5.0); the old
+                                        # 100.0 before that was cleared by the statue (17x over) and certified
+                                        # nothing.
+min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue panel each report rolls for itself
+                                        # (zero action, this [env], the same seeds and recorder), so it re-derives
+                                        # itself when a reward weight or the plant moves and min_avg_reward above
+                                        # was not re-measured. Neither rail refuses the audit stance, which scored
+                                        # 1.006 (robust_best) and 1.015 (final) of its own r2 statue: the rails
+                                        # catch a collapse, the bars above catch the hacks.
+collapse_peak_floor = 2130.0            # 0.75 x the statue's standing reward (2842.8 -> 2132.1 -> 2130): above the
+                                        # grind, below a plausible active-policy peak. Was 1300 on the r2 plant; the
+                                        # old 100.0 armed on any positive blip. Absolute pending §14 item 3
+                                        # (relative floors): an explicit floor wins over the reference below, which
+                                        # this stage declares for its provenance pin, not to derive the floor.
+collapse_peak_floor_reference = 2842.8  # The zero-action statue's standing reward at noise 0.05: 2842.76 +/- 2.62,
+                                        # 40 episodes, seeds 3042-3081, on physics r3 with the stance-quality terms
+                                        # above, measured with `zero_action_baseline.py velociraptor --episodes 40
+                                        # --seed 3042`; the v2 report's own statue panel agrees (2842.76, 40/40;
+                                        # 2842.2 on the 80 out-of-sample seeds). Both statue-derived numbers above
+                                        # are its fractions. Re-measure it whenever a reward weight OR the plant
+                                        # changes.
+statue_constants_physics_revision = 3   # The velociraptor physics revision the statue-derived constants above
+                                        # (min_avg_reward, collapse_peak_floor and its reference) were measured on.
+                                        # test_statue_constant_freshness.py cross-checks this against the plant
+                                        # manifest, so a plant revision bump that forgets to re-measure the statue
+                                        # fails CI. Update it WITH the re-measurement, never alone.
+required_consecutive = 3                # Scheduler hysteresis ONLY. Under stance_quality/v2 the in-training
+                                        # manager refuses the kind (the certificate is the post-stage report on
+                                        # the handoff pair), so nothing reads this until the in-training screen
+                                        # exists.
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long

@@ -87,7 +87,9 @@ def test_compsognathus_aliases_are_trainable(name):
 
 def test_backend_specific_names_do_not_advertise_unimplemented_jax():
     assert species_display_names(backend="stable-baselines3") == FULL_NAMES
-    assert set(species_display_names(backend="jax-mjx")) == set(FULL_NAMES) - {"compsognathus", "compsognathus_robot"}
+    # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14).
+    sb3_only = {"compsognathus", "compsognathus_robot", "velociraptor"}
+    assert set(species_display_names(backend="jax-mjx")) == set(FULL_NAMES) - sb3_only
     with pytest.raises(ValueError, match="Unknown training backend"):
         species_display_names(backend="unsupported")
 

@@ -186,16 +186,21 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # to all six observations. Physics and visual are again untouched.
     # T-Rex physics r8 (plant_versions note 13) re-sized the hip-roll servos
     # (kp 150 -> 600): PHYSICS only, policy and visual unchanged.
+    # Velociraptor then took one bump of all three for its stance repair
+    # (plant_versions note 14): springref at the standing pose, flat toes at
+    # 0.5 mm contact, a gravity-preloaded home ctrl, and metatarsus + digit-4
+    # touch sites and sensors summed into the foot observation (which made it
+    # SB3-only).
     expected_policy_revisions = {
-        "velociraptor": 10,
+        "velociraptor": 11,
         "trex": 13,
         "brachiosaurus": 8,
         "dibothrosuchus": 7,
         "compsognathus": 2,
         "compsognathus_robot": 2,
     }
-    expected_physics_revisions = {"velociraptor": 2, "trex": 8, "brachiosaurus": 4, "dibothrosuchus": 1}
-    expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
+    expected_physics_revisions = {"velociraptor": 3, "trex": 8, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_visual_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update(compsognathus=1, compsognathus_robot=1)
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
@@ -255,7 +260,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # and stance width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
-    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 1745.8,
+    # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 2842.8 (physics
+    # r3 with its stance-quality terms; 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8), dibothrosuchus 2598.3.
     #
@@ -282,22 +288,25 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # -> 2100 nearest-10, and for physics r8 with its stance task: statue
         # 3766.1, x0.60 = 2259.7 -> 2260.
         "trex": 2260.0,
-        "velociraptor": 1050.0,
+        # 0.60 x 2842.76 = 1705.7 -> 1710 nearest-10 (1050 on the r2 plant).
+        "velociraptor": 1710.0,
         "brachiosaurus": 1040.0,
         "dibothrosuchus": 1560.0,
     }
 
     # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
-    # stance_quality/v2 (D-D24); neither consumes min_avg_episode_length:
-    # min_full_horizon_fraction states section 12's >= 95% requirement
-    # directly instead of encoding it as a step count. Its min_avg_reward
-    # stays, demoted to a rail. The other three species are still on
-    # reward_and_length/v1 pending their own stance calibration.
-    stage_one_length = {"trex": None, "velociraptor": 950, "brachiosaurus": 950, "dibothrosuchus": 950}
+    # stance_quality/v2 (D-D24), and velociraptor 1a from reward_and_length/v1
+    # to stance_quality/v2 with physics r3 (D-D25); neither kind consumes
+    # min_avg_episode_length: min_full_horizon_fraction states section 12's
+    # >= 95% requirement directly instead of encoding it as a step count. Their
+    # min_avg_reward stays, demoted to a rail. The other two species are still
+    # on reward_and_length/v1 pending their own stance calibration.
+    stage_one_length = {"trex": None, "velociraptor": None, "brachiosaurus": 950, "dibothrosuchus": 950}
     # The stance bound's power is specified at n=40; the other species keep
     # the historical default.
-    stage_one_eval_episodes = {"trex": 40, "velociraptor": 10, "brachiosaurus": 10, "dibothrosuchus": 10}
-    # Only T-Rex 1a declares stance criteria; the rest export nulls.
+    stage_one_eval_episodes = {"trex": 40, "velociraptor": 40, "brachiosaurus": 10, "dibothrosuchus": 10}
+    # Only the T-Rex and velociraptor 1a declare stance criteria; the rest
+    # export nulls.
     stance_null: dict[str, float | None] = {
         "min_full_horizon_fraction": None,
         "max_unsupported_duty": None,
@@ -325,6 +334,32 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "min_sole_contacts": 1.5,
         "min_avg_reward_statue_ratio": 0.60,
     }
+    # Velociraptor 1a's block (configs/velociraptor/stage1_balance.toml,
+    # D-D25): no box sole, so the flatness bars are the support-geom duty and
+    # coverage, with the settle-window width change and the statue's own
+    # load share beside them; the sole keys export null. The foot bars and the
+    # settle peak sit mid-gap between the statue and the audited hacks, so a
+    # statue with command jitter stays clean.
+    velociraptor_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
+        "min_clean_stance_lcb": 0.80,
+        "settle_steps": 100,
+        "min_all_feet_support": 0.98,
+        "max_touchdown_rate": 0.25,
+        "max_window_displacement_m": 0.10,
+        "min_foot_load_share": 0.40,
+        "max_actuator_saturation_fraction": 0.10,
+        "max_settle_airborne_substeps": 0,
+        "max_settle_peak_floor_force_bw": 2.0,
+        "min_support_geom_duty": 0.50,
+        "min_support_geom_coverage": 0.80,
+        "max_settle_stance_width_change_m": 0.05,
+        "min_foot_load_share_windowed": 0.35,
+        "min_foot_load_share_statue_ratio": 0.80,
+        "max_foot_contact_fraction": 0.02,
+        "max_phantom_support_fraction": 0.05,
+        "max_nonfoot_load_fraction": 0.01,
+        "min_avg_reward_statue_ratio": 0.60,
+    }
     stage_one_stance: dict[str, dict[str, float | None]] = {
         "trex": {
             "min_full_horizon_fraction": 0.95,
@@ -332,7 +367,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "max_unsupported_duty_ucb": None,
             **trex_stance_v2,
         },
-        "velociraptor": stance_null,
+        "velociraptor": {
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": None,
+            "max_unsupported_duty_ucb": None,
+            **velociraptor_stance_v2,
+        },
         "brachiosaurus": stance_null,
         "dibothrosuchus": stance_null,
     }
@@ -368,7 +408,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
 
     stage_one_gate_kind = {
         "trex": "stance_quality/v2",
-        "velociraptor": "reward_and_length/v1",
+        "velociraptor": "stance_quality/v2",
         "brachiosaurus": "reward_and_length/v1",
         "dibothrosuchus": "reward_and_length/v1",
     }
@@ -525,15 +565,17 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
+    # Velociraptor is SB3-only since policy-interface revision 11, so its
+    # catalog carries the contact semantics alone; the T-Rex still declares
+    # both backends and keeps one metric per backend.
     velociraptor_metrics = species["velociraptor"]["success_metrics"]
-    assert velociraptor_metrics[0]["backends"] == ["stable-baselines3"]
+    assert [metric["backends"] for metric in velociraptor_metrics] == [["stable-baselines3"]]
     assert "contacts the prey geom" in velociraptor_metrics[0]["definition"]
-    assert velociraptor_metrics[1]["backends"] == ["jax-mjx"]
-    assert "physical geom contact is not required" in velociraptor_metrics[1]["definition"]
 
     trex_metrics = species["trex"]["success_metrics"]
     assert trex_metrics[0]["backends"] == ["stable-baselines3"]
     assert trex_metrics[1]["backends"] == ["jax-mjx"]
+    assert "physical geom contact is not required" in trex_metrics[1]["definition"]
 
 
 def test_manifest_covers_all_curated_results_and_implemented_species() -> None:
@@ -647,12 +689,17 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
 
 
 def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
-    entrypoint = 'env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"\n'
+    # Velociraptor declares itself SB3-only (policy-interface revision 11), so
+    # the broken copy flips that declaration rather than adding a second one.
+    declaration = (
+        'model_path = "environments/velociraptor/assets/raptor.xml"\ntraining_backends = ["stable-baselines3"]\n'
+    )
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
-    assert manifest_text.count(entrypoint) == 1
+    assert manifest_text.count(declaration) == 1
     broken_manifest = tmp_path / "species_manifest.toml"
     broken_manifest.write_text(
-        manifest_text.replace(entrypoint, entrypoint + 'training_backends = ["jax-mjx"]\n'), encoding="utf-8"
+        manifest_text.replace(declaration, declaration.replace('["stable-baselines3"]', '["jax-mjx"]')),
+        encoding="utf-8",
     )
 
     with pytest.raises(CatalogError, match="velociraptor advertises unsupported notebook sb3_training"):
@@ -909,7 +956,7 @@ def test_current_gate_kinds_follow_the_manifest() -> None:
         "behavior": "task_success/v1",
     }
     assert current_gate_kinds("velociraptor") == {
-        "stance": "reward_and_length/v1",
+        "stance": "stance_quality/v2",
         "locomotion": "reward_and_length/v1",
         "behavior": "reward_and_length/v1",
     }
@@ -1029,7 +1076,7 @@ def test_synthesized_manifest_stage_rows_derive_legacy_edges(tmp_path: Path) -> 
     assert stages[0]["config_path"] == "configs/velociraptor/stage1_balance.toml"
     # The gates come from the temporary tree too, through the same kwarg.
     assert current_gate_kinds("velociraptor", tmp_path / "configs") == {
-        "stance": "reward_and_length/v1",
+        "stance": "stance_quality/v2",
         "locomotion": "reward_and_length/v1",
         "behavior": "reward_and_length/v1",
     }
@@ -1584,16 +1631,18 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
             if metric["stage_id"] == "stance" and "stable-baselines3" in metric["backends"]
         )
 
-    for species_id in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
+    for species_id in ("brachiosaurus", "dibothrosuchus"):
         definition = stance_definition(species_id)
         assert "reward_and_length/v1" in definition, species_id
         assert "statue" in definition, species_id
         assert "certified stance quality" in definition, species_id
     # A stance-quality stance names the kind its stage declares today: trex moved to
-    # stance_quality/v2 with physics r8 (D-D24), the compsognathus pair keeps v1.
-    for species_id in ("trex", "compsognathus", "compsognathus_robot"):
+    # stance_quality/v2 with physics r8 (D-D24) and velociraptor from the reward gate
+    # with physics r3 (D-D25); the compsognathus pair keeps v1.
+    for species_id in ("trex", "velociraptor", "compsognathus", "compsognathus_robot"):
         kind = current_gate_kinds(species_id)["stance"]
-        assert kind == ("stance_quality/v2" if species_id == "trex" else "stance_quality/v1"), species_id
+        v2 = species_id in ("trex", "velociraptor")
+        assert kind == ("stance_quality/v2" if v2 else "stance_quality/v1"), species_id
         assert kind in stance_definition(species_id), species_id
         other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"
         assert other not in stance_definition(species_id), species_id
@@ -1675,6 +1724,8 @@ def test_readme_species_table_renders_recipe_edges() -> None:
     assert "**Per-deliverable success semantics:**" in rendered
     assert "- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
     assert "- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
+    # The velociraptor stand certifies under the floor-truth gate since physics r3 (D-D25).
+    assert "- **stand (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered
 
 
 def test_readme_results_block_is_byte_identical_for_ladder_summaries() -> None:

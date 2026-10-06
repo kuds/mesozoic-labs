@@ -40,11 +40,16 @@ def _load_generated_manifest(path: Path | None = None) -> dict[str, Any]:
 def _species_entries() -> dict[str, dict[str, Any]]:
     if not constants.SPECIES_MANIFEST_PATH.is_file():
         generated = _load_generated_manifest()
+        # The generated manifest records no training backends, so a bundled
+        # entry declares none (None, not the dual-backend default): the
+        # environment's own supported_training_backends then stands, which is
+        # what lets an SB3-only species resolve its identity from the bundle.
         bundled_entries = {
             str(species): {
                 "id": str(species),
                 "model_path": entry.get("model_path"),
                 "env_entrypoint": entry.get("env_entrypoint"),
+                "training_backends": None,
             }
             for species, entry in generated.get("plants", {}).items()
         }

@@ -1041,10 +1041,11 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
-        # A stance_quality/v2 node (the trex stance since D-D24) is judged after its budget from the
-        # floor-truth report on its handoff pair, which these stubs never write; it passes here as every
-        # in-training node does through the stubbed CurriculumCallback, so the walk -- not the gate -- is
-        # what this class exercises (test_stance_v2_cli_judge.py judges the real report path).
+        # A stance_quality/v2 node (the trex stance since D-D24, the velociraptor stance since D-D25) is
+        # judged after its budget from the floor-truth report on its handoff pair, which these stubs never
+        # write; it passes here as every in-training node does through the stubbed CurriculumCallback, so
+        # the walk -- not the gate -- is what this class exercises (test_stance_v2_cli_judge.py judges the
+        # real report path).
         monkeypatch.setattr(
             train_base,
             "_post_training_stance_v2_verdict",
@@ -1507,15 +1508,20 @@ class TestTrainCurriculumWalksTheManifest:
         assert all(seconds >= 0.0 for _, seconds in record["durations"])
 
     def test_every_trained_node_records_the_managers_verdict(self, tmp_path, monkeypatch, caplog):
-        """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff."""
-        from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY
+        """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff.  The
+        velociraptor stance declares ``stance_quality/v2`` since D-D25, so its verdict is the post-training
+        judge's (stubbed by ``_run``) and the other two nodes' the manager's."""
+        from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY
 
         record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
 
         assert [v["stage_id"] for v in record["verdicts"]] == ["stance", "locomotion", "behavior"]
         for verdict in record["verdicts"]:
             assert verdict["passed"] is True and verdict["failures"] == []
-            assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
+            expected = (
+                STANCE_V2_POST_TRAINING_JUDGED_BY if verdict["stage_id"] == "stance" else CURRICULUM_MANAGER_JUDGED_BY
+            )
+            assert verdict["judged_by"] == expected
             assert verdict["stage_dir"].name in {"01_stance", "02_locomotion", "03_behavior"}
             assert verdict["checkpoint"].suffix == ".zip" and verdict["normalization"].suffix == ".pkl"
 
@@ -2699,6 +2705,19 @@ class TestOneStageBody:
         monkeypatch.setattr(train_base, "_record_stage_result", record_stage_result)
         monkeypatch.setattr(result_bundle, "write_gate_verdict", write_verdict)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", curriculum_callback)
+        # The velociraptor stance declares stance_quality/v2 since D-D25, which train_curriculum judges after
+        # the budget from the floor-truth report on the handoff pair these stubs never write; it passes here
+        # as the stubbed CurriculumCallback passes every other node (test_stance_v2_cli_judge.py judges the
+        # real report path).
+        monkeypatch.setattr(
+            train_base,
+            "_post_training_stance_v2_verdict",
+            lambda species, stage, config, **kwargs: (
+                True,
+                [],
+                {"stage": stage, "gate_kind": config["curriculum_kwargs"].get("gate_kind"), "gate_passed": True},
+            ),
+        )
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
         return model, eval_callback
 
