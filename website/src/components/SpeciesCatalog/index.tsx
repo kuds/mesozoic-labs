@@ -126,6 +126,9 @@ function formatGate(gate: AdvancementGate): string {
     if (gate.minFullHorizonFraction !== null) {
       stanceCriteria.push(`full-horizon episodes ≥ ${formatPercent(gate.minFullHorizonFraction)}`);
     }
+    if (gate.maxHopOrFallEpisodes !== null) {
+      stanceCriteria.push(`hop-or-fall episodes ≤ ${gate.maxHopOrFallEpisodes.toLocaleString()}`);
+    }
     if (gate.minAverageReward !== null) stanceCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()}`);
     if (gate.minAverageRewardStatueRatio !== null) {
       stanceCriteria.push(`reward rail ≥ ${gate.minAverageRewardStatueRatio.toLocaleString()} × the statue's`);

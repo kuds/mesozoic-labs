@@ -71,13 +71,16 @@ from environments.shared.reporting.stance_report import (  # noqa: E402
     probe_stem,
     render_constant_hold_ablation,
     render_constant_hold_probe,
+    render_heading_probe,
     render_impulse_probe,
     render_stance_gate_report,
     run_panel,
     saturated_actuator_indices,
+    spawn_yaw_variants,
     write_action_filter_sweep,
     write_constant_hold_ablation,
     write_constant_hold_probe,
+    write_heading_probe,
     write_impulse_probe,
     write_stance_gate_report,
     write_stance_panel_evidence,
@@ -104,13 +107,16 @@ __all__ = [
     "probe_stem",
     "render_constant_hold_ablation",
     "render_constant_hold_probe",
+    "render_heading_probe",
     "render_impulse_probe",
     "render_stance_gate_report",
     "run_panel",
     "saturated_actuator_indices",
+    "spawn_yaw_variants",
     "write_action_filter_sweep",
     "write_constant_hold_ablation",
     "write_constant_hold_probe",
+    "write_heading_probe",
     "write_impulse_probe",
     "write_stance_gate_report",
     "write_stance_panel_evidence",
@@ -214,6 +220,20 @@ def main() -> int:
         default=8,
         help="Episodes per impulse row (default 8).",
     )
+    parser.add_argument(
+        "--spawn-yaw-offsets",
+        default=None,
+        help="Comma-separated spawn headings in degrees, e.g. -90,-45,45,90: re-roll the policy and the "
+        "zero-action statue with the spawn turned about vertical by each (the animal alone, and with the prey "
+        "and the reward's reference direction), beside an unturned control. REPORT ONLY: the stance stage "
+        "always spawns facing +x, so the gate never sees a stance that reads its world heading.",
+    )
+    parser.add_argument(
+        "--spawn-yaw-episodes",
+        type=int,
+        default=8,
+        help="Episodes per heading-probe row (default 8).",
+    )
     args = parser.parse_args()
     args.hold_constant = args.hold_constant or args.hold_release_ablation
 
@@ -236,6 +256,18 @@ def main() -> int:
         parser.error(f"--impulse-speeds must be comma-separated numbers, got {args.impulse_speeds!r}")
     if args.impulse_probe and not any(speed > 0 for speed in impulse_speeds):
         parser.error("--impulse-speeds needs at least one positive magnitude")
+    spawn_yaw_offsets: list[float] = []
+    if args.spawn_yaw_offsets is not None:
+        if args.zero_action:
+            parser.error("--spawn-yaw-offsets rolls the statue as its own control; pass --model, not --zero-action")
+        try:
+            spawn_yaw_offsets = [float(part) for part in args.spawn_yaw_offsets.split(",") if part.strip()]
+        except ValueError:
+            parser.error(f"--spawn-yaw-offsets must be comma-separated numbers, got {args.spawn_yaw_offsets!r}")
+        if not any(offset != 0.0 for offset in spawn_yaw_offsets):
+            parser.error("--spawn-yaw-offsets needs at least one non-zero heading")
+    if args.spawn_yaw_episodes < 1:
+        parser.error(f"--spawn-yaw-episodes must be at least 1, got {args.spawn_yaw_episodes}")
     if args.hold_ramp_steps < 0:
         parser.error(f"--hold-ramp-steps cannot be negative, got {args.hold_ramp_steps}")
     if args.filter_actions is not None and args.filter_actions <= 0:
@@ -356,6 +388,37 @@ def main() -> int:
         if args.out_dir:
             written = write_impulse_probe(
                 args.out_dir, policy_sweep, statue_sweep, probe_episodes=args.impulse_episodes
+            )
+            for path in written.values():
+                print(f"written: {path}")
+
+    if spawn_yaw_offsets:
+
+        def _heading_sweep(zero_action: bool) -> list[dict[str, Any]]:
+            return [
+                build_stance_gate_report(
+                    args.species,
+                    args.stage,
+                    stage_config=stage_config,
+                    model_path=None if zero_action else args.model,
+                    vecnorm_path=None if zero_action else args.vecnorm,
+                    zero_action=zero_action,
+                    episodes=args.spawn_yaw_episodes,
+                    seed=args.seed,
+                    allow_legacy_plant=args.allow_legacy_plant,
+                    spawn_yaw=variant,
+                )
+                for variant in spawn_yaw_variants(spawn_yaw_offsets)
+            ]
+
+        policy_headings = _heading_sweep(zero_action=False)
+        statue_headings = _heading_sweep(zero_action=True)
+        text, _ = render_heading_probe(policy_headings, statue_headings, probe_episodes=args.spawn_yaw_episodes)
+        print()
+        print(text, end="")
+        if args.out_dir:
+            written = write_heading_probe(
+                args.out_dir, policy_headings, statue_headings, probe_episodes=args.spawn_yaw_episodes
             )
             for path in written.values():
                 print(f"written: {path}")

@@ -533,6 +533,21 @@ class TestSoleFlatness:
         qualities = [float(reward_sole_flatness(np.array([t, t]), 3.0, 1.0)[1]) for t in tilts]
         assert all(a > b for a, b in zip(qualities, qualities[1:]))
 
+    def test_no_foot_weights_is_the_ungated_expression_bit_for_bit(self):
+        tilts = np.array([0.7, 2.3])
+        legacy = float(np.mean(np.exp(-np.square(tilts / 3.0))))
+        reward, quality = reward_sole_flatness(tilts, 3.0, 0.15)
+        assert float(quality) == legacy and float(reward) == 0.15 * legacy
+        ones = reward_sole_flatness(tilts, 3.0, 0.15, foot_weights=np.ones(2))
+        assert float(ones[1]) == pytest.approx(legacy)
+
+    def test_a_zero_weight_forfeits_exactly_that_feet_share(self):
+        # The mean still divides by both feet: a lifted foot is level in the air and earns nothing.
+        _, quality = reward_sole_flatness(np.zeros(2), 3.0, 1.0, foot_weights=np.array([1.0, 0.0]))
+        assert float(quality) == pytest.approx(0.5)
+        _, quality = reward_sole_flatness(np.zeros(2), 3.0, 1.0, foot_weights=np.zeros(2))
+        assert float(quality) == 0.0
+
 
 class TestStanceWidth:
     def test_home_width_earns_the_full_weight(self):

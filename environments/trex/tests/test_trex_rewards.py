@@ -21,6 +21,19 @@ from environments.shared.tests.reward_test_helpers import (
 )
 from environments.trex.envs.trex_env import TRexEnv
 
+#: The stance follow-up's TRexEnv kwargs (decision D-D27), all inert at their defaults.
+_FOLLOWUP_KEYS = frozenset(
+    {
+        "stance_width_reference",
+        "stance_width_settle_steps",
+        "foot_terms_min_support_force",
+        "floor_impact_weight",
+        "floor_impact_threshold_bw",
+        "airborne_substep_weight",
+        "action_penalty_source",
+    }
+)
+
 
 @pytest.fixture
 def env():
@@ -520,6 +533,7 @@ class TestStageOneStanceRewardPrimitives:
             "foot_flatness_tolerance_deg",
             "stance_width_weight",
             "stance_width_tolerance_m",
+            *_FOLLOWUP_KEYS,
         }
         kwargs = {k: v for k, v in load_stage_config("trex", "stance")["env_kwargs"].items() if k not in new_keys}
         legacy_terms = (
@@ -570,6 +584,68 @@ class TestStageOneStanceRewardPrimitives:
                 # The diagnostics are live even while the terms are off.
                 assert 0.0 < info["foot_flatness_quality"] <= 1.0
                 assert 0.0 < info["stance_width_quality"] <= 1.0
+        finally:
+            env.close()
+
+    def test_followup_defaults_leave_the_r8_total_bit_identical(self):
+        """The D-D27 terms are opt-in: at their defaults the total is the physics-r8 (D-D24) sum, bit for bit.
+
+        On the shipped stance shaping minus the seven D-D27 keys, through the
+        real step (the 10 Hz filter included), summed in the order
+        ``_get_reward_info`` summed before the terms existed.
+        """
+        from environments.shared.config import load_stage_config
+
+        kwargs = {k: v for k, v in load_stage_config("trex", "stance")["env_kwargs"].items() if k not in _FOLLOWUP_KEYS}
+        r8_terms = (
+            "reward_forward",
+            "reward_backward",
+            "reward_drift",
+            "reward_alive",
+            "reward_energy",
+            "reward_tail",
+            "reward_bite",
+            "reward_approach",
+            "reward_head_proximity",
+            "reward_head_clearance",
+            "reward_neck_posture",
+            "reward_tail_home_pose",
+            "reward_posture",
+            "reward_nosedive",
+            "reward_height",
+            "reward_bilateral_support",
+            "reward_foot_load_balance",
+            "reward_leg_home_pose",
+            "reward_foot_flatness",
+            "reward_stance_width",
+            "reward_gait",
+            "reward_smoothness",
+            "reward_action_jerk",
+            "reward_action_saturation",
+            "reward_heading",
+            "reward_lateral",
+            "reward_spin",
+            "reward_speed",
+            "reward_idle",
+        )
+        env = TRexEnv(**kwargs)
+        try:
+            assert (env.stance_width_reference, env.action_penalty_source) == ("keyframe", "filtered")
+            assert env.foot_terms_min_support_force == env.floor_impact_weight == env.airborne_substep_weight == 0.0
+            env.reset(seed=3042)
+            rng = np.random.default_rng(0)
+            for _ in range(240):
+                _, reward, terminated, _, info = env.step(rng.uniform(-0.3, 0.3, env.action_space.shape))
+                if terminated:
+                    break
+                total = info[r8_terms[0]]
+                for name in r8_terms[1:]:
+                    total = total + info[name]
+                assert reward == total
+                assert info["reward_floor_impact"] == 0.0 and info["reward_airborne_substeps"] == 0.0
+                assert info["stance_width_target"] == env._home_stance_width
+            # The diagnostics are live even while the terms are off.
+            assert info["peak_foot_force_bw"] > 0.5
         finally:
             env.close()
 
@@ -627,8 +703,317 @@ class TestStageOneStanceRewardPrimitives:
             ({"neck_posture_reference": "home"}, "neck_posture_reference"),
             ({"foot_flatness_tolerance_deg": 0.0}, "foot_flatness_tolerance_deg"),
             ({"stance_width_tolerance_m": -0.01}, "stance_width_tolerance_m"),
+            ({"stance_width_reference": "spawn"}, "stance_width_reference"),
+            ({"stance_width_settle_steps": 0}, "stance_width_settle_steps"),
+            ({"stance_width_settle_steps": 2.5}, "stance_width_settle_steps"),
+            ({"stance_width_settle_steps": True}, "stance_width_settle_steps"),
+            ({"foot_terms_min_support_force": -1.0}, "foot_terms_min_support_force"),
+            ({"foot_terms_min_support_force": float("inf")}, "foot_terms_min_support_force"),
+            ({"floor_impact_weight": -2.0}, "floor_impact_weight"),
+            ({"floor_impact_threshold_bw": 0.0}, "floor_impact_threshold_bw"),
+            ({"floor_impact_threshold_bw": float("nan")}, "floor_impact_threshold_bw"),
+            ({"airborne_substep_weight": -1.0}, "airborne_substep_weight"),
+            ({"action_penalty_source": "applied"}, "action_penalty_source"),
         ],
     )
     def test_invalid_stance_settings_fail_fast(self, kwargs, message):
         with pytest.raises(ValueError, match=message):
             TRexEnv(**kwargs)
+
+
+class TestStanceFollowupTerms:
+    """The D-D27 terms: settled width reference, load gate, floor impact and airborne substeps, raw pricing."""
+
+    @staticmethod
+    def _reward_info(env):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, info = env._get_reward_info(action)
+        return info
+
+    def test_settled_width_reference_captures_the_animals_own_width_and_pays_only_after(self):
+        env = TRexEnv(
+            stance_width_weight=2.0,
+            stance_width_reference="settled",
+            stance_width_settle_steps=5,
+            reset_noise_scale=0.0,
+        )
+        try:
+            env.reset(seed=0)
+            settled = env._home_stance_width + 0.03
+            env._stance_width = lambda data: settled
+            for step in range(1, 6):
+                env._step_count = step
+                info = self._reward_info(env)
+                # Unpaid through the capture step, centred on the keyframe until it.
+                assert info["reward_stance_width"] == 0.0
+                expected_target = env._home_stance_width if step < 5 else settled
+                assert info["stance_width_target"] == pytest.approx(expected_target)
+            env._step_count = 6
+            info = self._reward_info(env)
+            assert info["stance_width_error"] == pytest.approx(0.0, abs=1e-12)
+            assert info["reward_stance_width"] == pytest.approx(2.0)
+            # Moving away from the CAPTURED width is priced, the keyframe no longer is.
+            env._stance_width = lambda data: settled + env.stance_width_tolerance_m
+            env._step_count = 7
+            assert self._reward_info(env)["reward_stance_width"] == pytest.approx(2.0 * np.exp(-1.0))
+            # Each episode captures its own.
+            env.reset(seed=1)
+            assert env._stance_width_target == env._home_stance_width
+        finally:
+            env.close()
+
+    def test_a_horizon_shorter_than_the_settle_never_pays_the_settled_width(self):
+        env = TRexEnv(
+            stance_width_weight=1.0, stance_width_reference="settled", max_episode_steps=40, reset_noise_scale=0.0
+        )
+        try:
+            env.reset(seed=0)
+            infos = [env.step(np.zeros(env.model.nu))[4] for _ in range(40)]
+            assert all(info["reward_stance_width"] == 0.0 for info in infos)
+            assert infos[-1]["stance_width_target"] == env._home_stance_width
+        finally:
+            env.close()
+
+    def test_keyframe_reference_pays_from_the_first_step(self):
+        env = TRexEnv(stance_width_weight=2.0, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env._step_count = 1
+            assert self._reward_info(env)["reward_stance_width"] == pytest.approx(2.0, abs=1e-9)
+            env._step_count = 200
+            assert self._reward_info(env)["stance_width_target"] == env._home_stance_width
+        finally:
+            env.close()
+
+    def test_target_is_defined_before_the_first_reset(self):
+        env = TRexEnv(stance_width_reference="settled")
+        try:
+            assert env._stance_width_target == env._home_stance_width
+        finally:
+            env.close()
+
+    def test_load_gate_drops_an_unloaded_foots_flatness_share_and_the_width_term(self):
+        env = TRexEnv(
+            foot_flatness_weight=2.0,
+            stance_width_weight=1.0,
+            foot_terms_min_support_force=168.0,
+            reset_noise_scale=0.0,
+        )
+        try:
+            env.reset(seed=0)
+            env._sole_tilts_deg = lambda: np.array([0.0, 0.0])
+            env._aggregated_foot_contact_forces = lambda: (420.0, 420.0)
+            info = self._reward_info(env)
+            assert info["reward_foot_flatness"] == pytest.approx(2.0)
+            assert info["reward_stance_width"] == pytest.approx(1.0, abs=1e-6)
+            assert (info["r_foot_terms_supported"], info["l_foot_terms_supported"]) == (1.0, 1.0)
+            # The left foot carries less than the bar: it forfeits exactly its half, and the pair the width term.
+            env._aggregated_foot_contact_forces = lambda: (700.0, 167.9)
+            info = self._reward_info(env)
+            assert info["reward_foot_flatness"] == pytest.approx(1.0)
+            assert info["reward_stance_width"] == 0.0
+            assert (info["r_foot_terms_supported"], info["l_foot_terms_supported"]) == (1.0, 0.0)
+            # Exactly at the bar is supported.
+            env._aggregated_foot_contact_forces = lambda: (700.0, 168.0)
+            info = self._reward_info(env)
+            assert info["reward_foot_flatness"] == pytest.approx(2.0)
+            assert info["reward_stance_width"] == pytest.approx(1.0, abs=1e-6)
+            assert (info["r_foot_terms_supported"], info["l_foot_terms_supported"]) == (1.0, 1.0)
+            # Airborne: nothing.
+            env._aggregated_foot_contact_forces = lambda: (0.0, 0.0)
+            info = self._reward_info(env)
+            assert info["reward_foot_flatness"] == 0.0 and info["reward_stance_width"] == 0.0
+        finally:
+            env.close()
+
+    def test_ungated_terms_ignore_the_load(self):
+        env = TRexEnv(foot_flatness_weight=2.0, stance_width_weight=1.0, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env._sole_tilts_deg = lambda: np.array([0.0, 0.0])
+            env._aggregated_foot_contact_forces = lambda: (0.0, 0.0)
+            info = self._reward_info(env)
+            assert info["reward_foot_flatness"] == pytest.approx(2.0)
+            assert info["reward_stance_width"] == pytest.approx(1.0, abs=1e-6)
+        finally:
+            env.close()
+
+    def test_body_weight_is_the_whole_animal(self):
+        env = TRexEnv()
+        try:
+            # 85.72 kg x 9.81: stance.toml's foot_load_balance_min_support_force divides the same weight.
+            assert env._body_weight_n == pytest.approx(840.9, abs=0.1)
+        finally:
+            env.close()
+
+    def test_floor_impact_prices_the_peak_above_the_threshold_linearly(self):
+        env = TRexEnv(floor_impact_weight=2.0, floor_impact_threshold_bw=1.4, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            weight = env._body_weight_n
+            for peak_bw, expected in ((1.0, 0.0), (1.4, 0.0), (1.9, -1.0), (2.4, -2.0)):
+                block = np.full((5, 2), 0.5 * weight)
+                block[3] = (0.5 * peak_bw * weight, 0.5 * peak_bw * weight)
+                env._substep_foot_force_block = lambda block=block: block
+                info = self._reward_info(env)
+                assert info["peak_foot_force_bw"] == pytest.approx(peak_bw)
+                assert info["reward_floor_impact"] == pytest.approx(expected)
+        finally:
+            env.close()
+
+    def test_floor_impact_peak_is_the_summed_force_not_each_foots_own_peak(self):
+        env = TRexEnv(floor_impact_weight=2.0, floor_impact_threshold_bw=1.2, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            weight = env._body_weight_n
+            # Each foot peaks on its own substep (a single-foot re-landing): the floor never carries
+            # 0.9 + 0.9 = 1.8 BW at once, so the step's peak is 1.2 BW, at this threshold and unpriced.
+            block = np.array([[0.5, 0.5], [0.9, 0.3], [0.3, 0.9], [0.5, 0.5], [0.5, 0.5]]) * weight
+            env._substep_foot_force_block = lambda: block
+            info = self._reward_info(env)
+            assert info["peak_foot_force_bw"] == pytest.approx(1.2)
+            assert info["reward_floor_impact"] == pytest.approx(0.0)
+            # The threshold is the configured one, not the stance's 1.4: 0.1 BW over 1.2 costs 0.2.
+            block = np.array([[0.5, 0.5], [1.0, 0.3], [0.3, 1.0], [0.5, 0.5], [0.5, 0.5]]) * weight
+            env._substep_foot_force_block = lambda: block
+            info = self._reward_info(env)
+            assert info["peak_foot_force_bw"] == pytest.approx(1.3)
+            assert info["reward_floor_impact"] == pytest.approx(-0.2)
+        finally:
+            env.close()
+
+    def test_airborne_substeps_count_substeps_with_every_foot_unloaded(self):
+        env = TRexEnv(airborne_substep_weight=1.0, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            # Substeps 0 and 1 airborne (every foot <= 0.1 N); 2 is single support, not airborne.
+            block = np.array([[0.0, 0.1], [0.05, 0.0], [0.0, 300.0], [400.0, 400.0], [420.0, 410.0]])
+            env._substep_foot_force_block = lambda: block
+            info = self._reward_info(env)
+            assert info["airborne_substeps"] == 2.0
+            assert info["reward_airborne_substeps"] == pytest.approx(-2.0 / 5.0)
+        finally:
+            env.close()
+
+    def test_new_terms_enter_the_total_only_when_weighted(self):
+        env = TRexEnv(floor_impact_weight=2.0, airborne_substep_weight=1.0, reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            block = np.array([[0.0, 0.0]] * 4 + [[2000.0, 2000.0]])
+            env._substep_foot_force_block = lambda: block
+            total, info = env._get_reward_info(np.zeros(env.action_space.shape))
+            others = sum(
+                value
+                for key, value in info.items()
+                if key.startswith("reward_")
+                and key not in ("reward_total", "reward_floor_impact", "reward_airborne_substeps")
+            )
+            assert info["reward_floor_impact"] < 0.0 and info["reward_airborne_substeps"] == pytest.approx(-0.8)
+            assert total == pytest.approx(others + info["reward_floor_impact"] + info["reward_airborne_substeps"])
+        finally:
+            env.close()
+
+    def test_substep_block_matches_the_min_aggregate_and_is_step_tagged(self):
+        env = TRexEnv()
+        try:
+            env.reset(seed=0)
+            # Before any step: the instantaneous read, as one row.
+            assert env._substep_foot_force_block().shape == (1, 2)
+            env.step(np.zeros(env.action_space.shape))
+            block = env._substep_foot_force_block()
+            assert block.shape == (env.frame_skip, 2)
+            np.testing.assert_array_equal(block.min(axis=0), env._aggregated_foot_contact_forces())
+            np.testing.assert_array_equal(block[-1], env._foot_contact_forces())
+            block[:] = -1.0  # a copy: the step's record cannot be edited through it
+            assert env._substep_foot_force_block().min() >= 0.0
+            env._invalidate_substep_aggregates()
+            assert env._substep_foot_force_block().shape == (1, 2)
+            env.step(np.zeros(env.action_space.shape))
+            env.reset(seed=1)
+            assert env._substep_foot_force_block().shape == (1, 2)
+        finally:
+            env.close()
+
+    @staticmethod
+    def _square_wave_run(source: str, steps: int = 6, amplitude: float = 1.0, **kwargs):
+        env = TRexEnv(
+            smoothness_weight=2.0,
+            action_jerk_weight=3.0,
+            action_saturation_weight=0.5,
+            energy_penalty_weight=0.075,
+            action_penalty_source=source,
+            reset_noise_scale=0.0,
+            **kwargs,
+        )
+        try:
+            env.reset(seed=0)
+            infos = []
+            for index in range(steps):
+                infos.append(env.step(np.full(env.model.nu, amplitude if index % 2 else -amplitude))[4])
+            return infos
+        finally:
+            env.close()
+
+    def test_raw_source_prices_the_pre_filter_command(self):
+        from environments.shared.reward_functions import (
+            reward_action_jerk,
+            reward_action_saturation,
+            reward_action_smoothness,
+        )
+
+        raw = self._square_wave_run("raw")
+        filtered = self._square_wave_run("filtered")
+        n = 15
+        commands = [np.full(n, 1.0 if index % 2 else -1.0) for index in range(len(raw))]
+        for index in range(2, len(raw)):
+            # Exactly the pure terms on the clipped +-1 commands the policy sent.
+            smooth, delta = reward_action_smoothness(commands[index], commands[index - 1], n, 2.0)
+            jerk_reward, jerk = reward_action_jerk(commands[index], commands[index - 1], commands[index - 2], n, 3.0)
+            saturation, _ = reward_action_saturation(commands[index], 0.5, 0.9)
+            assert raw[index]["reward_smoothness"] == pytest.approx(float(smooth))
+            assert raw[index]["action_delta"] == pytest.approx(float(delta))
+            assert raw[index]["reward_action_jerk"] == pytest.approx(float(jerk_reward))
+            assert raw[index]["action_jerk"] == pytest.approx(float(jerk))
+            assert raw[index]["reward_action_saturation"] == pytest.approx(float(saturation))
+            # The filter cuts most of the square wave, so the filtered command is priced far less.
+            assert raw[index]["reward_smoothness"] < 5.0 * filtered[index]["reward_smoothness"]
+            assert raw[index]["reward_action_jerk"] < 5.0 * filtered[index]["reward_action_jerk"]
+            # Energy is the APPLIED command's under either source.
+            assert raw[index]["reward_energy"] == filtered[index]["reward_energy"]
+
+    def test_an_out_of_range_raw_command_is_priced_as_its_clip(self):
+        # SB3 clips to the action space; a direct caller may not, and the saturation ramp would over-price it.
+        clipped = self._square_wave_run("raw")
+        beyond = self._square_wave_run("raw", amplitude=1.5)
+        for index in range(len(clipped)):
+            for key in ("reward_smoothness", "action_delta", "reward_action_jerk", "reward_action_saturation"):
+                assert beyond[index][key] == clipped[index][key], (index, key)
+
+    def test_raw_equals_filtered_without_the_filter(self):
+        class _UnfilteredTRex(TRexEnv):
+            action_filter_cutoff_hz = 0.0
+
+        def run(source):
+            env = _UnfilteredTRex(smoothness_weight=2.0, action_jerk_weight=3.0, action_penalty_source=source)
+            try:
+                env.reset(seed=0)
+                rng = np.random.default_rng(1)
+                return [env.step(rng.uniform(-1, 1, env.action_space.shape))[1] for _ in range(5)]
+            finally:
+                env.close()
+
+        assert run("raw") == run("filtered")
+
+    def test_a_stale_policy_command_is_never_priced(self):
+        env = TRexEnv(smoothness_weight=2.0, action_penalty_source="raw", reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.ones(env.action_space.shape))
+            # Scored out of band after the step: the kept command belongs to the step that ran, and a
+            # direct call at another step count reads the action it is given.
+            env._step_count += 1
+            env._prev_action = np.zeros(env.action_space.shape)
+            info = self._reward_info(env)
+            assert info["action_delta"] == 0.0
+        finally:
+            env.close()

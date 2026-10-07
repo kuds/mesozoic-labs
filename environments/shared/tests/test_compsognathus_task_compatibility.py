@@ -36,6 +36,16 @@ TREX_R8_TASK_KEYS = {
     "stance_width_weight": 0.0,
     "stance_width_tolerance_m": 0.05,
 }
+#: And the ones the stance follow-up added (decision D-D27), at their legacy defaults.
+TREX_FOLLOWUP_TASK_KEYS = {
+    "stance_width_reference": "keyframe",
+    "stance_width_settle_steps": 200,
+    "foot_terms_min_support_force": 0.0,
+    "floor_impact_weight": 0.0,
+    "floor_impact_threshold_bw": 1.4,
+    "airborne_substep_weight": 0.0,
+    "action_penalty_source": "filtered",
+}
 
 
 @pytest.mark.parametrize("record", FIXTURE["fingerprints"], ids=lambda record: f"{record['species']}-{record['stage']}")
@@ -45,7 +55,10 @@ def test_pre_recovery_quiet_checkpoint_identity_is_preserved(record):
         # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8,
         # whose task revision added constructor kwargs: they enter each trex task at their legacy
         # defaults (no carve-out exists for them), and nothing else in the payload moved.
-        assert {key: value for key, value in current["env"].items() if key not in record["env"]} == TREX_R8_TASK_KEYS
+        assert {key: value for key, value in current["env"].items() if key not in record["env"]} == {
+            **TREX_R8_TASK_KEYS,
+            **TREX_FOLLOWUP_TASK_KEYS,
+        }
         assert {key: value for key, value in current["env"].items() if key in record["env"]} == record["env"]
         unchanged = {key: value for key, value in record.items() if key not in ("env", "task_sha256")}
         assert {key: value for key, value in current.items() if key not in ("env", "task_sha256")} == unchanged

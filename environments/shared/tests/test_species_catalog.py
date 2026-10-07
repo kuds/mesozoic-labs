@@ -255,9 +255,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3766.1
-    # (physics r8 with the r8 stance task: settled neck target, foot flatness
-    # and stance width; 3495.2 on r7 with the 20260810 shaping pack:
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3756.8
+    # (physics r8 with the D-D27 stance task: the settled width reference, the
+    # load gate and the floor-impact, airborne and raw-command terms; 3766.1
+    # under the r8 stance task: settled neck target, foot flatness and stance
+    # width; 3495.2 on r7 with the 20260810 shaping pack:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
     # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 2842.8 (physics
@@ -285,9 +287,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # with it in issue #491. The FRACTION is the invariant, not the reward.
         # Re-derived at tolerance 0.10 (statue 3241.3 -> rail 1940), then
         # again for the 20260810 shaping pack: statue 3495.2, x0.60 = 2097.1
-        # -> 2100 nearest-10, and for physics r8 with its stance task: statue
-        # 3766.1, x0.60 = 2259.7 -> 2260.
-        "trex": 2260.0,
+        # -> 2100 nearest-10, for physics r8 with its stance task: statue
+        # 3766.1, x0.60 = 2259.7 -> 2260, and for the D-D27 follow-up: statue
+        # 3756.8, x0.60 = 2254.1 -> 2250.
+        "trex": 2250.0,
         # 0.60 x 2842.76 = 1705.7 -> 1710 nearest-10 (1050 on the r2 plant).
         "velociraptor": 1710.0,
         "brachiosaurus": 1040.0,
@@ -333,6 +336,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_sole_corner_lift_m": 0.004,
         "min_sole_contacts": 1.5,
         "min_avg_reward_statue_ratio": 0.60,
+        # The stance follow-up (D-D27): the settle re-seat, settle steps, turning and the hop-or-fall rail.
+        "max_settle_stance_width_change_m": 0.08,
+        "max_settle_touchdowns": 2,
+        "max_episode_yaw_change_deg": 25.0,
+        "max_hop_or_fall_episodes": 1,
     }
     # Velociraptor 1a's block (configs/velociraptor/stage1_balance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and

@@ -649,6 +649,7 @@ def _build_core_callbacks(
         SaveVecNormalizeCallback,
         build_baseline_progress_callback,
         build_eval_collapse_early_stop_callback,
+        build_hop_watch_callback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
@@ -808,6 +809,20 @@ def _build_core_callbacks(
     )
     if baseline_cb is not None:
         callbacks.append(baseline_cb)
+
+    # Opt-in early stop for a stance still hopping late in training (the
+    # T. rex physics-r8 seed that locked into a 12.5 Hz hop at 6.5M and
+    # trained to 11M on it).  Reads the plateau callback's gate_progress
+    # duty, so it adds no rollout; None unless the stage declares
+    # hop_watch_max_unsupported_duty.  See `curriculum.hop_watch`.
+    hop_watch_cb = build_hop_watch_callback(
+        plateau_callback,
+        stage_config,
+        stage_dir=log_path,
+        verbose=verbose,
+    )
+    if hop_watch_cb is not None:
+        callbacks.append(hop_watch_cb)
 
     if use_wandb:
         callbacks.append(WandbCallback())

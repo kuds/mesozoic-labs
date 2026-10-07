@@ -99,6 +99,9 @@ class StageThreshold:
     max_sole_tilt_excess_deg: float | None = None
     max_sole_corner_lift_m: float | None = None
     min_sole_contacts: float | None = None
+    max_episode_yaw_change_deg: float | None = None
+    max_settle_touchdowns: float | None = None
+    max_hop_or_fall_episodes: int | None = None
 
     # Shared
     min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
@@ -727,4 +730,7 @@ _STANCE_V2_COPIED_KEYS: tuple[str, ...] = (
     "max_sole_tilt_excess_deg",
     "max_sole_corner_lift_m",
     "min_sole_contacts",
+    "max_episode_yaw_change_deg",
+    "max_settle_touchdowns",
+    "max_hop_or_fall_episodes",
 )

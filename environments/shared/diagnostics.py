@@ -126,6 +126,8 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_tail_home_pose",
         "reward_foot_flatness",
         "reward_stance_width",
+        "reward_floor_impact",
+        "reward_airborne_substeps",
         "reward_action_saturation",
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching
@@ -313,7 +315,9 @@ class DiagnosticsCallback(_BaseCallback):
             # "raw_" because diagnostics/action_saturation is taken: the env's
             # INFO_KEYS entry of that name (the ramp fraction behind
             # reward_action_saturation, measured on the command the plant
-            # integrates) is recorded at the top of this method, and recording
+            # integrates -- or, on the T. rex stance and recovery since D-D27
+            # (action_penalty_source = "raw"), on the policy's own clipped
+            # command) is recorded at the top of this method, and recording
             # this one under the same key silently overwrote it every rollout.
             # This one reads self.locals["actions"] — SB3's pre-clip, pre-filter
             # Gaussian sample — at the hard 0.99 threshold, so the two disagree

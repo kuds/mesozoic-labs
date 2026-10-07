@@ -676,3 +676,289 @@ under the committed bars and were refused by the edge bars.
 and a v2 verdict on one is only as good as these bars. The realization effect of §2.3 applies. The statue, and the
 statue with command jitter, are the only r3 policies measured; the stance reward revision priced the audited stance from its r2 replays
 (`configs/velociraptor/stage1_balance.toml`'s `[env]` comments), not from an r3 policy.
+
+## 9. Addendum 2026-10-07: the T. rex physics-r8 training runs and the stance follow-up (appended)
+
+*Appended 2026-10-07; §1–§8 above are unchanged.* The maintainer trained the first two T. rex stances on the
+physics-r8 task of §7 (decision D-D24) on 2026-10-06, seeds 42 and 44, and asked on 2026-10-07, after a review of both
+runs, for the follow-up fixes to the T. rex stance: decision D-D27 ([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md)
+§6.2). This section records the review's verified findings and what the follow-up changes. The plant does not change
+(physics r8, policy interface r13, visual r4). Neither checkpoint is certified, and neither can be: both fail
+`stance_quality/v2` as recorded and as re-derived. The review ran on 2026-10-07 on CPU against `main` = `46e0b7c`,
+whose T. rex digests equal the ones the runs recorded (the velociraptor revision between the two commits moved no
+T. rex digest); the follow-up's numbers were measured on the branch that carries it, whose base is the same commit.
+
+**The runs.** Both trained `configs/trex/stance.toml` at commit `7b8b5d1` (clean), fresh (no trunk, no ancestors), on
+4 environments on an L4, for 11,001,856 steps. Their recorded `stage_config.json` files differ only in the seed and
+the duration: hyperparameters `sha256:8c8b9ab3…`, task `sha256:6da0b7dd…`, gate `sha256:3571f209…`, measurement
+floor-truth/v1 `sha256:0a70082d…`, and the plant identity is the r8 entry of `configs/plant_manifest.generated.json`.
+Neither sets `log_std_init`, so both started at SB3's std 1.0. The handoff pair of each, selected by evaluation
+reward, was downloaded and its sha256 recomputed against `gate_verdict.json`, `provenance.json` and
+`artifact_manifest.json`; both load on `main` under the plant contract with no override.
+
+| Run | Seed | Wall clock | Handoff `robust_best_model.zip`, sha256 | `robust_best_model_vecnorm.pkl`, sha256 | Recorded v2 verdict |
+|---|---|---|---|---|---|
+| `20261006_185343` | 42 | 14h55m | `2053f4875d0ca02c612a4e41a1d8c4198181216a1479d451b1deb93c17c40bd2` (the 10.8M checkpoint) | `b491a28b9ff8d18531cf045a8b2e3cec48ee103a3a06627c656220f65f6b0d00` | FAIL: 0/40 clean, bound 0.000; reward 3012.1 ± 7.2 |
+| `20261006_185704` | 44 | 15h46m | `d320d274f9ed298a5b3aa430dbe48f91be7a920c00b0abb2b9dac9c43020e5ab` (the 10.35M best evaluation, 3778.59 ± 9.82) | `17ee31e998a0ed29bd9351498f047258d422d20852fbcb5116593a2bdecb090d` | FAIL: 13/40 clean, bound 0.204; reward 3772.7 ± 17.7 |
+
+**The verdicts, recorded and re-derived.** Each panel was re-rolled on `main` with the committed r8 block, on the
+certification seeds and on a fresh block, with the zero-action statue on the same seeds; and, for the follow-up, on
+the D-D27 task with the D-D27 block below (no reward term moves a trajectory, so the floor-truth rows are the r8
+task's). Cells: clean episodes, bound, mean reward.
+
+| Panel | Seeds | Seed 42 | Seed 44 | Statue |
+|---|---|---|---|---|
+| recorded, at `7b8b5d1` | 3042–3081 | 0/40, 0.000 | 13/40, 0.204 | 40/40, 0.928 (3766.1) |
+| re-derived, r8 block | 3042–3081 | 0/40, 0.000 (3012.1) | 13/40, 0.204, the same clean set (3771.8 ± 22.1) | 40/40, 0.928 (3766.1) |
+| re-derived, r8 block | 7042–7081 | 0/40, 0.000 (3011.3) | 8/40, 0.104 (3672.4 ± 469.9) | 40/40, 0.928 (3769.7) |
+| D-D27 task and block | 3042–3081 | 0/40, 0.000; 40 hop-or-fall episodes; 1059.9, under both reward rails | 13/40, 0.204; 1 hop-or-fall (3739.2 ± 43.3) | 40/40, 0.928; 0 (3756.8 ± 17.3) |
+| D-D27 task and block | 7042–7081 | not rolled | 8/40, 0.104; 4 hop-or-fall, so the rail refuses it too (3607.9 ± 526.2) | 40/40, 0.928; 0 (3761.0 ± 16.5) |
+
+Recorded and re-derived panels are not bit-identical (floating-point divergence across machines: seed 42's episode
+rewards differ by at most 3.6, and seed 44's seed 3080 diverges into a window hop on `main`, with 31 of 40 rows within
+1e-3), but the verdicts and the clean sets match, and the judge (`reporting.gates`, under the recorded and the current
+block) returns `passed = false` for both runs. So v2 behaved as designed: two true negatives and a true positive (the
+statue), and no false pass.
+
+Seed 42 fails five bars on every episode: all-feet support 0.625 (bar 0.98), 12.5 touchdowns/s (0.25), raw-command
+saturation about 0.94 (0.10), about 250 settle airborne substeps (0) and a settle peak of about 2.8 BW (1.5); window
+displacement fails on 19–24 and sole contacts on 20–30 of 40 across the panels. Seed 44 is refused on the
+certification seeds by the settle bars alone: settle peaks over 1.5 BW on 27/40 (32/40 on 7042–7081; median 1.586 /
+1.622 BW against the statue's 1.235 / 1.237) and settle airborne substeps on 6/40 (4/40). Without the settle criteria
+it would be clean on 39/40 there (bound 0.887, a PASS), on 36/40 of the fresh seeds (0.786, a FAIL) and on 75/80
+pooled.
+
+**How each stands.** *Seed 42* is a 12.5 Hz synchronous two-foot micro-hop around a near-statue mean pose: both feet
+leave the floor together on a rigid 8-step cycle driven by raw ±1 commands (knees at 50 Hz, hip pitch and ankles at
+25 Hz, hip rolls and neck at 12.5 Hz). On floor-truth traces both legs carry 0 N for the whole step on 22–25% of
+window steps, some substep is airborne on 37.5% of them, each foot touches down 100 times per episode, and the sole
+clears the floor by only 5–8 mm. The settle is a 43-touchdown hop sequence that lands at about 2.8 BW. It also steers
+to an absolute heading of about −45°: episode yaw change median 45.3–45.9° against the statue's 3.4–3.9°. Its pads
+stay flat (tilt 0.96°, corner lift 2.6 mm) and its load splits 0.49. Its 0.80 of the statue's reward is the support
+terms paying nothing in flight: a per-term replay against the statue on the same seeds puts 629 of its 767 shortfall
+in foot load balance (−224), bilateral support (−221) and the alive bonus (−184).
+
+*Seed 44*, after the settle, stands like the statue on about 90–95% of episodes (all-feet support 1.0, no
+touchdown, 4.6 mm of drift, no saturation), and on its window-clean episodes it scores 8–9 per episode above the
+statue. Its failures: (1) in the settle it fires raw ±1 leg commands in the first ~60 steps (7–125 actuator-steps at
+|a| ≥ 0.95 per episode, the statue none; the 10 Hz filter lets only 0–16 of them reach the bound) and stomps or hops
+its feet back to the keyframe width; (2) on 9 of 207 resets (4.3%, 95% CI 2.0–8.1%) that burst does not die out and
+the legs lock into a 10–12.5 Hz two-foot hop for the whole episode (on 7042–7081 up to 3.75 touchdowns/s, 1.31 m of
+drift and saturation 0.31), and on 1 of 207 (seed 7044) it rolls out slowly onto one leg and falls at step 370 with no
+airborne substep; (3) its left foot stands on the front edge of its pad: pitched 0.69–0.75° toe-down against the
+statue's 0.14°, on 2.02–2.17 loaded contact points against 3.62–3.68, with the window-mean centre of pressure at
+0.85–1.00 of the pad's fore half-length on all 80 panel episodes (the statue at most 0.362 over 120) and the digits
+carrying about 1% each (the statue 6–8%); the load splits 0.517 / 0.483, the head sits 6.5 cm above the statue's and
+the tail is commanded into its stop. Every item of (3) is inside every v2 bar.
+
+**The r7 hacks are gone** at their r7 size in both seeds (§7's audited stances): no hip-roll splay (asymmetry −0.5° on
+seed 42, −0.68° / −0.50° on seed 44; hip-roll std 0.14–0.38 against r7's 0.64–0.79), no rolled-pad prop (worst-pad
+tilt median 0.77–0.96° and corner lift 2.1–2.6 mm, against r7's about 4.4° and 12–18 mm), no widened stance (0.279 /
+0.283 m against the keyframe's 0.280; r7 replanted at 0.340–0.344 m) and no 0.45 m head lift. What remains of r7's
+failure modes is the reset jump (r7's 2–2.4 BW push-off is seed 44's settle stomp, which now replants toward the
+keyframe width instead of wider) and the two-foot hop (r7's failed seed-45 node `20261001_225601` hopped at 11.6 Hz
+and duty 0.333; seed 42 is the same mode at 12.5 Hz and duty 0.375).
+
+**Heading.** Both policies depend on the world heading the stance stage always spawns at (yaw 0, the prey within about
+±11° of +x). The observation carries heading only in world-frame quantities, the pelvis quaternion, the pelvis linear
+velocity and the prey vector, and the reset never varies it. With the spawn turned about vertical after `reset()` (the
+follow-up's report-only probe below, on the D-D27 task; seeds 3042–3049, and 3042–3045 for seed 42):
+
+| Spawn turned by | Seed 44, the animal alone | Seed 44, the animal and the prey (only the observation differs) | Seed 42, either way | Statue, either way |
+|---|---|---|---|---|
+| 0° | 8/8 at the horizon | — | 4/4 | 8/8 |
+| −45° / +45° | 5/8 / 8/8 | 0/8 / 0/8 | not rolled | 8/8 / 8/8 |
+| −90° / +90° | 0/8 / 0/8 | 0/8 / 0/8 | 0/4 / 0/4 | 8/8 / 8/8 |
+
+The review's own probe (the animal alone, six seeds) found seed 44 at the horizon on 4/4, 10/12, 11/12, 6/8, 4/12
+and 0/8 episodes at |offset| 0 / 15 / 30 / 45 / 60 / 90°. The statue stands at every offset, so the physics is
+heading-neutral; with the prey turned too its reward equals the unturned one (3756.8), and turned alone it loses about
+100 at ±90° to the heading term, which still pays alignment with the unturned prey. Seed 44 holds its spawn heading
+while it stands; its VecNormalize statistics put the quaternion's w at a z-score of −0.49 at 30°, −1.53 at 45°, −2.96
+at 60° and −6.88 at 90°, which is where it starts to fall (the causal link is inferred from that match). Seed 42 falls
+at ±90° and, spawned at +45°, turns −84° back toward its preferred heading.
+
+**Why 0.80 against 1.00: basin escape against lock-in.** One config, two basins. Both runs started in a hop regime:
+their stochastic rollouts were unsupported on 55% / 57% of steps at 0.1M (std 1.0), and the unsupported duty of
+their deterministic evaluations, zero to 200k, rose from 250–400k on, to 0.128 / 0.134 at 1M and 0.418 / 0.321 at 4M
+(seed 42 / seed 44). Seed 44 escaped between 5.0M and 6.0M (0.139, 0.038 and 0.0001 at 5M, 5.5M and 6M; evaluation reward
+2978 → 3651) while the entropy coefficient was still above zero. Seed 42 stayed (0.365, 0.362, 0.372), locked at
+0.375 by 6.5M, just before the entropy anneal reached 0 at 7M, and held exactly 0.375 at every evaluation to 11M.
+Policy std fell alike in both (1.00 at 1M, 0.750 / 0.724 at 4M, 0.606 / 0.606 at 6M). Why one seed escaped and the
+other did not is not established: n = 2, and no start-std, entropy-schedule or learning-rate ablation was run.
+
+**Root causes in the reward and the recipe** (the review's verified findings; what is inferred says so):
+
+1. *The keyframe-referenced width term paid for re-seating the spawn.* Both seeds change their stance width in the
+   settle by 3.6–4.4 times the statue's (median 2.80 / 2.68 cm against 0.64 on 3042–3081, 2.33 / 2.29 against 0.65 on
+   7042–7081), and per seed the two independently trained policies' changes correlate at Spearman 0.88 / 0.91, so
+   both correct the same spawn error; both end at the keyframe width (0.279 / 0.283 m), narrower than where the
+   statue settles (0.288–0.293). The term paid seed 44 +12.5 per episode over the statue for it, and nothing priced
+   how it was done. That this term, rather than nosedive or head clearance, drives the re-seat is inferred.
+2. *Nothing priced a settle impact or an airborne substep.* The support terms read each step's substep MIN, and v1
+   never scored the settle, so seed 44's stomp (settle reward about +2.5 to +5 against the statue, for about 2.9 of
+   action penalties) and seed 42's 2.8 BW landings cost nothing as impacts.
+3. *The action penalties priced the filtered command.* T. rex alone sets `action_filter_cutoff_hz = 10`, and
+   `BaseDinoEnv.step` hands the reward the filtered command, but a first-order 10 Hz pole passes 24–54% of 12.5–50 Hz
+   content: seed 42's raw command holds at least four actuators at |a| ≥ 0.999 on 86–94% of steps while the filtered
+   one passes 0.9 on 1.8–3.6%, so smoothness charged it 8.8 times and jerk 11.3–11.5 times too little. Actuator
+   forces stayed at or below 0.75 of forcerange: this is command saturation, which v2's raw-command bar sees.
+4. *Foot flatness and stance width paid on unloaded feet.* On seed 42's airborne steps a lifted foot earned about 80%
+   of the flatness reward and 98% of the width reward (flatness 0.109–0.114 per step against 0.139–0.141 grounded).
+5. *The recipe's own prediction failed.* `stance.toml`'s `ent_coef_decay_timesteps` comment predicted algo_std "well
+   under 0.2" and unsupported duty below 0.28 by about 4M, and named the learning rate as the next suspect if either
+   tracked the old curve; both runs did (algo_std 0.750 / 0.724, rollout duty 0.409 / 0.358, evaluation 0.418 /
+   0.321 at 4M). Exploration started at std 1.0, where half of all stochastic steps are unsupported (below).
+
+**What the follow-up changes (D-D27).** Seven `TRexEnv` kwargs, each inert at its default (the legacy arithmetic bit
+for bit), set in `configs/trex/stance.toml` and inherited by recovery; a base-env record they read; the recipe's start
+std; an opt-in trainer guard; four gate keys; a report-only probe; and the statue constants re-derived. Each key's
+measured provenance is in its TOML comment.
+
+- *Width against the animal's own settled width:* `stance_width_reference = "settled"`, `stance_width_settle_steps =
+  200` (the gate's `settle_steps`; recovery captures at 140, before its first push at 200 ± 50). The statue earns 77.4 ±
+  2.8 of the 80 the window can pay (77.1 on 7042–7081, 76.5 on 5042–5081); a quiet constant hip-roll re-seat no longer
+  gains width (+6.7 → −2.0 per episode, seeds 3042–3061), though it still nets about +3 in total, mostly through
+  flatness, and seed 44's width advantage over the statue falls +12.5 → +2.5 (+16.8 → +3.4 on 5042–5081). A spawn
+  reference was measured and rejected: the statue's own settle moves its width by up to 5.2 cm, so it scored 88.7 ± 14.5
+  (25.0 at worst). What the settled reference gives up is pricing a stance widened during the settle: a constant ±0.15
+  hip-roll splay went from −54.1 to −28.5 per episode against the statue, still below it, and stays priced by flatness,
+  the sole bars and the settle width bar below.
+- *Load-gated foot terms:* `foot_terms_min_support_force = 168.0` N (0.20 of the 840.9 N body weight): a foot earns
+  its flatness share, and the pair the width term, only while its substep-MIN touch carries that load. The statue's
+  lightest foot after the spawn grace carries 0.244–0.316 BW over five seed blocks, so the gate costs it 0.2 per
+  episode (its spawn steps); seed 42's flatness falls by 45.0.
+- *Floor impact and airborne substeps over the whole episode, settle included:* `floor_impact_weight = 2.0` per BW
+  of a step's peak summed foot force above `floor_impact_threshold_bw = 1.4`, and `airborne_substep_weight = 1.0` per
+  fully airborne step, both read from every physics substep's foot touch, which `BaseDinoEnv.step` now keeps beside
+  its MIN (`_substep_foot_force_block`). Touch equals floor truth to 1e-12 N on every recorded step of these panels
+  (only the feet touch the floor). The statue's per-step peak after the spawn grace is at most 1.331 BW over 200
+  episodes, and it is never airborne after its spawn steps.
+- *The raw command priced:* `action_penalty_source = "raw"`: smoothness, jerk and saturation price the policy's own
+  clipped command; energy stays on the applied one. Seed 42's raw bang-bang now costs 8.8 / 11.4 / 222 times more
+  (49.4 → 434.2, 35.0 → 397.3 and 0.9 → 201.6 per episode); the statue commands zero and pays nothing either way.
+
+Re-scored exactly on the recorded panels (a trajectory does not depend on the reward). The committed implementation,
+re-rolling the panels, reproduces the prototype re-scoring to the decimal on every row but 5042–5081, which an
+independent re-implementation measured:
+
+| Policy | Seeds | r8 reward | D-D27 reward | Against the statue, r8 → D-D27 | Seeds above the statue |
+|---|---|---|---|---|---|
+| statue | 3042–3081 | 3766.1 ± 25.6 | 3756.8 ± 17.3 | — | — |
+| statue | 7042–7081 | 3769.7 | 3761.0 ± 16.5 | — | — |
+| seed 44 | 3042–3081 | 3771.8 | 3739.2 | +5.7 → −17.5 | 23/40 → 11/40 |
+| seed 44 | 5042–5081 | — | — | +17.3 → −5.6 | 23/40 → 14/40 |
+| seed 44 | 7042–7081 | 3672.4 | 3607.9 | −97.3 → −153.1 | 19/40 → 9/40 |
+| seed 42 | 3042–3081 | 3012.1 | 1059.9 | −754.0 → −2696.9 (0.80 → 0.28 of the statue) | 0/40 → 0/40 |
+
+The statue's −9.3 is the settled width paying 800 steps instead of 1000 (−9.1) and the load gate on its spawn steps
+(−0.2). The shift on seed 44 against the statue is about −23 per episode on 3042–3081 and 5042–5081 (−21 on its 39
+standing episodes of 3042–3081) and −56 on 7042–7081 (−18 on its 36 standing episodes), so whether it ends below the
+statue depends on its old margin. Its stomp settles (a settle peak over 1.5 BW or any settle airborne substep) go from
++6.7 to −14.2 per episode against the statue (54 standing episodes on 3042–3081 and 7042–7081; +18.2 → −7.2 on 30 of
+5042–5081) and its quiet settles from +13.0 to −1.9 (21 episodes; +14.3 → −0.8), while its hop episodes lose about twice
+what they lost before (7065 −574 → −1369, 7071 −495 → −1076, 7074 −173 → −369). The reward now prefers the quiet settle,
+but the v2 settle bars, not the reward, are what refuse the stomp.
+
+- *The start std:* `[ppo.policy_kwargs] log_std_init = -1.5` (std 0.22). With the new terms a fresh policy (actions
+  `clip(N(0, std²))` about the statue's mean) pays per step 2.88 / 1.00 / 0.41 at std 1.0 / 0.37 / 0.22 (2.83 / 0.92 /
+  0.42 on other seeds), against the recipe's rule of about half the 1.0 alive bonus: only −1.5 meets it, and at std
+  1.0 the per-step reward is negative. Short PPO runs on the task (this `[ppo]`, 4 environments): the stochastic
+  policy's two-foot flight is the exploration noise itself, unsupported duty 0.52–0.54 at std 1.0 under the D-D27
+  reward and the r8 one alike (the r8 runs: 0.55–0.57 at 0.1M), 0.21–0.23 at 0.37 and 0.044–0.046 at 0.22 from the
+  first rollout; at 0.22 it falls under the D-D27 reward (0.028 at 123k and 0.003 at 451k on the committed task, seed
+  42) and does not under the r8 reward (0.038–0.048 to 123k, seed 42), so the start sets the early flight and the
+  reward its descent. Single-foot chatter barely moves with the start (6.9–7.6 touchdowns per foot per second at 0.22,
+  7.6–10.0 at 1.0, to 123k) and falls with training (4.3 by 369k, seed 44; 3.4 by 451k, seed 42). The deterministic
+  policy is weaker evidence: in the first 123k, 2/12 evaluation episodes at the horizon at std 1.0, 9/12 at 0.37 and
+  7/12 at 0.22. The r8 runs' deterministic hop began between 0.25M and 0.4M; two runs at 0.22 span that window (seed
+  44, 369k on the prototype env: 2/2 standing at 246k and 328k; seed 42, 451k on the committed env: 12/12 at the
+  horizon from 8k to 410k with no flight). Their final checkpoints on seeds 3042–3061: seed 44 stood 20/20 and was
+  clean on 18/20 under the r8 block (pad near misses on 3047 and 3059); seed 42 was clean on 17/20 under the D-D27
+  block (a slow tipping fall at step 515 on 3047; pad tilt near misses of 2.95° and 2.73° on 3045 and 3059); neither
+  stomps (settle peaks at most 1.238 / 1.296 BW, no settle flight; seed 42 at most one settle touchdown). That is
+  early-training evidence, not a certification: 20 episodes and under 0.5M of 11M steps.
+- *A trainer guard:* the opt-in hop watch (`curriculum/hop_watch.py`; `[curriculum] hop_watch_max_unsupported_duty =
+  0.05`, `hop_watch_after_timesteps = 7000000`, `hop_watch_stop = true`) reads the evaluation unsupported duty already
+  recorded in `gate_progress.npz` and, at the first evaluation from 7M on above the bar, warns, writes `hop_watch.json`
+  and ends training; the post-stage v2 report then judges the handoff pair as usual. On the r8 series it would have
+  stopped seed 42 at 7M with 4M of its 11M steps (about 5 h on the L4) unspent and left seed 44 alone (under the bar
+  from 5.35M; 0.013 at 7M and at most 0.018 after, 2.8 times under it). Its timing was read off the two std-1.0 runs and
+  is untested at −1.5. Its keys configure early stopping and enter no digest.
+- *The gate (the trex v2 block):*
+
+| Key | Statue (largest, per seed block) | Seed 44 | Seed 42 | Kind |
+|---|---|---|---|---|
+| `max_settle_stance_width_change_m = 0.08` | 0.0523 m (3042–3081); 0.0201, 0.0311, 0.0508, 0.0396 on four other blocks | fails 1/40 on each panel (up to 0.0875) | fails 1/40 (0.0938) | an existing optional criterion |
+| `max_settle_touchdowns = 2` | at most 1 on every episode of 3042–3081 and 7042–7081 (a foot that spawns in the air lands once) | fails 4/40 on each panel (3–13) | fails 40/40 (median 43) | a new optional criterion on an existing metric |
+| `max_episode_yaw_change_deg = 25` | 12.4° (3042–3081); 8.0°, 10.4°, 12.0°, 11.5° on four other blocks | at most 21.4°, passes | fails 40/40 (median 45.3°) | a new optional criterion, report-only before |
+| `max_hop_or_fall_episodes = 1` | 0 / 0 (1 on 3162–3201: seed 3174's nosedive) | 1 on 3042–3081 (passes), 4 on 7042–7081 (refused) | 40 | a new optional panel rail |
+
+  The rail counts the episodes that end early or fail all-feet support, touchdown rate, window displacement or command
+  saturation, the signature of a hop or a fall; pad, load-share, yaw and settle misses stay with the bound, as D-D23
+  sized it. At n = 40 a panel with the statue's measured window-failure rate (1 in 120) passes it with probability 0.956
+  (0.939 at 2 in 200); a policy with seed 44's hop-or-fall rate (9 whole-episode hops and a roll-over in 207 resets,
+  4.8%) passes it about 0.42 of the time, against 0.87 under the bound alone. So it halves the admission of a
+  few-percent hop or fall mode, it does not remove it, and it would have passed seed 44 on the certification seeds; a
+  bar of 0 would refuse the statue on 28% of panels. The settle touchdown bar closes the one settle re-seat the reward
+  leaves unpriced, a quiet single-foot re-plant (single support, landing under 1.4 BW). The yaw bar measures turning,
+  not heading dependence. The new keys are declared by the T. rex stance only, so no other species' `gate_sha256` or
+  report moves; `min_sole_contacts` stays 1.5 (the statue reaches 2.086 out of sample, 2 of 40 episodes below 2.25), and
+  `min_avg_reward` moves 2260 → 2250 with the statue.
+- *Heading, report only:* `[curriculum] stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]` re-rolls the policy
+  and the statue after the gate report with the spawn turned by each offset, the animal alone and with the prey and
+  the heading term's reference direction, beside an unturned control, and writes `stance_heading_probe.{txt,json}`
+  (standalone: `stance_gate_report.py --spawn-yaw-offsets`). It is not a gate: spawn-yaw randomisation and a
+  heading-invariant observation would each be a policy-interface revision, and the maintainer has not decided whether
+  stance certification should require heading robustness.
+- *Statue constants:* the stance statue scores 3756.8 ± 17.3 under the D-D27 task (`zero_action_baseline.py`, seed
+  3042, 40 episodes), so `min_avg_reward` is 2250 and `collapse_peak_floor_reference` 3756.8; the pushed recovery
+  statue, with the capture at 140, 1329.1 ± 507.3 (the same harness reproduces 1337.5 ± 506.8 on the r8 task), so
+  recovery's reference is 1329.1. Locomotion (1091.5) and behavior (602.0) set none of the new kwargs and keep theirs.
+  `statue_constants_physics_revision` stays 8.
+- *Digests:* 36 lines of the digest golden move, all T. rex: the four stages' `task_sha256` and each stage's two
+  `stage_config_view_sha256` lines (PPO, SAC), the stance `gate_sha256`, the stance and recovery
+  `hyperparameters_sha256.PPO`, the 11 behavior recipes' `task_sha256`, and the reward `summary` of stance and recovery
+  and `shape_sha256` and `rounded_values_sha256` of all four T. rex reward stages. No plant, interface or other species'
+  line moves.
+
+**What stays open.**
+
+1. *Heading robustness* (the maintainer's decision): whether stance certification should require it, through spawn-yaw
+   randomisation with the prey placed relative to the spawn or a heading-invariant observation (a yaw-free quaternion, a
+   yaw-frame linear velocity, a body-frame prey vector), both policy-interface revisions; or whether it belongs to
+   recovery and locomotion. The probe now measures it on every T. rex stance report.
+2. *A few-percent hop or fall mode against a 40-episode bound:* the rail halves its admission; what caught seed 44's
+   mode was the re-judgement on 7042–7081, which `docs/NEXT_STEPS.md` now asks for before a T. rex stance is handed to
+   recovery or locomotion.
+3. *The front-edge foot:* a per-foot centre-of-pressure fore-aft bar separates it cleanly (the statue at most 0.362
+   of the half-length over 120 episodes against seed 44's left foot at 0.85–1.00 on 80/80; a bar near 0.7), but it
+   needs a new `StanceEpisodeMetrics` field, and `from_row` is strict, so every recorded v2 CSV would stop re-deriving
+   until migrated. Raising `min_sole_contacts` is not the fix.
+4. *Basin selection:* whether the −1.5 start changes the 5–7M escape the r8 seeds split on, and the learning rate and
+   entropy anneal the falsified prediction points at, are untested; train at least two seeds (plan three) and let the
+   hop watch stop a seed still hopping at 7M.
+5. *The D-D27 reward has trained no policy past 0.45M steps.* The keyframe-referenced `leg_home_pose` term is now the
+   largest spawn-correction payoff (seed 44 earns +7.9 per episode over the statue from it, the 369k D-D27 policy
+   +14.8, with nosedive +7.0 and head clearance +5.1): a quiet correction is legitimate and the new terms price a
+   violent one, but if the next runs re-seat through the legs, a settled reference for that term is the analogous
+   fix. That run's and the 451k run's pad near misses (2.2–2.95° against the 2.0° bar) are the first thing to check
+   on the next T. rex panel.
+6. *Recovery* inherits the impact and airborne terms; what a stepping recovery policy's landings cost is unmeasured
+   (the pushed statue never steps, never passes 1.35 BW and is never airborne).
+7. *Unrolled checkpoints:* only `robust_best` was judged in each run; `best_model`, `stage1_final` and the periodic
+   10.6–11.0M checkpoints were not rolled.
+8. *The collapse backstop's warm-up* (1.0M) was derived from a std-1.0 series; at −1.5 the dip after the first
+   evaluation was shallower in the short runs (7/12 deterministic episodes at the horizon in the first 123k against 2/12
+   at std 1.0; the first evaluation itself reads the policy's initial mean, the statue, at every start), so its premise
+   is unmeasured on a full run.
+9. *Head, neck and tail exploration* stays unconverged on seed 44 (std 0.70–0.99), where the reward is nearly flat;
+   narrowing `neck_posture_tolerance` was proposed by the review and not measured.
+
+**Limits.** Every D-D27 reward figure above is an exact re-scoring of r8 checkpoints trained under the r8 reward,
+plus short PPO runs (at most 0.45M steps, one or two seeds per setting); the reward has trained no full policy, and
+the next T. rex stance it trains may find what neither r8 seed found. The review's inferred causes (the basin
+mechanism, the width term as the driver of the re-seat, the link between the out-of-distribution quaternion and the
+heading falls) were not ablated. The hop and fall rates rest on about 207 seed-44 episodes. As §6 says of the audit,
+the review's and the follow-up's scripts, traces and panel outputs are not in the repository; the panels regenerate
+from the checkpoint pairs on Drive (the sha256s above) with `stance_gate_report.py` at this note's commit.

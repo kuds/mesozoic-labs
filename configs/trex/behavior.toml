@@ -134,7 +134,10 @@ collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's rewar
                                         # command: 601.94 +/- 175.17, 40/40 full horizon, so the reference
                                         # and the rail (round(0.6 x 601.94) = 361) carry: the move is 0.2
                                         # against a 27.7 standard error, and this stage's [env] sets none of
-                                        # the stance shaping keys.
+                                        # the stance shaping keys. Carries through the stance follow-up
+                                        # (D-D27) too: this [env] sets none of its TRexEnv kwargs, whose
+                                        # defaults keep the r8 reward bit for bit (test_trex_rewards.py; the
+                                        # digest snapshot's trex behavior reward summary did not move).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance, locomotion and recovery; floor = 0.45 x
                                         # 602.0 = 270.9. The ratio, not the product, is what carries across
                                         # a reward change.

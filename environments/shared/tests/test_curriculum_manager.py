@@ -497,9 +497,10 @@ class TestThresholdsFromConfigs:
         curriculum = load_all_stages("trex")[1]["curriculum_kwargs"]
         # stance_quality/v2 since physics r8 (D-D24), stance_quality/v1 before it: a stance kind either way.
         assert curriculum["gate_kind"] == "stance_quality/v2"
-        # The statue scores 3766.1 at 1000.0 steps on the r8 task (3271.8 when the reward gate was
-        # retired), so the retired reward and length criteria were both cleared by doing nothing.
-        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 3766.1, (
+        # The statue scores 3756.8 at 1000.0 steps on the D-D27 stance task (3766.1 on the r8 task,
+        # 3271.8 when the reward gate was retired), so the retired reward and length criteria were both
+        # cleared by doing nothing.
+        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 3756.8, (
             "reward must be a rail below the statue, not a gate"
         )
         assert "min_avg_episode_length" not in curriculum

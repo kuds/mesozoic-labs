@@ -258,6 +258,8 @@ def plot_diagnostics_graphs(
         "reward_tail_home_pose": ("tail_home_pose_weight",),
         "reward_foot_flatness": ("foot_flatness_weight",),
         "reward_stance_width": ("stance_width_weight",),
+        "reward_floor_impact": ("floor_impact_weight",),
+        "reward_airborne_substeps": ("airborne_substep_weight",),
         "reward_action_saturation": ("action_saturation_weight",),
         "reward_smoothness": ("smoothness_weight",),
         "reward_heading": ("heading_weight",),

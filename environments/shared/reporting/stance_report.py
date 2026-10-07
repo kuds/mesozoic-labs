@@ -176,6 +176,7 @@ def run_panel(
     control_dt: float = 0.01,
     impulse: "RootImpulse | None" = None,
     floor_truth: bool = False,
+    spawn_yaw: "SpawnYaw | None" = None,
 ) -> dict[str, Any]:
     """Roll ``episodes`` deterministic episodes and reduce them for the gate.
 
@@ -231,6 +232,7 @@ def run_panel(
     recorder: Any = None
     measurement: dict[str, Any] | None = None
     stance_metrics: list[StanceEpisodeMetrics] = []
+    yaw_changes: list[float] = []
 
     try:
         joint_names = _actuator_joint_names(env)
@@ -262,6 +264,9 @@ def run_panel(
             impulse=impulse,
             recorder=recorder,
             stance_metrics=stance_metrics,
+            spawn_yaw=spawn_yaw,
+            # Only the heading probe reads the yaw; every other panel rolls exactly as before.
+            yaw_changes=yaw_changes if spawn_yaw is not None else None,
         )
     finally:
         try:
@@ -324,6 +329,8 @@ def run_panel(
     if floor_truth:
         result["stance_metrics"] = stance_metrics
         result["measurement"] = measurement
+    if spawn_yaw is not None:
+        result["yaw_changes"] = yaw_changes
     return result
 
 
@@ -661,6 +668,8 @@ def _roll_episodes(
     impulse: "RootImpulse | None" = None,
     recorder: Any = None,
     stance_metrics: "list[StanceEpisodeMetrics] | None" = None,
+    spawn_yaw: "SpawnYaw | None" = None,
+    yaw_changes: "list[float] | None" = None,
 ) -> None:
     """Roll the panel, appending per-episode measurements to the given lists.
 
@@ -675,6 +684,13 @@ def _roll_episodes(
     """
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
+        if spawn_yaw is not None:
+            obs = _apply_spawn_yaw(env, spawn_yaw)
+        # The heading probe's reading: the root's unwrapped yaw change over
+        # the episode, accumulated step by step so a turn past 180 degrees
+        # is not folded back.
+        yaw_previous = _root_yaw(env) if yaw_changes is not None else 0.0
+        yaw_turned = 0.0
         # A stateful predict (the low-pass probe) must not carry one episode's
         # tail into the next; plain policies have no reset and are untouched.
         reset_predict = getattr(predict, "reset", None)
@@ -699,6 +715,10 @@ def _roll_episodes(
             obs, reward, terminated, truncated, info = env.step(action)
             if recorder is not None:
                 recorder.end_step(action, float(reward))
+            if yaw_changes is not None:
+                yaw_now = _root_yaw(env)
+                yaw_turned += math.remainder(yaw_now - yaw_previous, 2.0 * math.pi)
+                yaw_previous = yaw_now
             if measure_step:
                 # ``data.ctrl`` is the target the environment actually
                 # applied.  Reading it after ``step`` avoids a second call to
@@ -736,6 +756,8 @@ def _roll_episodes(
         # An episode boundary is not an action difference.
         action_stats["prev"] = None
         action_stats["prev_prev"] = None
+        if yaw_changes is not None:
+            yaw_changes.append(float(np.degrees(abs(yaw_turned))))
         lengths.append(float(steps))
         rewards.append(total)
         # All three shares stay positionally aligned with `lengths`, so the
@@ -919,6 +941,88 @@ def _apply_root_impulse(env: Any, impulse: RootImpulse) -> float:
     return float(np.sum(model.body_mass)) * impulse.speed
 
 
+@dataclass(frozen=True)
+class SpawnYaw:
+    """The spawn turned about vertical right after reset: the heading probe's one modification.
+
+    The stance stage always spawns facing +x with the prey within about 11
+    degrees of it, and the trex observation carries heading only through
+    the world-frame pelvis quaternion (and the world-frame velocity and prey
+    direction), so a stance can depend on the world heading without any
+    stance criterion seeing it: both physics-r8 trex stances fell when
+    spawned 90 degrees off, where the statue stands.  Turning the spawn
+    changes nothing physical -- the floor is level and isotropic, and a
+    rotation about vertical moves no height -- so the zero-action statue's
+    survival is the control.
+
+    ``whole_scene`` decides what turns with the animal.  ``False`` turns the
+    animal alone: the prey stays where it spawned, so the reward terms that
+    read the prey bearing (the stance task's heading term) now pay a policy
+    that turns toward it, and the reading mixes heading dependence with a
+    prey-bearing response.  ``True`` turns the prey about the root with it
+    and the episode's reference direction (``_initial_prey_dir_2d``) too, so
+    physics and reward are identical for a heading-invariant controller and
+    only the world-frame observation differs -- exactly the question of
+    whether the policy reads its heading.  The probe reports both.
+
+    Report-only (decision D-D27): whether stance certification should require
+    heading robustness, through spawn-yaw randomisation or a heading-invariant
+    observation, is a policy-interface question the maintainer has not
+    decided.
+    """
+
+    yaw_deg: float
+    whole_scene: bool = False
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"kind": "spawn_yaw/v1", "yaw_deg": float(self.yaw_deg), "whole_scene": bool(self.whole_scene)}
+
+
+def _root_yaw(env: Any) -> float:
+    """The free root's yaw about world z, in radians (from ``qpos[3:7]``, w-first)."""
+    w, x, y, z = (float(value) for value in env.unwrapped.data.qpos[3:7])
+    return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+
+def _apply_spawn_yaw(env: Any, spawn_yaw: SpawnYaw) -> np.ndarray:
+    """Turn the freshly reset spawn about vertical through the root and return the rebuilt observation.
+
+    Pre-multiplies the root quaternion by a world-z rotation and turns the
+    root's world-frame linear velocity with it (the free joint's angular
+    velocity is body-frame, so it is already invariant); under
+    ``whole_scene`` every mocap body (the prey) turns about the root too, and
+    an env that keeps an episode reference direction (``_initial_prey_dir_2d``)
+    has it turned to match.  Then the derived state is recomputed, the
+    step-tagged substep aggregates are dropped (the state was posed out of
+    band) and the observation is rebuilt from the turned state.
+    """
+    import mujoco
+
+    base = env.unwrapped
+    model, data = base.model, base.data
+    theta = math.radians(float(spawn_yaw.yaw_deg))
+    cos_t, sin_t = math.cos(theta), math.sin(theta)
+    rotation_2d = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
+    turn = np.array([math.cos(theta / 2.0), 0.0, 0.0, math.sin(theta / 2.0)])
+    turned = np.empty(4)
+    mujoco.mju_mulQuat(turned, turn, np.asarray(data.qpos[3:7], dtype=np.float64))
+    data.qpos[3:7] = turned
+    data.qvel[0:2] = rotation_2d @ np.asarray(data.qvel[0:2], dtype=np.float64)
+    if spawn_yaw.whole_scene:
+        root_xy = np.asarray(data.qpos[0:2], dtype=np.float64).copy()
+        for index in range(model.nmocap):
+            data.mocap_pos[index, :2] = root_xy + rotation_2d @ (data.mocap_pos[index, :2] - root_xy)
+            mocap_turned = np.empty(4)
+            mujoco.mju_mulQuat(mocap_turned, turn, np.asarray(data.mocap_quat[index], dtype=np.float64))
+            data.mocap_quat[index] = mocap_turned
+        reference = getattr(base, "_initial_prey_dir_2d", None)
+        if reference is not None:
+            base._initial_prey_dir_2d = rotation_2d @ np.asarray(reference, dtype=np.float64)
+    mujoco.mj_forward(model, data)
+    base._invalidate_substep_aggregates()
+    return np.asarray(base._get_obs())
+
+
 def _hold_constant_predict(predict: Any, hold: ConstantHold) -> Any:
     """Wrap *predict* so the plant receives a constant command after handoff.
 
@@ -1005,6 +1109,7 @@ def build_stance_gate_report(
     filter_actions_hz: float | None = None,
     hold_constant: ConstantHold | None = None,
     impulse: RootImpulse | None = None,
+    spawn_yaw: SpawnYaw | None = None,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
@@ -1030,8 +1135,8 @@ def build_stance_gate_report(
     that records which code scored it (``scored_gate_kind``), the handoff
     digests and the measurement manifest, so the judge can refuse a report
     that does not describe this gate, this checkpoint or this measurement.
-    A PROBE (``filter_actions_hz`` / ``hold_constant`` / ``impulse``) on a
-    v2 stage keeps the v1-shaped report it always produced, with no
+    A PROBE (``filter_actions_hz`` / ``hold_constant`` / ``impulse`` /
+    ``spawn_yaw``) on a v2 stage keeps the v1-shaped report it always produced, with no
     recorder and no statue panel: a probe annotates, it never certifies,
     and its readers (the sweep and table writers) read that shape.
     """
@@ -1043,7 +1148,7 @@ def build_stance_gate_report(
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
     control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
-    probing = filter_actions_hz is not None or hold_constant is not None or impulse is not None
+    probing = filter_actions_hz is not None or hold_constant is not None or impulse is not None or spawn_yaw is not None
     v2_thresholds: StanceV2Thresholds | None = None
     if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND and not probing:
         # Strict, and checked before anything is rolled: a v2 block with a
@@ -1129,6 +1234,7 @@ def build_stance_gate_report(
         plant_identity=plant_identity,
         control_dt=control_dt,
         impulse=impulse,
+        spawn_yaw=spawn_yaw,
     )
     panel = result["panel"]
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -1192,6 +1298,11 @@ def build_stance_gate_report(
         # other two probes but has the same consequence: the gate is defined
         # without a disturbance, so this verdict is not that verdict.
         "impulse": None if impulse is None else impulse.as_dict(),
+        # `None` for an ordinary run. A turned spawn scores the unmodified
+        # policy on a modified start, like the impulse; `episode_yaw_change_deg`
+        # is its reading (per episode, in the same order as `episode_evidence`).
+        "spawn_yaw": None if spawn_yaw is None else spawn_yaw.as_dict(),
+        **({"episode_yaw_change_deg": list(result["yaw_changes"])} if spawn_yaw is not None else {}),
         # Where the commanded pose sits and what the policy does around it,
         # per actuator. `{}` when no post-settle step was measured.
         "action": result.get("action", {}),
@@ -1413,11 +1524,13 @@ def _stance_v2_report(
         },
         "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
         # Always None: a probe on a v2 stage takes the v1 path above, so a
-        # v3 report is never a probe -- but the keys stay, so probe_stem and
-        # every reader of them answer the same way for both shapes.
+        # v3 report is never a probe -- but the keys stay (every
+        # `_PROBE_MARKERS` key), so probe_stem and every reader of them
+        # answer the same way for both shapes.
         "filter_actions_hz": None,
         "hold_constant": None,
         "impulse": None,
+        "spawn_yaw": None,
         "action": result.get("action", {}),
         "terminations": result["terminations"],
         "reward_components": result["components"],
@@ -1441,6 +1554,7 @@ _PROBE_MARKERS: dict[str, str] = {
     "filter_actions_hz": "stance_gate_probe_filtered",
     "hold_constant": "stance_gate_probe_constant",
     "impulse": "stance_gate_probe_impulse",
+    "spawn_yaw": "stance_gate_probe_heading",
 }
 
 
@@ -1472,6 +1586,19 @@ def _probe_banner(report: dict[str, Any]) -> list[str]:
             f"PROBE: a {shove['speed']:.2f} m/s {shove['axis_label']} impulse at step {shove['step']}.",
             "This scores the unmodified policy on a MODIFIED TASK -- stage 1 has no disturbance,",
             "so the gate below was never defined with one. It is not a gate result.",
+            "",
+        ]
+    elif report.get("spawn_yaw") is not None:
+        turn = report["spawn_yaw"]
+        return [
+            f"PROBE: the spawn turned {turn['yaw_deg']:+g} deg about vertical"
+            + (
+                " with the prey and the episode's reference direction."
+                if turn["whole_scene"]
+                else " (the animal only)."
+            ),
+            "This scores the unmodified policy from a MODIFIED START -- the stance stage always spawns",
+            "facing +x, so the gate below was never defined from another heading. It is not a gate result.",
             "",
         ]
     else:
@@ -1668,6 +1795,12 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
     for key in ("min_avg_reward", "min_avg_reward_statue_ratio", "min_full_horizon_fraction"):
         if key in thresholds:
             lines.append(f"  {key:36s} {float(thresholds[key]):g} (panel rail)")
+    if "max_hop_or_fall_episodes" in thresholds:
+        key = "max_hop_or_fall_episodes"
+        lines.append(
+            f"  {key:36s} <= {int(thresholds[key])} (panel rail: {result.get('hop_or_fall_episodes')} episodes end "
+            "early or fail support, touchdowns, drift or saturation)"
+        )
     statue = report.get("statue")
     if statue:
         reference = statue["reference"]
@@ -1678,11 +1811,17 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             f"same seeds): {reference['n_full_horizon']}/{reference['n_episodes']} full-horizon, mean reward "
             f"{_fmt(reference['mean_reward'], '.1f')}, foot load shares [{shares}]",
         ]
-    report_only = (
-        ("episode_yaw_change_deg", "yaw change over the episode (deg)"),
-        ("touch_floor_agreement", "touch agrees with floor truth"),
-        ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
-        ("settle_touchdowns", "settle-window touchdowns"),
+    # A reading a declared criterion gates is listed with the criteria above, not here.
+    gated_metrics = {metric for key, metric, _ in EPISODE_CRITERIA if key in thresholds}
+    report_only = tuple(
+        (metric, label)
+        for metric, label in (
+            ("episode_yaw_change_deg", "yaw change over the episode (deg)"),
+            ("touch_floor_agreement", "touch agrees with floor truth"),
+            ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
+            ("settle_touchdowns", "settle-window touchdowns"),
+        )
+        if metric not in gated_metrics
     )
     lines += ["", "report-only (not gated; median and max over the panel):"]
     for metric, label in report_only:
@@ -2303,6 +2442,113 @@ def write_impulse_probe(
     atomic_write_text(text_path, text)
     atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"impulse_probe_txt": text_path, "impulse_probe_json": json_path}
+
+
+def spawn_yaw_variants(offsets_deg: "tuple[float, ...] | list[float]") -> list[SpawnYaw]:
+    """The heading probe's rows: the unturned control, then each non-zero offset turned alone and with the scene."""
+    variants = [SpawnYaw(0.0)]
+    for offset in sorted({float(value) for value in offsets_deg if float(value) != 0.0}):
+        variants += [SpawnYaw(offset, whole_scene=False), SpawnYaw(offset, whole_scene=True)]
+    return variants
+
+
+def render_heading_probe(
+    policy_reports: list[dict[str, Any]],
+    statue_reports: list[dict[str, Any]],
+    *,
+    probe_episodes: int,
+) -> tuple[str, dict[str, Any]]:
+    """The heading probe as text and JSON: per turned spawn, the policy and the statue side by side.
+
+    Each row reports the full-horizon fraction, the mean reward and the
+    mean and largest |episode yaw change|.  The statue commands a constant,
+    so its rows are the plant's own heading neutrality: it should stand at
+    every offset, and under ``whole_scene`` score its unturned reward.
+    """
+
+    def _row(report: dict[str, Any]) -> dict[str, Any]:
+        yaw = [float(value) for value in report.get("episode_yaw_change_deg", [])]
+        return {
+            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+            "reward_mean": report["metrics"]["reward_mean"],
+            "episode_length_mean": report["metrics"]["episode_length_mean"],
+            "yaw_change_mean_deg": float(np.mean(yaw)) if yaw else float("nan"),
+            "yaw_change_max_deg": float(np.max(yaw)) if yaw else float("nan"),
+            "terminations": report["terminations"],
+        }
+
+    rows = []
+    for policy, statue in zip(policy_reports, statue_reports):
+        turn = policy["spawn_yaw"]
+        rows.append(
+            {
+                "yaw_deg": turn["yaw_deg"],
+                "whole_scene": turn["whole_scene"],
+                "policy": _row(policy),
+                "statue": _row(statue),
+            }
+        )
+    horizon = policy_reports[0]["horizon"] if policy_reports else None
+    first_seed = int(policy_reports[0]["seed"]) if policy_reports else 0
+    payload: dict[str, Any] = {
+        "schema": "mesozoic.stance-heading-probe/v1",
+        "policy": policy_reports[0]["policy"] if policy_reports else None,
+        "probe_episodes": probe_episodes,
+        "seed": first_seed if policy_reports else None,
+        "horizon": horizon,
+        "note": (
+            "REPORT ONLY (decision D-D27). Each row turns the spawn about vertical right after reset and rolls the "
+            "UNMODIFIED policy; 'animal' turns the animal alone (the prey stays, so the heading reward term pays a "
+            "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so only the "
+            "world-frame observation differs. The statue is the control. Not a gate verdict."
+        ),
+        "rows": rows,
+    }
+    lines = [
+        "PROBE: the spawn turned about vertical (report only; decision D-D27 leaves heading robustness open).",
+        "Scores the unmodified policy from a MODIFIED START; not a gate result.",
+        f"policy              {payload['policy']}",
+        f"panel               {probe_episodes} episodes per row, seeds {first_seed}-"
+        f"{first_seed + probe_episodes - 1}, horizon {horizon}",
+        "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
+        "                    scene  = the prey and the reference direction too (only the observation differs)",
+        "",
+        f"  {'yaw':>6} {'turned':<7}{'policy fh':>10}{'reward':>9}{'|dyaw| mean/max':>17}"
+        f"{'statue fh':>11}{'reward':>9}{'|dyaw| max':>11}",
+    ]
+    for row in rows:
+        policy, statue = row["policy"], row["statue"]
+        turned = "-" if row["yaw_deg"] == 0.0 else ("scene" if row["whole_scene"] else "animal")
+        lines.append(
+            f"  {row['yaw_deg']:>+6.0f} {turned:<7}{policy['full_horizon_fraction']:>10.2f}"
+            f"{policy['reward_mean']:>9.1f}{policy['yaw_change_mean_deg']:>8.1f}/{policy['yaw_change_max_deg']:<8.1f}"
+            f"{statue['full_horizon_fraction']:>11.2f}{statue['reward_mean']:>9.1f}{statue['yaw_change_max_deg']:>11.1f}"
+        )
+    lines += [
+        "",
+        "  The unturned row is the harness check: both columns should match the gate panel's first seeds.",
+        "  A policy that stands at 0 deg and falls when turned reads its world heading; compare its 'scene'",
+        "  rows (the question the observation interface poses) with its 'animal' rows (which add the prey bearing).",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+def write_heading_probe(
+    stage_dir: "str | Path",
+    policy_reports: list[dict[str, Any]],
+    statue_reports: list[dict[str, Any]],
+    *,
+    probe_episodes: int,
+) -> dict[str, Path]:
+    """Write the heading probe beside the stage's other artifacts."""
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_heading_probe(policy_reports, statue_reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_heading_probe.txt"
+    json_path = directory / "stance_heading_probe.json"
+    atomic_write_text(text_path, text)
+    atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
+    return {"heading_probe_txt": text_path, "heading_probe_json": json_path}
 
 
 def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
