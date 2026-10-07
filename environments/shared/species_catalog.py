@@ -1429,6 +1429,8 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         stance_criteria.append("an episode is clean when it reaches the horizon with " + ", ".join(per_episode))
         if gate.get("min_full_horizon_fraction") is not None:
             stance_criteria.append(f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])}")
+        if gate.get("max_hop_or_fall_episodes") is not None:
+            stance_criteria.append(f"hop-or-fall episodes ≤ {gate['max_hop_or_fall_episodes']:g}")
         if gate["min_avg_reward"] is not None:
             stance_criteria.append(f"reward rail ≥ {gate['min_avg_reward']:g}")
         if gate.get("min_avg_reward_statue_ratio") is not None:

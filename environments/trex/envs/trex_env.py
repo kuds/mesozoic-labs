@@ -42,7 +42,11 @@ Reward components:
     - Height maintenance
     - Bilateral foot support and load balance
     - Home leg-pose retention
-    - Sole flatness and stance width (around the home keyframe's width)
+    - Sole flatness and stance width (around the home keyframe's width, or
+      the animal's own width at the end of the settle), optionally paid only
+      on a loaded foot
+    - Floor impact (summed foot force above a body-weight multiple) and
+      airborne substeps, read per physics substep
     - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -113,6 +117,13 @@ class TRexEnv(BaseDinoEnv):
     # _cache_ids.
     _NECK_SETTLED_QPOS = (0.21432, 0.0, 0.21963)
     _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
+    _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
+    _ACTION_PENALTY_SOURCES = ("filtered", "raw")
+    # A foot (or the pair) reads as airborne at or below this touch force, in
+    # N: the floor-truth library's contact threshold (gait.constants
+    # CONTACT_THRESHOLD_N, which a species env may not import) and the
+    # stance-duty diagnostics' default.
+    _AIRBORNE_TOUCH_N = 0.1
     _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -179,6 +190,13 @@ class TRexEnv(BaseDinoEnv):
         foot_flatness_tolerance_deg: float = 3.0,
         stance_width_weight: float = 0.0,
         stance_width_tolerance_m: float = 0.05,
+        stance_width_reference: str = "keyframe",
+        stance_width_settle_steps: int = 200,
+        foot_terms_min_support_force: float = 0.0,
+        floor_impact_weight: float = 0.0,
+        floor_impact_threshold_bw: float = 1.4,
+        airborne_substep_weight: float = 0.0,
+        action_penalty_source: str = "filtered",
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -267,6 +285,13 @@ class TRexEnv(BaseDinoEnv):
         self.foot_flatness_tolerance_deg = foot_flatness_tolerance_deg
         self.stance_width_weight = stance_width_weight
         self.stance_width_tolerance_m = stance_width_tolerance_m
+        self.stance_width_reference = stance_width_reference
+        self.stance_width_settle_steps = stance_width_settle_steps
+        self.foot_terms_min_support_force = foot_terms_min_support_force
+        self.floor_impact_weight = floor_impact_weight
+        self.floor_impact_threshold_bw = floor_impact_threshold_bw
+        self.airborne_substep_weight = airborne_substep_weight
+        self.action_penalty_source = action_penalty_source
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -298,6 +323,33 @@ class TRexEnv(BaseDinoEnv):
             raise ValueError("foot_flatness_tolerance_deg must be positive")
         if self.stance_width_tolerance_m <= 0.0:
             raise ValueError("stance_width_tolerance_m must be positive")
+        if self.stance_width_reference not in self._STANCE_WIDTH_REFERENCES:
+            raise ValueError(
+                f"stance_width_reference must be one of {self._STANCE_WIDTH_REFERENCES}, "
+                f"got {self.stance_width_reference!r}"
+            )
+        if (
+            isinstance(self.stance_width_settle_steps, bool)
+            or not isinstance(self.stance_width_settle_steps, (int, np.integer))
+            or self.stance_width_settle_steps < 1
+        ):
+            raise ValueError("stance_width_settle_steps must be a whole number of steps, at least 1")
+        # Not bounded by max_episode_steps: a shortened horizon (a debug or test
+        # override) that ends before the capture step simply never pays the
+        # settled width term.
+        if not 0.0 <= self.foot_terms_min_support_force < np.inf:
+            raise ValueError("foot_terms_min_support_force must be a finite force of at least 0 N")
+        if not 0.0 <= self.floor_impact_weight < np.inf:
+            raise ValueError("floor_impact_weight must be finite and non-negative")
+        if not 0.0 < self.floor_impact_threshold_bw < np.inf:
+            raise ValueError("floor_impact_threshold_bw must be a positive, finite multiple of body weight")
+        if not 0.0 <= self.airborne_substep_weight < np.inf:
+            raise ValueError("airborne_substep_weight must be finite and non-negative")
+        if self.action_penalty_source not in self._ACTION_PENALTY_SOURCES:
+            raise ValueError(
+                f"action_penalty_source must be one of {self._ACTION_PENALTY_SOURCES}, "
+                f"got {self.action_penalty_source!r}"
+            )
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -321,6 +373,11 @@ class TRexEnv(BaseDinoEnv):
         # State tracking for delta-based rewards
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
+        # The policy's own clipped command of the current step, kept by the
+        # _filter_action override for action_penalty_source = "raw", and the
+        # step count it belongs to (a stale command is never priced).
+        self._policy_action: np.ndarray | None = None
+        self._policy_action_step = -1
 
         # Gait symmetry: track foot touchdown events for alternation reward
         self._init_gait_state()
@@ -507,6 +564,18 @@ class TRexEnv(BaseDinoEnv):
         home_data.qpos[:] = home_qpos
         mujoco.mj_kinematics(self.model, home_data)
         self._home_stance_width = self._stance_width(home_data)
+        # The width term's current target: always the keyframe's under
+        # stance_width_reference = "keyframe"; under "settled" the keyframe's
+        # until _get_reward_info captures the animal's own width at
+        # stance_width_settle_steps, and the keyframe's again from each
+        # _spawn_target.  Set here too, so a reward read before the first
+        # reset is defined.
+        self._stance_width_target = self._home_stance_width
+        # The animal's weight in N, for the floor-impact term: the pelvis
+        # subtree is the whole animal (the prey is a separate mocap body), so
+        # this is the 85.72 kg x 9.81 = 840.9 N the floor-truth library and
+        # stance.toml's foot_load_balance_min_support_force divide by.
+        self._body_weight_n = float(self.model.body_subtreemass[self.pelvis_id] * abs(self.model.opt.gravity[2]))
 
     def _geom_id(self, geom_name: str) -> int:
         """Resolve a geom id, failing on model drift."""
@@ -617,6 +686,23 @@ class TRexEnv(BaseDinoEnv):
         scaled = self._home_ctrl + np.where(residual < 0.0, below_home, above_home)
         return np.asarray(scaled)
 
+    def _filter_action(self, action: np.ndarray) -> np.ndarray:
+        """Keep the policy's own clipped command, then low-pass it as the base class does.
+
+        ``BaseDinoEnv.step`` replaces the command with its filtered value
+        before the reward sees it, so this is the only point the pre-filter
+        command exists.  Under ``action_penalty_source = "raw"`` the jerk,
+        smoothness and saturation terms price it; the filtered command still
+        drives the plant and the energy term.  The clip is the base class's
+        own (and the floor-truth recorder's), so the reward prices exactly
+        the command stance_quality/v2's saturation criterion reads.  Tagged
+        with the step count the reward will see (``step`` increments it
+        after the filter).
+        """
+        self._policy_action = np.clip(np.asarray(action, dtype=np.float64), -1.0, 1.0)
+        self._policy_action_step = self._step_count + 1
+        return super()._filter_action(action)
+
     def _get_obs(self) -> np.ndarray:
         """Construct observation vector."""
         # Joint positions (exclude root freejoint: first 7 values)
@@ -713,7 +799,9 @@ class TRexEnv(BaseDinoEnv):
         info["alive_gate"] = alive_gate
         info["reward_alive"] = reward_alive
 
-        # 3. Energy penalty (shared helper)
+        # 3. Energy penalty (shared helper).  Always the APPLIED command, under
+        # either action_penalty_source: it is an actuation cost, and the
+        # actuators track the filtered command.
         reward_energy = self._reward_energy(action)
         info["reward_energy"] = reward_energy
 
@@ -855,10 +943,28 @@ class TRexEnv(BaseDinoEnv):
         # terms above and the leg pose term (about 21/episode for that hip
         # roll) all priced as a sound stance.  Per-pad exp(-(tilt/tol)^2), averaged over the feet,
         # so one rolled foot forfeits at most half the term.
+        # Under foot_terms_min_support_force > 0 a foot earns its share only
+        # while its substep-MIN touch carries that load: a lifted foot is
+        # level in the air, and the two physics-r8 runs' hopping seed earned
+        # ~80% of this term on its airborne steps.
         sole_tilts = self._sole_tilts_deg()
-        reward_foot_flatness, foot_flatness_quality = _reward_sole_flatness_pure(
-            sole_tilts, self.foot_flatness_tolerance_deg, self.foot_flatness_weight
+        feet_supported = (
+            r_contact >= self.foot_terms_min_support_force,
+            l_contact >= self.foot_terms_min_support_force,
         )
+        if self.foot_terms_min_support_force > 0.0:
+            reward_foot_flatness, foot_flatness_quality = _reward_sole_flatness_pure(
+                sole_tilts,
+                self.foot_flatness_tolerance_deg,
+                self.foot_flatness_weight,
+                foot_weights=np.asarray(feet_supported, dtype=np.float64),
+            )
+        else:
+            reward_foot_flatness, foot_flatness_quality = _reward_sole_flatness_pure(
+                sole_tilts, self.foot_flatness_tolerance_deg, self.foot_flatness_weight
+            )
+        info["r_foot_terms_supported"] = float(feet_supported[0])
+        info["l_foot_terms_supported"] = float(feet_supported[1])
         info["r_sole_tilt_deg"] = float(sole_tilts[0])
         info["l_sole_tilt_deg"] = float(sole_tilts[1])
         info["foot_flatness_quality"] = float(foot_flatness_quality)
@@ -870,14 +976,29 @@ class TRexEnv(BaseDinoEnv):
         # 0.344-0.347 m wide on average against the statue's 0.279; the
         # propped leg is what widens the stance, so width and flatness price
         # one exploit through two independent measurements.
+        # Under stance_width_reference = "settled" the target is the
+        # animal's OWN width at step stance_width_settle_steps, and the term
+        # pays only after it: centred on the keyframe it paid a policy for
+        # re-seating its feet in the settle (both physics-r8 runs), which a
+        # reference the settle itself sets cannot reward.  Under
+        # foot_terms_min_support_force > 0 it pays only while both feet carry
+        # that load.
         stance_width = self._stance_width(self.data)
+        settled_reference = self.stance_width_reference == "settled"
+        if settled_reference and self._step_count == self.stance_width_settle_steps:
+            self._stance_width_target = stance_width
         reward_stance_width, stance_width_error, stance_width_quality = _reward_stance_width_pure(
             np.asarray(stance_width),
-            self._home_stance_width,
+            self._stance_width_target,
             self.stance_width_tolerance_m,
             self.stance_width_weight,
         )
+        if settled_reference and self._step_count <= self.stance_width_settle_steps:
+            reward_stance_width = 0.0
+        if self.foot_terms_min_support_force > 0.0 and not all(feet_supported):
+            reward_stance_width = 0.0
         info["stance_width"] = stance_width
+        info["stance_width_target"] = float(self._stance_width_target)
         info["stance_width_error"] = float(stance_width_error)
         info["stance_width_quality"] = float(stance_width_quality)
         info["reward_stance_width"] = float(reward_stance_width)
@@ -890,15 +1011,57 @@ class TRexEnv(BaseDinoEnv):
         info["contact_asymmetry"] = alternation_ratio  # backward compat with metrics
         info["reward_gait"] = reward_gait
 
+        # 9b. Floor impact and airborne substeps, from every physics substep's
+        # per-foot touch (BaseDinoEnv.step keeps the block beside the MIN the
+        # support terms read).  Touch is pad plus digits, and nothing but the
+        # feet touches the floor while the animal is standing, so the summed
+        # touch is the animal's floor force: it equals floor truth to 1e-12 N
+        # on every recorded step of the physics-r8 panels.  The impact term
+        # prices the step's PEAK above floor_impact_threshold_bw body
+        # weights; the airborne term the share of the step's substeps on
+        # which every foot is unloaded.  Both run over the whole episode,
+        # settle included, where the support terms' step-level MIN and the
+        # unscored-in-v1 settle let a stomp or a two-foot hop go unpriced.
+        foot_force_block = self._substep_foot_force_block()
+        peak_foot_force_bw = float(foot_force_block.sum(axis=1).max()) / self._body_weight_n
+        airborne_substeps = int(np.count_nonzero(np.all(foot_force_block <= self._AIRBORNE_TOUCH_N, axis=1)))
+        reward_floor_impact = 0.0
+        if self.floor_impact_weight > 0.0:
+            reward_floor_impact = -self.floor_impact_weight * max(
+                0.0, peak_foot_force_bw - self.floor_impact_threshold_bw
+            )
+        reward_airborne_substeps = 0.0
+        if self.airborne_substep_weight > 0.0:
+            reward_airborne_substeps = -self.airborne_substep_weight * airborne_substeps / foot_force_block.shape[0]
+        info["peak_foot_force_bw"] = peak_foot_force_bw
+        info["airborne_substeps"] = float(airborne_substeps)
+        info["reward_floor_impact"] = float(reward_floor_impact)
+        info["reward_airborne_substeps"] = float(reward_airborne_substeps)
+
         # 10. Action smoothness (shared helper)
         # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
         # history, so calling it first would leave the jerk term reading this
         # step's own action as its first lag.
-        reward_action_jerk, action_jerk = self._reward_action_jerk(action)
+        # Under action_penalty_source = "raw" jerk, smoothness and saturation
+        # price the policy's own command (_filter_action), and the action
+        # history they keep holds raw commands; the filtered one still drives
+        # the plant and the energy term.  The first-order 10 Hz filter passes
+        # 24-54% of 12.5-50 Hz content, so a +-1 bang-bang that hops the
+        # animal was priced about 9-11x too cheaply on the filtered command.
+        # Without the filter (or before any step) the raw command IS
+        # ``action``.
+        penalty_action = action
+        if (
+            self.action_penalty_source == "raw"
+            and self._policy_action is not None
+            and self._policy_action_step == self._step_count
+        ):
+            penalty_action = self._policy_action
+        reward_action_jerk, action_jerk = self._reward_action_jerk(penalty_action)
         info["action_jerk"] = action_jerk
         info["reward_action_jerk"] = reward_action_jerk
 
-        reward_smoothness, action_delta = self._reward_action_smoothness(action)
+        reward_smoothness, action_delta = self._reward_action_smoothness(penalty_action)
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
 
@@ -907,7 +1070,7 @@ class TRexEnv(BaseDinoEnv):
         # oscillate -- so parking joints at stops was the cheapest way to
         # be smooth.  Price the parked fraction directly.
         reward_action_saturation, action_saturation = _reward_action_saturation_pure(
-            action, self.action_saturation_weight, self.action_saturation_threshold
+            penalty_action, self.action_saturation_weight, self.action_saturation_threshold
         )
         info["action_saturation"] = float(action_saturation)
         info["reward_action_saturation"] = float(reward_action_saturation)
@@ -960,6 +1123,11 @@ class TRexEnv(BaseDinoEnv):
             + reward_speed
             + reward_idle
         )
+        # Added only when enabled, so the legacy sum keeps its exact order.
+        if self.floor_impact_weight > 0.0:
+            total_reward += reward_floor_impact
+        if self.airborne_substep_weight > 0.0:
+            total_reward += reward_airborne_substeps
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -1021,6 +1189,10 @@ class TRexEnv(BaseDinoEnv):
         self._prev_prey_distance = None
         self._prev_action = None
         self._prev_prev_action = None
+        self._policy_action = None
+        self._policy_action_step = -1
+        # The settled width target is the episode's own (see 8f).
+        self._stance_width_target = self._home_stance_width
 
         # Reset gait symmetry tracking
         self._reset_gait_state()

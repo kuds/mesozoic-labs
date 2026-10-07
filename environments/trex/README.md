@@ -26,16 +26,22 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Tail stability** - Penalizes tail angular velocity
 - **Bite bonus** - Large reward when the fixed head contact geom touches prey
 - **Approach shaping** - Reward for closing distance to prey
-- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and the home stance width (`stance_width_weight`), each a `TRexEnv` kwarg that is inert at its default and set in `configs/trex/stance.toml`
+- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TRexEnv` kwarg that is inert at its default and set in `configs/trex/stance.toml`
 
 ### Stance gate
-The stance stage certifies under `stance_quality/v2` (decision D-D24): each episode of the 40-episode panel (seeds
-3042-3081) is classified on floor truth, the floor's normal force under each leg on every physics substep, and the
-stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40). An episode is clean when
-it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded, no drift or chatter, no
-actuator held at its limit and flat pads (tilt, corner lift and contact points); the bars and their measured
-provenance are in `configs/trex/stance.toml`. The verdict is the post-stage `stance_gate_report.json` on the handoff
-checkpoint pair, never an in-training evaluation.
+The stance stage certifies under `stance_quality/v2` (decision D-D24; its bars revised by D-D27): each episode of the
+40-episode panel (seeds 3042-3081) is classified on floor truth, the floor's normal force under each leg on every
+physics substep, and the stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40).
+An episode is clean when it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded,
+no drift or chatter, no actuator held at its limit, flat pads (tilt, corner lift and contact points), at most one
+re-plant in the settle and no more than 25° of turning; and at most one of the 40 may hop for the whole episode or
+fall. The bars and their measured provenance are in `configs/trex/stance.toml`. The verdict is the post-stage
+`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
+a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
+report only: the stance stage always spawns at the same heading, and whether a certified stance must be heading-robust
+is not decided. The first two physics-r8 stances (`20261006_185343`, `20261006_185704`) both failed this gate; what
+they did and what decision D-D27 changed in response is §9 of
+[`docs/investigations/STANCE_HACK_AUDIT_2026_10.md`](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md).
 
 ## Quick Start
 

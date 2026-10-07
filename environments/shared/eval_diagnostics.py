@@ -803,6 +803,20 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             return {}
         return {f"term_{key[len('reward_') :]}": float(value) for key, value in terms.items()}
 
+    def gate_progress_series(self, key: str) -> tuple[list[int], list[float]]:
+        """``(timesteps, values)`` of one ``gate_progress.npz`` series recorded so far.
+
+        Copies, aligned by evaluation; a key this run never recorded (or one
+        recorded on only some evaluations) returns NaN where it is missing
+        rather than a shorter list, so a reader can never pair a value with
+        the wrong evaluation.  Read by the hop watch (curriculum/hop_watch.py).
+        """
+        timesteps = list(self.__dict__.get("_gate_progress_timesteps", []))
+        series = list(self.__dict__.get("_gate_progress", {}).get(key, []))
+        if len(series) != len(timesteps):
+            series = [float("nan")] * len(timesteps)
+        return timesteps, series
+
     def _record_gate_progress(self, **values: float) -> None:
         """Append one evaluation's gate criteria and rewrite ``gate_progress.npz``.
 

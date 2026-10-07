@@ -343,6 +343,11 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "tail_home_pose_tolerance",
         "foot_flatness_tolerance_deg",
         "stance_width_tolerance_m",
+        "stance_width_reference",
+        "stance_width_settle_steps",
+        "foot_terms_min_support_force",
+        "floor_impact_threshold_bw",
+        "action_penalty_source",
         "action_saturation_threshold",
         "idle_velocity_threshold",
     }

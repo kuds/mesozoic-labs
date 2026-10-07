@@ -44,6 +44,8 @@ export interface AdvancementGate {
   settleSteps: number | null;
   /** stance_quality/v2 statue-relative reward rail (a fraction of the statue panel's mean); null when undeclared. */
   minAverageRewardStatueRatio: number | null;
+  /** stance_quality/v2 panel rail: the most episodes that may end early or fail a hop-or-fall criterion; null when undeclared. */
+  maxHopOrFallEpisodes: number | null;
   /** stance_quality/v2 per-episode criteria the stage declares, in report order; empty on every other gate kind. */
   stanceEpisodeCriteria: StanceEpisodeCriterion[];
   minEvaluationEpisodes: number;
@@ -74,6 +76,8 @@ export const STANCE_V2_EPISODE_CRITERIA = [
   'max_sole_tilt_excess_deg',
   'max_sole_corner_lift_m',
   'min_sole_contacts',
+  'max_episode_yaw_change_deg',
+  'max_settle_touchdowns',
   'min_foot_load_share_statue_ratio',
 ] as const;
 
@@ -309,6 +313,9 @@ interface RawStage {
     max_sole_tilt_excess_deg?: number | null;
     max_sole_corner_lift_m?: number | null;
     min_sole_contacts?: number | null;
+    max_episode_yaw_change_deg?: number | null;
+    max_settle_touchdowns?: number | null;
+    max_hop_or_fall_episodes?: number | null;
     min_foot_load_share_statue_ratio?: number | null;
   };
   video: {
@@ -643,6 +650,7 @@ function adaptSpecies(raw: RawSpecies): Species {
         minCleanStanceLcb: stage.advancement_gate.min_clean_stance_lcb ?? null,
         settleSteps: stage.advancement_gate.settle_steps ?? null,
         minAverageRewardStatueRatio: stage.advancement_gate.min_avg_reward_statue_ratio ?? null,
+        maxHopOrFallEpisodes: stage.advancement_gate.max_hop_or_fall_episodes ?? null,
         stanceEpisodeCriteria: adaptStanceEpisodeCriteria(stage.advancement_gate),
         minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
         requiredConsecutive: stage.advancement_gate.required_consecutive,

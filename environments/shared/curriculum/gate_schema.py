@@ -232,6 +232,9 @@ _SCHEDULE_KEYS = frozenset(
 )
 
 #: Keys that configure collapse/early-stop detection rather than the gate.
+#: The ``hop_watch_*`` keys (curriculum/hop_watch.py) are the second early
+#: stop: a stance still hopping late in training.  Like the collapse keys
+#: they enter no gate, recipe or task digest.
 _COLLAPSE_KEYS = frozenset(
     {
         "collapse_min_evals",
@@ -242,6 +245,9 @@ _COLLAPSE_KEYS = frozenset(
         "collapse_peak_floor_reference",
         "collapse_peak_warmup_timesteps",
         "collapse_smoothing_window",
+        "hop_watch_max_unsupported_duty",
+        "hop_watch_after_timesteps",
+        "hop_watch_stop",
     }
 )
 
@@ -262,6 +268,7 @@ _DIAGNOSTIC_KEYS = frozenset(
         "stance_probe_hold_constant",
         "stance_probe_release_ablation",
         "stance_probe_impulse_speeds",
+        "stance_probe_spawn_yaw_deg",
     }
 )
 

@@ -2290,10 +2290,11 @@ class TestImpulseProbeIsNotAVerdict:
         assert "stage 1 has no disturbance" in text
         assert text.index("PROBE") < text.index("GATE:")
 
-    def test_all_three_probes_have_distinct_stems(self):
+    def test_all_four_probes_have_distinct_stems(self):
         from environments.shared.reporting.stance_report import _PROBE_MARKERS
 
-        assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS) == 3
+        # filter, hold, impulse and (D-D27) the turned-spawn heading probe.
+        assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS) == 4
 
 
 class TestImpulseRecoveryReading:
@@ -2457,13 +2458,14 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         }
 
     def _record_probes(self, monkeypatch) -> list:
-        """Replace the four probe helpers with recorders; return the record."""
+        """Replace the five probe helpers with recorders; return the record."""
         calls: list = []
         for name in (
             "_write_filtered_action_probe",
             "_write_constant_hold_probe",
             "_write_constant_hold_ablation",
             "_write_impulse_probe",
+            "_write_heading_probe",
         ):
             monkeypatch.setattr(
                 self._artifacts(),
@@ -2491,6 +2493,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             "_write_constant_hold_probe",
             "_write_constant_hold_ablation",
             "_write_impulse_probe",
+            "_write_heading_probe",
         ]
         by_name = dict(calls)
         # The load-bearing arguments: the probes must annotate THIS report and
@@ -2543,8 +2546,74 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             "_write_filtered_action_probe",
             "_write_constant_hold_ablation",
             "_write_impulse_probe",
+            "_write_heading_probe",
         ]
         assert "Stance probe (constant hold) failed" in caplog.text
+
+    def test_the_heading_probe_rolls_each_offset_both_ways_for_the_policy_and_the_statue(self, tmp_path, monkeypatch):
+        """The helper itself, with the panel stubbed: which offsets it keeps and what each panel scores."""
+        from environments.shared.reporting import stance_report
+
+        rolled: list = []
+        written: list = []
+
+        def _panel(species, stage, **kwargs):
+            rolled.append(kwargs)
+            return {"spawn_yaw": kwargs["spawn_yaw"].as_dict()}
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _panel)
+        monkeypatch.setattr(
+            stance_report,
+            "write_heading_probe",
+            lambda stage_dir, policy, statue, *, probe_episodes: (
+                written.append((stage_dir, policy, statue, probe_episodes))
+                or {"heading_probe_txt": stage_dir / "stance_heading_probe.txt"}
+            ),
+        )
+        stage_config = {"curriculum_kwargs": {"stance_probe_spawn_yaw_deg": [90.0, "north", 0.0, math.nan, -45.0]}}
+
+        self._artifacts()._write_heading_probe(
+            species="trex",
+            stage=1,
+            stage_config=stage_config,
+            stage_dir=tmp_path,
+            model_path="models/robust_best_model.zip",
+            vecnorm_path="models/robust_best_model_vecnorm.pkl",
+        )
+
+        # The control, then -45 and +90 each alone and with the scene: 1 + 2 x 2 panels per policy.
+        variants = stance_report.spawn_yaw_variants([-45.0, 90.0])
+        assert len(variants) == 5
+        policy, statue = rolled[:5], rolled[5:]
+        assert len(statue) == 5
+        assert [panel["spawn_yaw"] for panel in policy] == variants
+        assert [panel["spawn_yaw"] for panel in statue] == variants
+        for panel in policy:
+            assert panel["model_path"] == "models/robust_best_model.zip"
+            assert panel["vecnorm_path"] == "models/robust_best_model_vecnorm.pkl"
+            assert panel["zero_action"] is False
+        for panel in statue:
+            assert (panel["model_path"], panel["vecnorm_path"], panel["zero_action"]) == (None, None, True)
+        episodes = self._artifacts()._HEADING_EPISODES
+        assert all(panel["episodes"] == episodes and panel["stage_config"] is stage_config for panel in rolled)
+        assert len(written) == 1 and written[0][0] == tmp_path and written[0][3] == episodes
+        assert [report["spawn_yaw"] for report in written[0][1]] == [v.as_dict() for v in variants]
+
+    @pytest.mark.parametrize("offsets", [None, [], [0.0], ["north"]], ids=repr)
+    def test_the_heading_probe_rolls_nothing_without_a_nonzero_offset(self, tmp_path, monkeypatch, offsets):
+        from environments.shared.reporting import stance_report
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", lambda *a, **k: pytest.fail("rolled a panel"))
+        curriculum = {} if offsets is None else {"stance_probe_spawn_yaw_deg": offsets}
+        self._artifacts()._write_heading_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": curriculum},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="m.pkl",
+        )
+        assert not (tmp_path / "stance_heading_probe.txt").exists()
 
     def test_the_verdict_is_recorded_before_any_probe_runs(self):
         """Probes are pure diagnostics and run dead last: the recorded verdict,

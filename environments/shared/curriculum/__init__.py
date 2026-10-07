@@ -88,6 +88,7 @@ from .gate_schema import (
     validate_gate_config,
     validate_gate_configs,
 )
+from .hop_watch import HopRegimeWatchCallback, build_hop_watch_callback
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
 from .schedules import (
     CosineSchedule,
@@ -103,6 +104,7 @@ __all__ = [
     "FROZEN_NULL_GATE_KINDS",
     "GATE_KINDS",
     "BaselineProgressCallback",
+    "HopRegimeWatchCallback",
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
     "CurriculumManager",
@@ -124,6 +126,7 @@ __all__ = [
     "_ConstantSchedule",
     "schedule_members_from_hyperparameters",
     "build_baseline_progress_callback",
+    "build_hop_watch_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",
     "declared_certification_seeds",

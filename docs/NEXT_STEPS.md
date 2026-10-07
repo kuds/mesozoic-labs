@@ -64,7 +64,16 @@ keyframe with a gravity preload, the whole foot's touch sensors), its exit
 from the frozen MJX core as SB3-only, a revised velociraptor stance task and
 the velociraptor stance on `stance_quality/v2` (the gait plan's §13), which
 strands every velociraptor checkpoint; section 2's velociraptor rows say so,
-and the next velociraptor session is a fresh stance.* Section 2 labels each
+and the next velociraptor session is a fresh stance.* *2026-10-07: the first
+two r8 trex stances, `20261006_185343` (seed 42) and `20261006_185704` (seed
+44), both fail `stance_quality/v2` (a two-foot micro-hop; a settle stomp with
+a few-percent whole-episode hop mode), and the maintainer took D-D27: the
+trex stance follow-up on the unchanged plant (reward terms that price the
+settle re-seat, impacts, flight and raw-command chatter, `log_std_init =
+-1.5`, an opt-in hop watch, four gate keys and a report-only heading probe;
+the gait plan's §14 and the stance-hack audit's §9); section 2 lists both
+runs, and the next trex session is again a fresh stance, on the D-D27
+task.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -171,6 +180,8 @@ note, and its facts are as they were.*
 | trex | `20260920_010912` | 44 | r13 (commit `ac409f8`), widened from `20260815_205206` (r11, gap 2) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-20 01:15 UTC by `generate_stage_artifacts` on the widened handoff `robust_best_model.zip` (`checkpoint_sha256 7f4284ad…`, inherited 10,000,000 steps, no training here): panel reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081, identical to the r11 certificate; final eval 3418.22 ± 87.88; `gate_sha256 ff2494ba…`, `task_sha256 82528a2e…` (= the seed-42 run's stance digest); gait audit 2026-09-28: quiet in 34 of 40 episodes, two-footed hops to rebalance in the other 6 | none; **recovery PASS** instead — `02_recovery`, 3,006,464 steps, 3h30m (2026-09-20 21:42 → 2026-09-21 01:12 UTC, the in-place continuation), 28/40 panel successes (Clopper-Pearson one-sided LCB 0.56 ≥ 0.30), paired success delta against the 0/40 statue null 0.70 (Student-t one-sided LCB 0.58 ≥ 0.20), 140/155 pushes recovered, 34/40 full horizon, panel reward 2925.4 ± 404.8; training final eval 2911.16 ± 556.35, best eval 3031.38 ± 159.07 at 2.9M; verdict 2026-09-21 01:16 UTC, `gate_sha256 a27ce071…`, `task_sha256 2c6f4a47…`, checkpoint `a8e41b98…`; gait audit 2026-09-28 (recovery): keeps its posture after pushes but answers forward pushes with two-footed hops | Nothing: its stance is the parent of the seed-44 walker `20260925_033501` (next row, session 7, a fresh run; not in place, because this run's bundle is `complete` and a complete bundle is immutable); otherwise nothing: bundle `complete` (written after the recovery verdict), stance deliverable `certified true, provisional false`, `replication count 2` (`20260920_010912` seed 44, `20260914_123816` seed 42), recovery certified at replication 1 *Stranded by physics r8 (2026-10-06, D-D24): the plant contract refuses this run's checkpoints, so no node of it is reused; this stance (0/40 under `stance_quality/v2`, replayed on r7) and its recovery retrain on r8, and the recovery re-freezes its `gate_resolution.json` on the new stance.* |
 | trex | `20260815_205206` | 44 | r11 (legacy `stage1/` + `stage2/`) | PASS on `stance_gate_report.txt`: reward 3408.3 ± 88.5, full-horizon 1.0000, duty 0.0069, UCB 0.0117, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; `stage1/` holds `stage_config.json` (run block) and `models/` | not certified | Nothing: widened to r13 and re-paneled as `20260920_010912` (session 1, 2026-09-20) *Stranded by physics r8 (2026-10-06, D-D24): the plant contract refuses this run's checkpoints, so no node of it is reused; already superseded by its widened copy.* |
 | trex | `20260810_145546` | 42 | r11 (legacy `stage1/2/3`) | PASS on the 2026-08 records; no `gate_verdict.json` in `stage1` | not certified | Nothing: seed 42 is already certified at r13 by `20260914_123816`; the template note's Session 1 (widen this run) is superseded *Stranded by physics r8 (2026-10-06, D-D24): the plant contract refuses this run's checkpoints, so no node of it is reused; already superseded.* |
+| trex | `20261006_185343` | 42 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 14h55m, final eval 3015.04 ± 4.54; panel (seeds 3042–3081) clean on 0/40, bound 0.000, reward 3012.1 ± 7.2, every episode failing support, touchdowns, saturation and both settle bars; 0/40 again on the fresh seeds 7042–7081; judged 2026-10-07 09:58 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 2053f487…`, the 10.8M checkpoint); a 12.5 Hz two-foot micro-hop on raw ±1 commands that also steers to an absolute heading of about −45°; provenance `certified false`, `provisional true` | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9). *Not reused since D-D27 (2026-10-07): the trex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* |
+| trex | `20261006_185704` | 44 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 15h46m, final eval 3760.58 ± 86.96, best 3778.59 ± 9.82 at 10.35M; panel clean on 13/40, bound 0.204, reward 3772.7 ± 17.7 (settle peak over 1.5 BW on 27 episodes, settle airborne substeps on 6); 8/40, bound 0.104, on the fresh seeds 7042–7081; judged 2026-10-07 10:53 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 d320d274…`, the 10.35M best); stands like the statue after a settle stomp that re-seats its feet, hops for the whole episode on about 4% of resets, stands only near its training heading; provenance provisional, not certified | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history (the audit's §9). *Not reused since D-D27 (2026-10-07): the trex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Nothing: widened to r2 and re-paneled as `20260921_203149` (session 2, 2026-09-21); stays on the log tree as history |
 | compsognathus | `20260921_203149` | 42 | r2 (obs 56, commit `25132fc`), widened from `20260909_162812` (r1, gap 1) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-21 20:38 UTC by `generate_stage_artifacts` on the widened handoff (`checkpoint_sha256 1d46747f…`, inherited `num_timesteps` 10,850,000, no training here): panel reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081, identical to the r1 report; `gate_sha256 62930e3f…`, `task_sha256 19837f77…`; gait audit 2026-09-28: marches in place, not a still stance | **PASS** — `03_locomotion`, 3,002,368 steps, 3h49m, 0.34 m/s, mean length 1000, final eval 3308.6 ± 13.0, best eval 3337.16 ± 8.11 at 2.6M, verdict 2026-09-22 00:31 UTC, `gate_sha256 33e185d3…`, `task_sha256 63195040…`; gait audit 2026-09-28: a genuine alternating walk | Nothing: bundle `complete` (2026-09-22 00:31 UTC); the stance deliverable records `widened_from_run_id 20260909_162812` and a null `best_eval_reward` (the rule of #546); this is the certified compsognathus walker `TRUNK_FROM = "auto"` selects |
 | velociraptor | `20260723_005740` (July) | 42 | r3 (obs 67); physics r2 = current | stage1 balance 6M, 3h41m, final eval 1767, 1000-step episodes; run-level `publication_gate_passed` only, no per-node verdict; sidecar predates identity stamping | stage2 8M, 4h50m, 3.29 m/s; stage3 strike 12M | **Not a widen candidate**: seven revisions behind r10 and the crossed revisions include the reset-settling change (`plant_versions.toml` note 6). Fresh chain ran as `20260922_125248` (session 3, 2026-09-22) *Stranded by physics r3 (2026-10-06, D-D25): the plant contract refuses this run's checkpoints, so no node of it is reused; history either way.* |
@@ -211,7 +222,9 @@ as of 2026-09-21. The seed-42 run's own bundle still reads replication 1 (the
 count is writer-recorded from the siblings' verdicts, and that `complete`
 bundle cannot be rewritten in place). *Stranded by physics r8 (2026-10-06,
 D-D24): on r8 no trex stance has trained, so the two-seed bar starts again
-from none, under `stance_quality/v2`.* Nothing relies on a `mesozoic-labs/certified` library
+from none, under `stance_quality/v2`.* *2026-10-07: the first two r8 seeds,
+42 and 44, both fail v2 (the rows above), so the count is still none; the
+next seeds train on the D-D27 task.* Nothing relies on a `mesozoic-labs/certified` library
 directory.
 
 ---
@@ -259,6 +272,21 @@ trex physics r8 (D-D24) strands both runs, and the next trex session is a
 fresh `BEHAVIOR="stand"` stance on r8, certified under `stance_quality/v2`
 (two seeds, `certification_seeds = 2`), before any trex recovery, walk or
 hunt; the order of the retrains is the maintainer's (the gait plan's GQ-17).*
+
+*Status 2026-10-07: that fresh stance ran as `20261006_185343` (seed 42) and
+`20261006_185704` (seed 44), and both fail `stance_quality/v2` (section 2);
+D-D27 then revised the trex stance task, recipe and gate. The next trex
+session is again a fresh `BEHAVIOR="stand"` stance, on the D-D27 task: at
+least two seeds (plan three; `SEED = 42` and `44`, then a third), each judged
+on its publication panel (seeds 3042–3081) and re-judged on the fresh seeds
+7042–7081 (`stance_gate_report.py trex --model … --vecnorm … --seed 7042`)
+before any recovery, walk or hunt trains on it. A seed the hop watch stops at
+7M (`hop_watch.json` in its `01_stance/`) is restarted on a new seed, not
+resumed. Read `stance_heading_probe.txt` beside the gate report: it is report
+only, because whether a certified stance must be heading-robust is the
+maintainer's open decision. Check the pad bars first on the new panels: the
+two short runs on the D-D27 task missed them by up to 0.95° on 2 of 20
+episodes.*
 
 Notes:
 
@@ -554,6 +582,15 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   gait plan warns that a gait gate alone turns each retrain into an 8 h FAIL,
   and recommends pairing the gate with per-species reward revisions
   ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md) GQ-5, open).
+- The trex stance on r8 (2026-10-07): one config trained into two basins
+  (seed 44 escaped the early hop regime between 5.0M and 6.0M, seed 42 locked
+  into a 12.5 Hz hop at 6.5M), and why is not established at n = 2. Whether
+  the D-D27 start (`log_std_init = -1.5`) changes that split, whether the
+  learning rate the recipe's falsified prediction names matters, and whether
+  a certified stance must be heading-robust (both r8 stances fall when
+  spawned 90° off their training heading) are open
+  ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
+  §9; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred
   ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §10).
 

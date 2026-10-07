@@ -83,6 +83,27 @@ robustness, **LOW** = cosmetic / QoL.
   that no longer exist. No r8 stance has trained yet: the ask is the same
   one, now for r8 under v2 — how often a seed certifies, at
   `certification_seeds = 2`.
+  **Update 5 (2026-10-07):** the first two r8 stances trained (D-D24's
+  config byte for byte, seed 42 `20261006_185343` and seed 44
+  `20261006_185704`) and **both fail `stance_quality/v2`**, as recorded and
+  as re-derived: seed 42 is clean on 0/40, a 12.5 Hz two-foot micro-hop at
+  0.80 of the statue's reward; seed 44 on 13/40 (bound 0.204) and on 8/40
+  of the fresh seeds 7042–7081, a statue-like stance after a settle stomp
+  that re-seats its feet, with a whole-episode hop on about 4% of resets.
+  The r7 hacks are gone. The split repeats the pattern above on the new
+  plant, one config and two basins: both runs entered a hop regime under
+  std-1.0 exploration, seed 44 escaped it between 5.0M and 6.0M and seed 42
+  locked in at 6.5M as the entropy bonus ran out at 7M; why is not
+  established (n = 2). Decision D-D27 changed what the stance reward pays
+  for (the settle re-seat, settle impacts and flight, raw-command chatter,
+  unloaded feet), starts exploration at std 0.22 (`log_std_init = -1.5`),
+  adds a hop watch that stops a seed still hopping at 7M, and tightens the
+  gate ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
+  §9). No trex stance is certified on r8, and the D-D27 task has trained no
+  policy past 0.45M steps. The ask stands, on the D-D27 task: at least two
+  seeds (plan three), each judged on 3042–3081 and re-judged on 7042–7081;
+  whether the quieter start changes the basin split is the first thing those
+  runs measure.
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -657,7 +678,9 @@ robustness, **LOW** = cosmetic / QoL.
   The table predates the 2026-08-15 rename (CHANGELOG `[0.3.8]`): its
   `action_saturation` row is the pre-clip quantity now named
   `diagnostics/raw_action_saturation`, and `diagnostics/action_saturation` is
-  the env's filtered-command ramp fraction.
+  the env's filtered-command ramp fraction (the policy's own clipped command
+  on the T. rex stance and recovery since D-D27, `action_penalty_source =
+  "raw"`).
 
   **What this is not: the reward is not inflated.** SB3 clips before
   stepping the environment, so `_get_reward_info` receives an in-bound
@@ -926,8 +949,11 @@ robustness, **LOW** = cosmetic / QoL.
   revision with bars re-measured on that species' own statue panel
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§13 and PR-G8; GQ-10, open);
   each species stays open until its stance certifies under v2, the trex and
-  velociraptor included (no r8 trex or r3 velociraptor stance has trained
-  yet).
+  velociraptor included: no r3 velociraptor stance has trained yet, and the
+  first two r8 trex stances fail v2 (a two-foot micro-hop, and a settle
+  stomp with a few-percent whole-episode hop mode; the audit's §9), after
+  which D-D27 revised the trex stance task and added settle-touchdown, yaw
+  and hop-or-fall keys to its block.
 
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
@@ -1070,6 +1096,61 @@ robustness, **LOW** = cosmetic / QoL.
   certified and record both blocks (`stance_gate_report.py --episodes`
   already sizes such a panel). No cleanup PR owns it. (2026-08 gap review SS3
   and SS4)
+  *Update (2026-10-07):* the r8 trex seed-44 stance `20261006_185704` is the
+  measured case. On the certification block 3042–3081 it fails 1 of 40
+  episodes in the window (seed 3080, after a floating-point divergence), on
+  the fresh block 7042–7081 4 of 40 (three whole-episode hops and a fall);
+  over about 207 resets it hops for the whole episode on 4.3% (95% CI
+  2.0–8.1%) and rolls over on one more, a hop-or-fall rate of 4.8%. A bound
+  of 0.80 at n = 40 admits up to 3 unclean episodes, so a panel whose only
+  unclean episodes are such a mode's passes with probability about 0.87. The
+  trex stance now declares the `max_hop_or_fall_episodes = 1` rail (D-D27),
+  which counts the falls too and cuts that to about 0.42, and refuses a
+  statue-quality policy on about 1 panel in 23; the fresh-block confirmation
+  stays manual ([NEXT_STEPS.md](NEXT_STEPS.md) asks for a re-judgement on
+  7042–7081 before a trex stance is handed on), and no other species declares
+  the rail.
+
+- **MEDIUM** — **no stance certificate tests heading, and both r8 trex
+  stances stand only near the heading they trained at (measured
+  2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
+  prey within about ±11°), and the trex observation carries heading only in
+  world-frame quantities (the pelvis quaternion, the pelvis linear velocity,
+  the prey vector), so a policy can learn a stance that reads its absolute
+  heading, and no v2 bar sees it. Spawned turned about vertical, the
+  zero-action statue stands 8/8 at ±45° and ±90°, so the plant is
+  heading-neutral; the seed-44 stance `20261006_185704` stands 0/8 at ±90°
+  (the animal turned alone) and 0/8 at ±45° with the prey turned too (only
+  the observation differs), and the seed-42 stance `20261006_185343` falls
+  4/4 at ±90° and, when it stands, steers to an absolute heading of about
+  −45° ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9).
+  D-D27 added a report-only probe (`stance_probe_spawn_yaw_deg`, written to
+  `stance_heading_probe.txt`; `stance_gate_report.py --spawn-yaw-offsets`)
+  and a 25° bar on episode yaw change, which refuses a stance that turns but
+  not one that only falls when turned. Fix, not decided by the maintainer:
+  randomise the spawn yaw with the prey placed relative to it, or make the
+  observation heading-invariant (a yaw-free quaternion, a yaw-frame linear
+  velocity, a body-frame prey vector), each a policy-interface revision; or
+  decide that heading robustness belongs to recovery and locomotion. No other
+  species' stance has been probed.
+
+- **LOW** — **`stance_quality/v2` does not see a foot standing on the front
+  edge of its pad (measured 2026-10-07).** The r8 trex seed-44 stance
+  `20261006_185704` stands with its left pad pitched 0.69–0.75° toe-down on
+  2.02–2.17 loaded contact points (the statue 3.62–3.68), its window-mean
+  centre of pressure at 0.85–1.00 of the pad's fore half-length on all 80
+  panel episodes (the statue at most 0.362 over 120) and its digits
+  carrying about 1% of the load each (the statue 6–8%); in its one measured
+  fall that foot sat on a single corner. Every v2 bar passes it, and
+  `min_sole_contacts` (1.5) must not rise to catch it: the statue reaches
+  2.086 out of sample, with 2 of 40 episodes below 2.25. Fix: a per-foot
+  centre-of-pressure fore-aft metric in the floor-truth library and a v2 bar
+  near 0.7 of the half-length (or a digit load-share bound against the
+  statue's). It needs a new `StanceEpisodeMetrics` field, and
+  `StanceEpisodeMetrics.from_row` is strict, so every recorded v2 panel CSV
+  (the trex and velociraptor statue panels, both r8 trex runs) would stop
+  re-deriving until migrated; D-D27 deferred it for that reason
+  ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9).
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
   (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1209-1339`, its

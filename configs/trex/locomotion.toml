@@ -107,7 +107,10 @@ collapse_peak_floor_reference = 1091.5  # The zero-action locomotion statue's re
                                         # (plant_versions note 13) with the same command: 1091.52 ± 5.46,
                                         # 40/40 full horizon, so the reference carries. This stage's [env]
                                         # sets none of the stance shaping keys, and the hip-roll servos only
-                                        # trim the statue's spawn-noise foot roll.
+                                        # trim the statue's spawn-noise foot roll. Carries through the stance
+                                        # follow-up (D-D27) too: this [env] sets none of its TRexEnv kwargs,
+                                        # whose defaults keep the r8 reward bit for bit (test_trex_rewards.py;
+                                        # the digest snapshot's trex locomotion reward summary did not move).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1091.5 =
                                         # 491.2. The interrupted run 20260821_142144's best eval (1494.47
                                         # at 5.3M) clears it, and even its ~1100 ramp-window plateau does,
