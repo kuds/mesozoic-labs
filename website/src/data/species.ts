@@ -74,6 +74,8 @@ export const STANCE_V2_EPISODE_CRITERIA = [
   'max_sole_tilt_excess_deg',
   'max_sole_corner_lift_m',
   'min_sole_contacts',
+  'max_window_airborne_substeps',
+  'max_window_peak_floor_force_bw',
   'min_foot_load_share_statue_ratio',
 ] as const;
 
@@ -309,6 +311,8 @@ interface RawStage {
     max_sole_tilt_excess_deg?: number | null;
     max_sole_corner_lift_m?: number | null;
     min_sole_contacts?: number | null;
+    max_window_airborne_substeps?: number | null;
+    max_window_peak_floor_force_bw?: number | null;
     min_foot_load_share_statue_ratio?: number | null;
   };
   video: {

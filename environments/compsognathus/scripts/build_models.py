@@ -265,8 +265,10 @@ def build_biological(parameters):
     )
     actuator = element(root, "actuator")
 
-    def hinge(body, name, axis, limits, kp=20, kv=0.2, cap=1.0):
-        element(body, "joint", name=name, axis=axis, range=fmt(limits))
+    def hinge(body, name, axis, limits, kp=20, kv=0.2, cap=1.0, armature=None):
+        joint = element(body, "joint", name=name, axis=axis, range=fmt(limits))
+        if armature is not None:
+            joint.set("armature", fmt([armature]))
         element(
             actuator,
             "position",
@@ -374,17 +376,43 @@ def build_biological(parameters):
         )
         meta = element(tibia, "body", name=f"{side}_metatarsus", pos=fmt(displacements[1]))
         hinge(meta, f"{side}_ankle", "0 1 0", [-0.65, 0.65], 16, 0.2, 0.8)
+        # The collision capsule (also the drawn shank) stops
+        # metatarsus_collision_inset_m short of the MTP joint, measured along
+        # its own axis; the proximal end and the 18 g stay.  The metatarsal
+        # head rests on the plantar pad and is never support, but at full
+        # length its distal cap sat 1.07 mm above the floor on the settled
+        # statue, so any landing that sank the sole 1 mm into its soft contact
+        # touched it -- with 0 N on it in 48 of 48 first touches -- and the
+        # terminating metatarsus contact ended an upright, flat-footed episode
+        # as a fall.
+        # Physics r1 -> r2: settled clearance 1.07 -> 4.81 mm.  Contact still
+        # terminates, so a real crouch onto the metatarsus is still a fall.
+        meta_inset = 1 - p["metatarsus_collision_inset_m"] / p["metatarsus_m"]
         element(
             meta,
             "geom",
             name=f"{side}_metatarsus_geom",
             type="capsule",
-            fromto=fmt([0, 0, 0, *displacements[2]]),
+            fromto=fmt([0, 0, 0, *(displacements[2] * meta_inset)]),
             size=".006",
             mass=".018",
         )
         foot = element(meta, "body", name=f"{side}_foot", pos=fmt(displacements[2]))
-        hinge(foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 12, 0.2, 0.6)
+        # The MTP servo's cap holds one body weight on the digit-III tip, 61 mm
+        # ahead of the joint (0.594 N.m needed), so a single-support tiptoe is
+        # physically available.  Cutting it to 0.4 N.m removes that stance but
+        # also the push-off the digit plate can give; the cut waits on a
+        # measured walker toe-torque budget (D-D26), and is one number here.
+        # The 20 g foot plate alone gives the toe DOF 1.6e-5 kg m2, so at the
+        # default armature (5e-5) its kp-12 servo rings at 68 Hz, omega*dt 0.85 at
+        # the 2 ms step: the stiffest servo DOF in the model.  At home that numerical
+        # mode sustained a 19-21 Hz heel chatter on 15 of 40 settled statues (6 of
+        # 40 on r1) and failed 2 of 10 seeded validate_models holds; armature
+        # toe_armature_kg_m2 (2e-4) brings it to 37 Hz, omega*dt 0.47, and removes
+        # the chatter on 40 of 40 with no change to the statics or the preload.
+        hinge(
+            foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 12, 0.2, p["toe_forcerange_nm"], armature=p["toe_armature_kg_m2"]
+        )
         element(
             foot,
             "geom",
@@ -395,8 +423,13 @@ def build_biological(parameters):
             mass=".008",
             rgba=".35 .31 .22 1",
         )
-        # Three load-bearing toes, all welded to this sensor's own body.
-        for toe, y, length in ((2, -0.017, 0.049), (3, 0, 0.062), (4, 0.017, 0.045)):
+        # Three load-bearing toes, all welded to this sensor's own body.  Digit
+        # II is medial on both feet: the right foot sits at -y, so its medial
+        # side is +y.  Physics r1 built both feet as left feet, with the right
+        # d2 tip lateral at world y -64.0 mm; the mirror is mechanically
+        # neutral (statue load R/L 0.502 / 0.498 BW, 0.501 / 0.500 with the mirror
+        # alone) but anatomical, and a foot-symmetry metric needs it.
+        for toe, y, length in ((2, -sign * 0.017, 0.049), (3, 0, 0.062), (4, sign * 0.017, 0.045)):
             element(
                 foot,
                 "geom",

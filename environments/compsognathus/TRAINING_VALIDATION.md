@@ -11,7 +11,9 @@ is still required. Passing the integration suite does not validate a recipe's
 convergence or the older species' compatibility with current training code.
 
 Machine-readable evidence: [training validation](data/training_validation_v1.json)
-and [current model preflight](data/preflight_training_v1.json).
+and [current model preflight](data/preflight_training_v1.json). The checks
+below ran on the anatomical physics r1 plant; the preflight file has since
+been regenerated on physics r2 (the appended section at the end).
 
 ## Executed checks
 
@@ -70,3 +72,37 @@ Run full training next, comparing learned behavior with the zero-action
 baseline and enforcing the recorded gates. Onboard state estimation, hardware transfer and learned walking performance
 are outside this validation. The initial robot policy uses privileged
 simulator state; the camera is available separately, not as an MLP input.
+
+## Anatomical physics r2 (appended 2026-10-07)
+
+Decision D-D26 revised the anatomical model (physics r1 → r2, policy
+interface r2 → r3, visual r1 → r2; `configs/plant_versions.toml` note 15) and
+its stance task and gate; the robot is unchanged. Measured on the stance task
+(`frame_skip` 10) with the zero-action statue, r1 → r2:
+
+| Check | r1 | r2 |
+|---|---|---|
+| Settled metatarsus clearance | 1.07 mm | 4.81 mm |
+| Centre of mass ahead of the pad's rear edge (of the 78 mm foot) | 19.6 mm (0.25) | 29.3 mm (0.38) |
+| Largest 0.1 s pelvis push held, 5/5 seeds: forward / backward / lateral | 0.225 / 0.125 / 0.45 BW | 0.275 / 0.20 / 0.45 BW |
+| Largest initial tilt held, 3/3 seeds: nose-down / nose-up / roll | 2° / 4° / 15° | 5° / 7° / 15° |
+| Full episodes under zero-mean action noise, σ 0.02 | 5/20 | 20/20 |
+| ... σ 0.135, the stance recipe's initial σ | 0/20 (median 12 steps) | 39/40 (151/160 over four seed blocks) |
+| ... σ 0.10 / σ 0.20 | — | 40/40 / 0/40 (median 180 steps; 129 with an independent noise stream) |
+| Stance reward of the statue, 40 episodes from seed 3042 | 2998.74 ± 1.22 | 2999.1 under the r1 terms; 4570.4 ± 7.2 under the stance-quality terms |
+| `stance_quality/v2` statue panel (seeds 3042–3081; 7042–7081; 9042–9081) | — | clean on 40/40 each |
+
+Each revision runs through its own action interface (the r1 linear residual,
+the r2 soft-cubic leg residual), with paired noise streams. The regenerated
+`data/preflight_training_v1.json` records `passed: true`: with the toe
+armature of `configs/plant_versions.toml` note 15 (e) every one of the
+anatomical model's ten seeded holds passes `supports_weight` (worst settled
+ground-force error 0.31% against the 3% bar), where the default armature's
+numerical 19–21 Hz heel chatter of the MTP servo failed seeds 49 and 51
+(5.4%). The new tests
+(`tests/test_biological_rewards.py`, `tests/test_noise_tolerance.py`, the
+additions to `tests/test_models.py` and `tests/test_training_env.py`, and
+`environments/shared/tests/test_compsognathus_stance_gate_config.py`) pin the
+plant, the interface, the reward terms, the noise cliff and the gate
+declaration. No r2 policy has been trained to convergence; the training
+recipe's appended amendment says what to run next.

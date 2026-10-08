@@ -16,6 +16,7 @@ from ..command_frame import COMMAND_COMPONENTS, COMMAND_PROBE_VECTOR, COMMAND_SE
 from .constants import (
     _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL,
     _ACTION_MAPPING_MIDPOINT,
+    _HOME_KEYFRAME_ACTION_MAPPINGS,
     _MIDPOINT_ACTION_MAPPING_DESCRIPTION,
 )
 from .digests import _callable_semantics, _canonical_float, _module_function_semantics
@@ -32,7 +33,7 @@ def _action_mapping_contract(
     mode = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
     if mode == _ACTION_MAPPING_MIDPOINT:
         return _MIDPOINT_ACTION_MAPPING_DESCRIPTION, ("scale_action_jax",)
-    if mode != _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+    if mode not in _HOME_KEYFRAME_ACTION_MAPPINGS:
         raise PlantContractError(f"unsupported action mapping mode: {mode!r}")
 
     home_keyframe_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
@@ -45,22 +46,53 @@ def _action_mapping_contract(
     if np.any(nominal_ctrl < ctrl_range[:, 0]) or np.any(nominal_ctrl > ctrl_range[:, 1]):
         raise PlantContractError("home keyframe controls must remain inside every actuator control range")
 
-    return (
-        {
-            "schema": "mesozoic.action-mapping/v1",
-            "mode": mode,
-            "input_clip": [-1.0, 1.0],
-            "negative_endpoint": "ordered-ctrlrange-minimum",
-            "origin": {
-                "keyframe": "home",
-                "keyframe_id": home_keyframe_id,
-                "ctrl": nominal_ctrl,
-            },
-            "positive_endpoint": "ordered-ctrlrange-maximum",
-            "interpolation": "piecewise-affine/v1",
+    description: dict[str, Any] = {
+        "schema": "mesozoic.action-mapping/v1",
+        "mode": mode,
+        "input_clip": [-1.0, 1.0],
+        "negative_endpoint": "ordered-ctrlrange-minimum",
+        "origin": {
+            "keyframe": "home",
+            "keyframe_id": home_keyframe_id,
+            "ctrl": nominal_ctrl,
         },
-        ("scale_action_around_nominal_jax",),
-    )
+        "positive_endpoint": "ordered-ctrlrange-maximum",
+        "interpolation": "piecewise-affine/v1",
+    }
+    if mode == _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+        return description, ("scale_action_around_nominal_jax",)
+    description["residual_shaping"] = _soft_cubic_residual_shaping(model, env, mode)
+    # No JAX implementation: _policy_interface_payload refuses this mode on a
+    # species that declares the jax-mjx backend.
+    return description, ()
+
+
+def _soft_cubic_residual_shaping(model: mujoco.MjModel, env: Any, mode: str) -> dict[str, Any]:
+    """Describe the per-actuator shaping of home-keyframe-residual-softcubic/v1.
+
+    The clipped action ``a`` becomes ``b = s*a + (1 - s)*a**3`` on the shaped
+    actuators and stays ``b = a`` on the rest, and ``b`` then takes the
+    piecewise-affine span above, so action zero still commands the home ctrl
+    and +-1 still reach the ordered ctrlrange endpoints.  The slope at home and
+    the mask are what change an action's meaning, so both enter the digest:
+    ``linear_slope`` per actuator (``s`` where shaped, 1 elsewhere) and the
+    ``shaped`` mask in actuator order.  ``0 < s <= 1`` keeps the map monotone
+    (``b' = s + 3 (1 - s) a**2 > 0``) with its endpoints fixed.
+    """
+    slope = float(getattr(env, "residual_linear_slope", float("nan")))
+    if not 0.0 < slope <= 1.0:
+        raise PlantContractError(f"{mode} needs a residual_linear_slope in (0, 1], got {slope!r}")
+    shaped = np.asarray(getattr(env, "_shaped_residual_mask", np.zeros(0, dtype=bool)))
+    if shaped.dtype != np.bool_ or shaped.shape != (model.nu,) or not shaped.any():
+        raise PlantContractError(
+            f"{mode} needs a boolean _shaped_residual_mask over the {model.nu} actuators selecting at least one, "
+            f"got dtype={shaped.dtype}, shape={shaped.shape}"
+        )
+    return {
+        "form": "soft-cubic/v1",
+        "linear_slope": np.where(shaped, slope, 1.0),
+        "shaped": shaped,
+    }
 
 
 def _joint_component_names(model: mujoco.MjModel, *, velocity: bool) -> list[str]:
@@ -364,6 +396,11 @@ def _policy_interface_payload(
     if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
         raise PlantContractError(f"invalid training backends for {version.species}: {backends}")
     supports_jax = "jax-mjx" in backends
+    if supports_jax and not jax_action_functions:
+        raise PlantContractError(
+            f"{version.species} declares the jax-mjx backend, but its action mapping "
+            f"{getattr(env, 'action_mapping', _ACTION_MAPPING_MIDPOINT)!r} has no JAX implementation"
+        )
     interface_implementations: dict[str, Any] = {
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
@@ -403,7 +440,7 @@ def _policy_interface_payload(
         jax_interface = {"supported": False, "backend": "jax-mjx"}
         interface_implementations["supported_training_backends"] = list(backends)
         interface_implementations["sb3_sensor_cache"] = _callable_semantics(env._cache_ids)
-    if str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT)) == _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+    if str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT)) in _HOME_KEYFRAME_ACTION_MAPPINGS:
         home_reset = {"sb3": _callable_semantics(env.reset)}
         if supports_jax:
             home_reset["jax"] = _module_function_semantics(

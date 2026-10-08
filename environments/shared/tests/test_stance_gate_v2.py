@@ -130,6 +130,8 @@ class TestRegistration:
             "max_sole_tilt_excess_deg",
             "max_sole_corner_lift_m",
             "min_sole_contacts",
+            "max_window_airborne_substeps",
+            "max_window_peak_floor_force_bw",
             "required_consecutive",
         }
 
@@ -202,6 +204,29 @@ class TestFromCurriculum:
         assert binomial_lcb(0, 40) == 0.0
         with pytest.raises(ValueError, match="strictly between 0 and 1"):
             StanceV2Thresholds.from_curriculum({**BLOCK, "min_clean_stance_lcb": value})
+
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("max_window_airborne_substeps", -1),
+            ("max_window_airborne_substeps", -0.5),
+            ("max_window_peak_floor_force_bw", 0.0),
+            ("max_window_peak_floor_force_bw", 0.9),
+        ],
+    )
+    def test_the_window_hop_pair_refuses_a_bar_no_episode_can_meet(self, key, value):
+        """A negative substep count, or a peak under the body weight a supported window averages."""
+        with pytest.raises(ValueError, match=rf"{key} must be at least"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, key: value})
+
+    def test_the_window_hop_pair_reads_at_its_floors_and_is_none_undeclared(self):
+        read = thresholds(max_window_airborne_substeps=0, max_window_peak_floor_force_bw=1.0)
+        assert (read.max_window_airborne_substeps, read.max_window_peak_floor_force_bw) == (0.0, 1.0)
+        with pytest.raises(ValueError, match="max_window_airborne_substeps is not numeric"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, "max_window_airborne_substeps": "30"})
+        undeclared = thresholds()
+        assert undeclared.max_window_airborne_substeps is None and undeclared.max_window_peak_floor_force_bw is None
+        assert not {"max_window_airborne_substeps", "max_window_peak_floor_force_bw"} & set(undeclared.declared())
 
     def test_an_undeclared_optional_criterion_is_none_never_a_permissive_default(self):
         read = thresholds()
@@ -280,17 +305,44 @@ class TestClassification:
             ("min_support_geom_duty", "min_support_geom_duty", 0.0),
             ("min_support_geom_coverage", "min_support_geom_coverage", 0.4),
             ("max_sole_tilt_excess_deg", "max_sole_tilt_excess_deg", 12.0),
+            ("max_window_airborne_substeps", "window_airborne_substeps", 472.0),
+            ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", 3.99),
         ],
     )
     def test_every_optional_criterion_refuses_its_defect_once_declared(self, clean, key, field_name, value):
         bar = {"min_foot_load_share_windowed": 0.3, "max_phantom_support_fraction": 0.05,
                "max_nonfoot_load_fraction": 0.01, "max_settle_stance_width_change_m": 0.04,
                "min_support_geom_duty": 0.9, "min_support_geom_coverage": 0.9,
-               "max_sole_tilt_excess_deg": 10.0}[key]  # fmt: skip
+               "max_sole_tilt_excess_deg": 10.0, "max_window_airborne_substeps": 30,
+               "max_window_peak_floor_force_bw": 3.0}[key]  # fmt: skip
         declared = thresholds(**{key: bar})
         assert classify_stance_episode(clean, declared, horizon=HORIZON) == ()
         reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
         assert reason_keys(reasons) == {key}
+
+    def test_a_post_settle_hop_with_sub_half_step_flights_is_refused_only_by_the_window_hop_pair(self, clean):
+        """The compsognathus two-foot hop the D-D26 review certified under the step-level bars.
+
+        Its flights last 1-3 of a step's 10 substeps, so each leg is down on
+        every step (``leg_down_frac >= DOWN_SUBSTEP_FRACTION``): full support,
+        no touchdown, no flight, and a quiet settle, because it starts after
+        it.  The two metrics are the landed plant's (seed 3042: 472 airborne
+        substeps and a 3.99 BW landing over the 800 window steps).
+        """
+        hop = replace(clean, window_airborne_substeps=472.0, window_peak_floor_force_bw=3.99)
+        assert (hop.all_feet_support, hop.touchdown_rate, hop.flight_fraction) == (1.0, 0.0, 0.0)
+        assert classify_stance_episode(hop, thresholds(), horizon=HORIZON) == ()
+        pair = {"max_window_airborne_substeps": 30, "max_window_peak_floor_force_bw": 3.0}
+        assert classify_stance_episode(clean, thresholds(**pair), horizon=HORIZON) == ()
+        reasons = classify_stance_episode(hop, thresholds(**pair), horizon=HORIZON)
+        assert reason_keys(reasons) == set(pair)
+        # Each refuses it alone, and the pair needs no statue panel.
+        for key, bar in pair.items():
+            alone = thresholds(**{key: bar})
+            assert not alone.declares_statue_criteria()
+            assert reason_keys(classify_stance_episode(hop, alone, horizon=HORIZON)) == {key}
+        assert not evaluate_stance_v2_gate([hop] * 40, thresholds(**pair), horizon=HORIZON).passed
+        assert evaluate_stance_v2_gate([hop] * 40, thresholds(), horizon=HORIZON).passed
 
 
 class TestStatueRelative:
@@ -529,6 +581,39 @@ class TestPanelEvidence:
     def test_an_empty_panel_is_refused(self, tmp_path, clean):
         with pytest.raises(ValueError, match="holds no episode rows"):
             read_stance_v2_panel(_write_panel(tmp_path / "panel.csv", clean, n=0))
+
+    def test_a_panel_recorded_before_the_window_hop_pair_keeps_its_verdict(self, tmp_path, clean):
+        """Its CSV lacks the pair's two columns: they read as unmeasured, which fails only a gate declaring them."""
+        later = ("window_airborne_substeps", "window_peak_floor_force_bw")
+        path = _write_panel(tmp_path / "panel.csv", clean)
+        with path.open(newline="", encoding="utf-8") as source:
+            rows = list(csv.DictReader(source))
+        columns = [column for column in STANCE_V2_PANEL_FIELDNAMES if column not in later]
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        evidence = read_stance_v2_panel(path)
+        assert all(math.isnan(getattr(episode, name)) for episode in evidence.episodes for name in later)
+        assert [
+            replace(episode, **{name: getattr(clean, name) for name in later}) for episode in evidence.episodes
+        ] == [clean] * 3
+        loose = {"min_eval_episodes": 3, "min_clean_stance_lcb": 0.1}
+        assert evaluate_stance_v2_gate(evidence.episodes, thresholds(**loose), horizon=HORIZON).n_clean == 3
+        declared = thresholds(**loose, max_window_airborne_substeps=30)
+        result = evaluate_stance_v2_gate(evidence.episodes, declared, horizon=HORIZON)
+        assert result.n_clean == 0 and not result.passed
+        assert result.episode_reasons[0] == (
+            "max_window_airborne_substeps: window_airborne_substeps is unmeasured (nan)",
+        )
+        # Any other metric column missing is still a file that is not a v2 panel.
+        columns.remove("touchdown_rate")
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        with pytest.raises(ValueError, match="touchdown_rate"):
+            read_stance_v2_panel(path)
 
     def test_an_empty_metric_cell_is_unmeasured_never_zero(self, tmp_path, clean):
         evidence = read_stance_v2_panel(_write_panel(tmp_path / "panel.csv", clean, settle_airborne_substeps=""))

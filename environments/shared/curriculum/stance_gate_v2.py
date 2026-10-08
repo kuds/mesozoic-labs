@@ -77,6 +77,28 @@ settle window empty and every settle metric NaN, so
 :meth:`StanceV2Thresholds.validate_settle_window` and the gate itself refuse
 one whenever the control step is known.
 
+The window hop pair
+-------------------
+A leg is down on a step when it carries load on at least half of the step's
+substeps, so the window's support, flight and touchdown criteria read a hop
+only when its flight phase lasts half a control step or more.  On a light
+plant it can be shorter: the anatomical compsognathus (2 ms substeps, ten to
+a 0.02 s step) hops on both feet at 10 Hz with 1-3 airborne substeps a step
+and reads both legs down on every step, no touchdown and no flight.  The
+optional ``max_window_airborne_substeps`` and
+``max_window_peak_floor_force_bw`` read the settle window's own hop and
+impact detectors over the window instead (``feet_airborne_substeps`` and
+``total_floor_max`` of the trace, summed and maxed over ``[settle_steps,
+T)``), so such a hop fails its episode wherever in the episode it starts if
+it flies longer, or lands harder, than the declared bars; declared by the
+compsognathus since D-D26.  Neither sees a foot lifted for less than half a
+step while the other stays down, and a soft enough bounce passes both: on
+that plant both certify (KNOWN_ISSUES).  Undeclared, neither is applied,
+and neither needs a statue panel.  A report row or panel CSV recorded before
+the pair existed lacks both metrics and reads them as unmeasured
+(``StanceEpisodeMetrics.from_row``, :func:`read_stance_v2_panel`), which
+fails only a gate that declares them: every earlier report keeps its verdict.
+
 This module is pure: the standard library,
 :func:`~environments.shared.curriculum.recovery_gate.binomial_lcb` and the
 pure numpy row type :class:`~environments.shared.gait.stance_metrics.StanceEpisodeMetrics`.
@@ -100,6 +122,7 @@ from typing import Any
 from ..gait.stance_metrics import (
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
+    STANCE_METRIC_LATER_FIELDS,
     StanceEpisodeMetrics,
     spawn_grace_steps,
 )
@@ -133,6 +156,20 @@ EPISODE_CRITERIA: tuple[tuple[str, str, str], ...] = (
     ("max_sole_tilt_excess_deg", "max_sole_tilt_excess_deg", "max"),
     ("max_sole_corner_lift_m", "max_sole_corner_lift_m", "max"),
     ("min_sole_contacts", "min_sole_contacts", "min"),
+    ("max_window_airborne_substeps", "window_airborne_substeps", "max"),
+    ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", "max"),
+)
+
+#: The window hop pair's floors, ``(key, least valid bar, why)``: a bar below
+#: either refuses every episode, so it is a typo, not a strict gate
+#: (:meth:`StanceV2Thresholds.from_curriculum`).
+WINDOW_HOP_KEY_FLOORS: tuple[tuple[str, float, str], ...] = (
+    ("max_window_airborne_substeps", 0.0, "it counts substeps"),
+    (
+        "max_window_peak_floor_force_bw",
+        1.0,
+        "a supported window's floor force averages one body weight, so no substep peak sits below it",
+    ),
 )
 
 #: The keys judged against the statue panel rolled in the same report.
@@ -260,6 +297,8 @@ class StanceV2Thresholds:
     max_sole_tilt_excess_deg: float | None = None
     max_sole_corner_lift_m: float | None = None
     min_sole_contacts: float | None = None
+    max_window_airborne_substeps: float | None = None
+    max_window_peak_floor_force_bw: float | None = None
     required_consecutive: int = 3
 
     @classmethod
@@ -275,7 +314,11 @@ class StanceV2Thresholds:
         ``min_clean_stance_lcb`` strictly inside (0, 1): a bar of 0 is met by
         ``binomial_lcb(0, n) = 0``, a panel with no clean episode, and no
         panel of 40 bounds above 0.928, so a bar at or above 1 is a typo
-        that would refuse every policy.  Keys outside the kind (schedule,
+        that would refuse every policy.  The window hop pair is bounded the
+        same way: ``max_window_airborne_substeps`` must not be negative, and
+        ``max_window_peak_floor_force_bw`` must be at least 1, since a
+        supported window's floor force averages the body weight, so its
+        substep peak cannot sit below it.  Keys outside the kind (schedule,
         diagnostic, publication) are ignored; ``gate_schema`` validates them.
         """
         values: dict[str, Any] = {}
@@ -290,6 +333,11 @@ class StanceV2Thresholds:
             values["required_consecutive"] = _whole_number(
                 values["required_consecutive"], key="required_consecutive", minimum=1
             )
+        for key, floor, why in WINDOW_HOP_KEY_FLOORS:
+            if key in values and values[key] < floor:
+                raise ValueError(
+                    f"{STANCE_GATE_V2_KIND} threshold {key} must be at least {floor:g}, not {values[key]!r}: {why}"
+                )
         lcb = values["min_clean_stance_lcb"]
         if not 0.0 < lcb < 1.0:
             raise ValueError(
@@ -761,14 +809,21 @@ def read_stance_v2_panel(csv_path: "str | Path") -> StanceV2PanelEvidence:
     an unparsable metric, seed or flag cell, a panel-wide stamp that differs
     between rows, or a statue stamp that is present on some columns and not
     others is a ``ValueError``.  An empty metric cell is NaN -- unmeasured,
-    which fails its criterion -- never zero.
+    which fails its criterion -- never zero.  The one tolerated missing
+    column is a :data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
+    metric, which a panel recorded before it existed lacks: it reads as
+    unmeasured, like an empty cell.
     """
     path = Path(csv_path)
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
         columns = list(reader.fieldnames or [])
         rows = list(reader)
-    missing = [column for column in STANCE_V2_PANEL_FIELDNAMES if column not in columns]
+    missing = [
+        column
+        for column in STANCE_V2_PANEL_FIELDNAMES
+        if column not in columns and column not in STANCE_METRIC_LATER_FIELDS
+    ]
     if missing:
         raise ValueError(f"{path} is not a {STANCE_GATE_V2_KIND} panel: it lacks the column(s) {missing}")
     if not rows:

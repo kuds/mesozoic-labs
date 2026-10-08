@@ -99,6 +99,8 @@ class StageThreshold:
     max_sole_tilt_excess_deg: float | None = None
     max_sole_corner_lift_m: float | None = None
     min_sole_contacts: float | None = None
+    max_window_airborne_substeps: float | None = None
+    max_window_peak_floor_force_bw: float | None = None
 
     # Shared
     min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
@@ -727,4 +729,6 @@ _STANCE_V2_COPIED_KEYS: tuple[str, ...] = (
     "max_sole_tilt_excess_deg",
     "max_sole_corner_lift_m",
     "min_sole_contacts",
+    "max_window_airborne_substeps",
+    "max_window_peak_floor_force_bw",
 )

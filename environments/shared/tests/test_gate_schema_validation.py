@@ -170,6 +170,31 @@ class TestStanceQualityV2Declaration:
         manager = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
         assert not manager.should_advance([1e9] * 40, [1000.0] * 40)
 
+    def test_every_v2_key_is_copied_onto_the_threshold(self):
+        """Each key the kind consumes reaches :class:`StageThreshold` and its :meth:`stance_v2_thresholds` copy.
+
+        The shared keys are copied for every kind; the rest come from
+        ``_STANCE_V2_COPIED_KEYS``, so a key added to the kind but not to the
+        tuple would reach the offline judge and silently miss the copy the
+        in-training screen reads.
+        """
+        from dataclasses import fields
+
+        from environments.shared.curriculum import StageThreshold
+        from environments.shared.curriculum.manager import _STANCE_V2_COPIED_KEYS
+        from environments.shared.curriculum.stance_gate_v2 import STANCE_V2_THRESHOLD_KEYS
+
+        shared = {
+            "min_eval_episodes",
+            "settle_steps",
+            "min_avg_reward",
+            "min_full_horizon_fraction",
+            "required_consecutive",
+        }
+        assert len(set(_STANCE_V2_COPIED_KEYS)) == len(_STANCE_V2_COPIED_KEYS)
+        assert set(_STANCE_V2_COPIED_KEYS) == STANCE_V2_THRESHOLD_KEYS - shared
+        assert STANCE_V2_THRESHOLD_KEYS <= {spec.name for spec in fields(StageThreshold)}
+
     def test_an_unpopulated_threshold_cannot_be_field_copied_into_a_gate(self):
         from environments.shared.curriculum import StageThreshold
 

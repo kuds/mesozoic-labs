@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 
 from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.envs import CompsognathusEnv, CompsognathusRobotEnv
+from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusRobotEnv
 from environments.compsognathus.model import robot_body_ids
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.task_fingerprint import compute_task_fingerprint, derive_stage_task_fingerprint
 
 
-@pytest.fixture(params=[CompsognathusEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
+@pytest.fixture(params=[CompsognathusBiologicalEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
 def env_class(request):
     return request.param
 
@@ -215,7 +215,7 @@ def test_massless_root_without_a_massive_rigid_segment_is_rejected():
 
 
 def test_massive_anatomical_root_keeps_its_original_force_target_and_manifest():
-    with CompsognathusEnv(**PUSH_KWARGS) as env:
+    with CompsognathusBiologicalEnv(**PUSH_KWARGS) as env:
         assert env.model.body_mass[env.pelvis_id] > 0
         assert env._push_root_body == env.pelvis_id
         assert "push_body_id" not in env.perturbation_manifest()

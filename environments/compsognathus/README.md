@@ -80,8 +80,21 @@ the advancement gate and stop, as intended.
 Actions in `[-1, 1]` specify position residuals about the gravity-preloaded
 `home` controls, with piecewise scaling to each servo's existing limits.
 Zero action holds that pose. The fixed robot head and tail acquire no
-actuators. Falls, excessive tilt, and non-foot body contact with the floor
-terminate the episode; time limits remain truncations for SB3 bootstrapping.
+actuators. Since policy interface r3 (`configs/plant_versions.toml` note 15,
+decision D-D26) the anatomical model trains on `CompsognathusBiologicalEnv`,
+whose ten leg residuals (hip pitch, hip roll, knee, ankle and toe) are
+shaped to `b = 0.1a + 0.9a³` before that scaling (mode
+`home-keyframe-residual-softcubic/v1`): zero is still the home pose and ±1
+still each servo's limit, but the slope at home is a tenth. Every leg servo
+saturates at 0.05 rad of position error, so the linear residual spent
+0.007–0.015 of action on the whole knee or ankle holding torque, and on the
+physics r1 plant the statue fell under PPO's initial exploration noise
+(σ 0.135) in a median of 12 steps; on r2 it reaches the horizon on 151 of
+160 episodes at that σ (four seed blocks), on 40 of 40 at σ 0.10 and on none
+of 40 at σ 0.20, so keep the recipe's `log_std_init` −2.0. Neck, jaw and tail
+keep the linear residual, and the robot keeps it everywhere. Falls,
+excessive tilt, and non-foot body contact with the floor terminate the
+episode; time limits remain truncations for SB3 bootstrapping.
 
 The observation contains joint positions/velocities, pelvis orientation,
 angular velocity, world linear velocity, acceleration, ideal foot forces,
@@ -101,13 +114,40 @@ in the notebook) and the CLI `curriculum` command skips it:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
-| 1 / `stance` | Supported upright stance; ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
+| 1 / `stance` | Supported upright stance. Anatomical: `stance_quality/v2`, at least 37 of the 40 panel episodes clean on floor truth, reward rails ≥2,740 and ≥0.60 × the statue's. Robot: ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
 | `recovery` (`stand` recipe) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
-Both variants use the mechanical stance criteria from
-[Tyrannosaurus Rex's stance configuration](../../configs/trex/stance.toml):
+The anatomical stance certifies under `stance_quality/v2` (decision D-D26):
+each episode of the 40-episode panel (seeds 3042–3081) is classified on floor
+truth, the floor's normal force under each leg and each support geom on every
+physics substep, and the stance passes when the one-sided 95% lower bound on
+clean episodes reaches 0.80 (37 of 40). An episode is clean when it reaches
+the horizon with no hop or stomp in the 200-step settle window, at most 40
+physics substeps with both feet off the floor and no landing above 2 body
+weights after it (the window hop bars count substeps, because this light
+plant's hop flights last less than half a control step), both feet down and
+loaded, the plantar pad and all three digits of each foot loaded, level
+pads, no drift or re-seat, and no actuator held at its limit; the bars and
+their measured provenance are in
+[`configs/compsognathus/stance.toml`](../../configs/compsognathus/stance.toml).
+The bars do not see everything: a two-foot bounce that lands softly, a foot
+that lifts for less than half a control step and a fast weight shuttle all
+certify, so check a trained stance's lift-offs by hand
+([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)).
+The verdict is the post-stage `stance_gate_report.json` on the handoff
+checkpoint pair, never an in-training evaluation. The stance reward pays the
+same things: bilateral support, a support-conditioned share of the alive
+bonus, level pads and the animal's own settled stance width on loaded feet,
+the home leg pose and every support geom loaded, and it charges floor impacts,
+airborne substeps and commands parked at their limits or chattering; each is a
+`CompsognathusBiologicalEnv` kwarg that is inert at its default, and recovery
+inherits them.
+
+The robot uses the mechanical stance criteria from
+[Tyrannosaurus Rex's former stance configuration](../../configs/trex/stance.toml)
+(`stance_quality/v1`):
 at least **40 evaluation episodes**, at least **95%** full-horizon episodes,
 mean unsupported duty at most **2%**, and its one-sided 95% upper confidence
 bound at most **2%**. Duty is measured on full-horizon episodes after
@@ -115,12 +155,14 @@ bound at most **2%**. Duty is measured on full-horizon episodes after
 retains its 50 Hz control rate and 20-second horizon, so this settling window
 is **4 seconds**, versus **2 seconds** for the 100 Hz Tyrannosaurus Rex.
 
-The fixed stance reward rail is **1,800**. Both Compsognathus variants have a
-3,000-point stance ceiling: supported survival, posture, and height each contribute at most one
-point per step over 1,000 steps. The rail is 60% of that ceiling and approximately
-60% of the measured anatomical baseline (2,998.74), following Tyrannosaurus Rex's
-reference fraction (`2,100 / 3,495.2`). The robot uses the same ceiling-based
-threshold and still requires its own baseline evaluation.
+The robot's fixed stance reward rail is **1,800**: its 3,000-point stance
+ceiling (supported survival, posture, and height each contribute at most one
+point per step over 1,000 steps) times 0.60, following Tyrannosaurus Rex's
+former reference fraction (`2,100 / 3,495.2`); it still requires its own
+baseline evaluation. The anatomical rail is **2,740**, 0.60 × the r2 statue's
+4,570.4 under the stance-quality terms rounded to the nearest 10 (it was
+1,800, 0.60 × 2,998.74, before them), with a second rail at 0.60 × the
+statue panel each report rolls.
 The rail does not automatically normalize rewards by the baseline or change
 the reward function. Existing runs and archived probes retain their captured
 criteria; these settings apply when the updated configuration is loaded.
@@ -161,8 +203,10 @@ restart the runtime and load the updated checkout before a new run.
 The nominal standing pose already supports zero-action balance. Measure
 that baseline before interpreting any return improvement; stance is a
 foundation, and passing it does not establish locomotion or active recovery.
-Bilateral support remains a diagnostic: the gate sets no minimum bilateral
-support duty, so passing does not establish sustained two-foot loading.
+For the robot, bilateral support remains a diagnostic: its gate sets no
+minimum bilateral support duty, so passing does not establish sustained
+two-foot loading. The anatomical v2 gate requires both feet down on 98% of the
+window and each carrying at least 40% of the load.
 Set `BEHAVIOR = "stand"` in the SB3 notebook's configuration cell to run the
 calibrated recovery pilot: the chain loop trains stance → recovery (reusing a
 certified stance from `RUN_DIR` or `TRUNK_FROM` when one exists), freezes the
@@ -353,15 +397,32 @@ interfaces but preclude a full self-collision clearance claim. Convex mesh
 contacts do not establish cable, horn, connector, fastener or bracket fit.
 
 The anatomical proxy uses primitive geometry with normal parent/child
-filtering. All three toes and the plantar pad belong to their touch
-sensor's rigid foot body, so distal contact is captured. The pad and soft
-tissue are simulation approximations, not a fossil-fitted reconstruction.
+filtering. All three toes and the plantar pad belong to their touch sensor's
+rigid foot body, so distal contact is captured. The pad and soft tissue are
+simulation approximations, not a fossil-fitted reconstruction. Since physics
+r2 (note 15, D-D26) the tail's 178 g is spread at one density over its tapered
+meshes (r1's tip was denser than bone), the metatarsus collision capsule stops
+4 mm short of the MTP joint, so the settled statue holds it 4.8 mm off the
+floor (r1 1.07 mm, where a 0 N touch ended upright episodes), digit II is
+medial on both feet, and the MTP joint's armature is 2e-4 kg·m²
+(`toe_armature_kg_m2`; at 5e-5, the default of the generator's joint class,
+the toe servo rang numerically in a 19–21 Hz heel chatter). The MTP servo
+keeps its 0.6 N·m cap (`toe_forcerange_nm`), which holds one body weight on
+the digit-III tip: a single-support tiptoe stays physically possible, and the
+stance reward and gate refuse it.
 
 ## Validation scope
 
 `data/preflight_training_v1.json` records current model hashes and all 26
 standing-protocol trials after the diagnostic sensor correction. See
 [training validation](TRAINING_VALIDATION.md) for the training-specific checks.
+Regenerated on the anatomical physics r2 plant (note 15) it records
+`passed: true`. Without note 15's toe armature (e) two of the anatomical
+model's ten seeded holds (seeds 49 and 51) failed `supports_weight` with a
+5.4% ground-force error against the 3% bar, on a numerical 19–21 Hz heel
+chatter of the MTP servo; with it the worst of the ten is 0.31%, and
+`tests/test_balance.py` runs every seed unmarked. The robot's trials are
+unchanged.
 
 `data/preflight_v3.json` records the pre-training v3 model/validator hashes, dimensions,
 masses, contact loads, torque utilisation and explicit acceptance thresholds.
@@ -373,13 +434,18 @@ suite or the training stack was exercised.
 
 | Worst active-trial metric | Anatomical proxy | Robot |
 |---|---:|---:|
-| Pelvis tilt | 0.86° | 1.00° |
-| Horizontal drift | 5.41 mm | 3.54 mm |
-| Minimum settled COM support margin | 18.51 mm | 34.82 mm |
-| Peak fraction of configured torque cap | 67.7% | 85.9% |
+| Pelvis tilt | 0.90° (r1 0.86°) | 1.00° |
+| Horizontal drift | 6.43 mm (r1 5.41 mm) | 3.54 mm |
+| Minimum settled COM support margin | 25.48 mm (r1 18.51 mm) | 34.82 mm |
+| Peak fraction of configured torque cap | 62.0% (r1 67.7%) | 85.9% |
 
 These maxima/minima include the specified reset trials and mass-growth
-scenario. Torque utilisation does not establish speed or thermal headroom.
+scenario; the anatomical column is physics r2's (note 15, its toe armature
+included). On the stance task the r2 statue's centre of mass sits 29.3 mm
+ahead of the plantar pad's rear edge after the settle (r1 19.6 mm), and it
+holds 0.1 s pelvis pushes of 0.275 / 0.20 / 0.45 body weights forward /
+backward / sideways (r1 0.225 / 0.125 / 0.45). Torque utilisation does not
+establish speed or thermal headroom.
 
 - Both stand for **ten seconds** with fixed angle targets, finite state,
   torque limits respected and support exclusively through their feet.

@@ -91,7 +91,10 @@ FINGERPRINT_BACKEND = "stable-baselines3"
 #: Constructor params excluded from the effective env config: they select
 #: presentation, not task.  ``render_mode`` is the only such param across
 #: all five species constructors (``CompsognathusRobotEnv`` inherits
-#: ``CompsognathusEnv``'s; every other defaulted param shapes
+#: ``CompsognathusEnv``'s, and ``CompsognathusBiologicalEnv`` repeats it in
+#: full, its stance-quality reward kwargs added, because this helper reads
+#: defaults from the signature and a ``**kwargs`` pass-through would hide
+#: them; every other defaulted param shapes
 #: reward, termination, reset, horizon, or the push schedule, except
 #: trex's and dibothrosuchus's ``foot_contact_weight`` /
 #: ``foot_contact_gate``, which only the retired MJX reward read and which

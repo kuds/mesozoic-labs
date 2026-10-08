@@ -139,6 +139,13 @@ class BaseDinoEnv(gym.Env, ABC):
     # instantaneous read (__init__ and reset call _get_obs() before any step
     # has run, and several tests score hand-posed states directly).
     _substep_min_foot_forces: "np.ndarray | None" = None
+    # Every substep's per-foot force sum, (frame_skip, n_feet), beside the
+    # MIN above and under the same tag.  The MIN is what the support terms
+    # and the stance-duty gate read; the block is for terms that need the
+    # MEAN, the PEAK or the count of airborne substeps (the anatomical
+    # compsognathus stance's bilateral, floor-impact and airborne-substep
+    # terms), which no MIN can recover.
+    _substep_foot_forces: "np.ndarray | None" = None
     _substep_floor_hit_geom: "int | None" = None
     _substep_contact_step: int = -1
     _ground_geom_array: "np.ndarray | None" = None
@@ -983,6 +990,32 @@ class BaseDinoEnv(gym.Env, ABC):
             return self._foot_contact_forces()
         return tuple(float(value) for value in self._substep_min_foot_forces)
 
+    def _substep_foot_force_block(self) -> np.ndarray:
+        """Per-foot force sum at every substep of the current control step, ``(frame_skip, n_feet)``.
+
+        A fresh copy, so a caller cannot edit the step's record.  Falls back
+        to the instantaneous read as a single row under the same rule as
+        :meth:`_aggregated_foot_contact_forces` (no block for the CURRENT step
+        count: before any step, after reset, after
+        :meth:`_invalidate_substep_aggregates`), so its row MIN always equals
+        that method's value.
+        """
+        if self._substep_foot_forces is None or self._substep_contact_step != self._step_count:
+            return np.asarray([self._foot_contact_forces()], dtype=np.float64).reshape(1, -1)
+        return self._substep_foot_forces.copy()
+
+    def _accumulate_substep(self, substep: int) -> None:
+        """Species hook, called by :meth:`step` after every physics substep; a no-op here.
+
+        ``substep`` counts from 0 within the control step, so an override
+        resets its own per-step state at 0.  It reads ``model`` and
+        ``data`` and must not write them: it is where a species gathers a
+        per-substep reward quantity that the foot-force block above does
+        not carry (the compsognathus support-geom coverage), without
+        taking ``_substep_probe_hook``, the slot the floor-truth recorder
+        and the validation probes own.
+        """
+
     def _aggregated_min_height(self, check_index: int, instantaneous: float) -> float:
         """MIN clearance of a ``_substep_height_checks`` entry across the last step.
 
@@ -1008,6 +1041,7 @@ class BaseDinoEnv(gym.Env, ABC):
         already fails against).
         """
         self._substep_min_foot_forces = None
+        self._substep_foot_forces = None
         self._substep_floor_hit_geom = None
         self._substep_min_heights = None
         self._substep_contact_step = -1
@@ -1239,12 +1273,14 @@ class BaseDinoEnv(gym.Env, ABC):
         # final substep survives -- and a control-clock-locked hop can unload
         # (or a tail can strike the floor) entirely between control-boundary
         # samples.  MIN per-foot force feeds the contact-shaped rewards and
-        # the stance-duty gate; the first floor strike is latched for
+        # the stance-duty gate; every substep's row is kept beside it (the
+        # foot-force block); the first floor strike is latched for
         # _check_floor_contact.
         min_forces: "np.ndarray | None" = None
         min_heights: "np.ndarray | None" = None
         self._substep_floor_hit_geom = None
         track_feet = bool(self._foot_sensor_groups)
+        force_block = np.empty((self.frame_skip, len(self._foot_sensor_groups))) if track_feet else None
         height_checks = self._substep_height_checks
         track_strikes = getattr(self, "_body_ground_geoms", None)
         floor_geom_id = getattr(self, "floor_geom_id", None)
@@ -1257,13 +1293,15 @@ class BaseDinoEnv(gym.Env, ABC):
                 # path.
                 self._ground_geom_array = np.fromiter(sorted(track_strikes), dtype=np.int64)
             ground_geoms = self._ground_geom_array
-        for _ in range(self.frame_skip):
+        for substep in range(self.frame_skip):
             mujoco.mj_step(self.model, self.data)
             if self._substep_probe_hook is not None:
                 self._substep_probe_hook()
             if track_feet:
                 forces = np.asarray(self._foot_contact_forces(), dtype=np.float64)
                 min_forces = forces if min_forces is None else np.minimum(min_forces, forces)
+                force_block[substep] = forces  # type: ignore[index]
+            self._accumulate_substep(substep)
             if height_checks:
                 heights = np.fromiter(
                     (
@@ -1292,6 +1330,7 @@ class BaseDinoEnv(gym.Env, ABC):
         # Tag the aggregates with the step they were measured at; the tag is
         # what invalidates them across reset (which zeroes _step_count).
         self._substep_min_foot_forces = min_forces
+        self._substep_foot_forces = force_block
         self._substep_min_heights = min_heights
         self._substep_contact_step = self._step_count
 

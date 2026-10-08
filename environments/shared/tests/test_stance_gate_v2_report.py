@@ -145,6 +145,38 @@ def _report(monkeypatch: Any, stage_dir: Path, command: np.ndarray, **kwargs: An
     )
 
 
+class _PostSettleHop:
+    """Zero action through the settle, then both legs in phase (knees +a; ankles and hip pitch -a), 10 Hz square wave.
+
+    The two-foot hop the D-D26 review certified under the step-level window
+    bars: on this light plant its flights last 1-3 of a step's ten substeps,
+    so every leg reads down on every step.  Stateful: the report calls
+    ``reset`` before each episode.
+    """
+
+    SIGNS = {"r_knee_act": 1, "l_knee_act": 1, "r_ankle_act": -1, "l_ankle_act": -1, "r_hip_pitch_act": -1,
+             "l_hip_pitch_act": -1}  # fmt: skip
+
+    def __init__(self, nu: int, *, settle: int, amplitude: float = 0.15, period: int = 5) -> None:
+        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
+        try:
+            self.pattern = np.zeros(nu)
+            for name, sign in self.SIGNS.items():
+                self.pattern[env.model.actuator(name).id] = sign * amplitude
+        finally:
+            env.close()
+        self.settle, self.period, self.step = settle, period, 0
+
+    def reset(self) -> None:
+        self.step = 0
+
+    def __call__(self, _obs: np.ndarray) -> np.ndarray:
+        step, self.step = self.step, self.step + 1
+        if step < self.settle:
+            return np.zeros_like(self.pattern)
+        return self.pattern if (step - self.settle) % self.period < self.period / 2 else -self.pattern
+
+
 @pytest.fixture(scope="module")
 def nu() -> int:
     env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
@@ -285,6 +317,67 @@ class TestThePanel:
         assert report["statue"]["reused_policy_panel"] is False
         assert report["statue"]["reference"] == statue[1]["statue"]["reference"]
         assert report["result"]["statue_mean_reward"] != report["result"]["mean_reward"]
+
+    def test_a_post_settle_hop_reads_a_statue_step_by_step_and_fails_the_window_hop_pair(
+        self, tmp_path, monkeypatch, nu, statue
+    ):
+        """Real physics, recorder, gate and judge: the window pair sees what the step-level bars cannot.
+
+        Every leg is down on every window step, with no touchdown and no
+        flight, and the settle is the statue's; but both feet leave the floor
+        on dozens of window substeps and land at several body weights.
+        """
+        window = {"max_window_airborne_substeps": 10, "max_window_peak_floor_force_bw": 2.0}
+        config = _stage_config(**window)
+        _record_stage(tmp_path, config)
+        hop = _PostSettleHop(nu, settle=CURRICULUM["settle_steps"])
+        model, vecnorm = _handoff(tmp_path)
+        monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (hop, "scripted post-settle hop"))
+        report = stance_report.build_stance_gate_report(
+            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+        )
+        step_level = {"min_all_feet_support", "max_touchdown_rate", "max_settle_airborne_substeps",
+                      "max_settle_peak_floor_force_bw"}  # fmt: skip
+        for row in report["episode_evidence"]:
+            assert row["length"] == HORIZON
+            assert (row["all_feet_support"], row["touchdown_rate"], row["flight_fraction"]) == (1.0, 0.0, 0.0)
+            assert row["settle_airborne_substeps"] == 0.0
+            assert row["window_airborne_substeps"] > 3 * window["max_window_airborne_substeps"]
+            assert row["window_peak_floor_force_bw"] > 1.5 * window["max_window_peak_floor_force_bw"]
+            assert set(window) <= _keys(row) and not step_level & _keys(row), row["reasons"]
+        assert report["passed"] is False and report["result"]["n_clean"] == 0
+        # The statue the same report rolled meets the pair with room: no flight, its own weight on the floor.
+        for row in report["statue"]["episode_evidence"]:
+            assert row["window_airborne_substeps"] == 0.0 and row["window_peak_floor_force_bw"] < 1.1
+        # The judge re-derives the refusal from the written report.
+        stance_report.write_stance_gate_report(tmp_path, report)
+        passed, reasons = _judge(tmp_path, _written(tmp_path), **window)
+        assert passed is False and reasons
+        # Undeclared, the pair is no criterion: the same episodes fail only what the rest of the block reads.
+        assert all(not set(window) & _keys(row) for row in _reclassified(report, CURRICULUM))
+        # The zero-action statue scored as the checkpoint under the same block passes, and the judge certifies it.
+        statue_dir = tmp_path / "statue"
+        _record_stage(statue_dir, config)
+        model, vecnorm = _handoff(statue_dir)
+        monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (_scripted(np.zeros(nu)), "zero"))
+        quiet = stance_report.build_stance_gate_report(
+            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+        )
+        assert quiet["passed"] is True and quiet["result"]["n_clean"] == EPISODES
+        stance_report.write_stance_gate_report(statue_dir, quiet)
+        assert _judge(statue_dir, _written(statue_dir), **window) == (True, [])
+
+
+def _reclassified(report: dict[str, Any], curriculum: dict[str, Any]) -> list[dict[str, Any]]:
+    """*report*'s episode rows with their reasons re-derived under *curriculum*."""
+    from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds, classify_stance_episode
+
+    thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    rows = []
+    for row in report["episode_evidence"]:
+        episode = StanceEpisodeMetrics.from_row(row)
+        rows.append({**row, "reasons": list(classify_stance_episode(episode, thresholds, horizon=HORIZON))})
+    return rows
 
 
 # ── the judge ─────────────────────────────────────────────────────────────────

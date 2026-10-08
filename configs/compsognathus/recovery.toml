@@ -16,7 +16,28 @@ description = "Pilot: recover an upright stance after calibrated horizontal push
 [env]
 # Plant-scaled finite force pulses. The selected multiple is calibrated separately
 # for each variant; see RECOVERY_CALIBRATION.md and recovery_calibration.json.
-perturbation_capture_velocity_multiple = 1.32
+# Re-measured on physics r2 (D-D26), whose feet move the home contact AABB
+# margin from 0.0196 to 0.0293 m and so scale every multiple's pulse by 1.5,
+# and whose toe armature (note 15 e) lets the zero-command null ride out
+# more of each pulse: of 32 selection episodes it succeeds on 32 / 20 / 6 /
+# 2 at 1.1 / 1.2 / 1.3 / 1.4, so the same selection rule (success <= 0.5,
+# full horizon >= 0.25) now picks 1.3 (r1 1.32), a 1.250 N pulse for 0.2 s
+# (r1 0.848 N); without the armature it picked 1.2 (28 / 13 / 5 / 2). Held
+# out (40 episodes) the zero-command and brace nulls each succeed on 15 and
+# reach the horizon on 25; at the 1.625 stress multiple they succeed on none
+# and reach it on 2 and 3. The brace null commands +-0.005 in action, which
+# the soft-cubic leg map of policy interface r3 shapes to 0.35 mrad at the
+# hip pitch and 0.33 mrad at the ankle, a tenth of the 3.5 / 3.3 mrad it
+# moved them on r1's linear residual: on this plant it is nearly the
+# zero-command null (15 / 25 against 15 / 25 above), not the r1 brace
+# (RECOVERY_CALIBRATION.md). The stance-quality reward terms arrive through
+# `extends`; at 1.3, zero action under the schedule (seeds 7042-7081, 25/40
+# full, as in the held-out null) keeps 0.971 of the quiet statue's per-step
+# reward on the same seeds, the terms taking 0.104 of the 0.134 per step it
+# loses (flatness 0.039, coverage 0.038, bilateral 0.015, alive 0.006,
+# width 0.005) for the pads and digits a push rocks off the floor: they pay
+# the return to the flat stance.
+perturbation_capture_velocity_multiple = 1.3
 perturbation_interval = 2.0
 perturbation_jitter = 0.25
 perturbation_duration = 0.2

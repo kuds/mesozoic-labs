@@ -38,14 +38,45 @@ TREX_R8_TASK_KEYS = {
 }
 
 
+#: The stance-quality constructor kwargs CompsognathusBiologicalEnv added with the anatomical physics-r2 /
+#: policy-interface-r3 revision (plant_versions note 15, D-D26), at the inert defaults every task that does not
+#: set them resolves to.  The robot's constructor is CompsognathusEnv's, unchanged.
+COMPSOGNATHUS_R2_TASK_KEYS = {
+    "bilateral_support_weight": 0.0,
+    "foot_contact_saturation_force": 4.4,
+    "support_force_aggregation": "min",
+    "support_conditioned_alive_fraction": 0.0,
+    "foot_flatness_weight": 0.0,
+    "foot_flatness_tolerance_deg": 2.0,
+    "stance_width_weight": 0.0,
+    "stance_width_tolerance_m": 0.03,
+    "stance_width_reference": "settled",
+    "stance_width_settle_steps": 200,
+    "foot_terms_min_support_force": 0.0,
+    "leg_home_pose_weight": 0.0,
+    "leg_home_pose_tolerance": 0.15,
+    "support_geom_coverage_weight": 0.0,
+    "floor_impact_weight": 0.0,
+    "floor_impact_threshold_bw": 2.5,
+    "airborne_substep_weight": 0.0,
+    "action_saturation_weight": 0.0,
+    "action_saturation_threshold": 0.9,
+    "action_jerk_weight": 0.0,
+}
+#: Species whose recorded tasks a later plant revision retired, with the constructor kwargs that revision added.
+RETIRED_TASK_KEYS = {"trex": TREX_R8_TASK_KEYS, "compsognathus": COMPSOGNATHUS_R2_TASK_KEYS}
+
+
 @pytest.mark.parametrize("record", FIXTURE["fingerprints"], ids=lambda record: f"{record['species']}-{record['stage']}")
 def test_pre_recovery_quiet_checkpoint_identity_is_preserved(record):
     current = recompute(record)
-    if record["species"] == "trex":
-        # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8,
-        # whose task revision added constructor kwargs: they enter each trex task at their legacy
-        # defaults (no carve-out exists for them), and nothing else in the payload moved.
-        assert {key: value for key, value in current["env"].items() if key not in record["env"]} == TREX_R8_TASK_KEYS
+    if record["species"] in RETIRED_TASK_KEYS:
+        # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8, and the
+        # anatomical compsognathus records physics-r1 tasks, retired by its physics r2: each revision added
+        # constructor kwargs, which enter each task at their legacy defaults (no carve-out exists for them),
+        # and nothing else in the payload moved.  The robot's records stay exact below.
+        added = RETIRED_TASK_KEYS[record["species"]]
+        assert {key: value for key, value in current["env"].items() if key not in record["env"]} == added
         assert {key: value for key, value in current["env"].items() if key in record["env"]} == record["env"]
         unchanged = {key: value for key, value in record.items() if key not in ("env", "task_sha256")}
         assert {key: value for key, value in current.items() if key not in ("env", "task_sha256")} == unchanged

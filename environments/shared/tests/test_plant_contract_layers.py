@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusEnv
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PlantContractError,
@@ -276,6 +277,100 @@ def test_brachio_records_home_residual_action_mapping():
         assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
     finally:
         env.close()
+
+
+def test_compsognathus_records_its_soft_cubic_leg_residual():
+    """home-keyframe-residual-softcubic/v1 (compsognathus policy interface r3, D-D26).
+
+    The ten leg residuals are shaped to ``b = s*a + (1 - s)*a**3`` before the home-keyframe span, so the slope at
+    home and the shaped mask are part of what an action means: each moves the policy-interface digest and nothing
+    else, a slope outside (0, 1] or a mask that is not one boolean per actuator is refused, and so is a jax-mjx
+    declaration, since the mode has no JAX implementation.  Reset stays fingerprinted through home_reset.
+    """
+    env = CompsognathusBiologicalEnv(reset_noise_scale=0.0)
+    try:
+        version = load_plant_versions()[1]["compsognathus"]
+        payload = _policy_interface_payload(env.model, env, version)
+        mapping = payload["action_mapping"]
+        legs = np.array([env.model.actuator(i).name[:2] in ("r_", "l_") for i in range(env.model.nu)])
+
+        assert mapping["mode"] == "home-keyframe-residual-softcubic/v1"
+        assert mapping["interpolation"] == "piecewise-affine/v1"
+        np.testing.assert_array_equal(mapping["origin"]["ctrl"], env.model.key("home").ctrl)
+        assert mapping["residual_shaping"]["form"] == "soft-cubic/v1"
+        np.testing.assert_array_equal(mapping["residual_shaping"]["shaped"], legs)
+        np.testing.assert_array_equal(mapping["residual_shaping"]["linear_slope"], np.where(legs, 0.1, 1.0))
+        implementations = payload["interface_implementations"]
+        assert implementations["sb3_action_mapping"]["qualname"] == "CompsognathusBiologicalEnv._scale_action"
+        # The sensor cache is the parent's, which the robot hashes too (the subclass builds its mask in __init__).
+        assert implementations["sb3_sensor_cache"]["qualname"] == "CompsognathusEnv._cache_ids"
+        assert set(implementations["home_reset"]) == {"sb3"}
+        assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
+
+        original = fingerprint_model_layers(env.model, env, version)
+        flipped = env._shaped_residual_mask.copy()
+        flipped[np.flatnonzero(legs)[0]] = False
+        for attribute, value in (("residual_linear_slope", 0.2), ("_shaped_residual_mask", flipped)):
+            saved = getattr(env, attribute)
+            setattr(env, attribute, value)
+            try:
+                changed = fingerprint_model_layers(env.model, env, version)
+            finally:
+                setattr(env, attribute, saved)
+            assert changed["policy_interface_sha256"] != original["policy_interface_sha256"], attribute
+            assert changed["physics_sha256"] == original["physics_sha256"]
+            assert changed["visual_sha256"] == original["visual_sha256"]
+        assert fingerprint_model_layers(env.model, env, version) == original
+
+        for attribute, value in (
+            ("residual_linear_slope", 0.0),
+            ("residual_linear_slope", 1.5),
+            ("residual_linear_slope", float("nan")),
+            ("_shaped_residual_mask", np.zeros(env.model.nu, dtype=bool)),
+            ("_shaped_residual_mask", legs[:-1]),
+            ("_shaped_residual_mask", legs.astype(float)),
+        ):
+            saved = getattr(env, attribute)
+            setattr(env, attribute, value)
+            try:
+                with pytest.raises(PlantContractError, match="softcubic"):
+                    _policy_interface_payload(env.model, env, version)
+            finally:
+                setattr(env, attribute, saved)
+
+        env.supported_training_backends = ("stable-baselines3", "jax-mjx")
+        with pytest.raises(PlantContractError, match="no JAX implementation"):
+            _policy_interface_payload(env.model, env, version)
+    finally:
+        env.close()
+
+
+def test_an_edit_of_the_parents_cache_ids_moves_the_anatomical_policy_interface(monkeypatch):
+    """CompsognathusEnv._cache_ids sets the home ctrl the residual spans from and the contact threshold.
+
+    The anatomical class must not override it (an override would be what the interface hashes, and a parent
+    edit would leave every anatomical checkpoint loading silently while the robot's digest moved).
+    """
+    version = load_plant_versions()[1]["compsognathus"]
+    env = CompsognathusBiologicalEnv(reset_noise_scale=0.0)
+    try:
+        original = fingerprint_model_layers(env.model, env, version)
+    finally:
+        env.close()
+    parent = CompsognathusEnv._cache_ids
+
+    def edited(self):
+        parent(self)
+        self._home_ctrl = self._home_ctrl + 0.02  # action zero now commands 0.02 rad past home
+
+    monkeypatch.setattr(CompsognathusEnv, "_cache_ids", edited)
+    env = CompsognathusBiologicalEnv(reset_noise_scale=0.0)
+    try:
+        changed = fingerprint_model_layers(env.model, env, version)
+    finally:
+        env.close()
+    assert changed["policy_interface_sha256"] != original["policy_interface_sha256"]
+    assert changed["physics_sha256"] == original["physics_sha256"]
 
 
 def test_human_revision_counters_do_not_change_semantic_fingerprints(raptor_layers):

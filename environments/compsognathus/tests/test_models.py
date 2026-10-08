@@ -1,5 +1,7 @@
 """Protect the physical assumptions of these untrained prototypes."""
 
+import json
+import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -8,8 +10,10 @@ import numpy as np
 import pytest
 
 from environments.compsognathus import MODEL_PATHS
+from environments.compsognathus.envs import CompsognathusBiologicalEnv
 from environments.compsognathus.model import PARAMETERS, load_model, model_bounds, robot_body_ids
 from environments.compsognathus.scripts.validate_models import geometry, hold_trial
+from environments.shared.plant_contract import GENERATED_MANIFEST_PATH, current_plant_identity
 
 
 @pytest.mark.parametrize("variant,nq,nv,nu,mass", [("biological", 24, 23, 14, 1.0), ("robot", 19, 18, 12, 1.5856)])
@@ -30,6 +34,85 @@ def test_model_contract(variant, nq, nv, nu, mass):
             inertia = model.body_inertia[body]
             assert np.all(inertia > 0)
             assert 2 * max(inertia) <= sum(inertia) + 1e-12
+
+
+def test_tail_mass_is_spread_at_one_density_over_its_tapered_meshes():
+    """Physics r2 (plant_versions note 15).  r1 gave tail_1..tail_4 583 / 1019 / 1918 / 6223 kg/m3 over meshes
+    that taper toward the tip, so the tip was denser than bone and the CoM sat over the rear quarter of the
+    foot.  The 178 g is now spread at one density, and it still sums to exactly 0.178 kg so the anatomical
+    body stays 1.000 kg (test_model_contract)."""
+    masses = PARAMETERS["biological"]["tail_segment_masses_kg"]
+    assert math.fsum(masses) == 0.178
+    root = ET.parse(MODEL_PATHS["biological"]).getroot()
+    for index in range(1, 5):
+        # Without its mass attribute a geom takes MuJoCo's default 1000 kg/m3, so body mass / 1000 is the volume.
+        root.find(f".//geom[@name='tail_{index}_geom']").attrib.pop("mass")
+    unit = mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
+    model, _ = load_model("biological")
+    densities = [
+        float(model.body_mass[model.body(f"tail_{index}").id] / (unit.body_mass[unit.body(f"tail_{index}").id] / 1000))
+        for index in range(1, 5)
+    ]
+    assert all(840 < density < 880 for density in densities), densities
+    assert max(densities) / min(densities) < 1.025, densities
+
+
+def test_digit_two_is_medial_on_both_feet():
+    """r1 built the right foot as a left foot, its digit II tip lateral at world y -64 mm (note 15)."""
+    model, data = load_model("biological")
+
+    def tip(name):
+        # The end of the capsule's axis farther from the foot body's origin (the MTP joint).
+        geom = model.geom(name).id
+        half = data.geom_xmat[geom].reshape(3, 3)[:, 2] * model.geom_size[geom][1]
+        ends = (data.geom_xpos[geom] + half, data.geom_xpos[geom] - half)
+        origin = data.xpos[model.geom_bodyid[geom]]
+        return max(ends, key=lambda end: float(np.linalg.norm(end - origin)))
+
+    for side in ("r", "l"):
+        foot_y = data.xpos[model.body(f"{side}_foot").id][1]
+        medial = -np.sign(foot_y)
+        assert medial * (tip(f"{side}_toe_d2_geom")[1] - foot_y) > 0.015
+        assert medial * (tip(f"{side}_toe_d4_geom")[1] - foot_y) < -0.015
+    mirror = np.array([1.0, -1.0, 1.0])
+    for part in ("plantar_pad", "toe_d2_geom", "toe_d3_geom", "toe_d4_geom", "metatarsus_geom"):
+        right, left = model.geom(f"r_{part}").id, model.geom(f"l_{part}").id
+        np.testing.assert_allclose(data.geom_xpos[right] * mirror, data.geom_xpos[left], atol=1e-12)
+        if part != "plantar_pad":
+            np.testing.assert_allclose(tip(f"r_{part}") * mirror, tip(f"l_{part}"), atol=1e-12)
+    # The preload that action zero commands is left-right symmetric (hip roll antisymmetric).
+    ctrl = {model.actuator(i).name: float(model.key("home").ctrl[i]) for i in range(model.nu)}
+    for joint in ("hip_pitch", "knee", "ankle", "toe"):
+        assert ctrl[f"r_{joint}_act"] == ctrl[f"l_{joint}_act"]
+    assert ctrl["r_hip_roll_act"] == -ctrl["l_hip_roll_act"]
+
+
+@pytest.mark.parametrize("seed", [3042, 3043, 3044])
+def test_settled_statue_keeps_the_metatarsus_four_millimetres_off_the_floor(seed):
+    """The metatarsal head rests on the pad and is never support, yet its terminating capsule sat 1.07 mm
+    above the floor on the settled r1 statue: any landing that sank the sole 1 mm touched it with 0 N on it
+    and ended an upright episode as a fall.  r2 ends the capsule 4 mm short of the MTP joint (4.81 mm)."""
+    with CompsognathusBiologicalEnv() as env:
+        env.reset(seed=seed)
+        for _ in range(200):
+            _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape))
+            assert not terminated, info
+        floor = env.model.geom("floor").id
+        for side in ("r", "l"):
+            geom = env.model.geom(f"{side}_metatarsus_geom").id
+            assert mujoco.mj_geomDistance(env.model, env.data, geom, floor, 0.05, None) >= 0.004
+
+
+def test_robot_plant_did_not_move_with_the_anatomical_revision():
+    """D-D26 confines physics r2 to build_biological and policy r3 to CompsognathusBiologicalEnv: the robot keeps
+    physics 1 / policy 2 / visual 1 and the digests the committed manifest records for them."""
+    committed = json.loads(GENERATED_MANIFEST_PATH.read_text())["plants"]["compsognathus_robot"]
+    identity = current_plant_identity("compsognathus_robot", verify_generated=False)
+    assert (identity.physics_revision, identity.policy_interface_revision, identity.visual_revision) == (1, 2, 1)
+    assert identity.physics_sha256 == committed["physics"]["sha256"]
+    assert identity.policy_interface_sha256 == committed["policy_interface"]["sha256"]
+    assert identity.visual_sha256 == committed["visual"]["sha256"]
+    assert identity.source_closure_sha256 == committed["source"]["closure_sha256"]
 
 
 def test_robot_preserves_rev_b_mechanics():
