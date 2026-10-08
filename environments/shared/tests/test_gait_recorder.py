@@ -418,6 +418,21 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
 # ── the six statues put their floor load on the registry ─────────────────────
 
 
+#: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
+#: to 1 s + 150): trex 0.356, compsognathus 0.464 on its r1 plant (heel side; its revision, D-D26, moves it, and
+#: the ceiling is re-measured when this lands on that plant), its robot 0.319, dibothrosuchus 0.699 (its hind
+#: feet heel side on four contacts).  None where the foot has no box sole, so the metric is unmeasured:
+#: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact sits where the authored pitch puts it).
+STATUE_COP_FORE_AFT_CEILING = {
+    "trex": 0.40,
+    "velociraptor": None,
+    "compsognathus": 0.50,
+    "compsognathus_robot": 0.35,
+    "dibothrosuchus": 0.72,
+    "brachiosaurus": None,
+}
+
+
 @pytest.mark.parametrize("species", SIX)
 def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
     env = envs(species)
@@ -437,6 +452,11 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
     assert result.touchdown_rate == 0.0 and result.phantom_support_fraction == 0.0
     assert result.max_actuator_saturation_fraction == 0.0
     assert sum(result.foot_load_share) == pytest.approx(1.0)
+    ceiling = STATUE_COP_FORE_AFT_CEILING[species]
+    if ceiling is None:
+        assert math.isnan(result.max_sole_cop_fore_aft)
+    else:
+        assert 0.0 < result.max_sole_cop_fore_aft <= ceiling
 
 
 @pytest.mark.parametrize(

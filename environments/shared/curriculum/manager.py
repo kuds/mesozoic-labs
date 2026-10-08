@@ -101,6 +101,7 @@ class StageThreshold:
     min_sole_contacts: float | None = None
     max_episode_yaw_change_deg: float | None = None
     max_settle_touchdowns: float | None = None
+    max_sole_cop_fore_aft: float | None = None
     max_hop_or_fall_episodes: int | None = None
 
     # Shared
@@ -732,5 +733,6 @@ _STANCE_V2_COPIED_KEYS: tuple[str, ...] = (
     "min_sole_contacts",
     "max_episode_yaw_change_deg",
     "max_settle_touchdowns",
+    "max_sole_cop_fore_aft",
     "max_hop_or_fall_episodes",
 )

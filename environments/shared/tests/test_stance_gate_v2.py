@@ -31,6 +31,7 @@ from environments.shared.curriculum.gate_schema import (
 )
 from environments.shared.curriculum.recovery_gate import binomial_lcb
 from environments.shared.curriculum.stance_gate_v2 import (
+    CRITERION_BAR_RANGES,
     EPISODE_CRITERIA,
     STANCE_GATE_V2_KIND,
     STANCE_V2_PANEL_FIELDNAMES,
@@ -42,10 +43,12 @@ from environments.shared.curriculum.stance_gate_v2 import (
     evaluate_stance_v2_gate,
     read_stance_v2_panel,
     statue_reference,
+    unrecorded_criteria,
 )
 from environments.shared.gait.stance_metrics import (
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
+    STANCE_METRIC_LATER_FIELDS,
     StanceEpisodeMetrics,
     episode_stance_metrics,
 )
@@ -132,6 +135,7 @@ class TestRegistration:
             "min_sole_contacts",
             "max_episode_yaw_change_deg",
             "max_settle_touchdowns",
+            "max_sole_cop_fore_aft",
             "max_hop_or_fall_episodes",
             "required_consecutive",
         }
@@ -205,6 +209,15 @@ class TestFromCurriculum:
         assert binomial_lcb(0, 40) == 0.0
         with pytest.raises(ValueError, match="strictly between 0 and 1"):
             StanceV2Thresholds.from_curriculum({**BLOCK, "min_clean_stance_lcb": value})
+
+    @pytest.mark.parametrize("value", [0.0, -0.2, 1.0, 1.25])
+    def test_the_pad_cop_bar_must_lie_strictly_inside_zero_one(self, value):
+        """A fraction of the half-length: 0 refuses every loaded pad and a pad on its edge reads 1."""
+        assert ("max_sole_cop_fore_aft", 0.0, 1.0) in [entry[:3] for entry in CRITERION_BAR_RANGES]
+        with pytest.raises(ValueError, match="max_sole_cop_fore_aft must lie strictly between 0 and 1"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, "max_sole_cop_fore_aft": value})
+        assert thresholds(max_sole_cop_fore_aft=0.8).max_sole_cop_fore_aft == 0.8
+        assert thresholds().max_sole_cop_fore_aft is None and "max_sole_cop_fore_aft" not in thresholds().declared()
 
     def test_an_undeclared_optional_criterion_is_none_never_a_permissive_default(self):
         read = thresholds()
@@ -285,6 +298,7 @@ class TestClassification:
             ("max_sole_tilt_excess_deg", "max_sole_tilt_excess_deg", 12.0),
             ("max_episode_yaw_change_deg", "episode_yaw_change_deg", 42.7),
             ("max_settle_touchdowns", "settle_touchdowns", 3.0),
+            ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", 0.85),
         ],
     )
     def test_every_optional_criterion_refuses_its_defect_once_declared(self, clean, key, field_name, value):
@@ -292,11 +306,27 @@ class TestClassification:
                "max_nonfoot_load_fraction": 0.01, "max_settle_stance_width_change_m": 0.04,
                "min_support_geom_duty": 0.9, "min_support_geom_coverage": 0.9,
                "max_sole_tilt_excess_deg": 10.0, "max_episode_yaw_change_deg": 25.0,
-               "max_settle_touchdowns": 2}[key]  # fmt: skip
+               "max_settle_touchdowns": 2, "max_sole_cop_fore_aft": 0.8}[key]  # fmt: skip
         declared = thresholds(**{key: bar})
         assert classify_stance_episode(clean, declared, horizon=HORIZON) == ()
         reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
         assert reason_keys(reasons) == {key}
+
+    def test_a_pad_on_its_front_edge_passes_every_other_sole_bar_and_fails_the_cop_bar(self, clean):
+        """The r8 seed-44 left foot (D-D28; seed 7081, a v2-clean episode): two loaded corners, flat, CoP 0.85."""
+        edge = replace(clean, min_sole_contacts=2.0, max_sole_tilt_deg=0.7, max_sole_corner_lift_m=0.0018,
+                       max_sole_cop_fore_aft=0.85)  # fmt: skip
+        assert classify_stance_episode(edge, thresholds(), horizon=HORIZON) == ()
+        declared = thresholds(max_sole_cop_fore_aft=0.8)
+        assert classify_stance_episode(edge, declared, horizon=HORIZON) == (
+            "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.85 > 0.8",
+        )
+        assert not stance_gate_v2.is_hop_or_fall(classify_stance_episode(edge, declared, horizon=HORIZON))
+        # The statue's worst over 238 full-horizon episodes, a fore-aft sway (seed 5048), is clean.
+        assert classify_stance_episode(replace(clean, max_sole_cop_fore_aft=0.48), declared, horizon=HORIZON) == ()
+        # A padless foot reads it unmeasured: declared there, it would fail every episode.
+        reasons = classify_stance_episode(replace(clean, max_sole_cop_fore_aft=math.nan), declared, horizon=HORIZON)
+        assert reasons == ("max_sole_cop_fore_aft: max_sole_cop_fore_aft is unmeasured (nan)",)
 
 
 class TestStatueRelative:
@@ -587,6 +617,43 @@ class TestPanelEvidence:
     def test_an_empty_panel_is_refused(self, tmp_path, clean):
         with pytest.raises(ValueError, match="holds no episode rows"):
             read_stance_v2_panel(_write_panel(tmp_path / "panel.csv", clean, n=0))
+
+    def test_a_panel_recorded_before_the_pad_cop_keeps_its_verdict_and_names_what_it_lacks(self, tmp_path, clean):
+        """Its CSV lacks the later column: unmeasured, named in absent_metrics, and refused only where declared."""
+        later = sorted(STANCE_METRIC_LATER_FIELDS)
+        path = _write_panel(tmp_path / "panel.csv", clean)
+        current = read_stance_v2_panel(path)
+        assert current.absent_metrics == ()
+        with path.open(newline="", encoding="utf-8") as source:
+            rows = list(csv.DictReader(source))
+        columns = [column for column in STANCE_V2_PANEL_FIELDNAMES if column not in later]
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        evidence = read_stance_v2_panel(path)
+        assert set(evidence.absent_metrics) == set(later)
+        assert all(math.isnan(getattr(episode, name)) for episode in evidence.episodes for name in later)
+        restored = [replace(episode, **{name: getattr(clean, name) for name in later}) for episode in evidence.episodes]
+        assert [episode.as_row() for episode in restored] == [clean.as_row()] * 3
+        recorded = [name for name in STANCE_METRIC_FIELDS if name not in evidence.absent_metrics]
+        # A block that does not declare the key: the same verdict, bit for bit, as the panel measured today.
+        loose = {"min_eval_episodes": 3, "min_clean_stance_lcb": 0.1}
+        assert unrecorded_criteria(thresholds(**loose), recorded) == ()
+        earlier_result = evaluate_stance_v2_gate(evidence.episodes, thresholds(**loose), horizon=HORIZON)
+        assert earlier_result == evaluate_stance_v2_gate(current.episodes, thresholds(**loose), horizon=HORIZON)
+        # A block that does: the criterion is named, for the consumer to refuse the panel rather than score it.
+        declared = thresholds(**loose, max_sole_cop_fore_aft=0.8)
+        assert unrecorded_criteria(declared, recorded) == (("max_sole_cop_fore_aft", "max_sole_cop_fore_aft"),)
+        assert unrecorded_criteria(declared, STANCE_METRIC_FIELDS) == ()
+        # Any other metric column missing is still a file that is not a v2 panel.
+        columns.remove("min_sole_contacts")
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        with pytest.raises(ValueError, match="min_sole_contacts"):
+            read_stance_v2_panel(path)
 
     def test_an_empty_metric_cell_is_unmeasured_never_zero(self, tmp_path, clean):
         evidence = read_stance_v2_panel(_write_panel(tmp_path / "panel.csv", clean, settle_airborne_substeps=""))

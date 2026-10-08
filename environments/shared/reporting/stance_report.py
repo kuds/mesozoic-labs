@@ -965,10 +965,12 @@ class SpawnYaw:
     only the world-frame observation differs -- exactly the question of
     whether the policy reads its heading.  The probe reports both.
 
-    Report-only (decision D-D27): whether stance certification should require
-    heading robustness, through spawn-yaw randomisation or a heading-invariant
-    observation, is a policy-interface question the maintainer has not
-    decided.
+    Report-only (decision D-D27).  Whether stance certification should
+    require heading robustness was decided by the maintainer on 2026-10-07
+    and is not yet carried out: heading-free observations for the T. rex and
+    the compsognathus, in a later policy-interface PR that makes this probe a
+    gate check (and rewrites the probe text below, which still reads as
+    D-D27 left it).
     """
 
     yaw_deg: float
@@ -1820,6 +1822,7 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             ("touch_floor_agreement", "touch agrees with floor truth"),
             ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
             ("settle_touchdowns", "settle-window touchdowns"),
+            ("max_sole_cop_fore_aft", "pad CoP fore-aft (|.| / half-length)"),
         )
         if metric not in gated_metrics
     )

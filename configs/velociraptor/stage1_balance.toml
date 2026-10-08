@@ -230,7 +230,9 @@ min_support_geom_coverage = 0.80         # The worse foot's window-mean share of
                                          # at most 0.67: both fail 40/40. 0.80 sits above 2/3, a foot standing on two
                                          # of its three geoms throughout, so a digit never loaded fails this bar
                                          # whatever the duty bar reads; the jittered statue keeps at least 0.844 at
-                                         # sigma 0.05.
+                                         # sigma 0.05. These two bars, not max_sole_cop_fore_aft (D-D28), read where
+                                         # this foot is loaded: that key reads a box sole's centre of pressure, and
+                                         # with no sole it would be unmeasured, a failure, on every episode.
 max_settle_stance_width_change_m = 0.05  # |Foot-site distance at the last settle step - at spawn|. Statue at
                                          # most 0.016 m (0.020 out of sample; 0.022 fresh); the audit stance's splay
                                          # at least 0.116 m (robust_best) and 0.134 m (final): both fail 40/40.

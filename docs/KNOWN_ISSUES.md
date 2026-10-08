@@ -1127,30 +1127,62 @@ robustness, **LOW** = cosmetic / QoL.
   D-D27 added a report-only probe (`stance_probe_spawn_yaw_deg`, written to
   `stance_heading_probe.txt`; `stance_gate_report.py --spawn-yaw-offsets`)
   and a 25° bar on episode yaw change, which refuses a stance that turns but
-  not one that only falls when turned. Fix, not decided by the maintainer:
-  randomise the spawn yaw with the prey placed relative to it, or make the
-  observation heading-invariant (a yaw-free quaternion, a yaw-frame linear
-  velocity, a body-frame prey vector), each a policy-interface revision; or
-  decide that heading robustness belongs to recovery and locomotion. No other
-  species' stance has been probed.
+  not one that only falls when turned. Fix, decided by the maintainer on
+  2026-10-07 and not yet carried out: heading-free observations for the
+  T. rex and the compsognathus (body orientation without world yaw, linear
+  velocity in the yaw frame, the prey direction relative to the body, and
+  every other world-heading channel), in one cross-species PR after the
+  compsognathus revision (D-D26) lands and before either species trains; the
+  spawn-yaw probe becomes a gate check there, and each species'
+  policy-interface revision moves, so their checkpoints stop loading. The
+  velociraptor follows only after the maintainer's two current velociraptor
+  runs are reviewed. No other species' stance has been probed. Until then
+  the probe's own text (`stance_heading_probe.txt`, from
+  `reporting/stance_report.py`) still reads as D-D27 left it, "report only;
+  decision D-D27 leaves heading robustness open"; the heading PR rewrites it.
 
-- **LOW** — **`stance_quality/v2` does not see a foot standing on the front
-  edge of its pad (measured 2026-10-07).** The r8 trex seed-44 stance
-  `20261006_185704` stands with its left pad pitched 0.69–0.75° toe-down on
-  2.02–2.17 loaded contact points (the statue 3.62–3.68), its window-mean
-  centre of pressure at 0.85–1.00 of the pad's fore half-length on all 80
-  panel episodes (the statue at most 0.362 over 120) and its digits
-  carrying about 1% of the load each (the statue 6–8%); in its one measured
-  fall that foot sat on a single corner. Every v2 bar passes it, and
-  `min_sole_contacts` (1.5) must not rise to catch it: the statue reaches
-  2.086 out of sample, with 2 of 40 episodes below 2.25. Fix: a per-foot
-  centre-of-pressure fore-aft metric in the floor-truth library and a v2 bar
-  near 0.7 of the half-length (or a digit load-share bound against the
-  statue's). It needs a new `StanceEpisodeMetrics` field, and
-  `StanceEpisodeMetrics.from_row` is strict, so every recorded v2 panel CSV
-  (the trex and velociraptor statue panels, both r8 trex runs) would stop
-  re-deriving until migrated; D-D27 deferred it for that reason
-  ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9).
+- **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
+  open, and only the T. rex declares it (measured 2026-10-07 and
+  2026-10-08).** D-D28's `max_sole_cop_fore_aft`, declared by the T. rex
+  stance at 0.80, refuses the r8 seed-44 left foot on its pad's front edge;
+  the fix and its calibration are the
+  [stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md)'s §10.
+  What it leaves open: (1) it is a window mean of the per-step reading, so
+  a pad on its front edge for part of the window beside a centred s passes
+  up to (0.80 − s)/(1 − s) of it (71% at the statue's 0.30). Measured: the
+  zero-action statue switched to the seed-44 policy at step 460 (blended
+  over 50 steps) passes a whole 40-episode panel (37/40 clean, bound
+  0.817) with the left pad on its front edge for 0.56–0.66 of the window in
+  every clean episode; switched at step 400, it is 19/40 and fails. So a
+  policy whose pads drift onto their front edge after about the first third
+  of the window certifies. A per-foot fraction of window steps with the
+  CoP past 0.9 of the half-length would separate that construction (0.56–
+  0.66; the statue at most 0.18, the 369k-step D-D27 study checkpoint at
+  most 0.024), but command jitter on every step at σ 0.05 already reads
+  0.24–0.55 on it, so it needs a tremor calibration before it can be a
+  bar. (2) A pad rolled about 1° that also carries seed 44's toe-down pitch
+  loads three corners, the two toe corners and one heel corner, and reads
+  about 0.76 (0.70–0.77 on scripted probes, with the digits at 5–7% of the
+  foot's load against the statue's at least 11%), so it passes; a
+  toe-down sole-pitch bar would separate it, on a thin margin (the statue
+  −0.21°, the study checkpoint −0.35 to −0.43°, these probes −0.54 to
+  −0.73°, seed 44 −0.5 to −0.9°). (3) A pad loaded on its heel and toe in
+  turn inside one control step reads centred (physically implausible behind
+  the 10 Hz command filter). Lifting the pad, or grazing the floor with
+  it, hides no edge stance: a step with no loaded sole contact counts as on
+  the edge. The bar exists only for the T. rex: the velociraptor's foot has
+  no sole and the brachiosaurus's soles are ellipsoids, so the metric is
+  unmeasured on both (on the velociraptor the support-geom duty and
+  coverage bars read where its foot is loaded), and the box-soled
+  compsognathus, robot and dibothrosuchus are not on `stance_quality/v2`
+  (the compsognathus and the robot on v1, dibothrosuchus on
+  `reward_and_length/v1`), so each gets a bar when it adopts v2, measured on
+  its own statue (their statues read 0.30–0.69 here). The compsognathus
+  adopts v2 in its revision (D-D26), which lands before D-D28 and cannot
+  declare the key (its base has none); D-D28, rebased on it, measures the
+  compsognathus statue of that plant for its bar (the r1 readings in these
+  records do not carry over: the D-D26 statue reads about 0.14–0.18 against
+  r1's 0.45–0.49).
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
   (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1209-1339`, its
