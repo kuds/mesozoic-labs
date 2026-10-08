@@ -41,7 +41,12 @@ from typing import Any
 
 from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
-from .stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS, STANCE_V2_THRESHOLD_KEYS
+from .stance_gate_v2 import (
+    CRITERION_BAR_RANGES,
+    STANCE_GATE_V2_KIND,
+    STANCE_V2_REQUIRED_KEYS,
+    STANCE_V2_THRESHOLD_KEYS,
+)
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
@@ -491,7 +496,9 @@ def validate_gate_config(
     Raises:
         GateSchemaError: If the block carries an unknown key, declares an
             unknown gate kind or schema version, carries a threshold field
-            that its declared kind does not consume, or omits the gate
+            that its declared kind does not consume, declares a
+            ``stance_quality/v2`` fraction bar outside its range
+            (``stance_gate_v2.CRITERION_BAR_RANGES``), or omits the gate
             declaration entirely while advancement is enabled.
     """
     known = (
@@ -567,6 +574,20 @@ def validate_gate_config(
             "open on the SB3 path (StageThreshold defaults to min_avg_reward = "
             '-inf); declare gate_kind = "none/v1" for a non-advancing pilot instead.'
         )
+
+    if declared_kind == STANCE_GATE_V2_KIND:
+        # A fraction bar outside its range is a typo, not a strict gate: refused at config load rather than
+        # by the post-stage report after a whole training run (StanceV2Thresholds.from_curriculum).
+        for key, low, high, why in CRITERION_BAR_RANGES:
+            if key not in curriculum_kwargs:
+                continue
+            raw = curriculum_kwargs[key]
+            value = None if isinstance(raw, bool) or not isinstance(raw, (int, float)) else finite_gate_metric(raw)
+            if value is None or not low < value < high:
+                raise GateSchemaError(
+                    f"{_describe(stage)}: {declared_kind} threshold {key} must be a number strictly between "
+                    f"{low:g} and {high:g}, not {raw!r}: {why}."
+                )
 
     if advancement_enabled and declared_kind == "none/v1":
         raise GateSchemaError(

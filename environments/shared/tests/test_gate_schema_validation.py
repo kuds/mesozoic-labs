@@ -125,6 +125,27 @@ class TestStanceQualityV2Declaration:
             "stance_quality/v2"
         )
 
+    @pytest.mark.parametrize("value", [80, 0.0, 1.0, -0.2, True, "0.8", float("nan")])
+    def test_a_fraction_bar_outside_its_range_is_refused_at_config_load(self, value):
+        """``max_sole_cop_fore_aft = 80`` (a percent typo) stops the run here, not after it trained (D-D28)."""
+        assert _validate(dict(_STANCE_V2, max_sole_cop_fore_aft=0.8)) == "stance_quality/v2"
+        with pytest.raises(GateSchemaError, match="max_sole_cop_fore_aft must be a number strictly between 0 and 1"):
+            _validate(dict(_STANCE_V2, max_sole_cop_fore_aft=value))
+        with pytest.raises(GateSchemaError, match="strictly between 0 and 1"):
+            thresholds_from_configs({1: {"curriculum_kwargs": dict(_STANCE_V2, max_sole_cop_fore_aft=value)}})
+
+    def test_every_v2_key_reaches_the_threshold(self):
+        """The manager copies each key of the kind onto a v2 stage's threshold: one left out drops its bar there."""
+        from environments.shared.curriculum import StageThreshold
+        from environments.shared.curriculum.stance_gate_v2 import STANCE_V2_THRESHOLD_KEYS
+
+        whole = {"max_hop_or_fall_episodes": 1, "required_consecutive": 3, "max_settle_touchdowns": 2}
+        block = {**_STANCE_V2, **{key: 0.5 for key in STANCE_V2_THRESHOLD_KEYS - set(_STANCE_V2)}, **whole}
+        threshold = thresholds_from_configs({1: {"curriculum_kwargs": block}})[1]
+        assert STANCE_V2_THRESHOLD_KEYS <= set(threshold)
+        copied = StageThreshold(**threshold).stance_v2_thresholds()
+        assert all(getattr(copied, key) == block[key] for key in STANCE_V2_THRESHOLD_KEYS), copied
+
     @pytest.mark.parametrize(
         "missing",
         sorted(set(_STANCE_V2) - {"gate_schema_version", "gate_kind"}),

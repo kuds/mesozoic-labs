@@ -675,7 +675,30 @@ min_sole_contacts = 1.5                  # The worse pad's window-mean loaded co
                                          # edge or a corner: 0914 fails 39, 0920 16, 0930 39 and 1001 2 episodes.
                                          # Not raised for the r8 seed-44 left foot on its pad's front edge (2.0-2.2
                                          # loaded points; D-D27): the statue reaches 2.086 on 7042-7081, 2/40 under
-                                         # 2.25. That foot needs a CoP fore-aft bar (docs/KNOWN_ISSUES.md).
+                                         # 2.25. max_sole_cop_fore_aft below refuses that foot instead (D-D28).
+max_sole_cop_fore_aft = 0.80             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
+                                         # (D-D28; 0 centred, 1 on the heel or toe edge, a step with no loaded sole
+                                         # contact 1). Statue 0.206-0.362 on 3042-3081 and at most 0.362 on 7042-7081
+                                         # and 3162-3201; out of sample 0.480 (seed 5048, a fore-aft sway clean on
+                                         # every other bar; 0.353 on 9042-9081, 0.368 on 11042-11081), and up to
+                                         # 0.745 with N(0, 0.05) command jitter on every step (13042-13081; 0.717 on
+                                         # 3042-3061); jitter in the window alone first binds on this bar by itself
+                                         # near sigma 0.07. The seed-44 left foot stands on its pad's front edge with
+                                         # its digits at about 1% of its load each (statue 6-8%), on the 2.0-2.2
+                                         # loaded points min_sole_contacts admits: 0.850-1.000, refused on 140/140
+                                         # episodes over 3042, 7042, 5042 and 9042; seed 42's heel-to-toe rock
+                                         # 0.96-0.99. 0.80, not 0.75: the D-D27 369k-step study checkpoint loads its
+                                         # flat pad forward to 0.88 (on the four 3042-3081 episodes 0.75 refuses:
+                                         # 2.9-3.9 loaded points, past 0.9 on at most 0.5% of window steps), and 0.75
+                                         # fails its 3042-3081 panel (38/40 clean -> 34/40; 36/40 on 5042) where 0.80
+                                         # leaves 37/40. Left open, the bar being a window mean: an edge stance on up
+                                         # to (0.80 - s) / (1 - s) of the window beside a centred s (71% at the
+                                         # statue's 0.30), so a panel whose pads drift onto their front edge after
+                                         # about the first third of the window certifies (the statue switched to seed
+                                         # 44 at step 460: 37/40, every clean episode on its edge for 0.56-0.66 of
+                                         # the window); and a pad rolled about 1 deg that also carries seed 44's
+                                         # toe-down pitch loads three corners and reads about 0.76
+                                         # (docs/KNOWN_ISSUES.md).
 max_settle_stance_width_change_m = 0.08  # The largest change of the foot-pair distance from spawn to the end of the
                                          # settle (D-D27). Statue at most 0.0523 m (3042-3081), 0.0201 (7042-7081),
                                          # 0.0311 (3162-3201), 0.0508 / 0.0396 (5042-5081 / 9042-9081); the physics-r8
@@ -934,9 +957,10 @@ stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). 
                                          # that reads its heading: the r8 seed 44 stood 0/8 spawned at +90 deg and
                                          # seed 42 fell 4/4 at +-90, where the statue stands 16/16 (reward about 100
                                          # lower with the prey left behind: the heading term). Whether stance
-                                         # certification should require heading robustness (spawn-yaw randomisation
-                                         # or a heading-invariant observation, both policy-interface revisions) is
-                                         # the maintainer's open decision. 18 panels of 8 episodes.
+                                         # certification should require heading robustness was decided by the
+                                         # maintainer on 2026-10-07 and is not yet carried out: heading-free
+                                         # observations, in a later PR that makes this probe a gate check
+                                         # (docs/KNOWN_ISSUES.md). 18 panels of 8 episodes.
 stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.

@@ -92,6 +92,36 @@ settle window empty and every settle metric NaN, so
 :meth:`StanceV2Thresholds.validate_settle_window` and the gate itself refuse
 one whenever the control step is known.
 
+The pad's centre of pressure
+----------------------------
+The sole bars read a pad's tilt, its corner lift and its loaded contact
+points, and a pad standing on its front edge with its digits unloaded can
+meet all three: the physics-r8 seed-44 trex stance holds its left pad 0.7
+degrees toe-down on two loaded corners, which ``min_sole_contacts`` 1.5
+admits and cannot be raised against (the statue reaches 2.086).  The
+optional ``max_sole_cop_fore_aft`` reads where along the pad the floor
+pushes: the window mean of the per-step ``|fore-aft CoP| / half-length``
+(``StanceEpisodeMetrics.max_sole_cop_fore_aft``: 0 centred, 1 on an edge
+or with no loaded contact), which separates that foot (0.85-1.00) from the
+statue (at most 0.48).  Box soles only, and two-sided, because the
+compsognathus statue stands heel-side.  Declared by trex since D-D28;
+undeclared, it is not applied.
+
+Metrics added later
+-------------------
+A report row or panel CSV recorded before a
+:data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
+metric existed lacks it, and the readers (``StanceEpisodeMetrics.from_row``,
+:func:`read_stance_v2_panel`) read it as unmeasured: every earlier report
+keeps its verdict under a gate that does not declare the key.  Under one
+that does, the episode would fail as unmeasured though nothing failed to
+measure it, so such a panel is refused, never failed: publication
+(``result_bundle.evidence``), which re-derives from the CSV, refuses it by
+name (:func:`unrecorded_criteria`); the judge (``reporting.gates``, and
+backfill through it) refuses a report of that age first because the
+thresholds it records lack the key, and by name when they match.
+Re-rolling the panel on the same handoff pair measures the metric.
+
 This module is pure: the standard library,
 :func:`~environments.shared.curriculum.recovery_gate.binomial_lcb` and the
 pure numpy row type :class:`~environments.shared.gait.stance_metrics.StanceEpisodeMetrics`.
@@ -115,6 +145,7 @@ from typing import Any
 from ..gait.stance_metrics import (
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
+    STANCE_METRIC_LATER_FIELDS,
     StanceEpisodeMetrics,
     spawn_grace_steps,
 )
@@ -150,6 +181,20 @@ EPISODE_CRITERIA: tuple[tuple[str, str, str], ...] = (
     ("min_sole_contacts", "min_sole_contacts", "min"),
     ("max_episode_yaw_change_deg", "episode_yaw_change_deg", "max"),
     ("max_settle_touchdowns", "settle_touchdowns", "max"),
+    ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", "max"),
+)
+
+#: Optional keys whose bar must lie strictly inside ``(low, high)``, ``(key,
+#: low, high, why)``: a bar outside is a typo, not a strict gate
+#: (:meth:`StanceV2Thresholds.from_curriculum`, and ``gate_schema`` at config
+#: load, so the typo stops the run before it trains).
+CRITERION_BAR_RANGES: tuple[tuple[str, float, float, str], ...] = (
+    (
+        "max_sole_cop_fore_aft",
+        0.0,
+        1.0,
+        "it is a fraction of the pad's half-length: 0 refuses every loaded pad, and a pad on its edge reads 1",
+    ),
 )
 
 #: The criteria whose failure, with an early end (:data:`HORIZON_REASON`),
@@ -293,6 +338,7 @@ class StanceV2Thresholds:
     min_sole_contacts: float | None = None
     max_episode_yaw_change_deg: float | None = None
     max_settle_touchdowns: float | None = None
+    max_sole_cop_fore_aft: float | None = None
     max_hop_or_fall_episodes: int | None = None
     required_consecutive: int = 3
 
@@ -309,8 +355,10 @@ class StanceV2Thresholds:
         ``min_clean_stance_lcb`` strictly inside (0, 1): a bar of 0 is met by
         ``binomial_lcb(0, n) = 0``, a panel with no clean episode, and no
         panel of 40 bounds above 0.928, so a bar at or above 1 is a typo
-        that would refuse every policy.  Keys outside the kind (schedule,
-        diagnostic, publication) are ignored; ``gate_schema`` validates them.
+        that would refuse every policy; :data:`CRITERION_BAR_RANGES` bounds
+        the keys that read a fraction the same way.  Keys outside the kind
+        (schedule, diagnostic, publication) are ignored; ``gate_schema``
+        validates them.
         """
         values: dict[str, Any] = {}
         for key in sorted(STANCE_V2_REQUIRED_KEYS):
@@ -328,6 +376,12 @@ class StanceV2Thresholds:
             values["max_hop_or_fall_episodes"] = _whole_number(
                 values["max_hop_or_fall_episodes"], key="max_hop_or_fall_episodes", minimum=0
             )
+        for key, low, high, why in CRITERION_BAR_RANGES:
+            if key in values and not low < values[key] < high:
+                raise ValueError(
+                    f"{STANCE_GATE_V2_KIND} threshold {key} must lie strictly between {low:g} and {high:g}, not "
+                    f"{values[key]!r}: {why}"
+                )
         lcb = values["min_clean_stance_lcb"]
         if not 0.0 < lcb < 1.0:
             raise ValueError(
@@ -522,6 +576,23 @@ def classify_stance_episode(
         if failure is not None:
             reasons.append(failure)
     return tuple(reasons)
+
+
+def unrecorded_criteria(thresholds: StanceV2Thresholds, recorded: Iterable[str]) -> tuple[tuple[str, str], ...]:
+    """The declared criteria whose metric a panel recorded before it existed lacks: ``(key, metric)`` pairs.
+
+    *recorded* is the panel's metric names (a CSV header, a report row's
+    keys).  Only a :data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
+    metric can be absent from a readable panel; such a panel was never
+    measured on the criterion, so the judge and publication refuse it by
+    name -- re-roll it -- instead of failing every episode as unmeasured.
+    """
+    present = set(recorded)
+    return tuple(
+        (key, metric)
+        for key, metric, _ in EPISODE_CRITERIA
+        if metric in STANCE_METRIC_LATER_FIELDS and metric not in present and getattr(thresholds, key) is not None
+    )
 
 
 def reason_key(reason: str) -> str:
@@ -781,7 +852,9 @@ class StanceV2PanelEvidence:
     kept so a consumer can refuse a file whose recorded classification
     disagrees with the one it re-derives.  A stamp is ``None`` when its
     column is blank on every row; ``statue`` is ``None`` when the panel was
-    scored without a statue reference.
+    scored without a statue reference.  ``absent_metrics`` names the
+    :data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
+    columns the file lacks (read as unmeasured), in field order.
     """
 
     episodes: list[StanceEpisodeMetrics]
@@ -795,6 +868,7 @@ class StanceV2PanelEvidence:
     measurement_sha256: str | None
     measurement_definition_sha256: str | None
     statue: StatueReference | None
+    absent_metrics: tuple[str, ...] = ()
 
 
 def _cell_bool(value: str | None, *, column: str, index: int, path: Path) -> bool:
@@ -823,14 +897,23 @@ def read_stance_v2_panel(csv_path: "str | Path") -> StanceV2PanelEvidence:
     an unparsable metric, seed or flag cell, a panel-wide stamp that differs
     between rows, or a statue stamp that is present on some columns and not
     others is a ``ValueError``.  An empty metric cell is NaN -- unmeasured,
-    which fails its criterion -- never zero.
+    which fails its criterion -- never zero.  The one tolerated missing
+    column is a :data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
+    metric, which a panel recorded before it existed lacks: it reads as
+    unmeasured, like an empty cell, and ``absent_metrics`` names it so a
+    consumer can refuse the panel under a gate that declares its key
+    (:func:`unrecorded_criteria`).
     """
     path = Path(csv_path)
     with path.open(newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
         columns = list(reader.fieldnames or [])
         rows = list(reader)
-    missing = [column for column in STANCE_V2_PANEL_FIELDNAMES if column not in columns]
+    missing = [
+        column
+        for column in STANCE_V2_PANEL_FIELDNAMES
+        if column not in columns and column not in STANCE_METRIC_LATER_FIELDS
+    ]
     if missing:
         raise ValueError(f"{path} is not a {STANCE_GATE_V2_KIND} panel: it lacks the column(s) {missing}")
     if not rows:
@@ -889,4 +972,5 @@ def read_stance_v2_panel(csv_path: "str | Path") -> StanceV2PanelEvidence:
         measurement_sha256=stamps["measurement_sha256"],
         measurement_definition_sha256=stamps["measurement_definition_sha256"],
         statue=statue,
+        absent_metrics=tuple(name for name in STANCE_METRIC_FIELDS if name not in columns),
     )

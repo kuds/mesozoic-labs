@@ -257,9 +257,12 @@ validator treats disagreements as conflicts.
   panel's floor-truth rows, which must record the certified checkpoint's
   digest, the certified sidecar's when there is one, the task the stage's
   `stage_config.json` records, and this checkout's measurement version and
-  definition), and so is a role naming any block other than the
-  registered one (the rows are checked against the role, so the role itself is
-  pinned).  The role is bound per evidence file, not through
+  definition, and must hold the column of every metric a declared criterion
+  reads: a panel rolled before a later metric existed is refused by name
+  under a gate that declares its key, and re-rolled), and so is a role
+  naming any block other than the registered one (the rows are checked
+  against the role, so the role itself is pinned).  The role is bound per
+  evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;
 - deterministic evaluation protocols and episode counts;

@@ -962,3 +962,150 @@ mechanism, the width term as the driver of the re-seat, the link between the out
 heading falls) were not ablated. The hop and fall rates rest on about 207 seed-44 episodes. As §6 says of the audit,
 the review's and the follow-up's scripts, traces and panel outputs are not in the repository; the panels regenerate
 from the checkpoint pairs on Drive (the sha256s above) with `stance_gate_report.py` at this note's commit.
+
+## 10. Addendum 2026-10-07: the pad centre of pressure (appended)
+
+*Appended 2026-10-07 and revised 2026-10-08 after its review; §1–§9 above are unchanged.* The review of §9's seed-44
+run found its left foot standing on the front edge of its pad, which no other v2 bar sees (§9's open item 3: on the
+episodes every other bar passes, 13/40 on 3042–3081 and 8/40 on 7042–7081, that foot is still on its edge; the key
+changes no seed-44 panel verdict, since every block fails without it, only those episodes'), and the maintainer
+decided the same day to add a per-foot centre-of-pressure fore-aft check to `stance_quality/v2` in a gate-only change,
+re-applicable to any checkpoint by re-rolling its panel, with `min_sole_contacts` left at 1.5: decision D-D28
+([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2). The maintainer also decided §9's open item 1,
+heading robustness, that day, for a later PR: heading-free observations for the T. rex and the compsognathus after the
+compsognathus revision lands, with the spawn-yaw probe becoming a gate check
+([../KNOWN_ISSUES.md](../KNOWN_ISSUES.md)); nothing below touches it. Measured on CPU, one worker, against `main` =
+`1134526` (which carries D-D27, #602) and the branch that carries D-D28, with the stock recorder: no plant, task or
+recorder change, so every number below is a property of trajectories the r8 task already produces.
+
+**The foot.** On the seed-44 handoff (`robust_best_model.zip`, `d320d274…`) the left pad is pitched 0.6–0.9° toe-down
+on 2.0–2.2 loaded contact points in most episodes (up to 3.0 in a few; the statue 3.6), its centre of pressure on the
+toe edge on every window step of most episodes, with each digit carrying about 1% of the foot's load (the statue 6–8%)
+and the pad 0.97 (the statue 0.79). On panel seed 5058, clean under the D-D27 block: CoP 0.999 of the half-length,
+2.03 points, tilt 0.69°, corner lift 1.9 mm against the 4 mm bar. `min_sole_contacts` cannot rise to it: the statue
+reaches 2.086 on 7042–7081.
+
+**The metric** (`StanceEpisodeMetrics.max_sole_cop_fore_aft`). Per control step, the recorder's force-weighted mean of
+the floor contacts on the sole geom, each in the sole's own frame at its own substep, projected on the sole's forward
+axis and divided by the half-length on it (the box trex pad: 0.070 m; corners read ±1, penetration up to 1.002); its
+absolute value per step, a step with no loaded contact on the sole (none above `CONTACT_THRESHOLD_N`, the 0.1 N
+`min_sole_contacts` counts with) counting 1; the window mean of that per box-sole foot, and the max over feet. Three
+choices, each measured:
+
+- *Per step, not signed.* Seed 42 (`20261006_185343`) rocks its pads heel to toe: on 5042–5061 its signed window means
+  are −0.354 to −0.312 (right) and 0.166 to 0.296 (left), no further from the centre than the statue's, while the
+  per-step |.| of its loaded steps reads 0.956–0.987. Two-sided, too: the compsognathus statue's CoP sits heel-side,
+  at −0.47 on its r1 plant.
+- *An unloaded step counts 1.* No measured statue pad is unloaded on any window step (238 trex full-horizon
+  episodes; the compsognathus, robot and dibothrosuchus statues on 5042), nor is the D-D27 study checkpoint's, so the
+  rule moves none of their numbers; it only raises readings already refused: seed 44's pads are loaded on at least
+  0.91 of the window steps of its full-horizon episodes (its hop episodes lift them; episode 7044, which ends at step
+  370, loads its left pad on 0.31), and seed 42's, loaded on 0.75–0.79, move from 0.956–0.987 to 0.967–0.990.
+  "Loaded" is a loaded contact point, not any floor force: a pad that only grazes the floor, every contact under the
+  threshold, has a centre of pressure (centred, if the pad is flat) and still counts 1, so hovering it hides nothing
+  either. Every panel in the table below was re-rolled on 2026-10-08 under that reading and reads the same to the last
+  digit: no window step of any of them (about 900 episodes, the other species' statues included) has a centre of
+  pressure without a loaded contact. Without the rule, a pad lifted off the floor on most of the window and flat
+  when down reads like the statue (a scripted probe unloaded on 62% of the window reads 0.300), and only
+  `min_sole_contacts` would bound it, which not every species declares.
+- *Box soles only.* The brachiosaurus ellipsoids read 0.821–0.838 on their statue from a single contact on soles
+  pitched 25–28°: the tangent point of the authored pose, not a pressure distribution. The field is NaN there, as on
+  the soleless velociraptor foot.
+
+Rejected: a bound on the digits' load share (the statue's own digit share falls to 0.001–0.002 on some episodes,
+below seed 44's 0.007–0.012), a whole-foot support-outline CoP (it needs recorder changes and reads seed 42's rock at
+0.38–0.42 against the statue's 0.37–0.39), and a load-weighted window mean (statue worst 0.366 against 0.362: no
+separation gained). No new measurement constant, and `MEASUREMENT_VERSION` stays `floor-truth/v1`: a new metric
+changes no adopted key's meaning.
+
+**Calibration** (the reading column over full-horizon episodes, the "over 0.80" column over every episode, an early
+end included, which the horizon refuses anyway; 40-episode panels unless noted; every trex row but the r7 one was
+re-rolled on 2026-10-08 through this change's `episode_stance_metrics` and agrees with the design and critique probes'
+numbers to the last digit):
+
+| Policy | Seeds | `max_sole_cop_fore_aft` | Over 0.80 | Clean, D-D27 block with the key at 0.80 (at 0.75; without) |
+|---|---|---|---|---|
+| statue | 3042–3081 | 0.206–0.362 | 0 | 40 (40; 40) |
+| statue | 5042–5081 | 0.182–0.480 (seed 5048, a fore-aft sway: on its toe edge on 17.6% of window steps) | 0 | 40 (40; 40) |
+| statue | 7042–7081 | 0.167–0.354 | 0 | 40 |
+| statue | 3162–3201 | 0.185–0.362 (39; seed 3174 nosedives at step 265 and reads 0.998) | 1 (3174) | 39 |
+| statue | 9042–9081 | 0.196–0.353 (39; seed 9062 nosedives at step 250 and reads 0.998) | 1 (9062) | 39 |
+| statue | 11042–11081 | 0.198–0.368 | 0 | 40 |
+| statue, N(0, σ) command jitter on every step, one generator per panel, 20 episodes | 3042 (σ 0.02 / 0.05), 5042 (σ 0.03 / 0.04 / 0.05) | 0.285–0.407 / 0.563–0.717; 0.354–0.521 (19) / 0.444–0.646 (19) / 0.529–0.677 (17) | 0 / 0; 1 / 1 / 3 (the falls: 5048 at each σ, 5055 and 5061 at 0.05) | the same with the key as without: 20 and 0; 13, 4 and 0 (the settle peak, the pad bars and falls) |
+| statue, N(0, 0.05) command jitter on every step, seeded per episode | 13042–13081 | 0.564–0.745 (39; seed 13061 falls at step 201) | 1 (13061) | 1 (1; 1): the settle peak refuses the rest |
+| statue, the same jitter from step 200 only (the window), σ 0.05 / 0.07 | 13042–13081 | 0.530–0.697 (39) / 0.672–0.833 (36) | 1 / 8 (4 of them early ends) | 39 (39; 39) / 31 (17; 35): at 0.07 the key alone refuses 4 (13053, 13057, 13068, 13080) |
+| seed 44 `robust_best` | 3042–3081 | 0.869–1.000 | 40 | 0 (0; 13) |
+| seed 44 `robust_best` | 7042–7081 | 0.850–1.000 (39; seed 7081, clean without the key, the least; 7044 hops and ends at step 370, at 1.000) | 40 | 0 (0; 8) |
+| seed 44 `robust_best` | 5042–5081, 9042–9061 (20) | 0.917–1.000, 0.938–1.000 | 40, 20 | 0 (0; 10), 0 |
+| seed 42 `robust_best` | 3042–3081 | 0.962–0.991 | 40 | 0 (0; 0) |
+| seed 42 `robust_best` | 5042–5061 (20) | 0.967–0.990 | 20 | 0 |
+| D-D27 study checkpoint, 368,640 steps (§9's 369k; `long_ls-1.5_s44`) | 3042–3081 | 0.396–0.882 | 1 | 37 (34; 38) |
+| D-D27 study checkpoint | 5042–5081, 7042–7081 | 0.442–0.824, 0.447–0.790 (39; seed 7047 falls at step 181) | 1, 0 | 37 (36; 38), 39 (37; 39) |
+| r7 audit props, 20 each (the #599 tree, on their own plant) | 3042 | 0914 0.842–0.999, 0920 0.593–0.999, 0930 0.997–0.999, 1001 0.961–0.983; the r7 statue 0.202–0.352 | 20, 14, 20, 20 | already refused by the other sole bars |
+
+Other statues (seed 5042 or 3042, 10–40 episodes): compsognathus (r1) 0.451–0.473, heel-side, and its audit hacks
+`20260921` and `20261001` 1.000 (on the d3 toe: the pad carries floor force on at most 3.9% of window steps, median
+under 1%, with about 1% of the foot's load, and then at its front edge); the robot 0.302;
+dibothrosuchus 0.687–0.693 (its hind feet heel-side on four contacts); velociraptor and brachiosaurus unmeasured.
+The baseline is a property of each foot, so the bar is set per species.
+
+**The bar: 0.80.** It sits 1.67 times the statue's worst over 238 episodes, 0.055 above the worst of the statue under
+N(0, 0.05) command jitter on every step (0.745 on 13042–13081, 0.717 on 3042–3061; both panels already fail the
+settle peak on all but a few episodes), and 0.05 under seed 44's best of 140. With the jitter confined to the window
+the key binds on its own only from about σ 0.07 (4 of 40 episodes on 13042–13081; none at 0.05). 0.75 refuses the same defects and
+also the D-D27 study checkpoint, which stands on a flat pad loaded forward to 0.88 (on the four 3042–3081 episodes
+0.75 refuses: 2.9–3.9 loaded points, its CoP past 0.9 of the half-length on at most 0.5% of window steps, pitched
+0.35–0.43° toe-down, its digits carrying 9–12% of the foot's load): at 0.75 its 3042–3081 panel falls from 38/40
+clean to 34/40 (bound 0.725) and fails, and 5042–5081 to 36/40 (0.786), where 0.80 leaves 37/40 (0.817) on both.
+0.80 refuses all 200 seed-44 and seed-42 episodes measured and, of that flat pad, only the most forward-loaded
+episode of each of those two panels (seeds 3076 at 0.882 and 5051 at 0.824), which leaves both panels passing.
+
+**What it leaves open** (scripted probes on the statue trace and on the trex plant, under the D-D27 block with the
+key; re-measured 2026-10-08). The bar is a window mean, so a pad on its front edge for part of the window beside a
+statue-like 0.30 passes up to (0.80 − 0.30)/(1 − 0.30) = 71% of it (64% at 0.75), and a whole panel can: the
+zero-action statue switched to the seed-44 policy at step 460 (blended in over 50 steps), whose left pad then stands
+on its front edge, passes 13042–13081 (37/40 clean, bound 0.817, `evaluate_stance_v2_gate` passed), every clean
+episode with that pad past 0.9 of the half-length on 0.56–0.66 of its window and reading 0.69–0.80; switched at step
+400 (the edge on 0.64–0.74 of the window) it is 19/40 and fails, and the reverse order (seed 44 until step 680, then
+the statue) passed 7 of its 8 otherwise-clean episodes in the review. A policy whose pads drift onto their front
+edge after about the first third of the window would therefore certify. A second statistic would separate that
+construction, the per-foot fraction of window steps past 0.9 (the statue 0.000 on 3042–3081 and at most 0.176 on
+5042–5081, seed 5048; the study checkpoint at most 0.024; the construction 0.56–0.66), but N(0, 0.05) command
+jitter on every step already reads 0.24–0.55 on it, so it needs a calibration against tremor before it can be a
+bar, and sliding or half-window means do not close a duty-cycled version (a 1 s block mean reaches 0.999 on statue
+seed 5048); neither is part of D-D28. A pad rolled about 1° that also carries seed 44's toe-down pitch loads three
+corners, the two toe corners and one heel corner, which hold the reading about 0.25 under the 1.0 an edge stance
+gets at that pitch: a servo on the contralateral ankle holding the left pad's CoP at 0.97 (drive limited to −0.07)
+on the statue seeds whose pads roll (13043, 13044, 13049, 13050) pitches those pads 0.54–0.73° toe-down and rolls
+them 0.67–1.20°, on 2.88–3.05 loaded points with the digits at 4.9–7.3% of the foot's load (the statue's at least
+11%), and they read 0.761–0.774 and are clean; stronger drive is refused by the key or the 4 mm corner-lift bar. A
+toe-down sole-pitch bar would separate it, on a thin margin (the statue −0.21 to −0.09°, the study checkpoint −0.35
+to −0.43°, these probes −0.54 to −0.73°, seed 44 −0.5 to −0.9°). A pad loaded on its heel and toe in turn inside one
+control step reads centred (5 substeps a step, behind the 10 Hz command filter). A diagonal two-corner split is
+impossible for a rigid box on a plane, and a lateral-edge stance centres the fore-aft CoP but is not a defect: the
+statue itself stands on a lateral edge (outer |CoP| up to 0.995, 2.14 loaded points, on 5042–5081), which the tilt
+and corner-lift bars bound.
+
+**Panels recorded before the metric.** Every v2 report and `stance_panel_selected.csv` written before D-D28 lacks
+the column; `max_sole_cop_fore_aft` is the first of `STANCE_METRIC_LATER_FIELDS`, which the readers take as
+unmeasured when absent. Run on a copy of the seed-44 stage directory as it was judged on `main` before this change
+(report `mesozoic.stance-gate-report/v3`, recorded FAIL, 13/40): under its recorded block, the judge, backfill
+(`--gate recorded`) and publication re-derive it unchanged (13/40, bound 0.2041, the recorded failure, the same
+per-episode flags); under that block with the key added, the judge refuses it first on its thresholds and, with
+those restated to the declaring block, by name on the missing metric, and publication refuses the CSV by name ("has
+no column for the declared max_sole_cop_fore_aft ... re-roll the panel"), never failing its 40 episodes as
+unmeasured. Re-rolling the panel on the same handoff pair measures it: the seed-44 rows above are such re-rolls.
+
+**Digests.** Three lines of the 649-line golden move, all T. rex stance: `gate_sha256`,
+`stage_config_view_sha256.PPO` and `.SAC`. No task, recipe, plant, interface or other species' line moves, and the
+measurement manifest and definition digests a report stamps are unchanged.
+
+**Limits.** The design and critique probes and this addendum's scripts are not in the repository; the panels
+regenerate from the checkpoint pairs on Drive with `stance_gate_report.py` at this note's commit, whose
+`stance_panel_selected.csv` carries the `max_sole_cop_fore_aft` column. The jitter, seed-42 5042 and r7 panels are 20
+episodes. The compsognathus numbers are its r1 plant's, which its revision (D-D26) moves: on the D-D26 branch as of
+2026-10-07 its statue reads about 0.14–0.18 on the report test's short panel, and the ankle command that stood the
+r1 pad on its front edge no longer does, so the end-to-end test of the edge refusal runs on the T. rex instead (the
+left ankle ramped to −0.075 over 300 steps leans the animal onto its right pad's front edge: 0.86–0.93 on 3042–3044
+at a 400-step horizon, flat by every other pad bar, while the statue reads under 0.35). D-D28 lands after D-D26 and is
+rebased on it, which re-measures its compsognathus readings and the compsognathus bar on that plant.

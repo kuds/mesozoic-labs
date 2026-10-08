@@ -78,6 +78,7 @@ export const STANCE_V2_EPISODE_CRITERIA = [
   'min_sole_contacts',
   'max_episode_yaw_change_deg',
   'max_settle_touchdowns',
+  'max_sole_cop_fore_aft',
   'min_foot_load_share_statue_ratio',
 ] as const;
 
@@ -315,6 +316,7 @@ interface RawStage {
     min_sole_contacts?: number | null;
     max_episode_yaw_change_deg?: number | null;
     max_settle_touchdowns?: number | null;
+    max_sole_cop_fore_aft?: number | null;
     max_hop_or_fall_episodes?: number | null;
     min_foot_load_share_statue_ratio?: number | null;
   };

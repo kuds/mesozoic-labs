@@ -474,10 +474,13 @@ def stance_v2_report_refusals(
     * a non-boolean ``passed``;
     * and, once all of that holds, a report whose verdict cannot be
       re-derived from its own rows -- no rows, a row off the certification
-      panel (seed ``PUBLICATION_SEED_START + i``), a statue-relative
-      criterion declared with no statue rows, or a recorded statue reference
-      its rows do not reduce to -- or whose recorded ``passed``, clean count
-      or per-episode clean flags disagree with the re-derivation.
+      panel (seed ``PUBLICATION_SEED_START + i``), a declared criterion
+      whose metric its rows were recorded without (a metric added after
+      the panel was rolled; re-rolling it measures the metric), a
+      statue-relative criterion declared with no statue rows, or a recorded
+      statue reference its rows do not reduce to -- or whose recorded
+      ``passed``, clean count or per-episode clean flags disagree with the
+      re-derivation.
     """
     refusals, _ = _admit_stance_v2_report(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
     return refusals
@@ -684,7 +687,10 @@ def _rederive_stance_v2_verdict(
     :func:`~environments.shared.curriculum.stance_gate_v2.evaluate_stance_v2_gate`,
     and refused unless it agrees with the recorded verdict, clean count and
     per-episode classification.  A report's ``passed`` is therefore never
-    what certifies the stage: the rows are.
+    what certifies the stage: the rows are.  Rows recorded before a metric a
+    declared criterion reads existed are refused by name rather than scored:
+    every episode would fail that criterion as unmeasured, a verdict about
+    the panel's age rather than the policy.
     """
     from environments.shared.constants import PUBLICATION_SEED_START
     from environments.shared.curriculum.stance_gate_v2 import (
@@ -693,6 +699,7 @@ def _rederive_stance_v2_verdict(
         StatueReference,
         evaluate_stance_v2_gate,
         statue_reference,
+        unrecorded_criteria,
     )
     from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
 
@@ -700,6 +707,16 @@ def _rederive_stance_v2_verdict(
         thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     except ValueError as exc:
         return [f"stage {stage} declares {STANCE_GATE_V2_KIND} without a judgeable gate: {exc}"], None
+    evidence_rows = stance_report.get("episode_evidence")
+    if isinstance(evidence_rows, list) and evidence_rows and all(isinstance(row, Mapping) for row in evidence_rows):
+        unrecorded = unrecorded_criteria(thresholds, set.intersection(*(set(row) for row in evidence_rows)))
+        if unrecorded:
+            named = ", ".join(key if key == metric else f"{key} ({metric})" for key, metric in unrecorded)
+            return [
+                f"stage {stage} stance report's episode rows record no metric for the declared {named}: the panel "
+                "was rolled before the metric existed, so it was never measured on it; re-roll the panel on the "
+                "handoff pair (the notebook JUDGE branch / generate_stage_artifacts) to measure it"
+            ], None
 
     def episodes_of(rows: Any, *, what: str) -> list[StanceEpisodeMetrics]:
         if not isinstance(rows, list) or not rows:

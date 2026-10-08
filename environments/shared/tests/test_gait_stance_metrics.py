@@ -34,6 +34,7 @@ from environments.shared.gait.stance_metrics import (
     _WINDOW_FIELDS,
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
+    STANCE_METRIC_LATER_FIELDS,
     StanceEpisodeMetrics,
     episode_stance_metrics,
     spawn_grace_steps,
@@ -158,6 +159,7 @@ def test_the_statue_scores_the_ideal_on_every_metric():
         "max_sole_corner_lift_m": 0.0,
         "min_sole_contacts": 4.0,
         "max_sole_cop_outer": 0.0,
+        "max_sole_cop_fore_aft": 0.0,
         "spawn_peak_floor_force_bw": 1.0,
         "spawn_airborne_substeps": 0.0,
         "settle_unsupported_steps": 0.0,
@@ -334,6 +336,8 @@ def test_an_authored_tilt_counts_only_beyond_the_keyframe():
     assert result.max_sole_tilt_excess_deg == pytest.approx(0.8)
     assert result.sole_rolled_fraction == 0.0  # 0.8 < SOLE_ROLLED_DEG
     assert math.isnan(result.max_sole_corner_lift_m)
+    # The one tangent contact of a pitched ellipsoid sits where the pose puts it: no fore-aft CoP is read.
+    assert math.isnan(result.max_sole_cop_fore_aft)
 
 
 def test_feet_without_a_sole_leave_every_flatness_metric_unmeasured():
@@ -359,10 +363,88 @@ def test_feet_without_a_sole_leave_every_flatness_metric_unmeasured():
         "max_sole_corner_lift_m",
         "min_sole_contacts",
         "max_sole_cop_outer",
+        "max_sole_cop_fore_aft",
     ):
         assert math.isnan(getattr(result, name)), name
     assert all(math.isnan(value) for value in result.mean_sole_tilt_deg)
     assert result.all_feet_support == 1.0
+
+
+def _cop_fore(trace: EpisodeTrace, columns: dict[int, Any]) -> EpisodeTrace:
+    """*trace* with the fore-aft CoP of foot ``f`` set to ``columns[f]`` (a value or a per-step array)."""
+    cop = trace.sole_cop.copy()
+    for foot, values in columns.items():
+        cop[:, foot, 0] = values
+    return edited(trace, sole_cop=cop)
+
+
+def test_a_pad_on_its_front_edge_reads_one_and_a_pad_off_centre_its_distance():
+    """The r8 seed-44 left foot (D-D28): the CoP pinned at the pad's toe edge, the other pad 0.3 forward."""
+    trace = statue_trace()
+    result = metrics(_cop_fore(trace, {0: 0.3, 1: 1.0}))
+    assert result.max_sole_cop_fore_aft == 1.0  # the worse pad
+    assert metrics(_cop_fore(trace, {0: 0.3, 1: 0.3})).max_sole_cop_fore_aft == pytest.approx(0.3)
+    # Two-sided: a pad loaded toward its heel reads its distance from the centre too.
+    assert metrics(_cop_fore(trace, {0: -0.47, 1: -0.45})).max_sole_cop_fore_aft == pytest.approx(0.47)
+    # The window only: an edge stance in the settle is the settle bars' business.
+    settle_edge = np.where(np.arange(400) < 100, 1.0, 0.2)
+    assert metrics(_cop_fore(trace, {0: settle_edge, 1: settle_edge})).max_sole_cop_fore_aft == pytest.approx(0.2)
+    # Every flatness bar the pad already had reads it as the statue: a flat pad, four contacts, no lift.
+    assert (result.max_sole_tilt_deg, result.max_sole_corner_lift_m, result.min_sole_contacts) == (0.0, 0.0, 4.0)
+
+
+def test_a_pad_rocking_heel_to_toe_reads_its_edges_not_its_centre():
+    """The r8 seed-42 rock: the per-step CoP swings from -1 to +1, so its signed window mean looks centred."""
+    trace = statue_trace()
+    rock = np.where(np.arange(400) % 2 == 0, 1.0, -1.0)
+    result = metrics(_cop_fore(trace, {0: rock, 1: 0.3}))
+    assert float(np.mean(rock[100:])) == 0.0
+    assert result.max_sole_cop_fore_aft == 1.0
+
+
+def test_an_edge_stance_on_part_of_the_window_is_its_time_weighted_distance():
+    """(bar - s) / (1 - s) of the window on an edge beside a centred s passes: the gap the key leaves open."""
+    trace = statue_trace()
+    part = np.full(400, 0.3)
+    part[100:250] = 1.0  # 150 of the 300 window steps
+    assert metrics(_cop_fore(trace, {0: part})).max_sole_cop_fore_aft == pytest.approx(0.5 * 1.0 + 0.5 * 0.3)
+
+
+def test_a_step_with_the_pad_unloaded_counts_as_on_its_edge():
+    """Lifting the pad off the floor cannot hide an edge stance, and a pad never loaded reads 1, measured."""
+    trace = statue_trace()
+    lifted = np.full(400, 0.3)
+    lifted[100:250] = np.nan  # the recorder's CoP on a step whose sole carries no floor force
+    result = metrics(_cop_fore(trace, {1: lifted}))
+    assert result.max_sole_cop_fore_aft == pytest.approx(0.5 * 1.0 + 0.5 * 0.3)
+    assert result.max_sole_cop_outer == 0.0  # the report-only lateral CoP reads the loaded steps only
+    assert metrics(_cop_fore(trace, {1: np.nan})).max_sole_cop_fore_aft == 1.0
+
+
+def test_a_step_with_no_loaded_sole_contact_counts_as_on_its_edge_though_it_has_a_cop():
+    """A pad that only grazes the floor (every contact under CONTACT_THRESHOLD_N, as ``min_sole_contacts``
+    counts them) has a centre of pressure, centred if the pad is flat, and still counts 1: hovering it cannot
+    hide an edge stance either."""
+    trace = statue_trace()
+    contacts = trace.sole_contacts_mean.copy()
+    contacts[100:][np.arange(300) % 2 == 0, 1] = 0.0  # 150 of the 300 window steps; the CoP stays centred
+    result = metrics(edited(trace, sole_contacts_mean=contacts))
+    assert result.max_sole_cop_fore_aft == pytest.approx(0.5 * 1.0 + 0.5 * 0.0)
+    assert result.min_sole_contacts == 2.0  # which the trex block's 1.5 admits
+    # A loaded contact point on one substep of the step is a loaded step.
+    contacts[100:, 1] = 0.2
+    assert metrics(edited(trace, sole_contacts_mean=contacts)).max_sole_cop_fore_aft == 0.0
+
+
+def test_the_fore_aft_cop_reads_box_soles_only():
+    """A finite corner lift on every window step marks a box; a foot without one is left out, and none is NaN."""
+    trace = statue_trace()
+    lift = trace.sole_corner_lift.copy()
+    lift[:, 1] = np.nan  # foot 1 is not a box
+    result = metrics(edited(_cop_fore(trace, {0: 0.3, 1: 1.0}), sole_corner_lift=lift))
+    assert result.max_sole_cop_fore_aft == pytest.approx(0.3)
+    lift[:, 0] = np.nan
+    assert math.isnan(metrics(edited(trace, sole_corner_lift=lift)).max_sole_cop_fore_aft)
 
 
 # ── support geoms ────────────────────────────────────────────────────────────
@@ -600,6 +682,20 @@ def test_from_row_refuses_a_missing_or_unreadable_field():
     assert StanceEpisodeMetrics.from_row({**row, "terminated": "True"}).terminated is True
 
 
+def test_a_row_recorded_before_a_later_metric_reads_it_as_unmeasured():
+    """The pad's fore-aft CoP (D-D28) postdates the panel CSV contract: its absence is NaN, nothing else moves."""
+    assert "max_sole_cop_fore_aft" in STANCE_METRIC_LATER_FIELDS
+    assert STANCE_METRIC_LATER_FIELDS <= set(STANCE_METRIC_FIELDS) and STANCE_METRIC_LATER_FIELDS <= set(_WINDOW_FIELDS)
+    row = _defective_metrics().as_row()
+    earlier = {key: value for key, value in row.items() if key not in STANCE_METRIC_LATER_FIELDS}
+    restored = StanceEpisodeMetrics.from_row(earlier)
+    assert all(math.isnan(getattr(restored, name)) for name in STANCE_METRIC_LATER_FIELDS)
+    assert same(replace(restored, **{name: row[name] for name in STANCE_METRIC_LATER_FIELDS}).as_row(), row)
+    # Any field outside the later set is still required.
+    with pytest.raises(ValueError, match="max_sole_cop_outer"):
+        StanceEpisodeMetrics.from_row({key: value for key, value in earlier.items() if key != "max_sole_cop_outer"})
+
+
 def test_the_csv_columns_are_the_scalar_fields_in_order_and_hold_every_gated_metric():
     names = [spec.name for spec in fields(StanceEpisodeMetrics)]
     assert list(STANCE_METRIC_FIELDS) == [name for name in names if name not in STANCE_METRIC_FOOT_FIELDS]
@@ -626,6 +722,9 @@ def test_the_csv_columns_are_the_scalar_fields_in_order_and_hold_every_gated_met
         "max_sole_tilt_excess_deg",
         "max_sole_corner_lift_m",
         "min_sole_contacts",
+        "episode_yaw_change_deg",
+        "settle_touchdowns",
+        "max_sole_cop_fore_aft",
     }
     assert gated <= set(STANCE_METRIC_FIELDS)
     assert "foot_load_share" in STANCE_METRIC_FOOT_FIELDS  # the statue-relative share ratio

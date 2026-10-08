@@ -73,7 +73,11 @@ settle re-seat, impacts, flight and raw-command chatter, `log_std_init =
 -1.5`, an opt-in hop watch, four gate keys and a report-only heading probe;
 the gait plan's §14 and the stance-hack audit's §9); section 2 lists both
 runs, and the next trex session is again a fresh stance, on the D-D27
-task.* Section 2 labels each
+task. The same day D-D28 added a pad centre-of-pressure bar to the trex
+stance block (`max_sole_cop_fore_aft` 0.80), which refuses seed 44's left
+foot on its pad's front edge; the task does not move, and the next trex
+stance waits for the heading-free observations the maintainer chose that day
+(section 3's trex status).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -282,10 +286,15 @@ on its publication panel (seeds 3042–3081) and re-judged on the fresh seeds
 7042–7081 (`stance_gate_report.py trex --model … --vecnorm … --seed 7042`)
 before any recovery, walk or hunt trains on it. A seed the hop watch stops at
 7M (`hop_watch.json` in its `01_stance/`) is restarted on a new seed, not
-resumed. Read `stance_heading_probe.txt` beside the gate report: it is report
-only, because whether a certified stance must be heading-robust is the
-maintainer's open decision. Check the pad bars first on the new panels: the
-two short runs on the D-D27 task missed them by up to 0.95° on 2 of 20
+resumed. The maintainer chose on 2026-10-07 to give the trex and the
+compsognathus heading-free observations in one PR after the compsognathus
+revision and before either species trains, so that session waits for it and
+trains on its policy-interface revision, where the spawn-yaw probe
+(`stance_heading_probe.txt` beside the gate report, report only until then)
+becomes a gate check. Check the pad bars first on the new panels: the two
+short runs on the D-D27 task missed them by up to 0.95° on 2 of 20 episodes,
+and the D-D27 369k-step study checkpoint loads its flat pad forward to 0.88 of
+the half-length, past the 0.80 `max_sole_cop_fore_aft` bar (D-D28) on 1 of 40
 episodes.*
 
 Notes:
@@ -585,12 +594,13 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
 - The trex stance on r8 (2026-10-07): one config trained into two basins
   (seed 44 escaped the early hop regime between 5.0M and 6.0M, seed 42 locked
   into a 12.5 Hz hop at 6.5M), and why is not established at n = 2. Whether
-  the D-D27 start (`log_std_init = -1.5`) changes that split, whether the
-  learning rate the recipe's falsified prediction names matters, and whether
-  a certified stance must be heading-robust (both r8 stances fall when
-  spawned 90° off their training heading) are open
+  the D-D27 start (`log_std_init = -1.5`) changes that split and whether the
+  learning rate the recipe's falsified prediction names matters are open;
+  whether a certified stance must be heading-robust (both r8 stances fall
+  when spawned 90° off their training heading) was decided on 2026-10-07 and
+  is not yet carried out (heading-free observations, in a later PR)
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
-  §9; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
+  §9 and §10; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred
   ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §10).
 

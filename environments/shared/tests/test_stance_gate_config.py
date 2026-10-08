@@ -193,3 +193,64 @@ def test_the_r8_seed_44_hop_episode_is_a_hop_for_the_rail(curriculum):
     reasons = classify_stance_episode(hop, thresholds, horizon=1000)
     assert is_hop_or_fall(reasons)
     assert not is_hop_or_fall(classify_stance_episode(replace(clean, max_sole_tilt_deg=2.5), thresholds, horizon=1000))
+
+
+# ── the pad's centre of pressure (decision D-D28, 2026-10-07) ─────────────────
+
+#: The r8 seed-44 robust_best left foot on seed 5058, clean under every other bar: on its pad's front edge on
+#: every window step, the pad 0.67 degrees toe-down on two loaded corners and carrying 0.974 of the foot's load.
+FRONT_EDGE_FOOT: dict[str, float] = {
+    "min_sole_contacts": 2.026,
+    "max_sole_tilt_deg": 0.691,
+    "max_sole_corner_lift_m": 0.00188,
+    "max_sole_cop_fore_aft": 0.999,
+}
+
+
+def test_the_pad_cop_bar_is_declared_beside_the_sole_bars(curriculum):
+    assert curriculum["max_sole_cop_fore_aft"] == 0.80
+    assert StanceV2Thresholds.from_curriculum(curriculum).declared()["max_sole_cop_fore_aft"] == 0.80
+    # It does not replace min_sole_contacts, which stays where the statue's out-of-sample 2.086 put it.
+    assert curriculum["min_sole_contacts"] == 1.5
+
+
+def test_a_pad_on_its_front_edge_is_refused_by_the_cop_bar_alone(curriculum):
+    """Every other sole bar admits the seed-44 left foot: the CoP bar is the one that sees it."""
+    assert _reasons(curriculum, **FRONT_EDGE_FOOT) == {"max_sole_cop_fore_aft"}
+    without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+    assert _reasons(without, **FRONT_EDGE_FOOT) == set()
+    # Its best episode over 140 on four seed blocks (7081, on three loaded points), and seed 42's heel-to-toe
+    # rock, which reads its edges though its signed mean is centred.
+    assert _reasons(curriculum, min_sole_contacts=3.0, max_sole_tilt_deg=0.72, max_sole_cop_fore_aft=0.850) == {
+        "max_sole_cop_fore_aft"
+    }
+    assert _reasons(curriculum, max_sole_cop_fore_aft=0.962) == {"max_sole_cop_fore_aft"}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        0.362,  # the statue's worst on 3042-3081, 7042-7081 and 3162-3201
+        0.480,  # its worst out of sample: seed 5048's fore-aft sway
+        0.745,  # N(0, 0.05) command jitter on every step of the statue (13042-13081; 0.717 on 3042-3061)
+        0.790,  # the D-D27 369k-step study checkpoint's flat pad, loaded forward, on 7042-7081
+    ],
+)
+def test_the_statue_and_a_flat_forward_loaded_pad_clear_the_cop_bar(curriculum, value):
+    assert _reasons(curriculum, max_sole_cop_fore_aft=value) == set()
+
+
+def test_only_the_trex_stance_declares_the_cop_bar():
+    """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
+    stance's [env], not its [curriculum])."""
+    from environments.shared.config import SPECIES_NAMES
+    from environments.shared.curriculum.gate_schema import gate_config_view
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    declaring = []
+    for species in SPECIES_NAMES:
+        for entry in load_stage_manifest(species).stages:
+            block = load_stage_config(species, entry.reference).get("curriculum_kwargs", {})
+            if "max_sole_cop_fore_aft" in gate_config_view(block)["thresholds"]:
+                declaring.append((species, entry.id))
+    assert declaring == [("trex", "stance")]

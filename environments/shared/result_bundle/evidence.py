@@ -570,6 +570,10 @@ def _validate_stance_v2_panel_evidence(
       even with the version unbumped: the same key names would score other
       quantities;
     * no ``max_episode_steps`` (the horizon decides which episodes count);
+    * a file recorded without the column of a metric a declared criterion
+      reads (``stance_gate_v2.unrecorded_criteria``: a metric added after
+      the panel was rolled), named, rather than every episode failed as
+      unmeasured -- re-rolling the panel measures it;
     * a recorded ``reached_horizon`` or ``clean`` flag that the
       re-derivation contradicts;
     * and, of course, a re-derived verdict that fails --
@@ -580,9 +584,15 @@ def _validate_stance_v2_panel_evidence(
     Without this arm a recorded v2 PASS would take the legacy loop below and
     publish on ``min_avg_reward`` alone, the rail the statue clears.
     """
-    from ..curriculum.stance_gate_v2 import StanceV2Thresholds, evaluate_stance_v2_gate, read_stance_v2_panel
+    from ..curriculum.stance_gate_v2 import (
+        StanceV2Thresholds,
+        evaluate_stance_v2_gate,
+        read_stance_v2_panel,
+        unrecorded_criteria,
+    )
     from ..gait.constants import MEASUREMENT_VERSION, measurement_definition_sha256
     from ..gait.morphology import measurement_definition
+    from ..gait.stance_metrics import STANCE_METRIC_FIELDS
 
     kind = STANCE_GATE_V2_KIND
     if not panel_path.is_file():
@@ -665,6 +675,14 @@ def _validate_stance_v2_panel_evidence(
         thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     except ValueError as exc:
         raise ResultBundleError(f"stage {stage} declares {kind} without a scorable gate: {exc}") from exc
+    unrecorded = unrecorded_criteria(thresholds, set(STANCE_METRIC_FIELDS) - set(evidence.absent_metrics))
+    if unrecorded:
+        named = ", ".join(key if key == metric else f"{key} ({metric})" for key, metric in unrecorded)
+        raise ResultBundleError(
+            f"stage {stage} {kind} panel evidence {panel_path.name} has no column for the declared {named}: the "
+            "panel was rolled before the metric existed, so it was never measured on it; re-roll the panel on the "
+            "certified pair to measure it"
+        )
     try:
         control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
     except (TypeError, ValueError) as exc:

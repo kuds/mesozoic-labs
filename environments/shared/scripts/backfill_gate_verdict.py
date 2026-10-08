@@ -29,7 +29,9 @@ evidence the directory already holds, through the one shared judge
   the verdict it records (``reporting.gates.stance_v2_report_refusals``,
   the judge's own check, which includes the re-derivation).  So a FAIL is
   written only for a panel that re-derives cleanly to a failing verdict; a
-  missing report is a refusal;
+  missing report is a refusal, and so is one whose rows predate a metric a
+  declared criterion reads (``StanceEpisodeMetrics`` fields added later,
+  such as the pad's fore-aft centre of pressure): re-roll its panel;
 * ``reward_and_length/v1`` — from the selected checkpoint's
   ``evaluation_selected.csv`` when its rows are hash-bound to the handoff
   checkpoint, else from ``evaluations.npz`` / ``metrics.json`` (the
