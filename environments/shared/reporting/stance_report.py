@@ -58,6 +58,7 @@ from ..curriculum.stance_gate import (
 )
 from ..curriculum.stance_gate_v2 import (
     EPISODE_CRITERIA,
+    HOP_OR_FALL_KEYS,
     HORIZON_REASON,
     STANCE_GATE_V2_KIND,
     STANCE_V2_PANEL_FIELDNAMES,
@@ -530,6 +531,9 @@ def _commanded_angle(entry: dict[str, Any], action: float) -> float:
     Real reports use the applied-control moments recorded during rollout.  The
     helper remains useful for endpoint display, fixtures, and legacy reports,
     but must still mirror ``home-keyframe-residual/v1`` on both sides of zero.
+    Under ``home-keyframe-residual-softcubic/v1`` (the anatomical compsognathus
+    legs) it is exact at zero and at both endpoints only: the shaped residual
+    ``0.1 a + 0.9 a**3`` lies closer to home than this line between them.
     """
     clipped = float(np.clip(action, -1.0, 1.0))
     zero = float(
@@ -1080,12 +1084,16 @@ def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
     One deliberate approximation, worth knowing when reading the results: the
     held control is ``f(mean(action))``, not the ``mean(f(action))`` the
     policy actually commanded -- the same distinction schema v2 draws for the
-    report's degree statistics. The two differ only for an actuator whose
-    action distribution crosses zero AND whose ctrlrange spans differ about
-    its home control; on the current trex plant that is neck/head pitch only,
-    where the measured crossings put the bias near 0.01 degrees. If a future
-    plant makes the gap material, derive the hold by inverting the recorded
-    per-actuator ``ctrl_mean`` through the probed mapping instead.
+    report's degree statistics. Under the piecewise-affine map the two differ
+    only for an actuator whose action distribution crosses zero AND whose
+    ctrlrange spans differ about its home control; on the current trex plant
+    that is neck/head pitch only, where the measured crossings put the bias
+    near 0.01 degrees. Under ``home-keyframe-residual-softcubic/v1`` (the
+    anatomical compsognathus legs) they differ wherever a shaped action
+    varies, by ``2.7 * mean * variance`` of the residual before the span (for
+    a symmetric action distribution). If a plant makes the gap material,
+    derive the hold by inverting the recorded per-actuator ``ctrl_mean``
+    through the probed mapping instead.
     """
     per_actuator = (report.get("action") or {}).get("per_actuator") or []
     if not per_actuator:
@@ -1740,6 +1748,17 @@ def _finite_values(rows: list[dict[str, Any]], field_name: str) -> list[float]:
     return values
 
 
+#: How the text report names each hop-or-fall key in the rail's line.
+_HOP_OR_FALL_WORDS: dict[str, str] = {
+    "min_all_feet_support": "support",
+    "max_touchdown_rate": "touchdowns",
+    "max_window_displacement_m": "drift",
+    "max_actuator_saturation_fraction": "saturation",
+    "max_window_airborne_substeps": "window airborne substeps",
+    "max_window_peak_floor_force_bw": "window peak floor force",
+}
+
+
 def _render_stance_v2_report(report: dict[str, Any]) -> str:
     """The text form of a ``stance_quality/v2`` report: the bound, then each criterion, then the episodes.
 
@@ -1799,9 +1818,11 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             lines.append(f"  {key:36s} {float(thresholds[key]):g} (panel rail)")
     if "max_hop_or_fall_episodes" in thresholds:
         key = "max_hop_or_fall_episodes"
+        # The hop keys the block declares: an undeclared one fails no episode.
+        hop_words = [_HOP_OR_FALL_WORDS.get(hop, hop) for hop in HOP_OR_FALL_KEYS if hop in thresholds]
         lines.append(
             f"  {key:36s} <= {int(thresholds[key])} (panel rail: {result.get('hop_or_fall_episodes')} episodes end "
-            "early or fail support, touchdowns, drift or saturation)"
+            f"early or fail {', '.join(hop_words[:-1])} or {hop_words[-1]})"
         )
     statue = report.get("statue")
     if statue:
@@ -1823,6 +1844,8 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
             ("settle_touchdowns", "settle-window touchdowns"),
             ("max_sole_cop_fore_aft", "pad CoP fore-aft (|.| / half-length)"),
+            ("window_airborne_substeps", "window both-feet-unloaded substeps"),
+            ("window_peak_floor_force_bw", "window peak floor force (BW)"),
         )
         if metric not in gated_metrics
     )

@@ -49,7 +49,8 @@ at 37/40 it cannot tell three pad near-misses from three whole-episode hops
 or falls.  ``max_hop_or_fall_episodes`` caps the episodes that end before
 the horizon or fail one of :data:`HOP_OR_FALL_KEYS` -- the criteria a hop, a
 chatter limit cycle or a fall fails (support, touchdowns, drift, command
-saturation) -- and leaves the pad, load-share and settle bars to the bound,
+saturation, and the window hop pair below where declared) -- and leaves the
+pad, load-share and settle bars to the bound,
 as D-D23 sized them.  It counts from the classification reasons, which a
 recorded panel CSV re-derives, so the judge, publication and backfill need
 no new input.  Declared by trex since D-D27, where the seed-44 physics-r8
@@ -92,6 +93,25 @@ settle window empty and every settle metric NaN, so
 :meth:`StanceV2Thresholds.validate_settle_window` and the gate itself refuse
 one whenever the control step is known.
 
+The window hop pair
+-------------------
+A leg is down on a step when it carries load on at least half of the step's
+substeps, so the window's support, flight and touchdown criteria read a hop
+only when its flight phase lasts half a control step or more.  On a light
+plant it can be shorter: the anatomical compsognathus (2 ms substeps, ten to
+a 0.02 s step) hops on both feet at 10 Hz with 1-3 airborne substeps a step
+and reads both legs down on every step, no touchdown and no flight.  The
+optional ``max_window_airborne_substeps`` and
+``max_window_peak_floor_force_bw`` read the settle window's own hop and
+impact detectors over the window instead (``feet_airborne_substeps`` and
+``total_floor_max`` of the trace, summed and maxed over ``[settle_steps,
+T)``), so such a hop fails its episode wherever in the episode it starts if
+it flies longer, or lands harder, than the declared bars; declared by the
+compsognathus since D-D26.  Neither sees a foot lifted for less than half a
+step while the other stays down, and a soft enough bounce passes both: on
+that plant both certify (KNOWN_ISSUES).  Undeclared, neither is applied,
+and neither needs a statue panel.  Both are metrics added later (below).
+
 The pad's centre of pressure
 ----------------------------
 The sole bars read a pad's tilt, its corner lift and its loaded contact
@@ -104,8 +124,9 @@ pushes: the window mean of the per-step ``|fore-aft CoP| / half-length``
 (``StanceEpisodeMetrics.max_sole_cop_fore_aft``: 0 centred, 1 on an edge
 or with no loaded contact), which separates that foot (0.85-1.00) from the
 statue (at most 0.48).  Box soles only, and two-sided, because the
-compsognathus statue stands heel-side.  Declared by trex since D-D28;
-undeclared, it is not applied.
+compsognathus statue stands heel-side.  Declared by trex since D-D28 (0.80)
+and by the compsognathus since D-D26 (0.70, on its r2 statue); undeclared,
+it is not applied.
 
 Metrics added later
 -------------------
@@ -182,6 +203,8 @@ EPISODE_CRITERIA: tuple[tuple[str, str, str], ...] = (
     ("max_episode_yaw_change_deg", "episode_yaw_change_deg", "max"),
     ("max_settle_touchdowns", "settle_touchdowns", "max"),
     ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", "max"),
+    ("max_window_airborne_substeps", "window_airborne_substeps", "max"),
+    ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", "max"),
 )
 
 #: Optional keys whose bar must lie strictly inside ``(low, high)``, ``(key,
@@ -197,18 +220,36 @@ CRITERION_BAR_RANGES: tuple[tuple[str, float, float, str], ...] = (
     ),
 )
 
+#: The window hop pair's floors, ``(key, least valid bar, why)``: a bar below
+#: either refuses every episode, so it is a typo, not a strict gate
+#: (:meth:`StanceV2Thresholds.from_curriculum`, and ``gate_schema`` at config
+#: load, as for :data:`CRITERION_BAR_RANGES`).
+WINDOW_HOP_KEY_FLOORS: tuple[tuple[str, float, str], ...] = (
+    ("max_window_airborne_substeps", 0.0, "it counts substeps"),
+    (
+        "max_window_peak_floor_force_bw",
+        1.0,
+        "a supported window's floor force averages one body weight, so no substep peak sits below it",
+    ),
+)
+
 #: The criteria whose failure, with an early end (:data:`HORIZON_REASON`),
 #: marks an episode as a hop or a fall for the ``max_hop_or_fall_episodes``
 #: panel rail: every leg down, debounced touchdowns, root drift and command
-#: saturation over the window.  A whole-episode hop fails several of them at
-#: once (the seed-44 physics-r8 trex hop episodes fail support and
-#: displacement); the pad, load-share, phantom, yaw and settle bars are not
-#: in it, so the rail does not tighten them.
+#: saturation over the window, and the window hop pair where a gate declares
+#: it (D-D26: on a plant whose hop flights are shorter than half a control
+#: step, the pair is what reads a hop over the window, so it counts as one).
+#: A whole-episode hop fails several of them at once (the seed-44 physics-r8
+#: trex hop episodes fail support and displacement); the pad, load-share,
+#: phantom, yaw and settle bars are not in it, so the rail does not tighten
+#: them.
 HOP_OR_FALL_KEYS: tuple[str, ...] = (
     "min_all_feet_support",
     "max_touchdown_rate",
     "max_window_displacement_m",
     "max_actuator_saturation_fraction",
+    "max_window_airborne_substeps",
+    "max_window_peak_floor_force_bw",
 )
 
 #: The keys judged against the statue panel rolled in the same report.
@@ -340,6 +381,8 @@ class StanceV2Thresholds:
     max_settle_touchdowns: float | None = None
     max_sole_cop_fore_aft: float | None = None
     max_hop_or_fall_episodes: int | None = None
+    max_window_airborne_substeps: float | None = None
+    max_window_peak_floor_force_bw: float | None = None
     required_consecutive: int = 3
 
     @classmethod
@@ -356,9 +399,13 @@ class StanceV2Thresholds:
         ``binomial_lcb(0, n) = 0``, a panel with no clean episode, and no
         panel of 40 bounds above 0.928, so a bar at or above 1 is a typo
         that would refuse every policy; :data:`CRITERION_BAR_RANGES` bounds
-        the keys that read a fraction the same way.  Keys outside the kind
-        (schedule, diagnostic, publication) are ignored; ``gate_schema``
-        validates them.
+        the keys that read a fraction the same way, and
+        :data:`WINDOW_HOP_KEY_FLOORS` the window hop pair from below:
+        ``max_window_airborne_substeps`` must not be negative, and
+        ``max_window_peak_floor_force_bw`` must be at least 1, since a
+        supported window's floor force averages the body weight, so its
+        substep peak cannot sit below it.  Keys outside the kind (schedule,
+        diagnostic, publication) are ignored; ``gate_schema`` validates them.
         """
         values: dict[str, Any] = {}
         for key in sorted(STANCE_V2_REQUIRED_KEYS):
@@ -381,6 +428,11 @@ class StanceV2Thresholds:
                 raise ValueError(
                     f"{STANCE_GATE_V2_KIND} threshold {key} must lie strictly between {low:g} and {high:g}, not "
                     f"{values[key]!r}: {why}"
+                )
+        for key, floor, why in WINDOW_HOP_KEY_FLOORS:
+            if key in values and values[key] < floor:
+                raise ValueError(
+                    f"{STANCE_GATE_V2_KIND} threshold {key} must be at least {floor:g}, not {values[key]!r}: {why}"
                 )
         lcb = values["min_clean_stance_lcb"]
         if not 0.0 < lcb < 1.0:
@@ -735,9 +787,11 @@ def evaluate_stance_v2_gate(
     if thresholds.max_hop_or_fall_episodes is not None:
         hop_or_fall = sum(1 for episode_reasons in reasons if is_hop_or_fall(episode_reasons))
         if hop_or_fall > thresholds.max_hop_or_fall_episodes:
+            # Only the hop keys the gate declares: an undeclared one fails no episode.
+            declared_hop_keys = [key for key in HOP_OR_FALL_KEYS if getattr(thresholds, key) is not None]
             failures.append(
                 f"hop_or_fall_episodes {hop_or_fall} > {thresholds.max_hop_or_fall_episodes} (episodes ending early "
-                f"or failing {', '.join(HOP_OR_FALL_KEYS)}; panel rail)"
+                f"or failing {', '.join(declared_hop_keys)}; panel rail)"
             )
 
     mean_reward = _mean([row.reward for row in rows])

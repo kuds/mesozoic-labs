@@ -137,6 +137,8 @@ class TestRegistration:
             "max_settle_touchdowns",
             "max_sole_cop_fore_aft",
             "max_hop_or_fall_episodes",
+            "max_window_airborne_substeps",
+            "max_window_peak_floor_force_bw",
             "required_consecutive",
         }
 
@@ -209,6 +211,29 @@ class TestFromCurriculum:
         assert binomial_lcb(0, 40) == 0.0
         with pytest.raises(ValueError, match="strictly between 0 and 1"):
             StanceV2Thresholds.from_curriculum({**BLOCK, "min_clean_stance_lcb": value})
+
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("max_window_airborne_substeps", -1),
+            ("max_window_airborne_substeps", -0.5),
+            ("max_window_peak_floor_force_bw", 0.0),
+            ("max_window_peak_floor_force_bw", 0.9),
+        ],
+    )
+    def test_the_window_hop_pair_refuses_a_bar_no_episode_can_meet(self, key, value):
+        """A negative substep count, or a peak under the body weight a supported window averages."""
+        with pytest.raises(ValueError, match=rf"{key} must be at least"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, key: value})
+
+    def test_the_window_hop_pair_reads_at_its_floors_and_is_none_undeclared(self):
+        read = thresholds(max_window_airborne_substeps=0, max_window_peak_floor_force_bw=1.0)
+        assert (read.max_window_airborne_substeps, read.max_window_peak_floor_force_bw) == (0.0, 1.0)
+        with pytest.raises(ValueError, match="max_window_airborne_substeps is not numeric"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, "max_window_airborne_substeps": "30"})
+        undeclared = thresholds()
+        assert undeclared.max_window_airborne_substeps is None and undeclared.max_window_peak_floor_force_bw is None
+        assert not {"max_window_airborne_substeps", "max_window_peak_floor_force_bw"} & set(undeclared.declared())
 
     @pytest.mark.parametrize("value", [0.0, -0.2, 1.0, 1.25])
     def test_the_pad_cop_bar_must_lie_strictly_inside_zero_one(self, value):
@@ -299,6 +324,8 @@ class TestClassification:
             ("max_episode_yaw_change_deg", "episode_yaw_change_deg", 42.7),
             ("max_settle_touchdowns", "settle_touchdowns", 3.0),
             ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", 0.85),
+            ("max_window_airborne_substeps", "window_airborne_substeps", 472.0),
+            ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", 3.99),
         ],
     )
     def test_every_optional_criterion_refuses_its_defect_once_declared(self, clean, key, field_name, value):
@@ -306,7 +333,8 @@ class TestClassification:
                "max_nonfoot_load_fraction": 0.01, "max_settle_stance_width_change_m": 0.04,
                "min_support_geom_duty": 0.9, "min_support_geom_coverage": 0.9,
                "max_sole_tilt_excess_deg": 10.0, "max_episode_yaw_change_deg": 25.0,
-               "max_settle_touchdowns": 2, "max_sole_cop_fore_aft": 0.8}[key]  # fmt: skip
+               "max_settle_touchdowns": 2, "max_sole_cop_fore_aft": 0.8, "max_window_airborne_substeps": 30,
+               "max_window_peak_floor_force_bw": 3.0}[key]  # fmt: skip
         declared = thresholds(**{key: bar})
         assert classify_stance_episode(clean, declared, horizon=HORIZON) == ()
         reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
@@ -327,6 +355,30 @@ class TestClassification:
         # A padless foot reads it unmeasured: declared there, it would fail every episode.
         reasons = classify_stance_episode(replace(clean, max_sole_cop_fore_aft=math.nan), declared, horizon=HORIZON)
         assert reasons == ("max_sole_cop_fore_aft: max_sole_cop_fore_aft is unmeasured (nan)",)
+
+    def test_a_post_settle_hop_with_sub_half_step_flights_is_refused_only_by_the_window_hop_pair(self, clean):
+        """The compsognathus two-foot hop the D-D26 review certified under the step-level bars.
+
+        Its flights last 1-3 of a step's 10 substeps, so each leg is down on
+        every step (``leg_down_frac >= DOWN_SUBSTEP_FRACTION``): full support,
+        no touchdown, no flight, and a quiet settle, because it starts after
+        it.  The two metrics are the landed plant's (seed 3042: 472 airborne
+        substeps and a 3.99 BW landing over the 800 window steps).
+        """
+        hop = replace(clean, window_airborne_substeps=472.0, window_peak_floor_force_bw=3.99)
+        assert (hop.all_feet_support, hop.touchdown_rate, hop.flight_fraction) == (1.0, 0.0, 0.0)
+        assert classify_stance_episode(hop, thresholds(), horizon=HORIZON) == ()
+        pair = {"max_window_airborne_substeps": 30, "max_window_peak_floor_force_bw": 3.0}
+        assert classify_stance_episode(clean, thresholds(**pair), horizon=HORIZON) == ()
+        reasons = classify_stance_episode(hop, thresholds(**pair), horizon=HORIZON)
+        assert reason_keys(reasons) == set(pair)
+        # Each refuses it alone, and the pair needs no statue panel.
+        for key, bar in pair.items():
+            alone = thresholds(**{key: bar})
+            assert not alone.declares_statue_criteria()
+            assert reason_keys(classify_stance_episode(hop, alone, horizon=HORIZON)) == {key}
+        assert not evaluate_stance_v2_gate([hop] * 40, thresholds(**pair), horizon=HORIZON).passed
+        assert evaluate_stance_v2_gate([hop] * 40, thresholds(), horizon=HORIZON).passed
 
 
 class TestStatueRelative:
@@ -474,6 +526,17 @@ class TestPanel:
         # The bound alone (37/40 clean, LCB 0.817) admits the same panel at the trex bar.
         assert evaluate_stance_v2_gate([clean] * 37 + [hop, fall, pad], thresholds(), horizon=HORIZON).passed
 
+    def test_the_window_hop_pair_counts_toward_the_hop_or_fall_rail_where_declared(self, clean):
+        """A window-pair failure is a hop (D-D26): a gate declaring the pair and the rail counts it."""
+        declared = thresholds(
+            max_hop_or_fall_episodes=0, max_window_airborne_substeps=40, max_window_peak_floor_force_bw=2.0
+        )
+        assert evaluate_stance_v2_gate([clean] * 40, declared, horizon=HORIZON).passed
+        for field_name, value in (("window_airborne_substeps", 41.0), ("window_peak_floor_force_bw", 2.2)):
+            reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
+            assert stance_gate_v2.is_hop_or_fall(reasons), field_name
+        assert set(stance_gate_v2.HOP_OR_FALL_KEYS) <= {key for key, _, _ in stance_gate_v2.EPISODE_CRITERIA}
+
     def test_a_rail_of_zero_refuses_a_single_hop(self, clean):
         """0 is the zero-tolerance bar (the statue's 1-in-120 rate fails it on 28% of panels): valid, and strict."""
         zero = thresholds(max_hop_or_fall_episodes=0)
@@ -485,6 +548,26 @@ class TestPanel:
         assert result.clean_lcb >= 0.80
         assert not result.passed and len(result.failures) == 1
         assert result.failures[0].startswith("hop_or_fall_episodes 1 > 0")
+
+    def test_the_rail_failure_names_only_the_hop_keys_the_gate_declares(self, clean):
+        """An undeclared window pair fails no episode, so the rail's text does not name it."""
+        hop = replace(clean, all_feet_support=0.6, window_displacement_m=1.3)
+        panel = [clean] * 39 + [hop]
+        step_level = (
+            "min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction"
+        )
+        without_pair = evaluate_stance_v2_gate(panel, thresholds(max_hop_or_fall_episodes=0), horizon=HORIZON)
+        assert without_pair.failures == (
+            f"hop_or_fall_episodes 1 > 0 (episodes ending early or failing {step_level}; panel rail)",
+        )
+        declared = thresholds(
+            max_hop_or_fall_episodes=0, max_window_airborne_substeps=40, max_window_peak_floor_force_bw=2.0
+        )
+        with_pair = evaluate_stance_v2_gate(panel, declared, horizon=HORIZON)
+        assert with_pair.failures == (
+            f"hop_or_fall_episodes 1 > 0 (episodes ending early or failing {step_level}, max_window_airborne_substeps, "
+            "max_window_peak_floor_force_bw; panel rail)",
+        )
 
     def test_an_undeclared_rail_leaves_the_result_as_it_was(self, clean):
         result = evaluate_stance_v2_gate([clean] * 40, thresholds(), horizon=HORIZON)
@@ -618,8 +701,8 @@ class TestPanelEvidence:
         with pytest.raises(ValueError, match="holds no episode rows"):
             read_stance_v2_panel(_write_panel(tmp_path / "panel.csv", clean, n=0))
 
-    def test_a_panel_recorded_before_the_pad_cop_keeps_its_verdict_and_names_what_it_lacks(self, tmp_path, clean):
-        """Its CSV lacks the later column: unmeasured, named in absent_metrics, and refused only where declared."""
+    def test_a_panel_recorded_before_a_later_metric_keeps_its_verdict_and_names_what_it_lacks(self, tmp_path, clean):
+        """Its CSV lacks the later columns: unmeasured, named in absent_metrics, and refused only where declared."""
         later = sorted(STANCE_METRIC_LATER_FIELDS)
         path = _write_panel(tmp_path / "panel.csv", clean)
         current = read_stance_v2_panel(path)
@@ -637,15 +720,25 @@ class TestPanelEvidence:
         restored = [replace(episode, **{name: getattr(clean, name) for name in later}) for episode in evidence.episodes]
         assert [episode.as_row() for episode in restored] == [clean.as_row()] * 3
         recorded = [name for name in STANCE_METRIC_FIELDS if name not in evidence.absent_metrics]
-        # A block that does not declare the key: the same verdict, bit for bit, as the panel measured today.
+        # A block that does not declare the keys: the same verdict, bit for bit, as the panel measured today.
         loose = {"min_eval_episodes": 3, "min_clean_stance_lcb": 0.1}
         assert unrecorded_criteria(thresholds(**loose), recorded) == ()
         earlier_result = evaluate_stance_v2_gate(evidence.episodes, thresholds(**loose), horizon=HORIZON)
         assert earlier_result == evaluate_stance_v2_gate(current.episodes, thresholds(**loose), horizon=HORIZON)
-        # A block that does: the criterion is named, for the consumer to refuse the panel rather than score it.
-        declared = thresholds(**loose, max_sole_cop_fore_aft=0.8)
-        assert unrecorded_criteria(declared, recorded) == (("max_sole_cop_fore_aft", "max_sole_cop_fore_aft"),)
+        # A block that does: the criteria are named, for the consumer to refuse the panel rather than score it.
+        declared = thresholds(**loose, max_sole_cop_fore_aft=0.8, max_window_airborne_substeps=30)
+        assert unrecorded_criteria(declared, recorded) == (
+            ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft"),
+            ("max_window_airborne_substeps", "window_airborne_substeps"),
+        )
         assert unrecorded_criteria(declared, STANCE_METRIC_FIELDS) == ()
+        # Scored anyway, every episode would fail as unmeasured though nothing failed to measure it.
+        result = evaluate_stance_v2_gate(evidence.episodes, declared, horizon=HORIZON)
+        assert result.n_clean == 0 and not result.passed
+        assert result.episode_reasons[0] == (
+            "max_sole_cop_fore_aft: max_sole_cop_fore_aft is unmeasured (nan)",
+            "max_window_airborne_substeps: window_airborne_substeps is unmeasured (nan)",
+        )
         # Any other metric column missing is still a file that is not a v2 panel.
         columns.remove("min_sole_contacts")
         with path.open("w", newline="", encoding="utf-8") as destination:

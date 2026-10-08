@@ -137,6 +137,8 @@ def test_the_statue_scores_the_ideal_on_every_metric():
         "settle_steps": 100,
         "all_feet_support": 1.0,
         "flight_fraction": 0.0,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.0,
         "touchdown_rate": 0.0,
         "min_foot_load_share": 0.5,
         "min_foot_load_share_windowed": 0.5,
@@ -201,6 +203,27 @@ def test_a_hop_after_the_spawn_grace_fires_the_settle_hop_and_impact_checks():
     assert result.settle_touchdowns == 2.0  # each foot lands once
     assert result.spawn_peak_floor_force_bw == 1.0 and result.spawn_airborne_substeps == 0.0
     assert result.all_feet_support == 1.0  # the window itself is clean
+    # The window hop pair reads [settle_steps, T) only: a settle hop the settle bars admitted is not counted twice.
+    assert result.window_airborne_substeps == 0.0 and result.window_peak_floor_force_bw == 1.0
+
+
+def test_a_hop_shorter_than_half_a_step_reads_every_leg_down_but_fires_the_window_hop_pair():
+    """The compsognathus hop (D-D26): airborne on 2 of 10 substeps of every other step, landing at 4 BW.
+
+    Each leg is down on 8 of 10 substeps of every step, above DOWN_SUBSTEP_FRACTION, so the step-level
+    support, flight and touchdown metrics read a statue; the substep-level pair reads the window."""
+    trace = statue_trace(dt=0.02, frame_skip=10)
+    down, airborne, peak = trace.leg_down_frac.copy(), trace.feet_airborne_substeps.copy(), trace.total_floor_max.copy()
+    hop = np.arange(400) % 2 == 0
+    hop[:100] = False  # after the settle only, so the settle checks see nothing
+    down[hop] = 0.8
+    airborne[hop] = 2
+    peak[hop] = 4.0 * BODY_WEIGHT
+    result = metrics(edited(trace, leg_down_frac=down, feet_airborne_substeps=airborne, total_floor_max=peak))
+    assert result.all_feet_support == 1.0 and result.flight_fraction == 0.0 and result.touchdown_rate == 0.0
+    assert result.settle_airborne_substeps == 0.0 and result.settle_peak_floor_force_bw == 1.0
+    assert result.window_airborne_substeps == 2.0 * 150
+    assert result.window_peak_floor_force_bw == pytest.approx(4.0)
 
 
 def test_a_reset_pop_inside_the_spawn_grace_fires_only_the_spawn_metrics():
@@ -213,6 +236,7 @@ def test_a_reset_pop_inside_the_spawn_grace_fires_only_the_spawn_metrics():
     assert result.spawn_peak_floor_force_bw == pytest.approx(2.4)
     assert result.settle_airborne_substeps == 0.0
     assert result.settle_peak_floor_force_bw == 1.0
+    assert result.window_airborne_substeps == 0.0 and result.window_peak_floor_force_bw == 1.0
 
 
 def test_the_spawn_grace_is_defined_in_seconds():
@@ -679,12 +703,25 @@ def test_from_row_refuses_a_missing_or_unreadable_field():
         with pytest.raises(ValueError, match=name):
             StanceEpisodeMetrics.from_row({**row, name: value})
     assert math.isnan(StanceEpisodeMetrics.from_row({**row, "reward": ""}).reward)  # empty is unmeasured
+    # A panel recorded before the window hop pair existed lacks only those two columns: they read as unmeasured.
+    earlier = {
+        key: value
+        for key, value in row.items()
+        if key not in ("window_airborne_substeps", "window_peak_floor_force_bw")
+    }
+    restored = StanceEpisodeMetrics.from_row(earlier)
+    assert math.isnan(restored.window_airborne_substeps) and math.isnan(restored.window_peak_floor_force_bw)
+    assert restored.touchdown_rate == row["touchdown_rate"]
     assert StanceEpisodeMetrics.from_row({**row, "terminated": "True"}).terminated is True
 
 
 def test_a_row_recorded_before_a_later_metric_reads_it_as_unmeasured():
-    """The pad's fore-aft CoP (D-D28) postdates the panel CSV contract: its absence is NaN, nothing else moves."""
-    assert "max_sole_cop_fore_aft" in STANCE_METRIC_LATER_FIELDS
+    """The window hop pair (D-D26) and the pad's fore-aft CoP (D-D28) postdate the panel CSV contract.
+
+    Their absence is NaN; nothing else moves.
+    """
+    later = {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft"}
+    assert later == STANCE_METRIC_LATER_FIELDS
     assert STANCE_METRIC_LATER_FIELDS <= set(STANCE_METRIC_FIELDS) and STANCE_METRIC_LATER_FIELDS <= set(_WINDOW_FIELDS)
     row = _defective_metrics().as_row()
     earlier = {key: value for key, value in row.items() if key not in STANCE_METRIC_LATER_FIELDS}
@@ -725,6 +762,8 @@ def test_the_csv_columns_are_the_scalar_fields_in_order_and_hold_every_gated_met
         "episode_yaw_change_deg",
         "settle_touchdowns",
         "max_sole_cop_fore_aft",
+        "window_airborne_substeps",
+        "window_peak_floor_force_bw",
     }
     assert gated <= set(STANCE_METRIC_FIELDS)
     assert "foot_load_share" in STANCE_METRIC_FOOT_FIELDS  # the statue-relative share ratio

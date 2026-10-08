@@ -76,13 +76,15 @@ OPEN_GATES = (
     "curriculum.min_avg_forward_vel=0",
     "curriculum.min_success_rate=0",
 )
-# Compsognathus's stance node under stance_quality/v1 at the 32-step horizon
-# (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode is
-# overridden: the settling window (the TOML's 20%, 200 steps, becomes 6) and
+# The compsognathus robot's stance node under stance_quality/v1 at the 32-step
+# horizon (cleanup CU-10a). Only what is sized to the TOML's 1,000-step episode
+# is overridden: the settling window (the TOML's 20%, 200 steps, becomes 6) and
 # the reward rail (a 1,000-step return). The duty ceilings, the full-horizon
-# fraction and the 40-episode panel keep the TOML's values.
-STANCE_SPECIES = "compsognathus"
-STANCE_SCRIPT = REPO_ROOT / "environments" / STANCE_SPECIES / "scripts" / "train_sb3.py"
+# fraction and the 40-episode panel keep the TOML's values. The robot, not the
+# anatomical species, since the latter's stance moved to stance_quality/v2
+# (decision D-D26); the robot trains through the unified entry point.
+STANCE_SPECIES = "compsognathus_robot"
+STANCE_SCRIPT = REPO_ROOT / "environments" / "shared" / "train.py"
 STANCE_AT_32_STEPS = (
     "stance.curriculum.settle_steps=6",
     "stance.curriculum.min_avg_reward=-1000000000",
@@ -357,7 +359,15 @@ def test_the_cli_curriculum_judges_a_stance_gate_at_the_overridden_horizon(tmp_p
     assert toml["env_kwargs"]["max_episode_steps"] > 32  # the override shortens the TOML's horizon
 
     run_dir = tmp_path / "stance"
-    result = _run_cli(run_dir, "--target", "stance", overrides=RUN_SHAPE + STANCE_AT_32_STEPS, script=STANCE_SCRIPT)
+    result = _run_cli(
+        run_dir,
+        "--species",
+        STANCE_SPECIES,
+        "--target",
+        "stance",
+        overrides=RUN_SHAPE + STANCE_AT_32_STEPS,
+        script=STANCE_SCRIPT,
+    )
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
     assert "Curriculum training complete!" in result.stderr

@@ -197,7 +197,10 @@
     "femur_forward_m": 0.04,
     "tibia_forward_m": -0.068,
     "metatarsus_forward_m": 0.023,
+    "metatarsus_collision_inset_m": 0.004,
     "foot_half_spacing_m": 0.047,
+    "toe_forcerange_nm": 0.6,
+    "toe_armature_kg_m2": 0.0002,
     "tail_segment_lengths_m": [
       0.15,
       0.13,
@@ -205,13 +208,13 @@
       0.08
     ],
     "tail_segment_masses_kg": [
-      0.08,
-      0.055,
-      0.028,
-      0.015
+      0.1173,
+      0.0461,
+      0.0125,
+      0.0021
     ],
     "torso_mass_kg": 0.37,
-    "mass_and_soft_tissue_status": "engineering allocations, not specimen measurements",
+    "mass_and_soft_tissue_status": "engineering allocations, not specimen measurements. The 178 g tail is spread at one density over its tapered meshes (854-871 kg/m3 per segment; physics r1 gave tail_1..tail_4 583 / 1019 / 1918 / 6223 kg/m3, a tip denser than bone). That density is below water-dense soft tissue only because the fixed 178 g budget fills oversized meshes: the distribution, not the absolute value, is the correction.",
     "hip_forward_offset_m": -0.025
   },
   "styling_revision": "v3: tapered 155 mm torso; dark original leg covers with narrow surface colour fields; coordinated silver/olive finish and three toe marks; fixed head/tail and existing mass allocations retained"

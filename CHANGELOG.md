@@ -104,6 +104,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every anatomical Compsognathus checkpoint must be retrained; none can be
+  widened** (Compsognathus physics revision 1 → 2, policy interface revision
+  2 → 3, visual revision 1 → 2; decision D-D26). The plant contract refuses
+  each recorded anatomical Compsognathus checkpoint on its `physics_sha256`
+  and `policy_interface_sha256`, `widen_checkpoint.py` needs the same
+  physics digest, and ancestor reuse refuses every recorded node (its
+  `task_sha256` moved, and stance's `gate_sha256` too), so
+  `TRUNK_FROM = "auto"` finds no Compsognathus trunk: the certified stance
+  and walker of `20260921_203149` and the stance of `20261001_225856` start
+  again from a fresh stance, which now certifies under `stance_quality/v2`.
+  A recovery session also re-freezes its `gate_resolution.json` on the
+  re-measured `configs/compsognathus/recovery_calibration.json`.
+  `compsognathus_robot` keeps every digest. The bundles already published
+  stay as they are; the catalog labels their verdicts with the gate they
+  were earned under.
 - **A T-Rex stance run, verdict or `stance_quality/v2` report recorded under
   D-D27's gate block is not reused, and its report is judged again only once
   its panel is re-rolled** (decision D-D28). The stance `gate_sha256` moves
@@ -155,8 +170,382 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The anatomical Compsognathus stands on its whole foot, PPO can explore
+  around its statue, and its stance is judged on floor truth** (#604; breaking —
+  plant change, physics revision 1 → 2, policy interface revision 2 → 3,
+  visual revision 1 → 2; all existing anatomical Compsognathus checkpoints are
+  invalidated; the robot is unchanged; decision D-D26, which the maintainer
+  chose on 2026-10-07). Both certified r1 stances, `20260921_203149` and
+  `20261001_225856`, are noise-robust tiptoe marches on the digit-III tip (the
+  stance-hack audit's §3.3). The compsognathus standing review traced them to
+  an action map that put the statue's whole holding torque inside 1% of the
+  action and to two plant defects that made the flat stance fragile, and found
+  the right foot built as a left foot; the implementation found the MTP servo
+  ringing numerically. The five fixes land in one revision so the species'
+  digests move once (`configs/plant_versions.toml` note 15). In
+  `build_models.py`'s `build_biological` and `data/model_parameters.json`: the
+  tail's 178 g is spread at one density over its tapered meshes,
+  tail_1..tail_4 0.080 / 0.055 / 0.028 / 0.015 → 0.1173 / 0.0461 / 0.0125 /
+  0.0021 kg (583 / 1019 / 1918 / 6223 → 854–871 kg/m³; the r1 tip was denser
+  than bone), body mass still 1.000 kg, which moves the home centre of mass
+  9.8 mm forward (3.6 → 13.4 mm ahead of the hip), the settled statue's from
+  19.6 to 29.3 mm ahead of the plantar pad's rear edge (0.25 → 0.38 of the 78
+  mm foot), and halves the tail's pitch inertia about tail_1 (0.00825 →
+  0.00434 kg·m²); the metatarsus collision capsule, also the drawn shank, ends
+  4 mm short of the MTP joint along its own axis
+  (`metatarsus_collision_inset_m`), because the metatarsal head rests on the
+  pad and is never support, yet the settled r1 statue held it 1.07 mm off the
+  floor, so a 1 mm soft-contact sink of the sole touched it with 0 N on it (48
+  of 48 first touches) and the terminating contact ended upright, flat-footed
+  episodes as falls (settled clearance now 4.81 mm; contact still terminates);
+  digit II is medial on both feet (r1's right digit-II tip sat laterally at
+  world y −64 mm), which is mechanically neutral but makes the home preload
+  left-right symmetric; and the MTP joint's armature rises from 5e-5, the
+  default of the generator's joint class, to 2e-4 kg·m² (`toe_armature_kg_m2`,
+  taken by the maintainer on 2026-10-07). At 5e-5 the toe servo (kp 12 on a
+  DOF of 6.6e-5 kg·m², three quarters of it armature) rang at 68 Hz, ω·dt 0.85
+  at the 2 ms step, and on the other r2 changes sustained a numerical 19–21 Hz
+  heel chatter after the settle on 15 of 40 zero-action statues (r1: 6 of 40,
+  at 18.5 Hz), which no touchdown or support bar sees (the pad unloads on
+  about 4% of substeps while the foot stays loaded) but which failed 2 of
+  `validate_models`' 10 seeded holds (`supports_weight`, a 5.4% ground-force
+  error against the 3% bar) and with them `test_balance.py`'s seeds 49 and 51.
+  At 2e-4 it rings at 37 Hz: no statue of 40 chatters, every hold passes (the
+  worst settled ground-force error of the ten is 0.31%), the regenerated
+  `data/preflight_training_v1.json` records `passed: true`, and
+  `test_balance.py` runs every seed unmarked; statics, keyframe and preload
+  are unchanged, and the armature moves the physics digest alone.
+  `compsognathus.xml` is regenerated (`fc6ef368…` → `e47a3c50…`) with the same
+  key qpos and root height, so `nominal_height` stays, and a regenerated
+  gravity preload in its home ctrl; `compsognathus_robot.xml` comes out
+  byte-identical. The policy interface: the species' env is the new
+  `CompsognathusBiologicalEnv(CompsognathusEnv)` (the species registry,
+  `configs/species_manifest.toml`'s `env_entrypoint` and
+  `MesozoicLabs/Compsognathus-v0`), whose action mapping, the new
+  plant-contract mode `home-keyframe-residual-softcubic/v1`, shapes the ten
+  leg residuals (hip pitch, hip roll, knee, ankle and toe, found by actuator
+  name) to b = 0.1a + 0.9a³ before the unchanged home-keyframe span: action
+  zero is still the home ctrl, ±1 still the ctrlrange ends and the map stays
+  monotone, with a tenth of the linear slope at home. Every leg servo
+  saturates at forcerange / kp = 0.05 rad of position error, and the linear
+  residual spent 0.007–0.015 of action on the whole knee or ankle holding
+  torque, so under PPO's initial exploration noise (σ 0.135, `log_std_init`
+  −2.0) the r1 statue fell on 20 of 20 episodes in a median of 12 steps and
+  PPO never sampled the quiet stance. Neck, jaw and tail keep the linear
+  residual. The plant contract records the shaping (`residual_shaping`: form
+  `soft-cubic/v1`, the per-actuator slope and mask) and refuses a slope
+  outside (0, 1], a mask that is not one bool per actuator or selects nothing,
+  and a JAX/MJX declaration; the `home-keyframe-residual/v1` payload is built
+  as before, so no other species' digest moves. The subclass builds its leg
+  mask in `__init__`, so the policy digest still hashes
+  `CompsognathusEnv._cache_ids`. `CompsognathusEnv` and
+  `CompsognathusRobotEnv` are unchanged.
+
+  The MTP servo keeps its 0.6 N·m cap (the maintainer first chose 0.4 N·m
+  and revised it the same day), now the generator parameter
+  `toe_forcerange_nm`, so a later cut is one number and leaves this XML
+  unchanged. The cap holds one body weight on the digit-III tip (0.594 N·m),
+  so the single-support tiptoe stays physically possible on r2: the
+  `20260921_203149` march, replayed on the r2 plant through its own linear
+  interface, still survives 20 of 20 episodes on that tip (seeds 3042–3061;
+  `20261001_225856` survives 9 of 20), and the stance reward and gate are
+  what refuse it. A cut waits on a measured walker toe-torque budget after
+  training. The proportions fidelity pass is deferred too: an anatomically
+  long tail at the same density and mass would give back about 43% of the
+  centre-of-mass gain.
+
+  Zero-action statue on the stance task (`frame_skip` 10), r1 → r2: settled
+  metatarsus clearance 1.07 → 4.81 mm; pad / distal-digit share of each
+  foot's load 0.44 / 0.14 → 0.41 / 0.25; the largest 0.1 s pelvis push held
+  on 5 of 5 seeds forward 0.225 → 0.275, backward 0.125 → 0.20 and lateral
+  0.45 → 0.45 body weights; the largest initial tilt held on 3 of 3 seeds
+  nose-down 2 → 5°, nose-up 4 → 7° and roll 15 → 15° (every fore-aft push or
+  pitch failure ends on tail_4); zero-mean white action noise through each
+  revision's own interface (paired streams, seeds 3042 + i): σ 0.02 5/20 →
+  20/20 full episodes, σ 0.135 0/20 (median 12 steps, 16 of 20 on the
+  metatarsus) → 39/40 (151/160 over four seed blocks, one with an
+  independent noise stream; all nine falls end on tail_4, at steps
+  174–938), and on r2 σ 0.10 40/40 and σ 0.20 0/40 (median 130–180 steps
+  over two noise streams). Without the toe armature σ 0.135 kept 30/40. The
+  cliff between the recipe's initial σ and 0.20 is a constraint on
+  `log_std_init` and on any entropy schedule (the stance TOML's
+  `log_std_init` comment).
+
+  The stance task (`configs/compsognathus/stance.toml` `[env]`) takes ten
+  reward terms through twenty `CompsognathusBiologicalEnv` kwargs, every one
+  inert at its default (there the reward, its legacy components and the
+  observations are bitwise equal to `CompsognathusEnv`'s); the weights,
+  tolerances and saturation force are named as on `TRexEnv`, and so, since
+  D-D27, are the stance-width reference, the per-foot load gate
+  `foot_terms_min_support_force` and the floor-impact and airborne terms,
+  with this species' own forms (the load gate reads the aggregation below,
+  not the trex's substep-minimum touch; the impact term is capped,
+  min(peak − 2.5, 1), at a 2.5 BW threshold); `support_force_aggregation`
+  and the support-geom coverage are this species' own:
+  `support_force_aggregation = "mean"`, which feeds only the new terms the
+  substep-mean foot load (the legacy alive, posture and height terms keep
+  their support gate on the substep minimum, which prices a two-foot hop; a
+  one-foot unload leaves the other foot's minimum above that gate, so a
+  one-foot chatter is priced only by the bilateral and coverage terms, about
+  3% of the statue's reward at 130–190 lift-offs an episode);
+  `bilateral_support_weight = 0.5` at `foot_contact_saturation_force = 4.4` N
+  (0.45 body weight) and `support_conditioned_alive_fraction = 0.2`;
+  `foot_flatness_weight = 0.5` at 2.0° and `stance_width_weight = 0.1` at 0.03
+  m, each paid only on a foot carrying `foot_terms_min_support_force = 2.45` N
+  (the trex r8 terms pay an airborne foot about 80% of the flatness term and
+  98% of the width term), the width around the animal's own width at the end
+  of the settle (`stance_width_reference = "settled"`,
+  `stance_width_settle_steps = 200`), not the keyframe's, which paid both trex
+  r8 seeds to re-seat their feet in the unscored settle; `leg_home_pose_weight
+  = 0.5` at 0.15 rad; `support_geom_coverage_weight = 0.2`, each foot's share
+  of its four support geoms loaded on at least half of the step's substeps, a
+  geom loaded on a substep when its floor contacts' normal forces sum above
+  0.1 N (the gate's rule), and a digit summing only its contacts beyond the
+  capsule's centre, away from the MTP joint (this term's own rule: the capsule
+  starts at that joint, under the pad, so its joint end carries load whether
+  or not the tip reaches the floor); `floor_impact_weight = 0.25` above 2.5 BW
+  and `airborne_substep_weight = 0.2`, on every substep from the first step;
+  and `action_saturation_weight = 0.3` at 0.9 and `action_jerk_weight = 0.5`
+  on the raw command (this species has no action filter). The new reward key
+  `reward_support_geom_coverage` joins the diagnostics and their graphs
+  (`reward_floor_impact` and `reward_airborne_substeps` joined them with
+  D-D27). Each
+  weight was measured by re-scoring recorded rollouts (exact: equal to the
+  env's own total to 5e-13 per episode): the statue stays the reward optimum,
+  4570.4 ± 7.2 on seeds 3042–3081 (4565.8 on 7042–7081), 1571.3 of the 1580
+  the terms can pay, short mainly on coverage, because the settle seats the
+  digit tips last (coverage is 8.1 of the 8.7 per episode it leaves on
+  average; 25.9 at most in one episode), and no near-statue wins it back
+  (constant toe offsets of ±0.01, ±0.02 and −0.05 rad end 2.5–82 below it on
+  average); the two certified r1 marches, rolled on the r1 plant through their
+  own interface, score 0.612 / 0.610 of that plant's statue deterministically
+  (0.936 / 0.934 under the old reward) and 0.538 / 0.559 stochastically, their
+  best episode 1694 below it. On a 20-episode re-score (seeds 3042–3061)
+  rolled feet keep 0.852–0.892, legs swept back 17° 0.80–0.89 (a level, bilateral
+  crouch that only the leg pose term prices), a whole-episode two-foot hop
+  0.521–0.837, the same hop started after the settle 0.649–0.911 and a settle
+  stomp 0.957–0.989 (50–198 below the statue). The noisy statue keeps 0.934 of
+  the statue at σ 0.05, 0.824 at σ 0.10 and 0.710 at σ 0.135 (the old reward
+  alone keeps 0.841 and 0.741 at the last two, so the terms cost it 1.9% and
+  4.2% more), and the same noise around every non-statue posture measured
+  falls on 19–20 of 20 episodes (median 23–440 steps over two noise streams)
+  and keeps at most about 0.25, so the noise cost cannot pull PPO's mean off
+  the statue. At initialisation (σ 0.135) the penalties cost 0.169 per step, a
+  sixth of the 1.0 alive bonus.
+
+  The stance gate moves from `stance_quality/v1`, which both marches cleared,
+  to the floor-truth `stance_quality/v2` (D-D23), the third stage to adopt it,
+  with every bar set on the r2 statue's 40-episode panel, toe armature
+  included, through the report path: the clean-episode bound ≥ 0.80 at
+  `settle_steps` 200, every required bar (`min_all_feet_support` 0.98,
+  `max_touchdown_rate` 0.25, `max_window_displacement_m` 0.05,
+  `min_foot_load_share` 0.40, saturation 0.10, settle airborne substeps 15 and
+  settle peak 3.0 BW), the pad bars (`max_sole_tilt_deg` 2.0,
+  `max_sole_corner_lift_m` 0.003, `min_sole_contacts` 1.5), the support-geom
+  bars (`min_support_geom_duty` 0.50, `min_support_geom_coverage` 0.80: the
+  pad and digits II–IV), the settle width change ≤ 0.011 m (about three times
+  the statue's worst; the trex r8 runs re-seated their feet by 3.6–4.4 times
+  theirs), the window hop pair below (40 airborne substeps, 2.0 BW), the load
+  share ≥ 0.80 of the statue's, four guards and the rails (full horizon ≥ 95%,
+  `min_avg_reward` 2740, 0.60 × the statue's 4570.4 rounded to the nearest 10,
+  and ≥ 0.60 of the statue panel each report rolls). The settle bars are
+  looser than the trex's and the velociraptor's because noise bounces this
+  light plant (the statue with σ 0.05 command jitter reaches 10 airborne
+  substeps and 2.12 BW in the settle), and the reward prices both from the
+  first step. `stance_quality/v2` gains two optional per-episode criteria for
+  it, each applied only where declared and needing no statue panel
+  (`stance_gate_v2.py`, `gait/stance_metrics.py`, `manager.StageThreshold`;
+  `GATE_SCHEMA_VERSION` stays 1): `max_window_airborne_substeps` and
+  `max_window_peak_floor_force_bw`, the settle window's own hop and impact
+  detectors read over the window (`window_airborne_substeps`,
+  `window_peak_floor_force_bw`). A leg is down on a step when it is loaded on
+  half of the step's ten substeps, and this plant's hop flights last 1–3 of
+  them, so a two-foot hop started after the settle reads a statue on every
+  step-level bar: both legs down on every step, no touchdown, a quiet settle.
+  `from_curriculum`, and `gate_schema` at config load, refuse a negative
+  airborne bar and a peak bar under one body weight (`WINDOW_HOP_KEY_FLOORS`,
+  beside D-D28's `CRITERION_BAR_RANGES`), and the pair joins D-D28's pad
+  centre of pressure in `STANCE_METRIC_LATER_FIELDS`: a report row or panel CSV
+  recorded before it reads both metrics as unmeasured, so every earlier
+  report keeps its verdict under a block that does not declare the pair, and
+  under one that does such a panel is refused by name, never failed (re-roll
+  the panel); no trex or velociraptor digest moves, and the website's species
+  data and the catalog carry the two keys. The pair counts toward D-D27's
+  hop-or-fall rail where a block declares both (none does yet); the rail's
+  failure text and the text report name only the hop keys a block declares,
+  and a block that does not gate the pair (the T-Rex's, the velociraptor's)
+  lists its readings among the report-only ones.
+  Validated, verdicts re-derived from the recorded
+  rows under the committed block: the r2 statue is clean on 40/40 (bound
+  0.928) on each of seeds 3042–3081, 7042–7081 and 9042–9081; the statue with
+  N(0, σ) command jitter on 20/20 at σ 0.005 and 0.01, on 40/40 at σ 0.02 and
+  on 120/120 over three seed blocks at σ 0.03, while at σ 0.05 the window peak
+  bar refuses 64 of 120 (that much noise lands this plant as hard as the
+  softest square-wave hop, and the bar refuses the hop rather than admit the
+  noise); spawned yawed ±45° on 10/10 and ±90° on 20/20; two 200k-step PPO
+  runs on this `[env]` (seeds 11 and 12, `log_std_init` −2.0) on 40/40 each
+  with their deterministic means (statues: 4569.5 and 4569.2, no airborne
+  substep), which shows only that the mean does not drift to a march or a hop
+  in the first 200k steps, while their stochastic rollouts reach the horizon
+  on 20/20 and are clean on 0/20 (the exploration noise bounces this plant;
+  the gate reads the mean); the two certified r1 marches, rolled on the r1
+  plant they load on with their own interface, on 0/20 each, every episode
+  failing 9–11 bars (support, touchdowns, support-geom duty and coverage, sole
+  tilt, corner lift, contacts and pad centre of pressure, the window peak),
+  and the r1 statue there on 20/20. Scripted hacks on r2 (seeds 3042 + i,
+  10-episode gate panels): rolled feet 0/40, settle stomps 0/30, the
+  whole-episode hop 0/40, an open-loop one-leg stance 0/10 and a 39/61 weight
+  shift 0/10, and the hop started after the settle (knees, ankles and hip
+  pitch in phase, square waves at 10 and 12.5 Hz, amplitude 0.07–0.15) 0/410
+  over seeds 3042 + i, 7042 + i and 9042 + i, refused by the window peak bar
+  on all 410, the window airborne bar on 368 and the displacement guard on
+  349, and by the pair alone on 61 of the 120 episodes at amplitude 0.07 and
+  10 Hz (and on 10 of 10 of a hop started at step 600); a swept-back crouch, a
+  level, bilateral stance on every support geom that the leg pose term prices,
+  stands on its pads' front edges and is refused by the pad centre-of-pressure
+  bar alone (below; 8/10 clean without it, its two unclean episodes walking
+  off). The pair narrows the gap the step-level bars leave on this plant but
+  does not close it (40-episode panels through the report path, seeds
+  3042–3081): the same hop driven by a sine at 5 Hz and 2.5 Hz lands at
+  1.33–1.80 BW, flies 0–32 window substeps and certifies on 40/40 at
+  0.989–0.990 of the statue's reward, one 10 Hz cycle every 0.4 s on 39/40,
+  and, because a foot lifted for less than half a step reads down, a one-leg
+  pump that lifts the foot for one substep 130–190 times an episode and a 6.25
+  Hz weight shuttle on 40/40 each (0.905–0.972; a toe tap certified too until
+  the pad centre-of-pressure bar, below). No count bar separates these from
+  the admitted σ 0.03 jitter, so KNOWN_ISSUES carries them, a stance's
+  lift-offs are checked by hand until a periodicity criterion is measured, and
+  the window peak bar's jitter margin is 0.12 BW, not the middle of the gap
+  (the σ 0.03 jitter reaches 1.88 BW on an independent noise stream). The
+  committed stance was put through the post-stage pipeline with the zero
+  command as a scripted checkpoint: the report and the judge pass it on 40/40
+  (bound 0.928) and write `gate_verdict.json`, publication admits the panel
+  and backfill re-derives the verdict (`gate_sha256 8938b294…`, `task_sha256
+  6c667a99…`). v1's `min_avg_reward` 1800 and its two duty keys stay in the
+  file as comments, a superseded record (v2 refuses the duty keys). Panels and
+  per-bar counts are in the dated §11 appended to
+  `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`. Statue constants
+  re-measured on r2: stance 4570.4 ± 7.2 (`zero_action_baseline.py
+  compsognathus --episodes 40 --seed 3042`), so `min_avg_reward` 1800 → 2740,
+  with `collapse_peak_floor_reference = 4570.4` and
+  `statue_constants_physics_revision = 2` beside it; the collapse detector
+  stays unarmed (no floor), as before.
+
+  Recovery inherits the new terms through `extends` and is recalibrated on
+  r2: the r2 feet widen the home contact AABB margin from 0.0196 to 0.0293
+  m, so every capture-velocity multiple pushes 1.5 times harder, and the
+  toe armature lets the zero-command null ride out more of each push, so
+  the same selection rule picks 1.3 (r1 1.32; 1.2 without the armature), a
+  1.250 N pulse for 0.2 s (r1 0.848 N); `configs/compsognathus/recovery.toml`,
+  `configs/compsognathus/recovery_calibration.json` and
+  `RECOVERY_CALIBRATION.md` carry the re-measured profile (its
+  `calibration_id` ends in `-v2`, with no restamp history; the robot's run
+  reproduced its own profile, but for last-bit reward sums from a NumPy
+  version change). Held out, both nulls succeed on 15 of 40 episodes; on
+  the soft-cubic legs the calibration's fixed brace (±0.005 of action)
+  moves the hip-pitch and ankle targets a tenth as far as on r1, so it is
+  nearly the zero-command null. Zero action under the push schedule keeps
+  0.971 of the quiet statue's per-step reward, the new terms taking 0.104
+  of the 0.134 per step it loses, for the pads and digits a push rocks off
+  the floor: they pay the return to the flat stance. The phase-C reset
+  golden's `compsognathus/recovery` capture is re-taken: both seeds' reset
+  draws are unchanged, only the observation and trajectory halves move.
+
+  Shared code: `BaseDinoEnv.step`, which keeps every substep's per-foot
+  force beside the running minimum since D-D27 (`_substep_foot_force_block`,
+  a copy whose column minimum is the minimum), now also calls a read-only
+  per-substep hook, `_accumulate_substep`, after each `mj_step`, a no-op except on the
+  compsognathus coverage term, so the floor-truth recorder keeps
+  `_substep_probe_hook`;
+  `test_the_substep_force_block_and_hook_leave_every_species_bit_identical`
+  rolls all six plants with a reading hook and finds observations, rewards,
+  info and state bitwise equal. `support_force_aggregation` joins the
+  behavior preparation's transition comparison (the four other non-weight
+  settings this stance shares with the trex joined it with D-D27). New tests: the reward terms'
+  inertness, MEAN/MIN split, load gates, width reference, coverage (a digit
+  carrying the foot on its tip counts, its MTP end alone does not, each
+  geom's contacts are summed before the threshold, and the hook reads each
+  substep after it is stepped), impact and airborne arithmetic
+  (`environments/compsognathus/tests/test_biological_rewards.py`); the
+  stance declaration, with a recorded post-settle hop that the window pair
+  and each of its keys alone refuse, and a recorded sine bounce and one-leg
+  pump it certifies, the measured blind spot
+  (`test_compsognathus_stance_gate_config.py`); the window pair's criteria,
+  floors and old panels (`test_stance_gate_v2.py`) and a real-physics
+  scripted post-settle hop that the report fails and the judge refuses from
+  the written file (`test_stance_gate_v2_report.py`); the plant and
+  interface (`test_models.py`, `test_training_env.py`,
+  `test_plant_contract_layers.py`); and the noise cliff
+  (`test_noise_tolerance.py`: σ 0.10 reaches the horizon on the first 5
+  episodes, σ 0.135 on at least 10 of the first 12, the review's 0.8).
+
+  D-D28 (#603) merged first and left the compsognathus bar to this revision,
+  so the stance also declares `max_sole_cop_fore_aft` = 0.70, measured on the
+  r2 plant through the report path (the audit's §11): the statue reads
+  0.143–0.155, heel side, over 200 episodes on five seed blocks (r1's
+  0.454–0.473 do not carry over), the statue under N(0, σ) command jitter at
+  most 0.289 at σ 0.03 and 0.404 at σ 0.05, and the two short PPO runs'
+  means at most 0.246. This plant's pad and digits are one plate whose digits
+  reach past the pad's front edge, so a posture that leans the animal along
+  its feet keeps the pads level and every digit loaded and no other bar sees
+  it: both MTP servo targets ramped to −0.10 rad stand both pads on their
+  front edges (0.860–0.927) and to +0.08 rad on their heel edges
+  (0.844–0.862), and the right MTP alone at +0.04 rad the left pad on its
+  heel edge (0.903–0.916), each clean on 40/40 under every other bar; 33 of
+  the swept-back crouch's 40 episodes stand on their front edges (1.000);
+  and the right toe tapped at ±0.25 and 10 Hz, which the block certified on
+  40/40, rocks its pad from edge to edge (0.826–0.848). The bar refuses all
+  of them, and both ankles ramped to −0.15 rad (0.936–0.986) on 40/40 by
+  itself; the bounce, burst, one-leg pump and shuttle the block still
+  certifies read 0.14–0.48. It is 0.70 rather than the T-Rex's 0.80 because
+  this statue stands at 0.15 and 0.80 would clear the heel-edge panel by
+  0.04; a partial edge stance still passes on up to (0.70 − s)/(1 − s) of the
+  window, 65% at the statue's 0.15 (KNOWN_ISSUES). The committed stage passes
+  the post-stage pipeline again with the bar, and the statue pad centre of
+  pressure that `test_gait_recorder.py` bounds is re-measured on r2: 0.173 at
+  seed 3042, heel side (0.464 on r1), under a ceiling of 0.20 (0.50 on r1).
+  New tests: the recorded edge stances, a swept-crouch episode and the toe
+  tap fail this bar alone while the statue, jittered statue and PPO means
+  clear it (`test_compsognathus_stance_gate_config.py`), a real-physics
+  stance leaned onto both pads' front edges fails the report and the judge
+  on it alone (`test_stance_gate_v2_report.py`), and the compsognathus joins
+  the T-Rex as the stances that declare the key
+  (`test_stance_gate_config.py`).
+
+  Records: note 15, both plant manifests (compsognathus entries only), the
+  species catalog (the stance published as `stance_quality/v2`, policy r3,
+  physics r2, visual r2) and `data/recovery_calibration_v1.json`;
+  KNOWN_ISSUES carries what the revision leaves open (the deferred toe cap,
+  the deferred proportions pass, the noise cliff, the soft bounce, one-foot
+  flutter and weight shuttle the gate certifies, and an observation that
+  reads the world heading while every spawn faces +x); the gait plan (its
+  §16) and the stance-hack audit (its §11) take dated amendments,
+  NEXT_STEPS's compsognathus rows say what the revision strands, and the
+  species README, recipe review, training validation and recovery
+  calibration notes follow the plant. Digest golden (649 lines, unchanged
+  in count): every one of the 48 moved lines is a compsognathus line —
+  plant `physics_revision`, `physics_sha256`, `policy_interface_revision`,
+  `policy_interface_sha256`, `source_closure_sha256`, `visual_revision` and
+  `visual_sha256`; policy `WHOLE`, `action_mapping`,
+  `interface_implementations` and
+  `interface_implementations.sb3_action_mapping`; stage `task_sha256`,
+  `stage_config_view_sha256.PPO` and `stage_config_view_sha256.SAC` of
+  stance, recovery, locomotion and behavior, and stance `gate_sha256`; the
+  recovery calibration's `file_sha256`; the 11 behavior recipes'
+  `task_sha256`; and `summary`, `shape_sha256` and `rounded_values_sha256`
+  of the four compsognathus reward stages. Out of scope: no r2 policy has
+  been trained; the toe cap and the proportions pass are deferred, as above;
+  a heading-free observation is decided for a later PR, the maintainer's
+  heading decision of 2026-10-07 (the D-D27 row's amendment): one
+  cross-species PR for the T. rex and the compsognathus after this revision
+  and before either trains, which moves the compsognathus policy interface
+  again and makes the spawn-yaw probe a gate check, so the maintainer's
+  two or more compsognathus stance seeds train on that revision, not on this
+  one (this observation carries the world-frame pelvis quaternion, linear
+  velocity and target direction; the statue is clean at every spawn yaw
+  tried); the robot is untouched.
 - **`stance_quality/v2` reads where along a pad the floor pushes, and the
-  T-Rex stance refuses a foot standing on its pad's front edge** (decision
+  T-Rex stance refuses a foot standing on its pad's front edge** (#603, decision
   D-D28, which the maintainer took on 2026-10-07 after the review of the
   physics-r8 seed-44 stance `20261006_185704`; a gate-only change: the
   plant, the recorder, every task and `MEASUREMENT_VERSION` are unchanged).
@@ -213,9 +602,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stage_config_view_sha256.PPO` and `.SAC`); no task, recipe, plant or
   other species' line moves, and no measurement digest moves. The
   end-to-end report test of the edge refusal runs on the T-Rex, the species
-  that declares the key; the compsognathus readings the other tests pin are
-  its r1 plant's, and this change is rebased on the compsognathus revision
-  (D-D26), which lands first, and re-measures them there. Records: D-D28 in
+  that declares the key; the compsognathus readings the other tests pin were
+  its r1 plant's when this change landed, before the compsognathus revision
+  (D-D26, #604), which re-measures them on r2. Records: D-D28 in
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the consolidation plan's table,
   which also records the landings of #601 and #602; the stance-hack audit's
   §10 and the gait plan's §15; KNOWN_ISSUES's front-edge entry records what
@@ -1103,9 +1492,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - **`environments/velociraptor/mjx_config.py`, the Velociraptor's frozen
-  MJX registration** (decision D-D25, 2026-10-06), with its `pyproject.toml`
-  ruff exclusion: the Velociraptor is SB3-only since its policy interface
-  revision 11 (the Velociraptor entry under Changed).
+  MJX registration** (#601, decision D-D25, 2026-10-06), with its
+  `pyproject.toml` ruff exclusion: the Velociraptor is SB3-only since its
+  policy interface revision 11 (the Velociraptor entry under Changed).
 - **The five numeric `command_*` kwargs, `SB3_COMMAND_REFUSAL`,
   `behavior_identity`, `canonical_env_parameters`,
   `sampler_source_identity`, `BEHAVIOR_IDENTITY_SCHEMA` and
@@ -1134,17 +1523,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
-- **The bundled plant manifest resolves an SB3-only species** (with the
-  Velociraptor revision, decision D-D25, 2026-10-06). When the repository's
-  species manifest is absent, `current_plant_identity` builds the species
-  entries from the bundled `plant_manifest.generated.json`, which records no
-  training backends, and checked each environment against the dual-backend
-  default it never declared, so an SB3-only species raised "backends
-  differ": both compsognathus plants did, untested. A bundled entry now
-  declares none (`training_backends = None`) and the environment's own
-  `supported_training_backends` stands
-  (`plant_contract/versions.py`, `manifest.py`); neither file feeds a
-  digest, and `test_runtime_identity_falls_back_to_bundled_manifest` covers
+- **The bundled plant manifest resolves an SB3-only species** (#601, with
+  the Velociraptor revision, decision D-D25, 2026-10-06). When the
+  repository's species manifest is absent, `current_plant_identity` builds
+  the species entries from the bundled `plant_manifest.generated.json`,
+  which records no training backends, and checked each environment against
+  the dual-backend default it never declared, so an SB3-only species raised
+  "backends differ": both compsognathus plants did, untested. A bundled
+  entry now declares none (`training_backends = None`) and the environment's
+  own `supported_training_backends` stands (`plant_contract/versions.py`,
+  `manifest.py`); neither file feeds a digest, and
+  `test_runtime_identity_falls_back_to_bundled_manifest` covers
   velociraptor, trex and both compsognathus plants.
 - **The command-line curriculum judges a `stance_quality/v1` stage at an
   overridden `env.max_episode_steps`** (#587, cleanup CU-10a of

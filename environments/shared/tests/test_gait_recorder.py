@@ -419,14 +419,14 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
 
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
-#: to 1 s + 150): trex 0.356, compsognathus 0.464 on its r1 plant (heel side; its revision, D-D26, moves it, and
-#: the ceiling is re-measured when this lands on that plant), its robot 0.319, dibothrosuchus 0.699 (its hind
-#: feet heel side on four contacts).  None where the foot has no box sole, so the metric is unmeasured:
-#: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact sits where the authored pitch puts it).
+#: to 1 s + 150): trex 0.356, compsognathus 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its
+#: robot 0.319, dibothrosuchus 0.699 (its hind feet heel side on four contacts).  None where the foot has no box
+#: sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact
+#: sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
     "trex": 0.40,
     "velociraptor": None,
-    "compsognathus": 0.50,
+    "compsognathus": 0.20,
     "compsognathus_robot": 0.35,
     "dibothrosuchus": 0.72,
     "brachiosaurus": None,
@@ -461,17 +461,20 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
 
 @pytest.mark.parametrize(
     ("species", "seed", "airborne"),
-    [("dibothrosuchus", 3045, 9.0), ("compsognathus_robot", 3052, 3.0), ("compsognathus", 3045, 1.0)],
+    [("dibothrosuchus", 3045, 9.0), ("compsognathus_robot", 3052, 3.0), ("compsognathus", 3045, 0.0)],
 )
 def test_the_spawn_pop_is_counted_substep_by_substep(envs, species, seed, airborne):
     """The reset pop ``constants.SPAWN_GRACE_S`` exists for, pinned at the panel seeds that show it.
 
     Every leg's floor force at or below ``CONTACT_THRESHOLD_N`` on a substep
-    is one airborne substep: these three statues leave the floor entirely
-    for 9, 3 and 1 substeps after the reset (the largest counts their
-    40-episode panels record, seeds 3042-3081) and never inside the settle
-    window.  Exact, because the count IS the threshold's meaning: read at
-    1.0 N instead of 0.1 N, the compsognathus pop counts 2.
+    is one airborne substep: the first two statues leave the floor entirely
+    for 9 and 3 substeps after the reset (the largest counts their 40-episode
+    panels record, seeds 3042-3081) and never inside the settle window.
+    Exact, because the count IS the threshold's meaning: read at 1.0 N
+    instead of 0.1 N, the anatomical compsognathus's one-substep pop on
+    physics r1 (seed 3045) counted 2.  Its physics r2 toe armature removed
+    the pop: 0 airborne substeps on every panel seed, pinned at the seed
+    that showed it.
     """
     env = envs(species)
     settle = int(round(1.0 / env.dt))

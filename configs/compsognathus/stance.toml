@@ -34,6 +34,158 @@ target_approach_weight = 0.0
 target_reach_bonus = 0.0
 prey_distance_range = [0.8, 1.2]
 prey_lateral_range = [0.0, 0.0]
+# Stance-quality terms (CompsognathusBiologicalEnv; decision D-D26), added with physics r2 and policy interface r3
+# (plant_versions note 15). Every one is inert at its constructor default, which reproduces CompsognathusEnv's reward
+# bit for bit; recovery.toml inherits them (`extends`). Each weight is MEASURED by re-scoring recorded rollouts of the
+# landed plant, this file's [env] and the soft-cubic interface (a trajectory does not depend on the reward, so the
+# re-score is exact; it equals the env's own total to 5e-13 per episode), on these panels:
+#   * The statue: zero action, seeds 3042-3081 and, out of sample, 7042-7081 (40 each): 4570.4 +/- 7.2 and 4565.8 +/-
+#     7.2 per episode (min 4553.7), 1571.3 and 1566.7 of the 1580 the terms below can pay. It scores within 0.6 of
+#     every term's maximum but coverage's: the settle seats the digit tips last (each digit counts only through its
+#     distal half, support_geom_coverage_weight below), on 34 of 80 episodes not until after step 200 and at the
+#     latest at step 308, so it leaves 8.7 / 13.3 per episode on the table on average (coverage 8.1 / 12.5 of it)
+#     and 25.9 at most in one episode (20.3 of it in the settle).
+#     No near-statue wins it back: a constant toe offset of +-0.01, +-0.02 or -0.05 rad on both feet (20 episodes
+#     each) ends 2.5-82 below the same-seed statue on average (ahead on 1 of 100 episodes, by 0.7); the downward
+#     ones seat the tips sooner (coverage -5.8 to -7.2) but pay more in the legacy home pose term, and +0.05 falls.
+#   * The two certified r1 marches (20260921_203149 and 20261001_225856, robust_best), rolled on the physics-r1 plant
+#     with the linear interface they were trained on (20 episodes, seeds 3042+i; the r1 statue there scores 4558.9):
+#     deterministic 2788.8 and 2780.5 (0.612 / 0.610 of that statue; 0.936 / 0.934 under the legacy reward),
+#     stochastic 0.538 / 0.559 (17/20 and 19/20 full); their best deterministic episode sits 1694 below the statue.
+#     Per episode they earn bilateral support 44 of 500, lose 180 to the alive conditioning, earn flatness 0-2 of 500
+#     (the worse pad's median tilt 8.7-10.9 deg), the width 6 of 80 and leg pose 279-286 of 500, and pay coverage 172
+#     (only the stance foot's digit-III tip is loaded, on half the steps: coverage 0.14).
+#   * Near-statues: the statue with N(0, sigma) noise on every command (noise stream default_rng(123456 + 17 i)). At
+#     sigma 0.005 / 0.01 / 0.02 / 0.03 / 0.05 it keeps 1.000 / 0.997 / 0.986 / 0.972 / 0.934 of the statue. At sigma
+#     0.10 it keeps 0.824 (40/40 full) and at the recipe's initial 0.135 (log_std_init -2.0) 0.710, 39/40 full: the
+#     legacy reward alone keeps 0.841 and 0.741 there (0.753 on the full-horizon episodes; the one fall ends on the
+#     tail), so the terms below cost the noisy statue 1.9% and 4.2% beyond what the legacy reward already charges it
+#     (at 0.135 on seeds 7042-7081 0.714 and 3082-3121 0.703, 37/40 full each, and on 9042-9081 with an independent
+#     noise stream 0.689, 38/40: 4.3% each; 151/160 full pooled over the four blocks). The
+#     same noise around every non-statue posture measured (rolled, wide, swept-back, crouched, toe-down) falls on
+#     20/20 episodes (median 23-254 steps) and keeps at most 0.14 on that stream; on seeds 11042-11061 with an
+#     independent one (default_rng(880001 + 7919 i)) the swept-back, rolled and rolled-outward postures fall on 20,
+#     20 and 19 of 20 (median 30, 314 and 438 steps) and keep 0.001, 0.170 and 0.245. No posture is more
+#     noise-robust than the statue (0.69-0.71 and 37-39 of 40 at the same sigma), so the noise cost cannot pull
+#     PPO's mean off it.
+#   * Scripted hacks on the landed plant (this 20-episode re-score, seeds 3042-3061; the [curriculum] block below
+#     rolls 10 of them through the gate): rolled feet (constant hip roll of +-0.05 / +-0.10 rad on both legs, each pad
+#     on an edge) 0.852-0.892; legs swept back 17 deg (hip +0.3, ankle -0.2 rad) 0.887 (0.804 on seeds 11042-11061), a crouch on the whole foot
+#     that only the leg pose term prices; a whole-episode two-foot hop at 12.5 Hz 0.837 (amplitude 0.07) and 0.818
+#     (0.1), at 10 Hz 0.571 (0.15) and 0.521 (0.2); the same hop from step 200 0.649-0.911 (amplitude 0.07-0.15 at 10
+#     and 12.5 Hz; 0.657 at 0.15 and 10 Hz), which the legacy terms' substep-MIN support gate prices (it keeps
+#     0.514-0.867 of the statue's legacy reward) while the terms below pay it nearly in full; a settle stomp (legs
+#     flexed and extended +-0.15-0.4 for the first 40-60 steps, then zero) 0.957-0.989, i.e. 50-198 below the statue,
+#     where the statue leaves at most 25.9 per episode on the table for any settle to win back. Open-loop one-leg
+#     stances (hip roll +-0.03 or +-0.06 rad on both legs, then the left leg flexed 0.2-0.3 rad; 5 episodes each):
+#     two fall on tilt (steps 292 and 465), a 39/61 weight shift stands at 0.768, and the nearest to one foot
+#     stands with the right foot at 0.4 N (4% of body weight) at 0.626 (bilateral support 205 of 500, alive
+#     conditioning -118, width 19 of 80, coverage -112): structurally an unloaded foot forfeits bilateral support,
+#     the alive conditioning, its flatness share, the width and its coverage, 1.15 per step.
+#   * Init cost (the trex stance's rule: under about half the 1.0 alive bonus at the start of training): zero-mean
+#     actions at the recipe's sigma 0.135 pay 0.169 per step in the penalties below (coverage 0.108, alive
+#     conditioning 0.049, impact 0.005, airborne 0.003, jerk 0.003) and the terms gain 1.04 per step net; at sigma 1.0,
+#     where every episode falls within 5-38 steps and the legacy reward is already -1.2 per step before the fall
+#     penalty, the penalties are about 0.56-0.57 per step (0.572 on this panel, 0.556 on seeds 11042-11061 with an
+#     independent noise stream).
+# Re-measure all of it with any plant, interface or [env] change.
+support_force_aggregation = "mean"             # Which per-foot load the bilateral term, the alive conditioning and the
+                                               # flatness/width load gate read: the substep MEAN. The legacy alive,
+                                               # posture and height terms keep their support gate on the substep MIN
+                                               # (both feet's MIN summed above 4% of body weight), which prices a hop
+                                               # (both feet unloaded on some substep of a step); this switch never
+                                               # touches it. A one-foot unload leaves the other foot's MIN (about
+                                               # 4.9 N) above that bar, so a one-foot chatter keeps the legacy terms
+                                               # whole and only the bilateral and coverage terms price it: the right
+                                               # foot lifted for one substep 130-190 times an episode keeps 0.972 of
+                                               # the statue (raw alive 999-1000 of 1000; KNOWN_ISSUES). Under the MIN the
+                                               # noisy statue (sigma 0.135) reads a foot at or below 0.1 N on 74% of
+                                               # its steps and would forfeit the bilateral term for its noise.
+bilateral_support_weight = 0.5                 # Pays the weaker-loaded foot, so both feet must carry weight: the
+                                               # marches' single-support tiptoe earns 44 of 500 per episode.
+foot_contact_saturation_force = 4.4            # N per foot, 0.45 BW (body weight 9.81 N). The statue's weaker foot
+                                               # carries at least 4.85 N (substep mean) after the settle, so it earns
+                                               # full credit, and a 35/65 split (3.4 N), which the gate's 0.40 share
+                                               # bar refuses, loses 22% of this term.
+support_conditioned_alive_fraction = 0.2       # Fraction of alive_bonus paid in proportion to bilateral support: 180
+                                               # per march episode. 0.3 (the design) would add 90 to that and cost the
+                                               # noisy statue another 24 (its relative keep 0.958 -> 0.951).
+foot_terms_min_support_force = 2.45            # N, 0.25 BW, on the same substep-mean load: a foot below it earns no
+                                               # flatness share and the pair no width, so a lifted or grazing foot held
+                                               # level cannot earn them (trex r8 paid an airborne foot about 80% of
+                                               # its flatness term and 98% of its width term).
+                                               # The statue's feet carry at least 3.7 N after step 5 (3.77 on seeds
+                                               # 3042-3081, 3.71 on 11042-11081).
+foot_flatness_weight = 0.5                     # Each plantar pad's tilt from level, exp(-(tilt/tol)^2) per loaded foot
+                                               # averaged over both. Prices the rolled foot the floor-truth gate refuses
+                                               # (critique of the design: hip roll of 0.05-0.10 rad kept 0.90-0.93 of
+                                               # the statue): its worse pad stands 2.6-2.9 deg (0.05) and 5-6 deg (0.10)
+                                               # off level and earns 1-112 of 500. The statue earns 499.7.
+foot_flatness_tolerance_deg = 2.0              # deg; the gate's own max_sole_tilt_deg, so a pad at the bar keeps
+                                               # exp(-1) of its share. 3 deg (the design) would let the 0.05 rolled
+                                               # foot keep 233 instead of 92 (0.908 of the statue, not 0.877) for 36
+                                               # more to the noisy statue (relative keep 0.968).
+stance_width_weight = 0.1                      # Gaussian on the planar foot-site distance around the animal's OWN width
+stance_width_tolerance_m = 0.03                # at the end of the settle, paid only after it ("settled", below), and
+stance_width_reference = "settled"             # only while both feet carry foot_terms_min_support_force. NOT the
+stance_width_settle_steps = 200                # keyframe width: on trex r8 a keyframe reference paid both trained seeds
+                                               # to re-seat their feet in the unscored settle (the 2026-10 review of
+                                               # those runs). Here the statue's position servos already return the
+                                               # spawn's +-4.4 mm width jitter to within 0.83 mm of the keyframe's
+                                               # 0.094 m by step 200, so a keyframe reference would pay a re-seat
+                                               # little, but the settled one cannot pay it by construction: the target
+                                               # is whatever width the settle ends at. The statue drifts at most
+                                               # 0.83 mm after step 200 and earns 80.0 of 80; the marches 6.
+                                               # stance_width_settle_steps equals [curriculum] settle_steps.
+leg_home_pose_weight = 0.5                     # Soft retention of the home keyframe's ten leg joints (hips to toes),
+leg_home_pose_tolerance = 0.15                 # mean per-joint Gaussian of 0.15 rad: the keyframe is the gravity-
+                                               # preloaded equilibrium, and the statue holds it within its 0.01 rad
+                                               # reset jitter (500.0 of 500). The marches' digitigrade crouch
+                                               # (0.29-0.59 rad off) earns 279-286; the swept-back crouch 316, which
+                                               # loads every support geom and keeps its pads level: this term is the
+                                               # one that prices it (the gate refuses it on its pads' centre of
+                                               # pressure, max_sole_cop_fore_aft in [curriculum]).
+support_geom_coverage_weight = 0.2             # This species' own term: each foot's share of its four support geoms
+                                               # (plantar pad, digits II-IV; the floor-truth registry's set) loaded on
+                                               # at least half of the step's substeps, charged as -w * (1 - mean over
+                                               # feet). The substep rule is the gate's (a geom is loaded when its floor
+                                               # contacts' normal forces sum above 0.1 N on a substep); the distal
+                                               # rule is this term's own, which the gate does not apply: a digit sums
+                                               # only its contacts beyond the capsule's centre, away from the MTP
+                                               # joint. The capsules start at that joint, under the pad, so its
+                                               # joint-end contact carries load at the statue whether or not the tip
+                                               # reaches the floor; a foot rocked back with the tips up loses its
+                                               # digits here, and a digit carrying the foot on its tip keeps it. The
+                                               # rolled foot keeps its pad and one digit (-100 per episode); the
+                                               # marches only the digit-III tip of the stance foot (-172, coverage
+                                               # 0.14); the statue every geom once the settle has seated the tips
+                                               # (-8.1 and -12.5 on its two panels, -23.6 at most). At 0.3 the rolled
+                                               # foot would pay 50 more and the noisy statue (coverage 0.46 under
+                                               # noise) 53 more.
+floor_impact_weight = 0.25                     # Named as on TRexEnv (D-D27); on the substep foot-force block from the
+floor_impact_threshold_bw = 2.5                # first step (the settle included): -w * min(peak - 2.5, 1) per step for
+airborne_substep_weight = 0.2                  # a peak summed foot force above 2.5 body weights, and -w per step with
+                                               # both feet off the floor on every substep (the share of airborne
+                                               # substeps). The statue peaks at about 2.0 BW in its reset pop (steps
+                                               # 1-2; 1.97 on seeds 3042-3081, 2.01 on 11042-11081), 1.33-1.39 from
+                                               # step 3 and 1.07 after step 5, and is airborne on 1 substep of one
+                                               # episode in 80; the jittered statue (sigma 0.05) peaks at 2.27-2.52
+                                               # (two noise streams).
+                                               # A stomp pays 1.5-6.2 in impact and 0.3-3.7 airborne, a sustained hop
+                                               # 24-50 and 4-30 (amplitude 0.1-0.2; at 0.07 it pays 0.8 and 2.4), the
+                                               # noisy statue 5.0 and 2.8. Noise is what bounces this statue (sigma
+                                               # 0.135: 142 airborne substeps per episode; on the neck and jaw alone
+                                               # 218, on the tail alone 46, on the ten leg actuators 42), so these
+                                               # terms stay small: they price a settle burst over the whole episode,
+                                               # which only the v2 settle bars saw on trex r8; the support terms above
+                                               # and the gate's window hop bars price the hop.
+action_saturation_weight = 0.3                 # Prices raw commands past |a| = 0.9 (no action filter on this species:
+action_saturation_threshold = 0.9              # every action term reads the policy's own clipped command). 0.11 per
+                                               # step at sigma 1.0; free for the statue and at sigma 0.135.
+action_jerk_weight = 0.5                       # Second difference of the raw command: a +-1 toggle of both knees at
+                                               # 25 Hz pays 0.06 per step here and 0.04 in saturation. 0.09 per step
+                                               # at sigma 1.0, where 1.0 and a saturation weight of 0.5 (the raptor's)
+                                               # would put the init cost at 0.73 per step.
 
 [ppo]
 learning_rate = 0.00003
@@ -53,7 +205,14 @@ max_grad_norm = 0.5
 
 [ppo.policy_kwargs]
 net_arch = [128, 128]
-log_std_init = -2.0
+log_std_init = -2.0                     # std 0.135 at initialisation, at this plant's noise cliff (D-D26): the
+                                        # zero-mean statue with N(0, std^2) noise on every command reaches the
+                                        # horizon on 40/40 episodes at std 0.10, on 151/160 at 0.135 (four seed
+                                        # blocks) and on 0/40 at 0.20 (median 180 steps; 129 on seeds 11042-11081
+                                        # with an independent noise stream), so a larger initial std,
+                                        # or an entropy schedule that lets the learned std grow toward 0.20,
+                                        # samples falls ([env] near-statues above; test_noise_tolerance.py pins
+                                        # 0.10 and 0.135).
 
 [sac]
 learning_rate = 0.0003
@@ -70,25 +229,317 @@ ent_coef = "auto"
 net_arch = [128, 128]
 
 [curriculum]
-gate_schema_version = 1
-gate_kind = "stance_quality/v1"
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "stance_quality/v2"         # environments/shared/curriculum/gate_schema.py
 # Shared PPO/SAC ceiling, chosen from Tyrannosaurus Rex PPO evidence; neither
 # Compsognathus algorithm has a measured convergence budget yet.
 timesteps = 11000000
-# 60% of the 3,000-point stance ceiling, approximately 60% of the measured
-# anatomical standing baseline (2,998.74). Matches Tyrannosaurus Rex's
-# baseline-relative fraction (2,100 / 3,495.2), rounded to a fixed threshold.
-# Foot support and survival are still required independently.
-min_avg_reward = 1800.0
-# Mechanical stance criteria follow configs/trex/stance.toml. The reward rail
-# above remains species-specific because the reward functions differ.
-min_full_horizon_fraction = 0.95
-max_unsupported_duty = 0.02
-max_unsupported_duty_ucb = 0.02
-# Same 20% settling prefix as T-Rex: 200 of 1,000 steps. At 50 Hz this is
-# 4 seconds, leaving 16 seconds of duty measurement in the 20-second episode.
-settle_steps = 200
-min_eval_episodes = 40
-required_consecutive = 3
-# Deliberately omit a collapse floor: the shared detector stays unarmed until
-# this plant has a learning history to calibrate it. Baseline reporting is advisory.
+
+# ---------------------------------------------------------------------------
+# The stance gate: physical stance quality on floor truth (decision D-D26,
+# adopted 2026-10-07 with physics r2 and policy interface r3; the kind itself
+# is D-D23).
+#
+# v1 certified two panel numbers -- the full-horizon share and the upper bound
+# on touch-sensor unsupported duty after an unscored 200-step prefix -- and the
+# 2026-10 stance-hack audit (docs/investigations/STANCE_HACK_AUDIT_2026_10.md)
+# found both met by the two certified r1 stances (20260921_203149 and
+# 20261001_225856), which are noise-robust tiptoe marches: single support on
+# the digit-III tip, about 3 touchdowns per foot per second, pads tilted 7-11
+# degrees. v2 reads the floor normal force under each leg and each support
+# geom on every substep (environments/shared/gait/), scores the settle window
+# too, and certifies the exact one-sided 95% lower bound on the share of CLEAN
+# episodes: an episode is clean when it reaches the horizon and every bar
+# below holds on a finite metric.
+#
+# Every bar was measured through the report path (build_stance_gate_report)
+# on the physics-r2 statue, its toe armature included (plant_versions note
+# 15 e): zero action, this [env], the 40-episode panel (seeds 3042-3081),
+# clean on 40/40, and on 40/40 of seeds 7042-7081 and of 9042-9081 ("out of
+# sample" below means those 80). The statue with N(0, sigma) noise on its
+# zero command every step ("jittered"; noise stream default_rng(123456 +
+# 17 i)) is clean on 20/20 at sigma 0.005 and 0.01 and on 40/40 at 0.02 and
+# 0.03 (seeds 3042+i; at 0.03 on 7042+i and 9042+i too). At 0.05 it is clean
+# on every bar but the window peak, which refuses 64 of its 120 episodes
+# (seeds 3042+i, 7042+i and 9042+i; 23 of 40 on seeds 11042+i with an
+# independent noise stream, default_rng(880001 + 7919 i)): that much noise
+# bounces this plant at a two-foot hop's own landing force
+# (max_window_peak_floor_force_bw below).
+# The two short PPO runs on this [env] (seeds 11 and 12, 200k steps each at
+# the recipe's log_std_init -2.0) are clean on 40/40 each with their
+# deterministic means (rewards 4569.5 and 4569.2: statues, no airborne
+# substep, window peak 1.000 BW), which shows only that the mean does not
+# drift to a march or a hop in the first 200k steps (the trex r8 runs
+# entered a hop regime by 2-4M); their stochastic rollouts (sigma 0.130)
+# reach the horizon on 20/20 each and are clean on 0/20 (touchdowns 1.2-2.4
+# per foot per second, both feet down 0.90-0.95, window peaks 3.0-4.9 BW):
+# the exploration noise bounces this plant, and the gate reads the mean. The
+# two certified r1 marches load only on the physics-r1 plant (the plant
+# contract compares physics_sha256), so they were rolled there with their own
+# linear interface and this block: 0/20 each, every episode failing at least
+# 9 bars (support, touchdowns, support-geom duty and coverage, sole tilt,
+# corner lift, contacts and centre of pressure, the window peak; 0921 20/20 on
+# the settle width change too). The r1 statue there is clean on 20/20.
+# Scripted hacks on the landed plant (seeds 3042+i, 10 episodes each unless
+# noted), with their reward over the same-seed statue's on that panel: both
+# hip-roll commands +0.05 rad (both pads rolled the same way) 0/10, 0.877,
+# rolled outward (right -0.05, left +0.05) 0/10, 0.892, and the same at 0.10
+# 0/10 each, 0.852 and 0.857 (sole tilt, support-geom duty and coverage;
+# outward the settle width change too, and at 0.10 corner lift and contacts);
+# a 60-step settle stomp (knees, ankles and hip pitch together, amplitude 0.15
+# and 0.2 at 5 Hz, 0.3 at 8.3 Hz) 0/10 each, 0.989, 0.986 and 0.956 (settle
+# peak; settle airborne on 8, 10 and 10); a two-foot hop that starts at step
+# 200 (both legs in phase: knees +a, ankles and hip pitch -a; a = 0.07, 0.10,
+# 0.12 and 0.15 at 10 and 12.5 Hz, square waves; 410 episodes over seeds
+# 3042+i, 7042+i and 9042+i) 0/410, 0.647-0.917, which reads a statue on every
+# step-level bar (both legs down on every step, no touchdown, the statue's
+# settle), so the window pair below is the one family that refuses all 410
+# (the displacement guard refuses 349 of them); the same hop at a = 0.05 0/20,
+# 0.841 and 0.912 (window airborne on all 20, displacement on 11), and at 0.10
+# from step 600 0/10, 0.930, by the pair alone; a whole-episode 12.5 Hz hop at
+# a = 0.05-0.10 0/40, 0.79-0.84 (the pair, the displacement guard and on 27 of
+# 40 the settle airborne bar; at 0.07 it is a low-amplitude two-foot hop: up
+# to 200 airborne window substeps, landing at 2.24-2.59 BW); a swept-back
+# crouch (hip pitch +0.3, ankles -0.2 rad) 8/10 without the pad centre-of-
+# pressure bar (33/40 on 3042-3081), 0.847: a level, bilateral stance on every
+# support geom, on its pads' front edges, that only that bar refuses (0/40
+# with it: max_sole_cop_fore_aft below; its other unclean episodes walk off:
+# displacement, settle and window airborne), and which the [env]'s leg pose
+# term prices (0.887 on its 20-episode re-score, 0.804 on seeds 11042-11061,
+# where it is clean on 13/20 without the pad centre-of-pressure bar and 0/20
+# with it: the posture wanders);
+# and an open-loop weight shift onto one leg (hip roll -0.03 rad on both legs,
+# then the left knee, ankle and hip pitch commanded 0.2 rad) that stands with
+# the right foot at 0.4 N (4% of body weight), 0/10, 0.626 (the lighter foot
+# carries 0.159 of the window's floor load and 0.034 in its worst second: both
+# foot-share bars, support-geom duty and coverage, sole tilt, corner lift and
+# contacts, and displacement refuse it), and the same shift with hip roll
+# +0.06 rad, then the left knee +0.3 and hip pitch -0.3 rad, which stands
+# 39/61 on both feet, 0/10, 0.768 (foot share 0.386 under the 0.40 bar, and
+# the pad bars).
+# What the block admits (40 episodes from seed 3042 through the report path
+# with its own statue panel; KNOWN_ISSUES and the audit's §11): the post-settle
+# hop's pattern driven by a sine instead of a square wave, at 5 Hz (a = 0.09)
+# 40/40, 0.989, and at 2.5 Hz (a = 0.12) 40/40, 0.990, which land at 1.33-1.80
+# BW and fly 0-32 window substeps; one 10 Hz square cycle every 0.4 s (a =
+# 0.04) 39/40, 0.974 (0-41 substeps, 1.65-1.66 BW); the right leg alone pumped
+# at 6.25 Hz (a = 0.07), its foot lifted for one substep 130-190 times an
+# episode and never both feet, 40/40, 0.972; and the legs in antiphase at 6.25
+# Hz (sine, a = 0.10), a foot unloaded at most twice an episode but the lighter
+# one under 20% of the load on 44-48% of window steps, 40/40, 0.905. The right
+# toe alone at +-0.25 and 10 Hz certified too (40/40, 0.984) until the pad
+# centre-of-pressure bar, which refuses it on 40/40: each tap rocks the pad
+# from edge to edge (0.826-0.848; the five above read 0.14-0.48). A leg is
+# down when it is loaded on half a step's substeps and the window pair counts
+# only substeps with both feet off the floor, so a foot lifted for less than
+# half a step, and a bounce that lands under 2.0 BW and flies no longer than
+# the jitter, read a statue on every bar.
+#
+# Superseded, kept for the record as they read under stance_quality/v1:
+# min_avg_reward = 1800.0                 # 0.60 x the r1 statue's 2998.74 under the r1 [env] (no stance terms).
+# max_unsupported_duty = 0.02             # Both v1 duty keys: the schema rejects them for v2, whose
+# max_unsupported_duty_ucb = 0.02         # min_all_feet_support reads the same support on floor truth.
+# ---------------------------------------------------------------------------
+min_eval_episodes = 40                   # The panel the bound is specified at (seeds 3042-3081, D-B17). At n = 40
+                                         # the bound is 0.928 at 40 clean, 0.887 at 39, 0.851 at 38, 0.817 at 37
+                                         # and 0.786 at 36.
+min_clean_stance_lcb = 0.80              # Admits 37/40 and refuses 36/40 (the gait plan's GQ-7 (a), as on trex and
+                                         # the velociraptor).
+settle_steps = 200                       # Splits each episode: the max_settle_* bars read steps 5-199 (after the
+                                         # 0.1 s spawn grace, five steps at this 0.02 s control step), every other
+                                         # bar steps 200-999. The r2 statue's last one-foot unload (a foot under 5%
+                                         # of body weight on a substep) is at step 4 at most (40 seeds), inside the
+                                         # grace, and its total floor force stays within 0.01% of its weight after
+                                         # step 200. The reward's distal digit rule seats the last tip by step 308
+                                         # (34 of 80 episodes after step 200; support_geom_coverage_weight in
+                                         # [env]); the gate counts a digit by any contact and reads duty 1.000
+                                         # from step 200. 200 equals v1's prefix and the [env]'s
+                                         # stance_width_settle_steps.
+min_full_horizon_fraction = 0.95         # Statue 40/40 on every panel. A floor to MATCH, not beat; kept under v2 as
+                                         # a panel rail beside the bound (an episode that ends early is unclean).
+min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode,
+                                         # jittered and the PPO means too; the marches at most 0.111 (fail 20/20
+                                         # each). The post-settle hops read 1.000 (the window pair below).
+max_touchdown_rate = 0.25                # Debounced touchdowns per foot per second over the window. Statue 0,
+                                         # jittered 0; the marches at least 2.97 (fail 20/20 each).
+max_window_displacement_m = 0.05         # Horizontal root travel over the window. Statue at most 0.03 mm (out of
+                                         # sample too), the PPO means 0.08 mm; jittered at most 12 mm at sigma
+                                         # 0.02, 21 mm at 0.03 and 39 mm at 0.05; the marches 0.011-0.216 m
+                                         # (0921 fails 5, 1001 7), the post-settle hops 0.038-0.155 m (349 of 410):
+                                         # the support, foot and window-pair bars refuse them, this guards a drift.
+min_foot_load_share = 0.40               # The lighter foot's share of the window's floor load. Statue at least 0.499
+                                         # (out of sample too; 0.500 is symmetric), the PPO means 0.471, jittered
+                                         # 0.489; the marches at least 0.449; the one-leg weight shifts above 0.159
+                                         # and 0.386 (fail 10/10 each, the second by this bar and the pad bars): a
+                                         # guard against a one-leg stance, as on trex and the velociraptor.
+min_foot_load_share_windowed = 0.35      # The lowest foot share over the window's 1 s blocks. Statue at least 0.496
+                                         # (out of sample too), the PPO means 0.468, jittered 0.465; the marches
+                                         # down to 0.381: a guard.
+min_foot_load_share_statue_ratio = 0.80  # The lowest foot's share over the statue panel's mean share for that foot,
+                                         # the statue rolled in the same report: a guard.
+max_actuator_saturation_fraction = 0.10  # The most saturated actuator's share of window steps at |a| >= 0.99. Statue,
+                                         # jittered and the PPO means 0; the marches at most 0.004: a guard (the
+                                         # reward prices the raw command past 0.9).
+max_settle_airborne_substeps = 15        # Substeps with both legs unloaded in steps 5-199. Statue 0 on every episode
+                                         # (one substep of one episode in 80 falls at step 2, inside the grace);
+                                         # jittered up to 5 at sigma 0.03 and 10 at 0.05; the marches up
+                                         # to 9 (their settle is quiet: the window bars refuse them). Looser than
+                                         # trex's and the velociraptor's 0 because noise bounces this light plant
+                                         # (the jittered statue), and the reward now charges every airborne
+                                         # substep from the first step (airborne_substep_weight in [env]). The
+                                         # settle stomps above 13-20, 41-52 and 162-195 (fail 8, 10 and 10 of 10),
+                                         # the whole-episode 12.5 Hz hops at a = 0.05-0.10 3-74 (fail 27 of 40;
+                                         # the window pair refuses all 40).
+max_settle_peak_floor_force_bw = 3.0     # Peak summed floor force in steps 5-199, in body weights (9.81 N). Statue at
+                                         # most 1.07 (1.08 out of sample), the PPO means 1.10; jittered up to
+                                         # 1.77 at sigma 0.03 and 2.12 at 0.05 (a trex/raptor bar of 1.5-2.0
+                                         # would refuse a flat jittery stance); the marches up to 2.27. The settle
+                                         # stomps above peak at least 3.96 (each fails 10/10) and the whole-episode
+                                         # a = 0.1 hop 3.03-3.29 (fails 10/10). The reward charges a step's peak
+                                         # above 2.5 BW from the first step (floor_impact_* in [env]).
+max_settle_stance_width_change_m = 0.011 # |Foot-site distance at the last settle step - at spawn|. Statue at most
+                                         # 3.6 mm (3.2 out of sample), the PPO means 3.7, jittered 4.2: about 3x the
+                                         # statue's worst, the trex r8 runs' lesson (both re-seated their feet in
+                                         # the settle by 3.6-4.4x the statue's change; the design's 0.02 is 21% of
+                                         # this 0.094 m stance). The 0921 march re-seats 11.5-33 mm (fails 20/20 at
+                                         # this bar), 1001 up to 12.4 (fails 1); the outward-rolled feet 17-50 mm
+                                         # (fail 20/20).
+max_foot_contact_fraction = 0.02         # Substeps with one foot on the other. Statue, jittered, the PPO means and
+                                         # the marches 0: a guard (the compsognathus robot's stacked soles the audit
+                                         # found).
+max_phantom_support_fraction = 0.05      # Window steps where touch reads a load the floor does not. Statue 0 (touch
+                                         # equals the floor force on this plant): a guard.
+max_nonfoot_load_fraction = 0.01         # Floor load on the tail, trunk or head. Statue and marches 0 (the metatarsus
+                                         # still terminates on contact): a guard.
+min_support_geom_duty = 0.50             # The least-loaded support geom (pad, digits II-IV; the gait library's
+                                         # registry) of either foot must carry load on this share of window steps.
+                                         # Statue 1.000 on every episode, the PPO means too; jittered at least
+                                         # 0.939 at sigma 0.03 and 0.810 at 0.05; the marches and the rolled feet
+                                         # 0 (fail 20/20 and 40/40). Mid-gap, as on the velociraptor. The gate
+                                         # counts a digit through its MTP-end contact too, which the reward does
+                                         # not (support_geom_coverage_weight in [env]): the bar is the looser of
+                                         # the two.
+min_support_geom_coverage = 0.80         # The worse foot's window-mean share of its support geoms loaded. Statue
+                                         # 1.000, the PPO means too; jittered at least 0.972 (0.03) and 0.904
+                                         # (0.05); the post-settle hops down to 0.751 (a = 0.15 at 12.5 Hz fails
+                                         # 12/40); the rolled feet 0.500 (fail 40/40) and the marches at most 0.135
+                                         # (fail 20/20).
+max_sole_tilt_deg = 2.0                  # The worse pad's window-mean tilt from level. Statue at most 0.021 deg
+                                         # (0.020 out of sample), the PPO means 0.050, jittered 0.12 (0.03) and
+                                         # 0.20 (0.05); the rolled feet at least 2.6 (fail 40/40) and the marches
+                                         # at least 7.0 (fail 20/20 each).
+max_sole_corner_lift_m = 0.003           # The worse pad's window-mean highest-minus-lowest bottom corner. Statue at
+                                         # most 0.016 mm (out of sample too), the PPO means 0.04, jittered 0.18;
+                                         # the feet rolled 0.10 rad at least 3.3 mm (fail 20/20; at 0.05, 1.5-1.6
+                                         # mm, under it) and the marches at least 7.4 mm (fail 20/20).
+min_sole_contacts = 1.5                  # The worse pad's window-mean loaded contact points (4 flat, 2 on an edge,
+                                         # 1 on a corner). Statue at least 3.83 (out of sample 3.84), the PPO means
+                                         # 3.62, jittered at least 2.72 (0.03) and 2.32 (0.05), so the bar sits
+                                         # under the out-of-sample worst, not its median (the trex r8 statue's worst
+                                         # moved 2.35 -> 2.09 between seed blocks); the swept-back crouch 2.00 (a
+                                         # pad on its edge, refused by the centre-of-pressure bar below); the feet
+                                         # rolled 0.10 rad 1.0 (fail 20/20) and the marches at most 0.002 (fail
+                                         # 20/20).
+max_sole_cop_fore_aft = 0.70             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
+                                         # (D-D28, which landed first; 0 centred, 1 on the heel or toe edge, a
+                                         # step with no loaded sole contact 1). Statue 0.143-0.155, heel side (out of
+                                         # sample too, and on 5042-5081 and 11042-11081), the PPO means 0.156-0.246,
+                                         # jittered at most 0.209, 0.246, 0.289 and 0.404 at sigma 0.01, 0.02, 0.03 and
+                                         # 0.05 (three seed blocks at 0.03 and 0.05; 0.282 and 0.388 on seeds 11042+i
+                                         # with the independent stream); the PPO runs' stochastic rollouts 0.667-0.751
+                                         # (other bars refuse every episode); the r1 statue 0.454-0.473 on its own
+                                         # plant, the marches 1.000 (pads unloaded). The pad and digits are one plate
+                                         # whose digits reach past the pad's front edge, so a posture that moves the
+                                         # centre of mass along the foot moves this reading while the pads stay level
+                                         # and every digit loaded, and no other bar sees it: both MTP servo targets
+                                         # ramped over 300 steps to -0.10 rad lean both pads onto their front edges,
+                                         # 0.860-0.927 (2.10-2.35 loaded points, tilt under 0.05 deg), and to +0.08 rad
+                                         # onto their heel edges, 0.844-0.862, each clean on 40/40 without this bar; the
+                                         # right MTP alone at +0.04 rad stands the left pad on its heel edge,
+                                         # 0.903-0.916, 40/40; both ankles at -0.15 rad 0.936-0.986 (40/40 refused by
+                                         # this bar alone), the MTPs at -0.14 rad 0.981-0.999 (the pads' heels lifting
+                                         # 0.3 deg) and the swept-back crouch 1.000 on each of its 33 episodes no other
+                                         # bar refuses; the right toe tapped at +-0.25 and 10 Hz, which certified 40/40
+                                         # before this bar (above), rocks its pad from edge to edge, 0.826-0.848. Short
+                                         # of the edge the reading follows the posture (the MTPs at -0.05, -0.08 and
+                                         # -0.09 rad 0.34, 0.67 and 0.77-0.80; at +0.05 and +0.07 0.56 and 0.74, on
+                                         # 3.6-4.0 loaded points). 0.70: 0.30 above the sigma-0.05 jitter, at which the
+                                         # window peak already refuses about half the episodes, and 0.14 under the least
+                                         # edge stance measured. Not the T. rex's 0.80: this statue stands at 0.15, not
+                                         # 0.17-0.48, and 0.80 would clear the heel-edge MTP panel by 0.04 and pass most
+                                         # of the -0.09 posture (0.77-0.80 on 2.2-2.6 loaded points). The rolled feet
+                                         # read 0.59-0.60 at 0.05 rad and 1.000 at 0.10, the one-leg stances 0.94-1.00,
+                                         # the square-wave hops from step 200 0.20-0.26 (a = 0.07) and 0.51-0.52 (0.15;
+                                         # all refused by the bars above); the five scripts the block still admits
+                                         # 0.14-0.48. Left open, as on the T. rex, the bar being a window mean: an edge
+                                         # stance on up to (0.70 - s) / (1 - s) of the window beside a centred s (65% at
+                                         # the statue's 0.15): the MTP servo targets ramped linearly onto the front
+                                         # edges over steps 450-550 pass 10/10 at 0.62-0.63 (past 0.9 on 54% of window
+                                         # steps), over 350-450 fail 10/10 at 0.72-0.73, and with the raw action ramped
+                                         # instead (a lagging target) the 350-450 posture reads 0.69-0.71 and passes 11
+                                         # of 20 (docs/KNOWN_ISSUES.md).
+max_window_airborne_substeps = 40        # The window hop pair (with the peak below; D-D26): substeps with both legs
+                                         # unloaded over steps 200-999. A leg is down on a step when it is loaded on
+                                         # half of its ten substeps, so a two-foot hop whose flights last 1-3
+                                         # substeps reads both legs down on every step, no touchdown and a statue's
+                                         # settle: the post-settle hops above. Statue and the PPO means 0 on every
+                                         # episode (out of sample too); jittered up to 5, 10 and 23 at sigma
+                                         # 0.01, 0.02 and 0.03 (29 at 0.05); the marches 3-20. The square-wave
+                                         # hops from step 200 fly 3-535 substeps (above the bar on 368 of 410;
+                                         # those that fly less land hard: the peak below), at a = 0.05 at least
+                                         # 72 (fail 20/20; they land at 1.87-2.31 BW), at 0.10 from step 600
+                                         # 72-104, and the swept crouch's walked-off episodes 462-465. About the
+                                         # geometric middle of the gap between the jittered statue at 0.03 and
+                                         # the softest-landing square-wave hop (23 and 72). No count separates a
+                                         # softer hop from the noise: the same pattern driven by a sine flies
+                                         # 0-32 window substeps (5 Hz) and 0-27 (2.5 Hz), and one 10 Hz cycle
+                                         # every 0.4 s 0-41, inside the jitter's range, and all three land
+                                         # under the peak bar below and certify (the admitted scripts above).
+max_window_peak_floor_force_bw = 2.0     # The window's peak summed floor force, in body weights. Statue at most
+                                         # 1.0002 (out of sample too), the PPO means 1.000; jittered up to 1.43,
+                                         # 1.57 and 1.75 at sigma 0.01, 0.02 and 0.03, and at 0.03 up to 1.88 on
+                                         # seeds 11042+i with an independent noise stream (2 of 40 above 1.75);
+                                         # the square-wave hops from step 200 at least 2.22 (a = 0.07 at 10 Hz;
+                                         # fail 410/410), at 0.10 from step 600 2.84, the marches 2.08-2.48 (fail
+                                         # 20/20 each). So the bar sits 0.12 BW above the worst sigma 0.03 episode
+                                         # measured and 0.22 under the least square-wave hop, not mid-gap: a
+                                         # trained mean a little noisier than sigma 0.03 starts failing on noise.
+                                         # At sigma 0.05 the jittered statue lands at 1.78-2.27 BW (1.82-2.52 on
+                                         # the independent stream), the a = 0.07 hop's own range (2.22-2.42), and
+                                         # this bar refuses 64 of its 120 episodes (23 of 40 on that stream): no
+                                         # pair of window bars both admits that jitter and refuses the hop (seed
+                                         # 9076 of that hop lands at 2.23 BW with 9 airborne substeps, inside the
+                                         # jitter's 2.27 and 29), so the bar refuses the hop with a margin rather
+                                         # than admit the noise. A hop driven by a sine lands softer than the
+                                         # square waves (1.33-1.80 BW at 2.5-5 Hz) and passes it. The reward
+                                         # prices the jitter and the square-wave hop alike (0.935 and 0.906-0.917
+                                         # of the statue): its floor_impact_* terms charge only above 2.5 BW, and
+                                         # below it the airborne term and the legacy substep-MIN support gate
+                                         # price the hop.
+min_avg_reward = 2740.0                  # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
+                                         # standing reward under this [env] (collapse_peak_floor_reference below:
+                                         # 0.60 x 4570.4 = 2742.2 -> 2740, rounded to the nearest 10). The
+                                         # certified marches re-score at 0.610-0.612 of their own r1 statue
+                                         # (2780.5-2788.8 against 4558.9; their worst episodes 0.594-0.598): about
+                                         # at this rail, which does not refuse them by itself; the bars above do,
+                                         # with 8-10 failed criteria an episode. Was 1800 (0.60 x 2998.74) under
+                                         # the r1 [env].
+min_avg_reward_statue_ratio = 0.60       # The same 0.60 rail against the statue panel each report rolls for itself
+                                         # (zero action, this [env], the same seeds and recorder), so it re-derives
+                                         # itself when a reward weight or the plant moves.
+collapse_peak_floor_reference = 4570.4   # The zero-action statue's standing reward under this [env]: 4570.4 +/- 7.2,
+                                         # 40 episodes, seeds 3042-3081, on physics r2 with its toe armature
+                                         # (4565.8 on 7042-7081, 4570.4 on 9042-9081), measured with
+                                         # `zero_action_baseline.py compsognathus --episodes 40 --seed 3042`.
+                                         # Declared for its provenance pin. Deliberately omit a collapse floor:
+                                         # with no collapse_peak_floor and no collapse_peak_floor_fraction the
+                                         # shared detector stays unarmed, as before, until this plant has a learning
+                                         # history to calibrate it. Re-measure this reference whenever a reward
+                                         # weight OR the plant changes.
+statue_constants_physics_revision = 2    # The compsognathus physics revision the statue-derived constants above
+                                         # (min_avg_reward and collapse_peak_floor_reference) were measured on.
+                                         # test_statue_constant_freshness.py cross-checks this against the plant
+                                         # manifest. Update it WITH the re-measurement, never alone.
+required_consecutive = 3                 # Scheduler hysteresis ONLY. Under stance_quality/v2 the in-training manager
+                                         # refuses the kind (the certificate is the post-stage report on the handoff
+                                         # pair), so nothing reads this until the in-training screen exists.

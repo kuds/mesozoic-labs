@@ -119,7 +119,12 @@ class TestDiscrimination:
         assert any("full_horizon_fraction" in f for f in failures)
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+#: The compsognathus stance that keeps stance_quality/v1: the robot.  The anatomical stance moved to
+#: stance_quality/v2 with its physics r2 (decision D-D26); test_compsognathus_stance_gate_config.py pins it.
+V1_COMPSOGNATHUS = ["compsognathus_robot"]
+
+
+@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
 @pytest.mark.parametrize("reward, expected_pass", [(1500.0, False), (1799.0, False), (1800.0, True)])
 def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
     """Good support cannot bypass the configured 60% standing reward floor."""
@@ -140,7 +145,8 @@ def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
 
 
 #: The trex stance's stance_quality/v1 block as it stood until trex physics r8 moved the stance to
-#: stance_quality/v2 (decision D-D24): the source of truth the compsognathus pair's v1 blocks copied.
+#: stance_quality/v2 (decision D-D24): the source of truth the compsognathus pair's v1 blocks copied
+#: (the anatomical stance left v1 too, with D-D26; the robot's block still copies it).
 TREX_STANCE_V1_CURRICULUM = {
     "gate_schema_version": 1,
     "gate_kind": "stance_quality/v1",
@@ -154,14 +160,16 @@ TREX_STANCE_V1_CURRICULUM = {
 }
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
 def test_compsognathus_mechanical_gate_matches_trex(species):
     """T-Rex's last v1 block is the source of truth; only the species reward rail differs.
 
-    The trex stance itself left v1 with physics r8; the compsognathus pair keeps v1 until its own
-    adoption of stance_quality/v2, so it is held to the block it copied, not to trex's current one.
+    The trex stance itself left v1 with physics r8 and the anatomical compsognathus stance with its
+    physics r2; the robot keeps v1 until its own adoption of stance_quality/v2, so it is held to the
+    block it copied, not to trex's current one.
     """
     assert load_all_stages("trex")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality/v2"
+    assert load_all_stages("compsognathus")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality/v2"
     config = load_all_stages(species)[1]
     assert config["curriculum_kwargs"]["gate_kind"] == TREX_STANCE_V1_CURRICULUM["gate_kind"]
     assert StanceGateThresholds.from_curriculum(config["curriculum_kwargs"]) == replace(
@@ -169,7 +177,7 @@ def test_compsognathus_mechanical_gate_matches_trex(species):
     )
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
 @pytest.mark.parametrize(
     "n_full, duties, failed_criterion",
     [
@@ -201,7 +209,7 @@ def test_compsognathus_configured_mechanical_gate(species, n_full, duties, faile
         assert len(failures) == 1
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
 def test_compsognathus_configured_settling_window(species):
     config = load_all_stages(species)[1]
     thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])

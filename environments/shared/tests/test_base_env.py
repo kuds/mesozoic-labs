@@ -1111,3 +1111,72 @@ class TestCacheHomeKeyframe:
         # Re-callable, as the behavior env's model swap requires.
         BaseDinoEnv._cache_home_keyframe(holder, "Test")
         np.testing.assert_array_equal(holder._home_ctrl, [0.25])
+
+
+#: One stance env per species, every registered plant: the substep foot-force block and the species
+#: substep hook live in the shared step loop.
+_SUBSTEP_SPECIES = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot")
+
+
+@pytest.mark.parametrize("species", _SUBSTEP_SPECIES)
+def test_the_substep_force_block_and_hook_leave_every_species_bit_identical(species):
+    """The block is the MIN's own rows, and a hook that reads the state cannot move a trajectory.
+
+    ``BaseDinoEnv.step`` keeps every substep's per-foot force beside the
+    running MIN (the compsognathus stance's MEAN, impact and airborne terms
+    read it) and calls ``_accumulate_substep`` after each substep.  Rolled
+    with a hook that reads contacts and forces on every substep, each
+    species reproduces the default env's observations, rewards, info and
+    state bit for bit, and the block's column minimum is the MIN aggregate.
+    """
+    from environments.shared.config import load_stage_config
+    from environments.shared.species_registry import get_species_config
+
+    env_class = get_species_config(species).env_class
+    kwargs = load_stage_config(species, "stance")["env_kwargs"]
+    plain = env_class(**kwargs)
+    probed = env_class(**kwargs)
+    calls: list[int] = []
+    species_hook = probed._accumulate_substep  # the species' own accumulator (compsognathus), chained
+
+    def reading_hook(substep: int) -> None:
+        calls.append(substep)
+        species_hook(substep)
+        probed._foot_contact_forces()
+        _ = probed.data.contact.geom.copy(), probed.data.efc_force.copy()
+
+    probed._accumulate_substep = reading_hook
+    rng = np.random.default_rng(5)
+    plain.reset(seed=11)
+    probed.reset(seed=11)
+    for _ in range(25):
+        action = np.clip(0.2 * rng.standard_normal(plain.action_space.shape), -1.0, 1.0)
+        a = plain.step(action)
+        b = probed.step(action)
+        np.testing.assert_array_equal(a[0], b[0])
+        assert a[1:4] == b[1:4]
+        assert set(a[4]) == set(b[4]) and all(
+            np.array_equal(a[4][key], b[4][key], equal_nan=isinstance(a[4][key], float)) for key in a[4]
+        )
+        np.testing.assert_array_equal(plain.data.qpos, probed.data.qpos)
+        np.testing.assert_array_equal(plain.data.qvel, probed.data.qvel)
+        block = plain._substep_foot_force_block()
+        assert block.shape == (plain.frame_skip, len(plain._foot_sensor_groups))
+        if plain._foot_sensor_groups:
+            assert tuple(float(value) for value in block.min(axis=0)) == plain._aggregated_foot_contact_forces()
+        if a[2] or a[3]:
+            break
+    assert calls[: probed.frame_skip] == list(range(probed.frame_skip))
+    # A copy: editing it leaves the step's record alone.
+    block[:] = -1.0
+    assert (plain._substep_foot_force_block() >= 0.0).all()
+    # Outside a step the block falls back to the instantaneous read, like the MIN: after a reset, where only
+    # the step tag tells the last episode's block from this one's, and after an explicit invalidation.
+    plain.reset(seed=12)
+    assert plain._substep_foot_force_block().shape == (1, len(plain._foot_sensor_groups))
+    np.testing.assert_array_equal(plain._substep_foot_force_block()[0], plain._foot_contact_forces())
+    plain.step(np.zeros(plain.action_space.shape))
+    plain._invalidate_substep_aggregates()
+    np.testing.assert_array_equal(plain._substep_foot_force_block()[0], plain._foot_contact_forces())
+    plain.close()
+    probed.close()

@@ -83,6 +83,12 @@ class StanceEpisodeMetrics:
     #: Fraction of window steps with every leg down / with no leg down.
     all_feet_support: float
     flight_fraction: float
+    #: Window substeps with every leg unloaded, and the max substep animal floor force over the
+    #: window / body weight: the settle window's hop and impact detectors, read over the window.  A
+    #: light plant's flight phase can last fewer substeps than DOWN_SUBSTEP_FRACTION of a step, so a
+    #: hop that leaves the floor on every step can still read every leg down on every step.
+    window_airborne_substeps: float
+    window_peak_floor_force_bw: float
     #: Debounced touchdowns in the window, summed over feet, per foot per second.
     touchdown_rate: float
     #: Min over feet of the window load share; and of the share over each whole LOAD_WINDOW_S
@@ -134,7 +140,7 @@ class StanceEpisodeMetrics:
     #: centre otherwise (r8 seed 42: signed 0.14-0.28, |.| 0.96-0.99); unloaded steps count 1 so that lifting the
     #: pad, or grazing the floor with it, cannot hide an edge stance.  Left open: an edge stance on up to
     #: (bar - s) / (1 - s) of the window beside a centred s, and heel and toe loaded in turn inside one step.  The
-    #: statue baseline is the foot's (box statues 0.30 to 0.69), so a bar is per species.
+    #: statue baseline is the foot's (box statues 0.14 to 0.69), so a bar is per species.
     max_sole_cop_fore_aft: float
     # --- spawn [0, g) and settle [g, s) ---
     #: Max substep animal floor force / body weight in the spawn grace; substeps there with every
@@ -218,14 +224,17 @@ class StanceEpisodeMetrics:
 _INT_FIELDS = frozenset({"length", "settle_steps"})
 _BOOL_FIELDS = frozenset({"terminated"})
 
-#: Float fields added after the panel CSV contract shipped (the pad's fore-aft
-#: centre of pressure, D-D28): a row or a panel CSV recorded before then lacks
-#: them, and :meth:`StanceEpisodeMetrics.from_row` and
+#: Float fields added after the panel CSV contract shipped (the window hop
+#: pair, D-D26; the pad's fore-aft centre of pressure, D-D28): a row or a panel
+#: CSV recorded before then lacks them, and
+#: :meth:`StanceEpisodeMetrics.from_row` and
 #: ``curriculum.stance_gate_v2.read_stance_v2_panel`` read them as unmeasured,
 #: so every report recorded before them keeps its verdict under a gate that
 #: does not declare their key.  A new metric changes no adopted key's meaning,
 #: so it needs no new MEASUREMENT_VERSION; a re-rolled panel measures it.
-STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset({"max_sole_cop_fore_aft"})
+STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset(
+    {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft"}
+)
 
 #: The per-foot / per-geom tuple fields, in declaration order.
 STANCE_METRIC_FOOT_FIELDS: tuple[str, ...] = (
@@ -376,6 +385,8 @@ def episode_stance_metrics(trace: "EpisodeTrace", *, settle_steps: int) -> Stanc
         window_values = {
             "all_feet_support": _mean(np.all(down_window, axis=1)),
             "flight_fraction": _mean(~np.any(down_window, axis=1)),
+            "window_airborne_substeps": float(np.sum(trace.feet_airborne_substeps[window])),
+            "window_peak_floor_force_bw": float(np.max(trace.total_floor_max[window])) / body_weight,
             "touchdown_rate": touchdowns / (n_feet * window_steps * dt),
             "min_foot_load_share": float(shares.min()) if np.isfinite(shares).all() else NAN,
             "min_foot_load_share_windowed": min(block_minima) if block_minima else NAN,
@@ -538,6 +549,8 @@ def _saturation_metrics(actions: np.ndarray) -> dict[str, float]:
 _WINDOW_FIELDS: tuple[str, ...] = (
     "all_feet_support",
     "flight_fraction",
+    "window_airborne_substeps",
+    "window_peak_floor_force_bw",
     "touchdown_rate",
     "min_foot_load_share",
     "min_foot_load_share_windowed",

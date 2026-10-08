@@ -425,10 +425,104 @@ observation_schema = "quadrupedal-target/v1"
 # Initial training interfaces for the anatomical and Rev B robot variants.
 # Existing kinematics, masses and actuators are retained. Diagnostic frame
 # sensors use xbody (the pelvis frame), not the inertial principal axes.
+#
+# 15. The anatomical compsognathus stands on its whole foot, and PPO can
+#     explore around the statue.  Both certified r1 stances were one-foot
+#     tiptoe marches on the digit-III tip.  The stance review traced them to
+#     an action map that put the statue's whole holding torque inside 1% of
+#     the action and to two plant defects that made the flat stance fragile,
+#     and found the right foot built as a left foot; the implementation
+#     found the MTP servo ringing numerically.  Five changes, landed
+#     together so the species' digests move once (D-D26); a), b), c) and e)
+#     are generator edits confined to build_biological:
+#
+#     a) The tail's 178 g is spread at one density over its tapered meshes:
+#        tail_1..tail_4 0.080 / 0.055 / 0.028 / 0.015 -> 0.1173 / 0.0461 /
+#        0.0125 / 0.0021 kg (583 / 1019 / 1918 / 6223 -> 854-871 kg/m3; the
+#        r1 tip was denser than bone).  Body mass stays 1.000 kg.  The home
+#        CoM moves 9.8 mm forward (3.6 -> 13.4 mm ahead of the hip), the
+#        settled statue's CoM sits 19.6 -> 29.3 mm ahead of the plantar
+#        pad's rear edge (0.25 -> 0.38 of the 78 mm foot), and the tail's
+#        pitch inertia about tail_1 halves, 0.00825 -> 0.00434 kg m2.
+#     b) The metatarsus collision capsule, also the drawn shank, ends 4 mm
+#        short of the MTP joint along its own axis
+#        (metatarsus_collision_inset_m).  The metatarsal head rests on the
+#        pad and is never support, yet the settled r1 statue held it 1.07 mm
+#        off the floor, so a 1 mm soft-contact sink of the sole touched it
+#        with 0 N on it (48 of 48 first touches) and the terminating contact
+#        ended upright, flat-footed episodes as falls.  Settled clearance is
+#        now 4.81 mm; contact still terminates, so a real crouch is a fall.
+#     c) Digit II is medial on both feet.  r1 built the right foot as a left
+#        foot (its digit-II tip lateral, at world y -64 mm).  Mechanically
+#        neutral; the home preload becomes left-right symmetric.
+#     d) Policy interface: the species' env is CompsognathusBiologicalEnv
+#        (species_manifest env_entrypoint, the species registry and
+#        MesozoicLabs/Compsognathus-v0), whose action mapping
+#        home-keyframe-residual-softcubic/v1 shapes the ten leg residuals to
+#        b = 0.1 a + 0.9 a^3 before the unchanged home-keyframe span: action
+#        zero is still the home ctrl and +-1 still the ctrlrange ends, but
+#        the slope at home is a tenth.  Every leg servo saturates at
+#        forcerange / kp = 0.05 rad of error, and the linear residual spent
+#        0.007-0.015 of action on the whole knee or ankle holding torque.
+#     e) The MTP joint's armature rises from 5e-5, the default of the
+#        generator's joint class, to 2e-4 kg m2 (toe_armature_kg_m2; the
+#        maintainer took it on 2026-10-07).  The 20 g foot plate alone gives
+#        the toe DOF 1.6e-5 kg m2, so at 5e-5 its kp-12 servo rang at 68 Hz,
+#        omega*dt 0.85 at the 2 ms step, the stiffest servo DOF in the
+#        model, and on a)-d) sustained a
+#        numerical 19-21 Hz heel chatter after the settle on 15 of 40
+#        zero-action statues (r1: 6 of 40, at 18.5 Hz) that failed 2 of
+#        validate_models' 10 seeded holds (supports_weight, a 5.4% ground-
+#        force error).  At 2e-4 it rings at 37 Hz, omega*dt 0.47: no statue
+#        of 40 chatters (post-settle ground-force error at most 0.009% of
+#        weight), every hold passes, and the sigma 0.135 noisy statue keeps
+#        39 of 40 episodes, not 30.  Statics, keyframe and preload are
+#        unchanged.
+#
+#     The MTP servo keeps its 0.6 N.m cap (now the generator parameter
+#     toe_forcerange_nm): it holds one body weight on the digit-III tip
+#     (0.594 N.m needed), so a single-support tiptoe stays physically
+#     possible on this plant -- the 20260921_203149 march, replayed on it
+#     through its own linear interface, still survives 20 of 20 episodes on
+#     its digit-III tip (seeds 3042-3061; 20261001_225856 survives 9 of 20)
+#     -- and the stance reward and gate are what refuse it.  Cutting the cap
+#     to 0.4 N.m waits on a measured walker toe-torque budget.
+#
+#     Zero-action statue (stance [env], frame_skip 10), r1 -> r2: settled
+#     metatarsus clearance 1.07 -> 4.81 mm; pad / distal-digit share of each
+#     foot's load (seeds 5100-5109, step 200) 0.44 / 0.14 -> 0.41 / 0.25 on
+#     average; the largest pelvis push held for 0.1 s on 5 of 5 seeds,
+#     forward 0.225 -> 0.275, backward 0.125 -> 0.20 and lateral 0.45 ->
+#     0.45 body weights; the largest initial tilt held on 3 of 3 seeds,
+#     nose-down 2 -> 5, nose-up 4 -> 7 and roll 15 -> 15 deg.  Every
+#     fore-aft push or pitch failure ends on tail_4.  Zero-mean white action
+#     noise through each revision's own interface (paired streams, seeds
+#     3042+i): sigma 0.02, 5/20 -> 20/20 full episodes; sigma 0.135, PPO's
+#     initial exploration, 0/20 (median 12 steps, 16 of 20 on the
+#     metatarsus) -> 39/40 (151/160 over four seed blocks, every fall on
+#     tail_4); on r2, sigma 0.10 40/40 and 0.20 0/40 (median 130-180
+#     steps over two noise streams).
+#
+#     PHYSICS moves (geom masses and fromto, the toe armature, and the key
+#     ctrl that write_gravity_targets regenerates).  The POLICY INTERFACE
+#     moves for every item but e), not only d): the tail masses, the shorter
+#     capsule (it moves the metatarsus CoM) and the mirror (it makes the
+#     preload symmetric) each change the home ctrl that action zero
+#     commands.  VISUAL moves (the drawn shank and the digit capsules, b)
+#     and c)).  e) alone moves the physics digest and nothing else: the
+#     landed XML with the toe armature back at its default keeps the
+#     policy-interface and visual digests.  The
+#     robot is untouched: build_robot regenerates compsognathus_robot.xml
+#     byte-identical, and CompsognathusEnv and CompsognathusRobotEnv are
+#     unchanged, so [plants.compsognathus_robot] keeps all three digests.
+#     Every anatomical compsognathus checkpoint is invalidated, the
+#     certified 20260921_203149 and 20261001_225856 stances and the
+#     20260921_203149 walker included, and the task digest of every
+#     compsognathus stage and behavior recipe moves with the plant.
 [plants.compsognathus]
-physics_revision = 1
-policy_interface_revision = 2
-visual_revision = 1
+physics_revision = 2
+policy_interface_revision = 3
+visual_revision = 2
 observation_schema = "bipedal-target/v1"
 
 [plants.compsognathus_robot]

@@ -19,6 +19,10 @@ and §5.4's trex `TRUNK_FROM` (§12, the dated amendment).*
 of this plan) and its SB3-only exit land with a revised stance task and the velociraptor stance on
 `stance_quality/v2`, which strands the genuine velociraptor walker GQ-10 and GQ-11 protect (§13, the dated
 amendment).*
+*Updated 2026-10-07: and D-D26: the anatomical compsognathus plant revision (physics r2) with a soft-cubic leg
+interface lands with a revised stance task and the compsognathus stance on `stance_quality/v2`, which gains two
+optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§16, the dated
+amendment).*
 
 ## How to use this document
 
@@ -765,3 +769,83 @@ day: items 3 and 1 of "What stays open" in the stance-hack audit's §9, the seco
   after the compsognathus revision lands and before either species trains, with the spawn-yaw probe becoming a gate
   check; each species' policy-interface revision moves, so its checkpoints stop loading. The velociraptor follows
   only after the maintainer's two current velociraptor runs are reviewed.
+
+## 16. Amendment (2026-10-07): the compsognathus plant revision, its leg interface and its stance on the floor-truth gate
+
+*Appended 2026-10-07; §1–§15 above are unchanged.* The maintainer chose on 2026-10-07, answering the open questions of
+the compsognathus standing review, to land the anatomical compsognathus plant revision now (physics r1 → r2, policy
+interface r2 → r3, visual r1 → r2; `configs/plant_versions.toml` note 15): the tail's 178 g at one density (its r1 tip
+was denser than bone), the metatarsus collision capsule 4 mm short of the MTP joint (r1's 1.07 mm clearance ended
+upright episodes on 0 N touches), digit II medial on both feet, the MTP joint's armature at 2e-4 kg·m² (taken the same
+day, when the implementation found the toe servo ringing numerically in a 19–21 Hz heel chatter), and the species' env
+`CompsognathusBiologicalEnv`, whose `home-keyframe-residual-softcubic/v1` mapping softens the ten leg residuals near
+home (b = 0.1a + 0.9a³). The stance task is revised and the compsognathus stance adopts `stance_quality/v2`, with two
+optional criteria the kind gains for this plant: decision D-D26 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+§6.2 and the consolidation plan's table). The validation, the r2 statue clean on 40/40 on three seed blocks, a square-wave
+two-foot hop started after the settle on 0/410 and the two certified r1 marches (`20260921_203149`, `20261001_225856`) on 0/20
+each, is the dated §11 appended to
+[investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md). The robot is untouched,
+and so is its `gait-r1` (GQ-14).
+
+**What changes in the plan.**
+
+- **GQ-10 and GQ-11, for the compsognathus.** D-D26 is a revision that retrains the chain, as GQ-10 (a) requires, and
+  it accepts the cost GQ-10 names: the plant contract refuses every r1 compsognathus checkpoint, so the genuine walk
+  of `20260921_203149` is stranded rather than re-panelled, as §13 recorded for the velociraptor. With both genuine
+  walkers stranded, GQ-11 (a)'s re-panel has no case left on the current plants; it stays the shape for re-certifying
+  a node in a new run.
+- **PR-G5, its calibration.** `locomotion_gait/v1` was to be calibrated on both genuine walkers; their replays
+  (`docs/investigations/gait_2026_09/gait_probe.py` reads recorded checkpoints and needs their plant) now run only in
+  checkouts of earlier commits, the compsognathus walker's before D-D26 on the r1 plant, the velociraptor's before
+  D-D25. The numbers in §4.3 stand as that evidence; a calibration on the current plants waits for a walker trained on
+  them.
+- **The floor-truth "down" rule and a light plant's hop.** A leg is down when it is loaded on at least half of a
+  control step's substeps (§1.1's floor truth). The compsognathus's two-foot hop at 10–12.5 Hz
+  flies for 1–3 of its ten 2 ms substeps a step, so it reads both legs down on every step, no touchdown and no flight;
+  on the r2 statue's bars it is a statue. `stance_quality/v2` therefore gains the window hop pair,
+  `max_window_airborne_substeps` and `max_window_peak_floor_force_bw`, which count the window's both-feet-unloaded
+  substeps and its peak summed floor force (the settle bars' own detectors, read over the window); each is optional and
+  applied only where declared, so no trex or velociraptor digest moves. The compsognathus declares 40 substeps and
+  2.0 BW, which refuse the square-wave hop on all 410 episodes measured but not a sine-driven bounce that lands
+  under 2.0 BW or a foot lifted for less than half a step (KNOWN_ISSUES). `locomotion_gait/v1`'s flight and hop-flight separators
+  (§3.3, GQ-8) read the same per-step rule, so on this species they cannot see such a hop either; PR-G5 should count
+  substeps there too when it calibrates on a compsognathus walker.
+- **§5.4's optional compsognathus stance row, and §5.3's compsognathus kit row.** Taken inside D-D26 with species-only
+  `CompsognathusBiologicalEnv` kwargs, not §5.3's shared kit: bilateral support (0.5 at 4.4 N) and a
+  support-conditioned alive share (0.2) read each foot's substep-mean touch load, which on this plant equals the floor
+  force (the gate's phantom-support guard reads 0 on the statue), while the legacy alive, posture and height terms
+  keep their support gate on the substep minimum, which prices a two-foot hop (a one-foot unload leaves the other
+  foot's minimum above the gate, so only the bilateral and coverage terms price a one-foot chatter). Beyond the row, the revision adds
+  what the review and the trex r8 runs showed the support terms alone miss: sole flatness and stance width paid only
+  on a loaded foot, the width around the animal's own settled width (a keyframe reference paid both trex r8 seeds to
+  re-seat their feet in the settle), support-geom coverage on the gate's substep rule (with a rule of the reward's own
+  that the gate does not apply: a digit counts only through its contacts beyond the capsule's centre, away from the MTP
+  joint, so a foot rocked back onto its MTP ends loses its digits), floor impact and airborne substeps from the first
+  step, the home leg pose, and saturation and jerk on the raw command. The bilateral weight is 0.5, not the row's 0.6.
+- **The action interface, which the plan does not cover.** The review found that the species' linear home-keyframe
+  residual put the statue's whole knee or ankle holding torque inside 0.007–0.015 of action, so PPO's initial
+  exploration noise (σ 0.135) toppled the r1 statue in a median of 12 steps, and both certified stances learned a
+  noise-robust march instead. The soft-cubic map is this species' own policy-interface revision; it keeps action zero
+  at home and ±1 at the ctrlrange ends, so locomotion keeps its full reach. The noise cliff it leaves on r2 (σ 0.10:
+  40/40 full episodes, σ 0.135: 151/160 over four seed blocks, σ 0.20: 0/40) constrains `log_std_init` and any
+  entropy schedule of the compsognathus stages.
+- **The single-support tiptoe.** The MTP servo keeps its 0.6 N·m cap, which holds one body weight on the digit-III
+  tip, so the marches' stance stays physically possible on r2 (the `20260921_203149` march, replayed on it, survives
+  20 of 20 episodes on that tip); the reward (the marches re-score at 0.61 of the statue) and the gate (support-geom
+  duty and coverage, sole tilt, corner lift, touchdowns) are what refuse it. A cap of 0.4 N·m would remove it (but not
+  a two-foot tiptoe, which needs about 0.3 N·m per toe); the cut waits on a walker's measured toe-torque budget.
+- **GQ-17.** The compsognathus now needs a stance retrain before any compsognathus walk (the maintainer trains at least
+  two seeds on the policy-interface revision of §15's heading-free observations, which come after this revision and
+  before either the T. rex or the compsognathus trains and make the spawn-yaw probe a gate check); the order of the
+  retrains stays the maintainer's. Of §1's five certified walkers, only the robot's micro-hop still loads on its current
+  plant.
+- **§15's pad centre of pressure, on this plant (D-D28, which landed first).** The compsognathus stance declares
+  `max_sole_cop_fore_aft` at 0.70, measured on the landed r2 plant as §15 asks: the statue reads 0.143–0.155, heel side,
+  over 200 episodes on five seed blocks, the jittered statue at most 0.404 (σ 0.05) and the two short PPO runs' means at
+  most 0.246. The pad and the digits are one plate and the digits reach past the pad's front edge, so a posture that
+  moves the centre of mass along the foot keeps the pads level and every digit loaded: both MTP servo targets leaned
+  onto the pads' front edges (0.860–0.927) or their heel edges (0.844–0.862) certify whole 40-episode panels under every
+  other bar, 33 of the swept-back crouch's 40 episodes stand clean on their front edges (1.000), and the toe tap the
+  window pair admits rocks its pad from edge to edge (0.826–0.848); this bar alone refuses each. 0.70, not the T. rex's
+  0.80, because this statue stands at 0.15; the partial edge stance stays open at (0.70 − s)/(1 − s) of the window, 65%
+  at the statue's 0.15 (KNOWN_ISSUES). The calibration is the D-D28 paragraph of the stance-hack audit's §11.

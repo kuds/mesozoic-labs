@@ -1109,3 +1109,401 @@ r1 pad on its front edge no longer does, so the end-to-end test of the edge refu
 left ankle ramped to −0.075 over 300 steps leans the animal onto its right pad's front edge: 0.86–0.93 on 3042–3044
 at a 400-step horizon, flat by every other pad bar, while the statue reads under 0.35). D-D28 lands after D-D26 and is
 rebased on it, which re-measures its compsognathus readings and the compsognathus bar on that plant.
+
+## 11. Addendum 2026-10-07: the compsognathus adoption on physics r2 (appended)
+
+*Appended 2026-10-07 and revised 2026-10-08, when D-D28 (§10) landed first and this revision took its pad
+centre-of-pressure bar; §1–§10 above are unchanged.* §3.3 found both certified compsognathus stances, `20260921_203149`
+and `20261001_225856`, marching in place on the tip of digit III. A standing review of the species followed on
+2026-10-07: four lanes (anatomy, feet, mechanics, training), each re-measured by an independent verifier, then a
+design and a critique that re-measured the design on disjoint seeds and noise streams. The maintainer took its answers
+the same day as decision D-D26 ([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): the anatomical plant
+revision (physics r1 → r2, policy interface r2 → r3, visual r1 → r2; `configs/plant_versions.toml` note 15), a
+soft-cubic leg interface, a revised stance task and `stance_quality/v2` on the compsognathus stance, in one pull
+request, and the same day the toe armature the implementation needed. The bars are re-measured on the landed r2
+statue, as §2.3 requires, and committed in `configs/compsognathus/stance.toml`, each with its statue and hack values
+in its comment; two of them are new optional criteria of the kind, the window hop pair. The robot is untouched.
+
+**Root causes (verified).** The march is the product of four things, and the review found no one of them sufficient:
+
+- *Action authority.* Every leg servo saturates at forcerange / kp = 0.05 rad of position error, while the linear
+  home-keyframe residual spreads ±1 over the 0.35–1.0 rad half-ranges, so 0.007–0.015 of action is already the whole
+  knee or ankle holding torque and 86–93% of the action range is saturated torque. The zero-action r1 statue survived
+  white action noise only to σ 0.01 (σ 0.02: 4–5 of 20 full episodes; σ 0.03: 0/20); at the recipe's initial σ 0.135
+  (`log_std_init` −2.0) it fell in a median of 7–12 steps, so PPO never sampled the quiet stance, and a fresh,
+  untrained PPO policy sampled at `log_std_init` −4.6 held it on 20/20. The ankle, not the knee, is the most
+  noise-sensitive group, and 100 Hz control does not help open-loop noise (at equal per-step σ the statue falls as
+  often).
+- *The plant's mass and clearance.* The tail's 178 g put a 6.2 g/cm³ tip on the end of a 0.58 g/cm³ base, which held
+  the centre of mass at 0.25 of the foot from the heel: a 19.6 mm backward margin, and every real noise fall went
+  backward onto the tail. The metatarsus capsule sat 1.07 mm above the floor on the settled statue; every metatarsus
+  touch carried 0 N (48 of 48 first touches), yet the contact terminates, so upright, flat-footed episodes ended as
+  falls; that trigger accounts for about 60% of the time-to-termination under high noise. The right foot was built as
+  a left foot (digit II lateral), mechanically neutral.
+- *An all-or-nothing foot.* The foot is a rigid plate: 0.05° of toe-down pitch moves all of its load onto the
+  digit-III tip. A servo-held flat foot stays flat over a toe-action band of −0.20 to +0.04, so the tiptoe is not a
+  passive default: the marches hold it actively, the MTP servo at its 0.6 N·m force cap on 64–65% of loaded steps
+  (83–91% in single support), and the full-load moment on that tip, 0.594 N·m, equals the cap. The digit capsules
+  start at the MTP joint, under the pad, so the statue's "digit" load (56% in §3.3) is mostly MTP-point load; the
+  distal digits carry about 14%.
+- *What the reward and the gate paid.* The legacy reward paid the deterministic marches 0.928–0.936 of the statue, and
+  v1 admitted them (§3.3).
+
+**The maintainer's decisions** (D-D26), each as the review recommended: the MTP servo keeps its 0.6 N·m cap, the cut
+deferred until training runs (the maintainer first chose 0.4 N·m and revised it to the recommendation the same day);
+the soft-cubic leg mapping, b = 0.1a + 0.9a³, as a new plant-contract mode `home-keyframe-residual-softcubic/v1`; a
+new `CompsognathusBiologicalEnv` subclass, so `CompsognathusEnv` and the robot keep their code and digests; recovery
+inherits the new stance terms through `extends` and is recalibrated; tail mass only, with the proportions fidelity
+pass deferred (an anatomically long tail at the same mass gives back about 43% of the centre-of-mass gain); land, then
+train, at least two seeds from `main`; one pull request. The same day the implementation found the MTP servo ringing
+(below), and the maintainer took its fix into the same revision: the toe joint's armature at 2e-4 kg·m², a
+physics-only generator parameter. With the cap kept, the single-support tiptoe stays physically possible on r2: the
+`20260921_203149` march, replayed on the landed r2 plant through its own linear interface (out of distribution),
+still survives 20 of 20 episodes on its digit-III tip (seeds 3042–3061; `20261001_225856` survives 9 of 20). The
+reward (the marches re-score at 0.61 of the statue) and the gate (support-geom duty and coverage, sole tilt, corner
+lift, touchdowns) are what refuse it. A walker's measured toe-torque budget is the evidence to collect before the cap
+is revisited.
+
+**The toe servo's heel chatter (found in the implementation).** On the review's other r2 changes alone, the
+zero-action statue chattered after the settle on 15 of 40 seeds (3042–3081): 9 with one foot at 20.0 Hz, 6 with both
+at 20.8 Hz, up to 3.6% of body weight rms and 7.9% at peak (r1 had it on 6 of 40, at 18.5 Hz and 0.8% rms). The pad
+unloads on about 4% of substeps while the rest of the foot stays loaded, so no touchdown, support or support-geom bar
+sees it, but `validate_models` failed 2 of its 10 seeded holds on it (`supports_weight`, a 5.4% ground-force error
+against the 3% bar) and with them `test_balance.py`'s seeds 49 and 51. It is numerical: the 20 g foot plate gives the
+toe DOF 1.6e-5 kg·m², so with the model's default joint armature (5e-5, the generator's default class) its kp-12 servo
+rang at 68 Hz, ω·dt 0.85 at the 2 ms step, the stiffest servo DOF in the model. Halving the timestep removes it on 40
+of 40 seeds, and so does toe armature 2e-4 (37 Hz, ω·dt 0.47); ankle damping × 3, softer foot contacts, 1000 solver
+iterations and the implicit integrator do not, and of the r2 changes the uniform tail is what spreads it (the tail
+alone fails 3 of 10 holds, the inset or the mirror alone none). With the armature (note 15 e) no statue of 40
+chatters, every hold passes (the worst settled ground-force error of the ten is 0.31%), the regenerated
+`preflight_training_v1.json` records `passed: true`, and no spawn of seeds 3042–3081 leaves the floor (one substep of
+80 spawns out of sample); statics, keyframe and preload are unchanged, and the armature moves the physics digest
+alone. Every number below is the landed plant's, armature included.
+
+**The landed package, measured.** Zero-action statue on the stance task (`frame_skip` 10), r1 → r2: settled metatarsus
+clearance 1.07 → 4.81 mm; centre of mass 19.6 → 29.3 mm ahead of the pad's rear edge (0.25 → 0.38 of the 78 mm foot);
+pad / distal-digit share of each foot's load 0.44 / 0.14 → 0.41 / 0.25 (seeds 5100–5109, at step 200); the largest
+0.1 s pelvis push held on 5 of 5 seeds forward 0.225 → 0.275, backward 0.125 → 0.20 and lateral 0.45 → 0.45 body
+weights; the largest initial tilt held on 3 of 3 seeds nose-down 2 → 5°, nose-up 4 → 7°, roll 15 → 15° (every
+fore-aft push or pitch failure ends on tail_4). Zero-mean white action noise, each revision through its own interface
+(paired streams, seeds 3042 + i, noise stream `default_rng(123456 + 17 i)` unless noted):
+
+| σ | r1, linear residual | r2, soft-cubic legs |
+|---|---|---|
+| 0.02 | 5/20 full episodes (8 on the metatarsus, 7 on tail_4) | 20/20 |
+| 0.10 | — | 40/40 |
+| 0.135 (`log_std_init` −2.0) | 0/20 (median 12 steps; 16 on the metatarsus) | 39/40; 37/40 on seeds 3082–3121 (the stream continued) and on 7042–7081; 38/40 on 9042–9081 with an independent stream (`default_rng(700001 + 31 i)`); 151/160 pooled, all nine falls on tail_4, at steps 174–938 |
+| 0.20 | — | 0/40 (median 180 steps; 34 on the tail, 6 on tilt); 0/40 on seeds 11042–11081 with an independent stream (`default_rng(880001 + 7919 i)`, median 129 steps) |
+| 1.0 | — | 0/20 (median 16 steps) |
+
+On the same streams the plant without the armature kept 30/40 at σ 0.135, and the review's design 36–37/40 on a plant
+that also capped the toe at 0.4 N·m. The cliff between the recipe's σ and 0.20 is a constraint on `log_std_init` and
+on any entropy schedule; `environments/compsognathus/tests/test_noise_tolerance.py` pins σ 0.10 on the first 5
+episodes and σ 0.135 on at least 10 of the first 12 (the review's 0.8; the measured run keeps 11).
+
+**The reward, re-scored.** The stance `[env]`'s ten terms were weighted by re-scoring recorded rollouts (a trajectory
+does not depend on the reward; the re-score equals the env's own total to 5e-13 per episode), each figure in the
+`[env]` comments. The statue stays the optimum: 4570.4 ± 7.2 per episode on seeds 3042–3081 (4565.8 on 7042–7081),
+1571.3 of the 1580 the terms can pay, short mainly on coverage, because the settle seats the digit tips last (the last
+by step 308; coverage is 8.1 of the 8.7 per episode it leaves on average, 25.9 at most in one episode), and no
+constant toe offset wins it back. The certified marches, on the r1 plant through their own interface, re-score at
+0.612 and 0.610 of that plant's statue (0.936 and 0.934 under the legacy reward). On a 20-episode re-score (seeds
+3042–3061) rolled feet keep 0.852–0.892, the swept-back crouch 0.887 (0.804 on seeds 11042–11061), the post-settle hop 0.649–0.911 and the settle
+stomps 0.957–0.989; the noisy statue keeps 0.824 at σ 0.10 and 0.710 at σ 0.135 (1.9% and 4.2% below what the legacy
+reward alone keeps), and the same noise around every non-statue posture measured falls on 19–20 of 20 episodes (median
+23–440 steps over two noise streams) and keeps at most about 0.25. At σ 0.135 the penalties cost 0.169 per step.
+
+**Method.** Each panel was rolled through `build_stance_gate_report` on the committed stance stage as training builds it
+(`load_stage_config` into the registered `CompsognathusBiologicalEnv`, `frame_skip` 10, the real reset), the policy
+standing in for the report's zero-action predictor (zero action, N(0, σ) command jitter, scripted offsets, stomps, hops
+and one-leg shifts, the two PPO runs and the audited checkpoints), and every verdict below is re-derived from the
+recorded per-episode metrics under the committed block (floor truth reads no threshold, so a panel need not be re-rolled
+when a bar moves); the statue-relative keys read the same-seed statue panel. A panel rolled before D-D28's metric
+existed has no pad centre-of-pressure reading and cannot be re-derived under its bar, so once D-D28 landed the panels
+below were re-rolled with it and re-derived: the statue on its three seed blocks, the jitter at σ 0.01–0.05, both PPO
+runs (deterministic and stochastic), the rolled feet, the swept-back crouch, the one-leg stance and the weight shift,
+the r1 statue and marches, the square-wave hop from step 200 at a = 0.07 and 0.15 at 10 Hz on 3042–3081, and the last
+six hack rows. The rest (the σ 0.005 jitter, the yawed statues and PPO means, the settle stomps, the hop from step 200
+at a = 0.05, at 12.5 Hz, at a = 0.10–0.12 and on 7042–7081 and 9042–9081, the hop from step 600 and the whole-episode
+hops) keep the bar lists they were recorded with, before D-D28; the re-rolled hops read 0.20–0.26 (a = 0.07) and
+0.51–0.52 (0.15), under the bar. The certified marches load only on the r1 plant and its linear interface, so they and
+the r1 statue were rolled through the same report path with the r1 XML swapped in and `CompsognathusEnv`'s linear
+`_scale_action`, the plant check bypassed for that scratch plant and recorded, the checkpoints the audit's (§2.1, sha256
+verified). The two PPO runs trained 200k steps each on the committed `[env]` and recipe (seeds 11 and 12, `log_std_init`
+−2.0) and were rolled with their deterministic means and stochastically. Then, as in §7 and §8, the committed stage was
+put through the post-stage pipeline with the zero command as a scripted checkpoint:
+`stage_artifacts._write_stance_gate_report` rolled the panel and a separate statue panel for the statue-relative bars,
+`_apply_stage_gate` judged it PASS on 40/40 (bound 0.928) and wrote `gate_verdict.json` (gate `sha256:8938b294…`, the
+stage's `task_sha256` `sha256:6c667a99…`), and publication's re-derivation from `stance_panel_selected.csv` and the
+backfill tool both admitted it. The compsognathus stance declares no probes.
+
+**The block.** `min_eval_episodes = 40`, `min_clean_stance_lcb = 0.80`, `settle_steps = 200` (the r2 statue's last
+one-foot unload, a foot under 5% of body weight on a substep, is at step 4 at most, inside the 0.1 s spawn grace, and
+its total floor force stays within 0.01% of its weight after step 200; 200 equals v1's prefix and the `[env]`'s
+`stance_width_settle_steps`); the required `min_all_feet_support = 0.98`, `max_touchdown_rate = 0.25`,
+`max_window_displacement_m = 0.05`, `min_foot_load_share = 0.40`, `max_actuator_saturation_fraction = 0.10`,
+`max_settle_airborne_substeps = 15`, `max_settle_peak_floor_force_bw = 3.0`; the pad bars `max_sole_tilt_deg = 2.0`,
+`max_sole_corner_lift_m = 0.003`, `min_sole_contacts = 1.5` and §10's centre of pressure, `max_sole_cop_fore_aft = 0.70`
+(measured on this plant after D-D28 landed first; below); the foot bars `min_support_geom_duty = 0.50` and
+`min_support_geom_coverage = 0.80` (the plantar pad and digits II–IV: the gait library's registry); the settle width
+`max_settle_stance_width_change_m = 0.011`; the window hop pair `max_window_airborne_substeps = 40` and
+`max_window_peak_floor_force_bw = 2.0` (below); the statue-relative `min_foot_load_share_statue_ratio = 0.80`; the
+guards `min_foot_load_share_windowed = 0.35`, `max_foot_contact_fraction = 0.02`, `max_phantom_support_fraction =
+0.05`, `max_nonfoot_load_fraction = 0.01`; and the rails `min_full_horizon_fraction = 0.95`, `min_avg_reward = 2740.0`
+(0.60 × the r2 statue's 4570.4 under the new `[env]` is 2742.2, rounded to the nearest 10; recorded as
+`collapse_peak_floor_reference = 4570.4` with `statue_constants_physics_revision = 2`) and
+`min_avg_reward_statue_ratio = 0.60`. The certified marches re-score at 0.610–0.612 of their own statue, about at the
+0.60 rail, which does not refuse them by itself; the bars do. The collapse detector stays unarmed, as before.
+
+**Why the bars sit where they do.** Four choices differ from the trex's and the velociraptor's:
+
+- *The settle bars are looser* (15 airborne substeps and 3.0 BW, against 0 and 1.5–2.0 on the trex and the
+  velociraptor): noise bounces this light plant. The statue with σ 0.03 command jitter reaches 5 airborne substeps and
+  1.77 BW in the settle, and with σ 0.05 10 and 2.12, so the trex's bars would refuse a flat, jittery stance; the
+  settle stomps reach at least 13 substeps and 3.96 BW. The review's first candidate was looser still (20 and 4.0),
+  and the trex r8 runs showed why that is not enough on its own: their seed-44 stance stomped its feet back to the
+  keyframe width in the unscored settle, and 0 of its 80 panel episodes exceed 4 BW. So the reward now prices impact
+  above 2.5 BW and airborne substeps from the first step (`floor_impact_*`, `airborne_substep_weight` in `[env]`), and
+  the settle width bar is tight.
+- *The settle width bar* is 0.011 m, about three times the statue's worst change (3.6 mm; 3.2 out of sample): both
+  trex r8 seeds re-seated their feet in the settle by 3.6–4.4 times their statue's change, and the review's 0.02 m is
+  21% of this 0.094 m stance. The reward's width term is referenced to the animal's own width at the end of the
+  settle, not the keyframe's, so a re-seat earns nothing.
+- *The foot bars sit mid-gap*, as on the velociraptor, but with a reward term that sees them: support-geom coverage is
+  priced on the gate's substep rule (`support_geom_coverage_weight`: a geom is loaded on a substep when its floor
+  contacts' normal forces sum above 0.1 N, and the term pays each geom loaded on at least half of the step's
+  substeps), and the reward adds a rule of its own that the gate does not apply: a digit counts only through its
+  contacts beyond the capsule's centre, away from the MTP joint, because the capsule starts at that joint, under the
+  pad, and its joint end carries load whether or not the tip reaches the floor. The gate counts a digit by any
+  contact, so its bar is the looser of the two, and on the statue it reads duty 1.000 from step 200, while the
+  reward's rule seats the last tip by step 308. The review's training lane had found a learned near-statue under an
+  earlier candidate reward that left digits II and III unloaded (coverage 0.5) and failed the gate 0/20, the
+  reward-gate mismatch §8 avoided on the velociraptor; the critique then found rolled feet paid 0.90–0.93 of the
+  statue. The committed reward pays rolled feet 0.852–0.892 and the gate refuses them outright.
+- *The window hop pair.* A leg is down on a step when it is loaded on half of the step's substeps, so the window's
+  support, flight and touchdown bars see a hop only when its flight lasts half a control step or more. This plant's
+  two-foot hop at 10–12.5 Hz flies for 1–3 of its ten 2 ms substeps a step, so a hop started after the settle reads
+  both legs down on every step, no touchdown and the statue's settle: the review measured the block without the pair
+  certifying such a hop on 40/40 (before the armature), and on the landed plant 61 of the 120 episodes at a = 0.07 and
+  10 Hz fail nothing else. The kind gains two optional criteria for it, applied only where declared and needing no
+  statue panel (`stance_gate_v2.py`; undeclared on the trex and the velociraptor, whose digests do not move):
+  `max_window_airborne_substeps`, the window's both-feet-unloaded substeps, and `max_window_peak_floor_force_bw`, its
+  peak summed floor force, the settle bars' own detectors read over steps 200–999. A report row or panel CSV recorded
+  before the pair reads both as unmeasured (`STANCE_METRIC_LATER_FIELDS`, beside §10's pad centre of pressure): it
+  keeps its verdict under a block that does not declare the pair and is refused, never failed, under one that does
+  (re-roll the panel). Both bars are set on
+  square-wave hops. The airborne bar, 40, sits about at the geometric middle of the jittered statue's worst at σ 0.03
+  (23) and the softest-landing square-wave hops' least (72, at a = 0.05); the peak bar, 2.0 BW, between that jitter's
+  worst and the least of the 410 square-wave post-settle hops at a = 0.07–0.15 (2.22), but not mid-gap: on the
+  committed noise stream the jitter's worst is 1.75, and on seeds 11042–11081 with an independent stream
+  (`default_rng(880001 + 7919 i)`) 1.88 (2 of 40 above 1.75), so the bar sits 0.12 BW above the worst σ 0.03 episode
+  measured, and a trained mean a little noisier than that starts failing on noise. At σ 0.05 the jittered statue lands
+  at 1.78–2.27 BW (1.82–2.52 on the independent stream), inside the a = 0.07, 10 Hz hop's own range (2.22–2.42), and
+  the peak bar refuses 64 of its 120 episodes (23 of 40 on that stream): no pair of window bars both admits that
+  jitter and refuses the hop (hop seed 9076 lands at 2.23 BW with 9 airborne substeps, inside the jitter's 2.27 and
+  29), so the bar refuses the hop with a margin rather than admit the noise. The reward prices the two alike (0.935
+  and 0.906–0.917 of the statue). The pair narrows the gap the step-level bars leave on this plant but does not close
+  it: a softer hop, and a foot that lifts for less than half a step, pass every bar (five of the hack table's last six
+  rows, the toe tap until the pad centre-of-pressure bar; and Limits).
+
+| Panel (seeds) | Plant | Clean | LCB | Verdict | Fewest bars failed per unclean episode | Mean reward |
+|---|---|---|---|---|---|---|
+| statue (3042–3081) | r2 | 40/40 | 0.928 | PASS | — | 4570.4 |
+| statue (7042–7081) | r2 | 40/40 | 0.928 | PASS | — | 4565.8 |
+| statue (9042–9081) | r2 | 40/40 | 0.928 | PASS | — | 4570.4 |
+| statue, N(0, 0.005) jitter (3042–3061) | r2 | 20/20 | 0.861 | — | — | 4569.3 |
+| statue, N(0, 0.01) jitter (3042–3061) | r2 | 20/20 | 0.861 | — | — | 4557.2 |
+| statue, N(0, 0.02) jitter (3042–3081) | r2 | 40/40 | 0.928 | PASS | — | 4507.2 |
+| statue, N(0, 0.03) jitter (3042–3081; 7042–7081; 9042–9081) | r2 | 40/40 each | 0.928 | PASS | — | 4441.5; 4442.9; 4440.5 |
+| statue, N(0, 0.05) jitter (3042–3081; 7042–7081; 9042–9081) | r2 | 18/40; 17/40; 21/40 | 0.315; 0.292; 0.385 | FAIL | 1 (window peak) | 4273.7; 4270.0; 4272.2 |
+| statue spawned yawed +45°, −45° (3042–3051) | r2 | 10/10 each | 0.741 | — | — | 4571.4; 4571.5 |
+| statue spawned yawed +90°, −90° (3042–3061) | r2 | 20/20 each | 0.861 | — | — | 4569.9; 4570.0 |
+| PPO seed 11, 200k steps, deterministic (3042–3081) | r2 | 40/40 | 0.928 | PASS | — | 4569.5 |
+| PPO seed 12, 200k steps, deterministic (3042–3081) | r2 | 40/40 | 0.928 | PASS | — | 4569.2 |
+| PPO seed 11 spawned yawed +90°, seed 12 −90°, deterministic (3042–3061) | r2 | 20/20 each | 0.861 | — | — | 4551.0; 4566.0 |
+| PPO seeds 11 / 12, stochastic (3042–3061) | r2 | 0/20 each | 0.000 | FAIL | 8 / 7 | 3457.4 / 3501.4 |
+| statue (3042–3061) | r1 | 20/20 | 0.861 | — | — | 4558.9 |
+| `20260921_203149` robust_best, deterministic (3042–3061) | r1 | 0/20 | 0.000 | FAIL | 10 | 2788.8 |
+| `20261001_225856` robust_best, deterministic (3042–3061) | r1 | 0/20 | 0.000 | FAIL | 9 | 2780.5 |
+
+Mean rewards are the committed stance `[env]`'s; the r1 rows are the r1 plant's statue and marches under the same
+terms, so 2788.8 and 2780.5 are 0.612 and 0.610 of their own statue. A 20-episode panel cannot pass (its bound at
+20/20 is 0.861, but `min_eval_episodes` is 40), so those rows give the clean count only. The two PPO runs show only
+that the deterministic mean does not drift to a march or a hop in the first 200k steps (window airborne 0, window
+peak 1.000 BW); the trex r8 runs entered a hop regime by 2–4M, seed 42 freezing into it by 6.5M while seed 44 left it
+at 5–6M. Their stochastic rollouts (σ 0.130) reach the horizon on 20/20 each but bounce (touchdowns 1.2–2.4 per foot
+per second, both feet down 0.90–0.95 of the window, window peaks 3.0–4.9 BW): the exploration noise bounces this
+plant, and the gate reads the mean.
+
+Episodes failing each bar (of 20):
+
+| Panel | Bars failed (episodes) |
+|---|---|
+| `20260921_203149` | support, touchdowns, support-geom duty and coverage, sole tilt, corner lift, contacts and pad centre of pressure, window peak 20 each, settle width change 20, displacement 5 |
+| `20261001_225856` | support, touchdowns, support-geom duty and coverage, sole tilt, corner lift, contacts and pad centre of pressure, window peak 20 each, displacement 7, settle width change 1 |
+| PPO seed 11, stochastic | support, touchdowns, displacement, support-geom duty and coverage, sole contacts, window airborne and window peak 20 each, settle airborne and settle peak 17 each, pad centre of pressure 7 |
+| PPO seed 12, stochastic | support, touchdowns, displacement, support-geom coverage, sole contacts, window airborne and window peak 20 each, support-geom duty 19, pad centre of pressure 15, settle peak 13, settle airborne 11 |
+
+Scripted hacks on the r2 plant (10-episode gate panels from seed 3042 unless noted; the post-settle hops also on seeds
+7042 + i and 9042 + i; the last six rows are 40-episode panels through the report path, seeds 3042–3081, with the
+report's own statue panel), with their reward over the same-seed statue's on that panel. The hops are square waves
+unless noted. The scripts command raw actions; under the soft-cubic map a leg command of a moves its servo targets b =
+0.1a + 0.9a³ of the span (a = 0.15: about 1.8%). The offsets are servo-target offsets in radians.
+
+| Hack | Clean | Bars failed (episodes) | Reward / statue |
+|---|---|---|---|
+| both hip-roll offsets +0.05 rad (both pads rolled the same way) | 0/10 | sole tilt, support-geom duty and coverage 10 each | 0.877 |
+| hip roll rolled outward (right −0.05, left +0.05) | 0/10 | sole tilt, support-geom duty and coverage, settle width change 10 each | 0.892 |
+| both hip-roll offsets +0.10 rad | 0/10 | sole tilt, support-geom duty and coverage, corner lift, sole contacts, pad centre of pressure 10 each | 0.852 |
+| hip roll rolled outward ±0.10 rad | 0/10 | the same and settle width change, 10 each | 0.857 |
+| 60-step settle stomp (knees ±a, ankles and hip pitch ∓a, then zero), a = 0.15 at 5 Hz | 0/10 | settle peak 10, settle airborne 8 | 0.989 |
+| the same, a = 0.2 at 5 Hz | 0/10 | settle airborne and settle peak 10 each | 0.986 |
+| the same, a = 0.3 at 8.3 Hz | 0/10 | settle airborne and settle peak 10 each | 0.956 |
+| two-foot hop from step 200 (the same pattern, held on), a = 0.05 at 10 Hz | 0/10 | window airborne 10, displacement 1 | 0.912 |
+| the same, a = 0.05 at 12.5 Hz | 0/10 | window airborne, window peak and displacement 10 each | 0.841 |
+| the same, a = 0.07 at 10 Hz (3042–3081, 7042–7081, 9042–9081) | 0/120 | window peak 120, window airborne 103, displacement 59 | 0.906–0.917 |
+| the same, a = 0.07 at 12.5 Hz (3042–3051, 7042–7081, 9042–9081) | 0/90 | window peak and displacement 90 each, window airborne 71 | 0.866–0.868 |
+| the same, a = 0.10 at 10 Hz (3042–3051, 9042–9081) | 0/50 | window peak and displacement 50 each, window airborne 44 | 0.876–0.882 |
+| the same, a = 0.10 at 12.5 Hz; a = 0.12 at 10 and 12.5 Hz | 0/10 each | window airborne, window peak and displacement 10 each | 0.830; 0.775, 0.707 |
+| the same, a = 0.15 at 10 Hz (3042–3081, 9042–9081) | 0/80 | window airborne, window peak and displacement 80 each | 0.657 |
+| the same, a = 0.15 at 12.5 Hz (3042–3081) | 0/40 | window airborne, window peak and displacement 40 each, support-geom coverage 12 | 0.647 |
+| the same, a = 0.10 at 10 Hz, from step 600 | 0/10 | window airborne and window peak 10 each | 0.930 |
+| whole-episode 12.5 Hz hop, a = 0.05 | 0/10 | displacement, window airborne and window peak 10 each, settle airborne 7 | 0.791 |
+| the same, a = 0.07 | 0/10 | displacement and window peak 10 each, window airborne 5, settle airborne 4 | 0.836 |
+| the same, a = 0.08 | 0/10 | displacement and window peak 10 each, window airborne 9, settle airborne 8 | 0.838 |
+| the same, a = 0.10 | 0/10 | displacement, settle peak, window airborne and window peak 10 each, settle airborne 8 | 0.831 |
+| swept-back crouch (hip pitch +0.3, ankles −0.2 rad) | 0/10 (8/10 without the pad centre-of-pressure bar) | pad centre of pressure 10, displacement, settle airborne and window airborne 2 each | 0.847 |
+| one-leg stance (hip roll −0.03 rad, then the left knee, ankle and hip pitch 0.2 rad): the right foot at 0.4 N | 0/10 | displacement, both foot-share bars and the statue ratio, support-geom duty and coverage, sole tilt, corner lift, contacts and pad centre of pressure 10 each | 0.626 |
+| weight shift (hip roll +0.06 rad, then the left knee +0.3 and hip pitch −0.3 rad): 39/61 on both feet | 0/10 | foot share and the statue ratio, support-geom duty and coverage, sole tilt, corner lift, contacts and pad centre of pressure 10 each, windowed share 5 | 0.768 |
+| two-foot bounce from step 200, the post-settle hop's pattern driven by a sine, a = 0.09 at 5 Hz | **40/40** | — (both feet off on 0–32 window substeps, on 39 of 40 episodes; landing 1.70–1.80 BW) | 0.989 |
+| the same, a = 0.12 at 2.5 Hz | **40/40** | — (0–27 substeps; 1.33–1.54 BW) | 0.990 |
+| one 10 Hz square cycle of that pattern every 0.4 s from step 200, a = 0.04 | **39/40** | window airborne 1 (0–41 substeps; 1.65–1.66 BW) | 0.974 |
+| the right leg alone (knee +a, ankle and hip pitch −a) from step 200, a = 0.07 at 6.25 Hz | **40/40** | — (the right foot lifts for one substep 130–190 times an episode; never both feet) | 0.972 |
+| the right toe alone, ±0.25 at 10 Hz from step 200 | 0/40 (**40/40** without the pad centre-of-pressure bar) | pad centre of pressure 40 (each tap rocks the pad from edge to edge, 0.826–0.848; the right foot lifts 146–175 times an episode) | 0.984 |
+| the legs in antiphase from step 200 (a sine, a = 0.10 at 6.25 Hz) | **40/40** | — (a foot unloads at most twice an episode; the lighter foot carries under 20% of the floor load on 44–48% of window steps, down to 14%) | 0.905 |
+
+The square-wave post-settle hops are 410 episodes at a = 0.07–0.15: the window peak bar refuses all 410, the window
+airborne bar 368 and the displacement guard 349, and on 61 of the 120 at a = 0.07 and 10 Hz, as on the hop from step
+600, nothing but the pair refuses them. Every one has both legs down on every window step, no touchdown and a statue's
+settle; the 42 that fly 40 substeps or fewer all land at 2.23 BW or more. The whole-episode hop at a = 0.07 is a
+low-amplitude two-foot hop: up to 200 airborne window substeps per episode, landing at 2.24–2.59 BW. The swept-back
+crouch is a level, bilateral stance on every support geom, on its pads' front edges, that no floor-truth bar but the pad
+centre of pressure refuses (below; its two other unclean episodes walk off), and which the `[env]`'s leg pose term
+prices (0.887 on the 20-episode re-score, 0.804 on seeds 11042–11061, where it is clean on 13/20 without the pad
+centre-of-pressure bar and 0/20 with it; the posture wanders, so its ratio is seed-dependent). Two other open-loop
+one-leg shifts fell on tilt (steps 292–294 and 465).
+
+The block certifies five of the table's last six rows (the toe tap until the pad centre-of-pressure bar; below). Driven
+by a sine, the post-settle hop's pattern lands at 1.33–1.80 BW, under the peak bar, and flies 0–32 window substeps, no
+more than the admitted jitter; the 5 Hz bounce lifts each foot 16–54 times an episode and moves the root through 1.0–1.1
+mm, about the vertical travel of the refused square-wave hops at a = 0.05–0.07 (0.8–1.1 mm). One 10 Hz cycle every 0.4 s
+flies 0–41. A leg is down when it is loaded on half a step's substeps and the pair counts only substeps with both feet
+off the floor, so the one-leg pump and the toe tap, whose foot lifts for one substep at a time, read both legs down on
+every step and no airborne substep, and the antiphase shuttle unloads a foot at most twice an episode; its lighter
+foot's share falls under 20% on 44–48% of window steps, but both foot-share bars average over the window or over 1 s
+blocks. The reward keeps 0.905–0.990 of the statue on all six: the legacy substep-minimum support gate prices a substep
+with both feet unloaded (the 5 Hz bounce's raw alive is 968–999 of 1000) but not a one-foot unload, which leaves the
+other foot's minimum above it (the one-leg pump keeps raw alive at 999–1000), so only the bilateral and coverage terms
+price a one-foot chatter.
+
+Margins: the least favourable episode in each group, toward the bar (the r2 statue on seeds 3042–3081, in brackets
+seeds 7042–7081 and 9042–9081; the jittered statue on all three blocks, and in braces, where given, on seeds
+11042–11081 with an independent noise stream; the PPO deterministic means; the 410 square-wave post-settle hops; the
+two marches):
+
+| Bar | r2 statue | Jitter σ 0.03 | Jitter σ 0.05 | PPO means | Post-settle hops | March episodes (r1) |
+|---|---|---|---|---|---|---|
+| support ≥ 0.98 | 1.000 (1.000) | 1.000 | 1.000 | 1.000 | 1.000 | ≤ 0.111 |
+| touchdowns ≤ 0.25/s | 0 (0) | 0 | 0 | 0 | 0 | ≥ 2.97 |
+| displacement ≤ 0.05 m | ≤ 0.03 mm (0.03) | ≤ 21 mm | ≤ 39 mm | ≤ 0.08 mm | 0.038–0.155 m; 349 over | 0.011–0.216 m; 12 of 40 over |
+| load share ≥ 0.40 | ≥ 0.499 (0.499) | ≥ 0.493 | ≥ 0.493 | ≥ 0.471 | ≥ 0.460 | ≥ 0.448 |
+| windowed share ≥ 0.35 | ≥ 0.496 (0.496) | ≥ 0.467 | ≥ 0.465 | ≥ 0.468 | ≥ 0.453 | ≥ 0.381 |
+| saturation ≤ 0.10 | 0 (0) | 0 | 0 | 0 | 0 | ≤ 0.004 |
+| settle airborne ≤ 15 | 0 (0) | ≤ 5 | ≤ 10 | 0 | 0 | ≤ 9 |
+| settle peak ≤ 3.0 BW | ≤ 1.07 (1.08) | ≤ 1.77 | ≤ 2.12 | ≤ 1.10 | ≤ 1.08 | ≤ 2.27 |
+| settle width change ≤ 0.011 m | ≤ 3.6 mm (3.2) | ≤ 4.2 mm | ≤ 4.0 mm | ≤ 3.7 mm | ≤ 3.6 mm | 0.1–33 mm; 21 of 40 over |
+| support-geom duty ≥ 0.50 | 1.000 (1.000) | ≥ 0.939 | ≥ 0.810 | 1.000 | ≥ 0.745 | 0 |
+| support-geom coverage ≥ 0.80 | 1.000 (1.000) | ≥ 0.972 | ≥ 0.904 | 1.000 | ≥ 0.751; 12 under | ≤ 0.135 |
+| sole tilt ≤ 2.0° | ≤ 0.021° (0.020) | ≤ 0.12° | ≤ 0.20° | ≤ 0.050° | ≤ 0.27° | ≥ 7.0° |
+| corner lift ≤ 3 mm | ≤ 0.016 mm (0.016) | ≤ 0.11 mm | ≤ 0.18 mm | ≤ 0.04 mm | ≤ 0.26 mm | ≥ 7.4 mm |
+| sole contacts ≥ 1.5 | ≥ 3.83 (3.84) | ≥ 2.72 | ≥ 2.32 | ≥ 3.62 | ≥ 2.09 | ≤ 0.002 |
+| window airborne ≤ 40 | 0 (0) | ≤ 23 {≤ 15} | ≤ 29 {≤ 24} | 0 | 3–535; 368 over | 3–20 |
+| window peak ≤ 2.0 BW | ≤ 1.0002 (1.0002) | ≤ 1.75 {≤ 1.88} | 1.78–2.27; 64 over {1.82–2.52; 23 of 40 over} | ≤ 1.000 | 2.22–4.41; all over | 2.08–2.48; all over |
+| pad centre of pressure ≤ 0.70 | ≤ 0.155 (0.153) | ≤ 0.289 {≤ 0.282} | ≤ 0.404 {≤ 0.388} | ≤ 0.246 | 0.20–0.26 (a = 0.07) and 0.51–0.52 (a = 0.15), at 10 Hz on 3042–3081 | 1.000 |
+| foot-on-foot, phantom, non-foot | 0 (0) | 0 | 0 | 0 | 0 | 0 |
+
+The window bars alone (support and touchdowns) and the foot bars alone (duty, coverage, tilt, corner lift, contacts)
+each refuse every march episode; the settle bars do not, because the marches' settle is quiet (at most 9 airborne
+substeps and 2.27 BW). No step-level bar refuses a post-settle hop by itself; the window peak bar refuses every
+square-wave one. The armature took the statue's corner lift from 0.15 mm to 0.016 mm.
+`environments/shared/tests/test_compsognathus_stance_gate_config.py` pins that the support, sole (with the pad centre of
+pressure) and foot families and the window peak each refuse a recorded march episode alone, every recorded episode
+carrying its own window-pair and centre-of-pressure readings, that a recorded post-settle hop is refused by the window
+pair and by each of its keys alone, that the window peak refuses both the softest-landing square-wave hop and the σ 0.05
+jitter that lands like it, that the statue's and the jittered statue's least favourable episodes are clean, that the
+settle width bar stays about three times the statue's worst, and that the sine bounce's and the one-leg pump's least
+favourable episodes are clean (the blind spot above, pinned so that closing it updates these records);
+`environments/shared/tests/test_stance_gate_v2_report.py` rolls a real-physics post-settle hop through the report and
+the judge, which refuse it, beside a zero-action statue they certify. Report-only, never gated: the r2 statue yaws up to
+2.6° over an episode (2.7° out of sample), and its spawn peak (the first 0.1 s, before the grace ends) reaches 1.97 BW
+(1.93 out of sample, 2.01 on seeds 11042–11081).
+
+**The pad centre of pressure (D-D28), measured on this plant (2026-10-08).** D-D28 (§10) landed first (#603) and left
+the compsognathus bar to this revision, on the r2 statue; §10's compsognathus numbers are its r1 plant's and do not
+carry over. Rolled through the report path on the branch with D-D28 merged (the committed stance as training builds it,
+`frame_skip` 10, the real reset; 40-episode panels from seed 3042 unless noted), the statue reads 0.143–0.155 on each of
+five seed blocks (3042, 7042, 9042, 5042 and 11042 + i; 200 episodes), heel side (its centre of mass behind the pad's
+centre); with N(0, σ) command jitter at most 0.209, 0.246, 0.289 and 0.404 at σ 0.01, 0.02, 0.03 and 0.05 (the last two
+on three blocks each; 0.282 and 0.388 on 11042 + i with the independent stream); the PPO means 0.156–0.246 and their
+stochastic rollouts 0.667–0.751 (refused by other bars on every episode); and on the r1 plant its statue 0.454–0.473 and
+the marches 1.000 (pads unloaded). Unlike the T. rex's, this plant's pad and digits are one plate and the digits reach
+past the pad's front edge, so the reading follows the centre of mass along the foot while the pads stay level and every
+digit carries load, which no other bar reads. The MTP servo targets, ramped in over the first 300 steps, move it nearly
+linearly (−0.05, −0.08, −0.09, −0.10 and −0.14 rad: 0.34, 0.67, 0.77–0.80, 0.86–0.93 and 0.98–1.00 toward the toe;
++0.05, +0.07 and +0.08 rad: 0.56, 0.74 and 0.84–0.86 toward the heel), and a panel leaned onto the pads' front edges
+(−0.10 rad: 2.10–2.35 loaded points, tilt at most 0.042°, the pads past 0.9 of the half-length on 59–90% of window
+steps) or onto their heel edges (+0.08 rad) is clean on 40/40 under every other bar, as is the right MTP alone at +0.04
+rad (the left pad on its heel edge, 0.903–0.916), at 0.94–0.99 of the statue's reward; so are 33 of the swept-back
+crouch's 40 episodes on 3042–3081 (on its front edges, 1.000; the other 7 walk off) and the toe tap of the hack table's
+last rows (0.826–0.848, each tap rocking the pad from edge to edge). Both ankles ramped to −0.15 rad read 0.936–0.986
+and fail 40/40 on this bar alone. Rolled feet read 0.59–0.60 (0.05 rad) and 1.000 (0.10), the one-leg stances 0.94–1.00
+and the square-wave post-settle hops at a = 0.07 and 0.15 0.20–0.52, all refused by other bars, and the five scripts the block still admits
+0.14–0.48. The stance declares `max_sole_cop_fore_aft = 0.70`: 0.30 above the σ 0.05 jitter, which the window peak
+already refuses on about half its episodes, and 0.14 under the least edge stance measured (0.844), refusing a pad before
+its far edge unloads (3.6–4.0 loaded points at 0.74–0.75, 2.2–2.6 at 0.77–0.80). The T. rex's 0.80 is not reused: this
+statue stands at 0.15, not 0.17–0.48, and 0.80 would clear the heel-edge panel by 0.04 and pass most of the −0.09 rad
+posture. The partial edge stance stays open at (0.70 − s)/(1 − s) of the window, 65% at the statue's 0.15: the MTP servo
+targets ramped linearly onto the front edges over steps 450–550 pass 10/10 at 0.62–0.63 (past 0.9 on 54% of window
+steps), and over steps 350–450 fail 10/10 at 0.72–0.73 (KNOWN_ISSUES); with the raw action ramped linearly instead,
+which the soft-cubic map turns into a lagging target, the same 350–450 posture reads 0.69–0.71 and passes 11 of 20
+(seeds 17042–17061), so the split is the ramp's, not a margin. With the bar the hack table's swept-back crouch and toe
+tap rows read 0/10 and 0/40, and the committed stage, put through the post-stage pipeline again as above, passes on
+40/40 (gate `sha256:8938b294…`, the task unchanged). Three golden lines move, all compsognathus stance and already moved
+by this revision (`gate_sha256`, `stage_config_view_sha256.PPO` and `.SAC`). `test_compsognathus_stance_gate_config.py`
+pins that the two edge panels' least favourable episodes, a swept-crouch episode and the toe tap fail this bar alone
+while the statue, the jittered statue and the PPO means clear it, and `test_stance_gate_v2_report.py` leans both pads
+onto their front edges on real physics (both ankles ramped in over 150 steps), which the report fails on this bar alone
+and the judge refuses, beside a statue under 0.20.
+
+**Limits.** The marches are r1 policies on the r1 plant, and the hacks are open-loop scripts; the r2 policies a retrain
+produces may find what neither found, and a v2 verdict on one is only as good as these bars. The realization effect of
+§2.3 applies. The only r2 policies measured are the statue, the jittered and yawed statue and two 200k-step PPO runs.
+The window pair is set on square-wave hops, and it narrows the gap the step-level bars leave on this plant without
+closing it: a two-foot hop that lands under 2.0 BW and flies no more window substeps than the jitter passes it, and the
+same pattern driven by a sine at 2.5–5 Hz does, at 0.989–0.990 of the statue's reward. On this plant a foot that lifts
+for less than half a control step, and a weight shuttle faster than 1 Hz, are invisible to every v2 bar: a one-leg pump
+and an antiphase shuttle certify on 40/40 (the hack table's last rows; a toe tap did until the pad centre-of-pressure
+bar). No count bar separates these from noise: the σ 0.03 jitter the block admits by design flies up to 23 two-foot
+window substeps and lifts each foot off 53–99 times over the window, against 130–190 for the measured one-foot flutters,
+16–54 for the 5 Hz bounce and 109–156 for σ 0.05 jitter; a periodicity criterion, for example a spectral peak of the
+window's floor force, is the measured follow-up (KNOWN_ISSUES), and until it lands each trained stance's per-foot
+lift-offs and root vertical oscillation are checked by hand (the compsognathus recipe review's amendment). The peak bar
+already refuses the statue under σ 0.05 command noise on about half its episodes, so a learned stance as jittery as that
+fails on noise it does not choose. The single-support tiptoe stays physically possible on r2, and
+`max_actuator_saturation_fraction` reads commands, so it is blind to the MTP servo's force saturation that holds a
+tiptoe; the support-geom and sole bars refuse it instead. The anatomical observation reads the world heading (the pelvis
+quaternion, linear velocity and target direction in the world frame) and every spawn faces +x, so a trained policy could
+learn a heading-dependent stance; the r2 statue is clean at every spawn yaw tried (±45° and ±90°), and the two short PPO
+means with seed 11 at +90° and seed 12 at −90° (20/20 each), but a trained stance is untested, and spawn yaw is not
+randomised in training. The noise cliff (σ 0.10: 40/40, σ 0.135: 151/160, σ 0.20: 0/40) applies to a policy as much as
+to the statue: a run whose exploration σ grows trains on a plant that falls.

@@ -26,8 +26,8 @@ claim. The robot's head and tail remain fixed and unpowered.
 
 ### Interface-only restamp (Phase C)
 
-One exception to "a changed plant requires recalibration" is recorded in
-both calibration files. The Phase C interface revision
+One exception to "a changed plant requires recalibration" was recorded in
+both calibration files, and the robot's still carries it. The Phase C interface revision
 (`BEHAVIOR_RECIPES_PLAN.md` §4.6, `plant_versions.toml` note 12) appended a
 3-dim body-relative command segment to every species observation and moved
 each plant's `policy_interface_sha256`, and with it every stage's
@@ -48,6 +48,36 @@ a byte no-op. Because the profile bytes
 changed, `profile_sha256` moved: every compsognathus recovery freeze
 (`gate_resolution.json`) made before this revision is refused by the frozen
 identity check and must be re-frozen from the restamped profile.
+
+### Physics r2 re-measurement (anatomical, D-D26)
+
+Anatomical physics r2 (`plant_versions.toml` note 15) moved the plant, which
+is exactly what a restamp refuses, so the anatomical profile was
+**re-measured**: the same script, rule and seed blocks on the r2 model, with
+the stance `[env]` that now carries the stance-quality reward terms (rewards
+do not change the fixed-command trajectories the calibration rolls). The
+re-measured profile records no `restamp_history`, and its
+`calibration_id` ends in `-v2`. The r2 feet widen the home contact AABB
+margin from 0.0196 m to 0.0293 m, so every multiple pushes 1.5 times harder
+than on r1, and the toe armature (note 15 e) lets the zero-command null ride
+out more of each push: of the 32 selection episodes it succeeds on 32, 20, 6
+and 2 at 1.1, 1.2, 1.3 and 1.4, so the selection rule now picks 1.30 (r1:
+1.32), a 1.250 N pulse (r1: 0.848 N); without the armature it picked 1.20
+(28, 13, 5 and 2). The script measures both variants in one run, and the robot
+reproduced its profile exactly: the same selection, safe set, height
+reference and every episode and shove row, but for 81 of its 45,121 recorded
+values, episode reward sums that differ in the last bit because the original
+run used numpy 2.3.5 (the unchanged code reproduces this run's bits on this
+machine). Every anatomical recovery freeze made before the re-measurement is
+refused by the frozen identity check, as after the restamp. The recovery task
+inherits the stance-quality terms through `extends`, and they fit this
+schedule: zero action under it (seeds 7042–7081, 25/40 full horizon, as in
+the held-out null) keeps 0.971 of the quiet statue's per-step reward on the
+same seeds, and the terms take 0.104 of the 0.134 per step it loses (flatness
+0.039, coverage 0.038, bilateral 0.015, alive 0.006, width 0.005), for the
+pads and digits a push rocks off the floor
+(`configs/compsognathus/recovery.toml`). The recorded source hashes
+(`provenance.source_sha256`) match the committed files.
 
 ## Disturbance definition
 
@@ -108,33 +138,47 @@ and holdout measurements are recorded with the executable calibration.
 
 ## Measured physical calibration
 
-The completed run contains **1,184 episodes, 725,899 control steps, and
-6,248 judged shoves** across quiet measurements, strength selection, and
-held-out nominal/stress panels. Each selected strength was screened on
+The completed run contains **1,056 episodes, 625,106 control steps, and
+5,351 judged shoves** across quiet measurements, strength selection, and
+held-out nominal/stress panels (the anatomical column on physics r2; the r1
+run's values follow in parentheses). Each selected strength was screened on
 32 seeds before the separate 40-seed holdout was evaluated.
 
 | Quantity | Anatomical Compsognathus | Robot Compsognathus |
 |---|---:|---:|
 | Simulated mass | 1.0000 kg | 1.5856 kg |
-| Home subtree COM height | 0.22835 m | 0.19633 m |
-| Home contact AABB margin | 0.01960 m | 0.03497 m |
-| Selected capture-velocity multiple | 1.32 | 1.20 |
-| Push force, for 0.20 s | 0.84809 N | 2.35151 N |
-| Nominal impulse | 0.16962 N s | 0.47030 N s |
+| Home subtree COM height | 0.22841 m (0.22835) | 0.19633 m |
+| Home contact AABB margin | 0.02935 m (0.01960) | 0.03497 m |
+| Selected capture-velocity multiple | 1.30 (1.32) | 1.20 |
+| Push force, for 0.20 s | 1.25012 N (0.84809) | 2.35151 N |
+| Nominal impulse | 0.25002 N s (0.16962) | 0.47030 N s |
 | Force application body | Pelvis | Core |
-| Measured root-height reference | 0.24447 m | 0.21806 m |
-| Selection zero-command episode successes | 13/32 | 12/32 |
-| Held-out zero-command episode successes | 27/40 | 7/40 |
-| Held-out small fixed-brace episode successes | 31/40 | 15/40 |
-| Held-out zero-command full-horizon survival | 28/40 | 20/40 |
-| Held-out small fixed-brace full-horizon survival | 32/40 | 40/40 |
-| Stress zero-command / fixed-brace successes | 1/40 / 3/40 | 1/40 / 1/40 |
+| Measured root-height reference | 0.24447 m (0.24447) | 0.21806 m |
+| Selection zero-command episode successes | 6/32 (13/32) | 12/32 |
+| Held-out zero-command episode successes | 15/40 (27/40) | 7/40 |
+| Held-out small fixed-brace episode successes | 15/40 (31/40) | 15/40 |
+| Held-out zero-command full-horizon survival | 25/40 (28/40) | 20/40 |
+| Held-out small fixed-brace full-horizon survival | 25/40 (32/40) | 40/40 |
+| Stress zero-command / fixed-brace successes | 0/40 / 0/40 (1/40 / 3/40) | 1/40 / 1/40 |
 
 The calibration brace commands +0.005 at both hip-pitch actuators and
 −0.005 at both ankle-pitch actuators, with all other actions zero. It is a
 predefined small static offset, separate from the stance-derived brace that
 will be frozen from the user's actual checkpoint. The stress panel uses
-1.25 times the selected force and a 1.9-second interval.
+1.25 times the selected force and a 1.9-second interval. The brace is
+defined in action, not in joint angle, so on the anatomical policy interface
+r3 (`home-keyframe-residual-softcubic/v1`, D-D26) its ±0.005 is shaped to
+b = 0.1 × 0.005 + 0.9 × 0.005³ ≈ 0.0005 before the span: it moves the hip
+pitch targets 0.35 mrad and the ankle targets 0.33 mrad from home, a tenth
+of the 3.5 and 3.3 mrad it moved them on r1's linear residual (the action
+that would reproduce r1's offset is about 0.049). The anatomical fixed-brace
+null of the re-measured profile is therefore nearly the zero-command null
+(held out it succeeds on 15 and reaches the horizon on 25 of 40, as the
+zero-command null does), and its r1 and r2 brace rows above are not the same
+controller; the robot keeps the linear residual and its brace. The brace
+stays defined in action because selection reads only the zero-command null
+and a joint-space brace would change the shared calibration script and the
+robot's provenance.
 
 Both quiet controllers survived all eight seeds per model and occupied the
 safe set throughout the measured post-settle samples. The selected safe-set

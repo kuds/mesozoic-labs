@@ -63,16 +63,16 @@
       <body name="tail_1" pos="-.085 0 .026">
         <joint name="tail_1_pitch" axis="0 1 0" range="-0.35 0.35" />
         <joint name="tail_1_yaw" axis="0 0 1" range="-0.45 0.45" />
-        <geom name="tail_1_geom" type="mesh" mass="0.08" material="body_mat" mesh="tail_1_taper" />
+        <geom name="tail_1_geom" type="mesh" mass="0.1173" material="body_mat" mesh="tail_1_taper" />
         <body name="tail_2" pos="-0.15 0 0">
           <joint name="tail_2_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-          <geom name="tail_2_geom" type="mesh" mass="0.055" material="body_mat" mesh="tail_2_taper" />
+          <geom name="tail_2_geom" type="mesh" mass="0.0461" material="body_mat" mesh="tail_2_taper" />
           <body name="tail_3" pos="-0.13 0 0">
             <joint name="tail_3_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-            <geom name="tail_3_geom" type="mesh" mass="0.028" material="body_mat" mesh="tail_3_taper" />
+            <geom name="tail_3_geom" type="mesh" mass="0.0125" material="body_mat" mesh="tail_3_taper" />
             <body name="tail_4" pos="-0.1 0 0">
               <joint name="tail_4_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-              <geom name="tail_4_geom" type="mesh" mass="0.015" material="body_mat" mesh="tail_4_taper" />
+              <geom name="tail_4_geom" type="mesh" mass="0.0021" material="body_mat" mesh="tail_4_taper" />
               <site name="tail_tip" pos="-0.08 0 0" size=".003" group="4" />
             </body>
           </body>
@@ -87,13 +87,13 @@
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" material="body_mat" />
           <body name="r_metatarsus" pos="-0.068 0 -0.0914986338696">
             <joint name="r_ankle" axis="0 1 0" range="-0.65 0.65" />
-            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" material="body_mat" />
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0 0.0215625 0 -0.0559915939561" size=".006" mass=".018" material="body_mat" />
             <body name="r_foot" pos="0.023 0 -0.0597243668866">
-              <joint name="r_toe" axis="0 1 0" range="-0.4 0.5" />
+              <joint name="r_toe" axis="0 1 0" range="-0.4 0.5" armature="0.0002" />
               <geom name="r_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" material="claw_mat" />
-              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
               <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" material="claw_mat" />
-              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 -0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
               <site name="r_sole" pos=".017 0 -.007" size=".002" group="4" />
               <site name="r_foot_touch_volume" type="box" pos=".027 0 -.002" size=".045 .03 .007" group="4" />
             </body>
@@ -109,9 +109,9 @@
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" material="body_mat" />
           <body name="l_metatarsus" pos="-0.068 0 -0.0914986338696">
             <joint name="l_ankle" axis="0 1 0" range="-0.65 0.65" />
-            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" material="body_mat" />
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0 0.0215625 0 -0.0559915939561" size=".006" mass=".018" material="body_mat" />
             <body name="l_foot" pos="0.023 0 -0.0597243668866">
-              <joint name="l_toe" axis="0 1 0" range="-0.4 0.5" />
+              <joint name="l_toe" axis="0 1 0" range="-0.4 0.5" armature="0.0002" />
               <geom name="l_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" material="claw_mat" />
               <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" material="claw_mat" />
@@ -191,7 +191,7 @@
     <jointvel name="l_toe_velocity" joint="l_toe" />
   </sensor>
   <keyframe>
-    <key name="home" qpos="0 0 0.244391440454 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="-0.011393701875 -0.00904155 0.0306471554822 0 -6.04071223217e-05 -2.84333070052e-05 -0.00728514568148 0.00903953483636 0.00317354532929 -8.14598687851e-05 -2.84333070052e-05 -0.00725780130963 0.00897087142476 0.00312837468553" />
+    <key name="home" qpos="0 0 0.244391440454 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="-0.011393701875 -0.00904155 0.0210644697468 0 0.00232473793831 8.95881707889e-06 -0.00487580206169 0.0119997924229 0.00713316932427 0.00232473793831 -8.95881707889e-06 -0.00487580206169 0.0119997924229 0.00713316932427" />
   </keyframe>
   <custom>
     <text name="sensor_contract" data="compso-sensors/v1: gyro+accel+joint-encoders+RGB; touch is ideal/optional; diagnostic_* is simulator-only" />

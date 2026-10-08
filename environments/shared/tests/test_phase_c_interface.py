@@ -11,7 +11,7 @@ contract code:
   the push-schedule starts and directions, and the generator state the
   reset leaves behind — is THE CONTRACT (decision D3: the seeded draw
   stream is unchanged; decision D-C2: the compsognathus recovery
-  calibrations are restamped, not re-measured) and is compared exactly at
+  calibrations were restamped, not re-measured) and is compared exactly at
   6 decimals; so is its ``second_reset`` record (an unseeded ``reset()``
   after the trajectory, the way every later training episode starts), which
   catches a draw the hook consumed and discarded.  Its ``observation``
@@ -39,7 +39,10 @@ contract code:
   ``command`` payload section is a live mode's controller manifest, passed
   exactly when the mode is live (amendment A9, as PR-9 carried it out).
 * The recovery-calibration restamp tool is idempotent and refuses a physics
-  change; the committed compsognathus calibrations load (decision D-C2).
+  change; the committed compsognathus calibrations load (decision D-C2).  The
+  robot's still carries its Phase C restamp; the anatomical one was
+  re-measured on compsognathus physics r2 (D-D26), the physics change a
+  restamp refuses, so it carries none and the tool leaves it untouched.
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
@@ -64,7 +67,7 @@ import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.compsognathus.envs.compsognathus_env import CompsognathusEnv, CompsognathusRobotEnv
+from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv, CompsognathusRobotEnv
 from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.command_frame import (
@@ -97,7 +100,7 @@ SPECIES_ENVS = [
     pytest.param(TRexEnv, "trex", id="trex"),
     pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
     pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
-    pytest.param(CompsognathusEnv, "compsognathus", id="compsognathus"),
+    pytest.param(CompsognathusBiologicalEnv, "compsognathus", id="compsognathus"),
     pytest.param(CompsognathusRobotEnv, "compsognathus_robot", id="compsognathus_robot"),
 ]
 
@@ -145,7 +148,7 @@ def test_golden_fixture_records_its_provenance():
 
 
 #: Captures re-taken after 7db7f8e, each by a named plant revision of its species.
-RECAPTURED = {"trex/stance": 8, "trex/recovery": 8}
+RECAPTURED = {"trex/stance": 8, "trex/recovery": 8, "compsognathus/recovery": 2}
 
 
 def test_recaptured_goldens_record_the_plant_they_were_taken_on():
@@ -434,7 +437,7 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
     without a live mode, a live mode without a config (the dataclass defaults are T. rex-scale) and speed variation
     under "heading" (which holds cruise_speed) are refused at construction rather than ignored."""
     config = DirectionCommandConfig(cruise_speed=0.5)
-    for env_class, mode in ((TRexEnv, "heading"), (CompsognathusEnv, "heading_and_speed")):
+    for env_class, mode in ((TRexEnv, "heading"), (CompsognathusBiologicalEnv, "heading_and_speed")):
         env = env_class(command_mode=mode, command_config=config)
         try:
             assert env.command_mode == mode and env.command_config is config
@@ -711,6 +714,10 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
 # ---------------------------------------------------------------------------
 
 CALIBRATED_SPECIES = ("compsognathus", "compsognathus_robot")
+#: The profiles that still carry the Phase C restamp.  The anatomical profile was re-measured on
+#: compsognathus physics r2 (D-D26; ``calibrate_recovery.py``): a physics change is exactly what a
+#: restamp refuses, so that profile records no ``restamp_history``.
+RESTAMPED_SPECIES = ("compsognathus_robot",)
 CONFIGS_ROOT = Path(__file__).resolve().parents[3] / "configs"
 
 
@@ -737,7 +744,14 @@ def _pre_restamp_copy(species: str, root: Path) -> tuple[Path, dict[str, Any]]:
     return path, entry
 
 
-@pytest.mark.parametrize("species", CALIBRATED_SPECIES)
+def _committed_copy(species: str, root: Path) -> Path:
+    path = root / species / "recovery_calibration.json"
+    path.parent.mkdir(parents=True)
+    shutil.copy(CONFIGS_ROOT / species / "recovery_calibration.json", path)
+    return path
+
+
+@pytest.mark.parametrize("species", RESTAMPED_SPECIES)
 def test_committed_recovery_calibrations_load_and_record_one_restamp(species):
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts.restamp_recovery_calibration import RESTAMP_REASON
@@ -758,25 +772,46 @@ def test_committed_recovery_calibrations_load_and_record_one_restamp(species):
     assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
 
 
+def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement(tmp_path):
+    """Re-measured on the current plant, not restamped: it loads, names the plant it was measured on, records no
+    restamp, measured the committed recovery [env] block, and the restamp tool leaves it byte-identical."""
+    from environments.shared.recovery_calibration import load_recovery_calibration
+    from environments.shared.scripts import restamp_recovery_calibration as tool
+
+    calibration = load_recovery_calibration("compsognathus")
+    _, text, profile = _committed_profile("compsognathus")
+    assert "restamp_history" not in calibration.profile and "restamp_history" not in profile
+    identity = current_plant_identity("compsognathus", verify_generated=False)
+    assert profile["plant_identity"] == identity.to_dict()
+    assert profile["plant_identity"]["physics_revision"] == 2
+    measured_env = json.loads(json.dumps(load_stage_config("compsognathus", "recovery")["env_kwargs"]))
+    assert profile["recovery_env_kwargs"] == measured_env
+    path = _committed_copy("compsognathus", tmp_path / "configs")
+    assert tool.restamp_recovery_calibration("compsognathus", path=path) is False
+    assert path.read_text(encoding="utf-8") == text
+
+
 def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change(tmp_path):
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
     root = tmp_path / "configs"
-    # Roll both committed profiles back to their pre-bump identity: the tool
-    # must reproduce the committed bytes (the recorded commit is passed
+    # Roll the restamped committed profile back to its pre-bump identity: the
+    # tool must reproduce the committed bytes (the recorded commit is passed
     # explicitly so the replay does not depend on the checkout's HEAD).
-    for species in CALIBRATED_SPECIES:
+    for species in RESTAMPED_SPECIES:
         path, entry = _pre_restamp_copy(species, root)
         assert tool.restamp_recovery_calibration(species, path=path, commit=entry["restamped_at_commit"]) is True
         assert path.read_text(encoding="utf-8") == _committed_profile(species)[1], species
+    for species in (species for species in CALIBRATED_SPECIES if species not in RESTAMPED_SPECIES):
+        _committed_copy(species, root)
 
-    # Second run through the CLI: a byte no-op, no history append.
+    # Second run through the CLI, over both default species: a byte no-op, no history append.
     before = {species: (root / species / "recovery_calibration.json").read_bytes() for species in CALIBRATED_SPECIES}
     assert tool.main(["--configs-root", str(root)]) == 0
     for species in CALIBRATED_SPECIES:
         after = (root / species / "recovery_calibration.json").read_bytes()
         assert after == before[species], species
-        assert len(json.loads(after)["restamp_history"]) == 1
+        assert len(json.loads(after).get("restamp_history", [])) == int(species in RESTAMPED_SPECIES)
 
     # A physics change needs a real recalibration, not a restamp.
     path = root / "compsognathus" / "recovery_calibration.json"
@@ -808,13 +843,13 @@ def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
     """A later interface-only revision must name its own reason; the Phase C text is only the default."""
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
-    root = tmp_path / "configs"
-    path, entry = _pre_restamp_copy("compsognathus", root)
-    assert tool.main(["--species", "compsognathus", "--configs-root", str(root), "--reason", "r99 bump"]) == 0
+    root = tmp_path / "named"
+    path, entry = _pre_restamp_copy("compsognathus_robot", root)
+    assert tool.main(["--species", "compsognathus_robot", "--configs-root", str(root), "--reason", "r99 bump"]) == 0
     history = json.loads(path.read_text(encoding="utf-8"))["restamp_history"]
     assert [item["reason"] for item in history] == ["r99 bump"]
     assert history[0]["previous_task_sha256"] == entry["previous_task_sha256"]
 
-    path, _ = _pre_restamp_copy("compsognathus_robot", root)
+    path, _ = _pre_restamp_copy("compsognathus_robot", tmp_path / "blank")
     with pytest.raises(tool.RestampError, match="non-empty"):
         tool.restamp_recovery_calibration("compsognathus_robot", path=path, reason="  ")

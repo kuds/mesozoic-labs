@@ -129,6 +129,7 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_floor_impact",
         "reward_airborne_substeps",
         "reward_action_saturation",
+        "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching
         "reward_total",

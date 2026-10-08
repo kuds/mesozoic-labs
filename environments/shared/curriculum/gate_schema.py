@@ -46,6 +46,7 @@ from .stance_gate_v2 import (
     STANCE_GATE_V2_KIND,
     STANCE_V2_REQUIRED_KEYS,
     STANCE_V2_THRESHOLD_KEYS,
+    WINDOW_HOP_KEY_FLOORS,
 )
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
@@ -498,8 +499,9 @@ def validate_gate_config(
             unknown gate kind or schema version, carries a threshold field
             that its declared kind does not consume, declares a
             ``stance_quality/v2`` fraction bar outside its range
-            (``stance_gate_v2.CRITERION_BAR_RANGES``), or omits the gate
-            declaration entirely while advancement is enabled.
+            (``stance_gate_v2.CRITERION_BAR_RANGES``) or a window hop bar
+            below its floor (``stance_gate_v2.WINDOW_HOP_KEY_FLOORS``), or
+            omits the gate declaration entirely while advancement is enabled.
     """
     known = (
         _SCHEMA_KEYS
@@ -576,8 +578,9 @@ def validate_gate_config(
         )
 
     if declared_kind == STANCE_GATE_V2_KIND:
-        # A fraction bar outside its range is a typo, not a strict gate: refused at config load rather than
-        # by the post-stage report after a whole training run (StanceV2Thresholds.from_curriculum).
+        # A fraction bar outside its range, or a window hop bar below its floor, is a typo, not a strict gate:
+        # refused at config load rather than by the post-stage report after a whole training run
+        # (StanceV2Thresholds.from_curriculum).
         for key, low, high, why in CRITERION_BAR_RANGES:
             if key not in curriculum_kwargs:
                 continue
@@ -587,6 +590,16 @@ def validate_gate_config(
                 raise GateSchemaError(
                     f"{_describe(stage)}: {declared_kind} threshold {key} must be a number strictly between "
                     f"{low:g} and {high:g}, not {raw!r}: {why}."
+                )
+        for key, floor, why in WINDOW_HOP_KEY_FLOORS:
+            if key not in curriculum_kwargs:
+                continue
+            raw = curriculum_kwargs[key]
+            value = None if isinstance(raw, bool) or not isinstance(raw, (int, float)) else finite_gate_metric(raw)
+            if value is None or value < floor:
+                raise GateSchemaError(
+                    f"{_describe(stage)}: {declared_kind} threshold {key} must be a number of at least {floor:g}, "
+                    f"not {raw!r}: {why}."
                 )
 
     if advancement_enabled and declared_kind == "none/v1":

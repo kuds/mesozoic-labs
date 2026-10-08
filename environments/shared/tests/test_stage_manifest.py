@@ -753,9 +753,10 @@ class TestRecoveryStageConfig:
         assert _ordered(curriculum) == _ordered(_raw_stage_toml(species, "recovery")["curriculum"])
         assert curriculum["gate_kind"] == "recovery_quality/v1"
         # The stance's [curriculum] is its own too: trex stance moved to
-        # stance_quality/v2 with physics r8 (D-D24) while its recovery, which
+        # stance_quality/v2 with physics r8 (D-D24) and the anatomical
+        # compsognathus with physics r2 (D-D26) while each recovery, which
         # extends the stance's [env], keeps its frozen recovery_quality/v1.
-        stance_kind = "stance_quality/v2" if species == "trex" else "stance_quality/v1"
+        stance_kind = "stance_quality/v2" if species in ("trex", "compsognathus") else "stance_quality/v1"
         assert load_stage_config(species, "stance")["curriculum_kwargs"]["gate_kind"] == stance_kind
 
     def test_gate_declares_the_frozen_recovery_kind(self):

@@ -69,11 +69,13 @@ def _make_dibothrosuchus_config() -> SpeciesConfig:
 
 
 def _make_compsognathus_config() -> SpeciesConfig:
-    from environments.compsognathus.envs import CompsognathusEnv
+    # The soft-cubic leg-residual subclass (policy interface r3, D-D26); the
+    # robot below keeps CompsognathusEnv's linear residual.
+    from environments.compsognathus.envs import CompsognathusBiologicalEnv
 
     return SpeciesConfig(
         species="compsognathus",
-        env_class=CompsognathusEnv,
+        env_class=CompsognathusBiologicalEnv,
         stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
         height_label="Pelvis height",
         stage3_section_label="Target Reaching",

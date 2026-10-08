@@ -261,6 +261,7 @@ def plot_diagnostics_graphs(
         "reward_floor_impact": ("floor_impact_weight",),
         "reward_airborne_substeps": ("airborne_substep_weight",),
         "reward_action_saturation": ("action_saturation_weight",),
+        "reward_support_geom_coverage": ("support_geom_coverage_weight",),
         "reward_smoothness": ("smoothness_weight",),
         "reward_heading": ("heading_weight",),
         "reward_lateral": ("lateral_penalty_weight",),

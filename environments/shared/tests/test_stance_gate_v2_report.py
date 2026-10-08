@@ -36,10 +36,13 @@ recorder is the real recorder, and the verdict is the real gate:
 * on the T. rex, whose stance block declares the pad centre-of-pressure
   bar, a pad pushed onto its front edge, flat by every other pad bar, fails
   that bar while the statue rolled in the same report reads under it, and
-  the judge re-derives the FAIL; a report or panel CSV recorded before that
-  metric existed keeps its verdict under a block that does not declare it
-  and is refused, never failed, under one that does (D-D28): by name at
-  publication, and at the judge on its recorded thresholds, then by name.
+  the judge re-derives the FAIL; on the compsognathus, whose block declares
+  its own, both pads leaned onto their front edges, level and with every
+  digit loaded, fail that bar alone in the same way; a report or panel CSV
+  recorded before that metric existed keeps its verdict under a block that
+  does not declare it and is refused, never failed, under one that does
+  (D-D28): by name at publication, and at the judge on its recorded
+  thresholds, then by name.
 """
 
 from __future__ import annotations
@@ -57,7 +60,7 @@ import pytest
 
 from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.curriculum.gate_schema import gate_config_view
-from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA
+from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA, StatueReference
 from environments.shared.gait.constants import measurement_constants, measurement_sha256
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
 from environments.shared.plant_contract import current_plant_identity
@@ -155,6 +158,38 @@ def _report(
     )
 
 
+class _PostSettleHop:
+    """Zero action through the settle, then both legs in phase (knees +a; ankles and hip pitch -a), 10 Hz square wave.
+
+    The two-foot hop the D-D26 review certified under the step-level window
+    bars: on this light plant its flights last 1-3 of a step's ten substeps,
+    so every leg reads down on every step.  Stateful: the report calls
+    ``reset`` before each episode.
+    """
+
+    SIGNS = {"r_knee_act": 1, "l_knee_act": 1, "r_ankle_act": -1, "l_ankle_act": -1, "r_hip_pitch_act": -1,
+             "l_hip_pitch_act": -1}  # fmt: skip
+
+    def __init__(self, nu: int, *, settle: int, amplitude: float = 0.15, period: int = 5) -> None:
+        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
+        try:
+            self.pattern = np.zeros(nu)
+            for name, sign in self.SIGNS.items():
+                self.pattern[env.model.actuator(name).id] = sign * amplitude
+        finally:
+            env.close()
+        self.settle, self.period, self.step = settle, period, 0
+
+    def reset(self) -> None:
+        self.step = 0
+
+    def __call__(self, _obs: np.ndarray) -> np.ndarray:
+        step, self.step = self.step, self.step + 1
+        if step < self.settle:
+            return np.zeros_like(self.pattern)
+        return self.pattern if (step - self.settle) % self.period < self.period / 2 else -self.pattern
+
+
 @pytest.fixture(scope="module")
 def nu() -> int:
     env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
@@ -208,7 +243,10 @@ class TestThePanel:
         # Its pads are boxes, so their fore-aft centre of pressure is measured, and the text report lists it
         # as a report-only reading under a block that does not gate it.
         assert all(0.0 < row["max_sole_cop_fore_aft"] < 1.0 for row in report["episode_evidence"])
-        assert "pad CoP fore-aft (|.| / half-length)" in (stage_dir / "stance_gate_report.txt").read_text()
+        text = (stage_dir / "stance_gate_report.txt").read_text()
+        assert "pad CoP fore-aft (|.| / half-length)" in text
+        # So is the window hop pair, which this block does not declare either.
+        assert "window both-feet-unloaded substeps" in text and "window peak floor force (BW)" in text
         assert report["result"]["n_clean"] == EPISODES == report["result"]["n_episodes"]
         assert [row["clean"] for row in report["episode_evidence"]] == [True] * EPISODES
         assert [row["seed"] for row in report["episode_evidence"]] == [3042, 3043, 3044]
@@ -300,16 +338,69 @@ class TestThePanel:
         assert report["statue"]["reference"] == statue[1]["statue"]["reference"]
         assert report["result"]["statue_mean_reward"] != report["result"]["mean_reward"]
 
+    def test_a_post_settle_hop_reads_a_statue_step_by_step_and_fails_the_window_hop_pair(
+        self, tmp_path, monkeypatch, nu, statue
+    ):
+        """Real physics, recorder, gate and judge: the window pair sees what the step-level bars cannot.
 
-def _reclassified(report: dict[str, Any], curriculum: dict[str, Any], *, horizon: int) -> list[dict[str, Any]]:
-    """*report*'s episode rows with their reasons re-derived under *curriculum*."""
+        Every leg is down on every window step, with no touchdown and no
+        flight, and the settle is the statue's; but both feet leave the floor
+        on dozens of window substeps and land at several body weights.
+        """
+        window = {"max_window_airborne_substeps": 10, "max_window_peak_floor_force_bw": 2.0}
+        config = _stage_config(**window)
+        _record_stage(tmp_path, config)
+        hop = _PostSettleHop(nu, settle=CURRICULUM["settle_steps"])
+        model, vecnorm = _handoff(tmp_path)
+        monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (hop, "scripted post-settle hop"))
+        report = stance_report.build_stance_gate_report(
+            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+        )
+        step_level = {"min_all_feet_support", "max_touchdown_rate", "max_settle_airborne_substeps",
+                      "max_settle_peak_floor_force_bw"}  # fmt: skip
+        for row in report["episode_evidence"]:
+            assert row["length"] == HORIZON
+            assert (row["all_feet_support"], row["touchdown_rate"], row["flight_fraction"]) == (1.0, 0.0, 0.0)
+            assert row["settle_airborne_substeps"] == 0.0
+            assert row["window_airborne_substeps"] > 3 * window["max_window_airborne_substeps"]
+            assert row["window_peak_floor_force_bw"] > 1.5 * window["max_window_peak_floor_force_bw"]
+            assert set(window) <= _keys(row) and not step_level & _keys(row), row["reasons"]
+        assert report["passed"] is False and report["result"]["n_clean"] == 0
+        # The statue the same report rolled meets the pair with room: no flight, its own weight on the floor.
+        for row in report["statue"]["episode_evidence"]:
+            assert row["window_airborne_substeps"] == 0.0 and row["window_peak_floor_force_bw"] < 1.1
+        # The judge re-derives the refusal from the written report.
+        stance_report.write_stance_gate_report(tmp_path, report)
+        passed, reasons = _judge(tmp_path, _written(tmp_path), **window)
+        assert passed is False and reasons
+        # Undeclared, the pair is no criterion: the same episodes fail only what the rest of the block reads.
+        assert all(not set(window) & _keys(row) for row in _reclassified(report, CURRICULUM, horizon=HORIZON))
+        # The zero-action statue scored as the checkpoint under the same block passes, and the judge certifies it.
+        statue_dir = tmp_path / "statue"
+        _record_stage(statue_dir, config)
+        model, vecnorm = _handoff(statue_dir)
+        monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (_scripted(np.zeros(nu)), "zero"))
+        quiet = stance_report.build_stance_gate_report(
+            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+        )
+        assert quiet["passed"] is True and quiet["result"]["n_clean"] == EPISODES
+        stance_report.write_stance_gate_report(statue_dir, quiet)
+        assert _judge(statue_dir, _written(statue_dir), **window) == (True, [])
+
+
+def _reclassified(
+    report: dict[str, Any], curriculum: dict[str, Any], *, horizon: int, statue: Any = None
+) -> list[dict[str, Any]]:
+    """*report*'s episode rows with their reasons re-derived under *curriculum* (against *statue*, a
+    ``StatueReference``, where the block declares a statue-relative bar)."""
     from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds, classify_stance_episode
 
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     rows = []
     for row in report["episode_evidence"]:
         episode = StanceEpisodeMetrics.from_row(row)
-        rows.append({**row, "reasons": list(classify_stance_episode(episode, thresholds, horizon=horizon))})
+        reasons = classify_stance_episode(episode, thresholds, horizon=horizon, statue=statue)
+        rows.append({**row, "reasons": list(reasons)})
     return rows
 
 
@@ -325,21 +416,27 @@ def _without_later_metrics(report: dict[str, Any]) -> dict[str, Any]:
     return earlier
 
 
-# ── the pad's centre of pressure, on the T. rex (D-D28) ──────────────────────
+# ── the pad's centre of pressure, on the T. rex and the compsognathus (D-D28) ──
 
-#: The species whose stance block declares ``max_sole_cop_fore_aft`` (0.80, calibrated on its statue).
+#: The species whose stance block declared ``max_sole_cop_fore_aft`` first (0.80, calibrated on its statue).
 TREX = "trex"
 TREX_HORIZON = 400
+#: The compsognathus stance declares it too (0.70, on its r2 statue): 200 window steps after its 200-step settle.
+COMPSOGNATHUS_HORIZON = 400
 
 
-def _trex_stage_config() -> dict[str, Any]:
-    """The T. rex stance block on a 3-episode panel at a 400-step horizon: every bar it declares but the reward
+def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
+    """*species*' stance block on a 3-episode panel at a shortened horizon: every bar it declares but the reward
     floor, which is set for its 1000 steps."""
-    config = copy.deepcopy(load_stage_config(TREX, 1))
-    config["env_kwargs"]["max_episode_steps"] = TREX_HORIZON
+    config = copy.deepcopy(load_stage_config(species, 1))
+    config["env_kwargs"]["max_episode_steps"] = horizon
     block = {key: value for key, value in config["curriculum_kwargs"].items() if key != "min_avg_reward"}
     config["curriculum_kwargs"] = {**block, "min_eval_episodes": EPISODES, "min_clean_stance_lcb": 0.3}
     return config
+
+
+def _trex_stage_config() -> dict[str, Any]:
+    return _declared_stage_config(TREX, TREX_HORIZON)
 
 
 def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
@@ -392,6 +489,10 @@ class TestThePadCentreOfPressure:
         stance_report.write_stance_gate_report(tmp_path, report)
         text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
         assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
+        # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
+        # declares, and the pair is a report-only reading.
+        assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
+        assert "window peak floor force (BW)" in text
         # The judge re-derives the FAIL from the rows: the bound fails, nothing is refused.
         passed, reasons = evaluate_stage_gate(
             curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
@@ -399,6 +500,57 @@ class TestThePadCentreOfPressure:
         assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
         without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
         assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TREX_HORIZON))
+
+    def test_compsognathus_pads_leaned_onto_their_front_edges_fail_the_bar_alone(self, tmp_path, monkeypatch, nu):
+        """Real physics on the compsognathus r2 plant, under its own stance block.
+
+        Both ankles, ramped to -0.573 (servo targets 0.15 rad below home under
+        the soft-cubic map) over the first 150 steps, lean the animal forward
+        onto the front edges of both pads.  The pads stay level and the digits
+        loaded, so the tilt, corner-lift, contact and support-geom bars admit
+        it, as they admit the whole 40-episode panel of this stance; the
+        centre-of-pressure bar is the one that refuses it, and the statue the
+        same report rolls reads under it.
+        """
+        config = _declared_stage_config(SPECIES, COMPSOGNATHUS_HORIZON)
+        curriculum = config["curriculum_kwargs"]
+        assert curriculum["max_sole_cop_fore_aft"] == 0.70
+        _record_stage(tmp_path, config)
+        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**config["env_kwargs"])
+        try:
+            command = np.zeros(nu)
+            for name in ("r_ankle_act", "l_ankle_act"):
+                command[env.model.actuator(name).id] = -0.573
+        finally:
+            env.close()
+        predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_HORIZON)
+        report = _report(monkeypatch, tmp_path, predict, stage_config=config)
+        assert report["passed"] is False and report["result"]["n_clean"] == 0
+        for row in report["episode_evidence"]:
+            assert row["length"] == COMPSOGNATHUS_HORIZON and row["all_feet_support"] == 1.0
+            assert row["min_support_geom_coverage"] == 1.0 and row["max_sole_tilt_deg"] < 0.1
+            assert row["max_sole_cop_fore_aft"] > 0.85
+            assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
+        # The statue stands on the heel side of its pads' centres (0.143-0.155 over 200 full-horizon episodes).
+        statue_rows = report["statue"]["episode_evidence"]
+        assert all(row["max_sole_cop_fore_aft"] < 0.20 for row in statue_rows)
+        # The block's foot-share statue ratio reads the statue panel's own reference.
+        reference = StatueReference.from_dict(report["statue"]["reference"])
+        statue = _reclassified(
+            {"episode_evidence": statue_rows}, curriculum, horizon=COMPSOGNATHUS_HORIZON, statue=reference
+        )
+        assert all(row["reasons"] == [] for row in statue)
+        stance_report.write_stance_gate_report(tmp_path, report)
+        text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
+        # The block gates the window hop pair, so the text lists it with the criteria, not as report-only.
+        assert "max_window_peak_floor_force_bw" in text and "window peak floor force (BW)" not in text
+        passed, reasons = evaluate_stage_gate(
+            curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
+        )
+        assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
+        without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+        rederived = _reclassified(report, without, horizon=COMPSOGNATHUS_HORIZON, statue=reference)
+        assert all(row["reasons"] == [] for row in rederived)
 
 
 # ── the judge ─────────────────────────────────────────────────────────────────

@@ -103,6 +103,8 @@ class StageThreshold:
     max_settle_touchdowns: float | None = None
     max_sole_cop_fore_aft: float | None = None
     max_hop_or_fall_episodes: int | None = None
+    max_window_airborne_substeps: float | None = None
+    max_window_peak_floor_force_bw: float | None = None
 
     # Shared
     min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
@@ -735,4 +737,6 @@ _STANCE_V2_COPIED_KEYS: tuple[str, ...] = (
     "max_settle_touchdowns",
     "max_sole_cop_fore_aft",
     "max_hop_or_fall_episodes",
+    "max_window_airborne_substeps",
+    "max_window_peak_floor_force_bw",
 )

@@ -6,13 +6,17 @@ import numpy as np
 import pytest
 from gymnasium.utils.env_checker import check_env
 
-from environments.compsognathus.envs import CompsognathusEnv, CompsognathusRobotEnv
+from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusEnv, CompsognathusRobotEnv
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics
+from environments.shared.plant_contract.manifest import _load_environment
+from environments.shared.plant_contract.versions import _species_entries
 from environments.shared.species_registry import get_species_config
 
+LEG_ACTUATORS = [f"{side}_{joint}_act" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle", "toe")]
 
-@pytest.fixture(params=[CompsognathusEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
+
+@pytest.fixture(params=[CompsognathusBiologicalEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
 def env(request):
     instance = request.param(reset_noise_scale=0)
     yield instance
@@ -73,6 +77,52 @@ def test_home_residual_holds_full_twenty_second_episode(env):
         assert info["tilt_angle"] < 0.03
         assert truncated == (step == env.max_episode_steps - 1)
     assert not info["is_success"]
+
+
+def test_the_anatomical_species_trains_on_the_soft_cubic_subclass():
+    """Every path that builds the anatomical species gets CompsognathusBiologicalEnv (D-D26); the robot keeps the
+    linear residual of CompsognathusEnv, so its policy interface does not move."""
+    assert get_species_config("compsognathus").env_class is CompsognathusBiologicalEnv
+    assert _load_environment(_species_entries()["compsognathus"]["env_entrypoint"]) is CompsognathusBiologicalEnv
+    with gym.make("MesozoicLabs/Compsognathus-v0") as instance:
+        assert type(instance.unwrapped) is CompsognathusBiologicalEnv
+    assert get_species_config("compsognathus_robot").env_class is CompsognathusRobotEnv
+    assert not issubclass(CompsognathusRobotEnv, CompsognathusBiologicalEnv)
+    assert CompsognathusRobotEnv._scale_action is CompsognathusEnv._scale_action
+    assert CompsognathusRobotEnv.action_mapping == "home-keyframe-residual/v1"
+    assert CompsognathusBiologicalEnv.action_mapping == "home-keyframe-residual-softcubic/v1"
+
+
+def test_soft_cubic_leg_residual_keeps_home_and_both_endpoints():
+    """b = 0.1 a + 0.9 a**3 on the ten leg servos, then the unchanged home-keyframe span: b(0) = 0 commands the
+    gravity-preloaded home ctrl, b(+-1) = +-1 the ctrlrange ends, the slope at home is a tenth of the linear
+    map's and the map is monotone.  Neck, jaw and tail keep the linear residual."""
+    with CompsognathusBiologicalEnv(reset_noise_scale=0) as soft, CompsognathusEnv(reset_noise_scale=0) as linear:
+        model = soft.model
+        names = [model.actuator(i).name for i in range(model.nu)]
+        assert [name for name, shaped in zip(names, soft._shaped_residual_mask) if shaped] == LEG_ACTUATORS
+        legs = soft._shaped_residual_mask
+        home = model.key("home").ctrl
+        low, high = model.actuator_ctrlrange.T
+        zero = np.zeros(model.nu)
+        np.testing.assert_array_equal(soft._scale_action(zero), home)
+        for end, bound in ((-1.0, low), (1.0, high), (7.0, high)):  # +7: clipped first
+            # b(+-1) is exactly +-1, so the ends are the linear map's, which reach the ctrlrange to an ulp.
+            np.testing.assert_array_equal(soft._scale_action(zero + end), linear._scale_action(zero + end))
+            np.testing.assert_allclose(soft._scale_action(zero + end), bound, rtol=0, atol=1e-15)
+        for a in (1e-6, -1e-6):
+            ratio = (soft._scale_action(zero + a) - home) / (linear._scale_action(zero + a) - home)
+            np.testing.assert_allclose(ratio[legs], 0.1, rtol=1e-9)
+            np.testing.assert_allclose(ratio[~legs], 1.0, rtol=1e-12)
+        grid = np.linspace(-1.0, 1.0, 401)
+        ctrl = np.array([soft._scale_action(zero + a) for a in grid])
+        assert np.all(np.diff(ctrl, axis=0) > 0)
+        b = np.where(grid[:, None] >= 0, (ctrl - home) / (high - home), (ctrl - home) / (home - low)).T
+        np.testing.assert_allclose(b[legs], np.broadcast_to(0.1 * grid + 0.9 * grid**3, b[legs].shape), atol=1e-12)
+        np.testing.assert_allclose(b[~legs], np.broadcast_to(grid, b[~legs].shape), atol=1e-12)
+        rng = np.random.default_rng(7)
+        for action in rng.uniform(-1.0, 1.0, (20, model.nu)):
+            np.testing.assert_array_equal(soft._scale_action(action)[~legs], linear._scale_action(action)[~legs])
 
 
 def test_invalid_actions_are_rejected_before_physics(env):

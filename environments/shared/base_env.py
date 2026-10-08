@@ -142,8 +142,10 @@ class BaseDinoEnv(gym.Env, ABC):
     # Every substep's per-foot force sum, (frame_skip, n_feet), beside the
     # MIN above and under the same tag.  The MIN is what the support terms
     # and the stance-duty gate read; the block is for terms that need the
-    # PEAK or the count of airborne substeps (trex's floor-impact and
-    # airborne-substep terms), which no MIN can recover.
+    # MEAN, the PEAK or the count of airborne substeps (trex's floor-impact
+    # and airborne-substep terms since D-D27; the anatomical compsognathus
+    # stance's mean-load support terms and its own impact and airborne
+    # terms since D-D26), which no MIN can recover.
     _substep_foot_forces: "np.ndarray | None" = None
     _substep_floor_hit_geom: "int | None" = None
     _substep_contact_step: int = -1
@@ -1003,6 +1005,18 @@ class BaseDinoEnv(gym.Env, ABC):
             return np.asarray([self._foot_contact_forces()], dtype=np.float64).reshape(1, -1)
         return self._substep_foot_forces.copy()
 
+    def _accumulate_substep(self, substep: int) -> None:
+        """Species hook, called by :meth:`step` after every physics substep; a no-op here.
+
+        ``substep`` counts from 0 within the control step, so an override
+        resets its own per-step state at 0.  It reads ``model`` and
+        ``data`` and must not write them: it is where a species gathers a
+        per-substep reward quantity that the foot-force block above does
+        not carry (the compsognathus support-geom coverage), without
+        taking ``_substep_probe_hook``, the slot the floor-truth recorder
+        and the validation probes own.
+        """
+
     def _aggregated_min_height(self, check_index: int, instantaneous: float) -> float:
         """MIN clearance of a ``_substep_height_checks`` entry across the last step.
 
@@ -1265,7 +1279,8 @@ class BaseDinoEnv(gym.Env, ABC):
         # final substep survives -- and a control-clock-locked hop can unload
         # (or a tail can strike the floor) entirely between control-boundary
         # samples.  MIN per-foot force feeds the contact-shaped rewards and
-        # the stance-duty gate; the first floor strike is latched for
+        # the stance-duty gate; every substep's row is kept beside it (the
+        # foot-force block); the first floor strike is latched for
         # _check_floor_contact.
         min_forces: "np.ndarray | None" = None
         min_heights: "np.ndarray | None" = None
@@ -1292,6 +1307,7 @@ class BaseDinoEnv(gym.Env, ABC):
                 forces = np.asarray(self._foot_contact_forces(), dtype=np.float64)
                 min_forces = forces if min_forces is None else np.minimum(min_forces, forces)
                 force_block[substep] = forces  # type: ignore[index]
+            self._accumulate_substep(substep)
             if height_checks:
                 heights = np.fromiter(
                     (

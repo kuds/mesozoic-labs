@@ -428,16 +428,24 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     # A tiny run must not certify the production stance recipe from reward alone.
     assert not results["publication_gate_passed"]
     report = json.loads((directory / "stance_gate_report.json").read_text())
-    # A 64-step policy may fall before the horizon in every panel episode;
-    # the unsupported duty is measured on full-horizon episodes only, so the
-    # panel then records an infinite duty, which the report serialises as
-    # None (``_json_safe``).  Either outcome is the report doing its job; the
-    # pin is that the metric agrees with the duty-episode count it cites.
-    duty = report["metrics"]["mean_unsupported_duty"]
-    if report["metrics"]["n_duty_episodes"]:
-        assert np.isfinite(duty)
+    if report["gate_kind"] == "stance_quality/v2":
+        # The anatomical stance (D-D26) certifies clean floor-truth episodes.
+        # The 32-step smoke horizon ends inside the production 200-step
+        # settle, so no episode has a scored window, none is clean, and the
+        # report's count and bound say so.
+        assert report["metrics"]["n_clean"] == 0
+        assert report["metrics"]["clean_lcb"] == 0.0
     else:
-        assert duty is None
+        # A 64-step policy may fall before the horizon in every panel episode;
+        # the unsupported duty is measured on full-horizon episodes only, so the
+        # panel then records an infinite duty, which the report serialises as
+        # None (``_json_safe``).  Either outcome is the report doing its job; the
+        # pin is that the metric agrees with the duty-episode count it cites.
+        duty = report["metrics"]["mean_unsupported_duty"]
+        if report["metrics"]["n_duty_episodes"]:
+            assert np.isfinite(duty)
+        else:
+            assert duty is None
     assert results["gate_failures"]
 
     # Execute the real chain loop over the recovery node and the real trainer

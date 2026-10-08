@@ -191,18 +191,23 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # 0.5 mm contact, a gravity-preloaded home ctrl, and metatarsus + digit-4
     # touch sites and sensors summed into the foot observation (which made it
     # SB3-only).
+    # The anatomical compsognathus then took one bump of all three (plant_versions
+    # note 15): a one-density tail, a metatarsus capsule 4 mm short of the MTP and
+    # digit II medial on both feet (physics, visual, and the regenerated home
+    # preload), and the soft-cubic leg residual of CompsognathusBiologicalEnv.
+    # The robot is untouched.
     expected_policy_revisions = {
         "velociraptor": 11,
         "trex": 13,
         "brachiosaurus": 8,
         "dibothrosuchus": 7,
-        "compsognathus": 2,
+        "compsognathus": 3,
         "compsognathus_robot": 2,
     }
     expected_physics_revisions = {"velociraptor": 3, "trex": 8, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update(compsognathus=1, compsognathus_robot=1)
+        revisions.update(compsognathus=2, compsognathus_robot=1)
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
@@ -429,11 +434,21 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             first, second, third = (
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
             )
-            assert first["gate_kind"] == "stance_quality/v1"
-            assert first["min_avg_reward"] == 1800
+            if species_id == "compsognathus":
+                # The anatomical stance moved to stance_quality/v2 with physics r2 (D-D26); the robot keeps v1.
+                assert first["gate_kind"] == "stance_quality/v2"
+                assert first["min_avg_reward"] == 2740
+                assert first["min_avg_reward_statue_ratio"] == 0.6
+                assert first["min_clean_stance_lcb"] == 0.8
+                assert first["max_unsupported_duty"] is None and first["max_unsupported_duty_ucb"] is None
+                # Its own pad centre-of-pressure bar, measured on the r2 statue after D-D28 landed first.
+                assert first["max_sole_cop_fore_aft"] == 0.70
+            else:
+                assert first["gate_kind"] == "stance_quality/v1"
+                assert first["min_avg_reward"] == 1800
+                assert first["max_unsupported_duty"] == 0.02
+                assert first["max_unsupported_duty_ucb"] == 0.02
             assert first["min_full_horizon_fraction"] == 0.95
-            assert first["max_unsupported_duty"] == 0.02
-            assert first["max_unsupported_duty_ucb"] == 0.02
             assert second["min_avg_forward_velocity"] == (0.04 if species_id.endswith("_robot") else 0.08)
             assert second["min_avg_episode_length"] == 900
             assert third["min_success_rate"] == 0.7
@@ -1517,7 +1532,7 @@ def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
 def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
     """stance_quality/v2 (D-D23): its keys are exported on a v2 stage and on no other, and rendered by key.
 
-    A stage on any other kind (compsognathus's stance keeps v1) exports
+    A stage on any other kind (the compsognathus robot's stance keeps v1) exports
     exactly the keys it always did, and the website adapter declares the v2
     keys as optional (it pins the exported keys both ways); the v2 rendering
     names the bound, the per-episode criteria under their TOML keys, both
@@ -1529,8 +1544,8 @@ def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
 
     from .stance_v2_helpers import V2_CURRICULUM
 
-    entry = load_stage_manifest("compsognathus").resolve(1)
-    v1_curriculum = load_stage_config("compsognathus", 1)["curriculum_kwargs"]
+    entry = load_stage_manifest("compsognathus_robot").resolve(1)
+    v1_curriculum = load_stage_config("compsognathus_robot", 1)["curriculum_kwargs"]
     assert v1_curriculum["gate_kind"] == "stance_quality/v1"
     v1_gate = _advancement_gate(entry, v1_curriculum)
     assert "min_clean_stance_lcb" not in v1_gate and "max_sole_corner_lift_m" not in v1_gate
@@ -1647,11 +1662,12 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
         assert "statue" in definition, species_id
         assert "certified stance quality" in definition, species_id
     # A stance-quality stance names the kind its stage declares today: trex moved to
-    # stance_quality/v2 with physics r8 (D-D24) and velociraptor from the reward gate
-    # with physics r3 (D-D25); the compsognathus pair keeps v1.
+    # stance_quality/v2 with physics r8 (D-D24), velociraptor from the reward gate
+    # with physics r3 (D-D25) and the anatomical compsognathus with physics r2
+    # (D-D26); the compsognathus robot keeps v1.
     for species_id in ("trex", "velociraptor", "compsognathus", "compsognathus_robot"):
         kind = current_gate_kinds(species_id)["stance"]
-        v2 = species_id in ("trex", "velociraptor")
+        v2 = species_id in ("trex", "velociraptor", "compsognathus")
         assert kind == ("stance_quality/v2" if v2 else "stance_quality/v1"), species_id
         assert kind in stance_definition(species_id), species_id
         other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"

@@ -348,6 +348,7 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "foot_terms_min_support_force",
         "floor_impact_threshold_bw",
         "action_penalty_source",
+        "support_force_aggregation",
         "action_saturation_threshold",
         "idle_velocity_threshold",
     }

@@ -9,6 +9,14 @@ import {COMPSOGNATHUS} from '@site/src/data/species';
 
 The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 56 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`).
 
+The stance node certifies stance quality, not reward: since physics r2 its gate is `stance_quality/v2`, which judges
+every episode of a 40-episode panel on the floor's force under each foot (no hop or stomp at reset, no long two-foot
+flight or hard landing later, both feet planted, the pad and all three toes of each foot loaded, level pads not stood
+on an edge, no drift, no actuator held at its limit) and certifies the stance when at least 37 of 40 are clean. A soft, low bounce, or a foot
+that lifts for less than half of a 20 ms control step, can still pass it, so a trained stance is also checked by hand. Since the same revision the leg actions are
+softened near the standing pose (a soft-cubic residual that keeps both ends of each joint's range), so the small
+exploration noise PPO starts with no longer topples the standing animal.
+
 <SpeciesCatalog species={COMPSOGNATHUS} />
 
 ## Training

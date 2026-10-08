@@ -134,13 +134,36 @@ class TestStanceQualityV2Declaration:
         with pytest.raises(GateSchemaError, match="strictly between 0 and 1"):
             thresholds_from_configs({1: {"curriculum_kwargs": dict(_STANCE_V2, max_sole_cop_fore_aft=value)}})
 
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("max_window_airborne_substeps", -3),
+            ("max_window_airborne_substeps", -0.5),
+            ("max_window_airborne_substeps", "40"),
+            ("max_window_airborne_substeps", True),
+            ("max_window_peak_floor_force_bw", 0.5),
+            ("max_window_peak_floor_force_bw", "2.0"),
+            ("max_window_peak_floor_force_bw", float("nan")),
+        ],
+    )
+    def test_a_window_hop_bar_below_its_floor_is_refused_at_config_load(self, key, value):
+        """A window hop bar no episode can meet stops the run here too, not after it trained (D-D26)."""
+        floors = dict(_STANCE_V2, max_window_airborne_substeps=0, max_window_peak_floor_force_bw=1.0)
+        assert _validate(floors) == "stance_quality/v2"
+        with pytest.raises(GateSchemaError, match=rf"{key} must be a number of at least"):
+            _validate(dict(floors, **{key: value}))
+        with pytest.raises(GateSchemaError, match=rf"{key} must be a number of at least"):
+            thresholds_from_configs({1: {"curriculum_kwargs": dict(floors, **{key: value})}})
+
     def test_every_v2_key_reaches_the_threshold(self):
         """The manager copies each key of the kind onto a v2 stage's threshold: one left out drops its bar there."""
         from environments.shared.curriculum import StageThreshold
         from environments.shared.curriculum.stance_gate_v2 import STANCE_V2_THRESHOLD_KEYS
 
         whole = {"max_hop_or_fall_episodes": 1, "required_consecutive": 3, "max_settle_touchdowns": 2}
-        block = {**_STANCE_V2, **{key: 0.5 for key in STANCE_V2_THRESHOLD_KEYS - set(_STANCE_V2)}, **whole}
+        # The window peak's floor is the body weight (WINDOW_HOP_KEY_FLOORS), refused under it at config load.
+        floored = {"max_window_peak_floor_force_bw": 2.0}
+        block = {**_STANCE_V2, **{key: 0.5 for key in STANCE_V2_THRESHOLD_KEYS - set(_STANCE_V2)}, **whole, **floored}
         threshold = thresholds_from_configs({1: {"curriculum_kwargs": block}})[1]
         assert STANCE_V2_THRESHOLD_KEYS <= set(threshold)
         copied = StageThreshold(**threshold).stance_v2_thresholds()
@@ -190,6 +213,31 @@ class TestStanceQualityV2Declaration:
         assert copied.min_avg_reward is None and copied.min_full_horizon_fraction is None
         manager = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
         assert not manager.should_advance([1e9] * 40, [1000.0] * 40)
+
+    def test_every_v2_key_is_copied_onto_the_threshold(self):
+        """Each key the kind consumes reaches :class:`StageThreshold` and its :meth:`stance_v2_thresholds` copy.
+
+        The shared keys are copied for every kind; the rest come from
+        ``_STANCE_V2_COPIED_KEYS``, so a key added to the kind but not to the
+        tuple would reach the offline judge and silently miss the copy the
+        in-training screen reads.
+        """
+        from dataclasses import fields
+
+        from environments.shared.curriculum import StageThreshold
+        from environments.shared.curriculum.manager import _STANCE_V2_COPIED_KEYS
+        from environments.shared.curriculum.stance_gate_v2 import STANCE_V2_THRESHOLD_KEYS
+
+        shared = {
+            "min_eval_episodes",
+            "settle_steps",
+            "min_avg_reward",
+            "min_full_horizon_fraction",
+            "required_consecutive",
+        }
+        assert len(set(_STANCE_V2_COPIED_KEYS)) == len(_STANCE_V2_COPIED_KEYS)
+        assert set(_STANCE_V2_COPIED_KEYS) == STANCE_V2_THRESHOLD_KEYS - shared
+        assert STANCE_V2_THRESHOLD_KEYS <= {spec.name for spec in fields(StageThreshold)}
 
     def test_an_unpopulated_threshold_cannot_be_field_copied_into_a_gate(self):
         from environments.shared.curriculum import StageThreshold

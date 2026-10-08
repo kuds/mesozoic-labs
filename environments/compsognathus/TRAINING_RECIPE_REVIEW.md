@@ -91,12 +91,25 @@ evaluate a 7M entropy schedule.
   entropy callback. The endpoints and duration are project hypotheses informed
   by Tyrannosaurus Rex, not universal PPO prescriptions. See
   [learning-rate schedules](https://stable-baselines3.readthedocs.io/en/v2.9.0/guide/examples.html#learning-rate-schedule).
-- **Exploration and capacity:** the PPO paper's MuJoCo experiments do not imply
-  that every biped needs a large network or a positive entropy bonus. Preserve
-  Compsognathus's smaller network and `log_std_init=-2`; copying the reference's
-  default zero log std would increase initial standard deviation about 7.4-fold.
-  Entropy decay does not force the learned action standard deviation to zero.
-  See [PPO, sections 5–6 and Appendix A](https://arxiv.org/pdf/1707.06347).
+- **Exploration and capacity:** the PPO paper's MuJoCo experiments do not
+  imply that every biped needs a large network or a positive entropy bonus.
+  Preserve Compsognathus's smaller network and `log_std_init=-2`; copying the
+  reference's default zero log std would increase initial standard deviation
+  about 7.4-fold. Entropy decay does not force the learned action standard
+  deviation to zero. See [PPO, sections 5–6 and Appendix
+  A](https://arxiv.org/pdf/1707.06347). *Amended 2026-10-07 (decision D-D26):*
+  on the anatomical model `-2` is also a measured ceiling. On physics r2 (its
+  toe armature included) with the soft-cubic leg residual, the zero-action
+  statue under zero-mean action noise on the stance task reaches the horizon
+  on 40/40 episodes at σ 0.10, on 151/160 at σ 0.135, this recipe's initial
+  standard deviation (four seed blocks of 40, each 37–39), and on 0/40 at σ
+  0.20 (median 130–180 steps over two noise streams). The initial σ sits
+  within 1.5× of that cliff, so a larger `log_std_init`, an entropy bonus that
+  lets the learned σ grow, or a later stage that raises it trains on a plant
+  that falls; watch the learned standard deviation and re-measure the cliff
+  with any plant or interface change. On the r1 plant with the linear residual
+  the statue fell at σ 0.135 in a median of 12 steps, which is why both
+  certified r1 stances learned a noise-robust march instead.
 - **Physical scale:** Compsognathus acts at 50 Hz while the reference Tyrannosaurus
   Rex environment acts at 100 Hz. Do not copy discount factors, force thresholds,
   noise, joint residual magnitudes, or reward coefficients without checking
@@ -236,3 +249,47 @@ and evaluation operations. Its configuration snapshots may differ in comments
 and descriptive wording from the final TOMLs; environment and optimizer values
 are captured in the evidence. Full 11M-step qualification runs, multi-seed
 learning, locomotion, and recovery performance are not established by these checks.
+
+## Amendment (2026-10-07): the anatomical plant revision and its stance gate
+
+*Appended 2026-10-07; the sections above keep their September 8 evidence.*
+Decision D-D26 revised the anatomical model (physics r1 → r2, policy interface
+r2 → r3; `configs/plant_versions.toml` note 15): the tail's mass at one
+density, a metatarsus that clears the floor, digit II medial on both feet,
+toe-joint armature against a numerical heel chatter of the MTP servo, and
+`CompsognathusBiologicalEnv`, whose soft-cubic leg residual lets the statue
+survive this recipe's initial exploration noise (above). Its stance task
+gains the stance-quality reward terms, which recovery inherits, and its
+stance certifies under `stance_quality/v2`, judged after the stage on the
+handoff pair. For the anatomical variant this replaces three statements
+above: the stance gate in the protocol's step 4 is now v2 (at least 37 of 40
+panel episodes clean on floor truth, with no hop in the settle or after it,
+and reward rails at 2,740, 0.60 × the r2 statue's 4,570.4 under the new terms
+rounded to the nearest 10, and at 0.60 × the statue panel the report rolls);
+the 1,800 rail applies to the robot only, and the 2,998.74 baseline above is
+the physics-r1 statue's; and existing anatomical checkpoints are no longer
+plant compatible, because the plant contract refuses every physics-r1
+checkpoint. The optimizer settings, budgets, network and `log_std_init` are
+unchanged. Two 200k-step PPO runs on the r2 stance task (seeds 11 and 12)
+kept a statue-like deterministic mean, clean on 40/40 under v2, while their
+stochastic rollouts bounced (clean on 0/20); that shows only that the mean
+does not drift to a march or a hop early, and the trex physics-r8 runs
+entered a hop regime by 2–4M steps (seed 42 froze into it by 6.5M, while
+seed 44 left it at 5–6M). Train at least two seeds of the anatomical stance
+(the maintainer's plan) on the policy-interface revision of the heading-free
+observations the maintainer chose on 2026-10-07 for this species and the
+T. rex (one PR after this revision and before either trains, where the
+spawn-yaw probe becomes a gate check; a stance trained on the current
+observation, which reads the world heading, would be stranded by it:
+`docs/GAIT_QUALITY_PLAN_2026_09.md` §15), and judge each stance on seeds
+3042–3081 and again on 7042–7081. The gate does not see everything on this
+plant: a two-foot bounce that lands under 2 body weights, a foot lifted for
+less than half a control step and a weight shuttle faster than 1 Hz all
+certify (`docs/KNOWN_ISSUES.md`). So before a certified stance is used, roll
+it once more with the floor-truth recorder and count each foot's lift-offs
+over the window (a foot at or under 0.1 N on a substep; the statue has none,
+σ 0.03 command noise 53–99 a foot, the scripted flutters 130–190) and view
+the root height for a steady rhythm (σ 0.03 noise moves it through
+0.6–0.9 mm, the certified 5 Hz bounce 1.0–1.1 mm); neither number is a bar,
+because they overlap the admitted noise. The robot's recipe and gate are
+unchanged.
