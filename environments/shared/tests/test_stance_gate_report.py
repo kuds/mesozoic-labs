@@ -1830,15 +1830,107 @@ def _ablation_row(label, full, *, holds=True, length=None, released=0):
 
 class TestAblationVerdicts:
     @staticmethod
-    def _render(pairs, **extra):
-        from environments.shared.reporting.stance_report import render_constant_hold_ablation
-
-        reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", 0.0)]
+    def _reports(pairs, *, hold_all=0.0, hold_zero=1.0):
+        reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", hold_all)]
         for group, (release_full, only_full) in pairs.items():
             reports.append(_ablation_row(f"release_{group}", release_full))
             reports.append(_ablation_row(f"only_{group}", only_full))
-        reports.append(_ablation_row("hold_zero (statue control)", 1.0, released=21))
-        return render_constant_hold_ablation(reports, probe_episodes=8, **extra)
+        reports.append(_ablation_row("hold_zero (statue control)", hold_zero, released=21))
+        return reports
+
+    @classmethod
+    def _render(cls, pairs, **controls):
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        return render_constant_hold_ablation(cls._reports(pairs, **controls), probe_episodes=8)
+
+    def test_a_standing_full_pose_has_no_fall_to_attribute(self):
+        text, payload = self._render({"tail": (1.0, 1.0), "toes": (1.0, 0.0)}, hold_all=1.0)
+        assert "not applicable" in text
+        assert "full held pose stands" in text
+        assert "CAUSE" not in text and "contributes" not in text
+        assert "OVER-DETERMINED" not in text and "Regroup" not in text
+        assert payload["classification"]["applicable"] is False
+        assert all(v["necessary"] is None and v["sufficient"] is None for v in payload["verdicts"])
+        # Preserve the experiments even when the causal question has no premise.
+        by_label = {v["label"]: v for v in payload["variants"]}
+        assert by_label["hold_all"]["full_horizon_fraction"] == 1.0
+        assert by_label["only_toes"]["full_horizon_fraction"] == 0.0
+
+    @pytest.mark.parametrize("hold_all,hold_zero", [(0.5, 1.0), (0.0, 0.5), (0.0, 0.0)])
+    def test_controls_must_establish_opposite_endpoints(self, hold_all, hold_zero):
+        text, payload = self._render({"tail": (1.0, 0.0)}, hold_all=hold_all, hold_zero=hold_zero)
+        assert payload["classification"]["applicable"] is False
+        assert payload["classification"]["reasons"]
+        assert payload["verdicts"][0]["verdict"].startswith("not applicable")
+        assert payload["verdicts"][0]["necessary"] is None
+        assert payload["verdicts"][0]["sufficient"] is None
+        assert "CAUSE" not in text
+
+    @pytest.mark.parametrize("label", ["hold_all", "hold_zero (statue control)"])
+    @pytest.mark.parametrize("bad_share", [float("nan"), float("inf"), -0.1, 1.1])
+    def test_invalid_control_measurements_suppress_classification(self, label, bad_share):
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 0.0)})
+        next(r for r in reports if r["hold_constant"]["label"] == label)["metrics"]["full_horizon_fraction"] = bad_share
+        _, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        assert payload["classification"]["applicable"] is False
+        assert payload["verdicts"][0]["necessary"] is None
+
+    @pytest.mark.parametrize("label", ["hold_all", "hold_zero (statue control)"])
+    @pytest.mark.parametrize("duplicate", [False, True])
+    def test_endpoint_controls_must_be_present_and_unique(self, label, duplicate):
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 0.0)})
+        control = next(r for r in reports if r["hold_constant"]["label"] == label)
+        if duplicate:
+            reports.append(control)
+        else:
+            reports.remove(control)
+        _, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        assert payload["classification"]["applicable"] is False
+        assert payload["verdicts"][0]["sufficient"] is None
+
+    def test_threshold_boundaries_still_permit_classification(self):
+        _, payload = self._render({"tail": (0.95, 0.05)}, hold_all=0.05, hold_zero=0.95)
+        assert payload["classification"]["applicable"] is True
+        assert payload["verdicts"][0]["verdict"].startswith("CAUSE")
+
+    @pytest.mark.parametrize("release,only", [(0.5, 0.0), (0.0, 0.5)])
+    def test_an_unknown_group_claim_cannot_support_an_overall_conclusion(self, release, only):
+        text, payload = self._render({"tail": (release, only)})
+        entry = payload["verdicts"][0]
+        assert entry["necessary"] is None or entry["sufficient"] is None
+        assert entry["verdict"].startswith("inconclusive")
+        assert "OVER-DETERMINED" not in text and "Regroup" not in text
+
+    @pytest.mark.parametrize("label", ["release_tail", "only_tail"])
+    def test_missing_group_variants_are_unknown_not_negative_findings(self, label):
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (0.0, 0.0)})
+        reports = [r for r in reports if r["hold_constant"]["label"] != label]
+        text, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        entry = payload["verdicts"][0]
+        assert entry["necessary"] is None or entry["sufficient"] is None
+        assert entry["verdict"].startswith("incomplete")
+        assert "OVER-DETERMINED" not in text and "Regroup" not in text
+
+    def test_written_json_marks_unsupported_claims_as_unassessed(self, tmp_path):
+        import json
+
+        from environments.shared.reporting.stance_report import write_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 1.0)}, hold_all=1.0)
+        written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
+        payload = json.loads(written["constant_hold_ablation_json"].read_text())
+        assert payload["schema"] == "mesozoic.constant-hold-ablation/v2"
+        assert payload["classification"]["applicable"] is False
+        assert payload["verdicts"][0]["necessary"] is None
+        assert payload["verdicts"][0]["sufficient"] is None
+        assert "not applicable" in written["constant_hold_ablation_txt"].read_text()
 
     def test_necessary_and_sufficient_reads_as_the_cause(self):
         text, payload = self._render({"tail": (1.0, 0.0)})

@@ -190,8 +190,8 @@ def main() -> int:
         action="store_true",
         help="Instead of the standard hold variants, ablate the held pose one actuator group at a "
         "time -- releasing each group back to the home control, and holding each group alone. "
-        "Answers WHICH joints make the pose unholdable, by testing necessity and sufficiency "
-        "separately. Implies --hold-constant.",
+        "Tests necessity and sufficiency for a held-pose fall only when hold_all falls and "
+        "the statue control stands; otherwise causal classification is not applicable. Implies --hold-constant.",
     )
     parser.add_argument(
         "--impulse-probe",
