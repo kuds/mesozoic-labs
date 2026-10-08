@@ -989,21 +989,24 @@ robustness, **LOW** = cosmetic / QoL.
   0–27 substeps, 1.33–1.54 BW); one 10 Hz square cycle of it every 0.4 s (a =
   0.04; 39/40, 0.974; 0–41 substeps, 1.65–1.66 BW); the right leg alone at
   6.25 Hz (a = 0.07; 40/40, 0.972), its foot lifting for one substep 130–190
-  times an episode and never both feet; the right toe alone at ±0.25 and 10 Hz
-  (40/40, 0.984; 146–175 lift-offs); and the legs in antiphase at 6.25 Hz (a
-  sine, a = 0.10; 40/40, 0.905), which unloads a foot at most twice an episode
-  but puts the lighter one under 20% of the floor load on 44–48% of window
-  steps (down to 14%), below what the foot-share bars see when they average
-  over the window or over 1 s blocks. No count bar separates these from the
-  noise the block admits by design: the statue under σ 0.03 command noise
-  flies up to 23 two-foot window substeps, lifts each foot off 53–99 times and
-  moves its root through 0.6–0.9 mm (the 5 Hz bounce 1.0–1.1 mm), and under σ
-  0.05 lifts a foot off 109–156 times; the refused square-wave hops at a =
-  0.05–0.07 lift a foot off 133–224 times. The reward keeps 0.905–0.990 of the
-  statue on all of them, because the legacy substep-minimum support gate
-  prices only a substep with both feet unloaded. Plan: until a gate revision
-  lands, count each trained r2 stance's per-foot lift-offs and view its window
-  root height for a steady rhythm before it is used ([recipe
+  times an episode and never both feet; and the legs in antiphase at 6.25 Hz
+  (a sine, a = 0.10; 40/40, 0.905), which unloads a foot at most twice an
+  episode but puts the lighter one under 20% of the floor load on 44–48% of
+  window steps (down to 14%), below what the foot-share bars see when they
+  average over the window or over 1 s blocks. The right toe alone at ±0.25 and
+  10 Hz (146–175 lift-offs) certified too (40/40, 0.984) until the stance
+  declared D-D28's pad centre-of-pressure bar, which refuses it on 40/40: each
+  tap rocks the pad from edge to edge (0.826–0.848 against the bar's 0.70; the
+  other five read 0.14–0.48 and still certify). No count bar separates these
+  from the noise the block admits by design: the statue under σ 0.03 command
+  noise flies up to 23 two-foot window substeps, lifts each foot off 53–99
+  times and moves its root through 0.6–0.9 mm (the 5 Hz bounce 1.0–1.1 mm),
+  and under σ 0.05 lifts a foot off 109–156 times; the refused square-wave
+  hops at a = 0.05–0.07 lift a foot off 133–224 times. The reward keeps
+  0.905–0.990 of the statue on all of them, because the legacy substep-minimum
+  support gate prices only a substep with both feet unloaded. Plan: until a
+  gate revision lands, count each trained r2 stance's per-foot lift-offs and
+  view its window root height for a steady rhythm before it is used ([recipe
   review](../environments/compsognathus/TRAINING_RECIPE_REVIEW.md) amendment);
   a follow-up revision of `stance_quality/v2` needs a periodicity criterion
   (for example a spectral peak of the window's floor force), measured on the
@@ -1229,10 +1232,10 @@ robustness, **LOW** = cosmetic / QoL.
   decision D-D27 leaves heading robustness open"; the heading PR rewrites it.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
-  open, and only the T. rex declares it (measured 2026-10-07 and
-  2026-10-08).** D-D28's `max_sole_cop_fore_aft`, declared by the T. rex
-  stance at 0.80, refuses the r8 seed-44 left foot on its pad's front edge;
-  the fix and its calibration are the
+  open, and only the T. rex and the compsognathus declare it (measured
+  2026-10-07 and 2026-10-08).** D-D28's `max_sole_cop_fore_aft`, declared by
+  the T. rex stance at 0.80, refuses the r8 seed-44 left foot on its pad's
+  front edge; the fix and its calibration are the
   [stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md)'s §10.
   What it leaves open: (1) it is a window mean of the per-step reading, so
   a pad on its front edge for part of the window beside a centred s passes
@@ -1257,17 +1260,28 @@ robustness, **LOW** = cosmetic / QoL.
   turn inside one control step reads centred (physically implausible behind
   the 10 Hz command filter). Lifting the pad, or grazing the floor with
   it, hides no edge stance: a step with no loaded sole contact counts as on
-  the edge. The bar exists only for the T. rex: the velociraptor's foot has
-  no sole and the brachiosaurus's soles are ellipsoids, so the metric is
-  unmeasured on both (on the velociraptor the support-geom duty and
-  coverage bars read where its foot is loaded), and the box-soled robot and
-  dibothrosuchus are not on `stance_quality/v2` (the robot on v1,
-  dibothrosuchus on `reward_and_length/v1`), so each gets a bar when it
-  adopts v2, measured on its own statue (their statues read 0.30–0.69 here).
-  The compsognathus adopts v2 in its revision (D-D26), which lands after
-  D-D28 (#603) and does not declare the key: its bar is measured on the r2
-  statue (the r1 readings in these records do not carry over: the r2 statue
-  reads about 0.14–0.18, 0.173 at seed 3042, against r1's 0.45–0.49).
+  the edge. The bar exists only for the T. rex and the compsognathus: the
+  velociraptor's foot has no sole and the brachiosaurus's soles are
+  ellipsoids, so the metric is unmeasured on both (on the velociraptor the
+  support-geom duty and coverage bars read where its foot is loaded), and
+  the box-soled robot and dibothrosuchus are not on `stance_quality/v2` (the
+  robot on v1, dibothrosuchus on `reward_and_length/v1`), so each gets a bar
+  when it adopts v2, measured on its own statue (their statues read
+  0.30–0.69 here). The compsognathus adopts v2 in its revision (D-D26,
+  #604), which lands after D-D28 (#603) and declares 0.70, measured on its
+  r2 statue (the audit's §11; the r1 readings in these records do not carry
+  over: the r2 statue reads 0.143–0.155 over 200 episodes on five seed
+  blocks, heel side, against r1's 0.454–0.473). Its pad and digits are one
+  plate, and the digits reach past the pad's front edge, so the reading
+  follows the centre of mass along the foot and nothing else sees it: MTP
+  servo targets or ankles that lean both pads onto their front or heel
+  edges, level, on about two loaded corners with every digit loaded, certify
+  whole 40-episode panels without the bar, and 33 of the swept-back crouch's
+  40 episodes are clean without it, all at 0.84–1.00; the bar refuses each.
+  The same gap (1) is open there at (0.70 − s)/(1 − s) of the window, 65% at
+  the statue's 0.15: the MTP targets ramped onto the front edges over steps
+  450–550 pass 10/10 (0.62–0.63, the pads past 0.9 of the half-length on 54%
+  of the window), over steps 350–450 fail 10/10 (0.72–0.73, 67%).
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
   (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1244-1384`, its

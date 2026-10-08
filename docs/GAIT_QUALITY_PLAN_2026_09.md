@@ -837,3 +837,13 @@ and so is its `gait-r1` (GQ-14).
 - **GQ-17.** The compsognathus now needs a stance retrain before any compsognathus walk (the maintainer trains at
   least two seeds from `main`); the order of the retrains stays the maintainer's. Of §1's five certified walkers, only
   the robot's micro-hop still loads on its current plant.
+- **§15's pad centre of pressure, on this plant (D-D28, which landed first).** The compsognathus stance declares
+  `max_sole_cop_fore_aft` at 0.70, measured on the landed r2 plant as §15 asks: the statue reads 0.143–0.155, heel side,
+  over 200 episodes on five seed blocks, the jittered statue at most 0.404 (σ 0.05) and the two short PPO runs' means at
+  most 0.246. The pad and the digits are one plate and the digits reach past the pad's front edge, so a posture that
+  moves the centre of mass along the foot keeps the pads level and every digit loaded: both MTP servo targets leaned
+  onto the pads' front edges (0.860–0.927) or their heel edges (0.844–0.862) certify whole 40-episode panels under every
+  other bar, 33 of the swept-back crouch's 40 episodes stand clean on their front edges (1.000), and the toe tap the
+  window pair admits rocks its pad from edge to edge (0.826–0.848); this bar alone refuses each. 0.70, not the T. rex's
+  0.80, because this statue stands at 0.15; the partial edge stance stays open at (0.70 − s)/(1 − s) of the window, 65%
+  at the statue's 0.15 (KNOWN_ISSUES). The calibration is the D-D28 paragraph of the stance-hack audit's §11.

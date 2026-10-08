@@ -36,10 +36,13 @@ recorder is the real recorder, and the verdict is the real gate:
 * on the T. rex, whose stance block declares the pad centre-of-pressure
   bar, a pad pushed onto its front edge, flat by every other pad bar, fails
   that bar while the statue rolled in the same report reads under it, and
-  the judge re-derives the FAIL; a report or panel CSV recorded before that
-  metric existed keeps its verdict under a block that does not declare it
-  and is refused, never failed, under one that does (D-D28): by name at
-  publication, and at the judge on its recorded thresholds, then by name.
+  the judge re-derives the FAIL; on the compsognathus, whose block declares
+  its own, both pads leaned onto their front edges, level and with every
+  digit loaded, fail that bar alone in the same way; a report or panel CSV
+  recorded before that metric existed keeps its verdict under a block that
+  does not declare it and is refused, never failed, under one that does
+  (D-D28): by name at publication, and at the judge on its recorded
+  thresholds, then by name.
 """
 
 from __future__ import annotations
@@ -57,7 +60,7 @@ import pytest
 
 from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.curriculum.gate_schema import gate_config_view
-from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA
+from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA, StatueReference
 from environments.shared.gait.constants import measurement_constants, measurement_sha256
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
 from environments.shared.plant_contract import current_plant_identity
@@ -382,15 +385,19 @@ class TestThePanel:
         assert _judge(statue_dir, _written(statue_dir), **window) == (True, [])
 
 
-def _reclassified(report: dict[str, Any], curriculum: dict[str, Any], *, horizon: int) -> list[dict[str, Any]]:
-    """*report*'s episode rows with their reasons re-derived under *curriculum*."""
+def _reclassified(
+    report: dict[str, Any], curriculum: dict[str, Any], *, horizon: int, statue: Any = None
+) -> list[dict[str, Any]]:
+    """*report*'s episode rows with their reasons re-derived under *curriculum* (against *statue*, a
+    ``StatueReference``, where the block declares a statue-relative bar)."""
     from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds, classify_stance_episode
 
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     rows = []
     for row in report["episode_evidence"]:
         episode = StanceEpisodeMetrics.from_row(row)
-        rows.append({**row, "reasons": list(classify_stance_episode(episode, thresholds, horizon=horizon))})
+        reasons = classify_stance_episode(episode, thresholds, horizon=horizon, statue=statue)
+        rows.append({**row, "reasons": list(reasons)})
     return rows
 
 
@@ -406,21 +413,27 @@ def _without_later_metrics(report: dict[str, Any]) -> dict[str, Any]:
     return earlier
 
 
-# ── the pad's centre of pressure, on the T. rex (D-D28) ──────────────────────
+# ── the pad's centre of pressure, on the T. rex and the compsognathus (D-D28) ──
 
-#: The species whose stance block declares ``max_sole_cop_fore_aft`` (0.80, calibrated on its statue).
+#: The species whose stance block declared ``max_sole_cop_fore_aft`` first (0.80, calibrated on its statue).
 TREX = "trex"
 TREX_HORIZON = 400
+#: The compsognathus stance declares it too (0.70, on its r2 statue): 200 window steps after its 200-step settle.
+COMPSOGNATHUS_HORIZON = 400
 
 
-def _trex_stage_config() -> dict[str, Any]:
-    """The T. rex stance block on a 3-episode panel at a 400-step horizon: every bar it declares but the reward
+def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
+    """*species*' stance block on a 3-episode panel at a shortened horizon: every bar it declares but the reward
     floor, which is set for its 1000 steps."""
-    config = copy.deepcopy(load_stage_config(TREX, 1))
-    config["env_kwargs"]["max_episode_steps"] = TREX_HORIZON
+    config = copy.deepcopy(load_stage_config(species, 1))
+    config["env_kwargs"]["max_episode_steps"] = horizon
     block = {key: value for key, value in config["curriculum_kwargs"].items() if key != "min_avg_reward"}
     config["curriculum_kwargs"] = {**block, "min_eval_episodes": EPISODES, "min_clean_stance_lcb": 0.3}
     return config
+
+
+def _trex_stage_config() -> dict[str, Any]:
+    return _declared_stage_config(TREX, TREX_HORIZON)
 
 
 def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
@@ -480,6 +493,54 @@ class TestThePadCentreOfPressure:
         assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
         without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
         assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TREX_HORIZON))
+
+    def test_compsognathus_pads_leaned_onto_their_front_edges_fail_the_bar_alone(self, tmp_path, monkeypatch, nu):
+        """Real physics on the compsognathus r2 plant, under its own stance block.
+
+        Both ankles, ramped to -0.573 (servo targets 0.15 rad below home under
+        the soft-cubic map) over the first 150 steps, lean the animal forward
+        onto the front edges of both pads.  The pads stay level and the digits
+        loaded, so the tilt, corner-lift, contact and support-geom bars admit
+        it, as they admit the whole 40-episode panel of this stance; the
+        centre-of-pressure bar is the one that refuses it, and the statue the
+        same report rolls reads under it.
+        """
+        config = _declared_stage_config(SPECIES, COMPSOGNATHUS_HORIZON)
+        curriculum = config["curriculum_kwargs"]
+        assert curriculum["max_sole_cop_fore_aft"] == 0.70
+        _record_stage(tmp_path, config)
+        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**config["env_kwargs"])
+        try:
+            command = np.zeros(nu)
+            for name in ("r_ankle_act", "l_ankle_act"):
+                command[env.model.actuator(name).id] = -0.573
+        finally:
+            env.close()
+        predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_HORIZON)
+        report = _report(monkeypatch, tmp_path, predict, stage_config=config)
+        assert report["passed"] is False and report["result"]["n_clean"] == 0
+        for row in report["episode_evidence"]:
+            assert row["length"] == COMPSOGNATHUS_HORIZON and row["all_feet_support"] == 1.0
+            assert row["min_support_geom_coverage"] == 1.0 and row["max_sole_tilt_deg"] < 0.1
+            assert row["max_sole_cop_fore_aft"] > 0.85
+            assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
+        # The statue stands on the heel side of its pads' centres (0.143-0.155 over 200 full-horizon episodes).
+        statue_rows = report["statue"]["episode_evidence"]
+        assert all(row["max_sole_cop_fore_aft"] < 0.20 for row in statue_rows)
+        # The block's foot-share statue ratio reads the statue panel's own reference.
+        reference = StatueReference.from_dict(report["statue"]["reference"])
+        statue = _reclassified(
+            {"episode_evidence": statue_rows}, curriculum, horizon=COMPSOGNATHUS_HORIZON, statue=reference
+        )
+        assert all(row["reasons"] == [] for row in statue)
+        stance_report.write_stance_gate_report(tmp_path, report)
+        passed, reasons = evaluate_stage_gate(
+            curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
+        )
+        assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
+        without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+        rederived = _reclassified(report, without, horizon=COMPSOGNATHUS_HORIZON, statue=reference)
+        assert all(row["reasons"] == [] for row in rederived)
 
 
 # ── the judge ─────────────────────────────────────────────────────────────────

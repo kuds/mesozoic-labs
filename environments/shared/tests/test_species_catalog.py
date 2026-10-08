@@ -441,6 +441,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 assert first["min_avg_reward_statue_ratio"] == 0.6
                 assert first["min_clean_stance_lcb"] == 0.8
                 assert first["max_unsupported_duty"] is None and first["max_unsupported_duty_ucb"] is None
+                # Its own pad centre-of-pressure bar, measured on the r2 statue after D-D28 landed first.
+                assert first["max_sole_cop_fore_aft"] == 0.70
             else:
                 assert first["gate_kind"] == "stance_quality/v1"
                 assert first["min_avg_reward"] == 1800

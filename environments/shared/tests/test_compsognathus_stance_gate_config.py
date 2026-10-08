@@ -33,6 +33,12 @@ that each fail differently:
 8. **A soft bounce and a one-foot flutter are certified**: the block's
    measured blind spot on this plant (KNOWN_ISSUES), pinned so that a gate
    revision that closes it updates the records with it.
+9. **The pad centre-of-pressure bar (D-D28) refuses an edge stance that
+   every other bar admits**: pads leaned onto their front or heel edges,
+   level, on two loaded corners with the digits loaded, the swept-back
+   crouch, and the toe tap of item 8's blind spot, which rocks its pad from
+   edge to edge; the statue, the jittered statue and the short PPO runs'
+   means read under 0.41.
 """
 
 from __future__ import annotations
@@ -114,6 +120,7 @@ STATUE_WORST: dict[str, dict[str, Any]] = {
         "max_sole_tilt_deg": 0.0192,
         "max_sole_corner_lift_m": 0.0,
         "min_sole_contacts": 3.8609,
+        "max_sole_cop_fore_aft": 0.151,
     },
     "most_tilted": {
         "all_feet_support": 1.0,
@@ -131,6 +138,7 @@ STATUE_WORST: dict[str, dict[str, Any]] = {
         "max_sole_tilt_deg": 0.0207,
         "max_sole_corner_lift_m": 0.0,
         "min_sole_contacts": 3.8261,
+        "max_sole_cop_fore_aft": 0.1429,
     },
 }
 
@@ -155,6 +163,7 @@ JITTERED_STATUE: dict[str, dict[str, Any]] = {
         "max_sole_tilt_deg": 0.1982,
         "max_sole_corner_lift_m": 0.0002,
         "min_sole_contacts": 2.3465,
+        "max_sole_cop_fore_aft": 0.3795,
     },
     "highest_settle_peak": {
         "all_feet_support": 1.0,
@@ -172,6 +181,7 @@ JITTERED_STATUE: dict[str, dict[str, Any]] = {
         "max_sole_tilt_deg": 0.1728,
         "max_sole_corner_lift_m": 0.0002,
         "min_sole_contacts": 2.4286,
+        "max_sole_cop_fore_aft": 0.3717,
     },
 }
 
@@ -266,6 +276,7 @@ ADMITTED_SCRIPTS: dict[str, dict[str, Any]] = {
         "min_sole_contacts": 3.6449,
         "window_airborne_substeps": 32.0,
         "window_peak_floor_force_bw": 1.8025,
+        "max_sole_cop_fore_aft": 0.1439,
     },
     "one_leg_pump": {
         "all_feet_support": 1.0,
@@ -285,7 +296,110 @@ ADMITTED_SCRIPTS: dict[str, dict[str, Any]] = {
         "min_sole_contacts": 2.0035,
         "window_airborne_substeps": 0.0,
         "window_peak_floor_force_bw": 1.6299,
+        "max_sole_cop_fore_aft": 0.4516,
     },
+}
+
+
+#: The most each admitted group reads of ``max_sole_cop_fore_aft`` on the landed plant (D-D28, measured after it
+#: landed): the statue on five seed blocks (200 episodes, its pads' centres of pressure on the heel side), the statue
+#: with N(0, sigma) command jitter at sigma 0.03 and 0.05 (seed blocks 3042, 7042 and 9042, and 11042 with an
+#: independent noise stream), and the two short PPO runs' deterministic means (seeds 3042-3081).
+COP_ADMITTED: dict[str, float] = {"statue": 0.155, "jitter_0.03": 0.289, "jitter_0.05": 0.404, "ppo_means": 0.246}
+
+#: Three stances that every other bar of the block admits, each the least favourable episode of a 40-episode panel
+#: (seeds 3042-3081) as the v2 report measured it on the landed plant: both MTP servo targets ramped over the first
+#: 300 steps to -0.10 rad, which leans both pads onto their front edges (seed 3071; the panel is clean on 40/40
+#: without the bar), and to +0.08 rad, onto their heel edges (seed 3076; 40/40), each pad level on about two loaded
+#: corners with its digits loaded; and the swept-back crouch (hip pitch +0.3, ankles -0.2 rad; seed 3042, one of its
+#: 33 episodes that no other bar refuses, every one of them on its pads' front edges throughout the window).
+EDGE_STANCES: dict[str, dict[str, Any]] = {
+    "front_edges": {
+        "all_feet_support": 1.0,
+        "touchdown_rate": 0.0,
+        "window_displacement_m": 0.0092,
+        "min_foot_load_share": 0.5,
+        "min_foot_load_share_windowed": 0.4998,
+        "foot_load_share": (0.5, 0.5),
+        "max_actuator_saturation_fraction": 0.0,
+        "settle_airborne_substeps": 0.0,
+        "settle_peak_floor_force_bw": 1.021,
+        "settle_stance_width_change_m": 0.0036,
+        "min_support_geom_duty": 1.0,
+        "min_support_geom_coverage": 1.0,
+        "max_sole_tilt_deg": 0.0423,
+        "max_sole_corner_lift_m": 0.0,
+        "min_sole_contacts": 2.3478,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.005,
+        "max_sole_cop_fore_aft": 0.8598,
+    },
+    "heel_edges": {
+        "all_feet_support": 1.0,
+        "touchdown_rate": 0.0,
+        "window_displacement_m": 0.0076,
+        "min_foot_load_share": 0.5,
+        "min_foot_load_share_windowed": 0.5,
+        "foot_load_share": (0.5, 0.5),
+        "max_actuator_saturation_fraction": 0.0,
+        "settle_airborne_substeps": 0.0,
+        "settle_peak_floor_force_bw": 1.0076,
+        "settle_stance_width_change_m": 0.0004,
+        "min_support_geom_duty": 1.0,
+        "min_support_geom_coverage": 1.0,
+        "max_sole_tilt_deg": 0.0406,
+        "max_sole_corner_lift_m": 0.0,
+        "min_sole_contacts": 2.3591,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.002,
+        "max_sole_cop_fore_aft": 0.8436,
+    },
+    "swept_crouch": {
+        "all_feet_support": 1.0,
+        "touchdown_rate": 0.0,
+        "window_displacement_m": 0.0,
+        "min_foot_load_share": 0.4999,
+        "min_foot_load_share_windowed": 0.4986,
+        "foot_load_share": (0.4999, 0.5001),
+        "max_actuator_saturation_fraction": 0.0,
+        "settle_airborne_substeps": 5.0,
+        "settle_peak_floor_force_bw": 1.3994,
+        "settle_stance_width_change_m": 0.0014,
+        "min_support_geom_duty": 1.0,
+        "min_support_geom_coverage": 1.0,
+        "max_sole_tilt_deg": 0.0432,
+        "max_sole_corner_lift_m": 0.0,
+        "min_sole_contacts": 2.0,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.0001,
+        "max_sole_cop_fore_aft": 1.0,
+    },
+}
+
+
+#: The right toe alone driven at +-0.25 and 10 Hz from step 200, the least favourable episode of its 40-episode report
+#: panel (seed 3044): its foot lifts for one substep at a time and every other bar admits it (D-D26 recorded it among
+#: the stances the block certifies, 40/40), but each tap rocks the right pad from edge to edge, 0.826-0.848 over the
+#: panel.
+TOE_TAP: dict[str, Any] = {
+    "all_feet_support": 1.0,
+    "touchdown_rate": 0.0,
+    "window_displacement_m": 0.0221,
+    "min_foot_load_share": 0.4851,
+    "min_foot_load_share_windowed": 0.4742,
+    "foot_load_share": (0.4851, 0.5149),
+    "max_actuator_saturation_fraction": 0.0,
+    "settle_airborne_substeps": 0.0,
+    "settle_peak_floor_force_bw": 1.0084,
+    "settle_stance_width_change_m": 0.0022,
+    "min_support_geom_duty": 0.5663,
+    "min_support_geom_coverage": 0.8741,
+    "max_sole_tilt_deg": 0.2262,
+    "max_sole_corner_lift_m": 0.0002,
+    "min_sole_contacts": 1.653,
+    "window_airborne_substeps": 0.0,
+    "window_peak_floor_force_bw": 1.2902,
+    "max_sole_cop_fore_aft": 0.8262,
 }
 
 
@@ -338,7 +452,14 @@ def test_the_settle_window_and_the_settled_width_reference_end_together(stage, c
 
 
 @pytest.mark.parametrize(
-    "key", SOLE_KEYS + FOOT_KEYS + SUPPORT_KEYS + SETTLE_KEYS + WINDOW_HOP_KEYS + ("max_actuator_saturation_fraction",)
+    "key",
+    SOLE_KEYS
+    + ("max_sole_cop_fore_aft",)
+    + FOOT_KEYS
+    + SUPPORT_KEYS
+    + SETTLE_KEYS
+    + WINDOW_HOP_KEYS
+    + ("max_actuator_saturation_fraction",),
 )
 def test_the_sole_foot_settle_width_and_saturation_bars_are_declared(curriculum, key):
     assert key in curriculum
@@ -443,3 +564,45 @@ def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60
     assert "collapse_peak_floor" not in curriculum and "collapse_peak_floor_fraction" not in curriculum
+
+
+# ── the pad's centre of pressure (decision D-D28, measured on this plant) ─────
+
+
+def _without_cop(curriculum: dict[str, Any]) -> dict[str, Any]:
+    """*curriculum* without the centre-of-pressure bar, an optional key (its bar must lie inside (0, 1))."""
+    return {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+
+
+def test_the_pad_cop_bar_is_declared_beside_the_sole_bars(curriculum):
+    assert curriculum["max_sole_cop_fore_aft"] == 0.70
+    assert StanceV2Thresholds.from_curriculum(curriculum).declared()["max_sole_cop_fore_aft"] == 0.70
+    # The statue stands on the heel side of its pads' centres, under a quarter of the bar.
+    assert 4 * COP_ADMITTED["statue"] < curriculum["max_sole_cop_fore_aft"]
+
+
+@pytest.mark.parametrize("case", sorted(COP_ADMITTED))
+def test_the_statue_the_jitter_and_the_ppo_means_clear_the_cop_bar(curriculum, case):
+    assert _reasons(curriculum, {"max_sole_cop_fore_aft": COP_ADMITTED[case]}) == set()
+
+
+@pytest.mark.parametrize("case", sorted(EDGE_STANCES))
+def test_an_edge_stance_every_other_bar_admits_is_refused_by_the_cop_bar_alone(curriculum, case):
+    """Level pads on two loaded corners with every digit loaded: tilt, corner lift, contacts and the support-geom bars
+    all read them as flat, and only where along each pad the floor pushes sets them apart."""
+    episode = EDGE_STANCES[case]
+    assert _reasons(curriculum, episode) == {"max_sole_cop_fore_aft"}
+    assert _reasons(_without_cop(curriculum), episode) == set()
+
+
+def test_the_toe_tap_the_block_certified_before_the_cop_bar_is_refused_by_it_alone(curriculum):
+    """Of the six one-substep flutters and soft bounces the block certified on this plant (KNOWN_ISSUES), the toe tap
+    rocks its pad onto its edges; the two bounces, the burst, the one-leg pump and the shuttle read 0.14-0.48."""
+    assert _reasons(curriculum, TOE_TAP) == {"max_sole_cop_fore_aft"}
+    assert _reasons(_without_cop(curriculum), TOE_TAP) == set()
+
+
+def test_the_cop_bar_sits_between_the_noise_and_the_edge_stances(curriculum):
+    bar = curriculum["max_sole_cop_fore_aft"]
+    admitted, edge = max(COP_ADMITTED.values()), min(case["max_sole_cop_fore_aft"] for case in EDGE_STANCES.values())
+    assert admitted + 0.25 < bar < edge - 0.10

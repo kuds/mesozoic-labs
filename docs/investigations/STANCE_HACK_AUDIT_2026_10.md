@@ -1112,7 +1112,8 @@ rebased on it, which re-measures its compsognathus readings and the compsognathu
 
 ## 11. Addendum 2026-10-07: the compsognathus adoption on physics r2 (appended)
 
-*Appended 2026-10-07; §1–§10 above are unchanged.* §3.3 found both certified compsognathus stances, `20260921_203149`
+*Appended 2026-10-07 and revised 2026-10-08, when D-D28 (§10) landed first and this revision took its pad
+centre-of-pressure bar; §1–§10 above are unchanged.* §3.3 found both certified compsognathus stances, `20260921_203149`
 and `20261001_225856`, marching in place on the tip of digit III. A standing review of the species followed on
 2026-10-07: four lanes (anatomy, feet, mechanics, training), each re-measured by an independent verifier, then a
 design and a critique that re-measured the design on disjoint seeds and noise streams. The maintainer took its answers
@@ -1225,7 +1226,7 @@ committed `[env]` and recipe (seeds 11 and 12, `log_std_init` −2.0) and were r
 stochastically. Then, as in §7 and §8, the committed stage was put through the post-stage pipeline with the zero
 command as a scripted checkpoint: `stage_artifacts._write_stance_gate_report` rolled the panel and a separate statue
 panel for the statue-relative bars, `_apply_stage_gate` judged it PASS on 40/40 (bound 0.928) and wrote
-`gate_verdict.json` (gate `sha256:f38e3b26…`, the stage's `task_sha256` `sha256:6c667a99…`), and publication's
+`gate_verdict.json` (gate `sha256:8938b294…`, the stage's `task_sha256` `sha256:6c667a99…`), and publication's
 re-derivation from `stance_panel_selected.csv` and the backfill tool both admitted it. The compsognathus stance
 declares no probes.
 
@@ -1235,7 +1236,8 @@ its total floor force stays within 0.01% of its weight after step 200; 200 equal
 `stance_width_settle_steps`); the required `min_all_feet_support = 0.98`, `max_touchdown_rate = 0.25`,
 `max_window_displacement_m = 0.05`, `min_foot_load_share = 0.40`, `max_actuator_saturation_fraction = 0.10`,
 `max_settle_airborne_substeps = 15`, `max_settle_peak_floor_force_bw = 3.0`; the pad bars `max_sole_tilt_deg = 2.0`,
-`max_sole_corner_lift_m = 0.003`, `min_sole_contacts = 1.5`; the foot bars `min_support_geom_duty = 0.50` and
+`max_sole_corner_lift_m = 0.003`, `min_sole_contacts = 1.5` and §10's centre of pressure, `max_sole_cop_fore_aft = 0.70`
+(measured on this plant after D-D28 landed first; below); the foot bars `min_support_geom_duty = 0.50` and
 `min_support_geom_coverage = 0.80` (the plantar pad and digits II–IV: the gait library's registry); the settle width
 `max_settle_stance_width_change_m = 0.011`; the window hop pair `max_window_airborne_substeps = 40` and
 `max_window_peak_floor_force_bw = 2.0` (below); the statue-relative `min_foot_load_share_statue_ratio = 0.80`; the
@@ -1363,14 +1365,14 @@ unless noted. The scripts command raw actions; under the soft-cubic map a leg co
 | the same, a = 0.07 | 0/10 | displacement and window peak 10 each, window airborne 5, settle airborne 4 | 0.836 |
 | the same, a = 0.08 | 0/10 | displacement and window peak 10 each, window airborne 9, settle airborne 8 | 0.838 |
 | the same, a = 0.10 | 0/10 | displacement, settle peak, window airborne and window peak 10 each, settle airborne 8 | 0.831 |
-| swept-back crouch (hip pitch +0.3, ankles −0.2 rad) | 8/10 | displacement, settle airborne and window airborne 2 each | 0.847 |
+| swept-back crouch (hip pitch +0.3, ankles −0.2 rad) | 0/10 (8/10 without the pad centre-of-pressure bar) | pad centre of pressure 10, displacement, settle airborne and window airborne 2 each | 0.847 |
 | one-leg stance (hip roll −0.03 rad, then the left knee, ankle and hip pitch 0.2 rad): the right foot at 0.4 N | 0/10 | displacement, both foot-share bars and the statue ratio, support-geom duty and coverage, sole tilt, corner lift and contacts 10 each | 0.626 |
 | weight shift (hip roll +0.06 rad, then the left knee +0.3 and hip pitch −0.3 rad): 39/61 on both feet | 0/10 | foot share and the statue ratio, support-geom duty and coverage, sole tilt, corner lift and contacts 10 each, windowed share 5 | 0.768 |
 | two-foot bounce from step 200, the post-settle hop's pattern driven by a sine, a = 0.09 at 5 Hz | **40/40** | — (both feet off on 0–32 window substeps, on 39 of 40 episodes; landing 1.70–1.80 BW) | 0.989 |
 | the same, a = 0.12 at 2.5 Hz | **40/40** | — (0–27 substeps; 1.33–1.54 BW) | 0.990 |
 | one 10 Hz square cycle of that pattern every 0.4 s from step 200, a = 0.04 | **39/40** | window airborne 1 (0–41 substeps; 1.65–1.66 BW) | 0.974 |
 | the right leg alone (knee +a, ankle and hip pitch −a) from step 200, a = 0.07 at 6.25 Hz | **40/40** | — (the right foot lifts for one substep 130–190 times an episode; never both feet) | 0.972 |
-| the right toe alone, ±0.25 at 10 Hz from step 200 | **40/40** | — (the right foot lifts 146–175 times an episode) | 0.984 |
+| the right toe alone, ±0.25 at 10 Hz from step 200 | 0/40 (**40/40** without the pad centre-of-pressure bar) | pad centre of pressure 40 (each tap rocks the pad from edge to edge, 0.826–0.848; the right foot lifts 146–175 times an episode) | 0.984 |
 | the legs in antiphase from step 200 (a sine, a = 0.10 at 6.25 Hz) | **40/40** | — (a foot unloads at most twice an episode; the lighter foot carries under 20% of the floor load on 44–48% of window steps, down to 14%) | 0.905 |
 
 The square-wave post-settle hops are 410 episodes at a = 0.07–0.15: the window peak bar refuses all 410, the window
@@ -1378,22 +1380,23 @@ airborne bar 368 and the displacement guard 349, and on 61 of the 120 at a = 0.0
 600, nothing but the pair refuses them. Every one has both legs down on every window step, no touchdown and a statue's
 settle; the 42 that fly 40 substeps or fewer all land at 2.23 BW or more. The whole-episode hop at a = 0.07 is a
 low-amplitude two-foot hop: up to 200 airborne window substeps per episode, landing at 2.24–2.59 BW. The swept-back
-crouch is a level, bilateral stance on every support geom that no floor-truth bar refuses (its two unclean episodes
-walk off), which the `[env]`'s leg pose term prices instead (0.887 on the 20-episode re-score, 0.804 and 13/20 clean
-on seeds 11042–11061; the posture wanders, so its ratio is seed-dependent). Two other open-loop one-leg shifts fell on
-tilt (steps 292–294 and 465).
+crouch is a level, bilateral stance on every support geom, on its pads' front edges, that no floor-truth bar but the pad
+centre of pressure refuses (below; its two other unclean episodes walk off), and which the `[env]`'s leg pose term
+prices (0.887 on the 20-episode re-score, 0.804 and 13/20 clean on seeds 11042–11061; the posture wanders, so its ratio
+is seed-dependent). Two other open-loop one-leg shifts fell on tilt (steps 292–294 and 465).
 
-The block certifies the table's last six rows. Driven by a sine, the post-settle hop's pattern lands at 1.33–1.80 BW,
-under the peak bar, and flies 0–32 window substeps, no more than the admitted jitter; the 5 Hz bounce lifts each foot
-16–54 times an episode and moves the root through 1.0–1.1 mm, about the vertical travel of the refused square-wave
-hops at a = 0.05–0.07 (0.8–1.1 mm). One 10 Hz cycle every 0.4 s flies 0–41. A leg is down when it is loaded on half a
-step's substeps and the pair counts only substeps with both feet off the floor, so the one-leg pump and the toe tap,
-whose foot lifts for one substep at a time, read both legs down on every step and no airborne substep, and the
-antiphase shuttle unloads a foot at most twice an episode; its lighter foot's share falls under 20% on 44–48% of
-window steps, but both foot-share bars average over the window or over 1 s blocks. The reward keeps 0.905–0.990 of the
-statue on all six: the legacy substep-minimum support gate prices a substep with both feet unloaded (the 5 Hz bounce's
-raw alive is 968–999 of 1000) but not a one-foot unload, which leaves the other foot's minimum above it (the one-leg
-pump keeps raw alive at 999–1000), so only the bilateral and coverage terms price a one-foot chatter.
+The block certifies five of the table's last six rows (the toe tap until the pad centre-of-pressure bar; below). Driven
+by a sine, the post-settle hop's pattern lands at 1.33–1.80 BW, under the peak bar, and flies 0–32 window substeps, no
+more than the admitted jitter; the 5 Hz bounce lifts each foot 16–54 times an episode and moves the root through 1.0–1.1
+mm, about the vertical travel of the refused square-wave hops at a = 0.05–0.07 (0.8–1.1 mm). One 10 Hz cycle every 0.4 s
+flies 0–41. A leg is down when it is loaded on half a step's substeps and the pair counts only substeps with both feet
+off the floor, so the one-leg pump and the toe tap, whose foot lifts for one substep at a time, read both legs down on
+every step and no airborne substep, and the antiphase shuttle unloads a foot at most twice an episode; its lighter
+foot's share falls under 20% on 44–48% of window steps, but both foot-share bars average over the window or over 1 s
+blocks. The reward keeps 0.905–0.990 of the statue on all six: the legacy substep-minimum support gate prices a substep
+with both feet unloaded (the 5 Hz bounce's raw alive is 968–999 of 1000) but not a one-foot unload, which leaves the
+other foot's minimum above it (the one-leg pump keeps raw alive at 999–1000), so only the bilateral and coverage terms
+price a one-foot chatter.
 
 Margins: the least favourable episode in each group, toward the bar (the r2 statue on seeds 3042–3081, in brackets
 seeds 7042–7081 and 9042–9081; the jittered statue on all three blocks, and in braces, where given, on seeds
@@ -1418,6 +1421,7 @@ two marches):
 | sole contacts ≥ 1.5 | ≥ 3.83 (3.84) | ≥ 2.72 | ≥ 2.32 | ≥ 3.62 | ≥ 2.09 | ≤ 0.002 |
 | window airborne ≤ 40 | 0 (0) | ≤ 23 {≤ 15} | ≤ 29 {≤ 24} | 0 | 3–535; 368 over | 3–20 |
 | window peak ≤ 2.0 BW | ≤ 1.0002 (1.0002) | ≤ 1.75 {≤ 1.88} | 1.78–2.27; 64 over {1.82–2.52; 23 of 40 over} | ≤ 1.000 | 2.22–4.41; all over | 2.08–2.48; all over |
+| pad centre of pressure ≤ 0.70 | ≤ 0.155 (0.153) | ≤ 0.289 {≤ 0.282} | ≤ 0.404 {≤ 0.388} | ≤ 0.246 | 0.20–0.26 (a = 0.07) and 0.51–0.52 (a = 0.15), at 10 Hz on 3042–3081 | 1.000 |
 | foot-on-foot, phantom, non-foot | 0 (0) | 0 | 0 | 0 | 0 | 0 |
 
 The window bars alone (support and touchdowns) and the foot bars alone (duty, coverage, tilt, corner lift, contacts)
@@ -1435,25 +1439,60 @@ the judge, which refuse it, beside a zero-action statue they certify. Report-onl
 to 2.6° over an episode (2.7° out of sample), and its spawn peak (the first 0.1 s, before the grace ends) reaches 1.97
 BW (1.93 out of sample, 2.01 on seeds 11042–11081).
 
-**Limits.** The marches are r1 policies on the r1 plant, and the hacks are open-loop scripts; the r2 policies a
-retrain produces may find what neither found, and a v2 verdict on one is only as good as these bars. The realization
-effect of §2.3 applies. The only r2 policies measured are the statue, the jittered and yawed statue and two 200k-step
-PPO runs. The window pair is set on square-wave hops, and it narrows the gap the step-level bars leave on this plant
-without closing it: a two-foot hop that lands under 2.0 BW and flies no more window substeps than the jitter passes
-it, and the same pattern driven by a sine at 2.5–5 Hz does, at 0.989–0.990 of the statue's reward. On this plant a
-foot that lifts for less than half a control step, and a weight shuttle faster than 1 Hz, are invisible to every v2
-bar: a one-leg pump, a toe tap and an antiphase shuttle certify on 40/40 (the hack table's last rows). No count bar
-separates these from noise: the σ 0.03 jitter the block admits by design flies up to 23 two-foot window substeps and
-lifts each foot off 53–99 times over the window, against 130–190 for the measured one-foot flutters, 16–54 for the 5
-Hz bounce and 109–156 for σ 0.05 jitter; a periodicity criterion, for example a spectral peak of the window's floor
-force, is the measured follow-up (KNOWN_ISSUES), and until it lands each trained stance's per-foot lift-offs and root
-vertical oscillation are checked by hand (the compsognathus recipe review's amendment). The peak bar already refuses
-the statue under σ 0.05 command noise on about half its episodes, so a learned stance as jittery as that fails on
-noise it does not choose. The single-support tiptoe stays physically possible on r2, and
+**The pad centre of pressure (D-D28), measured on this plant (2026-10-08).** D-D28 (§10) landed first (#603) and left
+the compsognathus bar to this revision, on the r2 statue; §10's compsognathus numbers are its r1 plant's and do not
+carry over. Rolled through the report path on the branch with D-D28 merged (the committed stance as training builds it,
+`frame_skip` 10, the real reset; 40-episode panels from seed 3042 unless noted), the statue reads 0.143–0.155 on each of
+five seed blocks (3042, 7042, 9042, 5042 and 11042 + i; 200 episodes), heel side (its centre of mass behind the pad's
+centre); with N(0, σ) command jitter at most 0.209, 0.246, 0.289 and 0.404 at σ 0.01, 0.02, 0.03 and 0.05 (the last two
+on three blocks each; 0.282 and 0.388 on 11042 + i with the independent stream); the PPO means 0.156–0.246 and their
+stochastic rollouts 0.667–0.751 (refused by other bars on every episode); and on the r1 plant its statue 0.454–0.473 and
+the marches 1.000 (pads unloaded). Unlike the T. rex's, this plant's pad and digits are one plate and the digits reach
+past the pad's front edge, so the reading follows the centre of mass along the foot while the pads stay level and every
+digit carries load, which no other bar reads. The MTP servo targets, ramped in over the first 300 steps, move it nearly
+linearly (−0.05, −0.08, −0.09, −0.10 and −0.14 rad: 0.34, 0.67, 0.77–0.80, 0.86–0.93 and 0.98–1.00 toward the toe;
++0.05, +0.07 and +0.08 rad: 0.56, 0.74 and 0.84–0.86 toward the heel), and a panel leaned onto the pads' front edges
+(−0.10 rad: 2.10–2.35 loaded points, tilt at most 0.042°, the pads past 0.9 of the half-length on 59–90% of window
+steps) or onto their heel edges (+0.08 rad) is clean on 40/40 under every other bar, as is the right MTP alone at +0.04
+rad (the left pad on its heel edge, 0.903–0.916), at 0.94–0.99 of the statue's reward; so are 33 of the swept-back
+crouch's 40 episodes on 3042–3081 (on its front edges, 1.000; the other 7 walk off) and the toe tap of the hack table's
+last rows (0.826–0.848, each tap rocking the pad from edge to edge). Both ankles ramped to −0.15 rad read 0.936–0.986
+and fail 40/40 on this bar alone. Rolled feet read 0.59–0.60 (0.05 rad) and 1.000 (0.10), the one-leg stances 0.94–1.00
+and the square-wave post-settle hops at a = 0.07 and 0.15 0.20–0.52, all refused by other bars, and the five scripts the block still admits
+0.14–0.48. The stance declares `max_sole_cop_fore_aft = 0.70`: 0.30 above the σ 0.05 jitter, which the window peak
+already refuses on about half its episodes, and 0.14 under the least edge stance measured (0.844), refusing a pad before
+its far edge unloads (3.6–4.0 loaded points at 0.74–0.75, 2.2–2.6 at 0.77–0.80). The T. rex's 0.80 is not reused: this
+statue stands at 0.15, not 0.17–0.48, and 0.80 would clear the heel-edge panel by 0.04 and pass most of the −0.09 rad
+posture. The partial edge stance stays open at (0.70 − s)/(1 − s) of the window, 65% at the statue's 0.15: the MTPs
+ramped onto the front edges over steps 450–550 pass 10/10 at 0.62–0.63 (past 0.9 on 54% of window steps), and over steps
+350–450 fail 10/10 at 0.72–0.73 (KNOWN_ISSUES). With the bar the hack table's swept-back crouch and toe tap rows read
+0/10 and 0/40, and the committed stage, put through the post-stage pipeline again as above, passes on 40/40 (gate
+`sha256:8938b294…`, the task unchanged). Three golden lines move, all compsognathus stance and already moved by this
+revision (`gate_sha256`, `stage_config_view_sha256.PPO` and `.SAC`). `test_compsognathus_stance_gate_config.py` pins
+that the two edge panels' least favourable episodes, a swept-crouch episode and the toe tap fail this bar alone while
+the statue, the jittered statue and the PPO means clear it, and `test_stance_gate_v2_report.py` leans both pads onto
+their front edges on real physics (both ankles ramped in over 150 steps), which the report fails on this bar alone and
+the judge refuses, beside a statue under 0.20.
+
+**Limits.** The marches are r1 policies on the r1 plant, and the hacks are open-loop scripts; the r2 policies a retrain
+produces may find what neither found, and a v2 verdict on one is only as good as these bars. The realization effect of
+§2.3 applies. The only r2 policies measured are the statue, the jittered and yawed statue and two 200k-step PPO runs.
+The window pair is set on square-wave hops, and it narrows the gap the step-level bars leave on this plant without
+closing it: a two-foot hop that lands under 2.0 BW and flies no more window substeps than the jitter passes it, and the
+same pattern driven by a sine at 2.5–5 Hz does, at 0.989–0.990 of the statue's reward. On this plant a foot that lifts
+for less than half a control step, and a weight shuttle faster than 1 Hz, are invisible to every v2 bar: a one-leg pump
+and an antiphase shuttle certify on 40/40 (the hack table's last rows; a toe tap did until the pad centre-of-pressure
+bar). No count bar separates these from noise: the σ 0.03 jitter the block admits by design flies up to 23 two-foot
+window substeps and lifts each foot off 53–99 times over the window, against 130–190 for the measured one-foot flutters,
+16–54 for the 5 Hz bounce and 109–156 for σ 0.05 jitter; a periodicity criterion, for example a spectral peak of the
+window's floor force, is the measured follow-up (KNOWN_ISSUES), and until it lands each trained stance's per-foot
+lift-offs and root vertical oscillation are checked by hand (the compsognathus recipe review's amendment). The peak bar
+already refuses the statue under σ 0.05 command noise on about half its episodes, so a learned stance as jittery as that
+fails on noise it does not choose. The single-support tiptoe stays physically possible on r2, and
 `max_actuator_saturation_fraction` reads commands, so it is blind to the MTP servo's force saturation that holds a
-tiptoe; the support-geom and sole bars refuse it instead. The anatomical observation reads the world heading (the
-pelvis quaternion, linear velocity and target direction in the world frame) and every spawn faces +x, so a trained
-policy could learn a heading-dependent stance; the r2 statue is clean at every spawn yaw tried (±45° and ±90°), and
-the two short PPO means with seed 11 at +90° and seed 12 at −90° (20/20 each), but a trained stance is untested, and
-spawn yaw is not randomised in training. The noise cliff (σ 0.10: 40/40, σ 0.135: 151/160, σ 0.20: 0/40) applies to a
-policy as much as to the statue: a run whose exploration σ grows trains on a plant that falls.
+tiptoe; the support-geom and sole bars refuse it instead. The anatomical observation reads the world heading (the pelvis
+quaternion, linear velocity and target direction in the world frame) and every spawn faces +x, so a trained policy could
+learn a heading-dependent stance; the r2 statue is clean at every spawn yaw tried (±45° and ±90°), and the two short PPO
+means with seed 11 at +90° and seed 12 at −90° (20/20 each), but a trained stance is untested, and spawn yaw is not
+randomised in training. The noise cliff (σ 0.10: 40/40, σ 0.135: 151/160, σ 0.20: 0/40) applies to a policy as much as
+to the statue: a run whose exploration σ grows trains on a plant that falls.

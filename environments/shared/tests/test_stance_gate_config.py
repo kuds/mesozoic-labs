@@ -240,9 +240,10 @@ def test_the_statue_and_a_flat_forward_loaded_pad_clear_the_cop_bar(curriculum, 
     assert _reasons(curriculum, max_sole_cop_fore_aft=value) == set()
 
 
-def test_only_the_trex_stance_declares_the_cop_bar():
+def test_only_the_trex_and_compsognathus_stances_declare_the_cop_bar():
     """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
-    stance's [env], not its [curriculum])."""
+    stance's [env], not its [curriculum]).  The compsognathus declares its own bar on its r2 statue (D-D26 after
+    D-D28; ``test_compsognathus_stance_gate_config.py``)."""
     from environments.shared.config import SPECIES_NAMES
     from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.stage_manifest import load_stage_manifest
@@ -253,4 +254,4 @@ def test_only_the_trex_stance_declares_the_cop_bar():
             block = load_stage_config(species, entry.reference).get("curriculum_kwargs", {})
             if "max_sole_cop_fore_aft" in gate_config_view(block)["thresholds"]:
                 declaring.append((species, entry.id))
-    assert declaring == [("trex", "stance")]
+    assert declaring == [("compsognathus", "stance"), ("trex", "stance")]

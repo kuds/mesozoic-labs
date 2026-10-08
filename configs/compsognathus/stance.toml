@@ -143,7 +143,8 @@ leg_home_pose_tolerance = 0.15                 # mean per-joint Gaussian of 0.15
                                                # reset jitter (500.0 of 500). The marches' digitigrade crouch
                                                # (0.29-0.59 rad off) earns 279-286; the swept-back crouch 316, which
                                                # loads every support geom and keeps its pads level: this term is the
-                                               # one that prices it.
+                                               # one that prices it (the gate refuses it on its pads' centre of
+                                               # pressure, max_sole_cop_fore_aft in [curriculum]).
 support_geom_coverage_weight = 0.2             # This species' own term: each foot's share of its four support geoms
                                                # (plantar pad, digits II-IV; the floor-truth registry's set) loaded on
                                                # at least half of the step's substeps, charged as -w * (1 - mean over
@@ -299,11 +300,13 @@ timesteps = 11000000
 # a = 0.05-0.10 0/40, 0.79-0.84 (the pair, the displacement guard and on 27 of
 # 40 the settle airborne bar; at 0.07 it is a low-amplitude two-foot hop: up
 # to 200 airborne window substeps, landing at 2.24-2.59 BW); a swept-back
-# crouch (hip pitch +0.3, ankles -0.2 rad) 8/10, 0.847: a level, bilateral
-# stance on every support geom that no floor-truth bar refuses (its two
-# unclean episodes walk off: displacement, settle and window airborne), which
-# the [env]'s leg pose term prices instead (0.887 on its 20-episode re-score,
-# 0.804 and 13/20 clean on seeds 11042-11061: the posture wanders);
+# crouch (hip pitch +0.3, ankles -0.2 rad) 8/10 without the pad centre-of-
+# pressure bar (33/40 on 3042-3081), 0.847: a level, bilateral stance on every
+# support geom, on its pads' front edges, that only that bar refuses (0/40
+# with it: max_sole_cop_fore_aft below; its other unclean episodes walk off:
+# displacement, settle and window airborne), and which the [env]'s leg pose
+# term prices (0.887 on its 20-episode re-score, 0.804 and 13/20 clean on
+# seeds 11042-11061: the posture wanders);
 # and an open-loop weight shift onto one leg (hip roll -0.03 rad on both legs,
 # then the left knee, ankle and hip pitch commanded 0.2 rad) that stands with
 # the right foot at 0.4 N (4% of body weight), 0/10, 0.626 (the lighter foot
@@ -320,14 +323,16 @@ timesteps = 11000000
 # BW and fly 0-32 window substeps; one 10 Hz square cycle every 0.4 s (a =
 # 0.04) 39/40, 0.974 (0-41 substeps, 1.65-1.66 BW); the right leg alone pumped
 # at 6.25 Hz (a = 0.07), its foot lifted for one substep 130-190 times an
-# episode and never both feet, 40/40, 0.972; the right toe alone at +-0.25 and
-# 10 Hz, 40/40, 0.984; and the legs in antiphase at 6.25 Hz (sine, a = 0.10),
-# a foot unloaded at most twice an episode but the lighter one under 20% of
-# the load on 44-48% of window steps, 40/40, 0.905. A leg is down when it is loaded on half a step's
-# substeps and the window pair counts only substeps with both feet off the
-# floor, so a foot lifted for less than half a step, and a bounce that lands
-# under 2.0 BW and flies no longer than the jitter, read a statue on every
-# bar.
+# episode and never both feet, 40/40, 0.972; and the legs in antiphase at 6.25
+# Hz (sine, a = 0.10), a foot unloaded at most twice an episode but the lighter
+# one under 20% of the load on 44-48% of window steps, 40/40, 0.905. The right
+# toe alone at +-0.25 and 10 Hz certified too (40/40, 0.984) until the pad
+# centre-of-pressure bar, which refuses it on 40/40: each tap rocks the pad
+# from edge to edge (0.826-0.848; the five above read 0.14-0.48). A leg is
+# down when it is loaded on half a step's substeps and the window pair counts
+# only substeps with both feet off the floor, so a foot lifted for less than
+# half a step, and a bounce that lands under 2.0 BW and flies no longer than
+# the jitter, read a statue on every bar.
 #
 # Superseded, kept for the record as they read under stance_quality/v1:
 # min_avg_reward = 1800.0                 # 0.60 x the r1 statue's 2998.74 under the r1 [env] (no stance terms).
@@ -431,8 +436,45 @@ min_sole_contacts = 1.5                  # The worse pad's window-mean loaded co
                                          # 3.62, jittered at least 2.72 (0.03) and 2.32 (0.05), so the bar sits
                                          # under the out-of-sample worst, not its median (the trex r8 statue's worst
                                          # moved 2.35 -> 2.09 between seed blocks); the swept-back crouch 2.00 (a
-                                         # pad on its edge, admitted); the feet rolled 0.10 rad 1.0 (fail 20/20) and
-                                         # the marches at most 0.002 (fail 20/20).
+                                         # pad on its edge, refused by the centre-of-pressure bar below); the feet
+                                         # rolled 0.10 rad 1.0 (fail 20/20) and the marches at most 0.002 (fail
+                                         # 20/20).
+max_sole_cop_fore_aft = 0.70             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
+                                         # (D-D28, which landed first, #603; 0 centred, 1 on the heel or toe edge, a
+                                         # step with no loaded sole contact 1). Statue 0.143-0.155, heel side (out of
+                                         # sample too, and on 5042-5081 and 11042-11081), the PPO means 0.156-0.246,
+                                         # jittered at most 0.209, 0.246, 0.289 and 0.404 at sigma 0.01, 0.02, 0.03 and
+                                         # 0.05 (three seed blocks at 0.03 and 0.05; 0.282 and 0.388 on seeds 11042+i
+                                         # with the independent stream); the PPO runs' stochastic rollouts 0.667-0.751
+                                         # (other bars refuse every episode); the r1 statue 0.454-0.473 on its own
+                                         # plant, the marches 1.000 (pads unloaded). The pad and digits are one plate
+                                         # whose digits reach past the pad's front edge, so a posture that moves the
+                                         # centre of mass along the foot moves this reading while the pads stay level
+                                         # and every digit loaded, and no other bar sees it: both MTP servo targets
+                                         # ramped over 300 steps to -0.10 rad lean both pads onto their front edges,
+                                         # 0.860-0.927 (2.10-2.35 loaded points, tilt under 0.05 deg), and to +0.08 rad
+                                         # onto their heel edges, 0.844-0.862, each clean on 40/40 without this bar; the
+                                         # right MTP alone at +0.04 rad stands the left pad on its heel edge,
+                                         # 0.903-0.916, 40/40; both ankles at -0.15 rad 0.936-0.986 (40/40 refused by
+                                         # this bar alone), the MTPs at -0.14 rad 0.981-0.999 (the pads' heels lifting
+                                         # 0.3 deg) and the swept-back crouch 1.000 on each of its 33 episodes no other
+                                         # bar refuses; the right toe tapped at +-0.25 and 10 Hz, which certified 40/40
+                                         # before this bar (above), rocks its pad from edge to edge, 0.826-0.848. Short
+                                         # of the edge the reading follows the posture (the MTPs at -0.05, -0.08 and
+                                         # -0.09 rad 0.34, 0.67 and 0.77-0.80; at +0.05 and +0.07 0.56 and 0.74, on
+                                         # 3.6-4.0 loaded points). 0.70: 0.30 above the sigma-0.05 jitter, at which the
+                                         # window peak already refuses about half the episodes, and 0.14 under the least
+                                         # edge stance measured. Not the T. rex's 0.80: this statue stands at 0.15, not
+                                         # 0.17-0.48, and 0.80 would clear the heel-edge MTP panel by 0.04 and pass most
+                                         # of the -0.09 posture (0.77-0.80 on 2.2-2.6 loaded points). The rolled feet
+                                         # read 0.59-0.60 at 0.05 rad and 1.000 at 0.10, the one-leg stances 0.94-1.00,
+                                         # the square-wave hops from step 200 0.20-0.26 (a = 0.07) and 0.51-0.52 (0.15;
+                                         # all refused by the bars above); the five scripts the block still admits
+                                         # 0.14-0.48. Left open, as on the T. rex, the bar being a window mean: an edge
+                                         # stance on up to (0.70 - s) / (1 - s) of the window beside a centred s (65% at
+                                         # the statue's 0.15): the MTPs ramped onto the front edges over steps 450-550
+                                         # pass 10/10 at 0.62-0.63 (past 0.9 on 54% of window steps), over 350-450 fail
+                                         # 10/10 at 0.72-0.73 (docs/KNOWN_ISSUES.md).
 max_window_airborne_substeps = 40        # The window hop pair (with the peak below; D-D26): substeps with both legs
                                          # unloaded over steps 200-999. A leg is down on a step when it is loaded on
                                          # half of its ten substeps, so a two-foot hop whose flights last 1-3

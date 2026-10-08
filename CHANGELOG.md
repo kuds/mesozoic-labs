@@ -395,17 +395,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   i, refused by the window peak bar on all 410, the window airborne bar on 368
   and the displacement guard on 349, and by the pair alone on 61 of the 120
   episodes at amplitude 0.07 and 10 Hz (and on 10 of 10 of a hop started at
-  step 600); a swept-back crouch is clean on 8/10, a level, bilateral stance
-  on every support geom that no floor-truth bar refuses (its two unclean
-  episodes walk off) and the leg pose term prices. The pair narrows the gap
+  step 600); a swept-back crouch, a level, bilateral stance on every support
+  geom that the leg pose term prices, stands on its pads' front edges and is
+  refused by the pad centre-of-pressure bar alone (below; 8/10 clean without
+  it, its two unclean episodes walking off). The pair narrows the gap
   the step-level bars leave on this plant but does not close it (40-episode
   panels through the report path, seeds 3042–3081): the same hop driven by a
   sine at 5 Hz and 2.5 Hz lands at 1.33–1.80 BW, flies 0–32 window substeps
   and certifies on 40/40 at 0.989–0.990 of the statue's reward, one 10 Hz
   cycle every 0.4 s on 39/40, and, because a foot lifted for less than half a
   step reads down, a one-leg pump that lifts the foot for one substep 130–190
-  times an episode, a toe tap and a 6.25 Hz weight shuttle on 40/40 each
-  (0.905–0.984). No count bar separates these from the admitted σ 0.03 jitter,
+  times an episode and a 6.25 Hz weight shuttle on 40/40 each (0.905–0.972;
+  a toe tap certified too until the pad centre-of-pressure bar, below). No count bar separates these from the admitted σ 0.03 jitter,
   so KNOWN_ISSUES carries them, a stance's lift-offs are checked by hand until
   a periodicity criterion is measured, and the window peak bar's jitter margin
   is 0.12 BW, not the middle of the gap (the σ 0.03 jitter reaches 1.88 BW on
@@ -413,7 +414,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   post-stage pipeline with the zero command as a scripted checkpoint: the
   report and the judge pass it on 40/40 (bound 0.928) and write
   `gate_verdict.json`, publication admits the panel and backfill re-derives
-  the verdict (`gate_sha256 f38e3b26…`, `task_sha256 6c667a99…`). v1's
+  the verdict (`gate_sha256 8938b294…`, `task_sha256 6c667a99…`). v1's
   `min_avg_reward` 1800 and its two duty keys stay in the file as comments, a
   superseded record (v2 refuses the duty keys). Panels and per-bar counts are
   in the dated §11 appended to
@@ -470,10 +471,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interface (`test_models.py`, `test_training_env.py`,
   `test_plant_contract_layers.py`); and the noise cliff
   (`test_noise_tolerance.py`: σ 0.10 reaches the horizon on the first 5
-  episodes, σ 0.135 on at least 10 of the first 12, the review's 0.8). With
-  D-D28 (#603) merged first, the statue pad centre of pressure that
-  `test_gait_recorder.py` bounds is re-measured on r2: 0.173 at seed 3042,
-  heel side (0.464 on r1), under a ceiling of 0.20 (0.50 on r1).
+  episodes, σ 0.135 on at least 10 of the first 12, the review's 0.8).
+
+  D-D28 (#603) merged first and left the compsognathus bar to this revision,
+  so the stance also declares `max_sole_cop_fore_aft` = 0.70, measured on the
+  r2 plant through the report path (the audit's §11): the statue reads
+  0.143–0.155, heel side, over 200 episodes on five seed blocks (r1's
+  0.454–0.473 do not carry over), the statue under N(0, σ) command jitter at
+  most 0.289 at σ 0.03 and 0.404 at σ 0.05, and the two short PPO runs'
+  means at most 0.246. This plant's pad and digits are one plate whose digits
+  reach past the pad's front edge, so a posture that leans the animal along
+  its feet keeps the pads level and every digit loaded and no other bar sees
+  it: both MTP servo targets ramped to −0.10 rad stand both pads on their
+  front edges (0.860–0.927) and to +0.08 rad on their heel edges
+  (0.844–0.862), and the right MTP alone at +0.04 rad the left pad on its
+  heel edge (0.903–0.916), each clean on 40/40 under every other bar; 33 of
+  the swept-back crouch's 40 episodes stand on their front edges (1.000);
+  and the right toe tapped at ±0.25 and 10 Hz, which the block certified on
+  40/40, rocks its pad from edge to edge (0.826–0.848). The bar refuses all
+  of them, and both ankles ramped to −0.15 rad (0.936–0.986) on 40/40 by
+  itself; the bounce, burst, one-leg pump and shuttle the block still
+  certifies read 0.14–0.48. It is 0.70 rather than the T-Rex's 0.80 because
+  this statue stands at 0.15 and 0.80 would clear the heel-edge panel by
+  0.04; a partial edge stance still passes on up to (0.70 − s)/(1 − s) of the
+  window, 65% at the statue's 0.15 (KNOWN_ISSUES). The committed stage passes
+  the post-stage pipeline again with the bar, and the statue pad centre of
+  pressure that `test_gait_recorder.py` bounds is re-measured on r2: 0.173 at
+  seed 3042, heel side (0.464 on r1), under a ceiling of 0.20 (0.50 on r1).
+  New tests: the recorded edge stances, a swept-crouch episode and the toe
+  tap fail this bar alone while the statue, jittered statue and PPO means
+  clear it (`test_compsognathus_stance_gate_config.py`), a real-physics
+  stance leaned onto both pads' front edges fails the report and the judge
+  on it alone (`test_stance_gate_v2_report.py`), and the compsognathus joins
+  the T-Rex as the stances that declare the key
+  (`test_stance_gate_config.py`).
 
   Records: note 15, both plant manifests (compsognathus entries only), the
   species catalog (the stance published as `stance_quality/v2`, policy r3,
