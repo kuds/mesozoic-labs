@@ -642,6 +642,10 @@ PERTURBATION_KEYS = [
 #: The T-Rex keys recovery.toml writes out with stance's values rather than
 #: inheriting them (the cleanup plan's CU-13 row).
 TREX_REDECLARED_ENV_KEYS = ["foot_contact_gate", "foot_contact_weight", "foot_contact_saturation_force"]
+#: The T-Rex [env] keys recovery.toml overrides with ITS OWN value, in place
+#: (decision D-D27): the settled stance-width capture moves before the first
+#: push, which lands at 200 +- 50 steps.
+TREX_OVERRIDDEN_ENV_KEYS = {"stance_width_settle_steps": 140}
 
 
 def _ordered(value):
@@ -699,10 +703,13 @@ class TestRecoveryStageConfig:
         recovery = _raw_stage_toml(species, "recovery")
         stance = _raw_stage_toml(species, "stance")
         redeclared = TREX_REDECLARED_ENV_KEYS if species == "trex" else []
+        overridden = TREX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
         assert list(recovery) == ["extends", "stage", "env", "ppo", "curriculum"]
         assert list(recovery["stage"]) == ["name", "description"]
-        assert list(recovery["env"]) == redeclared + PERTURBATION_KEYS
+        assert list(recovery["env"]) == redeclared + list(overridden) + PERTURBATION_KEYS
         assert {key: recovery["env"][key] for key in redeclared} == {key: stance["env"][key] for key in redeclared}
+        assert {key: recovery["env"][key] for key in overridden} == overridden
+        assert all(stance["env"][key] != value for key, value in overridden.items())
         assert recovery["ppo"] == {"ent_coef_decay_timesteps": 2_000_000}
 
     @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
@@ -713,7 +720,9 @@ class TestRecoveryStageConfig:
         recovery = load_stage_config(species, "recovery")
         assert (recovery["name"], recovery["description"]) != (stance["name"], stance["description"])
         perturbation = [(key, recovery["env_kwargs"][key]) for key in PERTURBATION_KEYS]
-        assert _ordered(recovery["env_kwargs"]) == _ordered(stance["env_kwargs"]) + perturbation
+        overridden = TREX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
+        expected = [(key, overridden.get(key, value)) for key, value in stance["env_kwargs"].items()]
+        assert _ordered(recovery["env_kwargs"]) == expected + perturbation
 
     @pytest.mark.parametrize("species", sorted(RECOVERY_EXTENDS))
     def test_resolved_algorithm_tables_are_stance_but_the_entropy_horizon_in_order(self, species):

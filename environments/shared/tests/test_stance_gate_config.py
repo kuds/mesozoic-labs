@@ -141,3 +141,55 @@ def test_the_reward_rails_are_the_same_fraction_of_the_statue(curriculum):
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60
     assert curriculum["min_full_horizon_fraction"] == 0.95
+
+
+# ── the stance follow-up (decision D-D27, 2026-10-07) ─────────────────────────
+
+#: The bars D-D27 added to the trex block, at their adopted values.
+FOLLOWUP_BARS = {
+    "max_settle_stance_width_change_m": 0.08,
+    "max_settle_touchdowns": 2,
+    "max_episode_yaw_change_deg": 25.0,
+    "max_hop_or_fall_episodes": 1,
+}
+
+
+@pytest.mark.parametrize(("key", "bar"), sorted(FOLLOWUP_BARS.items()))
+def test_the_followup_bars_are_declared(curriculum, key, bar):
+    assert curriculum[key] == bar
+    assert StanceV2Thresholds.from_curriculum(curriculum).declared()[key] == bar
+
+
+def test_the_settled_width_is_captured_where_the_settle_window_ends(stage, curriculum):
+    """stance_width_settle_steps and the gate's settle_steps name the same step: the reward's settled width is the
+    width the settle bars judge the episode to have settled at."""
+    env = stage["env_kwargs"]
+    assert env["stance_width_reference"] == "settled"
+    assert env["stance_width_settle_steps"] == curriculum["settle_steps"]
+
+
+def test_a_settle_re_seat_and_a_turn_are_refused(curriculum):
+    """Seed 44's largest r8 re-seat (8.75 cm), a stepping re-seat and seed 42's median turn (45.3 degrees)."""
+    assert _reasons(curriculum, settle_stance_width_change_m=0.0875) == {"max_settle_stance_width_change_m"}
+    assert _reasons(curriculum, settle_touchdowns=3.0) == {"max_settle_touchdowns"}
+    # The statue's spawn landing (one foot spawning airborne) plus one re-plant is admitted.
+    assert _reasons(curriculum, settle_touchdowns=2.0) == set()
+    assert _reasons(curriculum, episode_yaw_change_deg=45.3) == {"max_episode_yaw_change_deg"}
+
+
+def test_the_r8_seed_44_hop_episode_is_a_hop_for_the_rail(curriculum):
+    """Seed 7065's whole-episode hop under the r8 checkpoint: support, touchdowns, drift and saturation."""
+    from environments.shared.curriculum.stance_gate_v2 import is_hop_or_fall
+
+    thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    clean = episode_stance_metrics(statue_trace(1000), settle_steps=thresholds.settle_steps)
+    hop = replace(
+        clean,
+        all_feet_support=0.70,
+        touchdown_rate=3.75,
+        window_displacement_m=1.31,
+        max_actuator_saturation_fraction=0.31,
+    )
+    reasons = classify_stance_episode(hop, thresholds, horizon=1000)
+    assert is_hop_or_fall(reasons)
+    assert not is_hop_or_fall(classify_stance_episode(replace(clean, max_sole_tilt_deg=2.5), thresholds, horizon=1000))

@@ -505,6 +505,7 @@ def _admit_stance_v2_report(
         STANCE_V2_REPORT_SCHEMA,
         STATUE_POLICY,
     )
+    from environments.shared.reporting.stance_report import _PROBE_MARKERS
     from environments.shared.result_bundle.hashing import sha256_file
 
     kind = STANCE_GATE_V2_KIND
@@ -528,7 +529,8 @@ def _admit_stance_v2_report(
         refusals.append(
             f"stage {stage} stance report records declared gate_kind {stance_report.get('gate_kind')!r}, not {kind!r}"
         )
-    probes = [key for key in ("filter_actions_hz", "hold_constant", "impulse") if stance_report.get(key) is not None]
+    # Every probe marker the report writer knows, so a probe added there is refused here without an edit.
+    probes = [key for key in _PROBE_MARKERS if stance_report.get(key) is not None]
     if probes:
         refusals.append(f"stage {stage} stance report is a probe ({', '.join(probes)}), which never certifies")
     recorded = stance_report.get("thresholds")

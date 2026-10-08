@@ -119,6 +119,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `compsognathus_robot` keeps every digest. The bundles already published
   stay as they are; the catalog labels their verdicts with the gate they
   were earned under.
+- **A T-Rex stage run started on the task of D-D24 cannot resume across the
+  stance follow-up, and its nodes are not reused** (decision D-D27). Every
+  T-Rex `task_sha256` moves (the stance task's seven new `TRexEnv` kwargs
+  enter every T-Rex stage's effective configuration, at their defaults where
+  a stage does not set them), and so do the stance `gate_sha256` and the
+  stance and recovery `hyperparameters_sha256.PPO`, so `resume_same_stage`
+  and ancestor reuse refuse a node recorded under D-D24's task. Nothing
+  certified is stranded: the plant is unchanged, so every physics-r8
+  checkpoint still loads, and no T-Rex stance has certified on r8 (the two
+  runs on D-D24's task, `20261006_185343` and `20261006_185704`, are both
+  `stance_quality/v2` FAILs). Start the next T-Rex stance fresh.
 - **Every Velociraptor checkpoint must be retrained; none can be widened**
   (Velociraptor physics revision 2 → 3, policy interface revision 10 → 11,
   visual revision 3 → 4; decision D-D25). The plant contract refuses each
@@ -254,10 +265,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reward terms through twenty `CompsognathusBiologicalEnv` kwargs, every one
   inert at its default (there the reward, its legacy components and the
   observations are bitwise equal to `CompsognathusEnv`'s); the weights,
-  tolerances and saturation force are named as on `TRexEnv`, and
-  `support_force_aggregation`, the stance-width reference, the per-foot load
-  gate `foot_terms_min_support_force`, the support-geom coverage and the
-  floor-impact and airborne terms are this species' own:
+  tolerances and saturation force are named as on `TRexEnv`, and so, since
+  D-D27, are the stance-width reference, the per-foot load gate
+  `foot_terms_min_support_force` and the floor-impact and airborne terms,
+  with this species' own forms (the load gate reads the aggregation below,
+  not the trex's substep-minimum touch; the impact term is capped,
+  min(peak − 2.5, 1), at a 2.5 BW threshold); `support_force_aggregation`
+  and the support-geom coverage are this species' own:
   `support_force_aggregation = "mean"`, which feeds only the new terms the
   substep-mean foot load (the legacy alive, posture and height terms keep
   their support gate on the substep minimum, which prices a two-foot hop; a
@@ -282,9 +296,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or not the tip reaches the floor); `floor_impact_weight = 0.25` above 2.5 BW
   and `airborne_substep_weight = 0.2`, on every substep from the first step;
   and `action_saturation_weight = 0.3` at 0.9 and `action_jerk_weight = 0.5`
-  on the raw command (this species has no action filter). New reward keys
-  `reward_support_geom_coverage`, `reward_floor_impact` and
-  `reward_airborne_substeps` join the diagnostics and their graphs. Each
+  on the raw command (this species has no action filter). The new reward key
+  `reward_support_geom_coverage` joins the diagnostics and their graphs
+  (`reward_floor_impact` and `reward_airborne_substeps` joined them with
+  D-D27). Each
   weight was measured by re-scoring recorded rollouts (exact: equal to the
   env's own total to 5e-13 per episode): the statue stays the reward optimum,
   4570.4 ± 7.2 on seeds 3042–3081 (4565.8 on 7042–7081), 1571.3 of the 1580
@@ -388,7 +403,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the verdict (`gate_sha256 f38e3b26…`, `task_sha256 6c667a99…`). v1's
   `min_avg_reward` 1800 and its two duty keys stay in the file as comments, a
   superseded record (v2 refuses the duty keys). Panels and per-bar counts are
-  in the dated §9 appended to
+  in the dated §10 appended to
   `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`. Statue constants
   re-measured on r2: stance 4570.4 ± 7.2 (`zero_action_baseline.py
   compsognathus --episodes 40 --seed 3042`), so `min_avg_reward` 1800 → 2740,
@@ -416,16 +431,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   golden's `compsognathus/recovery` capture is re-taken: both seeds' reset
   draws are unchanged, only the observation and trajectory halves move.
 
-  Shared code: `BaseDinoEnv.step` keeps every substep's per-foot force of
-  the step beside the running minimum (`_substep_foot_force_block`, whose
-  column minimum is the minimum) and calls a read-only per-substep hook,
-  `_accumulate_substep`, after each `mj_step`, a no-op except on the
+  Shared code: `BaseDinoEnv.step`, which keeps every substep's per-foot
+  force beside the running minimum since D-D27 (`_substep_foot_force_block`,
+  a copy whose column minimum is the minimum), now also calls a read-only
+  per-substep hook, `_accumulate_substep`, after each `mj_step`, a no-op except on the
   compsognathus coverage term, so the floor-truth recorder keeps
   `_substep_probe_hook`;
   `test_the_substep_force_block_and_hook_leave_every_species_bit_identical`
   rolls all six plants with a reading hook and finds observations, rewards,
-  info and state bitwise equal. Five non-weight reward settings join the
-  behavior preparation's transition comparison. New tests: the reward terms'
+  info and state bitwise equal. `support_force_aggregation` joins the
+  behavior preparation's transition comparison (the four other non-weight
+  settings this stance shares with the trex joined it with D-D27). New tests: the reward terms'
   inertness, MEAN/MIN split, load gates, width reference, coverage (a digit
   carrying the foot on its tip counts, its MTP end alone does not, each
   geom's contacts are summed before the threshold, and the hook reads each
@@ -450,7 +466,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the deferred proportions pass, the noise cliff, the soft bounce, one-foot
   flutter and weight shuttle the gate certifies, and an observation that
   reads the world heading while every spawn faces +x); the gait plan (its
-  §14) and the stance-hack audit (its §9) take dated amendments,
+  §15) and the stance-hack audit (its §10) take dated amendments,
   NEXT_STEPS's compsognathus rows say what the revision strands, and the
   species README, recipe review, training validation and recovery
   calibration notes follow the plant. Digest golden (649 lines, unchanged
@@ -471,6 +487,161 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the observation carries the world-frame pelvis quaternion, linear
   velocity and target direction; the statue is clean at every spawn yaw
   tried, a trained policy is untested); the robot is untouched.
+- **The T-Rex stance prices what its first two physics-r8 runs exploited,
+  starts its exploration quieter, and its gate counts settle re-plants,
+  turns and hop-or-fall episodes** (#602; decision D-D27, which the maintainer took
+  on 2026-10-07 after a review of the first two T-Rex stance runs on the
+  physics-r8 task of D-D24; the plant does not change: physics r8, policy
+  interface r13, visual r4). The runs, `20261006_185343` (seed 42) and
+  `20261006_185704` (seed 44), trained D-D24's `configs/trex/stance.toml`
+  byte for byte for 11M steps, and both fail `stance_quality/v2` as recorded
+  and as re-derived on `main`: seed 42 is clean on 0/40, a 12.5 Hz
+  synchronous two-foot micro-hop on raw ±1 commands at 0.80 of the statue's
+  reward; seed 44 on 13/40 (bound 0.204; 8/40, bound 0.104, on the fresh
+  seeds 7042–7081): it stands like the statue after the settle, but stomps
+  or hops its feet back to the keyframe width in the settle (settle peaks
+  over 1.5 BW on 27/40 and 32/40), hops for the whole episode on 9 of 207
+  resets, stands on the front edge of its left pad and falls when spawned
+  90° off its training heading. The r7 hacks (the hip-roll splay, the
+  rolled-pad prop, the widened stance, the raised head) are gone. The same
+  config split into two basins: seed 44 escaped the early hop regime between
+  5.0M and 6.0M, and seed 42 locked in at 6.5M as the entropy bonus ran out
+  at 7M. The record is the dated §9 appended to
+  `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`.
+  The stance task (`configs/trex/stance.toml` `[env]`, which recovery
+  inherits) takes seven new `TRexEnv` kwargs, each inert at its default (the
+  legacy arithmetic and every existing info stream bit for bit;
+  `test_trex_rewards.py`): `stance_width_reference = "settled"` with
+  `stance_width_settle_steps = 200` centres the width term on the animal's
+  own width at the end of the settle and pays it only after (the keyframe
+  target paid seed 44 +12.5 per episode over the statue for re-seating its
+  spawn, and a quiet constant re-seat now gains −2.0 in width instead of
+  +6.7, though still about +3 in total, mostly through foot flatness);
+  `foot_terms_min_support_force = 168.0` pays a foot's flatness share, and
+  the pair's width term, only while it carries 0.20 BW (seed 42's lifted
+  feet earned about 80% of the flatness reward in the air);
+  `floor_impact_weight = 2.0` per body weight above
+  `floor_impact_threshold_bw = 1.4` and `airborne_substep_weight = 1.0`
+  price a step's peak summed foot force and its fully airborne substeps over
+  the whole episode, settle included (the statue's per-step peak after the
+  0.1 s spawn grace is at most 1.331 BW over 200 episodes, and it is never
+  airborne after its spawn steps); and `action_penalty_source = "raw"`
+  prices smoothness, jerk and saturation on the policy's own clipped command
+  instead of the 10 Hz-filtered one, energy staying on the applied command,
+  because the first-order filter passes 24–54% of 12.5–50 Hz content and
+  so charged seed 42's bang-bang 8.8× (smoothness), 11.4× (jerk) and 222×
+  (saturation) too little. Under "raw" the `action_delta`, `action_jerk` and
+  `action_saturation` info keys, and the training `diagnostics.npz` series
+  that record them, read the raw command (the evaluation plateau's action
+  statistics and frequency estimate always read the policy's own action
+  and do not move), and `BaseDinoEnv.step`'s
+  comment on pricing the filtered command says why T-Rex does not.
+  `recovery.toml` overrides `stance_width_settle_steps = 140`, ahead of its
+  first push (200 ± 50 steps); what a stepping recovery's landings cost is
+  unmeasured. Re-scored exactly on the recorded panels (no reward term moves
+  a trajectory): the statue 3766.1 → 3756.8; seed 42 0.80 → 0.28 of the
+  statue; seed 44 against the statue +5.7 → −17.5 per episode on 3042–3081,
+  +17.3 → −5.6 on 5042–5081 and −97 → −153 on 7042–7081, a shift of about
+  −23 on the first two blocks and −56 on the third, where its three hop
+  episodes lose about twice what they lost before (−18 on its 36 standing
+  episodes); so the v2 settle bars, not the reward, are what refuse its
+  stomp.
+  New: `BaseDinoEnv.step` keeps every substep's per-foot force beside the
+  MIN the support terms read (`_substep_foot_force_block()`; the MIN and
+  every existing key unchanged); `reward_sole_flatness(...,
+  foot_weights=None)`; the reward keys `reward_floor_impact` and
+  `reward_airborne_substeps` (`diagnostics.py`, `visualization.py`); the info
+  keys `stance_width_target`, `r_foot_terms_supported`,
+  `l_foot_terms_supported`, `peak_foot_force_bw` and `airborne_substeps`;
+  and `behavior_checkpoint` carries the five non-weight kwargs into
+  transition rewards.
+  The stance recipe starts at `[ppo.policy_kwargs] log_std_init = -1.5`
+  (std 0.22; recovery inherits it): with the new terms a fresh policy pays
+  2.88 / 1.00 / 0.41 per step at std 1.0 / 0.37 / 0.22, against the recipe's
+  rule of about half the 1.0 alive bonus, and in short PPO runs on the task
+  the stochastic policy's unsupported duty is 0.52–0.54 at std 1.0 (the r8
+  runs: 0.55–0.57 at 0.1M) against 0.044–0.046 at 0.22, falling to 0.003 by
+  451k steps; whether the start changes the 5–7M basin selection is
+  untested. `ent_coef_decay_timesteps`'s comment records that its own
+  falsifiable prediction failed in both r8 runs (algo_std 0.750 / 0.724 at
+  4M, not "well under 0.2"; unsupported duty 0.409 / 0.358, not below 0.28)
+  and that the learning rate it names next is untested; the anneal and the
+  learning rate are unchanged. `collapse_peak_warmup_timesteps` stays 1.0M,
+  and its comment and `EvalCollapseEarlyStopCallback`'s docstring say its
+  premise was the std-1.0 start.
+  An opt-in hop watch (`environments/shared/curriculum/hop_watch.py`, wired
+  by `train_base._build_core_callbacks`): when a stage's `[curriculum]` declares
+  `hop_watch_max_unsupported_duty`, the first evaluation at or after
+  `hop_watch_after_timesteps` whose unsupported duty (`gate_progress.npz`,
+  read through the new `StageGatePlateauCallback.gate_progress_series`) is
+  above the bar logs a warning, writes `hop_watch.json` and, with
+  `hop_watch_stop`, ends training; the post-stage report then judges the
+  handoff pair as usual, and a stop certifies nothing. The keys join the
+  early-stop family (`gate_schema._COLLAPSE_KEYS`) and enter no digest. The
+  T-Rex stance declares 0.05 after 7M (= `ent_coef_decay_timesteps`) with
+  stop: on the r8 series it would have stopped seed 42 (exactly 0.375 at
+  every evaluation from 6.5M to 11M) with 4M steps unspent and left seed 44
+  alone (under the bar from 5.35M; 0.013 at 7M and at most 0.018 after, 2.8×
+  under it).
+  `stance_quality/v2` gains three optional keys, each applied only where
+  declared (`stance_gate_v2.py`, `gate_schema.py`, `manager.StageThreshold`;
+  `GATE_SCHEMA_VERSION` stays 1): the per-episode criteria
+  `max_episode_yaw_change_deg` (on `episode_yaw_change_deg`, report-only
+  until now) and `max_settle_touchdowns` (on `settle_touchdowns`), and the
+  panel rail `max_hop_or_fall_episodes`, which caps the episodes that end
+  early or fail `min_all_feet_support`, `max_touchdown_rate`,
+  `max_window_displacement_m` or `max_actuator_saturation_fraction`
+  (`HOP_OR_FALL_KEYS`) and counts from the classification reasons, so a
+  recorded panel CSV re-derives it; the result carries `hop_or_fall_episodes`
+  only when the rail is declared, so every other stage's report serialises as
+  before. The T-Rex stance block declares `max_settle_stance_width_change_m =
+  0.08`, `max_settle_touchdowns = 2`, `max_episode_yaw_change_deg = 25.0` and
+  `max_hop_or_fall_episodes = 1`; `min_sole_contacts` stays 1.5 (the statue
+  reaches 2.086 out of sample). At n = 40 the rail passes the statue's
+  1-in-120 window-failure rate 0.956 of the time and seed 44's 4.8%
+  hop-or-fall rate (9 whole-episode hops and a roll-over in 207 resets) about
+  0.42 (0.87 under the bound alone): it halves that admission, it does not
+  remove it. Validated: the statue is clean on 40/40 with no hop-or-fall
+  episode on 3042–3081 and 7042–7081; seed 42 fails the rail, the yaw bar and
+  the settle-touchdown bar on 40/40; seed 44 passes the rail on 3042–3081 (1
+  episode) and fails it on 7042–7081 (4). The website's gate adapter and the
+  species catalog render the rail and the two criteria.
+  A report-only heading probe: `[curriculum] stance_probe_spawn_yaw_deg =
+  [-90.0, -45.0, 45.0, 90.0]` (a diagnostic key) re-rolls the policy and the
+  zero-action statue on 8 seeds with the spawn turned about vertical by each
+  offset, the animal alone and with the prey and the heading term's
+  reference direction, beside an unturned control, and writes
+  `stance_heading_probe.{txt,json}`; `stance_gate_report.py
+  --spawn-yaw-offsets` (with `--spawn-yaw-episodes`) runs it standalone. The
+  statue stands 8/8 at every offset both ways; seed 44 stands 0/8 at ±90°,
+  and 0/8 at ±45° with the prey turned too. Whether stance certification
+  should require heading robustness (spawn-yaw randomisation or a
+  heading-invariant observation, both policy-interface revisions) is not
+  decided. The v2 judge refuses a heading-probe report as a probe: its
+  probe check now reads the report writer's marker registry
+  (`stance_report._PROBE_MARKERS`) instead of a list of its own, and a
+  `stance_quality/v2` report records `spawn_yaw: null` beside the other
+  probe markers.
+  Statue constants re-derived under the new task, with
+  `statue_constants_physics_revision = 8` kept: stance 3756.8 ± 17.3
+  (`zero_action_baseline.py trex --stage 1`, seed 3042, 40 episodes; −9.1
+  width, −0.2 flatness), so `min_avg_reward` 2260 → 2250 and
+  `collapse_peak_floor_reference` 3766.1 → 3756.8; recovery's pushed statue
+  1337.5 → 1329.1 (`roll_recovery_panel`, with the capture at 140).
+  Locomotion (1091.5) and behavior (602.0, rail 361) set none of the new
+  kwargs and keep theirs; their comments say so.
+  Digest golden (649 lines): 36 lines move, all trex — stage `task_sha256`,
+  `stage_config_view_sha256.PPO` and `stage_config_view_sha256.SAC` of
+  stance, recovery, locomotion and behavior; stance `gate_sha256`; stance and
+  recovery `hyperparameters_sha256.PPO`; the 11 behavior recipes'
+  `task_sha256`; the reward `summary` of stance and recovery; and
+  `shape_sha256` and `rounded_values_sha256` of the four trex reward stages
+  (their new info keys). No plant, policy-interface or other species' line
+  moves. Records: D-D27 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the
+  consolidation plan's table; KNOWN_ISSUES's T-Rex stage-1, stance-gate and
+  fixed-seed-block entries and its `action_saturation` note, and two new
+  entries (heading dependence; a foot on the front edge of its pad); the gait
+  plan's dated §14; NEXT_STEPS's trex rows.
 - **The Velociraptor stands on its servos on flat toes, feels its whole foot,
   leaves the frozen MJX core, and its stance is judged on floor truth**
   (#601; breaking — plant change, physics revision 2 → 3, policy interface

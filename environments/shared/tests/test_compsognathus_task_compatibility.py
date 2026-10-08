@@ -36,6 +36,16 @@ TREX_R8_TASK_KEYS = {
     "stance_width_weight": 0.0,
     "stance_width_tolerance_m": 0.05,
 }
+#: And the ones the stance follow-up added (decision D-D27), at their legacy defaults.
+TREX_FOLLOWUP_TASK_KEYS = {
+    "stance_width_reference": "keyframe",
+    "stance_width_settle_steps": 200,
+    "foot_terms_min_support_force": 0.0,
+    "floor_impact_weight": 0.0,
+    "floor_impact_threshold_bw": 1.4,
+    "airborne_substep_weight": 0.0,
+    "action_penalty_source": "filtered",
+}
 
 
 #: The stance-quality constructor kwargs CompsognathusBiologicalEnv added with the anatomical physics-r2 /
@@ -64,17 +74,21 @@ COMPSOGNATHUS_R2_TASK_KEYS = {
     "action_jerk_weight": 0.0,
 }
 #: Species whose recorded tasks a later plant revision retired, with the constructor kwargs that revision added.
-RETIRED_TASK_KEYS = {"trex": TREX_R8_TASK_KEYS, "compsognathus": COMPSOGNATHUS_R2_TASK_KEYS}
+RETIRED_TASK_KEYS = {
+    "trex": {**TREX_R8_TASK_KEYS, **TREX_FOLLOWUP_TASK_KEYS},
+    "compsognathus": COMPSOGNATHUS_R2_TASK_KEYS,
+}
 
 
 @pytest.mark.parametrize("record", FIXTURE["fingerprints"], ids=lambda record: f"{record['species']}-{record['stage']}")
 def test_pre_recovery_quiet_checkpoint_identity_is_preserved(record):
     current = recompute(record)
     if record["species"] in RETIRED_TASK_KEYS:
-        # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8, and the
-        # anatomical compsognathus records physics-r1 tasks, retired by its physics r2: each revision added
-        # constructor kwargs, which enter each task at their legacy defaults (no carve-out exists for them),
-        # and nothing else in the payload moved.  The robot's records stay exact below.
+        # The trex records are physics-r7 tasks, retired with every trex checkpoint by physics r8 (its task
+        # revision and the D-D27 stance follow-up added constructor kwargs), and the anatomical compsognathus
+        # records physics-r1 tasks, retired by its physics r2: each added kwarg enters each task at its legacy
+        # default (no carve-out exists for them), and nothing else in the payload moved.  The robot's records
+        # stay exact below.
         added = RETIRED_TASK_KEYS[record["species"]]
         assert {key: value for key, value in current["env"].items() if key not in record["env"]} == added
         assert {key: value for key, value in current["env"].items() if key in record["env"]} == record["env"]

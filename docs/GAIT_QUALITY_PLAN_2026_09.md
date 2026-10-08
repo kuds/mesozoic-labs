@@ -21,7 +21,7 @@ of this plan) and its SB3-only exit land with a revised stance task and the velo
 amendment).*
 *Updated 2026-10-07: and D-D26: the anatomical compsognathus plant revision (physics r2) with a soft-cubic leg
 interface lands with a revised stance task and the compsognathus stance on `stance_quality/v2`, which gains two
-optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§14, the dated
+optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§15, the dated
 amendment).*
 
 ## How to use this document
@@ -697,9 +697,54 @@ plan's table). The validation, the r3 statue clean on 40/40 and the two audited 
 - **GQ-17.** The velociraptor now needs a stance retrain before any velociraptor walk; the order of the retrains
   stays the maintainer's.
 
-## 14. Amendment (2026-10-07): the compsognathus plant revision, its leg interface and its stance on the floor-truth gate
+## 14. Amendment (2026-10-07): the T. rex stance follow-up after the first two physics-r8 runs
 
-*Appended 2026-10-07; §1–§13 above are unchanged.* The maintainer chose on 2026-10-07, answering the open questions of
+*Appended 2026-10-07; §1–§13 above are unchanged.* The first two T. rex stances trained on §12's physics-r8 task
+(seeds 42 and 44, `20261006_185343` and `20261006_185704`, D-D24's config byte for byte) and both fail
+`stance_quality/v2`: seed 42 is a 12.5 Hz two-foot micro-hop (0/40 clean), and seed 44 stands like the statue after a
+settle stomp that re-seats its feet but keeps a whole-episode hop on about 4% of resets (13/40 clean, bound 0.204;
+8/40 on fresh seeds). The maintainer asked on 2026-10-07 for the follow-up fixes to the T. rex stance: decision D-D27
+([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the consolidation plan's table). The review and the
+validation are the dated §9 appended to
+[investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md). The plant is unchanged
+(physics r8).
+
+**What changes in the plan.**
+
+- **GQ-12's third seed.** GQ-12 asked for a third trex seed when the trex stance adopted v2, and D-D24 left it
+  unscheduled at `certification_seeds = 2`. The two r8 seeds split on one config (seed 44 escaped the early hop regime
+  between 5.0M and 6.0M, seed 42 locked in at 6.5M as the entropy bonus ran out), so no per-seed success rate can be
+  read from them. D-D27 keeps `certification_seeds = 2` and makes the third seed recipe guidance: train at least two
+  seeds (plan three) per trex stance revision, let the opt-in hop watch stop a seed whose evaluation unsupported duty
+  is still above 0.05 at 7M, and restart it on a new seed.
+- **§5, the trex stance's incentives.** §12's three trex-only terms gain four of the same kind (`TRexEnv` kwargs whose
+  defaults reproduce the old arithmetic, §5.2 item 1, not §5.3's shared kit): the width term centred on the animal's
+  own settled width instead of the keyframe's, which paid for re-seating the spawn; the flatness and width terms
+  load-gated at 0.20 body weight; floor-impact and airborne-substep terms over the whole episode, settle included; and
+  smoothness, jerk and saturation priced on the policy's raw command, where the 10 Hz filter had cut their price
+  8.8–11.4 times for smoothness and jerk (222 times for saturation). No §5.2 item 2 carve-out: unlike §12 the plant
+  does not move, so the new kwargs' defaults move the locomotion and behavior task digests too, but no T. rex node is
+  certified on r8, so that strands nothing. §5.1 still has no trex stance row; the exploits these price are the audit's
+  §9. The recipe starts at `log_std_init = -1.5`, where the new terms cost a fresh policy under half the alive bonus.
+- **§4, the trex stance gate.** The block adds the settle width change (0.08 m) and three new optional v2 keys: settle
+  touchdowns (2), episode yaw change (25°; until now a report-only metric of the stance report) and a panel rail on
+  hop-or-fall episodes (1). The rail halves, and does not remove, a 40-episode bound's admission of a few-percent hop
+  or fall mode (seed 44's 4.8% hop-or-fall rate passes the bound alone about 0.87 of the time, and the rail about
+  0.42), so `docs/NEXT_STEPS.md` asks for a re-judgement on the fresh seeds 7042–7081 before a trex stance is handed to
+  recovery or locomotion.
+- **Heading (new, open).** Both r8 stances read their absolute heading and fall when spawned 90° off it; the statue
+  stands at every heading. The trex observation carries heading in three world-frame channels: the pelvis quaternion,
+  the pelvis linear velocity and the prey vector. Whether a stance gate should test heading (spawn-yaw randomisation
+  with the prey placed relative to the spawn, or a heading-invariant observation: a yaw-free quaternion, a yaw-frame
+  linear velocity and a body-frame prey vector, each a policy-interface revision) is the maintainer's open question; a
+  report-only spawn-yaw probe measures it on every trex stance report. A locomotion or follow gate that commands
+  headings meets the same question.
+- **§5.4, trex locomotion, and GQ-17.** The trex `gait-r1` walk still waits for a certified r8 stance, now on the
+  D-D27 task; the order of the retrains stays the maintainer's.
+
+## 15. Amendment (2026-10-07): the compsognathus plant revision, its leg interface and its stance on the floor-truth gate
+
+*Appended 2026-10-07; §1–§14 above are unchanged.* The maintainer chose on 2026-10-07, answering the open questions of
 the compsognathus standing review, to land the anatomical compsognathus plant revision now (physics r1 → r2, policy
 interface r2 → r3, visual r1 → r2; `configs/plant_versions.toml` note 15): the tail's 178 g at one density (its r1 tip
 was denser than bone), the metatarsus collision capsule 4 mm short of the MTP joint (r1's 1.07 mm clearance ended
@@ -710,7 +755,7 @@ home (b = 0.1a + 0.9a³). The stance task is revised and the compsognathus stanc
 optional criteria the kind gains for this plant: decision D-D26 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
 §6.2 and the consolidation plan's table). The validation, the r2 statue clean on 40/40 on three seed blocks, a square-wave
 two-foot hop started after the settle on 0/410 and the two certified r1 marches (`20260921_203149`, `20261001_225856`) on 0/20
-each, is the dated §9 appended to
+each, is the dated §10 appended to
 [investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md). The robot is untouched,
 and so is its `gait-r1` (GQ-14).
 

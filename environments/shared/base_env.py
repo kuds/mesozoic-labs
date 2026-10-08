@@ -142,9 +142,10 @@ class BaseDinoEnv(gym.Env, ABC):
     # Every substep's per-foot force sum, (frame_skip, n_feet), beside the
     # MIN above and under the same tag.  The MIN is what the support terms
     # and the stance-duty gate read; the block is for terms that need the
-    # MEAN, the PEAK or the count of airborne substeps (the anatomical
-    # compsognathus stance's bilateral, floor-impact and airborne-substep
-    # terms), which no MIN can recover.
+    # MEAN, the PEAK or the count of airborne substeps (trex's floor-impact
+    # and airborne-substep terms since D-D27; the anatomical compsognathus
+    # stance's mean-load support terms and its own impact and airborne
+    # terms since D-D26), which no MIN can recover.
     _substep_foot_forces: "np.ndarray | None" = None
     _substep_floor_hit_geom: "int | None" = None
     _substep_contact_step: int = -1
@@ -1244,9 +1245,14 @@ class BaseDinoEnv(gym.Env, ABC):
         """Execute one environment step."""
         if self.action_filter_cutoff_hz > 0.0:
             # Both the dynamics and the action-derived reward terms below
-            # consume the filtered command: raw policy content above the
-            # cutoff never reaches the plant, so pricing it would penalise
-            # a signal with no physical consequence.
+            # consume the filtered command, on the reasoning that raw policy
+            # content above the cutoff never reaches the plant.  A
+            # first-order pole is not a wall, though: the trex 10 Hz filter
+            # passes 24-54% of 12.5-50 Hz content, enough for a +-1
+            # bang-bang command to hop the animal (the two physics-r8 trex
+            # stance runs), so TRexEnv can price the pre-filter command
+            # instead (its action_penalty_source, which reads the command
+            # its _filter_action override keeps).
             action = self._filter_action(action)
         if self._push_schedule_starts is not None:
             # Scheduled external push (stage recovery).  Written every

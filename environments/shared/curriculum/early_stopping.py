@@ -62,6 +62,18 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
     rather than reward, so unlike an absolute floor it survives a
     reward-function edit.
 
+    That premise is ``log_std_init = 0``. The trex stance recipe starts at
+    ``log_std_init = -1.5`` since decision D-D27 (std 0.22). The first
+    deterministic evaluation does not separate the starts -- it reads the
+    policy's near-zero initial mean, which is the statue, at std 0.22, 0.37
+    and 1.0 alike -- but in short study runs the dip after it was shallower
+    at 0.22 (7 of 12 deterministic episodes reached the horizon in the first
+    123k steps, against 2 of 12 at std 1.0). The warm-up still keeps
+    initialisation out of peak candidacy; past it a statue-level peak arms
+    the floor, and only a drop below ``drop_fraction`` of it on ``patience``
+    consecutive evaluations reads as a collapse. Not yet measured on a full
+    run at that start.
+
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.

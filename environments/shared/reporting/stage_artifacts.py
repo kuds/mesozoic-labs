@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json as _json
 import logging
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -32,6 +33,9 @@ _PROBE_EPISODES = 10
 #: a fall or a full horizon rather than a shift in a mean.
 _ABLATION_EPISODES = 8
 _IMPULSE_EPISODES = 8
+#: Episodes per row in the heading probe (``stance_probe_spawn_yaw_deg``): a
+#: fall or a full horizon again, over 1 + 2 x offsets rows, policy and statue.
+_HEADING_EPISODES = 8
 
 
 def build_stage_results_from_eval_data(
@@ -592,6 +596,17 @@ def _run_stance_probes(
                 settle_steps=int(report["settle_steps"]),
             ),
         ),
+        (
+            "heading",
+            lambda: _write_heading_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+            ),
+        ),
     )
     for label, run_probe in probe_calls:
         try:
@@ -932,6 +947,79 @@ def _write_impulse_probe(
         )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Impulse recovery probe failed for stage %s", stage, exc_info=True)
+
+
+def _write_heading_probe(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+) -> None:
+    """Re-roll the policy and the statue from spawns turned about vertical; write stance_heading_probe.{txt,json}.
+
+    Report only (decision D-D27).  The stance stage always spawns facing +x,
+    so nothing in the gate can see a stance that reads its world heading;
+    both physics-r8 trex stances fell when spawned 90 degrees off, where the
+    statue stands.  Each offset is rolled twice -- the animal turned alone,
+    and with the prey and the episode's reference direction (only the
+    world-frame observation then differs) -- plus the unturned control, for
+    the policy and the zero-action statue.
+
+    Off unless ``stance_probe_spawn_yaw_deg`` is set.  Costs 2 x (1 + 2 x
+    offsets) panels of ``_HEADING_EPISODES``.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    raw = curriculum.get("stance_probe_spawn_yaw_deg")
+    if not raw:
+        return
+    values = raw if isinstance(raw, (list, tuple)) else [raw]
+    offsets: list[float] = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            logger.warning("stance_probe_spawn_yaw_deg entry is not a number: %r; ignoring it", value)
+            continue
+        if math.isfinite(number) and number != 0.0:
+            offsets.append(number)
+    if not offsets:
+        return
+    try:
+        from environments.shared.reporting.stance_report import (
+            build_stance_gate_report,
+            spawn_yaw_variants,
+            write_heading_probe,
+        )
+
+        variants = spawn_yaw_variants(offsets)
+
+        def _sweep(zero_action: bool) -> list[dict[str, Any]]:
+            return [
+                build_stance_gate_report(
+                    species,
+                    stage,
+                    stage_config=stage_config,
+                    model_path=None if zero_action else model_path,
+                    vecnorm_path=None if zero_action else vecnorm_path,
+                    zero_action=zero_action,
+                    episodes=_HEADING_EPISODES,
+                    spawn_yaw=variant,
+                )
+                for variant in variants
+            ]
+
+        policy_sweep = _sweep(zero_action=False)
+        statue_sweep = _sweep(zero_action=True)
+        written = write_heading_probe(stage_dir, policy_sweep, statue_sweep, probe_episodes=_HEADING_EPISODES)
+        logger.info(
+            "Heading probe -> %s. MODIFIED start -- report only, not a gate verdict.",
+            written["heading_probe_txt"],
+        )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Heading probe failed for stage %s", stage, exc_info=True)
 
 
 #: What ``generate_stage_artifacts``' verdict records as ``judged_by``

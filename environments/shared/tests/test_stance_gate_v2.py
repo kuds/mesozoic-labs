@@ -130,6 +130,9 @@ class TestRegistration:
             "max_sole_tilt_excess_deg",
             "max_sole_corner_lift_m",
             "min_sole_contacts",
+            "max_episode_yaw_change_deg",
+            "max_settle_touchdowns",
+            "max_hop_or_fall_episodes",
             "max_window_airborne_substeps",
             "max_window_peak_floor_force_bw",
             "required_consecutive",
@@ -305,6 +308,8 @@ class TestClassification:
             ("min_support_geom_duty", "min_support_geom_duty", 0.0),
             ("min_support_geom_coverage", "min_support_geom_coverage", 0.4),
             ("max_sole_tilt_excess_deg", "max_sole_tilt_excess_deg", 12.0),
+            ("max_episode_yaw_change_deg", "episode_yaw_change_deg", 42.7),
+            ("max_settle_touchdowns", "settle_touchdowns", 3.0),
             ("max_window_airborne_substeps", "window_airborne_substeps", 472.0),
             ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", 3.99),
         ],
@@ -313,7 +318,8 @@ class TestClassification:
         bar = {"min_foot_load_share_windowed": 0.3, "max_phantom_support_fraction": 0.05,
                "max_nonfoot_load_fraction": 0.01, "max_settle_stance_width_change_m": 0.04,
                "min_support_geom_duty": 0.9, "min_support_geom_coverage": 0.9,
-               "max_sole_tilt_excess_deg": 10.0, "max_window_airborne_substeps": 30,
+               "max_sole_tilt_excess_deg": 10.0, "max_episode_yaw_change_deg": 25.0,
+               "max_settle_touchdowns": 2, "max_window_airborne_substeps": 30,
                "max_window_peak_floor_force_bw": 3.0}[key]  # fmt: skip
         declared = thresholds(**{key: bar})
         assert classify_stance_episode(clean, declared, horizon=HORIZON) == ()
@@ -459,6 +465,69 @@ class TestPanel:
             short, thresholds(min_full_horizon_fraction=0.95, min_clean_stance_lcb=0.5), horizon=HORIZON
         )
         assert not fraction.passed and any("full_horizon_fraction 0.9000 < 0.9500" in f for f in fraction.failures)
+
+    def test_the_hop_or_fall_rail_counts_only_early_ends_and_the_hop_or_fall_criteria(self, clean):
+        """One hop or fall episode passes the rail at a bar of 1, a second refuses; a pad miss never counts."""
+        declared = thresholds(max_hop_or_fall_episodes=1, min_clean_stance_lcb=0.5)
+        hop = replace(clean, all_feet_support=0.6, window_displacement_m=1.3)
+        fall = replace(clean, length=370)
+        pad = replace(clean, max_sole_corner_lift_m=0.05)
+        settle = replace(clean, settle_peak_floor_force_bw=2.0)
+        assert stance_gate_v2.is_hop_or_fall(classify_stance_episode(hop, declared, horizon=HORIZON))
+        assert stance_gate_v2.is_hop_or_fall(classify_stance_episode(fall, declared, horizon=HORIZON))
+        assert not stance_gate_v2.is_hop_or_fall(classify_stance_episode(pad, declared, horizon=HORIZON))
+        assert not stance_gate_v2.is_hop_or_fall(classify_stance_episode(settle, declared, horizon=HORIZON))
+        for defect in (
+            "all_feet_support",
+            "touchdown_rate",
+            "window_displacement_m",
+            "max_actuator_saturation_fraction",
+        ):
+            bad = {"all_feet_support": 0.5}.get(defect, 1.0)
+            reasons = classify_stance_episode(replace(clean, **{defect: bad}), declared, horizon=HORIZON)
+            assert stance_gate_v2.is_hop_or_fall(reasons), defect
+
+        one = evaluate_stance_v2_gate([clean] * 36 + [hop, pad, pad, settle], declared, horizon=HORIZON)
+        assert one.passed and one.hop_or_fall_episodes == 1
+        assert one.as_dict()["hop_or_fall_episodes"] == 1
+        two = evaluate_stance_v2_gate([clean] * 37 + [hop, fall, pad], declared, horizon=HORIZON)
+        assert not two.passed and two.hop_or_fall_episodes == 2
+        assert [f for f in two.failures if f.startswith("hop_or_fall_episodes 2 > 1")]
+        # The bound alone (37/40 clean, LCB 0.817) admits the same panel at the trex bar.
+        assert evaluate_stance_v2_gate([clean] * 37 + [hop, fall, pad], thresholds(), horizon=HORIZON).passed
+
+    def test_the_window_hop_pair_counts_toward_the_hop_or_fall_rail_where_declared(self, clean):
+        """A window-pair failure is a hop (D-D26): a gate declaring the pair and the rail counts it."""
+        declared = thresholds(
+            max_hop_or_fall_episodes=0, max_window_airborne_substeps=40, max_window_peak_floor_force_bw=2.0
+        )
+        assert evaluate_stance_v2_gate([clean] * 40, declared, horizon=HORIZON).passed
+        for field_name, value in (("window_airborne_substeps", 41.0), ("window_peak_floor_force_bw", 2.2)):
+            reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
+            assert stance_gate_v2.is_hop_or_fall(reasons), field_name
+        assert set(stance_gate_v2.HOP_OR_FALL_KEYS) <= {key for key, _, _ in stance_gate_v2.EPISODE_CRITERIA}
+
+    def test_a_rail_of_zero_refuses_a_single_hop(self, clean):
+        """0 is the zero-tolerance bar (the statue's 1-in-120 rate fails it on 28% of panels): valid, and strict."""
+        zero = thresholds(max_hop_or_fall_episodes=0)
+        assert zero.max_hop_or_fall_episodes == 0
+        assert evaluate_stance_v2_gate([clean] * 40, zero, horizon=HORIZON).passed
+        hop = replace(clean, all_feet_support=0.6, window_displacement_m=1.3)
+        result = evaluate_stance_v2_gate([clean] * 39 + [hop], zero, horizon=HORIZON)
+        # 39/40 clears the 0.80 bound (0.887); the rail alone refuses.
+        assert result.clean_lcb >= 0.80
+        assert not result.passed and len(result.failures) == 1
+        assert result.failures[0].startswith("hop_or_fall_episodes 1 > 0")
+
+    def test_an_undeclared_rail_leaves_the_result_as_it_was(self, clean):
+        result = evaluate_stance_v2_gate([clean] * 40, thresholds(), horizon=HORIZON)
+        assert result.hop_or_fall_episodes is None
+        assert "hop_or_fall_episodes" not in result.as_dict()
+
+    @pytest.mark.parametrize("value", [-1, 1.5, True, "1"], ids=repr)
+    def test_the_rail_is_a_whole_number_of_episodes(self, value):
+        with pytest.raises(ValueError, match="max_hop_or_fall_episodes"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, "max_hop_or_fall_episodes": value})
 
     def test_the_statue_relative_reward_rail(self, clean):
         rows = [clean] * 40

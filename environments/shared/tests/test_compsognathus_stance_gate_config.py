@@ -242,7 +242,7 @@ JITTERED_STATUE_LANDING: dict[str, dict[str, float]] = {
     "highest_peak": {"window_airborne_substeps": 9.0, "window_peak_floor_force_bw": 2.2655},
 }
 
-#: Two scripted stances from step 200 that the block certifies on the landed plant (KNOWN_ISSUES; the audit's §9
+#: Two scripted stances from step 200 that the block certifies on the landed plant (KNOWN_ISSUES; the audit's §10
 #: hack table), each the least favourable episode of its 40-episode report panel (seeds 3042-3081): the post-settle
 #: hop's pattern driven by a 5 Hz sine (a = 0.09; seed 3053, its most airborne window: 32 substeps with both feet off
 #: the floor, landing at 1.80 BW), and the right leg alone pumped at 6.25 Hz (a = 0.07; seed 3073, its least-covered

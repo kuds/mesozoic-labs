@@ -414,11 +414,13 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
         # Stance-quality terms.  Every default is inert: zero weights (and
         # alive fraction) reproduce CompsognathusEnv's reward bit for bit.
         # The weights, tolerances and saturation force are named as on
-        # TRexEnv; support_force_aggregation, the stance-width reference,
-        # the per-foot load gate (foot_terms_min_support_force), the
-        # support-geom coverage and the floor-impact and airborne terms are
-        # this species' own (D-D26).  Tolerances default to the stance
-        # task's calibrated values.
+        # TRexEnv, and so, since D-D27, are the stance-width reference, the
+        # per-foot load gate (foot_terms_min_support_force) and the
+        # floor-impact and airborne terms, in this species' own forms (the
+        # gate reads support_force_aggregation's load; the impact is capped);
+        # support_force_aggregation and the support-geom coverage are this
+        # species' own (D-D26).  Tolerances default to the stance task's
+        # calibrated values.
         bilateral_support_weight: float = 0.0,
         foot_contact_saturation_force: float = 4.4,
         support_force_aggregation: str = "min",

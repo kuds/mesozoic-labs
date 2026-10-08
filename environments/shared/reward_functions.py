@@ -445,6 +445,7 @@ def reward_sole_flatness(
     sole_tilts_deg: Array,
     tolerance_deg: float,
     weight: float,
+    foot_weights: Array | None = None,
 ) -> tuple[Array, Array]:
     """Reward feet that stand flat on their soles.
 
@@ -454,12 +455,21 @@ def reward_sole_flatness(
     signals cannot see this: a sole balanced on one corner transmits the same
     normal force as a flat one.
 
+    ``foot_weights`` (one per foot, in ``[0, 1]``) scales each foot's share
+    before the mean, which still divides by the number of feet: a foot at
+    weight 0 forfeits exactly its own share.  A caller gates the term on load
+    with it, so a lifted foot -- level in the air -- earns nothing.  ``None``
+    is the ungated expression, unchanged.
+
     Returns:
         ``(reward, flatness_quality)`` with quality in ``[0, 1]``.
     """
     xp = _array_mod(sole_tilts_deg)
     safe_tolerance = xp.maximum(tolerance_deg, 1e-8)
-    flatness_quality = xp.mean(xp.exp(-xp.square(sole_tilts_deg / safe_tolerance)))
+    per_foot = xp.exp(-xp.square(sole_tilts_deg / safe_tolerance))
+    if foot_weights is not None:
+        per_foot = per_foot * foot_weights
+    flatness_quality = xp.mean(per_foot)
     return weight * flatness_quality, flatness_quality
 
 

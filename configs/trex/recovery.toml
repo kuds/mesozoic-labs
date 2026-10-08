@@ -5,10 +5,12 @@
 #
 # DERIVATION BY REFERENCE: [stage], [env] and [ppo] extend stance.toml's
 # through the `extends` key below (environments/shared/config.py), so
-# every inherited value's derivation record lives THERE. [env] adds exactly
-# one delta: the five perturbation_* keys, at the adopted §3.3 values. On
+# every inherited value's derivation record lives THERE. [env] adds one
+# task delta: the five perturbation_* keys, at the adopted §3.3 values. On
 # the r7 and r8 plants the multiple derives to 165.5 N over 0.20 s (capture-point
-# argument; pinned in test_perturbation.py). The same reward,
+# argument; pinned in test_perturbation.py). Since D-D27 it also moves one
+# reward setting, stance_width_settle_steps, ahead of the first push (its
+# note below). The same reward,
 # observations, and terminations are deliberate: the push changes the
 # task, not the interface, and the recovery gate (W4) measures per-shove
 # recovery rather than reward. A stance [env] or [ppo] edit therefore
@@ -63,11 +65,28 @@ description = "Hold the stance against scheduled external pushes and recover fro
 # return; against the 1.0 alive bonus and the -100 fall that cannot make
 # falling pay. That it costs only until the stance is restored is reasoned,
 # not measured: no r8 recovery policy exists yet.
+#
+# The stance follow-up's terms (D-D27: stance_width_reference "settled",
+# foot_terms_min_support_force, floor_impact_*, airborne_substep_weight,
+# action_penalty_source "raw") are inherited the same way, with the one
+# override below. The impact term charges a landing over 1.4 BW and the
+# airborne term two-foot flight, not single support, so a recovery STEP is
+# priced only if it stamps; what a stepping recovery policy's landings cost
+# is unmeasured (the pushed statue never steps, never passes 1.35 BW and is
+# never airborne, and no r8 recovery policy exists).
 foot_contact_gate = 0.0
 foot_contact_weight = 0.0
 foot_contact_saturation_force = 350.0
+stance_width_settle_steps = 140                # Overrides stance's 200 (D-D27): the settled width is captured before
+                                               # the first push, which lands at 200 +- 50 steps (push_schedule:
+                                               # interval 200, jitter 50), so a capture at 200 would fall inside a
+                                               # shove on about half the episodes. 140 follows the statue's settle
+                                               # (floor force within 5% BW of its weight from step 47 at most); the
+                                               # unpushed statue earns 82.5 +/- 3.7 of the 86 the term can pay from
+                                               # step 141 (the stance task with this capture, 3042-3081; the pushed
+                                               # statue falls at step 431 on average, below).
 
-# The one delta vs stance: the declared disturbance (adopted §3.3 values).
+# The task delta vs stance: the declared disturbance (adopted §3.3 values).
 perturbation_capture_velocity_multiple = 1.5
 perturbation_interval = 2.0
 perturbation_jitter = 0.5
@@ -204,7 +223,7 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # no rail has been derived for the pushed task and inventing one would gate on
 # an unmeasured number. The failure mode a rail catches — a policy that threw
 # away most of the available return — is already covered here by the collapse
-# backstop below, which is anchored to the pushed statue (974.7). The frozen
+# backstop below, which is anchored to the pushed statue (1329.1). The frozen
 # capability spec records no rail either, so a declared one could only ever be
 # an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
 
@@ -240,11 +259,22 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # post-warmup minimum (1910.45, an r7 run under the r7 task) would clear it
 # 3.2x, so the backstop still arms early and sits far below a warm-started
 # policy, but no r8 recovery run exists yet to confirm that.
-collapse_peak_floor_reference = 1337.5  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081, physics r8 (above). 974.7 on r7 (first-runs record
+#
+# Re-measured for the stance follow-up (D-D27) by the same judge, 40
+# episodes, seeds 3042-3081, with stance_width_settle_steps = 140 above:
+# 1329.1 ± 507.3, mean length 431.4 (unchanged: the reward moves no
+# trajectory), 0/40 full horizon. The same harness reproduces 1337.5 ±
+# 506.8 exactly on the r8 task. The -8.4 is the settled width reference
+# (-8.15: it pays from step 141) and the load gate (-0.27); the pushed
+# statue commands zero and its per-step peak never passes 1.35 BW, so the
+# action, impact and airborne terms charge it 0. Inherited at stance's 200
+# it would be 1323.4. Floor = 0.45 x 1329.1 = 598.1.
+collapse_peak_floor_reference = 1329.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081, physics r8 with the D-D27 stance terms (above).
+                                        # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 8   # The trex PHYSICS revision the 1337.5 reference was measured on
+statue_constants_physics_revision = 8   # The trex PHYSICS revision the 1329.1 reference was measured on
                                         # (the r8 panel above). The 974.7 it replaced was r7's: the 2026-08-23
                                         # panel, review §5.1 — the same r7 plant as the frozen first-runs
                                         # panels; the perturbation engine, plant_versions note 11, bumped only

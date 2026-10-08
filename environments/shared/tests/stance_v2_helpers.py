@@ -196,6 +196,7 @@ def v2_report(
         "filter_actions_hz": None,
         "hold_constant": None,
         "impulse": None,
+        "spawn_yaw": None,
         "action": {},
         "terminations": {"truncated": n},
         "reward_components": {},

@@ -38,8 +38,24 @@ The panel **passes** when:
   ``task_success/v1`` certify with) of ``k`` clean of ``n`` clears
   ``min_clean_stance_lcb``;
 * the declared panel rails hold: the absolute ``min_avg_reward``, the
-  statue-relative ``min_avg_reward_statue_ratio`` and the optional
-  ``min_full_horizon_fraction``.
+  statue-relative ``min_avg_reward_statue_ratio``, the optional
+  ``min_full_horizon_fraction`` and the optional
+  ``max_hop_or_fall_episodes`` (below).
+
+The hop-or-fall rail
+--------------------
+The bound admits a panel with a few unclean episodes whatever they failed:
+at 37/40 it cannot tell three pad near-misses from three whole-episode hops
+or falls.  ``max_hop_or_fall_episodes`` caps the episodes that end before
+the horizon or fail one of :data:`HOP_OR_FALL_KEYS` -- the criteria a hop, a
+chatter limit cycle or a fall fails (support, touchdowns, drift, command
+saturation, and the window hop pair below where declared) -- and leaves the
+pad, load-share and settle bars to the bound,
+as D-D23 sized them.  It counts from the classification reasons, which a
+recorded panel CSV re-derives, so the judge, publication and backfill need
+no new input.  Declared by trex since D-D27, where the seed-44 physics-r8
+stance kept a whole-episode hop mode on about 4% of its resets inside a
+37/40 bound.
 
 Sizing at the 40-episode panel (seeds 3042-3081): 40/40 bounds at 0.928,
 39 at 0.887, 38 at 0.851, 37 at 0.817, 36 at 0.786, 35 at 0.755 -- so a bar
@@ -156,6 +172,8 @@ EPISODE_CRITERIA: tuple[tuple[str, str, str], ...] = (
     ("max_sole_tilt_excess_deg", "max_sole_tilt_excess_deg", "max"),
     ("max_sole_corner_lift_m", "max_sole_corner_lift_m", "max"),
     ("min_sole_contacts", "min_sole_contacts", "min"),
+    ("max_episode_yaw_change_deg", "episode_yaw_change_deg", "max"),
+    ("max_settle_touchdowns", "settle_touchdowns", "max"),
     ("max_window_airborne_substeps", "window_airborne_substeps", "max"),
     ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", "max"),
 )
@@ -170,6 +188,26 @@ WINDOW_HOP_KEY_FLOORS: tuple[tuple[str, float, str], ...] = (
         1.0,
         "a supported window's floor force averages one body weight, so no substep peak sits below it",
     ),
+)
+
+
+#: The criteria whose failure, with an early end (:data:`HORIZON_REASON`),
+#: marks an episode as a hop or a fall for the ``max_hop_or_fall_episodes``
+#: panel rail: every leg down, debounced touchdowns, root drift and command
+#: saturation over the window, and the window hop pair where a gate declares
+#: it (D-D26: on a plant whose hop flights are shorter than half a control
+#: step, the pair is what reads a hop over the window, so it counts as one).
+#: A whole-episode hop fails several of them at once (the seed-44 physics-r8
+#: trex hop episodes fail support and displacement); the pad, load-share,
+#: phantom, yaw and settle bars are not in it, so the rail does not tighten
+#: them.
+HOP_OR_FALL_KEYS: tuple[str, ...] = (
+    "min_all_feet_support",
+    "max_touchdown_rate",
+    "max_window_displacement_m",
+    "max_actuator_saturation_fraction",
+    "max_window_airborne_substeps",
+    "max_window_peak_floor_force_bw",
 )
 
 #: The keys judged against the statue panel rolled in the same report.
@@ -214,7 +252,7 @@ STANCE_V2_THRESHOLD_KEYS: frozenset[str] = frozenset(
     STANCE_V2_REQUIRED_KEYS
     | {key for key, _, _ in EPISODE_CRITERIA}
     | set(STATUE_RELATIVE_KEYS)
-    | {"min_full_horizon_fraction", "min_avg_reward", "required_consecutive"}
+    | {"min_full_horizon_fraction", "min_avg_reward", "max_hop_or_fall_episodes", "required_consecutive"}
 )
 
 #: The criteria an episode is scored on beyond the horizon, in report order:
@@ -297,6 +335,9 @@ class StanceV2Thresholds:
     max_sole_tilt_excess_deg: float | None = None
     max_sole_corner_lift_m: float | None = None
     min_sole_contacts: float | None = None
+    max_episode_yaw_change_deg: float | None = None
+    max_settle_touchdowns: float | None = None
+    max_hop_or_fall_episodes: int | None = None
     max_window_airborne_substeps: float | None = None
     max_window_peak_floor_force_bw: float | None = None
     required_consecutive: int = 3
@@ -332,6 +373,10 @@ class StanceV2Thresholds:
         if "required_consecutive" in values:
             values["required_consecutive"] = _whole_number(
                 values["required_consecutive"], key="required_consecutive", minimum=1
+            )
+        if "max_hop_or_fall_episodes" in values:
+            values["max_hop_or_fall_episodes"] = _whole_number(
+                values["max_hop_or_fall_episodes"], key="max_hop_or_fall_episodes", minimum=0
             )
         for key, floor, why in WINDOW_HOP_KEY_FLOORS:
             if key in values and values[key] < floor:
@@ -539,6 +584,11 @@ def reason_key(reason: str) -> str:
     return reason.split(":", 1)[0]
 
 
+def is_hop_or_fall(reasons: Iterable[str]) -> bool:
+    """Whether an episode's reasons mark a hop or a fall: an early end or a :data:`HOP_OR_FALL_KEYS` failure."""
+    return any(reason_key(reason) in {HORIZON_REASON, *HOP_OR_FALL_KEYS} for reason in reasons)
+
+
 @dataclass(frozen=True)
 class StanceV2Result:
     """One panel's verdict and the numbers it was reached on.
@@ -565,10 +615,16 @@ class StanceV2Result:
     episode_reasons: tuple[tuple[str, ...], ...] = field(default=())
     criterion_failures: tuple[tuple[str, int], ...] = field(default=())
     skipped_criteria: tuple[str, ...] = field(default=())
+    hop_or_fall_episodes: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        """The panel-level numbers, JSON-ready (the per-episode reasons travel with the episode rows)."""
-        return {
+        """The panel-level numbers, JSON-ready (the per-episode reasons travel with the episode rows).
+
+        ``hop_or_fall_episodes`` appears only when the gate declares
+        ``max_hop_or_fall_episodes``, so a panel judged without the rail
+        serialises exactly as it did before the rail existed.
+        """
+        payload: dict[str, Any] = {
             "passed": self.passed,
             "failures": list(self.failures),
             "n_episodes": self.n_episodes,
@@ -582,6 +638,9 @@ class StanceV2Result:
             "criterion_failures": dict(self.criterion_failures),
             "skipped_criteria": list(self.skipped_criteria),
         }
+        if self.hop_or_fall_episodes is not None:
+            payload["hop_or_fall_episodes"] = self.hop_or_fall_episodes
+        return payload
 
 
 def evaluate_stance_v2_gate(
@@ -656,6 +715,15 @@ def evaluate_stance_v2_gate(
     ):
         failures.append(f"full_horizon_fraction {full_fraction:.4f} < {thresholds.min_full_horizon_fraction:.4f}")
 
+    hop_or_fall: int | None = None
+    if thresholds.max_hop_or_fall_episodes is not None:
+        hop_or_fall = sum(1 for episode_reasons in reasons if is_hop_or_fall(episode_reasons))
+        if hop_or_fall > thresholds.max_hop_or_fall_episodes:
+            failures.append(
+                f"hop_or_fall_episodes {hop_or_fall} > {thresholds.max_hop_or_fall_episodes} (episodes ending early "
+                f"or failing {', '.join(HOP_OR_FALL_KEYS)}; panel rail)"
+            )
+
     mean_reward = _mean([row.reward for row in rows])
     if thresholds.min_avg_reward is not None and not (
         math.isfinite(mean_reward) and mean_reward >= thresholds.min_avg_reward
@@ -701,6 +769,7 @@ def evaluate_stance_v2_gate(
         episode_reasons=reasons,
         criterion_failures=tuple(tally.items()),
         skipped_criteria=skipped,
+        hop_or_fall_episodes=hop_or_fall,
     )
 
 
