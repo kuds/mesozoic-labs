@@ -32,7 +32,14 @@ recorder is the real recorder, and the verdict is the real gate:
   flag the rows contradict;
 * a probe on a v2 stage keeps the v1-shaped report with no recorder, no
   statue panel and no CSV, and the recorder is detached even when the
-  rollout raises.
+  rollout raises;
+* on the T. rex, whose stance block declares the pad centre-of-pressure
+  bar, a pad pushed onto its front edge, flat by every other pad bar, fails
+  that bar while the statue rolled in the same report reads under it, and
+  the judge re-derives the FAIL; a report or panel CSV recorded before that
+  metric existed keeps its verdict under a block that does not declare it
+  and is refused, never failed, under one that does (D-D28): by name at
+  publication, and at the judge on its recorded thresholds, then by name.
 """
 
 from __future__ import annotations
@@ -92,18 +99,18 @@ def _stage_config(**curriculum: Any) -> dict[str, Any]:
     return config
 
 
-def _record_stage(stage_dir: Path, config: dict[str, Any] | None = None) -> str:
+def _record_stage(stage_dir: Path, config: dict[str, Any] | None = None, *, species: str = SPECIES) -> str:
     """Write the ``stage_config.json`` / ``task_fingerprint.json`` training writes for *config*; its task digest."""
     config = _stage_config() if config is None else config
-    identity = current_plant_identity(SPECIES)
-    fingerprint = stage_task_fingerprint(SPECIES, 1, stage_config=config, plant_identity=identity)
+    identity = current_plant_identity(species)
+    fingerprint = stage_task_fingerprint(species, 1, stage_config=config, plant_identity=identity)
     save_stage_config(
         stage_dir,
         1,
         config,
         "PPO",
-        env_class=stance_report.SPECIES_FACTORIES[SPECIES]().env_class,
-        species=SPECIES,
+        env_class=stance_report.SPECIES_FACTORIES[species]().env_class,
+        species=species,
         plant_identity=identity,
         task_fingerprint=fingerprint,
     )
@@ -131,12 +138,15 @@ def _scripted(command: np.ndarray, *, raise_at: int | None = None) -> Any:
     return predict
 
 
-def _report(monkeypatch: Any, stage_dir: Path, command: np.ndarray, **kwargs: Any) -> dict[str, Any]:
-    """Score *command* as the checkpoint in *stage_dir*'s handoff pair."""
+def _report(
+    monkeypatch: Any, stage_dir: Path, command: Any, *, species: str = SPECIES, **kwargs: Any
+) -> dict[str, Any]:
+    """Score *command* (an action, or a ``predict`` callable) as the checkpoint in *stage_dir*'s handoff pair."""
     model, vecnorm = _handoff(stage_dir)
-    monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (_scripted(command), "scripted command"))
+    predict = command if callable(command) else _scripted(command)
+    monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (predict, "scripted command"))
     return stance_report.build_stance_gate_report(
-        SPECIES,
+        species,
         1,
         stage_config=kwargs.pop("stage_config", _stage_config()),
         model_path=str(model),
@@ -225,8 +235,12 @@ def _rehashed(edit: Any) -> Any:
 
 class TestThePanel:
     def test_the_statue_classifies_clean_on_every_episode_and_passes(self, statue):
-        _, report = statue
+        stage_dir, report = statue
         assert report["passed"] is True and report["failures"] == []
+        # Its pads are boxes, so their fore-aft centre of pressure is measured, and the text report lists it
+        # as a report-only reading under a block that does not gate it.
+        assert all(0.0 < row["max_sole_cop_fore_aft"] < 1.0 for row in report["episode_evidence"])
+        assert "pad CoP fore-aft (|.| / half-length)" in (stage_dir / "stance_gate_report.txt").read_text()
         assert report["result"]["n_clean"] == EPISODES == report["result"]["n_episodes"]
         assert [row["clean"] for row in report["episode_evidence"]] == [True] * EPISODES
         assert [row["seed"] for row in report["episode_evidence"]] == [3042, 3043, 3044]
@@ -354,7 +368,7 @@ class TestThePanel:
         passed, reasons = _judge(tmp_path, _written(tmp_path), **window)
         assert passed is False and reasons
         # Undeclared, the pair is no criterion: the same episodes fail only what the rest of the block reads.
-        assert all(not set(window) & _keys(row) for row in _reclassified(report, CURRICULUM))
+        assert all(not set(window) & _keys(row) for row in _reclassified(report, CURRICULUM, horizon=HORIZON))
         # The zero-action statue scored as the checkpoint under the same block passes, and the judge certifies it.
         statue_dir = tmp_path / "statue"
         _record_stage(statue_dir, config)
@@ -368,7 +382,7 @@ class TestThePanel:
         assert _judge(statue_dir, _written(statue_dir), **window) == (True, [])
 
 
-def _reclassified(report: dict[str, Any], curriculum: dict[str, Any]) -> list[dict[str, Any]]:
+def _reclassified(report: dict[str, Any], curriculum: dict[str, Any], *, horizon: int) -> list[dict[str, Any]]:
     """*report*'s episode rows with their reasons re-derived under *curriculum*."""
     from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds, classify_stance_episode
 
@@ -376,8 +390,96 @@ def _reclassified(report: dict[str, Any], curriculum: dict[str, Any]) -> list[di
     rows = []
     for row in report["episode_evidence"]:
         episode = StanceEpisodeMetrics.from_row(row)
-        rows.append({**row, "reasons": list(classify_stance_episode(episode, thresholds, horizon=HORIZON))})
+        rows.append({**row, "reasons": list(classify_stance_episode(episode, thresholds, horizon=horizon))})
     return rows
+
+
+def _without_later_metrics(report: dict[str, Any]) -> dict[str, Any]:
+    """*report* as a panel rolled before the later metrics existed recorded it: their keys absent from every row."""
+    from environments.shared.gait.stance_metrics import STANCE_METRIC_LATER_FIELDS
+
+    earlier = copy.deepcopy(report)
+    for rows in (earlier["episode_evidence"], (earlier.get("statue") or {}).get("episode_evidence") or []):
+        for row in rows:
+            for name in STANCE_METRIC_LATER_FIELDS:
+                row.pop(name, None)
+    return earlier
+
+
+# ── the pad's centre of pressure, on the T. rex (D-D28) ──────────────────────
+
+#: The species whose stance block declares ``max_sole_cop_fore_aft`` (0.80, calibrated on its statue).
+TREX = "trex"
+TREX_HORIZON = 400
+
+
+def _trex_stage_config() -> dict[str, Any]:
+    """The T. rex stance block on a 3-episode panel at a 400-step horizon: every bar it declares but the reward
+    floor, which is set for its 1000 steps."""
+    config = copy.deepcopy(load_stage_config(TREX, 1))
+    config["env_kwargs"]["max_episode_steps"] = TREX_HORIZON
+    block = {key: value for key, value in config["curriculum_kwargs"].items() if key != "min_avg_reward"}
+    config["curriculum_kwargs"] = {**block, "min_eval_episodes": EPISODES, "min_clean_stance_lcb": 0.3}
+    return config
+
+
+def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
+    """*command* reached linearly over the first *steps* control steps of every *horizon*-step episode."""
+    calls = {"n": 0}
+
+    def predict(_obs: np.ndarray) -> np.ndarray:
+        step = calls["n"] % horizon
+        calls["n"] += 1
+        return command * min(1.0, (step + 1) / steps)
+
+    return predict
+
+
+class TestThePadCentreOfPressure:
+    def test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it(
+        self, tmp_path, monkeypatch
+    ):
+        """Real physics on the plant the bar was calibrated on.
+
+        The left ankle, ramped to -0.075 over the first 300 steps, leans the
+        animal onto its right pad's front edge: that pad pitches under a degree
+        toe-down, as the r8 seed-44 left foot does, and stays inside the
+        block's tilt, corner-lift and contact bars, so the centre-of-pressure
+        bar is the one that refuses it; without it every episode is clean.
+        The statue the same report rolls reads under the bar, whatever this
+        plant's own baseline is.
+        """
+        config = _trex_stage_config()
+        curriculum = config["curriculum_kwargs"]
+        assert curriculum["max_sole_cop_fore_aft"] == 0.80
+        _record_stage(tmp_path, config, species=TREX)
+        env = stance_report.SPECIES_FACTORIES[TREX]().env_class(**config["env_kwargs"])
+        try:
+            command = np.zeros(int(env.action_space.shape[0]))
+            command[env.model.actuator("l_ankle_act").id] = -0.075
+        finally:
+            env.close()
+        predict = _ramped(command, steps=300, horizon=TREX_HORIZON)
+        report = _report(monkeypatch, tmp_path, predict, species=TREX, stage_config=config)
+        assert report["passed"] is False and report["result"]["n_clean"] == 0
+        for row in report["episode_evidence"]:
+            assert row["length"] == TREX_HORIZON and row["all_feet_support"] == 1.0
+            assert row["max_sole_cop_fore_aft"] > 0.85
+            assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
+        statue_rows = report["statue"]["episode_evidence"]
+        assert all(row["max_sole_cop_fore_aft"] < curriculum["max_sole_cop_fore_aft"] for row in statue_rows)
+        statue = _reclassified({"episode_evidence": statue_rows}, curriculum, horizon=TREX_HORIZON)
+        assert all(row["reasons"] == [] for row in statue)
+        stance_report.write_stance_gate_report(tmp_path, report)
+        text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
+        assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
+        # The judge re-derives the FAIL from the rows: the bound fails, nothing is refused.
+        passed, reasons = evaluate_stage_gate(
+            curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
+        )
+        assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
+        without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+        assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TREX_HORIZON))
 
 
 # ── the judge ─────────────────────────────────────────────────────────────────
@@ -543,6 +645,40 @@ class TestTheJudge:
         passed, failures = _judge(stage_dir, no_statue)
         assert passed is False and any("rolled no statue panel" in f for f in failures)
 
+    def test_a_report_rolled_before_the_pad_cop_existed(self, statue):
+        """Re-derived bit for bit under a block that does not declare it; refused under one that does, on its
+        recorded thresholds and, with those restated, by name."""
+        stage_dir, _ = statue
+        earlier = _without_later_metrics(_written(stage_dir))
+        assert "max_sole_cop_fore_aft" not in earlier["episode_evidence"][0]
+        assert _judge(stage_dir, earlier) == _judge(stage_dir, _written(stage_dir)) == (True, [])
+        # Under the declaring block, the thresholds it records already differ...
+        passed, failures = _judge(stage_dir, earlier, max_sole_cop_fore_aft=0.8)
+        assert passed is False and any("max_sole_cop_fore_aft: judged at None" in f for f in failures), failures
+        # ...and with them restated, its rows still say it was never measured: a refusal naming the criterion,
+        # not three episodes failed as unmeasured.
+        declaring = {**CURRICULUM, "max_sole_cop_fore_aft": 0.8}
+        earlier["thresholds"] = gate_config_view(declaring)["thresholds"]
+        passed, failures = _judge(stage_dir, earlier, max_sole_cop_fore_aft=0.8)
+        assert passed is False and len(failures) == 1
+        assert "record no metric for the declared max_sole_cop_fore_aft" in failures[0]
+        assert "re-roll the panel" in failures[0] and "unmeasured" not in failures[0]
+
+    @pytest.mark.parametrize("lacking", ["every policy row", "one policy row"])
+    def test_policy_rows_without_the_pad_cop_are_refused_by_name_whatever_else_carries_it(self, statue, lacking):
+        """The policy's own rows decide: a statue panel that carries the metric, or the other policy rows, do
+        not make a row that lacks it measured."""
+        stage_dir, _ = statue
+        report = _written(stage_dir)
+        rows = report["episode_evidence"] if lacking == "every policy row" else report["episode_evidence"][1:2]
+        for row in rows:
+            del row["max_sole_cop_fore_aft"]
+        assert all("max_sole_cop_fore_aft" in row for row in report["statue"]["episode_evidence"])
+        report["thresholds"] = gate_config_view({**CURRICULUM, "max_sole_cop_fore_aft": 0.8})["thresholds"]
+        passed, failures = _judge(stage_dir, report, max_sole_cop_fore_aft=0.8)
+        assert passed is False and len(failures) == 1, failures
+        assert "record no metric for the declared max_sole_cop_fore_aft" in failures[0]
+
     def test_a_failing_report_fails_with_its_re_derived_reasons(self, tmp_path, monkeypatch, nu):
         command = np.zeros(nu)
         command[0] = 1.0
@@ -620,6 +756,27 @@ class TestPublication:
         path.write_text(text, encoding="utf-8")
         with pytest.raises(ResultBundleError, match="measured under 'floor-truth/v0'"):
             self._validate(other)
+
+    def test_a_panel_written_before_the_pad_cop_existed(self, statue, tmp_path):
+        """It publishes under a block that does not declare the key, and is refused by name under one that does."""
+        stage_dir, _ = statue
+        # The panel measured today clears the bar: the statue's pads read under it.
+        self._validate(stage_dir, max_sole_cop_fore_aft=0.8)
+        other = tmp_path / "other"
+        shutil.copytree(stage_dir, other)
+        path = other / "stance_panel_selected.csv"
+        with path.open(newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            columns = [column for column in reader.fieldnames or [] if column != "max_sole_cop_fore_aft"]
+            rows = list(reader)
+        with path.open("w", newline="", encoding="utf-8") as destination:
+            writer = csv.DictWriter(destination, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        self._validate(other)
+        with pytest.raises(ResultBundleError, match="has no column for the declared max_sole_cop_fore_aft") as caught:
+            self._validate(other, max_sole_cop_fore_aft=0.8)
+        assert "re-roll the panel" in str(caught.value) and "re-derives clean" not in str(caught.value)
 
     @pytest.mark.parametrize(
         ("column", "message"),

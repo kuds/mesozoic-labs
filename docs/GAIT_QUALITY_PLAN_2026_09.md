@@ -21,7 +21,7 @@ of this plan) and its SB3-only exit land with a revised stance task and the velo
 amendment).*
 *Updated 2026-10-07: and D-D26: the anatomical compsognathus plant revision (physics r2) with a soft-cubic leg
 interface lands with a revised stance task and the compsognathus stance on `stance_quality/v2`, which gains two
-optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§15, the dated
+optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§16, the dated
 amendment).*
 
 ## How to use this document
@@ -742,9 +742,37 @@ validation are the dated §9 appended to
 - **§5.4, trex locomotion, and GQ-17.** The trex `gait-r1` walk still waits for a certified r8 stance, now on the
   D-D27 task; the order of the retrains stays the maintainer's.
 
-## 15. Amendment (2026-10-07): the compsognathus plant revision, its leg interface and its stance on the floor-truth gate
+## 15. Amendment (2026-10-07): the pad centre of pressure, and heading
 
-*Appended 2026-10-07; §1–§14 above are unchanged.* The maintainer chose on 2026-10-07, answering the open questions of
+*Appended 2026-10-07; §1–§14 above are unchanged.* The maintainer answered two of the items D-D27 left open the same
+day: items 3 and 1 of "What stays open" in the stance-hack audit's §9, the second also §14's heading bullet.
+
+- **The front-edge foot (the audit's §9 item 3): decision D-D28.** `stance_quality/v2` gains an optional per-episode
+  key, `max_sole_cop_fore_aft`: the worse box pad's window mean of its per-step |fore-aft centre of pressure| per
+  half-length, from the sole CoP the recorder already computes, a step with no loaded sole contact counting 1 and a
+  foot without a box sole unmeasured. The T. rex stance block declares it at 0.80; the statue reads at most 0.480
+  over 238 full-horizon episodes on six seed blocks and the seed-44 left foot 0.850–1.000 on 140/140. The migration
+  the audit's §9 feared does not arise: the field is the first of `STANCE_METRIC_LATER_FIELDS`, which the readers take
+  as unmeasured when a panel recorded before it lacks it, so every earlier report keeps its verdict under a block that
+  does not declare the key and is refused, never failed, under one that does (publication by name, re-roll it; the
+  judge and backfill on the thresholds it recorded, and by name when they match). `MEASUREMENT_VERSION` stays
+  `floor-truth/v1`, the implementation's reading of the decision's "reader/version migration", for the maintainer to
+  confirm. The bar is a window mean, so a partial edge stance passes (KNOWN_ISSUES). Per species: the box-sole
+  statues' baselines differ, from 0.30 (the robot) to 0.69 (dibothrosuchus' hind feet), and the compsognathus statue
+  stands heel-side at 0.45–0.47 on its r1 plant (about 0.14–0.18 on the D-D26 branch), so each adoption measures its
+  own statue, the compsognathus's when D-D28 is rebased on D-D26; the velociraptor's soleless foot and the
+  brachiosaurus's ellipsoid soles are unmeasured. The calibration is §10 of
+  [investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md).
+- **Heading robustness (the audit's §9 item 1, §14's heading bullet): decided, not yet carried out.** Heading-free
+  observations for the T. rex and the compsognathus (body orientation without world yaw, linear velocity in the yaw
+  frame, the prey direction relative to the body, and every other world-heading channel), in one cross-species PR
+  after the compsognathus revision lands and before either species trains, with the spawn-yaw probe becoming a gate
+  check; each species' policy-interface revision moves, so its checkpoints stop loading. The velociraptor follows
+  only after the maintainer's two current velociraptor runs are reviewed.
+
+## 16. Amendment (2026-10-07): the compsognathus plant revision, its leg interface and its stance on the floor-truth gate
+
+*Appended 2026-10-07; §1–§15 above are unchanged.* The maintainer chose on 2026-10-07, answering the open questions of
 the compsognathus standing review, to land the anatomical compsognathus plant revision now (physics r1 → r2, policy
 interface r2 → r3, visual r1 → r2; `configs/plant_versions.toml` note 15): the tail's 178 g at one density (its r1 tip
 was denser than bone), the metatarsus collision capsule 4 mm short of the MTP joint (r1's 1.07 mm clearance ended
@@ -755,7 +783,7 @@ home (b = 0.1a + 0.9a³). The stance task is revised and the compsognathus stanc
 optional criteria the kind gains for this plant: decision D-D26 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
 §6.2 and the consolidation plan's table). The validation, the r2 statue clean on 40/40 on three seed blocks, a square-wave
 two-foot hop started after the settle on 0/410 and the two certified r1 marches (`20260921_203149`, `20261001_225856`) on 0/20
-each, is the dated §10 appended to
+each, is the dated §11 appended to
 [investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md). The robot is untouched,
 and so is its `gait-r1` (GQ-14).
 

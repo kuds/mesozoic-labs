@@ -73,15 +73,19 @@ settle re-seat, impacts, flight and raw-command chatter, `log_std_init =
 -1.5`, an opt-in hop watch, four gate keys and a report-only heading probe;
 the gait plan's §14 and the stance-hack audit's §9); section 2 lists both
 runs, and the next trex session is again a fresh stance, on the D-D27
-task.* *2026-10-07: and D-D26 the same day: anatomical compsognathus physics
-r2 (the tail's mass at one density, a metatarsus that clears the floor, digit
-II medial on both feet, toe-joint armature against a numerical heel chatter)
-with a soft-cubic leg interface (policy interface r3), a revised
-compsognathus stance task and the compsognathus stance on `stance_quality/v2`
-(the gait plan's §15), which strands every anatomical compsognathus
-checkpoint, the walker `20260921_203149` included; section 2's compsognathus
-rows say so, and the next compsognathus session is a fresh stance. The robot
-is unchanged.* Section 2 labels each
+task. The same day D-D28 added a pad centre-of-pressure bar to the trex
+stance block (`max_sole_cop_fore_aft` 0.80), which refuses seed 44's left
+foot on its pad's front edge; the task does not move, and the next trex
+stance waits for the heading-free observations the maintainer chose that day
+(section 3's trex status).* *2026-10-07: and D-D26 the same day: anatomical
+compsognathus physics r2 (the tail's mass at one density, a metatarsus that
+clears the floor, digit II medial on both feet, toe-joint armature against a
+numerical heel chatter) with a soft-cubic leg interface (policy interface
+r3), a revised compsognathus stance task and the compsognathus stance on
+`stance_quality/v2` (the gait plan's §16), which strands every anatomical
+compsognathus checkpoint, the walker `20260921_203149` included; section 2's
+compsognathus rows say so, and the next compsognathus session is a fresh
+stance. The robot is unchanged.* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -197,7 +201,7 @@ unchanged and its row stands.*
 | trex | `20261006_185343` | 42 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 14h55m, final eval 3015.04 ± 4.54; panel (seeds 3042–3081) clean on 0/40, bound 0.000, reward 3012.1 ± 7.2, every episode failing support, touchdowns, saturation and both settle bars; 0/40 again on the fresh seeds 7042–7081; judged 2026-10-07 09:58 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 2053f487…`, the 10.8M checkpoint); a 12.5 Hz two-foot micro-hop on raw ±1 commands that also steers to an absolute heading of about −45°; provenance `certified false`, `provisional true` | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9). *Not reused since D-D27 (2026-10-07): the trex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* |
 | trex | `20261006_185704` | 44 | r13, physics r8 (commit `7b8b5d1`) | **FAIL** — `01_stance` under `stance_quality/v2`, 11,001,856 steps, 15h46m, final eval 3760.58 ± 86.96, best 3778.59 ± 9.82 at 10.35M; panel clean on 13/40, bound 0.204, reward 3772.7 ± 17.7 (settle peak over 1.5 BW on 27 episodes, settle airborne substeps on 6); 8/40, bound 0.104, on the fresh seeds 7042–7081; judged 2026-10-07 10:53 UTC, `gate_sha256 3571f209…`, `task_sha256 6da0b7dd…`, handoff `robust_best_model.zip` (`checkpoint_sha256 d320d274…`, the 10.35M best); stands like the statue after a settle stomp that re-seats its feet, hops for the whole episode on about 4% of resets, stands only near its training heading; provenance provisional, not certified | none (the run has no `02_recovery`) | Nothing: a measured failure, kept as history (the audit's §9). *Not reused since D-D27 (2026-10-07): the trex `task_sha256` and stance `gate_sha256` moved; the checkpoints still load on the unchanged plant.* |
 | compsognathus | `20260909_162812` | 42 | r1 (obs 53, commit `9557e97`) | PASS on `stance_gate_report.txt`: reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081; **no `gate_verdict.json`**; run block seed 42, n_envs 4, 11,000,000 steps; `physics_sha256 08a5fbf7…` unchanged at r2 | none | Nothing: widened to r2 and re-paneled as `20260921_203149` (session 2, 2026-09-21); stays on the log tree as history *Stranded by physics r2 (2026-10-07, D-D26): the plant contract refuses this run's checkpoints, so no node of it is reused; history either way.* |
-| compsognathus | `20260921_203149` | 42 | r2 (obs 56, commit `25132fc`), widened from `20260909_162812` (r1, gap 1) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-21 20:38 UTC by `generate_stage_artifacts` on the widened handoff (`checkpoint_sha256 1d46747f…`, inherited `num_timesteps` 10,850,000, no training here): panel reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081, identical to the r1 report; `gate_sha256 62930e3f…`, `task_sha256 19837f77…`; gait audit 2026-09-28: marches in place, not a still stance | **PASS** — `03_locomotion`, 3,002,368 steps, 3h49m, 0.34 m/s, mean length 1000, final eval 3308.6 ± 13.0, best eval 3337.16 ± 8.11 at 2.6M, verdict 2026-09-22 00:31 UTC, `gate_sha256 33e185d3…`, `task_sha256 63195040…`; gait audit 2026-09-28: a genuine alternating walk | Nothing: bundle `complete` (2026-09-22 00:31 UTC); the stance deliverable records `widened_from_run_id 20260909_162812` and a null `best_eval_reward` (the rule of #546); this is the certified compsognathus walker `TRUNK_FROM = "auto"` selects *Stranded by physics r2 (2026-10-07, D-D26): the plant contract refuses this run's checkpoints and `TRUNK_FROM = "auto"` no longer selects it; the stance-hack audit found its stance a one-toe march (§3.3), the r2 stance gate refuses it on 0/20 rolled on the r1 plant (§10), and the gait plan's GQ-11 re-panel of its walk can only run in a checkout of an earlier commit. The next compsognathus session is a fresh stance on r2.* |
+| compsognathus | `20260921_203149` | 42 | r2 (obs 56, commit `25132fc`), widened from `20260909_162812` (r1, gap 1) by `widen_checkpoint/v1` | **PASS** — `01_stance`, judged 2026-09-21 20:38 UTC by `generate_stage_artifacts` on the widened handoff (`checkpoint_sha256 1d46747f…`, inherited `num_timesteps` 10,850,000, no training here): panel reward 2801.6 ± 51.2, full-horizon 1.0000, duty 0.0131, UCB 0.0141, 40 episodes seeds 3042–3081, identical to the r1 report; `gate_sha256 62930e3f…`, `task_sha256 19837f77…`; gait audit 2026-09-28: marches in place, not a still stance | **PASS** — `03_locomotion`, 3,002,368 steps, 3h49m, 0.34 m/s, mean length 1000, final eval 3308.6 ± 13.0, best eval 3337.16 ± 8.11 at 2.6M, verdict 2026-09-22 00:31 UTC, `gate_sha256 33e185d3…`, `task_sha256 63195040…`; gait audit 2026-09-28: a genuine alternating walk | Nothing: bundle `complete` (2026-09-22 00:31 UTC); the stance deliverable records `widened_from_run_id 20260909_162812` and a null `best_eval_reward` (the rule of #546); this is the certified compsognathus walker `TRUNK_FROM = "auto"` selects *Stranded by physics r2 (2026-10-07, D-D26): the plant contract refuses this run's checkpoints and `TRUNK_FROM = "auto"` no longer selects it; the stance-hack audit found its stance a one-toe march (§3.3), the r2 stance gate refuses it on 0/20 rolled on the r1 plant (§11), and the gait plan's GQ-11 re-panel of its walk can only run in a checkout of an earlier commit. The next compsognathus session is a fresh stance on r2.* |
 | velociraptor | `20260723_005740` (July) | 42 | r3 (obs 67); physics r2 = current | stage1 balance 6M, 3h41m, final eval 1767, 1000-step episodes; run-level `publication_gate_passed` only, no per-node verdict; sidecar predates identity stamping | stage2 8M, 4h50m, 3.29 m/s; stage3 strike 12M | **Not a widen candidate**: seven revisions behind r10 and the crossed revisions include the reset-settling change (`plant_versions.toml` note 6). Fresh chain ran as `20260922_125248` (session 3, 2026-09-22) *Stranded by physics r3 (2026-10-06, D-D25): the plant contract refuses this run's checkpoints, so no node of it is reused; history either way.* |
 | velociraptor | `20260922_125248` | 42 | r10 (commit `25132fc`); physics r2 | **PASS** — `01_stance`, 6,004,736 steps, 4h46m; certified checkpoint (30-episode selection eval) reward 1740.03 ± 301.5, mean length 970.3 ± 159.9 against the `reward_and_length/v1` rails 1050 / 950; training final eval 1666.19 ± 424.23, length 943.2; best eval 1797.43 at 4.35M; verdict 2026-09-22 17:42 UTC, `task_sha256 07d6a5af…`, checkpoint `732b5a71…`; gait audit 2026-09-28: a crouch with the feet chattering and the body sliding, not a stance (the zero-action statue passes the same gate) | **PASS** — `02_locomotion`, 8,011,776 steps, 6h30m; final eval 2683.64 ± 8.56, length 1000, 3.30 m/s; certified checkpoint 2591.88 ± 493.74, length 968.6, 3.17 m/s; best eval 2687.56 at 6.9M; verdict 2026-09-23 00:15 UTC, `task_sha256 6178a6ef…`, checkpoint `7c28eda2…`; gait audit 2026-09-28: a genuine alternating run | Nothing for the chain: bundle `complete`, both deliverables certified (replication 1 each). The stance margin is thin: the certified checkpoint clears the reward rail by 690 and the length rail by 20 steps, and the training final eval's mean length (943.2) is below the 950 rail. A second stance seed (`SEED = 43`) is the cheap check if velociraptor stance is ever declared at `certification_seeds = 2` *Stranded by physics r3 (2026-10-06, D-D25): the plant contract refuses this run's checkpoints, and the stance-hack audit found its stance a saturated crouch that chatters and slides (refused 0/40 by the stance's new `stance_quality/v2` gate, the audit's §8), so no node of it is reused, nor by `20260929_112244`, the run that reused this stance; the velociraptor stance retrains on r3 under `stance_quality/v2`, and the genuine run in its walker is re-earned from that stance.* |
 | brachiosaurus | `20260717_162659` (July) | 42 | r1; physics r1 (current r4) | stage1 balance 6M, 4h24m, 1739.8 | stage2 16M, 9h48m, 1.42 m/s; stage3 food_reach 12M; gait audit 2026-09-28 (stage2): a neck-pumping asymmetric bound, not a walk | Physics digest differs, so widen is refused by construction. Fresh chain (session 5) |
@@ -296,10 +300,15 @@ on its publication panel (seeds 3042–3081) and re-judged on the fresh seeds
 7042–7081 (`stance_gate_report.py trex --model … --vecnorm … --seed 7042`)
 before any recovery, walk or hunt trains on it. A seed the hop watch stops at
 7M (`hop_watch.json` in its `01_stance/`) is restarted on a new seed, not
-resumed. Read `stance_heading_probe.txt` beside the gate report: it is report
-only, because whether a certified stance must be heading-robust is the
-maintainer's open decision. Check the pad bars first on the new panels: the
-two short runs on the D-D27 task missed them by up to 0.95° on 2 of 20
+resumed. The maintainer chose on 2026-10-07 to give the trex and the
+compsognathus heading-free observations in one PR after the compsognathus
+revision and before either species trains, so that session waits for it and
+trains on its policy-interface revision, where the spawn-yaw probe
+(`stance_heading_probe.txt` beside the gate report, report only until then)
+becomes a gate check. Check the pad bars first on the new panels: the two
+short runs on the D-D27 task missed them by up to 0.95° on 2 of 20 episodes,
+and the D-D27 369k-step study checkpoint loads its flat pad forward to 0.88 of
+the half-length, past the 0.80 `max_sole_cop_fore_aft` bar (D-D28) on 1 of 40
 episodes.*
 
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
@@ -614,12 +623,13 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
 - The trex stance on r8 (2026-10-07): one config trained into two basins
   (seed 44 escaped the early hop regime between 5.0M and 6.0M, seed 42 locked
   into a 12.5 Hz hop at 6.5M), and why is not established at n = 2. Whether
-  the D-D27 start (`log_std_init = -1.5`) changes that split, whether the
-  learning rate the recipe's falsified prediction names matters, and whether
-  a certified stance must be heading-robust (both r8 stances fall when
-  spawned 90° off their training heading) are open
+  the D-D27 start (`log_std_init = -1.5`) changes that split and whether the
+  learning rate the recipe's falsified prediction names matters are open;
+  whether a certified stance must be heading-robust (both r8 stances fall
+  when spawned 90° off their training heading) was decided on 2026-10-07 and
+  is not yet carried out (heading-free observations, in a later PR)
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
-  §9; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
+  §9 and §10; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred
   ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §10).
 

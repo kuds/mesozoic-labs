@@ -346,6 +346,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_settle_touchdowns": 2,
         "max_episode_yaw_change_deg": 25.0,
         "max_hop_or_fall_episodes": 1,
+        # The pad's fore-aft centre of pressure (D-D28): the seed-44 left foot on its pad's front edge.
+        "max_sole_cop_fore_aft": 0.80,
     }
     # Velociraptor 1a's block (configs/velociraptor/stage1_balance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and

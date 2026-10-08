@@ -523,12 +523,14 @@ class TestStanceV2Reports:
     """
 
     @staticmethod
-    def _stage(tmp_path: Path, *, recorded: dict[str, Any] | None = None, **report_kwargs: Any) -> Path:
+    def _stage(
+        tmp_path: Path, *, recorded: dict[str, Any] | None = None, run: str = "20261010_120000", **report_kwargs: Any
+    ) -> Path:
         from environments.shared.reporting.stance_report import write_stance_gate_report
 
         from .stance_v2_helpers import stage_record, v2_report
 
-        stage_dir = tmp_path / "20261010_120000" / "01_stance"
+        stage_dir = tmp_path / run / "01_stance"
         stage_dir.mkdir(parents=True)
         # The record the stage ran under (its block may differ from the one
         # the report scored), written first so v2_report keeps it.
@@ -549,6 +551,42 @@ class TestStanceV2Reports:
         assert verdict["stage_result"]["stance_clean_fraction"] == 1.0  # what the catalog headlines beside the bound
         assert verdict["stage_result"]["stance_clean_lcb"] == pytest.approx(0.9278, abs=1e-4)
         assert verdict["stage_result"]["stance_statue_mean_reward"] == pytest.approx(1000.0)
+
+    def test_a_report_rolled_before_a_later_metric_keeps_its_verdict_or_is_refused_by_name(self, tmp_path):
+        """Its rows lack the pad's fore-aft CoP (D-D28): the same verdict where no criterion reads it, a refusal
+        -- never a FAIL, which every later --trunk-from would read as judged -- where one does."""
+        from environments.shared.gait.stance_metrics import STANCE_METRIC_LATER_FIELDS
+
+        from .stance_v2_helpers import V2_CURRICULUM
+
+        def drop_later(stage_dir: Path) -> None:
+            path = stage_dir / "stance_gate_report.json"
+            report = json.loads(path.read_text(encoding="utf-8"))
+            for rows in (report["episode_evidence"], report["statue"]["episode_evidence"]):
+                for row in rows:
+                    for name in STANCE_METRIC_LATER_FIELDS:
+                        del row[name]
+            path.write_text(json.dumps(report), encoding="utf-8")
+
+        today, earlier = self._stage(tmp_path, run="20261010_120000"), self._stage(tmp_path, run="20261010_130000")
+        drop_later(earlier)
+        backfill_gate_verdict(today)
+        backfill_gate_verdict(earlier)
+
+        def judged(stage_dir: Path) -> dict[str, Any]:
+            verdict = read_gate_verdict(stage_dir)
+            assert verdict is not None
+            result = {key: value for key, value in verdict["stage_result"].items() if not key.endswith("_path")}
+            return {"passed": verdict["passed"], "failures": verdict["failures"], "gate": verdict["gate_sha256"],
+                    "stage_result": result}  # fmt: skip
+
+        assert judged(earlier) == judged(today) and judged(today)["passed"] is True
+        declaring = {**V2_CURRICULUM, "max_sole_cop_fore_aft": 0.8}
+        stage_dir = self._stage(tmp_path, run="20261010_140000", recorded=declaring, curriculum=declaring)
+        drop_later(stage_dir)
+        with pytest.raises(BackfillError, match="record no metric for the declared max_sole_cop_fore_aft"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
 
     def test_a_failing_report_is_written_as_the_fail_it_re_derives_to(self, tmp_path):
         stage_dir = self._stage(tmp_path, n_clean=36, defect={"settle_airborne_substeps": 4.0})

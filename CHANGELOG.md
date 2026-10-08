@@ -119,6 +119,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `compsognathus_robot` keeps every digest. The bundles already published
   stay as they are; the catalog labels their verdicts with the gate they
   were earned under.
+- **A T-Rex stance run, verdict or `stance_quality/v2` report recorded under
+  D-D27's gate block is not reused, and its report is judged again only once
+  its panel is re-rolled** (decision D-D28). The stance `gate_sha256` moves
+  (the block gains `max_sole_cop_fore_aft`), so `resume_same_stage` and
+  ancestor reuse refuse a T-Rex stance node or verdict recorded under
+  D-D27's block, and a T-Rex v2 report or `stance_panel_selected.csv`
+  rolled before D-D28 is refused under the current block (it records no
+  reading for the new key); re-roll it on the handoff pair (the notebook
+  JUDGE branch, or `generate_stage_artifacts`). Nothing certified is
+  stranded: no T-Rex stance has run on the D-D27 task.
 - **A T-Rex stage run started on the task of D-D24 cannot resume across the
   stance follow-up, and its nodes are not reused** (decision D-D27). Every
   T-Rex `task_sha256` moves (the stance task's seven new `TRexEnv` kwargs
@@ -161,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The anatomical Compsognathus stands on its whole foot, PPO can explore
-  around its statue, and its stance is judged on floor truth** (breaking —
+  around its statue, and its stance is judged on floor truth** (#604; breaking —
   plant change, physics revision 1 → 2, policy interface revision 2 → 3,
   visual revision 1 → 2; all existing anatomical Compsognathus checkpoints are
   invalidated; the robot is unchanged; decision D-D26, which the maintainer
@@ -353,11 +363,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, so a two-foot hop started after the settle reads a statue on every
   step-level bar: both legs down on every step, no touchdown, a quiet settle.
   `from_curriculum` refuses a negative airborne bar and a peak bar under one
-  body weight, and a report row or panel CSV recorded before the pair reads
-  both metrics as unmeasured (`STANCE_METRIC_LATER_FIELDS`), which fails only
-  a gate that declares them, so every earlier report keeps its verdict; no
-  trex or velociraptor digest moves, and the website's species data and the
-  catalog carry the two keys. Validated, verdicts re-derived from the recorded
+  body weight (`WINDOW_HOP_KEY_FLOORS`), and the pair joins D-D28's pad centre
+  of pressure in `STANCE_METRIC_LATER_FIELDS`: a report row or panel CSV
+  recorded before it reads both metrics as unmeasured, so every earlier
+  report keeps its verdict under a block that does not declare the pair, and
+  under one that does such a panel is refused by name, never failed (re-roll
+  the panel); no trex or velociraptor digest moves, and the website's species
+  data and the catalog carry the two keys.
+  Validated, verdicts re-derived from the recorded
   rows under the committed block: the r2 statue is clean on 40/40 (bound
   0.928) on each of seeds 3042–3081, 7042–7081 and 9042–9081; the statue with
   N(0, σ) command jitter on 20/20 at σ 0.005 and 0.01, on 40/40 at σ 0.02 and
@@ -403,7 +416,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the verdict (`gate_sha256 f38e3b26…`, `task_sha256 6c667a99…`). v1's
   `min_avg_reward` 1800 and its two duty keys stay in the file as comments, a
   superseded record (v2 refuses the duty keys). Panels and per-bar counts are
-  in the dated §10 appended to
+  in the dated §11 appended to
   `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`. Statue constants
   re-measured on r2: stance 4570.4 ± 7.2 (`zero_action_baseline.py
   compsognathus --episodes 40 --seed 3042`), so `min_avg_reward` 1800 → 2740,
@@ -457,7 +470,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interface (`test_models.py`, `test_training_env.py`,
   `test_plant_contract_layers.py`); and the noise cliff
   (`test_noise_tolerance.py`: σ 0.10 reaches the horizon on the first 5
-  episodes, σ 0.135 on at least 10 of the first 12, the review's 0.8).
+  episodes, σ 0.135 on at least 10 of the first 12, the review's 0.8). With
+  D-D28 (#603) merged first, the statue pad centre of pressure that
+  `test_gait_recorder.py` bounds is re-measured on r2: 0.173 at seed 3042,
+  heel side (0.464 on r1), under a ceiling of 0.20 (0.50 on r1).
 
   Records: note 15, both plant manifests (compsognathus entries only), the
   species catalog (the stance published as `stance_quality/v2`, policy r3,
@@ -466,7 +482,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the deferred proportions pass, the noise cliff, the soft bounce, one-foot
   flutter and weight shuttle the gate certifies, and an observation that
   reads the world heading while every spawn faces +x); the gait plan (its
-  §15) and the stance-hack audit (its §10) take dated amendments,
+  §16) and the stance-hack audit (its §11) take dated amendments,
   NEXT_STEPS's compsognathus rows say what the revision strands, and the
   species README, recipe review, training validation and recovery
   calibration notes follow the plant. Digest golden (649 lines, unchanged
@@ -487,9 +503,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the observation carries the world-frame pelvis quaternion, linear
   velocity and target direction; the statue is clean at every spawn yaw
   tried, a trained policy is untested); the robot is untouched.
+- **`stance_quality/v2` reads where along a pad the floor pushes, and the
+  T-Rex stance refuses a foot standing on its pad's front edge** (#603, decision
+  D-D28, which the maintainer took on 2026-10-07 after the review of the
+  physics-r8 seed-44 stance `20261006_185704`; a gate-only change: the
+  plant, the recorder, every task and `MEASUREMENT_VERSION` are unchanged).
+  That stance stands its left pad 0.7° toe-down on two loaded corners with
+  its digits carrying about 1% of the foot's load each (the statue's 6–8%),
+  and no other v2 bar sees it: on the episodes every other bar passes (13/40
+  on 3042–3081, 8/40 on 7042–7081) that foot is still on its pad's edge.
+  `min_sole_contacts` (1.5) cannot rise to catch it, because the statue
+  reaches 2.086 out of sample. A new `StanceEpisodeMetrics` field,
+  `max_sole_cop_fore_aft`, is the worse box pad's window mean of its
+  per-step |fore-aft centre of pressure| divided by the half-length (0
+  centred, 1 on the heel or toe edge), read off the recorder's existing
+  force-weighted sole CoP: per step, because the seed-42 stance rocks its pad
+  heel to toe and its signed mean looks centred; a step with no loaded sole
+  contact (none above `CONTACT_THRESHOLD_N`, as `min_sole_contacts` counts
+  them) counts 1, so lifting the pad, or grazing the floor with it, cannot
+  hide an edge stance; NaN on a foot with no box sole (the velociraptor's
+  soleless foot, the brachiosaurus's ellipsoids), so a bar is set per
+  species. The same name is a new optional v2 key (direction max, after
+  `max_settle_touchdowns`; not a hop-or-fall key) whose bar must lie strictly
+  inside (0, 1), through a new `CRITERION_BAR_RANGES` table that both
+  `StanceV2Thresholds.from_curriculum` and `gate_schema.validate_gate_config`
+  apply, so a typo such as 80 stops the run at config load rather than after
+  it trained.
+  It is the first of `STANCE_METRIC_LATER_FIELDS`, the metric fields added
+  after the panel CSV contract shipped: `StanceEpisodeMetrics.from_row` and
+  `read_stance_v2_panel` read one absent as unmeasured (the panel evidence
+  names it in `absent_metrics`), so every report and `stance_panel_selected.csv`
+  recorded before this change keeps its verdict, bit for bit, under a block
+  that does not declare the key. Under one that does, such a panel is
+  refused, never failed as unmeasured: publication, which re-derives from the
+  CSV, refuses it by name (`stance_gate_v2.unrecorded_criteria`: re-roll the
+  panel); the judge and backfill refuse a report of that age because the
+  thresholds it records lack the key, and by name through
+  `unrecorded_criteria` when they match. Re-rolling the panel on the handoff
+  pair measures it. The decision asked for a "reader/version migration";
+  this change reads it as a reader-only one (`STANCE_METRIC_LATER_FIELDS`,
+  no `MEASUREMENT_VERSION`, measurement-digest or report-schema bump),
+  because a new metric changes no adopted key's meaning, so a panel CSV
+  written before it and one written after carry the same measurement stamps
+  and differ only by the column; that reading is the maintainer's to confirm
+  at review. The T-Rex stance declares the key at 0.80: the statue reads
+  0.206–0.362 on 3042–3081, at most 0.368 on four more seed blocks and 0.480
+  on 5042–5081 (seed 5048, a fore-aft sway clean on every other bar), over
+  238 full-horizon episodes, and up to 0.745 under N(0, 0.05) command jitter
+  on every step (13042–13081); the seed-44 left foot reads 0.850–1.000, over
+  the bar on 140/140 episodes on four seed blocks, and seed 42's rock
+  0.96–0.99. Not 0.75: the D-D27 369k-step study checkpoint stands on a flat
+  pad loaded forward to 0.88, and 0.75 would fail its 3042–3081 panel (38/40
+  clean → 34/40) where 0.80 leaves 37/40. The stance report lists the
+  reading as report-only where it is not gated; the manager's v2 mirror, the
+  catalog and the website adapter carry the key. Digest golden (649 lines):
+  3 lines move, all T-Rex stance (`gate_sha256`,
+  `stage_config_view_sha256.PPO` and `.SAC`); no task, recipe, plant or
+  other species' line moves, and no measurement digest moves. The
+  end-to-end report test of the edge refusal runs on the T-Rex, the species
+  that declares the key; the compsognathus readings the other tests pin were
+  its r1 plant's when this change landed, before the compsognathus revision
+  (D-D26, #604), which re-measures them on r2. Records: D-D28 in
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the consolidation plan's table,
+  which also records the landings of #601 and #602; the stance-hack audit's
+  §10 and the gait plan's §15; KNOWN_ISSUES's front-edge entry records what
+  the bar leaves open (partial-edge stances, among them a drift onto the
+  edge after about the first third of the window and a rolled pad on three
+  corners; only the T-Rex declares it), and its heading entry records the
+  maintainer's decision of the same day (heading-free observations for the
+  T-Rex and the compsognathus, in a later PR).
 - **The T-Rex stance prices what its first two physics-r8 runs exploited,
   starts its exploration quieter, and its gate counts settle re-plants,
-  turns and hop-or-fall episodes** (#602; decision D-D27, which the maintainer took
+  turns and hop-or-fall episodes** (#602, decision D-D27, which the maintainer took
   on 2026-10-07 after a review of the first two T-Rex stance runs on the
   physics-r8 task of D-D24; the plant does not change: physics r8, policy
   interface r13, visual r4). The runs, `20261006_185343` (seed 42) and
@@ -644,10 +729,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plan's dated §14; NEXT_STEPS's trex rows.
 - **The Velociraptor stands on its servos on flat toes, feels its whole foot,
   leaves the frozen MJX core, and its stance is judged on floor truth**
-  (#601; breaking — plant change, physics revision 2 → 3, policy interface
-  revision 10 → 11, visual revision 3 → 4; all existing Velociraptor
-  checkpoints are invalidated; decision D-D25, which the maintainer chose on
-  2026-10-06). Four measured defects of the r2 plant
+  (#601; breaking — plant change, physics revision 2 → 3, policy interface revision
+  10 → 11, visual revision 3 → 4; all existing Velociraptor checkpoints are
+  invalidated; decision D-D25, which the maintainer chose on 2026-10-06). Four
+  measured defects of the r2 plant
   (`docs/reviews/VELOCIRAPTOR_PLANT_REVIEW.md`, the stance-hack audit's §3.2),
   fixed in one revision so the species' digests move once
   (`configs/plant_versions.toml` note 14):

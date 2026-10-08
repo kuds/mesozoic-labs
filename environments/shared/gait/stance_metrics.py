@@ -9,8 +9,9 @@ gate module can import it.
 NaN means UNMEASURED, and the gate treats it as a failure
 (``curriculum/gate_schema.finite_gate_metric``): a window with no steps
 (``length <= settle_steps``), a sole metric on a foot with no sole
-(velociraptor), a box-corner metric on a non-box sole (brachiosaurus'
-ellipsoids), and the saturation metrics when a window step has no action.
+(velociraptor), a box metric (the corner lift, the fore-aft centre of
+pressure) on a non-box sole (brachiosaurus' ellipsoids), and the saturation
+metrics when a window step has no action.
 The whole-number counts (``*_substeps``, ``*_steps``, ``*_events``,
 ``settle_touchdowns``) are floats for that reason.
 
@@ -133,6 +134,14 @@ class StanceEpisodeMetrics:
     min_sole_contacts: float
     #: Max over sole feet of the window-mean |outer CoP| / half-width: report-only.
     max_sole_cop_outer: float
+    #: Box soles: max over feet of the window mean of |fore-aft CoP| / half-length, taken per step (0 centred, 1 on
+    #: the heel or toe edge), a step with no loaded sole contact (none above CONTACT_THRESHOLD_N, as
+    #: min_sole_contacts counts them) counting 1.  Per step, because a pad rocking heel to toe averages to its
+    #: centre otherwise (r8 seed 42: signed 0.14-0.28, |.| 0.96-0.99); unloaded steps count 1 so that lifting the
+    #: pad, or grazing the floor with it, cannot hide an edge stance.  Left open: an edge stance on up to
+    #: (bar - s) / (1 - s) of the window beside a centred s, and heel and toe loaded in turn inside one step.  The
+    #: statue baseline is the foot's (box statues 0.30 to 0.69), so a bar is per species.
+    max_sole_cop_fore_aft: float
     # --- spawn [0, g) and settle [g, s) ---
     #: Max substep animal floor force / body weight in the spawn grace; substeps there with every
     #: leg unloaded.  The reset pop: plant acceptance, not the policy gate.
@@ -183,13 +192,15 @@ class StanceEpisodeMetrics:
         """Rebuild from :meth:`as_row` output or from its CSV rendering (every cell a string).
 
         Strict: every field must be present (extra keys such as a seed column
-        are ignored), except the :data:`STANCE_METRIC_LATER_FIELDS` a panel
+        are ignored), except the :data:`STANCE_METRIC_LATER_FIELDS` a row
         recorded before they existed lacks, which read as NaN -- unmeasured,
-        so a gate that declares their key fails such a panel and one that does
-        not is unaffected.  An empty or ``None`` cell is NaN -- unmeasured -- for a
-        float field and refused for the others; ``"True"`` / ``"False"`` read
-        as booleans; a per-foot cell is a list or its ``str()`` (``"[0.5,
-        nan]"``).  Floats written by ``str`` / ``repr`` round-trip exactly.
+        so a gate that declares their key fails such a row and one that does
+        not is unaffected (the judge and publication refuse the first case by
+        name before scoring it).  An empty or ``None`` cell is NaN --
+        unmeasured -- for a float field and refused for the others;
+        ``"True"`` / ``"False"`` read as booleans; a per-foot cell is a list
+        or its ``str()`` (``"[0.5, nan]"``).  Floats written by ``str`` /
+        ``repr`` round-trip exactly.
         """
         missing = [
             spec.name for spec in fields(cls) if spec.name not in row and spec.name not in STANCE_METRIC_LATER_FIELDS
@@ -213,13 +224,17 @@ class StanceEpisodeMetrics:
 _INT_FIELDS = frozenset({"length", "settle_steps"})
 _BOOL_FIELDS = frozenset({"terminated"})
 
-#: Float fields added after the panel CSV contract shipped (with the window
-#: hop pair, D-D26): a row or a panel CSV recorded before then lacks them, and
+#: Float fields added after the panel CSV contract shipped (the window hop
+#: pair, D-D26; the pad's fore-aft centre of pressure, D-D28): a row or a panel
+#: CSV recorded before then lacks them, and
 #: :meth:`StanceEpisodeMetrics.from_row` and
 #: ``curriculum.stance_gate_v2.read_stance_v2_panel`` read them as unmeasured,
-#: so every report recorded before the pair keeps its verdict under a gate
-#: that does not declare it.
-STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset({"window_airborne_substeps", "window_peak_floor_force_bw"})
+#: so every report recorded before them keeps its verdict under a gate that
+#: does not declare their key.  A new metric changes no adopted key's meaning,
+#: so it needs no new MEASUREMENT_VERSION; a re-rolled panel measures it.
+STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset(
+    {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft"}
+)
 
 #: The per-foot / per-geom tuple fields, in declaration order.
 STANCE_METRIC_FOOT_FIELDS: tuple[str, ...] = (
@@ -475,7 +490,13 @@ def _window_column_means(values: np.ndarray, n_feet: int) -> np.ndarray:
 
 
 def _sole_metrics(trace: "EpisodeTrace", window: slice) -> dict[str, float]:
-    """The flatness metrics over the window, from the feet that have a sole (all NaN when none does)."""
+    """The flatness metrics over the window, from the feet that have a sole (all NaN when none does).
+
+    The fore-aft centre of pressure reads box soles only (a box's corner lift
+    is finite on every step, an ellipsoid's never): on brachiosaurus'
+    ellipsoids the one tangent contact's position follows the pitch the foot
+    is authored at, a pose rather than a pressure distribution.
+    """
     tilt = trace.sole_tilt_deg[window]
     has_sole = np.isfinite(tilt).all(axis=0) & np.isfinite(trace.home_sole_tilt_deg)
     if not has_sole.any():
@@ -487,12 +508,19 @@ def _sole_metrics(trace: "EpisodeTrace", window: slice) -> dict[str, float]:
             "max_sole_corner_lift_m": NAN,
             "min_sole_contacts": NAN,
             "max_sole_cop_outer": NAN,
+            "max_sole_cop_fore_aft": NAN,
         }
     home = trace.home_sole_tilt_deg[has_sole]
     mean_tilt = tilt[:, has_sole].mean(axis=0)
     mean_roll = _finite_column_means(trace.sole_roll_deg[window][:, has_sole])
     mean_lift = _finite_column_means(trace.sole_corner_lift[window][:, has_sole])
     mean_cop_outer = _finite_column_means(np.abs(trace.sole_cop[window][:, has_sole, 1]))
+    box = has_sole & np.isfinite(trace.sole_corner_lift[window]).all(axis=0)
+    # A step with no loaded sole contact counts as on the edge: one with no floor force at all has no CoP (NaN),
+    # and one that only grazes the floor (every contact under CONTACT_THRESHOLD_N) has an unloaded pad's.
+    fore = np.abs(trace.sole_cop[window][:, box, 0])
+    loaded = np.isfinite(fore) & (trace.sole_contacts_mean[window][:, box] > 0)
+    mean_cop_fore = np.where(loaded, fore, 1.0).mean(axis=0)
     return {
         "max_sole_tilt_deg": float(mean_tilt.max()),
         "max_sole_tilt_excess_deg": float((mean_tilt - home).max()),
@@ -501,6 +529,7 @@ def _sole_metrics(trace: "EpisodeTrace", window: slice) -> dict[str, float]:
         "max_sole_corner_lift_m": _max_finite(mean_lift),
         "min_sole_contacts": float(trace.sole_contacts_mean[window][:, has_sole].mean(axis=0).min()),
         "max_sole_cop_outer": _max_finite(mean_cop_outer),
+        "max_sole_cop_fore_aft": float(mean_cop_fore.max()) if box.any() else NAN,
     }
 
 
@@ -543,6 +572,7 @@ _WINDOW_FIELDS: tuple[str, ...] = (
     "max_sole_corner_lift_m",
     "min_sole_contacts",
     "max_sole_cop_outer",
+    "max_sole_cop_fore_aft",
     "max_actuator_saturation_fraction",
     "mean_actuator_saturation_fraction",
 )
