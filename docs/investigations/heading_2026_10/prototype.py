@@ -27,6 +27,20 @@ def rotation(quaternion: np.ndarray) -> np.ndarray:
     )
 
 
+def heading_frame(matrix: np.ndarray) -> np.ndarray:
+    """World-to-heading rotation, with a covariant fallback for terminal poses.
+
+    When pelvis X is vertical, use the horizontal projection of pelvis Y,
+    rotated clockwise 90 degrees. Both choices rotate with the scene. This
+    fallback is finite but cannot make the singular yaw chart continuous.
+    """
+    forward = matrix[:2, 0]
+    if np.linalg.norm(forward) < 1e-8:
+        forward = np.array([matrix[1, 1], -matrix[0, 1]])
+    c, s = forward / np.linalg.norm(forward)
+    return np.array([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
+
+
 def transform_observation(obs: np.ndarray, joint_width: int, *, candidate: str = "gravity") -> np.ndarray:
     """Replace world quaternion/velocity/target; leave local and scalar channels.
 
@@ -41,19 +55,14 @@ def transform_observation(obs: np.ndarray, joint_width: int, *, candidate: str =
     if old.shape != (joint_width + 22,):
         raise ValueError("expected the current two-foot bipedal-target/v1 layout")
     q = old[joint_width : joint_width + 4]
-    q = q / np.linalg.norm(q)
     matrix = rotation(q)
-    # Defined over healthy stances. A forward axis exactly parallel to gravity
-    # has no yaw frame; fail explicitly rather than select a world direction.
-    if np.hypot(matrix[0, 0], matrix[1, 0]) < 1e-8:
-        raise ValueError("heading frame is undefined for a vertical forward axis")
-    yaw = math.atan2(matrix[1, 0], matrix[0, 0])
-    c, s = math.cos(yaw), math.sin(yaw)
-    world_to_heading = np.array([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
+    q = q / np.linalg.norm(q)
+    world_to_heading = heading_frame(matrix)
     if candidate == "gravity":
         orientation = -matrix[2, :]
     else:
         # Left multiply q by the inverse world-z yaw quaternion.
+        yaw = math.atan2(world_to_heading[0, 1], world_to_heading[0, 0])
         ch, sh = math.cos(yaw / 2), math.sin(yaw / 2)
         w, x, y, z = q
         orientation = np.array([ch * w + sh * z, ch * x + sh * y, ch * y - sh * x, ch * z - sh * w])
