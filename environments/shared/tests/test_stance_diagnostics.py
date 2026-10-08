@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from environments.shared.stance_diagnostics import (
+    capture_stance_snapshot,
     capture_trex_stance_snapshot,
     derive_stance_info,
     write_stance_diagnostics_csv,
@@ -119,3 +120,33 @@ def test_write_stance_csv_skips_empty_rows(tmp_path):
 
     assert write_stance_diagnostics_csv(path, []) is None
     assert not path.exists()
+
+
+@pytest.mark.parametrize(
+    "species", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot"]
+)
+def test_shared_replay_snapshot_preserves_each_species_state_and_measured_support(species):
+    from environments.shared.config import load_stage_config
+    from environments.shared.species_registry import get_species_config
+
+    env = get_species_config(species).env_class(**load_stage_config(species, 1)["env_kwargs"])
+    try:
+        env.reset(seed=2043)
+        _, _, _, _, info = env.step(np.zeros(env.action_space.shape))
+        before = [value.copy() for value in (env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl)]
+        before_time = float(env.data.time)
+        row = capture_stance_snapshot(env, info, 1)
+        assert row["step"] == 1
+        assert [row[f"root_{axis}"] for axis in "xyz"] == pytest.approx(env.data.xpos[env._root_body_id])
+        assert all(np.isfinite(value) for value in row.values())
+        if species in ("brachiosaurus", "dibothrosuchus"):
+            assert "unsupported_duty" not in info and "unsupported_duty" not in row
+            assert "bilateral_support_duty" not in row
+        if species == "trex":
+            legacy = capture_trex_stance_snapshot(env, info, 1)
+            assert {key: row[key] for key in legacy} == legacy
+        for actual, expected in zip((env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl), before):
+            np.testing.assert_array_equal(actual, expected)
+        assert env.data.time == before_time
+    finally:
+        env.close()

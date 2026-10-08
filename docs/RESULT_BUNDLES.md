@@ -60,6 +60,9 @@ exactly as before. Schema-2 and schema-3 summaries keep their own rules.
 
 ## Canonical layout
 
+Human-facing labels and the shared stance/recovery replay layout are
+specified in [Training artifact names and stance replays](TRAINING_ARTIFACT_PRESENTATION.md).
+
 ```text
 <run-id>/
 ├── provenance.json

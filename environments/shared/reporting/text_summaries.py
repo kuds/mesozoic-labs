@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..species_names import species_display_name
+from ..stage_manifest import stage_display_name
 from .formatting import format_duration
 
 
@@ -47,7 +48,7 @@ def write_stage_summary(
         "=" * 50,
         "",
         f"Species:        {species_display_name(species)}",
-        f"Stage:          {results_dict['stage']} ({results_dict['name']})",
+        f"Stage:          {results_dict['stage']} ({stage_display_name(results_dict['stage'], results_dict['name'])})",
         f"Description:    {results_dict['description']}",
         f"Algorithm:      {algorithm}",
         f"Version:        {get_library_version()}",
@@ -156,7 +157,7 @@ def write_training_summary(
         sim_dt = r.get("sim_dt", 0.01)
         lines.extend(
             [
-                f"Stage {r['stage']}: {r['name']}",
+                f"Stage {r['stage']}: {stage_display_name(r['stage'], r['name'])}",
                 f"  Description:    {r['description']}",
                 f"  Timesteps:      {r['timesteps']:,}",
                 f"  Duration:       {format_duration(r['duration_seconds'])}",

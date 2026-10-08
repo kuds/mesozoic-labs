@@ -23,9 +23,12 @@ def _main():
     # Parse --species before handing off to the shared main()
     if "--species" not in sys.argv:
         print("Usage: python -m environments.shared.train --species <name> <command> [options]", file=sys.stderr)
-        from environments.shared.config import SPECIES_NAMES
+        from environments.shared.species_names import species_display_names
 
-        print("Species: " + ", ".join(SPECIES_NAMES), file=sys.stderr)
+        print(
+            "Species: " + ", ".join(f"{label} ({species})" for species, label in species_display_names().items()),
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     idx = sys.argv.index("--species")

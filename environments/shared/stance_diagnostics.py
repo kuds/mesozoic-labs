@@ -1,4 +1,4 @@
-"""Reporting-only T. rex stance diagnostics.
+"""Reporting-only stance diagnostics shared by training species.
 
 The helpers in this module derive support and pose measurements without
 changing actions, observations, rewards, reset behavior, or termination.
@@ -292,6 +292,33 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
         if pelvis_z is not None:
             row["tail_pelvis_rel_z"] = row["tail_tip_z"] - pelvis_z
 
+    return row
+
+
+def capture_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
+    """Record common root pose and measured info, with optional biped geometry.
+
+    Species expose different anatomy and instrumentation. Missing measurements
+    stay absent; in particular, a quadruped's front-foot pair is not treated as
+    its complete support. The historical T. rex columns remain available on
+    instrumented bipeds, without changing their simulation state.
+    """
+    row: dict[str, float] = {"step": float(step)}
+    for key, value in info.items():
+        scalar = _scalar(value)
+        if scalar is not None:
+            row[key] = scalar
+    if has_stance_diagnostics(info):
+        row.update(capture_trex_stance_snapshot(env, info, step))
+
+    root_id = getattr(env, "_root_body_id", None)
+    if isinstance(root_id, (int, np.integer)) and root_id >= 0:
+        position = env.data.xpos[root_id]
+        row.update({f"root_{axis}": float(value) for axis, value in zip("xyz", position)})
+        roll, pitch, yaw = _quat_to_euler(env.data.xquat[root_id])
+        for name, value in (("roll", roll), ("pitch", pitch), ("yaw", yaw)):
+            row[f"root_{name}_rad"] = value
+            row[f"root_{name}_deg"] = math.degrees(value)
     return row
 
 

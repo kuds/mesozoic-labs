@@ -94,20 +94,24 @@ def init_wandb(
         logger.warning("wandb not installed. Skipping W&B initialization.")
         return None
 
-    from .stage_manifest import stage_label
+    from .species_names import species_display_name
+    from .stage_manifest import stage_display_name, stage_label
 
-    # stage_label keeps integer stages on their historical run name
-    # ("trex-stage1") and names semantic stages by id ("trex-recovery")
-    # instead of minting "trex-stagerecovery" (F13).
-    run_name = f"{species}-{stage_label(stage)}"
+    # The visible title uses full names; the resume id and filter tags below
+    # retain the stable species/stage identifiers.
+    species_title = species_display_name(species)
+    stage_title = stage_display_name(stage, config.get("name"))
+    run_name = f"{species_title} / {stage_title}"
 
     # Collect git info
     git_hash = _get_git_hash()
 
     flat_config = {
         "species": species,
+        "species_display_name": species_title,
         "stage": stage,
         "stage_name": config.get("name", ""),
+        "stage_display_name": stage_title,
         "git_hash": git_hash,
     }
 
