@@ -834,9 +834,11 @@ and so is its `gait-r1` (GQ-14).
   20 of 20 episodes on that tip); the reward (the marches re-score at 0.61 of the statue) and the gate (support-geom
   duty and coverage, sole tilt, corner lift, touchdowns) are what refuse it. A cap of 0.4 N·m would remove it (but not
   a two-foot tiptoe, which needs about 0.3 N·m per toe); the cut waits on a walker's measured toe-torque budget.
-- **GQ-17.** The compsognathus now needs a stance retrain before any compsognathus walk (the maintainer trains at
-  least two seeds from `main`); the order of the retrains stays the maintainer's. Of §1's five certified walkers, only
-  the robot's micro-hop still loads on its current plant.
+- **GQ-17.** The compsognathus now needs a stance retrain before any compsognathus walk (the maintainer trains at least
+  two seeds on the policy-interface revision of §15's heading-free observations, which come after this revision and
+  before either the T. rex or the compsognathus trains and make the spawn-yaw probe a gate check); the order of the
+  retrains stays the maintainer's. Of §1's five certified walkers, only the robot's micro-hop still loads on its current
+  plant.
 - **§15's pad centre of pressure, on this plant (D-D28, which landed first).** The compsognathus stance declares
   `max_sole_cop_fore_aft` at 0.70, measured on the landed r2 plant as §15 asks: the statue reads 0.143–0.155, heel side,
   over 200 episodes on five seed blocks, the jittered statue at most 0.404 (σ 0.05) and the two short PPO runs' means at

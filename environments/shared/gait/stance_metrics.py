@@ -140,7 +140,7 @@ class StanceEpisodeMetrics:
     #: centre otherwise (r8 seed 42: signed 0.14-0.28, |.| 0.96-0.99); unloaded steps count 1 so that lifting the
     #: pad, or grazing the floor with it, cannot hide an edge stance.  Left open: an edge stance on up to
     #: (bar - s) / (1 - s) of the window beside a centred s, and heel and toe loaded in turn inside one step.  The
-    #: statue baseline is the foot's (box statues 0.30 to 0.69), so a bar is per species.
+    #: statue baseline is the foot's (box statues 0.14 to 0.69), so a bar is per species.
     max_sole_cop_fore_aft: float
     # --- spawn [0, g) and settle [g, s) ---
     #: Max substep animal floor force / body weight in the spawn grace; substeps there with every

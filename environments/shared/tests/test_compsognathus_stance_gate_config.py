@@ -12,11 +12,13 @@ that each fail differently:
    non-empty after the spawn grace at the stage's own control step, and the
    [env]'s settled stance-width reference ending where the gate's settle ends.
 2. **The sole, foot, settle, width and saturation bars are declared.**
-3. **A recorded march episode is refused by three independent families**: the
+3. **A recorded march episode is refused by four independent families**: the
    window's support bars (one foot down a tenth of the time, three
    touchdowns per foot per second), the sole bars (a pad standing 7-11
-   degrees off level on no contact point) and the support-geom bars (no
-   geom loaded on half of any step).  Each refuses it alone.
+   degrees off level on no contact point, which the centre-of-pressure bar
+   reads as an edge), the support-geom bars (no geom loaded on half of any
+   step) and the window peak (a step lands at 2.48 BW).  Each refuses it
+   alone.
 4. **The statue's and the jittered statue's least favourable episodes are
    clean**, and the settle width bar sits at about three times the statue's
    worst settle width change (the trex r8 runs re-seated their feet in the
@@ -39,10 +41,16 @@ that each fail differently:
    crouch, and the toe tap of item 8's blind spot, which rocks its pad from
    edge to edge; the statue, the jittered statue and the short PPO runs'
    means read under 0.41.
+
+Each recorded episode is scored on a synthetic statue's row with its own
+readings put in, and carries its readings of the metrics added later (the
+window hop pair, the pad's centre of pressure): one it lacks reads as
+unmeasured, never as the synthetic statue's.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 from typing import Any
 
@@ -52,13 +60,18 @@ from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_schema import validate_gate_config
 from environments.shared.curriculum.recovery_gate import binomial_lcb
 from environments.shared.curriculum.stance_gate_v2 import (
+    CRITERION_BAR_RANGES,
     STANCE_GATE_V2_KIND,
     STANCE_V2_THRESHOLD_KEYS,
     StanceV2Thresholds,
     StatueReference,
     classify_stance_episode,
 )
-from environments.shared.gait.stance_metrics import episode_stance_metrics, spawn_grace_steps
+from environments.shared.gait.stance_metrics import (
+    STANCE_METRIC_LATER_FIELDS,
+    episode_stance_metrics,
+    spawn_grace_steps,
+)
 
 from .test_gait_stance_metrics import statue_trace
 
@@ -70,16 +83,24 @@ FOOT_KEYS = ("min_support_geom_duty", "min_support_geom_coverage")
 SUPPORT_KEYS = ("min_all_feet_support", "max_touchdown_rate")
 #: The settle-window bars: the reset hop and its impact, and the re-seat.
 SETTLE_KEYS = ("max_settle_airborne_substeps", "max_settle_peak_floor_force_bw", "max_settle_stance_width_change_m")
-FAMILIES = {"support": SUPPORT_KEYS, "sole": SOLE_KEYS, "foot": FOOT_KEYS}
 #: The window hop pair: both feet off the floor on a substep, and the landing's peak, over the window.
 WINDOW_HOP_KEYS = ("max_window_airborne_substeps", "max_window_peak_floor_force_bw")
+#: The families that each refuse the recorded march alone: the sole family with the pad's centre of pressure, and
+#: the window pair's peak (the march flies 13 window substeps, under the airborne bar).
+FAMILIES = {
+    "support": SUPPORT_KEYS,
+    "sole": SOLE_KEYS + ("max_sole_cop_fore_aft",),
+    "foot": FOOT_KEYS,
+    "window peak": ("max_window_peak_floor_force_bw",),
+}
 
 #: The r2 statue panel's mean per-foot load share (right, left) and its standing reward under the stance [env].
 STATUE = StatueReference(n_episodes=40, n_full_horizon=40, mean_reward=4570.4, foot_load_share=(0.5, 0.5))
 
 #: The 20261001_225856 march's quietest panel episode (seed 3042), as the v2 report measured it on the r1
 #: plant: it reaches the horizon with an ordinary settle (a 2.05 BW peak, 2.4 mm of width change), standing on
-#: one digit-III tip at a time.
+#: one digit-III tip at a time, so no pad carries a loaded contact point (its centre of pressure reads 1 on every
+#: window step), and lands at up to 2.48 BW in the window.
 QUIET_MARCH: dict[str, Any] = {
     "all_feet_support": 0.1087,
     "touchdown_rate": 3.125,
@@ -96,6 +117,9 @@ QUIET_MARCH: dict[str, Any] = {
     "max_sole_tilt_deg": 7.2157,
     "max_sole_corner_lift_m": 0.0076,
     "min_sole_contacts": 0.0,
+    "max_sole_cop_fore_aft": 1.0,
+    "window_airborne_substeps": 13.0,
+    "window_peak_floor_force_bw": 2.4765,
 }
 
 #: The settle width change of the 20260921_203149 march's least re-seating episode (seed 3058; 11.5-33 mm).
@@ -121,6 +145,8 @@ STATUE_WORST: dict[str, dict[str, Any]] = {
         "max_sole_corner_lift_m": 0.0,
         "min_sole_contacts": 3.8609,
         "max_sole_cop_fore_aft": 0.151,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.0001,
     },
     "most_tilted": {
         "all_feet_support": 1.0,
@@ -139,13 +165,15 @@ STATUE_WORST: dict[str, dict[str, Any]] = {
         "max_sole_corner_lift_m": 0.0,
         "min_sole_contacts": 3.8261,
         "max_sole_cop_fore_aft": 0.1429,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 1.0001,
     },
 }
 
 #: The r2 statue with N(0, 0.05) noise on its zero command every step (seeds 3042-3081, noise stream
 #: default_rng(123456 + 17 i)): its lowest support-geom duty (seed 3044) and its highest settle peak
 #: (seed 3074), each as the v2 report measured it.  Every bar but the window peak admits all 40 of the panel's
-#: episodes (the peak refuses 22: JITTERED_STATUE_LANDING below).
+#: episodes (the peak refuses 22: JITTERED_STATUE_LANDING below); these two land at 1.99 and 1.95 BW, under it.
 JITTERED_STATUE: dict[str, dict[str, Any]] = {
     "lowest_duty": {
         "all_feet_support": 1.0,
@@ -164,6 +192,8 @@ JITTERED_STATUE: dict[str, dict[str, Any]] = {
         "max_sole_corner_lift_m": 0.0002,
         "min_sole_contacts": 2.3465,
         "max_sole_cop_fore_aft": 0.3795,
+        "window_airborne_substeps": 10.0,
+        "window_peak_floor_force_bw": 1.9926,
     },
     "highest_settle_peak": {
         "all_feet_support": 1.0,
@@ -182,6 +212,8 @@ JITTERED_STATUE: dict[str, dict[str, Any]] = {
         "max_sole_corner_lift_m": 0.0002,
         "min_sole_contacts": 2.4286,
         "max_sole_cop_fore_aft": 0.3717,
+        "window_airborne_substeps": 10.0,
+        "window_peak_floor_force_bw": 1.9545,
     },
 }
 
@@ -212,13 +244,22 @@ POST_SETTLE_HOP: dict[str, Any] = {
     "min_sole_contacts": 2.8621,
     "window_airborne_substeps": 472.0,
     "window_peak_floor_force_bw": 3.9877,
+    "max_sole_cop_fore_aft": 0.5144,
 }
 
 #: The jittered statue's (sigma 0.03, seeds 3042-3081) most airborne window (seed 3069) and highest window peak
 #: (seed 3073) on the landed plant: the noise bounces this light plant in the window too.
 JITTERED_STATUE_WINDOW: dict[str, dict[str, float]] = {
-    "most_airborne": {"window_airborne_substeps": 17.0, "window_peak_floor_force_bw": 1.5803},
-    "highest_peak": {"window_airborne_substeps": 7.0, "window_peak_floor_force_bw": 1.7412},
+    "most_airborne": {
+        "window_airborne_substeps": 17.0,
+        "window_peak_floor_force_bw": 1.5803,
+        "max_sole_cop_fore_aft": 0.2689,
+    },
+    "highest_peak": {
+        "window_airborne_substeps": 7.0,
+        "window_peak_floor_force_bw": 1.7412,
+        "max_sole_cop_fore_aft": 0.282,
+    },
 }
 
 #: The softest landing of the post-settle hop at amplitude 0.07 (knees +0.07, ankles and hip pitch -0.07, a 10 Hz
@@ -243,13 +284,22 @@ SOFTEST_POST_SETTLE_HOP: dict[str, Any] = {
     "min_sole_contacts": 3.1391,
     "window_airborne_substeps": 9.0,
     "window_peak_floor_force_bw": 2.2312,
+    "max_sole_cop_fore_aft": 0.1888,
 }
 
 #: The sigma-0.05 jittered statue's (seeds 3042-3081) most airborne window (seed 3055) and hardest landing
 #: (seed 3058): the hop above lands inside both.
 JITTERED_STATUE_LANDING: dict[str, dict[str, float]] = {
-    "most_airborne": {"window_airborne_substeps": 28.0, "window_peak_floor_force_bw": 2.0081},
-    "highest_peak": {"window_airborne_substeps": 9.0, "window_peak_floor_force_bw": 2.2655},
+    "most_airborne": {
+        "window_airborne_substeps": 28.0,
+        "window_peak_floor_force_bw": 2.0081,
+        "max_sole_cop_fore_aft": 0.3736,
+    },
+    "highest_peak": {
+        "window_airborne_substeps": 9.0,
+        "window_peak_floor_force_bw": 2.2655,
+        "max_sole_cop_fore_aft": 0.3653,
+    },
 }
 
 #: Two scripted stances from step 200 that the block certifies on the landed plant (KNOWN_ISSUES; the audit's §11
@@ -414,18 +464,32 @@ def curriculum(stage: dict[str, Any]) -> dict[str, Any]:
 
 
 def _reasons(curriculum: dict[str, Any], metrics: dict[str, Any]) -> set[str]:
+    """The criteria *metrics* fails, scored on a synthetic statue's row with them put in.
+
+    A metric added later that *metrics* does not record reads as unmeasured (NaN), as the judge reads a row
+    recorded before it: never as the synthetic statue's reading, which no recorded episode measured.
+    """
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     clean = episode_stance_metrics(statue_trace(1000), settle_steps=thresholds.settle_steps)
-    episode = replace(clean, **metrics)
+    unrecorded: dict[str, Any] = {name: math.nan for name in STANCE_METRIC_LATER_FIELDS if name not in metrics}
+    episode = replace(clean, **unrecorded, **metrics)
     reasons = classify_stance_episode(episode, thresholds, horizon=1000, statue=STATUE)
     return {reason.split(":", 1)[0] for reason in reasons}
 
 
 def _without(curriculum: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
-    """*curriculum* with *keys* declared so loosely that they can never fail (a required key cannot be dropped)."""
+    """*curriculum* with *keys* declared so loosely that they can never fail (a required key cannot be dropped).
+
+    A key whose bar must lie inside a range (``CRITERION_BAR_RANGES``: the pad centre-of-pressure bar, an optional
+    key) is dropped instead.
+    """
+    ranged = {key for key, *_ in CRITERION_BAR_RANGES}
     loose = dict(curriculum)
     for key in keys:
-        loose[key] = 1e9 if key.startswith("max_") else -1e9
+        if key in ranged:
+            del loose[key]
+        else:
+            loose[key] = 1e9 if key.startswith("max_") else -1e9
     return loose
 
 
@@ -466,7 +530,7 @@ def test_the_sole_foot_settle_width_and_saturation_bars_are_declared(curriculum,
     assert StanceV2Thresholds.from_curriculum(curriculum).declared()[key] == curriculum[key]
 
 
-def test_a_recorded_march_is_refused_by_three_independent_families(curriculum):
+def test_a_recorded_march_is_refused_by_four_independent_families(curriculum):
     every_family = tuple(key for keys in FAMILIES.values() for key in keys)
     assert _reasons(curriculum, QUIET_MARCH) == set(every_family)
     assert _reasons(_without(curriculum, every_family), QUIET_MARCH) == set()
@@ -569,11 +633,6 @@ def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
 # ── the pad's centre of pressure (decision D-D28, measured on this plant) ─────
 
 
-def _without_cop(curriculum: dict[str, Any]) -> dict[str, Any]:
-    """*curriculum* without the centre-of-pressure bar, an optional key (its bar must lie inside (0, 1))."""
-    return {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
-
-
 def test_the_pad_cop_bar_is_declared_beside_the_sole_bars(curriculum):
     assert curriculum["max_sole_cop_fore_aft"] == 0.70
     assert StanceV2Thresholds.from_curriculum(curriculum).declared()["max_sole_cop_fore_aft"] == 0.70
@@ -583,7 +642,9 @@ def test_the_pad_cop_bar_is_declared_beside_the_sole_bars(curriculum):
 
 @pytest.mark.parametrize("case", sorted(COP_ADMITTED))
 def test_the_statue_the_jitter_and_the_ppo_means_clear_the_cop_bar(curriculum, case):
-    assert _reasons(curriculum, {"max_sole_cop_fore_aft": COP_ADMITTED[case]}) == set()
+    """The statue's most tilted episode with each group's highest reading in place of its own."""
+    episode = {**STATUE_WORST["most_tilted"], "max_sole_cop_fore_aft": COP_ADMITTED[case]}
+    assert _reasons(curriculum, episode) == set()
 
 
 @pytest.mark.parametrize("case", sorted(EDGE_STANCES))
@@ -592,14 +653,14 @@ def test_an_edge_stance_every_other_bar_admits_is_refused_by_the_cop_bar_alone(c
     all read them as flat, and only where along each pad the floor pushes sets them apart."""
     episode = EDGE_STANCES[case]
     assert _reasons(curriculum, episode) == {"max_sole_cop_fore_aft"}
-    assert _reasons(_without_cop(curriculum), episode) == set()
+    assert _reasons(_without(curriculum, ("max_sole_cop_fore_aft",)), episode) == set()
 
 
 def test_the_toe_tap_the_block_certified_before_the_cop_bar_is_refused_by_it_alone(curriculum):
     """Of the six one-substep flutters and soft bounces the block certified on this plant (KNOWN_ISSUES), the toe tap
     rocks its pad onto its edges; the two bounces, the burst, the one-leg pump and the shuttle read 0.14-0.48."""
     assert _reasons(curriculum, TOE_TAP) == {"max_sole_cop_fore_aft"}
-    assert _reasons(_without_cop(curriculum), TOE_TAP) == set()
+    assert _reasons(_without(curriculum, ("max_sole_cop_fore_aft",)), TOE_TAP) == set()
 
 
 def test_the_cop_bar_sits_between_the_noise_and_the_edge_stances(curriculum):

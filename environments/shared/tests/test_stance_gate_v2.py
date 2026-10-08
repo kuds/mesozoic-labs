@@ -549,6 +549,26 @@ class TestPanel:
         assert not result.passed and len(result.failures) == 1
         assert result.failures[0].startswith("hop_or_fall_episodes 1 > 0")
 
+    def test_the_rail_failure_names_only_the_hop_keys_the_gate_declares(self, clean):
+        """An undeclared window pair fails no episode, so the rail's text does not name it."""
+        hop = replace(clean, all_feet_support=0.6, window_displacement_m=1.3)
+        panel = [clean] * 39 + [hop]
+        step_level = (
+            "min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction"
+        )
+        without_pair = evaluate_stance_v2_gate(panel, thresholds(max_hop_or_fall_episodes=0), horizon=HORIZON)
+        assert without_pair.failures == (
+            f"hop_or_fall_episodes 1 > 0 (episodes ending early or failing {step_level}; panel rail)",
+        )
+        declared = thresholds(
+            max_hop_or_fall_episodes=0, max_window_airborne_substeps=40, max_window_peak_floor_force_bw=2.0
+        )
+        with_pair = evaluate_stance_v2_gate(panel, declared, horizon=HORIZON)
+        assert with_pair.failures == (
+            f"hop_or_fall_episodes 1 > 0 (episodes ending early or failing {step_level}, max_window_airborne_substeps, "
+            "max_window_peak_floor_force_bw; panel rail)",
+        )
+
     def test_an_undeclared_rail_leaves_the_result_as_it_was(self, clean):
         result = evaluate_stance_v2_gate([clean] * 40, thresholds(), horizon=HORIZON)
         assert result.hop_or_fall_episodes is None

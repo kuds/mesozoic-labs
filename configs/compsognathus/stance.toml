@@ -277,9 +277,9 @@ timesteps = 11000000
 # two certified r1 marches load only on the physics-r1 plant (the plant
 # contract compares physics_sha256), so they were rolled there with their own
 # linear interface and this block: 0/20 each, every episode failing at least
-# 8 bars (support, touchdowns, support-geom duty and coverage, sole tilt,
-# corner lift and contacts, the window peak; 0921 20/20 on the settle width
-# change too). The r1 statue there is clean on 20/20.
+# 9 bars (support, touchdowns, support-geom duty and coverage, sole tilt,
+# corner lift, contacts and centre of pressure, the window peak; 0921 20/20 on
+# the settle width change too). The r1 statue there is clean on 20/20.
 # Scripted hacks on the landed plant (seeds 3042+i, 10 episodes each unless
 # noted), with their reward over the same-seed statue's on that panel: both
 # hip-roll commands +0.05 rad (both pads rolled the same way) 0/10, 0.877,
@@ -305,8 +305,9 @@ timesteps = 11000000
 # support geom, on its pads' front edges, that only that bar refuses (0/40
 # with it: max_sole_cop_fore_aft below; its other unclean episodes walk off:
 # displacement, settle and window airborne), and which the [env]'s leg pose
-# term prices (0.887 on its 20-episode re-score, 0.804 and 13/20 clean on
-# seeds 11042-11061: the posture wanders);
+# term prices (0.887 on its 20-episode re-score, 0.804 on seeds 11042-11061,
+# where it is clean on 13/20 without the pad centre-of-pressure bar and 0/20
+# with it: the posture wanders);
 # and an open-loop weight shift onto one leg (hip roll -0.03 rad on both legs,
 # then the left knee, ankle and hip pitch commanded 0.2 rad) that stands with
 # the right foot at 0.4 N (4% of body weight), 0/10, 0.626 (the lighter foot
@@ -440,7 +441,7 @@ min_sole_contacts = 1.5                  # The worse pad's window-mean loaded co
                                          # rolled 0.10 rad 1.0 (fail 20/20) and the marches at most 0.002 (fail
                                          # 20/20).
 max_sole_cop_fore_aft = 0.70             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
-                                         # (D-D28, which landed first, #603; 0 centred, 1 on the heel or toe edge, a
+                                         # (D-D28, which landed first; 0 centred, 1 on the heel or toe edge, a
                                          # step with no loaded sole contact 1). Statue 0.143-0.155, heel side (out of
                                          # sample too, and on 5042-5081 and 11042-11081), the PPO means 0.156-0.246,
                                          # jittered at most 0.209, 0.246, 0.289 and 0.404 at sigma 0.01, 0.02, 0.03 and
@@ -472,9 +473,11 @@ max_sole_cop_fore_aft = 0.70             # The worse pad's window mean of its pe
                                          # all refused by the bars above); the five scripts the block still admits
                                          # 0.14-0.48. Left open, as on the T. rex, the bar being a window mean: an edge
                                          # stance on up to (0.70 - s) / (1 - s) of the window beside a centred s (65% at
-                                         # the statue's 0.15): the MTPs ramped onto the front edges over steps 450-550
-                                         # pass 10/10 at 0.62-0.63 (past 0.9 on 54% of window steps), over 350-450 fail
-                                         # 10/10 at 0.72-0.73 (docs/KNOWN_ISSUES.md).
+                                         # the statue's 0.15): the MTP servo targets ramped linearly onto the front
+                                         # edges over steps 450-550 pass 10/10 at 0.62-0.63 (past 0.9 on 54% of window
+                                         # steps), over 350-450 fail 10/10 at 0.72-0.73, and with the raw action ramped
+                                         # instead (a lagging target) the 350-450 posture reads 0.69-0.71 and passes 11
+                                         # of 20 (docs/KNOWN_ISSUES.md).
 max_window_airborne_substeps = 40        # The window hop pair (with the peak below; D-D26): substeps with both legs
                                          # unloaded over steps 200-999. A leg is down on a step when it is loaded on
                                          # half of its ten substeps, so a two-foot hop whose flights last 1-3

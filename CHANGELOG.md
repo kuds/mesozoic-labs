@@ -362,14 +362,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   half of the step's ten substeps, and this plant's hop flights last 1–3 of
   them, so a two-foot hop started after the settle reads a statue on every
   step-level bar: both legs down on every step, no touchdown, a quiet settle.
-  `from_curriculum` refuses a negative airborne bar and a peak bar under one
-  body weight (`WINDOW_HOP_KEY_FLOORS`), and the pair joins D-D28's pad centre
-  of pressure in `STANCE_METRIC_LATER_FIELDS`: a report row or panel CSV
+  `from_curriculum`, and `gate_schema` at config load, refuse a negative
+  airborne bar and a peak bar under one body weight (`WINDOW_HOP_KEY_FLOORS`,
+  beside D-D28's `CRITERION_BAR_RANGES`), and the pair joins D-D28's pad
+  centre of pressure in `STANCE_METRIC_LATER_FIELDS`: a report row or panel CSV
   recorded before it reads both metrics as unmeasured, so every earlier
   report keeps its verdict under a block that does not declare the pair, and
   under one that does such a panel is refused by name, never failed (re-roll
   the panel); no trex or velociraptor digest moves, and the website's species
-  data and the catalog carry the two keys.
+  data and the catalog carry the two keys. The pair counts toward D-D27's
+  hop-or-fall rail where a block declares both (none does yet); the rail's
+  failure text and the text report name only the hop keys a block declares,
+  and a block that does not gate the pair (the T-Rex's, the velociraptor's)
+  lists its readings among the report-only ones.
   Validated, verdicts re-derived from the recorded
   rows under the committed block: the r2 statue is clean on 40/40 (bound
   0.928) on each of seeds 3042–3081, 7042–7081 and 9042–9081; the statue with
@@ -385,39 +390,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on 20/20 and are clean on 0/20 (the exploration noise bounces this plant;
   the gate reads the mean); the two certified r1 marches, rolled on the r1
   plant they load on with their own interface, on 0/20 each, every episode
-  failing 8–10 bars (support, touchdowns, support-geom duty and coverage, sole
-  tilt, corner lift and contacts, the window peak), and the r1 statue there on
-  20/20. Scripted hacks on r2 (seeds 3042 + i, 10-episode gate panels): rolled
-  feet 0/40, settle stomps 0/30, the whole-episode hop 0/40, an open-loop
-  one-leg stance 0/10 and a 39/61 weight shift 0/10, and the hop started after
-  the settle (knees, ankles and hip pitch in phase, square waves at 10 and
-  12.5 Hz, amplitude 0.07–0.15) 0/410 over seeds 3042 + i, 7042 + i and 9042 +
-  i, refused by the window peak bar on all 410, the window airborne bar on 368
-  and the displacement guard on 349, and by the pair alone on 61 of the 120
-  episodes at amplitude 0.07 and 10 Hz (and on 10 of 10 of a hop started at
-  step 600); a swept-back crouch, a level, bilateral stance on every support
-  geom that the leg pose term prices, stands on its pads' front edges and is
-  refused by the pad centre-of-pressure bar alone (below; 8/10 clean without
-  it, its two unclean episodes walking off). The pair narrows the gap
-  the step-level bars leave on this plant but does not close it (40-episode
-  panels through the report path, seeds 3042–3081): the same hop driven by a
-  sine at 5 Hz and 2.5 Hz lands at 1.33–1.80 BW, flies 0–32 window substeps
-  and certifies on 40/40 at 0.989–0.990 of the statue's reward, one 10 Hz
-  cycle every 0.4 s on 39/40, and, because a foot lifted for less than half a
-  step reads down, a one-leg pump that lifts the foot for one substep 130–190
-  times an episode and a 6.25 Hz weight shuttle on 40/40 each (0.905–0.972;
-  a toe tap certified too until the pad centre-of-pressure bar, below). No count bar separates these from the admitted σ 0.03 jitter,
-  so KNOWN_ISSUES carries them, a stance's lift-offs are checked by hand until
-  a periodicity criterion is measured, and the window peak bar's jitter margin
-  is 0.12 BW, not the middle of the gap (the σ 0.03 jitter reaches 1.88 BW on
-  an independent noise stream). The committed stance was put through the
-  post-stage pipeline with the zero command as a scripted checkpoint: the
-  report and the judge pass it on 40/40 (bound 0.928) and write
-  `gate_verdict.json`, publication admits the panel and backfill re-derives
-  the verdict (`gate_sha256 8938b294…`, `task_sha256 6c667a99…`). v1's
-  `min_avg_reward` 1800 and its two duty keys stay in the file as comments, a
-  superseded record (v2 refuses the duty keys). Panels and per-bar counts are
-  in the dated §11 appended to
+  failing 9–11 bars (support, touchdowns, support-geom duty and coverage, sole
+  tilt, corner lift, contacts and pad centre of pressure, the window peak),
+  and the r1 statue there on 20/20. Scripted hacks on r2 (seeds 3042 + i,
+  10-episode gate panels): rolled feet 0/40, settle stomps 0/30, the
+  whole-episode hop 0/40, an open-loop one-leg stance 0/10 and a 39/61 weight
+  shift 0/10, and the hop started after the settle (knees, ankles and hip
+  pitch in phase, square waves at 10 and 12.5 Hz, amplitude 0.07–0.15) 0/410
+  over seeds 3042 + i, 7042 + i and 9042 + i, refused by the window peak bar
+  on all 410, the window airborne bar on 368 and the displacement guard on
+  349, and by the pair alone on 61 of the 120 episodes at amplitude 0.07 and
+  10 Hz (and on 10 of 10 of a hop started at step 600); a swept-back crouch, a
+  level, bilateral stance on every support geom that the leg pose term prices,
+  stands on its pads' front edges and is refused by the pad centre-of-pressure
+  bar alone (below; 8/10 clean without it, its two unclean episodes walking
+  off). The pair narrows the gap the step-level bars leave on this plant but
+  does not close it (40-episode panels through the report path, seeds
+  3042–3081): the same hop driven by a sine at 5 Hz and 2.5 Hz lands at
+  1.33–1.80 BW, flies 0–32 window substeps and certifies on 40/40 at
+  0.989–0.990 of the statue's reward, one 10 Hz cycle every 0.4 s on 39/40,
+  and, because a foot lifted for less than half a step reads down, a one-leg
+  pump that lifts the foot for one substep 130–190 times an episode and a 6.25
+  Hz weight shuttle on 40/40 each (0.905–0.972; a toe tap certified too until
+  the pad centre-of-pressure bar, below). No count bar separates these from
+  the admitted σ 0.03 jitter, so KNOWN_ISSUES carries them, a stance's
+  lift-offs are checked by hand until a periodicity criterion is measured, and
+  the window peak bar's jitter margin is 0.12 BW, not the middle of the gap
+  (the σ 0.03 jitter reaches 1.88 BW on an independent noise stream). The
+  committed stance was put through the post-stage pipeline with the zero
+  command as a scripted checkpoint: the report and the judge pass it on 40/40
+  (bound 0.928) and write `gate_verdict.json`, publication admits the panel
+  and backfill re-derives the verdict (`gate_sha256 8938b294…`, `task_sha256
+  6c667a99…`). v1's `min_avg_reward` 1800 and its two duty keys stay in the
+  file as comments, a superseded record (v2 refuses the duty keys). Panels and
+  per-bar counts are in the dated §11 appended to
   `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`. Statue constants
   re-measured on r2: stance 4570.4 ± 7.2 (`zero_action_baseline.py
   compsognathus --episodes 40 --seed 3042`), so `min_avg_reward` 1800 → 2740,
@@ -528,12 +534,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery calibration's `file_sha256`; the 11 behavior recipes'
   `task_sha256`; and `summary`, `shape_sha256` and `rounded_values_sha256`
   of the four compsognathus reward stages. Out of scope: no r2 policy has
-  been trained (land, then train: the maintainer trains at least two seeds
-  from `main`); the toe cap and the proportions pass are deferred, as above;
-  spawn-yaw randomisation and a heading-free observation are not addressed
-  (the observation carries the world-frame pelvis quaternion, linear
+  been trained; the toe cap and the proportions pass are deferred, as above;
+  a heading-free observation is decided for a later PR, the maintainer's
+  heading decision of 2026-10-07 (the D-D27 row's amendment): one
+  cross-species PR for the T. rex and the compsognathus after this revision
+  and before either trains, which moves the compsognathus policy interface
+  again and makes the spawn-yaw probe a gate check, so the maintainer's
+  two or more compsognathus stance seeds train on that revision, not on this
+  one (this observation carries the world-frame pelvis quaternion, linear
   velocity and target direction; the statue is clean at every spawn yaw
-  tried, a trained policy is untested); the robot is untouched.
+  tried); the robot is untouched.
 - **`stance_quality/v2` reads where along a pad the floor pushes, and the
   T-Rex stance refuses a foot standing on its pad's front edge** (#603, decision
   D-D28, which the maintainer took on 2026-10-07 after the review of the

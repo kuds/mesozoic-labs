@@ -1267,9 +1267,9 @@ robustness, **LOW** = cosmetic / QoL.
   the box-soled robot and dibothrosuchus are not on `stance_quality/v2` (the
   robot on v1, dibothrosuchus on `reward_and_length/v1`), so each gets a bar
   when it adopts v2, measured on its own statue (their statues read
-  0.30–0.69 here). The compsognathus adopts v2 in its revision (D-D26,
-  #604), which lands after D-D28 (#603) and declares 0.70, measured on its
-  r2 statue (the audit's §11; the r1 readings in these records do not carry
+  0.30–0.69 here). The compsognathus adopts v2 in its revision (D-D26),
+  which comes after D-D28 and declares 0.70, measured on its r2 statue
+  (the audit's §11; the r1 readings in these records do not carry
   over: the r2 statue reads 0.143–0.155 over 200 episodes on five seed
   blocks, heel side, against r1's 0.454–0.473). Its pad and digits are one
   plate, and the digits reach past the pad's front edge, so the reading
@@ -1279,9 +1279,13 @@ robustness, **LOW** = cosmetic / QoL.
   whole 40-episode panels without the bar, and 33 of the swept-back crouch's
   40 episodes are clean without it, all at 0.84–1.00; the bar refuses each.
   The same gap (1) is open there at (0.70 − s)/(1 − s) of the window, 65% at
-  the statue's 0.15: the MTP targets ramped onto the front edges over steps
-  450–550 pass 10/10 (0.62–0.63, the pads past 0.9 of the half-length on 54%
-  of the window), over steps 350–450 fail 10/10 (0.72–0.73, 67%).
+  the statue's 0.15: the MTP servo targets ramped linearly onto the front
+  edges over steps 450–550 pass 10/10 (0.62–0.63, the pads past 0.9 of the
+  half-length on 54% of the window), over steps 350–450 fail 10/10
+  (0.72–0.73, 67%). That split is the ramp's, not a margin: ramping the raw
+  action linearly instead, which the soft-cubic map turns into a lagging
+  target, the same 350–450 posture reads 0.69–0.71 and passes 11 of 20
+  (seeds 17042–17061).
 
 - **MEDIUM** — **a step that diverges in MuJoCo returns as an ordinary step
   (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1244-1384`, its

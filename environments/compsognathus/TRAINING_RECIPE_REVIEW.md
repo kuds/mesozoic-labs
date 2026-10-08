@@ -276,7 +276,12 @@ stochastic rollouts bounced (clean on 0/20); that shows only that the mean
 does not drift to a march or a hop early, and the trex physics-r8 runs
 entered a hop regime by 2–4M steps (seed 42 froze into it by 6.5M, while
 seed 44 left it at 5–6M). Train at least two seeds of the anatomical stance
-(the maintainer's plan after landing), and judge each stance on seeds
+(the maintainer's plan) on the policy-interface revision of the heading-free
+observations the maintainer chose on 2026-10-07 for this species and the
+T. rex (one PR after this revision and before either trains, where the
+spawn-yaw probe becomes a gate check; a stance trained on the current
+observation, which reads the world heading, would be stranded by it:
+`docs/GAIT_QUALITY_PLAN_2026_09.md` §15), and judge each stance on seeds
 3042–3081 and again on 7042–7081. The gate does not see everything on this
 plant: a two-foot bounce that lands under 2 body weights, a foot lifted for
 less than half a control step and a weight shuttle faster than 1 Hz all

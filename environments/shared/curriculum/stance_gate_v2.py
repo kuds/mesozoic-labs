@@ -124,8 +124,9 @@ pushes: the window mean of the per-step ``|fore-aft CoP| / half-length``
 (``StanceEpisodeMetrics.max_sole_cop_fore_aft``: 0 centred, 1 on an edge
 or with no loaded contact), which separates that foot (0.85-1.00) from the
 statue (at most 0.48).  Box soles only, and two-sided, because the
-compsognathus statue stands heel-side.  Declared by trex since D-D28;
-undeclared, it is not applied.
+compsognathus statue stands heel-side.  Declared by trex since D-D28 (0.80)
+and by the compsognathus since D-D26 (0.70, on its r2 statue); undeclared,
+it is not applied.
 
 Metrics added later
 -------------------
@@ -221,7 +222,8 @@ CRITERION_BAR_RANGES: tuple[tuple[str, float, float, str], ...] = (
 
 #: The window hop pair's floors, ``(key, least valid bar, why)``: a bar below
 #: either refuses every episode, so it is a typo, not a strict gate
-#: (:meth:`StanceV2Thresholds.from_curriculum`).
+#: (:meth:`StanceV2Thresholds.from_curriculum`, and ``gate_schema`` at config
+#: load, as for :data:`CRITERION_BAR_RANGES`).
 WINDOW_HOP_KEY_FLOORS: tuple[tuple[str, float, str], ...] = (
     ("max_window_airborne_substeps", 0.0, "it counts substeps"),
     (
@@ -785,9 +787,11 @@ def evaluate_stance_v2_gate(
     if thresholds.max_hop_or_fall_episodes is not None:
         hop_or_fall = sum(1 for episode_reasons in reasons if is_hop_or_fall(episode_reasons))
         if hop_or_fall > thresholds.max_hop_or_fall_episodes:
+            # Only the hop keys the gate declares: an undeclared one fails no episode.
+            declared_hop_keys = [key for key in HOP_OR_FALL_KEYS if getattr(thresholds, key) is not None]
             failures.append(
                 f"hop_or_fall_episodes {hop_or_fall} > {thresholds.max_hop_or_fall_episodes} (episodes ending early "
-                f"or failing {', '.join(HOP_OR_FALL_KEYS)}; panel rail)"
+                f"or failing {', '.join(declared_hop_keys)}; panel rail)"
             )
 
     mean_reward = _mean([row.reward for row in rows])

@@ -129,8 +129,9 @@ physics substeps with both feet off the floor and no landing above 2 body
 weights after it (the window hop bars count substeps, because this light
 plant's hop flights last less than half a control step), both feet down and
 loaded, the plantar pad and all three digits of each foot loaded, level
-pads, no drift or re-seat, and no actuator held at its limit; the bars and
-their measured provenance are in
+pads pushed on along their length rather than on an edge (the pad's
+fore-aft centre of pressure, D-D28, 0.70), no drift or re-seat, and no
+actuator held at its limit; the bars and their measured provenance are in
 [`configs/compsognathus/stance.toml`](../../configs/compsognathus/stance.toml).
 The bars do not see everything: a two-foot bounce that lands softly, a foot
 that lifts for less than half a control step and a fast weight shuttle all

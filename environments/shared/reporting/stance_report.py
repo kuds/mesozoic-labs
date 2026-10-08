@@ -58,6 +58,7 @@ from ..curriculum.stance_gate import (
 )
 from ..curriculum.stance_gate_v2 import (
     EPISODE_CRITERIA,
+    HOP_OR_FALL_KEYS,
     HORIZON_REASON,
     STANCE_GATE_V2_KIND,
     STANCE_V2_PANEL_FIELDNAMES,
@@ -1747,6 +1748,17 @@ def _finite_values(rows: list[dict[str, Any]], field_name: str) -> list[float]:
     return values
 
 
+#: How the text report names each hop-or-fall key in the rail's line.
+_HOP_OR_FALL_WORDS: dict[str, str] = {
+    "min_all_feet_support": "support",
+    "max_touchdown_rate": "touchdowns",
+    "max_window_displacement_m": "drift",
+    "max_actuator_saturation_fraction": "saturation",
+    "max_window_airborne_substeps": "window airborne substeps",
+    "max_window_peak_floor_force_bw": "window peak floor force",
+}
+
+
 def _render_stance_v2_report(report: dict[str, Any]) -> str:
     """The text form of a ``stance_quality/v2`` report: the bound, then each criterion, then the episodes.
 
@@ -1806,9 +1818,11 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             lines.append(f"  {key:36s} {float(thresholds[key]):g} (panel rail)")
     if "max_hop_or_fall_episodes" in thresholds:
         key = "max_hop_or_fall_episodes"
+        # The hop keys the block declares: an undeclared one fails no episode.
+        hop_words = [_HOP_OR_FALL_WORDS.get(hop, hop) for hop in HOP_OR_FALL_KEYS if hop in thresholds]
         lines.append(
             f"  {key:36s} <= {int(thresholds[key])} (panel rail: {result.get('hop_or_fall_episodes')} episodes end "
-            "early or fail support, touchdowns, drift or saturation)"
+            f"early or fail {', '.join(hop_words[:-1])} or {hop_words[-1]})"
         )
     statue = report.get("statue")
     if statue:
@@ -1830,6 +1844,8 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
             ("settle_touchdowns", "settle-window touchdowns"),
             ("max_sole_cop_fore_aft", "pad CoP fore-aft (|.| / half-length)"),
+            ("window_airborne_substeps", "window both-feet-unloaded substeps"),
+            ("window_peak_floor_force_bw", "window peak floor force (BW)"),
         )
         if metric not in gated_metrics
     )

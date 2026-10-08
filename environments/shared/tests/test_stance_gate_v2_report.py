@@ -243,7 +243,10 @@ class TestThePanel:
         # Its pads are boxes, so their fore-aft centre of pressure is measured, and the text report lists it
         # as a report-only reading under a block that does not gate it.
         assert all(0.0 < row["max_sole_cop_fore_aft"] < 1.0 for row in report["episode_evidence"])
-        assert "pad CoP fore-aft (|.| / half-length)" in (stage_dir / "stance_gate_report.txt").read_text()
+        text = (stage_dir / "stance_gate_report.txt").read_text()
+        assert "pad CoP fore-aft (|.| / half-length)" in text
+        # So is the window hop pair, which this block does not declare either.
+        assert "window both-feet-unloaded substeps" in text and "window peak floor force (BW)" in text
         assert report["result"]["n_clean"] == EPISODES == report["result"]["n_episodes"]
         assert [row["clean"] for row in report["episode_evidence"]] == [True] * EPISODES
         assert [row["seed"] for row in report["episode_evidence"]] == [3042, 3043, 3044]
@@ -486,6 +489,10 @@ class TestThePadCentreOfPressure:
         stance_report.write_stance_gate_report(tmp_path, report)
         text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
         assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
+        # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
+        # declares, and the pair is a report-only reading.
+        assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
+        assert "window peak floor force (BW)" in text
         # The judge re-derives the FAIL from the rows: the bound fails, nothing is refused.
         passed, reasons = evaluate_stage_gate(
             curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
@@ -534,6 +541,9 @@ class TestThePadCentreOfPressure:
         )
         assert all(row["reasons"] == [] for row in statue)
         stance_report.write_stance_gate_report(tmp_path, report)
+        text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
+        # The block gates the window hop pair, so the text lists it with the criteria, not as report-only.
+        assert "max_window_peak_floor_force_bw" in text and "window peak floor force (BW)" not in text
         passed, reasons = evaluate_stage_gate(
             curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
         )
