@@ -1,0 +1,606 @@
+{
+  "source_git_commit": "5785ef7209aeb37929c13428713a44e1e4b8b317",
+  "published_source_commit": "3241c56b28a18259d241e27eff8d598e639ab720",
+  "source_tree_sha": "39a124636f3323aa7a2e39425b8672e35993e77a",
+  "checks_passed": 14,
+  "integration_training_steps": 8192,
+  "integration_changed_parameter_tensors": 13,
+  "calibration_panels": {
+    "trex": {
+      "species": "Tyrannosaurus Rex",
+      "variants": [
+        {
+          "name": "control",
+          "species": "trex",
+          "cop_weight": 0.0,
+          "cop_safe_fraction": 0.65,
+          "support_fraction": null,
+          "airborne_weight": 0.0,
+          "impact_weight": 0.0,
+          "impact_threshold_bw": 2.0,
+          "coverage_weight": 0.0
+        },
+        {
+          "name": "cop_margin",
+          "species": "trex",
+          "cop_weight": 0.1,
+          "cop_safe_fraction": 0.65,
+          "support_fraction": null,
+          "airborne_weight": 0.0,
+          "impact_weight": 0.0,
+          "impact_threshold_bw": 2.0,
+          "coverage_weight": 0.0
+        }
+      ],
+      "input_hashes": {
+        "selected_seed42": {
+          "model_sha256": "975a4da9951ea3ef67816b0aa1b19cca30a3f9e8c2cf1246527c3e000f5503c1",
+          "vecnorm_sha256": "28969ac7122e39c2cd42c7b3320b2e502f23c19999a11f8630c4f40b8b0d5cfc"
+        },
+        "selected_seed48": {
+          "model_sha256": "60f4dd6ed52b338e199a3f7c63d7015bc1b28ea10564710831d01c10f40de03c",
+          "vecnorm_sha256": "1dfcc236782f53d406756c416f9c7eae6b57e093b991da5f1d831e758bb1e121"
+        }
+      },
+      "panels": {
+        "statue": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 40,
+            "mean_rewards_by_variant": {
+              "control": 3756.7856858390637,
+              "cop_margin": 3756.7022174226367
+            },
+            "mean_nonterminal_reward": {
+              "control": 3.7567856858390654,
+              "cop_margin": 3.756702217422638
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": true,
+            "failures": [],
+            "n_episodes": 40,
+            "n_clean": 40,
+            "clean_fraction": 1.0,
+            "clean_lcb": 0.9278424754944773,
+            "n_full_horizon": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 3756.785685839065,
+            "statue_mean_reward": 3756.785685839065,
+            "criterion_failures": {
+              "horizon": 0,
+              "min_all_feet_support": 0,
+              "max_touchdown_rate": 0,
+              "max_window_displacement_m": 0,
+              "min_foot_load_share": 0,
+              "max_actuator_saturation_fraction": 0,
+              "max_settle_airborne_substeps": 0,
+              "max_settle_peak_floor_force_bw": 0,
+              "min_foot_load_share_windowed": 0,
+              "max_foot_contact_fraction": 0,
+              "max_phantom_support_fraction": 0,
+              "max_nonfoot_load_fraction": 0,
+              "max_settle_stance_width_change_m": 0,
+              "max_sole_tilt_deg": 0,
+              "max_sole_corner_lift_m": 0,
+              "min_sole_contacts": 0,
+              "max_episode_yaw_change_deg": 0,
+              "max_settle_touchdowns": 0,
+              "max_sole_cop_fore_aft": 0
+            },
+            "skipped_criteria": [],
+            "hop_or_fall_episodes": 0
+          }
+        },
+        "selected_seed42": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 40,
+            "mean_rewards_by_variant": {
+              "control": 3783.3939755187866,
+              "cop_margin": 3712.939070194351
+            },
+            "mean_nonterminal_reward": {
+              "control": 3.7833939755187864,
+              "cop_margin": 3.7129390701943508
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": false,
+            "failures": [
+              "clean_stance_lcb 0.0000 < 0.8000 (0/40 episodes clean)"
+            ],
+            "n_episodes": 40,
+            "n_clean": 0,
+            "clean_fraction": 0.0,
+            "clean_lcb": 0.0,
+            "n_full_horizon": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 3783.3939755187866,
+            "statue_mean_reward": 3756.785685839065,
+            "criterion_failures": {
+              "horizon": 0,
+              "min_all_feet_support": 0,
+              "max_touchdown_rate": 0,
+              "max_window_displacement_m": 0,
+              "min_foot_load_share": 0,
+              "max_actuator_saturation_fraction": 0,
+              "max_settle_airborne_substeps": 0,
+              "max_settle_peak_floor_force_bw": 0,
+              "min_foot_load_share_windowed": 0,
+              "max_foot_contact_fraction": 0,
+              "max_phantom_support_fraction": 0,
+              "max_nonfoot_load_fraction": 0,
+              "max_settle_stance_width_change_m": 0,
+              "max_sole_tilt_deg": 0,
+              "max_sole_corner_lift_m": 0,
+              "min_sole_contacts": 0,
+              "max_episode_yaw_change_deg": 0,
+              "max_settle_touchdowns": 0,
+              "max_sole_cop_fore_aft": 40
+            },
+            "skipped_criteria": [],
+            "hop_or_fall_episodes": 0
+          }
+        },
+        "selected_seed48": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 40,
+            "mean_rewards_by_variant": {
+              "control": 3774.2653240553655,
+              "cop_margin": 3770.2962465835226
+            },
+            "mean_nonterminal_reward": {
+              "control": 3.774265324055366,
+              "cop_margin": 3.7702962465835226
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": false,
+            "failures": [
+              "clean_stance_lcb 0.7856 < 0.8000 (36/40 episodes clean)"
+            ],
+            "n_episodes": 40,
+            "n_clean": 36,
+            "clean_fraction": 0.9,
+            "clean_lcb": 0.785602361483844,
+            "n_full_horizon": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 3774.2653240553655,
+            "statue_mean_reward": 3756.785685839065,
+            "criterion_failures": {
+              "horizon": 0,
+              "min_all_feet_support": 0,
+              "max_touchdown_rate": 0,
+              "max_window_displacement_m": 0,
+              "min_foot_load_share": 0,
+              "max_actuator_saturation_fraction": 0,
+              "max_settle_airborne_substeps": 0,
+              "max_settle_peak_floor_force_bw": 0,
+              "min_foot_load_share_windowed": 0,
+              "max_foot_contact_fraction": 0,
+              "max_phantom_support_fraction": 0,
+              "max_nonfoot_load_fraction": 0,
+              "max_settle_stance_width_change_m": 0,
+              "max_sole_tilt_deg": 1,
+              "max_sole_corner_lift_m": 0,
+              "min_sole_contacts": 0,
+              "max_episode_yaw_change_deg": 0,
+              "max_settle_touchdowns": 0,
+              "max_sole_cop_fore_aft": 3
+            },
+            "skipped_criteria": [],
+            "hop_or_fall_episodes": 0
+          }
+        },
+        "initial_exploration_proxy": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 0,
+            "mean_rewards_by_variant": {
+              "control": 231.5533114123892,
+              "cop_margin": 228.56942161052757
+            },
+            "mean_nonterminal_reward": {
+              "control": 1.603639642138906,
+              "cop_margin": 1.59378700557322
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": false,
+            "failures": [
+              "clean_stance_lcb 0.0000 < 0.8000 (0/40 episodes clean)",
+              "full_horizon_fraction 0.0000 < 0.9500",
+              "hop_or_fall_episodes 40 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+              "mean_reward 231.6 < 2250.0 (rail)",
+              "mean_reward 231.6 < 0.6 x statue 3756.8 = 2254.1 (statue-relative rail)"
+            ],
+            "n_episodes": 40,
+            "n_clean": 0,
+            "clean_fraction": 0.0,
+            "clean_lcb": 0.0,
+            "n_full_horizon": 0,
+            "full_horizon_fraction": 0.0,
+            "mean_reward": 231.5533114123892,
+            "statue_mean_reward": 3756.785685839065,
+            "criterion_failures": {
+              "horizon": 40,
+              "min_all_feet_support": 39,
+              "max_touchdown_rate": 39,
+              "max_window_displacement_m": 39,
+              "min_foot_load_share": 32,
+              "max_actuator_saturation_fraction": 22,
+              "max_settle_airborne_substeps": 36,
+              "max_settle_peak_floor_force_bw": 40,
+              "min_foot_load_share_windowed": 39,
+              "max_foot_contact_fraction": 23,
+              "max_phantom_support_fraction": 22,
+              "max_nonfoot_load_fraction": 23,
+              "max_settle_stance_width_change_m": 27,
+              "max_sole_tilt_deg": 40,
+              "max_sole_corner_lift_m": 40,
+              "min_sole_contacts": 40,
+              "max_episode_yaw_change_deg": 6,
+              "max_settle_touchdowns": 40,
+              "max_sole_cop_fore_aft": 40
+            },
+            "skipped_criteria": [],
+            "hop_or_fall_episodes": 40
+          }
+        }
+      }
+    },
+    "velociraptor": {
+      "species": "Velociraptor Mongoliensis",
+      "variants": [
+        {
+          "name": "control",
+          "species": "velociraptor",
+          "cop_weight": 0.0,
+          "cop_safe_fraction": 0.65,
+          "support_fraction": null,
+          "airborne_weight": 0.0,
+          "impact_weight": 0.0,
+          "impact_threshold_bw": 2.0,
+          "coverage_weight": 0.0
+        },
+        {
+          "name": "support_fraction",
+          "species": "velociraptor",
+          "cop_weight": 0.0,
+          "cop_safe_fraction": 0.65,
+          "support_fraction": 0.5,
+          "airborne_weight": 0.0,
+          "impact_weight": 0.0,
+          "impact_threshold_bw": 2.0,
+          "coverage_weight": 0.0
+        },
+        {
+          "name": "contact_quality",
+          "species": "velociraptor",
+          "cop_weight": 0.0,
+          "cop_safe_fraction": 0.65,
+          "support_fraction": null,
+          "airborne_weight": 0.5,
+          "impact_weight": 0.25,
+          "impact_threshold_bw": 2.0,
+          "coverage_weight": 0.15
+        }
+      ],
+      "input_hashes": {
+        "selected_seed42": {
+          "model_sha256": "2dbc39ff5b9bb2ecae1e1ae77087d0792ab035c74b466421c9a5b4522ca1980b",
+          "vecnorm_sha256": "2b050afd7825992bc3075f4ee3c0cc3bb47b7291e4288f52756fdea5b0f91bf9"
+        }
+      },
+      "panels": {
+        "statue": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 40,
+            "mean_rewards_by_variant": {
+              "control": 2842.759767460281,
+              "support_fraction": 2841.042915452619,
+              "contact_quality": 2842.013517460281
+            },
+            "mean_nonterminal_reward": {
+              "control": 2.8427597674602807,
+              "support_fraction": 2.8410429154526193,
+              "contact_quality": 2.842013517460281
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": true,
+            "failures": [],
+            "n_episodes": 40,
+            "n_clean": 40,
+            "clean_fraction": 1.0,
+            "clean_lcb": 0.9278424754944773,
+            "n_full_horizon": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 2842.759767460281,
+            "statue_mean_reward": 2842.759767460281,
+            "criterion_failures": {
+              "horizon": 0,
+              "min_all_feet_support": 0,
+              "max_touchdown_rate": 0,
+              "max_window_displacement_m": 0,
+              "min_foot_load_share": 0,
+              "max_actuator_saturation_fraction": 0,
+              "max_settle_airborne_substeps": 0,
+              "max_settle_peak_floor_force_bw": 0,
+              "min_foot_load_share_windowed": 0,
+              "max_foot_contact_fraction": 0,
+              "max_phantom_support_fraction": 0,
+              "max_nonfoot_load_fraction": 0,
+              "max_settle_stance_width_change_m": 0,
+              "min_support_geom_duty": 0,
+              "min_support_geom_coverage": 0,
+              "min_foot_load_share_statue_ratio": 0
+            },
+            "skipped_criteria": []
+          }
+        },
+        "selected_seed42": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 40,
+            "mean_rewards_by_variant": {
+              "control": 2448.842156047535,
+              "support_fraction": 2270.2412034810895,
+              "contact_quality": 2186.875066282032
+            },
+            "mean_nonterminal_reward": {
+              "control": 2.448842156047535,
+              "support_fraction": 2.2702412034810893,
+              "contact_quality": 2.186875066282032
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": false,
+            "failures": [
+              "clean_stance_lcb 0.0000 < 0.8000 (0/40 episodes clean)"
+            ],
+            "n_episodes": 40,
+            "n_clean": 0,
+            "clean_fraction": 0.0,
+            "clean_lcb": 0.0,
+            "n_full_horizon": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 2448.842156047535,
+            "statue_mean_reward": 2842.759767460281,
+            "criterion_failures": {
+              "horizon": 0,
+              "min_all_feet_support": 28,
+              "max_touchdown_rate": 27,
+              "max_window_displacement_m": 29,
+              "min_foot_load_share": 0,
+              "max_actuator_saturation_fraction": 40,
+              "max_settle_airborne_substeps": 39,
+              "max_settle_peak_floor_force_bw": 39,
+              "min_foot_load_share_windowed": 0,
+              "max_foot_contact_fraction": 0,
+              "max_phantom_support_fraction": 0,
+              "max_nonfoot_load_fraction": 0,
+              "max_settle_stance_width_change_m": 20,
+              "min_support_geom_duty": 40,
+              "min_support_geom_coverage": 40,
+              "min_foot_load_share_statue_ratio": 0
+            },
+            "skipped_criteria": []
+          }
+        },
+        "initial_exploration_proxy": {
+          "summary": {
+            "episodes": 40,
+            "full_horizon": 0,
+            "mean_rewards_by_variant": {
+              "control": -1.4554149351730121,
+              "support_fraction": -32.394044914890756,
+              "contact_quality": -29.326581975915794
+            },
+            "mean_nonterminal_reward": {
+              "control": 0.8111463345188554,
+              "support_fraction": 0.296328250312031,
+              "contact_quality": 0.379585267889259
+            }
+          },
+          "original_task_gate_diagnostic": {
+            "passed": false,
+            "failures": [
+              "clean_stance_lcb 0.0000 < 0.8000 (0/40 episodes clean)",
+              "full_horizon_fraction 0.0000 < 0.9500",
+              "mean_reward -1.5 < 1710.0 (rail)",
+              "mean_reward -1.5 < 0.6 x statue 2842.8 = 1705.7 (statue-relative rail)"
+            ],
+            "n_episodes": 40,
+            "n_clean": 0,
+            "clean_fraction": 0.0,
+            "clean_lcb": 0.0,
+            "n_full_horizon": 0,
+            "full_horizon_fraction": 0.0,
+            "mean_reward": -1.4554149351730115,
+            "statue_mean_reward": 2842.759767460281,
+            "criterion_failures": {
+              "horizon": 40,
+              "min_all_feet_support": 40,
+              "max_touchdown_rate": 40,
+              "max_window_displacement_m": 39,
+              "min_foot_load_share": 40,
+              "max_actuator_saturation_fraction": 40,
+              "max_settle_airborne_substeps": 40,
+              "max_settle_peak_floor_force_bw": 39,
+              "min_foot_load_share_windowed": 40,
+              "max_foot_contact_fraction": 36,
+              "max_phantom_support_fraction": 36,
+              "max_nonfoot_load_fraction": 38,
+              "max_settle_stance_width_change_m": 38,
+              "min_support_geom_duty": 40,
+              "min_support_geom_coverage": 40,
+              "min_foot_load_share_statue_ratio": 40
+            },
+            "skipped_criteria": []
+          }
+        }
+      }
+    }
+  },
+  "checkpoint_replay_checks": [
+    {
+      "species": "trex",
+      "training_seed": 42,
+      "checkpoint_and_stats_hashes_match": true,
+      "clean_count_matches": true,
+      "scalar_measurements_compared": 1720,
+      "maximum_absolute_replay_difference": 0.005768504902852634,
+      "maximum_replay_difference_by_metric": {
+        "length": 0.0,
+        "terminated": 0.0,
+        "reward": 0.0004483340908336686,
+        "settle_steps": 0.0,
+        "all_feet_support": 0.0,
+        "flight_fraction": 0.0,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 0.0027379874690425243,
+        "touchdown_rate": 0.0,
+        "min_foot_load_share": 9.510773006371487e-07,
+        "min_foot_load_share_windowed": 1.3814701750269887e-05,
+        "window_displacement_m": 1.344624315169178e-05,
+        "window_yaw_change_deg": 0.005768504902852634,
+        "episode_yaw_change_deg": 4.6081156477306706e-05,
+        "max_foot_slide_m": 7.134469707859199e-06,
+        "foot_on_foot_fraction": 0.0,
+        "phantom_support_fraction": 0.0,
+        "touch_floor_agreement": 0.0,
+        "nonfoot_load_fraction": 0.0,
+        "offsupport_load_fraction": 0.0,
+        "leg_body_contact_fraction": 0.0,
+        "min_support_geom_duty": 0.0,
+        "min_support_geom_coverage": 0.0,
+        "max_sole_tilt_deg": 6.262126671141566e-05,
+        "max_sole_tilt_excess_deg": 6.262126671141566e-05,
+        "max_sole_abs_roll_deg": 8.896233742419768e-05,
+        "sole_rolled_fraction": 0.0,
+        "max_sole_corner_lift_m": 2.2488143857041058e-07,
+        "min_sole_contacts": 0.000500000000000167,
+        "max_sole_cop_outer": 0.00016509925946675552,
+        "max_sole_cop_fore_aft": 9.085023428667682e-06,
+        "spawn_peak_floor_force_bw": 9.285821067628319e-08,
+        "spawn_airborne_substeps": 0.0,
+        "settle_unsupported_steps": 0.0,
+        "settle_unsupported_events": 0.0,
+        "settle_airborne_substeps": 0.0,
+        "settle_peak_floor_force_bw": 1.0459500132675714e-07,
+        "settle_touchdowns": 0.0,
+        "settle_stance_width_change_m": 5.725458673055961e-06,
+        "settle_max_foot_shift_m": 1.1714789390642605e-05,
+        "max_stance_width_change_m": 3.891930599242421e-06,
+        "max_actuator_saturation_fraction": 0.0,
+        "mean_actuator_saturation_fraction": 0.0
+      },
+      "exact_numerical_replay_asserted": false,
+      "interpretation": "Same checkpoint hashes and clean counts; trajectory differences in this runtime. Paired local controls are required for training comparisons."
+    },
+    {
+      "species": "trex",
+      "training_seed": 48,
+      "checkpoint_and_stats_hashes_match": true,
+      "clean_count_matches": true,
+      "scalar_measurements_compared": 1720,
+      "maximum_absolute_replay_difference": 0.0018590876129565004,
+      "maximum_replay_difference_by_metric": {
+        "length": 0.0,
+        "terminated": 0.0,
+        "reward": 0.0018590876129565004,
+        "settle_steps": 0.0,
+        "all_feet_support": 0.0,
+        "flight_fraction": 0.0,
+        "window_airborne_substeps": 0.0,
+        "window_peak_floor_force_bw": 6.512897761101755e-07,
+        "touchdown_rate": 0.0,
+        "min_foot_load_share": 9.487110779193841e-07,
+        "min_foot_load_share_windowed": 3.066724659439579e-06,
+        "window_displacement_m": 5.346852670912866e-07,
+        "window_yaw_change_deg": 0.00024816234877445,
+        "episode_yaw_change_deg": 0.0002482025165773116,
+        "max_foot_slide_m": 3.480068971536965e-08,
+        "foot_on_foot_fraction": 0.0,
+        "phantom_support_fraction": 0.0,
+        "touch_floor_agreement": 0.0,
+        "nonfoot_load_fraction": 0.0,
+        "offsupport_load_fraction": 0.0,
+        "leg_body_contact_fraction": 0.0,
+        "min_support_geom_duty": 0.0012499999999999734,
+        "min_support_geom_coverage": 0.00031250000000004885,
+        "max_sole_tilt_deg": 7.70367534899119e-05,
+        "max_sole_tilt_excess_deg": 7.70367534899119e-05,
+        "max_sole_abs_roll_deg": 9.876244950435265e-05,
+        "sole_rolled_fraction": 0.0,
+        "max_sole_corner_lift_m": 6.513049794583045e-08,
+        "min_sole_contacts": 0.0,
+        "max_sole_cop_outer": 2.4985882491890266e-05,
+        "max_sole_cop_fore_aft": 6.671351017506488e-05,
+        "spawn_peak_floor_force_bw": 1.5156761112855577e-07,
+        "spawn_airborne_substeps": 0.0,
+        "settle_unsupported_steps": 0.0,
+        "settle_unsupported_events": 0.0,
+        "settle_airborne_substeps": 0.0,
+        "settle_peak_floor_force_bw": 5.98267023921295e-07,
+        "settle_touchdowns": 0.0,
+        "settle_stance_width_change_m": 2.5938486358789703e-09,
+        "settle_max_foot_shift_m": 5.153457428158648e-09,
+        "max_stance_width_change_m": 3.688851623051548e-07,
+        "max_actuator_saturation_fraction": 0.0,
+        "mean_actuator_saturation_fraction": 0.0
+      },
+      "exact_numerical_replay_asserted": false,
+      "interpretation": "Same checkpoint hashes and clean counts; trajectory differences in this runtime. Paired local controls are required for training comparisons."
+    },
+    {
+      "species": "velociraptor",
+      "training_seed": 42,
+      "checkpoint_and_stats_hashes_match": true,
+      "clean_count_matches": true,
+      "scalar_measurements_compared": 1320,
+      "maximum_absolute_replay_difference": 159.0394207688355,
+      "maximum_replay_difference_by_metric": {
+        "length": 0.0,
+        "terminated": 0.0,
+        "reward": 159.0394207688355,
+        "settle_steps": 0.0,
+        "all_feet_support": 0.16222222222222227,
+        "flight_fraction": 0.17555555555555558,
+        "touchdown_rate": 5.055555555555555,
+        "min_foot_load_share": 0.01814916057009608,
+        "min_foot_load_share_windowed": 0.015983717995752544,
+        "window_displacement_m": 0.15465573015293527,
+        "window_yaw_change_deg": 13.69829671734522,
+        "episode_yaw_change_deg": 6.939383997438522,
+        "max_foot_slide_m": 0.2142012911910371,
+        "foot_on_foot_fraction": 0.0,
+        "phantom_support_fraction": 0.0,
+        "touch_floor_agreement": 0.03111111111111109,
+        "nonfoot_load_fraction": 0.0,
+        "offsupport_load_fraction": 0.0,
+        "leg_body_contact_fraction": 0.0,
+        "min_support_geom_duty": 0.021111111111111112,
+        "min_support_geom_coverage": 0.187037037037037,
+        "spawn_peak_floor_force_bw": 4.34163773688212e-06,
+        "spawn_airborne_substeps": 0.0,
+        "settle_unsupported_steps": 0.0,
+        "settle_unsupported_events": 0.0,
+        "settle_airborne_substeps": 0.0,
+        "settle_peak_floor_force_bw": 1.6084391709858537e-05,
+        "settle_touchdowns": 0.0,
+        "settle_stance_width_change_m": 2.1715637180119707e-07,
+        "settle_max_foot_shift_m": 1.831036248040041e-07,
+        "max_stance_width_change_m": 9.269129655764541e-07,
+        "max_actuator_saturation_fraction": 0.23777777777777775,
+        "mean_actuator_saturation_fraction": 0.00616161616161616
+      },
+      "exact_numerical_replay_asserted": false,
+      "interpretation": "Same checkpoint hashes and clean counts; trajectory differences in this runtime. Paired local controls are required for training comparisons."
+    }
+  ]
+}
