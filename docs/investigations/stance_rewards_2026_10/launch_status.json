@@ -1,0 +1,63 @@
+{
+  "observed_at_utc": "2026-10-09T14:16:58.470928+00:00",
+  "status": "local CPU pilots running; training outcomes pending",
+  "source_commit": "28f21c518c05db14883c4eb0341c8a773ed82cc1",
+  "run_count": 15,
+  "running": 4,
+  "queued": 11,
+  "steps_per_run": 1048576,
+  "training_seeds": [
+    42,
+    48,
+    50
+  ],
+  "held_out_evaluation_episodes": 40,
+  "held_out_seed_start": 23042,
+  "active_runs": [
+    {
+      "species": "Tyrannosaurus Rex",
+      "variant": "control",
+      "training_seed": 42,
+      "observed_steps": 32768,
+      "weights_changed_from_initial": true
+    },
+    {
+      "species": "Tyrannosaurus Rex",
+      "variant": "cop_margin",
+      "training_seed": 42,
+      "observed_steps": 65536,
+      "weights_changed_from_initial": true
+    },
+    {
+      "species": "Velociraptor Mongoliensis",
+      "variant": "control",
+      "training_seed": 42,
+      "observed_steps": 98304,
+      "weights_changed_from_initial": true
+    },
+    {
+      "species": "Velociraptor Mongoliensis",
+      "variant": "support_fraction",
+      "training_seed": 42,
+      "observed_steps": 98304,
+      "weights_changed_from_initial": true
+    }
+  ],
+  "paired_initialization_checks": [
+    {
+      "species": "trex",
+      "training_seed": 42,
+      "control": "control",
+      "treatment": "cop_margin",
+      "identical_initial_policy_weights": true
+    },
+    {
+      "species": "velociraptor",
+      "training_seed": 42,
+      "control": "control",
+      "treatment": "support_fraction",
+      "identical_initial_policy_weights": true
+    }
+  ],
+  "execution_backend": "local CPU"
+}
