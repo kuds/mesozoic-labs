@@ -18,8 +18,14 @@ environment or a certified training entry point.
   `_terminal_fallback` results recheck the later fallback implementation.
 - `rollouts_*.json`: eight fresh seeds × six headings; T. rex includes the
   seed-50 checkpoint and its paired normalizer, both species include zero action.
+  T. rex's statue rows agree to about 10⁻¹¹ at multiples of 90° but differ
+  slightly at ±45°, where its pyramidal friction cone is anisotropic (the
+  design's [Scope of the symmetry](../../HEADING_INVARIANCE_DESIGN_2026_10.md#scope-of-the-symmetry)).
 - `pilot_*_{11,12}.json`: four 8,192-step PPO smoke experiments, with 16 paired
-  evaluation episodes each. These are not production-budget or gate results.
+  evaluation episodes each at −90°, 0°, +90° and 180° only. The policies
+  effectively stayed at the zero-action statue, so these validate plumbing
+  (parameters updated, rotated episodes completed), not learned heading
+  robustness. These are not production-budget or gate results.
 
 All initial results and their exact source files are preserved in `221d44e`.
 JSON `base_commit` is HEAD when the run started; `scripts_sha256` identifies the
@@ -80,6 +86,7 @@ across machines.
 | `ruff check docs/investigations/heading_2026_10` and `ruff format --check docs/investigations/heading_2026_10` | Passed with ruff 0.16.9 |
 | `git diff --check` | Passed |
 | SHA-256 validation of source files recorded by all ten JSON results | All matched their retained source versions |
+| 2026-10-10 documentation revision (Python 3.13): this directory's `test_prototype.py`, `test_landing_records.py`, `git diff --check` | 46 passed; 3 passed; passed. Research code and JSON results unchanged |
 
 The full suite includes the 67 existing focused tests, so these counts should
 not be added as independent coverage. The 46 research tests live outside the

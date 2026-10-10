@@ -1,6 +1,6 @@
 # Heading-free observations and stance certification
 
-Date: 2026-10-08. Status: **design with executable research evidence; production migration not implemented**.
+Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; production migration not implemented**.
 Repository baseline: `10f859f96223054932bdc4fa883b1153dde78500` (#604).
 
 ## Recommendation
@@ -14,19 +14,44 @@ inputs. Train new policies and new normalization statistics.
 
 Make a six-heading, full-floor-truth stance panel a required certificate, with
 failure blocking handoff, reuse and publication. The existing heading probe is
-useful evidence but is not that certificate. Keep the physical plants and reward
-formulas unchanged during the interface migration so the next runs isolate the
-representation change.
+useful evidence but is not that certificate: `stance_quality/v2` has since
+certified a T. rex stance that falls when turned −45° or −90°
+([later runs](#later-runs-on-the-current-interface)). Keep the physical plants
+and reward formulas unchanged for the first controlled comparison on the new
+interface, so those runs isolate the representation change. That comparison is
+not expected to raise v2 clean counts at the training heading, where the
+dominant T. rex failures are pad centre-of-pressure (CoP) and settle checks that
+the observation does not touch. The CoP/reward work (#608) proceeds in parallel
+and is retrained on the new interface.
+
+Recommended until the migration and certificate exist, for the maintainer to
+decide:
+
+- Treat a stance PASS on a pre-migration interface (T. rex policy interface r13,
+  anatomical Compsognathus r3) as heading-uncertified and provisional. This
+  includes `20261009_155723`; the recovery stage trained from it is
+  research-only.
+- Have handoff tooling warn when any whole-scene row of
+  `stance_heading_probe.json` has a full-horizon fraction below 0.95, the v2
+  per-panel full-horizon rail.
 
 This follows the scope already recorded in [NEXT_STEPS](NEXT_STEPS.md): both
 anatomical species together after #604. It does not change Compsognathus robot or
-Velociraptor. Their interfaces require separate decisions.
+Velociraptor. Their interfaces require separate decisions. Velociraptor feeds its
+policy the same three world-frame blocks (a world `framequat` on the `imu` site,
+`qvel[0:3]` and the world prey direction), and no Velociraptor heading probe
+exists. It stays out of scope here, following only after the maintainer's two
+current Velociraptor runs are reviewed (the 2026-10-07 decision). Its
+heading-free revision should be coordinated with #608's planned Velociraptor
+interface change (per-site contact-load channels), so its checkpoints are
+stranded once, not twice.
 
 ## What the independent experiments established
 
 The experiments use the current stance configurations, MuJoCo 3.10.0, fresh reset
 seeds 18042–18049, and the completed T. rex run `20261007_132026` (training seed
-50). Its [model](https://drive.google.com/file/d/1AyCn2LFKbn-Ptujmr67Spaju7Gewvv3a/view)
+50), the latest completed T. rex stance when this design was written; it stays
+the original evidence. Its [model](https://drive.google.com/file/d/1AyCn2LFKbn-Ptujmr67Spaju7Gewvv3a/view)
 and [paired VecNormalize](https://drive.google.com/file/d/15lslFyKmlnRSRp9_fXpUvR4_ZJvg4h8S/view)
 were loaded with the repository's plant validation. No old policy was fed a new
 observation layout.
@@ -75,17 +100,69 @@ seeds (11, 12) for each species, 8,192 steps each, two vector environments and a
 on four fresh reset seeds at −90°, 0°, +90° and 180°, with frozen normalization:
 **64/64 evaluation episodes reached 1,000 steps**. The maximum paired reward
 difference across headings was 3.57 × 10⁻⁷ for T. rex and 5.27 × 10⁻⁹ for
-Compsognathus.
+Compsognathus. All four angles are multiples of 90°, where T. rex's contact
+friction is symmetric ([Scope of the symmetry](#scope-of-the-symmetry)); no
+smoke policy was evaluated at ±45°.
 
-These smoke runs establish that PPO, normalization, action selection and stepping
-work together with the candidate representation. They do **not** establish
-convergence, useful learned balance, production recipe quality, full v2 stance
-quality, or a certified trunk. A small residual policy can inherit the stable
-home-pose controller's survival. No smoke checkpoint is eligible for reuse.
+These smoke runs are plumbing checks. They establish that PPO, normalization,
+action selection and stepping work together with the candidate representation:
+parameters updated and rotated episodes completed. The policies effectively
+stayed at the zero-action home-pose controller: on the paired seeds and
+headings, T. rex seed 11 and both Compsognathus seeds return within 1.3 of its
+return, and T. rex seed 12 returns 11–35 below it. The 64/64 is that
+controller's survival, not learned heading robustness. They do **not**
+establish convergence, useful learned balance, production recipe quality, full
+v2 stance quality, or a certified trunk. No smoke checkpoint is eligible for
+reuse.
 
 Together, the results support a representation-level heading defect rather
 than an inability of these plants to stand when rotated. They do not isolate
 which of the three leaking blocks contributes most to the old learned failure.
+
+### Later runs on the current interface
+
+Three more T. rex stances on the current interface completed after this design
+was written (two started on 2026-10-08, `20261009_155723` on 2026-10-09), all
+on policy interface r13 (observation width 64) at `10f859f`, on the
+D-D27 task with the D-D28 pad CoP bar: 11,001,856 steps and about 15 h each.
+Each bundle carries the report-only heading probe (`stance_heading_probe.json`,
+eight episodes per row on reset seeds 3042–3049). The probe columns are
+full-horizon fractions:
+
+| Run (training seed) | `stance_quality/v2` at 0° | Whole scene −90° / −45° / +45° / +90° | Animal only −90° / −45° / +45° / +90° |
+|---|---|---|---|
+| `20261008_163256` (42) | FAIL, 0/40 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| `20261008_163410` (48) | FAIL, 36/40, LCB 0.7856 | 0 / 0 / 0.625 / 0 | 0 / 0 / 0 / 0 |
+| `20261009_155723` (52) | **PASS**, 39/40, LCB 0.887 | 0 / 0 / 1.00 / 1.00 | 0 / 0 / 0.875 / 0.125 |
+
+The statue completes 1.00 on every row of all three probes. `20261008_163256`
+and `20261008_163410` fall 0/8 at ±90°, like the seed-50 replay;
+`20261008_163410` stands 5/8 only at +45° whole-scene.
+
+`20261009_155723` is the newer counterexample, and the case the certificate must
+refuse. `stance_quality/v2` certified it on 2026-10-10 (its provenance records
+the deliverable as provisional: one of the two certification seeds), and a
+recovery stage then trained from it. Yet with the whole scene turned it completes
+0/8 at −90° and −45° while it stands 8/8 at 0°, +45° and +90°. Unlike the seed-50
+replay's symmetric 0/8 at ±90°, the failure is one-sided, so heading dependence
+differs between policies and one or two probe angles cannot stand in for the
+grid. The run's VecNormalize statistics, read by the 2026-10-10 review from its
+`robust_best_model_vecnorm.pkl`, show how far a turn moves the observation: the
+pelvis quaternion's z component has a training std of 0.0415, about ±5° of yaw.
+A 45° turn therefore drives the normalised quat_w to the −10 clip and quat_z to
+about ±9 (−8.9 at −45°, +9.5 at +45°), roughly 9 standard deviations, and ±90°
+clips both. Every turned observation is far outside the training distribution;
+this does not by itself predict which side a given policy tolerates.
+
+At the training heading, where the observation is in distribution, the dominant
+T. rex failures are pad CoP and settle checks. `20261008_163256` fails
+`max_sole_cop_fore_aft` on 40/40 episodes (median 0.99, the pad's front edge)
+and nothing else. `20261008_163410` fails CoP on 3/40 and sole tilt on 1/40. The
+seed-50 replay above fails CoP on 8/8 and settle peak force on 4/8.
+`20261009_155723` passes with a worst CoP of 0.797 against the 0.80 bar. The
+T. rex stance reward has no CoP term; D-D28 prices CoP only in the gate.
+Heading-free observations do not touch any of this, so the migration is not
+expected to raise v2 clean counts at 0°.
 
 ## Observation contract
 
@@ -157,6 +234,33 @@ isotropic floor, `command_mode = "none"`, no applied pushes, and rotation of:
 3. Cached world reference directions, followed by `mj_forward` and invalidation
    of the substep aggregates.
 
+A flat, isotropic floor does not make every plant's contact physics
+yaw-invariant. T. rex's box pads on the plane get contact tangent frames aligned
+with the world axes, and with MuJoCo's default pyramidal friction cone
+(`trex.xml` sets no `cone`) their friction is slightly anisotropic. A ±45°
+whole-scene turn is therefore a small physical perturbation as well as an
+observation change, and the current `SpawnYaw` docstring's "changes nothing
+physical" holds for T. rex only at multiples of 90°. This study's own statue rows
+show it: per-episode statue rewards in `rollouts_trex.json` match 0° to
+4.2 × 10⁻¹¹ at −90°, +90° and 180° but differ by up to 0.197 (of about 3,760)
+at ±45°. The 2026-10-10 review measured the rest: at multiples of 90° results
+agree to about 10⁻¹¹; at 45° the statue's v2 metrics barely move (sole tilt by
+about 4 × 10⁻³ degrees), though random open-loop actions separate the joint
+trajectories by a few hundredths of a radian; with `cone="elliptic"` every
+compared case agreed to about 10⁻¹⁴. Velociraptor's floor contacts are capsules,
+whose tangent frame turns with the foot, and stay yaw-invariant at 45° under the
+pyramidal cone. Anatomical Compsognathus already declares `cone="elliptic"`; its
+statue rows agree to about 3 × 10⁻¹⁰ at all six headings.
+
+This design treats T. rex's ±45° cells as slightly perturbed physics, not exact
+replicates. Each heading is judged against its own statue panel (the per-heading
+reference in the certificate below is the right reference there), and paired
+traces are compared to solver tolerance only where the physics is invariant.
+Switching T. rex to `cone="elliptic"` would remove the anisotropy, but it is a
+physics revision (a new physics identity, with statue references and stance bars
+re-measured). It is an option for the maintainer, not part of this
+observation-only migration.
+
 Use identical joint state, local angular velocity and RNG draws for each paired
 reset. Recreate an environment and reset to the seed for each angle; do not
 accumulate turns on a state advanced by another episode. Reset recurrent policy
@@ -194,10 +298,10 @@ the ability to request a world direction.
 | `configs/compsognathus/recovery_calibration.json` | Restamp the anatomical calibration's interface/task identity only after verifying unchanged physics and measured environment; preserve its original measurement and numeric calibration. |
 | New `environments/shared/curriculum/stance_heading_gate.py` | Pure grouped-seed decision logic, strict protocol/evidence validation, full reuse of v2 episode classification. |
 | `environments/shared/curriculum/gate_schema.py`, `manager.py`, stage config parsing/fingerprinting | Register the new gate/protocol fields; keep the in-training screen distinct from post-stage certification. |
-| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. |
+| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that holds only at multiples of 90°. |
 | `environments/shared/reporting/gates.py`, `stage_artifacts.py` | Judge the heading certificate before reporting a handoff pass; propagate measurement failures. Leave optional diagnostic probes separately identified. |
 | `environments/shared/result_bundle/evidence.py`, gate verdict/reentry/ancestor consumers | Re-derive the decision from bound rows and protocol; refuse missing or mismatched heading evidence for a new-schema stance. |
-| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. |
+| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. In `configs/trex/stance.toml`, correct the `stance_probe_spawn_yaw_deg` comment that says only the observation differs (true for T. rex only at multiples of 90°). |
 | `configs/digest_snapshot.generated.txt`, species catalog/generated website data | Regenerate after the schema/gate migration and review the exact scope of changed identities. |
 | Shared/species tests and docs | Frame algebra, lifecycle, negative evidence cases, old-checkpoint refusal, unchanged robot/other species and end-to-end publication refusal. |
 
@@ -238,10 +342,17 @@ migration.
 
 ## Heading certificate
 
-Suggested gate kind: `stance_quality/v3`; protocol: `whole_scene_yaw/v1`. Keep
-the existing v2 floor-truth measurements and species-specific per-episode bars.
-Version the new report and CSV schema explicitly rather than changing the
-meaning of a v2 certificate already in a completed bundle.
+Suggested gate kind: `stance_quality_heading/v1`; protocol: `whole_scene_yaw/v1`;
+report schema: `mesozoic.stance-heading-report/v1`. The obvious
+`stance_quality/v3` would clash: the v2 gate already writes reports with schema
+`mesozoic.stance-gate-report/v3` (`STANCE_V2_REPORT_SCHEMA` in
+`stance_gate_v2.py`, numbered so that "report v2" is never "kind v2"), so a v3
+kind would invite misreading a v3 report as a v3 certificate in verdicts and
+bundles. If the maintainer prefers `stance_quality/v3`, record the gate-to-report
+mapping explicitly beside `STANCE_V2_REPORT_SCHEMA`. Keep the existing v2
+floor-truth measurements and species-specific per-episode bars. Version the new
+report and CSV schema explicitly rather than changing the meaning of a v2
+certificate already in a completed bundle.
 
 The existing `build_stance_gate_report` routes a report with `spawn_yaw` through
 its non-certifying probe path, even when v2 was requested. Meanwhile
@@ -257,7 +368,9 @@ does not make a failure block anything. A new certificate path is required.
   episodes, each with the configured 1,000-step horizon and settle window.
 - Roll the home-pose controller on the identical 40×6 grid. Compute each
   heading's statue-relative reference with the existing v2 reducer. Do not
-  substitute a pooled reference from a different seed block or plant.
+  substitute a pooled reference from a different seed block or plant. Where the
+  physics is yaw-invariant these per-heading statue panels are replicates; for
+  T. rex's ±45° cells they are the correct reference.
 - Apply the full v2 decision at each heading, retaining the per-heading
   ≥0.95 full-horizon rail, current reward/statue rails, and T. rex's declared
   ≤1 hop-or-fall rail. Compsognathus does not currently declare that last rail;
@@ -339,7 +452,21 @@ promoted to the new certificate by attaching an optional heading report.
 6. Train at least two independent production seeds (plan three, as current
    NEXT_STEPS requests), with the unchanged stance recipe including anatomical
    Compsognathus `log_std_init = −2.0`. Each must satisfy the publication grid and
-   the separately reported fresh-seed grid before recovery/walk/hunt reuse.
+   the separately reported fresh-seed grid before recovery/walk/hunt reuse. This
+   is the first controlled comparison; reward changes such as #608's CoP margin
+   are compared separately, paired, on the new interface.
+
+Pre-migration runs. After the maintainer's 2026-10-07 decision that the next
+T. rex stance waits for this interface, training continued on the current one:
+three T. rex stances of about 15 h each (`20261008_163256`, `20261008_163410`
+and `20261009_155723`, policy interface r13), the 3,006,464-step recovery stage
+trained from `20261009_155723`, and the 15-run, 1,048,576-step reward pilot batch
+behind #608 (source `b2c04be`; T. rex interface r13, Velociraptor r11). Step 4
+strands every T. rex checkpoint among them. Label them pre-migration and
+research-only: none is a trunk for the new interface, and their reward
+conclusions, #608's CoP-margin effect included, are revalidated on the new
+interfaces (T. rex's here; Velociraptor's after its own revision), as #608
+itself plans.
 
 Acceptance must include:
 
@@ -349,8 +476,11 @@ Acceptance must include:
 - Finite, correctly sized observations at construction/reset/step/terminal
   states; no second rotation of local sensors; command remains trailing width 3.
 - Paired full-horizon real-physics rollouts at all six headings, with fixed
-  normalizer and deterministic policy; compare action/state traces and all
-  floor-truth metrics, allowing documented contact-solver numerical tolerance.
+  normalizer and deterministic policy. Compare action/state traces and all
+  floor-truth metrics to documented contact-solver numerical tolerance where the
+  physics is invariant (T. rex at multiples of 90°, Compsognathus at every
+  heading); judge T. rex's ±45° cells against their own statue panels rather
+  than by trace equality.
 - Genuine SB3 save/load/evaluation and normalizer round trips on the new
   production environment, including interrupted-run resumption. The wrapper
   smoke experiments do not replace these production-path tests.
@@ -365,9 +495,24 @@ Acceptance must include:
 
 The heading certificate multiplies final panel simulation work by six: 240
 policy plus 240 statue episodes per seed block. That is an explicit cost at
-certification time, not a sixfold training cost. An extra off-grid angle panel
-is useful as an audit of accidental angle-specific behavior but should be
-declared before checkpoint selection if it will be used for admission.
+certification time, not a sixfold training cost. At the step rates recorded in
+this study's rollout files (about 600 steps/s for T. rex, 390 for
+Compsognathus), a 480-episode seed block takes about 13 and 20 minutes, against
+about 2–3.5 minutes for today's 80-episode v2 panel, and the publication and
+fresh-audit blocks double it. An extra off-grid angle panel is useful as an
+audit of accidental angle-specific behavior but should be declared before
+checkpoint selection if it will be used for admission.
+
+With heading-free observations, the headings of a seed that the physics treats
+identically (all six for anatomical Compsognathus; −90°, 0°, +90° and 180° for
+T. rex) are deterministic replicates of one episode, so beyond catching a leak
+they add only cost. A cheaper variant, for the maintainer to choose: keep the
+40-seed panel at 0° (today's v2 panel); roll 0°, ±90° and 180° on a few seeds as
+leak detectors, comparing traces to documented contact-solver tolerance; roll the statue once per seed block
+where the physics is invariant; and add full 40-seed panels, grouped by seed with
+0° as above, only at headings where the physics is anisotropic (T. rex ±45°,
+unless its cone changes). The grouped Clopper-Pearson arithmetic stays as it is
+under either choice.
 
 ## Reproduction and evidence boundaries
 
@@ -393,10 +538,16 @@ certification or trained anatomical-Compsognathus checkpoint replay was done.
 Model SHA-256: `e5c9a826de252665d06362d529a507743602d564da4d403b1262358df519685d`.
 VecNormalize SHA-256: `2a80c034294e1305ae449b0883944251917d47291f413ad3fc53a6b1c1f64c7b`.
 
+The [later-run](#later-runs-on-the-current-interface) numbers come from those
+runs' Drive bundles (verdicts, gate reports and heading probes) and, where
+stated, from the 2026-10-10 review's re-measurement; this directory's scripts
+did not reproduce them.
+
 The study intentionally does not write these research results into production
 bundles or public species result summaries. Heading invariance also does not
-solve every stance-quality issue: the anatomical Compsognathus bounce/flutter
-concerns already recorded in NEXT_STEPS remain separate acceptance questions.
+solve every stance-quality issue: the T. rex pad CoP and settle failures at the
+training heading and the anatomical Compsognathus bounce/flutter concerns
+already recorded in NEXT_STEPS remain separate acceptance questions.
 
 ### Verification record
 
@@ -410,6 +561,7 @@ concerns already recorded in NEXT_STEPS remain separate acceptance questions.
 | Generated species catalog | Current |
 | Ruff lint/format of the research code; git whitespace check | Passed |
 | All ten JSON result files versus their recorded source hashes | Matched the retained source versions |
+| 2026-10-10 revision, documentation only (Python 3.13): prototype tests; landing-record check; relative links and anchors of the edited docs; git whitespace check | 46 passed; 3 passed; all resolve; passed |
 
 See the experiment README for commands. The full repository count includes the
 67 existing heading/command tests; it does not include the 46 research tests
