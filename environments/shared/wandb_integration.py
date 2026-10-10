@@ -29,6 +29,7 @@ Requires: pip install wandb
 from __future__ import annotations
 
 import logging
+import math
 import subprocess
 from typing import Any
 
@@ -298,8 +299,20 @@ class WandbCallback(BaseCallback):
             # wandb.Video expects (T, C, H, W) for numpy arrays
             if video_array.ndim == 4:
                 video_array = np.transpose(video_array, (0, 3, 1, 2))
+            # One frame per control step plays in real time at 1 / dt, as the
+            # stage replays do; 30 fps remains the fallback without a dt.
+            # wandb encodes an array as a GIF, whose players clamp frame
+            # delays below 2 cs, so a faster control rate keeps every n-th
+            # frame and plays at <= 50 fps, still in real time.
+            try:
+                rate = 1.0 / float(self.video_env.get_attr("dt")[0])
+            except Exception:
+                rate = 30.0
+            stride = max(1, math.ceil(rate / 50.0 - 1e-9))
+            video_array = video_array[::stride]
+            fps = round(rate / stride)
             wandb.log(
-                {"eval/video": wandb.Video(video_array, fps=30)},
+                {"eval/video": wandb.Video(video_array, fps=fps)},
                 step=self.num_timesteps,
             )
             logger.info(

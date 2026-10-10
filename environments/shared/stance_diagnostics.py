@@ -193,8 +193,47 @@ def _home_joint_error(env: Any, joint_name: str) -> float | None:
         return None
 
 
+# Each column side's (foot site, leg-joint prefix) in the T. rex model, which
+# the historical columns were measured from.
+_TREX_SIDE_NAMES: dict[str, tuple[str, str]] = {"r": ("r_foot", "r"), "l": ("l_foot", "l")}
+
+
+def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
+    """Each column side's ``(foot site, leg-joint prefix)`` in *species*' model.
+
+    The foot site is the gait support registry's ``foot_site``, the reference
+    point the floor-truth recorder measures stance width and foot shift from
+    (and the one the T. rex and anatomical Compsognathus stance-width rewards
+    read). Its name prefix is how the model spells that side, which its leg
+    joints share: ``r_foot_touch_volume`` / ``r_knee``,
+    ``right_foot_touch_volume`` / ``right_knee``. A name without a registry
+    entry keeps the T. rex names.
+    """
+    from .gait.morphology import SUPPORT_REGISTRY
+    from .species_names import resolve_species_id
+
+    try:
+        entry = SUPPORT_REGISTRY.get(resolve_species_id(species)) if species else None
+    except ValueError:
+        entry = None
+    if entry is None or entry.foot_site is None:
+        return dict(_TREX_SIDE_NAMES)
+    names = {}
+    for side, word in (("r", "right"), ("l", "left")):
+        site = entry.foot_site.format(s=side, side=word)
+        names[side] = (site, site.split("_", 1)[0])
+    return names
+
+
 def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
     """Capture one reporting-only T. rex stance row from a replay environment."""
+    return _capture_biped_snapshot(env, info, step, _TREX_SIDE_NAMES)
+
+
+def _capture_biped_snapshot(
+    env: Any, info: Mapping[str, Any], step: int, side_names: Mapping[str, tuple[str, str]]
+) -> dict[str, float]:
+    """One biped stance row, with each side's foot site and joint prefix from *side_names*."""
     row: dict[str, float] = {"step": float(step)}
     for key in _REPLAY_INFO_KEYS:
         if key in info:
@@ -207,8 +246,9 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
     side_errors: dict[str, list[float]] = {"r": [], "l": []}
     joint_errors: dict[str, list[float]] = {label: [] for label, _ in _LEG_JOINTS}
     for side in ("r", "l"):
+        joint_prefix = side_names[side][1]
         for label, joint_suffix in _LEG_JOINTS:
-            error = _home_joint_error(env, f"{side}_{joint_suffix}")
+            error = _home_joint_error(env, f"{joint_prefix}_{joint_suffix}")
             if error is None:
                 continue
             row[f"{side}_{label}_home_error_rad"] = error
@@ -244,7 +284,7 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
 
     foot_positions: dict[str, np.ndarray] = {}
     for side in ("r", "l"):
-        foot_position = _site_position(env, f"{side}_foot")
+        foot_position = _site_position(env, side_names[side][0])
         if foot_position is None:
             continue
         foot_positions[side] = foot_position
@@ -295,13 +335,17 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
     return row
 
 
-def capture_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
+def capture_stance_snapshot(
+    env: Any, info: Mapping[str, Any], step: int, *, species: str | None = None
+) -> dict[str, float]:
     """Record common root pose and measured info, with optional biped geometry.
 
     Species expose different anatomy and instrumentation. Missing measurements
     stay absent; in particular, a quadruped's front-foot pair is not treated as
-    its complete support. The historical T. rex columns remain available on
-    instrumented bipeds, without changing their simulation state.
+    its complete support. Instrumented bipeds get the historical T. rex
+    columns, without changing their simulation state, measured at *species*'
+    own foot sites and leg joints (:func:`_biped_side_names`). The derived
+    ``stance_width`` (``|dy|`` of the foot sites) replaces an env's own.
     """
     row: dict[str, float] = {"step": float(step)}
     for key, value in info.items():
@@ -309,7 +353,7 @@ def capture_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dic
         if scalar is not None:
             row[key] = scalar
     if has_stance_diagnostics(info):
-        row.update(capture_trex_stance_snapshot(env, info, step))
+        row.update(_capture_biped_snapshot(env, info, step, _biped_side_names(species)))
 
     root_id = getattr(env, "_root_body_id", None)
     if isinstance(root_id, (int, np.integer)) and root_id >= 0:

@@ -340,7 +340,7 @@ def record_stage_video(
         if collect_stance_diagnostics:
             from .stance_diagnostics import capture_stance_snapshot
 
-            row = capture_stance_snapshot(render_env, info, step_index + 1)
+            row = capture_stance_snapshot(render_env, info, step_index + 1, species=species)
             row.update(
                 time_s=(step_index + 1) * control_dt,
                 reward=float(reward),
