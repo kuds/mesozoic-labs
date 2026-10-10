@@ -1523,6 +1523,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **Suppress unsupported held-pose ablation classifications.** The report now
+  requires a `hold_all` control that does not stand — a partial or complete
+  full-pose fall to explain — and a standing `hold_zero` control before
+  attributing a fall to actuator groups. A full held pose that stands reports
+  classification as not applicable, with the reason and raw variant
+  measurements retained; one that falls in only some episodes is still
+  classified. Missing, duplicate or invalid controls, and a statue control that
+  does not stand, also suppress causal labels. An unmeasured variant cell
+  renders as `-` instead of raising. The diagnostic JSON is
+  `mesozoic.constant-hold-ablation/v2`: it records classification applicability
+  and uses `null` for unassessed necessity/sufficiency claims; incomplete or
+  inconclusive group pairs cannot support an overall causal conclusion. No
+  training, stance-gate or plant identity changes.
+
 - **The bundled plant manifest resolves an SB3-only species** (#601, with
   the Velociraptor revision, decision D-D25, 2026-10-06). When the
   repository's species manifest is absent, `current_plant_identity` builds
