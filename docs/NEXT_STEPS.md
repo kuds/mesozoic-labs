@@ -311,6 +311,16 @@ and the D-D27 369k-step study checkpoint loads its flat pad forward to 0.88 of
 the half-length, past the 0.80 `max_sole_cop_fore_aft` bar (D-D28) on 1 of 40
 episodes.*
 
+Implementation design and independent heading validation:
+[Heading-free observations and stance certification](HEADING_INVARIANCE_DESIGN_2026_10.md)
+(2026-10-08; revised 2026-10-10). It includes the proposed two-species interface
+migration, grouped heading certificate, fresh-seed checkpoint replay and short
+PPO plumbing checks. It also records the later r13 stance `20261009_155723`,
+which `stance_quality/v2` certified although it falls 0/8 turned −45° and −90°,
+and recommends, for the maintainer to decide, treating a pre-migration stance
+PASS as heading-uncertified and provisional. The production migration remains
+pending.
+
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and
 the next compsognathus session is a fresh `BEHAVIOR="stand"` stance on r2,
