@@ -1524,11 +1524,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Suppress unsupported held-pose ablation classifications.** The report now
-  requires a falling `hold_all` control and a standing `hold_zero` control
-  before attributing a fall to actuator groups. A full held pose that survives
-  all episodes reports classification as not applicable, with the reason and
-  raw variant measurements retained. Missing, duplicate, invalid or
-  inconclusive controls also suppress causal labels. The diagnostic JSON is
+  requires a `hold_all` control that does not stand — a partial or complete
+  full-pose fall to explain — and a standing `hold_zero` control before
+  attributing a fall to actuator groups. A full held pose that stands reports
+  classification as not applicable, with the reason and raw variant
+  measurements retained; one that falls in only some episodes is still
+  classified. Missing, duplicate or invalid controls, and a statue control that
+  does not stand, also suppress causal labels. An unmeasured variant cell
+  renders as `-` instead of raising. The diagnostic JSON is
   `mesozoic.constant-hold-ablation/v2`: it records classification applicability
   and uses `null` for unassessed necessity/sufficiency claims; incomplete or
   inconclusive group pairs cannot support an overall causal conclusion. No

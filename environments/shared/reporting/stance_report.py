@@ -2166,8 +2166,8 @@ _ABLATION_STANDS = 0.95
 _ABLATION_FALLS = 0.05
 
 
-def _ablation_outcome(row: dict[str, Any] | None) -> bool | None:
-    """Standing, falling, or unclassified; missing/invalid measurements stay unknown."""
+def _ablation_share(row: dict[str, Any] | None) -> float | None:
+    """A variant's full-horizon share, or None when it is missing or not a valid share."""
     if row is None:
         return None
     value = row.get("full_horizon_fraction")
@@ -2179,6 +2179,14 @@ def _ablation_outcome(row: dict[str, Any] | None) -> bool | None:
         return None
     if not math.isfinite(share) or not 0.0 <= share <= 1.0:
         return None
+    return share
+
+
+def _ablation_outcome(row: dict[str, Any] | None) -> bool | None:
+    """Standing, falling, or unclassified; missing/invalid measurements stay unknown."""
+    share = _ablation_share(row)
+    if share is None:
+        return None
     if share >= _ABLATION_STANDS:
         return True
     if share <= _ABLATION_FALLS:
@@ -2187,26 +2195,27 @@ def _ablation_outcome(row: dict[str, Any] | None) -> bool | None:
 
 
 def _ablation_control_refusals(rows: list[dict[str, Any]]) -> list[str]:
-    """Require a measured falling full pose and standing statue before attribution."""
+    """Require a measured full pose that does not stand and a standing statue before attribution.
+
+    A full pose that falls in only some episodes is still a fall to explain,
+    so ``hold_all`` refuses only when it stands or was not validly measured.
+    """
     refusals = []
-    for control, labels, expected in (
-        ("hold_all", ("hold_all",), False),
-        ("hold_zero", ("hold_zero", "hold_zero (statue control)"), True),
-    ):
+    for control, labels in (("hold_all", ("hold_all",)), ("hold_zero", ("hold_zero", "hold_zero (statue control)"))):
         matches = [row for row in rows if row["label"] in labels]
         if len(matches) != 1:
-            refusals.append(f"{control}: expected one endpoint control, found {len(matches)}")
+            refusals.append(f"{control}: missing or duplicated endpoint control; expected one, found {len(matches)}")
             continue
         outcome = _ablation_outcome(matches[0])
-        if outcome is expected:
-            continue
-        if control == "hold_all" and outcome is True:
-            refusals.append("hold_all: the full held pose stands; there is no full-pose fall to explain")
-        elif control == "hold_zero" and outcome is False:
+        if control == "hold_all":
+            if _ablation_share(matches[0]) is None:
+                refusals.append("hold_all: missing or invalid measurement; required a full pose that does not stand")
+            elif outcome is True:
+                refusals.append("hold_all: the full held pose stands; there is no full-pose fall to explain")
+        elif outcome is False:
             refusals.append("hold_zero: the statue control falls; a standing reference was not established")
-        else:
-            required = "falling" if control == "hold_all" else "standing"
-            refusals.append(f"{control}: missing, invalid or inconclusive measurement; required a {required} endpoint")
+        elif outcome is None:
+            refusals.append("hold_zero: missing, invalid or inconclusive measurement; required a standing endpoint")
     return refusals
 
 
@@ -2218,8 +2227,9 @@ def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     saturated set is the obvious candidate, since saturation is visible and
     dramatic -- shows up as necessary-and-not-sufficient or as neither, and
     only the pair distinguishes that from a cause. Neither question is
-    assessed unless the endpoint controls establish the fall being explained.
-    Unknown claims are None rather than false claims of non-necessity.
+    assessed unless the endpoint controls establish the fall being explained:
+    a full pose that does not stand (a partial fall counts) and a statue that
+    does. Unknown claims are None rather than false claims of non-necessity.
     """
     by_label = {row["label"]: row for row in rows}
     applicable = not _ablation_control_refusals(rows)
@@ -2627,11 +2637,11 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
     """Reduce the release ablation to its table, per-group verdicts, and payload.
 
     The ablation walks the path between two already-measured endpoints: the
-    policy's full held pose and the statue. Only when the former falls and
-    the latter stands is there a fall to attribute to an actuator group. Each
-    row moves one actuator group between them, so the table asks which
-    coordinate carries the effect rather than merely restating that the pose
-    is unholdable.
+    policy's full held pose and the statue. Only when the former does not
+    stand -- a partial fall is still a fall -- and the latter stands is there
+    a fall to attribute to an actuator group. Each row moves one actuator
+    group between them, so the table asks which coordinate carries the effect
+    rather than merely restating that the pose is unholdable.
     """
     rows = [
         {
@@ -2666,7 +2676,8 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
             "with one actuator group returned to the home control (released) or with only "
             "that group held. No row is a gate verdict. release_G tests whether G is "
             "NECESSARY for the fall; only_G tests whether G is SUFFICIENT to cause it. "
-            "These claims require a falling hold_all and a standing hold_zero control. "
+            "These claims require a hold_all control that does not stand (a partial or complete "
+            "full-pose fall to explain) and a standing hold_zero control. "
             "Unassessed necessity/sufficiency claims are null, not false."
         ),
         "variants": rows,
@@ -2684,11 +2695,17 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         "",
         f"  {'variant':<28}{'released':>9}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
     ]
+
+    def _cell(value: Any, spec: str) -> str:
+        # An unmeasured cell renders as '-' so the row survives to the unknown-handling below.
+        return "-" if value is None else format(value, spec)
+
     for row in rows:
         released = "-" if not row["holds"] else str(row["n_released"])
         lines.append(
-            f"  {row['label']:<28}{released:>9}{row['episode_length_mean']:>11.1f}"
-            f"{row['full_horizon_fraction']:>12.4f}{row['reward_mean']:>10.1f}   {row['terminations']}"
+            f"  {row['label']:<28}{released:>9}{_cell(row['episode_length_mean'], '.1f'):>11}"
+            f"{_cell(row['full_horizon_fraction'], '.4f'):>12}{_cell(row['reward_mean'], '.1f'):>10}"
+            f"   {row['terminations']}"
         )
     if not applicable:
         lines += ["", "Classification: not applicable."]
@@ -2739,9 +2756,10 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         ]
     lines += [
         "",
-        "Causal classification requires opposite endpoint controls: 'hold_all' must",
-        "fall and 'hold_zero' must stand. Otherwise the experiment does not establish",
-        "a held-pose fall to explain; the measurements remain useful as observations.",
+        "Causal classification requires both endpoint controls: 'hold_all' must not",
+        "stand -- a partial fall is still a fall to explain -- and 'hold_zero' must",
+        "stand. Otherwise the experiment does not establish a held-pose fall to",
+        "explain; the measurements remain useful as observations.",
     ]
     return "\n".join(lines) + "\n", payload
 
@@ -2877,16 +2895,18 @@ def constant_hold_release_variants(
     * ``only_G`` holds *only* G, testing **sufficiency** -- does adding G alone
       break the statue, which is known to stand?
 
-    When the controls establish a falling full pose and standing statue, a
-    group that is both necessary and sufficient is the cause. A group that is
-    necessary but not sufficient contributes with others. A group that is
-    neither is a bystander, whatever its DC looks like -- and the saturated
-    joints look dramatic (twelve pinned at exactly +/-1.000) precisely because
-    saturation is visible, not because it was shown to matter.
+    When the controls establish a full pose that does not stand (a partial
+    fall counts) and a standing statue, a group that is both necessary and
+    sufficient is the cause. A group that is necessary but not sufficient
+    contributes with others. A group that is neither is a bystander, whatever
+    its DC looks like -- and the saturated joints look dramatic (twelve pinned
+    at exactly +/-1.000) precisely because saturation is visible, not because
+    it was shown to matter.
 
     The two endpoints of the path are included as controls: ``hold_all`` is the
-    full pose, already measured to fall, and ``hold_zero`` is the statue,
-    already measured to stand. Every ablation sits between them.
+    full pose, which must not stand for the rows to be classified, and
+    ``hold_zero`` is the statue, which must stand. Every ablation sits between
+    them.
     """
     zero = tuple(0.0 for _ in hold)
     groups: dict[str, tuple[int, ...]] = {"saturated": saturated_actuator_indices(report)}
