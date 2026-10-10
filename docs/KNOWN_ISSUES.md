@@ -23,6 +23,26 @@ robustness, **LOW** = cosmetic / QoL.
 
 ## Training / RL
 
+- **HIGH** — **Completed short stance reward pilots remain uncertified;
+  T-Rex CoP shaping warrants replication, and velociraptor distributed
+  support remains unresolved.** The 2026-10-09 Colab batch completed all
+  15 fresh 1,048,576-step runs (three paired training seeds per arm).
+  T-Rex clean episodes rise from 55/120 to 96/120 with CoP weight 0.10
+  and safe fraction 0.65, but its best 40-episode LCB is 0.7253 against
+  0.80 and full-horizon counts do not improve. All 360 velociraptor
+  episodes fail both required contact-site duty and coverage; increasing
+  alive support fraction from 0.20 to 0.50 or adding the three-term
+  contact-quality bundle yields no clean episode. Both plants' home
+  controllers pass 40/40 on calibration and matched evaluation panels.
+  Recommendation: longer paired T-Rex CoP validation after the agreed
+  heading-interface migration; velociraptor exploration-only comparison
+  (`log_std_init = -1.5`, untested), then isolated per-site load shaping
+  and observation ablations. Audit toe preload/compliance/damping only
+  after separating raw action saturation from actual force clipping.
+  Preserve the gate and existing production training prerequisites.
+  Summarized findings, scope limits and acceptance criteria:
+  [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md).
+
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
      investigations/TREX_STAGE1_BOUNCE_2026_08.md. Three sibling items
