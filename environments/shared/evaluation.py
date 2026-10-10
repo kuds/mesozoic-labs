@@ -14,7 +14,8 @@ from typing import Any, Mapping
 
 from .plant_contract import PlantIdentity
 from .policy_loading import load_sb3_model
-from .stage_manifest import stage_label
+from .species_names import species_display_name
+from .stage_manifest import stage_display_name, stage_label
 
 
 def replay_seed(seed: int, stage: "int | str") -> int:
@@ -44,12 +45,28 @@ logger = logging.getLogger(__name__)
 #: entropy) and no two ``eval`` invocations were comparable (review ER3).
 DEFAULT_EVAL_SEED = 2000
 
-TREX_STAGE1_CAMERA_VIEWS: dict[str, dict[str, float]] = {
+STANCE_CAMERA_VIEWS: dict[str, dict[str, float]] = {
     # Fixed view angles make stance comparisons repeatable while preserving
-    # the existing pelvis-tracking camera.
-    "side": {"azimuth": 90.0, "elevation": -8.0, "distance": 3.4},
-    "front": {"azimuth": 180.0, "elevation": -8.0, "distance": 3.4},
+    # each species' own tracking body and camera distance.
+    "side": {"azimuth": 90.0, "elevation": -8.0},
+    "front": {"azimuth": 180.0, "elevation": -8.0},
 }
+_STANCE_CAMERA_OVERRIDES: dict[str, dict[str, dict[str, float]]] = {
+    "trex": {"side": {"distance": 3.4}, "front": {"distance": 3.4}},
+    # Its tall neck fits the default oblique and side views, but is cropped
+    # when viewed head-on at the default 5 m distance.
+    "brachiosaurus": {"front": {"distance": 9.0}},
+}
+
+
+def stance_camera_views(species: str) -> dict[str, dict[str, float]]:
+    """Shared view names and angles, with species-sized framing where needed."""
+    overrides = _STANCE_CAMERA_OVERRIDES.get(species, {})
+    return {name: {**preset, **overrides.get(name, {})} for name, preset in STANCE_CAMERA_VIEWS.items()}
+
+
+# Keep the historical T. rex framing and the public preset name compatible.
+TREX_STAGE1_CAMERA_VIEWS = stance_camera_views("trex")
 
 try:
     import numpy as _np
@@ -245,7 +262,8 @@ def record_stage_video(
 
     When *camera_views* is supplied, one additional synchronized video is
     written per named camera preset. When *collect_stance_diagnostics* is
-    true, a per-frame ``*_stance.csv`` is written beside the replay.
+    true, a per-frame ``*_stance.csv`` is written beside the replay. Playback
+    follows the environment's control timestep, including 0.02 s species.
 
     *output_dir* is where the video files land; it defaults to *stage_dir*
     for callers that predate the ``replays/`` subdirectory. *stage_dir* is
@@ -305,6 +323,7 @@ def record_stage_video(
         vec_normalize.norm_reward = False
 
     obs, _ = render_env.reset(seed=replay_seed(seed, stage))
+    control_dt = float(render_env.dt)
     frames = []
     named_frames: dict[str, list[Any]] = {name: [] for name in (camera_views or {})}
     stance_rows: list[dict[str, float]] = []
@@ -319,9 +338,16 @@ def record_stage_video(
         obs, reward, terminated, truncated, info = render_env.step(action)
         frames.append(render_env.render())
         if collect_stance_diagnostics:
-            from .stance_diagnostics import capture_trex_stance_snapshot
+            from .stance_diagnostics import capture_stance_snapshot
 
-            stance_rows.append(capture_trex_stance_snapshot(render_env, info, step_index + 1))
+            row = capture_stance_snapshot(render_env, info, step_index + 1, species=species)
+            row.update(
+                time_s=(step_index + 1) * control_dt,
+                reward=float(reward),
+                terminated=float(terminated),
+                truncated=float(truncated),
+            )
+            stance_rows.append(row)
         if camera_views:
             camera = getattr(render_env, "_camera", None)
             if camera is None:
@@ -352,13 +378,14 @@ def record_stage_video(
     destination = Path(output_dir) if output_dir is not None else Path(stage_dir)
     destination.mkdir(parents=True, exist_ok=True)
     video_path = str(destination / f"{species}_{algorithm.lower()}_{stage_label(stage)}{suffix}.mp4")
-    mediapy.write_video(video_path, frames, fps=50)
+    fps = 1.0 / control_dt
+    mediapy.write_video(video_path, frames, fps=fps)
     video_stem = Path(video_path).with_suffix("")
     for view_name, view_frames in named_frames.items():
         if not view_frames:
             continue
         view_path = str(video_stem.with_name(f"{video_stem.name}_{view_name}").with_suffix(".mp4"))
-        mediapy.write_video(view_path, view_frames, fps=50)
+        mediapy.write_video(view_path, view_frames, fps=fps)
         logger.info("  Saved %s camera replay to: %s", view_name, view_path)
     if collect_stance_diagnostics:
         from .stance_diagnostics import write_stance_diagnostics_csv
@@ -366,7 +393,15 @@ def record_stage_video(
         stance_path = video_stem.with_name(f"{video_stem.name}_stance").with_suffix(".csv")
         if write_stance_diagnostics_csv(stance_path, stance_rows) is not None:
             logger.info("  Saved stance diagnostics to: %s", stance_path)
-    logger.info("Stage %s video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
+    logger.info(
+        "%s / %s / %s replay: reward=%.2f | %d frames | %.1f fps",
+        species_display_name(species),
+        stage_display_name(stage),
+        label or "default",
+        episode_reward,
+        len(frames),
+        fps,
+    )
     logger.info("  Saved to: %s", video_path)
     return video_path, frames
 
@@ -525,10 +560,11 @@ def evaluate(
     vec_env.seed(seed)
 
     logger.info(
-        "Evaluating for %d episodes (stage %s: %s, seed %d)...",
+        "Evaluating %s for %d episodes (stage %s: %s, seed %d)...",
+        species_display_name(species_cfg.species),
         n_episodes,
         stage,
-        stage_configs[stage]["name"],
+        stage_display_name(stage, stage_configs[stage]["name"]),
         seed,
     )
 

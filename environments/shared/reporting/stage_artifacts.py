@@ -1801,7 +1801,7 @@ def _record_stage_replays(
     from ..stage_manifest import stage_label
 
     try:
-        from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
+        from environments.shared.evaluation import record_stage_video, stance_camera_views
         from environments.shared.policy_loading import _ensure_sb3
 
         sb3 = _ensure_sb3()
@@ -1811,11 +1811,11 @@ def _record_stage_replays(
 
         final_path = model_dir / f"{stage_label(stage)}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
-        # Recovery is stance plus scheduled pushes, so its replays carry the
-        # same side/front camera views and per-frame stance CSV — the side
-        # view is where a shove and the response are actually visible.
-        replay_diagnostics = species.lower() == "trex" and stage in (1, "recovery")
-        replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
+        # Every species' stance and recovery replays share the same views and
+        # per-frame CSV. Framing follows each species' camera size; the old
+        # T. rex distance stays compatible with its existing comparisons.
+        replay_diagnostics = stage in (1, "stance", "recovery")
+        replay_camera_views = stance_camera_views(species) if replay_diagnostics else None
 
         # The SELECTED checkpoint, via the same selector that decides the
         # next-stage handoff and that `evaluation_selected.csv` is evidence
@@ -1869,7 +1869,14 @@ def _record_stage_replays(
                 collect_stance_diagnostics=replay_diagnostics,
             )
 
-        if (Path(str(final_path) + ".zip")).exists():
+        if Path(str(final_path) + ".zip").exists() and not Path(final_vecnorm_path).is_file():
+            logger.warning(
+                "Stage %s final-checkpoint replay skipped: %s has no matched _vecnorm.pkl; "
+                "replaying without the observation statistics would show a different policy.",
+                stage,
+                final_path.name,
+            )
+        elif Path(str(final_path) + ".zip").exists():
             final_model = load_sb3_model(str(final_path), algorithm=alg_cls)
             validate_model_plant(
                 final_model,

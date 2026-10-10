@@ -267,9 +267,11 @@ class TestRecordStageVideo:
         # Should have called write_video
         assert mock_mediapy.write_video.called or result is None
 
-    def test_records_named_camera_views_and_stance_csv_without_extra_steps(self, tmp_path):
+    @pytest.mark.parametrize("control_dt,expected_fps", [(0.01, 100.0), (0.02, 50.0)])
+    def test_records_named_camera_views_and_stance_csv_without_extra_steps(self, tmp_path, control_dt, expected_fps):
         mock_mediapy = MagicMock()
         mock_env = MagicMock()
+        mock_env.dt = control_dt
         mock_env._camera = SimpleNamespace(azimuth=135.0, elevation=-20.0, distance=3.0)
         mock_env.reset.return_value = (np.zeros(10), {})
         mock_env.step.return_value = (
@@ -320,6 +322,7 @@ class TestRecordStageVideo:
         assert any(path.endswith("_best_side.mp4") for path in written_paths)
         assert any(path.endswith("_best_front.mp4") for path in written_paths)
         assert all(len(call.args[1]) == 1 for call in mock_mediapy.write_video.call_args_list)
+        assert all(call.kwargs["fps"] == expected_fps for call in mock_mediapy.write_video.call_args_list)
         assert (tmp_path / "dino_ppo_stage1_best_stance.csv").exists()
         assert mock_model.predict.call_count == 1
         assert mock_env.step.call_count == 1

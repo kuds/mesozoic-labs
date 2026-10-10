@@ -59,6 +59,7 @@ from environments.shared.result_schema import (
     validate_provenance,
     validate_result_summary,
 )
+from environments.shared.stage_manifest import stage_display_name
 
 DEFAULT_CONFIGS_DIR = REPOSITORY_ROOT / "configs"
 DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
@@ -638,7 +639,7 @@ def _build_stages(
                 "number": entry.legacy_number,
                 "label": entry.key,
                 "name": name,
-                "title": name.replace("_", " ").title(),
+                "title": stage_display_name(entry.reference, name),
                 "description": str(stage_config["description"]),
                 "config_path": config_path.relative_to(path_root).as_posix(),
                 "timesteps": int(curriculum["timesteps"]),
@@ -1288,7 +1289,7 @@ def _success_metric_for_backend(species: dict[str, Any], backend: str) -> dict[s
 
 
 def _stage_heading(stage: dict[str, Any]) -> str:
-    """``1 — Balance`` / ``recovery — Recovery``: the label the tables address a stage by."""
+    """``1 — Stance`` / ``recovery — Recovery``: the label the tables address a stage by."""
     return f"{stage['label']} — {stage['title']}"
 
 
@@ -1611,7 +1612,7 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
             )
             for stage in result["stages"]:
                 lines.append(
-                    f"| {stage['label']} — {str(stage['name']).replace('_', ' ').title()} | "
+                    f"| {stage['label']} — {stage_display_name(stage['label'], str(stage['name']))} | "
                     f"{_format_number(stage['best_eval_reward'])} | "
                     f"{_format_number(stage['avg_forward_vel'], suffix=' m/s')} | "
                     f"{_format_percent(stage['mean_success_rate'])} | "

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .species_names import species_display_name
+from .stage_manifest import stage_display_name
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def plot_training_curves(
         data = np.load(eval_log)
         timesteps = data["timesteps"]
         results = data["results"]
-        label = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
+        label = f"Stage {stage_num}: {stage_display_name(stage_num, stage_configs[stage_num]['name'])}"
 
         # Reward curve
         mean_rewards = np.mean(results, axis=1)
@@ -304,7 +305,7 @@ def plot_diagnostics_graphs(
         if not diag_log.exists():
             continue
         diag = np.load(diag_log)
-        label = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
+        label = f"Stage {stage_num}: {stage_display_name(stage_num, stage_configs[stage_num]['name'])}"
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
@@ -424,7 +425,7 @@ def plot_diagnostics_graphs(
         if not diag_log.exists():
             continue
         diag = np.load(diag_log)
-        label = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
+        label = f"Stage {stage_num}: {stage_display_name(stage_num, stage_configs[stage_num]['name'])}"
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
@@ -605,7 +606,7 @@ def plot_foot_contacts(
         if ts is None or len(ts) == 0:
             continue
 
-        label_base = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
+        label_base = f"Stage {stage_num}: {stage_display_name(stage_num, stage_configs[stage_num]['name'])}"
 
         has_r = _has_finite(diag, "r_foot_contact")
         has_l = _has_finite(diag, "l_foot_contact")
@@ -768,7 +769,7 @@ def plot_stance_diagnostics(
             if "timesteps" not in diag or len(diag["timesteps"]) == 0:
                 continue
             timesteps = diag["timesteps"]
-            stage_name = stage_configs.get(stage_num, {}).get("name", f"Stage {stage_num}")
+            stage_name = stage_display_name(stage_num, stage_configs.get(stage_num, {}).get("name"))
             for axis, (title, keys) in zip(axes.flat, panels, strict=True):
                 for key in keys:
                     if key not in diag:

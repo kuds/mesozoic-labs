@@ -76,7 +76,9 @@ from ..gait.stance_metrics import (
     episode_stance_metrics,
 )
 from ..policy_loading import PolicyLoadError, load_sb3_checkpoint
+from ..species_names import species_display_name
 from ..species_registry import SPECIES_FACTORIES
+from ..stage_manifest import stage_display_name
 from ..stance_diagnostics import derive_stance_info
 
 
@@ -1628,13 +1630,15 @@ def _kind_note(report: dict[str, Any]) -> list[str]:
         return []
     if declared in STANCE_GATE_KINDS:
         return [
-            f"NOTE: {report['species']} stage {report['stage']} declares gate_kind {declared!r}; this "
+            f"NOTE: {species_display_name(report['species'])} {stage_display_name(report['stage'])} "
+            f"(stage {report['stage']}) declares gate_kind {declared!r}; this "
             f"report scored the {scored!r} criteria, which are reported but are not what this stage "
             "advances on.",
             "",
         ]
     return [
-        f"NOTE: {report['species']} stage {report['stage']} declares gate_kind {declared!r}, not a "
+        f"NOTE: {species_display_name(report['species'])} {stage_display_name(report['stage'])} "
+        f"(stage {report['stage']}) declares gate_kind {declared!r}, not a "
         "stance kind. The stance criteria below are reported but are not what this stage advances on.",
         "",
     ]
@@ -1654,7 +1658,8 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
-        f"stage               {report['species']} stage {report['stage']} ({report['gate_kind']})",
+        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"(stage {report['stage']}, {report['gate_kind']})",
         f"panel               {report['episodes']} episodes, "
         f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
         f"settle_steps        {report['settle_steps']} (duty measured over the remaining {measured})",
@@ -1776,7 +1781,8 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
     lines = _kind_note(report)
     lines += [
         f"policy              {report['policy']}",
-        f"stage               {report['species']} stage {report['stage']} ({report['scored_gate_kind']}, floor truth)",
+        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"(stage {report['stage']}, {report['scored_gate_kind']}, floor truth)",
         f"panel               {report['episodes']} episodes, "
         f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
         f"settle_steps        {report['settle_steps']} (window criteria over the remaining {measured}; settle "
@@ -2006,7 +2012,8 @@ def write_action_filter_sweep(
         "Every row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per cutoff, horizon {horizon}",
         "",
         f"  {'cutoff':>9}{'ep length':>12}{'full-horiz':>12}{'reward':>10}   terminations",
@@ -2113,7 +2120,8 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
         "Every held row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
         f"hold                the policy's own post-settle mean action, {len(hold_actions)} actuators",
         "",
@@ -2411,7 +2419,8 @@ def render_impulse_probe(
         "Scores the unmodified policy on a MODIFIED TASK. No row is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {policy_reports[0]['species']} stage {policy_reports[0]['stage']}",
+        f"stage               {species_display_name(policy_reports[0]['species'])} — "
+        f"{stage_display_name(policy_reports[0]['stage'])} (stage {policy_reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per row, horizon {horizon}, impulse at step {step}",
         "control             the zero-action statue, which commands a constant and CANNOT respond",
         "",
@@ -2534,6 +2543,14 @@ def render_heading_probe(
         "PROBE: the spawn turned about vertical (report only; decision D-D27 leaves heading robustness open).",
         "Scores the unmodified policy from a MODIFIED START; not a gate result.",
         f"policy              {payload['policy']}",
+        *(
+            [
+                f"stage               {species_display_name(policy_reports[0]['species'])} — "
+                f"{stage_display_name(policy_reports[0]['stage'])} (stage {policy_reports[0]['stage']})"
+            ]
+            if policy_reports and "species" in policy_reports[0] and "stage" in policy_reports[0]
+            else []
+        ),
         f"panel               {probe_episodes} episodes per row, seeds {first_seed}-"
         f"{first_seed + probe_episodes - 1}, horizon {horizon}",
         "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
@@ -2626,7 +2643,8 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         "Every row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
         "released            commanded 0, the named home control under home-keyframe-residual/v1",
         "",

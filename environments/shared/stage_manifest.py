@@ -455,6 +455,24 @@ def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -
     return StageManifest(species=species, stages=tuple(entries), synthesized=False, schema=schema)
 
 
+def stage_display_name(ref: "int | str", configured_name: "str | None" = None) -> str:
+    """Readable stage name, including the historical ``balance`` alias.
+
+    This formats presentation only. Stage references, directory names and
+    recipe labels keep their existing identities (``stand`` is a recipe,
+    which may include both stance and recovery).
+    """
+    if configured_name:
+        name = configured_name
+    elif isinstance(ref, int) or (isinstance(ref, str) and ref.isdigit()):
+        name = LEGACY_STAGE_IDS.get(int(ref), f"stage {ref}")
+    else:
+        name = ref
+    if name.casefold() == "balance":
+        name = "stance"
+    return name.replace("_", " ").title()
+
+
 def stage_label(ref: "int | str") -> str:
     """Canonical artifact/directory label for a stage reference.
 

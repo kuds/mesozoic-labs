@@ -29,6 +29,7 @@ Requires: pip install wandb
 from __future__ import annotations
 
 import logging
+import math
 import subprocess
 from typing import Any
 
@@ -94,20 +95,24 @@ def init_wandb(
         logger.warning("wandb not installed. Skipping W&B initialization.")
         return None
 
-    from .stage_manifest import stage_label
+    from .species_names import species_display_name
+    from .stage_manifest import stage_display_name, stage_label
 
-    # stage_label keeps integer stages on their historical run name
-    # ("trex-stage1") and names semantic stages by id ("trex-recovery")
-    # instead of minting "trex-stagerecovery" (F13).
-    run_name = f"{species}-{stage_label(stage)}"
+    # The visible title uses full names; the resume id and filter tags below
+    # retain the stable species/stage identifiers.
+    species_title = species_display_name(species)
+    stage_title = stage_display_name(stage, config.get("name"))
+    run_name = f"{species_title} / {stage_title}"
 
     # Collect git info
     git_hash = _get_git_hash()
 
     flat_config = {
         "species": species,
+        "species_display_name": species_title,
         "stage": stage,
         "stage_name": config.get("name", ""),
+        "stage_display_name": stage_title,
         "git_hash": git_hash,
     }
 
@@ -294,8 +299,20 @@ class WandbCallback(BaseCallback):
             # wandb.Video expects (T, C, H, W) for numpy arrays
             if video_array.ndim == 4:
                 video_array = np.transpose(video_array, (0, 3, 1, 2))
+            # One frame per control step plays in real time at 1 / dt, as the
+            # stage replays do; 30 fps remains the fallback without a dt.
+            # wandb encodes an array as a GIF, whose players clamp frame
+            # delays below 2 cs, so a faster control rate keeps every n-th
+            # frame and plays at <= 50 fps, still in real time.
+            try:
+                rate = 1.0 / float(self.video_env.get_attr("dt")[0])
+            except Exception:
+                rate = 30.0
+            stride = max(1, math.ceil(rate / 50.0 - 1e-9))
+            video_array = video_array[::stride]
+            fps = round(rate / stride)
             wandb.log(
-                {"eval/video": wandb.Video(video_array, fps=30)},
+                {"eval/video": wandb.Video(video_array, fps=fps)},
                 step=self.num_timesteps,
             )
             logger.info(

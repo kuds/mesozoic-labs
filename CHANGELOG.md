@@ -170,6 +170,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **Training output names species and the stance stage in full, and every
+  species' stance and recovery stages write the same replays** (#607;
+  presentation only: no plant, policy-interface, task, gate or
+  hyperparameter digest moves; decision D-A10's 2026-10-10 amendment,
+  pending the maintainer's approval;
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`). The six stance configs record
+  `name = "stance"` (was `balance`), and `species_display_name()` /
+  `stage_display_name()` label CLI logs, text summaries, gate and probe
+  reports, plot legends, notebook tables, the species catalog and W&B run
+  titles (`Tyrannosaurus Rex / Stance`, was `trex-stage1`); run directories,
+  replay file IDs, semantic stage IDs and W&B resume IDs and tags are
+  unchanged. Twelve `stage_config_view_sha256` lines of
+  `configs/digest_snapshot.generated.txt` move (PPO and SAC for the six
+  stance nodes); its other 637 lines are equal. Historical results recorded
+  as `balance` show as `1 — Stance` in the RESULTS block and on the website,
+  with their numbers and verdicts unchanged. Stance and recovery stages of
+  every species (was T. rex only) add side and front views and a per-frame
+  `*_stance.csv` to their selected and final replays, and every stage replay
+  plays at `1 / env.dt`: 100 fps for the 0.01 s species and 50 fps for both
+  Compsognathus (was 50 fps everywhere, so 0.01 s replays played at half
+  speed); the W&B callback's evaluation video also plays in real time (was
+  30 fps), keeping every n-th frame above 50 fps because a GIF cannot play
+  faster. A final checkpoint without its `_vecnorm.pkl` is skipped rather than
+  replayed on raw observations. The CSV measures each biped at the support
+  registry's `foot_site` and the leg joints spelled as that site spells its
+  side, so every biped's CSV has foot positions, the support midpoint, the
+  pelvis-over-support offset, leg home errors and `stance_width` (the foot
+  sites' `|Δy|`, as on T. rex). The T. rex CSV keeps every historical column
+  with unchanged values and adds `time_s`, `reward`, `terminated`,
+  `truncated`, the `root_*` pose and the rest of the env's scalar info.
 - **The anatomical Compsognathus stands on its whole foot, PPO can explore
   around its statue, and its stance is judged on floor truth** (#604; breaking —
   plant change, physics revision 1 → 2, policy interface revision 2 → 3,
