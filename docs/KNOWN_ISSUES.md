@@ -23,6 +23,35 @@ robustness, **LOW** = cosmetic / QoL.
 
 ## Training / RL
 
+- **HIGH** — **Completed short stance reward pilots remain uncertified;
+  the base T-Rex stance reward is CoP-indifferent, and the velociraptor
+  fails by an exploration-driven hop plus an unloaded digit IV.** The
+  2026-10-09 Colab batch completed all 15 fresh 1,048,576-step runs
+  (three paired training seeds per arm). T-Rex clean episodes rise from
+  55/120 to 96/120 with CoP weight 0.10 and safe fraction 0.65 (per seed
+  30/5/20 → 31/31/34, n = 3), but its best 40-episode LCB is 0.7253
+  against 0.80 and full-horizon counts do not improve. The base T-Rex
+  reward does not price pad CoP: on 3042–3081 a full-budget policy on its
+  pad's front edge (0/40 clean) and one that passes v2 (39/40) earn the
+  same (3783.4 and 3782.2), both about 26 above the statue. Every
+  velociraptor arm trained at action std 1.0, far above the statue's
+  noise cliff (about 0.07); 312/360 velociraptor episodes end early, the
+  policies hop and fall, and digit IV stays unloaded even with both feet
+  down, so all 360 fail contact-site duty and coverage. Increasing alive
+  support fraction from 0.20 to 0.50 or adding the three-term
+  contact-quality bundle yields no clean episode. Both plants' home
+  controllers pass 40/40 on calibration and matched evaluation panels.
+  Recommendation: full-budget paired T-Rex CoP validation after the
+  agreed heading-interface migration, with a settled `leg_home_pose`
+  reference as a separate candidate; a paired velociraptor exploration
+  sweep (`log_std_init` −1.5, about −2.3 and about −3.0), then
+  airborne/impact pricing, isolated per-site load shaping and observation
+  ablations. Audit toe preload/compliance/damping only after separating
+  raw action saturation from actual force clipping. Preserve the gate and
+  existing production training prerequisites. Summarized findings, the
+  full-budget reference runs, scope limits and acceptance criteria:
+  [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md).
+
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
      investigations/TREX_STAGE1_BOUNCE_2026_08.md. Three sibling items
@@ -104,6 +133,14 @@ robustness, **LOW** = cosmetic / QoL.
   seeds (plan three), each judged on 3042–3081 and re-judged on 7042–7081;
   whether the quieter start changes the basin split is the first thing those
   runs measure.
+  **Update 6 (2026-10-10):** three D-D27 runs have since trained (seed 42
+  `20261008_163256`, seed 48 `20261008_163410`, seed 52 `20261009_155723`).
+  Seeds 42 and 48 fail v2 (0/40 and 36/40); seed 52 passed on its own
+  3042–3081 panel (39/40) but is clean on 32/40 of the re-judge seeds
+  7042–7081 (re-rolled from its checkpoint in the 2026-10-10 review), so
+  the two-seed ask stands (the stance-gate HIGH below;
+  [investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
+  §1.2–§1.3).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -965,12 +1002,18 @@ robustness, **LOW** = cosmetic / QoL.
   stage adopts v2, a gate revision with bars re-measured on that species' own
   statue panel ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§16 and PR-G8;
   GQ-10, open); each species stays open until its stance certifies under v2,
-  the trex, velociraptor and compsognathus included: no r3 velociraptor or r2
-  compsognathus stance has trained yet, and the first two r8 trex stances fail
-  v2 (a two-foot micro-hop, and a settle stomp with a few-percent
-  whole-episode hop mode; the audit's §9), after which D-D27 revised the trex
-  stance task and added settle-touchdown, yaw and hop-or-fall keys to its
-  block.
+  the trex, velociraptor and compsognathus included: no r2 compsognathus
+  stance has trained yet; every r3 velociraptor stance trained so far is clean
+  on 0/40 (two 6M runs and nine 1M-step reward pilots,
+  [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
+  §1.3–§1.4); and the first two r8 trex stances fail v2 (a two-foot
+  micro-hop, and a settle stomp with a few-percent whole-episode hop mode;
+  the audit's §9), after which D-D27 revised the trex stance task and added
+  settle-touchdown, yaw and hop-or-fall keys to its block. Of the D-D27
+  runs, seeds 42 and 48 fail (0/40 and 36/40), and seed 52
+  (`20261009_155723`) passed v2 on its own 3042–3081 panel (39/40) but is
+  clean on 32/40 of the re-judge seeds 7042–7081 (re-rolled from its
+  checkpoint in the 2026-10-10 review; the findings doc's §1.2).
 
 - **MEDIUM** — **`stance_quality/v2` on the anatomical compsognathus certifies
   a soft two-foot bounce, a one-foot flutter and a fast weight shuttle
