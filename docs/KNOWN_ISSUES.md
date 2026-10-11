@@ -1272,9 +1272,19 @@ robustness, **LOW** = cosmetic / QoL.
   yawed ±45° and ±90°, and two 200k-step PPO means are clean with seed 11 at
   +90° and seed 12 at −90° (20/20 each; the stance-hack audit's §11), but no
   trained r2 stance has been rolled turned. No other species' stance has been
-  probed. Until then the probe's own text (`stance_heading_probe.txt`, from
-  `reporting/stance_report.py`) still reads as D-D27 left it, "report only;
-  decision D-D27 leaves heading robustness open"; the heading PR rewrites it.
+  probed. Until then the probe stays report only: its own text
+  (`stance_heading_probe.txt`, from `reporting/stance_report.py`) still reads
+  as D-D27 left it, "report only; decision D-D27 leaves heading robustness
+  open", and the heading PR rewrites it. By the maintainer's decision of
+  2026-10-11 the handoff tooling warns, without blocking, when a whole-scene
+  row's full-horizon fraction is below 0.95, the v2 per-panel rail: a
+  handoff-warning block in that text, which the
+  `stance_gate_report.py --spawn-yaw-offsets` output prints too, and a
+  logged warning where the probe is written, where `train` or the
+  command-line curriculum starts a node on the stance's handoff, and where
+  `record_ancestor` reuses it. A stage that declares the probe and has none,
+  as the command-line curriculum leaves a T. rex stance, warns that its
+  heading robustness is unmeasured. No verdict changes.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

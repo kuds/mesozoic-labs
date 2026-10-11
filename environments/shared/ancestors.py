@@ -671,6 +671,24 @@ def _without_timestamp(record: Mapping[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in record.items() if key != "reused_at"}
 
 
+def _warn_on_heading_probe(ancestor: CertifiedAncestor) -> None:
+    """Log, never refuse, the reused node's heading-probe warnings (the maintainer's decision of 2026-10-11)."""
+    try:
+        from .reporting.stance_report import stage_heading_probe_warnings
+
+        messages = stage_heading_probe_warnings(ancestor.stage_dir)
+    except Exception:  # noqa: BLE001 - a warning must never stop a reuse
+        logger.warning("The heading probe of %s could not be checked", ancestor.stage_dir, exc_info=True)
+        return
+    for message in messages:
+        logger.warning(
+            "Reusing certified %r from run %s, whose heading probe warns: %s",
+            ancestor.stage_id,
+            ancestor.run_id,
+            message,
+        )
+
+
 def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) -> Path:
     """Write ``<child_run_dir>/ancestors/<stage_id>/`` for a reused ancestor.
 
@@ -684,6 +702,7 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
     from .file_io import atomic_write_text
     from .result_bundle import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME
 
+    _warn_on_heading_probe(ancestor)
     target = Path(child_run_dir) / ANCESTORS_DIRNAME / ancestor.stage_id
     record = _ancestor_record(ancestor)
     record_path = target / ANCESTOR_RECORD_NAME

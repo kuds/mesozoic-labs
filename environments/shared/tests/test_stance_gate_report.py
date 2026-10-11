@@ -2791,6 +2791,57 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         )
         assert not (tmp_path / "stance_heading_probe.txt").exists()
 
+    def _write_heading_probe_scoring(self, tmp_path, monkeypatch, caplog, policy_scene_fraction):
+        """Run the helper with every panel stubbed: the statue stands everywhere, the policy everywhere
+        but on the whole-scene rows, where it scores *policy_scene_fraction*; the real writer writes."""
+        from environments.shared.reporting import stance_report
+
+        def _panel(species, stage, **kwargs):
+            turn = kwargs["spawn_yaw"]
+            scene = turn.whole_scene and not kwargs["zero_action"]
+            return {
+                "spawn_yaw": turn.as_dict(),
+                "metrics": {
+                    "full_horizon_fraction": policy_scene_fraction if scene else 1.0,
+                    "reward_mean": 3700.0,
+                    "episode_length_mean": 1000.0,
+                },
+                "episode_yaw_change_deg": [3.0],
+                "terminations": {},
+                "horizon": 1000,
+                "policy": "robust_best_model.zip",
+                "seed": 3042,
+            }
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _panel)
+        with caplog.at_level("WARNING"):
+            self._artifacts()._write_heading_probe(
+                species="trex",
+                stage=1,
+                stage_config={"curriculum_kwargs": {"stance_probe_spawn_yaw_deg": [-90.0, 90.0]}},
+                stage_dir=tmp_path,
+                model_path="models/robust_best_model.zip",
+                vecnorm_path="models/robust_best_model_vecnorm.pkl",
+            )
+
+    def test_the_heading_probe_logs_its_handoff_warning(self, tmp_path, monkeypatch, caplog):
+        """The maintainer's decision of 2026-10-11: a whole-scene row under 0.95 is logged where the
+        probe is written, and the probe is still written (report only: nothing is refused)."""
+        self._write_heading_probe_scoring(tmp_path, monkeypatch, caplog, 0.875)
+
+        (record,) = [r for r in caplog.records if "heading probe:" in r.message]
+        assert record.levelname == "WARNING"
+        assert record.message.startswith("Stage 1 heading probe: the policy's full-horizon fraction is below 0.95")
+        assert "on 2 of 2 whole-scene rows (-90 deg 0.88 (statue 1.00); +90 deg 0.88 (statue 1.00)" in record.message
+        assert "Heading probe failed" not in caplog.text
+        assert "HANDOFF WARNING" in (tmp_path / "stance_heading_probe.txt").read_text(encoding="utf-8")
+
+    def test_a_passing_heading_probe_logs_no_warning(self, tmp_path, monkeypatch, caplog):
+        self._write_heading_probe_scoring(tmp_path, monkeypatch, caplog, 1.0)
+
+        assert (tmp_path / "stance_heading_probe.json").is_file()
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
     def test_the_verdict_is_recorded_before_any_probe_runs(self):
         """Probes are pure diagnostics and run dead last: the recorded verdict,
         the summary, and the replays must never sit behind ~300 probe episodes,

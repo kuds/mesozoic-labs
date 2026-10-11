@@ -991,6 +991,7 @@ def _write_heading_probe(
         from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             spawn_yaw_variants,
+            stage_heading_probe_warnings,
             write_heading_probe,
         )
 
@@ -1018,6 +1019,10 @@ def _write_heading_probe(
             "Heading probe -> %s. MODIFIED start -- report only, not a gate verdict.",
             written["heading_probe_txt"],
         )
+        # The maintainer's decision of 2026-10-11: warn, never block, on a whole-scene
+        # row under v2's 0.95 rail. Read back from the file the handoff will read.
+        for message in stage_heading_probe_warnings(stage_dir, declared=False):
+            logger.warning("Stage %s heading probe: %s", stage, message)
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Heading probe failed for stage %s", stage, exc_info=True)
 
@@ -1760,9 +1765,11 @@ def generate_stage_artifacts(
 
     # Probes run dead last, outside the staging context: they are the most
     # expensive artifact step (~300 episodes at the trex stage-1 settings) and
-    # nothing downstream reads them, so a runtime lost mid-probe costs the
-    # probes alone -- never the recorded verdict, summary, graphs or replays
-    # above. Ordering is pinned by the wiring tests.
+    # nothing downstream gates on them (only the report-only heading-probe
+    # handoff warning reads one, and warns that heading robustness is
+    # unmeasured when a declared probe is missing), so a runtime lost
+    # mid-probe costs the probes alone -- never the recorded verdict, summary,
+    # graphs or replays above. Ordering is pinned by the wiring tests.
     _run_stance_probes(
         species=species,
         stage=stage,

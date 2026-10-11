@@ -40,7 +40,9 @@ fall. The bars and their measured provenance are in `configs/trex/stance.toml`. 
 `stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
 a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
 report only: the stance stage always spawns at the same heading, and the heading-free observations the maintainer
-chose on 2026-10-07, which make the probe a gate check, are a later PR (`docs/KNOWN_ISSUES.md`). The first two
+chose on 2026-10-07, which make the probe a gate check, are a later PR (`docs/KNOWN_ISSUES.md`). Until then a
+whole-scene row whose full-horizon fraction is below 0.95, the v2 per-panel rail, is warned of without blocking, in the
+probe's text and wherever the stance is handed on or reused (the maintainer's decision of 2026-10-11). The first two
 physics-r8 stances (`20261006_185343`, `20261006_185704`) both failed this gate; what they did and what decision D-D27
 changed in response is §9 of
 [`docs/investigations/STANCE_HACK_AUDIT_2026_10.md`](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), and the

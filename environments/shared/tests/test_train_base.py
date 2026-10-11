@@ -891,6 +891,17 @@ class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
         assert not any("table" in record.message for record in caplog.records)
 
 
+def _write_heading_probe(stage_dir: Path, *, yaw_deg: float, policy_fraction: float) -> None:
+    """A one-row ``stance_heading_probe.json``: the whole scene turned *yaw_deg*, where the statue stands."""
+    row = {"yaw_deg": yaw_deg, "whole_scene": True, "statue": {"full_horizon_fraction": 1.0}}
+    probe = {
+        "schema": "mesozoic.stance-heading-probe/v1",
+        "probe_episodes": 8,
+        "rows": [{**row, "policy": {"full_horizon_fraction": policy_fraction}}],
+    }
+    (stage_dir / "stance_heading_probe.json").write_text(json.dumps(probe), encoding="utf-8")
+
+
 class TestTrainCurriculumWalksTheManifest:
     """Review TC7/OP6: the curriculum iterates the manifest, not ``range(1, 4)``.
 
@@ -2067,6 +2078,34 @@ class TestTrainCurriculumWalksTheManifest:
         warnings = self._ignored_edit_warnings(caplog)
         assert len(warnings) == 1 and "<unreadable stage_config.json>" in warnings[0].message
 
+    def test_a_node_entering_on_a_stance_whose_probe_warns_still_trains_and_logs_it(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The maintainer's decision of 2026-10-11 at the command line: the child of a reused stance
+        whose heading probe falls on a whole-scene row is trained as before, with the warning logged
+        where the node enters on it (``record_ancestor``, stubbed here, logs its own line for the
+        reuse).  The probe is read for any species that has one."""
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run")
+        _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=0.0)
+
+        record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
+
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert record["loads"][0] == ancestor.model_stem
+        (warning,) = [r for r in caplog.records if "heading probe warns" in r.message]
+        assert warning.levelno == logging.WARNING
+        assert warning.message.startswith(f"Stage locomotion enters on the handoff of {ancestor.stage_dir}")
+        assert "-45 deg 0.00 (statue 1.00)" in warning.message
+
+    def test_a_node_entering_on_a_stance_whose_probe_stands_logs_nothing(self, tmp_path, monkeypatch, caplog):
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run")
+        _write_heading_probe(ancestor.stage_dir, yaw_deg=-45.0, policy_fraction=1.0)
+
+        record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
+
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert not [r for r in caplog.records if "heading probe" in r.message]
+
     def test_the_label_reaches_every_trained_nodes_config_and_the_wandb_tags(self, tmp_path, monkeypatch, caplog):
         """Decision D-A21: ``label`` is handed to ``save_stage_config`` for every trained node and
         every W&B run is tagged ``hp:<12 hex of the node's digest>`` plus ``label:<label>``; without a
@@ -2225,7 +2264,8 @@ class TestTrainRefusesAnUndeclaredParent:
             archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: {"species": "trex", "stage": stage}}))
         return path
 
-    def _train(self, tmp_path, monkeypatch, *, parent_stage, child_stage):
+    def _train(self, tmp_path, monkeypatch, *, parent_stage, child_stage, parent_stem=None):
+        """*parent_stem*, when given, is the checkpoint stem to load (``<stage_dir>/models/<name>`` for a handoff)."""
         from environments.shared import task_fingerprint, train_base
         from environments.shared.config import load_all_stages
 
@@ -2237,7 +2277,11 @@ class TestTrainRefusesAnUndeclaredParent:
         monkeypatch.setattr(
             "environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(SB3Reached())
         )
-        parent = self._checkpoint(tmp_path / "parent.zip", parent_stage)
+        if parent_stem is None:
+            parent = self._checkpoint(tmp_path / "parent.zip", parent_stage)
+        else:
+            self._checkpoint(Path(f"{parent_stem}.zip"), parent_stage)
+            parent = parent_stem
         output_dir = tmp_path / "out"
         output_dir.mkdir(exist_ok=True)
         try:
@@ -2266,6 +2310,58 @@ class TestTrainRefusesAnUndeclaredParent:
             self._train(tmp_path, monkeypatch, parent_stage=3, child_stage=2)
         # Refused before a stage directory, a config or an environment existed.
         assert not any(output_dir.iterdir())
+
+    def test_a_parent_whose_heading_probe_warns_is_loaded_with_a_warning(self, tmp_path, monkeypatch, caplog):
+        """The maintainer's decision of 2026-10-11: the handoff of a stance whose whole-scene heading-probe
+        row is under 0.95 is logged, never refused, and the child goes on to train."""
+        stance_dir = self._stance_dir_whose_probe_warns(tmp_path, policy_fraction=0.125)
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
+            outcome, _ = self._train(
+                tmp_path,
+                monkeypatch,
+                parent_stage=1,
+                child_stage="recovery",
+                parent_stem=stance_dir / "models" / "robust_best_model",
+            )
+
+        assert outcome == "passed-the-check"
+        (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert warning.message.startswith(
+            f"Stage recovery enters on the handoff of {stance_dir}, whose heading probe warns: the policy's "
+            "full-horizon fraction is below 0.95"
+        )
+        assert "+90 deg 0.12 (statue 1.00)" in warning.message
+
+    @staticmethod
+    def _stance_dir_whose_probe_warns(tmp_path, *, policy_fraction=0.0):
+        """``run/01_stance`` with a heading probe the policy falls on and a ``robust_best_model`` handoff pair."""
+        stance_dir = tmp_path / "run" / "01_stance"
+        (stance_dir / "models").mkdir(parents=True)
+        _write_heading_probe(stance_dir, yaw_deg=90.0, policy_fraction=policy_fraction)
+        (stance_dir / "models" / "robust_best_model_vecnorm.pkl").write_bytes(b"")
+        return stance_dir
+
+    @pytest.mark.parametrize(
+        "relative_stem", ["models/stance_final", "checkpoints/robust_best_model"], ids=["not-the-handoff", "no-models"]
+    )
+    def test_a_checkpoint_other_than_the_stage_handoff_is_not_probed(
+        self, tmp_path, monkeypatch, caplog, relative_stem
+    ):
+        """The probe describes the handoff it rolled (``select_handoff_checkpoint``): another checkpoint of
+        the stage, or one outside a ``models/`` directory, is loaded without the probe's warning."""
+        stance_dir = self._stance_dir_whose_probe_warns(tmp_path)
+        self._checkpoint(stance_dir / "models" / "robust_best_model.zip", 1)
+        parent_stem = stance_dir / relative_stem
+        parent_stem.parent.mkdir(exist_ok=True)
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
+            outcome, _ = self._train(
+                tmp_path, monkeypatch, parent_stage=1, child_stage="recovery", parent_stem=parent_stem
+            )
+
+        assert outcome == "passed-the-check"
+        assert not [r for r in caplog.records if "heading probe" in r.message]
 
     def test_a_root_refuses_a_foreign_parent_but_accepts_itself(self, tmp_path, monkeypatch):
         from environments.shared.task_fingerprint import TaskFingerprintError
