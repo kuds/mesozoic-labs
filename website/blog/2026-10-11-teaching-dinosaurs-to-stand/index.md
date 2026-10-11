@@ -203,7 +203,7 @@ In August the T. rex taught us how to ask *why* a stance fails ([bounce investig
 
 The toes alone reproduce the fall, the conspicuous tail is a bystander, and no single group is necessary: *"Saturation is conspicuous, not causal."* Physics r7 made the toes passive springs.
 
-**Eight episodes are not a verdict.** The ablation labelled 8/8 as standing and 0/8 as falling. A fix merged just before this post tightened its preconditions, but a held pose that stands in 7 of 8 episodes still classifies, and 8/8 against 7/8 has a one-sided Fisher exact p of 0.5. Exact tests per comparison are in progress.
+**Eight episodes are not a verdict.** The ablation labelled 8/8 as standing and 0/8 as falling. A first fix tightened its preconditions, but a held pose that stood in 7 of 8 episodes still classified, and 8/8 against 7/8 has a one-sided Fisher exact p of 0.5. The ablation now answers each comparison with a one-sided Fisher exact test and says "insufficient episodes" when no outcome could be significant.
 
 ## Lessons for robotics
 
@@ -222,7 +222,9 @@ None of this has touched hardware, but most of it should carry over:
 
 As of 2026-10-11 no species has a stance we can build on. The only `stance_quality/v2` pass, T. rex seed 52, is provisional and research-only. The robot's and Dibothrosuchus's older certificates (under v1 and a reward rail) still stand on their unchanged plants, but they are stances the audit flagged. Each species stays open until its stance certifies under v2 ([known issues](https://github.com/kuds/mesozoic-labs/blob/main/docs/KNOWN_ISSUES.md), [next steps](https://github.com/kuds/mesozoic-labs/blob/main/docs/NEXT_STEPS.md)).
 
-**In progress** (not yet landed): T. rex physics r9 and the elliptic cone for Velociraptor, Brachiosaurus and Dibothrosuchus; a warn-only handoff warning when a whole-scene heading-probe row stands below 0.95, with the probe enabled for Velociraptor, Compsognathus and the robot; and Fisher exact tests in the release ablation.
+**Landed** while this post was written: a warn-only handoff warning when a whole-scene heading-probe row stands below 0.95, with the probe enabled for Velociraptor, Compsognathus and the robot, and Fisher exact tests in the release ablation.
+
+**In progress** (not yet landed): T. rex physics r9 and the elliptic cone for Velociraptor, Brachiosaurus and Dibothrosuchus.
 
 **Planned:** heading-free observations for T. rex and Compsognathus with fresh training and the six-heading certificate; a recovery comparison between a certified stance and a statue-equivalent start; a foot-anatomy review of every species; and the pilots' follow-ups, including a full-budget CoP-margin trial and a Velociraptor exploration-noise sweep.
 
