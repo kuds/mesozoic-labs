@@ -1403,9 +1403,10 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         assert np.array_equal(eval_env.obs_rms.mean, widened_mean)
         assert eval_env.training is False and eval_env.norm_reward is False
         assert train_env.training is True
-        # ...and the parent's sidecar is refused there too — by SB3's own width check
-        # (VecNormalize.load re-binds the wrapper before the plant is validated).
-        with pytest.raises((AssertionError, PlantCompatibilityError), match="61|plant"):
+        # ...and the parent's sidecar is refused there too, by its recorded plant: SB3's
+        # VecNormalize.load cannot even bind the narrower statistics to these envs, and
+        # policy_loading.load_vecnormalize then names the plant instead of the shape.
+        with pytest.raises(PlantCompatibilityError, match="observation_dim: checkpoint="):
             load_vecnorm_stats(str(parent["vecnorm_pkl"]), train_env, eval_env, current_plant=current)
     finally:
         train_env.close()

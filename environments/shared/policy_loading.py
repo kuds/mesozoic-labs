@@ -31,6 +31,13 @@ the report would blame the joints, the actions or the gate for a loading
 mistake.  Keeping the block in one place is what makes the four reports
 comparable.
 
+:func:`load_vecnormalize` is ``VecNormalize.load`` with one difference that
+every statistics load shares (this loader, the trainer's, the evaluator's
+and the video's): statistics SB3 cannot bind to the env because their
+observation width differs are refused by their recorded plant identity,
+naming the policy-interface revision and width, instead of by SB3's bare
+shape assertion.
+
 Not the trainer's :func:`~environments.shared.curriculum.checkpoints.load_vecnorm_stats`,
 which loads statistics INTO a live training wrapper, and not the
 Monitor-wrapped evaluator in :mod:`~environments.shared.evaluation`: this is
@@ -552,6 +559,75 @@ def load_sb3_model(
     return alg_cls.load(model_path, env=env, custom_objects=custom, **load_kwargs)
 
 
+def load_vecnormalize(
+    path: "str | Path",
+    venv: Any,
+    *,
+    plant_identity: Any = None,
+    allow_legacy_plant: bool = False,
+    vec_normalize_cls: Any = None,
+) -> Any:
+    """``VecNormalize.load(path, venv)`` that refuses another plant's statistics by plant, not by shape.
+
+    SB3's loader unpickles the wrapper and re-binds it to *venv*
+    (``set_venv``), which asserts that the observation spaces have the same
+    shape before any caller can read the plant identity pickled with it.
+    Statistics saved under another observation width -- the T-Rex's 64-wide
+    policy interface r13 against r14's 63, say -- therefore failed with a
+    bare ``AssertionError: spaces must have the same shape`` that names
+    neither the file nor the plant.  When that bind fails and
+    *plant_identity* is given, the pickled identity is read and validated
+    first, so the refusal is the plant contract's ``PlantCompatibilityError``
+    naming ``policy_interface_revision`` and ``observation_dim`` (or, for a
+    pre-contract file, its missing identity); a bind failure the identity
+    does not explain is re-raised unchanged.
+
+    A successful load is returned unvalidated: every caller validates the
+    wrapper itself, in the order and with the cleanup it already had.
+    *vec_normalize_cls* is the class whose ``load`` runs, SB3's
+    ``VecNormalize`` by default; a caller that resolves SB3 through
+    :func:`_ensure_sb3` passes ``sb3["VecNormalize"]``.
+    """
+    if vec_normalize_cls is None:
+        from stable_baselines3.common.vec_env import VecNormalize
+
+        vec_normalize_cls = VecNormalize
+    try:
+        return vec_normalize_cls.load(str(path), venv)
+    except (AssertionError, ValueError):
+        if plant_identity is not None:
+            _refuse_unbindable_statistics_by_plant(path, plant_identity, allow_legacy_plant=allow_legacy_plant)
+        raise
+
+
+def _refuse_unbindable_statistics_by_plant(
+    path: "str | Path", plant_identity: Any, *, allow_legacy_plant: bool
+) -> None:
+    """Raise the plant contract's refusal for the statistics at *path*, when their identity explains it.
+
+    Unpickles the file the way ``VecNormalize.load`` already did a moment
+    before (the same bytes, without the bind) and reads the identity from
+    the instance's own ``__dict__``: an unbound wrapper has no ``venv``, and
+    a plain ``getattr`` of a missing attribute recurses inside SB3's
+    ``VecEnvWrapper.__getattr__``.  A file that does not unpickle leaves the
+    caller's original error standing.
+    """
+    import pickle
+    from types import SimpleNamespace
+
+    from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE, validate_model_plant
+
+    try:
+        with open(path, "rb") as handle:
+            state = vars(pickle.load(handle))
+    except Exception:  # noqa: BLE001 - the bind failure the caller re-raises is the better message
+        return
+    recorded = SimpleNamespace()
+    if MODEL_IDENTITY_ATTRIBUTE in state:
+        setattr(recorded, MODEL_IDENTITY_ATTRIBUTE, state[MODEL_IDENTITY_ATTRIBUTE])
+    validate_model_plant(recorded, plant_identity, artifact=str(path), allow_legacy=allow_legacy_plant)
+
+
 def load_sb3_checkpoint(
     model_path: str,
     vecnorm_path: str | None,
@@ -584,11 +660,12 @@ def load_sb3_checkpoint(
 
     With *plant_identity*, both artifacts are validated against it in the
     order they load -- the model right after the algorithm's ``load``, the statistics
-    right after ``VecNormalize.load`` -- so a checkpoint from another plant
-    is refused before anything is scored; *allow_legacy_plant* admits one
-    that predates the contract.  An unreadable sidecar raises
-    :class:`PolicyLoadError` naming the file; plant refusals propagate as
-    ``PlantCompatibilityError``.
+    right after :func:`load_vecnormalize`, which refuses statistics it cannot
+    bind to the env (another observation width) by plant too -- so a
+    checkpoint from another plant is refused before anything is scored;
+    *allow_legacy_plant* admits one that predates the contract.  An
+    unreadable sidecar raises :class:`PolicyLoadError` naming the file; plant
+    refusals propagate as ``PlantCompatibilityError``.
 
     *reseed_command_slice* resets the trailing command slice of the loaded
     ``obs_rms`` to mean 0 / var 1 (``command_frame.reseed_command_slice``).
@@ -624,8 +701,20 @@ def load_sb3_checkpoint(
     if vecnorm_path is None:
         return model, None, None
 
+    from environments.shared.plant_contract import PlantCompatibilityError
+
     try:
-        normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([env_factory]))
+        normalizer = load_vecnormalize(
+            vecnorm_path,
+            DummyVecEnv([env_factory]),
+            plant_identity=plant_identity,
+            allow_legacy_plant=allow_legacy_plant,
+            vec_normalize_cls=VecNormalize,
+        )
+    except PlantCompatibilityError:
+        # Statistics from another plant (another observation width, say) are a
+        # refusal, not a damaged file: never re-label it as one.
+        raise
     except Exception as exc:  # noqa: BLE001 - the message matters more than the type
         # A truncated or text-mode-copied .pkl is the usual cause, and the raw
         # UnpicklingError/KeyError gives no hint that the file rather than the

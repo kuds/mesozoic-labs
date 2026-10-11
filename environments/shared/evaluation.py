@@ -279,7 +279,7 @@ def record_stage_video(
         return
 
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
-    from .policy_loading import _ensure_sb3
+    from .policy_loading import _ensure_sb3, load_vecnormalize
 
     sb3 = _ensure_sb3()
     if plant_identity is None and species != "dino":
@@ -306,7 +306,18 @@ def record_stage_video(
     vec_normalize = None
     if vecnorm_path and Path(vecnorm_path).exists():
         dummy_env = sb3["DummyVecEnv"]([lambda: env_class(**env_kwargs)])
-        vec_normalize = sb3["VecNormalize"].load(vecnorm_path, dummy_env)
+        try:
+            vec_normalize = load_vecnormalize(
+                vecnorm_path,
+                dummy_env,
+                plant_identity=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
+                vec_normalize_cls=sb3["VecNormalize"],
+            )
+        except Exception:
+            dummy_env.close()
+            render_env.close()
+            raise
         if plant_identity is not None:
             try:
                 validate_model_plant(
@@ -477,7 +488,7 @@ def evaluate(
     from .metrics import LocomotionMetrics
     from .metrics import env_dt as _env_dt
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
-    from .policy_loading import _ensure_sb3, _resolve_vecnorm_sidecar
+    from .policy_loading import _ensure_sb3, _resolve_vecnorm_sidecar, load_vecnormalize
 
     sb3 = _ensure_sb3()
     plant_identity = current_plant_identity(species_cfg.species)
@@ -511,7 +522,17 @@ def evaluate(
 
     if Path(vecnorm_path).exists():
         logger.info("Loading normalization stats from: %s", vecnorm_path)
-        vec_env = sb3["VecNormalize"].load(vecnorm_path, vec_env)
+        try:
+            vec_env = load_vecnormalize(
+                vecnorm_path,
+                vec_env,
+                plant_identity=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
+                vec_normalize_cls=sb3["VecNormalize"],
+            )
+        except Exception:
+            vec_env.close()
+            raise
         try:
             validate_model_plant(
                 vec_env,

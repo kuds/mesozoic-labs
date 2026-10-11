@@ -670,7 +670,18 @@ def load_vecnorm_stats(
         return False
 
     logger.info("Loading VecNormalize stats from: %s", vecnorm_path)
-    prev_norm = VecNormalize.load(str(path), train_env.venv)
+    from environments.shared.policy_loading import load_vecnormalize
+
+    # Statistics of another observation width cannot even bind to the venv;
+    # load_vecnormalize then refuses them by their recorded plant identity
+    # rather than by SB3's bare shape assertion.
+    prev_norm = load_vecnormalize(
+        path,
+        train_env.venv,
+        plant_identity=None if unsafe_skip_plant_validation else current_plant,
+        allow_legacy_plant=allow_legacy_plant,
+        vec_normalize_cls=VecNormalize,
+    )
     if not unsafe_skip_plant_validation:
         from environments.shared.plant_contract import validate_model_plant
 

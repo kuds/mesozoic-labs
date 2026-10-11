@@ -688,6 +688,29 @@ class TestCreateOrLoadModel:
                 allow_legacy_plant=True,
             )
 
+    def test_a_recorded_incompatible_identity_is_refused_before_sb3_rebuilds_the_model(self, tmp_path):
+        """SB3 would refuse another observation width as "Observation spaces do not match", naming no plant."""
+        from .ancestors_helpers import _sb3_style_zip
+
+        sb3 = self._make_sb3()
+        recorded = _plant_identity(policy_interface_revision=13, observation_dim=64)
+        archive = _sb3_style_zip(tmp_path / "model.zip", {MODEL_IDENTITY_ATTRIBUTE: recorded.to_dict()})
+
+        with pytest.raises(PlantCompatibilityError) as excinfo:
+            _create_or_load_model(
+                sb3,
+                "ppo",
+                {},
+                MagicMock(),
+                load_path=str(archive),
+                plant_identity=_plant_identity(policy_interface_revision=14, observation_dim=63),
+                allow_legacy_plant=True,
+            )
+
+        assert "policy_interface_revision: checkpoint=13, current=14" in str(excinfo.value)
+        assert "observation_dim: checkpoint=64, current=63" in str(excinfo.value)
+        sb3["PPO"].load.assert_not_called()
+
     def test_sb3_model_and_vecnormalize_round_trip_plant_identity(self, tmp_path):
         pytest.importorskip("stable_baselines3")
         from stable_baselines3 import PPO
