@@ -2,7 +2,9 @@
 
 This is the layer a trained policy is actually coupled to, so it also captures
 the observation-builder and action-mapping *semantics* for both the SB3 and
-JAX/MJX backends and asserts that the two agree."""
+JAX/MJX backends and asserts that the two agree.  A species on the
+``bipedal-target-heading-free/v1`` schema is SB3-only and also hashes the frame
+helpers its observation calls (``environments/shared/heading_observation.py``)."""
 
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ import mujoco
 import numpy as np
 
 from ..command_frame import COMMAND_COMPONENTS, COMMAND_PROBE_VECTOR, COMMAND_SEGMENT_NAME, COMMAND_WIDTH
+from ..heading_observation import HEADING_FREE_FUNCTIONS, HEADING_FREE_OBSERVATION_SCHEMA
 from .constants import (
     _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL,
     _ACTION_MAPPING_MIDPOINT,
@@ -347,6 +350,91 @@ def _mocap_target_name(model: mujoco.MjModel) -> str:
     return str(name)
 
 
+def _command_segment() -> dict[str, Any]:
+    """The trailing command segment, the same on every schema."""
+    # Appended LAST on every species (BEHAVIOR_RECIPES_PLAN §4.6, D-C1):
+    # body-relative (v_x, v_y, yaw_rate), pre-scaled; zeros under "none".
+    return {
+        "name": COMMAND_SEGMENT_NAME,
+        "width": COMMAND_WIDTH,
+        "components": list(COMMAND_COMPONENTS),
+        "frame": "body-relative",
+        "range": [_canonical_float(-1.0), _canonical_float(1.0)],
+    }
+
+
+def _segment_width(segment: Mapping[str, Any]) -> int:
+    return len(segment["components"]) if "components" in segment else int(segment["width"])
+
+
+def _foot_contact_groups(model: mujoco.MjModel, env: Any) -> list[list[str]]:
+    """Each foot channel's touch sensors, by name, from the env's ``_foot_sensor_groups`` sensordata addresses."""
+    sensor_names = _names(model, mujoco.mjtObj.mjOBJ_SENSOR, model.nsensor)
+    touch_by_address = {
+        int(model.sensor_adr[index]): sensor_names[index]
+        for index in range(model.nsensor)
+        if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
+    }
+    groups = [[int(address) for address in group] for group in getattr(env, "_foot_sensor_groups", ())]
+    unknown = sorted({address for group in groups for address in group} - set(touch_by_address))
+    if not groups or unknown:
+        raise PlantContractError(
+            f"the foot_contact segment needs per-foot touch-sensor groups; _foot_sensor_groups={groups}, "
+            f"addresses that start no touch sensor: {unknown}"
+        )
+    return [[touch_by_address[address] for address in group] for group in groups]
+
+
+def _heading_free_observation_segments(
+    model: mujoco.MjModel,
+    env: Any,
+    root_label: str,
+    target_label: str,
+) -> list[dict[str, Any]]:
+    """The ``bipedal-target-heading-free/v1`` layout (configs/plant_versions.toml note 18, D-D31).
+
+    The three root blocks are named for their frame and source, with the
+    fallback and normalization thresholds the helpers apply, and the foot
+    channels are described per foot (each a sum over its listed touch
+    sensors), so the widths sum to the observation width -- the legacy
+    table's ``foot_contact`` lists every touch sensor instead, and the caller
+    checks the sum on this schema only.
+    """
+    foot_groups = _foot_contact_groups(model, env)
+    return [
+        {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
+        {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
+        {
+            "name": f"{root_label}_projected_gravity",
+            "width": 3,
+            "frame": root_label,
+            "source": "qpos[3:7]",
+            "convention": "unit-down",
+            "normalization_floor": _canonical_float(1e-12),
+        },
+        {"name": f"{root_label}_angular_velocity", "width": 3, "frame": "gyro-site"},
+        {
+            "name": f"{root_label}_heading_linear_velocity",
+            "width": 3,
+            "components": ["forward", "left", "up"],
+            "frame": f"gravity-aligned-{root_label}-heading",
+            "source": "qvel[0:3]",
+            "fallback": f"horizontal-{root_label}-y-rotated-clockwise-90",
+            "fallback_threshold": _canonical_float(1e-8),
+        },
+        {"name": f"{root_label}_linear_acceleration", "width": 3, "frame": "accelerometer-site"},
+        {"name": "foot_contact", "width": len(foot_groups), "groups": foot_groups},
+        {
+            "name": f"{target_label}_direction_body",
+            "width": 3,
+            "frame": root_label,
+            "normalization_epsilon": _canonical_float(1e-8),
+        },
+        {"name": f"{target_label}_distance", "width": 1},
+        _command_segment(),
+    ]
+
+
 def _policy_interface_payload(
     model: mujoco.MjModel,
     env: Any,
@@ -369,26 +457,31 @@ def _policy_interface_payload(
         if version.observation_schema == "quadrupedal-target/v1"
         else ("_array_mod", "build_bipedal_obs")
     )
-    observation_segments = [
-        {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
-        {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
-        {"name": f"{root_label}_orientation_quaternion", "width": 4},
-        {"name": f"{root_label}_angular_velocity", "width": 3},
-        {"name": f"{root_label}_linear_velocity", "width": 3},
-        {"name": f"{root_label}_linear_acceleration", "width": 3},
-        {"name": "foot_contact", "components": touch_sensor_names},
-        {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
-        {"name": f"{target_label}_distance", "width": 1},
-        # Appended LAST on every species (BEHAVIOR_RECIPES_PLAN §4.6, D-C1):
-        # body-relative (v_x, v_y, yaw_rate), pre-scaled; zeros under "none".
-        {
-            "name": COMMAND_SEGMENT_NAME,
-            "width": COMMAND_WIDTH,
-            "components": list(COMMAND_COMPONENTS),
-            "frame": "body-relative",
-            "range": [_canonical_float(-1.0), _canonical_float(1.0)],
-        },
-    ]
+    heading_free = version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
+    if heading_free:
+        observation_segments = _heading_free_observation_segments(model, env, root_label, target_label)
+        segment_widths = [_segment_width(segment) for segment in observation_segments]
+        observation_width = int(np.prod(env.observation_space.shape))
+        if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
+            raise PlantContractError(
+                f"{version.species}'s {HEADING_FREE_OBSERVATION_SCHEMA} segments must sum to the observation "
+                f"width {observation_width} and end with the command; widths {segment_widths} sum to "
+                f"{sum(segment_widths)}, last segment {observation_segments[-1]['name']!r}"
+            )
+    else:
+        # Kept byte-identical for every species on the two legacy schemas.
+        observation_segments = [
+            {"name": "joint_position", "components": _joint_component_names(model, velocity=False)},
+            {"name": "joint_velocity", "components": _joint_component_names(model, velocity=True)},
+            {"name": f"{root_label}_orientation_quaternion", "width": 4},
+            {"name": f"{root_label}_angular_velocity", "width": 3},
+            {"name": f"{root_label}_linear_velocity", "width": 3},
+            {"name": f"{root_label}_linear_acceleration", "width": 3},
+            {"name": "foot_contact", "components": touch_sensor_names},
+            {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
+            {"name": f"{target_label}_distance", "width": 1},
+            _command_segment(),
+        ]
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
     action_mapping, jax_action_functions = _action_mapping_contract(model, env)
@@ -396,6 +489,13 @@ def _policy_interface_payload(
     if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
         raise PlantContractError(f"invalid training backends for {version.species}: {backends}")
     supports_jax = "jax-mjx" in backends
+    if supports_jax and heading_free:
+        # The frozen MJX builders (D-D17) emit the legacy world-frame layout;
+        # a parity claim against them would be false.
+        raise PlantContractError(
+            f"{version.species} declares the jax-mjx backend, but the {HEADING_FREE_OBSERVATION_SCHEMA} "
+            "observation has no MJX builder: declare supported_training_backends = ('stable-baselines3',)"
+        )
     if supports_jax and not jax_action_functions:
         raise PlantContractError(
             f"{version.species} declares the jax-mjx backend, but its action mapping "
@@ -405,6 +505,13 @@ def _policy_interface_payload(
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
     }
+    if heading_free:
+        # _get_obs calls these helpers: hashing only its call site would leave
+        # the frame arithmetic outside the digest.
+        interface_implementations["heading_free_observation"] = _module_function_semantics(
+            "environments.shared.heading_observation",
+            HEADING_FREE_FUNCTIONS,
+        )
     backend_observation_equal: bool | None = None
     if supports_jax:
         jax_interface = _jax_policy_interface_payload(model, env, version)

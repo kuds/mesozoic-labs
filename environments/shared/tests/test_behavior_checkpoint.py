@@ -49,17 +49,22 @@ OLD_MARKER = {
 PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behaviors"
 
 
+#: The current trex observation width (63 since its heading-free policy interface r14), read from the plant
+#: contract so the cheap env below keeps the canonical tensor shape across interface revisions.
+OBS_DIM = current_plant_identity("trex").observation_dim
+
+
 class CommandEnv(gym.Env):
     """Cheap dynamics with the canonical tensor shape and explicit command inputs."""
 
     def __init__(self, live=False):
-        self.observation_space = gym.spaces.Box(-np.inf, np.inf, shape=(64,), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(-np.inf, np.inf, shape=(OBS_DIM,), dtype=np.float32)
         self.action_space = gym.spaces.Box(-1.0, 1.0, shape=(15,), dtype=np.float32)
         self.live = live
         self.steps = 0
 
     def _obs(self):
-        obs = self.np_random.normal(0.0, 0.1, 64).astype(np.float32)
+        obs = self.np_random.normal(0.0, 0.1, OBS_DIM).astype(np.float32)
         obs[-3:] = (0.7, -0.2, 0.4) if self.live else (0.0, 0.0, 0.0)
         return obs
 
@@ -242,7 +247,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         CommandEnv(live=True),
         task_fingerprint=BEHAVIOR,
     )
-    raw = np.ones((2, 64), dtype=np.float32)
+    raw = np.ones((2, OBS_DIM), dtype=np.float32)
     raw[:, -3:] = [0.7, -0.2, 0.4]
     try:
         # Reseeded to mean 0 / variance 1: a command c enters as c / sqrt(1 + eps), O(1) from the first step.
@@ -1084,7 +1089,7 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
     normalizer = VecNormalize.load(str(resumed / "vecnormalize.pkl"), DummyVecEnv([PilotEnv]))
     try:
         assert type(normalizer) is VecNormalize
-        raw = np.ones((1, 64), dtype=np.float32)
+        raw = np.ones((1, OBS_DIM), dtype=np.float32)
         raw[:, -3:] = [0.7, -0.2, 0.4]
         rms = normalizer.obs_rms
         # D-D3: the saved command statistics moved with training and normalise the commands.

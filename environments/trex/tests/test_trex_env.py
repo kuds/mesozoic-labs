@@ -793,12 +793,14 @@ class TestFootSensorGroupLockstep:
     a new species or an index edit on either side fails here.  Velociraptor
     left the frozen core as SB3-only at its policy-interface revision 11
     (plant_versions note 14), when its foot groups gained the metatarsus and
-    digit-4 sensors its registration never had."""
+    digit-4 sensors its registration never had, and the T-Rex at its revision
+    14 (note 18), whose heading-free observation the frozen builder cannot
+    produce; the plant contract now records the T-Rex's per-foot sensor
+    groups by name in its foot_contact segment instead."""
 
     @pytest.mark.parametrize(
         "species, env_factory",
         [
-            ("trex", lambda: TRexEnv(reset_noise_scale=0.0)),
             (
                 "brachiosaurus",
                 lambda: __import__("environments.brachiosaurus.envs.brachio_env", fromlist=["BrachioEnv"]).BrachioEnv(

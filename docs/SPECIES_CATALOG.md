@@ -55,11 +55,11 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 64 |
+| Observation dimension | 63 |
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r13; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r14; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -71,14 +71,12 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Head-contact bite proxy:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
-- **JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 **Per-deliverable success semantics:**
 - **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v2):** The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value.
 - **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15).
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Bite) · Stable-Baselines3 — Head-contact bite success (task_success/v1):** The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate.
-- **hunt (3 — Bite) · JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it.
 
 [Full documentation →](../environments/trex/README.md)
 
@@ -157,11 +155,11 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 56 |
+| Observation dimension | 55 |
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r3; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r4; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

@@ -8,7 +8,9 @@ pin, without the stage TOML's weights:
    the observation, the termination and every legacy info key equal
    ``CompsognathusEnv._get_reward_info`` on the same dynamics, bit for bit,
    for the subclass and, on the linear interface, for ``CompsognathusEnv``
-   itself; and the subclass's constructor repeats every inherited default.
+   itself (which then reads the subclass's heading-free observation, policy
+   interface r4, in place of its own world-frame one); and the subclass's
+   constructor repeats every inherited default.
 2. **Each term's arithmetic**, from the state the env read: the bilateral
    term and the alive conditioning on the chosen aggregate while the legacy
    support gate stays on the MIN; per-foot load gating of flatness and
@@ -82,6 +84,8 @@ def test_default_kwargs_reproduce_the_legacy_reward_bit_for_bit(sigma):
     legacy = CompsognathusBiologicalEnv(**_legacy_kwargs())
     legacy._get_reward_info = types.MethodType(CompsognathusEnv._get_reward_info, legacy)
     linear = CompsognathusEnv(**_legacy_kwargs())
+    # Policy interface r4 gave the subclass its own heading-free _get_obs; the reward under test reads none of it.
+    linear._get_obs = types.MethodType(CompsognathusBiologicalEnv._get_obs, linear)
     linear_new = CompsognathusBiologicalEnv(**_legacy_kwargs())
     linear_new._scale_action = types.MethodType(CompsognathusEnv._scale_action, linear_new)
     for first, second in ((new, legacy), (linear_new, linear)):

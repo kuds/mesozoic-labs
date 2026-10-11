@@ -3107,8 +3107,9 @@ class TestOneStageBody:
 
 # ── consolidation PR-10: the command columns at a live child's warm start ────
 #
-# A walker-shaped T. rex model per algorithm (64 observations, 15 actions, the stance
-# stage's net_arch [512, 256]) trained 64 steps under "none": its command columns hold
+# A walker-shaped T. rex model per algorithm (63 observations since its heading-free
+# policy interface r14, 15 actions, the stance stage's net_arch [512, 256]; the command
+# columns come from command_slice, not a literal) trained 64 steps under "none": its command columns hold
 # their random initial weights. Non-zero moments are injected into every first
 # layer's command columns (a real walker's are exactly zero: zero inputs give zero
 # gradients) and the sidecar's command variance is a real walker's 1e-11. Each
@@ -3125,6 +3126,13 @@ _COMMAND_LAYERS = {
         "critic_target.qf1.0.weight",
     ],
 }
+
+
+def _command_columns() -> slice:
+    """The walker's command columns: the trailing COMMAND_WIDTH inputs of the current trex observation."""
+    from environments.shared.command_frame import command_slice
+
+    return command_slice(current_plant_identity("trex").observation_dim)
 
 
 def _walker_optimizers(model, algorithm):
@@ -3201,8 +3209,8 @@ def never_live_walkers(tmp_path_factory):
                 if name.startswith(prefix):
                     for value in optimizer.state[weights[name]].values():
                         if torch.is_tensor(value) and value.ndim == 2:
-                            assert torch.count_nonzero(value[:, 61:64]) == 0, "zero inputs, zero gradients"
-                            value[:, 61:64] = 0.123
+                            assert torch.count_nonzero(value[:, _command_columns()]) == 0, "zero inputs, zero gradients"
+                            value[:, _command_columns()] = 0.123
         venv.obs_rms.var[-3:] = 1e-11
         for artifact in (model, venv):
             attach_plant_identity(artifact, identity)
@@ -3292,14 +3300,16 @@ class TestCommandColumnWarmStart:
                 "parent_stage": 1,
                 "zeroed_command_parameters": names,
             }
-            # The command columns (the observation's 61..63, before a Q network's action block) and their moments
-            # are zero; every other weight, column and moment is the parent's.
+            # The command columns (the observation's last three, before a Q network's action block) and their
+            # moments are zero; every other weight, column and moment is the parent's.
+            command = _command_columns()
             for name, value in model.policy.state_dict().items():
                 parent = walker["weights"][name]
                 if name in names:
-                    assert torch.count_nonzero(parent[:, 61:64]) > 0
-                    assert torch.count_nonzero(value[:, 61:64]) == 0, name
-                    assert torch.equal(value[:, :61], parent[:, :61]) and torch.equal(value[:, 64:], parent[:, 64:])
+                    assert torch.count_nonzero(parent[:, command]) > 0
+                    assert torch.count_nonzero(value[:, command]) == 0, name
+                    assert torch.equal(value[:, : command.start], parent[:, : command.start])
+                    assert torch.equal(value[:, command.stop :], parent[:, command.stop :])
                 else:
                     assert torch.equal(value, parent), name
             for prefix, optimizer in _walker_optimizers(model, algorithm).items():
@@ -3307,8 +3317,8 @@ class TestCommandColumnWarmStart:
                 for index, fields in optimizer.state_dict()["state"].items():
                     for key, value in fields.items():
                         expected = torch.as_tensor(saved[index][key]).clone()
-                        if expected.ndim == 2 and torch.all(expected[:, 61:64] == 0.123):
-                            expected[:, 61:64] = 0.0
+                        if expected.ndim == 2 and torch.all(expected[:, command] == 0.123):
+                            expected[:, command] = 0.0
                         assert torch.equal(torch.as_tensor(value), expected), (prefix, index, key)
             # Exact transfer on real-env observations: the same action with and without a live command,
             # and the parent's own action on zero commands under its own statistics.
@@ -3340,7 +3350,7 @@ class TestCommandColumnWarmStart:
             model.learn(32, reset_num_timesteps=False)
             weights = dict(model.policy.named_parameters())
             for name in names if algorithm == "ppo" else names[:3]:
-                assert torch.count_nonzero(weights[name][:, 61:64]) > 0, name
+                assert torch.count_nonzero(weights[name][:, command]) > 0, name
                 assert torch.isfinite(weights[name]).all()
         finally:
             train_env.close()
@@ -3446,8 +3456,8 @@ class TestCommandColumnWarmStart:
         self, never_live_walkers, monkeypatch, algorithm
     ):
         """The reference is the parent's policy, taken before the zeroing: a zeroing that also clears a non-command
-        column (the observation's 60, just before the command slice) leaves a command-blind policy that is not the
-        parent's, and the warm start refuses it."""
+        column (the one just before the command slice, the prey distance) leaves a command-blind policy that is not
+        the parent's, and the warm start refuses it."""
         torch = pytest.importorskip("torch")
         from environments.shared import policy_loading
 
@@ -3456,7 +3466,7 @@ class TestCommandColumnWarmStart:
         def over_reach(model, *, observation_dim):
             zeroed = neutralize(model, observation_dim=observation_dim)
             with torch.no_grad():
-                model.policy.get_parameter(_COMMAND_LAYERS[algorithm][0])[:, 60] = 0.0
+                model.policy.get_parameter(_COMMAND_LAYERS[algorithm][0])[:, _command_columns().start - 1] = 0.0
             return zeroed
 
         monkeypatch.setattr(policy_loading, "neutralize_command_columns", over_reach)
