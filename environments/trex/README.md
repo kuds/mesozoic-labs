@@ -43,7 +43,7 @@ fall. The bars and their measured provenance are in `configs/trex/stance.toml`. 
 a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
 report only: the stance stage always spawns at the same heading, and the heading certificate that will make heading a
 gate check is a later PR; the heading-free observations the maintainer chose on 2026-10-07 are carried out (policy
-interface r14, below), so a whole-scene turn no longer changes what the policy sees (`docs/KNOWN_ISSUES.md`). Until then a
+interface r14, above), so a whole-scene turn no longer changes what the policy sees (`docs/KNOWN_ISSUES.md`). Until then a
 whole-scene row whose full-horizon fraction is below 0.95, the v2 per-panel rail, is warned of without blocking, in the
 probe's text and wherever the stance is handed on or reused (the maintainer's decision of 2026-10-11). The first two
 physics-r8 stances (`20261006_185343`, `20261006_185704`) both failed this gate; what they did and what decision D-D27

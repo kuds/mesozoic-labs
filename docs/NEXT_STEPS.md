@@ -695,8 +695,10 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   the D-D27 start (`log_std_init = -1.5`) changes that split and whether the
   learning rate the recipe's falsified prediction names matters are open;
   whether a certified stance must be heading-robust (both r8 stances fall
-  when spawned 90° off their training heading) was decided on 2026-10-07 and
-  is not yet carried out (heading-free observations, in a later PR)
+  when spawned 90° off their training heading) was decided on 2026-10-07; its
+  observation half is carried out for the trex and the anatomical
+  compsognathus (heading-free observations, D-D31) and its gate check is a
+  later PR
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
   §9 and §10; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred

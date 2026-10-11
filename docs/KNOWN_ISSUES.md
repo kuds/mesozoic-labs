@@ -1262,10 +1262,11 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **no stance certificate tests heading, and both r8 trex
   stances stand only near the heading they trained at (measured
   2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
-  prey within about ±11°), and the trex observation carries heading only in
-  world-frame quantities (the pelvis quaternion, the pelvis linear velocity,
-  the prey vector), so a policy can learn a stance that reads its absolute
-  heading, and no v2 bar sees it. Spawned turned about vertical, the
+  prey within about ±11°), and up to policy interface r13 the trex
+  observation carried heading only in world-frame quantities (the pelvis
+  quaternion, the pelvis linear velocity, the prey vector), so a policy could
+  learn a stance that reads its absolute heading, and no v2 bar sees it.
+  Spawned turned about vertical, the
   zero-action statue stands 8/8 at ±45° and ±90°, so the plant is
   heading-neutral (exactly so since physics r9, D-D29: on r8 the pyramidal
   friction cone made the box pads' friction depend on world heading, and
@@ -1280,7 +1281,8 @@ robustness, **LOW** = cosmetic / QoL.
   `stance_heading_probe.txt`; `stance_gate_report.py --spawn-yaw-offsets`)
   and a 25° bar on episode yaw change, which refuses a stance that turns but
   not one that only falls when turned. Fix, decided by the maintainer on
-  2026-10-07 and not yet carried out: heading-free observations for the
+  2026-10-07 (its observation half carried out by D-D31, the update below):
+  heading-free observations for the
   T. rex and the compsognathus (body orientation without world yaw, linear
   velocity in the yaw frame, the prey direction relative to the body, and
   every other world-heading channel), in one cross-species PR after the
@@ -1290,9 +1292,10 @@ robustness, **LOW** = cosmetic / QoL.
   velociraptor follows only after the maintainer's two current velociraptor
   runs are reviewed (physics r4, D-D30, strands them; its plant, like every
   species', is on the elliptic cone, so its headings are physically
-  identical too). The anatomical compsognathus observation carries heading
-  the same way (the pelvis quaternion, linear velocity and target direction in
-  the world frame; every spawn faces +x): its r2 statue is clean spawned
+  identical too). Up to policy interface r3 the anatomical compsognathus
+  observation carried heading the same way (the pelvis quaternion, linear
+  velocity and target direction in the world frame; every spawn faces +x):
+  its r2 statue is clean spawned
   yawed ±45° and ±90°, and two 200k-step PPO means are clean with seed 11 at
   +90° and seed 12 at −90° (20/20 each; the stance-hack audit's §11), but no
   trained r2 stance has been rolled turned. No other species' trained stance

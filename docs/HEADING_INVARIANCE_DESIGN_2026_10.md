@@ -350,7 +350,7 @@ the ability to request a world direction.
 | `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that held only at multiples of 90° until physics r9 (D-D29), and it still holds only there for a pyramidal-cone plant on box or ellipsoid feet (Brachiosaurus, Dibothrosuchus). |
 | `environments/shared/reporting/gates.py`, `stage_artifacts.py` | Judge the heading certificate before reporting a handoff pass; propagate measurement failures. Leave optional diagnostic probes separately identified. |
 | `environments/shared/result_bundle/evidence.py`, gate verdict/reentry/ancestor consumers | Re-derive the decision from bound rows and protocol; refuse missing or mismatched heading evidence for a new-schema stance. |
-| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. The `stance_probe_spawn_yaw_deg` comment in `configs/trex/stance.toml`, which says only the observation differs, needs no correction since physics r9 (D-D29) made every T. rex heading physically identical. |
+| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. The `stance_probe_spawn_yaw_deg` comment in `configs/trex/stance.toml` needs no correction of its physics, since physics r9 (D-D29) made every T. rex heading physically identical; D-D31 corrected its observation claim (a whole-scene turn changes nothing the r14 policy observes). |
 | `configs/digest_snapshot.generated.txt`, species catalog/generated website data | Regenerate after the schema/gate migration and review the exact scope of changed identities. |
 | Shared/species tests and docs | Frame algebra, lifecycle, negative evidence cases, old-checkpoint refusal, unchanged robot/other species and end-to-end publication refusal. |
 
@@ -569,8 +569,11 @@ evaluation, auto-trunk and `TRUNK_FROM` paths, the widen gate and the
 behavior preparation, each by plant identity) and
 `test_heading_free_rollouts.py` (full-horizon traces and every floor-truth
 metric behind a frozen normalizer and an untrained PPO policy, in the SB3
-job's full depth). The digest snapshot moves only T. rex and Compsognathus
-lines (649 → 643; 84 reward lines unchanged), the reset golden's reset,
+job's full depth). The migration moves only T. rex and Compsognathus digest
+lines (649 → 643; 84 reward lines unchanged); the regenerated snapshot also
+takes up the four T. rex and Velociraptor stance `stage_config_view_sha256`
+lines (PPO and SAC) that `main`'s 12M `timesteps` raises of 2026-10-11 moved
+without regenerating it. The reset golden's reset,
 second-reset and trajectory halves re-took byte-identical, and the digest
 harness's `--exact` captures of the base and the migration differ only in the
 two species' `reset` and `obs` streams (586 of 37,034 lines): rewards,
