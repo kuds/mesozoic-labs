@@ -170,6 +170,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The release ablation classifies with one-sided Fisher exact tests, not
+  fixed 8/8 and 0/8 shares** (the maintainer-approved follow-up to #606;
+  diagnostic only: no training, gate, plant, policy-interface or digest
+  change). #606 read a variant as standing at a full-horizon share ≥ 0.95 and
+  as falling at ≤ 0.05, so at the pipeline's 8 episodes only 8/8 and 0/8
+  counted, and a `hold_all` that stood 7/8 still let "contributes" rest on
+  8/8 against 7/8, a one-sided p of 0.5. `reporting/stance_report.py` now
+  tests each group's `release_G` against `hold_all` (stands more often) and
+  `hold_zero` (less often), and its `only_G` against `hold_zero` (less) and
+  `hold_all` (more), each one-sided at p ≤ 0.05 inclusive, in exact rationals
+  from `math.comb` (no runtime scipy; the tests check it against
+  `scipy.stats.fisher_exact` on every table up to 10 episodes per arm). A
+  variant stands, falls, sits between the endpoints, is separated from
+  neither, has too few episodes, or is unmeasured; the verdict labels are
+  unchanged, and each now rests on one significant test per variant.
+  `hold_zero` keeps its fixed 0.95 statue check, and `hold_all` must reach
+  the horizon significantly less often than it, so 5/8 to 7/8 against an 8/8
+  statue is now not applicable (p = 0.10, 0.23, 0.50), where #606 classified
+  it. Counts are k/n, recovered from each report's share and `episodes` and
+  checked against its `episode_evidence`: a share that is not a whole number
+  of episodes is invalid, and a comparison whose best reachable p,
+  1/C(n₁+n₂, n₁), exceeds 0.05 reads "insufficient episodes" (fewer than 3
+  per arm at equal sizes). The p-values are not adjusted across groups, and
+  the variants share reset seeds, a pairing the test ignores, which errs
+  conservative when a seed's outcomes move together across variants; the
+  report says both. With clean endpoints the test also labels partial
+  effects the thresholds left inconclusive: a release that stands 5/8
+  against a 0/8 full pose is now necessary (p = 0.0128). The per-group
+  table prints each variant's k/n beside its four p-values (`*` p ≤ 0.05,
+  `n/a` too few episodes, `-` unmeasured or unassessed). The JSON is
+  `mesozoic.constant-hold-ablation/v3`: a `statistics` block (`fisher-exact`,
+  one-sided, alpha 0.05, multiplicity `none`, statue share 0.95) replaces
+  `stands_threshold` and `falls_threshold`, `classification.endpoints`
+  records the endpoint counts and their separation, each variant row adds
+  `episodes` and `full_horizon_episodes`, and each verdict its `necessity`
+  and `sufficiency` comparisons and position. On `20261006_185704`
+  knees_ankles keeps its CAUSE (p = 1/78 and 1/12870), tail, head_neck and
+  hip_rolls become bystanders, and left_leg and right_leg stay inconclusive
+  on a 5/8 variant; on `20260805_011234`, the bounce investigation's passing
+  checkpoint, `only_hip_rolls` at 7/8 makes hip_rolls a bystander and the
+  report reads OVER-DETERMINED (saturated, toes) again. The help for
+  `stance_gate_report.py --hold-release-ablation` and `--hold-episodes` says
+  so. (This supersedes the `hold_all` rule and the v2 schema of #606's
+  "Suppress unsupported held-pose ablation classifications" entry under
+  Fixed, shipped earlier in this release.)
 - **Training output names species and the stance stage in full, and every
   species' stance and recovery stages write the same replays** (#607;
   presentation only: no plant, policy-interface, task, gate or
