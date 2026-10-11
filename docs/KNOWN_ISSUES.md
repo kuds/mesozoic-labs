@@ -138,7 +138,9 @@ robustness, **LOW** = cosmetic / QoL.
   Seeds 42 and 48 fail v2 (0/40 and 36/40); seed 52 passed on its own
   3042–3081 panel (39/40) but is clean on 32/40 of the re-judge seeds
   7042–7081 (re-rolled from its checkpoint in the 2026-10-10 review), so
-  the two-seed ask stands (the stance-gate HIGH below;
+  the two-seed ask stands. On 2026-10-11 the maintainer ruled seed 52
+  research-only, not a trunk for recovery, walk or hunt (the stance-gate HIGH
+  below;
   [investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.2–§1.3).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
