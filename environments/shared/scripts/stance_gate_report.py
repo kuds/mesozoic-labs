@@ -68,6 +68,7 @@ if _repo_root not in sys.path:
 
 from environments.shared.config import load_stage_config  # noqa: E402
 from environments.shared.constants import PUBLICATION_SEED_START  # noqa: E402
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_REPORT_SCHEMA  # noqa: E402
 from environments.shared.reporting.stance_report import (  # noqa: E402
     _IMPULSE_SPEEDS,
     REPORT_SCHEMA,
@@ -143,6 +144,21 @@ __all__ = [
 ]
 
 
+def hold_source_report(path: "str | Path") -> dict[str, Any]:
+    """The report ``--hold-from-report`` takes the constant from: the file at *path*, as the hold reads it.
+
+    A ``stance_gate_report.json`` is itself; a six-heading certificate
+    (``stance_heading_report.json``, the only stance report a stage that
+    declares ``stance_quality_heading/v1`` writes) keeps its action
+    statistics per heading, so it is read as its 0 deg cell
+    (:func:`heading_zero_panel`), the panel at the training heading.
+    """
+    report: dict[str, Any] = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(report, dict) and report.get("schema") == STANCE_HEADING_REPORT_SCHEMA:
+        return heading_zero_panel(report)
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("species", help="Species id, e.g. trex")
@@ -193,7 +209,8 @@ def main() -> int:
     parser.add_argument(
         "--hold-from-report",
         metavar="JSON",
-        help="Take the constant from an existing stance_gate_report.json instead of measuring it. "
+        help="Take the constant from an existing stance_gate_report.json (or, on a stage that declares the "
+        "six-heading certificate, stance_heading_report.json, whose 0 deg cell is read) instead of measuring it. "
         "Skips the measurement panel when you already have one for this checkpoint.",
     )
     parser.add_argument(
@@ -361,17 +378,11 @@ def main() -> int:
     measured = heading_zero_panel(report) if certificate else report
 
     if args.hold_constant:
+        source_report = hold_source_report(args.hold_from_report) if args.hold_from_report else measured
         try:
-            hold = (
-                constant_hold_actions(json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")))
-                if args.hold_from_report
-                else constant_hold_actions(measured)
-            )
+            hold = constant_hold_actions(source_report)
         except StanceGateReportError as exc:
             raise SystemExit(str(exc)) from exc
-        source_report = (
-            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")) if args.hold_from_report else measured
-        )
         variants = (
             constant_hold_release_variants(
                 hold,

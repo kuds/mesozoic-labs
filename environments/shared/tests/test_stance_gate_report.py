@@ -1478,6 +1478,31 @@ class TestConstantHoldExtraction:
         with pytest.raises(StanceGateReportError, match="no per-actuator action statistics"):
             constant_hold_actions(_minimal_stance_report())
 
+    def test_hold_from_report_reads_a_certificate_as_its_zero_heading_cell(self, tmp_path):
+        """On a heading-certificate stage the certificate is the only stance report written (D-D32); its action
+        statistics live per heading, so ``--hold-from-report`` holds the 0 deg cell's."""
+        import json
+
+        from environments.shared.reporting.stance_report import constant_hold_actions
+        from environments.shared.scripts.stance_gate_report import hold_source_report
+
+        from .stance_heading_helpers import heading_report
+
+        report = heading_report(tmp_path)
+        for heading in report["headings"]:
+            dc = 0.1 if heading["yaw_deg"] == 0.0 else 0.9
+            heading["action"] = {"per_actuator": [{"index": 0, "joint": "a", "dc": dc, "ac_rms": 0.0}]}
+        path = tmp_path / "stance_heading_report.json"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        with pytest.raises(StanceGateReportError, match="no per-actuator action statistics"):
+            constant_hold_actions(json.loads(path.read_text(encoding="utf-8")))
+        source = hold_source_report(path)
+        assert source["heading_cell_deg"] == 0.0 and constant_hold_actions(source) == pytest.approx((0.1,))
+        # A stance_gate_report.json is read as it is.
+        plain = tmp_path / "stance_gate_report.json"
+        plain.write_text(json.dumps(report["headings"][2]), encoding="utf-8")
+        assert hold_source_report(plain) == json.loads(plain.read_text(encoding="utf-8"))
+
 
 class TestConstantHoldVariants:
     def test_the_set_brackets_the_held_rows_with_two_controls(self):
