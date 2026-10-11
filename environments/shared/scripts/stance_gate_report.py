@@ -177,7 +177,8 @@ def main() -> int:
         type=int,
         default=10,
         help="Episodes per hold variant (default 10). The probe certifies nothing and the effect "
-        "it measures is a fall or a full horizon, so it does not need the gate's panel size.",
+        "it measures is a fall or a full horizon, so it does not need the gate's panel size. The "
+        "release ablation needs at least 3 per variant before any comparison can reach p <= 0.05.",
     )
     parser.add_argument(
         "--hold-ramp-steps",
@@ -190,9 +191,11 @@ def main() -> int:
         action="store_true",
         help="Instead of the standard hold variants, ablate the held pose one actuator group at a "
         "time -- releasing each group back to the home control, and holding each group alone. "
-        "Tests necessity and sufficiency for a held-pose fall only when hold_all does not stand "
-        "(a partial or complete fall) and the statue control stands; otherwise causal classification "
-        "is not applicable. Implies --hold-constant.",
+        "Tests necessity and sufficiency for a held-pose fall only when the statue control stands "
+        "and hold_all reaches the horizon significantly less often (a partial or complete fall); "
+        "otherwise causal classification is not applicable. Each label rests on one-sided Fisher "
+        "exact tests of full-horizon counts against both endpoints at p <= 0.05, unadjusted across "
+        "groups. Implies --hold-constant.",
     )
     parser.add_argument(
         "--impulse-probe",

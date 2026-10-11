@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -2165,13 +2166,51 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
     return "\n".join(lines) + "\n", payload
 
 
-#: A variant is treated as standing when it clears this share of full-horizon
-#: episodes, and as falling at or below :data:`_ABLATION_FALLS`. Two thresholds
-#: with a gap between them on purpose: an ablation that lands in the gap is
-#: reported as inconclusive rather than rounded to whichever side is nearer,
-#: because the conclusions on the two sides are opposite.
-_ABLATION_STANDS = 0.95
-_ABLATION_FALLS = 0.05
+#: One-sided level of every comparison in the release ablation, rejecting at
+#: ``p <= alpha``. A Fraction, and the p-values exact rationals, so the
+#: boundary is decided exactly: three episodes per arm reach p = 1/20 and no
+#: lower. Not adjusted across groups -- the ablation is a probe, not a gate --
+#: and both the payload and the text say so.
+_ABLATION_ALPHA = Fraction(1, 20)
+#: The statue control must stand in at least this share of its episodes. A
+#: sanity check that the known standing reference stood, not an inference
+#: about any group, so it stays a fixed share rather than a test.
+_ABLATION_STATUE_STANDS = 0.95
+#: How an inconclusive verdict says where a variant sits, by its position.
+_ABLATION_POSITION_TEXT = {
+    "between": "between the endpoints, separated from both",
+    "unresolved": "separated from neither endpoint",
+    "insufficient episodes": f"insufficient episodes to reach p <= {float(_ABLATION_ALPHA):g}",
+    "unmeasured": "unmeasured or invalid",
+}
+
+
+def _fisher_exact_greater(successes_a: int, n_a: int, successes_b: int, n_b: int) -> Fraction:
+    """One-sided Fisher exact p that arm *a* succeeds more often than arm *b*.
+
+    The upper tail of arm a's successes under the hypergeometric distribution
+    with both margins fixed, as an exact rational. It is what
+    ``scipy.stats.fisher_exact([[successes_a, n_a - successes_a],
+    [successes_b, n_b - successes_b]], alternative="greater")`` returns,
+    without a runtime dependency on scipy, which only the test extra installs.
+    """
+    if n_a < 1 or n_b < 1 or not 0 <= successes_a <= n_a or not 0 <= successes_b <= n_b:
+        raise ValueError(f"not a 2x2 table: {successes_a}/{n_a} against {successes_b}/{n_b}")
+    total, successes = n_a + n_b, successes_a + successes_b
+    tail = sum(
+        math.comb(successes, x) * math.comb(total - successes, n_a - x)
+        for x in range(successes_a, min(n_a, successes) + 1)
+    )
+    return Fraction(tail, math.comb(total, n_a))
+
+
+def _fisher_exact_min_p(n_a: int, n_b: int) -> Fraction:
+    """The smallest one-sided Fisher p any table with these arm sizes reaches: ``1 / C(n_a + n_b, n_a)``.
+
+    Above alpha no outcome could be significant, so such a comparison reports
+    too few episodes rather than a negative finding.
+    """
+    return Fraction(1, math.comb(n_a + n_b, n_a))
 
 
 def _ablation_share(row: dict[str, Any] | None) -> float | None:
@@ -2190,41 +2229,145 @@ def _ablation_share(row: dict[str, Any] | None) -> float | None:
     return share
 
 
-def _ablation_outcome(row: dict[str, Any] | None) -> bool | None:
-    """Standing, falling, or unclassified; missing/invalid measurements stay unknown."""
-    share = _ablation_share(row)
+def _full_horizon_count(report: dict[str, Any]) -> tuple[int, int] | None:
+    """(episodes that reached the horizon, episodes) for one probe report, or None.
+
+    Fisher needs counts and the report records a share, but the share is
+    ``k / n`` by construction (``StancePanel.full_horizon_fraction``), so k is
+    recovered from it and the panel size. A share that is not a multiple of
+    ``1 / n`` is refused rather than rounded, and so is per-episode evidence,
+    when the report carries it, that does not agree.
+    """
+    episodes = report.get("episodes")
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
+        return None
+    share = _ablation_share(report.get("metrics"))
     if share is None:
         return None
-    if share >= _ABLATION_STANDS:
-        return True
-    if share <= _ABLATION_FALLS:
-        return False
-    return None
+    count = round(share * episodes)
+    if abs(share * episodes - count) > 1e-9:
+        return None
+    evidence = report.get("episode_evidence")
+    if evidence is not None:
+        if not isinstance(evidence, list) or len(evidence) != episodes:
+            return None
+        reached = [entry.get("reached_horizon") if isinstance(entry, dict) else None for entry in evidence]
+        if any(value is None for value in reached) or sum(bool(value) for value in reached) != count:
+            return None
+    return count, episodes
 
 
-def _ablation_control_refusals(rows: list[dict[str, Any]]) -> list[str]:
-    """Require a measured full pose that does not stand and a standing statue before attribution.
+def _ablation_counts(row: dict[str, Any] | None) -> tuple[int, int] | None:
+    """A variant row's (full-horizon episodes, episodes), or None when missing or refused."""
+    if row is None or row.get("full_horizon_episodes") is None:
+        return None
+    return int(row["full_horizon_episodes"]), int(row["episodes"])
 
-    A full pose that falls in only some episodes is still a fall to explain,
-    so ``hold_all`` refuses only when it stands or was not validly measured.
+
+def _ablation_comparison(
+    variant: tuple[int, int] | None, control: tuple[int, int], *, against: str, stands_more: bool
+) -> dict[str, Any]:
+    """One one-sided Fisher exact test of a variant's full-horizon count against an endpoint.
+
+    ``stands_more`` asks whether the variant reaches the horizon more often
+    than *control* (the test against ``hold_all``); otherwise, whether it
+    does so less often (the test against ``hold_zero``).
     """
-    refusals = []
+    entry: dict[str, Any] = {"against": against, "alternative": "greater" if stands_more else "less"}
+    if variant is None:
+        return {**entry, "p": None, "status": "unmeasured"}
+    p = _fisher_exact_greater(*variant, *control) if stands_more else _fisher_exact_greater(*control, *variant)
+    if _fisher_exact_min_p(variant[1], control[1]) > _ABLATION_ALPHA:
+        status = "insufficient episodes"
+    else:
+        status = "significant" if p <= _ABLATION_ALPHA else "not significant"
+    return {**entry, "p": float(p), "status": status}
+
+
+def _ablation_position(vs_hold_all: dict[str, Any], vs_hold_zero: dict[str, Any]) -> str:
+    """Where a variant sits on the path between the endpoints, from its two comparisons.
+
+    ``stands`` needs it significantly above ``hold_all`` and not
+    significantly below ``hold_zero``, ``falls`` the mirror image; separated
+    from both is ``between``, which is neither a rescue nor a fall. A
+    comparison that could not be made -- an unmeasured variant, or too few
+    episodes -- leaves the position unknown even when the other is
+    significant, because it is the one that could have shown ``between``.
+    """
+    statuses = (vs_hold_all["status"], vs_hold_zero["status"])
+    if "unmeasured" in statuses:
+        return "unmeasured"
+    if "insufficient episodes" in statuses:
+        return "insufficient episodes"
+    above, below = (status == "significant" for status in statuses)
+    if above and below:
+        return "between"
+    if above:
+        return "stands"
+    if below:
+        return "falls"
+    return "unresolved"
+
+
+def _ablation_endpoints(rows: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
+    """The endpoint controls' counts and separation, and every reason classification is refused.
+
+    ``hold_zero`` must stand in :data:`_ABLATION_STATUE_STANDS` of its
+    episodes. ``hold_all`` must reach the horizon significantly less often
+    than it (one-sided Fisher exact) -- a partial fall counts when it is
+    significant -- or there is no full-pose fall for any group to explain.
+    The test also guarantees that the per-group comparisons, on panels of
+    the same size, can reach alpha at all.
+    """
+    refusals: list[str] = []
+    counts: dict[str, tuple[int, int] | None] = {}
     for control, labels in (("hold_all", ("hold_all",)), ("hold_zero", ("hold_zero", "hold_zero (statue control)"))):
         matches = [row for row in rows if row["label"] in labels]
+        counts[control] = _ablation_counts(matches[0]) if len(matches) == 1 else None
         if len(matches) != 1:
             refusals.append(f"{control}: missing or duplicated endpoint control; expected one, found {len(matches)}")
-            continue
-        outcome = _ablation_outcome(matches[0])
-        if control == "hold_all":
-            if _ablation_share(matches[0]) is None:
-                refusals.append("hold_all: missing or invalid measurement; required a full pose that does not stand")
-            elif outcome is True:
-                refusals.append("hold_all: the full held pose stands; there is no full-pose fall to explain")
-        elif outcome is False:
-            refusals.append("hold_zero: the statue control falls; a standing reference was not established")
-        elif outcome is None:
-            refusals.append("hold_zero: missing, invalid or inconclusive measurement; required a standing endpoint")
-    return refusals
+        elif counts[control] is None:
+            required = (
+                "a full pose that falls significantly more often than the statue"
+                if control == "hold_all"
+                else "a standing endpoint"
+            )
+            refusals.append(f"{control}: missing or invalid measurement; required {required}")
+    full, statue = counts["hold_all"], counts["hold_zero"]
+    statue_stands = statue is not None and statue[0] / statue[1] >= _ABLATION_STATUE_STANDS
+    if statue is not None and not statue_stands:
+        refusals.append(
+            f"hold_zero: the statue control stands in only {statue[0]}/{statue[1]} episodes, below "
+            f"{_ABLATION_STATUE_STANDS:g} of them; a standing reference was not established"
+        )
+    separation = None
+    if full is not None and statue is not None:
+        separation = _ablation_comparison(full, statue, against="hold_zero", stands_more=False)
+        alpha = float(_ABLATION_ALPHA)
+        if statue_stands and separation["status"] == "insufficient episodes":
+            refusals.append(
+                f"hold_all: insufficient episodes ({full[1]} against the statue's {statue[1]}): "
+                f"no outcome reaches one-sided Fisher p <= {alpha:g}"
+            )
+        elif statue_stands and separation["status"] == "not significant":
+            refusals.append(
+                f"hold_all: the full held pose stands in {full[0]}/{full[1]} episodes, not significantly "
+                f"fewer than the statue's {statue[0]}/{statue[1]} (one-sided Fisher p = {separation['p']:.4f} "
+                f"> {alpha:g}); there is no full-pose fall to explain"
+            )
+    endpoints = {
+        "hold_all": None if full is None else list(full),
+        "hold_zero": None if statue is None else list(statue),
+        "separation": separation,
+    }
+    return endpoints, refusals
+
+
+def _ablation_variant_count_text(side: dict[str, Any]) -> str:
+    """``release_tail 3/8``, or the bare label when the variant has no valid count."""
+    if side["episodes"] is None:
+        return str(side["variant"])
+    return f"{side['variant']} {side['full_horizon_episodes']}/{side['episodes']}"
 
 
 def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2235,25 +2378,53 @@ def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     saturated set is the obvious candidate, since saturation is visible and
     dramatic -- shows up as necessary-and-not-sufficient or as neither, and
     only the pair distinguishes that from a cause. Neither question is
-    assessed unless the endpoint controls establish the fall being explained:
-    a full pose that does not stand (a partial fall counts) and a statue that
-    does. Unknown claims are None rather than false claims of non-necessity.
+    assessed unless the endpoint controls establish the fall being explained
+    (:func:`_ablation_endpoints`). Each is then answered by one-sided Fisher
+    exact tests of the variant against both endpoints: ``release_G`` is
+    necessary when it stands significantly more often than ``hold_all`` and
+    not significantly less often than ``hold_zero``, and not necessary in the
+    mirror case; ``only_G`` is sufficient when it falls significantly more
+    often than ``hold_zero`` and not significantly less often than
+    ``hold_all``. Every other outcome -- between the endpoints, separated from
+    neither, too few episodes, unmeasured -- leaves the claim None rather
+    than a false claim of non-necessity.
     """
     by_label = {row["label"]: row for row in rows}
-    applicable = not _ablation_control_refusals(rows)
+    endpoints, refusals = _ablation_endpoints(rows)
+    applicable = not refusals
     verdicts = []
     groups = dict.fromkeys(label.split("_", 1)[1] for label in by_label if label.startswith(("release_", "only_")))
     for group in groups:
         release, only = by_label.get(f"release_{group}"), by_label.get(f"only_{group}")
-        necessary = _ablation_outcome(release) if applicable else None
-        only_stands = _ablation_outcome(only) if applicable else None
-        sufficient = None if only_stands is None else not only_stands
+        sides: dict[str, Any] = {"necessity": None, "sufficiency": None}
+        necessary = sufficient = None
+        if applicable:
+            full, statue = tuple(endpoints["hold_all"]), tuple(endpoints["hold_zero"])
+            for side, label in (("necessity", f"release_{group}"), ("sufficiency", f"only_{group}")):
+                counts = _ablation_counts(by_label.get(label))
+                vs_hold_all = _ablation_comparison(counts, full, against="hold_all", stands_more=True)
+                vs_hold_zero = _ablation_comparison(counts, statue, against="hold_zero", stands_more=False)
+                sides[side] = {
+                    "variant": label,
+                    "full_horizon_episodes": None if counts is None else counts[0],
+                    "episodes": None if counts is None else counts[1],
+                    "vs_hold_all": vs_hold_all,
+                    "vs_hold_zero": vs_hold_zero,
+                    "position": _ablation_position(vs_hold_all, vs_hold_zero),
+                }
+            necessary = {"stands": True, "falls": False}.get(sides["necessity"]["position"])
+            sufficient = {"falls": True, "stands": False}.get(sides["sufficiency"]["position"])
         if not applicable:
             verdict = "not applicable (endpoint controls do not establish a fall to explain)"
         elif release is None or only is None:
             verdict = "incomplete (a variant did not run)"
         elif necessary is None or sufficient is None:
-            verdict = "inconclusive (a variant was unmeasured, invalid or between the thresholds)"
+            unknown = [sides["necessity"]] if necessary is None else []
+            unknown += [sides["sufficiency"]] if sufficient is None else []
+            reasons = (
+                f"{_ablation_variant_count_text(side)}: {_ABLATION_POSITION_TEXT[side['position']]}" for side in unknown
+            )
+            verdict = f"inconclusive ({'; '.join(reasons)})"
         elif necessary and sufficient:
             verdict = "CAUSE — necessary and sufficient"
         elif necessary:
@@ -2270,6 +2441,7 @@ def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "verdict": verdict,
                 "release_full_horizon": None if release is None else release["full_horizon_fraction"],
                 "only_full_horizon": None if only is None else only["full_horizon_fraction"],
+                **sides,
             }
         )
     return verdicts
@@ -2654,47 +2826,65 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
     """Reduce the release ablation to its table, per-group verdicts, and payload.
 
     The ablation walks the path between two already-measured endpoints: the
-    policy's full held pose and the statue. Only when the former does not
-    stand -- a partial fall is still a fall -- and the latter stands is there
-    a fall to attribute to an actuator group. Each row moves one actuator
-    group between them, so the table asks which coordinate carries the effect
-    rather than merely restating that the pose is unholdable.
+    policy's full held pose and the statue. Only when the latter stands and
+    the former reaches the horizon significantly less often -- a partial fall
+    is still a fall -- is there a fall to attribute to an actuator group. Each
+    row moves one actuator group between them, so the table asks which
+    coordinate carries the effect rather than merely restating that the pose
+    is unholdable. Every comparison is a one-sided Fisher exact test on the
+    rows' full-horizon counts, recovered from each report's share and panel
+    size.
     """
-    rows = [
-        {
-            "label": report["hold_constant"]["label"],
-            "holds": report["hold_constant"]["holds"],
-            "source": report["hold_constant"]["source"],
-            "episode_length_mean": report["metrics"]["episode_length_mean"],
-            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
-            "reward_mean": report["metrics"]["reward_mean"],
-            "terminations": report["terminations"],
-            "n_released": sum(1 for value in report["hold_constant"]["actions"] if value == 0.0),
-        }
-        for report in reports
-    ]
-    control_refusals = _ablation_control_refusals(rows)
+    rows = []
+    for report in reports:
+        counted = _full_horizon_count(report)
+        rows.append(
+            {
+                "label": report["hold_constant"]["label"],
+                "holds": report["hold_constant"]["holds"],
+                "source": report["hold_constant"]["source"],
+                "episode_length_mean": report["metrics"]["episode_length_mean"],
+                "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+                "reward_mean": report["metrics"]["reward_mean"],
+                "terminations": report["terminations"],
+                "n_released": sum(1 for value in report["hold_constant"]["actions"] if value == 0.0),
+                "episodes": report.get("episodes"),
+                "full_horizon_episodes": None if counted is None else counted[0],
+            }
+        )
+    endpoints, control_refusals = _ablation_endpoints(rows)
     applicable = not control_refusals
     verdicts = _ablation_verdicts(rows)
+    alpha = float(_ABLATION_ALPHA)
     horizon = reports[0]["horizon"]
     policy = str(reports[0]["policy"]).split(" — ")[0]
     payload = {
-        "schema": "mesozoic.constant-hold-ablation/v2",
+        "schema": "mesozoic.constant-hold-ablation/v3",
         "species": reports[0]["species"],
         "stage": reports[0]["stage"],
         "policy": policy,
         "horizon": horizon,
         "episodes_per_variant": probe_episodes,
-        "stands_threshold": _ABLATION_STANDS,
-        "falls_threshold": _ABLATION_FALLS,
-        "classification": {"applicable": applicable, "reasons": control_refusals},
+        "statistics": {
+            "test": "fisher-exact",
+            "sided": "one",
+            "alpha": alpha,
+            "multiplicity": "none",
+            "statue_stands_share": _ABLATION_STATUE_STANDS,
+        },
+        "classification": {"applicable": applicable, "reasons": control_refusals, "endpoints": endpoints},
         "note": (
             "Each row scored a MODIFIED policy: its commanded action frozen to a constant "
             "with one actuator group returned to the home control (released) or with only "
             "that group held. No row is a gate verdict. release_G tests whether G is "
             "NECESSARY for the fall; only_G tests whether G is SUFFICIENT to cause it. "
-            "These claims require a hold_all control that does not stand (a partial or complete "
-            "full-pose fall to explain) and a standing hold_zero control. "
+            "These claims require a standing hold_zero control and a hold_all control that "
+            "reaches the horizon significantly less often (a partial or complete full-pose "
+            "fall to explain). Each claim rests on one-sided Fisher exact tests of the "
+            "variant's full-horizon count against both endpoints at p <= alpha, unadjusted "
+            "across groups; the variants share reset seeds and the test ignores that "
+            "pairing, which errs conservative when a seed's outcomes move together across "
+            "variants. "
             "Unassessed necessity/sufficiency claims are null, not false."
         ),
         "variants": rows,
@@ -2718,6 +2908,23 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         # An unmeasured cell renders as '-' so the row survives to the unknown-handling below.
         return "-" if value is None else format(value, spec)
 
+    def _count_text(counts: "tuple[int, int] | list[int] | None") -> str:
+        return "-" if counts is None else f"{counts[0]}/{counts[1]}"
+
+    def _p_text(p: float) -> str:
+        # Below 1e-3 four decimals keep at most one significant digit (1/12870 would print as
+        # 0.0001), so switch to scientific notation there.
+        return f"{p:.4f}" if p >= 0.001 else f"{p:.1e}"
+
+    def _p_cell(side: dict[str, Any] | None, against: str) -> str:
+        # '*' marks p <= alpha; the marker column stays blank otherwise so the digits align.
+        comparison = None if side is None else side[f"vs_{against}"]
+        if comparison is None or comparison["status"] == "unmeasured":
+            return "- "
+        if comparison["status"] == "insufficient episodes":
+            return "n/a "
+        return _p_text(comparison["p"]) + ("*" if comparison["status"] == "significant" else " ")
+
     for row in rows:
         released = "-" if not row["holds"] else str(row["n_released"])
         lines.append(
@@ -2730,17 +2937,39 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         lines.extend(f"  {reason}" for reason in control_refusals)
         lines.append("  Raw variant measurements are retained; causal labels are suppressed.")
     if verdicts:
+        counts_by_label = {row["label"]: _ablation_counts(row) for row in rows}
+        separation = endpoints["separation"]
+        endpoint_line = (
+            f"  endpoints     hold_all {_count_text(endpoints['hold_all'])}, "
+            f"hold_zero {_count_text(endpoints['hold_zero'])} full-horizon"
+        )
+        if separation is not None and separation["status"] == "insufficient episodes":
+            endpoint_line += f"; too few episodes for one-sided Fisher p <= {alpha:g}"
+        elif separation is not None:
+            relation = "<=" if separation["status"] == "significant" else ">"
+            endpoint_line += f"; one-sided Fisher p = {_p_text(separation['p'])} {relation} {alpha:g}"
         lines += [
             "",
             "Per group — release_G asks if G is NECESSARY (does removing it rescue the pose?),",
-            "only_G asks if G is SUFFICIENT (does it alone break the statue?):",
+            "only_G asks if G is SUFFICIENT (does it alone break the statue?). Each variant's",
+            "full-horizon episodes, then the one-sided Fisher exact p that it reaches the",
+            f"horizon more (>) or less (<) often than each endpoint: '*' marks p <= {alpha:g},",
+            "'n/a' too few episodes for any outcome to reach it, '-' unmeasured or unassessed.",
             "",
-            f"  {'group':<14}{'release stands':>16}{'only falls':>12}   verdict",
+            endpoint_line,
+            "",
+            f"  {'group':<14}{'release':>9}{'>hold_all ':>13}{'<hold_zero ':>13}"
+            f"{'only':>9}{'<hold_zero ':>13}{'>hold_all ':>13}  verdict",
         ]
         for entry in verdicts:
-            release_text = "-" if entry["release_full_horizon"] is None else f"{entry['release_full_horizon']:.4f}"
-            only_text = "-" if entry["only_full_horizon"] is None else f"{entry['only_full_horizon']:.4f}"
-            lines.append(f"  {entry['group']:<14}{release_text:>16}{only_text:>12}   {entry['verdict']}")
+            group, necessity, sufficiency = entry["group"], entry["necessity"], entry["sufficiency"]
+            lines.append(
+                f"  {group:<14}{_count_text(counts_by_label.get(f'release_{group}')):>9}"
+                f"{_p_cell(necessity, 'hold_all'):>13}{_p_cell(necessity, 'hold_zero'):>13}"
+                f"{_count_text(counts_by_label.get(f'only_{group}')):>9}"
+                f"{_p_cell(sufficiency, 'hold_zero'):>13}{_p_cell(sufficiency, 'hold_all'):>13}"
+                f"  {entry['verdict']}"
+            )
     if (
         applicable
         and verdicts
@@ -2774,10 +3003,15 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         ]
     lines += [
         "",
-        "Causal classification requires both endpoint controls: 'hold_all' must not",
-        "stand -- a partial fall is still a fall to explain -- and 'hold_zero' must",
-        "stand. Otherwise the experiment does not establish a held-pose fall to",
-        "explain; the measurements remain useful as observations.",
+        "Causal classification requires both endpoint controls: 'hold_zero' must stand",
+        f"(in at least {_ABLATION_STATUE_STANDS:g} of its episodes), and 'hold_all' must reach the horizon",
+        "significantly less often -- a partial fall is still a fall to explain.",
+        "Otherwise the experiment does not establish a held-pose fall to explain; the",
+        "measurements remain useful as observations. Each label rests on one-sided",
+        f"Fisher exact tests at p <= {alpha:g} against the endpoint the variant moves away",
+        "from, unadjusted across groups; the variants share reset seeds and the test",
+        "ignores that pairing, which errs conservative when a seed's outcomes move",
+        "together across variants.",
     ]
     return "\n".join(lines) + "\n", payload
 
@@ -2913,18 +3147,18 @@ def constant_hold_release_variants(
     * ``only_G`` holds *only* G, testing **sufficiency** -- does adding G alone
       break the statue, which is known to stand?
 
-    When the controls establish a full pose that does not stand (a partial
-    fall counts) and a standing statue, a group that is both necessary and
-    sufficient is the cause. A group that is necessary but not sufficient
+    When the controls establish a standing statue and a full pose that falls
+    significantly more often (a partial fall counts), a group that is both
+    necessary and sufficient is the cause. A group that is necessary but not sufficient
     contributes with others. A group that is neither is a bystander, whatever
     its DC looks like -- and the saturated joints look dramatic (twelve pinned
     at exactly +/-1.000) precisely because saturation is visible, not because
     it was shown to matter.
 
     The two endpoints of the path are included as controls: ``hold_all`` is the
-    full pose, which must not stand for the rows to be classified, and
-    ``hold_zero`` is the statue, which must stand. Every ablation sits between
-    them.
+    full pose, which must fall significantly more often than the statue for
+    the rows to be classified, and ``hold_zero`` is the statue, which must
+    stand. Every ablation sits between them.
     """
     zero = tuple(0.0 for _ in hold)
     groups: dict[str, tuple[int, ...]] = {"saturated": saturated_actuator_indices(report)}
