@@ -231,6 +231,13 @@ def test_a_recorded_verdict_its_rows_contradict_is_refused(tmp_path):
     edited = copy.deepcopy(report)
     _heading(edited, -90.0)["result"]["n_clean"] = 40
     refused(edited, tmp_path, "40 clean episodes recorded at -90 deg, 0 re-derived")
+    # Only the clean-seed count edited, the verdict left as it re-derives: the count is checked on its own.
+    edited = copy.deepcopy(report)
+    edited["result"]["n_clean_seeds"] = 37
+    refused(edited, tmp_path, "37 clean seeds recorded, 0 re-derived")
+    clean = heading_report(tmp_path / "clean")
+    clean["result"]["n_clean_seeds"] = 39
+    refused(clean, tmp_path / "clean", "39 clean seeds recorded, 40 re-derived")
 
 
 def test_a_claimed_passed_field_is_not_evidence(tmp_path):

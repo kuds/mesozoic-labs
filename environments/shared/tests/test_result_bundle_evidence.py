@@ -1458,6 +1458,11 @@ def test_a_stance_heading_grid_off_the_certification_panel_or_contradicting_a_fl
     _rewrite_grid(path, edit=lambda row: row.update(seed_start="7042"))
     with pytest.raises(ResultBundleError, match="starts its seed block at 7042"):
         _save_bundle(run_dir, stage_results, stage_configs)
+    # A grid stamped as rolled stochastically: its rows do not pair by seed across headings.
+    path.write_text(original, encoding="utf-8")
+    _rewrite_grid(path, edit=lambda row: row.update(policy_deterministic="False"))
+    with pytest.raises(ResultBundleError, match="not rolled deterministically"):
+        _save_bundle(run_dir, stage_results, stage_configs)
     path.write_text(original, encoding="utf-8")
     _rewrite_grid(
         path,
