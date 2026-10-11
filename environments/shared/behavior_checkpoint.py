@@ -141,7 +141,9 @@ def _normalizer(path: Path, venv: VecEnv, *, plant_identity: Any) -> VecNormaliz
     # Statistics of another observation width are refused by their recorded plant
     # identity, not by SB3's bare shape assertion (decision D-D31).
     try:
-        normalizer = load_vecnormalize(path, venv, plant_identity=plant_identity, vec_normalize_cls=VecNormalize)
+        normalizer: VecNormalize = load_vecnormalize(
+            path, venv, plant_identity=plant_identity, vec_normalize_cls=VecNormalize
+        )
     except AttributeError as exc:
         if "BehaviorVecNormalize" not in str(exc):
             raise
