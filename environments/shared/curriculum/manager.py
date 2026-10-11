@@ -14,7 +14,7 @@ import numpy as np
 
 from environments.shared.config import load_all_stages
 
-from .gate_schema import validate_gate_config
+from .gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, validate_gate_config
 from .recovery_gate import RECOVERY_GATE_KIND, binomial_lcb
 from .stance_gate import (
     STANCE_GATE_KIND,
@@ -23,6 +23,7 @@ from .stance_gate import (
     evaluate_stance_gate,
 )
 from .stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS, StanceV2Thresholds
+from .stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,8 @@ class StageThreshold:
     # guarantees the required ones are present, so v1's +inf ceilings --
     # which read as "declared, no limit" -- are deliberately not reused.
     # Carried so the threshold states the gate the schema validated; the
-    # manager itself refuses the kind (_stance_v2_gate_refuses).
+    # manager itself refuses the kind (_stance_v2_gate_refuses), and the
+    # six-heading certificate (D-D32), which reads the same keys, too.
     min_clean_stance_lcb: float = np.inf
     min_all_feet_support: float | None = None
     max_touchdown_rate: float | None = None
@@ -327,8 +329,9 @@ class CurriculumManager:
             ``recovery_quality/v1``: that verdict comes only from the frozen
             gate resolution, whose inputs this path structurally cannot
             supply — see :meth:`_recovery_gate_refuses`.  Always False for
-            ``stance_quality/v2`` too: its certificate is the post-stage
-            floor-truth panel on the handoff pair — see
+            ``stance_quality/v2`` and ``stance_quality_heading/v1`` too:
+            their certificate is the post-stage floor-truth panel (the
+            heading kind's, six of them) on the handoff pair — see
             :meth:`_stance_v2_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
@@ -362,6 +365,10 @@ class CurriculumManager:
             # cannot certify a floor-truth gate, and that arm would judge it
             # on v1's +inf defaults.
             passes = self._stance_v2_gate_refuses()
+        elif threshold.gate_kind == STANCE_HEADING_GATE_KIND:
+            # The six-heading certificate (D-D32) is v2 on a grid of turned
+            # spawns: refused here for v2's reason, six times over.
+            passes = self._stance_v2_gate_refuses(STANCE_HEADING_GATE_KIND)
         else:
             # A kind with no evaluator here: a future entry added to
             # gate_schema.GATE_KINDS (the schema's documented extension path
@@ -507,8 +514,8 @@ class CurriculumManager:
         )
         return False
 
-    def _stance_v2_gate_refuses(self) -> bool:
-        """Refuse ``stance_quality/v2`` here, naming where its certificate comes from instead.
+    def _stance_v2_gate_refuses(self, kind: str = STANCE_GATE_V2_KIND) -> bool:
+        """Refuse a floor-truth stance *kind* here, naming where its certificate comes from instead.
 
         The v2 verdict (decision D-D23) is a per-episode floor-truth
         classification of the 40-episode certification panel -- seeds
@@ -530,6 +537,11 @@ class CurriculumManager:
         reward defaults would pass on any evaluation.  An in-training SCREEN
         (a recorder on the eval env and the statue-relative criteria
         skipped) is a later tier, not this arm.
+
+        The six-heading certificate (``stance_quality_heading/v1``, D-D32)
+        is refused the same way, by name: it is the same classification at
+        each of six whole-scene turns of the same seeds, rolled after the
+        stage by ``reporting.stance_report.build_stance_heading_report``.
         """
         logger.error(
             "Stage %d declares gate_kind %r, which the in-training curriculum cannot "
@@ -540,7 +552,7 @@ class CurriculumManager:
             "stage from the post-stage stance gate report, through "
             "reporting.gates.evaluate_stage_gate.",
             self._current_stage,
-            STANCE_GATE_V2_KIND,
+            kind,
         )
         return False
 
@@ -685,8 +697,9 @@ def thresholds_from_configs(
         # so the threshold states the gate the schema validated, and the
         # in-training screen a later tier adds reads them from here.  The
         # manager refuses the kind until then (_stance_v2_gate_refuses).
+        # The six-heading certificate (D-D32) declares the same keys.
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
-        v2_keys = _STANCE_V2_COPIED_KEYS if gate_kind == STANCE_GATE_V2_KIND else ()
+        v2_keys = _STANCE_V2_COPIED_KEYS if gate_kind in FLOOR_TRUTH_STANCE_GATE_KINDS else ()
         for key in (
             "min_avg_reward",
             "min_avg_episode_length",
@@ -708,7 +721,7 @@ def thresholds_from_configs(
 
 
 #: The ``stance_quality/v2`` keys :func:`thresholds_from_configs` copies onto
-#: a v2 stage's threshold, beyond the shared ones it copies for every kind
+#: a v2 (or six-heading certificate) stage's threshold, beyond the shared ones it copies for every kind
 #: (``settle_steps``, ``min_eval_episodes``, ``min_avg_reward``,
 #: ``min_full_horizon_fraction``, ``required_consecutive``).
 _STANCE_V2_COPIED_KEYS: tuple[str, ...] = (

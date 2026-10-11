@@ -495,8 +495,9 @@ class TestThresholdsFromConfigs:
         from environments.shared.config import load_all_stages
 
         curriculum = load_all_stages("trex")[1]["curriculum_kwargs"]
-        # stance_quality/v2 since physics r8 (D-D24), stance_quality/v1 before it: a stance kind either way.
-        assert curriculum["gate_kind"] == "stance_quality/v2"
+        # The six-heading certificate since D-D32, stance_quality/v2 from physics r8 (D-D24) and
+        # stance_quality/v1 before it: a stance kind every time.
+        assert curriculum["gate_kind"] == "stance_quality_heading/v1"
         # The statue scores 3756.8 at 1000.0 steps on the D-D27 stance task (3766.1 on the r8 task,
         # 3271.8 when the reward gate was retired), so the retired reward and length criteria were both
         # cleared by doing nothing.
@@ -595,13 +596,15 @@ class TestPublicationKeys:
         """Every kind a committed stage declares, plus a synthetic block for each kind none declares yet.
 
         The committed blocks of every species (stance v1, reward_and_length,
-        task_success, recovery) are validated as they stand; the pilot and
+        task_success, recovery) are validated as they stand; the pilot,
         ``stance_quality/v2`` -- registered by D-D23 before any stage adopts
-        it -- get a minimal schema-valid block each, so the loop still covers
-        exactly ``GATE_KINDS`` whichever kinds the TOMLs happen to declare.
+        it -- and the six-heading certificate (D-D32) get a minimal
+        schema-valid block each, so the loop still covers exactly
+        ``GATE_KINDS`` whichever kinds the TOMLs happen to declare.
         """
         from environments.shared.config import load_all_stages
         from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS
+        from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
         from environments.shared.stage_manifest import _CONFIGS_DIR
 
         seen = set()
@@ -613,14 +616,15 @@ class TestPublicationKeys:
         assert validate_gate_config(1, {**_PILOT, "certification_seeds": 3}, advancement_enabled=False) == "none/v1"
         seen.add("none/v1")
         synthetic = {
-            STANCE_GATE_V2_KIND: {
+            kind: {
                 "gate_schema_version": GATE_SCHEMA_VERSION,
-                "gate_kind": STANCE_GATE_V2_KIND,
+                "gate_kind": kind,
                 **{
                     key: 200 if key == "settle_steps" else 40 if key == "min_eval_episodes" else 0.5
                     for key in STANCE_V2_REQUIRED_KEYS
                 },
             }
+            for kind in (STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND)
         }
         for kind, block in synthetic.items():
             if kind not in seen:

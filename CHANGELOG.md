@@ -8,6 +8,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A six-heading stance certificate, `stance_quality_heading/v1`** (decision
+  D-D32, the maintainer's approval of 2026-10-11;
+  `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `stance_quality/v2` judges a
+  stance at the heading it trained at, and certified the seed-52 T-Rex stance
+  `20261009_155723` (39/40), which stands 0/8 with the whole scene turned
+  −90° or −45°. The new kind (`curriculum/stance_heading_gate.py`, pure: the
+  standard library, v2's statistic, `binomial_lcb` and the gait row type)
+  applies the full v2 decision at each heading of a fixed grid of
+  whole-scene turns, −90, −45, 0, 45, 90 and 180° (protocol
+  `whole_scene_yaw/v1`, fixed in code: a list-valued threshold would defeat
+  `same_threshold`, and another grid is another protocol), each heading
+  against the zero-action statue rolled at that heading, and passes only
+  when every heading passes AND the exact one-sided 95% bound on seeds clean
+  at every heading clears `min_clean_stance_lcb` at `min_eval_episodes`
+  seeds. It consumes and requires exactly v2's keys, so registering it moves
+  no digest and a stance moves to it by its `gate_kind` alone; those two
+  keys then state both each heading's panel and the grouped one (37/40 seed
+  groups pass at 0.80, LCB 0.8174; 36/40 fail, 0.7856). The rotations of a
+  seed are never pooled: one different failing seed at each heading pools
+  to 234/240 (an apparent 0.9513) while only 34/40 seeds stand at all six
+  (0.7253), and each heading alone still passes v2 at 39/40; the pooled
+  count is reported, labelled as not the statistic. Headings are
+  canonicalised into (−180°, 180°], and a duplicate or synonym (−180 beside
+  180, 0 beside 360), a missing or extra heading, a reorder, or an
+  incomplete or duplicated (seed, heading) grid fails closed.
+  `reporting/stance_report.py` gains `build_stance_heading_report`: before
+  anything is rolled it refuses another kind, a non-strict block or a settle
+  window inside the spawn grace, and a stage whose task the turn does not
+  rotate (`heading_protocol_refusals`: a live command mode, scheduled pushes
+  or a heightfield); it then rolls, on a fresh environment per heading, the
+  policy panel through the floor-truth recorder with
+  `SpawnYaw(yaw, whole_scene=True)` (at 0° the turn is the identity, and the
+  cell is the v2 panel bit for bit) and the statue panel at the same
+  heading. A rollout that raises at any heading raises
+  `StanceGateReportError` naming it, and nothing is written. The certificate
+  (`mesozoic.stance-heading-report/v1`) records what its readers bind: the
+  protocol, grid and exact seed list, `policy_deterministic`, the frozen
+  VecNormalize record (`_load_policy` now attaches it to its predict), the
+  horizon, settle window and control step, the gate view and its digest,
+  the measurement manifest (identical at every heading), the handoff
+  digests, task and plant identity, every probe marker as `None`, and per
+  heading the v2 result and every policy and statue row with its seed and
+  heading. A heading-kind stage writes `stance_heading_report.{txt,json}`
+  and the grid CSV `stance_heading_panel_selected.csv` (480 rows of
+  `STANCE_HEADING_PANEL_FIELDNAMES`: role and heading, v2's columns, the
+  certificate's stamps), and no `stance_gate_report.*` or
+  `stance_panel_selected.csv` (`write_stance_gate_report` refuses a
+  certificate); the v2 panel reader refuses a file with a `yaw_deg` column.
+  The judge (`reporting.gates.stance_heading_report_refusals`, its arm in
+  `evaluate_stage_gate`) runs v2's binding checks, split out unchanged into
+  `_stance_report_identity_refusals`, `_statue_block_refusals` and
+  `_stance_report_stage_refusals`, refuses by name a v2 report (it certifies
+  yaw zero only and cannot be promoted), the report-only probe, no
+  certificate (never a fallback to the yaw-zero panel), another protocol,
+  grid or seed list (the fresh-audit block at 7042 among them), a stochastic
+  policy, any normalization but the frozen statistics, a `gate_sha256` that
+  is not the judged gate's and a reused or unreducible statue block, and
+  re-derives the verdict from every (seed, heading) row, refusing a recorded
+  `passed`, clean-seed count, per-heading count or clean flag the rows
+  contradict; `evaluate_recorded_gate` reads a heading history as `None`.
+  `generate_stage_artifacts` rolls the certificate through the same handoff
+  selection and non-fatal path as v2 (no report fails the gate), copies the
+  admitted certificate's grouped numbers into `gate_verdict.json`'s
+  `stage_result` (`stance_heading_n_seeds`, `stance_heading_clean_seeds`,
+  `stance_heading_clean_seed_fraction`, `stance_heading_clean_seed_lcb`,
+  `stance_heading_statue_mean_reward_min`; schema unchanged), and points the
+  hold, release and impulse probes at the certificate's 0° cell
+  (`heading_zero_panel`). Publication re-derives a recorded PASS from the
+  grid CSV alone, bound to the certification-panel role, the certified pair,
+  the task, the measurement definition and the gate digest, with the policy
+  and statue grids complete and each heading's stamped statue reference what
+  its rows reduce to. The backfill tool backfills a heading directory from
+  `stance_heading_report.json` only. Ancestor reuse gains rule 8: a node
+  whose current gate is the certificate is reused only on a certificate the
+  judge admits and whose re-derived verdict passes, evaluated at the source
+  (ancestor records copy no certificate), so a forged or stale PASS beside a
+  failing or missing certificate is refused. The command-line curriculum's
+  post-training judge (`_post_training_stance_verdict`) covers both
+  floor-truth kinds, with `judged_by`
+  `train_base.train_curriculum/stance_heading_report`; the in-training
+  manager refuses the kind as it refuses v2. `stance_gate_report.py`
+  builds the certificate for such a stage (`--out-dir` writes its files;
+  `--seed 7042` rolls the fresh-audit grid, which the judge refuses as the
+  gate's evidence); the notebook's zero-action preflight scores its 0° cell
+  only. The catalog and the website render the kind (`formatGate`'s new arm,
+  no new raw keys) and headline the grouped bound. Measured on one CPU at 40
+  seeds (MuJoCo 3.10.0): the T-Rex r9 statue's certificate in 6m13s, clean
+  on 39/40 seeds at every heading (seed 3081's nosedive), grouped bound
+  0.8868 (its rewards agree across headings to 1.3e-10); a checkpoint's
+  certificate, with its six statue panels, about 13 minutes on the T-Rex and
+  21 on the anatomical Compsognathus, against about 2.1 and 3.6 for v2; the
+  report JSON is about 1.7 MB and the CSV 0.7 MB. Tests: the pure statistic
+  and grid (`test_stance_heading_gate.py`), 21 corruptions and every refusal
+  of the judge (`test_stance_heading_judge.py`), real-physics grids at 2
+  seeds (`test_stance_heading_report.py`: a statue per heading, the turned
+  statue repeating the unturned one to 1e-8 on both species, the 0° cell
+  equal to the v2 panel, exact JSON and CSV round trips, a mid-grid failure
+  leaving nothing), the case where yaw zero passes and −90° and −45° fail
+  and the stage gate, verdict, reuse (a forged PASS included), publication,
+  backfill and the CLI curriculum all refuse it
+  (`test_stance_heading_end_to_end.py`), and heading twins of the dispatch,
+  publication, backfill, reuse, artifact, verdict, CSV, preflight and probe
+  tests.
 - **Handoff tooling warns, without blocking, when a whole-scene row of the
   heading probe is below 0.95, and every biped stance declares the probe**
   (#610; the maintainer's decisions of 2026-10-11;
@@ -172,6 +275,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **A T-Rex or anatomical Compsognathus stance is judged, reused and
+  published on its six-heading certificate only** (D-D32). Both stances'
+  `gate_sha256` moves, so reuse rule 7 refuses every verdict judged under
+  their v2 block (none certified on the current plants: T-Rex r9 and
+  Compsognathus r2 have no reusable stance), and rule 8 re-derives the
+  certificate of every node reused under it; a stage directory with only a
+  v2 report is re-judged (the notebook JUDGE branch /
+  `generate_stage_artifacts`, or `stance_gate_report.py`), which rolls 12
+  panels, about 13 minutes on the T-Rex and 21 on the Compsognathus. Bundles
+  already published stay as they are. Digest golden (643 lines, on top of
+  D-D31's heading-free observations below): 6 lines move, the T-Rex and
+  Compsognathus stances' `gate_sha256` and `stage_config_view_sha256.PPO`
+  and `.SAC` (T-Rex `gate_sha256` ab4191e7 → 06375c21, Compsognathus
+  8938b294 → 4df04357); no task, recipe, plant, measurement or other
+  species' line moves.
 - **Every T-Rex and anatomical Compsognathus checkpoint must be retrained;
   none can be widened** (T-Rex policy interface revision 13 → 14, anatomical
   Compsognathus 3 → 4, observation schema `bipedal-target-heading-free/v1`;
@@ -292,6 +410,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The T-Rex and anatomical Compsognathus stances certify under the
+  six-heading certificate, and no longer declare the heading probe**
+  (D-D32). `configs/trex/stance.toml` and `configs/compsognathus/stance.toml`
+  declare `gate_kind = "stance_quality_heading/v1"` with every v2 bar and
+  rail unchanged (the comments say what `min_eval_episodes` and
+  `min_clean_stance_lcb` mean under it), and drop
+  `stance_probe_spawn_yaw_deg`: the certificate rolls every seed at every
+  heading, the probe's whole-scene rows were replays of its first 8 seeds at
+  four of them, and config load now refuses the key beside the kind. The
+  velociraptor and Compsognathus robot stances keep v2 and v1 and the
+  warn-only probe; `declares_heading_probe` is false for a heading-kind
+  stage, and `stage_heading_probe_warnings` reads its certificate instead of
+  a probe: silent when the certificate re-derives to a pass, otherwise one
+  warning that it is missing, unreadable, refused or failed, since a manual
+  `train(..., task_load_mode="initialize_next_stage")` load reads no
+  verdict. Statues (zero action, 40 seeds, through
+  `stance_gate_report.py --zero-action`): the T-Rex r9 statue passes, 39/40
+  seeds clean at all six headings (bound 0.887, as at 0°); the
+  Compsognathus r2 statue passes, 40/40 seeds clean at all six headings
+  (bound 0.928, as at 0°); each statue's reward is the same at every heading
+  to 1e-10, and the runs took 6 and 10 minutes on one CPU. The species
+  manifest's stance deliverables are relabelled "Stance quality at six
+  headings (stance_quality_heading/v1)". The `SpawnYaw` docstring now gives
+  the right reason a whole-scene turn changes nothing physical (every plant
+  declares the elliptic friction cone, D-D29 and D-D30; under the pyramidal
+  cone a 45° turn perturbed box and ellipsoid feet), says that it changes
+  nothing in the T-Rex r14 or anatomical Compsognathus r4 observation
+  (D-D31) and only the world-frame channels of the velociraptor and the
+  Compsognathus robot, and names the certificate as the gate; the probe's
+  note and text say so too.
+  Records: D-D32 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the
+  consolidation plan's tables, the heading design's status and its
+  carried-out note, KNOWN_ISSUES's heading entry, NEXT_STEPS (the
+  publication grid and the manual 7042 audit), RESULT_BUNDLES,
+  TRAINING_ARTIFACT_PRESENTATION, the T-Rex and Compsognathus READMEs and
+  website pages, and the species catalog.
 - **The T-Rex and the anatomical Compsognathus no longer observe their world
   heading** (breaking — policy interface change: T-Rex revision 13 → 14, 64 →
   63 wide; anatomical Compsognathus 3 → 4, 56 → 55; every existing checkpoint
@@ -299,11 +453,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2026-10-11 for these two species only, carrying out
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`'s observation migration and
   D-D27's 2026-10-07 amendment; the design's heading certificate is a separate
-  change). Motivation: both fed their policies the root's world quaternion,
-  world linear velocity and world prey direction, so a stance could depend on
-  its world heading where no stance criterion sees it; `stance_quality/v2`
-  certified the seed-52 T-Rex stance `20261009_155723`, which stands 0/8 with
-  the whole scene turned −90° or −45°. The new
+  change, D-D32, above). Motivation: both fed their policies the root's
+  world quaternion, world linear velocity and world prey direction, so a
+  stance could depend on its world heading where no stance criterion sees it;
+  `stance_quality/v2` certified the seed-52 T-Rex stance `20261009_155723`,
+  which stands 0/8 with the whole scene turned −90° or −45°. The new
   `environments/shared/heading_observation.py` (pure NumPy) builds the schema
   `bipedal-target-heading-free/v1` from the free root's own quaternion
   `qpos[3:7]`, validated and normalized in float64 (the constructor calls

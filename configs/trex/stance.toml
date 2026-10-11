@@ -509,7 +509,7 @@ net_arch = [512, 256]            # Match PPO architecture (obs is 63, heading-fr
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "stance_quality/v2"         # environments/shared/curriculum/gate_schema.py
+gate_kind = "stance_quality_heading/v1" # environments/shared/curriculum/gate_schema.py
 timesteps = 12000000
 
 # ---------------------------------------------------------------------------
@@ -625,12 +625,37 @@ timesteps = 12000000
 # little more. The hacks the bars were set against load only on r7, so no r9
 # separation can be measured, and the heading design keeps the pad, CoP and hop
 # bars where they are; the audit note's appended §12 holds the r9 panels.
+#
+# The six-heading certificate (stance_quality_heading/v1, decision D-D32,
+# adopted 2026-10-11; docs/HEADING_INVARIANCE_DESIGN_2026_10.md). v2 judges
+# the training heading only, and the stance stage always spawns facing +x,
+# so a stance that reads its world heading passes it: 20261009_155723 (seed
+# 52) passed v2 at 39/40 and stands 0/8 with the whole scene turned -90 or
+# -45 degrees. The certificate rolls the certification panel at each of six
+# whole-scene turns (-90, -45, 0, 45, 90 and 180 degrees, protocol
+# whole_scene_yaw/v1, fixed in code: the animal, the prey and the heading
+# reward's reference direction turn together, so a heading-free stance faces
+# the same task at each) and passes only when every heading passes the v2
+# decision below against the statue rolled at that heading, AND the bound on
+# seeds clean at EVERY heading clears the bar. So min_eval_episodes and
+# min_clean_stance_lcb each say two things: the seeds per heading and the
+# seed groups, each heading's v2 bar and the grouped bar. The bars and rails
+# are v2's, unchanged, applied at every heading (the full-horizon and
+# hop-or-fall rails included). On r9 every heading is physically identical
+# (the elliptic cone), so the statue's turned panels repeat its unturned one:
+# clean on 39/40 seeds at every heading (seed 3081's nosedive), grouped bound
+# 0.887, a PASS. The certificate costs 6 policy and 6 statue panels (about
+# 13 min on one CPU) where v2 cost 2, and replaces the report-only heading
+# probe (stance_probe_spawn_yaw_deg, removed below).
 # ---------------------------------------------------------------------------
 min_eval_episodes = 40                   # The panel the bound is specified at (seeds 3042-3081, D-B17); n_eval_episodes
                                          # must match. At n = 40 the bound is 0.928 at 40 clean, 0.887 at 39, 0.851
-                                         # at 38, 0.817 at 37 and 0.786 at 36.
+                                         # at 38, 0.817 at 37 and 0.786 at 36. Under the certificate: the seeds rolled
+                                         # at each heading, and so the seed groups the grouped bound counts.
 min_clean_stance_lcb = 0.80              # Admits 37/40 and refuses 36/40 (the gait plan's GQ-7 (a), GQ-12's 0.80). A
                                          # policy clean on 99% of its episodes fails 0.1% of panels at this bar.
+                                         # Under the certificate: each heading's bar AND the grouped one, on seeds
+                                         # clean at all six headings (37 of 40 such seeds pass, 36 fail).
 settle_steps = 200                       # Splits each episode: the max_settle_* bars read steps 10-199 (after the
                                          # 0.1 s spawn grace, the reset pop being a plant property), every other bar
                                          # steps 200-999. Measured on the r8 statue: the floor force peaks at step 26
@@ -642,10 +667,11 @@ min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three inde
                                          # A floor to MATCH, not beat. Replaces min_avg_episode_length = 950, which
                                          # encoded the same §12 requirement through the only field the old gate had.
                                          # Kept under v2 as a panel rail beside the bound (an episode that ends
-                                         # early is unclean anyway). The 119/120 above is physics r7's; the r8
-                                         # statue reaches the horizon on 40/40 and 80/80 out of sample, and on
-                                         # 39/40 of seeds 3162-3201 (seed 3174 nosedives at step 265). The r9
-                                         # statue on 39/40 (seed 3081 at step 292) and on 237/240 out of sample.
+                                         # early is unclean anyway), and at every heading under the certificate.
+                                         # The 119/120 above is physics r7's; the r8 statue reaches the horizon on
+                                         # 40/40 and 80/80 out of sample, and on 39/40 of seeds 3162-3201 (seed
+                                         # 3174 nosedives at step 265). The r9 statue on 39/40 (seed 3081 at step
+                                         # 292) and on 237/240 out of sample.
 min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode;
                                          # 1001 at most 0.724 (fails 40/40), 0920 fails 5, 0930 1. The props stand
                                          # on both feet (best 1.000): the sole bars catch them.
@@ -748,7 +774,8 @@ max_episode_yaw_change_deg = 25.0        # The root's heading change over the ep
                                          # the median, toward an absolute heading of about -45 deg (refused 40/40),
                                          # seed 44 at most 21.4. 2x the statue's largest. Heading DEPENDENCE -- both
                                          # r8 stances fall when spawned 90 deg off, where the statue stands -- is
-                                         # what stance_probe_spawn_yaw_deg below reports; no bar here measures it.
+                                         # what the six-heading certificate (gate_kind above, D-D32) judges; this
+                                         # bar reads the drift of the heading within an episode, at each heading.
 max_hop_or_fall_episodes = 1             # Panel rail (D-D27): episodes that end early or fail min_all_feet_support,
                                          # max_touchdown_rate, max_window_displacement_m or
                                          # max_actuator_saturation_fraction -- the signature of a whole-episode hop or
@@ -867,7 +894,8 @@ min_avg_reward_statue_ratio = 0.60      # The same 0.60 rail against the statue 
 required_consecutive = 3                # Scheduler hysteresis ONLY. Re-running a deterministic panel is not
                                         # statistical replication (§3.4 caution 3) — the certified claim comes from
                                         # the bound above, not from repeating the same evaluation three times.
-                                        # Under stance_quality/v2 the in-training manager refuses the kind (the
+                                        # Under the floor-truth kinds (stance_quality/v2 and, since D-D32, the
+                                        # six-heading certificate) the in-training manager refuses the kind (the
                                         # certificate is the post-stage report on the handoff pair), so nothing
                                         # reads this until the in-training screen exists.
 certification_seeds = 2                 # Publication bar, not a gate threshold (BEHAVIOR_RECIPES_PLAN §4.5, decision
@@ -975,7 +1003,7 @@ statue_constants_physics_revision = 9    # The trex physics revision the statue-
 hop_watch_max_unsupported_duty = 0.05    # Opt-in hop watch (curriculum/hop_watch.py, D-D27): from
                                          # hop_watch_after_timesteps on, an evaluation whose unsupported duty
                                          # (gate_progress.npz) is above this logs a warning, writes hop_watch.json
-                                         # and, with hop_watch_stop, ends training; the post-stage v2 report then
+                                         # and, with hop_watch_stop, ends training; the post-stage certificate then
                                          # judges the handoff pair as usual. The two physics-r8 runs at the
                                          # evaluations of 6M / 6.5M / 7M: seed 44 0.0001 / 0.0 / 0.013 (it escaped
                                          # the hop regime between 5.0M and 6.0M: under the bar from 5.35M, at most
@@ -989,22 +1017,9 @@ hop_watch_after_timesteps = 7000000      # = ent_coef_decay_timesteps in [ppo], 
                                          # seed 44's last evaluation above the bar (5.30M) by 0.7M.
 hop_watch_stop = true                    # Stop rather than warn: a seed still hopping when its entropy has run out
                                          # did not escape on r8. Restart it on a new seed; a stop certifies nothing.
-stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). After the gate
-                                         # report, re-roll the policy and the zero-action statue on 8 seeds with the
-                                         # spawn turned about vertical by each offset -- the animal alone, and with
-                                         # the prey and the heading reward's reference direction (then neither
-                                         # the physics, since r9, nor the observation, since policy interface
-                                         # r14, differs) -- beside an unturned control, and write
-                                         # stance_heading_probe.{txt,json}. The stance stage always spawns facing
-                                         # +x and up to r13 the observation carried heading only through the
-                                         # world-frame pelvis quaternion, velocity and prey direction, so no bar saw a
-                                         # stance that reads its heading: the r8 seed 44 stood 0/8 spawned at +90 deg and
-                                         # seed 42 fell 4/4 at +-90, where the statue stands 16/16 (reward about 100
-                                         # lower with the prey left behind: the heading term). Whether stance
-                                         # certification should require heading robustness was decided by the
-                                         # maintainer on 2026-10-07: heading-free observations, carried out in
-                                         # policy interface r14 (D-D31), and a later PR that makes this probe a gate
-                                         # check (docs/KNOWN_ISSUES.md). 18 panels of 8 episodes.
+# stance_probe_spawn_yaw_deg (the report-only heading probe, D-D27) is not declared: the six-heading
+# certificate above rolls every seed at every heading, and the probe's whole-scene rows were replays of its
+# first 8 seeds at four of them. Config load refuses the key beside the certificate (D-D32).
 stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
@@ -1043,11 +1058,11 @@ stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re
                                          # The probe scores a MODIFIED policy: its own filenames, never
                                          # stance_panel_selected.csv, and its verdict is not a gate result.
                                          #
-                                         # Unchanged under stance_quality/v2: every probe here re-scores the
+                                         # Unchanged under the floor-truth kinds: every probe here re-scores the
                                          # selected checkpoint into the v1-shaped report it always wrote, with no
-                                         # floor-truth recorder and no statue panel, beside the v2 gate report
-                                         # (whose per-actuator DC and settle_steps the hold, release and impulse
-                                         # probes read).
+                                         # floor-truth recorder and no statue panel, beside the six-heading
+                                         # certificate (whose 0 deg cell's per-actuator DC and settle_steps the
+                                         # hold, release and impulse probes read).
 stance_probe_hold_constant = true        # After the gate report, re-score the SAME checkpoint with its commanded
                                          # action FROZEN to the constant it averages, and write
                                          # stance_gate_probe_constant.{txt,json}. Unset to skip.

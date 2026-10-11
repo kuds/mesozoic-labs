@@ -31,21 +31,26 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TRexEnv` kwarg that is inert at its default and set in `configs/trex/stance.toml`
 
 ### Stance gate
-The stance stage certifies under `stance_quality/v2` (decision D-D24; its bars revised by D-D27 and D-D28): each
+The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (decision D-D32), which
+applies the `stance_quality/v2` decision (decision D-D24; its bars revised by D-D27 and D-D28) at each of six
+whole-scene headings. Under v2 each
 episode of the 40-episode panel (seeds 3042-3081) is classified on floor truth, the floor's normal force under each
 leg on every physics substep, and the stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80
 (37 of 40). An episode is clean when it reaches the horizon with no hop or stomp in the settle window, both feet down
 and loaded, no drift or chatter, no actuator held at its limit, flat pads (tilt, corner lift and contact points)
 pushed on along their length rather than on an edge (the pad's fore-aft centre of pressure, D-D28), at most one
 re-plant in the settle and no more than 25° of turning; and at most one of the 40 may hop for the whole episode or
-fall. The bars and their measured provenance are in `configs/trex/stance.toml`. The verdict is the post-stage
-`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
-a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
-report only: the stance stage always spawns at the same heading, and the heading certificate that will make heading a
-gate check is a later PR; the heading-free observations the maintainer chose on 2026-10-07 are carried out (policy
-interface r14, above), so a whole-scene turn no longer changes what the policy sees (`docs/KNOWN_ISSUES.md`). Until then a
-whole-scene row whose full-horizon fraction is below 0.95, the v2 per-panel rail, is warned of without blocking, in the
-probe's text and wherever the stance is handed on or reused (the maintainer's decision of 2026-10-11). The first two
+fall. The bars and their measured provenance are in `configs/trex/stance.toml`. The stance stage always spawns at
+the same heading, so the certificate rolls the panel again with the whole scene (the animal, the prey and the heading
+reward's reference direction) turned −90°, −45°, 45°, 90° and 180°, each heading against the statue rolled at it, and
+passes only when every heading passes v2 and the lower bound on seeds clean at every heading reaches 0.80: the seed-52
+stance `20261009_155723`, which passed v2 and falls when turned −45° or −90°, fails it. The heading-free observations
+the maintainer chose on 2026-10-07 are carried out too (policy interface r14, above), so a whole-scene turn no longer
+changes what the policy sees, and a heading that fails where 0° passes points at rounding the policy's closed loop
+amplifies (`docs/KNOWN_ISSUES.md`). The verdict is the post-stage `stance_heading_report.json` (and its grid,
+`stance_heading_panel_selected.csv`) on the handoff checkpoint pair, never an in-training evaluation; it costs 12
+panels, about 13 minutes. It replaces the report-only heading probe (D-D27), which the stance no longer declares. The
+first two
 physics-r8 stances (`20261006_185343`, `20261006_185704`) both failed this gate; what they did and what decision D-D27
 changed in response is §9 of
 [`docs/investigations/STANCE_HACK_AUDIT_2026_10.md`](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), and the

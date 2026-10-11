@@ -423,43 +423,89 @@ class TestStanceReports:
 
     def test_gate_current_refuses_a_report_scored_under_another_gate(self, tmp_path):
         """The one real-world use of ``--gate current`` on a stance directory: refused, never a false
-        certificate under the moved gate.  Trex stance now declares ``stance_quality/v2`` (D-D24), whose
-        arm admits only a v3 report the v2 code scored on this handoff pair; a v1 report scored under the
-        1940 rail (whose 1950 would also fail the current 2250 rail) describes neither."""
+        certificate under the moved gate.  Trex stance now declares the six-heading certificate
+        ``stance_quality_heading/v1`` (D-D32; ``stance_quality/v2`` from D-D24), whose arm admits only a
+        ``stance_heading_report.json`` the heading code scored on this handoff pair; the directory holds
+        none, and a v1 report scored under the 1940 rail (whose 1950 would also fail the current 2250
+        rail) is not one under any name."""
         current = load_all_stages("trex")[1]["curriculum_kwargs"]
-        assert current["gate_kind"] == "stance_quality/v2" and current["min_avg_reward"] == 2250.0
+        assert current["gate_kind"] == "stance_quality_heading/v1" and current["min_avg_reward"] == 2250.0
         stage_dir = _stance_stage_dir(
             tmp_path, recorded=STANCE_CURRICULUM_AT_1940, report=_stance_report(STANCE_CURRICULUM_AT_1940)
+        )
+        with pytest.raises(BackfillError, match=r"stance_heading_report\.json is missing"):
+            backfill_gate_verdict(stage_dir, gate="current", force=True)
+        assert read_gate_verdict(stage_dir) is None
+        # Renamed into the certificate's place, the v1 report is still refused by name.
+        (stage_dir / "stance_heading_report.json").write_text(
+            (stage_dir / "stance_gate_report.json").read_text(encoding="utf-8"), encoding="utf-8"
         )
         with pytest.raises(BackfillError) as excinfo:
             backfill_gate_verdict(stage_dir, gate="current", force=True)
         message = str(excinfo.value)
-        assert "cannot back a stance_quality/v2 verdict under the current 'stance' block" in message
-        assert "not 'mesozoic.stance-gate-report/v3'" in message
-        assert "min_avg_reward: judged at 1940.0, configured 2250.0 now" in message
+        assert "cannot back a stance_quality_heading/v1 verdict under the current 'stance' block" in message
+        assert "not 'mesozoic.stance-heading-report/v1'" in message
         assert "notebook JUDGE branch" in message
         assert read_gate_verdict(stage_dir) is None
+        (stage_dir / "stance_heading_report.json").unlink()
         # The same evidence still backfills under the gate it was scored under.
         backfill_gate_verdict(stage_dir, gate="recorded")
         assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(
             gate_config_view(STANCE_CURRICULUM_AT_1940)
         )
-        # And under the current gate once a report scored under it is on disk: the
-        # synthetic v2 panel re-derives, so its verdict is written -- the FAIL it
-        # re-derives to, since its statue-like episodes score 1000 against the
-        # 2250 rail, which still applies under v2.
+        # And under the current gate once a certificate scored under it is on disk:
+        # the synthetic grid re-derives, so its verdict is written -- the FAIL it
+        # re-derives to, since its statue-like episodes score 1000 at every heading
+        # against the 2250 rail, which still applies at each.
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import heading_report
+        from .stance_v2_helpers import stage_record
+
+        heading_dir = tmp_path / "20261010_120000" / "01_stance"
+        stage_record(heading_dir, current)
+        write_stance_heading_report(heading_dir, heading_report(heading_dir, current))
+        backfill_gate_verdict(heading_dir, gate="current")
+        verdict = read_gate_verdict(heading_dir)
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
+        assert verdict["passed"] is False and verdict["stage_result"]["stance_heading_clean_seeds"] == 40
+        assert len(verdict["failures"]) == 6
+        assert all("mean_reward 1000.0 < 2250.0 (rail)" in failure for failure in verdict["failures"])
+
+    def test_gate_current_on_a_v2_stance_refuses_another_gate_and_re_derives_its_own(self, tmp_path):
+        """``--gate current`` on a stance whose current gate is still ``stance_quality/v2`` (the velociraptor's,
+        which D-D32 left unchanged): a v2 report scored under an older rail is refused, never re-scored; one the
+        v2 code scored under the current block re-derives, so its verdict is written -- the FAIL it re-derives
+        to, since its statue-like episodes score 1000 against the 1710 rail."""
         from environments.shared.reporting.stance_report import write_stance_gate_report
 
         from .stance_v2_helpers import stage_record, v2_report
 
+        current = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
+        assert current["gate_kind"] == "stance_quality/v2" and current["min_avg_reward"] == 1710.0
+        older = {**current, "min_avg_reward": 900.0}
+        stale_dir = tmp_path / "20261009_120000" / "01_stance"
+        stage_record(stale_dir, older, species="velociraptor")
+        write_stance_gate_report(stale_dir, v2_report(stale_dir, older, species="velociraptor"))
+        with pytest.raises(BackfillError) as excinfo:
+            backfill_gate_verdict(stale_dir, gate="current", force=True)
+        message = str(excinfo.value)
+        assert "cannot back a stance_quality/v2 verdict under the current 'stance' block" in message
+        assert "min_avg_reward: judged at 900.0, configured 1710.0 now" in message
+        assert "notebook JUDGE branch" in message
+        assert read_gate_verdict(stale_dir) is None
+        # The same evidence still backfills under the gate it was scored under.
+        backfill_gate_verdict(stale_dir, gate="recorded")
+        assert read_gate_verdict(stale_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(older))
+
         v2_dir = tmp_path / "20261010_120000" / "01_stance"
-        stage_record(v2_dir, current)
-        write_stance_gate_report(v2_dir, v2_report(v2_dir, current))
+        stage_record(v2_dir, current, species="velociraptor")
+        write_stance_gate_report(v2_dir, v2_report(v2_dir, current, species="velociraptor"))
         backfill_gate_verdict(v2_dir, gate="current")
         verdict = read_gate_verdict(v2_dir)
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
         assert verdict["passed"] is False and verdict["stage_result"]["stance_clean_count"] == 40
-        assert verdict["failures"] == ["stage 1 mean_reward 1000.0 < 2250.0 (rail)"]
+        assert verdict["failures"] == ["stage 1 mean_reward 1000.0 < 1710.0 (rail)"]
 
     def test_a_report_that_disagrees_with_the_recorded_block_is_refused_under_the_default_too(self, tmp_path):
         """A stale report beside an edited stage_config.json proves nothing about the recorded gate either."""
@@ -659,4 +705,93 @@ class TestStanceV2Reports:
         path.write_text(json.dumps(report), encoding="utf-8")
         with pytest.raises(BackfillError, match=message):
             backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+
+class TestStanceHeadingCertificates:
+    """The six-heading certificate (decision D-D32): backfilled from its own report or refused -- never a FAIL
+    written for want of it, and never from the yaw-zero v2 report beside it."""
+
+    @staticmethod
+    def _stage(tmp_path: Path, *, run: str = "20261012_120000", **report_kwargs: Any) -> Path:
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, heading_report
+        from .stance_v2_helpers import stage_record
+
+        stage_dir = tmp_path / run / "01_stance"
+        stage_dir.mkdir(parents=True)
+        stage_record(stage_dir, HEADING_CURRICULUM)
+        write_stance_heading_report(stage_dir, heading_report(stage_dir, **report_kwargs))
+        return stage_dir
+
+    def test_a_heading_directory_is_backfilled_from_its_certificate(self, tmp_path):
+        from .stance_heading_helpers import HEADING_CURRICULUM
+
+        stage_dir = self._stage(tmp_path)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True and verdict["judged_by"] == BACKFILL_JUDGED_BY
+        assert verdict["gate_kind"] == "stance_quality_heading/v1"
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(HEADING_CURRICULUM))
+        assert verdict["stage_result"]["stance_heading_clean_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_n_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == pytest.approx(0.9278, abs=1e-4)
+
+    def test_the_numbers_written_are_the_re_derived_ones(self, tmp_path):
+        """A bound edited in the certificate's result block (which the judge does not cross-check) is not copied."""
+        from .stance_heading_helpers import FALL
+
+        stage_dir = self._stage(tmp_path, defects={(index, 90.0): FALL for index in range(2)})
+        path = stage_dir / "stance_heading_report.json"
+        certificate = json.loads(path.read_text(encoding="utf-8"))
+        honest = dict(certificate["result"])
+        certificate["result"].update(n_seeds=400, clean_seed_fraction=1.0, clean_seed_lcb=0.99)
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["stance_heading_n_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_clean_seeds"] == 38
+        assert verdict["stage_result"]["stance_heading_clean_seed_fraction"] == 38 / 40
+        assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == honest["clean_seed_lcb"] < 0.9
+
+    def test_a_failing_certificate_is_written_as_the_fail_it_re_derives_to(self, tmp_path):
+        from .stance_heading_helpers import SEED_52_FALLS
+
+        stage_dir = self._stage(tmp_path, defects=SEED_52_FALLS)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is False
+        assert any("heading -90" in failure for failure in verdict["failures"])
+
+    def test_a_heading_directory_with_only_a_v2_report_is_refused(self, tmp_path):
+        from environments.shared.reporting.stance_report import write_stance_gate_report
+
+        from .stance_v2_helpers import V2_CURRICULUM, v2_report
+
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "stance_heading_report.json").unlink()
+        write_stance_gate_report(stage_dir, v2_report(stage_dir, V2_CURRICULUM))
+        with pytest.raises(BackfillError, match=r"stance_heading_report\.json is missing"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_an_inadmissible_certificate_is_refused_and_writes_nothing(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "models" / "robust_best_model.zip").write_bytes(b"retrained after judging")
+        with pytest.raises(BackfillError) as excinfo:
+            backfill_gate_verdict(stage_dir)
+        assert "cannot back a stance_quality_heading/v1 verdict" in str(excinfo.value)
+        assert "not the handoff robust_best_model's" in str(excinfo.value)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_a_hand_edited_cell_is_refused_not_raised(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        path = stage_dir / "stance_heading_report.json"
+        certificate = json.loads(path.read_text(encoding="utf-8"))
+        certificate["headings"][0]["episode_evidence"] = 1
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        with pytest.raises(BackfillError, match="certificate cannot be re-derived"):
+            backfill_gate_verdict(stage_dir, force=True)
         assert not (stage_dir / GATE_VERDICT_FILENAME).exists()

@@ -36,13 +36,14 @@ import numpy as np
 
 from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv
 from environments.shared.config import load_stage_config
+from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
 from environments.trex.envs.trex_env import TRexEnv
 
 #: The heading-free species and their environments.
 HEADING_FREE_ENVS = {"trex": TRexEnv, "compsognathus": CompsognathusBiologicalEnv}
-#: The certificate's heading grid, in degrees.
-HEADINGS_DEG = (-90.0, -45.0, 0.0, 45.0, 90.0, 180.0)
+#: The certificate's heading grid, in degrees (``whole_scene_yaw/v1``, D-D32).
+HEADINGS_DEG = HEADING_GRID_DEG
 FLOAT32_BUDGET = 2e-6
 ACTION_ATOL = 1e-6
 STATE_ATOL = 1e-9

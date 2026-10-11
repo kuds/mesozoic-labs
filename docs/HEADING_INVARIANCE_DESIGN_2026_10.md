@@ -1,6 +1,6 @@
 # Heading-free observations and stance certification
 
-Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; the observation migration is carried out (D-D31, 2026-10-11), the heading certificate is not implemented**.
+Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; both halves are carried out (2026-10-11): the observation migration (D-D31), and the six-heading certificate, implemented and declared by both stances (D-D32)**.
 Repository baseline: `10f859f96223054932bdc4fa883b1153dde78500` (#604).
 
 ## Recommendation
@@ -35,7 +35,9 @@ exist:
 - Handoff tooling warns, without blocking, when any whole-scene row of
   `stance_heading_probe.json` has a full-horizon fraction below 0.95, the v2
   per-panel full-horizon rail. The probe otherwise stays report-only (D-D27)
-  until the certificate below replaces it.
+  until the certificate below replaces it. *The certificate replaced it on
+  the T. rex and anatomical Compsognathus stances the same day (D-D32); the
+  Velociraptor and Compsognathus robot stances keep the warn-only probe.*
 
 This follows the scope already recorded in [NEXT_STEPS](NEXT_STEPS.md): both
 anatomical species together after #604. It does not change Compsognathus robot or
@@ -347,10 +349,10 @@ the ability to request a world direction.
 | `configs/compsognathus/recovery_calibration.json` | Restamp the anatomical calibration's interface/task identity only after verifying unchanged physics and measured environment; preserve its original measurement and numeric calibration. |
 | New `environments/shared/curriculum/stance_heading_gate.py` | Pure grouped-seed decision logic, strict protocol/evidence validation, full reuse of v2 episode classification. |
 | `environments/shared/curriculum/gate_schema.py`, `manager.py`, stage config parsing/fingerprinting | Register the new gate/protocol fields; keep the in-training screen distinct from post-stage certification. |
-| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that held only at multiples of 90° until physics r9 (D-D29), and it still holds only there for a pyramidal-cone plant on box or ellipsoid feet (Brachiosaurus, Dibothrosuchus). |
+| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that held only at multiples of 90° until physics r9 (D-D29), and for the Brachiosaurus and Dibothrosuchus until D-D30; every plant now declares the elliptic cone, which is the reason the docstring gives. *Done with the certificate (D-D32).* |
 | `environments/shared/reporting/gates.py`, `stage_artifacts.py` | Judge the heading certificate before reporting a handoff pass; propagate measurement failures. Leave optional diagnostic probes separately identified. |
 | `environments/shared/result_bundle/evidence.py`, gate verdict/reentry/ancestor consumers | Re-derive the decision from bound rows and protocol; refuse missing or mismatched heading evidence for a new-schema stance. |
-| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. The `stance_probe_spawn_yaw_deg` comment in `configs/trex/stance.toml` needs no correction of its physics, since physics r9 (D-D29) made every T. rex heading physically identical; D-D31 corrected its observation claim (a whole-scene turn changes nothing the r14 policy observes). |
+| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. *Done with the certificate (D-D32):* both stances drop the report-only `stance_probe_spawn_yaw_deg` key and its comment, since the certificate rolls every seed at every heading and config load refuses the key beside it. |
 | `configs/digest_snapshot.generated.txt`, species catalog/generated website data | Regenerate after the schema/gate migration and review the exact scope of changed identities. |
 | Shared/species tests and docs | Frame algebra, lifecycle, negative evidence cases, old-checkpoint refusal, unchanged robot/other species and end-to-end publication refusal. |
 
@@ -482,6 +484,30 @@ protocol/seed identities match and its evidence is immutable.
 Existing v2 artifacts remain readable as historical v2 results. They cannot be
 promoted to the new certificate by attaching an optional heading report.
 
+*Carried out 2026-10-11 as decision D-D32, with the maintainer's choices of
+that day, and declared by `configs/trex/stance.toml` and
+`configs/compsognathus/stance.toml`
+(`environments/shared/curriculum/stance_heading_gate.py`;
+`build_stance_heading_report` in `reporting/stance_report.py`). The grid is
+fixed in code under protocol `whole_scene_yaw/v1`; the kind reuses v2's
+keys, so `min_eval_episodes` and `min_clean_stance_lcb` state both each
+heading's panel and the grouped one; the per-heading statue panels are
+rolled every time (no cached statue grid); the stage writes
+`stance_heading_report.{txt,json}` and `stance_heading_panel_selected.csv`
+and no yaw-zero `stance_gate_report.*`; the judge, publication, the backfill
+tool and reuse (rule 8, at the source; ancestor records copy no
+certificate) re-derive it from its rows; the report-only probe is not
+declared beside it (config load refuses the key); the notebook's
+zero-action preflight scores the 0° cell only; and the 7042–7081 fresh audit
+stays a recorded manual step (`stance_gate_report.py --seed 7042`), which
+the judge refuses as the gate's evidence. Measured on one CPU at 40 seeds:
+the T. rex r9 statue's certificate (six panels) in about 6 minutes, clean
+on 39/40 seeds at every heading (seed 3081's nosedive), grouped bound
+0.887, and the Compsognathus r2 statue's in about 10, clean on 40/40 seeds
+at every heading, grouped bound 0.928; each statue's reward is the same at
+every heading to 1e-10. A checkpoint's certificate, with its six statue
+panels, takes about 13 minutes on the T. rex and 21 on the Compsognathus.*
+
 ## Migration and acceptance
 
 1. Implement the observation schema and explicit SB3 capability decision for
@@ -576,7 +602,10 @@ harness's `--exact` captures of the base and the migration differ only in the
 two species' `reset` and `obs` streams (586 of 37,034 lines): rewards,
 termination and physics match at corresponding states. The Compsognathus
 recovery calibration is restamped. The certificate items (step 2, and grid
-completeness, grouped confidence and the end-to-end refusal) remain.
+completeness, grouped confidence and the end-to-end refusal) are D-D32's,
+carried out the same day (the certificate section above;
+`test_stance_heading_gate.py`, `test_stance_heading_judge.py`,
+`test_stance_heading_report.py` and `test_stance_heading_end_to_end.py`).
 
 The heading certificate multiplies final panel simulation work by six: 240
 policy plus 240 statue episodes per seed block. That is an explicit cost at

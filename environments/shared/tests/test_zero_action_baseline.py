@@ -263,3 +263,36 @@ def test_a_stance_gated_stage_is_judged_by_the_stance_gate_on_the_statue(tmp_pat
         assert result["verdict"] == "CHECK GATE — the stance gate refuses the statue"
         assert "36/40 episodes clean" in out
     assert "FAILS — a statue clears this gate" not in out
+
+
+def test_a_heading_certificate_stage_is_preflighted_at_its_zero_heading_cell_only(monkeypatch):
+    """Decision 5 of 2026-10-11 (D-D32): the notebook preflight judges the statue at 0 deg -- the same block scored
+    by the v2 code the certificate applies at each heading -- and the full six-heading grid runs at certification.
+    The plant's heading invariance is the tests' (every plant declares the elliptic friction cone)."""
+    import copy
+
+    import environments.shared.reporting.stance_report as stance_report
+    from environments.shared.config import load_stage_config
+    from environments.shared.scripts.zero_action_baseline import statue_stance_verdict
+
+    from .stance_heading_helpers import HEADING_CURRICULUM
+
+    monkeypatch.setattr(
+        stance_report, "build_stance_heading_report", lambda *a, **k: pytest.fail("the preflight rolled the grid")
+    )
+    config = copy.deepcopy(load_stage_config("compsognathus", 1))
+    config["env_kwargs"]["max_episode_steps"] = 150
+    config["curriculum_kwargs"] = {
+        **HEADING_CURRICULUM,
+        "min_eval_episodes": 2,
+        "min_clean_stance_lcb": 0.2,
+        "settle_steps": 50,
+        "max_sole_corner_lift_m": 0.003,
+    }
+    record = statue_stance_verdict("compsognathus", 1, config, episodes=2, seed=3042)
+    assert record["gate_kind"] == "stance_quality_heading/v1"
+    assert record["scored_gate_kind"] == "stance_quality/v2"
+    assert record["headings_deg"] == [0.0]
+    assert record["passed"] is True and (record["n_clean"], record["n_episodes"]) == (2, 2)
+    # The caller's block is never relabelled in place.
+    assert config["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"

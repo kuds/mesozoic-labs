@@ -1370,3 +1370,94 @@ class TestSelectTrunk:
             "env_kwargs": {"push_prob": 0.25},
             "plant_identity": trunk_plant().to_dict(),
         }
+
+
+class TestRule8HeadingCertificate:
+    """Reuse rule 8 (decision D-D32): a node whose current gate is the six-heading certificate is reused only on a
+    ``stance_heading_report.json`` the judge admits and whose verdict re-derives to a pass -- the evidence is
+    re-read, never trusted through the passed verdict that rules 2-7 check."""
+
+    @staticmethod
+    def _find_heading(run_dir: Path, **overrides: Any):
+        from .stance_heading_helpers import HEADING_CURRICULUM
+        from .stance_v2_helpers import TASK_SHA256
+
+        return _find(run_dir, current_task_sha256=TASK_SHA256, current_gate_config=HEADING_CURRICULUM, **overrides)
+
+    @staticmethod
+    def _trunk(tmp_path: Path, **report_kwargs: Any) -> tuple[Path, Path]:
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import heading_report, heading_trunk_run
+
+        run = tmp_path / "run"
+        stage_dir = heading_trunk_run(run, passed=True)
+        write_stance_heading_report(stage_dir, heading_report(stage_dir, **report_kwargs))
+        return run, stage_dir
+
+    def test_rule_8_re_derives_a_heading_certificate_before_reuse(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import gates
+
+        run, stage_dir = self._trunk(tmp_path)
+        consulted: list = []
+        real = gates._stance_heading_stage_gate
+        monkeypatch.setattr(
+            gates, "_stance_heading_stage_gate", lambda *a, **k: consulted.append(k["stage_dir"]) or real(*a, **k)
+        )
+        ancestor = self._find_heading(run)
+        assert ancestor.stage_id == "stance" and ancestor.stage_dir == stage_dir
+        assert consulted == [stage_dir]
+
+    def test_a_passed_verdict_whose_heading_certificate_is_missing_is_refused(self, tmp_path):
+        run, stage_dir = self._trunk(tmp_path)
+        (stage_dir / "stance_heading_report.json").unlink()
+        with pytest.raises(AncestorReuseError, match=r"stance_heading_report\.json is absent or unreadable.*rule 8"):
+            self._find_heading(run)
+        (stage_dir / "stance_heading_report.json").write_text("{truncated", encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match="absent or unreadable"):
+            self._find_heading(run)
+
+    def test_a_passed_verdict_whose_certificate_rows_fail_is_refused(self, tmp_path):
+        from .stance_heading_helpers import SEED_52_FALLS
+
+        run, stage_dir = self._trunk(tmp_path, defects=SEED_52_FALLS)
+        assert read_gate_verdict(stage_dir)["passed"] is True  # the forged or stale PASS rules 2-7 accept
+        with pytest.raises(AncestorReuseError, match=r"does not re-derive to a passing .*\(reuse rule 8\)") as excinfo:
+            self._find_heading(run)
+        assert "heading -90" in str(excinfo.value)
+        # A certificate edited after judging: one fall at -90 under a clean flag that says it stood.
+        run, stage_dir = self._trunk(tmp_path / "edited")
+        path = stage_dir / "stance_heading_report.json"
+        certificate = json.loads(path.read_text(encoding="utf-8"))
+        certificate["headings"][0]["episode_evidence"][0]["length"] = 75
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match=r"reuse rule 8.*clean flags differ"):
+            self._find_heading(run)
+        # A cell's rows replaced by a scalar: refused by name, never a TypeError out of trunk selection.
+        certificate["headings"][0]["episode_evidence"] = 1
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match=r"reuse rule 8.*cannot be re-derived"):
+            self._find_heading(run)
+
+    def test_a_certificate_the_judge_cannot_read_is_a_refusal_not_a_crash(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import gates
+
+        run, _ = self._trunk(tmp_path)
+
+        def broken(*args: Any, **kwargs: Any) -> Any:
+            raise TypeError("'int' object is not iterable")
+
+        monkeypatch.setattr(gates, "_stance_heading_stage_gate", broken)
+        with pytest.raises(AncestorReuseError, match=r"could not be judged \(TypeError: .*\(reuse rule 8\)"):
+            self._find_heading(run)
+
+    def test_rule_8_applies_only_to_the_heading_kind(self, tmp_path):
+        """A v2 or v1 node is reused on its verdict as before: no certificate is read or required."""
+        from .stance_v2_helpers import TASK_SHA256, V2_CURRICULUM
+
+        run = tmp_path / "run"
+        build_trunk_run(run, curriculum=V2_CURRICULUM, task_sha256=TASK_SHA256)
+        assert _find(run, current_task_sha256=TASK_SHA256, current_gate_config=V2_CURRICULUM).stage_id == "stance"
+        other = tmp_path / "v1"
+        build_trunk_run(other)
+        assert _find(other).stage_id == "stance"

@@ -1,7 +1,9 @@
-"""The T-Rex stance stage's ``stance_quality/v2`` declaration (decision D-D24, 2026-10-06).
+"""The T-Rex stance stage's floor-truth declaration (decision D-D24, 2026-10-06; D-D32, 2026-10-11).
 
 ``configs/trex/stance.toml`` moved from ``stance_quality/v1`` to the
-floor-truth gate with physics r8.  Its bars were set on the r8 statue's
+floor-truth gate with physics r8, and to the six-heading certificate
+(``stance_quality_heading/v1``, v2's block judged at six whole-scene
+headings) on 2026-10-11.  Its bars were set on the r8 statue's
 40-episode panel and validated against the four audited r7 checkpoints
 (``docs/investigations/STANCE_HACK_AUDIT_2026_10.md`` §7).  This module pins
 the declaration in the ways that each fail differently:
@@ -37,6 +39,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
     StanceV2Thresholds,
     classify_stance_episode,
 )
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.gait.stance_metrics import episode_stance_metrics, spawn_grace_steps
 
 from .test_gait_stance_metrics import statue_trace
@@ -82,9 +85,15 @@ def _reasons(curriculum: dict[str, Any], **metrics: Any) -> set[str]:
     return {reason.split(":", 1)[0] for reason in classify_stance_episode(episode, thresholds, horizon=1000)}
 
 
-def test_the_stance_declares_the_floor_truth_gate_and_validates_as_it(stage, curriculum):
-    assert curriculum["gate_kind"] == STANCE_GATE_V2_KIND
-    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_GATE_V2_KIND
+def test_the_stance_declares_the_heading_certificate_and_validates_as_it(stage, curriculum):
+    """Since D-D32 the floor-truth block is judged at six whole-scene headings: v2's keys, the certificate's kind."""
+    assert curriculum["gate_kind"] == STANCE_HEADING_GATE_KIND
+    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_HEADING_GATE_KIND
+    # The certificate replaces the report-only heading probe (config load would refuse it beside the kind).
+    assert "stance_probe_spawn_yaw_deg" not in curriculum
+    # It is v2's block under another kind: the v2 decision reads it unchanged at each heading.
+    v2_block = {**curriculum, "gate_kind": STANCE_GATE_V2_KIND}
+    assert validate_gate_config("stance", v2_block, advancement_enabled=True) == STANCE_GATE_V2_KIND
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     env = stage["env_kwargs"]
     thresholds.validate_settle_window(float(env.get("timestep", 0.002)) * int(env.get("frame_skip", 5)))

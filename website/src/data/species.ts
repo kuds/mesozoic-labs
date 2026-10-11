@@ -39,14 +39,16 @@ export interface AdvancementGate {
   recoveryDwellSteps: number | null;
   /** task_success/v1 bar (the binomial LCB95 on task success); null on every other gate kind. */
   minSuccessLcb: number | null;
-  /** stance_quality/v2 bar (the binomial LCB95 on clean episodes) and settle window; null on every other gate kind. */
+  /** stance_quality/v2 bar (the binomial LCB95 on clean episodes; the six-heading certificate's per-heading and
+   * grouped bar too) and settle window; null on every other gate kind. */
   minCleanStanceLcb: number | null;
   settleSteps: number | null;
   /** stance_quality/v2 statue-relative reward rail (a fraction of the statue panel's mean); null when undeclared. */
   minAverageRewardStatueRatio: number | null;
   /** stance_quality/v2 panel rail: the most episodes that may end early or fail a hop-or-fall criterion; null when undeclared. */
   maxHopOrFallEpisodes: number | null;
-  /** stance_quality/v2 per-episode criteria the stage declares, in report order; empty on every other gate kind. */
+  /** stance_quality/v2 per-episode criteria the stage declares (the six-heading certificate's too), in report
+   * order; empty on every other gate kind. */
   stanceEpisodeCriteria: StanceEpisodeCriterion[];
   minEvaluationEpisodes: number;
   requiredConsecutive: number;
@@ -294,7 +296,9 @@ interface RawStage {
     min_eval_episodes: number;
     required_consecutive: number;
     // stance_quality/v2 (species_catalog._STANCE_V2_EXPORTED_KEYS): exported
-    // on a stage that declares the kind and on no other, so optional here.
+    // on a stage that declares the kind or the six-heading certificate
+    // (stance_quality_heading/v1, which declares the same keys) and on no
+    // other, so optional here.
     min_clean_stance_lcb?: number | null;
     settle_steps?: number | null;
     min_avg_reward_statue_ratio?: number | null;
@@ -504,7 +508,8 @@ function adaptDeliverableMetric(metric: RawDeliverableMetric): DeliverableMetric
   };
 }
 
-/** The stance_quality/v2 criteria a stage declares, in gate order; empty on a stage of any other kind. */
+/** The stance_quality/v2 criteria a stage declares (v2 or the six-heading certificate), in gate order; empty on
+ * a stage of any other kind. */
 function adaptStanceEpisodeCriteria(gate: RawStage['advancement_gate']): StanceEpisodeCriterion[] {
   const criteria: StanceEpisodeCriterion[] = [];
   for (const key of STANCE_V2_EPISODE_CRITERIA) {

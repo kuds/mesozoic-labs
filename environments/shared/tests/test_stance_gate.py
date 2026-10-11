@@ -120,7 +120,8 @@ class TestDiscrimination:
 
 
 #: The compsognathus stance that keeps stance_quality/v1: the robot.  The anatomical stance moved to
-#: stance_quality/v2 with its physics r2 (decision D-D26); test_compsognathus_stance_gate_config.py pins it.
+#: stance_quality/v2 with its physics r2 (decision D-D26) and to the six-heading certificate
+#: stance_quality_heading/v1 with D-D32; test_compsognathus_stance_gate_config.py pins it.
 V1_COMPSOGNATHUS = ["compsognathus_robot"]
 
 
@@ -165,11 +166,11 @@ def test_compsognathus_mechanical_gate_matches_trex(species):
     """T-Rex's last v1 block is the source of truth; only the species reward rail differs.
 
     The trex stance itself left v1 with physics r8 and the anatomical compsognathus stance with its
-    physics r2; the robot keeps v1 until its own adoption of stance_quality/v2, so it is held to the
-    block it copied, not to trex's current one.
+    physics r2 (both declare the six-heading certificate since D-D32); the robot keeps v1 until its own
+    adoption of stance_quality/v2, so it is held to the block it copied, not to trex's current one.
     """
-    assert load_all_stages("trex")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality/v2"
-    assert load_all_stages("compsognathus")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality/v2"
+    assert load_all_stages("trex")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"
+    assert load_all_stages("compsognathus")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"
     config = load_all_stages(species)[1]
     assert config["curriculum_kwargs"]["gate_kind"] == TREX_STANCE_V1_CURRICULUM["gate_kind"]
     assert StanceGateThresholds.from_curriculum(config["curriculum_kwargs"]) == replace(

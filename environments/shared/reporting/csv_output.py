@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .formatting import _optional_metric, parse_optional_bool
 
 logger = logging.getLogger(__name__)
@@ -301,6 +302,16 @@ def build_results_csv_rows(
             row["stance_eval_episodes"] = cur.get("min_eval_episodes", "")
             row["stance_clean_count"] = _optional_metric(r.get("stance_clean_count"))
             row["stance_clean_lcb"] = _optional_metric(r.get("stance_clean_lcb"), digits=4)
+        elif cur.get("gate_kind") == STANCE_HEADING_GATE_KIND:
+            # The six-heading certificate (D-D32): the same bar and panel
+            # size, which here state both each heading's panel and the
+            # grouped one, and what the certificate measured -- the seeds
+            # clean at every heading and their grouped bound.  Only on such
+            # a row.
+            row["clean_stance_lcb_threshold"] = cur.get("min_clean_stance_lcb", "")
+            row["stance_eval_episodes"] = cur.get("min_eval_episodes", "")
+            row["stance_heading_clean_seeds"] = _optional_metric(r.get("stance_heading_clean_seeds"))
+            row["stance_heading_clean_seed_lcb"] = _optional_metric(r.get("stance_heading_clean_seed_lcb"), digits=4)
         row["stage_passed"] = r.get("publication_gate_passed", "")
         row["publication_gate_passed"] = r.get("publication_gate_passed", "")
 

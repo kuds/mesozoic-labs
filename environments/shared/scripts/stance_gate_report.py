@@ -1,4 +1,4 @@
-"""Score a saved checkpoint against its stage's stance gate (``stance_quality/v1`` or ``/v2``).
+"""Score a saved checkpoint against its stage's stance gate (``stance_quality/v1``, ``/v2`` or the heading certificate).
 
 Answers one question: **would this policy advance?** It rolls the checkpoint
 on the stage's own configured environment, reduces the episodes with the same
@@ -33,6 +33,20 @@ Usage::
         --vecnorm path/to/robust_best_model_vecnorm.pkl \\
         --hold-constant
 
+A stage that declares ``stance_quality_heading/v1`` (decision D-D32) is
+scored by its six-heading certificate (``build_stance_heading_report``: the
+v2 panel and its statue at each whole-scene turn of -90, -45, 0, 45, 90 and
+180 degrees), and ``--out-dir`` writes ``stance_heading_report.{txt,json}``
+and ``stance_heading_panel_selected.csv``; the hold-constant and impulse
+probes then annotate its 0 degree cell.  ``--seed 7042`` rolls the fresh
+audit grid (seeds 7042-7081), which the judge refuses as evidence for the
+gate -- it is the separately reported audit, a recorded manual step::
+
+    python environments/shared/scripts/stance_gate_report.py trex \\
+        --model path/to/robust_best_model.zip \\
+        --vecnorm path/to/robust_best_model_vecnorm.pkl \\
+        --seed 7042 --out-dir path/to/scratch/fresh_audit
+
 Thresholds come from the stage TOML, so the report re-anchors automatically
 when the gate is retuned.  ``--episodes`` defaults to the stage's own
 ``min_eval_episodes``, because that is the panel size the bound's power is
@@ -54,6 +68,7 @@ if _repo_root not in sys.path:
 
 from environments.shared.config import load_stage_config  # noqa: E402
 from environments.shared.constants import PUBLICATION_SEED_START  # noqa: E402
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_REPORT_SCHEMA  # noqa: E402
 from environments.shared.reporting.stance_report import (  # noqa: E402
     _IMPULSE_SPEEDS,
     REPORT_SCHEMA,
@@ -63,10 +78,12 @@ from environments.shared.reporting.stance_report import (  # noqa: E402
     StanceGateReportError,
     actuator_indices_matching,
     build_stance_gate_report,
+    build_stance_heading_report,
     constant_hold_actions,
     constant_hold_release_variants,
     constant_hold_released,
     constant_hold_variants,
+    heading_zero_panel,
     impulse_variants,
     probe_stem,
     render_constant_hold_ablation,
@@ -83,6 +100,7 @@ from environments.shared.reporting.stance_report import (  # noqa: E402
     write_heading_probe,
     write_impulse_probe,
     write_stance_gate_report,
+    write_stance_heading_report,
     write_stance_panel_evidence,
 )
 
@@ -99,10 +117,12 @@ __all__ = [
     "StanceGateReportError",
     "actuator_indices_matching",
     "build_stance_gate_report",
+    "build_stance_heading_report",
     "constant_hold_actions",
     "constant_hold_release_variants",
     "constant_hold_released",
     "constant_hold_variants",
+    "heading_zero_panel",
     "impulse_variants",
     "probe_stem",
     "render_constant_hold_ablation",
@@ -119,8 +139,24 @@ __all__ = [
     "write_heading_probe",
     "write_impulse_probe",
     "write_stance_gate_report",
+    "write_stance_heading_report",
     "write_stance_panel_evidence",
 ]
+
+
+def hold_source_report(path: "str | Path") -> dict[str, Any]:
+    """The report ``--hold-from-report`` takes the constant from: the file at *path*, as the hold reads it.
+
+    A ``stance_gate_report.json`` is itself; a six-heading certificate
+    (``stance_heading_report.json``, the only stance report a stage that
+    declares ``stance_quality_heading/v1`` writes) keeps its action
+    statistics per heading, so it is read as its 0 deg cell
+    (:func:`heading_zero_panel`), the panel at the training heading.
+    """
+    report: dict[str, Any] = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(report, dict) and report.get("schema") == STANCE_HEADING_REPORT_SCHEMA:
+        return heading_zero_panel(report)
+    return report
 
 
 def main() -> int:
@@ -148,7 +184,11 @@ def main() -> int:
         help="First evaluation seed (default: publication seed)",
     )
     parser.add_argument("--config", help="Explicit stage TOML path")
-    parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
+    parser.add_argument(
+        "--out-dir",
+        help="Also write stance_gate_report.{txt,json} (stance_heading_report.{txt,json} and the grid CSV for a "
+        "stage that declares the six-heading certificate) to this directory",
+    )
     parser.add_argument(
         "--filter-actions",
         type=float,
@@ -169,7 +209,8 @@ def main() -> int:
     parser.add_argument(
         "--hold-from-report",
         metavar="JSON",
-        help="Take the constant from an existing stance_gate_report.json instead of measuring it. "
+        help="Take the constant from an existing stance_gate_report.json (or, on a stage that declares the "
+        "six-heading certificate, stance_heading_report.json, whose 0 deg cell is read) instead of measuring it. "
         "Skips the measurement panel when you already have one for this checkpoint.",
     )
     parser.add_argument(
@@ -230,7 +271,8 @@ def main() -> int:
         help="Comma-separated spawn headings in degrees, e.g. -90,-45,45,90: re-roll the policy and the "
         "zero-action statue with the spawn turned about vertical by each (the animal alone, and with the prey "
         "and the reward's reference direction), beside an unturned control. REPORT ONLY: the stance stage "
-        "always spawns facing +x, so the gate never sees a stance that reads its world heading.",
+        "always spawns facing +x, so the v2 gate never sees a stance that reads its world heading (the "
+        "six-heading certificate, D-D32, does, on the stages that declare it).",
     )
     parser.add_argument(
         "--spawn-yaw-episodes",
@@ -283,19 +325,38 @@ def main() -> int:
         parser.error(f"--episodes must be at least 1, got {args.episodes}")
 
     stage_config = load_stage_config(args.species, args.stage, config_path=args.config)
+    # The six-heading certificate (D-D32) is the verdict of a stage that declares it; a filtered rollout is a
+    # probe and keeps the v1-shaped report on any stage.
+    certificate = (
+        stage_config["curriculum_kwargs"].get("gate_kind") == "stance_quality_heading/v1"
+        and args.filter_actions is None
+    )
     try:
-        report = build_stance_gate_report(
-            args.species,
-            args.stage,
-            stage_config=stage_config,
-            model_path=args.model,
-            vecnorm_path=args.vecnorm,
-            zero_action=args.zero_action,
-            episodes=args.episodes,
-            seed=args.seed,
-            allow_legacy_plant=args.allow_legacy_plant,
-            filter_actions_hz=args.filter_actions,
-        )
+        if certificate:
+            report = build_stance_heading_report(
+                args.species,
+                args.stage,
+                stage_config=stage_config,
+                model_path=args.model,
+                vecnorm_path=args.vecnorm,
+                zero_action=args.zero_action,
+                episodes=args.episodes,
+                seed=args.seed,
+                allow_legacy_plant=args.allow_legacy_plant,
+            )
+        else:
+            report = build_stance_gate_report(
+                args.species,
+                args.stage,
+                stage_config=stage_config,
+                model_path=args.model,
+                vecnorm_path=args.vecnorm,
+                zero_action=args.zero_action,
+                episodes=args.episodes,
+                seed=args.seed,
+                allow_legacy_plant=args.allow_legacy_plant,
+                filter_actions_hz=args.filter_actions,
+            )
     except StanceGateReportError as exc:
         # The CLI boundary is where a diagnosable failure becomes an exit
         # status; inside the library it stays an ordinary exception.
@@ -304,21 +365,25 @@ def main() -> int:
     print(render_stance_gate_report(report))
 
     if args.out_dir:
-        for path in write_stance_gate_report(args.out_dir, report).values():
+        write_report = write_stance_heading_report if certificate else write_stance_gate_report
+        for path in write_report(args.out_dir, report).values():
             print(f"written: {path}")
+    if certificate and args.seed != PUBLICATION_SEED_START:
+        print()
+        print(
+            f"NOTE: seeds {args.seed}-{args.seed + len(report['seeds']) - 1} are not the certification panel "
+            f"({PUBLICATION_SEED_START}-...): this grid is an audit (the fresh audit at 7042 is one), reported "
+            "beside the stage, and the judge refuses it as the gate's evidence."
+        )
+    # The probes below annotate the certificate's 0 deg cell, the v2 panel at the training heading.
+    measured = heading_zero_panel(report) if certificate else report
 
     if args.hold_constant:
+        source_report = hold_source_report(args.hold_from_report) if args.hold_from_report else measured
         try:
-            hold = (
-                constant_hold_actions(json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")))
-                if args.hold_from_report
-                else constant_hold_actions(report)
-            )
+            hold = constant_hold_actions(source_report)
         except StanceGateReportError as exc:
             raise SystemExit(str(exc)) from exc
-        source_report = (
-            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")) if args.hold_from_report else report
-        )
         variants = (
             constant_hold_release_variants(
                 hold,

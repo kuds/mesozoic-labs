@@ -1,8 +1,10 @@
-"""The anatomical compsognathus stance's ``stance_quality/v2`` declaration (decision D-D26, 2026-10-07).
+"""The anatomical compsognathus stance's floor-truth declaration (decision D-D26, 2026-10-07; D-D32, 2026-10-11).
 
 ``configs/compsognathus/stance.toml`` moved from ``stance_quality/v1``, which
 both certified r1 stances cleared while marching on one digit tip, to the
-floor-truth gate with physics r2 and the soft-cubic leg interface.  Its bars
+floor-truth gate with physics r2 and the soft-cubic leg interface, and to
+the six-heading certificate (``stance_quality_heading/v1``, v2's block
+judged at six whole-scene headings) on 2026-10-11.  Its bars
 were set on the r2 statue's 40-episode panel and validated against the two
 certified r1 marches (``20260921_203149`` and ``20261001_225856``), rolled on
 the r1 plant they load on.  This module pins the declaration in the ways
@@ -67,6 +69,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
     StatueReference,
     classify_stance_episode,
 )
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.gait.stance_metrics import (
     STANCE_METRIC_LATER_FIELDS,
     episode_stance_metrics,
@@ -493,9 +496,15 @@ def _without(curriculum: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any
     return loose
 
 
-def test_the_stance_declares_the_floor_truth_gate_and_validates_as_it(stage, curriculum):
-    assert curriculum["gate_kind"] == STANCE_GATE_V2_KIND
-    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_GATE_V2_KIND
+def test_the_stance_declares_the_heading_certificate_and_validates_as_it(stage, curriculum):
+    """Since D-D32 the floor-truth block is judged at six whole-scene headings: v2's keys, the certificate's kind."""
+    assert curriculum["gate_kind"] == STANCE_HEADING_GATE_KIND
+    assert validate_gate_config("stance", curriculum, advancement_enabled=True) == STANCE_HEADING_GATE_KIND
+    assert "stance_probe_spawn_yaw_deg" not in curriculum  # the certificate replaces the report-only probe
+    v2_block = {**curriculum, "gate_kind": STANCE_GATE_V2_KIND}
+    assert validate_gate_config("stance", v2_block, advancement_enabled=True) == STANCE_GATE_V2_KIND
+    # No hop-or-fall rail: unchanged by the certificate (adding one is a separate threshold decision).
+    assert "max_hop_or_fall_episodes" not in curriculum
     thresholds = StanceV2Thresholds.from_curriculum(curriculum)
     env = stage["env_kwargs"]
     thresholds.validate_settle_window(0.002 * int(env["frame_skip"]))

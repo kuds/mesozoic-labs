@@ -1259,9 +1259,9 @@ robustness, **LOW** = cosmetic / QoL.
   7042–7081 before a trex stance is handed on), and no other species declares
   the rail.
 
-- **MEDIUM** — **no stance certificate tests heading, and both r8 trex
-  stances stand only near the heading they trained at (measured
-  2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
+- **MEDIUM** — **only the T. rex and anatomical compsognathus stances
+  certify heading, and both r8 trex stances stand only near the heading
+  they trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
   prey within about ±11°), and up to policy interface r13 the trex
   observation carried heading only in world-frame quantities (the pelvis
   quaternion, the pelvis linear velocity, the prey vector), so a policy could
@@ -1282,13 +1282,22 @@ robustness, **LOW** = cosmetic / QoL.
   and a 25° bar on episode yaw change, which refuses a stance that turns but
   not one that only falls when turned. Fix, decided by the maintainer on
   2026-10-07 (its observation half carried out by D-D31, the update below):
-  heading-free observations for the
-  T. rex and the compsognathus (body orientation without world yaw, linear
-  velocity in the yaw frame, the prey direction relative to the body, and
-  every other world-heading channel), in one cross-species PR after the
-  compsognathus revision (D-D26) lands and before either species trains; the
-  spawn-yaw probe becomes a gate check there, and each species'
-  policy-interface revision moves, so their checkpoints stop loading. The
+  heading-free observations for the T. rex and the
+  compsognathus (body orientation without world yaw, linear velocity in the
+  yaw frame, the prey direction relative to the body, and every other
+  world-heading channel), in one cross-species migration after the
+  compsognathus revision (D-D26) lands and before either species trains,
+  each species' policy-interface revision moving so their checkpoints stop
+  loading; and a gate that sees heading. The gate is carried out
+  (2026-10-11, D-D32): both stances declare the six-heading certificate
+  `stance_quality_heading/v1`, which rolls the 40 certification seeds with
+  the whole scene turned −90, −45, 0, 45, 90 and 180 degrees and passes only
+  when every heading passes the v2 decision and the bound on seeds clean at
+  every heading clears 0.80, so a stance like seed 52's, 40/40 at 0° and
+  0/8 at −90° and −45° in the probe, fails, and handoff, reuse and
+  publication refuse it. It certifies a policy, not the observation: any
+  stance that stands at every heading passes it, whatever its observation
+  reads. The
   velociraptor follows only after the maintainer's two current velociraptor
   runs are reviewed (physics r4, D-D30, strands them; its plant, like every
   species', is on the elliptic cone, so its headings are physically
@@ -1299,10 +1308,10 @@ robustness, **LOW** = cosmetic / QoL.
   yawed ±45° and ±90°, and two 200k-step PPO means are clean with seed 11 at
   +90° and seed 12 at −90° (20/20 each; the stance-hack audit's §11), but no
   trained r2 stance has been rolled turned. No other species' trained stance
-  has been probed. Until then the probe stays report only: its own text
-  (`stance_heading_probe.txt`, from `reporting/stance_report.py`) still reads
-  as D-D27 left it, "report only; decision D-D27 leaves heading robustness
-  open", and the heading PR rewrites it. By the maintainer's decision of
+  has been probed. On the stances without the certificate (the velociraptor
+  and the compsognathus robot) the probe stays report only, and its text
+  (`stance_heading_probe.txt`, from `reporting/stance_report.py`) now names
+  the certificate as the gate where it is declared. By the maintainer's decision of
   2026-10-11 the handoff tooling warns, without blocking, when a whole-scene
   row's full-horizon fraction is below 0.95, the v2 per-panel rail: a
   handoff-warning block in that text, which the
@@ -1311,33 +1320,41 @@ robustness, **LOW** = cosmetic / QoL.
   command-line curriculum starts a node on the stance's handoff, and where
   `record_ancestor` reuses it. The maintainer's approval of the same day
   turns the probe on for the velociraptor, compsognathus and compsognathus
-  robot stances too, as the T. rex stance has it (the two quadrupeds'
+  robot stances too, as the T. rex stance had it (the two quadrupeds'
   reward-and-length stances roll no stance report), and each one's statue
-  stands 8/8 on every row of it. A stage that declares the probe and has none
-  warns that its heading robustness is unmeasured; the command-line
-  curriculum rolls no probe, so every stance it trains of those four species
-  warns so at its handoff. No verdict changes.
+  stands 8/8 on every row of it; on the T. rex and the anatomical
+  compsognathus the certificate replaced the probe the same day (D-D32:
+  config load refuses the key beside the certificate, and the handoff
+  warns instead when the certificate is missing or does not re-derive to a
+  pass, which a manual `train` load, reading no verdict, would otherwise
+  hand on silently). A stage that declares the probe and
+  has none warns that its heading robustness is unmeasured; the
+  command-line curriculum rolls no probe, so every stance it trains of the
+  velociraptor and the compsognathus robot warns so at its handoff. No
+  verdict changes there.
   *Update (2026-10-11, D-D31):* the observation half of the fix is carried
-  out. The T. rex (policy interface r14) and the anatomical compsognathus
+  out too. The T. rex (policy interface r14) and the anatomical compsognathus
   (r4) observe projected gravity, the root velocity in the gravity-aligned
   heading frame and the prey direction in pelvis coordinates
   (`bipedal-target-heading-free/v1`, `configs/plant_versions.toml` note 18),
   so a whole-scene turn leaves their observation unchanged and one seed's
   six headings repeat the same episode to solver tolerance; every T. rex r13
   and compsognathus r3 checkpoint is refused, the probed stances above
-  included. The entry stays open until the heading certificate gates a
-  stance: until then no certificate tests heading, and a heading-free
-  policy can still behave differently turned than at the training heading,
-  though only through floating-point rounding that an unstable closed loop
-  amplifies (an untrained policy behind near-degenerate normalizer
-  statistics diverged by 0.03 in action over 1000 steps; see
-  `environments/shared/tests/test_heading_free_rollouts.py`). The
-  velociraptor and the compsognathus robot still read world-frame
-  channels. The probe's note and the `SpawnYaw` docstring in
-  `reporting/stance_report.py` still say a whole-scene turn changes only the
-  world-frame observation, which for these two species no longer changes at
-  all; the heading certificate's PR rewrites them with the rest of the probe
-  text.
+  included. The certificate above judges each heading's outcome rather
+  than expecting identical traces: a heading-free policy can still behave
+  differently turned than at the training heading, though only through
+  floating-point rounding that an unstable closed loop amplifies (an
+  untrained policy behind near-degenerate normalizer statistics diverged
+  by 0.03 in action over 1000 steps; see
+  `environments/shared/tests/test_heading_free_rollouts.py`). The entry
+  stays open for the velociraptor and the compsognathus robot, which
+  still read world-frame channels and certify no heading. The probe's
+  note and the `SpawnYaw` docstring in `reporting/stance_report.py` say
+  so: a whole-scene turn changes nothing physical on any plant (every
+  plant declares the elliptic cone) and nothing in the T. rex r14 or
+  anatomical compsognathus r4 observation, and it changes only the
+  world-frame channels of the velociraptor's and the compsognathus
+  robot's.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

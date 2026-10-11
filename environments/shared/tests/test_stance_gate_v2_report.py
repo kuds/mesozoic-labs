@@ -427,11 +427,21 @@ COMPSOGNATHUS_HORIZON = 400
 
 def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
     """*species*' stance block on a 3-episode panel at a shortened horizon: every bar it declares but the reward
-    floor, which is set for its 1000 steps."""
+    floor, which is set for its 1000 steps.
+
+    Scored as the yaw-zero ``stance_quality/v2`` panel this file tests: both stances declare the six-heading
+    certificate since D-D32, which classifies each heading's cell under these same bars
+    (``test_stance_heading_report.py`` rolls it).
+    """
     config = copy.deepcopy(load_stage_config(species, 1))
     config["env_kwargs"]["max_episode_steps"] = horizon
     block = {key: value for key, value in config["curriculum_kwargs"].items() if key != "min_avg_reward"}
-    config["curriculum_kwargs"] = {**block, "min_eval_episodes": EPISODES, "min_clean_stance_lcb": 0.3}
+    config["curriculum_kwargs"] = {
+        **block,
+        "gate_kind": STANCE_GATE_V2_KIND,
+        "min_eval_episodes": EPISODES,
+        "min_clean_stance_lcb": 0.3,
+    }
     return config
 
 

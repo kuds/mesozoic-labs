@@ -1075,14 +1075,15 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
-        # A stance_quality/v2 node (the trex stance since D-D24, the velociraptor stance since D-D25) is
-        # judged after its budget from the floor-truth report on its handoff pair, which these stubs never
-        # write; it passes here as every in-training node does through the stubbed CurriculumCallback, so
-        # the walk -- not the gate -- is what this class exercises (test_stance_v2_cli_judge.py judges the
-        # real report path).
+        # A stance_quality/v2 node (the velociraptor stance since D-D25) or a stance_quality_heading/v1
+        # node (the trex stance since D-D32) is judged after its budget from the floor-truth report on its
+        # handoff pair, which these stubs never write; it passes here as every in-training node does
+        # through the stubbed CurriculumCallback, so the walk -- not the gate -- is what this class
+        # exercises (test_stance_v2_cli_judge.py and test_stance_heading_end_to_end.py judge the real
+        # report paths).
         monkeypatch.setattr(
             train_base,
-            "_post_training_stance_v2_verdict",
+            "_post_training_stance_verdict",
             lambda species, stage, config, **kwargs: (
                 True,
                 [],
@@ -1653,8 +1654,9 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_the_walk_records_the_hunt_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
         """train_curriculum passes stage_result= to write_gate_verdict for the task_success node, the
-        post-training result for the stance_quality/v2 stance (the trex stance since D-D24; stubbed by
-        ``_run``), and None for every other kind: the wiring, not only the helper, is pinned."""
+        post-training result for the floor-truth stance (the trex stance's six-heading certificate since
+        D-D32; stubbed by ``_run``), and None for every other kind: the wiring, not only the helper, is
+        pinned."""
 
         def eval_panel(manager):
             if manager.current_stage == 3:
@@ -1667,8 +1669,12 @@ class TestTrainCurriculumWalksTheManifest:
         stage_result = by_id["behavior"]["stage_result"]
         assert (stage_result["success_count"], stage_result["n_success_samples"]) == (20, 30)
         assert stage_result["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert by_id["stance"]["stage_result"] == {"stage": 1, "gate_kind": "stance_quality/v2", "gate_passed": True}
-        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_gate_report"
+        assert by_id["stance"]["stage_result"] == {
+            "stage": 1,
+            "gate_kind": "stance_quality_heading/v1",
+            "gate_passed": True,
+        }
+        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_heading_report"
         assert by_id["locomotion"]["stage_result"] is None
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
@@ -2360,6 +2366,45 @@ class TestTrainRefusesAnUndeclaredParent:
         )
         assert "+90 deg 0.12 (statue 1.00)" in warning.message
 
+    @pytest.mark.parametrize("certificate", ["failing", "missing"])
+    def test_a_certificate_parent_that_is_not_certified_is_loaded_with_a_warning(
+        self, tmp_path, monkeypatch, caplog, certificate
+    ):
+        """D-D32: the manual load reads no verdict, so a parent that declares the six-heading certificate is
+        handed on with a warning unless its certificate re-derives to a pass -- never silently."""
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, seed52_like_report
+        from .stance_v2_helpers import stage_record
+
+        stance_dir = tmp_path / "run" / "01_stance"
+        stage_record(stance_dir, HEADING_CURRICULUM)
+        report = seed52_like_report(stance_dir)  # also writes the robust_best_model handoff pair
+        if certificate == "failing":
+            write_stance_heading_report(stance_dir, report)
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
+            outcome, _ = self._train(
+                tmp_path,
+                monkeypatch,
+                parent_stage=1,
+                child_stage="recovery",
+                parent_stem=stance_dir / "models" / "robust_best_model",
+            )
+
+        assert outcome == "passed-the-check"
+        (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert warning.message.startswith(
+            f"Stage recovery enters on the handoff of {stance_dir}, whose heading probe warns: "
+            f"{stance_dir / 'stance_heading_report.json'} "
+            + (
+                "does not re-derive to a passing certificate"
+                if certificate == "failing"
+                else "is missing although the stage declares the six-heading certificate"
+            )
+        )
+        assert warning.message.endswith("heading robustness is uncertified (stance_quality_heading/v1, D-D32)")
+
     @staticmethod
     def _stance_dir_whose_probe_warns(tmp_path, *, policy_fraction=0.0):
         """``run/01_stance`` with a heading probe the policy falls on and a ``robust_best_model`` handoff pair."""
@@ -2834,7 +2879,7 @@ class TestOneStageBody:
         # real report path).
         monkeypatch.setattr(
             train_base,
-            "_post_training_stance_v2_verdict",
+            "_post_training_stance_verdict",
             lambda species, stage, config, **kwargs: (
                 True,
                 [],

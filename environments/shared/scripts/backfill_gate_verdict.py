@@ -32,6 +32,14 @@ evidence the directory already holds, through the one shared judge
   missing report is a refusal, and so is one whose rows predate a metric a
   declared criterion reads (``StanceEpisodeMetrics`` fields added later,
   such as the pad's fore-aft centre of pressure): re-roll its panel;
+* ``stance_quality_heading/v1`` (the six-heading certificate, D-D32) --
+  from ``stance_heading_report.json`` ONLY, refused (never written as a
+  FAIL) unless the judge would admit it
+  (``reporting.gates.stance_heading_report_refusals``: the v2 bindings plus
+  protocol, grid, certification seeds, determinism, frozen normalization
+  and gate digest, then the re-derivation from every (seed, heading) row).
+  A directory holding only a ``stance_quality/v2`` report is refused: a
+  yaw-zero panel certifies nothing for this kind;
 * ``reward_and_length/v1`` — from the selected checkpoint's
   ``evaluation_selected.csv`` when its rows are hash-bound to the handoff
   checkpoint, else from ``evaluations.npz`` / ``metrics.json`` (the
@@ -220,10 +228,19 @@ def backfill_gate_verdict(
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
     from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+    from environments.shared.curriculum.stance_heading_gate import (
+        STANCE_HEADING_GATE_KIND,
+        STANCE_HEADING_REPORT_JSON,
+        StanceHeadingResult,
+    )
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
-    from environments.shared.reporting.gates import _current_task_sha256, stance_v2_report_refusals
-    from environments.shared.reporting.stage_artifacts import stance_v2_stage_result
+    from environments.shared.reporting.gates import (
+        _admit_stance_heading_report,
+        _current_task_sha256,
+        stance_v2_report_refusals,
+    )
+    from environments.shared.reporting.stage_artifacts import stance_heading_stage_result, stance_v2_stage_result
     from environments.shared.result_bundle import GATE_VERDICT_FILENAME, write_gate_verdict
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
@@ -283,6 +300,7 @@ def backfill_gate_verdict(
             "from evidence; re-judge the node through the notebook chain, which rolls the panel"
         )
     stance_report: dict[str, Any] | None = None
+    rederived_certificate: StanceHeadingResult | None = None
     if gate_kind == STANCE_GATE_KIND:
         stance_report = _load_json(stage_path / "stance_gate_report.json", what="stance_gate_report.json")
         if not isinstance(stance_report, Mapping):
@@ -312,6 +330,26 @@ def backfill_gate_verdict(
                 f"{stage_path / 'stance_gate_report.json'} cannot back a {gate_kind} verdict under the {gate} "
                 f"{entry.id!r} block: {'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch "
                 "/ generate_stage_artifacts, which rolls a fresh panel on the handoff pair under the current gate"
+            )
+    elif gate_kind == STANCE_HEADING_GATE_KIND:
+        certificate_path = stage_path / STANCE_HEADING_REPORT_JSON
+        stance_report = _load_json(certificate_path, what=STANCE_HEADING_REPORT_JSON)
+        if not isinstance(stance_report, Mapping):
+            raise BackfillError(f"{certificate_path} must hold a JSON object")
+        stance_report = dict(stance_report)
+        # The judge's own admissibility check, as for v2: a certificate that
+        # does not describe this gate, protocol, grid, measurement, handoff or
+        # task -- or does not re-derive from its rows -- is a REFUSAL, never a
+        # FAIL verdict that reads as "judged and failed".  The re-derivation is
+        # kept: its numbers, not the report's result block, are what is copied.
+        refusals, rederived_certificate = _admit_stance_heading_report(
+            curriculum, stance_report, stage=entry.reference, stage_dir=stage_path
+        )
+        if refusals:
+            raise BackfillError(
+                f"{certificate_path} cannot back a {gate_kind} verdict under the {gate} {entry.id!r} block: "
+                f"{'; '.join(refusals)}. Re-judge the node through the notebook JUDGE branch / "
+                "generate_stage_artifacts, which rolls the six-heading certificate on the handoff pair"
             )
 
     stage_config = {
@@ -362,6 +400,8 @@ def backfill_gate_verdict(
     if gate_kind == STANCE_GATE_V2_KIND:
         # The numbers the re-derived verdict was judged on (admitted above).
         stage_results.update(stance_v2_stage_result(stance_report))
+    elif gate_kind == STANCE_HEADING_GATE_KIND:
+        stage_results.update(stance_heading_stage_result(stance_report, rederived=rederived_certificate))
     stage_results["gate_kind"] = gate_kind
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed

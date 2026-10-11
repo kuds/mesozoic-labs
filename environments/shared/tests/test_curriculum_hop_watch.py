@@ -110,7 +110,7 @@ class TestSettings:
     def test_the_keys_configure_early_stopping_not_the_gate(self):
         assert set(HOP_WATCH_KEYS) <= _COLLAPSE_KEYS
         curriculum = load_stage_config("trex", "stance")["curriculum_kwargs"]
-        assert validate_gate_config("stance", curriculum) == "stance_quality/v2"
+        assert validate_gate_config("stance", curriculum) == "stance_quality_heading/v1"
 
 
 class TestReplay:

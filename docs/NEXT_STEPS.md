@@ -352,8 +352,8 @@ research-only, not a trunk; that handoff tooling warns, without blocking, on a
 whole-scene probe row below 0.95; that the certificate is the full six-heading
 grid under gate kind `stance_quality_heading/v1`; and that T. rex moves to an
 elliptic friction cone as its own physics revision before its first
-heading-free stance.* The observation migration is carried out (D-D31,
-below); the certificate is pending.
+heading-free stance.* The observation migration and the certificate are
+carried out (D-D31 and D-D32, below).
 *2026-10-11: the cone is carried out as trex physics r9 (D-D29,
 `configs/plant_versions.toml` note 16), so the first heading-free trex stance
 trains on physics r9 and policy interface r14, and no trex trains in between
@@ -366,12 +366,25 @@ load fewer contact points than on r8 (KNOWN_ISSUES' fore-aft entry).*
 its velocity in the gravity-aligned heading frame and the prey direction in
 pelvis coordinates (policy interface r14, 63 wide, SB3-only), so the next
 trex stance trains on physics r9 and policy interface r14 with fresh weights
-and normalizer statistics, and nothing older loads into it. Until the
-heading certificate gates the stance, read its probe's whole-scene rows: the
-observation and the physics no longer depend on the heading, so a
-whole-scene row that differs from the unturned one can only come from
-floating-point rounding that the policy's closed loop amplifies, which is
-worth knowing about a stance before it is handed on.*
+and normalizer statistics, and nothing older loads into it. The
+observation and the physics no longer depend on the heading, so a heading
+of the certificate below that differs from the unturned one can only come
+from floating-point rounding that the policy's closed loop amplifies; the
+certificate judges each heading's outcome, so such a stance fails there
+rather than being handed on.*
+
+*2026-10-11: the certificate is carried out (D-D32): the trex and
+compsognathus stances declare `stance_quality_heading/v1`, so the
+post-stage pipeline judges each seed on its publication grid, seeds
+3042–3081 at each whole-scene heading −90, −45, 0, 45, 90 and 180° with the
+statue at each (about 13 minutes per trex checkpoint, 21 per compsognathus
+one), and a FAIL there blocks the handoff, reuse and publication. The fresh
+audit is the same grid on 7042–7081 and stays a recorded manual step:
+`stance_gate_report.py trex --model … --vecnorm … --seed 7042 --out-dir
+<a scratch directory>` (never the stage directory: the judge refuses that
+grid as the gate's evidence). The r9 statue scores 39/40 seeds clean at
+every heading (seed 3081), as at 0°, so the hop-or-fall rail's allowance is
+the same per heading.*
 
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and
@@ -386,14 +399,16 @@ world heading, would be stranded by it, and no stance needs rolling at spawn
 yaw ±90° by hand. *2026-10-11: those observations are carried out (D-D31,
 `configs/plant_versions.toml` note 18): the anatomical compsognathus trains on
 policy interface r4 (55 wide), its recovery calibration restamped for it; the
-certificate gate follows separately.* Then the maintainer trains at least two seeds; keep the
+certificate gate is D-D32's (below).* Then the maintainer trains at least two seeds; keep the
 stance recipe's `log_std_init` −2.0, because the r2 statue survives σ 0.135
 exploration noise on 151 of 160 episodes and σ 0.20 on none (KNOWN_ISSUES).
 Also count each certified stance's per-foot lift-offs and view its root
 height over the window before using it: on this plant `stance_quality/v2`
 certifies a soft two-foot bounce, a one-foot flutter and a fast weight
 shuttle (KNOWN_ISSUES; the recipe review's amendment says what to compare
-against).*
+against).* *2026-10-11: the gate check is the six-heading certificate
+(D-D32, the trex note above), which the compsognathus stance declares too;
+its r2 statue is clean on 40/40 seeds at every heading.*
 
 Notes:
 
@@ -695,10 +710,9 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   the D-D27 start (`log_std_init = -1.5`) changes that split and whether the
   learning rate the recipe's falsified prediction names matters are open;
   whether a certified stance must be heading-robust (both r8 stances fall
-  when spawned 90° off their training heading) was decided on 2026-10-07; its
-  observation half is carried out for the trex and the anatomical
-  compsognathus (heading-free observations, D-D31) and its gate check is a
-  later PR
+  when spawned 90° off their training heading) was decided on 2026-10-07 and
+  carried out on 2026-10-11 for the trex and the anatomical compsognathus
+  (heading-free observations, D-D31, and the six-heading certificate, D-D32)
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
   §9 and §10; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred

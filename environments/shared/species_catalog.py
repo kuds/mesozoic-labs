@@ -27,6 +27,7 @@ from environments.shared import record_fields
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
 from environments.shared.curriculum.gate_schema import (
+    FLOOR_TRUTH_STANCE_GATE_KINDS,
     GATE_KINDS,
     STANCE_GATE_KIND,
     GateSchemaError,
@@ -38,6 +39,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
     STANCE_GATE_V2_KIND,
     STANCE_V2_THRESHOLD_KEYS,
 )
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
@@ -155,6 +157,18 @@ def _stance_v2_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpe
     ]
 
 
+def _stance_heading_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The six-heading certificate (D-D32) certifies the exact binomial lower
+    # bound on the fraction of SEEDS clean at every heading of its grid --
+    # the grouped statistic, never the pooled episodes -- and the fraction
+    # it bounds follows, as for v2.  Null until the summary carries them
+    # (D-B15).
+    return [
+        ("stance_heading_clean_seed_lcb", "seeds clean at all six headings LCB95", "ratio"),
+        ("stance_heading_clean_seed_fraction", "seeds clean at all six headings", "percent"),
+    ]
+
+
 def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     return [("recovery_success_lcb", "recovery success LCB95", "ratio")]
 
@@ -190,6 +204,7 @@ def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
 _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]]] = {
     STANCE_GATE_KIND: _stance_headline_specs,
     STANCE_GATE_V2_KIND: _stance_v2_headline_specs,
+    STANCE_HEADING_GATE_KIND: _stance_heading_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
     TASK_SUCCESS_GATE_KIND: _task_success_headline_specs,
@@ -469,7 +484,8 @@ def _stage_config_path(species_id: str, stage_ref: "int | str", configs_dir: "Pa
 
 
 #: The ``stance_quality/v2`` keys the catalog exports beside the shared ones,
-#: on a stage that declares the kind and on no other.  Exported only there
+#: on a stage that declares the kind -- or the six-heading certificate
+#: (D-D32), which declares the same keys -- and on no other.  Exported only there
 #: so a stage on any other kind exports exactly the keys it always did: no
 #: committed stage declares v2 yet, and the website adapter
 #: (``website/src/data/species.ts`` ``RawStage.advancement_gate``) declares
@@ -522,10 +538,11 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
             curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
         ),
     }
-    if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND:
-        # stance_quality/v2 (D-D23): its own criteria, declared or null, so
-        # the published gate is the floor-truth one actually enforced rather
-        # than a list that shows only the shared rail and panel size.
+    if curriculum.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS:
+        # stance_quality/v2 (D-D23) and the six-heading certificate (D-D32):
+        # their own criteria, declared or null, so the published gate is the
+        # floor-truth one actually enforced rather than a list that shows
+        # only the shared rail and panel size.
         gate.update({key: curriculum.get(key) for key in _STANCE_V2_EXPORTED_KEYS})
     return gate
 
@@ -1441,6 +1458,42 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
             "when absent)"
         )
         return "; ".join(stance_criteria)
+    # A stance_quality_heading/v1 verdict (the six-heading certificate, D-D32)
+    # is produced once, post-stage, from stance_heading_report.json: the v2
+    # criteria at every heading of the fixed whole-scene grid, each heading's
+    # full v2 decision, and the bound on seeds clean at every heading -- so
+    # min_eval_episodes and min_clean_stance_lcb read as both the per-heading
+    # and the grouped panel. No consecutive-passes tail, as for v2.
+    if gate.get("gate_kind") == "stance_quality_heading/v1":
+        heading_criteria = [
+            f"seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ "
+            f"{gate['min_clean_stance_lcb']:g} over ≥ {gate['min_eval_episodes']} seeds (settle "
+            f"{gate['settle_steps']:g} steps)",
+            f"at every heading, clean stance episodes LCB95 ≥ {gate['min_clean_stance_lcb']:g} over the same seeds",
+        ]
+        per_episode = [
+            f"{key} {'≥' if key.startswith('min_') else '≤'} {gate[key]:g}"
+            for key in EPISODE_CRITERION_KEYS
+            if gate.get(key) is not None
+        ]
+        heading_criteria.append("an episode is clean when it reaches the horizon with " + ", ".join(per_episode))
+        if gate.get("min_full_horizon_fraction") is not None:
+            heading_criteria.append(
+                f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])} at every heading"
+            )
+        if gate.get("max_hop_or_fall_episodes") is not None:
+            heading_criteria.append(f"hop-or-fall episodes ≤ {gate['max_hop_or_fall_episodes']:g} at every heading")
+        if gate["min_avg_reward"] is not None:
+            heading_criteria.append(f"reward rail ≥ {gate['min_avg_reward']:g} at every heading")
+        if gate.get("min_avg_reward_statue_ratio") is not None:
+            heading_criteria.append(
+                f"reward rail ≥ {gate['min_avg_reward_statue_ratio']:g} × the statue's at the same heading"
+            )
+        heading_criteria.append(
+            "verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed "
+            "when absent, never the yaw-zero panel)"
+        )
+        return "; ".join(heading_criteria)
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")

@@ -40,6 +40,8 @@ if _repo_root not in sys.path:
 from environments.shared.config import SPECIES_NAMES, build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
+from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.result_bundle import read_bundle_status
 from environments.shared.species_names import resolve_species_id, species_display_name
@@ -169,18 +171,38 @@ def statue_stance_verdict(species: str, stage: int, stage_cfg: dict, *, episodes
     with ``zero_action=True`` on the same seeds, so it is the one the
     pipeline would reach: the floor-truth panel for v2, the touch-duty panel
     for v1.
+
+    A stage that declares the six-heading certificate (``stance_quality_heading/v1``,
+    D-D32) is judged at its 0 degree cell only -- v2's decision on the statue
+    under the same keys and bars, the maintainer's decision of 2026-10-11:
+    the plant's heading invariance is covered by the tests (every plant
+    declares the elliptic friction cone, and the turned statue repeats the
+    unturned one to solver tolerance), so the notebook session does not pay
+    the five other headings (about 6 minutes on the T. rex, 10 on the
+    compsognathus); the full grid runs at certification.  The record names
+    the cell it scored (``headings_deg``).
     """
     from environments.shared.reporting.stance_report import build_stance_gate_report
 
+    kind = stage_cfg["curriculum_kwargs"].get("gate_kind")
+    scored_cfg = stage_cfg
+    if kind == STANCE_HEADING_GATE_KIND:
+        # The certificate's 0 deg cell: the same block, scored by the v2 code it applies at each heading.
+        scored_cfg = {
+            **stage_cfg,
+            "curriculum_kwargs": {**stage_cfg["curriculum_kwargs"], "gate_kind": STANCE_GATE_V2_KIND},
+        }
     report = build_stance_gate_report(
-        species, stage, stage_config=stage_cfg, zero_action=True, episodes=episodes, seed=seed
+        species, stage, stage_config=scored_cfg, zero_action=True, episodes=episodes, seed=seed
     )
     record = {
-        "gate_kind": report["gate_kind"],
+        "gate_kind": kind,
         "scored_gate_kind": report.get("scored_gate_kind"),
         "passed": bool(report["passed"]),
         "failures": list(report["failures"]),
     }
+    if kind == STANCE_HEADING_GATE_KIND:
+        record["headings_deg"] = [0.0]
     if "result" in report:
         record.update(
             {
