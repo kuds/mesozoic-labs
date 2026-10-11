@@ -10,10 +10,10 @@ legends, notebook tables, the public catalog, and W&B run titles.
 | Stable species ID | Display name | Stance gate |
 |---|---|---|
 | `velociraptor` | Velociraptor Mongoliensis | `stance_quality/v2` |
-| `trex` | Tyrannosaurus Rex | `stance_quality/v2` |
+| `trex` | Tyrannosaurus Rex | `stance_quality_heading/v1` |
 | `brachiosaurus` | Brachiosaurus Altithorax | `reward_and_length/v1` |
 | `dibothrosuchus` | Dibothrosuchus Elaphros | `reward_and_length/v1` |
-| `compsognathus` | Compsognathus Longipes | `stance_quality/v2` |
+| `compsognathus` | Compsognathus Longipes | `stance_quality_heading/v1` |
 | `compsognathus_robot` | Compsognathus Longipes (Robot) | `stance_quality/v1` |
 
 Consistent presentation does not imply identical anatomy or certification

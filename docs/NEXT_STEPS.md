@@ -356,6 +356,18 @@ trains on physics r9 and policy interface r14, and no trex trains in between
 hop-or-fall rail and the sole-contact margin first: the r9 statue nosedives on
 seed 3081, so it uses the rail's whole allowance on 3042–3081, and its pads
 load fewer contact points than on r8 (KNOWN_ISSUES' fore-aft entry).*
+*2026-10-11: the certificate is carried out (D-D32): the trex and
+compsognathus stances declare `stance_quality_heading/v1`, so the
+post-stage pipeline judges each seed on its publication grid, seeds
+3042–3081 at each whole-scene heading −90, −45, 0, 45, 90 and 180° with the
+statue at each (about 13 minutes per trex checkpoint, 21 per compsognathus
+one), and a FAIL there blocks the handoff, reuse and publication. The fresh
+audit is the same grid on 7042–7081 and stays a recorded manual step:
+`stance_gate_report.py trex --model … --vecnorm … --seed 7042 --out-dir
+<a scratch directory>` (never the stage directory: the judge refuses that
+grid as the gate's evidence). The r9 statue scores 39/40 seeds clean at
+every heading (seed 3081), as at 0°, so the hop-or-fall rail's allowance is
+the same per heading.*
 
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and
@@ -374,7 +386,9 @@ Also count each certified stance's per-foot lift-offs and view its root
 height over the window before using it: on this plant `stance_quality/v2`
 certifies a soft two-foot bounce, a one-foot flutter and a fast weight
 shuttle (KNOWN_ISSUES; the recipe review's amendment says what to compare
-against).*
+against).* *2026-10-11: the gate check is the six-heading certificate
+(D-D32, the trex note above), which the compsognathus stance declares too;
+its r2 statue is clean on 40/40 seeds at every heading.*
 
 Notes:
 

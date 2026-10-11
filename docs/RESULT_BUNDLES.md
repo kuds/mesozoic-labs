@@ -103,7 +103,10 @@ which re-derives a `stance_quality/v1`, `reward_and_length/v1` or
 hash-bound to the handoff pair), re-derives a `stance_quality/v2` verdict only
 from a `stance_gate_report.json` the judge admits for the stage's gate,
 measurement definition, handoff pair and recorded task and can re-derive
-from its own rows (decision D-D23), refuses
+from its own rows (decision D-D23), re-derives a `stance_quality_heading/v1`
+verdict only from a `stance_heading_report.json` the judge admits the same
+way and for its protocol, six-heading grid and certification seeds (decision
+D-D32; a directory holding only a v2 report is refused), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
 the panel). The verdict also records the gate it was judged under —
@@ -264,7 +267,14 @@ validator treats disagreements as conflicts.
   reads: a panel rolled before a later metric existed is refused by name
   under a gate that declares its key, and re-rolled), and so is a role
   naming any block other than the registered one (the rows are checked
-  against the role, so the role itself is pinned).  The role is bound per
+  against the role, so the role itself is pinned).  A recorded
+  `stance_quality_heading/v1` PASS (decision D-D32) is re-derived from
+  `stance_heading_panel_selected.csv` alone under the same bindings plus the
+  gate digest of the block the stage records: its seed block must start at
+  the role, and its policy rows (and, where a statue-relative criterion is
+  declared, its statue rows) must be the complete, unique grid of those seeds
+  at the six headings, each heading's stamped statue reference what its
+  statue rows reduce to.  The role is bound per
   evidence file, not through
   `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
   may equal the publication seed;

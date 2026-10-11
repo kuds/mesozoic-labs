@@ -114,42 +114,52 @@ in the notebook) and the CLI `curriculum` command skips it:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
-| 1 / `stance` | Supported upright stance. Anatomical: `stance_quality/v2`, at least 37 of the 40 panel episodes clean on floor truth, reward rails ≥2,740 and ≥0.60 × the statue's. Robot: ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
+| 1 / `stance` | Supported upright stance. Anatomical: `stance_quality_heading/v1`, the `stance_quality/v2` decision at six whole-scene headings and at least 37 of the 40 panel seeds clean at all six on floor truth, reward rails ≥2,740 and ≥0.60 × the statue's. Robot: ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
 | `recovery` (`stand` recipe) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
-The anatomical stance certifies under `stance_quality/v2` (decision D-D26):
-each episode of the 40-episode panel (seeds 3042–3081) is classified on floor
-truth, the floor's normal force under each leg and each support geom on every
-physics substep, and the stance passes when the one-sided 95% lower bound on
-clean episodes reaches 0.80 (37 of 40). An episode is clean when it reaches
-the horizon with no hop or stomp in the 200-step settle window, at most 40
-physics substeps with both feet off the floor and no landing above 2 body
-weights after it (the window hop bars count substeps, because this light
-plant's hop flights last less than half a control step), both feet down and
-loaded, the plantar pad and all three digits of each foot loaded, level
-pads pushed on along their length rather than on an edge (the pad's
-fore-aft centre of pressure, D-D28, 0.70), no drift or re-seat, and no
-actuator held at its limit; the bars and their measured provenance are in
+The anatomical stance certifies under the six-heading certificate
+`stance_quality_heading/v1` (decision D-D32), which applies the
+`stance_quality/v2` decision (decision D-D26) at each of six whole-scene
+headings. Under v2 each episode of the 40-episode panel (seeds 3042–3081) is
+classified on floor truth, the floor's normal force under each leg and each
+support geom on every physics substep, and the stance passes when the
+one-sided 95% lower bound on clean episodes reaches 0.80 (37 of 40). An
+episode is clean when it reaches the horizon with no hop or stomp in the
+200-step settle window, at most 40 physics substeps with both feet off the
+floor and no landing above 2 body weights after it (the window hop bars count
+substeps, because this light plant's hop flights last less than half a control
+step), both feet down and loaded, the plantar pad and all three digits of each
+foot loaded, level pads pushed on along their length rather than on an edge
+(the pad's fore-aft centre of pressure, D-D28, 0.70), no drift or re-seat, and
+no actuator held at its limit; the bars and their measured provenance are in
 [`configs/compsognathus/stance.toml`](../../configs/compsognathus/stance.toml).
 The bars do not see everything: a two-foot bounce that lands softly, a foot
 that lifts for less than half a control step and a fast weight shuttle all
 certify, so check a trained stance's lift-offs by hand
-([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)).
-The verdict is the post-stage `stance_gate_report.json` on the handoff
-checkpoint pair, never an in-training evaluation. The stance reward pays the
-same things: bilateral support, a support-conditioned share of the alive
-bonus, level pads and the animal's own settled stance width on loaded feet,
-the home leg pose and every support geom loaded, and it charges floor impacts,
-airborne substeps and commands parked at their limits or chattering; each is a
-`CompsognathusBiologicalEnv` kwarg that is inert at its default, and recovery
-inherits them. The post-stage report, the robot's too, also writes a heading
-probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by
-±45° and ±90°), which is report only; a whole-scene row whose full-horizon
-fraction is below 0.95 is warned of without blocking, in the probe's text and
-wherever the stance is handed on or reused (the maintainer's decisions of
-2026-10-11; [KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)).
+([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)). The certificate rolls the panel
+with the whole scene (the animal, the target and the episode's reference
+direction) turned −90°, −45°, 0°, 45°, 90° and 180°, each heading against the
+statue rolled at it, and passes only when every heading passes and the lower
+bound on seeds clean at every heading reaches 0.80; the r2 statue is clean on
+40/40 seeds at every heading. The verdict is the post-stage
+`stance_heading_report.json` (and its grid,
+`stance_heading_panel_selected.csv`) on the handoff checkpoint pair, never an
+in-training evaluation; it costs 12 panels, about 21 minutes. The stance
+reward pays the same things: bilateral support, a support-conditioned share of
+the alive bonus, level pads and the animal's own settled stance width on
+loaded feet, the home leg pose and every support geom loaded, and it charges
+floor impacts, airborne substeps and commands parked at their limits or
+chattering; each is a `CompsognathusBiologicalEnv` kwarg that is inert at its
+default, and recovery inherits them. The robot's post-stage report also writes
+a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned
+turned by ±45° and ±90°), which is report only; a whole-scene row whose
+full-horizon fraction is below 0.95 is warned of without blocking, in the
+probe's text and wherever the stance is handed on or reused (the maintainer's
+decisions of 2026-10-11; [KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)). The
+anatomical stance declared the same probe until the certificate replaced it
+the same day.
 
 The robot uses the mechanical stance criteria from
 [Tyrannosaurus Rex's former stance configuration](../../configs/trex/stance.toml)
