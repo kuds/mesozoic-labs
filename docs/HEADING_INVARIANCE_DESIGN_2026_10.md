@@ -195,7 +195,7 @@ Suggested schema name: `bipedal-target-heading-free/v1`.
 
 | Species | Physics revision | Policy revision | Observation dimension | Visual revision |
 |---|---:|---:|---:|---:|
-| T. rex | keep 8 | 13 → 14 | 64 → 63 | keep 4 |
+| T. rex | keep 9 | 13 → 14 | 64 → 63 | keep 4 |
 | Anatomical Compsognathus | keep 2 | 3 → 4 | 56 → 55 | keep 2 |
 
 Use the validated free-root quaternion `data.qpos[3:7]`, normalized in float64,
@@ -239,14 +239,14 @@ isotropic floor, `command_mode = "none"`, no applied pushes, and rotation of:
 A flat, isotropic floor does not make every plant's contact physics
 yaw-invariant. T. rex's box pads on the plane get contact tangent frames aligned
 with the world axes, and with MuJoCo's default pyramidal friction cone
-(`trex.xml` sets no `cone`) their friction is slightly anisotropic. A ±45°
-whole-scene turn is therefore a small physical perturbation as well as an
-observation change, and the current `SpawnYaw` docstring's "changes nothing
-physical" holds for T. rex only at multiples of 90°. This study's own statue rows
-show it: per-episode statue rewards in `rollouts_trex.json` match 0° to
-4.2 × 10⁻¹¹ at −90°, +90° and 180° but differ by up to 0.197 (of about 3,760)
-at ±45°. The 2026-10-10 review measured the rest: at multiples of 90° results
-agree to about 10⁻¹¹; at 45° the statue's v2 metrics barely move (sole tilt by
+(`trex.xml` set no `cone` before physics r9) their friction was slightly
+anisotropic. A ±45° whole-scene turn was therefore a small physical
+perturbation as well as an observation change, and the current `SpawnYaw`
+docstring's "changes nothing physical" held for T. rex only at multiples of 90°.
+This study's own statue rows show it: per-episode statue rewards in
+`rollouts_trex.json` match 0° to 4.2 × 10⁻¹¹ at −90°, +90° and 180° but differ
+by up to 0.197 (of about 3,760) at ±45°. The 2026-10-10 review measured the
+rest: at multiples of 90° results agree to about 10⁻¹¹; at 45° the statue's v2 metrics barely move (sole tilt by
 about 4 × 10⁻³ degrees), though random open-loop actions separate the joint
 trajectories by a few hundredths of a radian; with `cone="elliptic"` every
 compared case agreed to about 10⁻¹⁴. Velociraptor's floor contacts are capsules,
@@ -264,6 +264,21 @@ T. rex's ±45° cells as slightly perturbed physics, not exact replicates: each
 heading is judged against its own statue panel (the per-heading reference in
 the certificate below), and paired traces are compared to solver tolerance only
 where the physics is invariant.
+
+*Carried out 2026-10-11 as T. rex physics r9 (decision D-D29,
+`configs/plant_versions.toml` note 16), before this migration.* Through the
+heading probe's own path (`run_panel` with a whole-scene `SpawnYaw`, seeds
+3042–3049) the statue's ±45° rewards, which differed from 0° by up to
+2.6 × 10⁻² on r8, agree to 3 × 10⁻¹¹ at every heading, and a 45° turn under
+fixed random commands repeats the joint trajectory to 5 × 10⁻¹⁴ rad (7.7 × 10⁻²
+on r8). Only the cone moved. The statue references were re-measured and carry,
+and every stance bar is kept, although the r9 statue is clean on 39/40 of the
+certification seeds (one reset-noise nosedive) and its worst out-of-sample pad
+tilt is 2.061° against the 2.0° bar (note 16 and KNOWN_ISSUES' fore-aft entry).
+T. rex has no recovery calibration file; the recovery evaluation's calibrated
+constants, stale since r8, are still re-measured on the first certified stance.
+Every T. rex heading is now physically identical, so the provisions above for
+its ±45° cells apply only to evidence taken on r8.
 
 Use identical joint state, local angular velocity and RNG draws for each paired
 reset. Recreate an environment and reset to the seed for each angle; do not
@@ -294,7 +309,7 @@ the ability to request a world direction.
 | `environments/trex/envs/trex_env.py::_get_obs` | Assemble the new schema directly from valid root state and existing local sensors. Declare the supported backend explicitly. |
 | `environments/compsognathus/envs/compsognathus_env.py::CompsognathusBiologicalEnv` | Add an anatomical-only `_get_obs` override. Keep the shared parent and robot observation source untouched. |
 | `environments/shared/plant_contract/policy_layer.py` | Schema-conditional segment names, widths, frames and gravity convention; hash all new helper implementations as well as `_get_obs`. Preserve existing payload bytes for other schemas. |
-| `configs/plant_versions.toml` | The two policy revisions/schema changes above; no physics or visual revision change. T. rex's elliptic friction cone (the maintainer's choice of 2026-10-11) is a separate physics revision with its own PR and re-measured statue constants. |
+| `configs/plant_versions.toml` | The two policy revisions/schema changes above; no physics or visual revision change. T. rex's elliptic friction cone (the maintainer's choice of 2026-10-11) is the separate physics revision r9 (note 16, D-D29), carried out before this migration with re-measured statue constants. |
 | `configs/species_manifest.toml` and species documentation | Declare T. rex's new interface SB3-only; expose new dimensions/revisions accurately. Compsognathus is already SB3-only. |
 | `environments/trex/mjx_config.py`, `test_plant_contract_frozen_mjx.py`, `pyproject.toml` | Retire T. rex's registration with its policy revision, update the dual-species pin and remove its formatter exclusion. Keep the remaining shared core and registrations unchanged. |
 | `configs/plant_manifest.generated.json`, `environments/shared/data/plant_manifest.generated.json` | Regenerate, including schema probe outputs and supported backend declarations. |
@@ -302,10 +317,10 @@ the ability to request a world direction.
 | `configs/compsognathus/recovery_calibration.json` | Restamp the anatomical calibration's interface/task identity only after verifying unchanged physics and measured environment; preserve its original measurement and numeric calibration. |
 | New `environments/shared/curriculum/stance_heading_gate.py` | Pure grouped-seed decision logic, strict protocol/evidence validation, full reuse of v2 episode classification. |
 | `environments/shared/curriculum/gate_schema.py`, `manager.py`, stage config parsing/fingerprinting | Register the new gate/protocol fields; keep the in-training screen distinct from post-stage certification. |
-| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that holds only at multiples of 90°. |
+| `environments/shared/reporting/stance_report.py` | A dedicated heading certificate builder using `run_panel(..., floor_truth=True)` at every angle, paired statue panels and immutable episode evidence. Correct the `SpawnYaw` docstring and probe text that call a whole-scene turn physically neutral; for T. rex that held only at multiples of 90° until physics r9 (D-D29), and it still holds only there for a pyramidal-cone plant on box or ellipsoid feet (Brachiosaurus, Dibothrosuchus). |
 | `environments/shared/reporting/gates.py`, `stage_artifacts.py` | Judge the heading certificate before reporting a handoff pass; propagate measurement failures. Leave optional diagnostic probes separately identified. |
 | `environments/shared/result_bundle/evidence.py`, gate verdict/reentry/ancestor consumers | Re-derive the decision from bound rows and protocol; refuse missing or mismatched heading evidence for a new-schema stance. |
-| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. In `configs/trex/stance.toml`, correct the `stance_probe_spawn_yaw_deg` comment that says only the observation differs (true for T. rex only at multiples of 90°). |
+| `configs/trex/stance.toml`, `configs/compsognathus/stance.toml` | Opt into the new versioned heading gate while retaining the current species-specific stance bars. The `stance_probe_spawn_yaw_deg` comment in `configs/trex/stance.toml`, which says only the observation differs, needs no correction since physics r9 (D-D29) made every T. rex heading physically identical. |
 | `configs/digest_snapshot.generated.txt`, species catalog/generated website data | Regenerate after the schema/gate migration and review the exact scope of changed identities. |
 | Shared/species tests and docs | Frame algebra, lifecycle, negative evidence cases, old-checkpoint refusal, unchanged robot/other species and end-to-end publication refusal. |
 
@@ -373,8 +388,9 @@ does not make a failure block anything. A new certificate path is required.
 - Roll the home-pose controller on the identical 40×6 grid. Compute each
   heading's statue-relative reference with the existing v2 reducer. Do not
   substitute a pooled reference from a different seed block or plant. Where the
-  physics is yaw-invariant these per-heading statue panels are replicates; for
-  T. rex's ±45° cells they are the correct reference.
+  physics is yaw-invariant (every heading of both species since T. rex's
+  physics r9, D-D29) these per-heading statue panels are replicates; where it
+  is not (T. rex's ±45° cells on r8) they are the correct reference.
 - Apply the full v2 decision at each heading, retaining the per-heading
   ≥0.95 full-horizon rail, current reward/statue rails, and T. rex's declared
   ≤1 hop-or-fall rail. Compsognathus does not currently declare that last rail;
@@ -466,7 +482,8 @@ three T. rex stances of about 15 h each (`20261008_163256`, `20261008_163410`
 and `20261009_155723`, policy interface r13), the 3,006,464-step recovery stage
 trained from `20261009_155723`, and the 15-run, 1,048,576-step reward pilot batch
 behind #608 (source `b2c04be`; T. rex interface r13, Velociraptor r11). Step 4
-strands every T. rex checkpoint among them. Label them pre-migration and
+strands every T. rex checkpoint among them; T. rex physics r9 (D-D29) already
+refuses them on their physics digest. Label them pre-migration and
 research-only: none is a trunk for the new interface, and their reward
 conclusions, #608's CoP-margin effect included, are revalidated on the new
 interfaces (T. rex's here; Velociraptor's after its own revision), as #608
@@ -482,9 +499,10 @@ Acceptance must include:
 - Paired full-horizon real-physics rollouts at all six headings, with fixed
   normalizer and deterministic policy. Compare action/state traces and all
   floor-truth metrics to documented contact-solver numerical tolerance where the
-  physics is invariant (T. rex at multiples of 90°, Compsognathus at every
-  heading); judge T. rex's ±45° cells against their own statue panels rather
-  than by trace equality.
+  physics is invariant: both species at every heading since T. rex's physics
+  r9 (D-D29). On r8 that held for T. rex only at multiples of 90°, and its ±45°
+  cells were judged against their own statue panels rather than by trace
+  equality.
 - Genuine SB3 save/load/evaluation and normalizer round trips on the new
   production environment, including interrupted-run resumption. The wrapper
   smoke experiments do not replace these production-path tests.
@@ -508,9 +526,9 @@ audit of accidental angle-specific behavior but should be declared before
 checkpoint selection if it will be used for admission.
 
 With heading-free observations, the headings of a seed that the physics treats
-identically (all six for anatomical Compsognathus; −90°, 0°, +90° and 180° for
-T. rex) are deterministic replicates of one episode, so beyond catching a leak
-they add only cost. The maintainer chose on 2026-10-11 to keep the full
+identically (all six for both species since T. rex's physics r9; on r8,
+−90°, 0°, +90° and 180° for T. rex) are deterministic replicates of one
+episode, so beyond catching a leak they add only cost. The maintainer chose on 2026-10-11 to keep the full
 six-heading grid anyway: a few minutes per seed block cost little against a
 roughly 15 h stance run, and the grid is the check that would have refused
 `20261009_155723`. A cheaper variant was considered and not adopted: the 40-seed

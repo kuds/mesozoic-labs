@@ -1,7 +1,18 @@
 <mujoco model="tyrannosaurus_rex">
   <compiler angle="degree" autolimits="true"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
+  <!-- Elliptic friction cone since physics r9 (plant_versions note 16).  The
+       plantar pads are boxes, whose contact tangent frames stay on the world
+       axes whichever way the animal faces, and MuJoCo's default pyramidal
+       cone is weaker between those axes, so the pads' friction depended on
+       world heading: a 45 deg turn of the whole scene was a small physical
+       perturbation (under random commands the joints separated by 0.08
+       rad).  The elliptic cone is isotropic, so every heading is physically
+       identical, as on Compsognathus; test_trex_env.py pins both.  The
+       other solver options already match Compsognathus's on MuJoCo 3.10.0
+       (Newton, 100 iterations, impratio 1); impratio 10 was measured and
+       left out (the statue clean on 25 of 40 seeds, 4 nosedives). -->
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">
     <flag warmstart="enable"/>
   </option>
 
@@ -566,9 +577,9 @@
        is a consequence of the joint values, not an independent choice, and
        must be re-solved if they change.
 
-       Under the home controller this settles to pelvis 0.9260 m (sd 0.00001)
-       at forward_z -0.027.  Those two numbers are load-bearing constants
-       elsewhere and must be re-measured together with any edit here:
+       Under the home controller this settles to pelvis 0.9262 m (0.9260 on
+       physics r8) at forward_z -0.027.  Those two numbers are load-bearing
+       constants elsewhere and must be re-measured together with any edit here:
          trex_env.py    target_z, natural_pitch, healthy_z_range, and the
                         settled-pose targets _TAIL_SETTLED_QPOS and
                         _NECK_SETTLED_QPOS

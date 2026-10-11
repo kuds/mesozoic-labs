@@ -104,6 +104,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every T-Rex checkpoint must be retrained; none can be widened**
+  (T-Rex physics revision 8 → 9, decision D-D29). As at r8, each load path
+  compares the checkpoint's recorded `physics_sha256` with the plant's and
+  refuses a mismatch (`PlantCompatibilityError`), `widen_checkpoint.py`
+  needs the same physics digest, and ancestor reuse refuses every recorded
+  T-Rex node (its `task_sha256` moved), so `TRUNK_FROM = "auto"` and
+  `--trunk-from` find no T-Rex trunk. No trunk is lost: the physics-r8
+  stances `20261006_185343`, `20261006_185704`, `20261008_163256` and
+  `20261008_163410` failed `stance_quality/v2`, the one r8 PASS,
+  `20261009_155723`, and the recovery trained from it are research-only by
+  the maintainer's ruling of 2026-10-11, and they, the D-D27 study
+  checkpoints and the T-Rex runs of the 15-run reward pilot batch are
+  pre-migration runs the heading-free policy revision would strand anyway.
+  The policy interface (r13) and visual layer (r4) do not move. Train no
+  T-Rex between this revision and that one: an r9 checkpoint on policy
+  interface r13 would be stranded by it.
 - **Every anatomical Compsognathus checkpoint must be retrained; none can be
   widened** (Compsognathus physics revision 1 → 2, policy interface revision
   2 → 3, visual revision 1 → 2; decision D-D26). The plant contract refuses
@@ -170,6 +186,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The T-Rex stands on an elliptic friction cone, so every world heading is
+  physically identical** (breaking — plant change, physics revision 8 → 9;
+  all existing T-Rex checkpoints are invalidated; decision D-D29, which the
+  maintainer chose on 2026-10-11 with the heading decisions of
+  `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `trex.xml`'s `<option>`
+  gains `cone="elliptic"`, with a comment saying why; its settle comment's
+  pelvis height is the only other edit, so the policy interface stays
+  revision 13 (`0b43de…`) and the visual layer revision 4 (`7042dc…`).
+  Motivation: the plantar pads are boxes, whose contact tangent frames stay
+  on the world axes whichever way the animal faces, and MuJoCo's default
+  pyramidal cone is weaker between those axes, so a ±45° whole-scene turn
+  was a small physical perturbation as well as an observation change, and a
+  heading certificate could not treat T-Rex's ±45° cells as replicates of
+  0°. Through the heading probe's path (`run_panel` with a whole-scene
+  `SpawnYaw`, zero action, seeds 3042–3049) the statue's ±45° rewards
+  differed from 0° by up to 2.6e-2 on r8 and agree to 3e-11 on r9, as at
+  ±90° and 180°; from the home keyframe under fixed random commands, a 45°
+  turn separated the joints by 7.7e-2 rad on r8 and by 4.8e-14 on r9. Only
+  the cone moves: on MuJoCo 3.10.0 the other solver options already equal
+  the anatomical Compsognathus's, and Newton converges in at most 10
+  iterations per substep, never at the cap, with no warning; `impratio = 10`
+  was measured and left out (the statue clean on 25/40, 4 nosedives). The
+  noise-free settle carries (pelvis 0.92616 m against 0.92601, `forward_z`
+  −0.02714 against −0.02778, the settled neck and tail within 1.6e-4 rad),
+  so `target_z`, `natural_pitch`, `nosedive_termination_threshold` and the
+  settled-pose targets keep their pins. The stance statue is not neutral to
+  the change. On the certification seeds 3042–3081 it is clean on 39/40
+  (seed 3081 nosedives at step 292; r8 40/40), which uses the whole
+  `max_hop_or_fall_episodes = 1` allowance, and on 236/240 more seeds (r8
+  238/240): 4 falls in 280 against r8's 2 (Fisher exact p = 0.69), a worst
+  sole tilt of 2.061° on 1 of the 240 against the 2.0° bar, and median
+  loaded sole contacts down from about 3.8 to about 2.6 (least 1.956
+  against the 1.5 bar). Every stance bar is kept, as the heading design
+  requires, and each comment in `configs/trex/stance.toml` records the r9
+  extremes; the appended §12 of
+  `docs/investigations/STANCE_HACK_AUDIT_2026_10.md` has the panels.
+  Statue constants re-measured on r9 with
+  `statue_constants_physics_revision = 9` in all four files, each move
+  inside one standard error, so every reference and rail carries: stance
+  3755.72 ± 19.93 over the 39 standing episodes (3756.8; `min_avg_reward`
+  stays 2250), recovery's pushed statue 1369.4 ± 519.6 (1329.1), locomotion
+  1092.14 ± 5.74 standing (1091.5) and behavior 593.41 ± 187.19 (602.0,
+  rail 361); the same commands reproduce every r8 figure exactly. Tests:
+  `test_trex_env.py` pins the cone and that a 45° whole-scene turn under
+  fixed random commands reproduces the joints to 1e-10 (raw MuJoCo, under
+  a second); `test_gait_recorder.py` covers the pyramidal decode with
+  dibothrosuchus (box feet) instead of the trex, asserts each cone species'
+  cone, and lifts its trex statue CoP ceiling 0.40 → 0.47 (the r9 statue
+  reads 0.441 on its episode); the pad-edge case of
+  `test_stance_gate_v2_report.py` leans the left ankle to −0.0825 (−0.075
+  left one of its three r9 episodes clean) and reads its rows above 0.82
+  (was 0.85), each still refused by the CoP bar alone. The recorder's
+  docstring lists the trex with the elliptic species. Records: D-D29 in
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the consolidation plan's tables;
+  note 16, both plant manifests and the species catalog; the phase-C reset
+  golden re-takes its two trex captures, whose reset halves are unchanged;
+  KNOWN_ISSUES's heading and fore-aft entries; NEXT_STEPS; the heading
+  design's cone paragraph, now carried out, and the rows of its change
+  table that named the r8 anisotropy.
+  Digest golden (649 lines): 38 lines move, all trex — plant
+  `physics_revision`, `physics_sha256` and `source_closure_sha256`; stage
+  `task_sha256`, `stage_config_view_sha256.PPO` and
+  `stage_config_view_sha256.SAC` of stance, recovery, locomotion and
+  behavior (the views move with the pin); the 11 behavior recipes'
+  `task_sha256`; and `summary`, `shape_sha256` and `rounded_values_sha256`
+  of the four trex reward stages. No `gate_sha256` and every other line
+  hold.
 - **Training output names species and the stance stage in full, and every
   species' stance and recovery stages write the same replays** (#607;
   presentation only: no plant, policy-interface, task, gate or

@@ -1507,3 +1507,71 @@ learn a heading-dependent stance; the r2 statue is clean at every spawn yaw trie
 means with seed 11 at +90° and seed 12 at −90° (20/20 each), but a trained stance is untested, and spawn yaw is not
 randomised in training. The noise cliff (σ 0.10: 40/40, σ 0.135: 151/160, σ 0.20: 0/40) applies to a policy as much as
 to the statue: a run whose exploration σ grows trains on a plant that falls.
+
+## 12. Addendum 2026-10-11: the T. rex statue on physics r9 (appended)
+
+*Appended 2026-10-11; §1–§11 above are unchanged.* The maintainer chose on 2026-10-11 to give T. rex an elliptic
+friction cone as a physics revision of its own, before its first heading-free stance, as decision D-D29
+([../BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2; the design is
+[../HEADING_INVARIANCE_DESIGN_2026_10.md](../HEADING_INVARIANCE_DESIGN_2026_10.md)). Physics r8 → r9: `trex.xml`'s
+`<option>` gains `cone="elliptic"` and nothing else (`configs/plant_versions.toml` note 16). Under MuJoCo's default
+pyramidal cone the box pads' friction depended on world heading; under the elliptic cone every heading is physically
+identical. The decision keeps the stance bars of §7, §9 and §10, so this addendum re-measures the statue against them,
+as §2.3 requires of any plant change, and records what moved.
+
+**Method.** `stance_gate_report.py trex --zero-action` on the committed stance stage, on six seed blocks: the
+certification panel 3042–3081 and, out of sample, 3082–3161, 3162–3201, 5042–5081, 7042–7081 and 9042–9081 (240
+episodes), each rolled on a `git archive` of `main` = `9d90cfc` (r8) and of the same tree with the cone changed (r9).
+The r8 panels reproduce the committed calibration exactly. The hacks of §7 load only on the r7 plant, so no r9
+separation can be measured; the margins below compare the r9 statue with the bars and with the r7 hacks' nearest
+episodes as §7 recorded them.
+
+| Panel | r8 clean (bound) | r9 clean (bound) | r9 unclean episodes |
+|---|---|---|---|
+| 3042–3081 (certification) | 40/40 (0.928) | 39/40 (0.887) | 3081 nosedives at step 292 |
+| 3082–3161 | 80/80 (0.963) | 79/80 (0.942) | 3121, sole tilt 2.061° (the only bar it fails) |
+| 3162–3201 | 39/40 (0.887) | 39/40 (0.887) | 3174 nosedives (step 227; 265 on r8) |
+| 5042–5081 | 40/40 (0.928) | 39/40 (0.887) | 5048 nosedives at step 241 |
+| 7042–7081 | 40/40 (0.928) | 40/40 (0.928) | — |
+| 9042–9081 | 39/40 (0.887) | 39/40 (0.887) | 9062 nosedives (step 228; 250 on r8) |
+
+Falls: 4 of 280 on r9 against 2 of 280 on r8, a difference Fisher's exact test does not separate (p = 0.69). Each is a
+nosedive on reset noise alone, the fore-aft marginality KNOWN_ISSUES records. Seed 3081 is on the certification block,
+so the r9 statue uses the whole `max_hop_or_fall_episodes = 1` allowance there; a statue-quality policy falling at 4 in
+280 passes that rail on 0.888 of 40-episode panels, against 0.967 at r8's 2 in 280.
+
+The statue's least favourable full-horizon episode against each bar, certification panel / the 240 out-of-sample
+episodes:
+
+| Bar | r8 statue | r9 statue | Nearest r7 hack episode (§7) |
+|---|---|---|---|
+| tilt ≤ 2° | 1.154° / 1.534° | 1.544° / **2.061°** (seed 3121; next 1.896°) | 2.107° |
+| corner lift ≤ 4 mm | 2.27 / 2.80 mm | 2.55 / 3.32 mm | 5.06 mm |
+| sole contacts ≥ 1.5 | 2.352 / 2.000 (median 3.79 / 3.80) | 1.959 / 1.956 (median 2.67 / 2.55) | ≤ 2.53 (`20260920`) |
+| pad CoP fore-aft ≤ 0.80 | 0.362 / 0.480 | 0.475 / 0.476 | — (D-D28's seed 44: 0.850) |
+| settle peak ≤ 1.5 BW | 1.272 / 1.331 | 1.280 / 1.325 | 1.41 |
+| windowed share ≥ 0.35 | 0.477 / 0.461 | 0.462 / 0.444 | 0.372 (a guard) |
+| load share ≥ 0.40 | 0.498 / 0.495 | 0.495 / 0.493 | 0.436 (a guard) |
+| displacement ≤ 0.10 m | 0.023 / 0.076 m | 0.018 / 0.020 m | — |
+| settle width change ≤ 0.08 m | 0.0523 / 0.0508 m | 0.0463 / 0.0455 m | — (D-D27's runs: 0.0938) |
+| episode yaw change ≤ 25° | 12.4° / 12.0° | 12.1° / 12.8° | — (seed 42: 45.3° median) |
+| support, touchdowns, saturation, settle airborne, settle touchdowns, the guards | 1.000, 0, 0, 0, 1, 0 | 1.000, 0, 0, 0, 1, 0 | — |
+
+(r8's out-of-sample displacement of 0.076 m is seed 5048, which nosedives on r9.) The pads load fewer contact points
+under the elliptic cone, and a little less flat: the median of `min_sole_contacts` drops from about 3.8 to about 2.6,
+and the tilt bar refuses one statue episode in 240. Every bar is kept, as the heading design requires ("do not loosen
+pad, CoP or hop bars"), and the tilt bar sits only 0.107° under the nearest r7 hack episode, so it had no room to move
+toward the props in any case. `configs/trex/stance.toml` carries the r9 extremes in each bar's comment.
+
+**Other r9 measurements** (note 16 has the protocols). The noise-free settle carries (pelvis 0.92616 m against
+0.92601, `forward_z` −0.02714 against −0.02778, neck and tail within 1.6e-4 rad of their settled-pose targets). The
+four stage files' statue references carry, each move inside one standard error: stance 3755.7 ± 19.9 over the 39
+standing episodes (3756.8), recovery 1369.4 ± 519.6 (1329.1), locomotion 1092.1 ± 5.7 standing (1091.5) and
+behavior 593.4 ± 187.2 (602.0). The fore-aft ankle probe of KNOWN_ISSUES: +0.03 reaches the horizon on 14/40 (r8
+14/40), −0.03 on 24/40 (r8 18/40). The pushed recovery statue's 40 ends stay fore-aft (nosedive 26, `tail_contact`
+14; r8 27 / 13). Through the heading probe's path (whole-scene `SpawnYaw`, seeds 3042–3049) the statue's ±45°
+rewards, which differed from 0° by up to 2.6e-2 on r8, agree to 3e-11 at every heading.
+
+**Limits.** The statue is the only r9 policy measured. The r9 statue's margins on the tilt and sole-contact bars are
+thinner than r8's, and its fall rate uses the hop-or-fall rail's allowance on the certification block, so a trained
+r9 stance that stands like the statue starts nearer those bars; the first r9 stances are where that is measured.

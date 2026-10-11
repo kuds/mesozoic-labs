@@ -17,6 +17,7 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 ### Body Structure
 - **Head/Neck**: Heavy head with a fixed contact geom, 3 actuated joints (neck pitch/yaw, head pitch), and no jaw joint
 - **Legs**: Powerful digitigrade legs with 7 joints each (hip pitch/roll, knee, ankle, toe d2/d3/d4); the 4 proximal joints are actuated, the 3 toe digits ride passive springs. Since physics r8 (`configs/plant_versions.toml` note 13) the hip-roll servos are kp 600 / ±480 N·m, stiff enough that both legs together out-resist the body's lateral sway (2 × (kp + 40) = 1280 against m·g·h = 704 N·m/rad); at kp 150 the zero-action statue stood on a rolled pad in some episodes
+- **Contacts**: an elliptic friction cone since physics r9 (note 16), so the box plantar pads, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
 - **Tail**: 5 segments, 4 actuated (pitch 1, yaw 1, pitch 2, pitch 3), heavy counterbalance to skull
 
 ### Reward Components

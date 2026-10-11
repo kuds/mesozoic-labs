@@ -38,10 +38,10 @@ condim-1 contact, the sum of the contact's ``2 * (condim - 1)`` pyramid edge
 forces for a pyramidal one, and 0 for ``efc_address == -1``.  When every geom
 shares one condim and the model declares no explicit ``<pair>`` (true of all
 six species: condim 3) one gather serves every contact.  Measured against a
-per-contact ``mj_contactForce`` loop on all six species, pyramidal (trex,
-velociraptor, dibothrosuchus, brachiosaurus) and elliptic (compsognathus and
-its robot) alike, the per-foot and per-geom forces agree EXACTLY (max |diff|
-0.0).
+per-contact ``mj_contactForce`` loop on all six species, pyramidal
+(velociraptor, dibothrosuchus, brachiosaurus) and elliptic (trex since its
+physics r9, compsognathus and its robot) alike, the per-foot and per-geom
+forces agree EXACTLY (max |diff| 0.0).
 
 Timing
 ------

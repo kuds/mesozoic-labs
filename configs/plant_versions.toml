@@ -327,8 +327,53 @@ observation_schema = "bipedal-target/v1"
 #     of all four configs/trex stage files were re-measured on this plant:
 #     stance 3766.1 (with the r8 stance task), recovery 1337.5, locomotion
 #     1091.5 and behavior 602.0 (both unchanged).
+# 16. T-Rex friction cone made elliptic (<option cone="elliptic">), so every
+#     world heading is physically identical.  The plantar pads are boxes, and
+#     a box-on-plane contact keeps its tangent frame on the world axes
+#     whichever way the animal faces; MuJoCo's default pyramidal cone is
+#     weaker between those axes, so the pads' friction depended on world
+#     heading.  Measured through the heading probe's own path (run_panel with
+#     a whole-scene SpawnYaw, zero action, seeds 3042-3049): on r8 the
+#     statue's rewards at +-45 deg differed from 0 deg by up to 2.6e-2, and
+#     by 4e-11 at +-90 and 180; on r9 they agree to 3e-11 at every heading.
+#     Raw MuJoCo from the home keyframe under fixed random commands (uniform
+#     +-0.15 of each half range, each held 10 steps, 2000 steps), a 45 deg
+#     turn of the whole scene separated the joints by 7.7e-2 rad on r8 and by
+#     4.8e-14 on r9.  Only the cone moves: on MuJoCo 3.10.0 the other solver options
+#     already equal the anatomical Compsognathus's (Newton, 100 iterations,
+#     50 line-search iterations, tolerance 1e-8, impratio 1).  Newton
+#     converges in 1.7 iterations per substep on the statue (at most 6; r8
+#     1.1 and 4) and 3.4 under N(0, 0.22) commands (at most 10), never at
+#     the cap and with no MuJoCo warning.  impratio 10 was measured and left
+#     out: the statue is clean on 25/40 with 4 nosedives.  The symmetric
+#     settle barely moves (the noise-free statue, 1000 steps, means over
+#     steps 200-999): pelvis 0.92616 m against 0.92601, forward_z -0.02714
+#     against -0.02778, neck and tail within 1.6e-4 rad of
+#     _NECK_SETTLED_QPOS / _TAIL_SETTLED_QPOS, stance width 0.27999 m, reward
+#     3788.93 against 3788.45, so target_z, natural_pitch,
+#     nosedive_termination_threshold and the settled-pose targets carry.  On
+#     the stance statue panels (reset noise 0.05) the statue is not neutral
+#     to the change: clean on 39/40 on the certification seeds 3042-3081
+#     (seed 3081 nosedives at step 292; r8 40/40) and on 236/240 out of
+#     sample (3082-3201, 5042-5081, 7042-7081, 9042-9081; r8 238/240), with 4
+#     falls in 280 against r8's 2 (3081, 3174, 5048, 9062 against 3174 and
+#     9062; Fisher exact p = 0.69).  Its worst pad tilts 1.54 deg on 3042-3081
+#     and 2.061 deg on 1 of the 240 (seed 3121, over the 2.0 bar; r8 1.15 /
+#     1.53), its pads load fewer contact points (median 2.67 against 3.79,
+#     least 1.956 against the 1.5 bar) and its worst fore-aft CoP reads 0.476
+#     (r8 0.480).  configs/trex/stance.toml keeps every bar and records the r9
+#     extremes in each comment.  The statue-derived constants of all four
+#     configs/trex stage files were re-measured and carry, every move inside
+#     one standard error: stance 3755.7 standing (3756.8), recovery 1369.4
+#     (1329.1), locomotion 1092.1 standing (1091.5) and behavior 593.4
+#     (602.0).  The fore-aft fragility KNOWN_ISSUES records stays: ankles
+#     +0.03 reach the horizon on 14/40 (r8 14/40), -0.03 on 24/40 (r8 18/40).
+#     PHYSICS moves; the POLICY INTERFACE (0b43de..) and VISUAL (7042dc..)
+#     digests are unchanged, so policy stays 13 and visual 4.  Every T-Rex
+#     physics-r8 checkpoint is invalidated (the plant check compares
+#     physics_sha256); no widen applies.
 [plants.trex]
-physics_revision = 8
+physics_revision = 9
 policy_interface_revision = 13
 visual_revision = 4
 observation_schema = "bipedal-target/v1"

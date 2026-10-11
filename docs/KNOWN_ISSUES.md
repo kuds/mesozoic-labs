@@ -1249,8 +1249,12 @@ robustness, **LOW** = cosmetic / QoL.
   the prey vector), so a policy can learn a stance that reads its absolute
   heading, and no v2 bar sees it. Spawned turned about vertical, the
   zero-action statue stands 8/8 at ±45° and ±90°, so the plant is
-  heading-neutral; the seed-44 stance `20261006_185704` stands 0/8 at ±90°
-  (the animal turned alone) and 0/8 at ±45° with the prey turned too (only
+  heading-neutral (exactly so since physics r9, D-D29: on r8 the pyramidal
+  friction cone made the box pads' friction depend on world heading, and
+  the statue's ±45° rewards on seeds 3042–3049 differed from 0° by up to
+  0.03; under the elliptic cone every heading agrees to 3 × 10⁻¹¹); the
+  seed-44 stance `20261006_185704` stands 0/8 at ±90° (the animal turned
+  alone) and 0/8 at ±45° with the prey turned too (only
   the observation differs), and the seed-42 stance `20261006_185343` falls
   4/4 at ±90° and, when it stands, steers to an absolute heading of about
   −45° ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §9).
@@ -1609,11 +1613,12 @@ its other findings follow.
 
 Still open:
 
-- **MEDIUM** — **the T-Rex's passive fore-aft balance is marginal on both
-  physics r7 and r8: a 1.5° ankle offset topples the zero-action statue in
-  most episodes, and reset noise alone topples it on some seeds (measured
-  2026-10-06).** Constant ankle commands of ±0.03 (±1.5° on both ankles, zero
-  action otherwise; the stance env, reset noise 0.05, seeds 3042–3081): +0.03
+- **MEDIUM** — **the T-Rex's passive fore-aft balance is marginal on
+  physics r7, r8 and r9: a 1.5° ankle offset topples the zero-action statue
+  in most episodes (on r9 the −1.5° one in only 16/40), and reset noise alone
+  topples it on some seeds (measured 2026-10-06; r9 2026-10-11).** Constant
+  ankle commands of ±0.03 (±1.5° on both ankles, zero action otherwise; the
+  stance env, reset noise 0.05, seeds 3042–3081): +0.03
   reaches the horizon on 14/40 episodes on r8 and 13/40 on r7, the rest
   ending `tail_contact`; −0.03 on 18/40 on both, the rest `nosedive`. The
   plain statue nosedives on seed 3174 on both plants (step 265 on r8, 228 on
@@ -1629,6 +1634,23 @@ Still open:
   balance actively. A fix re-derives the ankle gains and their 5.5° gravity
   preload (`trex.xml`'s actuator comment), a physics revision that retires
   every T-Rex checkpoint again.
+  *Update (2026-10-11):* physics r9 (the elliptic friction cone, D-D29,
+  `configs/plant_versions.toml` note 16) leaves it as marginal, and the
+  statue now falls on its certification block. The ankle probe: +0.03
+  reaches the horizon on 14/40 (r8 14/40), −0.03 on 24/40 (r8 18/40). The
+  plain statue nosedives on 4 of 280 stance-panel seeds (3081 at step 292,
+  3174, 5048, 9062) against r8's 2 (3174, 9062), Fisher exact p = 0.69, so
+  not a significant difference; but 3081 is on 3042–3081, where the r9
+  statue is clean on 39/40 and uses the whole `max_hop_or_fall_episodes = 1`
+  allowance, and a statue-quality policy falling at 4 in 280 passes that
+  rail on about 0.89 of 40-episode panels (0.97 at r8's 2 in 280). The pads
+  also sit less flat: the worst sole tilt is 2.061° on 1 of 240
+  out-of-sample episodes (seed 3121) against the 2.0° bar, and the median
+  loaded sole contacts drop from about 3.8 to about 2.6 (least 1.956
+  against the 1.5 bar). The pushed recovery statue's 40 ends stay fore-aft
+  (nosedive 26, `tail_contact` 14). Every stance bar was kept (the stance
+  config's comments carry the r9 extremes); the first r9 stances are where
+  the rail and the sole-contact margin need watching.
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
