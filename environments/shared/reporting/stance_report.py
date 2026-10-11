@@ -1,4 +1,4 @@
-"""Build, render and write the stance gate report for a checkpoint (``stance_quality/v1`` and ``/v2``).
+"""Build, render and write the stance gate report for a checkpoint (``stance_quality/v1``, ``/v2`` and the heading certificate).
 
 The library half of ``environments/shared/scripts/stance_gate_report.py``:
 everything that rolls a policy on the stage's own configured environment,
@@ -17,6 +17,16 @@ criteria need one, and a ``mesozoic.stance-gate-report/v3`` report that
 records what scored it, under which thresholds and measurement, for which
 handoff pair -- everything ``reporting.gates`` checks before it re-derives
 the verdict.  Probes on such a stage stay v1-shaped and unrecorded.
+
+A stage that declares ``stance_quality_heading/v1`` (decision D-D32) is
+certified by :func:`build_stance_heading_report` instead: the v2 panel and
+its statue panel rolled at each heading of the fixed whole-scene grid
+(:data:`~environments.shared.curriculum.stance_heading_gate.HEADING_GRID_DEG`),
+scored by :mod:`~environments.shared.curriculum.stance_heading_gate` into a
+``mesozoic.stance-heading-report/v1`` certificate and its
+``stance_heading_panel_selected.csv``.  Such a stage writes no
+``stance_gate_report.*``; its probes annotate the certificate's 0 degree
+cell (:func:`heading_zero_panel`).
 
 It lives in the reporting package because the training pipeline emits the
 same report automatically: :mod:`~environments.shared.reporting.stage_artifacts`
@@ -40,6 +50,7 @@ module by its full path, lazily where the importer must stay light.
 
 from __future__ import annotations
 
+import logging
 import math
 import textwrap
 from collections.abc import Mapping
@@ -53,7 +64,7 @@ import numpy as np
 from ..action_filter import low_pass_alpha
 from ..config import read_recorded_stage_config
 from ..constants import PUBLICATION_SEED_START
-from ..curriculum.gate_schema import STANCE_GATE_KINDS, gate_config_view
+from ..curriculum.gate_schema import STANCE_GATE_KINDS, gate_config_sha256, gate_config_view
 from ..curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -69,8 +80,26 @@ from ..curriculum.stance_gate_v2 import (
     STANCE_V2_REPORT_SCHEMA,
     STATUE_POLICY,
     StanceV2Thresholds,
+    StatueReference,
     evaluate_stance_v2_gate,
     statue_reference,
+)
+from ..curriculum.stance_heading_gate import (
+    FROZEN_VECNORMALIZE_MODE,
+    HEADING_GRID_DEG,
+    HEADING_PROTOCOL,
+    POLICY_ROLE,
+    STANCE_HEADING_GATE_KIND,
+    STANCE_HEADING_PANEL_CSV,
+    STANCE_HEADING_PANEL_FIELDNAMES,
+    STANCE_HEADING_REPORT_JSON,
+    STANCE_HEADING_REPORT_SCHEMA,
+    STANCE_HEADING_REPORT_TXT,
+    STATUE_ROLE,
+    HeadingEpisode,
+    evaluate_stance_heading_gate,
+    heading_grid_cell,
+    validate_heading_grid,
 )
 from ..file_io import atomic_write_csv, atomic_write_json, atomic_write_text, read_json_object
 from ..gait.stance_metrics import (
@@ -84,6 +113,8 @@ from ..species_names import species_display_name
 from ..species_registry import SPECIES_FACTORIES
 from ..stage_manifest import stage_display_name
 from ..stance_diagnostics import derive_stance_info
+
+logger = logging.getLogger(__name__)
 
 
 class StanceGateReportError(RuntimeError):
@@ -141,7 +172,13 @@ def _load_policy(
         raise StanceGateReportError(str(exc)) from exc
 
     if normalizer is None:
-        return (lambda obs: model.predict(obs, deterministic=True)[0]), "no obs normalisation"
+
+        def unnormalised(obs: np.ndarray) -> np.ndarray:
+            return np.asarray(model.predict(obs, deterministic=True)[0])
+
+        # The record a heading certificate binds (D-D32): its judge admits only the frozen statistics below.
+        unnormalised.normalization = {"mode": "none"}  # type: ignore[attr-defined]
+        return unnormalised, "no obs normalisation"
 
     obs_rms = normalizer.obs_rms
     if isinstance(obs_rms, dict):
@@ -167,6 +204,8 @@ def _load_policy(
         # both environments instead of only the one that happens to run mypy.
         return np.asarray(model.predict(normalized, deterministic=True)[0])
 
+    # What the heading certificate records as its normalization (D-D32): the saved statistics, applied frozen.
+    predict.normalization = {"mode": FROZEN_VECNORMALIZE_MODE, "clip_obs": clip, "epsilon": epsilon}  # type: ignore[attr-defined]
     return predict, f"VecNormalize stats applied (clip {clip:g})"
 
 
@@ -961,9 +1000,18 @@ class SpawnYaw:
     direction), so a stance can depend on the world heading without any
     stance criterion seeing it: both physics-r8 trex stances fell when
     spawned 90 degrees off, where the statue stands.  Turning the spawn
-    changes nothing physical -- the floor is level and isotropic, and a
-    rotation about vertical moves no height -- so the zero-action statue's
-    survival is the control.
+    changes nothing physical because every plant declares the elliptic
+    friction cone (``cone="elliptic"``: T. rex physics r9, D-D29; the
+    velociraptor, brachiosaurus and dibothrosuchus, D-D30;
+    ``test_friction_cone.py``), whose friction has no direction fixed to the
+    world, on a level floor where a rotation about vertical moves no
+    height -- so the zero-action statue's survival is the control, and its
+    turned rows repeat its unturned ones to solver tolerance.  A level,
+    isotropic floor alone was not enough: under MuJoCo's default pyramidal
+    cone a box or ellipsoid foot's friction pyramid is aligned with the
+    world axes, so on r8 T. rex (and the brachiosaurus and dibothrosuchus
+    before D-D30) a 45 degree turn was a small physical perturbation as
+    well, and only multiples of 90 degrees were neutral.
 
     ``whole_scene`` decides what turns with the animal.  ``False`` turns the
     animal alone: the prey stays where it spawned, so the reward terms that
@@ -975,12 +1023,14 @@ class SpawnYaw:
     only the world-frame observation differs -- exactly the question of
     whether the policy reads its heading.  The probe reports both.
 
-    Report-only (decision D-D27).  Whether stance certification should
-    require heading robustness was decided by the maintainer on 2026-10-07
-    and is not yet carried out: heading-free observations for the T. rex and
-    the compsognathus, in a later policy-interface PR that makes this probe a
-    gate check (and rewrites the probe text below, which still reads as
-    D-D27 left it).
+    The probe is report-only (decision D-D27).  The certificate is a
+    separate gate kind: ``stance_quality_heading/v1`` (D-D32) rolls this
+    same whole-scene turn over the full certification panel at every heading
+    of a fixed grid (:func:`build_stance_heading_report`) and blocks handoff,
+    reuse and publication on it.  A stage that declares the certificate
+    does not roll this probe (config load refuses the key there); on a
+    stage without it (the compsognathus robot and the velociraptor) the probe
+    stays report-only, with the handoff warning of 2026-10-11.
     """
 
     yaw_deg: float
@@ -1155,6 +1205,12 @@ def build_stance_gate_report(
     ``spawn_yaw``) on a v2 stage keeps the v1-shaped report it always produced, with no
     recorder and no statue panel: a probe annotates, it never certifies,
     and its readers (the sweep and table writers) read that shape.
+
+    A stage declaring ``stance_quality_heading/v1`` (D-D32) is certified by
+    :func:`build_stance_heading_report` alone: a non-probe call for one is a
+    ``ValueError`` naming it, because one panel at the training heading is
+    exactly the evidence that kind exists to refuse.  Probes on such a
+    stage stay v1-shaped, as on a v2 stage.
     """
     if episodes is not None and episodes < 1:
         raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
@@ -1165,6 +1221,11 @@ def build_stance_gate_report(
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
     control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
     probing = filter_actions_hz is not None or hold_constant is not None or impulse is not None or spawn_yaw is not None
+    if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND and not probing:
+        raise ValueError(
+            f"stage {stage} declares {STANCE_HEADING_GATE_KIND}, whose certificate is the six-heading grid: build it "
+            "with build_stance_heading_report. A single panel at the training heading certifies nothing for it."
+        )
     v2_thresholds: StanceV2Thresholds | None = None
     if curriculum.get("gate_kind") == STANCE_GATE_V2_KIND and not probing:
         # Strict, and checked before anything is rolled: a v2 block with a
@@ -1650,6 +1711,8 @@ def _kind_note(report: dict[str, Any]) -> list[str]:
 
 def render_stance_gate_report(report: dict[str, Any]) -> str:
     """Render a report dict as the human-readable text form."""
+    if report.get("schema") == STANCE_HEADING_REPORT_SCHEMA:
+        return render_stance_heading_report(report)
     if report.get("scored_gate_kind") == STANCE_GATE_V2_KIND:
         return _render_stance_v2_report(report)
     thresholds = report["thresholds"]
@@ -1931,6 +1994,12 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     is specified at -- so it gets its own file rather than columns bolted
     onto a file with a different episode count.
     """
+    if report.get("schema") == STANCE_HEADING_REPORT_SCHEMA:
+        # Decision 7 of 2026-10-11 (D-D32): a heading-kind stage writes its certificate's files only, never a
+        # stance_gate_report.* or stance_panel_selected.csv a reader could take for a yaw-zero verdict.
+        raise ValueError(
+            "a six-heading certificate is written by write_stance_heading_report, not as a stance gate report"
+        )
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
     # A filtered rollout scored a MODIFIED policy, so it gets its own filenames
@@ -1956,6 +2025,478 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     if panel_path is not None:
         written["stance_panel_csv"] = panel_path
     return written
+
+
+# ── the six-heading certificate (``stance_quality_heading/v1``, D-D32) ──────
+
+
+def heading_protocol_refusals(env_kwargs: Mapping[str, Any], model: Any) -> list[str]:
+    """Every input of the stage the whole-scene turn would not turn; empty when the protocol applies.
+
+    :func:`_apply_spawn_yaw` turns the animal, every mocap body and the
+    episode's reference direction (protocol ``whole_scene_yaw/v1``).  It does
+    not turn a live command controller's world heading, a scheduled push or
+    a heightfield, so a stage with any of them would score a different task
+    at each heading: ``command_mode`` must be ``"none"``,
+    ``perturbation_capture_velocity_multiple`` 0, and the model must hold no
+    heightfield (``model.nhfield``).  Refused before anything is rolled.
+    """
+    refusals: list[str] = []
+    command_mode = env_kwargs.get("command_mode", "none")
+    if command_mode != "none":
+        refusals.append(
+            f"command_mode is {command_mode!r}: the turn does not rotate the command controller's world heading"
+        )
+    pushes = env_kwargs.get("perturbation_capture_velocity_multiple", 0.0)
+    if pushes:
+        refusals.append(
+            f"perturbation_capture_velocity_multiple is {pushes!r}: the turn does not rotate the world push schedule"
+        )
+    heightfields = int(getattr(model, "nhfield", 0) or 0)
+    if heightfields:
+        refusals.append(f"the model holds {heightfields} heightfield(s): the turn does not rotate the terrain")
+    return refusals
+
+
+def _normalization_record(predict: Any, *, zero_action: bool) -> dict[str, Any]:
+    """How the scored policy's observations were normalised, as :func:`_load_policy` recorded it."""
+    if zero_action:
+        return {"mode": "none (zero action)"}
+    record = getattr(predict, "normalization", None)
+    return dict(record) if isinstance(record, Mapping) else {"mode": "unrecorded"}
+
+
+def build_stance_heading_report(
+    species: str,
+    stage: "int | str",
+    *,
+    stage_config: dict[str, Any],
+    model_path: str | None = None,
+    vecnorm_path: str | None = None,
+    zero_action: bool = False,
+    episodes: int | None = None,
+    seed: int = PUBLICATION_SEED_START,
+    allow_legacy_plant: bool = False,
+) -> dict[str, Any]:
+    """Roll and score the six-heading stance certificate (``stance_quality_heading/v1``, D-D32).
+
+    For each heading of :data:`~environments.shared.curriculum.stance_heading_gate.HEADING_GRID_DEG`
+    the policy panel is rolled through the floor-truth recorder on a fresh
+    environment with the whole scene turned (``run_panel(...,
+    floor_truth=True, spawn_yaw=SpawnYaw(yaw, whole_scene=True))``; at 0
+    degrees the turn is the identity and the cell is the v2 panel bit for
+    bit), and, when the gate declares a statue-relative criterion, the
+    zero-action statue on the same seeds at the same heading -- the policy's
+    own panel when the policy IS the statue (``zero_action``).  Each heading
+    is judged against its own statue; the verdict is
+    :func:`~environments.shared.curriculum.stance_heading_gate.evaluate_stance_heading_gate`,
+    the function the judge, publication and reuse re-derive it with.
+
+    Checked before anything is rolled: the stage declares the kind, its
+    thresholds read strictly with a settle window past the spawn grace, and
+    the turn applies to its task (:func:`heading_protocol_refusals`).  A
+    rollout that raises at any heading raises :class:`StanceGateReportError`
+    naming the heading, and nothing is returned: a heading that was not
+    measured fails the certificate, never falls back to another.
+
+    Records everything a reader binds: the identity (``schema``,
+    ``scored_gate_kind``, ``protocol``, ``heading_grid_deg``, ``seeds``),
+    the rollout (``policy_deterministic``, ``normalization``,
+    ``settle_steps``, ``horizon``, ``control_dt``), the verdict
+    (``passed``, ``failures``, ``result``) and the binding (``thresholds``
+    as the gate view projects them, ``gate_sha256``, the ``measurement``
+    manifest -- identical at every heading -- and its digest, the
+    ``handoff`` digests, ``task_sha256``, the plant identity and
+    ``checkpoint_plant_validated``), every probe marker as ``None``, and per
+    heading the v2 result, the action and termination summaries and every
+    episode's row (``seed`` and ``yaw_deg`` included) with the statue block
+    and its rows.
+    """
+    from ..curriculum.stance_gate_v2 import StanceV2Result
+    from ..gait.constants import measurement_sha256
+    from ..plant_contract import current_plant_identity
+    from ..result_bundle.hashing import sha256_file
+    from ..species_names import resolve_species_id
+    from ..task_fingerprint import stage_task_fingerprint
+
+    curriculum = stage_config["curriculum_kwargs"]
+    if curriculum.get("gate_kind") != STANCE_HEADING_GATE_KIND:
+        raise ValueError(
+            f"stage {stage} declares gate_kind {curriculum.get('gate_kind')!r}, not {STANCE_HEADING_GATE_KIND!r}; "
+            "build_stance_gate_report scores it"
+        )
+    if episodes is not None and episodes < 1:
+        raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
+    env_kwargs = dict(stage_config["env_kwargs"])
+    horizon = int(env_kwargs.get("max_episode_steps", 1000))
+    control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
+    thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    thresholds.validate_settle_window(control_dt)
+    n = thresholds.min_eval_episodes if episodes is None else episodes
+    grid = validate_heading_grid(HEADING_GRID_DEG)
+    seeds = [seed + index for index in range(n)]
+
+    plant_identity = current_plant_identity(species)
+    env_class = SPECIES_FACTORIES[species]().env_class
+    probe = env_class(**env_kwargs)
+    try:
+        refusals = heading_protocol_refusals(env_kwargs, probe.unwrapped.model)
+    finally:
+        probe.close()
+    if refusals:
+        raise StanceGateReportError(
+            f"stage {stage} cannot be certified under {HEADING_PROTOCOL}: {'; '.join(refusals)}. The certificate "
+            "turns the animal, the prey and the episode's reference direction; a task with other world-frame "
+            "inputs needs a protocol that turns them too."
+        )
+    task_sha256 = stage_task_fingerprint(
+        resolve_species_id(species), stage, env_kwargs=env_kwargs, plant_identity=plant_identity
+    )["task_sha256"]
+
+    if zero_action:
+        predict = _zero_action_predict(env_class, env_kwargs)
+        description = _ZERO_ACTION_DESCRIPTION
+    else:
+        if model_path is None:
+            raise ValueError("model_path is required unless zero_action is set")
+        predict, note = _load_policy(
+            model_path,
+            vecnorm_path,
+            lambda: env_class(**env_kwargs),
+            plant_identity=plant_identity,
+            allow_legacy_plant=allow_legacy_plant,
+        )
+        description = f"{Path(model_path).name} — {note}"
+    statue_predict = None if zero_action else _zero_action_predict(env_class, env_kwargs)
+
+    def panel(policy: Any, yaw: float) -> dict[str, Any]:
+        return run_panel(
+            species,
+            predict=policy,
+            episodes=n,
+            seed=seed,
+            settle_steps=thresholds.settle_steps,
+            horizon=horizon,
+            env_kwargs=env_kwargs,
+            plant_identity=plant_identity,
+            control_dt=control_dt,
+            floor_truth=True,
+            spawn_yaw=SpawnYaw(yaw, whole_scene=True),
+        )
+
+    rolled: list[tuple[float, dict[str, Any], dict[str, Any] | None]] = []
+    measurement: dict[str, Any] | None = None
+    for index, yaw in enumerate(grid):
+        logger.info(
+            "Heading certificate for %s stage %s: heading %+g deg (%d of %d), %d seeds%s",
+            species,
+            stage,
+            yaw,
+            index + 1,
+            len(grid),
+            n,
+            " and the statue" if thresholds.declares_statue_criteria() and not zero_action else "",
+        )
+        try:
+            result = panel(predict, yaw)
+            statue_result: dict[str, Any] | None = None
+            if thresholds.declares_statue_criteria():
+                statue_result = result if zero_action else panel(statue_predict, yaw)
+        except StanceGateReportError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - re-raised as the report's own error, naming the heading
+            raise StanceGateReportError(
+                f"the heading certificate's rollout at {yaw:+g} deg raised {type(exc).__name__}: {exc}; no "
+                "certificate was produced, and a heading that was not measured is never filled from another"
+            ) from exc
+        if measurement is None:
+            measurement = result["measurement"]
+        elif result["measurement"] != measurement:
+            raise StanceGateReportError(
+                f"the measurement manifest at {yaw:+g} deg differs from the one at {grid[0]:+g} deg; one "
+                "certificate is measured under one definition"
+            )
+        rolled.append((yaw, result, statue_result))
+    if measurement is None:  # unreachable: the protocol grid is never empty
+        raise StanceGateReportError("the heading certificate rolled no heading")
+
+    policy_rows = [
+        HeadingEpisode(seed + index, yaw, metrics)
+        for yaw, result, _ in rolled
+        for index, metrics in enumerate(result["stance_metrics"])
+    ]
+    statue_by_heading: dict[float, StatueReference | None] = {
+        yaw: None if statue is None else statue_reference(statue["stance_metrics"], horizon=horizon)
+        for yaw, _, statue in rolled
+    }
+    verdict = evaluate_stance_heading_gate(
+        policy_rows,
+        thresholds,
+        horizon=horizon,
+        seeds=seeds,
+        statue_by_heading=statue_by_heading,
+        control_dt=control_dt,
+        grid=grid,
+    )
+
+    headings: list[dict[str, Any]] = []
+    for yaw, result, statue in rolled:
+        heading_verdict: StanceV2Result | None = verdict.heading_result(yaw)
+        reasons = None if heading_verdict is None else heading_verdict.episode_reasons
+        reference = statue_by_heading[yaw]
+        statue_block: dict[str, Any] | None = None
+        if statue is not None and reference is not None:
+            statue_block = {
+                "policy": _ZERO_ACTION_DESCRIPTION,
+                "reused_policy_panel": zero_action,
+                "seed": seed,
+                "reference": reference.as_dict(),
+                "episode_evidence": _heading_rows(
+                    _stance_v2_episode_rows(
+                        statue["stance_metrics"], None, statue["episodes"], seed=seed, horizon=horizon
+                    ),
+                    yaw,
+                ),
+            }
+        panel_summary = result["panel"]
+        headings.append(
+            {
+                "yaw_deg": yaw,
+                "turn": SpawnYaw(yaw, whole_scene=True).as_dict(),
+                "result": None if heading_verdict is None else heading_verdict.as_dict(),
+                "metrics": {
+                    "reward_mean": float(result["rewards"].mean()),
+                    "reward_std": float(result["rewards"].std()),
+                    "episode_length_mean": float(result["lengths"].mean()),
+                    "full_horizon_fraction": None if heading_verdict is None else heading_verdict.full_horizon_fraction,
+                    "n_clean": None if heading_verdict is None else heading_verdict.n_clean,
+                    "clean_fraction": None if heading_verdict is None else heading_verdict.clean_fraction,
+                    "clean_lcb": None if heading_verdict is None else heading_verdict.clean_lcb,
+                    "mean_unsupported_duty": panel_summary.mean_unsupported_duty,
+                    "bilateral_support_duty": result["bilateral_duty"],
+                    "single_support_duty": result["single_duty"],
+                },
+                "action": result.get("action", {}),
+                "terminations": result["terminations"],
+                "reward_components": result["components"],
+                "episode_evidence": _heading_rows(
+                    _stance_v2_episode_rows(
+                        result["stance_metrics"], reasons, result["episodes"], seed=seed, horizon=horizon
+                    ),
+                    yaw,
+                ),
+                "statue": statue_block,
+            }
+        )
+
+    view = gate_config_view(curriculum)
+    return {
+        "schema": STANCE_HEADING_REPORT_SCHEMA,
+        "species": species,
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "scored_gate_kind": STANCE_HEADING_GATE_KIND,
+        "protocol": HEADING_PROTOCOL,
+        "heading_grid_deg": list(grid),
+        "seeds": seeds,
+        "seed": seed,
+        "episodes": n,
+        "policy": description,
+        # SB3's deterministic predict (_load_policy) or the constant statue: every turn of a seed sees the same
+        # policy, so the rows of one seed differ only by the turn.
+        "policy_deterministic": True,
+        "normalization": _normalization_record(predict, zero_action=zero_action),
+        "settle_steps": thresholds.settle_steps,
+        "horizon": horizon,
+        "control_dt": control_dt,
+        "passed": verdict.passed,
+        "failures": list(verdict.failures),
+        "result": verdict.as_dict(),
+        "thresholds": view["thresholds"],
+        "gate_sha256": gate_config_sha256(view),
+        "measurement": measurement,
+        "measurement_sha256": measurement_sha256(measurement),
+        "handoff": {
+            "checkpoint": None if zero_action or model_path is None else Path(model_path).name,
+            "checkpoint_sha256": None if zero_action or model_path is None else sha256_file(model_path),
+            "normalization_sha256": None if zero_action or vecnorm_path is None else sha256_file(vecnorm_path),
+        },
+        "task_sha256": task_sha256,
+        # Recorded for the reader; bound through task_sha256, which fingerprints the plant.
+        "plant_identity": plant_identity.to_dict(),
+        "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
+        # Every probe marker, None: a certificate is never a probe, and the readers of these keys answer the same
+        # way for every report shape.
+        **dict.fromkeys(_PROBE_MARKERS),
+        "headings": headings,
+    }
+
+
+def _heading_rows(rows: list[dict[str, Any]], yaw: float) -> list[dict[str, Any]]:
+    """*rows* (one heading's evidence rows) with the heading they were rolled at, after the seed."""
+    return [{"yaw_deg": yaw, **row} for row in rows]
+
+
+def heading_zero_panel(report: Mapping[str, Any]) -> dict[str, Any]:
+    """The certificate's 0 degree cell, in the ``stance_quality/v2`` report's shape.
+
+    What the stance probes annotate on a heading-kind stage (the constant
+    hold reads its ``action`` DC, the impulse its ``settle_steps``) and what
+    :func:`render_stance_heading_report` renders in detail.  Never written as
+    a report: it carries ``heading_cell_of`` naming the certificate, and its
+    ``gate_kind`` is the stage's heading kind, which the v2 judge refuses
+    and the heading judge refuses for its schema.  Raises ``ValueError`` on a
+    report with no 0 degree cell.
+    """
+    cell = next(
+        (
+            heading
+            for heading in report.get("headings") or ()
+            if isinstance(heading, Mapping) and heading.get("yaw_deg") == 0.0
+        ),
+        None,
+    )
+    if cell is None:
+        raise ValueError("the heading certificate holds no 0 deg cell")
+    result = cell.get("result") or {}
+    return {
+        "schema": STANCE_V2_REPORT_SCHEMA,
+        "heading_cell_of": STANCE_HEADING_REPORT_SCHEMA,
+        "heading_cell_deg": 0.0,
+        "species": report.get("species"),
+        "stage": report.get("stage"),
+        "gate_kind": report.get("gate_kind"),
+        "scored_gate_kind": STANCE_GATE_V2_KIND,
+        "policy": report.get("policy"),
+        "episodes": report.get("episodes"),
+        "seed": report.get("seed"),
+        "settle_steps": report.get("settle_steps"),
+        "horizon": report.get("horizon"),
+        "control_dt": report.get("control_dt"),
+        "passed": bool(result.get("passed")),
+        "failures": list(result.get("failures") or ()),
+        "thresholds": report.get("thresholds"),
+        "measurement": report.get("measurement"),
+        "measurement_sha256": report.get("measurement_sha256"),
+        "handoff": report.get("handoff"),
+        "task_sha256": report.get("task_sha256"),
+        "statue": cell.get("statue"),
+        "result": result,
+        "metrics": cell.get("metrics"),
+        "checkpoint_plant_validated": report.get("checkpoint_plant_validated"),
+        **dict.fromkeys(_PROBE_MARKERS),
+        "action": cell.get("action", {}),
+        "terminations": cell.get("terminations", {}),
+        "reward_components": cell.get("reward_components", {}),
+        "episode_evidence": cell.get("episode_evidence") or [],
+    }
+
+
+def render_stance_heading_report(report: dict[str, Any]) -> str:
+    """The text form of a heading certificate: the grouped bound, a row per heading, the seeds that failed, the 0 deg cell.
+
+    The pooled episode count is printed and labelled as not the statistic;
+    the 0 degree cell is rendered in full through the v2 renderer, without
+    its own verdict line (it is one heading's v2 decision, not the
+    certificate's), and the certificate's verdict closes the report.
+    """
+    result = report["result"]
+    thresholds = report["thresholds"]
+    seeds = report.get("seeds") or []
+    headings = report.get("headings") or []
+    grid_text = ", ".join(f"{float(yaw):+g}" for yaw in report.get("heading_grid_deg") or ())
+    lines = [
+        f"policy              {report['policy']}",
+        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"(stage {report['stage']}, {report['scored_gate_kind']}, floor truth)",
+        f"protocol            {report['protocol']}: the whole scene turned about vertical through the root "
+        "(the animal, the prey and the reference direction)",
+        f"grid                {grid_text} deg; {len(seeds)} seeds "
+        + (f"{seeds[0]}-{seeds[-1]}" if seeds else "")
+        + " at every heading",
+        f"settle_steps        {report['settle_steps']}; horizon {report['horizon']}; control step "
+        f"{report['control_dt']:g} s",
+        f"measurement         {report['measurement']['constants']['measurement_version']} "
+        f"({report['measurement_sha256']})",
+        f"task                {report.get('task_sha256')}",
+        f"gate                {report.get('gate_sha256')}",
+        "",
+        f"seeds clean at every heading   {result['n_clean_seeds']:4d} / {result['n_seeds']}   LCB95 "
+        f"{_fmt(result['clean_seed_lcb'], '.4f')}   (>= {float(thresholds['min_clean_stance_lcb']):.4f}, "
+        f"min_eval_episodes {thresholds['min_eval_episodes']}: the statistic)",
+    ]
+    pooled = result.get("pooled_episodes") or {}
+    if pooled:
+        lines.append(
+            f"episodes clean, pooled         {pooled.get('n_clean'):4d} / {pooled.get('n_episodes')}   LCB95 "
+            f"{_fmt(pooled.get('clean_lcb'), '.4f')}   (NOT the statistic: the turns of a seed are not independent)"
+        )
+    lines += [
+        "",
+        "each heading's full v2 decision, against the statue rolled at that heading:",
+        f"  {'heading':>8} {'clean':>7} {'LCB95':>7} {'full-hz':>8} {'reward':>9} {'statue fh':>10} "
+        f"{'statue reward':>14}  v2",
+    ]
+    for heading in headings:
+        cell = heading.get("result") or {}
+        statue = (heading.get("statue") or {}).get("reference") or {}
+        statue_fh = f"{statue['n_full_horizon']}/{statue['n_episodes']}" if "n_full_horizon" in statue else "-"
+        lines.append(
+            f"  {float(heading['yaw_deg']):>+8g} {cell.get('n_clean', 0):>3d}/{cell.get('n_episodes', 0):<3d} "
+            f"{_fmt(cell.get('clean_lcb'), '7.4f')} {_fmt(cell.get('full_horizon_fraction'), '8.4f')} "
+            f"{_fmt((heading.get('metrics') or {}).get('reward_mean'), '9.1f')} {statue_fh:>10} "
+            f"{_fmt(statue.get('mean_reward'), '14.1f')}  {'PASS' if cell.get('passed') else 'FAIL'}"
+        )
+    failing = result.get("seed_failures") or []
+    if failing:
+        lines += ["", f"seeds not clean at every heading ({len(failing)}; first {min(len(failing), 10)} shown):"]
+        for entry in failing[:10]:
+            lines.append(
+                f"  seed {entry['seed']}: "
+                + ", ".join(f"{float(yaw):+g}" for yaw in entry.get("headings_deg") or ())
+                + " deg"
+            )
+    try:
+        zero = heading_zero_panel(report)
+    except ValueError:
+        zero = None
+    if zero is not None:
+        # Rendered as the v2 decision it is: no kind note (the stage's kind is this certificate), no verdict line.
+        detail = _render_stance_v2_report({**zero, "gate_kind": STANCE_GATE_V2_KIND}).split("\nGATE: ", 1)[0]
+        lines += [
+            "",
+            "the 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):",
+            "",
+            detail,
+        ]
+    lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
+    lines += [f"  - {failure}" for failure in report["failures"]]
+    return "\n".join(lines)
+
+
+def write_stance_heading_report(stage_dir: "str | Path", report: dict[str, Any]) -> dict[str, Path]:
+    """Write the certificate beside the stage's other artifacts: the text, the JSON, then the grid CSV.
+
+    ``stance_heading_report.{txt,json}`` and ``stance_heading_panel_selected.csv``,
+    each atomically, in that order: the CSV is publication's evidence, so a
+    write that stops part-way leaves a certificate publication refuses for
+    want of it -- never a CSV without the report it came from.  Never
+    ``stance_gate_report.*`` or ``stance_panel_selected.csv``.
+    """
+    if report.get("schema") != STANCE_HEADING_REPORT_SCHEMA:
+        raise ValueError(f"not a {STANCE_HEADING_REPORT_SCHEMA} certificate ({report.get('schema')!r})")
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text_path = directory / STANCE_HEADING_REPORT_TXT
+    json_path = directory / STANCE_HEADING_REPORT_JSON
+    atomic_write_text(text_path, render_stance_heading_report(report) + "\n")
+    atomic_write_json(json_path, _json_safe(report), sort_keys=True, allow_nan=False)
+    csv_path = _write_stance_heading_panel_evidence(directory, report)
+    return {
+        "stance_heading_report_txt": text_path,
+        "stance_heading_report_json": json_path,
+        "stance_heading_panel_csv": csv_path,
+    }
 
 
 def write_action_filter_sweep(
@@ -2777,12 +3318,15 @@ def render_heading_probe(
             "REPORT ONLY (decision D-D27). Each row turns the spawn about vertical right after reset and rolls the "
             "UNMODIFIED policy; 'animal' turns the animal alone (the prey stays, so the heading reward term pays a "
             "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so only the "
-            "world-frame observation differs. The statue is the control. Not a gate verdict."
+            "world-frame observation differs (every plant declares the elliptic friction cone, so the physics is "
+            "the same at every heading). The statue is the control. Not a gate verdict; the six-heading certificate "
+            "(stance_quality_heading/v1, D-D32) is the gate, on the stages that declare it."
         ),
         "rows": rows,
     }
     lines = [
-        "PROBE: the spawn turned about vertical (report only; decision D-D27 leaves heading robustness open).",
+        "PROBE: the spawn turned about vertical (report only, decision D-D27; the six-heading certificate, D-D32,",
+        "is the gate on the stages that declare it).",
         "Scores the unmodified policy from a MODIFIED START; not a gate result.",
         f"policy              {payload['policy']}",
         *(
@@ -2796,7 +3340,8 @@ def render_heading_probe(
         f"panel               {probe_episodes} episodes per row, seeds {first_seed}-"
         f"{first_seed + probe_episodes - 1}, horizon {horizon}",
         "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
-        "                    scene  = the prey and the reference direction too (only the observation differs)",
+        "                    scene  = the prey and the reference direction too (only the observation differs; every",
+        "                             plant's elliptic friction cone makes the physics the same at every heading)",
         "",
         f"  {'yaw':>6} {'turned':<7}{'policy fh':>10}{'reward':>9}{'|dyaw| mean/max':>17}"
         f"{'statue fh':>11}{'reward':>9}{'|dyaw| max':>11}",
@@ -2936,8 +3481,15 @@ def heading_probe_warnings(payload: Any, *, threshold: float = HEADING_PROBE_WAR
 
 
 def declares_heading_probe(curriculum: Any) -> bool:
-    """Whether a ``[curriculum]`` block asks for the heading probe: a stance gate kind and a non-zero offset."""
+    """Whether a ``[curriculum]`` block asks for the heading probe: a stance gate kind and a non-zero offset.
+
+    Never under the six-heading certificate (``stance_quality_heading/v1``,
+    D-D32), which replaces the probe: config load refuses the key there, and
+    a recorded block that carries it anyway does not make the probe due.
+    """
     if not isinstance(curriculum, Mapping) or curriculum.get("gate_kind") not in STANCE_GATE_KINDS:
+        return False
+    if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
         return False
     raw = curriculum.get("stance_probe_spawn_yaw_deg")
     values: list[Any] = list(raw) if isinstance(raw, (list, tuple)) else [raw]
@@ -2963,12 +3515,20 @@ def stage_heading_probe_warnings(
     reads the stage's recorded ``stage_config.json``): the command-line
     curriculum rolls no probe, and a probe that failed was logged where it
     failed, so the handoff says the heading went unmeasured.
+
+    A stage whose recorded block declares the six-heading certificate
+    (``stance_quality_heading/v1``, D-D32) raises no warning at all: its
+    verdict judged every heading, and the handoff, reuse and publication
+    refuse it when that failed -- the probe's warning defers to the gate.
     """
+    record = read_recorded_stage_config(stage_dir) or {}
+    recorded_curriculum = record.get("curriculum", record.get("curriculum_kwargs"))
+    if isinstance(recorded_curriculum, Mapping) and recorded_curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
+        return []
     path = Path(stage_dir) / HEADING_PROBE_JSON
     if not path.exists():
         if declared is None:
-            record = read_recorded_stage_config(stage_dir) or {}
-            declared = declares_heading_probe(record.get("curriculum"))
+            declared = declares_heading_probe(recorded_curriculum)
         if not declared:
             return []
         # Not --out-dir <stage_dir>: it also writes a gate report there, and a complete bundle is immutable.
@@ -3470,33 +4030,110 @@ def _write_stance_v2_panel_evidence(stage_dir: Path, report: dict[str, Any]) -> 
         "measurement_version": (measurement.get("constants") or {}).get("measurement_version") or "",
         "measurement_sha256": report.get("measurement_sha256") or "",
         "measurement_definition_sha256": measurement_definition_sha256(measurement) if measurement else "",
-        "statue_n_episodes": "" if statue is None else int(statue["n_episodes"]),
-        "statue_n_full_horizon": "" if statue is None else int(statue["n_full_horizon"]),
-        "statue_mean_reward": "" if statue is None else _float_cell(statue["mean_reward"]),
-        "statue_foot_load_share": "" if statue is None else _floats_cell(statue["foot_load_share"]),
+        **_statue_stamps(statue),
     }
     rows = []
     for episode in report["episode_evidence"]:
         row: dict[str, Any] = {
-            "episode": episode["episode"],
-            "panel_seed": episode["seed"],
-            "reached_horizon": bool(episode["reached_horizon"]),
-            "unsupported_duty": _optional_float_cell(episode.get("unsupported_duty")),
-            "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
-            "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
+            **_panel_episode_cells(episode),
             "clean": bool(episode["clean"]),
             "reasons": "; ".join(episode.get("reasons") or ()),
         }
-        for name in STANCE_METRIC_FIELDS:
-            value = episode[name]
-            if name in ("length", "settle_steps"):
-                row[name] = int(value)
-            elif name == "terminated":
-                row[name] = bool(value)
-            else:
-                row[name] = _float_cell(value)
-        for name in STANCE_METRIC_FOOT_FIELDS:
-            row[name] = _floats_cell(episode[name])
         row.update(stamps)
         rows.append(row)
     return atomic_write_csv(stage_dir / "stance_panel_selected.csv", STANCE_V2_PANEL_FIELDNAMES, rows)
+
+
+def _panel_episode_cells(episode: Mapping[str, Any]) -> dict[str, Any]:
+    """One evidence row's panel CSV cells: its seed, horizon flag, touch duties and every floor-truth metric.
+
+    Every metric is written so ``StanceEpisodeMetrics.from_row`` reads it
+    back bit for bit (``repr`` floats, ``nan`` for unmeasured).
+    """
+    row: dict[str, Any] = {
+        "episode": episode["episode"],
+        "panel_seed": episode["seed"],
+        "reached_horizon": bool(episode["reached_horizon"]),
+        "unsupported_duty": _optional_float_cell(episode.get("unsupported_duty")),
+        "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
+        "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
+    }
+    for name in STANCE_METRIC_FIELDS:
+        value = episode[name]
+        if name in ("length", "settle_steps"):
+            row[name] = int(value)
+        elif name == "terminated":
+            row[name] = bool(value)
+        else:
+            row[name] = _float_cell(value)
+    for name in STANCE_METRIC_FOOT_FIELDS:
+        row[name] = _floats_cell(episode[name])
+    return row
+
+
+def _statue_stamps(reference: Mapping[str, Any] | None) -> dict[str, Any]:
+    """The four statue-reference columns of a panel row: blank when no statue panel was rolled."""
+    return {
+        "statue_n_episodes": "" if reference is None else int(reference["n_episodes"]),
+        "statue_n_full_horizon": "" if reference is None else int(reference["n_full_horizon"]),
+        "statue_mean_reward": "" if reference is None else _float_cell(reference["mean_reward"]),
+        "statue_foot_load_share": "" if reference is None else _floats_cell(reference["foot_load_share"]),
+    }
+
+
+def _write_stance_heading_panel_evidence(stage_dir: Path, report: Mapping[str, Any]) -> Path:
+    """The six-heading certificate's grid CSV: every policy and statue row, stamped with the certificate's binding.
+
+    Columns are :data:`~environments.shared.curriculum.stance_heading_gate.STANCE_HEADING_PANEL_FIELDNAMES`.
+    Per heading, its policy rows (``role`` ``policy``, classified) and its
+    statue rows (``role`` ``statue``, the reference, never classified), each
+    stamping that heading's statue reference; every row stamps the handoff
+    digests, the task, the measurement version and digests, the gate digest,
+    the protocol and its grid, the seed block, the horizon, the control
+    step and the policy's determinism -- everything publication binds and
+    re-derives from (``result_bundle.evidence``) without the JSON.
+    """
+    from ..gait.constants import measurement_definition_sha256
+
+    handoff = report.get("handoff") or {}
+    measurement = report.get("measurement") or {}
+    seeds = list(report.get("seeds") or ())
+    stamps = {
+        "checkpoint_sha256": handoff.get("checkpoint_sha256") or "",
+        "normalization_sha256": handoff.get("normalization_sha256") or "",
+        "task_sha256": report.get("task_sha256") or "",
+        "measurement_version": (measurement.get("constants") or {}).get("measurement_version") or "",
+        "measurement_sha256": report.get("measurement_sha256") or "",
+        "measurement_definition_sha256": measurement_definition_sha256(dict(measurement)) if measurement else "",
+        "gate_sha256": report.get("gate_sha256") or "",
+        "protocol": report.get("protocol") or "",
+        "heading_grid_deg": heading_grid_cell(report.get("heading_grid_deg") or ()),
+        "seed_start": seeds[0] if seeds else "",
+        "n_seeds": len(seeds),
+        "horizon": int(report["horizon"]),
+        "control_dt": _float_cell(report.get("control_dt")),
+        "policy_deterministic": bool(report.get("policy_deterministic")),
+    }
+    rows: list[dict[str, Any]] = []
+    for heading in report["headings"]:
+        statue = heading.get("statue") or None
+        heading_stamps = {
+            "yaw_deg": _float_cell(heading["yaw_deg"]),
+            **_statue_stamps(None if statue is None else statue["reference"]),
+            **stamps,
+        }
+        for episode in heading["episode_evidence"]:
+            rows.append(
+                {
+                    "role": POLICY_ROLE,
+                    **_panel_episode_cells(episode),
+                    "clean": bool(episode["clean"]),
+                    "reasons": "; ".join(episode.get("reasons") or ()),
+                    **heading_stamps,
+                }
+            )
+        for episode in [] if statue is None else statue["episode_evidence"]:
+            rows.append(
+                {"role": STATUE_ROLE, **_panel_episode_cells(episode), "clean": "", "reasons": "", **heading_stamps}
+            )
+    return atomic_write_csv(stage_dir / STANCE_HEADING_PANEL_CSV, STANCE_HEADING_PANEL_FIELDNAMES, rows)
