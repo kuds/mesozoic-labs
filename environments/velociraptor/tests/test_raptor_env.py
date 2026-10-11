@@ -394,7 +394,8 @@ class TestNaturalPitchTracksStance:
     It did not: the r2 plant settled 24.0 deg nose-down against the 0.35 rad
     (20.05 deg) default, and the statue paid -95 per episode of nosedive
     charge for standing still.  The r3 keyframe settles at 20.10 deg (0.3508
-    rad over 40 seeds at noise 0.05), so the default is right again; this
+    rad over 40 seeds at noise 0.05; 20.02 deg, 0.3494 rad, on the elliptic
+    cone of physics r4), so the default is right again; this
     pins the property, not the literal, so a plant edit that moves the settle
     has to move ``natural_pitch`` with it.
     """

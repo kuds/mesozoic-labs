@@ -172,6 +172,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every velociraptor, brachiosaurus and dibothrosuchus checkpoint must be
+  retrained; none can be widened** (velociraptor physics revision 3 → 4,
+  brachiosaurus 4 → 5, dibothrosuchus 1 → 2; decision D-D30). Each load path
+  compares the checkpoint's recorded `physics_sha256` with the plant's and
+  refuses a mismatch (`PlantCompatibilityError`), `widen_checkpoint.py`
+  needs the same physics digest, and ancestor reuse refuses every recorded
+  node of the three species (their `task_sha256` moved), so
+  `TRUNK_FROM = "auto"` and `--trunk-from` find no trunk for them. Stranded:
+  every velociraptor physics-r3 checkpoint, none of which certified under
+  `stance_quality/v2` (the 6M stances `20261007_132051` and
+  `20261009_155731`, the nine velociraptor runs of the 15-run reward pilot
+  batch, #608, and any velociraptor run the maintainer has in progress on
+  r3); every dibothrosuchus physics-r1 checkpoint, the statue-level stance
+  PASS of `20260923_020654` (`1d3527cc…`) and the session-4 re-run
+  `20260928_012318` included; nothing on brachiosaurus, which has not
+  trained since its July run on physics r1. The policy interfaces (r11, r8,
+  r7) and visual layers (r4, r2, r1) do not move.
 - **Every T-Rex checkpoint must be retrained; none can be widened**
   (T-Rex physics revision 8 → 9, decision D-D29). As at r8, each load path
   compares the checkpoint's recorded `physics_sha256` with the plant's and
@@ -254,6 +271,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **Every species stands on an elliptic friction cone** (breaking — plant
+  change: velociraptor physics revision 3 → 4, brachiosaurus 4 → 5,
+  dibothrosuchus 1 → 2; all existing checkpoints of the three species are
+  invalidated; decision D-D30, which the maintainer chose on 2026-10-11: one
+  friction model for every species, even where the benefit is small).
+  `raptor.xml`, `brachiosaurus.xml` and `dibothrosuchus.xml` each gain
+  `cone="elliptic"` on `<option>`, with a comment saying why, as the T-Rex
+  did at r9 (D-D29) and both compsognathus plants were built; the
+  velociraptor and dibothrosuchus settle comments are the only other MJCF
+  edits, so no policy interface or visual layer moves. Motivation: a box or
+  ellipsoid on the floor keeps its contact tangent frame on the world axes
+  whichever way the animal faces, and MuJoCo's default pyramidal cone is
+  weaker between those axes. Through the heading probe's path (`run_panel`
+  with a whole-scene `SpawnYaw`, zero action, seeds 3042–3049) the statue's
+  ±45° rewards differed from 0° by up to 0.84 on brachiosaurus r4 (ellipsoid
+  feet, the largest of any species), 3.7e-2 on dibothrosuchus r1 (box pads)
+  and 1.8e-12 on velociraptor r3, whose capsule feet turn their frames with
+  the foot; on the new plants they agree to 1.4e-12. From the home keyframe
+  under fixed random commands a 45° turn separated the joints by 7.9e-3,
+  8.7e-2 and 5.4e-3 rad (the velociraptor once it fell onto its ellipsoid
+  head), and on the new plants by at most 4e-14. Only the cone moves: on
+  MuJoCo 3.10.0 the other solver options already equal the compsognathus's,
+  every geom is condim 3, and Newton converges in at most 6 iterations per
+  substep on each statue and 10 under N(0, 0.22) commands (seeds
+  3042–3044), never at the cap, with no warning. Statues re-measured (zero
+  action, reset noise 0.05): the velociraptor's on `stance_quality/v2` is
+  clean on 40/40 of the certification seeds 3042–3081 and on 238/240 out of
+  sample (3082–3201, 5042–5081, 7042–7081, 9042–9081; r3 239/240): seed
+  9065 falls on both plants, and seed 5060's lighter foot carries 0.342 of
+  one 1 s block against the 0.35 `min_foot_load_share_windowed` bar (r3
+  0.432), the one bar a full-horizon r4 statue episode fails. Its feet
+  share their load a little less evenly and rest digit IV a little less
+  steadily (full-horizon episodes, certification / out of sample: windowed
+  share 0.412 / 0.342 against r3's 0.457 / 0.425, support-geom duty 0.964 /
+  0.869 against 1.000 / 0.970). Every bar is kept, and each comment in
+  `configs/velociraptor/stage1_balance.toml` records the r4 extremes; its
+  statue reference carries (2843.00 ± 2.70 against 2842.76 ± 2.62, inside
+  one standard error) with `statue_constants_physics_revision = 4`, and
+  `natural_pitch` carries (the statue settles at 0.3494 rad, r3 0.3508).
+  Brachiosaurus's stance statue reads 1738.38 ± 1.46 (1739.08 ± 1.17; −0.7
+  is about three standard errors, so the figure moves rather than carries),
+  dibothrosuchus's 2598.53 ± 0.87 (2598.29 ± 0.86), both 40/40 and 80/80 on
+  3082–3161, and their 0.60× and 0.75× rails still round to 1040 / 1300 and
+  1560 / 1950; the configs carry the new figures. The brachiosaurus
+  locomotion statue reads 2201.3 ± 200.6 (2242.7 ± 7.8; median 2244.9): two
+  of 40 episodes lose part of `gait_symmetry` to a briefly unloaded foot.
+  The dibothrosuchus pads stand nearer their heel edge (fore-aft CoP at most
+  0.795 on 3042–3081, r1 0.706), and its trunk settles 0.3 mm higher, above
+  `target_z`, whose clipped term pays the statue in full either way. Tests:
+  the new `test_friction_cone.py` guards that every registered plant
+  declares the elliptic cone and that a 45° whole-scene turn under random
+  commands reproduces the joints to 1e-10 on the three species;
+  `test_gait_recorder.py` keeps the recorder's pyramidal decode covered on
+  dibothrosuchus with the cone switched in memory, since no plant declares
+  it now, and its dibothrosuchus statue CoP ceiling (0.72 → 0.78) and
+  spawn-pop count (9 → 8 substeps) follow r2; the catalog and velociraptor
+  rail tests take the new revisions, and the two
+  `test_plant_contract_layers.py` cases that edit the raptor's and the
+  brachiosaurus's `<option>` match its new text and assert the edit applied
+  (the brachiosaurus one had become a silent no-op). MJX: nothing in the
+  repo compiles a model under MJX (D-D17 retired the runtime; the plant
+  contract's MJX probe runs the frozen observation builder in NumPy, and
+  passes), and MuJoCo's MJX feature-parity table lists both cones, so the
+  brachiosaurus and dibothrosuchus `jax-mjx` declarations stand. The reset
+  golden holds no capture of the three species, so nothing is re-taken.
+  Records: D-D30 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the
+  consolidation plan's tables; note 17, both plant manifests and the species
+  catalog; KNOWN_ISSUES, NEXT_STEPS, the heading design's cone paragraph,
+  the three species READMEs and website pages. Digest golden (649 lines): 79
+  lines move, all of the three species — plant `physics_revision`,
+  `physics_sha256` and `source_closure_sha256` (9); stage `task_sha256` of
+  stance, locomotion and behavior (9) and the velociraptor stance's
+  `stage_config_view_sha256.PPO` and `.SAC` (2, with the pin); the 33
+  behavior recipes' `task_sha256`; and `summary`, `shape_sha256` and
+  `rounded_values_sha256` of the nine reward stages (26: the brachiosaurus
+  stance's shape holds). No `gate_sha256` and every other line hold.
 - **The T-Rex stands on an elliptic friction cone, so every world heading is
   physically identical** (breaking — plant change, physics revision 8 → 9;
   all existing T-Rex checkpoints are invalidated; decision D-D29, which the

@@ -431,7 +431,9 @@ class DibothrosuchusEnv(BaseDinoEnv):
         info["torso_height"] = torso_height
         info["pelvis_height"] = torso_height  # alias for LocomotionMetrics
         min_z = self.healthy_z_range[0]
-        target_z = 0.3129  # settled trunk height under the home controller
+        # Settled trunk height under the home controller on physics r1; since r2 (the elliptic cone) the trunk
+        # settles at 0.3132, above it, where the clipped term already pays in full.
+        target_z = 0.3129
         height_frac = float(np.clip((torso_height - min_z) / (target_z - min_z), 0.0, 1.0))
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height

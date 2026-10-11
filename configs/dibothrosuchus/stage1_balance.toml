@@ -35,12 +35,12 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # optimum at every noise level, so "headroom below the statue" cannot
                                                # be earned back by a better reward score, and at 0.30 survival and
                                                # stance quality are conflated in every metric. At 0.05 the statue is
-                                               # 100% full-horizon (standing 2598.3 +/- 0.9), so survival stops being
-                                               # the binding constraint and stance-quality gates measure stance.
-                                               # Robustness moves to stage 1b's declared perturbations (§13), where a
-                                               # lucky draw and a good controller are distinguishable. The 0.30-era
-                                               # sweep (0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 -> 65%) remains
-                                               # valid data for choosing 1b's perturbation magnitude.
+                                               # 100% full-horizon (standing 2598.3 +/- 0.9; 2598.5 on physics r2), so
+                                               # survival stops being the binding constraint and stance-quality gates
+                                               # measure stance. Robustness moves to stage 1b's declared perturbations
+                                               # (§13), where a lucky draw and a good controller are distinguishable.
+                                               # The 0.30-era sweep (0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 ->
+                                               # 65%) remains valid data for choosing 1b's perturbation magnitude.
 
 [ppo]
 learning_rate = 3e-5                    # Matches the balance-stage LR that the other species converged on; 3e-4 was unstable for them
@@ -84,8 +84,13 @@ min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # rejects a policy that discarded most of the available return; 0.60
                                         # rather than §12's 0.89 for the reason derived in the trex config. The
                                         # old 100.0 was cleared by the statue (18x over) and certified nothing.
+                                        # Re-measured on physics r2 (plant_versions note 17: the elliptic
+                                        # friction cone), same command: 2598.53 +/- 0.87, 40/40 full horizon
+                                        # (80/80 on 3082-3161), +0.2, under two standard errors; 0.60 x 2598.5 =
+                                        # 1559.1 still rounds to 1560.
 collapse_peak_floor = 1950.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
-                                        # below a plausible active-policy peak. Absolute pending §14 item 3.
+                                        # below a plausible active-policy peak. Absolute pending §14 item 3. On
+                                        # physics r2 0.75 x 2598.5 = 1948.9 still rounds to 1950.
 min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.

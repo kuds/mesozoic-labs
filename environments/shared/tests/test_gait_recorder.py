@@ -1,7 +1,7 @@
 """Tests for the floor-truth recorder on real envs: inert, exact, and loud when it cannot be either.
 
 The prototype's equivalence checks, as tests, on short rollouts of the cheap
-species (dibothrosuchus for the pyramidal cone, compsognathus for the elliptic one):
+species (dibothrosuchus switched to the pyramidal cone in memory, compsognathus for the elliptic one):
 
 * **inert** -- qpos is bit-identical with and without the recorder;
 * **exact** -- per-step leg, support-geom and total floor forces equal a
@@ -45,12 +45,15 @@ from environments.shared.gait.stance_metrics import episode_stance_metrics
 from environments.shared.species_registry import get_species_config
 
 SIX = ("trex", "velociraptor", "compsognathus", "compsognathus_robot", "dibothrosuchus", "brachiosaurus")
-#: One cheap species per friction cone, so both of the recorder's normal-force decodes stay covered:
-#: dibothrosuchus (box feet, MuJoCo's default pyramidal cone) and compsognathus (elliptic).  The trex, whose box
-#: pads made it the pyramidal species here, has been elliptic since its physics r9 (plant_versions note 16).
-CONE_SPECIES = {
-    "dibothrosuchus": mujoco.mjtCone.mjCONE_PYRAMIDAL,
-    "compsognathus": mujoco.mjtCone.mjCONE_ELLIPTIC,
+#: One cheap species per friction cone, keyed by the cone (the pytest id), so both of the recorder's normal-force
+#: decodes stay covered.  Every plant has declared the elliptic cone since D-D30 (plant_versions note 17;
+#: test_friction_cone.py guards it), so none exercises the pyramidal decode -- the sum of a contact's 2 * (condim - 1)
+#: pyramid edge forces -- any more, yet the recorder still serves any model that declares no cone, MuJoCo's
+#: default.  dibothrosuchus (box feet, four contacts each) therefore runs with its model's cone switched to
+#: pyramidal in memory, before any reset or recorder attach; compsognathus runs as built.
+CONE_CASES = {
+    "pyramidal": ("dibothrosuchus", mujoco.mjtCone.mjCONE_PYRAMIDAL),
+    "elliptic": ("compsognathus", mujoco.mjtCone.mjCONE_ELLIPTIC),
 }
 
 
@@ -71,6 +74,14 @@ def envs():
     yield factory
     for env in built:
         env.close()
+
+
+def cone_env(envs, case: str):
+    """The case's species and its env, the model's friction cone set to the case's (in memory only)."""
+    species, cone = CONE_CASES[case]
+    env = envs(species)
+    env.model.opt.cone = cone
+    return species, env
 
 
 def random_actions(env, steps: int, seed: int = 0) -> np.ndarray:
@@ -119,18 +130,32 @@ class ContactForceLoop:
 # ── inert and exact ──────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("species", list(CONE_SPECIES))
-def test_the_cone_species_still_cover_both_cones(envs, species):
-    """A cone change of either species fails here, by name, instead of silently dropping a decode's coverage."""
-    assert envs(species).model.opt.cone == CONE_SPECIES[species]
+@pytest.mark.parametrize("case", list(CONE_CASES))
+def test_each_case_runs_on_its_cone(envs, case):
+    """The in-memory switch reaches the physics: MuJoCo builds the case's contact rows and the recorder decodes them."""
+    species, env = cone_env(envs, case)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach()
+    env.reset(seed=3042)
+    zero = np.zeros(env.model.nu)
+    env.step(zero)
+    recorder.end_step(zero, 0.0)
+    recorder.detach()
+    expected = (
+        mujoco.mjtConstraint.mjCNSTR_CONTACT_ELLIPTIC
+        if case == "elliptic"
+        else mujoco.mjtConstraint.mjCNSTR_CONTACT_PYRAMIDAL
+    )
+    addresses = env.data.contact.efc_address[: env.data.ncon]
+    assert addresses.size > 0 and set(env.data.efc_type[addresses[addresses >= 0]].tolist()) == {expected}
+    assert recorder._elliptic == (case == "elliptic")
 
 
-@pytest.mark.parametrize("species", list(CONE_SPECIES))
-def test_recording_leaves_the_trajectory_bit_identical(envs, species):
+@pytest.mark.parametrize("case", list(CONE_CASES))
+def test_recording_leaves_the_trajectory_bit_identical(envs, case):
     steps = 120
     trajectories = []
     for record in (False, True):
-        env = envs(species)
+        species, env = cone_env(envs, case)
         actions = random_actions(env, steps)
         recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach() if record else None
         env.reset(seed=3042)
@@ -147,10 +172,10 @@ def test_recording_leaves_the_trajectory_bit_identical(envs, species):
     np.testing.assert_array_equal(trajectories[0], trajectories[1])
 
 
-@pytest.mark.parametrize("species", list(CONE_SPECIES))
+@pytest.mark.parametrize("case", list(CONE_CASES))
 @pytest.mark.parametrize("decode", ["one_gather", "per_contact_dim"])
-def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, species, decode):
-    env = envs(species)
+def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, case, decode):
+    species, env = cone_env(envs, case)
     morphology = Morphology.from_env(env, species)
     reference = ContactForceLoop(env, morphology)
     env._substep_probe_hook = reference  # the recorder chains it, so both read every substep
@@ -173,9 +198,9 @@ def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, species, decode)
     assert trace.leg_floor_mean.sum() > 0.5 * morphology.body_weight_n * trace.length  # it measured real contact
 
 
-@pytest.mark.parametrize("species", list(CONE_SPECIES))
-def test_touch_is_the_env_aggregate_and_the_samples_are_the_env_state(envs, species):
-    env = envs(species)
+@pytest.mark.parametrize("case", list(CONE_CASES))
+def test_touch_is_the_env_aggregate_and_the_samples_are_the_env_state(envs, case):
+    species, env = cone_env(envs, case)
     recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach()
     env.reset(seed=3043)
     spawn = (
@@ -433,15 +458,16 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
 #: to 1 s + 150): trex 0.441 on its r9 plant (0.356 on r8, before the elliptic cone of D-D29), compsognathus
-#: 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus 0.699 (its
-#: hind feet heel side on four contacts).  None where the foot has no box sole, so the metric is unmeasured:
-#: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact sits where the authored pitch puts it).
+#: 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus 0.758 on its r2
+#: plant (0.699 on r1, its hind feet heel side on four contacts, before the elliptic cone of D-D30).  None where the
+#: foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose
+#: one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
     "trex": 0.47,
     "velociraptor": None,
     "compsognathus": 0.20,
     "compsognathus_robot": 0.35,
-    "dibothrosuchus": 0.72,
+    "dibothrosuchus": 0.78,
     "brachiosaurus": None,
 }
 
@@ -474,15 +500,17 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
 
 @pytest.mark.parametrize(
     ("species", "seed", "airborne"),
-    [("dibothrosuchus", 3045, 9.0), ("compsognathus_robot", 3052, 3.0), ("compsognathus", 3045, 0.0)],
+    [("dibothrosuchus", 3045, 8.0), ("compsognathus_robot", 3052, 3.0), ("compsognathus", 3045, 0.0)],
 )
 def test_the_spawn_pop_is_counted_substep_by_substep(envs, species, seed, airborne):
     """The reset pop ``constants.SPAWN_GRACE_S`` exists for, pinned at the panel seeds that show it.
 
     Every leg's floor force at or below ``CONTACT_THRESHOLD_N`` on a substep
     is one airborne substep: the first two statues leave the floor entirely
-    for 9 and 3 substeps after the reset (the largest counts their 40-episode
-    panels record, seeds 3042-3081) and never inside the settle window.
+    for 8 and 3 substeps after the reset (the largest counts their 40-episode
+    panels record, seeds 3042-3081; the dibothrosuchus's was 9 before the
+    elliptic cone of its physics r2, D-D30) and never inside the settle
+    window.
     Exact, because the count IS the threshold's meaning: read at 1.0 N
     instead of 0.1 N, the anatomical compsognathus's one-substep pop on
     physics r1 (seed 3045) counted 2.  Its physics r2 toe armature removed

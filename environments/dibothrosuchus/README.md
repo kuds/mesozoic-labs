@@ -37,13 +37,16 @@ No training runs have been published for this species yet, so the catalog entry 
   clearance against the hindlimb's 0.292 m
 - **Tail**: 4 segments, 3 actuated (pitch 1, yaw 1, pitch 2, pitch 3 — segment 4 is passive), carried clear of the
   ground in the high walk
+- **Contacts**: an elliptic friction cone since physics r2 (`configs/plant_versions.toml` note 17, decision D-D30), so
+  the box pads, whose contact frames stay on the world axes, grip the same in every direction and every world heading
+  is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
 
 ### Home Pose
 Unlike the other species, the stance geometry is authored into the body offsets rather than into joint references:
 **every hinge joint is 0 at the home keyframe**, and so is the home control vector. Holding that control for 1500
-steps leaves the trunk at 0.3129 m (0.6 mm of settle) with forward_z +0.003 and tilt 0.003 rad, so `natural_pitch` is
-0 and both the posture and nosedive rewards keep their world-vertical reference. The four pads carry the full 84.9 N
-of weight, split 71/29 rear/front.
+steps leaves the trunk at 0.3132 m (0.3 mm of settle; 0.3129 m on physics r1) with forward_z +0.002 and tilt 0.002
+rad, so `natural_pitch` is 0 and both the posture and nosedive rewards keep their world-vertical reference. The four
+pads carry the full 84.9 N of weight, split 71/29 rear/front.
 
 ### Reward Components
 - **Forward velocity** — Movement toward the prey target

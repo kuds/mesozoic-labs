@@ -1,7 +1,18 @@
 <mujoco model="brachiosaurus">
   <compiler angle="degree" autolimits="true"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
+  <!-- Elliptic friction cone since physics r5 (plant_versions note 17,
+       D-D30): one friction model for every species.  The feet are
+       ellipsoids, whose contact tangent frames stay on the world axes
+       whichever way the animal faces, and MuJoCo's default pyramidal cone is
+       weaker between those axes, so the feet's friction depended on world
+       heading: a 45 deg turn of the whole scene moved the statue's reward by
+       up to 0.84, the most of any species.  The elliptic cone is isotropic,
+       so every heading is physically identical, as on T. rex and
+       Compsognathus; test_friction_cone.py pins both.  The other solver
+       options already match theirs on MuJoCo 3.10.0 (Newton, 100
+       iterations, impratio 1). -->
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">
     <flag warmstart="enable"/>
   </option>
 

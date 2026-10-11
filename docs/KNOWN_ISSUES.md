@@ -51,6 +51,14 @@ robustness, **LOW** = cosmetic / QoL.
   existing production training prerequisites. Summarized findings, the
   full-budget reference runs, scope limits and acceptance criteria:
   [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md).
+  *Update (2026-10-11):* velociraptor physics r4 (the elliptic friction
+  cone, D-D30, `configs/plant_versions.toml` note 17) strands every
+  velociraptor pilot and both 6M references, so the follow-up trains on r4.
+  Its statue is still clean on 40/40 of 3042–3081, but its feet share their
+  load a little less evenly and rest digit IV a little less steadily than
+  on r3 (support-geom duty at least 0.964 against 1.000; out of sample one
+  episode in 240 reads under the 0.35 windowed load-share bar), so the
+  digit-IV deficit above has slightly less statue margin to aim at.
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
@@ -616,6 +624,13 @@ robustness, **LOW** = cosmetic / QoL.
   `20260922_125248` trained the full 6M by its trajectory, not by protection).
   **Update 2026-10-06:** velociraptor physics r3 (D-D25) re-derived its floor
   as 0.75× the r3 statue's 2842.76, 1300 → 2130, still absolute.
+  **Update 2026-10-11:** the elliptic friction cone (D-D30, note 17) moved the
+  statues inside every rounding: velociraptor r4 2843.00, brachiosaurus r5
+  1738.38, dibothrosuchus r2 2598.53, so their stage-1 rails and floors
+  (1710 / 2130, 1040 / 1300, 1560 / 1950) keep their values; the
+  locomotion statues read 2197.0 ± 217.8
+  (dibothrosuchus) and 2201.3 ± 200.6 (brachiosaurus, median 2244.9: two of
+  40 episodes lose part of `gait_symmetry` to a briefly unloaded foot).
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -1008,8 +1023,11 @@ robustness, **LOW** = cosmetic / QoL.
   stance has trained yet; every r3 velociraptor stance trained so far is clean
   on 0/40 (two 6M runs and nine 1M-step reward pilots,
   [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
-  §1.3–§1.4); and the first two r8 trex stances fail v2 (a two-foot
-  micro-hop, and a settle stomp with a few-percent whole-episode hop mode;
+  §1.3–§1.4; every one is stranded by velociraptor physics r4, D-D30,
+  whose statue fails the 0.35 windowed load-share bar on 1 of 240
+  out-of-sample episodes, every bar kept); and the first two r8 trex
+  stances fail v2 (a two-foot micro-hop, and a settle stomp with a
+  few-percent whole-episode hop mode;
   the audit's §9), after which D-D27 revised the trex stance task and added
   settle-touchdown, yaw and hop-or-fall keys to its block. Of the D-D27
   runs, seeds 42 and 48 fail (0/40 and 36/40), and seed 52
@@ -1270,7 +1288,9 @@ robustness, **LOW** = cosmetic / QoL.
   spawn-yaw probe becomes a gate check there, and each species'
   policy-interface revision moves, so their checkpoints stop loading. The
   velociraptor follows only after the maintainer's two current velociraptor
-  runs are reviewed. The anatomical compsognathus observation carries heading
+  runs are reviewed (physics r4, D-D30, strands them; its plant, like every
+  species', is on the elliptic cone, so its headings are physically
+  identical too). The anatomical compsognathus observation carries heading
   the same way (the pelvis quaternion, linear velocity and target direction in
   the world frame; every spawn faces +x): its r2 statue is clean spawned
   yawed ±45° and ±90°, and two 200k-step PPO means are clean with seed 11 at

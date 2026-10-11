@@ -217,8 +217,79 @@ canonical_mujoco_version = "3.10.0"
 #     invalidated, the certified stance and walker of 20260922_125248
 #     included, and the statue-derived constants in
 #     configs/velociraptor/stage1_balance.toml were re-measured on this plant.
+#
+# 17. Velociraptor, brachiosaurus and dibothrosuchus friction cones made
+#     elliptic (<option cone="elliptic">; decision D-D30): one friction model
+#     for every species.  The maintainer chose on 2026-10-11 to follow the
+#     T-Rex (note 16) and both compsognathus plants, which declare it
+#     already, even where the benefit is small.  A box or ellipsoid on the
+#     floor plane keeps its contact tangent frame on the world axes whichever
+#     way the animal faces, and MuJoCo's default pyramidal cone is weaker
+#     between those axes; a capsule's frame turns with the foot.  Measured
+#     through the heading probe's own path (run_panel with a whole-scene
+#     SpawnYaw, zero action, seeds 3042-3049): the statue's +-45 deg rewards
+#     differed from 0 deg by up to 0.84 on brachiosaurus r4 (ellipsoid feet,
+#     the strongest effect of any species), 3.7e-2 on dibothrosuchus r1 (box
+#     pads) and 1.8e-12 on velociraptor r3 (capsule metatarsus and digits,
+#     already invariant); on the new plants they agree to 1.4e-12 at every
+#     heading.  Raw MuJoCo from the home keyframe under fixed random commands
+#     (uniform +-0.15 of each half range, each held 10 steps, 2000 steps), a
+#     45 deg turn of the whole scene separated the joints by 7.9e-3 rad
+#     (brachiosaurus), 8.7e-2 (dibothrosuchus) and 5.4e-3 (velociraptor, once
+#     it fell onto its ellipsoid head), and by at most 4e-14 on the new
+#     plants.  Only the cone moves: on MuJoCo 3.10.0 the other solver options
+#     already equal the compsognathus's (Newton, 100 iterations, 50
+#     line-search iterations, tolerance 1e-8, impratio 1; every geom condim
+#     3).  Newton converges in 1.0-1.1 iterations per substep on each statue
+#     (at most 6; old 1.0 and 5) and 2.4-3.3 under N(0, 0.22) commands (at
+#     most 10 on seeds 3042-3044; old 1.5-2.0 and 6), never at the cap and
+#     with no MuJoCo warning.  Statues, zero action at reset noise 0.05,
+#     old -> new:
+#     a) velociraptor r3 -> r4, on stance_quality/v2: clean on 40/40 of the
+#        certification seeds 3042-3081 on both (bound 0.928), and on 238/240
+#        out of sample (3082-3201, 5042-5081, 7042-7081, 9042-9081) against
+#        r3's 239/240.  Seed 9065 lands on its body at step 162 (r3 at 168:
+#        not the cone); seed 5060's lighter foot carries 0.342 of one 1 s
+#        block, under the 0.35 min_foot_load_share_windowed bar (r3 0.432),
+#        the one bar a full-horizon r4 statue episode fails.  The feet carry
+#        the same mean load (66.2 N each) but share it less evenly and rest
+#        digit IV less steadily (certification / out of sample, over the
+#        full-horizon episodes, so without seed 9065): lighter-foot share
+#        0.481 / 0.464 (r3 0.494 / 0.490), windowed 0.412 / 0.342 (0.457 /
+#        0.425), support-geom duty 0.964 / 0.869 (1.000 / 0.970), coverage
+#        0.988 / 0.956 (1.000 / 0.990), statue ratio 0.962 / 0.932 (0.987 /
+#        0.981); the settle bars barely move.  The statue settles at 20.02
+#        deg (0.3494 rad over 40 seeds) and pelvis 0.5055 m (r3 20.10 deg,
+#        0.3508, 0.5052 m), so natural_pitch 0.35 carries.
+#        configs/velociraptor/stage1_balance.toml keeps every bar with the r4
+#        extremes in its comments; its reference carries (2843.00 +/- 2.70
+#        against 2842.76 +/- 2.62, inside one standard error) and its pin
+#        moves to 4.
+#     b) brachiosaurus r4 -> r5, on reward_and_length/v1: stance 1738.38 +/-
+#        1.46 (1739.08 +/- 1.17), 40/40, and 80/80 on 3082-3161; -0.7 is
+#        about three standard errors, so the figure moves, but 0.60x and 0.75x
+#        still round to the 1040 / 1300 rails.  The locomotion statue reads
+#        2201.3 +/- 200.6 (2242.7 +/- 7.8; median 2244.9 against 2243.2): two
+#        of its 40 episodes lose 724 and 1088 of gait_symmetry's 2200 to a
+#        briefly unloaded foot.  The trunk settles about 2 mm higher.
+#     c) dibothrosuchus r1 -> r2, on reward_and_length/v1: stance 2598.53 +/-
+#        0.87 (2598.29 +/- 0.86), 40/40, and 80/80 on 3082-3161; the rails
+#        stay 1560 / 1950; locomotion 2197.0 +/- 217.8 (2196.9 +/- 217.7).
+#        The trunk settles at 0.3132 m (0.3129, which dibothrosuchus_env.py
+#        keeps as target_z: the clipped height term pays the statue in full
+#        either way), and the pads stand nearer their heel edge: the worst
+#        pad's fore-aft CoP reads 0.752 at the median and 0.795 at most on
+#        3042-3081 (r1 0.694 / 0.706), against the 0.80 bar D-D28 sets on the
+#        T-Rex, should this species adopt stance_quality/v2.
+#     PHYSICS moves for all three; the POLICY INTERFACE (velociraptor
+#     f12251.., brachiosaurus 506613.., dibothrosuchus d0194c..) and VISUAL
+#     (1bf243.., 445b4d.., 0a5f29..) digests are unchanged, so the policy
+#     interfaces stay 11 / 8 / 7 and the visual layers 4 / 2 / 1.  Every
+#     velociraptor physics-r3, brachiosaurus physics-r4 and dibothrosuchus
+#     physics-r1 checkpoint is invalidated (the plant check compares
+#     physics_sha256); no widen applies.
 [plants.velociraptor]
-physics_revision = 3
+physics_revision = 4
 policy_interface_revision = 11
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
@@ -455,14 +526,17 @@ observation_schema = "bipedal-target/v1"
 #    fingerprints body-local site definitions (all new sites are group 4,
 #    hidden in default renders).  Velociraptor's 45% under-read (same doc,
 #    section 3) remains open and is NOT part of this entry.
+#
+# Brachiosaurus physics r5 and dibothrosuchus physics r2: note 17, above
+# [plants.velociraptor] (the elliptic friction cone, D-D30).
 [plants.brachiosaurus]
-physics_revision = 4
+physics_revision = 5
 policy_interface_revision = 8
 visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
-physics_revision = 1
+physics_revision = 2
 policy_interface_revision = 7
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
