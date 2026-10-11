@@ -1,0 +1,529 @@
+{
+  "base_commit": "10f859f96223054932bdc4fa883b1153dde78500",
+  "python": "3.12.14",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "versions": {
+    "numpy": "2.5.3",
+    "mujoco": "3.10.0",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.0",
+    "torch": "2.14.1+cpu"
+  },
+  "scripts_sha256": {
+    "run_study.py": "e51e781fcd330711fa8a69c5f51bbf49a9d2da419aa4792d8551cb9b510703ee",
+    "test_prototype.py": "892676c166fdcb11bd59f75ae5f769c0cceddef0ec09562c5217a725a9c049c4",
+    "prototype.py": "107564b26efdc6b67d1a53cd3547534bb7561d786a63748de7cbfb76d4d64b89"
+  },
+  "status": "research only; no curriculum or publication certificate",
+  "arguments": {
+    "mode": "rollouts",
+    "species": "trex",
+    "seed": 18042,
+    "episodes": 8,
+    "training_seed": 11,
+    "timesteps": 8192,
+    "model": "../heading-inputs/seed50_model.zip",
+    "vecnorm": "../heading-inputs/seed50_vecnorm.pkl",
+    "output": "docs/investigations/heading_2026_10/rollouts_trex.json"
+  },
+  "duration_seconds": 104.74771320400032,
+  "result": {
+    "species": "trex",
+    "seed_start": 18042,
+    "rows": [
+      {
+        "controller": "zero_action",
+        "yaw_deg": -90.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.829408265967,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.953942035209,
+          3785.759589491131,
+          3754.0002543748205,
+          3778.7098524535786,
+          3776.0049089412946,
+          3764.957921903306,
+          3746.2978388095635,
+          3775.95095811883
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": -90.0,
+        "full_horizon": 0,
+        "episodes": 8,
+        "mean_length": 75.625,
+        "mean_reward": 51.29054675612514,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "tail_contact": 8
+        },
+        "criteria_failures": {
+          "horizon:": 8,
+          "min_all_feet_support:": 8,
+          "max_touchdown_rate:": 8,
+          "max_window_displacement_m:": 8,
+          "min_foot_load_share:": 8,
+          "max_actuator_saturation_fraction:": 8,
+          "max_settle_peak_floor_force_bw:": 8,
+          "min_foot_load_share_windowed:": 8,
+          "max_foot_contact_fraction:": 8,
+          "max_phantom_support_fraction:": 8,
+          "max_nonfoot_load_fraction:": 8,
+          "max_settle_stance_width_change_m:": 8,
+          "max_sole_tilt_deg:": 8,
+          "max_sole_corner_lift_m:": 8,
+          "min_sole_contacts:": 8,
+          "max_sole_cop_fore_aft:": 8,
+          "max_settle_airborne_substeps:": 6,
+          "max_settle_touchdowns:": 4
+        },
+        "episode_lengths": [
+          104.0,
+          72.0,
+          59.0,
+          92.0,
+          63.0,
+          95.0,
+          61.0,
+          59.0
+        ],
+        "episode_rewards": [
+          158.81565786738952,
+          59.41486124274863,
+          -6.127684511857197,
+          88.42510018509505,
+          20.287366560438755,
+          69.58877031880851,
+          14.35291725351368,
+          5.567385132864132
+        ]
+      },
+      {
+        "controller": "zero_action",
+        "yaw_deg": -45.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.8462003156974,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.9723429171518,
+          3785.761572945361,
+          3753.999905735914,
+          3778.7067189327377,
+          3776.006244940269,
+          3764.8777697642977,
+          3746.494586455612,
+          3775.9504608342386
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": -45.0,
+        "full_horizon": 0,
+        "episodes": 8,
+        "mean_length": 149.625,
+        "mean_reward": 181.25835753381816,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "tail_contact": 6,
+          "fallen": 2
+        },
+        "criteria_failures": {
+          "horizon:": 8,
+          "min_all_feet_support:": 8,
+          "max_touchdown_rate:": 7,
+          "max_window_displacement_m:": 8,
+          "min_foot_load_share:": 8,
+          "max_actuator_saturation_fraction:": 8,
+          "max_settle_airborne_substeps:": 6,
+          "max_settle_peak_floor_force_bw:": 8,
+          "min_foot_load_share_windowed:": 8,
+          "max_foot_contact_fraction:": 7,
+          "max_phantom_support_fraction:": 7,
+          "max_nonfoot_load_fraction:": 7,
+          "max_settle_stance_width_change_m:": 8,
+          "max_sole_tilt_deg:": 8,
+          "max_sole_corner_lift_m:": 8,
+          "min_sole_contacts:": 8,
+          "max_settle_touchdowns:": 8,
+          "max_sole_cop_fore_aft:": 8,
+          "max_episode_yaw_change_deg:": 3
+        },
+        "episode_lengths": [
+          153.0,
+          134.0,
+          217.0,
+          168.0,
+          117.0,
+          143.0,
+          139.0,
+          126.0
+        ],
+        "episode_rewards": [
+          201.5557120033746,
+          171.1183849371512,
+          109.23505253612245,
+          307.8192160963735,
+          98.17279736314664,
+          192.26904883024383,
+          204.32890477067386,
+          165.5677437334591
+        ]
+      },
+      {
+        "controller": "zero_action",
+        "yaw_deg": 0.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.8294082659568,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.9539420351666,
+          3785.75958949109,
+          3754.000254374808,
+          3778.7098524535754,
+          3776.0049089413073,
+          3764.9579219033217,
+          3746.2978388095453,
+          3775.9509581188427
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": 0.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3740.0222499867405,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {
+          "max_sole_cop_fore_aft:": 8,
+          "max_settle_peak_floor_force_bw:": 4,
+          "max_settle_touchdowns:": 1
+        },
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3739.678688378862,
+          3741.231193234655,
+          3730.0137581877934,
+          3743.1765544071795,
+          3749.8705969227494,
+          3728.870448018112,
+          3746.936055425125,
+          3740.400705319444
+        ]
+      },
+      {
+        "controller": "zero_action",
+        "yaw_deg": 45.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.8462003156883,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.97234291714,
+          3785.761572945357,
+          3753.9999057358914,
+          3778.706718932737,
+          3776.0062449402703,
+          3764.8777697642777,
+          3746.494586455594,
+          3775.950460834238
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": 45.0,
+        "full_horizon": 2,
+        "episodes": 8,
+        "mean_length": 524.625,
+        "mean_reward": 1325.0492238111956,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "fallen": 6,
+          "truncated": 2
+        },
+        "criteria_failures": {
+          "horizon:": 6,
+          "min_all_feet_support:": 6,
+          "max_touchdown_rate:": 6,
+          "max_window_displacement_m:": 6,
+          "min_foot_load_share:": 6,
+          "max_actuator_saturation_fraction:": 6,
+          "max_settle_airborne_substeps:": 4,
+          "max_settle_peak_floor_force_bw:": 8,
+          "min_foot_load_share_windowed:": 5,
+          "max_sole_tilt_deg:": 6,
+          "max_sole_corner_lift_m:": 6,
+          "min_sole_contacts:": 6,
+          "max_settle_touchdowns:": 3,
+          "max_sole_cop_fore_aft:": 6
+        },
+        "episode_lengths": [
+          292.0,
+          417.0,
+          397.0,
+          1000.0,
+          320.0,
+          463.0,
+          308.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          420.50078532289353,
+          734.3445747249018,
+          927.3229149071213,
+          3291.990699532905,
+          606.1573705376771,
+          916.0812393535753,
+          521.8765419943431,
+          3182.119664116147
+        ]
+      },
+      {
+        "controller": "zero_action",
+        "yaw_deg": 90.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.8294082659695,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.9539420352007,
+          3785.7595894911065,
+          3754.000254374821,
+          3778.7098524535836,
+          3776.0049089412923,
+          3764.9579219033203,
+          3746.2978388095694,
+          3775.9509581188627
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": 90.0,
+        "full_horizon": 0,
+        "episodes": 8,
+        "mean_length": 64.25,
+        "mean_reward": 25.89744429102836,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "tail_contact": 8
+        },
+        "criteria_failures": {
+          "horizon:": 8,
+          "min_all_feet_support:": 8,
+          "max_touchdown_rate:": 8,
+          "max_window_displacement_m:": 8,
+          "min_foot_load_share:": 8,
+          "max_actuator_saturation_fraction:": 8,
+          "max_settle_peak_floor_force_bw:": 4,
+          "min_foot_load_share_windowed:": 8,
+          "max_foot_contact_fraction:": 8,
+          "max_phantom_support_fraction:": 8,
+          "max_nonfoot_load_fraction:": 8,
+          "max_settle_stance_width_change_m:": 8,
+          "max_sole_tilt_deg:": 8,
+          "max_sole_corner_lift_m:": 8,
+          "min_sole_contacts:": 8,
+          "max_sole_cop_fore_aft:": 8
+        },
+        "episode_lengths": [
+          73.0,
+          54.0,
+          73.0,
+          67.0,
+          49.0,
+          55.0,
+          75.0,
+          68.0
+        ],
+        "episode_rewards": [
+          50.78166915976051,
+          5.906053905341338,
+          40.869616276941585,
+          37.84462015452871,
+          -3.961276536477925,
+          15.427366262143764,
+          29.134233177407353,
+          31.177271928581547
+        ]
+      },
+      {
+        "controller": "zero_action",
+        "yaw_deg": 180.0,
+        "full_horizon": 8,
+        "episodes": 8,
+        "mean_length": 1000.0,
+        "mean_reward": 3766.829408265964,
+        "clean_count_current_v2": 8,
+        "terminations": {
+          "truncated": 8
+        },
+        "criteria_failures": {},
+        "episode_lengths": [
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0,
+          1000.0
+        ],
+        "episode_rewards": [
+          3752.953942035174,
+          3785.7595894910696,
+          3754.0002543748274,
+          3778.7098524535977,
+          3776.004908941305,
+          3764.9579219033317,
+          3746.2978388095726,
+          3775.9509581188345
+        ]
+      },
+      {
+        "controller": "seed50_checkpoint",
+        "yaw_deg": 180.0,
+        "full_horizon": 0,
+        "episodes": 8,
+        "mean_length": 44.875,
+        "mean_reward": -9.586010048972287,
+        "clean_count_current_v2": 0,
+        "terminations": {
+          "tail_contact": 8
+        },
+        "criteria_failures": {
+          "horizon:": 8,
+          "min_all_feet_support:": 8,
+          "max_touchdown_rate:": 8,
+          "max_window_displacement_m:": 8,
+          "min_foot_load_share:": 8,
+          "max_actuator_saturation_fraction:": 8,
+          "min_foot_load_share_windowed:": 8,
+          "max_foot_contact_fraction:": 8,
+          "max_phantom_support_fraction:": 8,
+          "max_nonfoot_load_fraction:": 8,
+          "max_settle_stance_width_change_m:": 8,
+          "max_sole_tilt_deg:": 8,
+          "max_sole_corner_lift_m:": 8,
+          "min_sole_contacts:": 8,
+          "max_sole_cop_fore_aft:": 8,
+          "max_settle_peak_floor_force_bw:": 6,
+          "max_settle_touchdowns:": 1
+        },
+        "episode_lengths": [
+          50.0,
+          37.0,
+          48.0,
+          50.0,
+          40.0,
+          45.0,
+          44.0,
+          45.0
+        ],
+        "episode_rewards": [
+          -5.572369547985616,
+          -28.215450510874433,
+          -9.160931957907223,
+          3.9421534897416706,
+          -17.67649748622577,
+          3.215708204880926,
+          -15.357935212016358,
+          -7.8627573713914956
+        ]
+      }
+    ],
+    "model_sha256": "e5c9a826de252665d06362d529a507743602d564da4d403b1262358df519685d",
+    "vecnorm_sha256": "2a80c034294e1305ae449b0883944251917d47291f413ad3fc53a6b1c1f64c7b"
+  }
+}
