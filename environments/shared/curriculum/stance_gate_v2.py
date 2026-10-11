@@ -879,7 +879,11 @@ STANCE_V2_PANEL_STATUE_COLUMNS: tuple[str, ...] = (
 #: ``measurement_version`` column v1's lack.  The second needs saying: v1's
 #: columns are a SUBSET of these (``length`` and ``reward`` are metric fields
 #: here), so a reader that checked only for its own columns would score a v2
-#: file as a v1 panel.
+#: file as a v1 panel.  The same trap one level up: these columns are a
+#: subset of the six-heading certificate's
+#: (``stance_heading_gate.STANCE_HEADING_PANEL_FIELDNAMES``, D-D32), so
+#: :func:`read_stance_v2_panel` refuses a file carrying its ``yaw_deg``
+#: column rather than score six headings and two roles as one panel.
 STANCE_V2_PANEL_FIELDNAMES: tuple[str, ...] = (
     "episode",
     "panel_seed",
@@ -950,7 +954,9 @@ def read_stance_v2_panel(csv_path: "str | Path") -> StanceV2PanelEvidence:
     :data:`STANCE_V2_PANEL_FIELDNAMES` missing (a v1 panel file among them),
     an unparsable metric, seed or flag cell, a panel-wide stamp that differs
     between rows, or a statue stamp that is present on some columns and not
-    others is a ``ValueError``.  An empty metric cell is NaN -- unmeasured,
+    others is a ``ValueError``, and so is a six-heading certificate's grid (a
+    ``yaw_deg`` column; its columns are a superset of these).  An empty
+    metric cell is NaN -- unmeasured,
     which fails its criterion -- never zero.  The one tolerated missing
     column is a :data:`~environments.shared.gait.stance_metrics.STANCE_METRIC_LATER_FIELDS`
     metric, which a panel recorded before it existed lacks: it reads as
@@ -970,6 +976,11 @@ def read_stance_v2_panel(csv_path: "str | Path") -> StanceV2PanelEvidence:
     ]
     if missing:
         raise ValueError(f"{path} is not a {STANCE_GATE_V2_KIND} panel: it lacks the column(s) {missing}")
+    if "yaw_deg" in columns:
+        raise ValueError(
+            f"{path} is not a {STANCE_GATE_V2_KIND} panel: it records a yaw_deg column, so it is a six-heading "
+            "certificate's grid (stance_heading_panel_selected.csv), whose rows are not one panel"
+        )
     if not rows:
         raise ValueError(f"{path} holds no episode rows")
     episodes: list[StanceEpisodeMetrics] = []

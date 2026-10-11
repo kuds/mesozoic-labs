@@ -38,6 +38,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
     STANCE_GATE_V2_KIND,
     STANCE_V2_THRESHOLD_KEYS,
 )
+from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
@@ -155,6 +156,18 @@ def _stance_v2_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpe
     ]
 
 
+def _stance_heading_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The six-heading certificate (D-D32) certifies the exact binomial lower
+    # bound on the fraction of SEEDS clean at every heading of its grid --
+    # the grouped statistic, never the pooled episodes -- and the fraction
+    # it bounds follows, as for v2.  Null until the summary carries them
+    # (D-B15).
+    return [
+        ("stance_heading_clean_seed_lcb", "seeds clean at all six headings LCB95", "ratio"),
+        ("stance_heading_clean_seed_fraction", "seeds clean at all six headings", "percent"),
+    ]
+
+
 def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
     return [("recovery_success_lcb", "recovery success LCB95", "ratio")]
 
@@ -190,6 +203,7 @@ def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
 _HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]]] = {
     STANCE_GATE_KIND: _stance_headline_specs,
     STANCE_GATE_V2_KIND: _stance_v2_headline_specs,
+    STANCE_HEADING_GATE_KIND: _stance_heading_headline_specs,
     RECOVERY_GATE_KIND: _recovery_headline_specs,
     "reward_and_length/v1": _reward_and_length_headline_specs,
     TASK_SUCCESS_GATE_KIND: _task_success_headline_specs,

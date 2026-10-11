@@ -48,6 +48,11 @@ from .stance_gate_v2 import (
     STANCE_V2_THRESHOLD_KEYS,
     WINDOW_HOP_KEY_FLOORS,
 )
+from .stance_heading_gate import (
+    STANCE_HEADING_GATE_KIND,
+    STANCE_HEADING_REQUIRED_KEYS,
+    STANCE_HEADING_THRESHOLD_KEYS,
+)
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
@@ -106,6 +111,17 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     # registering it moves no digest (gate_config_view projects declared keys
     # only).  See :mod:`environments.shared.curriculum.stance_gate_v2`.
     STANCE_GATE_V2_KIND: STANCE_V2_THRESHOLD_KEYS,
+    # The six-heading stance certificate (decision D-D32): v2's episode
+    # classification on a fixed grid of whole-scene turns (-90, -45, 0, 45,
+    # 90 and 180 degrees, protocol whole_scene_yaw/v1, fixed in the gate
+    # module), passing only when v2 passes at every heading AND the exact
+    # bound on seeds clean at every heading clears the bar.  Exactly v2's
+    # keys (``STANCE_HEADING_THRESHOLD_KEYS``), so a stance moves to it by
+    # its gate_kind alone; ``min_eval_episodes`` and ``min_clean_stance_lcb``
+    # then state both the per-heading and the grouped panel.  Registering it
+    # adds no key, so it moves no digest of a stage that does not declare it.
+    # See :mod:`environments.shared.curriculum.stance_heading_gate`.
+    STANCE_HEADING_GATE_KIND: STANCE_HEADING_THRESHOLD_KEYS,
     # The recovery stage's gate (stage 1b): certifies per-shove recovery
     # under the scheduled pushes via an exact binomial LCB on episode
     # success, with an optional paired null-superiority criterion that
@@ -153,8 +169,17 @@ GATE_KINDS: dict[str, frozenset[str]] = {
 #: The gate kinds whose verdict is read off a stance gate report
 #: (``reporting.stance_report``): the post-stage pipeline rolls the report for
 #: a stage declaring any of them, and each kind's judge arm then checks the
-#: report was scored under that kind (``stance_quality/v2`` re-derives it).
-STANCE_GATE_KINDS: frozenset[str] = frozenset({STANCE_GATE_KIND, STANCE_GATE_V2_KIND})
+#: report was scored under that kind (``stance_quality/v2`` and the heading
+#: certificate re-derive it).
+STANCE_GATE_KINDS: frozenset[str] = frozenset({STANCE_GATE_KIND, STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND})
+
+#: The stance kinds scored on floor truth with v2's keys and per-episode
+#: classification: ``stance_quality/v2`` at the training heading and the
+#: six-heading certificate (D-D32).  Every place that treats v2's keys --
+#: the config-load bar checks, the manager's threshold copy, the catalog's
+#: export, the CLI curriculum's post-training judge -- keys on membership
+#: here, so the certificate shares them by being listed.
+FLOOR_TRUTH_STANCE_GATE_KINDS: frozenset[str] = frozenset({STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND})
 
 #: Gate kinds judged against a FROZEN null resolution: the stage's
 #: ``gate_resolution.json`` (pre-registered null panels and thresholds) must
@@ -193,6 +218,8 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
     # flatness and coverage keys, the statue-relative ratios and the rails
     # stay optional (``STANCE_V2_REQUIRED_KEYS`` documents the choice).
     STANCE_GATE_V2_KIND: STANCE_V2_REQUIRED_KEYS,
+    # v2's, for the reason v2's are: the certificate applies v2 at each heading.
+    STANCE_HEADING_GATE_KIND: STANCE_HEADING_REQUIRED_KEYS,
     # The LCB and both event-definition constants are load-bearing: without
     # t_recover/dwell the success event is undefined, and without the LCB
     # the gate would rest on a raw fraction.  min_paired_success_delta_lcb
@@ -498,10 +525,14 @@ def validate_gate_config(
         GateSchemaError: If the block carries an unknown key, declares an
             unknown gate kind or schema version, carries a threshold field
             that its declared kind does not consume, declares a
-            ``stance_quality/v2`` fraction bar outside its range
+            floor-truth stance (``stance_quality/v2`` or the heading
+            certificate) fraction bar outside its range
             (``stance_gate_v2.CRITERION_BAR_RANGES``) or a window hop bar
-            below its floor (``stance_gate_v2.WINDOW_HOP_KEY_FLOORS``), or
-            omits the gate declaration entirely while advancement is enabled.
+            below its floor (``stance_gate_v2.WINDOW_HOP_KEY_FLOORS``),
+            declares the report-only heading probe
+            (``stance_probe_spawn_yaw_deg``) beside the heading certificate,
+            or omits the gate declaration entirely while advancement is
+            enabled.
     """
     known = (
         _SCHEMA_KEYS
@@ -577,7 +608,7 @@ def validate_gate_config(
             '-inf); declare gate_kind = "none/v1" for a non-advancing pilot instead.'
         )
 
-    if declared_kind == STANCE_GATE_V2_KIND:
+    if declared_kind in FLOOR_TRUTH_STANCE_GATE_KINDS:
         # A fraction bar outside its range, or a window hop bar below its floor, is a typo, not a strict gate:
         # refused at config load rather than by the post-stage report after a whole training run
         # (StanceV2Thresholds.from_curriculum).
@@ -601,6 +632,16 @@ def validate_gate_config(
                     f"{_describe(stage)}: {declared_kind} threshold {key} must be a number of at least {floor:g}, "
                     f"not {raw!r}: {why}."
                 )
+
+    if declared_kind == STANCE_HEADING_GATE_KIND and "stance_probe_spawn_yaw_deg" in curriculum_kwargs:
+        # The maintainer's decision of 2026-10-11 (D-D32): the certificate rolls every seed at every heading,
+        # and the report-only probe's whole-scene rows are bit-identical replays of its first 8 seeds at four of
+        # them, so declaring both would roll the same episodes twice and warn on what the gate already judged.
+        raise GateSchemaError(
+            f"{_describe(stage)}: gate_kind {declared_kind!r} rolls the six-heading certificate, which replaces "
+            "the report-only heading probe; remove stance_probe_spawn_yaw_deg (a stage without the certificate "
+            "keeps the probe)."
+        )
 
     if advancement_enabled and declared_kind == "none/v1":
         raise GateSchemaError(

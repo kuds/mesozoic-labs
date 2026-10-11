@@ -147,7 +147,8 @@ class TestRegistration:
         fresh at JUDGE, so v2 must not join the notebook's freeze-then-roll chain."""
         assert GATE_SCHEMA_VERSION == 1
         assert STANCE_GATE_V2_KIND not in FROZEN_NULL_GATE_KINDS
-        assert STANCE_GATE_KINDS == {"stance_quality/v1", STANCE_GATE_V2_KIND}
+        # The six-heading certificate (D-D32) is a stance kind too, scored on v2's own classification.
+        assert STANCE_GATE_KINDS == {"stance_quality/v1", STANCE_GATE_V2_KIND, "stance_quality_heading/v1"}
 
     def test_every_criterion_reads_a_scalar_metric_field_and_every_key_is_numeric_in_the_view(self):
         assert {metric for _, metric, _ in EPISODE_CRITERIA} <= set(STANCE_METRIC_FIELDS)
