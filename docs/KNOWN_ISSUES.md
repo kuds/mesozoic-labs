@@ -1330,7 +1330,11 @@ robustness, **LOW** = cosmetic / QoL.
   statistics diverged by 0.03 in action over 1000 steps; see
   `environments/shared/tests/test_heading_free_rollouts.py`). The
   velociraptor and the compsognathus robot still read world-frame
-  channels.
+  channels. The probe's note and the `SpawnYaw` docstring in
+  `reporting/stance_report.py` still say a whole-scene turn changes only the
+  world-frame observation, which for these two species no longer changes at
+  all; the heading certificate's PR rewrites them with the rest of the probe
+  text.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

@@ -340,14 +340,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pins the T-Rex interface still hashes. As for every SB3-only species, the
   T-Rex's `_cache_ids` tokens now enter its policy digest
   (`interface_implementations.sb3_sensor_cache`), so a token edit there,
-  reward-target setup included, is a policy-interface revision (accepted by
-  the maintainer). Measured (MuJoCo 3.10.0): a global yaw leaves the float32
-  observation unchanged on 100 lifted, tilted, moving states × 7 turns across
-  the wrap per species (0 against the design's 2e-6), `q` and `−q` read the
-  same, `R` matches `mju_quat2Mat` to 4.4e-16, and the vertical fallback holds
-  to 3.3e-16; one seed turned with its whole scene to −90°, −45°, 0°, 45°, 90°
-  and 180° repeats its episode — the same float32 actions, joint state to
-  2.9e-13 and rewards to 3.0e-12 per step over 250 steps (zero action and a
+  reward-target setup included, is a policy-interface revision (the
+  implementation's reading of the approved SB3-only declaration, for the
+  maintainer to confirm). Measured (MuJoCo 3.10.0): a global yaw leaves the
+  float32 observation unchanged on 100 lifted, tilted, moving states × 7 turns
+  across the wrap per species (0 against the design's 2e-6), `q` and `−q` read
+  the same, `R` matches `mju_quat2Mat` to 4.4e-16, and the vertical fallback
+  holds to 3.3e-16; one seed turned with its whole scene to −90°, −45°, 0°,
+  45°, 90° and 180° repeats its episode — the same float32 actions, joint state
+  to 2.9e-13 and rewards to 3.0e-12 per step over 250 steps (zero action and a
   fixed linear policy), and over the full 1000 steps of seeds 3042–3043 behind
   an untrained PPO policy and a frozen VecNormalize the actions again agree
   exactly, joint state to 4.5e-13 and every floor-truth stance metric to
@@ -1990,13 +1991,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `observation_dim`, or a pre-contract file's missing identity); a bind
   failure the identity does not explain is re-raised unchanged and a
   successful load is returned for the caller to validate as before. The
-  trainer's statistics loader, both evaluation loads and `load_sb3_checkpoint`
-  use it, and `load_sb3_checkpoint` no longer re-labels a plant refusal as a
-  read error; `train_base._create_or_load_model` checks the identity the
-  archive's `data` member recorded before SB3 loads the model. It keeps
-  `VecNormalize.load` as the loading call, so the tests that stub it still
-  exercise the real call sites.
-
+  trainer's statistics loader, both evaluation loads, `load_sb3_checkpoint`
+  and the behavior preparation and resume (`behavior_checkpoint`) use it, and
+  `load_sb3_checkpoint` no longer re-labels a plant refusal as a read error;
+  `train_base._create_or_load_model` checks the identity the archive's `data`
+  member recorded before SB3 loads the model. It keeps `VecNormalize.load` as
+  the loading call, so the tests that stub it still exercise the real call
+  sites.
 - **Suppress unsupported held-pose ablation classifications** (#606). The report now
   requires a `hold_all` control that does not stand — a partial or complete
   full-pose fall to explain — and a standing `hold_zero` control before

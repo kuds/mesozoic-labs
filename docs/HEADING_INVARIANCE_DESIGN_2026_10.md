@@ -397,7 +397,9 @@ exclusion, and the frozen-core pin covers the Brachiosaurus and
 Dibothrosuchus registrations, which are unchanged; the low-pass filter pins
 stay. The plant contract also refuses the heading-free schema on any species
 that declares `jax-mjx`. As for every SB3-only species, T. rex's `_cache_ids`
-tokens now enter its policy digest, which the maintainer accepted.
+tokens now enter its policy digest, so a token edit there, reward-target setup
+included, is a policy-interface revision: the implementation's reading of the
+approved SB3-only declaration, for the maintainer to confirm.
 
 ## Heading certificate
 
