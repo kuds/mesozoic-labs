@@ -11,11 +11,15 @@ policy stops seeing it?".
 The motivating case is observation provenance.  Some slices are things a
 physical robot could produce from a joint encoder, an IMU or a contact switch;
 others are quantities only the simulator knows.  For the T-Rex the second group
-is ``qvel[0:3]`` -- the root body's linear velocity in the WORLD frame, which
-no sensor produces and which a feedforward policy cannot reconstruct from the
-rest of the vector -- and the four world-frame target direction/distance slots.
-A policy that scores the same without them can have them removed cheaply; one
-that collapses is built on ground truth.
+is ``qvel[0:3]`` -- the root body's linear velocity, which no sensor produces
+and which a feedforward policy cannot reconstruct from the rest of the vector
+-- and the four target direction/distance slots.  A policy that scores the same
+without them can have them removed cheaply; one that collapses is built on
+ground truth.  Since the T-Rex's policy interface r14
+(``bipedal-target-heading-free/v1``, configs/plant_versions.toml note 18) the
+velocity arrives in the gravity-aligned heading frame and the target direction
+in pelvis coordinates, and the observation carries projected gravity instead
+of a quaternion; the slices below are that layout's.
 
 Three interventions, which answer different questions:
 
@@ -30,7 +34,9 @@ Three interventions, which answer different questions:
   pelvis quaternion already in the observation.  This does not remove
   information; it asks whether the policy depends on the *frame* rather than
   the quantity, which is the difference between a slot a robot could fill and
-  one it could not.
+  one it could not.  It needs a world-frame slice and a quaternion in the
+  observation, which the heading-free T-Rex layout has neither of, so no
+  current table offers it.
 
 Everything is measured against a ``baseline`` condition that applies no
 intervention.  Check the baseline against the run's own recorded evaluation
@@ -66,13 +72,19 @@ from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadEr
 # Named observation slices per species, as (start, stop, quat_start_or_None).
 # quat_start is the index of the pelvis/torso quaternion, needed only by the
 # "body" intervention; None means the slice is not a world-frame 3-vector.
-# Derived by reading each species' _get_obs, not by assuming a shared layout.
+# Derived by reading each species' _get_obs, not by assuming a shared layout;
+# test_plant_contract_heading_free checks them against the plant contract's
+# observation segments.  The trex table is policy interface r14's
+# (bipedal-target-heading-free/v1: heading-frame velocity, pelvis-frame target,
+# so no slice is world-frame).  An r13 checkpoint does not load against it
+# (its 64-wide statistics cannot bind to the 63-wide env); its own table is in
+# this file's history.
 SLICES: dict[str, dict[str, tuple[int, int, int | None]]] = {
     "trex": {
-        "root_linvel": (49, 52, 42),
-        "target_dir": (57, 60, 42),
-        "target_dist": (60, 61, None),
-        "command": (61, 64, None),
+        "root_linvel": (48, 51, None),
+        "target_dir": (56, 59, None),
+        "target_dist": (59, 60, None),
+        "command": (60, 63, None),
     },
 }
 # Slices the simulator can supply but a physical robot could not, per species.

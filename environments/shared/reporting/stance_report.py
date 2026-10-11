@@ -995,11 +995,17 @@ class SpawnYaw:
     """The spawn turned about vertical right after reset: the heading probe's one modification.
 
     The stance stage always spawns facing +x with the prey within about 11
-    degrees of it, and the trex observation carries heading only through
-    the world-frame pelvis quaternion (and the world-frame velocity and prey
-    direction), so a stance can depend on the world heading without any
-    stance criterion seeing it: both physics-r8 trex stances fell when
-    spawned 90 degrees off, where the statue stands.  Turning the spawn
+    degrees of it, and up to policy interface r13 the trex observation
+    carried heading through the world-frame pelvis quaternion (and the
+    world-frame velocity and prey direction), so a stance could depend on
+    the world heading without any v2 criterion seeing it: both physics-r8
+    trex stances fell when spawned 90 degrees off, where the statue stands.
+    The velociraptor and the compsognathus robot still observe those
+    world-frame channels; the trex from policy interface r14 and the
+    anatomical compsognathus from r4 observe no world heading (D-D31,
+    ``bipedal-target-heading-free/v1``: projected gravity, the root velocity
+    in the gravity-aligned heading frame and the prey direction in pelvis
+    coordinates, :mod:`environments.shared.heading_observation`).  Turning the spawn
     changes nothing physical because every plant declares the elliptic
     friction cone (``cone="elliptic"``: T. rex physics r9, D-D29; the
     velociraptor, brachiosaurus and dibothrosuchus, D-D30;
@@ -1020,8 +1026,13 @@ class SpawnYaw:
     prey-bearing response.  ``True`` turns the prey about the root with it
     and the episode's reference direction (``_initial_prey_dir_2d``) too, so
     physics and reward are identical for a heading-invariant controller and
-    only the world-frame observation differs -- exactly the question of
-    whether the policy reads its heading.  The probe reports both.
+    only a world-frame observation differs -- exactly the question of
+    whether the policy reads its heading.  On a heading-free observation
+    (trex r14, anatomical compsognathus r4) nothing differs: the turned
+    observation equals the unturned one, so a seed's turned episodes repeat
+    its unturned one up to floating-point rounding, which an unstable closed
+    loop can still amplify into a different outcome; the animal-only turn
+    moves only the observed prey bearing there.  The probe reports both.
 
     The probe is report-only (decision D-D27).  The certificate is a
     separate gate kind: ``stance_quality_heading/v1`` (D-D32) rolls this
@@ -3321,10 +3332,13 @@ def render_heading_probe(
         "note": (
             "REPORT ONLY (decision D-D27). Each row turns the spawn about vertical right after reset and rolls the "
             "UNMODIFIED policy; 'animal' turns the animal alone (the prey stays, so the heading reward term pays a "
-            "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so only the "
-            "world-frame observation differs (every plant declares the elliptic friction cone, so the physics is "
-            "the same at every heading). The statue is the control. Not a gate verdict; the six-heading certificate "
-            "(stance_quality_heading/v1, D-D32) is the gate, on the stages that declare it."
+            "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so the physics "
+            "is the same at every heading (every plant declares the elliptic friction cone) and only a world-frame "
+            "observation differs: the velociraptor's and the compsognathus robot's; the trex (policy interface "
+            "r14) and the anatomical compsognathus (r4) observe no world heading (D-D31), so their 'scene' rows "
+            "differ from the unturned one only by rounding the closed loop amplifies. The statue is the control. "
+            "Not a gate verdict; the six-heading certificate (stance_quality_heading/v1, D-D32) is the gate, on the "
+            "stages that declare it."
         ),
         "rows": rows,
     }
@@ -3344,8 +3358,9 @@ def render_heading_probe(
         f"panel               {probe_episodes} episodes per row, seeds {first_seed}-"
         f"{first_seed + probe_episodes - 1}, horizon {horizon}",
         "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
-        "                    scene  = the prey and the reference direction too (only the observation differs; every",
-        "                             plant's elliptic friction cone makes the physics the same at every heading)",
+        "                    scene  = the prey and the reference direction too (every plant's elliptic friction cone",
+        "                             makes the physics the same at every heading; only a world-frame observation",
+        "                             differs, and the trex r14 and anatomical compsognathus r4 observe none)",
         "",
         f"  {'yaw':>6} {'turned':<7}{'policy fh':>10}{'reward':>9}{'|dyaw| mean/max':>17}"
         f"{'statue fh':>11}{'reward':>9}{'|dyaw| max':>11}",
@@ -3371,8 +3386,9 @@ def render_heading_probe(
     lines += [
         "",
         "  The unturned row is the harness check: both columns should match the gate panel's first seeds.",
-        "  A policy that stands at 0 deg and falls when turned reads its world heading; compare its 'scene'",
-        "  rows (the question the observation interface poses) with its 'animal' rows (which add the prey bearing).",
+        "  A policy that stands at 0 deg and falls when turned reads its world heading (on a heading-free",
+        "  observation, rounding its closed loop amplifies); compare its 'scene' rows (the question the",
+        "  observation interface poses) with its 'animal' rows (which add the prey bearing).",
     ]
     return "\n".join(lines) + "\n", payload
 
@@ -3417,7 +3433,9 @@ def heading_probe_warnings(payload: Any, *, threshold: float = HEADING_PROBE_WAR
 
     Only whole-scene rows (``whole_scene: true``) are read: turning the prey and
     the reference direction with the animal leaves a heading-free controller's
-    task unchanged, so a fall there is the policy reading its world heading.
+    task unchanged, so a fall there is the policy reading its world heading
+    (or, on an observation with no world heading, rounding its closed loop
+    amplifies).
     The unturned control (``yaw_deg`` 0, recorded ``whole_scene: false``) is the
     first seeds of the gate panel, which the gate itself judges; the
     animal-only rows add a response to the prey's bearing.  A statue cell

@@ -1293,8 +1293,9 @@ robustness, **LOW** = cosmetic / QoL.
   when every heading passes the v2 decision and the bound on seeds clean at
   every heading clears 0.80, so a stance like seed 52's, 40/40 at 0° and
   0/8 at −90° and −45° in the probe, fails, and handoff, reuse and
-  publication refuse it. It certifies a policy, not the observation: a
-  stance on the current interface that stands at every heading passes it. The
+  publication refuse it. It certifies a policy, not the observation: any
+  stance that stands at every heading passes it, whatever its observation
+  reads. The
   velociraptor follows only after the maintainer's two current velociraptor
   runs are reviewed (physics r4, D-D30, strands them; its plant, like every
   species', is on the elliptic cone, so its headings are physically
@@ -1328,6 +1329,29 @@ robustness, **LOW** = cosmetic / QoL.
   command-line curriculum rolls no probe, so every stance it trains of the
   velociraptor and the compsognathus robot warns so at its handoff. No
   verdict changes there.
+  *Update (2026-10-11, D-D31):* the observation half of the fix is carried
+  out too. The T. rex (policy interface r14) and the anatomical compsognathus
+  (r4) observe projected gravity, the root velocity in the gravity-aligned
+  heading frame and the prey direction in pelvis coordinates
+  (`bipedal-target-heading-free/v1`, `configs/plant_versions.toml` note 18),
+  so a whole-scene turn leaves their observation unchanged and one seed's
+  six headings repeat the same episode to solver tolerance; every T. rex r13
+  and compsognathus r3 checkpoint is refused, the probed stances above
+  included. The certificate above judges each heading's outcome rather
+  than expecting identical traces: a heading-free policy can still behave
+  differently turned than at the training heading, though only through
+  floating-point rounding that an unstable closed loop amplifies (an
+  untrained policy behind near-degenerate normalizer statistics diverged
+  by 0.03 in action over 1000 steps; see
+  `environments/shared/tests/test_heading_free_rollouts.py`). The entry
+  stays open for the velociraptor and the compsognathus robot, which
+  still read world-frame channels and certify no heading. The probe's
+  note and the `SpawnYaw` docstring in `reporting/stance_report.py` say
+  so: a whole-scene turn changes nothing physical on any plant (every
+  plant declares the elliptic cone) and nothing in the T. rex r14 or
+  anatomical compsognathus r4 observation, and it changes only the
+  world-frame channels of the velociraptor's and the compsognathus
+  robot's.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

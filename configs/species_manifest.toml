@@ -128,6 +128,7 @@ specialty = "Head-contact attack task"
 aliases = ["t-rex"]
 env_entrypoint = "environments.trex.envs.trex_env:TRexEnv"
 model_path = "environments/trex/assets/trex.xml"
+training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = ["results/trex/ppo/summary.json"]
 
@@ -136,12 +137,6 @@ backends = ["stable-baselines3"]
 key = "bite_success"
 label = "Head-contact bite proxy"
 definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
-
-[[species.success_metrics]]
-backends = ["jax-mjx"]
-key = "bite_proximity_success"
-label = "Head-tip proximity bite proxy"
-definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
 [[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
 deliverable = "stance"
@@ -170,13 +165,6 @@ backends = ["stable-baselines3"]
 key = "bite_success"
 label = "Head-contact bite success (task_success/v1)"
 definition = "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
-
-[[species.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["jax-mjx"]
-key = "bite_proximity_success"
-label = "Head-tip proximity bite proxy"
-definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it."
 
 [[species.stage_videos]]
 stage = "stance"

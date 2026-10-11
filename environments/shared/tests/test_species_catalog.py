@@ -79,25 +79,30 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     } == {
         # Observation widths carry the Phase C 3-dim command segment
         # (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77/53/43 -> 70/64/86/80/56/46.
+        # The heading-free observation (plant_versions note 18) replaced the
+        # trex's and the anatomical compsognathus's 4-wide quaternion with
+        # 3-wide projected gravity: 64/56 -> 63/55.
         "velociraptor": (70, 22, 31, 30, 22, 13.5),
-        "trex": (64, 15, 28, 27, 15, 85.72),
+        "trex": (63, 15, 28, 27, 15, 85.72),
         "brachiosaurus": (86, 30, 38, 37, 30, 175.3),
         "dibothrosuchus": (80, 27, 35, 34, 27, 8.65),
-        "compsognathus": (56, 14, 24, 23, 14, 1.0),
+        "compsognathus": (55, 14, 24, 23, 14, 1.0),
         "compsognathus_robot": (46, 12, 19, 18, 12, 1.5856),
     }
 
-    assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
-    # Stage 1 is 11M, not the 6M every other species uses: trex 1a is the
-    # stance-gated stage, and its 6M budget ran out mid-improvement -- run
-    # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
-    # 10M -> 11M on main (08a66b3) for the seeded replicate campaign.
+    # The velociraptor stance was raised 6M -> 12M on main (cdffea89, 2026-10-11).
+    assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [12_000_000, 8_000_000, 12_000_000]
+    # Stage 1 is 12M: trex 1a is the stance-gated stage, and its first 6M
+    # budget ran out mid-improvement -- run 20260802_203215's best evaluation
+    # was its last, at 6.0M of 6M. Raised 10M -> 11M on main (08a66b3) for
+    # the seeded replicate campaign and 11M -> 12M on main (3261967b,
+    # 2026-10-11).
     #
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
     # has no legacy number and none is invented for it.
     assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [
-        11_000_000,
+        12_000_000,
         3_000_000,
         8_000_000,
         8_000_000,
@@ -149,10 +154,10 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     }
     expected_observation_schemas = {
         "velociraptor": "bipedal-target/v1",
-        "trex": "bipedal-target/v1",
+        "trex": "bipedal-target-heading-free/v1",
         "brachiosaurus": "quadrupedal-target/v1",
         "dibothrosuchus": "quadrupedal-target/v1",
-        "compsognathus": "bipedal-target/v1",
+        "compsognathus": "bipedal-target-heading-free/v1",
         "compsognathus_robot": "bipedal-target/v1",
     }
     # The T-Rex is at physics r5 for the theropod stance correction: the home
@@ -199,12 +204,16 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # T-Rex physics r9 (plant_versions note 16) switched the friction cone to
     # elliptic: PHYSICS only, policy and visual unchanged. Velociraptor r4,
     # brachiosaurus r5 and dibothrosuchus r2 (note 17) did the same.
+    # The heading-free observation (note 18) bumped the T-Rex's and the
+    # anatomical compsognathus's policy revisions once more (projected
+    # gravity, heading-frame velocity, pelvis-frame target; the T-Rex SB3-only
+    # with it): POLICY only, physics and visual unchanged, the robot untouched.
     expected_policy_revisions = {
         "velociraptor": 11,
-        "trex": 13,
+        "trex": 14,
         "brachiosaurus": 8,
         "dibothrosuchus": 7,
-        "compsognathus": 3,
+        "compsognathus": 4,
         "compsognathus_robot": 2,
     }
     expected_physics_revisions = {"velociraptor": 4, "trex": 9, "brachiosaurus": 5, "dibothrosuchus": 2}
@@ -599,17 +608,23 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
-    # Velociraptor is SB3-only since policy-interface revision 11, so its
-    # catalog carries the contact semantics alone; the T-Rex still declares
-    # both backends and keeps one metric per backend.
-    velociraptor_metrics = species["velociraptor"]["success_metrics"]
-    assert [metric["backends"] for metric in velociraptor_metrics] == [["stable-baselines3"]]
-    assert "contacts the prey geom" in velociraptor_metrics[0]["definition"]
+    # Velociraptor is SB3-only since policy-interface revision 11 and the
+    # T-Rex since revision 14, so each catalog carries the contact semantics
+    # alone; brachiosaurus and dibothrosuchus still declare both backends and
+    # keep one metric per backend.
+    for sb3_only in ("velociraptor", "trex"):
+        metrics = species[sb3_only]["success_metrics"]
+        assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], sb3_only
+        assert "contacts the prey geom" in metrics[0]["definition"], sb3_only
+        assert all(
+            metric["backends"] == ["stable-baselines3"] for metric in species[sb3_only]["deliverable_metrics"]
+        ), sb3_only
 
-    trex_metrics = species["trex"]["success_metrics"]
-    assert trex_metrics[0]["backends"] == ["stable-baselines3"]
-    assert trex_metrics[1]["backends"] == ["jax-mjx"]
-    assert "physical geom contact is not required" in trex_metrics[1]["definition"]
+    brachio_metrics = species["brachiosaurus"]["success_metrics"]
+    assert {backend for metric in brachio_metrics for backend in metric["backends"]} == {
+        "stable-baselines3",
+        "jax-mjx",
+    }
 
 
 def test_manifest_covers_all_curated_results_and_implemented_species() -> None:

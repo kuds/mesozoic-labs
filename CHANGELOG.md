@@ -284,11 +284,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v2 report is re-judged (the notebook JUDGE branch /
   `generate_stage_artifacts`, or `stance_gate_report.py`), which rolls 12
   panels, about 13 minutes on the T-Rex and 21 on the Compsognathus. Bundles
-  already published stay as they are. Digest golden (649 lines): 6 lines
-  move, the T-Rex and Compsognathus stances' `gate_sha256` and
-  `stage_config_view_sha256.PPO` and `.SAC` (T-Rex `gate_sha256` ab4191e7 →
-  06375c21, Compsognathus 8938b294 → 4df04357); no task, recipe, plant,
-  measurement or other species' line moves.
+  already published stay as they are. Digest golden (643 lines, on top of
+  D-D31's heading-free observations below): 6 lines move, the T-Rex and
+  Compsognathus stances' `gate_sha256` and `stage_config_view_sha256.PPO`
+  and `.SAC` (T-Rex `gate_sha256` ab4191e7 → 06375c21, Compsognathus
+  8938b294 → 4df04357); no task, recipe, plant, measurement or other
+  species' line moves.
+- **Every T-Rex and anatomical Compsognathus checkpoint must be retrained;
+  none can be widened** (T-Rex policy interface revision 13 → 14, anatomical
+  Compsognathus 3 → 4, observation schema `bipedal-target-heading-free/v1`;
+  decision D-D31). The plant contract refuses each recorded checkpoint and
+  VecNormalize sidecar on its `policy_interface_sha256` and `observation_dim`
+  on every load path (the trainer's warm start, resume and statistics load,
+  `load_sb3_checkpoint`, `evaluation.evaluate`, the stage video and the
+  behavior preparation), `widen_checkpoint.py` refuses the width (64 + 3 ≠ 63
+  and 56 + 3 ≠ 55: the observation was reframed, not widened), and ancestor
+  reuse refuses every recorded node of the two species (its `task_sha256`
+  moved), so `TRUNK_FROM = "auto"` and `--trunk-from` find no trunk for them.
+  Stranded: the pre-migration T-Rex stances `20261008_163256`,
+  `20261008_163410` and `20261009_155723` and the recovery trained from it
+  (already refused on physics r9, and research-only by the maintainer's
+  ruling), the T-Rex runs of the 15-run reward pilot batch (#608), and any
+  anatomical Compsognathus run on interface r3. Start fresh PPO weights,
+  optimizer state and VecNormalize statistics. A Compsognathus recovery
+  session re-freezes its `gate_resolution.json` on the restamped
+  `configs/compsognathus/recovery_calibration.json` (its `profile_sha256`
+  moved). `compsognathus_robot`, the Velociraptor, the Brachiosaurus and the
+  Dibothrosuchus keep every digest.
 - **Every velociraptor, brachiosaurus and dibothrosuchus checkpoint must be
   retrained; none can be widened** (velociraptor physics revision 3 → 4,
   brachiosaurus 4 → 5, dibothrosuchus 1 → 2; decision D-D30). Each load path
@@ -413,15 +435,134 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headings (stance_quality_heading/v1)". The `SpawnYaw` docstring now gives
   the right reason a whole-scene turn changes nothing physical (every plant
   declares the elliptic friction cone, D-D29 and D-D30; under the pyramidal
-  cone a 45° turn perturbed box and ellipsoid feet) and names the
-  certificate as the gate, and the probe's note and text say so too.
+  cone a 45° turn perturbed box and ellipsoid feet), says that it changes
+  nothing in the T-Rex r14 or anatomical Compsognathus r4 observation
+  (D-D31) and only the world-frame channels of the velociraptor and the
+  Compsognathus robot, and names the certificate as the gate; the probe's
+  note and text say so too.
   Records: D-D32 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the
   consolidation plan's tables, the heading design's status and its
   carried-out note, KNOWN_ISSUES's heading entry, NEXT_STEPS (the
   publication grid and the manual 7042 audit), RESULT_BUNDLES,
   TRAINING_ARTIFACT_PRESENTATION, the T-Rex and Compsognathus READMEs and
   website pages, and the species catalog.
-- **Every species stands on an elliptic friction cone** (breaking — plant
+- **The T-Rex and the anatomical Compsognathus no longer observe their world
+  heading** (breaking — policy interface change: T-Rex revision 13 → 14, 64 →
+  63 wide; anatomical Compsognathus 3 → 4, 56 → 55; every existing checkpoint
+  of both is invalidated; decision D-D31, which the maintainer approved on
+  2026-10-11 for these two species only, carrying out
+  `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`'s observation migration and
+  D-D27's 2026-10-07 amendment; the design's heading certificate is a separate
+  change, D-D32, above). Motivation: both fed their policies the root's
+  world quaternion, world linear velocity and world prey direction, so a
+  stance could depend on its world heading where no stance criterion sees it;
+  `stance_quality/v2` certified the seed-52 T-Rex stance `20261009_155723`,
+  which stands 0/8 with the whole scene turned −90° or −45°. The new
+  `environments/shared/heading_observation.py` (pure NumPy) builds the schema
+  `bipedal-target-heading-free/v1` from the free root's own quaternion
+  `qpos[3:7]`, validated and normalized in float64 (the constructor calls
+  `_get_obs` before any forward pass, where `xmat` and the orientation sensor
+  still read zero): projected gravity `Rᵀ(0, 0, −1)` replaces the 4-wide world
+  quaternion, the root's world linear velocity `qvel[0:3]` is expressed in the
+  gravity-aligned heading frame (forward, left, up) and the prey direction in
+  pelvis coordinates. The heading frame's forward axis is the horizontal
+  projection of pelvis X; below 1e-8, a terminal pose with pelvis X vertical,
+  the horizontal projection of pelvis Y turned clockwise 90° stands in, which
+  turns with the scene; a quaternion that is not four finite numbers or has
+  norm below 1e-12 raises `ObservationStateError`. Joint state, the gyro and
+  accelerometer (already in their site frame, not rotated again), the per-foot
+  contacts, the prey distance (still measured from `xpos[pelvis]`) and the
+  trailing command are unchanged, so the new layout is joint positions and
+  velocities, gravity 3, gyro 3, heading velocity 3, accelerometer 3, feet 2,
+  prey direction 3, distance 1, command 3. `TRexEnv._get_obs` is rewritten,
+  and the anatomical Compsognathus gets its own
+  `CompsognathusBiologicalEnv._get_obs`, so `CompsognathusRobotEnv` keeps
+  `CompsognathusEnv`'s world-frame observation and every digest. The plant
+  contract branches on the schema (`plant_contract/policy_layer.py`; the
+  legacy segment table is unchanged): the new segments name each block's
+  frame, source and threshold and describe the feet per foot by sensor name,
+  their widths must sum to the observation width with the command last, the
+  helpers' function tokens are hashed beside `_get_obs`
+  (`interface_implementations.heading_free_observation`), and a `jax-mjx`
+  declaration on the schema is refused: the frozen MJX builders (D-D17) emit
+  only the legacy layout. The T-Rex is therefore SB3-only from r14
+  (`supported_training_backends` and the species manifest's
+  `training_backends`; its two JAX success metrics leave the manifest and the
+  catalog), `environments/trex/mjx_config.py` is deleted with its
+  `pyproject.toml` ruff exclusion, and `test_plant_contract_frozen_mjx.py`
+  pins the core for the two dual species left, keeping the low-pass filter
+  pins the T-Rex interface still hashes. As for every SB3-only species, the
+  T-Rex's `_cache_ids` tokens now enter its policy digest
+  (`interface_implementations.sb3_sensor_cache`), so a token edit there,
+  reward-target setup included, is a policy-interface revision (the
+  implementation's reading of the approved SB3-only declaration, for the
+  maintainer to confirm). Measured (MuJoCo 3.10.0): a global yaw leaves the
+  float32 observation unchanged on 100 lifted, tilted, moving states × 7 turns
+  across the wrap per species (0 against the design's 2e-6), `q` and `−q` read
+  the same, `R` matches `mju_quat2Mat` to 4.4e-16, and the vertical fallback
+  holds to 3.3e-16; one seed turned with its whole scene to −90°, −45°, 0°,
+  45°, 90° and 180° repeats its episode — the same float32 actions, joint state
+  to 2.9e-13 and rewards to 3.0e-12 per step over 250 steps (zero action and a
+  fixed linear policy), and over the full 1000 steps of seeds 3042–3043 behind
+  an untrained PPO policy and a frozen VecNormalize the actions again agree
+  exactly, joint state to 4.5e-13 and every floor-truth stance metric to
+  2e-10; single-threaded torch (as earlier SB3 tests leave it) turns one
+  rotated state's rounding into a one-ulp action difference on the
+  Compsognathus, which the stable loop carries to 7.3e-8 in joint state and
+  5.4e-9 in a metric, so that test bounds them at 1e-6. Statistics gathered
+  under the zero action alone made that untrained policy's closed loop
+  unstable on the Compsognathus, amplifying a one-ulp action difference at
+  step 145 to 0.03 by the end: the full-horizon test gathers them under small
+  random actions. Rewards, terminations and dynamics are bit-identical to the
+  previous interface at corresponding states: the reset golden's reset,
+  second-reset and trajectory halves re-took byte-identical, and the digest
+  harness's `--exact` captures of the base and the head differ only in the
+  trex and compsognathus `reset` and `obs` streams (586 of 37,034 lines; every
+  reward, flag, `info:*`, `qpos` and `qvel` stream is identical). `_get_obs`
+  costs about 34 µs on the T-Rex and 30 µs on the Compsognathus, against 13
+  and 10 before (1 to 1.5% of a step). `observation_ablation_report.py`'s
+  T-Rex slices follow the new layout, and `reset_golden.py`'s recapture
+  records name the policy interface and observation schema an observation was
+  taken under. `configs/compsognathus/recovery_calibration.json` is restamped
+  with `restamp_recovery_calibration.py` and a heading-interface reason, not
+  re-measured (physics r2 and the recovery `[env]` block unchanged); the reset
+  golden's trex stance and recovery and compsognathus recovery captures are
+  re-taken (only the seven observation records move). Tests:
+  `test_heading_observation.py` (the frame algebra),
+  `test_heading_free_observation.py` (the layout against the plant contract's
+  segments, construction, reset, step and terminal observations, no second
+  rotation of the local sensors, whole-scene invariance, animal-only turns,
+  `q`/`−q`, and a 250-step six-heading paired rollout per species and policy
+  in the shared legs, about 5 s per species),
+  `test_plant_contract_heading_free.py`, `test_heading_free_checkpoints.py`
+  (SB3 job: save, load, evaluate and resume on the new environments, and the
+  pre-migration pair refused on every load path) and
+  `test_heading_free_rollouts.py` (the full-horizon traces and floor-truth
+  metrics, about two minutes, in a new step of the SB3 job that runs at full
+  depth only); the stance heading probe's turn tests now assert that a
+  whole-scene turn leaves the observation unchanged and an animal-only turn
+  moves only the prey bearing. Records: D-D31 in
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the consolidation plan's tables;
+  note 18, both plant manifests and the species catalog; the heading design,
+  PLANT_CONTRACT, the cleanup plan, CONTRIBUTING, KNOWN_ISSUES, NEXT_STEPS,
+  the two species READMEs and website pages. Digest golden 649 → 643 lines,
+  every moved line a trex or compsognathus one: plant `observation_dim`,
+  `policy_interface_revision` and `policy_interface_sha256` (6); the two
+  policy sections' `WHOLE`, `interface_implementations`, `observation`,
+  `observation_probe`, `observation_schema`, `observation_segments` and
+  `.sb3_observation` (14), the T-Rex's `backend_observation_equal`,
+  `jax_interface` and `.home_reset` (3), twelve T-Rex MJX lines removed and
+  six lines added (`.heading_free_observation` on both, and the T-Rex's
+  `.sb3_sensor_cache`, `.supported_training_backends`, `jax_interface.backend`
+  and `.supported`); the stage (8) and behavior (22) `task_sha256`; and
+  `recovery compsognathus file_sha256`. Every reward, gate, hyperparameter,
+  stage-config-view and recipe line holds, and so does the T-Rex's
+  `.action_low_pass_filter`. The regenerated golden also takes up four
+  `stage_config_view_sha256` lines this change does not move, PPO and SAC of
+  the T-Rex and velociraptor stances, and the catalog those two stances'
+  budgets: `main`'s `[curriculum] timesteps` raises of 2026-10-11 (11M and 6M
+  → 12M) had left both stale.
+- **Every species stands on an elliptic friction cone** (#612; breaking — plant
   change: velociraptor physics revision 3 → 4, brachiosaurus 4 → 5,
   dibothrosuchus 1 → 2; all existing checkpoints of the three species are
   invalidated; decision D-D30, which the maintainer chose on 2026-10-11: one
@@ -498,7 +639,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rounded_values_sha256` of the nine reward stages (26: the brachiosaurus
   stance's shape holds). No `gate_sha256` and every other line hold.
 - **The T-Rex stands on an elliptic friction cone, so every world heading is
-  physically identical** (breaking — plant change, physics revision 8 → 9;
+  physically identical** (#611; breaking — plant change, physics revision 8 → 9;
   all existing T-Rex checkpoints are invalidated; decision D-D29, which the
   maintainer chose on 2026-10-11 with the heading decisions of
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `trex.xml`'s `<option>`
@@ -1992,6 +2133,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **Statistics or a checkpoint of another observation width are refused by
+  plant, not by SB3's shape errors** (with the heading-free observation,
+  decision D-D31). SB3's `VecNormalize.load` re-binds the unpickled wrapper to
+  the env (`set_venv`), asserting equal observation shapes before any caller
+  can read the plant identity pickled with it, and `PPO.load` rebuilds a model
+  around the training env before `train_base` validated it, so a pre-migration
+  pair was refused with "spaces must have the same shape"
+  (`load_vecnorm_stats`, `evaluation`), "Observation spaces do not match" (the
+  trainer) or, through `load_sb3_checkpoint`, a misleading "Re-copy the file
+  in binary mode", none naming the plant. `policy_loading.load_vecnormalize`
+  is `VecNormalize.load` that, when the bind fails and a plant identity is
+  given, reads the pickled identity and raises the plant contract's
+  `PlantCompatibilityError` (naming `policy_interface_revision` and
+  `observation_dim`, or a pre-contract file's missing identity); a bind
+  failure the identity does not explain is re-raised unchanged and a
+  successful load is returned for the caller to validate as before. The
+  trainer's statistics loader, both evaluation loads, `load_sb3_checkpoint`
+  and the behavior preparation and resume (`behavior_checkpoint`) use it, and
+  `load_sb3_checkpoint` no longer re-labels a plant refusal as a read error;
+  `train_base._create_or_load_model` checks the identity the archive's `data`
+  member recorded before SB3 loads the model. It keeps `VecNormalize.load` as
+  the loading call, so the tests that stub it still exercise the real call
+  sites.
 - **Suppress unsupported held-pose ablation classifications** (#606). The report now
   requires a `hold_all` control that does not stand — a partial or complete
   full-pose fall to explain — and a standing `hold_zero` control before

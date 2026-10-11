@@ -271,7 +271,8 @@ def main() -> int:
         help="Comma-separated spawn headings in degrees, e.g. -90,-45,45,90: re-roll the policy and the "
         "zero-action statue with the spawn turned about vertical by each (the animal alone, and with the prey "
         "and the reward's reference direction), beside an unturned control. REPORT ONLY: the stance stage "
-        "always spawns facing +x, so the gate never sees a stance that reads its world heading.",
+        "always spawns facing +x, so the v2 gate never sees a stance that reads its world heading (the "
+        "six-heading certificate, D-D32, does, on the stages that declare it).",
     )
     parser.add_argument(
         "--spawn-yaw-episodes",

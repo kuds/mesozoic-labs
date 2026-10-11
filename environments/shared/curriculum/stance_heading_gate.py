@@ -18,9 +18,14 @@ rolled at every heading, with the prey and the episode's reference
 direction turned about the root with the animal, so a heading-invariant
 controller faces the same task at each one (every plant declares the
 elliptic friction cone since D-D29 and D-D30, so the physics is identical
-too).  The grid is fixed here, not in the TOML: a list-valued threshold
-would defeat ``gate_schema.same_threshold``, and another grid is another
-protocol revision.
+too).  The two stances that declare it observe no world heading either
+(T. rex policy interface r14 and anatomical Compsognathus r4, D-D31), so a
+seed's headings feed the policy the same observation and differ only by
+floating-point rounding, which an unstable closed loop can amplify into a
+different outcome: the certificate judges each heading's outcome and never
+assumes the headings replicate.  The grid is fixed here, not in the TOML:
+a list-valued threshold would defeat ``gate_schema.same_threshold``, and
+another grid is another protocol revision.
 
 The statistic
 -------------

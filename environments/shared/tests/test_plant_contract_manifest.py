@@ -44,7 +44,7 @@ def test_bundled_runtime_manifest_matches_repository_manifest():
     assert BUNDLED_MANIFEST_PATH.read_bytes() == GENERATED_MANIFEST_PATH.read_bytes()
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot", "velociraptor"])
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot", "velociraptor", "trex"])
 def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
     from environments.shared.plant_contract import policy_layer
     from environments.shared.species_registry import get_species_config
@@ -63,8 +63,11 @@ def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     assert payload["backend_observation_equal"] is None
     # 43 / 53 before the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6);
-    # velociraptor left the frozen MJX core at policy-interface revision 11.
-    expected_width = {"compsognathus": 56, "compsognathus_robot": 46, "velociraptor": 70}[species]
+    # velociraptor left the frozen MJX core at policy-interface revision 11, and
+    # trex at revision 14 with the heading-free observation, which also took the
+    # anatomical compsognathus from 56 to 55 (projected gravity replaces the
+    # 4-wide quaternion).
+    expected_width = {"compsognathus": 55, "compsognathus_robot": 46, "velociraptor": 70, "trex": 63}[species]
     assert payload["observation"]["shape"] == [expected_width]
 
 
@@ -76,8 +79,9 @@ def test_runtime_identity_falls_back_to_bundled_manifest(species, action_dim, mo
     """The bundled manifest resolves dual-backend and SB3-only species alike.
 
     It records no training backends, so an SB3-only species (both
-    compsognathus plants, and velociraptor since policy-interface revision 11)
-    must not be checked against the dual-backend default it never declared.
+    compsognathus plants, velociraptor since policy-interface revision 11 and
+    trex since revision 14) must not be checked against the dual-backend
+    default it never declared.
     """
     monkeypatch.setattr(plant_contract.constants, "SPECIES_MANIFEST_PATH", tmp_path / "missing-species.toml")
     monkeypatch.setattr(plant_contract.constants, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
@@ -92,11 +96,12 @@ def test_runtime_identity_falls_back_to_bundled_manifest(species, action_dim, mo
 @pytest.mark.parametrize(
     ("species", "observation_dim", "action_dim"),
     # Widths carry the Phase C 3-dim command segment (BEHAVIOR_RECIPES_PLAN
-    # §4.6): 67/61/83/77 -> 70/64/86/80.
-    [("velociraptor", 70, 22), ("trex", 64, 15), ("brachiosaurus", 86, 30), ("dibothrosuchus", 80, 27)],
+    # §4.6): 67/61/83/77 -> 70/64/86/80; trex's heading-free observation
+    # (policy interface r14) then went 64 -> 63.
+    [("velociraptor", 70, 22), ("trex", 63, 15), ("brachiosaurus", 86, 30), ("dibothrosuchus", 80, 27)],
 )
 def test_current_identity_matches_each_executable_environment(species, observation_dim, action_dim):
-    # Identity generation requires exact SB3/MJX observation parity.
+    # Identity generation requires exact SB3/MJX observation parity on the dual-backend species.
     identity = current_plant_identity(species, verify_generated=False)
 
     assert identity.observation_dim == observation_dim

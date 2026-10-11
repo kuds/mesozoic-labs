@@ -18,7 +18,7 @@ the whole-scene turn, the floor-truth recorder and the verdict are real:
   is refused before anything is rolled;
 * a non-probe v1/v2 build of a heading-kind stage is refused, and the turn's
   docstring and probe text give the elliptic cone as the reason a turn is
-  physically neutral.
+  physically neutral and say which plants observe no world heading (D-D31).
 """
 
 from __future__ import annotations
@@ -376,6 +376,13 @@ def test_the_turn_text_cites_the_elliptic_cone():
     assert "stance_quality_heading/v1" in doc and "makes this probe a gate check" not in doc
     from .test_stance_heading_probe import STANDS, _sweeps
 
+    # The observation half (D-D31): the trex from r14 and the anatomical compsognathus from r4 observe no world
+    # heading, so a whole-scene turn changes nothing they see; the velociraptor and the robot still observe it.
+    assert "D-D31" in doc and "policy interface r14" in doc and "anatomical compsognathus from r4" in doc
+    assert "The velociraptor and the compsognathus robot still observe those world-frame channels" in doc
+    assert "only the world-frame observation differs" not in doc
     text, payload = stance_report.render_heading_probe(*_sweeps(STANDS), probe_episodes=8)
     assert "elliptic friction cone" in payload["note"] and "stance_quality_heading/v1" in payload["note"]
     assert "the six-heading certificate, D-D32" in text and "not a gate result" in text
+    assert "observe no world heading (D-D31)" in payload["note"] and "only the world-frame" not in payload["note"]
+    assert "the trex r14 and anatomical compsognathus r4 observe none" in text

@@ -1063,10 +1063,11 @@ def _write_heading_probe(
     so nothing in the v2 gate can see a stance that reads its world heading;
     both physics-r8 trex stances fell when spawned 90 degrees off, where the
     statue stands.  Each offset is rolled twice -- the animal turned alone,
-    and with the prey and the episode's reference direction (only the
+    and with the prey and the episode's reference direction (only a
     world-frame observation then differs: every plant declares the elliptic
-    friction cone) -- plus the unturned control, for the policy and the
-    zero-action statue.  A stage that declares the six-heading certificate
+    friction cone, and the trex r14 and anatomical compsognathus r4 observe
+    no world heading, D-D31) -- plus the unturned control, for the policy and
+    the zero-action statue.  A stage that declares the six-heading certificate
     (D-D32) never rolls it: :func:`_run_stance_probes` skips it there, and
     config load refuses the key beside that kind.
 

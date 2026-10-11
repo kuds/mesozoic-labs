@@ -72,6 +72,15 @@ tree's ``HEAD`` while the revision is still uncommitted, or
 ``--source-commit``), not a commit that reproduces the capture.  What binds
 the capture is its ``physics_sha256``; it re-takes byte-for-byte from any
 pristine checkout of the commit that adds the recapture.
+
+An interface-only POLICY revision (a new observation layout on unchanged
+physics, such as the heading-free observation of plant_versions note 18)
+moves only the observation half: the reset, second-reset and trajectory
+halves must re-take byte-identical, which is what shows the revision touched
+neither the draw stream nor the dynamics.  Recapture the species' captures
+the same way; each record also names the ``policy_interface_revision`` and
+``observation_schema`` its observation was taken under, so the observation
+half is bound to its layout as the trajectory half is to its physics.
 """
 
 from __future__ import annotations
@@ -216,9 +225,10 @@ def recapture_fixture(
 
     Every other capture, and the top-level provenance of the original
     capture, stays byte-identical.  Each re-taken capture is recorded under
-    ``recaptures`` with the species' plant identity at re-capture time, so a
-    later physics move is reported as a stale recapture rather than as an
-    unexplained trajectory mismatch.
+    ``recaptures`` with the species' plant identity at re-capture time (its
+    physics, and the policy interface and observation schema its observation
+    was taken under), so a later physics or interface move is reported as a
+    stale recapture rather than as an unexplained mismatch.
     """
     import mujoco
 
@@ -241,12 +251,22 @@ def recapture_fixture(
             "source_commit": _source_commit() if source_commit is None else source_commit,
             "physics_revision": int(plant.physics_revision),
             "physics_sha256": plant.physics_sha256,
+            "policy_interface_revision": int(plant.policy_interface_revision),
+            "observation_schema": _observation_schema(species),
             "observation_includes_command_segment": True,
             "mujoco_version": mujoco.__version__,
             "numpy_version": np.__version__,
             "platform": platform.platform(),
         }
     return updated
+
+
+def _observation_schema(species: str) -> str:
+    """The observation schema configs/plant_versions.toml declares for *species*."""
+    from environments.shared.plant_contract.versions import load_plant_versions
+
+    _, versions = load_plant_versions()
+    return str(versions[species].observation_schema)
 
 
 _NUMERIC_ARRAY = re.compile(r"\[\s*((?:-?\d[\d.e+-]*,\s*)*-?\d[\d.e+-]*)\s*\]")

@@ -10,6 +10,8 @@ import {TREX} from '@site/src/data/species';
 
 A dinosaur-inspired bipedal simulation model with an oversized head and vestigial forelimbs. Its stage 3 task uses contact from a fixed head geom as a bite proxy; the model has no articulated jaw.
 
+Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
+
 <SpeciesCatalog species={TREX} />
 
 ## Curriculum

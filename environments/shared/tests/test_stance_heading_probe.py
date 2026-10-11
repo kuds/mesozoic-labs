@@ -14,7 +14,6 @@ import json
 import math
 import tomllib
 
-import mujoco
 import numpy as np
 import pytest
 
@@ -58,20 +57,17 @@ def env():
 
 
 def _obs_slices(env) -> dict[str, slice]:
-    """Where TRexEnv._get_obs puts the world-frame channels: after the joint positions and velocities."""
+    """Where TRexEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
+
+    After the joint positions and velocities: projected gravity, the gyro, the heading-frame velocity, the
+    accelerometer, the two feet, then the pelvis-frame prey direction.
+    """
     start = (env.model.nq - 7) + (env.model.nv - 6)
     return {
-        "pelvis_quat": slice(start, start + 4),
-        "pelvis_linvel": slice(start + 7, start + 10),
-        "prey_direction": slice(start + 15, start + 18),
+        "pelvis_gravity": slice(start, start + 3),
+        "pelvis_heading_velocity": slice(start + 6, start + 9),
+        "prey_direction_body": slice(start + 14, start + 17),
     }
-
-
-def _turned_quat(yaw_deg: float, quat: np.ndarray) -> np.ndarray:
-    half = math.radians(yaw_deg) / 2.0
-    turned = np.empty(4)
-    mujoco.mju_mulQuat(turned, np.array([math.cos(half), 0.0, 0.0, math.sin(half)]), np.asarray(quat, dtype=np.float64))
-    return turned
 
 
 def _turned_xy(yaw_deg: float, vector: np.ndarray) -> np.ndarray:
@@ -91,6 +87,9 @@ class TestTurn:
         yaw_before = _root_yaw(env)
         slices = _obs_slices(env)
         obs_before = env._get_obs()
+        pelvis_before = env.data.xmat[env.pelvis_id].reshape(3, 3).copy()
+        prey_offset = env.data.mocap_pos[0] - env.data.xpos[env.pelvis_id]
+        prey_direction_before = prey_offset / (np.linalg.norm(prey_offset) + 1e-8)
         obs = _apply_spawn_yaw(env, SpawnYaw(yaw_deg))
         assert math.degrees(math.remainder(_root_yaw(env) - yaw_before, 2 * math.pi)) == pytest.approx(yaw_deg)
         np.testing.assert_array_equal(env.data.qpos[7:], joints)
@@ -99,14 +98,17 @@ class TestTurn:
         np.testing.assert_allclose(env.data.xpos[:, 2], heights, atol=1e-12)
         np.testing.assert_array_equal(env.data.mocap_pos[0], prey)
         np.testing.assert_array_equal(obs, env._get_obs())
-        # The observation reads the TURNED state (the derived sensors recomputed, not the reset's): the
-        # pelvis quaternion and the world-frame velocity turn, and the prey, left behind, does not.
-        expected_quat = _turned_quat(yaw_deg, obs_before[slices["pelvis_quat"]])
-        np.testing.assert_allclose(obs[slices["pelvis_quat"]], expected_quat, atol=1e-6)
-        np.testing.assert_allclose(
-            obs[slices["pelvis_linvel"]], _turned_xy(yaw_deg, obs_before[slices["pelvis_linvel"]]), atol=1e-6
-        )
-        np.testing.assert_allclose(obs[slices["prey_direction"]], obs_before[slices["prey_direction"]], atol=1e-6)
+        # The observation reads the TURNED state (the derived sensors recomputed, not the reset's).  It
+        # carries no world heading since policy interface r14, so the turn alone moves nothing in it but the
+        # prey's bearing: the prey, left behind, now lies where the reset's prey direction turned by -yaw
+        # about vertical lies, seen from the reset's pelvis frame.
+        prey_bearing = slices["prey_direction_body"]
+        others = np.ones(obs.shape, dtype=bool)
+        others[prey_bearing] = False
+        np.testing.assert_allclose(obs[others], obs_before[others], atol=1e-6)
+        expected_bearing = pelvis_before.T @ _turned_xy(-yaw_deg, prey_direction_before)
+        np.testing.assert_allclose(obs[prey_bearing], expected_bearing, atol=1e-6)
+        assert np.max(np.abs(obs[prey_bearing] - obs_before[prey_bearing])) > 0.5
         # The turned state was posed out of band, so the step-tagged substep aggregates are dropped.
         assert env._substep_contact_step == -1
 
@@ -115,18 +117,12 @@ class TestTurn:
         root_xy = env.data.qpos[0:2].copy()
         prey_rel = env.data.mocap_pos[0, :2] - root_xy
         reference = env._initial_prey_dir_2d.copy()
-        slices = _obs_slices(env)
         obs_before = env._get_obs()
         obs = _apply_spawn_yaw(env, SpawnYaw(90.0, whole_scene=True))
         np.testing.assert_allclose(env.data.mocap_pos[0, :2] - root_xy, [-prey_rel[1], prey_rel[0]], atol=1e-12)
         np.testing.assert_allclose(env._initial_prey_dir_2d, [-reference[1], reference[0]], atol=1e-12)
-        # The observation's prey direction turns with the scene; the quaternion with the animal.
-        np.testing.assert_allclose(
-            obs[slices["prey_direction"]], _turned_xy(90.0, obs_before[slices["prey_direction"]]), atol=1e-6
-        )
-        np.testing.assert_allclose(
-            obs[slices["pelvis_quat"]], _turned_quat(90.0, obs_before[slices["pelvis_quat"]]), atol=1e-6
-        )
+        # Since policy interface r14 the observation carries no world heading: the turned scene reads the same.
+        np.testing.assert_allclose(obs, obs_before, atol=1e-6)
 
     def test_the_statue_scores_the_same_episode_from_a_turned_scene(self):
         """Physics and reward are rotation-invariant for a constant command when the prey turns too."""

@@ -7,7 +7,7 @@ import {COMPSOGNATHUS} from '@site/src/data/species';
 
 # Compsognathus Longipes
 
-The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 56 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`).
+The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 55 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the target's direction relative to its body, so turning the whole scene changes nothing it observes.
 
 The stance node certifies stance quality, not reward: since physics r2 its gate is `stance_quality/v2`, which judges
 every episode of a 40-episode panel on the floor's force under each foot (no hop or stomp at reset, no long two-foot

@@ -32,7 +32,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
-| 1 — Stance | stand (deliverable) | — | Learn to stand and balance without falling | 6M | clean stance episodes LCB95 ≥ 0.8 over ≥ 40 episodes (settle 100 steps); an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 2, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.01, max_settle_stance_width_change_m ≤ 0.05, min_support_geom_duty ≥ 0.5, min_support_geom_coverage ≥ 0.8, min_foot_load_share_statue_ratio ≥ 0.8; full-horizon episodes ≥ 95.0%; reward rail ≥ 1710; reward rail ≥ 0.6 × the statue's; verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed when absent) |
+| 1 — Stance | stand (deliverable) | — | Learn to stand and balance without falling | 12M | clean stance episodes LCB95 ≥ 0.8 over ≥ 40 episodes (settle 100 steps); an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 2, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.01, max_settle_stance_width_change_m ≤ 0.05, min_support_geom_duty ≥ 0.5, min_support_geom_coverage ≥ 0.8, min_foot_load_share_statue_ratio ≥ 0.8; full-horizon episodes ≥ 95.0%; reward rail ≥ 1710; reward rail ≥ 0.6 × the statue's; verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed when absent) |
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Strike | hunt (deliverable) | 2 — Locomotion | Sprint and strike prey with sickle claw | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -55,30 +55,28 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 64 |
+| Observation dimension | 63 |
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r13; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r14; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
-| 1 — Stance | stand (deliverable) | — | Learn to stand and balance without falling | 11M | seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ 0.8 over ≥ 40 seeds (settle 200 steps); at every heading, clean stance episodes LCB95 ≥ 0.8 over the same seeds; an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 1.5, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.02, max_settle_stance_width_change_m ≤ 0.08, max_sole_tilt_deg ≤ 2, max_sole_corner_lift_m ≤ 0.004, min_sole_contacts ≥ 1.5, max_episode_yaw_change_deg ≤ 25, max_settle_touchdowns ≤ 2, max_sole_cop_fore_aft ≤ 0.8; full-horizon episodes ≥ 95.0% at every heading; hop-or-fall episodes ≤ 1 at every heading; reward rail ≥ 2250 at every heading; reward rail ≥ 0.6 × the statue's at the same heading; verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed when absent, never the yaw-zero panel) |
+| 1 — Stance | stand (deliverable) | — | Learn to stand and balance without falling | 12M | seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ 0.8 over ≥ 40 seeds (settle 200 steps); at every heading, clean stance episodes LCB95 ≥ 0.8 over the same seeds; an episode is clean when it reaches the horizon with min_all_feet_support ≥ 0.98, max_touchdown_rate ≤ 0.25, max_window_displacement_m ≤ 0.1, min_foot_load_share ≥ 0.4, max_actuator_saturation_fraction ≤ 0.1, max_settle_airborne_substeps ≤ 0, max_settle_peak_floor_force_bw ≤ 1.5, min_foot_load_share_windowed ≥ 0.35, max_foot_contact_fraction ≤ 0.02, max_phantom_support_fraction ≤ 0.05, max_nonfoot_load_fraction ≤ 0.02, max_settle_stance_width_change_m ≤ 0.08, max_sole_tilt_deg ≤ 2, max_sole_corner_lift_m ≤ 0.004, min_sole_contacts ≥ 1.5, max_episode_yaw_change_deg ≤ 25, max_settle_touchdowns ≤ 2, max_sole_cop_fore_aft ≤ 0.8; full-horizon episodes ≥ 95.0% at every heading; hop-or-fall episodes ≤ 1 at every heading; reward rail ≥ 2250 at every heading; reward rail ≥ 0.6 × the statue's at the same heading; verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed when absent, never the yaw-zero panel) |
 | recovery — Recovery | stand (deliverable) | 1 — Stance | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs each required frozen null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | hunt (deliverable) | 2 — Locomotion | Sprint to prey and make contact with the head bite proxy | 8M | task success LCB95 ≥ 0.5; reward rail ≥ 361; ≥ 30 episodes/evaluation; verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent) |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Head-contact bite proxy:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
-- **JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 **Per-deliverable success semantics:**
 - **stance (1 — Stance) · Stable-Baselines3 — Stance quality at six headings (stance_quality_heading/v1):** The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value.
 - **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15).
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Bite) · Stable-Baselines3 — Head-contact bite success (task_success/v1):** The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate.
-- **hunt (3 — Bite) · JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it.
 
 [Full documentation →](../environments/trex/README.md)
 
@@ -157,11 +155,11 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 | Generated specification | Value |
 |---|---|
-| Observation dimension | 56 |
+| Observation dimension | 55 |
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r3; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r4; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

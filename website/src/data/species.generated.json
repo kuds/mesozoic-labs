@@ -143,7 +143,7 @@
           "title": "Stance",
           "description": "Learn to stand and balance without falling",
           "config_path": "configs/velociraptor/stage1_balance.toml",
-          "timesteps": 6000000,
+          "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": null,
           "recipe": "stand",
@@ -491,7 +491,7 @@
       ],
       "environment": {
         "entrypoint": "environments.trex.envs.trex_env:TRexEnv",
-        "observation_dim": 64,
+        "observation_dim": 63,
         "action_dim": 15
       },
       "model": {
@@ -501,13 +501,13 @@
         "nu": 15,
         "dynamic_mass_kg": 85.72,
         "plant_contract": {
-          "bundle_sha256": "sha256:35f717bf4afd02849e1bab032e3fda81b45d5aea19ff14489e2c7b38f21dc913",
+          "bundle_sha256": "sha256:10937faa407fdddd7e0db0624cff81d4207c73946d6e2338f430d03077b2cd8e",
           "source_closure_sha256": "sha256:02f6d3ceb49df11c8b8f1f909546c2230b9ed176587c56157db9853fcdad7581",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 13,
-            "observation_schema": "bipedal-target/v1",
-            "sha256": "sha256:0b43de19860b3b6e8ea7d010d8b7069b265b14040d57ece7fffab49a9cb51252"
+            "revision": 14,
+            "observation_schema": "bipedal-target-heading-free/v1",
+            "sha256": "sha256:169b010de87e363735d6b87d95057964561cf6a064db10bd72667a9ae110a73e"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -532,14 +532,6 @@
           "key": "bite_success",
           "label": "Head-contact bite proxy",
           "definition": "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
-        },
-        {
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "bite_proximity_success",
-          "label": "Head-tip proximity bite proxy",
-          "definition": "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
         }
       ],
       "deliverable_metrics": [
@@ -582,16 +574,6 @@
           "key": "bite_success",
           "label": "Head-contact bite success (task_success/v1)",
           "definition": "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "bite_proximity_success",
-          "label": "Head-tip proximity bite proxy",
-          "definition": "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path, retired by D-D17, could not judge task_success/v1 (no MJX hunting panel existed) and refused the stage rather than certifying it."
         }
       ],
       "stages": [
@@ -604,7 +586,7 @@
           "title": "Stance",
           "description": "Learn to stand and balance without falling",
           "config_path": "configs/trex/stance.toml",
-          "timesteps": 11000000,
+          "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": null,
           "recipe": "stand",
@@ -1411,7 +1393,7 @@
       ],
       "environment": {
         "entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusBiologicalEnv",
-        "observation_dim": 56,
+        "observation_dim": 55,
         "action_dim": 14
       },
       "model": {
@@ -1421,13 +1403,13 @@
         "nu": 14,
         "dynamic_mass_kg": 1.0,
         "plant_contract": {
-          "bundle_sha256": "sha256:a3410c4f018b8c5920d9e046ced54a3a8eb52aa2ed1cec2408b454d8ad0bb348",
+          "bundle_sha256": "sha256:379d2121a70f33e30b1cfd35a3533ea07612480758708faa069614115447d33b",
           "source_closure_sha256": "sha256:0748b0a88012be7a8f191cb3f7ca0a54a2a3421da8894584758c1fcb3e374d85",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 3,
-            "observation_schema": "bipedal-target/v1",
-            "sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd"
+            "revision": 4,
+            "observation_schema": "bipedal-target-heading-free/v1",
+            "sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",

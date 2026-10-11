@@ -1,10 +1,14 @@
 """SB3 environments for the anatomical and robot Compsognathus MuJoCo models.
 
 Actions are normalized residuals about the gravity-preloaded ``home`` controls. The
-56-dimensional anatomical and 46-dimensional robot observations use the repository's
+55-dimensional anatomical and 46-dimensional robot observations use the repository's
 privileged bipedal state/target layout, followed by the 3-dim body-relative command
-segment (BEHAVIOR_RECIPES_PLAN §4.6; zeros under ``command_mode = "none"``). Camera pixels
-are available separately; these MLP policies are simulation baselines, not onboard policies.
+segment (BEHAVIOR_RECIPES_PLAN §4.6; zeros under ``command_mode = "none"``). Since its
+policy interface r4 the anatomical layout is heading-free (``bipedal-target-heading-free/v1``,
+``CompsognathusBiologicalEnv._get_obs``): projected gravity, the heading-frame root
+velocity and the pelvis-frame target direction replace the world quaternion, velocity and
+direction the robot still reads. Camera pixels are available separately; these MLP
+policies are simulation baselines, not onboard policies.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from environments.compsognathus.model import robot_body_ids
 from environments.shared import reward_functions
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.stance_diagnostics import derive_stance_info
 
 
@@ -349,7 +354,9 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
     log_std_init and on any entropy schedule.
 
     The robot keeps CompsognathusEnv's linear residual and its digests: this
-    is policy interface r3 of the anatomical species only (D-D26).
+    is policy interface r3 of the anatomical species only (D-D26).  Policy
+    interface r4 (D-D31) adds the anatomical-only heading-free ``_get_obs``
+    below; the robot keeps the inherited world-frame observation.
 
     The constructor adds the stance-quality reward terms on top of the
     inherited reward, every one inert at its default (bilateral support and
@@ -619,6 +626,42 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
         self._width_data.qpos[:] = self._home_qpos
         mujoco.mj_kinematics(model, self._width_data)
         self._spawn_stance_width = self._stance_width_target = self._stance_width(self._width_data)
+
+    def _get_obs(self) -> np.ndarray:
+        """The bipedal-target-heading-free/v1 observation (55 values; policy interface r4, D-D31).
+
+        CompsognathusEnv's layout with its three world-frame blocks replaced:
+        projected gravity for the pelvis quaternion, the root's world linear
+        velocity in the gravity-aligned heading frame, and the target
+        direction in pelvis coordinates, all from the free root's own
+        quaternion qpos[3:7] (environments/shared/heading_observation.py).
+        The gyro and accelerometer stay in their own site frame.  Overridden
+        here, not in CompsognathusEnv, so the robot keeps its observation and
+        its digests.
+        """
+        relative = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
+        distance = np.linalg.norm(relative)
+        sensors = self.data.sensordata
+        gravity, heading_velocity, target_direction_body = heading_free_root_segments(
+            self.data.qpos, self.data.qvel[:3], relative / (distance + 1e-8)
+        )
+        return np.asarray(
+            np.concatenate(
+                [
+                    self.data.qpos[7:],
+                    self.data.qvel[6:],
+                    gravity,
+                    sensors[self._sensor_gyro_start : self._sensor_gyro_start + 3],
+                    heading_velocity,
+                    sensors[self._sensor_accel_start : self._sensor_accel_start + 3],
+                    self._foot_contact_forces(),
+                    target_direction_body,
+                    [distance],
+                    self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
+                ]
+            ),
+            dtype=np.float32,
+        )
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         residual = np.clip(action, -1.0, 1.0)

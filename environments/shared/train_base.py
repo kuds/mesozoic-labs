@@ -55,11 +55,13 @@ from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .plant_contract import (
+    MODEL_IDENTITY_ATTRIBUTE,
     PlantIdentity,
     attach_plant_identity,
     current_plant_identity,
     validate_environment_plant,
     validate_model_plant,
+    validate_recorded_identity,
 )
 from .policy_loading import load_sb3_model
 from .species_names import species_display_name
@@ -530,7 +532,12 @@ def _create_or_load_model(
     :func:`~environments.shared.policy_loading.assert_command_blind`); the
     lineage records the zeroed names as ``zeroed_command_parameters``.
     """
-    from .task_fingerprint import attach_task_fingerprint, attach_task_lineage, validate_model_task
+    from .task_fingerprint import (
+        attach_task_fingerprint,
+        attach_task_lineage,
+        read_checkpoint_attribute,
+        validate_model_task,
+    )
 
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
@@ -538,6 +545,20 @@ def _create_or_load_model(
     task_lineage = None
     if load_path:
         logger.info("Loading model from: %s", load_path)
+        if plant_identity is not None:
+            # The identity the archive recorded, checked before SB3 rebuilds the
+            # model around train_env: SB3 refuses another observation width with
+            # "Observation spaces do not match", which names no plant.  An
+            # archive whose identity cannot be read here (none recorded, or not
+            # an SB3 ZIP) is judged after the load, as before.
+            recorded_plant = read_checkpoint_attribute(load_path, MODEL_IDENTITY_ATTRIBUTE)
+            if isinstance(recorded_plant, Mapping):
+                validate_recorded_identity(
+                    recorded_plant,
+                    plant_identity,
+                    artifact=str(load_path),
+                    allow_legacy=allow_legacy_plant,
+                )
         model = load_sb3_model(load_path, algorithm=alg_cls, env=train_env, **alg_kwargs)
         if plant_identity is not None:
             validate_model_plant(
