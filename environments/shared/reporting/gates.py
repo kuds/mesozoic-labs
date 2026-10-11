@@ -1067,7 +1067,13 @@ def _rederive_stance_heading_verdict(
         return [f"stage {stage} declares {STANCE_HEADING_GATE_KIND} without a judgeable gate: {exc}"], None
     seeds: list[int] = list(report["seeds"])
     headings: list[Mapping[str, Any]] = list(report["headings"])
-    all_rows = [row for heading in headings for row in (heading.get("episode_evidence") or [])]
+    # Only list-valued cells: any other value is refused by name below, never iterated here.
+    all_rows = [
+        row
+        for heading in headings
+        if isinstance(heading.get("episode_evidence"), list)
+        for row in heading["episode_evidence"]
+    ]
     if all_rows and all(isinstance(row, Mapping) for row in all_rows):
         unrecorded = unrecorded_criteria(thresholds, set.intersection(*(set(row) for row in all_rows)))
         if unrecorded:

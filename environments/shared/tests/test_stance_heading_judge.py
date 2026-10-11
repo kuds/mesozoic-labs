@@ -208,6 +208,14 @@ def test_nonfinite_cells_or_missing_statue_rows_are_refused(tmp_path):
     refused(report, tmp_path, "the +45 deg cell's recorded statue reference")
 
 
+@pytest.mark.parametrize("value", [1, -1.5, True, math.nan, "rows", {"seed": 3042}], ids=repr)
+def test_a_cell_whose_rows_are_not_a_list_is_refused_not_raised(tmp_path, value):
+    """A hand-edited cell is a refusal: the judge, reuse rule 8 and the backfill tool read it through here."""
+    report = heading_report(tmp_path)
+    _heading(report, -90.0)["episode_evidence"] = value
+    refused(report, tmp_path, "certificate cannot be re-derived")
+
+
 def test_a_recorded_verdict_its_rows_contradict_is_refused(tmp_path):
     report = seed52_like_report(tmp_path)
     assert report["passed"] is False and report["result"]["n_clean_seeds"] == 0

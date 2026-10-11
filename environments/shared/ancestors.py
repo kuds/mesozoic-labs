@@ -682,9 +682,18 @@ def _check_heading_certificate(
             "re-derived: a passed verdict is not the evidence (reuse rule 8); re-judge the node (the notebook "
             "JUDGE branch / generate_stage_artifacts), which rolls the certificate on the handoff pair"
         )
-    passed, failures = _stance_heading_stage_gate(
-        current_gate_config, certificate, stage=entry.reference, stage_dir=stage_dir
-    )
+    try:
+        passed, failures = _stance_heading_stage_gate(
+            current_gate_config, certificate, stage=entry.reference, stage_dir=stage_dir
+        )
+    except OSError:
+        raise  # an unreadable handoff pair refuses this run as "unreadable", like rule 5's
+    except Exception as exc:  # noqa: BLE001 - an edited certificate is a refusal, never a crash of trunk selection
+        raise AncestorReuseError(
+            f"{path} could not be judged ({type(exc).__name__}: {exc}), so the six-heading certificate "
+            f"{entry.id!r} declares cannot be re-derived (reuse rule 8); re-judge the node (the notebook JUDGE "
+            "branch / generate_stage_artifacts), which rolls the certificate on the handoff pair"
+        ) from exc
     if not passed:
         raise AncestorReuseError(
             f"{path} does not re-derive to a passing {STANCE_HEADING_GATE_KIND} certificate (reuse rule 8): "

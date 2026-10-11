@@ -1433,6 +1433,23 @@ class TestRule8HeadingCertificate:
         path.write_text(json.dumps(certificate), encoding="utf-8")
         with pytest.raises(AncestorReuseError, match=r"reuse rule 8.*clean flags differ"):
             self._find_heading(run)
+        # A cell's rows replaced by a scalar: refused by name, never a TypeError out of trunk selection.
+        certificate["headings"][0]["episode_evidence"] = 1
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match=r"reuse rule 8.*cannot be re-derived"):
+            self._find_heading(run)
+
+    def test_a_certificate_the_judge_cannot_read_is_a_refusal_not_a_crash(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import gates
+
+        run, _ = self._trunk(tmp_path)
+
+        def broken(*args: Any, **kwargs: Any) -> Any:
+            raise TypeError("'int' object is not iterable")
+
+        monkeypatch.setattr(gates, "_stance_heading_stage_gate", broken)
+        with pytest.raises(AncestorReuseError, match=r"could not be judged \(TypeError: .*\(reuse rule 8\)"):
+            self._find_heading(run)
 
     def test_rule_8_applies_only_to_the_heading_kind(self, tmp_path):
         """A v2 or v1 node is reused on its verdict as before: no certificate is read or required."""

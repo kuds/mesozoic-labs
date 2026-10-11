@@ -732,3 +732,13 @@ class TestStanceHeadingCertificates:
         assert "cannot back a stance_quality_heading/v1 verdict" in str(excinfo.value)
         assert "not the handoff robust_best_model's" in str(excinfo.value)
         assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_a_hand_edited_cell_is_refused_not_raised(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        path = stage_dir / "stance_heading_report.json"
+        certificate = json.loads(path.read_text(encoding="utf-8"))
+        certificate["headings"][0]["episode_evidence"] = 1
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        with pytest.raises(BackfillError, match="certificate cannot be re-derived"):
+            backfill_gate_verdict(stage_dir, force=True)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
