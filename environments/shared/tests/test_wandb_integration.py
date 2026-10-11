@@ -68,6 +68,33 @@ def test_wandb_callback_video(mock_wandb):
     mock_env.render.assert_called()
 
 
+@pytest.mark.parametrize(
+    "get_attr,expected_fps,expected_frames",
+    [([0.01], 50, 2), ([0.02], 50, 4), ([0.005], 50, 1), (AttributeError("dt"), 30, 4)],
+)
+def test_wandb_callback_video_plays_at_the_control_rate(mock_wandb, get_attr, expected_fps, expected_frames):
+    mock_env = MagicMock()
+    mock_env.reset.return_value = np.zeros((10,))
+    mock_env.step.return_value = (np.zeros((10,)), 0, [True], [{}])
+    mock_env.render.return_value = np.zeros((64, 64, 3))
+    if isinstance(get_attr, Exception):
+        mock_env.get_attr.side_effect = get_attr
+    else:
+        mock_env.get_attr.return_value = get_attr
+
+    mock_env.step.return_value = (np.zeros((10,)), 0, [False], [{}])
+    callback = wi.WandbCallback(video_env=mock_env, video_freq=1, video_length=4)
+    callback.num_timesteps = 1
+    callback.model = MagicMock()
+    callback.model.predict.return_value = (np.array([0.0]), None)
+
+    callback._record_video()
+
+    # Faster control rates keep every n-th frame so a GIF still plays in real time.
+    assert mock_wandb.Video.call_args.kwargs["fps"] == expected_fps
+    assert mock_wandb.Video.call_args.args[0].shape[0] == expected_frames
+
+
 def test_log_eval_metrics(mock_wandb):
     results = {"mean_gait_symmetry": 0.5, "termination_counts": {"fallen": 5, "truncated": 2}}
     wi.log_eval_metrics(results, stage=1, step=100)

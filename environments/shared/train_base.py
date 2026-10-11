@@ -60,7 +60,8 @@ from .plant_contract import (
     validate_model_plant,
 )
 from .policy_loading import load_sb3_model
-from .stage_manifest import StageEntry, StageManifest, stage_label
+from .species_names import species_display_name
+from .stage_manifest import StageEntry, StageManifest, stage_display_name, stage_label
 from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
     _make_local_tb_dir,
@@ -90,7 +91,7 @@ class SpeciesConfig:
 
     stage_descriptions: str
     """Short stage legend for ``--stage`` argparse help
-    (e.g. ``"1=balance, 2=locomotion, 3=strike"``)."""
+    (e.g. ``"1=stance, 2=locomotion, 3=strike"``)."""
 
     height_label: str
     """Label used in evaluation log output (``"Pelvis height"`` or ``"Torso height"``)."""
@@ -1504,7 +1505,8 @@ def train(
     sb3 = _ensure_sb3()
 
     logger.info("=" * 60)
-    logger.info("Training stage %s: %s", stage, config["name"])
+    logger.info("Species: %s", species_display_name(species))
+    logger.info("Training stage %s: %s", stage, stage_display_name(stage, config["name"]))
     logger.info("Description: %s", config["description"])
     logger.info("=" * 60)
 
@@ -2515,13 +2517,14 @@ def train_curriculum(
         parent = manifest.parent_of(stage)
 
         logger.info("=" * 60)
+        logger.info("Species: %s", species_display_name(species))
         logger.info(
             "Curriculum stage %s (%s, position %d/%d): %s",
             stage,
             entry.id,
             entry.position,
             len(manifest.stages),
-            config["name"],
+            stage_display_name(stage, config["name"]),
         )
         logger.info("Description: %s", config["description"])
         logger.info("Timesteps: %s", f"{total_timesteps:,}")

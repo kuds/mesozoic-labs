@@ -341,6 +341,14 @@ class TestSelectedCheckpointReplay:
 
         assert set(calls) == {"final"}
 
+    def test_skips_the_final_replay_when_its_own_vecnorm_is_missing(self, tmp_path, caplog):
+        present = [name for name in self.ALL if name != "stage1_final_vecnorm.pkl"]
+        calls, _ = self._run(tmp_path, present)
+
+        assert set(calls) == {"selected"}
+        assert "final-checkpoint replay skipped" in caplog.text
+        assert "would show a different policy" in caplog.text
+
 
 class TestRecordedModelPathFollowsTheSelector:
     """`stage_results["model_path"]` must name the checkpoint the replay shows.

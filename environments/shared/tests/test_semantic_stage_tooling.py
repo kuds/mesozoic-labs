@@ -288,21 +288,23 @@ class TestCliStageResolution:
 
 
 class TestWandbRunName:
-    """Run names follow stage_label: no more "trex-stagerecovery" (F13)."""
+    """Readable titles remain separate from resume identities and filter tags."""
 
     @pytest.fixture
     def mock_wandb(self):
         with patch("environments.shared.wandb_integration.wandb") as mock:
             yield mock
 
-    def test_integer_stage_keeps_historical_run_name(self, mock_wandb):
+    def test_integer_stage_has_full_species_and_stance_title(self, mock_wandb):
         from environments.shared.wandb_integration import init_wandb
 
         init_wandb("trex", 1, {"name": "stance"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "trex-stage1"
+        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex / Stance"
+        assert mock_wandb.init.call_args.kwargs["tags"] == ["trex", "stage1"]
 
     def test_semantic_stage_named_by_id(self, mock_wandb):
         from environments.shared.wandb_integration import init_wandb
 
         init_wandb("trex", "recovery", {"name": "recovery"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "trex-recovery"
+        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex / Recovery"
+        assert mock_wandb.init.call_args.kwargs["tags"] == ["trex", "recovery"]

@@ -195,13 +195,13 @@ class TestLoadAllStages:
         assert extra == ({"recovery"} if species == "trex" else set())
 
     @pytest.mark.parametrize("species", SPECIES)
-    def test_stage1_is_balance(self, species):
+    def test_stage1_is_stance(self, species):
         stages = load_all_stages(species)
-        assert stages[1]["name"] == "balance"
+        assert stages[1]["name"] == "stance"
 
     @pytest.mark.parametrize("species", SPECIES)
     def test_stage1_no_forward_reward(self, species):
-        """Stage 1 (balance) should have zero forward velocity weight."""
+        """Stage 1 (stance) should have zero forward velocity weight."""
         stages = load_all_stages(species)
         assert stages[1]["env_kwargs"]["forward_vel_weight"] == 0.0
 

@@ -268,8 +268,54 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     assert [record["run_path"] for record in namespace["QUARANTINED_RUNS"]] == [interrupted, conflict]
     assert records[interrupted]["errors"] == ["canonical bundle is missing artifact_manifest.json"]
     assert len(displayed) == 3, "cell 12 shows the audits, the quarantined runs and the run identities"
+    assert set(displayed[-1]["species"]) == {"Tyrannosaurus Rex", "Velociraptor Mongoliensis"}
 
     # Section 7's example names a run as <algorithm>/<run_id>; its stage directory is found by reference.
     exec(compile(code_cell(DRIVE_SUMMARY_PATH, "def show_full_config("), "show_full_config", "exec"), namespace)
     namespace["show_full_config"]("trex", partial, 1)
     assert json.loads(capsys.readouterr().out.split("---\n", 1)[1])["name"] == "Stage 1"
+
+
+def test_display_and_export_cells_align_historical_stance_names_without_rewriting_ids(tmp_path, capsys):
+    pd = pytest.importorskip("pandas")
+    from environments.shared.species_names import species_display_names
+
+    rows = [
+        {
+            "species": species,
+            "source": source,
+            "run_dir": f"ppo/{source}_{index}",
+            "algorithm": "PPO",
+            "library_version": "test",
+            "run_date": "2026-10-08",
+            "trial_id": "t1",
+            "stage": 1,
+            "stage_name": name,
+            "stage_passed": index != 0,
+            "best_mean_reward": float(index),
+        }
+        for species in species_display_names()
+        for index, (source, name) in enumerate((("training", "balance"), ("training", "stance"), ("sweep", None)))
+    ]
+    frame = pd.DataFrame(rows)
+    before = frame.copy(deep=True)
+    displayed = []
+    namespace = {"df": frame, "LOGS_DIR": tmp_path, "display": displayed.append}
+    exec(compile(code_cell(DRIVE_SUMMARY_PATH, "import pandas as pd"), "summary_imports", "exec"), namespace)
+    for marker in ("Training runs pivot", "styled =", "Settings vs Outcome", "Combined CSV across all species"):
+        exec(compile(code_cell(DRIVE_SUMMARY_PATH, marker), marker, "exec"), namespace)
+    # Both old and new records occupy the same Stance column in each pivot.
+    for pivot in displayed[:2]:
+        assert set(pivot["species"]) == set(species_display_names().values())
+        assert "stage1 (Stance)" in pivot and not any("balance" in column for column in pivot)
+    details = displayed[2].data
+    assert set(details["stage_name"]) == {"Stance"}
+    assert set(details["species"]) == set(species_display_names().values())
+    output = capsys.readouterr().out
+    assert all(label in output for label in species_display_names().values())
+    pd.testing.assert_frame_equal(frame, before)
+    exported = pd.read_csv(tmp_path / "runs_summary.csv")
+    assert set(exported["species"]) == set(species_display_names())
+    assert set(exported["stage_name"].dropna()) == {"balance", "stance"}
+    for species in species_display_names():
+        assert (tmp_path / species / "runs_summary.csv").is_file()

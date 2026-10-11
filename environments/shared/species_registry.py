@@ -20,7 +20,7 @@ def _make_raptor_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="velociraptor",
         env_class=RaptorEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=strike",
+        stage_descriptions="1=stance, 2=locomotion, 3=strike",
         height_label="Pelvis height",
         stage3_section_label="Hunting",
         # The raptor env only emits strike_success (bite_success was
@@ -35,7 +35,7 @@ def _make_trex_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="trex",
         env_class=TRexEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=bite",
+        stage_descriptions="1=stance, 2=locomotion, 3=bite",
         height_label="Pelvis height",
         stage3_section_label="Hunting",
         success_keys=["bite_success", "strike_success"],
@@ -48,7 +48,7 @@ def _make_brachio_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="brachiosaurus",
         env_class=BrachioEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
+        stage_descriptions="1=stance, 2=locomotion, 3=food_reach",
         height_label="Torso height",
         stage3_section_label="Food Reaching",
         success_keys=["food_reached"],
@@ -61,7 +61,7 @@ def _make_dibothrosuchus_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="dibothrosuchus",
         env_class=DibothrosuchusEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=snap",
+        stage_descriptions="1=stance, 2=locomotion, 3=snap",
         height_label="Trunk height",
         stage3_section_label="Hunting",
         success_keys=["snap_success"],
@@ -76,7 +76,7 @@ def _make_compsognathus_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="compsognathus",
         env_class=CompsognathusBiologicalEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
         height_label="Pelvis height",
         stage3_section_label="Target Reaching",
         success_keys=["target_success"],
@@ -89,7 +89,7 @@ def _make_compsognathus_robot_config() -> SpeciesConfig:
     return SpeciesConfig(
         species="compsognathus_robot",
         env_class=CompsognathusRobotEnv,
-        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
         height_label="Pelvis height",
         stage3_section_label="Target Reaching",
         success_keys=["target_success"],

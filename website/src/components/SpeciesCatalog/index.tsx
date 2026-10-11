@@ -314,7 +314,7 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
             <tbody>
               {result.stages.map((stage) => (
                 <tr key={stage.id}>
-                  <td>{stage.label} — {stage.name.replace('_', ' ')}</td>
+                  <td>{stage.label} — {stage.id === 'stance' ? 'Stance' : stage.name.replace('_', ' ')}</td>
                   <td>{formatMillions(stage.timesteps)}</td>
                   <td>{formatNumber(stage.bestEvalReward)}</td>
                   <td>{stage.averageForwardVelocity === null ? '—' : `${stage.averageForwardVelocity.toFixed(2)} m/s`}</td>

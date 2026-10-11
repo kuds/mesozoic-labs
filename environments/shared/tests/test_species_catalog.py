@@ -997,7 +997,7 @@ def test_published_verdicts_carry_gate_provenance() -> None:
     assert stance["gate_retired"] is True
 
     rendered = render_readme_results(catalog)
-    assert "| 1 — Balance | 3008.66 | 0.02 m/s | — | 6M | passed retired gate (reward gate) |" in rendered
+    assert "| 1 — Stance | 3008.66 | 0.02 m/s | — | 6M | passed retired gate (reward gate) |" in rendered
     assert "| Yes |" not in rendered
 
 
@@ -1743,19 +1743,19 @@ def test_readme_species_table_renders_recipe_edges() -> None:
         "| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |"
         in rendered
     )
-    assert "| 1 — Balance | stand (deliverable) | — |" in rendered
-    assert "| recovery — Recovery | stand (deliverable) | 1 — Balance |" in rendered
-    assert "| 2 — Locomotion | walk (deliverable) | 1 — Balance |" in rendered
+    assert "| 1 — Stance | stand (deliverable) | — |" in rendered
+    assert "| recovery — Recovery | stand (deliverable) | 1 — Stance |" in rendered
+    assert "| 2 — Locomotion | walk (deliverable) | 1 — Stance |" in rendered
     assert "| 3 — Bite | hunt (deliverable) | 2 — Locomotion |" in rendered
     assert "**Per-deliverable success semantics:**" in rendered
-    assert "- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
-    assert "- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
+    assert "- **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
+    assert "- **stand (1 — Stance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
     # The velociraptor stand certifies under the floor-truth gate since physics r3 (D-D25).
-    assert "- **stand (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered
+    assert "- **stand (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered
 
 
-def test_readme_results_block_is_byte_identical_for_ladder_summaries() -> None:
-    """The generated RESULTS block is byte-identical to its pre-Phase-A rendering (D-A10).
+def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> None:
+    """The generated RESULTS block preserves historical metrics and normalizes the stance label.
 
     The golden fixture is the block between the RESULTS markers of
     README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
@@ -1766,7 +1766,7 @@ def test_readme_results_block_is_byte_identical_for_ladder_summaries() -> None:
     is the golden with its four source-summary links one directory up, and
     the root README no longer embeds it.
     """
-    golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8")
+    golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
     assert golden.count("### ") == 4
     catalog = build_catalog()
     assert render_readme_results(catalog).rstrip() + "\n" == golden
