@@ -138,6 +138,42 @@ function formatGate(gate: AdvancementGate): string {
     );
     return stanceCriteria.join('; ');
   }
+  // A stance_quality_heading/v1 verdict (the six-heading certificate) is
+  // produced once, post-stage, from stance_heading_report.json: the v2
+  // criteria at every heading of the fixed whole-scene grid, each heading's
+  // full v2 decision, and the bound on seeds clean at every heading, so
+  // min_eval_episodes and min_clean_stance_lcb read as both the per-heading
+  // and the grouped panel. No consecutive-passes tail, as for v2.
+  if (gate.gateKind === 'stance_quality_heading/v1') {
+    const lcb = requireCriterion(gate, gate.minCleanStanceLcb, 'min_clean_stance_lcb').toLocaleString();
+    const settle = requireCriterion(gate, gate.settleSteps, 'settle_steps').toLocaleString();
+    const headingCriteria = [
+      `seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ ${lcb} over ≥ ${gate.minEvaluationEpisodes} seeds (settle ${settle} steps)`,
+      `at every heading, clean stance episodes LCB95 ≥ ${lcb} over the same seeds`,
+    ];
+    const perEpisode = gate.stanceEpisodeCriteria.map(
+      ({key, bar}) => `${key} ${key.startsWith('min_') ? '≥' : '≤'} ${bar.toLocaleString()}`,
+    );
+    headingCriteria.push(`an episode is clean when it reaches the horizon with ${perEpisode.join(', ')}`);
+    if (gate.minFullHorizonFraction !== null) {
+      headingCriteria.push(`full-horizon episodes ≥ ${formatPercent(gate.minFullHorizonFraction)} at every heading`);
+    }
+    if (gate.maxHopOrFallEpisodes !== null) {
+      headingCriteria.push(`hop-or-fall episodes ≤ ${gate.maxHopOrFallEpisodes.toLocaleString()} at every heading`);
+    }
+    if (gate.minAverageReward !== null) {
+      headingCriteria.push(`reward rail ≥ ${gate.minAverageReward.toLocaleString()} at every heading`);
+    }
+    if (gate.minAverageRewardStatueRatio !== null) {
+      headingCriteria.push(
+        `reward rail ≥ ${gate.minAverageRewardStatueRatio.toLocaleString()} × the statue's at the same heading`,
+      );
+    }
+    headingCriteria.push(
+      'verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed when absent, never the yaw-zero panel)',
+    );
+    return headingCriteria.join('; ');
+  }
   const criteria: string[] = [];
   if (gate.minAverageReward !== null) criteria.push(`reward ≥ ${gate.minAverageReward.toLocaleString()}`);
   if (gate.minAverageEpisodeLength !== null) {

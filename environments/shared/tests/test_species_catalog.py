@@ -2130,7 +2130,8 @@ def test_website_gate_formatter_mirrors_python() -> None:
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
     order pin (none/v1, then recovery_quality/v1, then task_success/v1, then
-    stance_quality/v2, then the generic path) keeps the frozen-verdict
+    stance_quality/v2, then the six-heading certificate, then the generic
+    path) keeps the frozen-verdict
     sentence on the recovery row, the evidence-CSV sentence on the hunting
     row, the floor-truth report sentence on the v2 stance row, and the
     consecutive-passes tail off all three, on both sides.  The task_success
@@ -2159,6 +2160,12 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "an episode is clean when it reaches the horizon with ",
         " × the statue's",
         "verdict from the floor-truth stance_gate_report.json on the handoff pair (post-stage; fail-closed ",
+        "seeds clean at all six headings (whole scene turned -90, -45, 0, 45, 90, 180°) LCB95 ≥ ",
+        "at every heading, clean stance episodes LCB95 ≥ ",
+        " over the same seeds",
+        " at every heading",
+        " × the statue's at the same heading",
+        "verdict from the six-heading stance_heading_report.json on the handoff pair (post-stage; fail-closed ",
         "reward ≥ ",
         "episode length ≥ ",
         "avg. velocity ≥ ",
@@ -2181,10 +2188,14 @@ def test_website_gate_formatter_mirrors_python() -> None:
         recovery_branch = body.index("recovery_quality/v1")
         task_success_branch = body.index("task_success/v1")
         stance_v2_branch = body.index("stance_quality/v2")
+        heading_branch = body.index("stance_quality_heading/v1")
         # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
         # resolve inside a branch that rendered its rail with the same words.
         generic_path = body.index("avg. velocity ≥ ")
-        assert none_branch < recovery_branch < task_success_branch < stance_v2_branch < generic_path
+        assert none_branch < recovery_branch < task_success_branch < stance_v2_branch < heading_branch < generic_path
+        # The certificate's sentences belong to its own branch.
+        assert heading_branch < body.index("seeds clean at all six headings") < generic_path
+        assert heading_branch < body.index("verdict from the six-heading stance_heading_report.json") < generic_path
         # The floor-truth sentences belong to the stance_quality/v2 branch.
         assert stance_v2_branch < body.index("clean stance episodes LCB95 ≥ ") < generic_path
         assert stance_v2_branch < body.index("verdict from the floor-truth stance_gate_report.json") < generic_path
