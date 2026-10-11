@@ -2030,7 +2030,7 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
 # ── the six-heading certificate (``stance_quality_heading/v1``, D-D32) ──────
 
 
-def heading_protocol_refusals(env_kwargs: Mapping[str, Any], model: Any) -> list[str]:
+def heading_protocol_refusals(env_kwargs: Mapping[str, Any], model: Any = None) -> list[str]:
     """Every input of the stage the whole-scene turn would not turn; empty when the protocol applies.
 
     :func:`_apply_spawn_yaw` turns the animal, every mocap body and the
@@ -2038,8 +2038,10 @@ def heading_protocol_refusals(env_kwargs: Mapping[str, Any], model: Any) -> list
     not turn a live command controller's world heading, a scheduled push or
     a heightfield, so a stage with any of them would score a different task
     at each heading: ``command_mode`` must be ``"none"``,
-    ``perturbation_capture_velocity_multiple`` 0, and the model must hold no
-    heightfield (``model.nhfield``).  Refused before anything is rolled.
+    ``perturbation_capture_velocity_multiple`` 0, and the compiled *model*
+    must hold no heightfield (``model.nhfield``; skipped when ``None``, so
+    the ``[env]`` checks can run before an environment is built).  Refused
+    before anything is rolled.
     """
     refusals: list[str] = []
     command_mode = env_kwargs.get("command_mode", "none")
@@ -2052,7 +2054,7 @@ def heading_protocol_refusals(env_kwargs: Mapping[str, Any], model: Any) -> list
         refusals.append(
             f"perturbation_capture_velocity_multiple is {pushes!r}: the turn does not rotate the world push schedule"
         )
-    heightfields = int(getattr(model, "nhfield", 0) or 0)
+    heightfields = 0 if model is None else int(getattr(model, "nhfield", 0) or 0)
     if heightfields:
         refusals.append(f"the model holds {heightfields} heightfield(s): the turn does not rotate the terrain")
     return refusals
@@ -2136,19 +2138,21 @@ def build_stance_heading_report(
     grid = validate_heading_grid(HEADING_GRID_DEG)
     seeds = [seed + index for index in range(n)]
 
-    plant_identity = current_plant_identity(species)
     env_class = SPECIES_FACTORIES[species]().env_class
-    probe = env_class(**env_kwargs)
-    try:
-        refusals = heading_protocol_refusals(env_kwargs, probe.unwrapped.model)
-    finally:
-        probe.close()
+    refusals = heading_protocol_refusals(env_kwargs)
+    if not refusals:
+        probe = env_class(**env_kwargs)
+        try:
+            refusals = heading_protocol_refusals(env_kwargs, probe.unwrapped.model)
+        finally:
+            probe.close()
     if refusals:
         raise StanceGateReportError(
             f"stage {stage} cannot be certified under {HEADING_PROTOCOL}: {'; '.join(refusals)}. The certificate "
             "turns the animal, the prey and the episode's reference direction; a task with other world-frame "
             "inputs needs a protocol that turns them too."
         )
+    plant_identity = current_plant_identity(species)
     task_sha256 = stage_task_fingerprint(
         resolve_species_id(species), stage, env_kwargs=env_kwargs, plant_identity=plant_identity
     )["task_sha256"]

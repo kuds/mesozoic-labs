@@ -660,3 +660,64 @@ class TestStanceV2Reports:
         with pytest.raises(BackfillError, match=message):
             backfill_gate_verdict(stage_dir)
         assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+
+class TestStanceHeadingCertificates:
+    """The six-heading certificate (decision D-D32): backfilled from its own report or refused -- never a FAIL
+    written for want of it, and never from the yaw-zero v2 report beside it."""
+
+    @staticmethod
+    def _stage(tmp_path: Path, *, run: str = "20261012_120000", **report_kwargs: Any) -> Path:
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, heading_report
+        from .stance_v2_helpers import stage_record
+
+        stage_dir = tmp_path / run / "01_stance"
+        stage_dir.mkdir(parents=True)
+        stage_record(stage_dir, HEADING_CURRICULUM)
+        write_stance_heading_report(stage_dir, heading_report(stage_dir, **report_kwargs))
+        return stage_dir
+
+    def test_a_heading_directory_is_backfilled_from_its_certificate(self, tmp_path):
+        from .stance_heading_helpers import HEADING_CURRICULUM
+
+        stage_dir = self._stage(tmp_path)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True and verdict["judged_by"] == BACKFILL_JUDGED_BY
+        assert verdict["gate_kind"] == "stance_quality_heading/v1"
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(HEADING_CURRICULUM))
+        assert verdict["stage_result"]["stance_heading_clean_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_n_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == pytest.approx(0.9278, abs=1e-4)
+
+    def test_a_failing_certificate_is_written_as_the_fail_it_re_derives_to(self, tmp_path):
+        from .stance_heading_helpers import SEED_52_FALLS
+
+        stage_dir = self._stage(tmp_path, defects=SEED_52_FALLS)
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is False
+        assert any("heading -90" in failure for failure in verdict["failures"])
+
+    def test_a_heading_directory_with_only_a_v2_report_is_refused(self, tmp_path):
+        from environments.shared.reporting.stance_report import write_stance_gate_report
+
+        from .stance_v2_helpers import V2_CURRICULUM, v2_report
+
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "stance_heading_report.json").unlink()
+        write_stance_gate_report(stage_dir, v2_report(stage_dir, V2_CURRICULUM))
+        with pytest.raises(BackfillError, match=r"stance_heading_report\.json is missing"):
+            backfill_gate_verdict(stage_dir)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()
+
+    def test_an_inadmissible_certificate_is_refused_and_writes_nothing(self, tmp_path):
+        stage_dir = self._stage(tmp_path)
+        (stage_dir / "models" / "robust_best_model.zip").write_bytes(b"retrained after judging")
+        with pytest.raises(BackfillError) as excinfo:
+            backfill_gate_verdict(stage_dir)
+        assert "cannot back a stance_quality_heading/v1 verdict" in str(excinfo.value)
+        assert "not the handoff robust_best_model's" in str(excinfo.value)
+        assert not (stage_dir / GATE_VERDICT_FILENAME).exists()

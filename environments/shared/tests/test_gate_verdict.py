@@ -197,6 +197,22 @@ class TestWrite:
             "stance_statue_mean_reward": 3495.2,
         }
 
+    def test_stance_heading_numbers_are_persisted_in_stage_result(self, tmp_path):
+        """The grouped numbers a six-heading certificate (D-D32) was judged on; the schema stays v1."""
+        stage_dir = _stage_dir(tmp_path)
+        numbers = {
+            "stance_heading_n_seeds": 40,
+            "stance_heading_clean_seeds": 37,
+            "stance_heading_clean_seed_fraction": 0.925,
+            "stance_heading_clean_seed_lcb": 0.8174,
+            "stance_heading_statue_mean_reward_min": 3756.8,
+        }
+        stage_result = {**numbers, "headings": [{"yaw_deg": -90.0}] * 6}  # not persisted: the cells live in the report
+        _write(stage_dir, gate_kind="stance_quality_heading/v1", stage_result=stage_result)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["schema"] == "mesozoic.gate-verdict/v1"
+        assert verdict["stage_result"] == numbers
+
     def test_a_semantic_stage_records_its_id_as_the_stage(self, tmp_path):
         stage_dir = _stage_dir(tmp_path)
         _write(stage_dir, stage="recovery", stage_id="recovery", gate_kind="recovery_quality/v1")

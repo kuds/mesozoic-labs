@@ -1279,3 +1279,195 @@ def test_a_stance_v2_panel_off_the_certification_panel_is_refused(tmp_path: Path
 
     with pytest.raises(ResultBundleError, match="ran on panel_seed 3043, not the certification_panel seed 3042"):
         _save_bundle(run_dir, stage_results, stage_configs)
+
+
+# ── stance_quality_heading/v1 (decision D-D32) ───────────────────────────────
+
+
+def _make_stance_heading_gated(run_dir: Path, stage: int = 1) -> dict[str, Any]:
+    """Declare the six-heading certificate on a stage of an otherwise complete bundle; returns the block."""
+    from .stance_heading_helpers import HEADING_CURRICULUM
+    from .stance_v2_helpers import TASK_SHA256
+
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    block: dict[str, Any] = dict(HEADING_CURRICULUM)
+    config["curriculum_kwargs"] = block
+    config["env_kwargs"] = {**config.get("env_kwargs", {}), "max_episode_steps": _STANCE_HORIZON}
+    config["task_fingerprint"] = {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": TASK_SHA256}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return block
+
+
+def _write_stance_heading_grid(run_dir: Path, tmp_path: Path, stage: int = 1, **report_kwargs: Any) -> Path:
+    """The grid CSV a synthetic certificate writes, stamped with the certified pair's digests."""
+    from environments.shared.reporting.stance_report import write_stance_heading_report
+
+    from .stance_heading_helpers import heading_report
+
+    report = heading_report(tmp_path / "scratch_stage", species="velociraptor", **report_kwargs)
+    models = run_dir / f"stage{stage}" / "models"
+    report["handoff"] = {
+        "checkpoint": "best_model.pkl",
+        "checkpoint_sha256": sha256_file(models / "best_model.pkl"),
+        "normalization_sha256": sha256_file(models / "best_model_vecnorm.pkl"),
+    }
+    scratch = tmp_path / "scratch_written"
+    written = write_stance_heading_report(scratch, report)
+    target = run_dir / f"stage{stage}" / "stance_heading_panel_selected.csv"
+    target.write_bytes(written["stance_heading_panel_csv"].read_bytes())
+    return target
+
+
+def _rewrite_grid(path: Path, keep: Any = None, edit: Any = None) -> None:
+    with path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        columns = list(reader.fieldnames or [])
+        rows = [row for row in reader if keep is None or keep(row)]
+    for row in rows:
+        if edit is not None:
+            edit(row)
+    with path.open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_a_stance_heading_pass_publishes_when_its_grid_re_derives_it(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    _write_stance_heading_grid(run_dir, tmp_path)
+
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    assert paths["summary"].is_file()
+
+
+def test_a_stance_heading_pass_without_its_grid_is_refused_even_beside_a_v2_panel(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """Neither the reward rail nor the yaw-zero panel stands in for the certificate's grid."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    _write_stance_v2_panel(run_dir, tmp_path)
+
+    with pytest.raises(
+        ResultBundleError, match=r"stance_quality_heading/v1.*stance_heading_panel_selected\.csv is missing"
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_pass_on_a_v2_panel_file_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    v2_path = _write_stance_v2_panel(run_dir, tmp_path)
+    (run_dir / "stage1" / "stance_heading_panel_selected.csv").write_bytes(v2_path.read_bytes())
+
+    with pytest.raises(ResultBundleError, match="is not a stance_quality_heading/v1 panel"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_grid_that_fails_its_certificate_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    from .stance_heading_helpers import SEED_52_FALLS
+
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    _write_stance_heading_grid(run_dir, tmp_path, defects=SEED_52_FALLS)
+
+    with pytest.raises(
+        ResultBundleError, match=r"publication gate fails stance_quality_heading/v1.*0/40 seeds clean at every heading"
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_grid_rolled_on_another_checkpoint_or_gate_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    path = _write_stance_heading_grid(run_dir, tmp_path)
+    original = path.read_text(encoding="utf-8")
+    certified = sha256_file(run_dir / "stage1" / "models" / "best_model.pkl")
+    path.write_text(original.replace(certified, "sha256:" + "0" * 64), encoding="utf-8")
+    with pytest.raises(ResultBundleError, match="not the certified selected checkpoint"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+    path.write_text(original, encoding="utf-8")
+    _rewrite_grid(path, edit=lambda row: row.update(gate_sha256="sha256:" + "0" * 64))
+    with pytest.raises(ResultBundleError, match="was scored under gate sha256:0000"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_grid_with_an_incomplete_grid_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    path = _write_stance_heading_grid(run_dir, tmp_path)
+    original = path.read_text(encoding="utf-8")
+    # A heading missing from the policy rows ...
+    _rewrite_grid(path, keep=lambda row: not (row["role"] == "policy" and row["yaw_deg"] == "180.0"))
+    with pytest.raises(ResultBundleError, match=r"policy rows: 40 of 240 \(seed, heading\) cells are missing"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    # ... a duplicated pair (one seed's row repeated in place of another's) ...
+    path.write_text(original, encoding="utf-8")
+    _rewrite_grid(
+        path,
+        edit=lambda row: (
+            row.update(panel_seed="3042")
+            if row["role"] == "policy" and row["yaw_deg"] == "45.0" and row["panel_seed"] == "3043"
+            else None
+        ),
+    )
+    with pytest.raises(ResultBundleError, match=r"appear more than once \(seed 3042 at \+45 deg\)"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    # ... and another grid stamped.
+    path.write_text(original, encoding="utf-8")
+    _rewrite_grid(path, edit=lambda row: row.update(heading_grid_deg="[-90.0, 0.0, 90.0, 180.0]"))
+    with pytest.raises(ResultBundleError, match=r"heading grid is refused.*missing -45, \+45"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_grid_whose_statue_rows_do_not_reduce_to_the_stamped_reference_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    path = _write_stance_heading_grid(run_dir, tmp_path)
+    _rewrite_grid(path, edit=lambda row: row.update(statue_mean_reward="1.0") if row["yaw_deg"] == "-45.0" else None)
+    with pytest.raises(ResultBundleError, match=r"stamps the -45 deg statue reference"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    # Missing statue rows, with a statue-relative criterion declared, are an incomplete statue grid.
+    _rewrite_grid(path, keep=lambda row: not (row["role"] == "statue" and row["yaw_deg"] == "90.0"))
+    with pytest.raises(ResultBundleError, match=r"statue rows: 40 of 240 \(seed, heading\) cells are missing"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_stance_heading_grid_off_the_certification_panel_or_contradicting_a_flag_is_refused(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_heading_gated(run_dir)
+    path = _write_stance_heading_grid(run_dir, tmp_path)
+    original = path.read_text(encoding="utf-8")
+    _rewrite_grid(path, edit=lambda row: row.update(seed_start="7042"))
+    with pytest.raises(ResultBundleError, match="starts its seed block at 7042"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    path.write_text(original, encoding="utf-8")
+    _rewrite_grid(
+        path,
+        edit=lambda row: (
+            row.update(clean="False")
+            if row["role"] == "policy" and row["yaw_deg"] == "90.0" and row["panel_seed"] == "3050"
+            else None
+        ),
+    )
+    with pytest.raises(
+        ResultBundleError, match=r"\(seed 3050, \+90 deg\) records clean=False but re-derives clean=True"
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)

@@ -427,3 +427,31 @@ class TestHandoffWarning:
             assert not declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": raw})
         assert not declares_heading_probe({"gate_kind": "reward_and_length/v1", "stance_probe_spawn_yaw_deg": [90.0]})
         assert not declares_heading_probe(None)
+
+
+class TestTheCertificateReplacesTheProbe:
+    """The maintainer's decision of 2026-10-11 (D-D32): a stage that declares the six-heading certificate rolls no
+    heading probe and raises no probe warning -- its gate judged every heading, and a failing one blocks."""
+
+    def test_a_stance_with_the_heading_certificate_declares_no_probe(self):
+        heading = {"gate_kind": "stance_quality_heading/v1", "stance_probe_spawn_yaw_deg": [-90.0, 90.0]}
+        assert not declares_heading_probe(heading)
+        assert declares_heading_probe({**heading, "gate_kind": "stance_quality/v2"})
+
+    def test_the_probe_warning_defers_to_the_certificate(self, tmp_path):
+        from .stance_heading_helpers import HEADING_CURRICULUM
+        from .stance_v2_helpers import V2_CURRICULUM, stage_record
+
+        certified, v2 = tmp_path / "certified", tmp_path / "v2"
+        stage_record(certified, HEADING_CURRICULUM)
+        stage_record(v2, {**V2_CURRICULUM, "stance_probe_spawn_yaw_deg": [-90.0, -45.0, 45.0, 90.0]})
+        # Absent: the certified stage is silent even when told the probe was declared.
+        assert stage_heading_probe_warnings(certified) == []
+        assert stage_heading_probe_warnings(certified, declared=True) == []
+        assert len(stage_heading_probe_warnings(v2)) == 1
+        # Present and falling at -90 and -45: only the stage without the certificate warns.
+        for stage_dir in (certified, v2):
+            write_heading_probe(stage_dir, *_sweeps(), probe_episodes=8)
+        assert stage_heading_probe_warnings(certified) == []
+        (message,) = stage_heading_probe_warnings(v2)
+        assert "on 2 of 4 whole-scene rows" in message

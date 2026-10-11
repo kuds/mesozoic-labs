@@ -1059,6 +1059,186 @@ class TestStanceV2StageGate:
         assert any("no stance gate report was produced" in failure for failure in results["gate_failures"])
 
 
+class TestStanceHeadingStageGate:
+    """The six-heading certificate (decision D-D32) through the post-stage entry points.
+
+    ``_write_stance_gate_report`` rolls the certificate -- never a yaw-zero
+    report -- for a heading-kind stage, ``_apply_stage_gate`` judges it and
+    copies its grouped numbers from an admitted certificate only, a stage
+    without one fails, and the probes run after the verdict and annotate the
+    certificate's 0 degree cell, with the heading probe left out.
+    """
+
+    @staticmethod
+    def _config():
+        from .stance_heading_helpers import HEADING_CURRICULUM
+
+        return {
+            "name": "Balance",
+            "description": "Stand",
+            "curriculum_kwargs": dict(HEADING_CURRICULUM),
+            "env_kwargs": {"max_episode_steps": 1000},
+        }
+
+    def test_the_certificate_is_rolled_for_a_heading_stage(self, tmp_path, monkeypatch):
+        import environments.shared.reporting.stance_report as stance_report
+        from environments.shared.reporting.stage_artifacts import _write_stance_gate_report
+
+        from .stance_heading_helpers import heading_report
+
+        seen = {}
+
+        def fake_build(species, stage, *, stage_config, model_path, vecnorm_path, episodes):
+            seen.update(model_path=model_path, episodes=episodes)
+            return heading_report(tmp_path)
+
+        monkeypatch.setattr(stance_report, "build_stance_heading_report", fake_build)
+        monkeypatch.setattr(
+            stance_report, "build_stance_gate_report", lambda *a, **k: pytest.fail("a yaw-zero report was rolled")
+        )
+        from .stance_v2_helpers import handoff_pair
+
+        handoff_pair(tmp_path)
+        report = _write_stance_gate_report(
+            species="trex", stage=1, stage_config=self._config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+        )
+        assert report is not None and report["schema"] == "mesozoic.stance-heading-report/v1"
+        assert seen == {"model_path": str(tmp_path / "models" / "robust_best_model.zip"), "episodes": 40}
+        assert (tmp_path / "stance_heading_report.json").is_file()
+        assert (tmp_path / "stance_heading_panel_selected.csv").is_file()
+        assert (
+            not (tmp_path / "stance_gate_report.json").exists()
+            and not (tmp_path / "stance_panel_selected.csv").exists()
+        )
+
+    def test_an_admitted_certificate_passes_and_its_numbers_travel_with_the_verdict(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+        from environments.shared.result_bundle import read_gate_verdict
+
+        from .stance_heading_helpers import heading_report
+
+        results: dict = {"stage": 1, "best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=heading_report(tmp_path),
+            stage_dir=tmp_path,
+            species="trex",
+        )
+        assert results["gate_passed"] is True and results["gate_failures"] == []
+        assert results["stance_heading_n_seeds"] == 40 and results["stance_heading_clean_seeds"] == 40
+        assert results["stance_heading_clean_seed_fraction"] == 1.0
+        assert results["stance_heading_clean_seed_lcb"] == pytest.approx(0.9278, abs=1e-4)
+        assert results["stance_heading_statue_mean_reward_min"] == pytest.approx(1000.0)
+        assert not {"stance_clean_count", "stance_clean_lcb"} & set(results)
+        verdict = read_gate_verdict(tmp_path)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["stance_heading_clean_seeds"] == 40
+
+    def test_a_heading_stage_without_a_certificate_fails_closed(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        from .stance_v2_helpers import V2_CURRICULUM, v2_report
+
+        results: dict = {"stage": 1, "best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=1, stage_config=self._config(), stage_results=results, stance_report=None, stage_dir=tmp_path
+        )
+        assert results["publication_gate_passed"] is False
+        assert any("no six-heading certificate" in failure for failure in results["gate_failures"])
+        # A refused report copies none of its numbers: here a yaw-zero v2 PASS handed in its place.
+        results = {"stage": 1}
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=v2_report(tmp_path / "v2", V2_CURRICULUM),
+            stage_dir=tmp_path,
+        )
+        assert results["gate_passed"] is False and not any(key.startswith("stance_") for key in results)
+
+    @staticmethod
+    def _record_probes(monkeypatch) -> list:
+        from environments.shared.reporting import stage_artifacts
+
+        calls: list = []
+        for name in (
+            "_write_filtered_action_probe",
+            "_write_constant_hold_probe",
+            "_write_constant_hold_ablation",
+            "_write_impulse_probe",
+            "_write_heading_probe",
+        ):
+            monkeypatch.setattr(stage_artifacts, name, lambda _name=name, **kwargs: calls.append((_name, kwargs)))
+        return calls
+
+    def test_probes_annotate_the_zero_heading_cell(self, tmp_path, monkeypatch):
+        from environments.shared.reporting.stage_artifacts import _run_stance_probes
+
+        from .stance_heading_helpers import heading_report
+
+        calls = self._record_probes(monkeypatch)
+        report = heading_report(tmp_path)
+        _run_stance_probes(
+            species="trex",
+            stage=1,
+            stage_config=self._config(),
+            stage_dir=tmp_path,
+            model_dir=tmp_path / "models",
+            report=report,
+        )
+        # The heading probe is not rolled: the certificate judged every heading.
+        assert [name for name, _ in calls] == [
+            "_write_filtered_action_probe",
+            "_write_constant_hold_probe",
+            "_write_constant_hold_ablation",
+            "_write_impulse_probe",
+        ]
+        measured = dict(calls)["_write_constant_hold_probe"]["measured"]
+        assert measured["heading_cell_deg"] == 0.0 and measured["scored_gate_kind"] == "stance_quality/v2"
+        zero = next(heading for heading in report["headings"] if heading["yaw_deg"] == 0.0)
+        assert measured["episode_evidence"] is zero["episode_evidence"]
+        assert dict(calls)["_write_impulse_probe"]["settle_steps"] == 200
+
+    def test_the_certificate_runs_before_the_verdict_and_the_probes_after(self):
+        import inspect
+
+        from environments.shared.reporting import stage_artifacts
+
+        source = inspect.getsource(stage_artifacts.generate_stage_artifacts)
+        assert source.index("_write_stance_gate_report(") < source.index("_apply_stage_gate(")
+        assert source.index("_apply_stage_gate(") < source.index("_run_stance_probes(")
+        dispatch = inspect.getsource(stage_artifacts._write_stance_gate_report)
+        # The heading kind is dispatched before the v1/v2 builder is reached, after the shared handoff selection.
+        assert dispatch.index("select_handoff_checkpoint(") < dispatch.index("_write_stance_heading_certificate(")
+        assert dispatch.index("_write_stance_heading_certificate(") < dispatch.index("build_stance_gate_report(")
+
+
+def test_collected_results_carry_the_heading_bar_and_grouped_count_on_a_heading_row_only():
+    from environments.shared.reporting.csv_output import build_results_csv_rows
+
+    from .stance_heading_helpers import HEADING_CURRICULUM
+
+    heading_config = {"name": "Balance", "curriculum_kwargs": dict(HEADING_CURRICULUM)}
+    other_config = {"name": "Walk", "curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 1.0}}
+    base = {"timesteps": 1, "publication_gate_passed": True}
+    rows = build_results_csv_rows(
+        [
+            {**base, "stage": 1, "stance_heading_clean_seeds": 37, "stance_heading_clean_seed_lcb": 0.817388},
+            {**base, "stage": 2},
+        ],
+        {1: heading_config, 2: other_config},
+        "trex",
+        "PPO",
+        42,
+    )
+    assert rows[0]["clean_stance_lcb_threshold"] == 0.8 and rows[0]["stance_eval_episodes"] == 40
+    assert rows[0]["stance_heading_clean_seeds"] == 37 and rows[0]["stance_heading_clean_seed_lcb"] == 0.8174
+    assert "stance_clean_count" not in rows[0]
+    assert not {"clean_stance_lcb_threshold", "stance_heading_clean_seeds"} & set(rows[1])
+
+
 def test_collected_results_carry_the_v2_bar_on_a_v2_row_only():
     """csv_output: the certifying bar and what was measured on a stance_quality/v2 row; no new column elsewhere."""
     from environments.shared.reporting.csv_output import build_results_csv_rows
