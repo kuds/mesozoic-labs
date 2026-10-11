@@ -1136,6 +1136,35 @@ class TestStanceHeadingStageGate:
         assert verdict is not None and verdict["passed"] is True
         assert verdict["stage_result"]["stance_heading_clean_seeds"] == 40
 
+    def test_the_numbers_that_travel_are_the_re_derived_ones(self, tmp_path):
+        """The judge cross-checks the verdict and clean counts, not the bound: a bound, fraction or seed count
+        edited in the report's result block is never what the verdict records."""
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+        from environments.shared.result_bundle import read_gate_verdict
+
+        from .stance_heading_helpers import FALL, heading_report
+
+        report = heading_report(tmp_path, defects={(index, 90.0): FALL for index in range(2)})
+        honest = dict(report["result"])
+        assert honest["n_clean_seeds"] == 38 and honest["clean_seed_lcb"] < 0.9
+        report["result"].update(n_seeds=400, clean_seed_fraction=1.0, clean_seed_lcb=0.99)
+        results: dict = {"stage": 1, "best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=report,
+            stage_dir=tmp_path,
+            species="trex",
+        )
+        assert results["gate_passed"] is True
+        assert results["stance_heading_n_seeds"] == 40 and results["stance_heading_clean_seeds"] == 38
+        assert results["stance_heading_clean_seed_fraction"] == 38 / 40
+        assert results["stance_heading_clean_seed_lcb"] == honest["clean_seed_lcb"]
+        verdict = read_gate_verdict(tmp_path)
+        assert verdict is not None
+        assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == honest["clean_seed_lcb"]
+
     def test_a_heading_stage_without_a_certificate_fails_closed(self, tmp_path):
         from environments.shared.reporting.stage_artifacts import _apply_stage_gate
 
@@ -1157,6 +1186,24 @@ class TestStanceHeadingStageGate:
             stage_dir=tmp_path,
         )
         assert results["gate_passed"] is False and not any(key.startswith("stance_") for key in results)
+        # Nor does a heading certificate the judge refuses: here one whose handoff was retrained after rolling.
+        from .stance_heading_helpers import heading_report
+
+        refused_dir = tmp_path / "refused"
+        report = heading_report(refused_dir)
+        assert report["passed"] is True
+        (refused_dir / "models" / "robust_best_model.zip").write_bytes(b"retrained after judging")
+        results = {"stage": 1}
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=report,
+            stage_dir=refused_dir,
+        )
+        assert results["gate_passed"] is False
+        assert any("scored checkpoint" in failure for failure in results["gate_failures"])
+        assert not any(key.startswith("stance_") for key in results)
 
     @staticmethod
     def _record_probes(monkeypatch) -> list:

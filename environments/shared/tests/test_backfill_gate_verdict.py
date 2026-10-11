@@ -703,6 +703,24 @@ class TestStanceHeadingCertificates:
         assert verdict["stage_result"]["stance_heading_n_seeds"] == 40
         assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == pytest.approx(0.9278, abs=1e-4)
 
+    def test_the_numbers_written_are_the_re_derived_ones(self, tmp_path):
+        """A bound edited in the certificate's result block (which the judge does not cross-check) is not copied."""
+        from .stance_heading_helpers import FALL
+
+        stage_dir = self._stage(tmp_path, defects={(index, 90.0): FALL for index in range(2)})
+        path = stage_dir / "stance_heading_report.json"
+        certificate = json.loads(path.read_text(encoding="utf-8"))
+        honest = dict(certificate["result"])
+        certificate["result"].update(n_seeds=400, clean_seed_fraction=1.0, clean_seed_lcb=0.99)
+        path.write_text(json.dumps(certificate), encoding="utf-8")
+        backfill_gate_verdict(stage_dir)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["stance_heading_n_seeds"] == 40
+        assert verdict["stage_result"]["stance_heading_clean_seeds"] == 38
+        assert verdict["stage_result"]["stance_heading_clean_seed_fraction"] == 38 / 40
+        assert verdict["stage_result"]["stance_heading_clean_seed_lcb"] == honest["clean_seed_lcb"] < 0.9
+
     def test_a_failing_certificate_is_written_as_the_fail_it_re_derives_to(self, tmp_path):
         from .stance_heading_helpers import SEED_52_FALLS
 

@@ -228,12 +228,16 @@ def backfill_gate_verdict(
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
     from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
-    from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND, STANCE_HEADING_REPORT_JSON
+    from environments.shared.curriculum.stance_heading_gate import (
+        STANCE_HEADING_GATE_KIND,
+        STANCE_HEADING_REPORT_JSON,
+        StanceHeadingResult,
+    )
     from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
     from environments.shared.reporting.gates import (
+        _admit_stance_heading_report,
         _current_task_sha256,
-        stance_heading_report_refusals,
         stance_v2_report_refusals,
     )
     from environments.shared.reporting.stage_artifacts import stance_heading_stage_result, stance_v2_stage_result
@@ -296,6 +300,7 @@ def backfill_gate_verdict(
             "from evidence; re-judge the node through the notebook chain, which rolls the panel"
         )
     stance_report: dict[str, Any] | None = None
+    rederived_certificate: StanceHeadingResult | None = None
     if gate_kind == STANCE_GATE_KIND:
         stance_report = _load_json(stage_path / "stance_gate_report.json", what="stance_gate_report.json")
         if not isinstance(stance_report, Mapping):
@@ -335,8 +340,9 @@ def backfill_gate_verdict(
         # The judge's own admissibility check, as for v2: a certificate that
         # does not describe this gate, protocol, grid, measurement, handoff or
         # task -- or does not re-derive from its rows -- is a REFUSAL, never a
-        # FAIL verdict that reads as "judged and failed".
-        refusals = stance_heading_report_refusals(
+        # FAIL verdict that reads as "judged and failed".  The re-derivation is
+        # kept: its numbers, not the report's result block, are what is copied.
+        refusals, rederived_certificate = _admit_stance_heading_report(
             curriculum, stance_report, stage=entry.reference, stage_dir=stage_path
         )
         if refusals:
@@ -395,7 +401,7 @@ def backfill_gate_verdict(
         # The numbers the re-derived verdict was judged on (admitted above).
         stage_results.update(stance_v2_stage_result(stance_report))
     elif gate_kind == STANCE_HEADING_GATE_KIND:
-        stage_results.update(stance_heading_stage_result(stance_report))
+        stage_results.update(stance_heading_stage_result(stance_report, rederived=rederived_certificate))
     stage_results["gate_kind"] = gate_kind
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed

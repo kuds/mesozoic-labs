@@ -9,13 +9,16 @@ import json as _json
 import logging
 import math
 from pathlib import Path
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
 from ..policy_loading import load_sb3_model
 from . import csv_output, stage_layout, text_summaries
+
+if TYPE_CHECKING:
+    from ..curriculum.stance_heading_gate import StanceHeadingResult
 
 logger = logging.getLogger(__name__)
 
@@ -1257,7 +1260,9 @@ def stance_v2_stage_result(stance_report: "Mapping[str, Any] | None") -> dict[st
     }
 
 
-def stance_heading_stage_result(report: "Mapping[str, Any] | None") -> dict[str, Any]:
+def stance_heading_stage_result(
+    report: "Mapping[str, Any] | None", *, rederived: "StanceHeadingResult | None" = None
+) -> dict[str, Any]:
     """The ``stage_result`` numbers a six-heading certificate (D-D32) was judged on, from its report.
 
     ``stance_heading_n_seeds``, ``stance_heading_clean_seeds`` (seeds clean
@@ -1267,13 +1272,24 @@ def stance_heading_stage_result(report: "Mapping[str, Any] | None") -> dict[str,
     references' full-horizon mean rewards across the headings, ``None``
     when no statue panel was rolled), which
     ``gate_verdict._PERSISTED_STAGE_RESULT_KEYS`` persists.  Empty for no
-    report or one not scored as the certificate.
+    report or one not scored as the certificate.  With *rederived* (the
+    judge's re-derivation of an admitted certificate) the seed counts,
+    fraction and bound are its numbers, never the report's ``result``
+    block: the judge cross-checks only the verdict and the clean counts
+    there, so a bound edited in the report is not what a verdict records.
     """
     from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 
     if not isinstance(report, Mapping) or report.get("scored_gate_kind") != STANCE_HEADING_GATE_KIND:
         return {}
-    result = report.get("result")
+    result: Mapping[str, Any] | None = report.get("result")
+    if rederived is not None:
+        result = {
+            "n_seeds": rederived.n_seeds,
+            "n_clean_seeds": rederived.n_clean_seeds,
+            "clean_seed_fraction": rederived.clean_seed_fraction,
+            "clean_seed_lcb": rederived.clean_seed_lcb,
+        }
     if not isinstance(result, Mapping):
         return {}
     statue_rewards = [
@@ -1302,17 +1318,19 @@ def admitted_stance_heading_stage_result(
 
     Admitted means ``reporting.gates.stance_heading_report_refusals`` finds
     nothing, so a refused certificate's numbers never sit in a verdict's
-    ``stage_result`` beside the refusal.  Never raises.
+    ``stage_result`` beside the refusal; the numbers copied are the
+    re-derived ones.  Never raises.
     """
     try:
-        from .gates import stance_heading_report_refusals
+        from .gates import _admit_stance_heading_report
 
-        if stance_heading_report_refusals(curriculum, report, stage=stage, stage_dir=stage_dir):
+        refusals, rederived = _admit_stance_heading_report(curriculum, report, stage=stage, stage_dir=stage_dir)
+        if refusals or rederived is None:
             return {}
     except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
         logger.warning("Stage %s heading certificate could not be re-checked for its numbers", stage, exc_info=True)
         return {}
-    return stance_heading_stage_result(report)
+    return stance_heading_stage_result(report, rederived=rederived)
 
 
 def admitted_stance_v2_stage_result(
