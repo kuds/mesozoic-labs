@@ -592,7 +592,9 @@ identically (all six for both species since T. rex's physics r9; on r8,
 episode, so beyond catching a leak they add only cost. *(Measured on the
 migration, D-D31: replicates to solver tolerance under a stable closed loop
 -- the same float32 actions and joint state to 4.5 × 10⁻¹³ over 1000 steps,
-every floor-truth metric to 2 × 10⁻¹⁰ -- but not exactly in floating point.
+every floor-truth metric to 2 × 10⁻¹⁰; with single-threaded torch a one-ulp
+action difference, carried by the stable loop to 7.3 × 10⁻⁸ in joint state
+-- but not exactly in floating point.
 An untrained PPO policy behind normalizer statistics gathered on the zero
 action alone, whose closed loop on the Compsognathus is unstable, amplified a
 one-ulp action difference at step 145 to 0.03 in action and 0.33 rad in

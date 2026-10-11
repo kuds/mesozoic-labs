@@ -489,17 +489,17 @@ def _policy_interface_payload(
     if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
         raise PlantContractError(f"invalid training backends for {version.species}: {backends}")
     supports_jax = "jax-mjx" in backends
+    if supports_jax and not jax_action_functions:
+        raise PlantContractError(
+            f"{version.species} declares the jax-mjx backend, but its action mapping "
+            f"{getattr(env, 'action_mapping', _ACTION_MAPPING_MIDPOINT)!r} has no JAX implementation"
+        )
     if supports_jax and heading_free:
         # The frozen MJX builders (D-D17) emit the legacy world-frame layout;
         # a parity claim against them would be false.
         raise PlantContractError(
             f"{version.species} declares the jax-mjx backend, but the {HEADING_FREE_OBSERVATION_SCHEMA} "
             "observation has no MJX builder: declare supported_training_backends = ('stable-baselines3',)"
-        )
-    if supports_jax and not jax_action_functions:
-        raise PlantContractError(
-            f"{version.species} declares the jax-mjx backend, but its action mapping "
-            f"{getattr(env, 'action_mapping', _ACTION_MAPPING_MIDPOINT)!r} has no JAX implementation"
         )
     interface_implementations: dict[str, Any] = {
         "sb3_observation": _callable_semantics(env._get_obs),

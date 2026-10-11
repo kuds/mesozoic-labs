@@ -148,6 +148,9 @@ def test_editing_a_heading_helper_moves_the_policy_digest(animal, monkeypatch):
 def test_heading_free_schema_refuses_the_jax_backend(animal, monkeypatch):
     species, env = animal
     monkeypatch.setattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx"), raising=False)
+    # The compsognathus's soft-cubic mapping has no JAX implementation, which is refused first; on the linear
+    # home-residual mapping (the trex's) the schema is what is refused.
+    monkeypatch.setattr(env, "action_mapping", "home-keyframe-residual/v1", raising=False)
     with pytest.raises(PlantContractError, match="has no MJX builder"):
         _payload(species, env)
 

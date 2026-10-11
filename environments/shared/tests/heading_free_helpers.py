@@ -12,11 +12,20 @@ must equal 0 degrees' to the contact solver's tolerance.
 The tolerances against what was measured on these plants (MuJoCo 3.10.0,
 seed 3042, the zero action and the fixed linear policy below, 250 steps):
 actions 0 (the float32 actions agree exactly), joint state 2.9e-13, reward
-3.0e-12, observation 1.2e-10; over the full horizon of seeds 3042-3043
-behind the frozen PPO policy of ``test_heading_free_rollouts``, joint state
-4.5e-13, reward 3.0e-12 and observation 2.3e-10.  ``ACTION_ATOL`` is
+3.0e-12, observation 1.2e-10.  ``ACTION_ATOL`` is
 ``policy_loading.ACTION_DELTA_ATOL``'s precedent and ``FLOAT32_BUDGET`` the
 design's float32 budget for corresponding states.
+
+Behind a network policy the loop can turn the rounding of a rotated state
+into a one-ulp difference of a float32 action, which a stable loop then
+carries to the end without growing; the ``CLOSED_LOOP_*`` bounds admit that
+and nothing near a leak, which moves the observation by O(1) from the first
+step.  Over the full horizon of seeds 3042-3043 behind the frozen PPO policy
+of ``test_heading_free_rollouts``: with torch's default threads the actions
+agree exactly and joint state to 4.5e-13; single-threaded (as earlier tests
+in the SB3 job leave torch) the compsognathus's actions differ by one ulp
+(7.5e-9) at some step, its joint state by 7.3e-8 at the end and its
+observation by 9.5e-7 (one float32 ulp of a joint velocity).
 """
 
 from __future__ import annotations
@@ -38,6 +47,8 @@ FLOAT32_BUDGET = 2e-6
 ACTION_ATOL = 1e-6
 STATE_ATOL = 1e-9
 REWARD_ATOL = 1e-9
+CLOSED_LOOP_STATE_ATOL = 1e-6
+CLOSED_LOOP_OBSERVATION_ATOL = 1e-5
 
 #: ``make_policy(env, observation_dim)`` returns a deterministic ``act(observation) -> action``.
 PolicyFactory = Callable[[Any, int], Callable[[np.ndarray], np.ndarray]]
@@ -86,8 +97,18 @@ def paired_traces(species: str, seed: int, make_policy: PolicyFactory, steps: in
     return traces
 
 
-def assert_paired(traces: dict[float, dict[str, Any]]) -> dict[str, float]:
-    """Every heading's trace equals 0 degrees' to solver tolerance; returns the worst differences."""
+def assert_paired(
+    traces: dict[float, dict[str, Any]],
+    *,
+    state_atol: float = STATE_ATOL,
+    observation_atol: float = FLOAT32_BUDGET,
+) -> dict[str, float]:
+    """Every heading's trace equals 0 degrees' to solver tolerance; returns the worst differences.
+
+    *state_atol* and *observation_atol* bound the joint state and the
+    observation; a closed loop behind a network policy passes the
+    ``CLOSED_LOOP_*`` bounds.
+    """
     reference = traces[0.0]
     worst = {"actions": 0.0, "joints": 0.0, "rewards": 0.0, "observations": 0.0}
     for heading, trace in traces.items():
@@ -96,7 +117,7 @@ def assert_paired(traces: dict[float, dict[str, Any]]) -> dict[str, float]:
         for key in worst:
             worst[key] = max(worst[key], float(np.max(np.abs(trace[key] - reference[key]))))
     assert worst["actions"] <= ACTION_ATOL, worst
-    assert worst["joints"] <= STATE_ATOL, worst
+    assert worst["joints"] <= state_atol, worst
     assert worst["rewards"] <= REWARD_ATOL, worst
-    assert worst["observations"] <= FLOAT32_BUDGET, worst
+    assert worst["observations"] <= observation_atol, worst
     return worst

@@ -18,13 +18,19 @@ compsognathus is unstable: a one-ulp float32 action difference (at step
 145 of seed 3042; 226 at +90 degrees) grows step by step to 0.03 in action
 and 0.33 rad in joint state by the end, at every heading but 0 degrees --
 the rounding of a rotated state amplified by the policy, not a heading leak
-(the observations agree to 2.3e-10 until then).  The same seed behind the
-statistics below agrees to 4.5e-13 in joint state over the whole horizon.
-Two comparisons per species, seeds 3042 and 3043 over the full 1000-step
-horizon: the float64 traces of ``heading_free_helpers.paired_traces``, and
-the ``stance_quality/v2`` floor-truth panel (``run_panel(...,
-floor_truth=True)`` with the heading probe's whole-scene ``SpawnYaw``), whose
-every ``StanceEpisodeMetrics`` field must agree across headings.
+(the observations agree to 2.3e-10 until then).  Behind the statistics below
+the loop is stable: one-ulp action differences, when the arithmetic produces
+any, are carried to the end without growing.  Two comparisons per species,
+seeds 3042 and 3043 over the full 1000-step horizon: the float64 traces of
+``heading_free_helpers.paired_traces``, to its closed-loop bounds, and the
+``stance_quality/v2`` floor-truth panel (``run_panel(..., floor_truth=True)``
+with the heading probe's whole-scene ``SpawnYaw``), whose every
+``StanceEpisodeMetrics`` field must agree across headings to ``METRIC_ATOL``.
+Measured with torch's default threads, the actions agree exactly, joint
+state to 4.5e-13 and every metric to 2e-10; with one thread, as earlier
+tests leave torch in the SB3 job and the full suite, the compsognathus's
+actions differ by one float32 ulp at some step, its joint state by 7.3e-8,
+its observation by 9.5e-7 and a metric by 5.4e-9 (the T-Rex's are unchanged).
 
 About two minutes per run, so it runs in the SB3 job's full depth only (the
 nightly schedule, a manual dispatch or the ``full-ci`` label; python-ci.yml,
@@ -49,11 +55,19 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # noqa: 
 from environments.shared.config import load_stage_config  # noqa: E402
 from environments.shared.reporting.stance_report import SpawnYaw, run_panel  # noqa: E402
 
-from .heading_free_helpers import HEADINGS_DEG, assert_paired, paired_traces, stance_env  # noqa: E402
+from .heading_free_helpers import (  # noqa: E402
+    CLOSED_LOOP_OBSERVATION_ATOL,
+    CLOSED_LOOP_STATE_ATOL,
+    HEADINGS_DEG,
+    assert_paired,
+    paired_traces,
+    stance_env,
+)
 
 SEEDS = (3042, 3043)
-#: Floor-truth metrics are float64 reductions of the recorded substeps: equal to this across headings.
-METRIC_ATOL = 1e-9
+#: Floor-truth metrics are float64 reductions of the recorded substeps; a one-ulp action difference moves them
+#: by about 5e-9 (module docstring).
+METRIC_ATOL = 1e-6
 
 
 @pytest.fixture(scope="module", params=("trex", "compsognathus"))
@@ -83,7 +97,7 @@ def test_full_horizon_traces_repeat_at_every_heading(frozen_policy):
     for seed in SEEDS:
         traces = paired_traces(species, seed, lambda env, observation_dim: predict, horizon)
         assert len(traces[0.0]["actions"]) == horizon, f"{species} seed {seed} must stand the whole horizon"
-        assert_paired(traces)
+        assert_paired(traces, state_atol=CLOSED_LOOP_STATE_ATOL, observation_atol=CLOSED_LOOP_OBSERVATION_ATOL)
 
 
 def _metric_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -115,7 +129,9 @@ def test_full_horizon_floor_truth_metrics_repeat_at_every_heading(frozen_policy)
     for heading, panel in panels.items():
         np.testing.assert_array_equal(panel["lengths"], reference["lengths"], err_msg=str(heading))
         assert panel["terminations"] == reference["terminations"], heading
-        np.testing.assert_allclose(panel["rewards"], reference["rewards"], rtol=0.0, atol=1e-8, err_msg=str(heading))
+        np.testing.assert_allclose(
+            panel["rewards"], reference["rewards"], rtol=0.0, atol=METRIC_ATOL, err_msg=str(heading)
+        )
         for row, expected in zip(_metric_rows(panel), reference_rows):
             assert row.keys() == expected.keys()
             for field, value in row.items():
