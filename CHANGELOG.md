@@ -271,7 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
-- **Every species stands on an elliptic friction cone** (breaking — plant
+- **Every species stands on an elliptic friction cone** (#612; breaking — plant
   change: velociraptor physics revision 3 → 4, brachiosaurus 4 → 5,
   dibothrosuchus 1 → 2; all existing checkpoints of the three species are
   invalidated; decision D-D30, which the maintainer chose on 2026-10-11: one
@@ -348,7 +348,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rounded_values_sha256` of the nine reward stages (26: the brachiosaurus
   stance's shape holds). No `gate_sha256` and every other line hold.
 - **The T-Rex stands on an elliptic friction cone, so every world heading is
-  physically identical** (breaking — plant change, physics revision 8 → 9;
+  physically identical** (#611; breaking — plant change, physics revision 8 → 9;
   all existing T-Rex checkpoints are invalidated; decision D-D29, which the
   maintainer chose on 2026-10-11 with the heading decisions of
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `trex.xml`'s `<option>`

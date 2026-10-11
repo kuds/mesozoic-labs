@@ -25,7 +25,7 @@ Two terms recur. The **plant** is the simulated body as a control engineer sees 
 
 [![Vertical timeline of 14 lessons from 25 July to 11 October 2026 in three phases: is the simulated body sound, is the policy really standing, and does it hold up when turned. Each entry gives a date, a takeaway and a key number.](./lessons-timeline.png)](./lessons-timeline.png)
 
-*The lessons in the order they were recorded (time not to scale). FIX PLANNED and IN PROGRESS mark work that has not landed. Select any figure to open it at full size.*
+*The lessons in the order they were recorded (time not to scale). FIX PLANNED marks work that has not landed. Select any figure to open it at full size.*
 
 ## The do-nothing baseline already stands
 
@@ -181,9 +181,9 @@ With identical random actions at 0° and 45°, joint angles diverged by up to 0.
 
 [![Log-scale horizontal bar chart of the largest joint-angle difference between 45°-turned and unturned runs. Pyramidal cone: T. rex 0.0093 rad, Brachiosaurus 0.19, Dibothrosuchus 0.14, Velociraptor 4.3e-10. Every elliptic-cone bar lies between 1e-14 and 1e-11 rad, the level of 90° and 180° control turns.](./heading-45deg.png)](./heading-45deg.png)
 
-*2026-10-11 scoping (random actions, sd 0.1). The elliptic bars for the four pyramidal species are an in-memory test, not a landed change.*
+*2026-10-11 scoping (random actions, sd 0.1). The elliptic bars for the four then-pyramidal species were measured with the cone switched in memory, before the change landed.*
 
-T. rex is moving to the elliptic cone as physics r9, and on 2026-10-11 we approved the same switch for Velociraptor, Brachiosaurus and Dibothrosuchus, for consistency; both are in progress, and the Compsognathus models already use it. It is a real physics change: in the r9 scoping the T. rex statue was 39/40 rather than 40/40, and its worst out-of-sample pad tilt reached 2.061° against a 2.0° bar.
+T. rex moved to the elliptic cone as physics r9, and Velociraptor, Brachiosaurus and Dibothrosuchus followed for consistency; the Compsognathus models already used it. It is a real physics change: on r9 the T. rex statue is clean on 39/40 rather than 40/40, and its worst out-of-sample pad tilt reached 2.061° against a 2.0° bar.
 
 ## Asking why a stance falls
 
@@ -203,7 +203,7 @@ In August the T. rex taught us how to ask *why* a stance fails ([bounce investig
 
 The toes alone reproduce the fall, the conspicuous tail is a bystander, and no single group is necessary: *"Saturation is conspicuous, not causal."* Physics r7 made the toes passive springs.
 
-**Eight episodes are not a verdict.** The ablation labelled 8/8 as standing and 0/8 as falling. A fix merged just before this post tightened its preconditions, but a held pose that stands in 7 of 8 episodes still classifies, and 8/8 against 7/8 has a one-sided Fisher exact p of 0.5. Exact tests per comparison are in progress.
+**Eight episodes are not a verdict.** The ablation labelled 8/8 as standing and 0/8 as falling. A first fix tightened its preconditions, but a held pose that stood in 7 of 8 episodes still classified, and 8/8 against 7/8 has a one-sided Fisher exact p of 0.5. The ablation now answers each comparison with a one-sided Fisher exact test and says "insufficient episodes" when no outcome could be significant.
 
 ## Lessons for robotics
 
@@ -222,7 +222,7 @@ None of this has touched hardware, but most of it should carry over:
 
 As of 2026-10-11 no species has a stance we can build on. The only `stance_quality/v2` pass, T. rex seed 52, is provisional and research-only. The robot's and Dibothrosuchus's older certificates (under v1 and a reward rail) still stand on their unchanged plants, but they are stances the audit flagged. Each species stays open until its stance certifies under v2 ([known issues](https://github.com/kuds/mesozoic-labs/blob/main/docs/KNOWN_ISSUES.md), [next steps](https://github.com/kuds/mesozoic-labs/blob/main/docs/NEXT_STEPS.md)).
 
-**In progress** (not yet landed): T. rex physics r9 and the elliptic cone for Velociraptor, Brachiosaurus and Dibothrosuchus; a warn-only handoff warning when a whole-scene heading-probe row stands below 0.95, with the probe enabled for Velociraptor, Compsognathus and the robot; and Fisher exact tests in the release ablation.
+**Landed** as this post went up: a warn-only handoff warning when a whole-scene heading-probe row stands below 0.95, with the probe enabled for Velociraptor, Compsognathus and the robot; Fisher exact tests in the release ablation; and the elliptic friction cone on every species (T. rex physics r9, Velociraptor r4, Brachiosaurus r5, Dibothrosuchus r2), which retires every earlier checkpoint of those four species.
 
 **Planned:** heading-free observations for T. rex and Compsognathus with fresh training and the six-heading certificate; a recovery comparison between a certified stance and a statue-equivalent start; a foot-anatomy review of every species; and the pilots' follow-ups, including a full-budget CoP-margin trial and a Velociraptor exploration-noise sweep.
 
