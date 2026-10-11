@@ -18,6 +18,7 @@ from ..constants import PUBLICATION_SEED_START
 from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND, STANCE_HEADING_PANEL_CSV
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from ..record_fields import is_sha256_digest
 from ..stage_manifest import find_stage_dir
@@ -704,6 +705,227 @@ def _validate_stance_v2_panel_evidence(
         )
 
 
+def _same_statue_reference(a: Any, b: Any) -> bool:
+    """Whether two statue references are the same reading (NaN equal to NaN; ``None`` only to ``None``)."""
+    if a is None or b is None:
+        return a is None and b is None
+
+    def same(x: float, y: float) -> bool:
+        return (math.isnan(x) and math.isnan(y)) or x == y
+
+    return (
+        a.n_episodes == b.n_episodes
+        and a.n_full_horizon == b.n_full_horizon
+        and same(a.mean_reward, b.mean_reward)
+        and len(a.foot_load_share) == len(b.foot_load_share)
+        and all(same(x, y) for x, y in zip(a.foot_load_share, b.foot_load_share))
+    )
+
+
+def _validate_stance_heading_panel_evidence(
+    panel_path: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    env_kwargs: Mapping[str, Any],
+    stage: "int | str",
+    panel_seed_start: int,
+    certified_hash: "str | None",
+    certified_normalization: "str | None",
+    species: str,
+    task_sha256: "str | None",
+) -> None:
+    """Re-derive a six-heading certificate's pass (``stance_quality_heading/v1``, D-D32) from its grid CSV alone.
+
+    The certificate twin of :func:`_validate_stance_v2_panel_evidence`: the
+    published claim must be reproducible from ``stance_heading_panel_selected.csv``
+    -- never the report's recorded ``passed`` -- and those rows must describe
+    the published policy on the registered seeds at every heading.  Refused:
+
+    * an absent file, a v2 panel file (it lacks ``role`` / ``yaw_deg``), or
+      any row ``read_stance_heading_panel`` cannot read;
+    * a protocol other than ``whole_scene_yaw/v1`` or a grid other than its
+      six headings in order;
+    * a seed block that does not start at the certification panel seed
+      ``panel_seed_start`` (D-B17), and a policy grid -- or, where a
+      statue-relative criterion is declared, a statue grid -- that is not
+      the complete, unique Cartesian product of those seeds and headings
+      (a missing heading or a duplicated pair among them);
+    * a policy not rolled deterministically;
+    * rows for another checkpoint or VecNormalize sidecar than the certified
+      pair, another task than the stage records, another
+      ``MEASUREMENT_VERSION`` or measurement definition, or another gate
+      (``gate_sha256`` against the digest of the block the stage records);
+    * a horizon or control step that is not the stage's, or a recorded
+      ``reached_horizon`` that a row's length contradicts;
+    * a declared criterion whose metric the file was recorded without;
+    * a heading whose stamped statue reference is not the one its statue
+      rows reduce to;
+    * a recorded ``clean`` flag the re-derivation contradicts;
+    * and a re-derived certificate that fails.
+    """
+    from ..curriculum.gate_schema import gate_config_sha256, gate_config_view
+    from ..curriculum.stance_gate_v2 import StanceV2Thresholds, unrecorded_criteria
+    from ..curriculum.stance_heading_gate import (
+        HEADING_PROTOCOL,
+        evaluate_stance_heading_gate,
+        grid_refusals,
+        read_stance_heading_panel,
+        statue_references,
+        validate_heading_grid,
+    )
+    from ..gait.constants import MEASUREMENT_VERSION, measurement_definition_sha256
+    from ..gait.morphology import measurement_definition
+    from ..gait.stance_metrics import STANCE_METRIC_FIELDS
+
+    kind = STANCE_HEADING_GATE_KIND
+    if not panel_path.is_file():
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but {panel_path.name} is missing, so no heading's "
+            "floor-truth classification can be re-derived. A yaw-zero panel or min_avg_reward cannot stand in for "
+            "the grid."
+        )
+    try:
+        evidence = read_stance_heading_panel(panel_path)
+    except (OSError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} {kind} grid evidence cannot be read: {exc}") from exc
+    if evidence.protocol != HEADING_PROTOCOL:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was rolled under protocol {evidence.protocol!r}, not "
+            f"{HEADING_PROTOCOL!r}"
+        )
+    try:
+        grid = validate_heading_grid(evidence.heading_grid_deg)
+    except ValueError as exc:
+        raise ResultBundleError(f"stage {stage} {kind} grid evidence's heading grid is refused: {exc}") from exc
+    if evidence.seed_start != panel_seed_start or evidence.n_seeds < 1:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence starts its seed block at {evidence.seed_start} "
+            f"({evidence.n_seeds} seeds), not the certification_panel seed {panel_seed_start}"
+        )
+    seeds = [panel_seed_start + index for index in range(evidence.n_seeds)]
+    problems = grid_refusals(evidence.policy, seeds=seeds, grid=grid)
+    if problems:
+        raise ResultBundleError(f"stage {stage} {kind} grid evidence's policy rows: {'; '.join(problems)}")
+    if not evidence.policy_deterministic:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence records a policy that was not rolled deterministically, so its "
+            "rows do not pair by seed across headings"
+        )
+    if evidence.checkpoint_sha256 is None or certified_hash is None:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence (checkpoint {evidence.checkpoint_sha256!r}) cannot be bound to "
+            f"the certified selected checkpoint ({certified_hash!r})"
+        )
+    if evidence.checkpoint_sha256 != certified_hash:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was rolled on checkpoint {evidence.checkpoint_sha256}, not the "
+            f"certified selected checkpoint {certified_hash}"
+        )
+    if certified_normalization is not None and evidence.normalization_sha256 != certified_normalization:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence ran under VecNormalize statistics {evidence.normalization_sha256}, "
+            f"not the certified selected statistics {certified_normalization}"
+        )
+    if not task_sha256 or evidence.task_sha256 != task_sha256:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was rolled under task {evidence.task_sha256}, not the task the "
+            f"stage records it ran ({task_sha256})"
+        )
+    if evidence.measurement_version != MEASUREMENT_VERSION:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was measured under {evidence.measurement_version!r}, not this "
+            f"checkout's {MEASUREMENT_VERSION!r}"
+        )
+    expected_definition = measurement_definition_sha256(measurement_definition(species))
+    if evidence.measurement_definition_sha256 != expected_definition:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was measured under definition "
+            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {species}"
+        )
+    current_gate = gate_config_sha256(gate_config_view(curriculum))
+    if evidence.gate_sha256 != current_gate:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was scored under gate {evidence.gate_sha256}, not the gate the "
+            f"stage records ({current_gate})"
+        )
+    horizon_value = env_kwargs.get("max_episode_steps")
+    if horizon_value is None or isinstance(horizon_value, bool) or not isinstance(horizon_value, (int, float)):
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {kind!r} but its config records no integer max_episode_steps "
+            f"({horizon_value!r}), so which episodes reached the horizon cannot be determined"
+        )
+    horizon = int(horizon_value)
+    try:
+        control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records an unreadable timestep or frame_skip: {exc}") from exc
+    if evidence.horizon != horizon or abs(evidence.control_dt - control_dt) > 1e-9:
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence was rolled at horizon {evidence.horizon} and control step "
+            f"{evidence.control_dt:g} s, but the stage ran {horizon} steps at {control_dt:g} s"
+        )
+    rows = [
+        *zip(evidence.policy, evidence.policy_reached_horizon),
+        *zip(evidence.statue, evidence.statue_reached_horizon),
+    ]
+    for row, claimed in rows:
+        if claimed != (row.metrics.length >= horizon):
+            raise ResultBundleError(
+                f"stage {stage} {kind} grid row (seed {row.seed}, {row.yaw_deg:+g} deg) claims reached_horizon="
+                f"{claimed} but its length {row.metrics.length} against horizon {horizon} says otherwise"
+            )
+    try:
+        thresholds = StanceV2Thresholds.from_curriculum(curriculum)
+    except ValueError as exc:
+        raise ResultBundleError(f"stage {stage} declares {kind} without a scorable gate: {exc}") from exc
+    unrecorded = unrecorded_criteria(thresholds, set(STANCE_METRIC_FIELDS) - set(evidence.absent_metrics))
+    if unrecorded:
+        named = ", ".join(key if key == metric else f"{key} ({metric})" for key, metric in unrecorded)
+        raise ResultBundleError(
+            f"stage {stage} {kind} grid evidence {panel_path.name} has no column for the declared {named}: the "
+            "grid was rolled before the metric existed; re-roll the certificate on the certified pair"
+        )
+    statue_by_heading: dict[float, Any] = {}
+    if thresholds.declares_statue_criteria():
+        problems = grid_refusals(evidence.statue, seeds=seeds, grid=grid)
+        if problems:
+            raise ResultBundleError(f"stage {stage} {kind} grid evidence's statue rows: {'; '.join(problems)}")
+        statue_by_heading = statue_references(evidence.statue, horizon=horizon, grid=grid)
+        for yaw, reference in statue_by_heading.items():
+            stamped = evidence.statue_by_heading.get(yaw)
+            if not _same_statue_reference(reference, stamped):
+                raise ResultBundleError(
+                    f"stage {stage} {kind} grid evidence stamps the {yaw:+g} deg statue reference "
+                    f"{None if stamped is None else stamped.as_dict()}, not the one its statue rows reduce to "
+                    f"({reference.as_dict()})"
+                )
+    result = evaluate_stance_heading_gate(
+        evidence.policy,
+        thresholds,
+        horizon=horizon,
+        seeds=seeds,
+        statue_by_heading=statue_by_heading,
+        control_dt=control_dt,
+        grid=grid,
+    )
+    rederived = {
+        (seed, yaw): not reasons
+        for yaw, heading in result.per_heading
+        for seed, reasons in zip(seeds, heading.episode_reasons)
+    }
+    for row, recorded in zip(evidence.policy, evidence.policy_clean):
+        if rederived.get((row.seed, row.yaw_deg)) != recorded:
+            raise ResultBundleError(
+                f"stage {stage} {kind} grid row (seed {row.seed}, {row.yaw_deg:+g} deg) records clean={recorded} "
+                f"but re-derives clean={rederived.get((row.seed, row.yaw_deg))} under the declared gate"
+            )
+    if not result.passed:
+        raise ResultBundleError(
+            f"stage {stage} publication gate fails {kind}, re-derived from {panel_path.name}: "
+            + "; ".join(result.failures)
+        )
+
+
 def _check_resolution_panel_seed(resolution_path: Path, *, stage: "int | str", panel_seed_start: int | None) -> None:
     """A frozen ``gate_resolution.json`` must register the declared certification panel (decision D-B17).
 
@@ -1107,6 +1329,28 @@ def validate_evaluation_evidence(
                 # save_stage_config writes into stage_config.json beside
                 # task_fingerprint.json (the pair the judge reads).
                 task_sha256=_recorded_task_sha256(recorded_task),
+            )
+        elif recorded_pass and gate_kind == STANCE_HEADING_GATE_KIND:
+            # The six-heading certificate (D-D32) is re-derived from its grid
+            # CSV -- every (seed, heading) row, the statue rows each heading is
+            # judged against, and the stamps that bind them to the certified
+            # pair, the task, the measurement and the gate -- and REPLACES the
+            # legacy loop below like the v2 arm.  Never the yaw-zero panel.
+            if certification_panel_seed is None:
+                raise ResultBundleError(
+                    f"provenance seed_roles must declare certification_panel for a {STANCE_HEADING_GATE_KIND} pass "
+                    f"(stage {stage}): the certificate's rows are bound to that seed block"
+                )
+            _validate_stance_heading_panel_evidence(
+                find_stage_dir(run_path, stage) / STANCE_HEADING_PANEL_CSV,
+                curriculum,
+                env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
+                stage=stage,
+                panel_seed_start=certification_panel_seed,
+                certified_hash=certified_hash,
+                certified_normalization=certified_normalization,
+                species=str(summary.get("species")),
+                task_sha256=_recorded_task_sha256(config_value.get("task_fingerprint")),
             )
         elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
             # The hunting gate (plan §4.4) is re-derived from the SAME

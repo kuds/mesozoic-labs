@@ -5,7 +5,8 @@ trained.  ``train_curriculum --trunk-from <run_dir>`` and the notebook's
 chain loop both apply the rule this module owns, in this order, refusing
 on the first failure with a reason naming it (the list is in evaluation
 order; rule 7 was appended by decision D-A22 and keeps its number, which
-is why it sits between 3 and 4):
+is why it sits between 3 and 4, and rule 8 by decision D-D32, which sits
+between 5 and 6):
 
 1. the candidate run has a stage directory for the node, in any layout
    generation (``stage{N}``, ``NN_{id}``, bare id) — preferred whenever it
@@ -72,6 +73,19 @@ is why it sits between 3 and 4):
    only once its parent is;
 5. the handoff pair the directory selects NOW re-hashes to the verdict's
    digests, so a checkpoint rewritten after judging is refused;
+8. the evidence, for a node whose CURRENT gate is the six-heading stance
+   certificate (``stance_quality_heading/v1``, decision D-D32): the stage
+   directory's ``stance_heading_report.json`` must be admitted by the
+   judge's own checks (``reporting.gates.stance_heading_report_refusals``:
+   bound to this gate, protocol, grid, certification seeds, measurement,
+   task and the handoff pair selected now) and its verdict, RE-DERIVED from
+   every (seed, heading) row, must pass.  Unlike rules 2-7, which trust a
+   passed verdict and its digests, this re-reads the evidence: a verdict
+   forged or kept PASSED beside a certificate that fails -- or with no
+   certificate at all -- is refused.  It is evaluated at the source (a
+   followed record re-applies every rule there), so the ``ancestors/``
+   records copy no certificate.  The fresh-audit grid on seeds 7042-7081
+   stays a recorded manual step, not a reuse check;
 6. the checkpoint's recorded plant identity validates against the current
    plant with no legacy allowance.
 
@@ -610,6 +624,9 @@ def _find_certified_ancestor(
             f"{verdict.get('normalization')!r}): the VecNormalize sidecar was rewritten after judging"
         )
 
+    # (8) The six-heading certificate, re-derived from its rows (D-D32).
+    _check_heading_certificate(stage_dir, entry=entry, current_gate_config=current_gate_config)
+
     # (6) The plant, with no legacy allowance: an untagged ancestor is refused.
     raw_identity = read_checkpoint_attribute(model_zip, MODEL_IDENTITY_ATTRIBUTE)
     if raw_identity is not None and not isinstance(raw_identity, Mapping):
@@ -639,6 +656,40 @@ def _find_certified_ancestor(
         gate_sha256=recorded_digest,
         via=via,
     )
+
+
+def _check_heading_certificate(
+    stage_dir: Path, *, entry: "StageEntry", current_gate_config: "Mapping[str, Any]"
+) -> None:
+    """Reuse rule 8: a heading-certificate node is reused only on a certificate that re-derives to a pass.
+
+    A no-op for any other current gate kind.  Reads
+    ``<stage_dir>/stance_heading_report.json`` and judges it through
+    ``reporting.gates._stance_heading_stage_gate`` -- the judge's admission
+    (``stance_heading_report_refusals``) and its re-derivation from every
+    (seed, heading) row -- so a passed verdict is never the evidence.
+    """
+    from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND, STANCE_HEADING_REPORT_JSON
+    from .reporting.gates import _stance_heading_stage_gate
+
+    if current_gate_config.get("gate_kind") != STANCE_HEADING_GATE_KIND:
+        return
+    path = stage_dir / STANCE_HEADING_REPORT_JSON
+    certificate = read_json_object(path)
+    if certificate is None:
+        raise AncestorReuseError(
+            f"{path} is absent or unreadable, so the six-heading certificate {entry.id!r} declares cannot be "
+            "re-derived: a passed verdict is not the evidence (reuse rule 8); re-judge the node (the notebook "
+            "JUDGE branch / generate_stage_artifacts), which rolls the certificate on the handoff pair"
+        )
+    passed, failures = _stance_heading_stage_gate(
+        current_gate_config, certificate, stage=entry.reference, stage_dir=stage_dir
+    )
+    if not passed:
+        raise AncestorReuseError(
+            f"{path} does not re-derive to a passing {STANCE_HEADING_GATE_KIND} certificate (reuse rule 8): "
+            + "; ".join(failures)
+        )
 
 
 def _ancestor_record(ancestor: CertifiedAncestor) -> dict[str, Any]:
