@@ -596,10 +596,7 @@ behavior preparation, each by plant identity) and
 `test_heading_free_rollouts.py` (full-horizon traces and every floor-truth
 metric behind a frozen normalizer and an untrained PPO policy, in the SB3
 job's full depth). The migration moves only T. rex and Compsognathus digest
-lines (649 → 643; 84 reward lines unchanged); the regenerated snapshot also
-takes up the four T. rex and Velociraptor stance `stage_config_view_sha256`
-lines (PPO and SAC) that `main`'s 12M `timesteps` raises of 2026-10-11 moved
-without regenerating it. The reset golden's reset,
+lines (649 → 643; 84 reward lines unchanged). The reset golden's reset,
 second-reset and trajectory halves re-took byte-identical, and the digest
 harness's `--exact` captures of the base and the migration differ only in the
 two species' `reset` and `obs` streams (586 of 37,034 lines): rewards,
