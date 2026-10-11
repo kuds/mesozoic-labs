@@ -447,7 +447,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TRAINING_ARTIFACT_PRESENTATION, the T-Rex and Compsognathus READMEs and
   website pages, and the species catalog.
 - **The T-Rex and the anatomical Compsognathus no longer observe their world
-  heading** (breaking — policy interface change: T-Rex revision 13 → 14, 64 →
+  heading** (#616; breaking — policy interface change: T-Rex revision 13 → 14, 64 →
   63 wide; anatomical Compsognathus 3 → 4, 56 → 55; every existing checkpoint
   of both is invalidated; decision D-D31, which the maintainer approved on
   2026-10-11 for these two species only, carrying out
