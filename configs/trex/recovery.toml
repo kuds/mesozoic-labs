@@ -162,13 +162,14 @@ timesteps = 3_000_000                   # Measured, no longer provisional: both 
 # future support term must be windowed and re-derived from certified stance
 # before it can gate.
 #
-# Stale since physics r8 (2026-10-06, decision D-D24): the safe set and its
-# 0.9267 m reference were measured on the r7 certified stance, which r8
-# retires, and every gate_resolution.json frozen on r7 records an r7
-# task_sha256 that require_gate_resolution refuses. The thresholds below
-# stay; at the first r8 stance certified under stance_quality/v2, re-measure
-# the safe set on it (the first-runs record's §4 protocol) and re-freeze
-# with freeze_recovery_gate.py before a recovery node trains.
+# Stale since physics r8 (2026-10-06, decision D-D24; the plant is r9 since
+# D-D29): the safe set and its 0.9267 m reference were measured on the r7
+# certified stance, which r8 retires, and every gate_resolution.json frozen
+# on r7 records an r7 task_sha256 that require_gate_resolution refuses. The
+# thresholds below stay; at the first r9 stance certified under
+# stance_quality/v2, re-measure the safe set on it (the first-runs record's
+# §4 protocol) and re-freeze with freeze_recovery_gate.py before a recovery
+# node trains.
 #
 # Every value below must AGREE with the stage's frozen gate_resolution.json:
 # reporting/gates.py::_recovery_spec_disagreements refuses on any mismatch, so
@@ -269,13 +270,22 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # statue commands zero and its per-step peak never passes 1.35 BW, so the
 # action, impact and airborne terms charge it 0. Inherited at stance's 200
 # it would be 1323.4. Floor = 0.45 x 1329.1 = 598.1.
+#
+# Re-measured on physics r9 (plant_versions note 16: the elliptic friction
+# cone) by the same judge (recovery_offdist_panel --controller statue
+# --schedule on --safe-set provisional), 40 episodes, seeds 3042-3081:
+# 1369.4 ± 519.6, mean length 442.1, 0/40 full horizon, ends nosedive 26 /
+# tail_contact 14, 44 of 69 shoves recovered; the same command reproduces
+# 1329.1 ± 507.3, 431.4, 27 / 13 and 43 of 68 exactly on r8. The +40.3 is
+# half of its 82 standard error, so the reference and its floor carry.
 collapse_peak_floor_reference = 1329.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081, physics r8 with the D-D27 stance terms (above).
+                                        # 3042-3081, physics r8 with the D-D27 stance terms (above);
+                                        # re-measured on r9 (1369.4) and kept.
                                         # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 8   # The trex PHYSICS revision the 1329.1 reference was measured on
-                                        # (the r8 panel above). The 974.7 it replaced was r7's: the 2026-08-23
+statue_constants_physics_revision = 9   # The trex PHYSICS revision the 1329.1 reference was measured on
+                                        # (r8 above, re-measured on r9). The 974.7 it replaced was r7's: the 2026-08-23
                                         # panel, review §5.1 — the same r7 plant as the frozen first-runs
                                         # panels; the perturbation engine, plant_versions note 11, bumped only
                                         # the POLICY interface. The freshness test holds this pin against

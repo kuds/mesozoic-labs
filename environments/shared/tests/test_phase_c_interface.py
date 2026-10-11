@@ -19,10 +19,11 @@ contract code:
   ``trajectory`` half (qpos after each zero-action step) crosses the
   solver, so it is ADVISORY: ``assert_allclose(atol=1e-5)`` and skipped
   unless the running MuJoCo is the fixture's (amendment A4).  The trex
-  captures were re-taken for trex physics r8 (plant_versions note 13; the
-  fixture's ``recaptures`` record): their reset halves were unchanged,
-  which is what proves that revision drew nothing extra, and only their
-  observation and trajectory halves moved, as dynamics edits must.
+  captures were re-taken for trex physics r8 (plant_versions note 13) and
+  again for r9 (note 16; the fixture's ``recaptures`` record): each time
+  their reset halves were unchanged, which is what proves the revision drew
+  nothing extra, and only their observation and trajectory halves moved, as
+  dynamics edits must.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -148,7 +149,7 @@ def test_golden_fixture_records_its_provenance():
 
 
 #: Captures re-taken after 7db7f8e, each by a named plant revision of its species.
-RECAPTURED = {"trex/stance": 8, "trex/recovery": 8, "compsognathus/recovery": 2}
+RECAPTURED = {"trex/stance": 9, "trex/recovery": 9, "compsognathus/recovery": 2}
 
 
 def test_recaptured_goldens_record_the_plant_they_were_taken_on():

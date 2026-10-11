@@ -1,7 +1,7 @@
 """Tests for the floor-truth recorder on real envs: inert, exact, and loud when it cannot be either.
 
 The prototype's equivalence checks, as tests, on short rollouts of the cheap
-species (trex for the pyramidal cone, compsognathus for the elliptic one):
+species (dibothrosuchus for the pyramidal cone, compsognathus for the elliptic one):
 
 * **inert** -- qpos is bit-identical with and without the recorder;
 * **exact** -- per-step leg, support-geom and total floor forces equal a
@@ -45,6 +45,13 @@ from environments.shared.gait.stance_metrics import episode_stance_metrics
 from environments.shared.species_registry import get_species_config
 
 SIX = ("trex", "velociraptor", "compsognathus", "compsognathus_robot", "dibothrosuchus", "brachiosaurus")
+#: One cheap species per friction cone, so both of the recorder's normal-force decodes stay covered:
+#: dibothrosuchus (box feet, MuJoCo's default pyramidal cone) and compsognathus (elliptic).  The trex, whose box
+#: pads made it the pyramidal species here, has been elliptic since its physics r9 (plant_versions note 16).
+CONE_SPECIES = {
+    "dibothrosuchus": mujoco.mjtCone.mjCONE_PYRAMIDAL,
+    "compsognathus": mujoco.mjtCone.mjCONE_ELLIPTIC,
+}
 
 
 def make_env(species: str, **overrides):
@@ -112,7 +119,13 @@ class ContactForceLoop:
 # ── inert and exact ──────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("species", ["trex", "compsognathus"])
+@pytest.mark.parametrize("species", list(CONE_SPECIES))
+def test_the_cone_species_still_cover_both_cones(envs, species):
+    """A cone change of either species fails here, by name, instead of silently dropping a decode's coverage."""
+    assert envs(species).model.opt.cone == CONE_SPECIES[species]
+
+
+@pytest.mark.parametrize("species", list(CONE_SPECIES))
 def test_recording_leaves_the_trajectory_bit_identical(envs, species):
     steps = 120
     trajectories = []
@@ -134,7 +147,7 @@ def test_recording_leaves_the_trajectory_bit_identical(envs, species):
     np.testing.assert_array_equal(trajectories[0], trajectories[1])
 
 
-@pytest.mark.parametrize("species", ["trex", "compsognathus"])
+@pytest.mark.parametrize("species", list(CONE_SPECIES))
 @pytest.mark.parametrize("decode", ["one_gather", "per_contact_dim"])
 def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, species, decode):
     env = envs(species)
@@ -160,7 +173,7 @@ def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, species, decode)
     assert trace.leg_floor_mean.sum() > 0.5 * morphology.body_weight_n * trace.length  # it measured real contact
 
 
-@pytest.mark.parametrize("species", ["trex", "compsognathus"])
+@pytest.mark.parametrize("species", list(CONE_SPECIES))
 def test_touch_is_the_env_aggregate_and_the_samples_are_the_env_state(envs, species):
     env = envs(species)
     recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach()
@@ -419,12 +432,12 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
 
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
-#: to 1 s + 150): trex 0.356, compsognathus 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its
-#: robot 0.319, dibothrosuchus 0.699 (its hind feet heel side on four contacts).  None where the foot has no box
-#: sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact
-#: sits where the authored pitch puts it).
+#: to 1 s + 150): trex 0.441 on its r9 plant (0.356 on r8, before the elliptic cone of D-D29), compsognathus
+#: 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus 0.699 (its
+#: hind feet heel side on four contacts).  None where the foot has no box sole, so the metric is unmeasured:
+#: velociraptor (no sole) and brachiosaurus (ellipsoids, whose one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
-    "trex": 0.40,
+    "trex": 0.47,
     "velociraptor": None,
     "compsognathus": 0.20,
     "compsognathus_robot": 0.35,

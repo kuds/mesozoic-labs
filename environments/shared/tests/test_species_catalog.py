@@ -196,6 +196,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # digit II medial on both feet (physics, visual, and the regenerated home
     # preload), and the soft-cubic leg residual of CompsognathusBiologicalEnv.
     # The robot is untouched.
+    # T-Rex physics r9 (plant_versions note 16) switched the friction cone to
+    # elliptic: PHYSICS only, policy and visual unchanged.
     expected_policy_revisions = {
         "velociraptor": 11,
         "trex": 13,
@@ -204,7 +206,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "compsognathus": 3,
         "compsognathus_robot": 2,
     }
-    expected_physics_revisions = {"velociraptor": 3, "trex": 8, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_physics_revisions = {"velociraptor": 3, "trex": 9, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update(compsognathus=2, compsognathus_robot=1)

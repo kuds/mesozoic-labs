@@ -891,7 +891,8 @@ class TRexEnv(BaseDinoEnv):
         # 8c. Height maintenance reward (smooth gradient toward staying upright)
         min_z = self.healthy_z_range[0]
         # Settled pelvis height under the home controller, measured (zero action,
-        # zero reset noise, 600 steps: 0.9260 m, sd 0.00001).  This must track the
+        # zero reset noise, 600 steps: 0.9260 m, sd 0.00001, on physics r8; 0.9262
+        # on r9, which carries it: plant_versions note 16).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant

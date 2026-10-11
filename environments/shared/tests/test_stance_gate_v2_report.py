@@ -455,15 +455,18 @@ class TestThePadCentreOfPressure:
     def test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it(
         self, tmp_path, monkeypatch
     ):
-        """Real physics on the plant the bar was calibrated on.
+        """Real physics on the current plant (physics r9; the bar was calibrated on r8).
 
-        The left ankle, ramped to -0.075 over the first 300 steps, leans the
-        animal onto its right pad's front edge: that pad pitches under a degree
+        The left ankle, ramped to -0.0825 over the first 300 steps, leans the
+        animal onto its right pad's front edge: that pad pitches about a degree
         toe-down, as the r8 seed-44 left foot does, and stays inside the
         block's tilt, corner-lift and contact bars, so the centre-of-pressure
         bar is the one that refuses it; without it every episode is clean.
         The statue the same report rolls reads under the bar, whatever this
-        plant's own baseline is.
+        plant's own baseline is.  On r8 -0.075 sufficed (rows 0.864-0.929);
+        r9's elliptic cone leaves 1 of those 3 episodes clean, -0.0825 reads
+        0.829-1.000 with the corner lift at most 3.8 mm, and -0.085 trips
+        the 4 mm corner-lift bar too.
         """
         config = _trex_stage_config()
         curriculum = config["curriculum_kwargs"]
@@ -472,7 +475,7 @@ class TestThePadCentreOfPressure:
         env = stance_report.SPECIES_FACTORIES[TREX]().env_class(**config["env_kwargs"])
         try:
             command = np.zeros(int(env.action_space.shape[0]))
-            command[env.model.actuator("l_ankle_act").id] = -0.075
+            command[env.model.actuator("l_ankle_act").id] = -0.0825
         finally:
             env.close()
         predict = _ramped(command, steps=300, horizon=TREX_HORIZON)
@@ -480,7 +483,7 @@ class TestThePadCentreOfPressure:
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
             assert row["length"] == TREX_HORIZON and row["all_feet_support"] == 1.0
-            assert row["max_sole_cop_fore_aft"] > 0.85
+            assert row["max_sole_cop_fore_aft"] > 0.82
             assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
         statue_rows = report["statue"]["episode_evidence"]
         assert all(row["max_sole_cop_fore_aft"] < curriculum["max_sole_cop_fore_aft"] for row in statue_rows)

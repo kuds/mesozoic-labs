@@ -425,8 +425,9 @@ class TestSettledPoseTargetsTrackTheStatue:
 
     ``_NECK_SETTLED_QPOS`` (the neck term under ``neck_posture_reference =
     "settled"``) and ``_TAIL_SETTLED_QPOS`` are the noise-free statue's pose
-    over the post-settle window, measured on physics r8.  Nothing derives them
-    from the plant at run time, so a gain, spring or mass edit that moves the
+    over the post-settle window, measured on physics r8 and carried on r9
+    (inside the tolerances below).  Nothing derives them from the plant at
+    run time, so a gain, spring or mass edit that moves the
     neck or tail would silently re-centre the statue off its own targets; this
     re-measures them instead, as TestHeightTargetTracksStance does for the
     height target that went stale exactly that way.
@@ -455,10 +456,68 @@ class TestSettledPoseTargetsTrackTheStatue:
     def test_settled_targets_are_the_statues_post_settle_pose(self):
         neck, tail = self._post_settle_means()
         # Measured 0.21432 / 0.0 / 0.21963 (to 3e-7) and -0.21069 / 0.0 /
-        # -0.20280 / -0.09252; the 40-seed spread at reset noise 0.05 is
-        # under 2e-4 rad.
+        # -0.20280 / -0.09252 on r8, 0.21431 / 0.0 / 0.21968 and -0.21069 /
+        # 0.0 / -0.20274 / -0.09249 on r9; the 40-seed spread at reset noise
+        # 0.05 is under 2e-4 rad.
         np.testing.assert_allclose(neck, TRexEnv._NECK_SETTLED_QPOS, atol=1e-4)
         np.testing.assert_allclose(tail, TRexEnv._TAIL_SETTLED_QPOS, atol=5e-4)
+
+
+class TestEveryHeadingIsPhysicallyIdentical:
+    """Physics r9 (plant_versions note 16): the friction cone is elliptic.
+
+    The plantar pads are boxes, whose contact tangent frames stay on the world
+    axes whichever way the animal faces, and MuJoCo's default pyramidal cone
+    is weaker between those axes.  On r8 a 45 deg turn of the whole scene was
+    therefore a small physical perturbation as well as an observation change:
+    under the random commands below it separated the joints by 7.7e-2 rad.
+    The elliptic cone is isotropic, so the turned run repeats the unturned one
+    to rounding error (4.8e-14 rad measured).  Raw MuJoCo on the env's model:
+    nothing but the physics is compared.
+    """
+
+    STEPS = 2000
+    HOLD_STEPS = 10  # physics steps each random command is held
+    AMPLITUDE = 0.15  # of each actuator's half range, about the home ctrl
+
+    def test_the_model_declares_the_elliptic_cone(self, env):
+        assert env.model.opt.cone == mujoco.mjtCone.mjCONE_ELLIPTIC
+
+    @classmethod
+    def _joint_trajectory(cls, model, yaw_deg: float) -> np.ndarray:
+        """Joint qpos per step from the home keyframe, the root and the prey turned *yaw_deg* about world z."""
+        data = mujoco.MjData(model)
+        mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
+        half = np.radians(yaw_deg) / 2
+        turn = np.array([np.cos(half), 0.0, 0.0, np.sin(half)])
+        root = np.zeros(4)
+        mujoco.mju_mulQuat(root, turn, data.qpos[3:7].copy())
+        data.qpos[3:7] = root
+        pivot = data.qpos[:2].copy()
+        cos, sin = np.cos(2 * half), np.sin(2 * half)
+        for body in range(model.nmocap):
+            offset = data.mocap_pos[body, :2] - pivot
+            data.mocap_pos[body, :2] = pivot + [cos * offset[0] - sin * offset[1], sin * offset[0] + cos * offset[1]]
+            mocap = np.zeros(4)
+            mujoco.mju_mulQuat(mocap, turn, data.mocap_quat[body].copy())
+            data.mocap_quat[body] = mocap
+        mujoco.mj_forward(model, data)
+        rng = np.random.default_rng(0)
+        low, high = model.actuator_ctrlrange[:, 0], model.actuator_ctrlrange[:, 1]
+        home = model.key("home").ctrl.copy()
+        rows = []
+        for step in range(cls.STEPS):
+            if step % cls.HOLD_STEPS == 0:
+                noise = rng.uniform(-cls.AMPLITUDE, cls.AMPLITUDE, model.nu) * (high - low) / 2
+                data.ctrl[:] = np.clip(home + noise, low, high)
+            mujoco.mj_step(model, data)
+            rows.append(data.qpos[7:].copy())
+        return np.array(rows)
+
+    def test_a_45_degree_whole_scene_turn_reproduces_the_joints(self, env):
+        straight = self._joint_trajectory(env.model, 0.0)
+        turned = self._joint_trajectory(env.model, 45.0)
+        np.testing.assert_allclose(turned, straight, rtol=0, atol=1e-10)
 
 
 class TestStage1ResetStaysInsideTheHealthyEnvelope:
