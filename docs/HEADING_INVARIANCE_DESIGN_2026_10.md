@@ -24,16 +24,18 @@ dominant T. rex failures are pad centre-of-pressure (CoP) and settle checks that
 the observation does not touch. The CoP/reward work (#608) proceeds in parallel
 and is retrained on the new interface.
 
-Recommended until the migration and certificate exist, for the maintainer to
-decide:
+Decided by the maintainer on 2026-10-11, until the migration and certificate
+exist:
 
-- Treat a stance PASS on a pre-migration interface (T. rex policy interface r13,
-  anatomical Compsognathus r3) as heading-uncertified and provisional. This
-  includes `20261009_155723`; the recovery stage trained from it is
-  research-only.
-- Have handoff tooling warn when any whole-scene row of
+- A stance PASS on a pre-migration interface (T. rex policy interface r13,
+  anatomical Compsognathus r3) is heading-uncertified and provisional.
+  `20261009_155723` is research-only, not a trunk: no recovery, walk or hunt
+  starts from it, and the recovery stage already trained from it is
+  research-only too.
+- Handoff tooling warns, without blocking, when any whole-scene row of
   `stance_heading_probe.json` has a full-horizon fraction below 0.95, the v2
-  per-panel full-horizon rail.
+  per-panel full-horizon rail. The probe otherwise stays report-only (D-D27)
+  until the certificate below replaces it.
 
 This follows the scope already recorded in [NEXT_STEPS](NEXT_STEPS.md): both
 anatomical species together after #604. It does not change Compsognathus robot or
@@ -252,14 +254,16 @@ whose tangent frame turns with the foot, and stay yaw-invariant at 45° under th
 pyramidal cone. Anatomical Compsognathus already declares `cone="elliptic"`; its
 statue rows agree to about 3 × 10⁻¹⁰ at all six headings.
 
-This design treats T. rex's ±45° cells as slightly perturbed physics, not exact
-replicates. Each heading is judged against its own statue panel (the per-heading
-reference in the certificate below is the right reference there), and paired
-traces are compared to solver tolerance only where the physics is invariant.
-Switching T. rex to `cone="elliptic"` would remove the anisotropy, but it is a
-physics revision (a new physics identity, with statue references and stance bars
-re-measured). It is an option for the maintainer, not part of this
-observation-only migration.
+The maintainer chose on 2026-10-11 to switch T. rex to `cone="elliptic"` in the
+same retrain window. It is a physics revision of its own (a new physics
+identity, with statue references, stance bars and the recovery calibration
+re-measured), landed before the first fresh heading-free T. rex stance and kept
+out of this observation-only migration. Once it lands every T. rex heading is
+physically identical, as on Compsognathus. Until then this design treats
+T. rex's ±45° cells as slightly perturbed physics, not exact replicates: each
+heading is judged against its own statue panel (the per-heading reference in
+the certificate below), and paired traces are compared to solver tolerance only
+where the physics is invariant.
 
 Use identical joint state, local angular velocity and RNG draws for each paired
 reset. Recreate an environment and reset to the seed for each angle; do not
@@ -290,7 +294,7 @@ the ability to request a world direction.
 | `environments/trex/envs/trex_env.py::_get_obs` | Assemble the new schema directly from valid root state and existing local sensors. Declare the supported backend explicitly. |
 | `environments/compsognathus/envs/compsognathus_env.py::CompsognathusBiologicalEnv` | Add an anatomical-only `_get_obs` override. Keep the shared parent and robot observation source untouched. |
 | `environments/shared/plant_contract/policy_layer.py` | Schema-conditional segment names, widths, frames and gravity convention; hash all new helper implementations as well as `_get_obs`. Preserve existing payload bytes for other schemas. |
-| `configs/plant_versions.toml` | The two policy revisions/schema changes above; no physics or visual revision change. |
+| `configs/plant_versions.toml` | The two policy revisions/schema changes above; no physics or visual revision change. T. rex's elliptic friction cone (the maintainer's choice of 2026-10-11) is a separate physics revision with its own PR and re-measured statue constants. |
 | `configs/species_manifest.toml` and species documentation | Declare T. rex's new interface SB3-only; expose new dimensions/revisions accurately. Compsognathus is already SB3-only. |
 | `environments/trex/mjx_config.py`, `test_plant_contract_frozen_mjx.py`, `pyproject.toml` | Retire T. rex's registration with its policy revision, update the dual-species pin and remove its formatter exclusion. Keep the remaining shared core and registrations unchanged. |
 | `configs/plant_manifest.generated.json`, `environments/shared/data/plant_manifest.generated.json` | Regenerate, including schema probe outputs and supported backend declarations. |
@@ -342,14 +346,14 @@ migration.
 
 ## Heading certificate
 
-Suggested gate kind: `stance_quality_heading/v1`; protocol: `whole_scene_yaw/v1`;
-report schema: `mesozoic.stance-heading-report/v1`. The obvious
-`stance_quality/v3` would clash: the v2 gate already writes reports with schema
+Gate kind: `stance_quality_heading/v1` (the maintainer's choice of 2026-10-11);
+protocol: `whole_scene_yaw/v1`; report schema:
+`mesozoic.stance-heading-report/v1`. The obvious `stance_quality/v3` would
+clash: the v2 gate already writes reports with schema
 `mesozoic.stance-gate-report/v3` (`STANCE_V2_REPORT_SCHEMA` in
 `stance_gate_v2.py`, numbered so that "report v2" is never "kind v2"), so a v3
 kind would invite misreading a v3 report as a v3 certificate in verdicts and
-bundles. If the maintainer prefers `stance_quality/v3`, record the gate-to-report
-mapping explicitly beside `STANCE_V2_REPORT_SCHEMA`. Keep the existing v2
+bundles. Keep the existing v2
 floor-truth measurements and species-specific per-episode bars. Version the new
 report and CSV schema explicitly rather than changing the meaning of a v2
 certificate already in a completed bundle.
@@ -506,13 +510,14 @@ checkpoint selection if it will be used for admission.
 With heading-free observations, the headings of a seed that the physics treats
 identically (all six for anatomical Compsognathus; −90°, 0°, +90° and 180° for
 T. rex) are deterministic replicates of one episode, so beyond catching a leak
-they add only cost. A cheaper variant, for the maintainer to choose: keep the
-40-seed panel at 0° (today's v2 panel); roll 0°, ±90° and 180° on a few seeds as
-leak detectors, comparing traces to documented contact-solver tolerance; roll the statue once per seed block
-where the physics is invariant; and add full 40-seed panels, grouped by seed with
-0° as above, only at headings where the physics is anisotropic (T. rex ±45°,
-unless its cone changes). The grouped Clopper-Pearson arithmetic stays as it is
-under either choice.
+they add only cost. The maintainer chose on 2026-10-11 to keep the full
+six-heading grid anyway: a few minutes per seed block cost little against a
+roughly 15 h stance run, and the grid is the check that would have refused
+`20261009_155723`. A cheaper variant was considered and not adopted: the 40-seed
+panel at 0° only, plus 0°, ±90° and 180° on a few seeds as leak detectors
+(traces compared to documented contact-solver tolerance), adding full panels
+only at headings where the physics is anisotropic. The grouped Clopper-Pearson
+arithmetic is the same either way.
 
 ## Reproduction and evidence boundaries
 
