@@ -1409,7 +1409,11 @@ class TestTrainCurriculumWalksTheManifest:
         # The D-A21 ignored-edit warning (the fixture records no algorithm
         # block) and the reuse line both name the ORIGINAL run, never the middle.
         reused = [r for r in caplog.records if r.message.startswith("Reusing certified 'stance' from run original-run")]
-        assert [r.levelno for r in reused] == [logging.WARNING, logging.INFO]
+        # So does the heading-probe warning: the velociraptor stance declares the probe and the fixture rolled none.
+        probe = [r for r in reused if "whose heading probe warns" in r.message]
+        assert probe and all(r.levelno == logging.WARNING for r in probe)
+        assert all("is missing although the stage declares the heading probe" in r.message for r in probe)
+        assert [r.levelno for r in reused if r not in probe] == [logging.WARNING, logging.INFO]
         assert not [r for r in caplog.records if "from run middle-run" in r.message]
         not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
         assert [r.levelno for r in not_reused] == [logging.WARNING, logging.INFO]

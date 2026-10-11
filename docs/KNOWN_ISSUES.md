@@ -1271,8 +1271,8 @@ robustness, **LOW** = cosmetic / QoL.
   the world frame; every spawn faces +x): its r2 statue is clean spawned
   yawed ±45° and ±90°, and two 200k-step PPO means are clean with seed 11 at
   +90° and seed 12 at −90° (20/20 each; the stance-hack audit's §11), but no
-  trained r2 stance has been rolled turned. No other species' stance has been
-  probed. Until then the probe stays report only: its own text
+  trained r2 stance has been rolled turned. No other species' trained stance
+  has been probed. Until then the probe stays report only: its own text
   (`stance_heading_probe.txt`, from `reporting/stance_report.py`) still reads
   as D-D27 left it, "report only; decision D-D27 leaves heading robustness
   open", and the heading PR rewrites it. By the maintainer's decision of
@@ -1282,9 +1282,14 @@ robustness, **LOW** = cosmetic / QoL.
   `stance_gate_report.py --spawn-yaw-offsets` output prints too, and a
   logged warning where the probe is written, where `train` or the
   command-line curriculum starts a node on the stance's handoff, and where
-  `record_ancestor` reuses it. A stage that declares the probe and has none,
-  as the command-line curriculum leaves a T. rex stance, warns that its
-  heading robustness is unmeasured. No verdict changes.
+  `record_ancestor` reuses it. The maintainer's approval of the same day
+  turns the probe on for the velociraptor, compsognathus and compsognathus
+  robot stances too, as the T. rex stance has it (the two quadrupeds'
+  reward-and-length stances roll no stance report), and each one's statue
+  stands 8/8 on every row of it. A stage that declares the probe and has none
+  warns that its heading robustness is unmeasured; the command-line
+  curriculum rolls no probe, so every stance it trains of those four species
+  warns so at its handoff. No verdict changes.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

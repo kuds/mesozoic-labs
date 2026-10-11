@@ -91,3 +91,20 @@ min_eval_episodes = 40
 required_consecutive = 3
 # Deliberately omit a collapse floor: the shared detector stays unarmed until
 # this plant has a learning history to calibrate it. Baseline reporting is advisory.
+
+# REPORT ONLY (D-D27). After the gate report, re-roll the policy and the
+# zero-action statue on 8 seeds with the spawn turned about vertical by each
+# offset -- the animal alone, and with the prey and the episode's reference
+# direction turned too -- beside an unturned control, and write
+# stance_heading_probe.{txt,json}. The stance stage always spawns facing +x
+# and the observation carries heading through the world-frame pelvis
+# quaternion, pelvis velocity and target direction, so no criterion sees a
+# stance that reads its heading. The handoff tooling reads the probe: a
+# whole-scene row whose full-horizon fraction is below 0.95 is warned of,
+# without blocking, where the probe is written and wherever the stance is
+# handed on or reused, and a stance with none (a command-line curriculum run
+# rolls none) as unmeasured. Turned on by the maintainer's decision of
+# 2026-10-11, as configs/trex/stance.toml does. The statue stands 8/8 on
+# every row, on each whole-scene row at the unturned control's reward
+# (2997.8, measured 2026-10-11). 18 panels of 8 episodes.
+stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]

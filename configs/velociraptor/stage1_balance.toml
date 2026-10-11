@@ -292,3 +292,20 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
+stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). After the gate
+                                        # report, re-roll the policy and the zero-action statue on 8 seeds with the
+                                        # spawn turned about vertical by each offset -- the animal alone, and with
+                                        # the prey and the heading reward's reference direction turned too --
+                                        # beside an unturned control, and write stance_heading_probe.{txt,json}.
+                                        # The stance stage always spawns facing +x and the observation carries
+                                        # heading through the world-frame imu quaternion, pelvis velocity and prey
+                                        # direction, so no bar sees a stance that reads its heading. The handoff
+                                        # tooling reads the probe: a whole-scene row whose full-horizon fraction is
+                                        # below 0.95 is warned of, without blocking, where the probe is written and
+                                        # wherever the stance is handed on or reused, and a stance with none (a
+                                        # command-line curriculum run rolls none) as unmeasured. Turned on by the
+                                        # maintainer's decision of 2026-10-11, as for the trex. The r3 statue
+                                        # stands 8/8 on every row, on each whole-scene row at the unturned
+                                        # control's reward (2841.9, measured 2026-10-11; about 100 lower with the
+                                        # animal turned alone at +-90 deg: the heading term). 18 panels of 8
+                                        # episodes.
