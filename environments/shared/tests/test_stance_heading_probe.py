@@ -37,10 +37,16 @@ from environments.shared.reporting.stance_report import (
 from environments.shared.species_catalog import DEFAULT_MANIFEST_PATH
 from environments.trex.envs.trex_env import TRexEnv
 
-#: Each species' gait, from the species manifest: every biped's stance declares the heading probe, and no
-#: other species' stance does, so a new species lands in one of the two tests below.
+#: Each species' gait, from the species manifest: every biped's stance without the six-heading certificate declares
+#: the heading probe, every biped's stance with it declares none (the certificate replaces it, D-D32), and no other
+#: species' stance declares it, so a new species lands in one of the three tests below.
 _GAITS = {
     entry["id"]: entry["gait"] for entry in tomllib.loads(DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8"))["species"]
+}
+_CERTIFIED = {
+    species
+    for species in _GAITS
+    if load_stage_config(species, "stance")["curriculum_kwargs"].get("gate_kind") == "stance_quality_heading/v1"
 }
 
 
@@ -227,13 +233,24 @@ class TestProbeTable:
         assert written["heading_probe_txt"].name == "stance_heading_probe.txt"
         assert written["heading_probe_json"].exists()
 
-    @pytest.mark.parametrize("species", sorted(s for s, gait in _GAITS.items() if gait == "Bipedal"))
-    def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance(self, species):
-        # D-D27 for the trex; the maintainer's decision of 2026-10-11 for the velociraptor and both compsognathus.
+    @pytest.mark.parametrize(
+        "species", sorted(s for s, gait in _GAITS.items() if gait == "Bipedal" and s not in _CERTIFIED)
+    )
+    def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance_without_the_certificate(self, species):
+        # The maintainer's decision of 2026-10-11 for the velociraptor and the compsognathus robot (D-D27 for the
+        # trex until the certificate replaced it there, D-D32).
         assert "stance_probe_spawn_yaw_deg" in _DIAGNOSTIC_KEYS
         curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
         assert curriculum["stance_probe_spawn_yaw_deg"] == [-90.0, -45.0, 45.0, 90.0]
         assert declares_heading_probe(curriculum)
+
+    def test_the_two_anatomical_stances_declare_the_certificate_and_no_probe(self):
+        """The maintainer's approval of 2026-10-11 (D-D32): T. rex and the anatomical compsognathus only."""
+        assert _CERTIFIED == {"trex", "compsognathus"}
+        for species in sorted(_CERTIFIED):
+            curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
+            assert "stance_probe_spawn_yaw_deg" not in curriculum
+            assert not declares_heading_probe(curriculum)
 
     @pytest.mark.parametrize("species", sorted(s for s, gait in _GAITS.items() if gait != "Bipedal"))
     def test_no_quadruped_stance_declares_the_probe(self, species):
@@ -398,10 +415,10 @@ class TestHandoffWarning:
         assert "is missing although the stage declares the heading probe; heading robustness is unmeasured" in message
         # The remedy rolls it into a scratch directory: --out-dir also writes a gate report, never into the stage.
         assert "--out-dir <a scratch directory>" in message and f"--out-dir {tmp_path}" not in message
-        # Undeclared by the caller, the stage's recorded config decides: the trex and velociraptor stances
-        # declare the probe, so a stance the command-line curriculum trained (it rolls none) warns; the
-        # brachiosaurus stance does not, and nor does a velociraptor stance recorded before its config declared
-        # the probe (2026-10-11), whatever the checkout's config now says.
+        # Undeclared by the caller, the stage's recorded config decides: the velociraptor stance declares the
+        # probe, so a stance the command-line curriculum trained (it rolls none) warns; the brachiosaurus stance
+        # does not, nor does a velociraptor stance recorded before its config declared the probe (2026-10-11),
+        # whatever the checkout's config now says, nor the trex stance, whose certificate replaced it (D-D32).
         trex, raptor, brachio = tmp_path / "trex", tmp_path / "raptor", tmp_path / "brachio"
         save_stage_config(trex, 1, load_stage_config("trex", "stance"), "PPO", species="trex")
         save_stage_config(raptor, 1, load_stage_config("velociraptor", "stance"), "PPO", species="velociraptor")
@@ -409,14 +426,15 @@ class TestHandoffWarning:
         old_raptor, before = tmp_path / "old_raptor", load_stage_config("velociraptor", "stance")
         before["curriculum_kwargs"].pop("stance_probe_spawn_yaw_deg")
         save_stage_config(old_raptor, 1, before, "PPO", species="velociraptor")
-        assert len(stage_heading_probe_warnings(trex)) == 1
+        assert stage_heading_probe_warnings(trex) == []
+        assert stage_heading_probe_warnings(trex, declared=True) == []
         assert len(stage_heading_probe_warnings(raptor)) == 1
         assert stage_heading_probe_warnings(brachio) == []
         assert stage_heading_probe_warnings(old_raptor) == []
-        assert stage_heading_probe_warnings(trex, declared=False) == []
+        assert stage_heading_probe_warnings(raptor, declared=False) == []
 
     def test_declares_heading_probe(self):
-        assert declares_heading_probe(load_stage_config("trex", "stance")["curriculum_kwargs"])
+        assert not declares_heading_probe(load_stage_config("trex", "stance")["curriculum_kwargs"])
         assert declares_heading_probe(load_stage_config("velociraptor", "stance")["curriculum_kwargs"])
         assert not declares_heading_probe(load_stage_config("brachiosaurus", "stance")["curriculum_kwargs"])
         assert not declares_heading_probe(load_stage_config("trex", "recovery")["curriculum_kwargs"])

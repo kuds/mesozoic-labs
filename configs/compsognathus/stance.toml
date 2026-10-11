@@ -230,7 +230,7 @@ net_arch = [128, 128]
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "stance_quality/v2"         # environments/shared/curriculum/gate_schema.py
+gate_kind = "stance_quality_heading/v1" # environments/shared/curriculum/gate_schema.py
 # Shared PPO/SAC ceiling, chosen from Tyrannosaurus Rex PPO evidence; neither
 # Compsognathus algorithm has a measured convergence budget yet.
 timesteps = 11000000
@@ -339,12 +339,32 @@ timesteps = 11000000
 # min_avg_reward = 1800.0                 # 0.60 x the r1 statue's 2998.74 under the r1 [env] (no stance terms).
 # max_unsupported_duty = 0.02             # Both v1 duty keys: the schema rejects them for v2, whose
 # max_unsupported_duty_ucb = 0.02         # min_all_feet_support reads the same support on floor truth.
+#
+# The six-heading certificate (stance_quality_heading/v1, decision D-D32,
+# adopted 2026-10-11, as on the trex; docs/HEADING_INVARIANCE_DESIGN_2026_10.md).
+# The bars and rails above and below are v2's, unchanged, applied at each of
+# six whole-scene turns of the certification panel (-90, -45, 0, 45, 90 and
+# 180 degrees, protocol whole_scene_yaw/v1: the animal, the target and the
+# episode's reference direction turned together), each heading against the
+# statue rolled at it; the certificate passes only when every heading passes
+# and the bound on seeds clean at EVERY heading clears the bar. So
+# min_eval_episodes and min_clean_stance_lcb each say two things: the seeds
+# per heading and the seed groups, each heading's bar and the grouped one.
+# This plant has declared the elliptic cone since r1, so its headings are
+# physically identical: the r2 statue is clean on 40/40 seeds at every
+# heading, grouped bound 0.928. No max_hop_or_fall_episodes rail is declared
+# (unchanged; adding one is a separate threshold decision). The certificate
+# costs 6 policy and 6 statue panels (about 21 min on one CPU) where v2 cost
+# 2, and replaces the report-only heading probe (stance_probe_spawn_yaw_deg,
+# removed below).
 # ---------------------------------------------------------------------------
 min_eval_episodes = 40                   # The panel the bound is specified at (seeds 3042-3081, D-B17). At n = 40
                                          # the bound is 0.928 at 40 clean, 0.887 at 39, 0.851 at 38, 0.817 at 37
-                                         # and 0.786 at 36.
+                                         # and 0.786 at 36. Under the certificate: the seeds rolled at each heading,
+                                         # and so the seed groups the grouped bound counts.
 min_clean_stance_lcb = 0.80              # Admits 37/40 and refuses 36/40 (the gait plan's GQ-7 (a), as on trex and
-                                         # the velociraptor).
+                                         # the velociraptor). Under the certificate: each heading's bar AND the
+                                         # grouped one, on seeds clean at all six headings.
 settle_steps = 200                       # Splits each episode: the max_settle_* bars read steps 5-199 (after the
                                          # 0.1 s spawn grace, five steps at this 0.02 s control step), every other
                                          # bar steps 200-999. The r2 statue's last one-foot unload (a foot under 5%
@@ -356,7 +376,8 @@ settle_steps = 200                       # Splits each episode: the max_settle_*
                                          # from step 200. 200 equals v1's prefix and the [env]'s
                                          # stance_width_settle_steps.
 min_full_horizon_fraction = 0.95         # Statue 40/40 on every panel. A floor to MATCH, not beat; kept under v2 as
-                                         # a panel rail beside the bound (an episode that ends early is unclean).
+                                         # a panel rail beside the bound (an episode that ends early is unclean), and
+                                         # at every heading under the certificate.
 min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode,
                                          # jittered and the PPO means too; the marches at most 0.111 (fail 20/20
                                          # each). The post-settle hops read 1.000 (the window pair below).
@@ -540,21 +561,10 @@ statue_constants_physics_revision = 2    # The compsognathus physics revision th
                                          # (min_avg_reward and collapse_peak_floor_reference) were measured on.
                                          # test_statue_constant_freshness.py cross-checks this against the plant
                                          # manifest. Update it WITH the re-measurement, never alone.
-required_consecutive = 3                 # Scheduler hysteresis ONLY. Under stance_quality/v2 the in-training manager
+required_consecutive = 3                 # Scheduler hysteresis ONLY. Under the floor-truth kinds (stance_quality/v2
+                                         # and, since D-D32, the six-heading certificate) the in-training manager
                                          # refuses the kind (the certificate is the post-stage report on the handoff
                                          # pair), so nothing reads this until the in-training screen exists.
-stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). After the gate
-                                         # report, re-roll the policy and the zero-action statue on 8 seeds with the
-                                         # spawn turned about vertical by each offset -- the animal alone, and with
-                                         # the prey and the episode's reference direction turned too -- beside an
-                                         # unturned control, and write stance_heading_probe.{txt,json}. The stance
-                                         # stage always spawns facing +x and the observation carries heading
-                                         # through the world-frame pelvis quaternion, pelvis velocity and target
-                                         # direction, so no bar sees a stance that reads its heading. The handoff
-                                         # tooling reads the probe: a whole-scene row whose full-horizon fraction is
-                                         # below 0.95 is warned of, without blocking, where the probe is written and
-                                         # wherever the stance is handed on or reused, and a stance with none (a
-                                         # command-line curriculum run rolls none) as unmeasured. Turned on by the
-                                         # maintainer's decision of 2026-10-11, as for the trex. The r2 statue
-                                         # stands 8/8 on every row, on each whole-scene row at the unturned
-                                         # control's reward (4571.3, measured 2026-10-11). 18 panels of 8 episodes.
+# stance_probe_spawn_yaw_deg (the report-only heading probe, D-D27, turned on 2026-10-11) is not declared: the
+# six-heading certificate above rolls every seed at every heading, and the probe's whole-scene rows were replays
+# of its first 8 seeds at four of them. Config load refuses the key beside the certificate (D-D32).

@@ -427,15 +427,20 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     )
     # A tiny run must not certify the production stance recipe from reward alone.
     assert not results["publication_gate_passed"]
-    report = json.loads((directory / "stance_gate_report.json").read_text())
-    if report["gate_kind"] == "stance_quality/v2":
-        # The anatomical stance (D-D26) certifies clean floor-truth episodes.
-        # The 32-step smoke horizon ends inside the production 200-step
-        # settle, so no episode has a scored window, none is clean, and the
-        # report's count and bound say so.
-        assert report["metrics"]["n_clean"] == 0
-        assert report["metrics"]["clean_lcb"] == 0.0
+    if namespace["STAGE_CONFIGS"][1]["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1":
+        # The anatomical stance (D-D26) certifies clean floor-truth episodes
+        # at six headings (D-D32), from its certificate alone: no yaw-zero
+        # report is written beside it.  The 32-step smoke horizon ends inside
+        # the production 200-step settle, so no episode has a scored window,
+        # none is clean at any heading, and the certificate's counts say so.
+        assert not (directory / "stance_gate_report.json").exists()
+        report = json.loads((directory / "stance_heading_report.json").read_text())
+        assert [heading["yaw_deg"] for heading in report["headings"]] == [-90.0, -45.0, 0.0, 45.0, 90.0, 180.0]
+        assert all(heading["metrics"]["n_clean"] == 0 for heading in report["headings"])
+        assert report["result"]["n_clean_seeds"] == 0
+        assert report["result"]["clean_seed_lcb"] == 0.0
     else:
+        report = json.loads((directory / "stance_gate_report.json").read_text())
         # A 64-step policy may fall before the horizon in every panel episode;
         # the unsupported duty is measured on full-horizon episodes only, so the
         # panel then records an infinite duty, which the report serialises as

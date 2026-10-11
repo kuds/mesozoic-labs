@@ -1431,11 +1431,36 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         freeze_recovery_gate.load_vecnormalize_obs_stats(parent["vecnorm_pkl"], expected_plant=current)
 
 
-# ── the widened directory as a certified ROOT (ancestors rules 1-7) ──────────
+# ── the widened directory as a certified ROOT (ancestors rules 1-8) ──────────
+
+
+def _passing_certificate(stage_dir: Path, curriculum: dict[str, Any], *, task_sha256: str, handoff: str) -> None:
+    """A six-heading certificate (D-D32) on the widened pair that re-derives to a PASS under *curriculum*.
+
+    The synthetic statue grid of ``stance_heading_helpers`` stands in for the
+    12 panels the judge would roll: clean at every heading, with a policy
+    reward above the stance's 2250 rail (the synthetic statue's is 1000).
+    """
+    from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
+    from environments.shared.reporting.stance_report import write_stance_heading_report
+
+    from .stance_heading_helpers import heading_report
+
+    above_the_rail = {(index, yaw): {"reward": 3000.0} for index in range(40) for yaw in HEADING_GRID_DEG}
+    certificate = heading_report(
+        stage_dir, curriculum, defects=above_the_rail, species=SPECIES, task_sha256=task_sha256, handoff_name=handoff
+    )
+    assert certificate["passed"] is True, certificate["failures"]
+    write_stance_heading_report(stage_dir, certificate)
 
 
 def test_widened_stage_dir_is_reusable_as_a_root_after_a_passed_verdict(widened, tmp_path):
-    """Once judged, the widened directory passes every reuse rule as a root; rules 3 and 4 still bite."""
+    """Once judged, the widened directory passes every reuse rule as a root; rules 3, 4 and 8 still bite.
+
+    The T. rex stance declares the six-heading certificate (D-D32), so a passed
+    verdict is reused only beside a certificate that re-derives to a PASS on
+    the widened pair (rule 8).
+    """
     parent = widened["parent"]
     result = widened["result"]
     current = widened["current"]
@@ -1485,6 +1510,11 @@ def test_widened_stage_dir_is_reusable_as_a_root_after_a_passed_verdict(widened,
         )
 
     run_dir, stage_dir = certified_copy("certified", task_sha256=current_task)
+    assert curriculum["gate_kind"] == "stance_quality_heading/v1"
+    # Rule 8: the passed verdict alone is not the evidence.
+    with pytest.raises(AncestorReuseError, match=r"stance_heading_report\.json is absent or unreadable.*rule 8"):
+        find(run_dir)
+    _passing_certificate(stage_dir, curriculum, task_sha256=current_task, handoff=handoff)
     ancestor = find(run_dir)
     assert ancestor.stage_id == entry.id
     assert ancestor.run_id == WIDENED_RUN_NAME

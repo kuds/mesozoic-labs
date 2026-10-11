@@ -64,7 +64,7 @@ id = "stance"
 config = "stance.toml"
 legacy_number = 1
 recipe = "stand"
-deliverable = true               # stance_quality/v2 since physics r8 (D-D24); no r9 seed certified yet (bar 2 seeds)
+deliverable = true               # the six-heading certificate since D-D32 (v2 since physics r8, D-D24); no r9 seed yet (bar 2)
 
 [[stages]]                       # balance under pushes
 id = "recovery"

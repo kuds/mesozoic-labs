@@ -308,7 +308,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
-    # stance_quality/v2 (D-D24), and velociraptor 1a from reward_and_length/v1
+    # stance_quality/v2 (D-D24; its six-heading certificate since D-D32 reads
+    # the same block), and velociraptor 1a from reward_and_length/v1
     # to stance_quality/v2 with physics r3 (D-D25); neither kind consumes
     # min_avg_episode_length: min_full_horizon_fraction states section 12's
     # >= 95% requirement directly instead of encoding it as a step count. Their
@@ -325,9 +326,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_unsupported_duty": None,
         "max_unsupported_duty_ucb": None,
     }
-    # T-Rex 1a's stance_quality/v2 block (configs/trex/stance.toml, D-D24):
-    # v1's duty pair exports null, and the kind's own keys are exported beside
-    # the shared ones on this stage alone, each declared value or null.
+    # T-Rex 1a's stance_quality/v2 block (configs/trex/stance.toml, D-D24),
+    # judged at six headings under stance_quality_heading/v1 since D-D32:
+    # v1's duty pair exports null, and the v2 keys are exported beside the
+    # shared ones on this stage alone, each declared value or null.
     trex_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
         "min_clean_stance_lcb": 0.80,
         "settle_steps": 200,
@@ -427,7 +429,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     stage_one_gate_kind = {
-        "trex": "stance_quality/v2",
+        # The six-heading certificate since D-D32 (v2's block judged at six whole-scene headings).
+        "trex": "stance_quality_heading/v1",
         "velociraptor": "stance_quality/v2",
         "brachiosaurus": "reward_and_length/v1",
         "dibothrosuchus": "reward_and_length/v1",
@@ -440,8 +443,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
             )
             if species_id == "compsognathus":
-                # The anatomical stance moved to stance_quality/v2 with physics r2 (D-D26); the robot keeps v1.
-                assert first["gate_kind"] == "stance_quality/v2"
+                # The anatomical stance moved to stance_quality/v2 with physics r2 (D-D26) and to the six-heading
+                # certificate, which declares the same keys, with D-D32; the robot keeps v1.
+                assert first["gate_kind"] == "stance_quality_heading/v1"
                 assert first["min_avg_reward"] == 2740
                 assert first["min_avg_reward_statue_ratio"] == 0.6
                 assert first["min_clean_stance_lcb"] == 0.8
@@ -971,16 +975,16 @@ def test_default_paths_are_inside_repository() -> None:
 
 # Review SS5: a published stage_passed is rendered with the gate it was earned
 # under.  The committed summaries predate gate provenance and were certified
-# by the retired reward gate, while trex's stance stage now declares
-# stance_quality/v2 — a bare "Yes" beneath that description misstates what
-# was measured.
+# by the retired reward gate, while trex's stance stage now declares the
+# six-heading certificate stance_quality_heading/v1 (D-D32) — a bare "Yes"
+# beneath that description misstates what was measured.
 
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
     # The trex hunt adopted task_success/v1 (plan §4.4, WS-B2); every other
     # species' hunt stays on reward_and_length/v1 (D-B14).
     assert current_gate_kinds("trex") == {
-        "stance": "stance_quality/v2",
+        "stance": "stance_quality_heading/v1",
         "recovery": "recovery_quality/v1",
         "locomotion": "reward_and_length/v1",
         "behavior": "task_success/v1",
@@ -998,7 +1002,7 @@ def test_published_verdicts_carry_gate_provenance() -> None:
     stance = next(stage for stage in trex["historical_results"][0]["stages"] if stage["id"] == "stance")
     assert stance["stage_passed"] is True
     assert stance["gate_kind"] is None
-    assert stance["current_gate_kind"] == "stance_quality/v2"
+    assert stance["current_gate_kind"] == "stance_quality_heading/v1"
     assert stance["gate_retired"] is True
 
     rendered = render_readme_results(catalog)
@@ -1010,7 +1014,7 @@ def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path,
     from environments.shared import species_catalog
 
     summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
-    summary["stages"]["1"]["gate_kind"] = "stance_quality/v2"
+    summary["stages"]["1"]["gate_kind"] = "stance_quality_heading/v1"
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
@@ -1238,7 +1242,7 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
         ("behavior", "3", "3", "hunt", False),
     ]
     by_id = {row["id"]: row for row in result["deliverables"]}
-    assert by_id["stance"]["gate_kind"] == "stance_quality/v2"
+    assert by_id["stance"]["gate_kind"] == "stance_quality_heading/v1"
     assert by_id["stance"]["model_hash"] == _SHA
     assert by_id["stance"]["replication_count"] == 1
     # Seed replication (plan §4.5, D-B10/D-B11): the bar is the CURRENT
@@ -1247,9 +1251,20 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert (by_id["stance"]["certification_seeds"], by_id["stance"]["provisional"]) == (2, True)
     assert (by_id["locomotion"]["certification_seeds"], by_id["locomotion"]["provisional"]) == (1, False)
     assert (by_id["behavior"]["certification_seeds"], by_id["behavior"]["provisional"]) == (1, False)
+    # The six-heading certificate (D-D32) headlines the grouped bound over seeds clean at every heading.
     assert by_id["stance"]["headline"] == [
-        {"key": "stance_clean_lcb", "label": "clean stance episodes LCB95", "value": None, "unit": "ratio"},
-        {"key": "stance_clean_fraction", "label": "clean stance episodes", "value": None, "unit": "percent"},
+        {
+            "key": "stance_heading_clean_seed_lcb",
+            "label": "seeds clean at all six headings LCB95",
+            "value": None,
+            "unit": "ratio",
+        },
+        {
+            "key": "stance_heading_clean_seed_fraction",
+            "label": "seeds clean at all six headings",
+            "value": None,
+            "unit": "percent",
+        },
     ]
     assert by_id["locomotion"]["headline"] == [
         {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
@@ -1669,14 +1684,25 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
     # A stance-quality stance names the kind its stage declares today: trex moved to
     # stance_quality/v2 with physics r8 (D-D24), velociraptor from the reward gate
     # with physics r3 (D-D25) and the anatomical compsognathus with physics r2
-    # (D-D26); the compsognathus robot keeps v1.
-    for species_id in ("trex", "velociraptor", "compsognathus", "compsognathus_robot"):
-        kind = current_gate_kinds(species_id)["stance"]
-        v2 = species_id in ("trex", "velociraptor", "compsognathus")
-        assert kind == ("stance_quality/v2" if v2 else "stance_quality/v1"), species_id
-        assert kind in stance_definition(species_id), species_id
-        other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"
-        assert other not in stance_definition(species_id), species_id
+    # (D-D26); trex and the anatomical compsognathus to the six-heading
+    # certificate (D-D32), whose definition names the v2 decision it applies at
+    # each heading; the compsognathus robot keeps v1.
+    expected = {
+        "trex": "stance_quality_heading/v1",
+        "velociraptor": "stance_quality/v2",
+        "compsognathus": "stance_quality_heading/v1",
+        "compsognathus_robot": "stance_quality/v1",
+    }
+    for species_id, kind in expected.items():
+        assert current_gate_kinds(species_id)["stance"] == kind, species_id
+        definition = stance_definition(species_id)
+        assert kind in definition, species_id
+        if kind == "stance_quality_heading/v1":
+            assert "stance_quality/v2 decision" in definition and "stance_quality/v1" not in definition, species_id
+            assert "-90, -45, 0, 45, 90 and 180 degrees" in definition, species_id
+        else:
+            other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"
+            assert other not in definition and "stance_quality_heading/v1" not in definition, species_id
 
 
 def test_species_manifest_schema_version_is_2(tmp_path: Path) -> None:
@@ -1963,8 +1989,8 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
 
     assert "**Deliverables:** " in rendered
     assert (
-        "1 — stand (certified; gate stance_quality/v2; 1 run of 2 seeds; provisional; "
-        "clean stance episodes LCB95 not recorded; clean stance episodes not recorded) · "
+        "1 — stand (certified; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
+        "seeds clean at all six headings LCB95 not recorded; seeds clean at all six headings not recorded) · "
         "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s) · "
         "3 — hunt (not certified; gate task_success/v1; 1 run of 1 seed; task success LCB95 not recorded; "
         "task success not recorded)"

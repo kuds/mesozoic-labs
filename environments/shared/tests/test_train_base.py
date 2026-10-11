@@ -1052,11 +1052,12 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
-        # A stance_quality/v2 node (the trex stance since D-D24, the velociraptor stance since D-D25) is
-        # judged after its budget from the floor-truth report on its handoff pair, which these stubs never
-        # write; it passes here as every in-training node does through the stubbed CurriculumCallback, so
-        # the walk -- not the gate -- is what this class exercises (test_stance_v2_cli_judge.py judges the
-        # real report path).
+        # A stance_quality/v2 node (the velociraptor stance since D-D25) or a stance_quality_heading/v1
+        # node (the trex stance since D-D32) is judged after its budget from the floor-truth report on its
+        # handoff pair, which these stubs never write; it passes here as every in-training node does
+        # through the stubbed CurriculumCallback, so the walk -- not the gate -- is what this class
+        # exercises (test_stance_v2_cli_judge.py and test_stance_heading_end_to_end.py judge the real
+        # report paths).
         monkeypatch.setattr(
             train_base,
             "_post_training_stance_verdict",
@@ -1630,8 +1631,9 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_the_walk_records_the_hunt_panel_into_the_verdict_it_writes(self, tmp_path, monkeypatch, caplog):
         """train_curriculum passes stage_result= to write_gate_verdict for the task_success node, the
-        post-training result for the stance_quality/v2 stance (the trex stance since D-D24; stubbed by
-        ``_run``), and None for every other kind: the wiring, not only the helper, is pinned."""
+        post-training result for the floor-truth stance (the trex stance's six-heading certificate since
+        D-D32; stubbed by ``_run``), and None for every other kind: the wiring, not only the helper, is
+        pinned."""
 
         def eval_panel(manager):
             if manager.current_stage == 3:
@@ -1644,8 +1646,12 @@ class TestTrainCurriculumWalksTheManifest:
         stage_result = by_id["behavior"]["stage_result"]
         assert (stage_result["success_count"], stage_result["n_success_samples"]) == (20, 30)
         assert stage_result["best_model_success_lcb"] == pytest.approx(0.5006, abs=1e-3)
-        assert by_id["stance"]["stage_result"] == {"stage": 1, "gate_kind": "stance_quality/v2", "gate_passed": True}
-        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_gate_report"
+        assert by_id["stance"]["stage_result"] == {
+            "stage": 1,
+            "gate_kind": "stance_quality_heading/v1",
+            "gate_passed": True,
+        }
+        assert by_id["stance"]["judged_by"] == "train_base.train_curriculum/stance_heading_report"
         assert by_id["locomotion"]["stage_result"] is None
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):

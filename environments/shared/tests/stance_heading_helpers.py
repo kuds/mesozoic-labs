@@ -59,6 +59,8 @@ def heading_report(
     n: int = 40,
     defects: dict[tuple[int, float], dict[str, Any]] | None = None,
     species: str = "trex",
+    task_sha256: str = TASK_SHA256,
+    handoff_name: str = "robust_best_model",
 ) -> dict[str, Any]:
     """The certificate a grid of *n* synthetic statue seeds at every heading scores to.
 
@@ -66,12 +68,15 @@ def heading_report(
     policy episode carries instead of the clean statue's; the statue rows are
     the clean statue at every heading.  Writes :func:`~.stance_v2_helpers.stage_record`
     (under *curriculum*) into *stage_dir* when it holds no ``stage_config.json``.
+    The certificate binds to the handoff pair *handoff_name* under
+    ``<stage_dir>/models`` (byte files written only where none exist) and to
+    *task_sha256*, the task the stage records.
     """
     from environments.shared.reporting.stance_report import _PROBE_MARKERS, _stance_v2_episode_rows
 
     block = dict(HEADING_CURRICULUM if curriculum is None else curriculum)
     if not (Path(stage_dir) / "stage_config.json").exists():
-        stage_record(stage_dir, block, species=species)
+        stage_record(stage_dir, block, species=species, task_sha256=task_sha256)
     thresholds = StanceV2Thresholds.from_curriculum(block)
     clean = episode_stance_metrics(statue_trace(HORIZON), settle_steps=thresholds.settle_steps)
     seed = PUBLICATION_SEED_START
@@ -93,7 +98,7 @@ def heading_report(
         control_dt=0.01,
     )
     touch = [{"unsupported_duty": 0.0, "bilateral_support_duty": 1.0, "single_support_duty": 0.0}] * n
-    model, vecnorm = handoff_pair(stage_dir)
+    model, vecnorm = handoff_pair(stage_dir, name=handoff_name)
     manifest = measurement(species)
     headings = []
     for yaw, metrics in cells.items():
@@ -167,7 +172,7 @@ def heading_report(
             "checkpoint_sha256": sha256_file(model),
             "normalization_sha256": sha256_file(vecnorm),
         },
-        "task_sha256": TASK_SHA256,
+        "task_sha256": task_sha256,
         "plant_identity": {},
         "checkpoint_plant_validated": True,
         **dict.fromkeys(_PROBE_MARKERS),
