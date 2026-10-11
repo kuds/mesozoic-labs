@@ -403,8 +403,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `.supported`); the stage (8) and behavior (22) `task_sha256`; and
   `recovery compsognathus file_sha256`. Every reward, gate, hyperparameter,
   stage-config-view and recipe line holds, and so does the T-Rex's
-  `.action_low_pass_filter`.
-- **Every species stands on an elliptic friction cone** (breaking — plant
+  `.action_low_pass_filter`. The regenerated golden also takes up four
+  `stage_config_view_sha256` lines this change does not move, PPO and SAC of
+  the T-Rex and velociraptor stances, and the catalog those two stances'
+  budgets: `main`'s `[curriculum] timesteps` raises of 2026-10-11 (11M and 6M
+  → 12M) had left both stale.
+- **Every species stands on an elliptic friction cone** (#612; breaking — plant
   change: velociraptor physics revision 3 → 4, brachiosaurus 4 → 5,
   dibothrosuchus 1 → 2; all existing checkpoints of the three species are
   invalidated; decision D-D30, which the maintainer chose on 2026-10-11: one
@@ -481,7 +485,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rounded_values_sha256` of the nine reward stages (26: the brachiosaurus
   stance's shape holds). No `gate_sha256` and every other line hold.
 - **The T-Rex stands on an elliptic friction cone, so every world heading is
-  physically identical** (breaking — plant change, physics revision 8 → 9;
+  physically identical** (#611; breaking — plant change, physics revision 8 → 9;
   all existing T-Rex checkpoints are invalidated; decision D-D29, which the
   maintainer chose on 2026-10-11 with the heading decisions of
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `trex.xml`'s `<option>`
