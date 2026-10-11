@@ -32,11 +32,11 @@ mistake.  Keeping the block in one place is what makes the four reports
 comparable.
 
 :func:`load_vecnormalize` is ``VecNormalize.load`` with one difference that
-every statistics load shares (this loader, the trainer's, the evaluator's
-and the video's): statistics SB3 cannot bind to the env because their
-observation width differs are refused by their recorded plant identity,
-naming the policy-interface revision and width, instead of by SB3's bare
-shape assertion.
+every statistics load shares (this loader, the trainer's, the evaluator's,
+the video's and the behavior preparation's): statistics SB3 cannot bind to
+the env because their observation width differs are refused by their
+recorded plant identity, naming the policy-interface revision and width,
+instead of by SB3's bare shape assertion.
 
 Not the trainer's :func:`~environments.shared.curriculum.checkpoints.load_vecnorm_stats`,
 which loads statistics INTO a live training wrapper, and not the

@@ -20,7 +20,8 @@ production environments:
   ``load_sb3_checkpoint`` (with the old model or only the old statistics),
   ``evaluation.evaluate``, the certified-ancestor rule behind a manual
   ``TRUNK_FROM`` and ``TRUNK_FROM = "auto"``, the widen tool's identity gate
-  and the behavior preparation.
+  and the behavior preparation and resume (with the old walker, or a current
+  walker beside only the old statistics).
 
 The old pairs are synthetic (a 64- / 56-wide stand-in env) but carry the
 real pre-migration identities: what every loader reads is the identity, and
@@ -337,6 +338,45 @@ def test_pre_migration_walker_is_refused_by_the_behavior_preparation(pre_migrati
                 env,
                 task_fingerprint={"schema": "test-behavior/v1", "species": species, "task_sha256": "sha256:b"},
                 species=species,
+            )
+        _refused(excinfo, species)
+    finally:
+        env.close()
+
+
+def test_pre_migration_statistics_beside_a_current_walker_are_refused_by_the_behavior_paths(
+    species, pre_migration, tmp_path
+):
+    from environments.shared.behavior_checkpoint import load_behavior_checkpoint, prepare_behavior_checkpoint
+    from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+    current = current_plant_identity(species)
+    # A current walker that passes every check before the statistics load: its plant and its locomotion task.
+    walker_task = {"schema": "test-locomotion/v1", "species": species, "stage": "locomotion", "task_sha256": "sha256:a"}
+    venv = DummyVecEnv([_factory(species)])
+    try:
+        walker = PPO("MlpPolicy", venv, **PPO_KWARGS)
+        attach_plant_identity(walker, current)
+        setattr(walker, MODEL_TASK_ATTRIBUTE, walker_task)
+        walker.save(tmp_path / "walker")
+    finally:
+        venv.close()
+    old_stats = pre_migration["root"] / "robust_best_model_vecnorm.pkl"
+    env = _factory(species)()
+    try:
+        # Refused by plant, not by SB3's "spaces must have the same shape" as the statistics bind to the env.
+        with pytest.raises(PlantCompatibilityError) as excinfo:
+            prepare_behavior_checkpoint(
+                tmp_path / "walker.zip",
+                old_stats,
+                env,
+                task_fingerprint={"schema": "test-behavior/v1", "species": species, "task_sha256": "sha256:b"},
+                species=species,
+            )
+        _refused(excinfo, species)
+        with pytest.raises(PlantCompatibilityError) as excinfo:
+            load_behavior_checkpoint(
+                tmp_path / "walker.zip", old_stats, env, task_fingerprint=walker_task, species=species
             )
         _refused(excinfo, species)
     finally:
