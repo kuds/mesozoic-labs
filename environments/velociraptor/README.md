@@ -127,7 +127,10 @@ stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80 
 it reaches the horizon with no hop or stomp in the settle window, both feet down and loaded, every support geom of
 each foot (both toes and the metatarsal head) loaded, no splay, drift or chatter and no actuator held at its limit; the
 bars and their measured provenance are in `configs/velociraptor/stage1_balance.toml`. The verdict is the post-stage
-`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation.
+`stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
+a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
+report only; a whole-scene row whose full-horizon fraction is below 0.95 is warned of without blocking, in the probe's
+text and wherever the stance is handed on or reused (the maintainer's decisions of 2026-10-11; `docs/KNOWN_ISSUES.md`).
 
 ### Reward Components
 
