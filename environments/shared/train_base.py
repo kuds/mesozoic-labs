@@ -49,8 +49,10 @@ from .constants import (
     PUBLICATION_SEED_START,
 )
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
+from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
+from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from .plant_contract import (
     PlantIdentity,
@@ -1377,9 +1379,11 @@ def _warn_on_heading_probe_handoff(parent_stage_dir: "str | Path", *, stage: "in
     """Log, never refuse, the heading-probe warnings of the stage a node enters on.
 
     The maintainer's decision of 2026-10-11 (docs/HEADING_INVARIANCE_DESIGN_2026_10.md):
-    the probe stays report only (D-D27) until the heading certificate replaces it, so a
-    parent with a whole-scene row under v2's 0.95 full-horizon rail is handed on as
-    before, with the warning in the log.
+    the probe stays report only (D-D27) on a stage without the six-heading certificate,
+    so such a parent with a whole-scene row under v2's 0.95 full-horizon rail is handed
+    on as before, with the warning in the log.  A parent that declares the certificate
+    (D-D32) warns nothing here: its verdict judged every heading, and a failing one
+    never resolves as a parent.
     """
     try:
         from .reporting.stance_report import stage_heading_probe_warnings
@@ -2110,8 +2114,13 @@ def _in_training_task_success_result(
 #: ``generate_stage_artifacts`` uses, reached from the CLI.
 STANCE_V2_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/stance_gate_report"
 
+#: The same for a ``stance_quality_heading/v1`` node (decision D-D32): the
+#: post-training judgement of the six-heading certificate rolled on the
+#: node's handoff pair, through the same report writer and judge.
+STANCE_HEADING_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/stance_heading_report"
 
-def _post_training_stance_v2_verdict(
+
+def _post_training_stance_verdict(
     species: str,
     stage: "int | str",
     config: dict[str, Any],
@@ -2119,40 +2128,51 @@ def _post_training_stance_v2_verdict(
     stage_dir: Path,
     model_dir: Path,
 ) -> "tuple[bool, list[str], dict[str, Any]]":
-    """Judge a ``stance_quality/v2`` node after its training: ``(passed, failures, stage_result)``.
+    """Judge a floor-truth stance node after its training: ``(passed, failures, stage_result)``.
 
-    The in-training manager refuses the kind (its certificate is a panel the
-    EvalCallback cannot roll), so without this a CLI curriculum could never
-    advance a v2 node and would record the fixed "budget exhausted" FAIL
-    whatever the policy did.  Instead the stance report is rolled on the
-    handoff pair ``select_handoff_checkpoint`` picks -- the pair the verdict
-    is hash-bound to and the next node loads -- by the same
+    For ``stance_quality/v2`` and the six-heading certificate
+    (``stance_quality_heading/v1``, D-D32), which the in-training manager
+    refuses (their certificate is a panel, or six, the EvalCallback cannot
+    roll), so without this a CLI curriculum could never advance such a node
+    and would record the fixed "budget exhausted" FAIL whatever the policy
+    did.  Instead the report is rolled on the handoff pair
+    ``select_handoff_checkpoint`` picks -- the pair the verdict is
+    hash-bound to and the next node loads -- by the same
     ``stage_artifacts._write_stance_gate_report`` the post-stage pipeline
-    calls (written beside the stage's other artifacts), and judged through
-    ``reporting.gates.evaluate_stage_gate``, which refuses a report that is
-    not v2-scored for this gate, measurement and handoff and re-derives the
-    verdict from its rows.  Never raises: a report that could not be rolled
-    or judged is a FAIL naming why, which is the fail-closed reading.
+    calls (written beside the stage's other artifacts; the certificate for
+    the heading kind), and judged through ``reporting.gates.evaluate_stage_gate``,
+    which refuses a report that is not scored for this gate, measurement and
+    handoff and re-derives the verdict from its rows.  Never raises: a
+    report that could not be rolled or judged is a FAIL naming why, which is
+    the fail-closed reading.
     """
     from .reporting.gates import evaluate_stage_gate
-    from .reporting.stage_artifacts import _write_stance_gate_report, admitted_stance_v2_stage_result
+    from .reporting.stage_artifacts import (
+        _write_stance_gate_report,
+        admitted_stance_heading_stage_result,
+        admitted_stance_v2_stage_result,
+    )
 
     curriculum = config.get("curriculum_kwargs", {})
+    kind = curriculum.get("gate_kind")
     report = _write_stance_gate_report(
         species=species, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
     )
     try:
         passed, failures = evaluate_stage_gate(curriculum, {}, stage=stage, stance_report=report, stage_dir=stage_dir)
     except Exception as exc:  # noqa: BLE001 - a verdict that cannot be formed is a FAIL, never a crash mid-curriculum
-        logger.warning("Stage %s stance_quality/v2 verdict could not be formed", stage, exc_info=True)
+        logger.warning("Stage %s %s verdict could not be formed", stage, kind, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
+    admitted = (
+        admitted_stance_heading_stage_result if kind == STANCE_HEADING_GATE_KIND else admitted_stance_v2_stage_result
+    )
     stage_result: dict[str, Any] = {
         "stage": stage,
-        "gate_kind": curriculum.get("gate_kind"),
+        "gate_kind": kind,
         "gate_schema_version": curriculum.get("gate_schema_version"),
         "gate_passed": passed,
         "gate_failures": failures,
-        **admitted_stance_v2_stage_result(curriculum, report, stage=stage, stage_dir=stage_dir),
+        **admitted(curriculum, report, stage=stage, stage_dir=stage_dir),
     }
     return passed, failures, stage_result
 
@@ -2814,14 +2834,20 @@ def train_curriculum(
         # evidence CSV, which this path does not write); record the count
         # it was judged on so the verdict is auditable.
         verdict_stage_result = _in_training_task_success_result(manager, stage, cur_kwargs)
-        if not interrupted and cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND:
-            # The manager refuses stance_quality/v2 in-training, so the node is
-            # judged here instead, after its budget: the floor-truth report on
-            # the handoff pair, judged by evaluate_stage_gate (D-D23).
-            passed, verdict_failures, verdict_stage_result = _post_training_stance_v2_verdict(
+        if not interrupted and cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS:
+            # The manager refuses stance_quality/v2 and the six-heading
+            # certificate in-training, so the node is judged here instead,
+            # after its budget: the floor-truth report (the certificate's six
+            # panels for the heading kind) on the handoff pair, judged by
+            # evaluate_stage_gate (D-D23, D-D32).
+            passed, verdict_failures, verdict_stage_result = _post_training_stance_verdict(
                 species, stage, config, stage_dir=stage_dir, model_dir=model_dir
             )
-            verdict_judged_by = STANCE_V2_POST_TRAINING_JUDGED_BY
+            verdict_judged_by = (
+                STANCE_HEADING_POST_TRAINING_JUDGED_BY
+                if cur_kwargs.get("gate_kind") == STANCE_HEADING_GATE_KIND
+                else STANCE_V2_POST_TRAINING_JUDGED_BY
+            )
         if interrupted:
             logger.warning(
                 "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
@@ -2879,10 +2905,13 @@ def train_curriculum(
             curriculum_cb,
             training_duration_seconds=stage_duration,
             plant_identity=plant_identity,
-            # A v2 node's verdict is the post-training judgement above, not
-            # the manager's (which refuses the kind); the row records it.
-            stage_passed=passed if cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND else None,
-            stance_v2_result=verdict_stage_result if cur_kwargs.get("gate_kind") == STANCE_GATE_V2_KIND else None,
+            # A floor-truth stance node's verdict is the post-training
+            # judgement above, not the manager's (which refuses the kind);
+            # the row records it.
+            stage_passed=passed if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None,
+            stance_result=(
+                verdict_stage_result if cur_kwargs.get("gate_kind") in FLOOR_TRUTH_STANCE_GATE_KINDS else None
+            ),
         )
 
         if interrupted:
@@ -2928,14 +2957,15 @@ def _record_stage_result(
     training_duration_seconds: float | None = None,
     plant_identity: PlantIdentity | None = None,
     stage_passed: bool | None = None,
-    stance_v2_result: Mapping[str, Any] | None = None,
+    stance_result: Mapping[str, Any] | None = None,
 ):
     """Record stage hyperparameters and outcome to CSV.
 
     ``stage_passed`` overrides the manager's ``ready_to_advance`` as the
-    recorded outcome -- a ``stance_quality/v2`` node is judged after
-    training, not by the manager -- and ``stance_v2_result`` is that
-    judgement's ``stage_result`` (its clean count and bound).
+    recorded outcome -- a ``stance_quality/v2`` or six-heading certificate
+    node is judged after training, not by the manager -- and
+    ``stance_result`` is that judgement's ``stage_result`` (its clean count
+    and bound; the certificate's grouped ones).
     """
     import numpy as _np
 
@@ -3018,13 +3048,25 @@ def _record_stage_result(
         # stance_quality/v2: the certifying bar, its panel size, and what the
         # post-training judgement measured -- the same columns
         # reporting.csv_output adds to a v2 row, and only on one.
-        judged = stance_v2_result or {}
+        judged = stance_result or {}
         result_row.update(
             {
                 "clean_stance_lcb_threshold": cur_kwargs.get("min_clean_stance_lcb", ""),
                 "stance_eval_episodes": cur_kwargs.get("min_eval_episodes", ""),
                 "stance_clean_count": judged.get("stance_clean_count", ""),
                 "stance_clean_lcb": judged.get("stance_clean_lcb", ""),
+            }
+        )
+    elif cur_kwargs.get("gate_kind") == STANCE_HEADING_GATE_KIND:
+        # The six-heading certificate (D-D32): the same bar and panel size, and
+        # the grouped count and bound -- reporting.csv_output's heading columns.
+        judged = stance_result or {}
+        result_row.update(
+            {
+                "clean_stance_lcb_threshold": cur_kwargs.get("min_clean_stance_lcb", ""),
+                "stance_eval_episodes": cur_kwargs.get("min_eval_episodes", ""),
+                "stance_heading_clean_seeds": judged.get("stance_heading_clean_seeds", ""),
+                "stance_heading_clean_seed_lcb": judged.get("stance_heading_clean_seed_lcb", ""),
             }
         )
     if plant_identity is not None:

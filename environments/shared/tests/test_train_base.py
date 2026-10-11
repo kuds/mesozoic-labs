@@ -1059,7 +1059,7 @@ class TestTrainCurriculumWalksTheManifest:
         # real report path).
         monkeypatch.setattr(
             train_base,
-            "_post_training_stance_v2_verdict",
+            "_post_training_stance_verdict",
             lambda species, stage, config, **kwargs: (
                 True,
                 [],
@@ -2811,7 +2811,7 @@ class TestOneStageBody:
         # real report path).
         monkeypatch.setattr(
             train_base,
-            "_post_training_stance_v2_verdict",
+            "_post_training_stance_verdict",
             lambda species, stage, config, **kwargs: (
                 True,
                 [],

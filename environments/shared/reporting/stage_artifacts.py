@@ -201,7 +201,9 @@ def _write_stance_gate_report(
     Only for stages that actually declare a stance kind
     (``gate_schema.STANCE_GATE_KINDS``: ``stance_quality/v1``, or
     ``stance_quality/v2``, whose report is scored on floor truth with a
-    statue panel when its criteria need one): rolling a 40-episode panel
+    statue panel when its criteria need one, or the six-heading certificate
+    ``stance_quality_heading/v1``, D-D32, rolled by
+    :func:`_write_stance_heading_certificate`): rolling a 40-episode panel
     costs a few minutes, which is nothing beside a multi-hour stage but is
     pure waste for a stage the criteria do not govern.
 
@@ -267,6 +269,19 @@ def _write_stance_gate_report(
         return None
 
     selected_name, selected_path, selected_vecnorm = handoff
+    from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+
+    if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
+        return _write_stance_heading_certificate(
+            species=species,
+            stage=stage,
+            stage_config=stage_config,
+            stage_dir=stage_dir,
+            selected_name=selected_name,
+            model_path=f"{selected_path}.zip",
+            vecnorm_path=selected_vecnorm,
+            episodes=report_episodes,
+        )
     try:
         from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
@@ -304,6 +319,67 @@ def _write_stance_gate_report(
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
+    return None
+
+
+def _write_stance_heading_certificate(
+    *,
+    species: str,
+    stage: "int | str",
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    selected_name: str,
+    model_path: str,
+    vecnorm_path: str,
+    episodes: int,
+) -> dict[str, Any] | None:
+    """Roll the six-heading certificate on the selected handoff pair (D-D32), into the run dir.
+
+    :func:`_write_stance_gate_report`'s twin for ``stance_quality_heading/v1``,
+    with its handoff selection, its ``stance_report_episodes`` override (the
+    seeds per heading) and its non-fatal contract: an exception -- a lost
+    runtime partway through the grid, a rollout that raised at one heading --
+    is logged and gives ``None``, which :func:`_apply_stage_gate` fails
+    closed.  Never a fallback to the 0 degree cell: no ``stance_gate_report.*``
+    or ``stance_panel_selected.csv`` is written for such a stage, so nothing
+    the judge or publication reads can stand in for the grid.
+
+    About 13 minutes on the T. rex (r9) and 21-22 on the anatomical
+    compsognathus at 40 seeds: 6 policy and 6 statue panels.  Logged per
+    heading by the builder.
+    """
+    try:
+        from environments.shared.reporting.stance_report import (
+            build_stance_heading_report,
+            write_stance_heading_report,
+        )
+
+        logger.info("Six-heading stance certificate scoring stage %s checkpoint: %s", stage, selected_name)
+        report = build_stance_heading_report(
+            species,
+            stage,
+            stage_config=stage_config,
+            model_path=model_path,
+            vecnorm_path=vecnorm_path,
+            episodes=episodes,
+        )
+        written = write_stance_heading_report(stage_dir, report)
+        result = report["result"]
+        logger.info(
+            "Six-heading stance certificate: %s (%d/%d seeds clean at every heading, LCB95 %.4f) -> %s",
+            "PASS" if report["passed"] else "FAIL",
+            result["n_clean_seeds"],
+            result["n_seeds"],
+            result["clean_seed_lcb"],
+            written["stance_heading_report_txt"],
+        )
+        return report
+    except Exception:  # noqa: BLE001 - the certificate must not sink the run; its absence fails the gate
+        logger.warning(
+            "Six-heading stance certificate failed for stage %s; the stage fails its gate (no yaw-zero fallback)",
+            stage,
+            exc_info=True,
+        )
     return None
 
 
@@ -525,11 +601,27 @@ def _run_stance_probes(
     carries its own handler so a failure costs that probe alone -- including
     caller-side failures, which is what makes the CHANGELOG's "individually
     non-fatal" claim true at this level too.
+
+    On a six-heading certificate stage (D-D32) the probes annotate the
+    certificate's 0 degree cell (``stance_report.heading_zero_panel``: the
+    v2 panel at the training heading), and the report-only heading probe is
+    not rolled -- the certificate judged every heading.
     """
     if report is None:
         return
 
     curriculum = stage_config.get("curriculum_kwargs", {})
+    from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+
+    certificate = curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND
+    if certificate:
+        try:
+            from environments.shared.reporting.stance_report import heading_zero_panel
+
+            report = heading_zero_panel(report)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Stance probes skipped for stage %s: no 0 deg cell to annotate", stage, exc_info=True)
+            return
     declared_episodes = int(curriculum.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES_STANCE))
     report_episodes = curriculum.get("stance_report_episodes")
     report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
@@ -598,13 +690,17 @@ def _run_stance_probes(
         ),
         (
             "heading",
-            lambda: _write_heading_probe(
-                species=species,
-                stage=stage,
-                stage_config=stage_config,
-                stage_dir=stage_dir,
-                model_path=f"{selected_path}.zip",
-                vecnorm_path=selected_vecnorm,
+            lambda: (
+                None
+                if certificate
+                else _write_heading_probe(
+                    species=species,
+                    stage=stage,
+                    stage_config=stage_config,
+                    stage_dir=stage_dir,
+                    model_path=f"{selected_path}.zip",
+                    vecnorm_path=selected_vecnorm,
+                )
             ),
         ),
     )
@@ -961,12 +1057,15 @@ def _write_heading_probe(
     """Re-roll the policy and the statue from spawns turned about vertical; write stance_heading_probe.{txt,json}.
 
     Report only (decision D-D27).  The stance stage always spawns facing +x,
-    so nothing in the gate can see a stance that reads its world heading;
+    so nothing in the v2 gate can see a stance that reads its world heading;
     both physics-r8 trex stances fell when spawned 90 degrees off, where the
     statue stands.  Each offset is rolled twice -- the animal turned alone,
     and with the prey and the episode's reference direction (only the
-    world-frame observation then differs) -- plus the unturned control, for
-    the policy and the zero-action statue.
+    world-frame observation then differs: every plant declares the elliptic
+    friction cone) -- plus the unturned control, for the policy and the
+    zero-action statue.  A stage that declares the six-heading certificate
+    (D-D32) never rolls it: :func:`_run_stance_probes` skips it there, and
+    config load refuses the key beside that kind.
 
     Off unless ``stance_probe_spawn_yaw_deg`` is set.  Costs 2 x (1 + 2 x
     offsets) panels of ``_HEADING_EPISODES``.
@@ -1158,6 +1257,64 @@ def stance_v2_stage_result(stance_report: "Mapping[str, Any] | None") -> dict[st
     }
 
 
+def stance_heading_stage_result(report: "Mapping[str, Any] | None") -> dict[str, Any]:
+    """The ``stage_result`` numbers a six-heading certificate (D-D32) was judged on, from its report.
+
+    ``stance_heading_n_seeds``, ``stance_heading_clean_seeds`` (seeds clean
+    at every heading), ``stance_heading_clean_seed_fraction``,
+    ``stance_heading_clean_seed_lcb`` (the grouped bound) and
+    ``stance_heading_statue_mean_reward_min`` (the lowest of the statue
+    references' full-horizon mean rewards across the headings, ``None``
+    when no statue panel was rolled), which
+    ``gate_verdict._PERSISTED_STAGE_RESULT_KEYS`` persists.  Empty for no
+    report or one not scored as the certificate.
+    """
+    from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+
+    if not isinstance(report, Mapping) or report.get("scored_gate_kind") != STANCE_HEADING_GATE_KIND:
+        return {}
+    result = report.get("result")
+    if not isinstance(result, Mapping):
+        return {}
+    statue_rewards = [
+        ((heading.get("statue") or {}).get("reference") or {}).get("mean_reward")
+        for heading in report.get("headings") or ()
+        if isinstance(heading, Mapping)
+    ]
+    finite = [float(value) for value in statue_rewards if isinstance(value, (int, float)) and math.isfinite(value)]
+    return {
+        "stance_heading_n_seeds": result.get("n_seeds"),
+        "stance_heading_clean_seeds": result.get("n_clean_seeds"),
+        "stance_heading_clean_seed_fraction": result.get("clean_seed_fraction"),
+        "stance_heading_clean_seed_lcb": result.get("clean_seed_lcb"),
+        "stance_heading_statue_mean_reward_min": min(finite) if finite and len(finite) == len(statue_rewards) else None,
+    }
+
+
+def admitted_stance_heading_stage_result(
+    curriculum: Mapping[str, Any],
+    report: "Mapping[str, Any] | None",
+    *,
+    stage: "int | str",
+    stage_dir: "str | Path | None",
+) -> dict[str, Any]:
+    """:func:`stance_heading_stage_result` of a certificate the judge ADMITS, else ``{}``.
+
+    Admitted means ``reporting.gates.stance_heading_report_refusals`` finds
+    nothing, so a refused certificate's numbers never sit in a verdict's
+    ``stage_result`` beside the refusal.  Never raises.
+    """
+    try:
+        from .gates import stance_heading_report_refusals
+
+        if stance_heading_report_refusals(curriculum, report, stage=stage, stage_dir=stage_dir):
+            return {}
+    except Exception:  # noqa: BLE001 - a copy of the numbers must never cost the artifacts
+        logger.warning("Stage %s heading certificate could not be re-checked for its numbers", stage, exc_info=True)
+        return {}
+    return stance_heading_stage_result(report)
+
+
 def admitted_stance_v2_stage_result(
     curriculum: Mapping[str, Any],
     stance_report: "Mapping[str, Any] | None",
@@ -1280,6 +1437,14 @@ def _apply_stage_gate(
         # sit beside the refusal as though they were the stage's.
         stage_results.update(
             admitted_stance_v2_stage_result(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
+        )
+    from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+
+    if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
+        # And for the six-heading certificate (D-D32): the grouped count and
+        # bound, from a certificate the judge admits only.
+        stage_results.update(
+            admitted_stance_heading_stage_result(curriculum, stance_report, stage=stage, stage_dir=stage_dir)
         )
     # The verdict travels with the gate it was earned under, so a summary
     # re-served after the gate changes can say so instead of re-serving a
@@ -1767,7 +1932,8 @@ def generate_stage_artifacts(
     # expensive artifact step (~300 episodes at the trex stage-1 settings) and
     # nothing downstream gates on them (only the report-only heading-probe
     # handoff warning reads one, and warns that heading robustness is
-    # unmeasured when a declared probe is missing), so a runtime lost
+    # unmeasured when a declared probe is missing; a six-heading certificate
+    # stage rolls no heading probe, its gate above judged every heading), so a runtime lost
     # mid-probe costs the probes alone -- never the recorded verdict, summary,
     # graphs or replays above. Ordering is pinned by the wiring tests.
     _run_stance_probes(

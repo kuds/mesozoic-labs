@@ -1,10 +1,10 @@
-"""The CLI curriculum judges a ``stance_quality/v2`` node after training (decision D-D23; gate map item 16).
+"""The CLI curriculum judges a floor-truth stance node after training (decision D-D23; gate map item 16).
 
 The in-training manager refuses the kind -- its certificate is the
 floor-truth panel on the handoff pair, which an EvalCallback cannot roll --
 so without a post-training judge ``train_curriculum`` would write the fixed
 "stage budget exhausted" FAIL for every v2 node and never advance one.
-``_post_training_stance_v2_verdict`` rolls the stance report on the handoff
+``_post_training_stance_verdict`` rolls the stance report on the handoff
 pair through the same ``stage_artifacts._write_stance_gate_report`` the
 post-stage pipeline uses and judges it through ``evaluate_stage_gate``; the
 verdict records a distinct ``judged_by``.  SB3-free: the report builder is
@@ -34,7 +34,7 @@ def test_a_passing_report_on_the_handoff_pair_passes_the_node(tmp_path, monkeypa
         return v2_report(stage_dir)
 
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", fake_write)
-    passed, failures, stage_result = train_base._post_training_stance_v2_verdict(
+    passed, failures, stage_result = train_base._post_training_stance_verdict(
         "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert calls == [("trex", 1, tmp_path / "models")]
@@ -45,7 +45,7 @@ def test_a_passing_report_on_the_handoff_pair_passes_the_node(tmp_path, monkeypa
 
 def test_no_report_is_a_named_fail_never_a_pass(tmp_path, monkeypatch):
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", lambda **kwargs: None)
-    passed, failures, stage_result = train_base._post_training_stance_v2_verdict(
+    passed, failures, stage_result = train_base._post_training_stance_verdict(
         "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert passed is False and any("no stance gate report was produced" in failure for failure in failures)
@@ -58,7 +58,7 @@ def test_a_failing_panel_fails_the_node_with_its_reasons(tmp_path, monkeypatch):
         "_write_stance_gate_report",
         lambda *, stage_dir, **kwargs: v2_report(stage_dir, n_clean=36, defect={"touchdown_rate": 9.9}),
     )
-    passed, failures, stage_result = train_base._post_training_stance_v2_verdict(
+    passed, failures, stage_result = train_base._post_training_stance_verdict(
         "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert passed is False and any("36/40 episodes clean" in failure for failure in failures)
@@ -67,20 +67,20 @@ def test_a_failing_panel_fails_the_node_with_its_reasons(tmp_path, monkeypatch):
 
 def test_train_curriculum_uses_the_post_training_judge_for_a_v2_node():
     """The wiring, by AST: under a ``gate_kind == STANCE_GATE_V2_KIND`` test the node's ``passed`` comes from
-    ``_post_training_stance_v2_verdict`` and the verdict's ``judged_by`` from a variable that branch sets to
+    ``_post_training_stance_verdict`` and the verdict's ``judged_by`` from a variable that branch sets to
     the distinct ``STANCE_V2_POST_TRAINING_JUDGED_BY`` -- never the manager's fixed budget-exhausted FAIL."""
     tree = ast.parse(inspect.getsource(train_base.train_curriculum))
     v2_branches = [
         node
         for node in ast.walk(tree)
         if isinstance(node, ast.If)
-        and "STANCE_GATE_V2_KIND" in {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
+        and "FLOOR_TRUTH_STANCE_GATE_KINDS" in {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
         and "interrupted" in {n.id for n in ast.walk(node.test) if isinstance(n, ast.Name)}
     ]
     assert len(v2_branches) == 1
     branch = v2_branches[0]
     calls = {c.func.id for c in ast.walk(branch) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
-    assert "_post_training_stance_v2_verdict" in calls
+    assert "_post_training_stance_verdict" in calls
     assigned = {
         target.id: node.value
         for node in ast.walk(branch)
@@ -88,8 +88,14 @@ def test_train_curriculum_uses_the_post_training_judge_for_a_v2_node():
         for target in node.targets
         if isinstance(target, ast.Name)
     }
-    assert isinstance(assigned["verdict_judged_by"], ast.Name)
-    assert assigned["verdict_judged_by"].id == "STANCE_V2_POST_TRAINING_JUDGED_BY"
+    # The v2 judge's name unless the node declares the six-heading certificate (D-D32), which has its own.
+    judged_by = assigned["verdict_judged_by"]
+    assert isinstance(judged_by, ast.IfExp)
+    assert {judged_by.body.id, judged_by.orelse.id} == {  # type: ignore[attr-defined]
+        "STANCE_V2_POST_TRAINING_JUDGED_BY",
+        "STANCE_HEADING_POST_TRAINING_JUDGED_BY",
+    }
+    assert "STANCE_HEADING_GATE_KIND" in {n.id for n in ast.walk(judged_by.test) if isinstance(n, ast.Name)}
     verdict_calls = [
         c for c in ast.walk(tree) if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "write_gate_verdict"
     ]
@@ -97,3 +103,7 @@ def test_train_curriculum_uses_the_post_training_judge_for_a_v2_node():
     assert isinstance(keywords["judged_by"], ast.Name) and keywords["judged_by"].id == "verdict_judged_by"
     assert isinstance(keywords["failures"], ast.Name) and keywords["failures"].id == "verdict_failures"
     assert train_base.STANCE_V2_POST_TRAINING_JUDGED_BY != train_base.CURRICULUM_MANAGER_JUDGED_BY
+    assert train_base.STANCE_HEADING_POST_TRAINING_JUDGED_BY not in {
+        train_base.STANCE_V2_POST_TRAINING_JUDGED_BY,
+        train_base.CURRICULUM_MANAGER_JUDGED_BY,
+    }

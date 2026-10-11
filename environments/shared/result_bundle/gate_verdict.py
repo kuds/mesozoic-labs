@@ -117,6 +117,16 @@ _PERSISTED_STAGE_RESULT_KEYS = (
     "stance_clean_fraction",
     "stance_clean_lcb",
     "stance_statue_mean_reward",
+    # stance_quality_heading/v1 (decision D-D32): the seed groups, the
+    # seeds clean at every heading, their fraction and the grouped bound the
+    # six-heading certificate was re-derived on, and the lowest of its
+    # per-heading statue references' mean rewards (None with no statue
+    # panel), copied from the admitted certificate the same way.
+    "stance_heading_n_seeds",
+    "stance_heading_clean_seeds",
+    "stance_heading_clean_seed_fraction",
+    "stance_heading_clean_seed_lcb",
+    "stance_heading_statue_mean_reward_min",
     "model_path",
     "vecnorm_path",
     "plant_identity",
