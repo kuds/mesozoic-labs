@@ -543,3 +543,18 @@ statue_constants_physics_revision = 2    # The compsognathus physics revision th
 required_consecutive = 3                 # Scheduler hysteresis ONLY. Under stance_quality/v2 the in-training manager
                                          # refuses the kind (the certificate is the post-stage report on the handoff
                                          # pair), so nothing reads this until the in-training screen exists.
+stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). After the gate
+                                         # report, re-roll the policy and the zero-action statue on 8 seeds with the
+                                         # spawn turned about vertical by each offset -- the animal alone, and with
+                                         # the prey and the episode's reference direction turned too -- beside an
+                                         # unturned control, and write stance_heading_probe.{txt,json}. The stance
+                                         # stage always spawns facing +x and the observation carries heading
+                                         # through the world-frame pelvis quaternion, pelvis velocity and target
+                                         # direction, so no bar sees a stance that reads its heading. The handoff
+                                         # tooling reads the probe: a whole-scene row whose full-horizon fraction is
+                                         # below 0.95 is warned of, without blocking, where the probe is written and
+                                         # wherever the stance is handed on or reused, and a stance with none (a
+                                         # command-line curriculum run rolls none) as unmeasured. Turned on by the
+                                         # maintainer's decision of 2026-10-11, as for the trex. The r2 statue
+                                         # stands 8/8 on every row, on each whole-scene row at the unturned
+                                         # control's reward (4571.3, measured 2026-10-11). 18 panels of 8 episodes.

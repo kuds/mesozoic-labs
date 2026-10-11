@@ -15,6 +15,7 @@ from __future__ import annotations
 import csv
 import math
 import pickle
+from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
@@ -1820,22 +1821,80 @@ class TestReleaseAblationVariants:
         assert "release_saturated" not in labels
 
 
-def _ablation_row(label, full, *, holds=True, length=None, released=0):
+def _ablation_row(label, full, *, holds=True, length=None, released=0, episodes=8):
+    """One ablation variant over *episodes* (8, the pipeline's panel), with per-episode evidence."""
     report = _held_report(
         label, holds=holds, full=full, length=length if length is not None else (1000.0 if full else 300.0)
     )
     report["hold_constant"]["actions"] = [0.0] * released + [0.5] * (21 - released)
+    report["episodes"] = episodes
+    reached = round(full * episodes)
+    report["episode_evidence"] = [{"episode": index, "reached_horizon": index < reached} for index in range(episodes)]
     return report
+
+
+class TestFisherExact:
+    """The release ablation's one-sided Fisher exact test, computed without scipy."""
+
+    def test_it_matches_scipy_on_every_table_up_to_ten_per_arm(self):
+        stats = pytest.importorskip("scipy.stats")
+        from environments.shared.reporting.stance_report import _fisher_exact_greater
+
+        for n_a in range(1, 11):
+            for n_b in range(1, 11):
+                for k_a in range(n_a + 1):
+                    for k_b in range(n_b + 1):
+                        expected = stats.fisher_exact([[k_a, n_a - k_a], [k_b, n_b - k_b]], alternative="greater")
+                        p = _fisher_exact_greater(k_a, n_a, k_b, n_b)
+                        assert float(p) == pytest.approx(float(expected.pvalue), rel=1e-12, abs=1e-15)
+
+    @pytest.mark.parametrize(
+        "table,expected",
+        [
+            # 8/8 against 7/8: the "contributes" #606 left classifiable.
+            ((8, 8, 7, 8), Fraction(1, 2)),
+            ((8, 8, 3, 8), Fraction(1, 78)),
+            ((8, 8, 0, 8), Fraction(1, 12870)),
+            ((3, 3, 0, 3), Fraction(1, 20)),
+            ((0, 8, 8, 8), Fraction(1)),
+        ],
+    )
+    def test_pinned_values_are_exact(self, table, expected):
+        from environments.shared.reporting.stance_report import _fisher_exact_greater
+
+        p = _fisher_exact_greater(*table)
+        assert isinstance(p, Fraction)
+        assert p == expected
+
+    @pytest.mark.parametrize(
+        "sizes,expected",
+        [((3, 3), Fraction(1, 20)), ((2, 2), Fraction(1, 6)), ((2, 5), Fraction(1, 21)), ((1, 19), Fraction(1, 20))],
+    )
+    def test_the_smallest_reachable_p(self, sizes, expected):
+        from environments.shared.reporting.stance_report import _fisher_exact_greater, _fisher_exact_min_p
+
+        assert _fisher_exact_min_p(*sizes) == expected
+        assert _fisher_exact_greater(sizes[0], sizes[0], 0, sizes[1]) == expected
+
+    @pytest.mark.parametrize("table", [(9, 8, 0, 8), (-1, 8, 0, 8), (0, 8, 9, 8), (0, 0, 0, 8), (0, 8, 0, 0)])
+    def test_an_impossible_table_is_refused(self, table):
+        from environments.shared.reporting.stance_report import _fisher_exact_greater
+
+        with pytest.raises(ValueError, match="not a 2x2 table"):
+            _fisher_exact_greater(*table)
 
 
 class TestAblationVerdicts:
     @staticmethod
-    def _reports(pairs, *, hold_all=0.0, hold_zero=1.0):
-        reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", hold_all)]
+    def _reports(pairs, *, hold_all=0.0, hold_zero=1.0, episodes=8):
+        reports = [
+            _ablation_row("policy (control)", 1.0, holds=False, episodes=episodes),
+            _ablation_row("hold_all", hold_all, episodes=episodes),
+        ]
         for group, (release_full, only_full) in pairs.items():
-            reports.append(_ablation_row(f"release_{group}", release_full))
-            reports.append(_ablation_row(f"only_{group}", only_full))
-        reports.append(_ablation_row("hold_zero (statue control)", hold_zero, released=21))
+            reports.append(_ablation_row(f"release_{group}", release_full, episodes=episodes))
+            reports.append(_ablation_row(f"only_{group}", only_full, episodes=episodes))
+        reports.append(_ablation_row("hold_zero (statue control)", hold_zero, released=21, episodes=episodes))
         return reports
 
     @classmethod
@@ -1844,11 +1903,17 @@ class TestAblationVerdicts:
 
         return render_constant_hold_ablation(cls._reports(pairs, **controls), probe_episodes=8)
 
-    @pytest.mark.parametrize("hold_all", [1.0, 0.95])
-    def test_a_standing_full_pose_has_no_fall_to_attribute(self, hold_all):
+    @pytest.mark.parametrize("hold_all,p", [(1.0, "1.0000"), (0.875, "0.5000"), (0.75, "0.2333"), (0.625, "0.1000")])
+    def test_a_standing_full_pose_has_no_fall_to_attribute(self, hold_all, p):
+        """Down to 5/8 the full pose is not separated from the statue's 8/8, so it leaves no fall to
+        attribute. At 7/8 (one-sided p = 0.5) that refuses the "contributes" #606 left resting on
+        tail's 8/8 against it."""
         text, payload = self._render({"tail": (1.0, 1.0), "toes": (1.0, 0.0)}, hold_all=hold_all)
         assert "not applicable" in text
         assert "full held pose stands" in text
+        (reason,) = payload["classification"]["reasons"]
+        assert f"stands in {round(hold_all * 8)}/8 episodes, not significantly fewer" in reason
+        assert f"(one-sided Fisher p = {p} > 0.05)" in reason
         assert "CAUSE" not in text and "contributes" not in text
         assert "OVER-DETERMINED" not in text and "Regroup" not in text
         assert payload["classification"]["applicable"] is False
@@ -1858,28 +1923,41 @@ class TestAblationVerdicts:
         assert by_label["hold_all"]["full_horizon_fraction"] == hold_all
         assert by_label["only_toes"]["full_horizon_fraction"] == 0.0
 
-    @pytest.mark.parametrize("hold_zero", [0.5, 0.0])
+    @pytest.mark.parametrize("hold_zero", [0.875, 0.5, 0.0])
     def test_the_statue_control_must_stand(self, hold_zero):
+        """A sanity check, not a test: the statue keeps the fixed 0.95 share, so 7/8 already fails it."""
         text, payload = self._render({"tail": (1.0, 0.0)}, hold_zero=hold_zero)
         assert payload["classification"]["applicable"] is False
-        assert payload["classification"]["reasons"]
+        (reason,) = payload["classification"]["reasons"]
+        assert reason.startswith(f"hold_zero: the statue control stands in only {round(hold_zero * 8)}/8 episodes")
         assert payload["verdicts"][0]["verdict"].startswith("not applicable")
         assert payload["verdicts"][0]["necessary"] is None
         assert payload["verdicts"][0]["sufficient"] is None
         assert "CAUSE" not in text
 
-    @pytest.mark.parametrize("hold_all", [0.125, 0.5, 0.875, 0.9499])
+    def test_the_statue_share_is_inclusive(self):
+        """19 of 20 episodes (``--hold-episodes 20``) is exactly 0.95, so the statue still stands."""
+        _, payload = self._render({"tail": (1.0, 0.0)}, hold_zero=0.95, episodes=20)
+        assert payload["classification"]["applicable"] is True
+        assert payload["classification"]["reasons"] == []
+        assert payload["classification"]["endpoints"]["hold_zero"] == [19, 20]
+        assert payload["verdicts"][0]["verdict"] == "CAUSE — necessary and sufficient"
+
+    @pytest.mark.parametrize("hold_all", [0.125, 0.25, 0.375, 0.5])
     def test_a_partly_falling_full_pose_is_still_a_fall_to_explain(self, hold_all):
-        """Only a standing full pose leaves nothing to attribute; falling in some episodes is a fall."""
+        """Falling in some episodes is a fall when it is significant: 4/8 against 8/8 is p = 1/26."""
         text, payload = self._render({"tail": (1.0, 0.0)}, hold_all=hold_all)
-        assert payload["classification"] == {"applicable": True, "reasons": []}
+        assert payload["classification"]["applicable"] is True
+        assert payload["classification"]["reasons"] == []
+        assert payload["classification"]["endpoints"]["separation"]["status"] == "significant"
         assert payload["verdicts"][0]["verdict"] == "CAUSE — necessary and sufficient"
         assert "not applicable" not in text
 
     #: 20261006_185704 (T. rex stage 1), its stance_gate_probe_release.txt on
-    #: Drive: (variant, released, ep length, full-horizon share, reward). The
-    #: full pose survives 3 of 8 episodes, and knees_ankles alone carries the
-    #: fall -- releasing them rescues 8/8 and holding them alone nosedives 8/8.
+    #: Drive: (variant, released, ep length, full-horizon share, reward), over
+    #: the pipeline's 8 episodes. The full pose survives 3 of 8 episodes, and
+    #: knees_ankles alone carries the fall -- releasing them rescues 8/8 and
+    #: holding them alone nosedives 8/8.
     _TREX_20261006_185704 = (
         ("policy (control)", None, 1000.0, 1.0, 3778.3),
         ("hold_all", 0, 584.1, 0.375, 2055.2),
@@ -1907,15 +1985,80 @@ class TestAblationVerdicts:
             report["metrics"]["reward_mean"] = reward
             reports.append(report)
         text, payload = render_constant_hold_ablation(reports, probe_episodes=8)
-        assert payload["classification"] == {"applicable": True, "reasons": []}
+        classification = payload["classification"]
+        assert classification["applicable"] is True and classification["reasons"] == []
+        assert classification["endpoints"]["hold_all"] == [3, 8]
+        assert classification["endpoints"]["hold_zero"] == [8, 8]
+        assert classification["endpoints"]["separation"]["p"] == pytest.approx(1 / 78)
         by_group = {v["group"]: v for v in payload["verdicts"]}
-        assert by_group["knees_ankles"]["verdict"] == "CAUSE — necessary and sufficient"
-        assert by_group["knees_ankles"]["necessary"] is True and by_group["knees_ankles"]["sufficient"] is True
-        # Every other group has a variant between the thresholds, as the report on Drive read.
-        for group in ("tail", "head_neck", "hip_rolls", "left_leg", "right_leg"):
-            assert by_group[group]["verdict"].startswith("inconclusive"), group
+        knees_ankles = by_group["knees_ankles"]
+        assert knees_ankles["verdict"] == "CAUSE — necessary and sufficient"
+        assert knees_ankles["necessary"] is True and knees_ankles["sufficient"] is True
+        assert knees_ankles["necessity"]["vs_hold_all"]["p"] == pytest.approx(1 / 78)
+        assert knees_ankles["sufficiency"]["vs_hold_zero"]["p"] == pytest.approx(1 / 12870)
+        # The report on Drive read these three as inconclusive, each with a variant between the
+        # 0.95/0.05 thresholds. Released, each still falls significantly more often than the
+        # statue (3/8, 4/8, 3/8 against 8/8); held alone, each stands 8/8, significantly more
+        # often than the full pose's 3/8.
+        for group in ("tail", "head_neck", "hip_rolls"):
+            assert by_group[group]["verdict"] == "bystander — neither", group
+        # A 5/8 variant is separated from neither 3/8 nor 8/8, so one claim of each leg stays open.
+        assert by_group["left_leg"]["necessary"] is None and by_group["left_leg"]["sufficient"] is False
+        assert by_group["right_leg"]["necessary"] is True and by_group["right_leg"]["sufficient"] is None
+        assert by_group["left_leg"]["verdict"] == "inconclusive (release_left_leg 5/8: separated from neither endpoint)"
+        assert by_group["right_leg"]["verdict"] == "inconclusive (only_right_leg 5/8: separated from neither endpoint)"
         assert "not applicable" not in text
         assert "OVER-DETERMINED" not in text and "Regroup" not in text
+
+    #: 20260805_011234 (T. rex stage 1, the passing checkpoint of the bounce
+    #: investigation), its release ablation as Addendum 2 of
+    #: docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md records it over 8
+    #: episodes, in the same columns. The full pose falls 8 of 8.
+    _TREX_20260805_011234 = (
+        ("policy (control)", None, 1000.0, 1.0, 3010.1),
+        ("hold_all", 0, 128.6, 0.0, 268.8),
+        ("release_saturated", 12, 224.6, 0.0, 460.1),
+        ("only_saturated", 9, 140.5, 0.0, 330.6),
+        ("release_tail", 4, 116.6, 0.0, 250.1),
+        ("only_tail", 17, 1000.0, 1.0, 3254.0),
+        ("release_toes", 6, 198.5, 0.0, 397.3),
+        ("only_toes", 15, 125.5, 0.0, 289.2),
+        ("release_head_neck", 3, 123.2, 0.0, 256.4),
+        ("only_head_neck", 18, 1000.0, 1.0, 3286.1),
+        ("release_hip_rolls", 2, 129.4, 0.0, 270.4),
+        ("only_hip_rolls", 19, 989.8, 0.875, 3190.5),
+        ("hold_zero (statue control)", 21, 1000.0, 1.0, 3274.4),
+    )
+
+    def test_the_bounce_ablation_reads_over_determined_again(self):
+        """only_hip_rolls stood 7 of 8, which the 0.95 threshold left inconclusive and with it the
+        run's overall reading. 7/8 is separated from the full pose's 0/8 (p = 1/1430) and not from
+        the statue's 8/8 (p = 0.5): hip_rolls is a bystander, and the addendum's reading -- nothing
+        necessary, the toes and the saturated set sufficient -- is the report's again."""
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = []
+        for label, released, length, full, reward in self._TREX_20260805_011234:
+            report = _ablation_row(label, full, holds=released is not None, length=length, released=released or 0)
+            report["metrics"]["reward_mean"] = reward
+            reports.append(report)
+        text, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        assert payload["classification"]["applicable"] is True
+        assert payload["classification"]["endpoints"]["separation"]["p"] == pytest.approx(1 / 12870)
+        by_group = {v["group"]: v for v in payload["verdicts"]}
+        hip_rolls = by_group["hip_rolls"]
+        assert hip_rolls["verdict"] == "bystander — neither"
+        assert hip_rolls["sufficiency"]["vs_hold_zero"]["p"] == pytest.approx(0.5)
+        assert hip_rolls["sufficiency"]["vs_hold_all"]["p"] == pytest.approx(1 / 1430)
+        assert {group: entry["verdict"] for group, entry in by_group.items() if group != "hip_rolls"} == {
+            "saturated": "sufficient alone, but not necessary",
+            "tail": "bystander — neither",
+            "toes": "sufficient alone, but not necessary",
+            "head_neck": "bystander — neither",
+        }
+        overall = text.split("Overall:")[1]
+        assert "OVER-DETERMINED" in overall
+        assert "saturated, toes are" in overall
 
     @pytest.mark.parametrize("bad_share", [None, float("nan"), float("inf"), -0.1, 1.1])
     def test_a_missing_or_invalid_full_pose_share_is_not_applicable(self, bad_share):
@@ -1974,13 +2117,149 @@ class TestAblationVerdicts:
         if field == "full_horizon_fraction":
             assert entry["necessary"] is None
             assert entry["verdict"].startswith("inconclusive")
+            group_row = next(line.split() for line in text.splitlines() if line.lstrip().startswith("tail "))
+            assert group_row[1:4] == ["-", "-", "-"]
         else:
             assert entry["verdict"].startswith("CAUSE")
 
-    def test_threshold_boundaries_still_permit_classification(self):
-        _, payload = self._render({"tail": (0.95, 0.05)}, hold_all=0.05, hold_zero=0.95)
+    def test_the_alpha_boundary_is_inclusive(self):
+        """Three episodes per arm reach p = 1/20 exactly and no lower, and p <= alpha classifies."""
+        _, payload = self._render({"tail": (1.0, 0.0)}, episodes=3)
         assert payload["classification"]["applicable"] is True
-        assert payload["verdicts"][0]["verdict"].startswith("CAUSE")
+        assert payload["classification"]["endpoints"]["separation"]["p"] == 0.05
+        entry = payload["verdicts"][0]
+        assert entry["necessity"]["vs_hold_all"] == {
+            "against": "hold_all",
+            "alternative": "greater",
+            "p": 0.05,
+            "status": "significant",
+        }
+        assert entry["sufficiency"]["vs_hold_zero"] == {
+            "against": "hold_zero",
+            "alternative": "less",
+            "p": 0.05,
+            "status": "significant",
+        }
+        assert entry["verdict"] == "CAUSE — necessary and sufficient"
+
+    def test_two_episodes_cannot_classify(self):
+        """Two against two reaches p = 1/6 at best, so no full-pose fall can be established."""
+        text, payload = self._render({"tail": (1.0, 0.0)}, episodes=2)
+        assert payload["classification"]["applicable"] is False
+        (reason,) = payload["classification"]["reasons"]
+        assert reason.startswith("hold_all: insufficient episodes (2 against the statue's 2)")
+        assert payload["verdicts"][0]["verdict"].startswith("not applicable")
+        assert "CAUSE" not in text
+
+    def test_a_partial_release_reads_as_between_the_endpoints(self):
+        """4/8 is separated from both 0/8 and 8/8 (p = 1/26 each way): a partial rescue, rounded to neither label."""
+        text, payload = self._render({"tail": (0.5, 0.0)})
+        assert "inconclusive" in text
+        entry = payload["verdicts"][0]
+        assert entry["necessity"]["position"] == "between"
+        assert entry["necessary"] is None and entry["sufficient"] is True
+        assert entry["verdict"] == "inconclusive (release_tail 4/8: between the endpoints, separated from both)"
+
+    #: Where a release at k/8 (k = 0..8) sits against an 8/8 statue, for a full
+    #: pose at 0/8 and at 3/8: stands, falls, between or unresolved. The 0.95 and
+    #: 0.05 thresholds placed only 8/8 as standing and only 0/8 as falling.
+    @pytest.mark.parametrize("hold_all,positions", [(0.0, "FFFFBSSSS"), (0.375, "FFFFFUUUS")])
+    def test_a_release_is_placed_by_its_tests_not_by_a_share(self, hold_all, positions):
+        _, payload = self._render({f"k{k}": (k / 8, 1.0) for k in range(9)}, hold_all=hold_all)
+        letter = {"stands": "S", "falls": "F", "between": "B", "unresolved": "U"}
+        assert "".join(letter[entry["necessity"]["position"]] for entry in payload["verdicts"]) == positions
+        by_group = {entry["group"]: entry["verdict"] for entry in payload["verdicts"]}
+        if hold_all == 0.0:
+            # The widening: against a clean 0/8 fall, a release that stands 5/8 or 7/8 is now
+            # necessary (p = 0.0128 and 0.0007), where the thresholds left it inconclusive.
+            assert by_group["k5"] == by_group["k7"] == "contributes — necessary, not sufficient alone"
+
+    @pytest.mark.parametrize("label", ["hold_all", "release_tail"])
+    def test_a_share_that_is_not_a_whole_number_of_episodes_is_refused(self, label):
+        """Fisher takes counts, and 0.3 of 8 episodes is none: refused, never rounded to 2."""
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 0.0)})
+        report = next(r for r in reports if r["hold_constant"]["label"] == label)
+        report["metrics"]["full_horizon_fraction"] = 0.3
+        del report["episode_evidence"]
+        _, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        row = next(v for v in payload["variants"] if v["label"] == label)
+        assert row["full_horizon_fraction"] == 0.3 and row["full_horizon_episodes"] is None
+        if label == "hold_all":
+            (reason,) = payload["classification"]["reasons"]
+            assert reason.startswith("hold_all: missing or invalid measurement")
+        else:
+            assert payload["verdicts"][0]["necessary"] is None
+            assert payload["verdicts"][0]["verdict"] == "inconclusive (release_tail: unmeasured or invalid)"
+
+    @pytest.mark.parametrize("tamper", ["drop an episode", "flip an episode", "blank an episode", "boolean episodes"])
+    def test_a_count_the_report_does_not_support_is_refused(self, tamper):
+        """k/n needs an integer panel size and, where the report carries it, evidence that scores every
+        episode and agrees with the share. True passes isinstance(int) but is not a panel of one episode."""
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 0.0)})
+        hold_all = next(r for r in reports if r["hold_constant"]["label"] == "hold_all")
+        if tamper == "drop an episode":
+            hold_all["episode_evidence"].pop()
+        elif tamper == "flip an episode":
+            hold_all["episode_evidence"][0]["reached_horizon"] = True
+        elif tamper == "blank an episode":
+            # Still no episode reaching the horizon, so only the unscored entry refuses it.
+            hold_all["episode_evidence"][0]["reached_horizon"] = None
+        else:
+            hold_all["episodes"] = True
+            del hold_all["episode_evidence"]
+        _, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        assert payload["classification"]["applicable"] is False
+        (reason,) = payload["classification"]["reasons"]
+        assert reason.startswith("hold_all: missing or invalid measurement")
+
+    def test_a_variant_too_small_to_reach_alpha_reports_insufficient_episodes(self):
+        """One episode against eight reaches p = 1/9 at best: no finding either way, and no label."""
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (1.0, 0.0)})
+        index = next(i for i, r in enumerate(reports) if r["hold_constant"]["label"] == "release_tail")
+        reports[index] = _ablation_row("release_tail", 1.0, episodes=1)
+        text, payload = render_constant_hold_ablation(reports, probe_episodes=8)
+        entry = payload["verdicts"][0]
+        assert entry["necessity"]["vs_hold_all"]["status"] == "insufficient episodes"
+        assert entry["necessity"]["vs_hold_zero"]["status"] == "insufficient episodes"
+        assert entry["necessary"] is None
+        assert entry["verdict"] == "inconclusive (release_tail 1/1: insufficient episodes to reach p <= 0.05)"
+        row = next(line.split() for line in text.splitlines() if line.lstrip().startswith("tail "))
+        assert row[1:4] == ["1/1", "n/a", "n/a"]
+
+    def test_one_comparison_short_of_episodes_leaves_the_position_unknown(self):
+        """A 0/2 release falls significantly more often than the 20/20 statue (p = 1/231), but against a 0/2
+        hold_all no outcome reaches p <= 0.05: the comparison that could have shown 'between' is missing, so
+        the release does not read as falling and necessity stays unknown."""
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
+
+        reports = self._reports({"tail": (0.0, 0.0)}, episodes=20)
+        for index, report in enumerate(reports):
+            if report["hold_constant"]["label"] in ("hold_all", "release_tail"):
+                reports[index] = _ablation_row(report["hold_constant"]["label"], 0.0, episodes=2)
+        _, payload = render_constant_hold_ablation(reports, probe_episodes=20)
+        assert payload["classification"]["applicable"] is True
+        entry = payload["verdicts"][0]
+        assert entry["necessity"]["vs_hold_all"]["status"] == "insufficient episodes"
+        assert entry["necessity"]["vs_hold_zero"]["status"] == "significant"
+        assert entry["necessity"]["position"] == "insufficient episodes"
+        assert entry["necessary"] is None and entry["sufficient"] is True
+        assert entry["verdict"] == "inconclusive (release_tail 0/2: insufficient episodes to reach p <= 0.05)"
+
+    def test_the_table_reports_counts_and_one_sided_p_values(self):
+        text, _ = self._render({"tail": (1.0, 0.0)}, hold_all=0.375)
+        assert "hold_all 3/8, hold_zero 8/8 full-horizon; one-sided Fisher p = 0.0128 <= 0.05" in text
+        row = next(line.split() for line in text.splitlines() if line.lstrip().startswith("tail "))
+        assert row[:7] == ["tail", "8/8", "0.0128*", "1.0000", "0/8", "7.8e-05*", "1.0000"]
+        footer = " ".join(text.split("Causal classification requires")[1].split())
+        assert "one-sided Fisher exact tests at p <= 0.05" in footer
+        assert "unadjusted across groups" in footer
+        assert "share reset seeds and the test ignores that pairing" in footer
 
     @pytest.mark.parametrize("release,only", [(0.5, 0.0), (0.0, 0.5)])
     def test_an_unknown_group_claim_cannot_support_an_overall_conclusion(self, release, only):
@@ -2010,7 +2289,15 @@ class TestAblationVerdicts:
         reports = self._reports({"tail": (1.0, 1.0)}, hold_all=1.0)
         written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
         payload = json.loads(written["constant_hold_ablation_json"].read_text())
-        assert payload["schema"] == "mesozoic.constant-hold-ablation/v2"
+        assert payload["schema"] == "mesozoic.constant-hold-ablation/v3"
+        assert payload["statistics"] == {
+            "test": "fisher-exact",
+            "sided": "one",
+            "alpha": 0.05,
+            "multiplicity": "none",
+            "statue_stands_share": 0.95,
+        }
+        assert "stands_threshold" not in payload and "falls_threshold" not in payload
         assert payload["classification"]["applicable"] is False
         assert payload["verdicts"][0]["necessary"] is None
         assert payload["verdicts"][0]["sufficient"] is None
@@ -2034,14 +2321,6 @@ class TestAblationVerdicts:
         assert "bystander" in text
         verdict = next(v for v in payload["verdicts"] if v["group"] == "saturated")
         assert not verdict["necessary"] and not verdict["sufficient"]
-
-    def test_a_middling_result_refuses_to_round(
-        self,
-    ):
-        """The two conclusions are opposite, so the gap must not be split."""
-        text, payload = self._render({"tail": (0.5, 0.0)})
-        assert "inconclusive" in text
-        assert next(v for v in payload["verdicts"] if v["group"] == "tail")["verdict"].startswith("inconclusive")
 
     def test_each_group_is_judged_independently(self):
         _, payload = self._render({"tail": (1.0, 0.0), "toes": (0.0, 1.0)})
@@ -2790,6 +3069,57 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             vecnorm_path="m.pkl",
         )
         assert not (tmp_path / "stance_heading_probe.txt").exists()
+
+    def _write_heading_probe_scoring(self, tmp_path, monkeypatch, caplog, policy_scene_fraction):
+        """Run the helper with every panel stubbed: the statue stands everywhere, the policy everywhere
+        but on the whole-scene rows, where it scores *policy_scene_fraction*; the real writer writes."""
+        from environments.shared.reporting import stance_report
+
+        def _panel(species, stage, **kwargs):
+            turn = kwargs["spawn_yaw"]
+            scene = turn.whole_scene and not kwargs["zero_action"]
+            return {
+                "spawn_yaw": turn.as_dict(),
+                "metrics": {
+                    "full_horizon_fraction": policy_scene_fraction if scene else 1.0,
+                    "reward_mean": 3700.0,
+                    "episode_length_mean": 1000.0,
+                },
+                "episode_yaw_change_deg": [3.0],
+                "terminations": {},
+                "horizon": 1000,
+                "policy": "robust_best_model.zip",
+                "seed": 3042,
+            }
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _panel)
+        with caplog.at_level("WARNING"):
+            self._artifacts()._write_heading_probe(
+                species="trex",
+                stage=1,
+                stage_config={"curriculum_kwargs": {"stance_probe_spawn_yaw_deg": [-90.0, 90.0]}},
+                stage_dir=tmp_path,
+                model_path="models/robust_best_model.zip",
+                vecnorm_path="models/robust_best_model_vecnorm.pkl",
+            )
+
+    def test_the_heading_probe_logs_its_handoff_warning(self, tmp_path, monkeypatch, caplog):
+        """The maintainer's decision of 2026-10-11: a whole-scene row under 0.95 is logged where the
+        probe is written, and the probe is still written (report only: nothing is refused)."""
+        self._write_heading_probe_scoring(tmp_path, monkeypatch, caplog, 0.875)
+
+        (record,) = [r for r in caplog.records if "heading probe:" in r.message]
+        assert record.levelname == "WARNING"
+        assert record.message.startswith("Stage 1 heading probe: the policy's full-horizon fraction is below 0.95")
+        assert "on 2 of 2 whole-scene rows (-90 deg 0.88 (statue 1.00); +90 deg 0.88 (statue 1.00)" in record.message
+        assert "Heading probe failed" not in caplog.text
+        assert "HANDOFF WARNING" in (tmp_path / "stance_heading_probe.txt").read_text(encoding="utf-8")
+
+    def test_a_passing_heading_probe_logs_no_warning(self, tmp_path, monkeypatch, caplog):
+        self._write_heading_probe_scoring(tmp_path, monkeypatch, caplog, 1.0)
+
+        assert (tmp_path / "stance_heading_probe.json").is_file()
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
 
     def test_the_verdict_is_recorded_before_any_probe_runs(self):
         """Probes are pure diagnostics and run dead last: the recorded verdict,

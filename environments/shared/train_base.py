@@ -1373,6 +1373,27 @@ def _train_stage_body(
     )
 
 
+def _warn_on_heading_probe_handoff(parent_stage_dir: "str | Path", *, stage: "int | str") -> None:
+    """Log, never refuse, the heading-probe warnings of the stage a node enters on.
+
+    The maintainer's decision of 2026-10-11 (docs/HEADING_INVARIANCE_DESIGN_2026_10.md):
+    the probe stays report only (D-D27) until the heading certificate replaces it, so a
+    parent with a whole-scene row under v2's 0.95 full-horizon rail is handed on as
+    before, with the warning in the log.
+    """
+    try:
+        from .reporting.stance_report import stage_heading_probe_warnings
+
+        messages = stage_heading_probe_warnings(parent_stage_dir)
+    except Exception:  # noqa: BLE001 - a warning must never stop a handoff
+        logger.warning("Stage %s: the heading probe of %s could not be checked", stage, parent_stage_dir, exc_info=True)
+        return
+    for message in messages:
+        logger.warning(
+            "Stage %s enters on the handoff of %s, whose heading probe warns: %s", stage, parent_stage_dir, message
+        )
+
+
 def train(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -1501,6 +1522,12 @@ def train(
             child_stage=entry.reference,
             artifact=str(load_path),
         )
+        # The probe rolled the stage's handoff, the pair select_handoff_checkpoint picks in
+        # <stage_dir>/models/; it describes no other checkpoint there.
+        loaded = Path(load_path)
+        handoff = _select_handoff_checkpoint(loaded.parent) if loaded.parent.name == "models" else None
+        if handoff is not None and loaded.name.removesuffix(".zip") == handoff[0]:
+            _warn_on_heading_probe_handoff(loaded.parent.parent, stage=entry.id)
 
     sb3 = _ensure_sb3()
 
@@ -2652,6 +2679,8 @@ def train_curriculum(
         node_start = time.monotonic()
         load_path = parent_node.model_stem if parent_node is not None else None
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
+        if parent_node is not None:
+            _warn_on_heading_probe_handoff(parent_node.stage_dir, stage=entry.id)
 
         stage_dir = base_dir / stage_dirname(species, stage)
         # D-A20: the curriculum has no resume mode, so a stage directory
