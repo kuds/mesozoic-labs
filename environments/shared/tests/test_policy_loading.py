@@ -2050,3 +2050,120 @@ def test_the_probe_refuses_a_value_delta_it_cannot_measure():
             policy_loading.assert_command_blind(model, normalizer)
     finally:
         normalizer.close()
+
+
+# ── statistics of another width are refused by plant, not by shape ───────────
+#
+# SB3's VecNormalize.load re-binds the unpickled wrapper to the venv
+# (set_venv), which asserts equal observation shapes before anyone can read
+# the plant identity pickled with it. A pre-migration T-Rex pair (64 wide,
+# policy interface r13) against the 63-wide r14 env therefore failed with a
+# bare "spaces must have the same shape". load_vecnormalize refuses it by its
+# identity instead; test_heading_free_checkpoints runs the real pair through
+# every loader.
+
+
+def _width_env(width: int):
+    import gymnasium as gym
+    import numpy as np
+
+    class _WidthEnv(gym.Env):
+        observation_space = gym.spaces.Box(-np.inf, np.inf, shape=(width,), dtype=np.float32)
+        action_space = gym.spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
+
+        def reset(self, *, seed=None, options=None):
+            super().reset(seed=seed)
+            return np.zeros(width, dtype=np.float32), {}
+
+        def step(self, action):
+            return np.zeros(width, dtype=np.float32), 0.0, False, False, {}
+
+    return _WidthEnv
+
+
+def _saved_statistics(path: Path, width: int, identity: Any) -> Path:
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.plant_contract import attach_plant_identity
+
+    normalizer = VecNormalize(DummyVecEnv([_width_env(width)]))
+    if identity is not None:
+        attach_plant_identity(normalizer, identity)
+    normalizer.save(str(path))
+    normalizer.close()
+    return path
+
+
+def _plant(width: int, revision: int):
+    from .reporting_helpers import make_plant_identity
+
+    return make_plant_identity(
+        observation_dim=width,
+        policy_interface_revision=revision,
+        policy_interface_sha256="sha256:" + str(revision % 10) * 64,
+    )
+
+
+def test_statistics_of_another_width_are_refused_by_their_plant(tmp_path):
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv
+
+    from environments.shared.plant_contract import PlantCompatibilityError
+
+    old = _saved_statistics(tmp_path / "old_vecnorm.pkl", 5, _plant(5, 3))
+    venv = DummyVecEnv([_width_env(4)])
+    with pytest.raises(PlantCompatibilityError) as excinfo:
+        policy_loading.load_vecnormalize(old, venv, plant_identity=_plant(4, 4))
+    message = str(excinfo.value)
+    assert str(old) in message
+    assert "policy_interface_revision: checkpoint=3, current=4" in message
+    assert "observation_dim: checkpoint=5, current=4" in message
+    assert isinstance(excinfo.value.__context__, AssertionError)
+    # Without a plant to check against, SB3's own refusal stands.
+    with pytest.raises(AssertionError, match="same shape"):
+        policy_loading.load_vecnormalize(old, venv)
+    venv.close()
+
+
+def test_unidentified_statistics_of_another_width_are_refused_unless_legacy_is_allowed(tmp_path):
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv
+
+    from environments.shared.plant_contract import PlantCompatibilityError
+
+    legacy = _saved_statistics(tmp_path / "legacy_vecnorm.pkl", 5, None)
+    venv = DummyVecEnv([_width_env(4)])
+    with pytest.raises(PlantCompatibilityError, match="has no plant identity"):
+        policy_loading.load_vecnormalize(legacy, venv, plant_identity=_plant(4, 4))
+    # Admitted as legacy, the identity explains nothing: the bind failure is what is wrong.
+    with pytest.raises(AssertionError, match="same shape"):
+        policy_loading.load_vecnormalize(legacy, venv, plant_identity=_plant(4, 4), allow_legacy_plant=True)
+    venv.close()
+
+
+def test_statistics_that_bind_are_returned_unvalidated(tmp_path):
+    """The caller validates a successful load itself (with its own cleanup); the helper only explains a bind failure."""
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    same_width = _saved_statistics(tmp_path / "vecnorm.pkl", 4, _plant(4, 3))
+    venv = DummyVecEnv([_width_env(4)])
+    normalizer = policy_loading.load_vecnormalize(same_width, venv, plant_identity=_plant(4, 4))
+    assert isinstance(normalizer, VecNormalize) and normalizer.venv is venv
+    normalizer.close()
+
+
+def test_load_sb3_checkpoint_refuses_another_width_by_plant_not_as_a_damaged_file(tmp_path):
+    pytest.importorskip("stable_baselines3")
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.vec_env import DummyVecEnv
+
+    from environments.shared.plant_contract import PlantCompatibilityError, attach_plant_identity
+
+    current = _plant(4, 4)
+    model = PPO("MlpPolicy", DummyVecEnv([_width_env(4)]), n_steps=8, batch_size=8, policy_kwargs={"net_arch": [4]})
+    attach_plant_identity(model, current)
+    model.save(str(tmp_path / "model"))
+    old = _saved_statistics(tmp_path / "model_vecnorm.pkl", 5, _plant(5, 3))
+    with pytest.raises(PlantCompatibilityError, match="observation_dim: checkpoint=5, current=4"):
+        policy_loading.load_sb3_checkpoint(str(tmp_path / "model.zip"), str(old), _width_env(4), plant_identity=current)

@@ -366,6 +366,7 @@ jobs:
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
             environments/shared/tests/test_gait_vec_path.py \
+            environments/shared/tests/test_heading_free_checkpoints.py \
             environments/shared/tests/test_policy_loading.py \
             environments/shared/tests/test_report_script_vecnorm.py \
             environments/shared/tests/test_resume_continuation.py \
@@ -381,6 +382,21 @@ jobs:
         env:
           MUJOCO_GL: osmesa
           COVERAGE_FILE: .coverage.sb3
+
+      # The heading-free observation's full-horizon six-heading paired rollouts
+      # (configs/plant_versions.toml note 18): two seeds at 1000 steps per
+      # heading, traces and floor-truth metrics, about two minutes, so full
+      # depth only. The shared legs run the 250-step trace comparison of
+      # test_heading_free_observation.py on every push.
+      - name: Heading-free full-horizon paired rollouts
+        if: steps.depth.outputs.full == 'true'
+        run: |
+          pytest \
+            environments/shared/tests/test_heading_free_rollouts.py \
+            -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        env:
+          MUJOCO_GL: osmesa
+          COVERAGE_FILE: .coverage.sb3-heading
 
       - name: Upload coverage data
         uses: ./.github/actions/upload-coverage

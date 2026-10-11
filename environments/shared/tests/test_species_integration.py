@@ -30,10 +30,11 @@ SPECIES_ENVS = [
 
 # Expected observation and action dimensions per species.  Phase C
 # (BEHAVIOR_RECIPES_PLAN §4.6) appended the 3-dim body-relative command
-# segment to every species: 67/61/83/77 -> 70/64/86/80.
+# segment to every species: 67/61/83/77 -> 70/64/86/80.  The trex's
+# heading-free observation (plant_versions note 18) then took it to 63.
 SPECIES_DIMS = {
     "velociraptor": {"obs": 70, "act": 22},
-    "trex": {"obs": 64, "act": 15},
+    "trex": {"obs": 63, "act": 15},
     "brachiosaurus": {"obs": 86, "act": 30},
     "dibothrosuchus": {"obs": 80, "act": 27},
 }

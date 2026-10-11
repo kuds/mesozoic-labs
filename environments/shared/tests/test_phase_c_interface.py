@@ -23,7 +23,12 @@ contract code:
   again for r9 (note 16; the fixture's ``recaptures`` record): each time
   their reset halves were unchanged, which is what proves the revision drew
   nothing extra, and only their observation and trajectory halves moved, as
-  dynamics edits must.
+  dynamics edits must.  They and the anatomical compsognathus captures were
+  re-taken once more for the heading-free observation (note 18: trex policy
+  interface r14, compsognathus r4), an interface-only revision: the reset,
+  second-reset and trajectory halves re-took byte-identical and only the
+  observation half moved, and each record names the policy interface and
+  observation schema it was taken under.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -43,7 +48,9 @@ contract code:
   change; the committed compsognathus calibrations load (decision D-C2).  The
   robot's still carries its Phase C restamp; the anatomical one was
   re-measured on compsognathus physics r2 (D-D26), the physics change a
-  restamp refuses, so it carries none and the tool leaves it untouched.
+  restamp refuses, and carries exactly one restamp since: the heading-free
+  policy interface r4 (plant_versions note 18, D-D31), an interface-only
+  revision on the physics it was measured on.
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
@@ -148,8 +155,15 @@ def test_golden_fixture_records_its_provenance():
     assert set(GOLDEN_KEYS) == {reset_golden.capture_key(s, st) for s, st, _, _ in reset_golden.DEFAULT_SPEC}
 
 
-#: Captures re-taken after 7db7f8e, each by a named plant revision of its species.
+#: Captures re-taken after 7db7f8e, each by a named plant revision of its species: the physics revision it was
+#: re-taken on, and the policy interface and observation schema its observation half was taken under (the last
+#: recapture, plant_versions note 18's heading-free observation, an interface-only revision).
 RECAPTURED = {"trex/stance": 9, "trex/recovery": 9, "compsognathus/recovery": 2}
+RECAPTURED_INTERFACES = {
+    "trex/stance": (14, "bipedal-target-heading-free/v1"),
+    "trex/recovery": (14, "bipedal-target-heading-free/v1"),
+    "compsognathus/recovery": (4, "bipedal-target-heading-free/v1"),
+}
 
 
 def test_recaptured_goldens_record_the_plant_they_were_taken_on():
@@ -162,6 +176,10 @@ def test_recaptured_goldens_record_the_plant_they_were_taken_on():
     """
     recaptures = GOLDEN.get("recaptures", {})
     assert {key: record["physics_revision"] for key, record in recaptures.items()} == RECAPTURED
+    assert {
+        key: (record["policy_interface_revision"], record["observation_schema"]) for key, record in recaptures.items()
+    } == RECAPTURED_INTERFACES
+    versions = load_plant_versions()[1]
     for key, record in recaptures.items():
         species = GOLDEN["captures"][key]["species"]
         plant = current_plant_identity(species)
@@ -169,6 +187,11 @@ def test_recaptured_goldens_record_the_plant_they_were_taken_on():
             plant.physics_revision,
             plant.physics_sha256,
         ), f"{key} was recaptured on another {species} plant; re-take it with reset_golden.py --recapture"
+        # The observation half is bound to its layout the same way: a later interface revision fails here.
+        assert (record["policy_interface_revision"], record["observation_schema"]) == (
+            plant.policy_interface_revision,
+            versions[species].observation_schema,
+        ), f"{key}'s observation was taken under another {species} interface; re-take it with --recapture"
         assert record["observation_includes_command_segment"] is True
         assert record["mujoco_version"] == GOLDEN["mujoco_version"] and record["reason"]
 
@@ -715,10 +738,21 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
 # ---------------------------------------------------------------------------
 
 CALIBRATED_SPECIES = ("compsognathus", "compsognathus_robot")
-#: The profiles that still carry the Phase C restamp.  The anatomical profile was re-measured on
-#: compsognathus physics r2 (D-D26; ``calibrate_recovery.py``): a physics change is exactly what a
-#: restamp refuses, so that profile records no ``restamp_history``.
-RESTAMPED_SPECIES = ("compsognathus_robot",)
+#: The profiles carrying exactly one restamp.  The robot's is the Phase C restamp.  The anatomical profile was
+#: re-measured on compsognathus physics r2 (D-D26; ``calibrate_recovery.py``), a physics change being exactly
+#: what a restamp refuses, and restamped once since, for its heading-free policy interface r4 (plant_versions
+#: note 18, D-D31), an interface-only revision on the physics it was measured on.
+RESTAMPED_SPECIES = ("compsognathus", "compsognathus_robot")
+#: Each restamp's reason (the tool's default is the Phase C one) and the observation width before it.
+RESTAMP_REASONS = {
+    "compsognathus": (
+        "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free "
+        "observations bipedal-target-heading-free/v1; physics r2 and the recovery [env] block unchanged; the "
+        "fixed-command nulls do not read the observation and the reset draw stream is unchanged "
+        "(tests/fixtures/phase_c_reset_golden.json)"
+    ),
+}
+PRE_RESTAMP_OBSERVATION_DIM = {"compsognathus": 56, "compsognathus_robot": 43}
 CONFIGS_ROOT = Path(__file__).resolve().parents[3] / "configs"
 
 
@@ -735,7 +769,7 @@ def _pre_restamp_copy(species: str, root: Path) -> tuple[Path, dict[str, Any]]:
     identity = dict(profile["plant_identity"])
     identity["policy_interface_revision"] = entry["previous_policy_interface_revision"]
     identity["policy_interface_sha256"] = entry["previous_policy_interface_sha256"]
-    identity["observation_dim"] = identity["observation_dim"] - COMMAND_WIDTH
+    identity["observation_dim"] = PRE_RESTAMP_OBSERVATION_DIM[species]
     profile["plant_identity"] = identity
     profile["task_sha256"] = entry["previous_task_sha256"]
     del profile["restamp_history"]
@@ -769,22 +803,27 @@ def test_committed_recovery_calibrations_load_and_record_one_restamp(species):
     assert entry["previous_policy_interface_revision"] == identity.policy_interface_revision - 1
     assert entry["previous_policy_interface_sha256"] != identity.policy_interface_sha256
     assert entry["previous_task_sha256"] != profile["task_sha256"]
-    assert entry["reason"] == RESTAMP_REASON
+    assert entry["reason"] == RESTAMP_REASONS.get(species, RESTAMP_REASON)
     assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
 
 
-def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement(tmp_path):
-    """Re-measured on the current plant, not restamped: it loads, names the plant it was measured on, records no
-    restamp, measured the committed recovery [env] block, and the restamp tool leaves it byte-identical."""
+def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement_with_one_heading_interface_restamp(
+    tmp_path,
+):
+    """Measured on the current physics, then restamped once for the heading-free interface: it loads, names the
+    physics it was measured on, measured the committed recovery [env] block, carries the one restamp from policy
+    interface r3, and the restamp tool leaves it byte-identical."""
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
     calibration = load_recovery_calibration("compsognathus")
     _, text, profile = _committed_profile("compsognathus")
-    assert "restamp_history" not in calibration.profile and "restamp_history" not in profile
     identity = current_plant_identity("compsognathus", verify_generated=False)
     assert profile["plant_identity"] == identity.to_dict()
     assert profile["plant_identity"]["physics_revision"] == 2
+    (entry,) = calibration.profile["restamp_history"]
+    assert (entry["previous_policy_interface_revision"], identity.policy_interface_revision) == (3, 4)
+    assert "heading-free" in entry["reason"] and "note 18" in entry["reason"]
     measured_env = json.loads(json.dumps(load_stage_config("compsognathus", "recovery")["env_kwargs"]))
     assert profile["recovery_env_kwargs"] == measured_env
     path = _committed_copy("compsognathus", tmp_path / "configs")
@@ -801,7 +840,12 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
     # explicitly so the replay does not depend on the checkout's HEAD).
     for species in RESTAMPED_SPECIES:
         path, entry = _pre_restamp_copy(species, root)
-        assert tool.restamp_recovery_calibration(species, path=path, commit=entry["restamped_at_commit"]) is True
+        assert (
+            tool.restamp_recovery_calibration(
+                species, path=path, commit=entry["restamped_at_commit"], reason=entry["reason"]
+            )
+            is True
+        )
         assert path.read_text(encoding="utf-8") == _committed_profile(species)[1], species
     for species in (species for species in CALIBRATED_SPECIES if species not in RESTAMPED_SPECIES):
         _committed_copy(species, root)

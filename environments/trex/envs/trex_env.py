@@ -5,17 +5,23 @@ A large bipedal predator with a massive skull and vestigial forelimbs.
 The Stage 3 task uses contact between a fixed head geom and prey as a
 "bite" proxy; the model has no articulated jaw.
 
-Observation space (total dimension is generated in the public species catalog):
+Observation space (bipedal-target-heading-free/v1 since policy interface r14;
+the total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 21 (21 hinge)
     - Joint velocities (qvel[6:]) — 21 (21 hinge)
-    - Pelvis orientation (quaternion) — 4
-    - Pelvis angular velocity (gyroscope) — 3
-    - Pelvis linear velocity — 3
-    - Pelvis acceleration — 3
+    - Pelvis projected gravity (unit down vector in pelvis coordinates) — 3
+    - Pelvis angular velocity (gyroscope, its own site frame) — 3
+    - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
+    - Pelvis acceleration (accelerometer, its own site frame) — 3
     - Foot contact forces (plantar pad + three digit touch sensors per foot) — 2
-    - Prey direction (unit vector) — 3
+    - Prey direction in pelvis coordinates (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
+
+No channel carries the world heading: the three root blocks come from the
+free root's own quaternion through environments/shared/heading_observation.py
+(docs/HEADING_INVARIANCE_DESIGN_2026_10.md), so turning the whole scene about
+vertical leaves the observation unchanged.
 
 Action space (total dimension is generated in the public species catalog):
     - Neck/head: neck pitch, neck yaw, head pitch (3)
@@ -67,6 +73,7 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
@@ -97,14 +104,22 @@ class TRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
     action_mapping = "home-keyframe-residual/v1"
+    # SB3 only since policy interface r14 (configs/plant_versions.toml note
+    # 18, decision D-D31): the heading-free observation has no frozen MJX
+    # builder, so the T-Rex left the D-D17 core and its mjx_config.py
+    # registration was deleted.  The plant contract now hashes _cache_ids
+    # (interface_implementations.sb3_sensor_cache) as it does for every
+    # SB3-only species, so a token edit there -- reward-target setup
+    # included -- is a policy-interface revision.
+    supported_training_backends = ("stable-baselines3",)
     # 10 Hz command low-pass (plant interface r11).  Stage-1 balance needs
     # ~1.1-1.4 Hz of closed-loop bandwidth (stance-gate filter probe), but
     # both 2026-08 stage-1 runs converged on statically unstable poses kept
     # up by 16.8-18.7 Hz command chatter that amplitude penalties cannot
     # price out.  The cutoff removes that bandwidth during training, with
-    # nearly a decade of margin above the task's needs.  Must match the MJX
-    # registration in environments/trex/mjx_config.py (the plant contract
-    # asserts it).  See
+    # nearly a decade of margin above the task's needs.  The plant contract
+    # hashes the cutoff and the filter arithmetic
+    # (interface_implementations.action_low_pass_filter).  See
     # docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
     action_filter_cutoff_hz = 10.0
     # Settled tail pose for the tail_home_pose term, in tail_home_joint_names
@@ -484,9 +499,9 @@ class TRexEnv(BaseDinoEnv):
         # a measured 500.4 N of floor contact.
         self._sensor_r_foot_digits = (24, 25, 26)
         self._sensor_l_foot_digits = (27, 28, 29)
-        # Per-foot groups for the base class's substep MIN aggregation --
-        # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices
-        # so the plant contract's MJX observation probe reads the same sensors.
+        # Per-foot groups for the base class's substep MIN aggregation and the
+        # observation's two foot channels; the plant contract records each
+        # group's sensor names in the foot_contact segment.
         self._foot_sensor_groups = (
             (self._sensor_r_foot, *self._sensor_r_foot_digits),
             (self._sensor_l_foot, *self._sensor_l_foot_digits),
@@ -704,20 +719,25 @@ class TRexEnv(BaseDinoEnv):
         return super()._filter_action(action)
 
     def _get_obs(self) -> np.ndarray:
-        """Construct observation vector."""
+        """Construct the bipedal-target-heading-free/v1 observation vector (63 values).
+
+        Since policy interface r14 no channel carries the world heading: the
+        pelvis orientation is projected gravity, the pelvis linear velocity is
+        expressed in the gravity-aligned heading frame and the prey direction
+        in pelvis coordinates, all three from the free root's own quaternion
+        qpos[3:7] (environments/shared/heading_observation.py), never from
+        the orientation sensor, which is still zero when the constructor
+        calls this before any forward pass.
+        """
         # Joint positions (exclude root freejoint: first 7 values)
         qpos = self.data.qpos[7:].copy()
 
         # Joint velocities (exclude root freejoint: first 6 values)
         qvel = self.data.qvel[6:].copy()
 
-        # Pelvis state from sensors
+        # Pelvis state from sensors, already in their own site frame (never rotated again)
         pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
         pelvis_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
-        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
-
-        # Pelvis linear velocity (from root freejoint)
-        pelvis_linvel = self.data.qvel[0:3].copy()
 
         # Foot contact (from touch sensors)
         foot_contact = np.array(self._foot_contact_forces())
@@ -728,19 +748,26 @@ class TRexEnv(BaseDinoEnv):
         prey_rel = prey_pos - pelvis_pos
         prey_distance = np.linalg.norm(prey_rel)
 
-        # Normalize prey direction
+        # Normalize prey direction (world frame; turned into pelvis coordinates below)
         prey_direction = prey_rel / (prey_distance + 1e-8)
+
+        # Heading-free root block: projected gravity, the root's world linear
+        # velocity (free joint qvel[0:3]) in the heading frame, the prey
+        # direction in pelvis coordinates.
+        gravity, heading_velocity, prey_direction_body = heading_free_root_segments(
+            self.data.qpos, self.data.qvel[0:3], prey_direction
+        )
 
         obs = np.concatenate(
             [
                 qpos,  # Joint positions
                 qvel,  # Joint velocities
-                pelvis_quat,  # Orientation (quaternion)
+                gravity,  # Projected gravity (unit down vector, pelvis frame)
                 pelvis_gyro,  # Angular velocity
-                pelvis_linvel,  # Linear velocity
+                heading_velocity,  # Linear velocity (forward, left, up)
                 pelvis_accel,  # Accelerometer
                 foot_contact,  # Foot contacts (2)
-                prey_direction,  # Direction to prey (unit vector)
+                prey_direction_body,  # Direction to prey (unit vector, pelvis frame)
                 [prey_distance],  # Distance to prey (scalar)
                 self._command,  # Body-relative command (v_x, v_y, yaw_rate), pre-scaled; zeros unless command_mode != "none"
             ]

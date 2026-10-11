@@ -548,9 +548,10 @@ stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). 
                                          # spawn turned about vertical by each offset -- the animal alone, and with
                                          # the prey and the episode's reference direction turned too -- beside an
                                          # unturned control, and write stance_heading_probe.{txt,json}. The stance
-                                         # stage always spawns facing +x and the observation carries heading
-                                         # through the world-frame pelvis quaternion, pelvis velocity and target
-                                         # direction, so no bar sees a stance that reads its heading. The handoff
+                                         # stage always spawns facing +x and up to policy interface r3 the
+                                         # observation carried heading through the world-frame pelvis quaternion,
+                                         # pelvis velocity and target direction, so no bar saw a stance that reads
+                                         # its heading (r4 observes none, D-D31). The handoff
                                          # tooling reads the probe: a whole-scene row whose full-horizon fraction is
                                          # below 0.95 is warned of, without blocking, where the probe is written and
                                          # wherever the stance is handed on or reused, and a stance with none (a

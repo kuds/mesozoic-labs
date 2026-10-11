@@ -37,6 +37,7 @@ from environments.shared.policy_loading import (
     _checkpoint_algorithm,
     assert_command_blind,
     load_sb3_model,
+    load_vecnormalize,
     neutralize_command_columns,
 )
 from environments.shared.result_bundle import sha256_file
@@ -136,9 +137,13 @@ def _load_ppo(model_path: Path, env: VecNormalize, learning_rate: float) -> PPO:
     return model
 
 
-def _normalizer(path: Path, venv: VecEnv) -> VecNormalize:
+def _normalizer(path: Path, venv: VecEnv, *, plant_identity: Any) -> VecNormalize:
+    # Statistics of another observation width are refused by their recorded plant
+    # identity, not by SB3's bare shape assertion (decision D-D31).
     try:
-        normalizer = VecNormalize.load(str(path), venv)
+        normalizer: VecNormalize = load_vecnormalize(
+            path, venv, plant_identity=plant_identity, vec_normalize_cls=VecNormalize
+        )
     except AttributeError as exc:
         if "BehaviorVecNormalize" not in str(exc):
             raise
@@ -204,7 +209,7 @@ def prepare_behavior_checkpoint(
     if not isinstance(task, Mapping) or task.get("species") != species or task.get("stage") not in (2, "locomotion"):
         raise BehaviorCheckpointError(f"The source must record the {species} locomotion task")
     venv = _venv(env, current.observation_dim, current.action_dim)
-    normalizer = _normalizer(vecnorm_path, venv)
+    normalizer = _normalizer(vecnorm_path, venv, plant_identity=current)
     assert isinstance(normalizer.obs_rms, RunningMeanStd)
     validate_model_plant(normalizer, current, artifact="parent walker normalization")
     if not np.array_equal(normalizer.obs_rms.mean[-COMMAND_WIDTH:], np.zeros(COMMAND_WIDTH)):
@@ -290,7 +295,7 @@ def load_behavior_checkpoint(
     plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
     validate_recorded_identity(plant, current, artifact="behavior checkpoint plant")
     venv = _venv(env, current.observation_dim, current.action_dim)
-    normalizer = _normalizer(vecnorm_path, venv)
+    normalizer = _normalizer(vecnorm_path, venv, plant_identity=current)
     if (
         getattr(normalizer, MODEL_IDENTITY_ATTRIBUTE, None) != plant
         or getattr(normalizer, MODEL_TASK_ATTRIBUTE, None) != recorded

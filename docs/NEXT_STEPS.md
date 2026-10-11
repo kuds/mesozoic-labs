@@ -99,7 +99,11 @@ reward pilots of #608 and any velociraptor run in progress on r3) and every
 dibothrosuchus physics-r1 checkpoint (`20260923_020654`'s statue-level
 stance and the re-run `20260928_012318`); nothing trained on brachiosaurus
 r4. Section 2's dibothrosuchus row and section 3's sessions 4 and 5 say so;
-the next velociraptor session trains on r4.* Section 2 labels each
+the next velociraptor session trains on r4.* *2026-10-11: and D-D31:
+heading-free observations for the trex (policy interface r14) and the
+anatomical compsognathus (r4), `configs/plant_versions.toml` note 18, which
+strands every trex r13 and compsognathus r3 checkpoint; the next stance of
+either species trains on them (section 3).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -348,7 +352,8 @@ research-only, not a trunk; that handoff tooling warns, without blocking, on a
 whole-scene probe row below 0.95; that the certificate is the full six-heading
 grid under gate kind `stance_quality_heading/v1`; and that T. rex moves to an
 elliptic friction cone as its own physics revision before its first
-heading-free stance.* The production migration remains pending.
+heading-free stance.* The observation migration is carried out (D-D31,
+below); the certificate is pending.
 *2026-10-11: the cone is carried out as trex physics r9 (D-D29,
 `configs/plant_versions.toml` note 16), so the first heading-free trex stance
 trains on physics r9 and policy interface r14, and no trex trains in between
@@ -356,6 +361,17 @@ trains on physics r9 and policy interface r14, and no trex trains in between
 hop-or-fall rail and the sole-contact margin first: the r9 statue nosedives on
 seed 3081, so it uses the rail's whole allowance on 3042–3081, and its pads
 load fewer contact points than on r8 (KNOWN_ISSUES' fore-aft entry).*
+*2026-10-11: the heading-free observations are carried out (D-D31,
+`configs/plant_versions.toml` note 18): the trex observes projected gravity,
+its velocity in the gravity-aligned heading frame and the prey direction in
+pelvis coordinates (policy interface r14, 63 wide, SB3-only), so the next
+trex stance trains on physics r9 and policy interface r14 with fresh weights
+and normalizer statistics, and nothing older loads into it. Until the
+heading certificate gates the stance, read its probe's whole-scene rows: the
+observation and the physics no longer depend on the heading, so a
+whole-scene row that differs from the unturned one can only come from
+floating-point rounding that the policy's closed loop amplifies, which is
+worth knowing about a stance before it is handed on.*
 
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and
@@ -367,7 +383,10 @@ after the compsognathus revision and before either trains, and trains on
 that PR's policy-interface revision, where the spawn-yaw probe becomes a
 gate check: a stance trained on the current observation, which reads the
 world heading, would be stranded by it, and no stance needs rolling at spawn
-yaw ±90° by hand. Then the maintainer trains at least two seeds; keep the
+yaw ±90° by hand. *2026-10-11: those observations are carried out (D-D31,
+`configs/plant_versions.toml` note 18): the anatomical compsognathus trains on
+policy interface r4 (55 wide), its recovery calibration restamped for it; the
+certificate gate follows separately.* Then the maintainer trains at least two seeds; keep the
 stance recipe's `log_std_init` −2.0, because the r2 statue survives σ 0.135
 exploration noise on 151 of 160 episodes and σ 0.20 on none (KNOWN_ISSUES).
 Also count each certified stance's per-foot lift-offs and view its root
@@ -676,8 +695,10 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   the D-D27 start (`log_std_init = -1.5`) changes that split and whether the
   learning rate the recipe's falsified prediction names matters are open;
   whether a certified stance must be heading-robust (both r8 stances fall
-  when spawned 90° off their training heading) was decided on 2026-10-07 and
-  is not yet carried out (heading-free observations, in a later PR)
+  when spawned 90° off their training heading) was decided on 2026-10-07; its
+  observation half is carried out for the trex and the anatomical
+  compsognathus (heading-free observations, D-D31) and its gate check is a
+  later PR
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
   §9 and §10; [KNOWN_ISSUES.md](KNOWN_ISSUES.md)).
 - Phase B items deferred by the maintainer on 2026-09-13 stay deferred

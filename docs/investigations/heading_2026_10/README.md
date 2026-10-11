@@ -37,6 +37,15 @@ tree `1b860f0690061ef5134a330b5b3331a12f0a8372`; their commit metadata differs.
 
 ## Commands
 
+*Since 2026-10-11 (decision D-D31, `configs/plant_versions.toml` note 18) the
+production T. rex and anatomical Compsognathus observations are heading-free
+themselves (63 and 55 wide, `environments/shared/heading_observation.py`).
+`prototype.py` converts the pre-migration 64- and 56-wide layouts and refuses
+the new ones, so `test_prototype.py` and `run_study.py` run only at a commit
+before the migration (`0e4412c4` or earlier); the production tests are
+`environments/shared/tests/test_heading_observation.py` and
+`test_heading_free_observation.py`.*
+
 From the repository root, in an environment with the repository, its test and
 SB3 dependencies installed (the recorded runtime used an editable repository
 install, so direct script execution can import `environments`):

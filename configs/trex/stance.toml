@@ -505,7 +505,7 @@ train_freq = 16                  # Collect 16 env steps before training — matc
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on small buffer
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Match PPO architecture (obs is 64: arms/distal tail welded, plus the Phase C command segment)
+net_arch = [512, 256]            # Match PPO architecture (obs is 63, heading-free since policy interface r14: arms/distal tail welded, plus the Phase C command segment)
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
@@ -992,18 +992,19 @@ hop_watch_stop = true                    # Stop rather than warn: a seed still h
 stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]  # REPORT ONLY (D-D27). After the gate
                                          # report, re-roll the policy and the zero-action statue on 8 seeds with the
                                          # spawn turned about vertical by each offset -- the animal alone, and with
-                                         # the prey and the heading reward's reference direction (then only the
-                                         # world-frame observation differs) -- beside an unturned control, and write
+                                         # the prey and the heading reward's reference direction (then neither
+                                         # the physics, since r9, nor the observation, since policy interface
+                                         # r14, differs) -- beside an unturned control, and write
                                          # stance_heading_probe.{txt,json}. The stance stage always spawns facing
-                                         # +x and the observation carries heading only through the world-frame
-                                         # pelvis quaternion, velocity and prey direction, so no bar sees a stance
-                                         # that reads its heading: the r8 seed 44 stood 0/8 spawned at +90 deg and
+                                         # +x and up to r13 the observation carried heading only through the
+                                         # world-frame pelvis quaternion, velocity and prey direction, so no bar saw a
+                                         # stance that reads its heading: the r8 seed 44 stood 0/8 spawned at +90 deg and
                                          # seed 42 fell 4/4 at +-90, where the statue stands 16/16 (reward about 100
                                          # lower with the prey left behind: the heading term). Whether stance
                                          # certification should require heading robustness was decided by the
-                                         # maintainer on 2026-10-07 and is not yet carried out: heading-free
-                                         # observations, in a later PR that makes this probe a gate check
-                                         # (docs/KNOWN_ISSUES.md). 18 panels of 8 episodes.
+                                         # maintainer on 2026-10-07: heading-free observations, carried out in
+                                         # policy interface r14 (D-D31), and a later PR that makes this probe a gate
+                                         # check (docs/KNOWN_ISSUES.md). 18 panels of 8 episodes.
 stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
