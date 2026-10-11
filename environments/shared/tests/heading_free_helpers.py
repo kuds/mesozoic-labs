@@ -12,7 +12,9 @@ must equal 0 degrees' to the contact solver's tolerance.
 The tolerances against what was measured on these plants (MuJoCo 3.10.0,
 seed 3042, the zero action and the fixed linear policy below, 250 steps):
 actions 0 (the float32 actions agree exactly), joint state 2.9e-13, reward
-2.9e-12, observation 1.2e-10.  ``ACTION_ATOL`` is
+3.0e-12, observation 1.2e-10; over the full horizon of seeds 3042-3043
+behind the frozen PPO policy of ``test_heading_free_rollouts``, joint state
+4.5e-13, reward 3.0e-12 and observation 2.3e-10.  ``ACTION_ATOL`` is
 ``policy_loading.ACTION_DELTA_ATOL``'s precedent and ``FLOAT32_BUDGET`` the
 design's float32 budget for corresponding states.
 """

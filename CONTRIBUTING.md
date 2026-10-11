@@ -88,8 +88,8 @@ hooks: no digest hashes a Python file's bytes, and the policy-interface digests
 hash the tokens of named functions only (not comments, docstrings or blank
 lines), which CI's pinned ruff keeps from changing. The one exception is
 the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
-`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the three
-`mjx_config.py` registrations): three species' policy-interface digests hash its
+`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the two
+`mjx_config.py` registrations): two species' policy-interface digests hash its
 function tokens, so `pyproject.toml`'s `[tool.ruff]` `extend-exclude`, with
 `force-exclude`, keeps every ruff run off it (the hooks, CI, and a file named
 on the command line), and `test_plant_contract_frozen_mjx.py` pins the list.
@@ -176,11 +176,17 @@ Follow this checklist:
      (decision D-D17); without the attribute the plant contract treats the
      species as dual-backend and fails with "cannot import MJX plant
      registration"
-   - Do not add an `mjx_config.py`: the three that exist belong to the frozen
-     MJX interface core, which the policy-interface digests of T-Rex,
-     Brachiosaurus and Dibothrosuchus hash and which is never
+   - Do not add an `mjx_config.py`: the two that exist belong to the frozen
+     MJX interface core, which the policy-interface digests of Brachiosaurus
+     and Dibothrosuchus hash and which is never
      edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
      binding")
+   - A biped can take the heading-free observation schema
+     `bipedal-target-heading-free/v1`, as the T-Rex and the anatomical
+     Compsognathus do: build its root block with
+     `environments/shared/heading_observation.heading_free_root_segments`
+     and declare the schema in `configs/plant_versions.toml`
+     (`docs/PLANT_CONTRACT.md`, "The heading-free observation schema")
 
 5. **Add curriculum configs** (`configs/<species>/`):
    - Create `stage1_balance.toml`, `stage2_locomotion.toml`, `stage3_<behavior>.toml`

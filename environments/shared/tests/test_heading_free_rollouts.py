@@ -14,13 +14,13 @@ whose statistics were gathered on 512 steps of small random actions
 realistic spread, as a trained policy's is.  Statistics gathered under the
 zero action alone leave near-constant channels with a standard deviation
 near 1e-3, and behind them the untrained policy's closed loop on the
-compsognathus is unstable: a one-ulp float32 action difference at step 145
-of seed 3042 grows about threefold per step to 0.03 by the end, at every
-heading but 0 degrees -- the rounding of a rotated state, amplified by the
-policy, not a heading leak (the observations agree to 2.3e-10 up to that
-step).  The same seed under the stable policy below agrees to 4.5e-13 in
-joint state over the whole horizon.  Two
-comparisons per species, seeds 3042 and 3043 over the full 1000-step
+compsognathus is unstable: a one-ulp float32 action difference (at step
+145 of seed 3042; 226 at +90 degrees) grows step by step to 0.03 in action
+and 0.33 rad in joint state by the end, at every heading but 0 degrees --
+the rounding of a rotated state amplified by the policy, not a heading leak
+(the observations agree to 2.3e-10 until then).  The same seed behind the
+statistics below agrees to 4.5e-13 in joint state over the whole horizon.
+Two comparisons per species, seeds 3042 and 3043 over the full 1000-step
 horizon: the float64 traces of ``heading_free_helpers.paired_traces``, and
 the ``stance_quality/v2`` floor-truth panel (``run_panel(...,
 floor_truth=True)`` with the heading probe's whole-scene ``SpawnYaw``), whose

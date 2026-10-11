@@ -19,6 +19,7 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Legs**: Powerful digitigrade legs with 7 joints each (hip pitch/roll, knee, ankle, toe d2/d3/d4); the 4 proximal joints are actuated, the 3 toe digits ride passive springs. Since physics r8 (`configs/plant_versions.toml` note 13) the hip-roll servos are kp 600 / ±480 N·m, stiff enough that both legs together out-resist the body's lateral sway (2 × (kp + 40) = 1280 against m·g·h = 704 N·m/rad); at kp 150 the zero-action statue stood on a rolled pad in some episodes
 - **Contacts**: an elliptic friction cone since physics r9 (note 16), so the box plantar pads, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
 - **Tail**: 5 segments, 4 actuated (pitch 1, yaw 1, pitch 2, pitch 3), heavy counterbalance to skull
+- **Observation**: heading-free since policy interface r14 (`bipedal-target-heading-free/v1`, decision D-D31, `configs/plant_versions.toml` note 18): projected gravity in place of the world pelvis quaternion, the pelvis velocity in the gravity-aligned heading frame (forward, left, up) and the prey direction in pelvis coordinates, all from the free root's quaternion (`environments/shared/heading_observation.py`), beside the joint state, the site-frame gyro and accelerometer, the two foot-contact sums, the prey distance and the trailing command; no channel reads the world heading. The T-Rex is SB3-only from r14 (its frozen MJX registration was deleted), and every r13 checkpoint is refused
 
 ### Reward Components
 - **Forward velocity** - Movement toward prey target
@@ -40,8 +41,9 @@ re-plant in the settle and no more than 25° of turning; and at most one of the 
 fall. The bars and their measured provenance are in `configs/trex/stance.toml`. The verdict is the post-stage
 `stance_gate_report.json` on the handoff checkpoint pair, never an in-training evaluation. Beside it the report writes
 a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by ±45° and ±90°), which is
-report only: the stance stage always spawns at the same heading, and the heading-free observations the maintainer
-chose on 2026-10-07, which make the probe a gate check, are a later PR (`docs/KNOWN_ISSUES.md`). Until then a
+report only: the stance stage always spawns at the same heading, and the heading certificate that will make heading a
+gate check is a later PR; the heading-free observations the maintainer chose on 2026-10-07 are carried out (policy
+interface r14, below), so a whole-scene turn no longer changes what the policy sees (`docs/KNOWN_ISSUES.md`). Until then a
 whole-scene row whose full-horizon fraction is below 0.95, the v2 per-panel rail, is warned of without blocking, in the
 probe's text and wherever the stance is handed on or reused (the maintainer's decision of 2026-10-11). The first two
 physics-r8 stances (`20261006_185343`, `20261006_185704`) both failed this gate; what they did and what decision D-D27

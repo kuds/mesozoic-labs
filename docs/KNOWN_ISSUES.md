@@ -1314,6 +1314,23 @@ robustness, **LOW** = cosmetic / QoL.
   warns that its heading robustness is unmeasured; the command-line
   curriculum rolls no probe, so every stance it trains of those four species
   warns so at its handoff. No verdict changes.
+  *Update (2026-10-11, D-D31):* the observation half of the fix is carried
+  out. The T. rex (policy interface r14) and the anatomical compsognathus
+  (r4) observe projected gravity, the root velocity in the gravity-aligned
+  heading frame and the prey direction in pelvis coordinates
+  (`bipedal-target-heading-free/v1`, `configs/plant_versions.toml` note 18),
+  so a whole-scene turn leaves their observation unchanged and one seed's
+  six headings repeat the same episode to solver tolerance; every T. rex r13
+  and compsognathus r3 checkpoint is refused, the probed stances above
+  included. The entry stays open until the heading certificate gates a
+  stance: until then no certificate tests heading, and a heading-free
+  policy can still behave differently turned than at the training heading,
+  though only through floating-point rounding that an unstable closed loop
+  amplifies (an untrained policy behind near-degenerate normalizer
+  statistics diverged by 0.03 in action over 1000 steps; see
+  `environments/shared/tests/test_heading_free_rollouts.py`). The
+  velociraptor and the compsognathus robot still read world-frame
+  channels.
 
 - **LOW** — **the pad centre-of-pressure bar leaves partial-edge stances
   open, and only the T. rex and the compsognathus declare it (measured

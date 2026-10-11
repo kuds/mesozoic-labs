@@ -1,6 +1,6 @@
 # Heading-free observations and stance certification
 
-Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; production migration not implemented**.
+Date: 2026-10-08; revised 2026-10-10 after review. Status: **design with executable research evidence; the observation migration is carried out (D-D31, 2026-10-11), the heading certificate is not implemented**.
 Repository baseline: `10f859f96223054932bdc4fa883b1153dde78500` (#604).
 
 ## Recommendation
@@ -216,6 +216,26 @@ continuous at that singularity. Invalid or zero quaternions should fail with a
 clear state error, rather than silently injecting a world-axis default. Tests
 cover both vertical signs, near-vertical poses, global rotations and q/−q.
 
+*Carried out 2026-10-11 as T. rex policy interface r14 and anatomical
+Compsognathus r4 (decision D-D31, `configs/plant_versions.toml` note 18),
+with the contract above unchanged.* `environments/shared/heading_observation.py`
+builds the three segments from `qpos[3:7]` in float64, with the 1e−8 fallback
+and an `ObservationStateError` for a quaternion that is not four finite
+numbers or has norm below 1e−12. `TRexEnv._get_obs` and a new
+`CompsognathusBiologicalEnv._get_obs` assemble the table's order (63 and 55
+wide); the robot keeps its world-frame layout. The target vector keeps its
+origin at `xpos[pelvis]`, so the distance channel keeps its meaning; after a
+step `qpos` is post-integration while `xpos` and the sensors come from the
+last substep's forward pass, the same one-substep mix the old `qvel[0:3]`
+channel had, which leaves the invariance intact. The plant contract's
+segments for the schema name each block's frame and threshold and describe
+the foot channel per foot (two widths of two, each a sum over its listed
+touch sensors), and it checks that the widths sum to the observation width.
+Measured on the production environments: a global yaw leaves the float32
+observation unchanged on 100 lifted, tilted, moving states × 7 turns per
+species (0 against the 2 × 10⁻⁶ budget), `R` matches `mju_quat2Mat` to
+4.4 × 10⁻¹⁶ and the fallback holds to 3.3 × 10⁻¹⁶.
+
 Projected gravity is preferred over the same-width yaw-removed quaternion:
 there is no quaternion sign ambiguity, fewer channels are needed, and the
 interface expresses the balance quantity directly. The quaternion candidate
@@ -368,6 +388,16 @@ Restoring an MJX training runtime with the new representation would be a
 separate project with a versioned backend path and parity tests. Editing the
 remaining frozen builders or bypassing their parity checks is not part of this
 migration.
+
+*Carried out 2026-10-11 (D-D31):* `TRexEnv` declares
+`supported_training_backends = ("stable-baselines3",)`, the species manifest
+`training_backends = ["stable-baselines3"]` (its two JAX success metrics
+removed), `environments/trex/mjx_config.py` is deleted with its ruff
+exclusion, and the frozen-core pin covers the Brachiosaurus and
+Dibothrosuchus registrations, which are unchanged; the low-pass filter pins
+stay. The plant contract also refuses the heading-free schema on any species
+that declares `jax-mjx`. As for every SB3-only species, T. rex's `_cache_ids`
+tokens now enter its policy digest, which the maintainer accepted.
 
 ## Heading certificate
 
@@ -525,6 +555,27 @@ Acceptance must include:
   fingerprints move intentionally. Do not loosen pad, CoP or hop bars to get
   the first new runs through.
 
+*Carried out 2026-10-11 for the observation (D-D31): steps 1, 3 and 4 above,
+and the acceptance items that do not involve the certificate.* The tests are
+`test_heading_observation.py` (frame algebra), `test_heading_free_observation.py`
+(lifecycle, local sensors, whole-scene and animal-only turns, q/−q, and a
+250-step six-heading paired rollout per species in the shared legs),
+`test_plant_contract_heading_free.py`, `test_heading_free_checkpoints.py`
+(SB3 save, load, evaluation and interrupted-run resumption on the new
+environments, and old checkpoints and normalizers refused on the training,
+evaluation, auto-trunk and `TRUNK_FROM` paths, the widen gate and the
+behavior preparation, each by plant identity) and
+`test_heading_free_rollouts.py` (full-horizon traces and every floor-truth
+metric behind a frozen normalizer and an untrained PPO policy, in the SB3
+job's full depth). The digest snapshot moves only T. rex and Compsognathus
+lines (649 → 643; 84 reward lines unchanged), the reset golden's reset,
+second-reset and trajectory halves re-took byte-identical, and the digest
+harness's `--exact` captures of the base and the migration differ only in the
+two species' `reset` and `obs` streams (586 of 37,034 lines): rewards,
+termination and physics match at corresponding states. The Compsognathus
+recovery calibration is restamped. The certificate items (step 2, and grid
+completeness, grouped confidence and the end-to-end refusal) remain.
+
 The heading certificate multiplies final panel simulation work by six: 240
 policy plus 240 statue episodes per seed block. That is an explicit cost at
 certification time, not a sixfold training cost. At the step rates recorded in
@@ -538,7 +589,16 @@ checkpoint selection if it will be used for admission.
 With heading-free observations, the headings of a seed that the physics treats
 identically (all six for both species since T. rex's physics r9; on r8,
 −90°, 0°, +90° and 180° for T. rex) are deterministic replicates of one
-episode, so beyond catching a leak they add only cost. The maintainer chose on 2026-10-11 to keep the full
+episode, so beyond catching a leak they add only cost. *(Measured on the
+migration, D-D31: replicates to solver tolerance under a stable closed loop
+-- the same float32 actions and joint state to 4.5 × 10⁻¹³ over 1000 steps,
+every floor-truth metric to 2 × 10⁻¹⁰ -- but not exactly in floating point.
+An untrained PPO policy behind normalizer statistics gathered on the zero
+action alone, whose closed loop on the Compsognathus is unstable, amplified a
+one-ulp action difference at step 145 to 0.03 in action and 0.33 rad in
+joint state by step 1000 at every heading but 0°. A trained policy with an
+unstable loop could therefore still separate headings through rounding,
+without any leak.)* The maintainer chose on 2026-10-11 to keep the full
 six-heading grid anyway: a few minutes per seed block cost little against a
 roughly 15 h stance run, and the grid is the check that would have refused
 `20261009_155723`. A cheaper variant was considered and not adopted: the 40-seed

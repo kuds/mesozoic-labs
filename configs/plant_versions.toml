@@ -443,6 +443,79 @@ observation_schema = "bipedal-target/v1"
 #     digests are unchanged, so policy stays 13 and visual 4.  Every T-Rex
 #     physics-r8 checkpoint is invalidated (the plant check compares
 #     physics_sha256); no widen applies.
+# 18. T-Rex and anatomical compsognathus observations made heading-free
+#     (decision D-D31; docs/HEADING_INVARIANCE_DESIGN_2026_10.md).  Both fed
+#     their policies the root's world quaternion, world linear velocity and
+#     world prey direction, so a stance could learn to depend on its world
+#     heading where no stance criterion sees it: stance_quality/v2 certified
+#     the seed-52 T-Rex stance 20261009_155723, which stands 0/8 with the
+#     whole scene turned -90 or -45 deg.  Schema
+#     bipedal-target-heading-free/v1 (environments/shared/heading_observation.py)
+#     replaces those three blocks and keeps every other channel:
+#
+#       segment                          trex  compso  content
+#       joint_position, joint_velocity   21+21 17+17   unchanged
+#       pelvis_projected_gravity         3     3       R^T (0, 0, -1): unit down in pelvis
+#                                                      coordinates (was the 4-wide quaternion)
+#       pelvis_angular_velocity          3     3       gyro, its own site frame (unchanged)
+#       pelvis_heading_linear_velocity   3     3       qvel[0:3] in the gravity-aligned heading
+#                                                      frame: forward, left, up
+#       pelvis_linear_acceleration       3     3       accelerometer, site frame (unchanged)
+#       foot_contact                     2     2       per-foot touch sums (unchanged)
+#       prey_direction_body              3     3       R^T d, the normalized pelvis-to-prey
+#                                                      direction in pelvis coordinates
+#       prey_distance                    1     1       unchanged (from xpos[pelvis])
+#       command                          3     3       unchanged, last
+#
+#     R is built from the free root's own quaternion qpos[3:7], validated and
+#     normalized in float64 (the constructor calls _get_obs before any
+#     forward pass, where xmat and the orientation sensor still read zero),
+#     and the observation is cast to float32.  The heading frame's forward
+#     axis is the horizontal projection of pelvis X; below 1e-8 (pelvis X
+#     vertical, a terminal pose) the horizontal projection of pelvis Y turned
+#     clockwise 90 deg stands in, which turns with the scene.  A quaternion
+#     that is not four finite numbers or has norm below 1e-12 is an
+#     ObservationStateError, never a world-axis default.  Measured: a global
+#     yaw leaves the float32 observation unchanged on 100 lifted, tilted,
+#     moving states x 7 turns per species (0 against the design's 2e-6),
+#     q and -q read the same, and one seed turned with its whole scene to
+#     each of -90, -45, 0, 45, 90 and 180 deg repeats its episode: the same
+#     float32 actions, joint state to 2.9e-13, rewards to 3.0e-12 per step
+#     (250 steps, zero action and a fixed linear policy), and over the full
+#     1000 steps of seeds 3042-3043 behind an untrained PPO policy and a
+#     frozen VecNormalize joint state to 4.5e-13 and every floor-truth stance
+#     metric to 2e-10.
+#
+#     T-Rex policy interface r13 -> r14 (64 -> 63 wide); anatomical
+#     compsognathus r3 -> r4 (56 -> 55, through
+#     CompsognathusBiologicalEnv._get_obs, so the robot keeps
+#     CompsognathusEnv's observation and every digest).  The plant contract's
+#     segments for this schema name each block's frame, source and threshold
+#     and describe the feet per foot, their widths are checked to sum to the
+#     observation width with the command last, and the helpers' tokens are
+#     hashed beside _get_obs (interface_implementations.heading_free_observation).
+#     The frozen MJX builders (D-D17) emit only the legacy layout, so the
+#     T-Rex leaves the core as the velociraptor did at note 14: SB3-only,
+#     with environments/trex/mjx_config.py deleted; its low-pass filter stays
+#     hashed (interface_implementations.action_low_pass_filter).  As for every
+#     SB3-only species its _cache_ids tokens now enter its policy digest
+#     (sb3_sensor_cache), so a token edit there, reward-target setup
+#     included, is a policy-interface revision.  (trex.xml's sensor comment
+#     still names the deleted registration: an MJCF edit would move the
+#     source closure, so it waits for the next T-Rex physics revision.)
+#
+#     Only the POLICY INTERFACE moves: PHYSICS (trex 3d68ae.., compsognathus
+#     592064..), VISUAL (7042dc.., 340185..) and the source closures are
+#     unchanged, and rewards, terminations and dynamics are bit-identical at
+#     corresponding states.  Every T-Rex policy-interface-r13 and anatomical
+#     compsognathus r3 checkpoint is invalidated (the plant check compares
+#     the interface digest and the observation width) and none can be
+#     widened: the width moves by -1, not by a command segment.  The
+#     compsognathus recovery calibration was restamped, not re-measured
+#     (restamp_recovery_calibration.py; physics and the recovery [env] block
+#     unchanged, and its fixed-command nulls do not read the observation);
+#     its profile_sha256 moves, so a recovery freeze made before must be
+#     re-frozen.
 [plants.trex]
 physics_revision = 9
 policy_interface_revision = 14
@@ -638,6 +711,9 @@ observation_schema = "quadrupedal-target/v1"
 #     certified 20260921_203149 and 20261001_225856 stances and the
 #     20260921_203149 walker included, and the task digest of every
 #     compsognathus stage and behavior recipe moves with the plant.
+#
+# Compsognathus policy interface r4: note 18, above [plants.trex] (the
+# heading-free observation, D-D31).
 [plants.compsognathus]
 physics_revision = 2
 policy_interface_revision = 4
