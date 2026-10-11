@@ -92,8 +92,9 @@ def test_active_contact_override_option_changes_physics_fingerprint(raptor_layer
         '<flag warmstart="enable" override="enable"/>',
         1,
     )
-    option = '<option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">'
+    option = '<option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">'
     changed_source = base_source.replace(option, option[:-1] + ' o_margin="0.1">', 1)
+    assert changed_source != base_source  # the raptor's <option> as authored (elliptic since physics r4)
     base = fingerprint_model_layers(mujoco.MjModel.from_xml_string(base_source), interface, version)
     changed = fingerprint_model_layers(mujoco.MjModel.from_xml_string(changed_source), interface, version)
 
@@ -140,8 +141,9 @@ def test_noncolliding_fluid_geom_changes_physics_fingerprint():
         source = (
             GENERATED_MANIFEST_PATH.parent.parent / "environments/brachiosaurus/assets/brachiosaurus.xml"
         ).read_text()
-        option = '<option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">'
+        option = '<option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">'
         base_source = source.replace(option, option[:-1] + ' density="1">', 1)
+        assert base_source != source  # the brachiosaurus's <option> as authored (elliptic since physics r5)
         changed_source = base_source.replace(
             'mass="8.0" material="body_mat" contype="0" conaffinity="0"/>',
             'mass="8.0" material="body_mat" contype="0" conaffinity="0" fluidshape="ellipsoid" fluidcoef="1 1 1 1 1"/>',

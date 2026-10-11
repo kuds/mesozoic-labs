@@ -116,7 +116,9 @@ the home controls carry the gravity preload, so the nominal leg servos hold the 
 with or without the springs, and the statue settles at the 0.35 rad natural lean. Each foot's contact observation is
 the sum of three touch sensors, on the middle toe, the outer toe and the metatarsus, and equals the floor force under
 the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
-interface revision 11; it has no `mjx_config.py`.
+interface revision 11; it has no `mjx_config.py`. Since physics r4 (note 17, decision D-D30) the friction cone is
+elliptic, the one friction model of every species: the capsule feet were already heading-invariant under MuJoCo's
+default pyramidal cone, and the elliptic cone keeps any foot shape so.
 
 ### Stance gate
 The stance stage certifies under `stance_quality/v2` (decision D-D25): each episode of the 40-episode panel (seeds

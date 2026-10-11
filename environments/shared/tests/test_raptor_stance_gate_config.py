@@ -244,12 +244,13 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     """min_avg_reward is 0.60 and collapse_peak_floor 0.75 of the statue, rounded to 10; the ratio states 0.60 itself.
 
-    The reference is the r3 statue's standing reward (2842.76, 40 episodes, seeds 3042-3081), pinned to the
-    physics revision it was measured on (test_statue_constant_freshness.py checks the pin); the explicit
-    floor still wins over it in collapse_settings_from_config.
+    The reference is the r3 statue's standing reward (2842.76, 40 episodes, seeds 3042-3081; 2843.00 on the
+    elliptic cone of physics r4, so it carries), pinned to the physics revision it was last measured on
+    (test_statue_constant_freshness.py checks the pin); the explicit floor still wins over it in
+    collapse_settings_from_config.
     """
     reference = curriculum["collapse_peak_floor_reference"]
-    assert reference == 2842.8 and curriculum["statue_constants_physics_revision"] == 3
+    assert reference == 2842.8 and curriculum["statue_constants_physics_revision"] == 4
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert curriculum["collapse_peak_floor"] == round(0.75 * reference, -1)
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60

@@ -20,6 +20,7 @@ from the species manifest, executable environment, compiled MJCF, current TOML s
 - **Front legs**: Longer than rear (shoulder height ~2.2m), 5 joints each (hip pitch/roll, knee, ankle, toe) with semi-digitigrade metacarpal segment
 - **Rear legs**: Shorter (hip height ~1.8m), same joint structure with semi-digitigrade metatarsal segment
 - **Tail**: Segmented counterbalance with actuated controls
+- **Contacts**: an elliptic friction cone since physics r5 (`configs/plant_versions.toml` note 17, decision D-D30), so the ellipsoid feet, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics, more than on any other species
 
 ### Reward Components
 - **Forward velocity** - Movement toward food target

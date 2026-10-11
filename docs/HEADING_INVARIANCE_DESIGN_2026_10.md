@@ -251,8 +251,15 @@ about 4 × 10⁻³ degrees), though random open-loop actions separate the joint
 trajectories by a few hundredths of a radian; with `cone="elliptic"` every
 compared case agreed to about 10⁻¹⁴. Velociraptor's floor contacts are capsules,
 whose tangent frame turns with the foot, and stay yaw-invariant at 45° under the
-pyramidal cone. Anatomical Compsognathus already declares `cone="elliptic"`; its
-statue rows agree to about 3 × 10⁻¹⁰ at all six headings.
+pyramidal cone; a fall onto its ellipsoid head did not. Anatomical Compsognathus
+already declares `cone="elliptic"`; its statue rows agree to about 3 × 10⁻¹⁰ at
+all six headings. *Since D-D30 (2026-10-11, `configs/plant_versions.toml` note
+17) the velociraptor (physics r4), the brachiosaurus (r5) and the dibothrosuchus
+(r2) declare it too, so every plant has one friction model and every heading of
+every species is physically identical: their statues' ±45° rows agree to
+1.4 × 10⁻¹² (on the old plants up to 0.84 on the brachiosaurus's ellipsoid feet
+and 3.7 × 10⁻² on the dibothrosuchus's box pads), and a later species'
+heading-free migration needs no physics revision of its own for the cone.*
 
 The maintainer chose on 2026-10-11 to switch T. rex to `cone="elliptic"` in the
 same retrain window. It is a physics revision of its own (a new physics

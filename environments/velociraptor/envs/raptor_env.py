@@ -188,7 +188,8 @@ class RaptorEnv(BaseDinoEnv):
         # and nosedive termination are measured relative to this angle so the
         # raptor is not rewarded for abandoning its biomechanically supported
         # forward lean.  Measured, not authored: the physics-r3 statue settles
-        # at 20.10° (0.3508 rad over 40 seeds at reset noise 0.05), where the
+        # at 20.10° (0.3508 rad over 40 seeds at reset noise 0.05; the r4 one,
+        # on the elliptic cone, at 20.02°, 0.3494 rad), where the
         # r2 plant settled at 24.0° and the statue paid -95 per episode of
         # nosedive charge for standing still.  TestNaturalPitchTracksStance
         # pins the default to the settled stance.

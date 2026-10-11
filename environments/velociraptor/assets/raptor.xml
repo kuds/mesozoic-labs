@@ -1,7 +1,19 @@
 <mujoco model="velociraptor">
   <compiler angle="degree" autolimits="true"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
+  <!-- Elliptic friction cone since physics r4 (plant_versions note 17,
+       D-D30): one friction model for every species.  The floor contacts
+       here are capsules (metatarsus, digits III and IV), whose contact
+       tangent frames turn with the foot, so under MuJoCo's default pyramidal
+       cone the standing statue was already heading-invariant; a fall onto
+       the ellipsoid head was not (under random commands a 45 deg turn of the
+       whole scene separated the joints by 5e-3 rad once it fell).  The
+       elliptic cone is isotropic, so every heading is physically identical
+       for any geom, as on T. rex and Compsognathus; test_friction_cone.py
+       pins both.
+       The other solver options already match theirs on MuJoCo 3.10.0
+       (Newton, 100 iterations, impratio 1). -->
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">
     <flag warmstart="enable"/>
   </option>
 
@@ -439,8 +451,9 @@
        within 0.1 deg on every leg joint, and still do with every leg spring
        deleted.
 
-       Under the home controller this settles to 20.10 deg of pelvis pitch
-       (0.3508 rad over 40 seeds at reset noise 0.05) and pelvis 0.5052 m.
+       Under the home controller this settles to 20.02 deg of pelvis pitch
+       (0.3494 rad over 40 seeds at reset noise 0.05) and pelvis 0.5055 m
+       (20.10 deg, 0.3508 rad and 0.5052 m on physics r3).
        Those are load-bearing constants elsewhere and must be re-measured
        together with any edit here, along with the ctrl preload
        (re-measure tau_g):

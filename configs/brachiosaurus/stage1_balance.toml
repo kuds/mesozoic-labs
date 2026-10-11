@@ -75,9 +75,14 @@ min_avg_reward = 1040.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # 40 episodes; plant_versions notes 7-8 — before those repairs the statue
                                         # fell 40/40 and no stage-1 number meant anything). Only rejects a policy
                                         # that discarded most of the available return; 0.60 rather than §12's 0.89
-                                        # for the reason derived in the trex config.
+                                        # for the reason derived in the trex config. Re-measured on physics r5
+                                        # (plant_versions note 17: the elliptic friction cone), same command:
+                                        # 1738.38 +/- 1.46, 40/40 full horizon (80/80 on 3082-3161), -0.7, about
+                                        # three standard errors, so the figure moves rather than carries; the rail
+                                        # does not: 0.60 x 1738.4 = 1043.0 still rounds to 1040.
 collapse_peak_floor = 1300.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
-                                        # below a plausible active-policy peak. Absolute pending §14 item 3.
+                                        # below a plausible active-policy peak. Absolute pending §14 item 3. On
+                                        # physics r5 0.75 x 1738.4 = 1303.8 still rounds to 1300.
 min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the repaired statue measures 100%.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
@@ -89,8 +94,8 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (the trex stance
                                          # precedent; early_stopping.py). Same shape as dibothrosuchus stage 1:
                                          # under home-keyframe-residual/v1 the UNTRAINED policy is the statue
-                                         # (1739.1 +/- 1.2, re-measured 2026-09-23), above the 1300 floor, so
-                                         # without a warm-up the backstop arms at eval 20 (1.0M) on the
+                                         # (1739.1 +/- 1.2, re-measured 2026-09-23; 1738.4 on physics r5), above the
+                                         # 1300 floor, so without a warm-up the backstop arms at eval 20 (1.0M) on the
                                          # initialisation peak and an exploration dip stops the run -- what
-                                         # dibothrosuchus run 20260923_020654 did at 1.45M of 6M. 1.0M is carried
-                                         # over from that replay; no current-plant brachiosaurus series exists.
+                                         # dibothrosuchus run 20260923_020654 did at 1.45M of 6M. 1.0M is carried over
+                                         # from that replay; no current-plant brachiosaurus series exists.

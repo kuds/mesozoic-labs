@@ -197,7 +197,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # preload), and the soft-cubic leg residual of CompsognathusBiologicalEnv.
     # The robot is untouched.
     # T-Rex physics r9 (plant_versions note 16) switched the friction cone to
-    # elliptic: PHYSICS only, policy and visual unchanged.
+    # elliptic: PHYSICS only, policy and visual unchanged. Velociraptor r4,
+    # brachiosaurus r5 and dibothrosuchus r2 (note 17) did the same.
     expected_policy_revisions = {
         "velociraptor": 11,
         "trex": 13,
@@ -206,7 +207,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "compsognathus": 3,
         "compsognathus_robot": 2,
     }
-    expected_physics_revisions = {"velociraptor": 3, "trex": 9, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_physics_revisions = {"velociraptor": 4, "trex": 9, "brachiosaurus": 5, "dibothrosuchus": 2}
     expected_visual_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update(compsognathus=2, compsognathus_robot=1)
@@ -270,9 +271,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # tail_home_pose 0.25 at the settled-droop targets, action_saturation
     # 0.5, leg broad fraction 0.25; 3241.3 before the pack, 3270.3 at
     # tolerance 0.20, 3271.8 on the r6 plant), velociraptor 2842.8 (physics
-    # r3 with its stance-quality terms; 1745.8 on the r2 plant),
+    # r3 with its stance-quality terms, 2843.0 on r4; 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
-    # the plant repaired by plant_versions notes 7-8), dibothrosuchus 2598.3.
+    # the plant repaired by plant_versions notes 7-8; 1738.4 on physics r5),
+    # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
+    # 17 moves none of the three rails.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
     # is the reward optimum -- it collects 97.0% of the theoretical maximum
