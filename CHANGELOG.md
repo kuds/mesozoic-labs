@@ -174,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   species' stance and recovery stages write the same replays** (#607;
   presentation only: no plant, policy-interface, task, gate or
   hyperparameter digest moves; decision D-A10's 2026-10-10 amendment,
-  pending the maintainer's approval;
+  approved by the maintainer on 2026-10-11;
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`). The six stance configs record
   `name = "stance"` (was `balance`), and `species_display_name()` /
   `stage_display_name()` label CLI logs, text summaries, gate and probe
