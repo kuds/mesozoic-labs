@@ -1320,8 +1320,10 @@ robustness, **LOW** = cosmetic / QoL.
   reward-and-length stances roll no stance report), and each one's statue
   stands 8/8 on every row of it; on the T. rex and the anatomical
   compsognathus the certificate replaced the probe the same day (D-D32:
-  config load refuses the key beside the certificate, and the warning
-  defers to the certificate's verdict). A stage that declares the probe and
+  config load refuses the key beside the certificate, and the handoff
+  warns instead when the certificate is missing or does not re-derive to a
+  pass, which a manual `train` load, reading no verdict, would otherwise
+  hand on silently). A stage that declares the probe and
   has none warns that its heading robustness is unmeasured; the
   command-line curriculum rolls no probe, so every stance it trains of the
   velociraptor and the compsognathus robot warns so at its handoff. No

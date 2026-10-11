@@ -1382,8 +1382,9 @@ def _warn_on_heading_probe_handoff(parent_stage_dir: "str | Path", *, stage: "in
     the probe stays report only (D-D27) on a stage without the six-heading certificate,
     so such a parent with a whole-scene row under v2's 0.95 full-horizon rail is handed
     on as before, with the warning in the log.  A parent that declares the certificate
-    (D-D32) warns nothing here: its verdict judged every heading, and a failing one
-    never resolves as a parent.
+    (D-D32) warns unless its certificate re-derives to a pass: the curriculum never
+    resolves a failing one as a parent, but the manual load in :func:`train` reads no
+    verdict, so there the warning is the only notice.
     """
     try:
         from .reporting.stance_report import stage_heading_probe_warnings

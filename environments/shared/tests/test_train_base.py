@@ -2343,6 +2343,45 @@ class TestTrainRefusesAnUndeclaredParent:
         )
         assert "+90 deg 0.12 (statue 1.00)" in warning.message
 
+    @pytest.mark.parametrize("certificate", ["failing", "missing"])
+    def test_a_certificate_parent_that_is_not_certified_is_loaded_with_a_warning(
+        self, tmp_path, monkeypatch, caplog, certificate
+    ):
+        """D-D32: the manual load reads no verdict, so a parent that declares the six-heading certificate is
+        handed on with a warning unless its certificate re-derives to a pass -- never silently."""
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, seed52_like_report
+        from .stance_v2_helpers import stage_record
+
+        stance_dir = tmp_path / "run" / "01_stance"
+        stage_record(stance_dir, HEADING_CURRICULUM)
+        report = seed52_like_report(stance_dir)  # also writes the robust_best_model handoff pair
+        if certificate == "failing":
+            write_stance_heading_report(stance_dir, report)
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
+            outcome, _ = self._train(
+                tmp_path,
+                monkeypatch,
+                parent_stage=1,
+                child_stage="recovery",
+                parent_stem=stance_dir / "models" / "robust_best_model",
+            )
+
+        assert outcome == "passed-the-check"
+        (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert warning.message.startswith(
+            f"Stage recovery enters on the handoff of {stance_dir}, whose heading probe warns: "
+            f"{stance_dir / 'stance_heading_report.json'} "
+            + (
+                "does not re-derive to a passing certificate"
+                if certificate == "failing"
+                else "is missing although the stage declares the six-heading certificate"
+            )
+        )
+        assert warning.message.endswith("heading robustness is uncertified (stance_quality_heading/v1, D-D32)")
+
     @staticmethod
     def _stance_dir_whose_probe_warns(tmp_path, *, policy_fraction=0.0):
         """``run/01_stance`` with a heading probe the policy falls on and a ``robust_best_model`` handoff pair."""

@@ -3521,14 +3521,17 @@ def stage_heading_probe_warnings(
     failed, so the handoff says the heading went unmeasured.
 
     A stage whose recorded block declares the six-heading certificate
-    (``stance_quality_heading/v1``, D-D32) raises no warning at all: its
-    verdict judged every heading, and the handoff, reuse and publication
-    refuse it when that failed -- the probe's warning defers to the gate.
+    (``stance_quality_heading/v1``, D-D32) reads no probe:
+    :func:`stage_heading_certificate_warnings` stands in for it, silent
+    exactly when the certificate re-derives to a pass.  The curriculum's
+    handoff and reuse already refuse a failed one, but a manual load
+    (``train(..., task_load_mode="initialize_next_stage")``) reads no
+    verdict, so there the warning is the only notice.
     """
     record = read_recorded_stage_config(stage_dir) or {}
     recorded_curriculum = record.get("curriculum", record.get("curriculum_kwargs"))
     if isinstance(recorded_curriculum, Mapping) and recorded_curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
-        return []
+        return stage_heading_certificate_warnings(stage_dir, recorded_curriculum, stage=record.get("stage", "?"))
     path = Path(stage_dir) / HEADING_PROBE_JSON
     if not path.exists():
         if declared is None:
@@ -3545,6 +3548,43 @@ def stage_heading_probe_warnings(
     if payload is None:
         return [f"{path} is not a readable JSON object; heading robustness is unmeasured"]
     return heading_probe_warnings(payload, threshold=threshold)
+
+
+def stage_heading_certificate_warnings(
+    stage_dir: "str | Path", curriculum: Mapping[str, Any], *, stage: Any = "?"
+) -> list[str]:
+    """One warning unless *stage_dir*'s six-heading certificate re-derives to a pass under *curriculum*.  Never raises.
+
+    The handoff warning of a stage that declares ``stance_quality_heading/v1``
+    (D-D32), in place of the probe's: ``stance_heading_report.json`` judged
+    through ``reporting.gates._stance_heading_stage_gate`` (admission, then
+    the re-derivation from every (seed, heading) row) under the block the
+    stage recorded.  Empty when it passes; otherwise one message naming
+    the certificate as missing, unreadable, refused or failed, so a parent
+    handed on without its verdict being read (a manual load) is not handed
+    on silently.  A warning, never a refusal.
+    """
+    path = Path(stage_dir) / STANCE_HEADING_REPORT_JSON
+    uncertified = f"heading robustness is uncertified ({STANCE_HEADING_GATE_KIND}, D-D32)"
+    if not path.exists():
+        return [f"{path} is missing although the stage declares the six-heading certificate; {uncertified}"]
+    report = read_json_object(path)
+    if report is None:
+        return [f"{path} is not a readable JSON object; {uncertified}"]
+    try:
+        from .gates import _stance_heading_stage_gate
+
+        passed, failures = _stance_heading_stage_gate(curriculum, report, stage=stage, stage_dir=stage_dir)
+    except Exception as exc:  # noqa: BLE001 - a warning must never stop a handoff
+        return [f"{path} could not be judged ({type(exc).__name__}: {exc}); {uncertified}"]
+    if passed:
+        return []
+    shown = failures[0] if failures else "no reason recorded"
+    more = f" (and {len(failures) - 1} more)" if len(failures) > 1 else ""
+    return [
+        f"{path} does not re-derive to a passing certificate under the stage's recorded gate: {shown}{more}; "
+        f"{uncertified}"
+    ]
 
 
 def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:

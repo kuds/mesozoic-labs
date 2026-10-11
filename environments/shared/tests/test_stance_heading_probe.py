@@ -418,7 +418,8 @@ class TestHandoffWarning:
         # Undeclared by the caller, the stage's recorded config decides: the velociraptor stance declares the
         # probe, so a stance the command-line curriculum trained (it rolls none) warns; the brachiosaurus stance
         # does not, nor does a velociraptor stance recorded before its config declared the probe (2026-10-11),
-        # whatever the checkout's config now says, nor the trex stance, whose certificate replaced it (D-D32).
+        # whatever the checkout's config now says.  The trex stance's certificate replaced it (D-D32): with no
+        # certificate on disk it warns the certificate missing instead, whatever *declared* says.
         trex, raptor, brachio = tmp_path / "trex", tmp_path / "raptor", tmp_path / "brachio"
         save_stage_config(trex, 1, load_stage_config("trex", "stance"), "PPO", species="trex")
         save_stage_config(raptor, 1, load_stage_config("velociraptor", "stance"), "PPO", species="velociraptor")
@@ -426,8 +427,11 @@ class TestHandoffWarning:
         old_raptor, before = tmp_path / "old_raptor", load_stage_config("velociraptor", "stance")
         before["curriculum_kwargs"].pop("stance_probe_spawn_yaw_deg")
         save_stage_config(old_raptor, 1, before, "PPO", species="velociraptor")
-        assert stage_heading_probe_warnings(trex) == []
-        assert stage_heading_probe_warnings(trex, declared=True) == []
+        (message,) = stage_heading_probe_warnings(trex)
+        assert (
+            "stance_heading_report.json is missing although the stage declares the six-heading certificate" in message
+        )
+        assert stage_heading_probe_warnings(trex, declared=False) == [message]
         assert len(stage_heading_probe_warnings(raptor)) == 1
         assert stage_heading_probe_warnings(brachio) == []
         assert stage_heading_probe_warnings(old_raptor) == []
@@ -449,7 +453,8 @@ class TestHandoffWarning:
 
 class TestTheCertificateReplacesTheProbe:
     """The maintainer's decision of 2026-10-11 (D-D32): a stage that declares the six-heading certificate rolls no
-    heading probe and raises no probe warning -- its gate judged every heading, and a failing one blocks."""
+    heading probe and raises no probe warning -- its gate judged every heading.  Its handoff warns instead unless
+    the certificate re-derives to a pass, since a manual load reads no verdict."""
 
     def test_a_stance_with_the_heading_certificate_declares_no_probe(self):
         heading = {"gate_kind": "stance_quality_heading/v1", "stance_probe_spawn_yaw_deg": [-90.0, 90.0]}
@@ -457,11 +462,14 @@ class TestTheCertificateReplacesTheProbe:
         assert declares_heading_probe({**heading, "gate_kind": "stance_quality/v2"})
 
     def test_the_probe_warning_defers_to_the_certificate(self, tmp_path):
-        from .stance_heading_helpers import HEADING_CURRICULUM
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, heading_report
         from .stance_v2_helpers import V2_CURRICULUM, stage_record
 
         certified, v2 = tmp_path / "certified", tmp_path / "v2"
         stage_record(certified, HEADING_CURRICULUM)
+        write_stance_heading_report(certified, heading_report(certified))
         stage_record(v2, {**V2_CURRICULUM, "stance_probe_spawn_yaw_deg": [-90.0, -45.0, 45.0, 90.0]})
         # Absent: the certified stage is silent even when told the probe was declared.
         assert stage_heading_probe_warnings(certified) == []
@@ -473,3 +481,34 @@ class TestTheCertificateReplacesTheProbe:
         assert stage_heading_probe_warnings(certified) == []
         (message,) = stage_heading_probe_warnings(v2)
         assert "on 2 of 4 whole-scene rows" in message
+
+    def test_a_certificate_that_does_not_pass_warns_at_the_handoff(self, tmp_path):
+        """Missing, unreadable, refused or failing, the certificate warns once; the probe file is not read."""
+        from environments.shared.reporting.stance_report import write_stance_heading_report
+
+        from .stance_heading_helpers import HEADING_CURRICULUM, heading_report, seed52_like_report
+        from .stance_v2_helpers import stage_record
+
+        stage_dir = tmp_path / "stance"
+        stage_record(stage_dir, HEADING_CURRICULUM)
+        path = stage_dir / "stance_heading_report.json"
+        uncertified = "heading robustness is uncertified (stance_quality_heading/v1, D-D32)"
+        # Missing, and a standing probe beside it changes nothing.
+        write_heading_probe(stage_dir, *_sweeps(STANDS), probe_episodes=8)
+        assert stage_heading_probe_warnings(stage_dir) == [
+            f"{path} is missing although the stage declares the six-heading certificate; {uncertified}"
+        ]
+        # Failing: seed 52's grid falls at -90 and -45.
+        write_stance_heading_report(stage_dir, seed52_like_report(stage_dir))
+        (message,) = stage_heading_probe_warnings(stage_dir)
+        assert message.startswith(f"{path} does not re-derive to a passing certificate under the stage's recorded gate")
+        assert "0/40 seeds clean at every heading" in message and message.endswith(uncertified)
+        # Refused: the handoff was retrained after the certificate was rolled.
+        write_stance_heading_report(stage_dir, heading_report(stage_dir))
+        assert stage_heading_probe_warnings(stage_dir) == []
+        (stage_dir / "models" / "robust_best_model.zip").write_bytes(b"retrained after judging")
+        (message,) = stage_heading_probe_warnings(stage_dir)
+        assert "scored checkpoint" in message and message.endswith(uncertified)
+        # Unreadable.
+        path.write_text("{truncated", encoding="utf-8")
+        assert stage_heading_probe_warnings(stage_dir) == [f"{path} is not a readable JSON object; {uncertified}"]

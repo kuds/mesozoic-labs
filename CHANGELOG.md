@@ -398,9 +398,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heading, the probe's whole-scene rows were replays of its first 8 seeds at
   four of them, and config load now refuses the key beside the kind. The
   velociraptor and Compsognathus robot stances keep v2 and v1 and the
-  warn-only probe; `declares_heading_probe` is false and
-  `stage_heading_probe_warnings` silent for a heading-kind stage, whose
-  verdict judged every heading. Statues (zero action, 40 seeds, through
+  warn-only probe; `declares_heading_probe` is false for a heading-kind
+  stage, and `stage_heading_probe_warnings` reads its certificate instead of
+  a probe: silent when the certificate re-derives to a pass, otherwise one
+  warning that it is missing, unreadable, refused or failed, since a manual
+  `train(..., task_load_mode="initialize_next_stage")` load reads no
+  verdict. Statues (zero action, 40 seeds, through
   `stance_gate_report.py --zero-action`): the T-Rex r9 statue passes, 39/40
   seeds clean at all six headings (bound 0.887, as at 0°); the
   Compsognathus r2 statue passes, 40/40 seeds clean at all six headings
