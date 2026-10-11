@@ -42,9 +42,9 @@ probes then annotate its 0 degree cell.  ``--seed 7042`` rolls the fresh
 audit grid (seeds 7042-7081), which the judge refuses as evidence for the
 gate -- it is the separately reported audit, a recorded manual step::
 
-    python environments/shared/scripts/stance_gate_report.py trex \
-        --model path/to/robust_best_model.zip \
-        --vecnorm path/to/robust_best_model_vecnorm.pkl \
+    python environments/shared/scripts/stance_gate_report.py trex \\
+        --model path/to/robust_best_model.zip \\
+        --vecnorm path/to/robust_best_model_vecnorm.pkl \\
         --seed 7042 --out-dir path/to/scratch/fresh_audit
 
 Thresholds come from the stage TOML, so the report re-anchors automatically
