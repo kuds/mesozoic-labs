@@ -42,8 +42,11 @@ anatomical species together after #604. It does not change Compsognathus robot o
 Velociraptor. Their interfaces require separate decisions. Velociraptor feeds its
 policy the same three world-frame blocks (a world `framequat` on the `imu` site,
 `qvel[0:3]` and the world prey direction), and no Velociraptor heading probe
-exists. It stays out of scope here, following only after the maintainer's two
-current Velociraptor runs are reviewed (the 2026-10-07 decision). Its
+exists (2026-10-11: by the maintainer's approval its stance, like the
+Compsognathus robot's, now declares the report-only probe; no trained
+Velociraptor stance has been probed). It stays out of scope here, following
+only after the maintainer's two current Velociraptor runs are reviewed (the
+2026-10-07 decision). Its
 heading-free revision should be coordinated with #608's planned Velociraptor
 interface change (per-site contact-load channels), so its checkpoints are
 stranded once, not twice.

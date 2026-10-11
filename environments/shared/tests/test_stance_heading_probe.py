@@ -10,25 +10,38 @@ that it changes nothing else.
 
 from __future__ import annotations
 
+import json
 import math
+import tomllib
 
 import mujoco
 import numpy as np
 import pytest
 
-from environments.shared.config import load_stage_config
+from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.curriculum.gate_schema import _DIAGNOSTIC_KEYS
 from environments.shared.reporting.stance_report import (
+    HEADING_PROBE_JSON,
     SpawnYaw,
     _apply_spawn_yaw,
     _root_yaw,
     build_stance_gate_report,
+    declares_heading_probe,
+    heading_probe_warnings,
     probe_stem,
     render_heading_probe,
     spawn_yaw_variants,
+    stage_heading_probe_warnings,
     write_heading_probe,
 )
+from environments.shared.species_catalog import DEFAULT_MANIFEST_PATH
 from environments.trex.envs.trex_env import TRexEnv
+
+#: Each species' gait, from the species manifest: every biped's stance declares the heading probe, and no
+#: other species' stance does, so a new species lands in one of the two tests below.
+_GAITS = {
+    entry["id"]: entry["gait"] for entry in tomllib.loads(DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8"))["species"]
+}
 
 
 @pytest.fixture
@@ -214,7 +227,203 @@ class TestProbeTable:
         assert written["heading_probe_txt"].name == "stance_heading_probe.txt"
         assert written["heading_probe_json"].exists()
 
-    def test_the_probe_key_is_a_diagnostic_declared_by_trex_stance(self):
+    @pytest.mark.parametrize("species", sorted(s for s, gait in _GAITS.items() if gait == "Bipedal"))
+    def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance(self, species):
+        # D-D27 for the trex; the maintainer's decision of 2026-10-11 for the velociraptor and both compsognathus.
         assert "stance_probe_spawn_yaw_deg" in _DIAGNOSTIC_KEYS
-        curriculum = load_stage_config("trex", "stance")["curriculum_kwargs"]
+        curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
         assert curriculum["stance_probe_spawn_yaw_deg"] == [-90.0, -45.0, 45.0, 90.0]
+        assert declares_heading_probe(curriculum)
+
+    @pytest.mark.parametrize("species", sorted(s for s, gait in _GAITS.items() if gait != "Bipedal"))
+    def test_no_quadruped_stance_declares_the_probe(self, species):
+        # Their reward_and_length gate rolls no stance report, and the probe runs only after one.
+        curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
+        assert curriculum["gate_kind"] == "reward_and_length/v1"
+        assert "stance_probe_spawn_yaw_deg" not in curriculum
+        assert not declares_heading_probe(curriculum)
+
+
+#: Seed 52's probe (``20261009_155723``; docs/HEADING_INVARIANCE_DESIGN_2026_10.md, "Later runs"): the policy's
+#: full-horizon fraction per (yaw, whole scene).  It passed stance_quality/v2 and falls when turned -90 or -45.
+SEED_52 = {
+    (0.0, False): 1.0,
+    (-90.0, False): 0.0,
+    (-90.0, True): 0.0,
+    (-45.0, False): 0.0,
+    (-45.0, True): 0.0,
+    (45.0, False): 0.875,
+    (45.0, True): 1.0,
+    (90.0, False): 0.125,
+    (90.0, True): 1.0,
+}
+STANDS = dict.fromkeys(SEED_52, 1.0)
+
+
+def _sweeps(policy=SEED_52, statue=STANDS):
+    """The policy and statue panels of a four-offset probe, each row at the given full-horizon fraction."""
+
+    def report(variant, fraction):
+        return {
+            "spawn_yaw": variant.as_dict(),
+            "metrics": {"full_horizon_fraction": fraction, "reward_mean": 3700.0, "episode_length_mean": 1000.0},
+            "episode_yaw_change_deg": [3.0, 5.0],
+            "terminations": {},
+            "horizon": 1000,
+            "policy": "robust_best_model.zip",
+            "seed": 3042,
+        }
+
+    variants = spawn_yaw_variants([-90.0, -45.0, 45.0, 90.0])
+    return (
+        [report(v, policy[(v.yaw_deg, v.whole_scene)]) for v in variants],
+        [report(v, statue[(v.yaw_deg, v.whole_scene)]) for v in variants],
+    )
+
+
+def _payload(policy=SEED_52, statue=STANDS) -> dict:
+    """The probe's JSON as written (non-finite values as null)."""
+    _, payload = render_heading_probe(*_sweeps(policy, statue), probe_episodes=8)
+    written: dict = json.loads(json.dumps(payload))
+    return written
+
+
+class TestHandoffWarning:
+    """The maintainer's decision of 2026-10-11: handoff tooling warns, without blocking, when a whole-scene
+    row's full-horizon fraction is below 0.95, v2's per-panel rail; the probe otherwise stays report only."""
+
+    def test_a_whole_scene_row_below_the_rail_warns_and_names_it(self):
+        (message,) = heading_probe_warnings(_payload())
+        assert "below 0.95, the v2 per-panel rail, on 2 of 4 whole-scene rows" in message
+        assert "(-90 deg 0.00 (statue 1.00); -45 deg 0.00 (statue 1.00); 8 episodes per row)" in message
+        assert "+45 deg" not in message and "+90 deg" not in message
+        assert "no verdict changes and nothing is blocked" in message
+
+    def test_rows_at_or_above_the_rail_do_not_warn(self):
+        assert heading_probe_warnings(_payload(STANDS)) == []
+        assert heading_probe_warnings(_payload(dict.fromkeys(SEED_52, 0.95))) == []
+
+    def test_one_fall_in_eight_warns(self):
+        (message,) = heading_probe_warnings(_payload({**STANDS, (90.0, True): 7 / 8}))
+        assert "on 1 of 4 whole-scene rows (+90 deg 0.88 (statue 1.00)" in message
+
+    def test_the_unturned_control_and_animal_only_rows_never_warn(self):
+        falls_unless_scene = {key: 1.0 if key[1] else 0.0 for key in SEED_52}
+        assert heading_probe_warnings(_payload(falls_unless_scene)) == []
+
+    def test_a_statue_row_below_the_rail_is_reported_as_a_failed_control(self):
+        statue = {**STANDS, (45.0, True): 0.75, (45.0, False): 0.5}
+        (message,) = heading_probe_warnings(_payload(STANDS, statue))
+        assert message.startswith("the zero-action statue is itself below 0.95 on whole-scene rows +45 deg 0.75:")
+        assert "the control did not stand" in message
+        # Both are reported, each on its own line: the policy falls where the statue stands.
+        policy_warning, statue_warning = heading_probe_warnings(_payload(SEED_52, statue))
+        assert "on 2 of 4 whole-scene rows" in policy_warning and "+45 deg 0.75" in statue_warning
+
+    @pytest.mark.parametrize("fraction", [None, math.nan, "1.0", True, -0.1, 1.5, 10**400], ids=repr)
+    def test_unmeasured_rows_warn_as_unmeasured(self, fraction):
+        payload = _payload(STANDS)
+        (row,) = [row for row in payload["rows"] if row["whole_scene"] and row["yaw_deg"] == -45.0]
+        row["policy"]["full_horizon_fraction"] = fraction
+        (message,) = heading_probe_warnings(payload)
+        assert "whole-scene rows -45 deg; those headings are unmeasured" in message
+        # The statue control of the same row, unmeasured, is reported apart.
+        row["policy"]["full_horizon_fraction"] = 1.0
+        row["statue"]["full_horizon_fraction"] = fraction
+        (message,) = heading_probe_warnings(payload)
+        assert message.startswith("the zero-action statue's full-horizon fraction is not a share in [0, 1] on")
+        assert "whole-scene rows -45 deg; those controls are unmeasured" in message
+
+    def test_a_row_whose_heading_is_not_a_finite_float_is_named_by_its_index(self):
+        payload = _payload({**STANDS, (-45.0, True): 0.0})
+        (index,) = [i for i, row in enumerate(payload["rows"]) if row["whole_scene"] and row["yaw_deg"] == -45.0]
+        for yaw in (None, math.inf, 10**400):
+            payload["rows"][index]["yaw_deg"] = yaw
+            (message,) = heading_probe_warnings(payload)
+            assert f"(row {index} 0.00 (statue 1.00); 8 episodes per row)" in message
+
+    @pytest.mark.parametrize(
+        "mutate",
+        [
+            lambda payload: payload.update(schema="mesozoic.stance-heading-probe/v0"),
+            lambda payload: payload.pop("schema"),
+            lambda payload: payload.update(probe_episodes=0),
+            lambda payload: payload.update(probe_episodes=8.0),
+            lambda payload: payload.pop("probe_episodes"),
+            lambda payload: payload.update(rows="rows"),
+            lambda payload: payload.update(rows=[row for row in payload["rows"] if not row["whole_scene"]]),
+            lambda payload: payload.update(rows=[None, 3, *payload["rows"][:1]]),
+        ],
+        ids=["schema", "no-schema", "no-episodes", "float-episodes", "episodes-missing", "rows", "no-scene", "junk"],
+    )
+    def test_a_malformed_probe_warns_instead_of_raising(self, mutate):
+        payload = _payload(STANDS)
+        mutate(payload)
+        (message,) = heading_probe_warnings(payload)
+        assert message.endswith("heading robustness is unmeasured")
+
+    @pytest.mark.parametrize("payload", [None, [], "probe", 3.0], ids=repr)
+    def test_a_record_that_is_not_an_object_warns_instead_of_raising(self, payload):
+        (message,) = heading_probe_warnings(payload)
+        assert "is not a mesozoic.stance-heading-probe/v1 record" in message
+
+    def test_the_probe_text_carries_the_warning_and_the_json_is_unchanged(self):
+        text, payload = render_heading_probe(*_sweeps(), probe_episodes=8)
+        assert "  HANDOFF WARNING (the maintainer's decision of 2026-10-11" in text
+        # The warning is wrapped under its heading, before the closing notes, and the text is still a probe.
+        block = text.split("HANDOFF WARNING", 1)[1].split("The unturned row is the harness check", 1)[0]
+        assert "on 2 of 4 whole-scene rows" in " ".join(block.split())
+        assert all(len(line) <= 120 for line in text.splitlines())
+        assert "not a gate result" in text
+        # Report only: no key, no verdict, nothing a reader could gate on is added to the record.
+        assert set(payload) == {"schema", "policy", "probe_episodes", "seed", "horizon", "note", "rows"}
+        assert payload["schema"] == "mesozoic.stance-heading-probe/v1"
+        quiet, quiet_payload = render_heading_probe(*_sweeps(STANDS), probe_episodes=8)
+        assert "HANDOFF WARNING" not in quiet and set(quiet_payload) == set(payload)
+
+    def test_the_stage_reader_reads_what_the_writer_wrote(self, tmp_path):
+        written = write_heading_probe(tmp_path, *_sweeps(), probe_episodes=8)
+        assert written["heading_probe_json"] == tmp_path / HEADING_PROBE_JSON
+        assert stage_heading_probe_warnings(tmp_path) == heading_probe_warnings(_payload())
+        write_heading_probe(tmp_path, *_sweeps(STANDS), probe_episodes=8)
+        assert stage_heading_probe_warnings(tmp_path) == []
+        (tmp_path / HEADING_PROBE_JSON).write_text("{truncated", encoding="utf-8")
+        (message,) = stage_heading_probe_warnings(tmp_path)
+        assert "is not a readable JSON object; heading robustness is unmeasured" in message
+
+    def test_an_absent_probe_warns_only_when_the_stage_declares_it(self, tmp_path):
+        assert stage_heading_probe_warnings(tmp_path) == []
+        assert stage_heading_probe_warnings(tmp_path, declared=False) == []
+        (message,) = stage_heading_probe_warnings(tmp_path, declared=True)
+        assert "is missing although the stage declares the heading probe; heading robustness is unmeasured" in message
+        # The remedy rolls it into a scratch directory: --out-dir also writes a gate report, never into the stage.
+        assert "--out-dir <a scratch directory>" in message and f"--out-dir {tmp_path}" not in message
+        # Undeclared by the caller, the stage's recorded config decides: the trex and velociraptor stances
+        # declare the probe, so a stance the command-line curriculum trained (it rolls none) warns; the
+        # brachiosaurus stance does not, and nor does a velociraptor stance recorded before its config declared
+        # the probe (2026-10-11), whatever the checkout's config now says.
+        trex, raptor, brachio = tmp_path / "trex", tmp_path / "raptor", tmp_path / "brachio"
+        save_stage_config(trex, 1, load_stage_config("trex", "stance"), "PPO", species="trex")
+        save_stage_config(raptor, 1, load_stage_config("velociraptor", "stance"), "PPO", species="velociraptor")
+        save_stage_config(brachio, 1, load_stage_config("brachiosaurus", "stance"), "PPO", species="brachiosaurus")
+        old_raptor, before = tmp_path / "old_raptor", load_stage_config("velociraptor", "stance")
+        before["curriculum_kwargs"].pop("stance_probe_spawn_yaw_deg")
+        save_stage_config(old_raptor, 1, before, "PPO", species="velociraptor")
+        assert len(stage_heading_probe_warnings(trex)) == 1
+        assert len(stage_heading_probe_warnings(raptor)) == 1
+        assert stage_heading_probe_warnings(brachio) == []
+        assert stage_heading_probe_warnings(old_raptor) == []
+        assert stage_heading_probe_warnings(trex, declared=False) == []
+
+    def test_declares_heading_probe(self):
+        assert declares_heading_probe(load_stage_config("trex", "stance")["curriculum_kwargs"])
+        assert declares_heading_probe(load_stage_config("velociraptor", "stance")["curriculum_kwargs"])
+        assert not declares_heading_probe(load_stage_config("brachiosaurus", "stance")["curriculum_kwargs"])
+        assert not declares_heading_probe(load_stage_config("trex", "recovery")["curriculum_kwargs"])
+        stance = {"gate_kind": "stance_quality/v2"}
+        assert declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": [0.0, "north", 90.0]})
+        assert declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": -45.0})
+        for raw in (None, [], [0.0], ["north"], [math.nan], [10**400]):
+            assert not declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": raw})
+        assert not declares_heading_probe({"gate_kind": "reward_and_length/v1", "stance_probe_spawn_yaw_deg": [90.0]})
+        assert not declares_heading_probe(None)

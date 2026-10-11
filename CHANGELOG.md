@@ -8,6 +8,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Handoff tooling warns, without blocking, when a whole-scene row of the
+  heading probe is below 0.95, and every biped stance declares the probe**
+  (the maintainer's decisions of 2026-10-11;
+  `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `stance_quality/v2`
+  certified the seed-52 T-Rex stance `20261009_155723` (39/40), whose own
+  report-only probe stands 0/8 with the whole scene turned −90° and −45°.
+  The probe stays report only (D-D27) until the heading certificate replaces
+  it, and now says so where a stance is handed on.
+  `reporting/stance_report.py` gains `heading_probe_warnings` (pure; it
+  never raises), `stage_heading_probe_warnings` and
+  `declares_heading_probe`. A whole-scene row (`whole_scene: true`) whose
+  policy full-horizon fraction is below `HEADING_PROBE_WARN_BELOW`, 0.95,
+  the v2 per-panel `min_full_horizon_fraction` rail, warns, naming each such
+  row with its statue fraction: one fall in the probe's 8 episodes warns,
+  exactly 0.95 does not. The unturned control and the animal-only rows never
+  warn (the gate judges the first; the second add the prey's bearing). A
+  statue below 0.95 on a whole-scene row, or one not recorded as a share, is
+  a separate warning that the control did not stand or is unmeasured. A
+  record that cannot be read (another schema, no episodes or rows, a
+  missing, non-finite or out-of-range policy fraction, no whole-scene row)
+  warns that heading robustness is unmeasured, and so does an absent probe
+  on a stage whose recorded `[curriculum]` declares one
+  (`stance_probe_spawn_yaw_deg` under a stance gate kind; the command-line
+  curriculum rolls no probe). The warnings are a `HANDOFF WARNING` block of
+  `stance_heading_probe.txt`, which
+  `stance_gate_report.py --spawn-yaw-offsets` prints, and warning-level log
+  lines where `generate_stage_artifacts` writes the probe, where `train` (a
+  cross-stage load of the handoff that `select_handoff_checkpoint` picks in
+  `<stage_dir>/models/`, the checkpoint the probe rolled) and
+  `train_curriculum` start a node on its parent's handoff, and where
+  `record_ancestor` reuses a node, before it records. Report only: no
+  verdict, gate, exit code or schema changes. `stance_heading_probe.json`
+  stays `mesozoic.stance-heading-probe/v1` with the same keys, and
+  `gate_verdict.json`, `stance_gate_report.{txt,json}` and the files an
+  ancestor record copies are unchanged. The T-Rex stance declares the probe
+  (D-D27), and by the maintainer's approval of the same day so do the
+  Velociraptor, anatomical Compsognathus and Compsognathus robot stances:
+  `stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]` in
+  `configs/velociraptor/stage1_balance.toml`,
+  `configs/compsognathus/stance.toml` and
+  `configs/compsognathus_robot/stance.toml` (the robot's
+  `stance_quality/v1` report rolls the probes too), each costing a stance
+  stage 18 panels of 8 episodes. The two quadrupeds' `reward_and_length/v1`
+  stances roll no stance report and declare none; a probe file of any
+  species is read. Rolled through `generate_stage_artifacts`' probe writer
+  on the zero-action statue, each new species' statue stands 8/8 on every
+  row, with the unturned control's reward on each whole-scene row, and
+  raises no warning. A command-line curriculum run rolls no probe, so its
+  handoff logs the "missing … heading robustness is unmeasured" warning for
+  these species too, as for the T-Rex: the maintainer's choice to warn on a
+  declared probe that is missing. No plant, policy-interface, task, gate or
+  hyperparameter digest moves; 6 `stage_config_view_sha256` lines of the
+  digest snapshot move (PPO and SAC of the three stance nodes that now
+  declare the probe), and its other 643 lines are equal. Tests: seed 52's
+  rows, the 0.95 boundary and one fall in eight, the control and animal-only
+  rows, the statue control, unmeasured and malformed records (an integer
+  past float range included), the probe text with an unchanged JSON key set,
+  the stage reader on the writer's file and on a probe declared by a
+  recorded T-Rex or Velociraptor stance config and absent, and on a
+  Velociraptor stance recorded before its config declared one, every biped
+  stance config declaring the probe and the two quadrupeds' not (by the
+  species manifest's gait), the probe-write log, `record_ancestor`'s log
+  with its copied files unchanged, and `train` and `train_curriculum`
+  logging the warning and still training, `train` only on the handoff.
+  Records: KNOWN_ISSUES's heading entry, a dated note on the heading
+  design's Velociraptor sentence, and the T-Rex, Velociraptor and
+  Compsognathus READMEs; the consolidation plan's table, which also records
+  the landings of #604 to #608.
 - **A floor-truth stance gate, `stance_quality/v2`, and the measurement
   library it reads** (#599, decision D-D23, 2026-10-06;
   `docs/investigations/STANCE_HACK_AUDIT_2026_10.md`, and the dated §11 of
@@ -1598,7 +1666,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
-- **Suppress unsupported held-pose ablation classifications.** The report now
+- **Suppress unsupported held-pose ablation classifications** (#606). The report now
   requires a `hold_all` control that does not stand — a partial or complete
   full-pose fall to explain — and a standing `hold_zero` control before
   attributing a fall to actuator groups. A full held pose that stands reports

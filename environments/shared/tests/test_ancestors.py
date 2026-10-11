@@ -563,6 +563,55 @@ class TestRecordAncestor:
         assert not (target / "plant_identity.json").exists()
         assert (target / "gate_verdict.json").is_file() and (target / ANCESTOR_RECORD_NAME).is_file()
 
+    @staticmethod
+    def _heading_probe(stage_dir: Path, scene_fraction: float) -> None:
+        """A ``stance_heading_probe.json`` whose whole-scene -90 deg row the policy stands on *scene_fraction*."""
+        row = {"yaw_deg": -90.0, "whole_scene": True}
+        payload = {
+            "schema": "mesozoic.stance-heading-probe/v1",
+            "probe_episodes": 8,
+            "rows": [
+                {**row, "policy": {"full_horizon_fraction": scene_fraction}, "statue": {"full_horizon_fraction": 1.0}}
+            ],
+        }
+        (stage_dir / "stance_heading_probe.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_recording_an_ancestor_whose_heading_probe_warns_logs_it_and_copies_nothing_more(
+        self, trunk_run, tmp_path, caplog
+    ):
+        """The maintainer's decision of 2026-10-11: a reuse warns, never refuses, and the record is unchanged."""
+        ancestor = _find(trunk_run)
+        self._heading_probe(ancestor.stage_dir, 0.0)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.ancestors"):
+            target = record_ancestor(tmp_path / "child", ancestor)
+
+        (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert warning.message.startswith(
+            "Reusing certified 'stance' from run 20260901_120000, whose heading probe warns: the policy's "
+            "full-horizon fraction is below 0.95"
+        )
+        assert sorted(p.name for p in target.iterdir()) == sorted((ANCESTOR_RECORD_NAME, *ANCESTOR_COPIED_FILES))
+        assert "stance_heading_probe.json" not in ANCESTOR_COPIED_FILES
+
+    def test_recording_an_ancestor_without_a_probe_is_silent(self, trunk_run, tmp_path, caplog):
+        """An undeclared, absent probe and one that stands at every whole-scene row warn nothing."""
+        ancestor = _find(trunk_run)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.ancestors"):
+            record_ancestor(tmp_path / "child", ancestor)
+            self._heading_probe(ancestor.stage_dir, 1.0)
+            record_ancestor(tmp_path / "other-child", ancestor)
+        assert not caplog.records
+
+    def test_recording_an_ancestor_that_declares_a_missing_probe_warns_unmeasured(self, tmp_path, caplog):
+        run = tmp_path / "20260901_120000"
+        run.mkdir()
+        build_trunk_run(run, curriculum={**STANCE_CURRICULUM, "stance_probe_spawn_yaw_deg": [-90.0, 90.0]})
+        ancestor = _find(run)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.ancestors"):
+            record_ancestor(tmp_path / "child", ancestor)
+        (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert "is missing although the stage declares the heading probe" in warning.message
+
 
 def build_middle_run(run_dir: Path, source_run: Path, **find_overrides) -> Path:
     """A run that REUSED stance from *source_run* and trained nothing of it.

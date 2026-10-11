@@ -144,7 +144,12 @@ bonus, level pads and the animal's own settled stance width on loaded feet,
 the home leg pose and every support geom loaded, and it charges floor impacts,
 airborne substeps and commands parked at their limits or chattering; each is a
 `CompsognathusBiologicalEnv` kwarg that is inert at its default, and recovery
-inherits them.
+inherits them. The post-stage report, the robot's too, also writes a heading
+probe (`stance_heading_probe.txt`: the policy and the statue spawned turned by
+±45° and ±90°), which is report only; a whole-scene row whose full-horizon
+fraction is below 0.95 is warned of without blocking, in the probe's text and
+wherever the stance is handed on or reused (the maintainer's decisions of
+2026-10-11; [KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md)).
 
 The robot uses the mechanical stance criteria from
 [Tyrannosaurus Rex's former stance configuration](../../configs/trex/stance.toml)

@@ -41,6 +41,8 @@ module by its full path, lazily where the importer must stay light.
 from __future__ import annotations
 
 import math
+import textwrap
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -49,6 +51,7 @@ from typing import Any
 import numpy as np
 
 from ..action_filter import low_pass_alpha
+from ..config import read_recorded_stage_config
 from ..constants import PUBLICATION_SEED_START
 from ..curriculum.gate_schema import STANCE_GATE_KINDS, gate_config_view
 from ..curriculum.stance_gate import (
@@ -69,7 +72,7 @@ from ..curriculum.stance_gate_v2 import (
     evaluate_stance_v2_gate,
     statue_reference,
 )
-from ..file_io import atomic_write_csv, atomic_write_json, atomic_write_text
+from ..file_io import atomic_write_csv, atomic_write_json, atomic_write_text, read_json_object
 from ..gait.stance_metrics import (
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
@@ -2707,6 +2710,17 @@ def write_impulse_probe(
     return {"impulse_probe_txt": text_path, "impulse_probe_json": json_path}
 
 
+#: The heading probe's JSON file and the schema it declares (``write_heading_probe``).
+HEADING_PROBE_JSON = "stance_heading_probe.json"
+HEADING_PROBE_SCHEMA = "mesozoic.stance-heading-probe/v1"
+
+#: The full-horizon fraction below which a whole-scene heading-probe row warns: v2's
+#: per-panel rail (``min_full_horizon_fraction``, 0.95 on every v2 stance).  Warn only,
+#: by the maintainer's decision of 2026-10-11 (docs/HEADING_INVARIANCE_DESIGN_2026_10.md):
+#: the probe stays report only (D-D27) until the heading certificate replaces it.
+HEADING_PROBE_WARN_BELOW = 0.95
+
+
 def spawn_yaw_variants(offsets_deg: "tuple[float, ...] | list[float]") -> list[SpawnYaw]:
     """The heading probe's rows: the unturned control, then each non-zero offset turned alone and with the scene."""
     variants = [SpawnYaw(0.0)]
@@ -2754,7 +2768,7 @@ def render_heading_probe(
     horizon = policy_reports[0]["horizon"] if policy_reports else None
     first_seed = int(policy_reports[0]["seed"]) if policy_reports else 0
     payload: dict[str, Any] = {
-        "schema": "mesozoic.stance-heading-probe/v1",
+        "schema": HEADING_PROBE_SCHEMA,
         "policy": policy_reports[0]["policy"] if policy_reports else None,
         "probe_episodes": probe_episodes,
         "seed": first_seed if policy_reports else None,
@@ -2795,6 +2809,16 @@ def render_heading_probe(
             f"{policy['reward_mean']:>9.1f}{policy['yaw_change_mean_deg']:>8.1f}/{policy['yaw_change_max_deg']:<8.1f}"
             f"{statue['full_horizon_fraction']:>11.2f}{statue['reward_mean']:>9.1f}{statue['yaw_change_max_deg']:>11.1f}"
         )
+    handoff_warnings = heading_probe_warnings(payload)
+    if handoff_warnings:
+        lines += [
+            "",
+            "  HANDOFF WARNING (the maintainer's decision of 2026-10-11: it changes no verdict and blocks nothing)",
+        ]
+        for message in handoff_warnings:
+            lines += textwrap.wrap(
+                message, width=112, initial_indent="    - ", subsequent_indent="      ", break_on_hyphens=False
+            )
     lines += [
         "",
         "  The unturned row is the harness check: both columns should match the gate panel's first seeds.",
@@ -2816,10 +2840,147 @@ def write_heading_probe(
     directory.mkdir(parents=True, exist_ok=True)
     text, payload = render_heading_probe(policy_reports, statue_reports, probe_episodes=probe_episodes)
     text_path = directory / "stance_heading_probe.txt"
-    json_path = directory / "stance_heading_probe.json"
+    json_path = directory / HEADING_PROBE_JSON
     atomic_write_text(text_path, text)
     atomic_write_json(json_path, _json_safe(payload), sort_keys=True, allow_nan=False)
     return {"heading_probe_txt": text_path, "heading_probe_json": json_path}
+
+
+def _finite_number(value: Any) -> float | None:
+    """*value* as a finite float, or None when it is not a number (a bool included) or overflows a float."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except OverflowError:  # a JSON integer past float range
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _probe_fraction(cell: Any) -> float | None:
+    """A row cell's ``full_horizon_fraction``, or None when it is missing or not a finite share in [0, 1]."""
+    share = _finite_number(cell.get("full_horizon_fraction")) if isinstance(cell, Mapping) else None
+    return share if share is not None and 0.0 <= share <= 1.0 else None
+
+
+def heading_probe_warnings(payload: Any, *, threshold: float = HEADING_PROBE_WARN_BELOW) -> list[str]:
+    """The handoff warnings a heading-probe record raises; empty when it raises none.  Never raises.
+
+    Only whole-scene rows (``whole_scene: true``) are read: turning the prey and
+    the reference direction with the animal leaves a heading-free controller's
+    task unchanged, so a fall there is the policy reading its world heading.
+    The unturned control (``yaw_deg`` 0, recorded ``whole_scene: false``) is the
+    first seeds of the gate panel, which the gate itself judges; the
+    animal-only rows add a response to the prey's bearing.  A statue cell
+    below *threshold*, or not a share, is reported apart: the control did not
+    stand, or is unmeasured, so that row does not isolate heading.  A record
+    that cannot be read warns that heading robustness is unmeasured; it never
+    passes silently.
+    """
+    unmeasured = "heading robustness is unmeasured"
+    if not isinstance(payload, Mapping) or payload.get("schema") != HEADING_PROBE_SCHEMA:
+        found = payload.get("schema") if isinstance(payload, Mapping) else type(payload).__name__
+        return [f"the heading probe is not a {HEADING_PROBE_SCHEMA} record ({found!r}); {unmeasured}"]
+    episodes = payload.get("probe_episodes")
+    if isinstance(episodes, bool) or not isinstance(episodes, int) or episodes < 1:
+        return [f"the heading probe records no episodes (probe_episodes {episodes!r}); {unmeasured}"]
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return [f"the heading probe records no rows; {unmeasured}"]
+    low: list[str] = []
+    missing: list[str] = []
+    statue_low: list[str] = []
+    statue_missing: list[str] = []
+    scene_rows = 0
+    for index, row in enumerate(rows):
+        if not isinstance(row, Mapping) or row.get("whole_scene") is not True:
+            continue
+        scene_rows += 1
+        yaw = _finite_number(row.get("yaw_deg"))
+        label = f"{yaw:+.0f} deg" if yaw is not None else f"row {index}"
+        policy, statue = _probe_fraction(row.get("policy")), _probe_fraction(row.get("statue"))
+        if policy is None:
+            missing.append(label)
+        elif policy < threshold:
+            low.append(f"{label} {policy:.2f}" + ("" if statue is None else f" (statue {statue:.2f})"))
+        if statue is None:
+            statue_missing.append(label)
+        elif statue < threshold:
+            statue_low.append(f"{label} {statue:.2f}")
+    if scene_rows == 0:
+        return [f"the heading probe has no whole-scene row; {unmeasured}"]
+    messages = []
+    if low:
+        messages.append(
+            f"the policy's full-horizon fraction is below {threshold:.2f}, the v2 per-panel rail, on {len(low)} of "
+            f"{scene_rows} whole-scene rows ({'; '.join(low)}; {episodes} episodes per row): this stance falls when "
+            "the whole scene is turned. Report only: no verdict changes and nothing is blocked (the maintainer's "
+            "decision of 2026-10-11, docs/HEADING_INVARIANCE_DESIGN_2026_10.md)"
+        )
+    if missing:
+        messages.append(
+            f"the policy's full-horizon fraction is not a share in [0, 1] on whole-scene rows {', '.join(missing)}; "
+            "those headings are unmeasured"
+        )
+    if statue_low:
+        messages.append(
+            f"the zero-action statue is itself below {threshold:.2f} on whole-scene rows {', '.join(statue_low)}: the "
+            "control did not stand, so those rows do not isolate heading"
+        )
+    if statue_missing:
+        messages.append(
+            "the zero-action statue's full-horizon fraction is not a share in [0, 1] on whole-scene rows "
+            f"{', '.join(statue_missing)}; those controls are unmeasured, so those rows do not isolate heading"
+        )
+    return messages
+
+
+def declares_heading_probe(curriculum: Any) -> bool:
+    """Whether a ``[curriculum]`` block asks for the heading probe: a stance gate kind and a non-zero offset."""
+    if not isinstance(curriculum, Mapping) or curriculum.get("gate_kind") not in STANCE_GATE_KINDS:
+        return False
+    raw = curriculum.get("stance_probe_spawn_yaw_deg")
+    values: list[Any] = list(raw) if isinstance(raw, (list, tuple)) else [raw]
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if math.isfinite(number) and number != 0.0:
+            return True
+    return False
+
+
+def stage_heading_probe_warnings(
+    stage_dir: "str | Path",
+    *,
+    declared: bool | None = None,
+    threshold: float = HEADING_PROBE_WARN_BELOW,
+) -> list[str]:
+    """:func:`heading_probe_warnings` for the probe *stage_dir* holds.  Never raises.
+
+    An absent probe warns only when the stage declares it (*declared*; None
+    reads the stage's recorded ``stage_config.json``): the command-line
+    curriculum rolls no probe, and a probe that failed was logged where it
+    failed, so the handoff says the heading went unmeasured.
+    """
+    path = Path(stage_dir) / HEADING_PROBE_JSON
+    if not path.exists():
+        if declared is None:
+            record = read_recorded_stage_config(stage_dir) or {}
+            declared = declares_heading_probe(record.get("curriculum"))
+        if not declared:
+            return []
+        # Not --out-dir <stage_dir>: it also writes a gate report there, and a complete bundle is immutable.
+        return [
+            f"{path} is missing although the stage declares the heading probe; heading robustness is unmeasured "
+            "(stance_gate_report.py --spawn-yaw-offsets=<offsets> --out-dir <a scratch directory> rolls it; "
+            "never the stage directory, where --out-dir also writes a gate report)"
+        ]
+    payload = read_json_object(path)
+    if payload is None:
+        return [f"{path} is not a readable JSON object; heading robustness is unmeasured"]
+    return heading_probe_warnings(payload, threshold=threshold)
 
 
 def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
