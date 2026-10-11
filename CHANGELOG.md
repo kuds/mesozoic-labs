@@ -403,11 +403,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `.supported`); the stage (8) and behavior (22) `task_sha256`; and
   `recovery compsognathus file_sha256`. Every reward, gate, hyperparameter,
   stage-config-view and recipe line holds, and so does the T-Rex's
-  `.action_low_pass_filter`. The regenerated golden also takes up four
-  `stage_config_view_sha256` lines this change does not move, PPO and SAC of
-  the T-Rex and velociraptor stances, and the catalog those two stances'
-  budgets: `main`'s `[curriculum] timesteps` raises of 2026-10-11 (11M and 6M
-  → 12M) had left both stale.
+  `.action_low_pass_filter`.
 - **Every species stands on an elliptic friction cone** (#612; breaking — plant
   change: velociraptor physics revision 3 → 4, brachiosaurus 4 → 5,
   dibothrosuchus 1 → 2; all existing checkpoints of the three species are

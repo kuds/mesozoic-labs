@@ -90,13 +90,13 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         "compsognathus_robot": (46, 12, 19, 18, 12, 1.5856),
     }
 
-    # The velociraptor stance was raised 6M -> 12M on main (cdffea89, 2026-10-11).
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [12_000_000, 8_000_000, 12_000_000]
-    # Stage 1 is 12M: trex 1a is the stance-gated stage, and its first 6M
-    # budget ran out mid-improvement -- run 20260802_203215's best evaluation
-    # was its last, at 6.0M of 6M. Raised 10M -> 11M on main (08a66b3) for
-    # the seeded replicate campaign and 11M -> 12M on main (3261967b,
-    # 2026-10-11).
+    # Stage 1 is 12M, not the 6M of the quadrupeds: trex 1a is the
+    # stance-gated stage, and its 6M budget ran out mid-improvement -- run
+    # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
+    # 10M -> 11M on main (08a66b3) for the seeded replicate campaign, then
+    # 11M -> 12M on main (3261967b), when the velociraptor stance also went
+    # 6M -> 12M (cdffea89).
     #
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
