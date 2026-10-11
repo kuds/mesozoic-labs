@@ -84,19 +84,19 @@
     "species": "compsognathus",
     "model_path": "environments/compsognathus/assets/compsognathus.xml",
     "physics_revision": 2,
-    "policy_interface_revision": 3,
+    "policy_interface_revision": 4,
     "visual_revision": 2,
     "source_closure_sha256": "sha256:0748b0a88012be7a8f191cb3f7ca0a54a2a3421da8894584758c1fcb3e374d85",
-    "policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
+    "policy_interface_sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769",
     "physics_sha256": "sha256:5920646d31570f1ed5b80f9cf2a54697c1818d7b309377de8782176f732b6036",
     "visual_sha256": "sha256:340185bee8e965548753e59813f9b7096e3d6c2fcbfcf41a6cca63e4eaea4766",
     "nq": 24,
     "nv": 23,
     "nu": 14,
-    "observation_dim": 56,
+    "observation_dim": 55,
     "action_dim": 14
   },
-  "task_sha256": "sha256:fce8b5199e4755334fab78de9d6f257cc37475b0aec80daeb6930681ca3db55a",
+  "task_sha256": "sha256:b1d8238de47d3da2a89cb8168da23d3b5b6686bf2360b00bbe9775b936f078cb",
   "derived_push_manifest": {
     "root_body_id": 2.0,
     "subtree_mass_kg": 0.9999999999999999,
@@ -138,5 +138,14 @@
     "nominal_recovery_seconds": 0.8,
     "nominal_dwell_seconds": 0.4,
     "qualification_targets": "Pre-registered pilot engineering targets, not measured policy achievement."
-  }
+  },
+  "restamp_history": [
+    {
+      "restamped_at_commit": "69734c076f65168ddc7249d0bb6e7783ef68e720",
+      "previous_policy_interface_revision": 3,
+      "previous_policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
+      "previous_task_sha256": "sha256:fce8b5199e4755334fab78de9d6f257cc37475b0aec80daeb6930681ca3db55a",
+      "reason": "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free observations bipedal-target-heading-free/v1; physics r2 and the recovery [env] block unchanged; the fixed-command nulls do not read the observation and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
+    }
+  ]
 }
