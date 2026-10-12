@@ -335,6 +335,101 @@ class TestRecordStageVideo:
         assert mock_env._camera.distance == 3.0
 
 
+class TestStanceCsvPadColumns:
+    """The replay's per-frame stance CSV carries each box pad's signed fore-aft CoP and digit share."""
+
+    @staticmethod
+    def _replay(tmp_path, model_id, steps):
+        """Replay *model_id*'s stance env under a zero-action policy (no rendering, plant checks stubbed)."""
+        pytest.importorskip("mujoco")
+        import csv
+        import os
+
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        from environments.shared.config import load_stage_config
+        from environments.shared.species_registry import env_class
+
+        class Unrendered(env_class(model_id)):  # type: ignore[misc,valid-type]
+            def render(self):
+                return np.zeros((4, 4, 3), dtype=np.uint8)
+
+        env_kwargs = load_stage_config(model_id, "stance")["env_kwargs"]
+        probe = Unrendered(**env_kwargs)
+        nu = probe.action_space.shape[0]
+        probe.close()
+        model = MagicMock()
+        model.predict.side_effect = lambda obs, deterministic=True: (np.zeros(nu, dtype=np.float32), None)
+        import builtins
+
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            return MagicMock() if name == "mediapy" else real_import(name, *args, **kwargs)
+
+        with (
+            patch("builtins.__import__", side_effect=mock_import),
+            patch("environments.shared.plant_contract.validate_model_plant"),
+            patch("environments.shared.plant_contract.validate_environment_plant"),
+            # No VecNormalize here, so the replay needs no SB3: the shared `test` matrix runs this without it.
+            patch(
+                "environments.shared.policy_loading._ensure_sb3",
+                return_value={"DummyVecEnv": MagicMock(), "VecNormalize": MagicMock()},
+            ),
+        ):
+            record_stage_video(
+                model,
+                env_class=Unrendered,
+                env_kwargs=env_kwargs,
+                stage=1,
+                stage_dir=str(tmp_path),
+                model_id=model_id,
+                label="selected",
+                max_steps=steps,
+                collect_stance_diagnostics=True,
+            )
+        (path,) = tmp_path.glob("*_selected_stance.csv")
+        with path.open(newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        return rows, Unrendered, env_kwargs
+
+    def test_the_tyrannosaurus_rex_csv_has_each_pads_columns_and_they_are_the_recorders(self, tmp_path):
+        from environments.shared.evaluation import replay_seed
+        from environments.shared.gait.morphology import Morphology
+        from environments.shared.gait.pad_telemetry import PadLayout, pad_step_columns
+        from environments.shared.gait.recorder import SubstepContactRecorder
+
+        steps = 60
+        rows, env_class, env_kwargs = self._replay(tmp_path, TYRANNOSAURUS_REX, steps)
+        assert len(rows) == steps
+        names = ("r_sole_cop_fore_aft", "r_digit_share", "l_sole_cop_fore_aft", "l_digit_share")
+        assert set(names) <= set(rows[0])
+        # The same episode, recorded on its own: the CSV holds the recorder's per-step values, step for step.
+        env = env_class(**env_kwargs)
+        try:
+            morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
+            with SubstepContactRecorder(env, morphology) as recorder:
+                env.reset(seed=replay_seed(42, 1))
+                for _ in range(steps):
+                    env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                    recorder.end_step()
+                trace = recorder.end_episode(truncated=True)
+        finally:
+            env.close()
+        expected = pad_step_columns(trace, PadLayout.from_morphology(morphology))
+        for step, row in enumerate(rows):
+            for name in names:
+                value = float(expected[name][step])
+                assert row[name] == ("" if np.isnan(value) else str(value)), (step, name)
+        loaded = [float(row["r_sole_cop_fore_aft"]) for row in rows if row["r_sole_cop_fore_aft"]]
+        assert loaded and all(-1.0 <= value <= 1.0 for value in loaded)
+        assert all(0.0 < float(row["l_digit_share"]) < 1.0 for row in rows[20:])
+
+    def test_a_model_without_a_box_sole_gets_no_pad_column(self, tmp_path):
+        rows, _env_class, _env_kwargs = self._replay(tmp_path, VELOCIRAPTOR_MONGOLIENSIS, 10)
+        assert len(rows) == 10
+        assert not [name for name in rows[0] if name.endswith(("_sole_cop_fore_aft", "_digit_share"))]
+
+
 class TestEvaluateFunction:
     """Test the evaluate() function with mocked dependencies."""
 

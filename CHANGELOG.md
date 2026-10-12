@@ -8,6 +8,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Per-foot pad telemetry and the sagittal leg DC at every periodic
+  evaluation** (the maintainer's approval of 2026-10-12, after the T. rex
+  stance run `20261011_165957` was refused by `stance_quality/v2` on its pad
+  centre-of-pressure rail, `max_sole_cop_fore_aft`, failing it on 39 of 40
+  episodes at a median of 0.9999; 1/40 clean).
+  The left-right ankle offset that put its right pad on the toe edge had
+  formed by about 1M steps, 11M steps before the verdict, and was readable
+  only from the unnamed per-actuator action DC. Its artifacts kept only the
+  per-episode maximum over the feet, so they could not say which foot was on
+  which edge, or when the posture formed. Report-only: no gate verdict, reward,
+  observation, checkpoint selection, training rollout or digest changes.
+  - A new pure module, `environments/shared/gait/pad_telemetry.py`, reduces
+    the floor-truth recorder's `EpisodeTrace` per foot. The pad feet are those
+    whose `FOOT_SUPPORT` sole is a box (`PadLayout.from_morphology`). It
+    records the signed fore-aft pad centre of pressure, in pad half-lengths
+    with + toward the toe, averaged over the window steps the gate counts as
+    loaded. It records the gate's own per-foot statistic, whose maximum over
+    the feet is `max_sole_cop_fore_aft` bit for bit. It records the digits'
+    share of the limb's floor force. Each value has a per-episode form
+    (`episode_pad_telemetry`) and a per-step form (`pad_step_columns`).
+  - A field exists only on a foot that has what it measures. There is no pad
+    field on the Velociraptor's capsule feet or the Brachiosaurus's
+    ellipsoids. There is no digit share on the Compsognathus robot's soles
+    or the Dibothrosuchus's pads. NaN in an existing field means that it was
+    not measured.
+  - `StageAwareEvalCallback` takes the `model_id`, which `_build_core_callbacks`
+    passes through `build_stage_evaluation_callbacks`. It attaches the
+    recorder to the in-process evaluation env for each evaluation only, never
+    to the training envs, and detaches it as each sub-env finishes its share
+    of the panel. It reduces each episode, keeping the values aligned with the
+    episode lengths. A failure costs that evaluation's pad values (NaN), never
+    the run.
+  - `StageGatePlateauCallback` writes the mean over full-horizon episodes of
+    each pad field into `gate_progress.npz` and TensorBoard
+    (`diagnostics/eval_<key>`). The keys are `<label>_sole_cop_fore_aft`,
+    `<label>_sole_cop_fore_aft_gate` and `<label>_digit_share`.
+  - Beside them it writes the rail's own per-episode number, averaged over
+    the same episodes: `max_sole_cop_fore_aft_mean`, the mean of each
+    episode's maximum over the feet. The maximum over the feet of the
+    per-foot means is only a lower bound of it: when the worse pad changes
+    between episodes, both means can sit under the bar while most episodes
+    fail. Where the stage declares the bar (T. rex 0.80, anatomical
+    Compsognathus 0.70) it also writes
+    `max_sole_cop_fore_aft_over_bar_fraction`, the fraction of those
+    episodes above the bar.
+  - It also writes `leg_dc_<left>_minus_<right>_<joint>_deg` for hip pitch,
+    knee and ankle. Each is the left joint's commanded offset from home minus
+    the right one's, in degrees, signed as a rotation about the animal's
+    leftward axis. The values come from `action_dc_per_actuator`, mapped
+    through the env's own action map (`leg_dc_degrees`). Each joint's sign is
+    its axis along the right-to-left foot direction at the home keyframe
+    (`sagittal_leg_dc_pairs`). So a mirror-symmetric posture reads 0 on every
+    model, including the Compsognathus robot. That robot's hip pitch axes and
+    control ranges are mirrored, so a symmetric 0.03 rad hip pitch offset
+    read -0.036 or +0.61 as a raw action difference. The mean action of run
+    `20261011_165957` reads -3.2° at the ankle and -2.1° at the knee. Each
+    side's joints are spelled with the prefix of its foot site. All six
+    models have these keys, with two pairs on the quadrupeds.
+  - The stance replay CSV (`*_selected_stance.csv`, `*_final_stance.csv`)
+    gains `<label>_sole_cop_fore_aft` and `<label>_digit_share` per step, from
+    the recorder attached to the replay env.
+  - Measured on the T. rex, the recorder adds 34% to an evaluation's
+    simulation time (best of three 4,000-step evaluations, 5.66 s to 7.61 s,
+    single-threaded). On the 40-episode panel that is about 20 s per
+    evaluation on that machine, and about 80 minutes over a 12M stance at the
+    default `eval_freq` of 50,000. A model without a box pad attaches no
+    recorder.
+  - `gate_progress.npz` and the CSV carry no schema or version, and the new
+    keys are additive. `StanceEpisodeMetrics`, the v2 panel CSV and every
+    report schema are unchanged.
+  - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`, which now also
+    describes `gate_progress.npz`.
 - **A six-heading stance certificate, `stance_quality_heading/v1`** (#617; decision
   D-D32, the maintainer's approval of 2026-10-11;
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `stance_quality/v2` judges a
@@ -519,7 +591,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
-- **The development version is `0.4.0.dev1`** (`pyproject.toml`; the
+- **The development version is `0.4.0.dev1`** (#619; `pyproject.toml`; the
   maintainer's request of 2026-10-11 to bump the version when training
   restarts). Training restarts on the D-D33 identifiers. Every run records
   the package version in its provenance (`dependency_versions`), so the runs

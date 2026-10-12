@@ -1179,3 +1179,558 @@ class TestGateProgressCarriesTheNewSeries:
         # 0 Hz would read as a measured slow drift.
         assert math.isnan(stats["action_freq_hz"])
         assert stats["action_dc_rms"] == pytest.approx(0.5)
+
+
+# ── pad telemetry and the sagittal leg DC ────────────────────────────────────
+
+
+class _StubRecorder:
+    """Stands in for SubstepContactRecorder: counts closed steps and episodes, optionally fails."""
+
+    def __init__(self, *, fail_on_step: "int | None" = None) -> None:
+        self.steps = 0
+        self.episodes = 0
+        self.attached = True
+        self.fail_on_step = fail_on_step
+
+    def end_step(self, action, reward):
+        self.steps += 1
+        if self.fail_on_step is not None and self.steps == self.fail_on_step:
+            raise RuntimeError("the substep hook fired 0 times")
+
+    def end_episode(self, **_kwargs):
+        self.episodes += 1
+        return f"trace{self.episodes}"
+
+    def detach(self):
+        self.attached = False
+
+
+PAD_KEYS = ("r_sole_cop_fore_aft", "r_sole_cop_fore_aft_gate", "r_digit_share")
+
+
+def _pad_capturing_callback(monkeypatch, recorders, *, quota=2):
+    """A bare capture callback mid-evaluation, its pad reduction replaced by one value per episode."""
+    from environments.shared.gait import pad_telemetry
+
+    callback = _bare_stage_aware_callback(success_applicable=False)
+    callback.foot_pad_keys = PAD_KEYS
+    callback._foot_setup = [(None, None, None, "layout")] * len(recorders)
+    callback._pad_recorders = dict(enumerate(recorders))
+    callback._pad_quota = {index: quota for index in range(len(recorders))}
+    callback._pad_failed = False
+    callback._current_eval_foot_pad = {key: [] for key in PAD_KEYS}
+
+    def reduce(trace, layout, *, settle_steps):
+        number = float(trace.removeprefix("trace"))
+        return {"r_sole_cop_fore_aft": number / 10, "r_sole_cop_fore_aft_gate": number / 5, "r_digit_share": 0.15}
+
+    monkeypatch.setattr(pad_telemetry, "episode_pad_telemetry", reduce)
+    return callback
+
+
+def _step(callback, *, env_index=0, done=False):
+    callback._log_success_callback(
+        {"i": env_index, "done": done, "info": {}, "actions": np.zeros((1, 2)), "reward": 1.0}, {}
+    )
+
+
+class TestPadTelemetryCapture:
+    """The evaluation callback's side: one value per pad key per episode, aligned with the episode lengths."""
+
+    def test_each_episode_appends_one_value_per_key_and_a_finished_sub_env_is_detached(self, monkeypatch):
+        recorder = _StubRecorder()
+        callback = _pad_capturing_callback(monkeypatch, [recorder])
+        for done in (False, False, True, False, True):
+            _step(callback, done=done)
+        assert recorder.steps == 5 and recorder.episodes == 2
+        assert not recorder.attached and callback._pad_recorders == {}  # its share of the panel is done
+        callback._publish_pad_telemetry()
+        assert callback.evaluations_foot_pad == [
+            {"r_sole_cop_fore_aft": [0.1, 0.2], "r_sole_cop_fore_aft_gate": [0.2, 0.4], "r_digit_share": [0.15, 0.15]}
+        ]
+
+    def test_an_episode_without_a_recorder_is_nan_but_keeps_its_place(self, monkeypatch):
+        callback = _pad_capturing_callback(monkeypatch, [_StubRecorder()], quota=3)
+        _step(callback, done=True)
+        callback._pad_recorders.clear()
+        _step(callback, done=True)
+        values = callback._current_eval_foot_pad["r_sole_cop_fore_aft"]
+        assert values[0] == 0.1 and math.isnan(values[1]) and len(values) == 2
+
+    def test_a_recorder_failure_costs_the_evaluation_not_the_run(self, monkeypatch, caplog):
+        good, bad = _StubRecorder(), _StubRecorder(fail_on_step=2)
+        callback = _pad_capturing_callback(monkeypatch, [good, bad])
+        _step(callback, env_index=0, done=True)
+        _step(callback, env_index=1)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            _step(callback, env_index=1, done=True)  # raises inside the recorder
+        assert callback._pad_failed
+        assert not good.attached and not bad.attached and callback._pad_recorders == {}
+        assert sum("could not be recorded" in record.message for record in caplog.records) == 1
+        callback._publish_pad_telemetry()
+        # Every value of the evaluation is NaN, the measured one too: a part-recorded panel is not published.
+        (published,) = callback.evaluations_foot_pad
+        assert all(len(values) == 2 and all(math.isnan(v) for v in values) for values in published.values())
+
+    def test_a_callback_without_a_model_records_no_pad_field(self):
+        pytest.importorskip("stable_baselines3")
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.eval_freq = 10
+        callback.n_calls = 10
+        callback.verbose = 0
+        with patch.object(eval_diagnostics_module._EvalCallback, "_on_step", return_value=True):
+            assert callback._on_step() is True
+        assert callback.evaluations_foot_pad == [{}] and callback.evaluations_leg_dc == [{}]
+        assert callback.foot_pad_keys == () and callback.leg_dc_pairs == ()
+
+    def test_seeded_prior_evaluations_carry_an_empty_pad_record(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.seed_prior_history(2)
+        assert callback.evaluations_foot_pad == [{}, {}]
+
+    def test_an_env_that_cannot_be_recorded_warns_once_and_leaves_the_keys_empty(self, caplog):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.model_id = TYRANNOSAURUS_REX
+        callback.eval_env = SimpleNamespace()  # neither a DummyVecEnv nor a wrapper of one
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            callback._begin_pad_capture()
+            callback._begin_pad_capture()
+        assert callback.foot_pad_keys == () and callback.leg_dc_pairs == ()
+        assert sum("Pad telemetry" in record.message for record in caplog.records) == 1
+
+
+class TestPadTelemetryReachesGateProgress:
+    """The plateau callback's side: full-horizon means of the pad values and the leg DC, in the npz and TB."""
+
+    @staticmethod
+    def _plateau(
+        tmp_path,
+        *,
+        lengths,
+        pads,
+        leg_dc=None,
+        keys=PAD_KEYS[:1],
+        pairs=(eval_diagnostics_module.SagittalLegPair("leg_dc_l_minus_r_ankle_deg", 1, 0, 1.0, 1.0),),
+        curriculum_kwargs=None,
+    ):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 0.0, **(curriculum_kwargs or {})}, stage=1)
+        callback._gate_progress_dir = tmp_path
+        eval_callback.evaluations_length.append(lengths)
+        eval_callback.evaluations_foot_pad = [pads]
+        eval_callback.evaluations_leg_dc = [{} if leg_dc is None else leg_dc]
+        eval_callback.foot_pad_keys = keys
+        eval_callback.leg_dc_pairs = pairs
+        return callback
+
+    def test_a_pad_value_is_the_mean_over_full_horizon_episodes_and_the_leg_dc_is_the_captured_one(self, tmp_path):
+        callback = self._plateau(
+            tmp_path,
+            lengths=[1000, 1000, 300, 1000],
+            pads={"r_sole_cop_fore_aft": [0.9, float("nan"), -1.0, 0.7]},  # the fall and the unmeasured one drop
+            leg_dc={"leg_dc_l_minus_r_ankle_deg": -3.165},
+        )
+        scalars = callback._foot_telemetry_scalars(0)
+        assert scalars["r_sole_cop_fore_aft"] == pytest.approx(0.8)
+        assert scalars["leg_dc_l_minus_r_ankle_deg"] == -3.165
+
+    @pytest.mark.parametrize(
+        ("lengths", "pads", "leg_dc"),
+        [
+            ([300, 400], {"r_sole_cop_fore_aft": [0.5, 0.5]}, None),  # nothing reached the horizon; no DC captured
+            ([1000], {"r_sole_cop_fore_aft": [0.5, 0.5]}, {"leg_dc_l_minus_r_ankle_deg": float("nan")}),  # misaligned
+            ([1000], {}, {"leg_dc_l_minus_r_ankle_deg": 1.5}),  # an evaluation that recorded no pad value
+        ],
+    )
+    def test_an_unmeasured_value_is_nan_and_its_key_is_still_supplied(self, tmp_path, lengths, pads, leg_dc):
+        callback = self._plateau(tmp_path, lengths=lengths, pads=pads, leg_dc=leg_dc)
+        scalars = callback._foot_telemetry_scalars(0)
+        assert set(scalars) == {"r_sole_cop_fore_aft", "leg_dc_l_minus_r_ankle_deg"}  # no gate key, no panel key
+        assert math.isnan(scalars["r_sole_cop_fore_aft"])
+        assert math.isnan(scalars["leg_dc_l_minus_r_ankle_deg"]) or leg_dc == {"leg_dc_l_minus_r_ankle_deg": 1.5}
+
+    def test_the_values_reach_the_npz_beside_the_gate_criteria_and_tb_gets_the_finite_ones(self, tmp_path):
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        callback = self._plateau(tmp_path, lengths=[1000, 1000], pads={"r_sole_cop_fore_aft": [0.4, float("nan")]})
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[1000.0, 1000.0], episode_duties=[0.0, 0.0], episode_rewards=[1.0, 1.0], horizon=1000
+        )
+        callback._record_stance_scalars(0, panel)
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert data["r_sole_cop_fore_aft"].tolist() == pytest.approx([0.4])
+        assert math.isnan(data["leg_dc_l_minus_r_ankle_deg"][0])
+        recorded = {call.args[0] for call in callback.logger.record.call_args_list}
+        assert "diagnostics/eval_r_sole_cop_fore_aft" in recorded
+        assert "diagnostics/eval_leg_dc_l_minus_r_ankle_deg" not in recorded  # NaN is not logged
+
+
+GATE_KEYS = ("r_sole_cop_fore_aft_gate", "l_sole_cop_fore_aft_gate")
+
+
+class TestThePanelsOwnCopStatistic:
+    """``max_sole_cop_fore_aft_mean`` and its bar fraction: the rail's per-episode number, not the per-foot means'."""
+
+    @staticmethod
+    def _scalars(tmp_path, *, lengths, right, left, bar=None):
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path,
+            lengths=lengths,
+            pads={"r_sole_cop_fore_aft_gate": right, "l_sole_cop_fore_aft_gate": left},
+            keys=GATE_KEYS,
+            pairs=(),
+            curriculum_kwargs=None if bar is None else {"max_sole_cop_fore_aft": bar},
+        )
+        return callback._foot_telemetry_scalars(0)
+
+    def test_the_worse_foot_changing_between_episodes_reads_above_the_max_of_the_per_foot_means(self, tmp_path):
+        # The edge is on the right pad in two episodes and on the left in one, as on a seed whose side wanders.
+        scalars = self._scalars(tmp_path, lengths=[1000] * 3, right=[0.95, 0.2, 0.9], left=[0.2, 0.95, 0.2])
+        assert max(scalars[key] for key in GATE_KEYS) == pytest.approx(0.6833333)  # the right foot's mean
+        assert scalars["max_sole_cop_fore_aft_mean"] == pytest.approx((0.95 + 0.95 + 0.9) / 3)
+        assert "max_sole_cop_fore_aft_over_bar_fraction" not in scalars  # the stage declares no bar
+
+    def test_the_fraction_counts_full_horizon_episodes_over_the_declared_bar_as_the_gate_compares(self, tmp_path):
+        nan = float("nan")
+        scalars = self._scalars(
+            tmp_path,
+            lengths=[1000, 1000, 1000, 1000, 1000, 250],
+            # over the bar on one foot; at the bar exactly (holds: the gate fails only value > bar); under it;
+            # measured on one foot only (the other NaN, as on an episode where it was not a box foot); unmeasured; a fall.
+            right=[0.81, 0.80, 0.30, nan, nan, 1.0],
+            left=[0.10, 0.20, 0.79, 0.95, nan, 1.0],
+            bar=0.8,
+        )
+        assert scalars["max_sole_cop_fore_aft_mean"] == pytest.approx((0.81 + 0.80 + 0.79 + 0.95) / 4)
+        assert scalars["max_sole_cop_fore_aft_over_bar_fraction"] == pytest.approx(2 / 4)
+
+    @pytest.mark.parametrize(
+        ("lengths", "right", "left"),
+        [
+            ([400, 300], [0.9, 0.9], [0.9, 0.9]),  # no episode reached the horizon
+            ([1000, 1000], [float("nan")] * 2, [float("nan")] * 2),  # a failed capture publishes NaN
+            ([1000, 1000], [0.5, 0.5], [0.5]),  # misaligned feet
+        ],
+    )
+    def test_unmeasured_panels_read_nan_and_keep_both_keys(self, tmp_path, lengths, right, left):
+        scalars = self._scalars(tmp_path, lengths=lengths, right=right, left=left, bar=0.7)
+        assert math.isnan(scalars["max_sole_cop_fore_aft_mean"])
+        assert math.isnan(scalars["max_sole_cop_fore_aft_over_bar_fraction"])
+
+    @pytest.mark.parametrize("bar", [None, True, "0.8", float("nan")])
+    def test_no_fraction_without_a_finite_declared_bar(self, tmp_path, bar):
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path,
+            lengths=[1000],
+            pads={"r_sole_cop_fore_aft_gate": [0.9]},
+            keys=GATE_KEYS[:1],
+            pairs=(),
+            curriculum_kwargs={} if bar is None else {"max_sole_cop_fore_aft": bar},
+        )
+        scalars = callback._foot_telemetry_scalars(0)
+        assert scalars["max_sole_cop_fore_aft_mean"] == pytest.approx(0.9)
+        assert "max_sole_cop_fore_aft_over_bar_fraction" not in scalars
+
+    def test_a_model_without_a_pad_has_no_panel_key(self, tmp_path):
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path, lengths=[1000], pads={}, keys=(), curriculum_kwargs={"max_sole_cop_fore_aft": 0.8}
+        )
+        assert set(callback._foot_telemetry_scalars(0)) == {"leg_dc_l_minus_r_ankle_deg"}
+
+
+# ── the sagittal leg DC, in degrees about the leftward axis ──────────────────
+
+#: Two mirrored legs: the left hip pitch axis points right (-y) and the right one left (+y), as on the
+#: compsognathus robot; the knees both point right; the hip roll is not sagittal (axis x); the ankles are driven
+#: by motors, not position servos.  The feet sit at y = +-0.1, so the leftward axis is +y.
+_MIRRORED_LEGS = """
+<mujoco>
+  <worldbody>
+    <body name="pelvis" pos="0 0 1"><freejoint/>
+      <geom size="0.1"/>
+      <body name="left_thigh" pos="0 0.1 0">
+        <joint name="left_hip_pitch" axis="0 -1 0"/><joint name="left_hip_roll" axis="1 0 0"/>
+        <geom size="0.05"/>
+        <body name="left_shin" pos="0 0 -0.4"><joint name="left_knee" axis="0 -1 0"/><geom size="0.05"/>
+          <body name="left_foot" pos="0 0 -0.4"><joint name="left_ankle" axis="0 -1 0"/><geom size="0.05"/>
+            <site name="left_foot_site"/></body></body></body>
+      <body name="right_thigh" pos="0 -0.1 0">
+        <joint name="right_hip_pitch" axis="0 1 0"/><joint name="right_hip_roll" axis="1 0 0"/>
+        <geom size="0.05"/>
+        <body name="right_shin" pos="0 0 -0.4"><joint name="right_knee" axis="0 -1 0"/><geom size="0.05"/>
+          <body name="right_foot" pos="0 0 -0.4"><joint name="right_ankle" axis="0 -1 0"/><geom size="0.05"/>
+            <site name="right_foot_site"/></body></body></body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="a0" joint="left_hip_pitch" kp="10" ctrlrange="-1.2 0.5"/>
+    <position name="a1" joint="right_hip_pitch" kp="10" ctrlrange="-0.5 1.2"/>
+    <position name="a2" joint="left_knee" kp="10" ctrlrange="-1 1"/>
+    <position name="a3" joint="right_knee" kp="10" ctrlrange="-1 1"/>
+    <position name="a4" joint="left_hip_roll" kp="10" ctrlrange="-1 1"/>
+    <position name="a5" joint="right_hip_roll" kp="10" ctrlrange="-1 1"/>
+    <motor name="a6" joint="left_ankle" ctrlrange="-1 1"/>
+    <motor name="a7" joint="right_ankle" ctrlrange="-1 1"/>
+  </actuator>
+</mujoco>
+"""
+
+
+def _mirrored_legs():
+    mujoco = pytest.importorskip("mujoco")
+    model = mujoco.MjModel.from_xml_string(_MIRRORED_LEGS)
+    home = np.array([0.4, -0.4, -0.3, -0.3, 0.0, 0.0, 0.0, 0.0])
+    low, high = model.actuator_ctrlrange.T
+
+    def scale(action):
+        residual = np.clip(action, -1.0, 1.0)
+        return home + np.where(residual < 0, residual * (home - low), residual * (high - home))
+
+    env = SimpleNamespace(model=model, _scale_action=scale)
+    feet = [
+        SimpleNamespace(label="r", primary_site=model.site("right_foot_site").id),
+        SimpleNamespace(label="l", primary_site=model.site("left_foot_site").id),
+    ]
+    return env, SimpleNamespace(feet=feet), home, low, high
+
+
+class TestSagittalLegDc:
+    def test_pairs_are_the_lateral_position_servos_signed_along_the_leftward_axis(self):
+        from environments.shared.eval_diagnostics import SagittalLegPair, sagittal_leg_dc_pairs
+
+        env, morphology, *_ = _mirrored_legs()
+        assert sagittal_leg_dc_pairs(env, morphology) == (
+            SagittalLegPair("leg_dc_l_minus_r_hip_pitch_deg", 0, 1, -1.0, 1.0),
+            SagittalLegPair("leg_dc_l_minus_r_knee_deg", 2, 3, -1.0, -1.0),
+            # no hip roll (axis x, not sagittal) and no ankle (motors: a control value is not an angle)
+        )
+
+    # Within every joint's range on both sides of home: the right hip has only 0.1 rad below its home control.
+    @pytest.mark.parametrize("theta", [0.03, -0.03, 0.09])
+    def test_a_mirror_symmetric_offset_reads_zero_and_an_antisymmetric_one_twice_the_angle(self, theta):
+        from environments.shared.eval_diagnostics import leg_dc_degrees, sagittal_leg_dc_pairs
+
+        env, morphology, home, low, high = _mirrored_legs()
+        pairs = sagittal_leg_dc_pairs(env, morphology)
+
+        def action(left_world, right_world):
+            # Joint angle = sign along +y times the rotation about +y; the residual map inverted per side of home.
+            target = home.copy()
+            for pair in pairs:
+                target[pair.left] += pair.left_sign * left_world
+                target[pair.right] += pair.right_sign * right_world
+            delta = target - home
+            return np.where(delta < 0, delta / (home - low), delta / np.where(high > home, high - home, 1.0))
+
+        symmetric = leg_dc_degrees(env, pairs, action(theta, theta))
+        assert symmetric == pytest.approx(dict.fromkeys(symmetric, 0.0), abs=1e-9)
+        antisymmetric = leg_dc_degrees(env, pairs, action(theta, -theta))
+        assert antisymmetric == pytest.approx(dict.fromkeys(antisymmetric, math.degrees(2 * theta)))
+        # The bug this replaced: on the mirrored hips the raw action difference reads a symmetric offset as one.
+        raw = action(theta, theta)
+        assert abs(raw[0] - raw[1]) > 0.01
+
+    @pytest.mark.parametrize("dc", [[], [0.1] * 3, [float("nan")] * 8])
+    def test_an_unmeasured_dc_reads_nan(self, dc):
+        from environments.shared.eval_diagnostics import leg_dc_degrees, sagittal_leg_dc_pairs
+
+        env, morphology, *_ = _mirrored_legs()
+        values = leg_dc_degrees(env, sagittal_leg_dc_pairs(env, morphology), dc)
+        assert len(values) == 2 and all(math.isnan(value) for value in values.values())
+
+    def test_the_capture_callback_publishes_the_degrees_of_the_dc_it_just_published(self):
+        from environments.shared.eval_diagnostics import sagittal_leg_dc_pairs
+
+        env, morphology, *_ = _mirrored_legs()
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.leg_dc_pairs = sagittal_leg_dc_pairs(env, morphology)
+        callback._foot_setup = [(env, env.model, morphology, None)]
+        callback.evaluations_action_dc = [[0.0] * 8, []]
+        callback._publish_leg_dc()  # the DC of the last evaluation is empty: unmeasured
+        callback.evaluations_action_dc.append([0.0] * 8)
+        callback._publish_leg_dc()
+        assert all(math.isnan(value) for value in callback.evaluations_leg_dc[0].values())
+        assert callback.evaluations_leg_dc[1] == {
+            "leg_dc_l_minus_r_hip_pitch_deg": 0.0,
+            "leg_dc_l_minus_r_knee_deg": 0.0,
+        }
+
+    def test_seeded_prior_evaluations_carry_an_empty_leg_dc_record(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.seed_prior_history(2)
+        assert callback.evaluations_leg_dc == [{}, {}]
+
+
+#: Every manifest model: its box-soled feet, whether they have digits, and its sagittal leg DC pairs (FOOT_SUPPORT
+#: and the actuated joints).
+REAL_TELEMETRY = {
+    ModelId("tyrannosaurus_rex", "anatomical"): (("r", "l"), True, (("l", "r"),)),
+    ModelId("compsognathus_longipes", "anatomical"): (("r", "l"), True, (("l", "r"),)),
+    ModelId("compsognathus_longipes", "robot"): (("r", "l"), False, (("l", "r"),)),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): (("fr", "fl", "rr", "rl"), False, (("fl", "fr"), ("rl", "rr"))),
+    ModelId("velociraptor_mongoliensis", "anatomical"): ((), False, (("l", "r"),)),
+    ModelId("brachiosaurus_altithorax", "anatomical"): ((), False, (("fl", "fr"), ("rl", "rr"))),
+}
+
+
+def _real_evaluation(model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0):
+    """One short evaluation of *model_id*'s stance on its real eval env (VecNormalize over a DummyVecEnv).
+
+    Seeded: an unseeded reset draws a new spawn on every run, and some spawns fall before the settle window ends
+    (the T. rex statue on reset seed 4 at step 178; the held left ankle on seeds 4 and 9), which leaves no
+    post-settle step to measure.  Every posture these tests hold stands to the horizon from seed 0.
+    """
+    pytest.importorskip("stable_baselines3")
+    pytest.importorskip("mujoco")
+    import os
+
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    from stable_baselines3.common.monitor import Monitor
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.config import load_stage_config
+    from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
+    from environments.shared.gait import pad_telemetry
+    from environments.shared.species_registry import env_class
+
+    config = load_stage_config(model_id, "stance")
+    settle = int(config["curriculum_kwargs"].get("settle_steps", 0))
+    config["env_kwargs"]["max_episode_steps"] = settle + extra_steps
+    cls = env_class(model_id)
+    eval_env = VecNormalize(DummyVecEnv([lambda: Monitor(cls(**config["env_kwargs"]))]), norm_reward=False)
+    eval_env.training = False
+    eval_env.seed(seed)
+    traces = []
+    reduce = pad_telemetry.episode_pad_telemetry
+
+    def keep(trace, layout, *, settle_steps):
+        traces.append(trace)
+        return reduce(trace, layout, settle_steps=settle_steps)
+
+    monkeypatch.setattr(pad_telemetry, "episode_pad_telemetry", keep)
+    callback, plateau = build_stage_evaluation_callbacks(
+        eval_env,
+        stage="stance",
+        stage_config=config,
+        model_id=model_id,
+        gate_progress_dir=tmp_path,
+        log_path=str(tmp_path),
+        eval_freq=1,
+        n_eval_episodes=episodes,
+        deterministic=True,
+    )
+    nu = eval_env.action_space.shape[0]
+    held = np.zeros(nu, dtype=np.float32) if action is None else np.asarray(action, dtype=np.float32)
+    model = MagicMock()
+    model.get_env.return_value = eval_env
+    model.get_vec_normalize_env.return_value = None
+    model.num_timesteps = 1
+    model.logger = MagicMock()
+    model.predict.side_effect = lambda observations, **kwargs: (np.tile(held, (observations.shape[0], 1)), None)
+    callback.init_callback(model)
+    plateau.init_callback(model)
+    try:
+        assert callback.on_step() is True
+        plateau.on_step()
+        hook_left = "_substep_probe_hook" in vars(eval_env.venv.envs[0].unwrapped)
+    finally:
+        eval_env.close()
+    return callback, np.load(tmp_path / "gate_progress.npz"), traces, settle, hook_left
+
+
+@pytest.mark.parametrize("model_id", sorted(REAL_TELEMETRY), ids=str)
+def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_path, monkeypatch):
+    """Every model: the pad keys of its box-soled feet (none on capsules and ellipsoids), the panel's own CoP
+    statistic beside them (and its bar fraction where the stage declares the bar), its leg DC pairs, all in the npz;
+    the recorder is off the env after the evaluation; and each episode's per-foot gate statistic tops out at the
+    gate's own ``max_sole_cop_fore_aft``."""
+    from environments.shared.config import load_stage_config
+    from environments.shared.gait.pad_telemetry import PAD_EPISODE_FIELDS
+    from environments.shared.gait.stance_metrics import episode_stance_metrics
+
+    pad_feet, has_digits, pairs = REAL_TELEMETRY[model_id]
+    callback, data, traces, settle, hook_left = _real_evaluation(model_id, tmp_path, monkeypatch)
+    fields = PAD_EPISODE_FIELDS if has_digits else tuple(f for f in PAD_EPISODE_FIELDS if f != "digit_share")
+    pad_keys = tuple(f"{foot}_{field}" for foot in pad_feet for field in fields)
+    leg_keys = tuple(
+        f"leg_dc_{left}_minus_{right}_{joint}_deg" for left, right in pairs for joint in ("hip_pitch", "knee", "ankle")
+    )
+    assert callback.foot_pad_keys == pad_keys
+    assert tuple(pair.key for pair in callback.leg_dc_pairs) == leg_keys
+    assert not hook_left
+    assert {key for key in data.files if key.endswith(("_sole_cop_fore_aft", "_gate", "_digit_share"))} == set(pad_keys)
+    assert {key for key in data.files if key.startswith("leg_dc_")} == set(leg_keys)
+    assert all(data[key][0] == 0.0 for key in leg_keys)  # the zero action holds no offset
+    (episodes,) = callback.evaluations_foot_pad
+    assert set(episodes) == set(pad_keys) and all(len(values) == 2 for values in episodes.values())
+    assert len(traces) == (2 if pad_feet else 0)  # a pad-less model attaches no recorder at all
+    gates = [episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft for trace in traces]
+    for number, gate in enumerate(gates):
+        assert max(episodes[f"{foot}_sole_cop_fore_aft_gate"][number] for foot in pad_feet) == gate
+    # A standing statue measures every field its model has.
+    assert all(math.isfinite(data[key][0]) for key in pad_keys)
+    bar = load_stage_config(model_id, "stance")["curriculum_kwargs"].get("max_sole_cop_fore_aft")
+    panel_keys = {key for key in data.files if key.startswith("max_sole_cop_fore_aft_")}
+    if not pad_feet:
+        assert panel_keys == set()
+        return
+    assert data["max_sole_cop_fore_aft_mean"][0] == pytest.approx(np.mean(gates))
+    if bar is None:
+        assert panel_keys == {"max_sole_cop_fore_aft_mean"}
+    else:
+        assert data["max_sole_cop_fore_aft_over_bar_fraction"][0] == np.mean([gate > bar for gate in gates])
+
+
+def test_a_held_left_ankle_offset_reads_as_a_negative_left_minus_right_ankle_dc(tmp_path, monkeypatch):
+    """Run A's sign (left ankle -0.063 action units below the right): the T. rex, through the real env, in degrees."""
+    callback, data, _traces, _settle, _hook = _real_evaluation(
+        TYRANNOSAURUS_REX, tmp_path, monkeypatch, action=np.eye(15)[10] * -0.063, episodes=1
+    )
+    pair = {pair.key: pair for pair in callback.leg_dc_pairs}["leg_dc_l_minus_r_ankle_deg"]
+    assert (pair.left, pair.right, pair.left_sign, pair.right_sign) == (10, 6, 1.0, 1.0)
+    # The residual map below home: -0.063 of the span from the home control down to the range's minimum, in radians.
+    from environments.shared.config import load_stage_config
+    from environments.shared.species_registry import env_class
+
+    env = env_class(TYRANNOSAURUS_REX)(**load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
+    try:
+        span = float(env.unwrapped._home_ctrl[10] - env.unwrapped.model.actuator_ctrlrange[10, 0])
+    finally:
+        env.close()
+    # The held action is float32, as a policy's is: 1e-5 degrees covers its rounding.
+    assert data["leg_dc_l_minus_r_ankle_deg"][0] == pytest.approx(math.degrees(-0.063 * span), abs=1e-5)
+    assert data["leg_dc_l_minus_r_ankle_deg"][0] < -3.0  # about run A's -3.2 degrees
+    assert data["leg_dc_l_minus_r_knee_deg"][0] == 0.0
+
+
+@pytest.mark.parametrize(("right_world", "expected"), [(0.03, 0.0), (-0.03, math.degrees(0.06))])
+def test_the_robots_mirrored_hips_read_a_held_symmetric_offset_as_zero(tmp_path, monkeypatch, right_world, expected):
+    """The compsognathus robot's hip pitch axes are mirrored (left -y, right +y) and its control ranges with them.
+
+    Held through a real evaluation, a mirror-symmetric 0.03 rad hip offset reads 0 and an antisymmetric one twice
+    the angle; the raw action difference read the symmetric one as -0.036 or +0.61 action units, by direction.
+    """
+    model_id = ModelId("compsognathus_longipes", "robot")
+    from environments.shared.config import load_stage_config
+    from environments.shared.species_registry import env_class
+
+    env = env_class(model_id)(**load_stage_config(model_id, "stance")["env_kwargs"])
+    try:
+        unwrapped = env.unwrapped
+        home = np.asarray(unwrapped._home_ctrl, dtype=float)
+        low, high = unwrapped.model.actuator_ctrlrange.T
+        names = [unwrapped.model.actuator(index).name for index in range(unwrapped.model.nu)]
+    finally:
+        env.close()
+    left, right = names.index("left_hip_pitch_act"), names.index("right_hip_pitch_act")
+    action = np.zeros(len(names))
+    # Rotations of +0.03 rad (left) and right_world (right) about the leftward axis: left joint angle -0.03 (its axis
+    # points right), right joint angle +right_world; each mapped back through the residual map's side of home.
+    for index, angle in ((left, -0.03), (right, right_world)):
+        action[index] = angle / (high[index] - home[index]) if angle > 0 else angle / (home[index] - low[index])
+    assert abs(action[left] - action[right]) > 0.03  # what the action-unit difference used to report
+    callback, data, _traces, _settle, _hook = _real_evaluation(
+        model_id, tmp_path, monkeypatch, action=action, episodes=1
+    )
+    assert data["leg_dc_l_minus_r_hip_pitch_deg"][0] == pytest.approx(expected, abs=1e-5)  # a float32 action
+    assert data["leg_dc_l_minus_r_knee_deg"][0] == 0.0 and data["leg_dc_l_minus_r_ankle_deg"][0] == 0.0

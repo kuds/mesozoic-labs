@@ -74,7 +74,37 @@ On Brachiosaurus and Dibothrosuchus, the raw `r_foot_contact` and
 forces: their envs report the `fr` and `fl` feet under these biped names,
 beside `rr_foot_contact` and `rl_foot_contact` for the hind feet. The names
 are kept because the diagnostics callback, episode metrics and plots read
-them. Quadruped CSVs have no support, foot-position, or leg-home columns.
+them. Quadruped CSVs have no support, foot-position, or leg-home columns;
+the Dibothrosuchus CSV has the pad columns below.
+
+### Pad columns
+
+Every model whose `FOOT_SUPPORT` sole is a box adds two columns per such
+foot, named by the floor-truth recorder's foot label (`r`/`l`, and
+`fr`/`fl`/`rr`/`rl` on the Dibothrosuchus):
+
+| Column | Meaning |
+|---|---|
+| `<label>_sole_cop_fore_aft` | The step's signed fore-aft centre of pressure on the pad, in pad half-lengths, positive toward the toe (`+1` the toe edge, `-1` the heel edge) |
+| `<label>_digit_share` | The step's floor force on the foot's digits (its `FOOT_SUPPORT` support geoms other than the sole) over the whole limb's floor force |
+
+They come from the floor-truth recorder
+(`environments/shared/gait/recorder.py`), attached to the replay env for
+the replay only, and are reduced by
+`environments/shared/gait/pad_telemetry.py`'s `pad_step_columns`. The CoP is
+the stance gate's measurement, normalized as `stance_quality/v2`'s
+`max_sole_cop_fore_aft` reads it. A cell is empty on a step the gate counts as
+unloaded: no floor force on the pad, or no pad contact above 0.1 N. The gate
+counts such a step as 1. So the gate's per-foot statistic over any window is
+the mean of `|value|`, with an empty cell read as 1. The digit share is empty
+on a step the limb carries nothing. The column is absent, not empty, on a
+foot that declares no digits (the Compsognathus robot's sole and every
+Dibothrosuchus foot).
+
+The pad columns cover the four box-soled models: Tyrannosaurus Rex, both
+Compsognathus embodiments and Dibothrosuchus. The Velociraptor's capsule feet
+and the Brachiosaurus's ellipsoids have no box pad, so their CSVs have no pad
+column, just as their gates have no fore-aft CoP.
 
 ### Biped feet and leg joints
 
@@ -115,6 +145,106 @@ errors compare each side's hip pitch, hip roll, knee, and ankle with the
 `home` keyframe, with per-leg and per-joint means; the robot's hip yaw and
 ankle roll are not included. The robot's env has no leg-home-pose reward
 term, so its CSV has these errors but no env `leg_home_pose_error`.
+
+## Evaluation telemetry: `gate_progress.npz`
+
+Each training stage directory holds `gate_progress.npz` beside
+`diagnostics.npz` and `evaluations.npz`. `StageGatePlateauCallback`
+(`environments/shared/eval_diagnostics.py`) rewrites it after every periodic
+evaluation (every `eval_freq` steps, 50,000 by default). It is measured on the
+deterministic policy over the evaluation panel: `max(30, min_eval_episodes)`
+episodes, 40 on the stance stages that declare it. Every array has one
+value (or one row) per evaluation, aligned with `timesteps`. A key a run
+cannot supply on every evaluation is dropped rather than written misaligned.
+The file is report-only. No gate verdict, checkpoint selection or reward
+reads it. The opt-in hop watch reads only its `unsupported_duty`.
+
+| Keys | Meaning |
+|---|---|
+| `timesteps` | The training step of each evaluation |
+| `full_horizon_fraction`, `duty_episodes`, `unsupported_duty`, `unsupported_duty_ucb`, `bilateral_support_duty`, `mean_reward` | The stance panel's gate quantities, as `curriculum/stance_gate.py` reduces them |
+| `action_dc_rms`, `action_ac_rms`, `action_delta`, `action_jerk`, `action_freq_hz`; `action_dc_per_actuator`, `action_ac_rms_per_actuator` | The deterministic action's static offset from the home control and its tremor, over the post-settle window, as scalars and as (evaluations, actuators) matrices |
+| `term_*` | Each reward term's per-episode mean |
+| `<label>_sole_cop_fore_aft` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the foot's signed fore-aft pad centre of pressure, in pad half-lengths, positive toward the toe. An episode's value is the mean over the post-settle steps the gate counts as loaded |
+| `<label>_sole_cop_fore_aft_gate` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the foot's per-episode gate statistic: the post-settle mean of `\|CoP\|`, with an unloaded step counted as 1. In each episode, its maximum over the feet is that episode's `max_sole_cop_fore_aft`. The maximum over the feet of these per-evaluation means is not the panel's statistic, only a lower bound of the next key |
+| `max_sole_cop_fore_aft_mean` | A model with a box pad: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_sole_cop_fore_aft` (the maximum over the feet of `<label>_sole_cop_fore_aft_gate`), the number the gate's pad rail reads |
+| `max_sole_cop_fore_aft_over_bar_fraction` | A model with a box pad, on a stage that declares the `max_sole_cop_fore_aft` bar (the T. rex 0.80, the anatomical Compsognathus 0.70): the fraction of the full-horizon episodes whose `max_sole_cop_fore_aft` exceeds the bar, the rail's own criterion on this panel |
+| `<label>_digit_share` | Per box-soled foot with digits: the evaluation's mean, over its full-horizon episodes, of the post-settle floor force on its digits (its `FOOT_SUPPORT` support geoms other than the sole) over the whole limb's |
+| `leg_dc_<left>_minus_<right>_<joint>_deg` | Per left/right foot pair and sagittal joint (`hip_pitch`, `knee`, `ankle`): the left joint's commanded offset from home minus the right one's, in degrees, each signed as a rotation about the animal's leftward axis. A mirror-symmetric posture reads 0 |
+
+The pad and leg DC keys exist so that an asymmetric pad posture is visible
+when it forms. In the 2026-10-11 T. rex stance run, the left-right leg offset
+that put its right pad on the toe edge had formed about 11M steps before
+`stance_quality/v2` refused it at the end. Its artifacts kept only the
+per-episode maximum over the feet.
+
+A pad value is the mean of its per-episode values over the full-horizon
+episodes, the set the duty is averaged over. The per-episode values are not
+kept. The worse pad can change from episode to episode: one 1M-step probe
+policy failed the rail on its right pad in 23 episodes and on its left in 7.
+Then every per-foot mean can sit under the bar while most episodes fail it.
+The two `max_sole_cop_fore_aft_*` keys keep the rail's own per-episode
+number for that reason. They are telemetry on the training evaluation panel,
+not the gate's verdict. The gate judges its own certification panel, counts
+a fallen episode as failed whatever its pad reads, and decides on its bound
+of clean episodes. An episode measured on no foot is left out of both keys.
+
+The pad values use the floor-truth recorder
+(`environments/shared/gait/recorder.py`), reduced by
+`environments/shared/gait/pad_telemetry.py`. The recorder is attached to the
+evaluation env for the evaluation only and never to the training envs. It
+reads the physics without writing it, so the evaluation itself is unchanged.
+It adds about a third to each evaluation's simulation time on the four
+box-soled models (+34 % measured on the T. rex); the other two attach no
+recorder. The pad keys follow one rule, the same as the replay CSV's pad
+columns:
+
+- A field exists for a foot only if the foot has what the field measures.
+  The CoP keys exist for every foot whose `FOOT_SUPPORT` sole is a box: the
+  Tyrannosaurus Rex, both Compsognathus embodiments and the Dibothrosuchus.
+- The digit share exists only on a box-soled foot with digits: the Tyrannosaurus
+  Rex and the anatomical Compsognathus.
+- The Velociraptor and the Brachiosaurus have no pad key: they have no box pad.
+- The `max_sole_cop_fore_aft_*` keys follow the pad keys, and the bar
+  fraction exists only where the stage declares the bar.
+- NaN in a key that exists means the value could not be measured at that
+  evaluation. That happens when no episode reached the horizon or the
+  evaluation could not be recorded, and for the signed CoP alone when the pad
+  was never loaded (the gate statistic then reads 1).
+
+The leg DC is computed from `action_dc_per_actuator`, which is in action
+units. Each actuator's DC is mapped through the env's own action map
+(`_scale_action`), and the control of action zero, the home control, is
+subtracted. The result is the joint target offset the DC commands, in
+radians. Each side's offset is multiplied by the sign of its joint axis
+along the leftward axis: the horizontal direction from the right foot's
+reference site to the left one's, in the `home` keyframe. The right side is
+then subtracted from the left, and the difference is given in degrees. So
+the zero action reads 0, and so does any mirror-symmetric offset. Action
+units alone would not do this. The Compsognathus robot's left hip pitch axis
+points right and its right one left, with mirrored control ranges. There, a
+symmetric 0.03 rad hip pitch offset read -0.036 or +0.61 action units,
+depending on its direction.
+
+Positive is a rotation about the leftward axis by the right-hand rule. On the
+T. rex, the Velociraptor, the anatomical Compsognathus and both quadrupeds,
+that is each joint's own positive direction. On the Compsognathus robot it is
+the negative direction of every leg joint except the right hip pitch. The
+2026-10-11 T. rex run's mean action reads -3.2° at the ankle and -2.1° at
+the knee: its left ankle and left knee were commanded below the right ones.
+
+Under the anatomical Compsognathus's softcubic leg map, this is the target of
+the mean action rather than the mean target. The two differ by the map's
+curvature times the tremor's variance. A pair is read only when both joints
+are unit-gear hinge position servos, so that a control value is an angle, and
+when both axes lie within about 45° of the leftward axis. Every model's hip
+pitch, knee and ankle pass, so the keys exist on all six. Each side's joints
+use the prefix of its `FOOT_SUPPORT` foot site (`r_knee`, or `right_knee` on
+the Compsognathus robot).
+
+A training run that names no model (`model_id=None`) records neither the pad
+keys nor the leg DC keys. TensorBoard carries the finite values of the same
+keys as `diagnostics/eval_<key>`.
 
 ## Compatibility and verification
 
