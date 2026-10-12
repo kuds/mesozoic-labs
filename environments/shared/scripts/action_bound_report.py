@@ -54,10 +54,11 @@ The rollout mirrors SB3: the raw action is recorded for the statistics, and
 
 Usage::
 
-    python environments/shared/scripts/action_bound_report.py trex 1 \\
+    python environments/shared/scripts/action_bound_report.py --species tyrannosaurus_rex --embodiment anatomical 1 \\
         --model /path/to/run/stage1/models/robust_best_model.zip
 
-    python environments/shared/scripts/action_bound_report.py trex 1 --std 1.0
+    python environments/shared/scripts/action_bound_report.py --species tyrannosaurus_rex --embodiment anatomical 1 \\
+        --std 1.0
 """
 
 import argparse
@@ -70,9 +71,10 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.config import build_env
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadError, load_sb3_checkpoint
+from environments.shared.species_names import add_model_arguments, parsed_model_id
 
 # Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
 # are directly comparable to diagnostics/raw_action_saturation.
@@ -89,7 +91,7 @@ def actuator_names(env, n_actuators: int) -> list[str]:
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", choices=SPECIES_NAMES)
+    add_model_arguments(parser)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", default=None, help="SB3 .zip policy; omit to probe an untrained Gaussian")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -102,8 +104,9 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--episodes", type=int, default=10)
     parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START)
     args = parser.parse_args(argv)
+    model_id = parsed_model_id(parser, args)
 
-    env = build_env(args.species, args.stage)
+    env = build_env(model_id, args.stage)
     n_actuators = int(env.action_space.shape[0])
     names = actuator_names(env, n_actuators)
 
@@ -114,7 +117,7 @@ def main(argv: list[str]) -> None:
             model, normalizer, _ = load_sb3_checkpoint(
                 args.model,
                 args.vecnorm,
-                lambda: build_env(args.species, args.stage),
+                lambda: build_env(model_id, args.stage),
                 allow_unnormalized=args.allow_unnormalized,
             )
         except PolicyLoadError as exc:
@@ -152,7 +155,7 @@ def main(argv: list[str]) -> None:
     flat = acts.reshape(-1)
     source = f"policy {Path(args.model).name}" if args.model else f"untrained Gaussian, std={args.std}"
 
-    print(f"\n{args.species} stage {args.stage}: {source}")
+    print(f"\n{model_id} stage {args.stage}: {source}")
     if model is not None and normalizer is None:
         print(UNNORMALIZED_BANNER)
     print(f"{len(all_actions)} steps over {args.episodes} episodes, {n_actuators} actuators")

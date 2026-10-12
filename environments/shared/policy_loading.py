@@ -98,6 +98,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from environments.shared.model_id import ModelId
+
 logger = logging.getLogger(__name__)
 
 UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
@@ -743,12 +745,12 @@ def load_sb3_checkpoint(
 # ── the SB3 notebook's archive-load preflight (cleanup CU-6) ─────────────────
 
 
-def _root_handoff_archive(species: str, root_reference: "int | str", run_dir: "str | Path") -> "Path | None":
+def _root_handoff_archive(model_id: ModelId, root_reference: "int | str", run_dir: "str | Path") -> "Path | None":
     """The chain root's handoff archive under *run_dir* (either stage-directory naming, newest first), or ``None``."""
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
     from environments.shared.stage_manifest import stage_dir_candidates
 
-    for name in stage_dir_candidates(species, root_reference):
+    for name in stage_dir_candidates(model_id, root_reference):
         handoff = select_handoff_checkpoint(Path(run_dir) / name / "models")
         if handoff is not None:
             return Path(handoff[1] + ".zip")
@@ -780,7 +782,7 @@ def _save_throwaway_ppo(path: Path) -> None:
 
 
 def sb3_archive_load_preflight(
-    species: str, root_reference: "int | str", *, trunk_dir: "str | Path | None"
+    model_id: ModelId, root_reference: "int | str", *, trunk_dir: "str | Path | None"
 ) -> SB3ArchiveInspection:
     """Prove that this runtime loads a real SB3 archive through :func:`load_sb3_model`, before anything trains.
 
@@ -788,7 +790,7 @@ def sb3_archive_load_preflight(
     preflight cell, which runs right after the resolve cell (KNOWN_ISSUES, "SB3
     archives are bound to the interpreter that saved them"). The archive is
     the chain root's handoff in the trunk run *trunk_dir*: *root_reference*
-    of *species*' manifest, its directory found under either naming
+    of *model_id*'s stage manifest, its directory found under either naming
     (:func:`~environments.shared.stage_manifest.stage_dir_candidates`, newest
     first) and its handoff chosen as the next node would load it
     (:func:`~environments.shared.curriculum.checkpoints.select_handoff_checkpoint`).
@@ -818,7 +820,7 @@ def sb3_archive_load_preflight(
     archive: "Path | None" = None
     source = "a throwaway model saved by this runtime"
     if trunk_dir is not None:
-        archive = _root_handoff_archive(species, root_reference, trunk_dir)
+        archive = _root_handoff_archive(model_id, root_reference, trunk_dir)
         if archive is not None:
             source = f"the trunk run's root handoff {archive}"
     with tempfile.TemporaryDirectory(prefix="sb3_load_preflight_") as scratch:

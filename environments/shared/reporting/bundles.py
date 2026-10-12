@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..model_id import ModelId
 from ..result_bundle.constants import DEFAULT_PROVENANCE_NAME
 from ..stage_manifest import find_stage_dir
 from . import csv_output, summaries
@@ -61,7 +62,7 @@ def _normalized_replicates(
     Fail-closed preflight: a record without exactly ``run_id`` and
     ``training_seed``, a run id listed twice or naming this run, a
     training seed this run or another replicate trained, or a stage key
-    that names no deliverable of the species' manifest (*deliverable_keys*
+    that names no deliverable of the model's stage manifest (*deliverable_keys*
     — a caller keyed by something other than the stage key) is refused
     here, before the bundle touches disk.  A key naming a deliverable the
     run holds but this publication does not record (a node outside the
@@ -76,7 +77,7 @@ def _normalized_replicates(
     given = dict(replicates or {})
     foreign = sorted(set(given) - deliverable_keys)
     if foreign:
-        raise ResultBundleError(f"replicates name stage key(s) {foreign} that are not deliverables of this species")
+        raise ResultBundleError(f"replicates name stage key(s) {foreign} that are not deliverables of this model")
     normalized: dict[str, list[dict[str, Any]]] = {}
     for key, records in given.items():
         if key not in present_deliverable_keys:
@@ -134,7 +135,7 @@ def _without_replication(summary: Any) -> Any:
 def save_result_bundle(
     stage_results_list: list[dict[str, Any]],
     stage_configs: "dict[int | str, dict[str, Any]]",
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     run_dir: str | Path,
@@ -161,7 +162,7 @@ def save_result_bundle(
     reused from another run.  The bundle status is target-aware (decision
     D-A1): *target_deliverable* is the node the run aimed at — the manifest's
     last deliverable by default (the behavior node for every committed
-    species, i.e. the historical terminal stage; the notebook passes its
+    model, i.e. the historical terminal stage; the notebook passes its
     BEHAVIOR's node) — and the status is ``complete`` iff the target is
     present and certified AND every present deliverable is certified,
     ``partial`` iff at least one deliverable is certified, ``failed``
@@ -238,19 +239,19 @@ def save_result_bundle(
     # completion marker. This is especially important on Drive, where a
     # disconnected runtime may not get another chance to rebuild the bundle.
     #
-    # Stage references resolve through the species' manifest and everything
+    # Stage references resolve through the model's stage manifest and everything
     # downstream orders by manifest POSITION — never by int() on the
     # reference, which the semantic recovery stage has none of.
     try:
-        stage_manifest = load_stage_manifest(species)
+        stage_manifest = load_stage_manifest(model_id)
     except StageManifestError as exc:
-        raise ResultBundleError(f"cannot load the stage manifest for {species!r}: {exc}") from exc
+        raise ResultBundleError(f"cannot load the stage manifest of {model_id}: {exc}") from exc
     keyed_results: list[tuple[Any, dict[str, Any]]] = []
     for result in stage_results_list:
         try:
             entry = stage_manifest.resolve(_stage_reference(result["stage"]))
         except (KeyError, TypeError, ValueError, StageManifestError) as exc:
-            raise ResultBundleError(f"every stage result must name a stage the {species} manifest declares") from exc
+            raise ResultBundleError(f"every stage result must name a stage the {model_id} manifest declares") from exc
         keyed_results.append((entry, result))
     keyed_results.sort(key=lambda pair: pair[0].position)
     present_ids = [entry.id for entry, _ in keyed_results]
@@ -259,7 +260,7 @@ def save_result_bundle(
     if not keyed_results:
         raise ResultBundleError("stage_results_list must contain at least one stage")
     if not stage_manifest.deliverables:
-        raise ResultBundleError(f"the {species} stage manifest declares no deliverable node to publish")
+        raise ResultBundleError(f"the {model_id} stage manifest declares no deliverable node to publish")
     if target_deliverable is None:
         target_entry = stage_manifest.deliverables[-1]
     else:
@@ -267,16 +268,16 @@ def save_result_bundle(
             target_entry = stage_manifest.resolve(_stage_reference(target_deliverable))
         except (TypeError, ValueError, StageManifestError) as exc:
             raise ResultBundleError(
-                f"target_deliverable {target_deliverable!r} is not a stage the {species} manifest declares"
+                f"target_deliverable {target_deliverable!r} is not a stage the {model_id} manifest declares"
             ) from exc
         if not target_entry.deliverable:
             raise ResultBundleError(
-                f"target_deliverable {target_deliverable!r} is not a deliverable of the {species} manifest"
+                f"target_deliverable {target_deliverable!r} is not a deliverable of the {model_id} manifest"
             )
     # Nodes reused from another run (BEHAVIOR_RECIPES_PLAN §4.2): their
     # records stand in for the stages this run did not train.  Every
     # malformation fails closed here, before anything is written.
-    ancestor_records = load_ancestor_records(run_path, species=species)
+    ancestor_records = load_ancestor_records(run_path, model_id=model_id)
     present_id_set = set(present_ids)
     reused_and_trained = [
         record["stage_id"] for record in ancestor_records.values() if record["stage_id"] in present_id_set
@@ -316,9 +317,9 @@ def save_result_bundle(
             [(entry.key, entry) for entry, _ in keyed_results],
             gate_values,
             ancestor_records,
-            species=species,
+            model_id=model_id,
         )
-        status = bundle_status_for(certified, species=species, target=target_entry.key, stages=gate_values)
+        status = bundle_status_for(certified, model_id=model_id, target=target_entry.key, stages=gate_values)
     except ResultSchemaError as exc:
         raise ResultBundleError(str(exc)) from exc
     publishable = any(certified.values())
@@ -338,14 +339,14 @@ def save_result_bundle(
         candidate = keyed_results[-1][1].get("plant_identity")
         if isinstance(candidate, Mapping):
             effective_plant = candidate
-    normalized_plant = _normalize_plant_identity(effective_plant, species=species)
+    normalized_plant = _normalize_plant_identity(effective_plant, model_id=model_id)
     if normalized_plant is None:
         raise ResultBundleError("result bundle is missing plant identity")
     for entry, result in keyed_results:
         stage_plant_value = result.get("plant_identity")
         if not isinstance(stage_plant_value, Mapping):
             raise ResultBundleError(f"stage {entry.reference} is missing plant identity")
-        stage_plant = _normalize_plant_identity(stage_plant_value, species=species)
+        stage_plant = _normalize_plant_identity(stage_plant_value, model_id=model_id)
         if stage_plant != normalized_plant:
             raise ResultBundleError(f"stage {entry.reference} plant identity does not match the run identity")
 
@@ -384,8 +385,15 @@ def save_result_bundle(
                 ) from exc
             if saved_stage != stage:
                 raise ResultBundleError(f"resolved stage config is mislabeled for stage {stage}: {config_path}")
-        if saved_config.get("species") not in {None, "", species}:
-            raise ResultBundleError(f"resolved stage config species mismatch: {config_path}")
+        # A config that records the model must record it whole and name this
+        # model; one that records neither field predates the record (D-D33).
+        if saved_config.get("species") or saved_config.get("embodiment"):
+            try:
+                same_model = model_id.matches(saved_config)
+            except ValueError as exc:
+                raise ResultBundleError(f"resolved stage config {config_path} does not name its model: {exc}") from exc
+            if not same_model:
+                raise ResultBundleError(f"resolved stage config model mismatch: {config_path}")
         if saved_config.get("algorithm"):
             try:
                 saved_algorithm = canonical_algorithm(str(saved_config["algorithm"]))
@@ -399,7 +407,7 @@ def save_result_bundle(
         if saved_plant_value is not None:
             if not isinstance(saved_plant_value, Mapping):
                 raise ResultBundleError(f"invalid plant identity in resolved stage config: {config_path}")
-            saved_plant = _normalize_plant_identity(saved_plant_value, species=species)
+            saved_plant = _normalize_plant_identity(saved_plant_value, model_id=model_id)
             if saved_plant != normalized_plant:
                 raise ResultBundleError(f"resolved stage config plant identity mismatch: {config_path}")
         reward_weights = saved_config.get("reward_weights", saved_config.get("env_kwargs", {}))
@@ -567,7 +575,7 @@ def save_result_bundle(
 
     provenance_path = initialize_result_bundle(
         run_path,
-        species=species,
+        model_id=model_id,
         algorithm=algorithm,
         backend=backend,
         seed=seed,
@@ -631,7 +639,7 @@ def save_result_bundle(
     # when certified, else the deepest certified deliverable — never a failed
     # leaf, never a checkpoint of an uncertified node.
     try:
-        primary_key = primary_deliverable_key(deliverables, species=species, target=target_entry.key)
+        primary_key = primary_deliverable_key(deliverables, model_id=model_id, target=target_entry.key)
     except ResultSchemaError as exc:
         raise ResultBundleError(str(exc)) from exc
     primary_checkpoint = selected_checkpoints.get(primary_key, {}) if primary_key is not None else {}
@@ -655,7 +663,7 @@ def save_result_bundle(
     if publishable:
         prospective_summary = summaries.build_result_summary(
             ordered_stage_results,
-            species,
+            model_id,
             algorithm,
             seed,
             hardware=str(captured["hardware"]),
@@ -674,7 +682,7 @@ def save_result_bundle(
         try:
             validate_result_summary(
                 prospective_summary,
-                expected_species=species,
+                expected_model_id=model_id,
                 require_complete=status == "complete",
                 require_publishable=True,
                 require_canonical_provenance=True,
@@ -740,7 +748,7 @@ def save_result_bundle(
         prospective_csv = csv_output.save_results_csv(
             ordered_stage_results,
             resolved_stage_configs,
-            species,
+            model_id,
             algorithm,
             seed,
             scratch,
@@ -766,7 +774,7 @@ def save_result_bundle(
     csv_path = csv_output.save_results_csv(
         ordered_stage_results,
         resolved_stage_configs,
-        species,
+        model_id,
         algorithm,
         seed,
         run_path,

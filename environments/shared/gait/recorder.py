@@ -88,6 +88,7 @@ from typing import Any, Callable
 import mujoco
 import numpy as np
 
+from ..model_id import ModelId
 from .constants import CONTACT_THRESHOLD_N
 from .morphology import Morphology
 
@@ -107,7 +108,7 @@ class EpisodeTrace:
     (the last substep's forward pass; see the module docstring).
     """
 
-    species: str
+    model_id: ModelId
     dt: float
     frame_skip: int
     body_weight_n: float
@@ -200,7 +201,7 @@ class SubstepContactRecorder:
     Usage (always detach in a ``finally``, or use the recorder as a context
     manager)::
 
-        morphology = Morphology.from_env(env, species)
+        morphology = Morphology.from_env(env, model_id)
         with SubstepContactRecorder(env, morphology) as recorder:
             obs, _ = env.reset(seed=seed)
             while True:
@@ -558,7 +559,7 @@ class SubstepContactRecorder:
             geom_floor_names = self._animal_names
 
         return EpisodeTrace(
-            species=morphology.species,
+            model_id=morphology.model_id,
             dt=morphology.dt,
             frame_skip=substeps,
             body_weight_n=morphology.body_weight_n,

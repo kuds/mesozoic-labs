@@ -8,13 +8,15 @@ active policy scores below it.  See
 docs/PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md section 9.
 
 What 1a can gate on is stance QUALITY, and these are the numbers a policy has to
-MATCH rather than beat.  Usage::
+MATCH rather than beat.  Usage (``--model-id`` repeats; with none, the four
+anatomical models of :data:`MODEL_IDS`, in that order)::
 
-    python -m environments.shared.scripts.stance_quality_baseline [noise] [episodes]
+    python -m environments.shared.scripts.stance_quality_baseline [noise] [episodes] [--model-id SPECIES EMBODIMENT]
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 import tomllib
 import warnings
@@ -24,12 +26,20 @@ from typing import Any
 import numpy as np
 
 from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import add_model_id_argument, parsed_model_ids
 from environments.shared.species_registry import get_species_config
 
 warnings.filterwarnings("ignore")
 
-#: Report order: the table prints its rows in this order, not the registry's.
-SPECIES: tuple[str, ...] = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus")
+#: Report order: the table prints its rows in this order, not the manifest's.
+#: The panel this tool has always measured, written out as models (decision D-D33).
+MODEL_IDS: tuple[ModelId, ...] = (
+    ModelId("tyrannosaurus_rex", "anatomical"),
+    ModelId("velociraptor_mongoliensis", "anatomical"),
+    ModelId("brachiosaurus_altithorax", "anatomical"),
+    ModelId("dibothrosuchus_elaphros", "anatomical"),
+)
 
 CONFIG_ROOT = Path(__file__).resolve().parents[3] / "configs"
 HORIZON = 1000
@@ -41,12 +51,12 @@ def foot_forces(info: dict[str, Any]) -> list[float]:
     return [float(info[key]) for key in sorted(k for k in info if k.endswith("_foot_contact"))]
 
 
-def measure(env_cls: type, species: str, noise: float, seeds: range) -> dict[str, float]:
+def measure(env_cls: type, model_id: ModelId, noise: float, seeds: range) -> dict[str, float]:
     """Run the zero-action policy and summarise its stance rather than its return."""
     from environments.shared.stage_manifest import load_stage_manifest
 
-    stance_file = load_stage_manifest(species).resolve(1).config_file
-    with open(CONFIG_ROOT / species / stance_file, "rb") as handle:
+    stance_file = load_stage_manifest(model_id).resolve(1).config_file
+    with open(model_id.path(CONFIG_ROOT) / stance_file, "rb") as handle:
         config = dict(tomllib.load(handle)["env"])
     config["reset_noise_scale"] = noise
     env = env_cls(**config)
@@ -94,18 +104,22 @@ def measure(env_cls: type, species: str, noise: float, seeds: range) -> dict[str
 
 
 def main(argv: list[str]) -> None:
-    noise = float(argv[1]) if len(argv) > 1 else 0.05
-    episodes = int(argv[2]) if len(argv) > 2 else 40
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("noise", nargs="?", type=float, default=0.05, help="reset_noise_scale (default 0.05)")
+    parser.add_argument("episodes", nargs="?", type=int, default=40, help="episodes per model (default 40)")
+    add_model_id_argument(parser, default=MODEL_IDS, what="measure")
+    args = parser.parse_args(argv[1:])
+    noise, episodes = args.noise, args.episodes
     seeds = range(PUBLICATION_SEED_START, PUBLICATION_SEED_START + episodes)
 
     print(f"statue stance quality at reset_noise={noise}, {episodes} episodes")
-    print(f"{'species':>15} {'full-hz':>8} {'all-feet':>9} {'unsup':>7} {'switch/s':>9} {'standing reward':>18}")
-    for species in SPECIES:
-        result = measure(get_species_config(species).env_class, species, noise, seeds)
+    print(f"{'model':>36} {'full-hz':>8} {'all-feet':>9} {'unsup':>7} {'switch/s':>9} {'standing reward':>18}")
+    for model_id in parsed_model_ids(parser, args):
+        result = measure(get_species_config(model_id).env_class, model_id, noise, seeds)
         standing_sd = result["standing_sd"]
         spread = f"+/-{standing_sd:.1f}" if standing_sd == standing_sd else ""
         print(
-            f"{species:>15} {result['full_horizon']:>7.0%} {result['all_feet']:>9.3f} "
+            f"{str(model_id):>36} {result['full_horizon']:>7.0%} {result['all_feet']:>9.3f} "
             f"{result['unsupported']:>7.3f} {result['switches']:>9.2f} "
             f"{result['standing']:>12.1f} {spread:>5}"
         )

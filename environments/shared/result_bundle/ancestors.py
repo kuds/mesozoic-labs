@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from .constants import ANCESTOR_RECORD_NAME, ANCESTOR_RECORD_SCHEMA, ANCESTORS_DIRNAME
 from .errors import ResultBundleError
@@ -69,14 +70,14 @@ def _digest(value: Any, *, field: str, path: Path) -> str:
     return digest
 
 
-def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dict[str, Any]]:
+def load_ancestor_records(run_dir: str | Path, *, model_id: ModelId) -> dict[str, dict[str, Any]]:
     """Load and cross-check every ``ancestors/<stage_id>/`` record of *run_dir*.
 
     Returns ``{stage_key: record}`` with the :data:`ANCESTOR_RECORD_KEYS`
     fields, keyed the way the summary keys stages (the legacy number's
     decimal spelling, else the id).  Empty when the run has no ``ancestors``
     directory.  Raises :class:`ResultBundleError` when a record directory
-    names a stage the species' manifest does not declare, when
+    names a stage the model's stage manifest does not declare, when
     ``ancestor.json``, ``gate_verdict.json`` or ``stage_config.json`` is
     absent or malformed, when the verdict's handoff digests disagree with
     the record's, or when the task fingerprint disagrees between the record,
@@ -93,9 +94,9 @@ def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dic
     if not root.is_dir():
         return {}
     try:
-        manifest = load_stage_manifest(species)
+        manifest = load_stage_manifest(model_id)
     except StageManifestError as exc:
-        raise ResultBundleError(f"cannot load the stage manifest for {species!r}: {exc}") from exc
+        raise ResultBundleError(f"cannot load the stage manifest of {model_id}: {exc}") from exc
 
     records: dict[str, dict[str, Any]] = {}
     for child in sorted(root.iterdir()):
@@ -108,7 +109,7 @@ def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dic
             entry = manifest.by_id(stage_id)
         except StageManifestError as exc:
             raise ResultBundleError(
-                f"ancestors/{stage_id} names a stage the {species} manifest does not declare: {exc}"
+                f"ancestors/{stage_id} names a stage the {model_id} manifest does not declare: {exc}"
             ) from exc
 
         record_path = child / ANCESTOR_RECORD_NAME
@@ -123,7 +124,7 @@ def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dic
             )
         if record.get("stage_key") != entry.key:
             raise ResultBundleError(
-                f"{record_path} records stage_key {record.get('stage_key')!r}; the {species} manifest keys "
+                f"{record_path} records stage_key {record.get('stage_key')!r}; the {model_id} manifest keys "
                 f"{stage_id!r} as {entry.key!r}"
             )
         parent_run_id = record.get("parent_run_id")
@@ -154,8 +155,15 @@ def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dic
             )
         if verdict.get("stage_id") != stage_id:
             raise ResultBundleError(f"{verdict_path} judges stage {verdict.get('stage_id')!r}, not {stage_id!r}")
-        if verdict.get("species") != species:
-            raise ResultBundleError(f"{verdict_path} judges species {verdict.get('species')!r}, not {species!r}")
+        try:
+            judges_this_model = model_id.matches(verdict)
+        except ValueError as exc:
+            raise ResultBundleError(f"{verdict_path} does not name its model: {exc}") from exc
+        if not judges_this_model:
+            raise ResultBundleError(
+                f"{verdict_path} judges species {verdict.get('species')!r} and embodiment "
+                f"{verdict.get('embodiment')!r}, not {model_id}"
+            )
         if verdict.get("checkpoint_sha256") != model_hash:
             raise ResultBundleError(
                 f"{verdict_path} hashes the handoff checkpoint as {verdict.get('checkpoint_sha256')!r}, "

@@ -32,6 +32,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..model_id import ModelId
 from .recovery_gate import (
     RecoveryGateResult,
     RecoveryGateThresholds,
@@ -41,6 +42,14 @@ from .recovery_gate import (
 )
 
 GATE_RESOLUTION_SCHEMA = "mesozoic.gate-resolution/v1"
+
+#: The one model whose recovery gate may still run on the historical legacy
+#: judge (no ``evaluation_spec``): the anatomical T-Rex, which has no recovery
+#: calibration file.  Every other model needs a current frozen calibration.
+#: :mod:`environments.shared.harnesses.freeze_recovery_gate` reads the same
+#: constant (decision D-D33 made explicit this rule, which both modules had
+#: keyed to the retired T-Rex species ID).
+LEGACY_RECOVERY_JUDGE_MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class GateResolutionError(RuntimeError):
@@ -99,9 +108,13 @@ def build_gate_resolution(
             "pairing": "identical seeds imply identical push schedules (schedule PRF)",
         },
     }
-    if isinstance(task_fingerprint.get("species"), str):
-        payload["species"] = task_fingerprint["species"]
-    # Optional for historical T-Rex records. New species freeze the complete
+    if "species" in task_fingerprint or "embodiment" in task_fingerprint:
+        # The resolution names its model whole, as the fingerprint does (decision D-D33).
+        try:
+            payload.update(ModelId.from_record(task_fingerprint).record())
+        except ValueError as exc:
+            raise GateResolutionError(f"the task fingerprint does not name its model: {exc}") from exc
+    # Optional for historical T-Rex records. New models freeze the complete
     # judge identity, including the formerly unrecorded height reference and
     # control clock, inside the same integrity hash as their null outcomes.
     if evaluation_spec is not None:
@@ -219,22 +232,34 @@ def required_paired_nulls(resolution: Mapping[str, Any], *, legacy_null: str = "
         or len(set(required)) != len(required)
     ):
         raise GateResolutionError("evaluation_spec must declare unique known required_paired_nulls")
-    if judge.get("species") in ("compsognathus", "compsognathus_robot") and set(required) != {"zero_action", "brace"}:
+    # The one deliberate species-level rule (decision D-D33): it holds for
+    # every embodiment of Compsognathus Longipes.
+    if judge.get("species") == "compsognathus_longipes" and set(required) != {"zero_action", "brace"}:
         raise GateResolutionError(
             "Compsognathus recovery requires paired comparisons against both zero_action and brace"
         )
     return tuple(required)
 
 
-def _resolution_species(
-    resolution: Mapping[str, Any], stage_dir: str | Path | None, expected_species: str | None
-) -> str | None:
-    """Resolve identity from explicit context and hashed or task-bound records."""
-    identities = {expected_species} if expected_species is not None else set()
+def _named_model(record: Mapping[str, Any], *, source: str) -> ModelId | None:
+    """The model *record* names, ``None`` when it names none; half an identity is refused (decision D-D33)."""
+    if "species" not in record and "embodiment" not in record:
+        return None
+    try:
+        return ModelId.from_record(record)
+    except ValueError as exc:
+        raise GateResolutionError(f"{source} does not name its model: {exc}") from exc
+
+
+def _resolution_model_id(
+    resolution: Mapping[str, Any], stage_dir: str | Path | None, expected_model_id: ModelId | None
+) -> ModelId | None:
+    """Resolve the model from explicit context and hashed or task-bound records."""
+    identities = {expected_model_id} if expected_model_id is not None else set()
     judge = resolution.get("evaluation_spec")
-    for record in (resolution, judge):
-        if isinstance(record, Mapping) and isinstance(record.get("species"), str):
-            identities.add(record["species"])
+    for source, record in (("the gate resolution", resolution), ("the frozen evaluation_spec", judge)):
+        if isinstance(record, Mapping) and (named := _named_model(record, source=source)) is not None:
+            identities.add(named)
     if stage_dir is not None:
         for name in ("task_fingerprint.json", "stage_config.json"):
             path = Path(stage_dir) / name
@@ -243,39 +268,41 @@ def _resolution_species(
             try:
                 record = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
-                raise GateResolutionError(f"cannot verify recovery species from {path}: {exc}") from exc
+                raise GateResolutionError(f"cannot verify the recovery model from {path}: {exc}") from exc
             if name == "stage_config.json" and isinstance(record, Mapping):
                 record = record.get("task_fingerprint")
-            if (
-                isinstance(record, Mapping)
-                and record.get("task_sha256") == resolution.get("task_sha256")
-                and isinstance(record.get("species"), str)
-            ):
-                identities.add(record["species"])
+            if isinstance(record, Mapping) and record.get("task_sha256") == resolution.get("task_sha256"):
+                named = _named_model(record, source=str(path))
+                if named is not None:
+                    identities.add(named)
     if len(identities) > 1:
-        raise GateResolutionError(f"recovery species identity disagrees across records: {sorted(identities)}")
+        raise GateResolutionError(
+            f"the recovery model disagrees across records: {', '.join(str(model_id) for model_id in sorted(identities))}"
+        )
     return next(iter(identities)) if identities else None
 
 
 def validate_current_recovery_judge(
-    resolution: Mapping[str, Any], *, stage_dir: str | Path | None = None, expected_species: str | None = None
+    resolution: Mapping[str, Any], *, stage_dir: str | Path | None = None, expected_model_id: ModelId | None = None
 ) -> None:
     """A cached outcome cannot be re-certified after its measured judge moves."""
     judge = resolution.get("evaluation_spec")
-    species = _resolution_species(resolution, stage_dir, expected_species)
+    model_id = _resolution_model_id(resolution, stage_dir, expected_model_id)
     if judge is None:
-        if species != "trex":
+        if model_id != LEGACY_RECOVERY_JUDGE_MODEL_ID:
             raise GateResolutionError(
-                "missing recovery evaluation_spec: only an identified historical T-Rex task may use the legacy judge; "
-                "Compsognathus and unknown-species records require a current frozen calibration"
+                "missing recovery evaluation_spec: only an identified historical "
+                f"{LEGACY_RECOVERY_JUDGE_MODEL_ID} task may use the legacy judge; every other model and an "
+                "unidentified record require a current frozen calibration"
             )
         return
-    if not isinstance(judge, Mapping) or not isinstance(judge.get("species"), str):
-        raise GateResolutionError("frozen recovery evaluation_spec has no species identity")
+    judge_model_id = _named_model(judge, source="the frozen evaluation_spec") if isinstance(judge, Mapping) else None
+    if judge_model_id is None:
+        raise GateResolutionError("frozen recovery evaluation_spec has no model identity")
     # Lazy: recovery_calibration imports the resolver's error/threshold types.
     from environments.shared.recovery_calibration import load_recovery_calibration
 
-    calibration = load_recovery_calibration(judge["species"])
+    calibration = load_recovery_calibration(judge_model_id)
     if judge != calibration.evaluation_spec():
         raise GateResolutionError("frozen recovery evaluation_spec differs from the current calibration; re-freeze")
     if resolution.get("capability_spec") != calibration.profile["capability_spec"]:
@@ -290,7 +317,7 @@ def evaluate_recovery_gate_from_resolution(
     current_task_sha256: str,
     policy_successes_by_seed: Mapping[int, bool],
     null_controller_id: str = "zero_action",
-    expected_species: str | None = None,
+    expected_model_id: ModelId | None = None,
 ):
     """The full W5 path: load the frozen resolution, pair, judge.
 
@@ -300,7 +327,7 @@ def evaluate_recovery_gate_from_resolution(
     staleness have already blocked upstream.
     """
     resolution = require_gate_resolution(stage_dir, current_task_sha256=current_task_sha256)
-    validate_current_recovery_judge(resolution, stage_dir=stage_dir, expected_species=expected_species)
+    validate_current_recovery_judge(resolution, stage_dir=stage_dir, expected_model_id=expected_model_id)
     thresholds = thresholds_from_resolution(resolution)
     required = required_paired_nulls(resolution, legacy_null=null_controller_id)
     if resolution.get("evaluation_spec") is not None and thresholds.min_paired_success_delta_lcb is None:

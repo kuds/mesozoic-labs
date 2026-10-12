@@ -1,4 +1,4 @@
-"""Load measured recovery judges without borrowing another species' calibration.
+"""Load measured recovery judges without borrowing another model's calibration.
 
 Profiles describe a fixed-command reference and a pre-registered qualification
 target. Loading or freezing one does not establish that a learned policy meets
@@ -18,8 +18,8 @@ from typing import Any, Mapping
 from .config import build_env, load_stage_config
 from .curriculum.gate_resolver import GateResolutionError, thresholds_from_resolution
 from .curriculum.recovery_gate import RecoveryGateThresholds
+from .model_id import ModelId
 from .plant_contract import current_plant_identity
-from .species_names import resolve_species_id
 from .task_fingerprint import stage_task_fingerprint
 
 PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
@@ -70,6 +70,7 @@ class RecoveryCalibration:
         return {
             "schema": "mesozoic.recovery-evaluation/v1",
             "species": self.profile["species"],
+            "embodiment": self.profile["embodiment"],
             "calibration_id": self.profile["calibration_id"],
             "profile_sha256": "sha256:" + hashlib.sha256(_canonical(self.profile).encode()).hexdigest(),
             "control_dt_s": self.profile["control_dt_s"],
@@ -79,14 +80,17 @@ class RecoveryCalibration:
         }
 
 
-def load_recovery_calibration(species: str, stage: int | str = "recovery", *, env: Any = None) -> RecoveryCalibration:
-    """Require a current species profile, matching the actual measured task.
+def load_recovery_calibration(
+    model_id: ModelId, stage: int | str = "recovery", *, env: Any = None
+) -> RecoveryCalibration:
+    """Require a current profile of the model, matching the actual measured task.
 
     There is deliberately no T-Rex fallback here. The legacy producer retains its
-    historical T-Rex judge explicitly; all newly calibrated species require a file.
+    historical T-Rex judge explicitly; every newly calibrated model requires a file,
+    ``configs/<species>/<embodiment>/recovery_calibration.json``, whose ``species``
+    and ``embodiment`` both name the model (decision D-D33).
     """
-    species = resolve_species_id(species)
-    path = CONFIGS_ROOT / species / "recovery_calibration.json"
+    path = model_id.path(CONFIGS_ROOT) / "recovery_calibration.json"
     try:
         profile = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(profile, dict):
@@ -94,8 +98,14 @@ def load_recovery_calibration(species: str, stage: int | str = "recovery", *, en
         _canonical(profile)
     except (OSError, ValueError) as exc:
         raise GateResolutionError(f"cannot load recovery calibration {path}: {exc}") from exc
-    if profile.get("schema") != PROFILE_SCHEMA or profile.get("species") != species:
-        raise GateResolutionError(f"{path} has the wrong recovery calibration schema or species")
+    if profile.get("schema") != PROFILE_SCHEMA:
+        raise GateResolutionError(f"{path} has the wrong recovery calibration schema")
+    try:
+        same_model = model_id.matches(profile)
+    except ValueError as exc:
+        raise GateResolutionError(f"{path} does not name its model: {exc}") from exc
+    if not same_model:
+        raise GateResolutionError(f"{path} is not a recovery calibration of {model_id}")
     if not isinstance(profile.get("calibration_id"), str) or not profile["calibration_id"].strip():
         raise GateResolutionError(f"{path} must declare a calibration_id")
     required_nulls = profile.get("required_paired_nulls")
@@ -125,22 +135,22 @@ def load_recovery_calibration(species: str, stage: int | str = "recovery", *, en
         value = spec[key]
         if isinstance(value, bool) or not isinstance(value, int) or value < (2 if key == "min_eval_episodes" else 1):
             raise GateResolutionError(f"calibration {key} must be a positive integer")
-    config = load_stage_config(species, stage)
+    config = load_stage_config(model_id, stage)
     measured_env = profile.get("recovery_env_kwargs")
     if not isinstance(measured_env, dict) or _canonical(measured_env) != _canonical(config["env_kwargs"]):
         raise GateResolutionError(f"{path} recovery environment changed; recalibrate this task")
     curriculum: Mapping[str, Any] = config["curriculum_kwargs"]
     if any(curriculum.get(key) != value for key, value in spec.items()):
         raise GateResolutionError(f"{path} capability_spec disagrees with the stage curriculum; recalibrate")
-    plant_identity = current_plant_identity(species).to_dict()
+    plant_identity = current_plant_identity(model_id).to_dict()
     if profile.get("plant_identity") != plant_identity:
         raise GateResolutionError(f"{path} plant identity changed; recalibrate this plant")
-    fingerprint = stage_task_fingerprint(species, stage, env_kwargs=measured_env, plant_identity=plant_identity)
+    fingerprint = stage_task_fingerprint(model_id, stage, env_kwargs=measured_env, plant_identity=plant_identity)
     if profile.get("task_sha256") != fingerprint["task_sha256"]:
         raise GateResolutionError(f"{path} measured task fingerprint changed; recalibrate the recovery implementation")
     owns_env = env is None
     if owns_env:
-        env = build_env(species, stage)
+        env = build_env(model_id, stage)
     try:
         if not math.isclose(float(env.dt), dt, rel_tol=0, abs_tol=1e-12):
             raise GateResolutionError(f"{path} control timestep changed; recalibrate the recovery clock")

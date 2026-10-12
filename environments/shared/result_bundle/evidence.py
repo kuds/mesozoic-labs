@@ -20,6 +20,7 @@ from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND, STANCE_HEADING_PANEL_CSV
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from ..stage_manifest import find_stage_dir
 from .errors import ResultBundleError
@@ -137,6 +138,7 @@ def compare_summary_to_csv(
         identities: dict[str, Any] = {
             "schema_version": summary.get("schema_version"),
             "species": summary.get("species"),
+            "embodiment": summary.get("embodiment"),
             "algorithm": summary.get("algorithm"),
             "backend": summary.get("backend"),
             "seed": summary.get("seed"),
@@ -543,7 +545,7 @@ def _validate_stance_v2_panel_evidence(
     panel_seed_start: int,
     certified_hash: "str | None",
     certified_normalization: "str | None",
-    species: str,
+    model_id: ModelId,
     task_sha256: "str | None",
 ) -> None:
     """Re-derive a ``stance_quality/v2`` pass from the panel's per-episode floor-truth rows.
@@ -566,7 +568,7 @@ def _validate_stance_v2_panel_evidence(
       another number under the same rows;
     * rows measured under another ``MEASUREMENT_VERSION`` than this
       checkout's, or under another measurement DEFINITION -- the constants
-      and *species*' support-registry entry, whose digest
+      and the *model_id*'s ``FOOT_SUPPORT`` entry, whose digest
       (``gait.constants.measurement_definition_sha256``) every row stamps --
       even with the version unbumped: the same key names would score other
       quantities;
@@ -652,11 +654,11 @@ def _validate_stance_v2_panel_evidence(
     # otherwise publish rows measured under definitions this checkout no
     # longer implements, as the judge (which compares them key by key) would
     # not have admitted.
-    expected_definition = measurement_definition_sha256(measurement_definition(species))
+    expected_definition = measurement_definition_sha256(measurement_definition(model_id))
     if evidence.measurement_definition_sha256 != expected_definition:
         raise ResultBundleError(
             f"stage {stage} {kind} panel evidence was measured under definition "
-            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {species} "
+            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {model_id} "
             "(its constants and support-registry entry); its metrics would be scored under other definitions"
         )
     horizon_value = env_kwargs.get("max_episode_steps")
@@ -731,7 +733,7 @@ def _validate_stance_heading_panel_evidence(
     panel_seed_start: int,
     certified_hash: "str | None",
     certified_normalization: "str | None",
-    species: str,
+    model_id: ModelId,
     task_sha256: "str | None",
 ) -> None:
     """Re-derive a six-heading certificate's pass (``stance_quality_heading/v1``, D-D32) from its grid CSV alone.
@@ -836,11 +838,11 @@ def _validate_stance_heading_panel_evidence(
             f"stage {stage} {kind} grid evidence was measured under {evidence.measurement_version!r}, not this "
             f"checkout's {MEASUREMENT_VERSION!r}"
         )
-    expected_definition = measurement_definition_sha256(measurement_definition(species))
+    expected_definition = measurement_definition_sha256(measurement_definition(model_id))
     if evidence.measurement_definition_sha256 != expected_definition:
         raise ResultBundleError(
             f"stage {stage} {kind} grid evidence was measured under definition "
-            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {species}"
+            f"{evidence.measurement_definition_sha256}, not this checkout's {expected_definition} for {model_id}"
         )
     current_gate = gate_config_sha256(gate_config_view(curriculum))
     if evidence.gate_sha256 != current_gate:
@@ -1100,14 +1102,18 @@ def validate_evaluation_evidence(
         raise ResultBundleError("summary stages must be an object")
     # Every stage the summary claims — the optional recovery stage included —
     # must be backed by evidence, so the stage set comes from the summary
-    # itself, resolved and ordered through the species' manifest rather than
-    # the historical hardcoded (1, 2, 3).
+    # itself, resolved and ordered through the model's stage manifest rather
+    # than the historical hardcoded (1, 2, 3).
     from ..result_schema import ResultSchemaError, ordered_stage_entries
 
     try:
+        summary_model_id = ModelId.from_record(summary)
+    except ValueError as exc:
+        raise ResultBundleError(f"summary does not name its model: {exc}") from exc
+    try:
         stage_entries = ordered_stage_entries(
             stages,
-            species=str(summary.get("species")),
+            model_id=summary_model_id,
             field="summary stages",
         )
     except ResultSchemaError as exc:
@@ -1324,7 +1330,7 @@ def validate_evaluation_evidence(
                 panel_seed_start=certification_panel_seed,
                 certified_hash=certified_hash,
                 certified_normalization=certified_normalization,
-                species=str(summary.get("species")),
+                model_id=summary_model_id,
                 # The task the stage ran: the fingerprint snapshot
                 # save_stage_config writes into stage_config.json beside
                 # task_fingerprint.json (the pair the judge reads).
@@ -1349,7 +1355,7 @@ def validate_evaluation_evidence(
                 panel_seed_start=certification_panel_seed,
                 certified_hash=certified_hash,
                 certified_normalization=certified_normalization,
-                species=str(summary.get("species")),
+                model_id=summary_model_id,
                 task_sha256=_recorded_task_sha256(config_value.get("task_fingerprint")),
             )
         elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:

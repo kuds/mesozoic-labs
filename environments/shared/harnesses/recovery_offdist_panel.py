@@ -15,7 +15,7 @@ calibrated safe set and the fixed height reference are IMPORTED from
 ``recovery_evaluation`` rather than restated here, so a hand roll and the
 frozen record can never disagree about what "calibrated" means.
 
-Examples (repo root, trex):
+Examples (repo root, the anatomical T-Rex):
 
     # Reproduce the frozen statue null at the training schedule
     python -m environments.shared.harnesses.recovery_offdist_panel \
@@ -54,6 +54,7 @@ from environments.shared.harnesses.freeze_recovery_gate import (
 )
 from environments.shared.harnesses.freeze_recovery_gate import MIN_EVAL_EPISODES as PANEL_EPISODES
 from environments.shared.harnesses.freeze_recovery_gate import PANEL_SEED_START as PANEL_SEED
+from environments.shared.model_id import ModelId
 
 # The P3-calibrated posture-only judge (first-runs record §4.1/§4.3),
 # re-exported under the names this harness has always used.  Its
@@ -68,6 +69,10 @@ from environments.shared.recovery_evaluation import (
     zero_action_controller,
 )
 
+#: The model the §6.1 schedules below are derived on (decision D-D33 names it
+#: as a model; the harness rolls no other).
+SCHEDULE_MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
+
 #: §6.1 schedules.  "on" is the training distribution (recovery.toml);
 #: the off-distribution rows change exactly one thing each.  The magnitude
 #: rows are expressed as capture-velocity multiples because that is the
@@ -81,13 +86,13 @@ SCHEDULES = {
 }
 
 
-def build_env(schedule: str) -> Any:
-    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+def build_env(schedule: str, *, model_id: ModelId) -> Any:
+    from environments.shared.species_registry import env_class
 
-    config = load_stage_config("trex", "recovery")
+    config = load_stage_config(model_id, "recovery")
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
-    return TyrannosaurusRexAnatomicalEnv(**env_kwargs)
+    return env_class(model_id)(**env_kwargs)
 
 
 def roll_panel(
@@ -174,7 +179,7 @@ def main() -> None:
     parser.add_argument("--out", help="write the full result (per-episode rows included) as JSON")
     args = parser.parse_args()
 
-    env = build_env(args.schedule)
+    env = build_env(args.schedule, model_id=SCHEDULE_MODEL_ID)
     if args.controller == "statue":
         predict = zero_action_controller(env.action_space.shape[0])
     else:

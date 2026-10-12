@@ -14,7 +14,7 @@ between 5 and 6):
    for the node (it REUSED the node itself) and the record is FOLLOWED
    (decision D-A23): its ``source_run_dir`` is resolved — as recorded, else
    the sibling of the candidate with the same name, since Colab, Drive and
-   bucket layouts keep runs side by side under ``LOG_BASE/<species>/<algo>/``
+   bucket layouts keep runs side by side under ``LOG_BASE/<species>/<embodiment>/<algo>/``
    — and the rule is applied at the source, every rule below included, whose
    handoff pair must still hash to the ``handoff.model_sha256`` /
    ``handoff.normalization_sha256`` the record bound the reuse to.  At most
@@ -139,6 +139,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from .file_io import read_json_object
+from .model_id import ModelId
 
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
@@ -276,7 +277,7 @@ def _check_chain(stage_dir: Path, *, entry: "StageEntry", parent_model_sha256: "
 def find_certified_ancestor(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
@@ -315,7 +316,7 @@ def find_certified_ancestor(
     """
     return _find_certified_ancestor(
         Path(run_dir),
-        species=species,
+        model_id=model_id,
         entry=entry,
         current_task_sha256=current_task_sha256,
         plant_identity=plant_identity,
@@ -330,7 +331,7 @@ def _load_ancestor_record(record_path: Path, *, entry: "StageEntry") -> dict[str
     """The ``ancestor.json`` a run keeps for *entry*, with every key the follow needs — fail closed.
 
     A local loader rather than ``result_bundle.ancestors.load_ancestor_records``:
-    that reader loads a whole run's records against the species manifest and
+    that reader loads a whole run's records against the model's stage manifest and
     projects them to the provenance fields, dropping ``source_run_dir`` — the
     one field the follow is about — and the source is re-verified in full
     (every rule, at the source) rather than trusted from its copied sidecars.
@@ -393,7 +394,7 @@ def _follow_ancestor_record(
     run_path: Path,
     record_path: Path,
     *,
-    species: str,
+    model_id: ModelId,
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
@@ -427,7 +428,7 @@ def _follow_ancestor_record(
     try:
         ancestor = _find_certified_ancestor(
             source,
-            species=species,
+            model_id=model_id,
             entry=entry,
             current_task_sha256=current_task_sha256,
             plant_identity=plant_identity,
@@ -459,7 +460,7 @@ def _follow_ancestor_record(
 def _find_certified_ancestor(
     run_path: Path,
     *,
-    species: str,
+    model_id: ModelId,
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
@@ -490,7 +491,7 @@ def _find_certified_ancestor(
     # (1) The stage directory, in any layout generation — else, for a caller
     # that opted in, the record of a reuse, followed to the run that
     # certified the node (D-A23).
-    candidates = stage_dir_candidates(species, entry.reference)
+    candidates = stage_dir_candidates(model_id, entry.reference)
     stage_dir = next((run_path / name for name in candidates if (run_path / name).is_dir()), None)
     if stage_dir is None:
         record_name = f"{ANCESTORS_DIRNAME}/{entry.id}/{ANCESTOR_RECORD_NAME}"
@@ -506,7 +507,7 @@ def _find_certified_ancestor(
         return _follow_ancestor_record(
             run_path,
             record_path,
-            species=species,
+            model_id=model_id,
             entry=entry,
             current_task_sha256=current_task_sha256,
             plant_identity=plant_identity,
@@ -962,13 +963,13 @@ def _recorded_plant_identity(stage_dir: Path, run_dir: Path) -> "dict[str, Any] 
 
 
 def _older_interface_root(
-    run_dir: Path, run_id: str, *, species: str, root: "StageEntry", plant_identity: "PlantIdentity"
+    run_dir: Path, run_id: str, *, model_id: ModelId, root: "StageEntry", plant_identity: "PlantIdentity"
 ) -> "OlderInterfaceParent | None":
     """*run_dir*'s root node passed under an older policy interface that ``widen_checkpoint`` can bridge, else None.
 
     The hint is only offered when every field the widen tool's identity gate
-    checks besides the revision agrees with the current plant: same species,
-    ``physics_sha256``, ``nq``/``nv``/``nu`` and ``action_dim``, and an
+    checks besides the revision agrees with the current plant: same model
+    (species and embodiment), ``physics_sha256``, ``nq``/``nv``/``nu`` and ``action_dim``, and an
     observation exactly ``COMMAND_WIDTH`` narrower (decision D-C17).  A run
     behind a physics bump is an older plant, not a widen candidate.
     """
@@ -978,7 +979,7 @@ def _older_interface_root(
     from .stage_manifest import stage_dir_candidates
 
     stage_dir = next(
-        (run_dir / name for name in stage_dir_candidates(species, root.reference) if (run_dir / name).is_dir()), None
+        (run_dir / name for name in stage_dir_candidates(model_id, root.reference) if (run_dir / name).is_dir()), None
     )
     if stage_dir is None:
         return None
@@ -997,7 +998,7 @@ def _older_interface_root(
         return None
     current = int(plant_identity.policy_interface_revision)
     if (
-        recorded.species != plant_identity.species
+        recorded.model_id != plant_identity.model_id
         or int(recorded.policy_interface_revision) >= current
         or recorded.physics_sha256 != plant_identity.physics_sha256
         or (recorded.nq, recorded.nv, recorded.nu) != (plant_identity.nq, plant_identity.nv, plant_identity.nu)
@@ -1017,7 +1018,7 @@ def _older_interface_root(
 def _node_support(
     ancestor: CertifiedAncestor,
     *,
-    species: str,
+    model_id: ModelId,
     entry: "StageEntry",
     plant_identity: "PlantIdentity",
     current_gate_config: "Mapping[str, Any]",
@@ -1038,7 +1039,7 @@ def _node_support(
         sibling_of = ancestor.via[0] if ancestor.via else ancestor.source_run_dir
         replicates = discover_replicates(
             sibling_of,
-            species=species,
+            model_id=model_id,
             entry=entry,
             task_sha256=ancestor.task_sha256,
             plant_identity=plant_identity,
@@ -1071,14 +1072,16 @@ def _canonical_algorithm_label(value: Any) -> "str | None":
 
 
 def _identity_mismatch(
-    run_dir: Path, *, root: "StageEntry", species: str, algorithm: "str | None", backend: str
+    run_dir: Path, *, root: "StageEntry", model_id: ModelId, algorithm: "str | None", backend: str
 ) -> "str | None":
-    """Why *run_dir* is another species', algorithm's or backend's run, from its own records; None when it is not.
+    """Why *run_dir* is another model's, algorithm's or backend's run, from its own records; None when it is not.
 
     ``provenance.json`` (a notebook run) names all three; a CLI curriculum run
     has none, so its root ``stage_config.json`` ``algorithm`` is read instead.
     Records that are missing or unreadable decide nothing: the seven rules
-    still apply.
+    still apply.  A provenance that names a species must name the embodiment
+    too: half an identity is refused, never matched on the species alone
+    (decision D-D33).
     """
     from .config import read_recorded_stage_config
     from .result_bundle import DEFAULT_PROVENANCE_NAME, ResultBundleError, load_provenance
@@ -1091,9 +1094,16 @@ def _identity_mismatch(
         except (ResultBundleError, OSError, ValueError):
             provenance = None
         if provenance is not None:
-            recorded_species = provenance.get("species")
-            if isinstance(recorded_species, str) and recorded_species != species:
-                return f"{run_dir} was trained as species {recorded_species!r}, not {species!r}"
+            if "species" in provenance or "embodiment" in provenance:
+                try:
+                    same_model = model_id.matches(provenance)
+                except ValueError as exc:
+                    return f"{run_dir} does not record the model it was trained as: {exc}"
+                if not same_model:
+                    return (
+                        f"{run_dir} was trained as species {provenance.get('species')!r} and embodiment "
+                        f"{provenance.get('embodiment')!r}, not {model_id}"
+                    )
             recorded_backend = provenance.get("backend")
             if isinstance(recorded_backend, str) and recorded_backend != backend:
                 return f"{run_dir} was trained on backend {recorded_backend!r}, not {backend!r}"
@@ -1103,7 +1113,7 @@ def _identity_mismatch(
     if wanted is None:
         return None
     stage_dir = next(
-        (run_dir / name for name in stage_dir_candidates(species, root.reference) if (run_dir / name).is_dir()), None
+        (run_dir / name for name in stage_dir_candidates(model_id, root.reference) if (run_dir / name).is_dir()), None
     )
     if stage_dir is None:
         return None
@@ -1117,7 +1127,7 @@ def _identity_mismatch(
 def select_trunk(
     log_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     chain: "Sequence[StageEntry]",
     stage_configs: "Mapping[Any, Mapping[str, Any]]",
     plant_identity: "PlantIdentity",
@@ -1157,7 +1167,7 @@ def select_trunk(
     command-line ``widen_checkpoint``, D-C13/D-C17/D-D14).  With
     *retrain_from* naming the root there is nothing to reuse.
 
-    A run whose ``provenance.json`` names another species, *algorithm* or
+    A run whose ``provenance.json`` names another model, *algorithm* or
     *backend*, or whose root ``stage_config.json`` records another
     algorithm, is refused before the rules run (the identity check a pinned
     ``TRUNK_FROM`` makes; the seven rules never read the algorithm, and the
@@ -1203,7 +1213,7 @@ def select_trunk(
     for entry in considered:
         config = stage_configs[entry.reference]
         fingerprint = stage_task_fingerprint(
-            species, entry.reference, stage_config=config, plant_identity=plant_identity
+            model_id, entry.reference, stage_config=config, plant_identity=plant_identity
         )
         context.append((entry, fingerprint["task_sha256"], config.get("curriculum_kwargs", {})))
 
@@ -1242,7 +1252,7 @@ def select_trunk(
         refusal: "tuple[str, str] | None" = None
         parent_sha256: "str | None" = None
         mismatch = (
-            _identity_mismatch(run_dir, root=root_entry, species=species, algorithm=algorithm, backend=backend)
+            _identity_mismatch(run_dir, root=root_entry, model_id=model_id, algorithm=algorithm, backend=backend)
             if root_entry is not None
             else None
         )
@@ -1253,7 +1263,7 @@ def select_trunk(
                 try:
                     ancestor = find_certified_ancestor(
                         run_dir,
-                        species=species,
+                        model_id=model_id,
                         entry=entry,
                         current_task_sha256=task_sha256,
                         plant_identity=plant_identity,
@@ -1275,7 +1285,7 @@ def select_trunk(
         if not covered and root_entry is not None and mismatch is None:
             try:
                 hint = _older_interface_root(
-                    run_dir, run_id, species=species, root=root_entry, plant_identity=plant_identity
+                    run_dir, run_id, model_id=model_id, root=root_entry, plant_identity=plant_identity
                 )
             except OSError:
                 hint = None
@@ -1293,7 +1303,7 @@ def select_trunk(
             try:
                 node = _node_support(
                     ancestor,
-                    species=species,
+                    model_id=model_id,
                     entry=entry,
                     plant_identity=plant_identity,
                     current_gate_config=gate_config,

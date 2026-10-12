@@ -19,7 +19,8 @@ everything a restamp cannot honestly cover:
 * the current plant's ``physics_sha256`` must equal the profile's (a
   physics change moves the quiet reference and needs a real
   recalibration, not a restamp);
-* the profile must be a valid recovery calibration for the named species.
+* the profile must be a valid recovery calibration for the named model
+  (its ``species`` and ``embodiment`` both name it; decision D-D33).
 
 Idempotent: a profile whose identity and task hash are already current is
 left untouched — a second run is a byte no-op and appends no history.
@@ -33,8 +34,9 @@ pass its own ``--reason`` (the entry names the revision it covers; nothing
 else in the history distinguishes one restamp from the next).
 
 Run: ``python -m environments.shared.scripts.restamp_recovery_calibration
-[--species compsognathus_longipes --embodiment anatomical --species compsognathus_longipes --embodiment robot] [--configs-root DIR]
-[--reason TEXT]``.
+[--model-id compsognathus_longipes anatomical --model-id compsognathus_longipes robot] [--configs-root DIR]
+[--reason TEXT]``.  With no ``--model-id``, every model whose
+``<configs-root>/<species>/<embodiment>/recovery_calibration.json`` exists.
 """
 
 from __future__ import annotations
@@ -47,11 +49,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from environments.shared.model_id import ModelId
 from environments.shared.paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SPECIES = ("compsognathus", "compsognathus_robot")
 RESTAMP_REASON = (
     "BEHAVIOR_RECIPES_PLAN §4.6 Phase C interface bump; fixed-command nulls do not read the observation "
     "and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
@@ -89,33 +91,29 @@ def current_commit(repository: Path = _REPOSITORY_ROOT) -> str:
 
 
 def restamp_recovery_calibration(
-    species: str,
+    model_id: ModelId,
     *,
     path: str | Path | None = None,
     stage: str = "recovery",
     commit: str | None = None,
     reason: str = RESTAMP_REASON,
 ) -> bool:
-    """Restamp *species*' recovery calibration in place; ``True`` when the file changed.
+    """Restamp *model_id*'s recovery calibration in place; ``True`` when the file changed.
 
-    *path* defaults to ``configs/<species>/recovery_calibration.json``;
+    *path* defaults to ``configs/<species>/<embodiment>/recovery_calibration.json``;
     *reason* is what the appended ``restamp_history`` entry records.
-    Raises :class:`RestampError` on every refusal (an unknown species
-    included); never writes on one.
+    Raises :class:`RestampError` on every refusal (a profile of another
+    model, or one that does not name its model whole, included); never
+    writes on one.
     """
     from environments.shared.config import load_stage_config
     from environments.shared.plant_contract import current_plant_identity
     from environments.shared.recovery_calibration import CONFIGS_ROOT, PROFILE_SCHEMA
-    from environments.shared.species_names import resolve_species_id
     from environments.shared.task_fingerprint import stage_task_fingerprint
 
-    try:
-        species = resolve_species_id(species)
-    except ValueError as exc:
-        raise RestampError(str(exc)) from exc
     if not isinstance(reason, str) or not reason.strip():
         raise RestampError("the restamp reason must be a non-empty string")
-    profile_path = Path(path) if path is not None else CONFIGS_ROOT / species / "recovery_calibration.json"
+    profile_path = Path(path) if path is not None else model_id.path(CONFIGS_ROOT) / "recovery_calibration.json"
     try:
         original_text = profile_path.read_text(encoding="utf-8")
         profile = json.loads(original_text)
@@ -123,29 +121,35 @@ def restamp_recovery_calibration(
         raise RestampError(f"cannot load recovery calibration {profile_path}: {exc}") from exc
     if not isinstance(profile, dict):
         raise RestampError(f"{profile_path} must hold a JSON object")
-    if profile.get("schema") != PROFILE_SCHEMA or profile.get("species") != species:
-        raise RestampError(f"{profile_path} has the wrong recovery calibration schema or species")
+    if profile.get("schema") != PROFILE_SCHEMA:
+        raise RestampError(f"{profile_path} has the wrong recovery calibration schema")
+    try:
+        same_model = model_id.matches(profile)
+    except ValueError as exc:
+        raise RestampError(f"{profile_path} does not name its model: {exc}") from exc
+    if not same_model:
+        raise RestampError(f"{profile_path} is not a recovery calibration of {model_id}")
 
     measured_env = profile.get("recovery_env_kwargs")
-    stage_env = load_stage_config(species, stage)["env_kwargs"]
+    stage_env = load_stage_config(model_id, stage)["env_kwargs"]
     if not isinstance(measured_env, dict) or _canonical(measured_env) != _canonical(stage_env):
         raise RestampError(
-            f"{profile_path} recovery_env_kwargs differ from the committed {species} {stage!r} [env] block; "
+            f"{profile_path} recovery_env_kwargs differ from the committed {model_id} {stage!r} [env] block; "
             "a changed task needs a real recalibration, not a restamp"
         )
 
     recorded_identity = profile.get("plant_identity")
     if not isinstance(recorded_identity, dict):
         raise RestampError(f"{profile_path} records no plant_identity to restamp from")
-    current_identity = current_plant_identity(species).to_dict()
+    current_identity = current_plant_identity(model_id).to_dict()
     if recorded_identity.get("physics_sha256") != current_identity["physics_sha256"]:
         raise RestampError(
             f"{profile_path} was measured on physics {recorded_identity.get('physics_sha256')!r} but the current "
-            f"{species} plant is {current_identity['physics_sha256']!r}: a physics change moves the quiet reference "
+            f"{model_id} plant is {current_identity['physics_sha256']!r}: a physics change moves the quiet reference "
             "and needs a real recalibration, not a restamp"
         )
 
-    fingerprint = stage_task_fingerprint(species, stage, env_kwargs=measured_env, plant_identity=current_identity)
+    fingerprint = stage_task_fingerprint(model_id, stage, env_kwargs=measured_env, plant_identity=current_identity)
     task_sha256 = fingerprint["task_sha256"]
 
     if recorded_identity == current_identity and profile.get("task_sha256") == task_sha256:
@@ -186,18 +190,25 @@ def restamp_recovery_calibration(
 
 
 def main(argv: "list[str] | None" = None) -> int:
+    from environments.shared.recovery_calibration import CONFIGS_ROOT
+    from environments.shared.species_names import model_ids, require_model_id
+
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     parser.add_argument(
-        "--species",
+        "--model-id",
+        nargs=2,
         action="append",
-        default=None,
-        help=f"species whose recovery calibration to restamp (repeatable; default: {', '.join(DEFAULT_SPECIES)})",
+        metavar=("SPECIES", "EMBODIMENT"),
+        dest="model_ids",
+        help="a model whose recovery calibration to restamp; repeatable (default: every model with a "
+        "recovery_calibration.json under the configs root)",
     )
     parser.add_argument(
         "--configs-root",
         type=Path,
         default=None,
-        help="read/write <configs-root>/<species>/recovery_calibration.json instead of the committed configs/",
+        help="read/write <configs-root>/<species>/<embodiment>/recovery_calibration.json instead of the "
+        "committed configs/",
     )
     parser.add_argument(
         "--reason",
@@ -207,17 +218,31 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    species_list = args.species or list(DEFAULT_SPECIES)
-    changed = 0
-    for species in species_list:
-        path = None if args.configs_root is None else args.configs_root / species / "recovery_calibration.json"
+    configs_root = CONFIGS_ROOT if args.configs_root is None else args.configs_root
+    targets: list[ModelId] = []
+    for species, embodiment in args.model_ids or ():
         try:
-            if restamp_recovery_calibration(species, path=path, reason=args.reason):
+            targets.append(require_model_id(species, embodiment))
+        except ValueError as exc:
+            parser.error(str(exc))
+    if not args.model_ids:
+        # Built from the manifest's models (review L2): a calibration file no
+        # model owns is never picked up by a glob.
+        targets = [
+            model_id
+            for model_id in model_ids()
+            if (model_id.path(configs_root) / "recovery_calibration.json").is_file()
+        ]
+    changed = 0
+    for model_id in targets:
+        path = None if args.configs_root is None else model_id.path(args.configs_root) / "recovery_calibration.json"
+        try:
+            if restamp_recovery_calibration(model_id, path=path, reason=args.reason):
                 changed += 1
         except RestampError as exc:
-            logger.error("Refusing to restamp %s: %s", species, exc)
+            logger.error("Refusing to restamp %s: %s", model_id, exc)
             return 1
-    print(f"restamped {changed} of {len(species_list)} calibration(s)")
+    print(f"restamped {changed} of {len(targets)} calibration(s)")
     return 0
 
 

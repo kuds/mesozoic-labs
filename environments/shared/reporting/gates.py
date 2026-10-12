@@ -360,8 +360,8 @@ def _measurement_refusals(report: Mapping[str, Any], *, stage: int | str) -> lis
 
     The manifest's constants must be exactly the library's
     (``gait.constants.measurement_constants``), its registry entry exactly
-    the species' current ``SUPPORT_REGISTRY`` entry
-    (``gait.morphology.measurement_definition``), and its recorded sha256
+    the model's current registry entry (its env class's ``FOOT_SUPPORT``,
+    ``gait.morphology.measurement_definition``), and its recorded sha256
     the digest of the block as recorded: a report measured under other
     definitions scores other keys under the same names, and changing any of
     them after adoption needs a new ``MEASUREMENT_VERSION``.  The
@@ -376,7 +376,7 @@ def _measurement_refusals(report: Mapping[str, Any], *, stage: int | str) -> lis
         measurement_sha256,
     )
     from environments.shared.gait.morphology import measurement_definition
-    from environments.shared.species_names import resolve_species_id
+    from environments.shared.model_id import ModelId
 
     manifest = report.get("measurement")
     if not isinstance(manifest, Mapping):
@@ -401,17 +401,23 @@ def _measurement_refusals(report: Mapping[str, Any], *, stage: int | str) -> lis
             f"stage {stage} stance report's measurement_sha256 {report.get('measurement_sha256')!r} is not the "
             f"digest of its own manifest ({recorded_digest}); the block was edited after it was measured"
         )
+    # The report and its manifest each name the model whole (decision D-D33);
+    # either one naming it by half is refused, never matched on the species.
     try:
-        species = resolve_species_id(str(report.get("species")))
-    except ValueError:
-        species = str(report.get("species"))
-    if manifest.get("species") != species:
-        refusals.append(f"stage {stage} stance report was measured on {manifest.get('species')!r}, not {species!r}")
-    expected = measurement_definition(species)["registry"]
+        model_id = ModelId.from_record(report)
+    except ValueError as exc:
+        return [*refusals, f"stage {stage} stance report does not name its model: {exc}"]
+    try:
+        measured_on = ModelId.from_record(manifest)
+    except ValueError as exc:
+        return [*refusals, f"stage {stage} stance report's measurement manifest does not name its model: {exc}"]
+    if measured_on != model_id:
+        refusals.append(f"stage {stage} stance report was measured on {measured_on}, not {model_id}")
+    expected = measurement_definition(model_id)["registry"]
     if not _same_reading(manifest.get("registry"), expected):
         refusals.append(
             f"stage {stage} stance report used the support registry entry {manifest.get('registry')!r}, not the "
-            f"current {expected!r} for {species}"
+            f"current {expected!r} for {model_id}"
         )
     return refusals
 

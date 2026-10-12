@@ -579,8 +579,7 @@ def _create_or_load_model(
             # before 2026-08-15 carries a task fingerprint, so a missing one
             # warns instead of failing.  Tighten to fail-closed once no live
             # lineage resumes a pre-2026-08-15 checkpoint (today the certified
-            # stance parent 20260810_145546 still does); retire it together
-            # with the schema-v1 valve in task_fingerprint.validate_recorded_task.
+            # stance parent 20260810_145546 still does).
             task_lineage = validate_model_task(
                 model,
                 task_fingerprint,

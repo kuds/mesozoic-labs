@@ -1,7 +1,7 @@
 """Backfill ``gate_verdict.json`` for a stage directory judged before Phase A.
 
 Decision D-A6 (BEHAVIOR_RECIPES_PLAN §4.2): a stage directory written before
-the per-node verdict record existed — the certified trex stance run
+the per-node verdict record existed — the certified T-Rex stance run
 ``20260810_145546``, every sweep trial — carries its verdict only in the
 run-level ``collected_results.csv`` / ``summary.json``, so ancestor reuse
 (``--trunk-from``, the notebook's ``TRUNK_FROM``) refuses it with a reason
@@ -69,7 +69,7 @@ judged under (``gate`` / ``gate_sha256``), and reuse rule 7 compares it
 against the gate the reusing run declares.  ``--gate recorded`` (the
 default) judges under the block ``stage_config.json`` recorded — what the
 directory actually ran under — and digests that block; ``--gate current``
-judges under the checkout's ``load_all_stages(species)[stage]`` block, the
+judges under the checkout's ``load_all_stages(model_id)[stage]`` block, the
 re-judge-after-a-threshold-edit path for a directory that was never
 re-judged through the notebook, and digests that one.  Either way the
 verdict's ``gate`` names the block used, and either way the evidence must
@@ -93,6 +93,9 @@ import statistics
 import sys
 from pathlib import Path
 from typing import Any, Mapping
+
+from environments.shared.model_id import EMBODIMENTS, ModelId
+from environments.shared.species_names import require_model_id, species_ids
 
 logger = logging.getLogger(__name__)
 
@@ -209,15 +212,16 @@ def selected_evidence_metrics(
 def backfill_gate_verdict(
     stage_dir: "str | Path",
     *,
-    species: "str | None" = None,
+    model_id: ModelId | None = None,
     stage: "int | str | None" = None,
     force: bool = False,
     gate: str = "recorded",
 ) -> Path:
     """Re-derive and write *stage_dir*'s ``gate_verdict.json`` from its evidence.
 
-    *species* and *stage* default to what the directory's
-    ``stage_config.json`` records.  *gate* names the block the verdict is
+    *model_id* and *stage* default to what the directory's
+    ``stage_config.json`` records (its ``species`` and ``embodiment``, both
+    required; decision D-D33).  *gate* names the block the verdict is
     judged under and digests (:data:`GATE_SOURCES`): ``"recorded"``, the
     directory's own ``stage_config.json`` block, or ``"current"``, the
     checkout's block for the stage.  Raises :class:`BackfillError` on any
@@ -256,14 +260,18 @@ def backfill_gate_verdict(
     record = _load_json(stage_path / "stage_config.json", what="stage_config.json")
     if not isinstance(record, Mapping):
         raise BackfillError(f"{stage_path / 'stage_config.json'} must hold a JSON object")
-    resolved_species = species or record.get("species")
-    if not isinstance(resolved_species, str) or not resolved_species:
-        raise BackfillError("stage_config.json records no species; pass --species")
+    if model_id is None:
+        try:
+            model_id = ModelId.from_record(record)
+        except ValueError as exc:
+            raise BackfillError(
+                f"stage_config.json does not name its model ({exc}); pass --species and --embodiment"
+            ) from exc
     stage_ref: Any = stage if stage is not None else record.get("stage")
     if isinstance(stage_ref, bool) or not isinstance(stage_ref, (int, str)):
         raise BackfillError(f"stage_config.json records no usable stage ({stage_ref!r}); pass --stage")
     try:
-        entry = load_stage_manifest(resolved_species).resolve(stage_ref)
+        entry = load_stage_manifest(model_id).resolve(stage_ref)
     except StageManifestError as exc:
         raise BackfillError(str(exc)) from exc
     recorded_block = record.get("curriculum", record.get("curriculum_kwargs"))
@@ -271,11 +279,11 @@ def backfill_gate_verdict(
         raise BackfillError("stage_config.json records no curriculum block, so the gate the stage ran under is unknown")
     curriculum: Mapping[str, Any] = recorded_block
     if gate == "current":
-        curriculum = _current_curriculum_block(resolved_species, entry.reference)
+        curriculum = _current_curriculum_block(model_id, entry.reference)
         logger.info(
             "Judging %s under the checkout's current %s %r gate, not the block its stage_config.json recorded",
             stage_path,
-            resolved_species,
+            model_id,
             entry.id,
         )
     # Recorded as declared (null when undeclared; the judge then fails it).
@@ -409,7 +417,7 @@ def backfill_gate_verdict(
     stage_results["gate_failures"] = failures
     written = write_gate_verdict(
         stage_path,
-        species=resolved_species,
+        model_id=model_id,
         stage=entry.reference,
         stage_id=entry.id,
         gate_kind=gate_kind,
@@ -486,30 +494,41 @@ def _require_stance_report_scored_this_gate(
         )
 
 
-def _current_curriculum_block(species: str, stage_ref: "int | str") -> Mapping[str, Any]:
-    """The checkout's ``[curriculum]`` block for *species*' *stage_ref* (``--gate current``)."""
+def _current_curriculum_block(model_id: ModelId, stage_ref: "int | str") -> Mapping[str, Any]:
+    """The checkout's ``[curriculum]`` block for *model_id*'s *stage_ref* (``--gate current``)."""
     from environments.shared.config import load_all_stages
 
     try:
-        configs = load_all_stages(species)
+        configs = load_all_stages(model_id)
     except Exception as exc:  # noqa: BLE001 - any loader failure is "no current gate", never a default
-        raise BackfillError(f"the current {species} stage configs cannot be loaded: {exc}") from exc
+        raise BackfillError(f"the current {model_id} stage configs cannot be loaded: {exc}") from exc
     current = configs.get(stage_ref)
     if not isinstance(current, Mapping):
         raise BackfillError(
-            f"the {species} checkout declares no stage {stage_ref!r} (known: {sorted(map(str, configs))}), "
+            f"the {model_id} checkout declares no stage {stage_ref!r} (known: {sorted(map(str, configs))}), "
             "so there is no current gate to judge under"
         )
     block = current.get("curriculum_kwargs")
     if not isinstance(block, Mapping) or not block:
-        raise BackfillError(f"the current {species} stage {stage_ref!r} config declares no [curriculum] block")
+        raise BackfillError(f"the current {model_id} stage {stage_ref!r} config declares no [curriculum] block")
     return block
 
 
 def main(argv: "list[str] | None" = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     parser.add_argument("stage_dir", help="the stage directory to write gate_verdict.json into")
-    parser.add_argument("--species", default=None, help="override the species stage_config.json records")
+    parser.add_argument(
+        "--species",
+        default=None,
+        choices=species_ids(),
+        help="override the model stage_config.json records: its species (with --embodiment)",
+    )
+    parser.add_argument(
+        "--embodiment",
+        default=None,
+        choices=EMBODIMENTS,
+        help="override the model stage_config.json records: its embodiment (with --species)",
+    )
     parser.add_argument(
         "--stage",
         default=None,
@@ -527,13 +546,21 @@ def main(argv: "list[str] | None" = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    model_id: ModelId | None = None
+    if (args.species is None) != (args.embodiment is None):
+        parser.error("--species and --embodiment override the recorded model together")
+    if args.species is not None:
+        try:
+            model_id = require_model_id(args.species, args.embodiment)
+        except ValueError as exc:
+            parser.error(str(exc))
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     stage: "int | str | None" = None
     if args.stage is not None:
         stage = int(args.stage) if args.stage.isdigit() else args.stage
     try:
         written = backfill_gate_verdict(
-            args.stage_dir, species=args.species, stage=stage, force=args.force, gate=args.gate
+            args.stage_dir, model_id=model_id, stage=stage, force=args.force, gate=args.gate
         )
     except BackfillError as exc:
         logger.error("Refusing to backfill %s: %s", args.stage_dir, exc)

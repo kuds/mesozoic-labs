@@ -48,6 +48,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..file_io import atomic_write_text
+from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from .errors import ResultBundleError
 from .hashing import gate_config_sha256, sha256_file
@@ -188,7 +189,7 @@ def _handoff_record(stage_dir: Path, path: "Path | None") -> tuple[str | None, s
 def write_gate_verdict(
     stage_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     stage_id: str,
     gate_kind: str,
@@ -230,7 +231,7 @@ def write_gate_verdict(
         projected = {key: stage_result[key] for key in _PERSISTED_STAGE_RESULT_KEYS if key in stage_result}
     record: dict[str, Any] = {
         "schema": GATE_VERDICT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "stage_id": stage_id,
         "gate_kind": gate_kind,

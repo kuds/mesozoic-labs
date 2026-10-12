@@ -10,7 +10,8 @@ is a provenance gap, not evidence of task equivalence.  This module closes
 it with a second, task-level identity: what the policy was trained to
 *do*, alongside the plant contract's what the policy *talks to*.
 
-The fingerprint hashes the task-defining configuration — species, stage,
+The fingerprint hashes the task-defining configuration — the model
+(species and embodiment, schema v3 since decision D-D33), stage,
 backend, the plant's physics/interface hashes, the EFFECTIVE ``[env]``
 config (reward, termination, reset, horizon: the species constructor's
 defaults overlaid with the stage's TOML kwargs — schema v2; v1 hashed only
@@ -30,15 +31,13 @@ exactly that boundary:
   lineage (parent/child hashes travel with the new checkpoint), never
   silently.
 
-Fail-closed core with two explicit, dated transition valves: no checkpoint
+Fail-closed core with one explicit, dated transition valve: no checkpoint
 minted before 2026-08-15 carries a fingerprint, so callers may pass
 ``allow_unfingerprinted=True`` (train paths do, with a comment) to demote
 the missing-fingerprint error to a warning until fingerprinted checkpoints
-are the norm; and every checkpoint minted before the 2026-08-23 schema-v2
-bump records a v1 fingerprint (TOML-present kwargs only — the
-20260821_142144 run's included), which ``resume_same_stage`` accepts —
-warned, never silently — when every raw kwarg it did record matches the
-current effective config, and still refuses on any actual difference.
+are the norm.  The schema-v1 valve (a v1 record resumed when its
+TOML-present kwargs matched) is gone: a v1 record names a species ID that
+decision D-D33 retired, so it could never match a current model.
 
 Manifest v2 (BEHAVIOR_RECIPES_PLAN §4.2) adds a third, edge-level check on
 top of the two modes: :func:`validate_declared_parent` refuses an
@@ -58,6 +57,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
 from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE, RETIRED_COMMAND_ENV_KEYS
+from .model_id import ModelId
 from .paths import REPOSITORY_ROOT as _REPOSITORY_ROOT
 
 if TYPE_CHECKING:
@@ -65,12 +65,13 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-TASK_FINGERPRINT_SCHEMA = "mesozoic.task-fingerprint/v2"
 #: v1 (04be963..2026-08-23) hashed only the TOML-present ``[env]`` kwargs;
-#: v2 hashes the effective config (constructor defaults + kwargs, F6).  v1
-#: records stay resumable through the dated schema valve in
-#: :func:`validate_recorded_task`.
-TASK_FINGERPRINT_SCHEMA_V1 = "mesozoic.task-fingerprint/v1"
+#: v2 hashes the effective config (constructor defaults + kwargs, F6); v3
+#: (decision D-D33) records the model as two fields, ``species`` (the
+#: binomial ID) and ``embodiment``, and the lineage records the parent's
+#: embodiment beside its species.  Earlier records name retired species IDs
+#: and match no current task.
+TASK_FINGERPRINT_SCHEMA = "mesozoic.task-fingerprint/v3"
 #: Names the schedule PRF + force-derivation implementation; bump when
 #: environments/shared/perturbation.py changes meaning, not merely shape.
 SCHEDULE_IMPLEMENTATION = "push_schedule/v1+lowbias32+capture-point"
@@ -129,12 +130,12 @@ def _canonical(value: Any) -> Any:
     return str(value)
 
 
-def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
+def _effective_env_kwargs(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> dict[str, Any]:
     """Constructor defaults overlaid with the provided ``[env]`` kwargs.
 
     The env class comes from the species registry — the class every SB3
     train path constructs.  Params in :data:`NON_TASK_ENV_PARAMS` are
-    excluded from both sides.  An unresolvable species fails closed: an
+    excluded from both sides.  An unresolvable model fails closed: an
     effective config that silently fell back to the raw kwargs would
     reopen exactly the identity gap this exists to close (F6).
     """
@@ -150,7 +151,7 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
             "PR-9 carries them, so drop command_frame.RETIRED_COMMAND_ENV_KEYS from its env kwargs first"
         )
     try:
-        env_class = get_species_config(species).env_class
+        env_class = get_species_config(model_id).env_class
     except ValueError as exc:
         raise TaskFingerprintError(f"cannot resolve the env class for the effective task config: {exc}") from exc
     effective: dict[str, Any] = {}
@@ -162,26 +163,6 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
         if name in NON_TASK_ENV_PARAMS:
             continue
         effective[str(name)] = value
-    # Compsognathus gained explicit push controls after its first training
-    # release. Their implicit, disabled defaults change no trajectory and
-    # must not strand existing stance/locomotion/behavior checkpoints. Keep
-    # the historical quiet-task encoding only when none of those knobs was
-    # explicitly configured. Enabled pushes and every explicit setting retain
-    # their full identity; other species' historical encodings are untouched.
-    push_keys = {
-        "perturbation_capture_velocity_multiple",
-        "perturbation_interval",
-        "perturbation_jitter",
-        "perturbation_duration",
-        "perturbation_direction",
-    }
-    if (
-        species in {"compsognathus", "compsognathus_robot"}
-        and effective.get("perturbation_capture_velocity_multiple") == 0.0
-        and not push_keys.intersection(env_kwargs)
-    ):
-        for name in push_keys:
-            effective.pop(name, None)
     # BEHAVIOR_RECIPES_PLAN §4.6 (Phase C, amendment A1; decision D-D2): the
     # command kwargs (command_mode and command_config) sit on every species
     # with inert defaults.  While the EFFECTIVE command_mode is "none" they
@@ -198,7 +179,7 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
 
 def compute_task_fingerprint(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     backend: str,
     env_kwargs: Mapping[str, Any],
@@ -239,11 +220,11 @@ def compute_task_fingerprint(
         perturbation["schedule_implementation"] = SCHEDULE_IMPLEMENTATION
     payload: dict[str, Any] = {
         "schema": TASK_FINGERPRINT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage if isinstance(stage, str) else int(stage),
         "backend": backend,
         "plant": plant,
-        "env": _canonical(_effective_env_kwargs(species, env_kwargs)),
+        "env": _canonical(_effective_env_kwargs(model_id, env_kwargs)),
         "perturbation": perturbation,
     }
     # The carve-out leaves command_mode in the env section exactly when it is live.
@@ -283,38 +264,8 @@ def attach_task_lineage(model: Any, lineage: Mapping[str, Any]) -> None:
 
 
 def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
-    sections = ("species", "stage", "backend", "plant", "env", "perturbation", "command")
+    sections = ("species", "embodiment", "stage", "backend", "plant", "env", "perturbation", "command")
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
-
-
-def _v1_raw_env_matches_effective(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> bool:
-    """Whether a schema-v1 record agrees with the current v2 fingerprint.
-
-    v1 hashed only the TOML-present ``[env]`` kwargs, so a v1 record can
-    never hash-match a v2 fingerprint.  Equivalence is instead: every
-    non-env section identical, and every raw kwarg the v1 record DID
-    capture equal to the same key of the v2 effective env (non-task params
-    ignored on both sides).  Constructor defaults are exactly what v1
-    never captured, so a default retuned since minting is invisible here —
-    the valve trades that blindness, for the dated transition window only,
-    against stranding every pre-v2 checkpoint.
-    """
-    if recorded.get("schema") != TASK_FINGERPRINT_SCHEMA_V1 or current.get("schema") != TASK_FINGERPRINT_SCHEMA:
-        return False
-    for name in ("species", "stage", "backend", "plant", "perturbation", "command"):
-        if _canonical(recorded.get(name)) != _canonical(current.get(name)):
-            return False
-    recorded_env = recorded.get("env")
-    current_env = current.get("env")
-    if not isinstance(recorded_env, Mapping) or not isinstance(current_env, Mapping):
-        return False
-    recorded_env = _canonical(recorded_env)
-    current_env = _canonical(current_env)
-    return all(
-        name in current_env and recorded_env[name] == current_env[name]
-        for name in recorded_env
-        if name not in NON_TASK_ENV_PARAMS
-    )
 
 
 def validate_recorded_task(
@@ -330,10 +281,8 @@ def validate_recorded_task(
     Returns a lineage record for ``initialize_next_stage`` (always — the
     warm-start is recorded even when the tasks happen to match), ``None``
     for a clean same-stage resume.  Raises :class:`TaskFingerprintError`
-    on a same-stage mismatch (a schema-v1 record whose raw kwargs all
-    match the effective config instead passes, warned, through the dated
-    schema valve), an unknown mode, or a missing fingerprint without the
-    explicit transition valve.
+    on a same-stage mismatch, an unknown mode, or a missing fingerprint
+    without the explicit transition valve.
     """
     if mode not in LOAD_MODES:
         raise TaskFingerprintError(f"unknown load mode {mode!r}; known: {LOAD_MODES}")
@@ -358,25 +307,6 @@ def validate_recorded_task(
         )
     if mode == "resume_same_stage":
         if recorded.get("task_sha256") != current.get("task_sha256"):
-            # Schema transition valve (dated, like allow_unfingerprinted
-            # above): every checkpoint minted between 2026-08-15 and the
-            # 2026-08-23 v2 bump records a v1 fingerprint, which can never
-            # hash-match v2.  A v1 record whose raw kwargs all agree with
-            # the effective env resumes with a warning; any actual kwarg
-            # or section difference still fails closed below.  Tighten to
-            # exact-hash-only once no live checkpoint predates the 2026-08-23
-            # v2 bump (today the recovery pilots 20260819_154702 /
-            # 20260821_142144 still do); retire it together with the
-            # allow_unfingerprinted valve in train_base._create_or_load_model.
-            if _v1_raw_env_matches_effective(recorded, current):
-                _logger.warning(
-                    "%s records a schema-v1 task fingerprint (env section = TOML-present kwargs only, "
-                    "minted before the 2026-08-23 effective-config bump); every kwarg it recorded "
-                    "matches the current task, so it resumes through the schema transition valve. "
-                    "A constructor default retuned since minting would be invisible to this check.",
-                    artifact,
-                )
-                return None
             differing = _differing_sections(recorded, current)
             raise TaskFingerprintError(
                 f"{artifact} was trained on a different task than it is being resumed into "
@@ -389,6 +319,7 @@ def validate_recorded_task(
         "parent_task_sha256": recorded.get("task_sha256"),
         "child_task_sha256": current["task_sha256"],
         "parent_species": recorded.get("species"),
+        "parent_embodiment": recorded.get("embodiment"),
         "parent_stage": recorded.get("stage"),
     }
 
@@ -451,12 +382,12 @@ def read_checkpoint_task_fingerprint(checkpoint: "str | Path") -> dict[str, Any]
     return dict(raw) if isinstance(raw, Mapping) else None
 
 
-def _describe_stage(species: str, ref: Any) -> str:
+def _describe_stage(model_id: ModelId, ref: Any) -> str:
     """``3 (behavior)`` / ``'recovery'`` — the reference with its id when the manifest knows it."""
     from .stage_manifest import StageManifestError, load_stage_manifest
 
     try:
-        entry = load_stage_manifest(species).resolve(ref)
+        entry = load_stage_manifest(model_id).resolve(ref)
     except (StageManifestError, TypeError, ValueError):
         return repr(ref)
     if isinstance(ref, str):
@@ -468,7 +399,7 @@ def validate_declared_parent(
     recorded: Mapping[str, Any] | None,
     *,
     declared_parent: "int | str | None",
-    species: str,
+    model_id: ModelId,
     child_stage: "int | str",
     artifact: str,
 ) -> None:
@@ -481,7 +412,8 @@ def validate_declared_parent(
     environment exists.  The comparison is against the parent's canonical
     reference exactly as the fingerprint records it (the legacy integer for a
     numbered stage, the id otherwise; a bool never matches), and the recorded
-    ``species`` must be this species.
+    ``species`` and ``embodiment`` must name this model (a record missing
+    either is refused, never matched on its species alone; decision D-D33).
 
     *declared_parent* ``None`` means *child_stage* is a root: a root accepts
     only a parent whose recorded stage is the node ITSELF (re-initialising
@@ -500,15 +432,19 @@ def validate_declared_parent(
             "cannot be checked against %s stage %s's declared warm_start_from edge — loading it "
             "under initialize_next_stage unverified",
             artifact,
-            species,
-            _describe_stage(species, child_stage),
+            model_id,
+            _describe_stage(model_id, child_stage),
         )
         return
-    recorded_species = recorded.get("species")
-    if recorded_species != species:
+    try:
+        same_model = model_id.matches(recorded)
+    except ValueError as exc:
+        raise TaskFingerprintError(f"{artifact}'s task fingerprint does not name its model: {exc}") from exc
+    if not same_model:
         raise TaskFingerprintError(
-            f"{artifact} records species {recorded_species!r}, not {species!r}; a checkpoint from "
-            "another species cannot initialize this node"
+            f"{artifact} records species {recorded.get('species')!r} and embodiment "
+            f"{recorded.get('embodiment')!r}, not {model_id}; a checkpoint from another model cannot "
+            "initialize this node"
         )
     recorded_stage = recorded.get("stage")
     expected: "int | str" = child_stage if declared_parent is None else declared_parent
@@ -517,26 +453,26 @@ def validate_declared_parent(
     )
     if matches:
         return
-    recorded_desc = _describe_stage(species, recorded_stage)
-    child_desc = _describe_stage(species, child_stage)
+    recorded_desc = _describe_stage(model_id, recorded_stage)
+    child_desc = _describe_stage(model_id, child_stage)
     if declared_parent is None:
         raise TaskFingerprintError(
-            f"{artifact} records {species} stage {recorded_desc}, but stage {child_desc} is a root "
+            f"{artifact} records {model_id} stage {recorded_desc}, but stage {child_desc} is a root "
             "node (no warm_start_from): under initialize_next_stage a root accepts only an earlier "
-            "checkpoint of itself. Declare the edge in the species' stage manifest if this node "
+            "checkpoint of itself. Declare the edge in the model's stage manifest if this node "
             "should warm-start from that stage."
         )
     raise TaskFingerprintError(
-        f"{artifact} records {species} stage {recorded_desc}, but stage {child_desc} declares "
-        f"warm_start_from = {_describe_stage(species, declared_parent)}: an initialize_next_stage "
+        f"{artifact} records {model_id} stage {recorded_desc}, but stage {child_desc} declares "
+        f"warm_start_from = {_describe_stage(model_id, declared_parent)}: an initialize_next_stage "
         "load must come from the node's declared parent. Load that parent's checkpoint, or change "
-        "the edge in the species' stage manifest."
+        "the edge in the model's stage manifest."
     )
 
 
 def derive_stage_task_fingerprint(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     backend: str,
     env_kwargs: Mapping[str, Any],
@@ -563,7 +499,7 @@ def derive_stage_task_fingerprint(
     ``command_mode = "none"`` stage; BEHAVIOR_RECIPES_PLAN §4.6).
     """
     manifest: dict[str, Any] | None = None
-    effective_kwargs = _effective_env_kwargs(species, env_kwargs)
+    effective_kwargs = _effective_env_kwargs(model_id, env_kwargs)
     multiple = float(effective_kwargs.get("perturbation_capture_velocity_multiple", 0.0) or 0.0)
     if multiple > 0.0:
         if plant_identity is None or not plant_identity.get("model_path"):
@@ -601,7 +537,7 @@ def derive_stage_task_fingerprint(
             "direction": effective_kwargs.get("perturbation_direction", "uniform_horizontal"),
         }
     return compute_task_fingerprint(
-        species=species,
+        model_id=model_id,
         stage=stage,
         backend=backend,
         env_kwargs=env_kwargs,
@@ -612,7 +548,7 @@ def derive_stage_task_fingerprint(
 
 
 def stage_task_fingerprint(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     *,
     stage_config: Mapping[str, Any] | None = None,
@@ -629,7 +565,7 @@ def stage_task_fingerprint(
     given (the recovery calibration's measured task), else *stage_config*'s
     ``env_kwargs`` (an in-memory config, overrides applied), else the
     committed stage config's; passing both is refused.  *plant_identity*
-    defaults to the species' current plant; a :class:`PlantIdentity` or its
+    defaults to the model's current plant; a :class:`PlantIdentity` or its
     ``to_dict()`` mapping gives the same digest.  The backend is always
     :data:`FINGERPRINT_BACKEND`.  *command_manifest* (a live command mode's
     controller manifest) is forwarded only when given, so every
@@ -644,21 +580,21 @@ def stage_task_fingerprint(
         )
     from .stage_manifest import load_stage_manifest
 
-    reference = load_stage_manifest(species).resolve(stage).reference
+    reference = load_stage_manifest(model_id).resolve(stage).reference
     if env_kwargs is None:
         if stage_config is None:
             from .config import load_stage_config
 
-            stage_config = load_stage_config(species, reference)
+            stage_config = load_stage_config(model_id, reference)
         env_kwargs = stage_config.get("env_kwargs", {})
     if plant_identity is None:
         from .plant_contract import current_plant_identity
 
-        plant_identity = current_plant_identity(species)
+        plant_identity = current_plant_identity(model_id)
     identity = dict(plant_identity) if isinstance(plant_identity, Mapping) else plant_identity.to_dict()
     command = {} if command_manifest is None else {"command_manifest": command_manifest}
     return derive_stage_task_fingerprint(
-        species=species,
+        model_id=model_id,
         stage=reference,
         backend=FINGERPRINT_BACKEND,
         env_kwargs=env_kwargs,

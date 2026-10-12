@@ -1,4 +1,4 @@
-"""Train and evaluate direction and randomized-terrain PPO behaviors for all species.
+"""Train and evaluate direction and randomized-terrain PPO behaviors for every model.
 
 Example: python -m environments.shared.train_behaviors --help
 Artifacts are self-contained behavior bundles, separate from canonical gates.
@@ -24,8 +24,9 @@ import numpy as np
 
 from environments.shared.behavior_env import get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.model_id import ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
-from environments.shared.species_names import resolve_species_id, species_display_names
+from environments.shared.species_names import add_model_arguments, model_ids, parsed_model_id
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.terrain import TerrainConfig
@@ -46,31 +47,37 @@ def _write(path: Path, value: dict[str, Any]) -> None:
 
 
 def read_recipe(
-    path: Path, species: str | None = None
+    path: Path, model_id: ModelId
 ) -> tuple[dict[str, Any], DirectionCommandConfig, TerrainConfig | None, dict[str, Any]]:
-    """Load a species behavior recipe."""
+    """Load a behavior recipe of *model_id*.
+
+    ``[behavior]`` must declare both ``species`` and ``embodiment``, and they
+    must name *model_id* (decision D-D33).  The recipe's directory is not
+    checked here, because a recipe may live outside ``configs/``.
+    """
     with path.open("rb") as stream:
         recipe = tomllib.load(stream)
     unknown = set(recipe) - {"behavior", "commands", "terrain", "terrain_sampler", "env", "ppo"}
     metadata = recipe.get("behavior", {})
     if not isinstance(metadata, dict):
         raise ValueError("behavior must be a table")
-    if not {"species", "name", "parent"} <= metadata.keys():
-        raise ValueError("behavior requires species, name and parent")
+    if not {"species", "embodiment", "name", "parent"} <= metadata.keys():
+        raise ValueError("behavior requires species, embodiment, name and parent")
     if not isinstance(metadata["name"], str) or not metadata["name"].strip():
         raise ValueError("behavior.name must be a nonempty string")
     if metadata["parent"] != "locomotion":
         raise ValueError("behavior.parent must be locomotion")
-    declared_species = resolve_species_id(metadata["species"])
-    species = resolve_species_id(species) if species is not None else declared_species
-    if species != declared_species:
-        raise ValueError("Recipe species differs from the requested species")
-    if species not in species_display_names(backend="stable-baselines3"):
-        raise ValueError(f"Species {species!r} has no supported SB3 behaviors")
+    if not model_id.matches(metadata):
+        raise ValueError(
+            f"Recipe names species {metadata['species']!r} and embodiment {metadata['embodiment']!r}, "
+            f"not the requested model {model_id}"
+        )
+    if model_id not in model_ids(backend="stable-baselines3"):
+        raise ValueError(f"{model_id} has no supported SB3 behaviors")
     if unknown:
         raise ValueError(f"Unknown recipe sections: {sorted(unknown)}")
     for section, allowed in (
-        ("behavior", {"species", "name", "parent", "timesteps"}),
+        ("behavior", {"species", "embodiment", "name", "parent", "timesteps"}),
         ("ppo", {"learning_rate", "ent_coef", "target_kl", "warmup_timesteps", "warmup_clip_range"}),
     ):
         unknown = set(recipe.get(section, {})) - allowed
@@ -81,8 +88,8 @@ def read_recipe(
             "env.flat_probability is retired: [terrain_sampler] states each family's episodes per shuffled block "
             "(flat = 1 beside the terrain's own family at 3 is the former 0.25)"
         )
-    env_class = get_behavior_env_class(species)
-    canonical = inspect.signature(get_species_config(species).env_class).parameters
+    env_class = get_behavior_env_class(model_id)
+    canonical = inspect.signature(get_species_config(model_id).env_class).parameters
     allowed_env = set(canonical) | set(inspect.signature(env_class.__init__).parameters)
     # [commands] states the command task; the env passes it to the base as command_config.
     allowed_env -= {"self", "env_kwargs", "commands", "terrain", "terrain_sampler", "run_seed"}
@@ -144,8 +151,8 @@ def read_recipe(
             raise ValueError("terrain_sampler requires enabled terrain")
     # Keep the measured walker posture/control settings and override only the
     # declared behavior settings. The resolved values enter the task identity.
-    parent_stage = load_stage_manifest(species).by_id("locomotion")
-    baseline = REPO_ROOT / "configs" / species / parent_stage.config_file
+    parent_stage = load_stage_manifest(model_id).by_id("locomotion")
+    baseline = model_id.path(REPO_ROOT / "configs") / parent_stage.config_file
     with baseline.open("rb") as stream:
         defaults = tomllib.load(stream)
     env_kwargs = {**defaults["env"], "max_episode_steps": 2500, **recipe.get("env", {})}
@@ -155,7 +162,7 @@ def read_recipe(
 
 
 def create_behavior_env(
-    species: str,
+    model_id: ModelId,
     *,
     commands: DirectionCommandConfig,
     terrain: TerrainConfig | None,
@@ -165,7 +172,7 @@ def create_behavior_env(
     """Construct the behavior a recipe declares; ``read_recipe`` puts its terrain sampler in ``env_kwargs``."""
     if given := sorted({"command_mode", "command_config"} & env_kwargs.keys()):
         raise ValueError(f"{given}: a behavior env runs command_mode 'heading_and_speed' on commands=")
-    return get_behavior_env_class(species)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    return get_behavior_env_class(model_id)(commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
 
 
 class EpisodeManifestRecorder(gym.Wrapper):
@@ -222,14 +229,14 @@ def _save_bundle(model: Any, normalizer: Any, output: Path, task: dict, recipe: 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--species", help="Registered species ID or display name (defaults to recipe species)")
+    add_model_arguments(parser)
     parser.add_argument(
         "--recipe",
         "--config",
         dest="config",
         type=Path,
         required=True,
-        help="Behavior TOML in configs/<species>/behaviors (--config remains an alias)",
+        help="Behavior TOML in configs/<species>/<embodiment>/behaviors (--config remains an alias)",
     )
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--vecnormalize", type=Path)
@@ -252,6 +259,7 @@ def main(argv: list[str] | None = None) -> None:
         "--adapt", action="store_true", help="Adapt a learned behavior to the next compatible behavior recipe"
     )
     args = parser.parse_args(argv)
+    model_id = parsed_model_id(parser, args)
     if args.checkpoint is None or args.vecnormalize is None:
         parser.error(
             "Set both --checkpoint and --vecnormalize: every mode (prepare, --resume, --adapt, --eval-only) takes an "
@@ -269,9 +277,8 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--record-video requires at least one evaluation episode")
     if args.output.exists() and any(args.output.iterdir()):
         parser.error("--output must be new or empty")
-    recipe, commands, terrain, env_kwargs = read_recipe(args.config, species=args.species)
+    recipe, commands, terrain, env_kwargs = read_recipe(args.config, model_id)
     metadata = recipe["behavior"]
-    species = resolve_species_id(metadata["species"])
     if args.resume or args.adapt:
         _verify_bundle(args.checkpoint, args.vecnormalize, recipe if args.resume else None)
     run_seed = args.seed if args.seed is not None else secrets.randbelow(2**32)
@@ -296,7 +303,7 @@ def main(argv: list[str] | None = None) -> None:
     from environments.shared.curriculum.advancement import StageWarmupCallback
 
     torch.set_num_threads(1)
-    env = create_behavior_env(species, commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
+    env = create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=run_seed, **env_kwargs)
     if args.record_video:
         try:
             from environments.shared.behavior_replay import require_replay_dependencies
@@ -324,7 +331,7 @@ def main(argv: list[str] | None = None) -> None:
             wrapped,
             learning_rate=learning_rate,
             task_fingerprint=task_fingerprint,
-            species=species,
+            model_id=model_id,
         )
     except BaseException:
         wrapped.close()
@@ -374,7 +381,7 @@ def main(argv: list[str] | None = None) -> None:
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True, capture_output=True)
     manifest: dict[str, Any] = {
         "schema": "mesozoic.behavior-run/v2",
-        "species": species,
+        **model_id.record(),
         "parent_behavior": "walk",
         "parent_stage": "locomotion",
         "status": "running",

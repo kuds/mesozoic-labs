@@ -14,6 +14,7 @@ import numpy as np
 
 from environments.shared.config import load_all_stages
 
+from ..model_id import ModelId
 from .gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, validate_gate_config
 from .recovery_gate import RECOVERY_GATE_KIND, binomial_lcb
 from .stance_gate import (
@@ -162,7 +163,7 @@ class CurriculumManager:
     to advance to the next stage.
 
     Args:
-        species: Species name used to load TOML configs.
+        model_id: The model whose TOML stage configs are loaded.
         stage_thresholds: Mapping from stage number to threshold dict.
             Keys in each dict should match ``StageThreshold`` fields.
         start_stage: Initial curriculum stage (default 1).
@@ -171,15 +172,15 @@ class CurriculumManager:
 
     def __init__(
         self,
-        species: str,
+        model_id: ModelId,
         stage_thresholds: dict[int, dict[str, Any]] | None = None,
         start_stage: int = 1,
         total_stages: int = 3,
     ):
-        self.species = species
+        self.model_id = model_id
         self.total_stages = total_stages
         self._current_stage = start_stage
-        self._configs = load_all_stages(species)
+        self._configs = load_all_stages(model_id)
 
         # Build threshold objects per stage
         self._thresholds: dict[int, StageThreshold] = {}
@@ -195,7 +196,7 @@ class CurriculumManager:
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
-            species,
+            model_id,
             start_stage,
             total_stages,
         )
@@ -481,7 +482,7 @@ class CurriculumManager:
         than unfinished plumbing — it cannot supply any of the three inputs:
 
         * **the stage directory**, which holds the frozen
-          ``gate_resolution.json``: the manager knows a species and a stage
+          ``gate_resolution.json``: the manager knows a model and a stage
           number, never where the run is writing;
         * **the current task fingerprint**, which the resolution's staleness
           check compares against: it is written beside the stage config at
@@ -623,7 +624,7 @@ class CurriculumManager:
     def summary(self) -> dict[str, Any]:
         """Return a summary of the curriculum state for logging/serialization."""
         return {
-            "species": self.species,
+            **self.model_id.record(),
             "current_stage": self._current_stage,
             "total_stages": self.total_stages,
             "eval_history": dict(self._eval_history),

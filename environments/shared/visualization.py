@@ -18,7 +18,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from .species_names import species_display_name
+from .model_id import ModelId
+from .species_names import model_display_name
 from .stage_manifest import stage_display_name
 
 logger = logging.getLogger(__name__)
@@ -27,13 +28,17 @@ logger = logging.getLogger(__name__)
 # reference is a legacy number (1-3) or a semantic stage id ("recovery").
 StageDirs = Sequence[tuple[int | str, str | Path]]
 
+#: The one model whose Stage-1 stance figure is drawn (:func:`plot_stance_diagnostics`);
+#: keyed by model since decision D-D33 (it was keyed to the retired T-Rex species ID).
+STANCE_DIAGNOSTICS_MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
 
-def _stage_style_index(stage_ref: "int | str", species: "str | None" = None) -> int:
+
+def _stage_style_index(stage_ref: "int | str", model_id: ModelId | None = None) -> int:
     """Stable small int for a stage reference, driving color/linestyle picks.
 
     Integer stages pass through unchanged so stages 1-3 keep their exact
     historical colors and linestyles.  A semantic id uses its manifest
-    position when the species' manifest resolves it; otherwise a crc32
+    position when the model's stage manifest resolves it; otherwise a crc32
     fallback — NOT ``hash()``, which varies per process — keeps the style
     deterministic across runs.  Regression (F9): ``"recovery" % 10`` raised
     TypeError inside stage_artifacts' broad try/except, silently costing
@@ -41,11 +46,11 @@ def _stage_style_index(stage_ref: "int | str", species: "str | None" = None) -> 
     """
     if isinstance(stage_ref, int):
         return stage_ref
-    if species is not None:
+    if model_id is not None:
         from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
         try:
-            return load_stage_manifest(species).by_id(stage_ref).position
+            return load_stage_manifest(model_id).by_id(stage_ref).position
         except StageManifestError:
             pass
     return zlib.crc32(str(stage_ref).encode("utf-8")) % 1000
@@ -84,7 +89,7 @@ def _smooth(values, window: int = 50):
 def plot_training_curves(
     stage_dirs: StageDirs,
     stage_configs: dict[int | str, dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     save_path: "str | Path | None" = None,
     show: bool = True,
@@ -99,7 +104,7 @@ def plot_training_curves(
     import numpy as np
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    species_title = species_display_name(species)
+    model_title = model_display_name(model_id)
 
     for stage_num, stage_dir in stage_dirs:
         stage_dir = Path(stage_dir)
@@ -174,25 +179,25 @@ def plot_training_curves(
 
     axes[0, 0].set_xlabel("Timesteps")
     axes[0, 0].set_ylabel("Mean Reward")
-    axes[0, 0].set_title(f"{species_title} {algorithm} - Eval Reward")
+    axes[0, 0].set_title(f"{model_title} {algorithm} - Eval Reward")
     _safe_legend(axes[0, 0])
     axes[0, 0].grid(True, alpha=0.3)
 
     axes[0, 1].set_xlabel("Timesteps")
     axes[0, 1].set_ylabel("Mean Episode Length (steps)")
-    axes[0, 1].set_title(f"{species_title} {algorithm} - Episode Length")
+    axes[0, 1].set_title(f"{model_title} {algorithm} - Episode Length")
     _safe_legend(axes[0, 1])
     axes[0, 1].grid(True, alpha=0.3)
 
     axes[1, 0].set_xlabel("Timesteps")
     axes[1, 0].set_ylabel("Mean Tilt Angle (degrees)")
-    axes[1, 0].set_title(f"{species_title} {algorithm} - Tilt Angle")
+    axes[1, 0].set_title(f"{model_title} {algorithm} - Tilt Angle")
     _safe_legend(axes[1, 0])
     axes[1, 0].grid(True, alpha=0.3)
 
     axes[1, 1].set_xlabel("Timesteps")
     axes[1, 1].set_ylabel("Mean Forward Velocity (m/s)")
-    axes[1, 1].set_title(f"{species_title} {algorithm} - Speed")
+    axes[1, 1].set_title(f"{model_title} {algorithm} - Speed")
     _safe_legend(axes[1, 1])
     axes[1, 1].grid(True, alpha=0.3)
 
@@ -210,7 +215,7 @@ def plot_training_curves(
 def plot_diagnostics_graphs(
     stage_dirs: StageDirs,
     stage_configs: dict[int | str, dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     save_dir: "str | Path | None" = None,
     show: bool = True,
@@ -235,7 +240,7 @@ def plot_diagnostics_graphs(
 
     from environments.shared.diagnostics import DiagnosticsCallback
 
-    species_title = species_display_name(species)
+    model_title = model_display_name(model_id)
     _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
 
     # Mapping from diagnostic reward key → config weight parameter name(s).
@@ -290,7 +295,7 @@ def plot_diagnostics_graphs(
     # -----------------------------------------------------------
     fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
     fig1.suptitle(
-        f"{species_title} {algorithm} \u2013 Locomotion Health",
+        f"{model_title} {algorithm} \u2013 Locomotion Health",
         fontsize=14,
         fontweight="bold",
     )
@@ -309,7 +314,7 @@ def plot_diagnostics_graphs(
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
-        style_idx = _stage_style_index(stage_num, species)
+        style_idx = _stage_style_index(stage_num, model_id)
         color = _reward_colors[style_idx % 10]
 
         # [0,0] Collect termination breakdown per stage
@@ -367,25 +372,25 @@ def plot_diagnostics_graphs(
             fontsize=12,
             color="gray",
         )
-    _ax_term.set_title(f"{species_title} {algorithm} \u2013 Termination Breakdown")
+    _ax_term.set_title(f"{model_title} {algorithm} \u2013 Termination Breakdown")
     _ax_term.set_ylabel("Mean Fraction")
     _ax_term.grid(True, alpha=0.3)
 
     axes1[0, 1].set_xlabel("Timesteps")
     axes1[0, 1].set_ylabel("Cost of Transport (energy / speed)")
-    axes1[0, 1].set_title(f"{species_title} {algorithm} \u2013 Cost of Transport")
+    axes1[0, 1].set_title(f"{model_title} {algorithm} \u2013 Cost of Transport")
     _safe_legend(axes1[0, 1], fontsize=8)
     axes1[0, 1].grid(True, alpha=0.3)
 
     axes1[1, 0].set_xlabel("Timesteps")
     axes1[1, 0].set_ylabel("Pelvis Height (m)")
-    axes1[1, 0].set_title(f"{species_title} {algorithm} \u2013 Pelvis Height")
+    axes1[1, 0].set_title(f"{model_title} {algorithm} \u2013 Pelvis Height")
     _safe_legend(axes1[1, 0])
     axes1[1, 0].grid(True, alpha=0.3)
 
     axes1[1, 1].set_xlabel("Timesteps")
     axes1[1, 1].set_ylabel("Mean Reward Component")
-    axes1[1, 1].set_title(f"{species_title} {algorithm} \u2013 Reward Decomposition")
+    axes1[1, 1].set_title(f"{model_title} {algorithm} \u2013 Reward Decomposition")
     _safe_legend(axes1[1, 1], fontsize=7, loc="upper left")
     axes1[1, 1].grid(True, alpha=0.3)
 
@@ -414,7 +419,7 @@ def plot_diagnostics_graphs(
     _n_rows = 3 if _has_hunting_data else 2
     fig2, axes2 = plt.subplots(_n_rows, 2, figsize=(14, 5 * _n_rows))
     fig2.suptitle(
-        f"{species_title} {algorithm} \u2013 Behavioral Metrics",
+        f"{model_title} {algorithm} \u2013 Behavioral Metrics",
         fontsize=14,
         fontweight="bold",
     )
@@ -429,7 +434,7 @@ def plot_diagnostics_graphs(
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
-        color = plt.cm.tab10(_stage_style_index(stage_num, species) % 10)
+        color = plt.cm.tab10(_stage_style_index(stage_num, model_id) % 10)
 
         # [0,0] Gait Symmetry + Stride Frequency proxy
         if "l_foot_contact" in diag and "r_foot_contact" in diag:
@@ -489,38 +494,38 @@ def plot_diagnostics_graphs(
 
     axes2[0, 0].set_xlabel("Timesteps")
     axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
-    axes2[0, 0].set_title(f"{species_title} {algorithm} \u2013 Gait Symmetry + Stride Frequency")
+    axes2[0, 0].set_title(f"{model_title} {algorithm} \u2013 Gait Symmetry + Stride Frequency")
     _safe_legend(axes2[0, 0], fontsize=8)
     axes2[0, 0].grid(True, alpha=0.3)
 
     axes2[0, 1].set_xlabel("Timesteps")
     axes2[0, 1].set_ylabel("Heading Alignment (cos \u03b8)")
-    axes2[0, 1].set_title(f"{species_title} {algorithm} \u2013 Heading Alignment")
+    axes2[0, 1].set_title(f"{model_title} {algorithm} \u2013 Heading Alignment")
     _safe_legend(axes2[0, 1])
     axes2[0, 1].grid(True, alpha=0.3)
 
     axes2[1, 0].set_xlabel("Timesteps")
     axes2[1, 0].set_ylabel("Distance Traveled (m)")
-    axes2[1, 0].set_title(f"{species_title} {algorithm} \u2013 Distance Traveled (path length)")
+    axes2[1, 0].set_title(f"{model_title} {algorithm} \u2013 Distance Traveled (path length)")
     _safe_legend(axes2[1, 0])
     axes2[1, 0].grid(True, alpha=0.3)
 
     axes2[1, 1].set_xlabel("Timesteps")
     axes2[1, 1].set_ylabel("Drift Distance (m)")
-    axes2[1, 1].set_title(f"{species_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
+    axes2[1, 1].set_title(f"{model_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
     _safe_legend(axes2[1, 1])
     axes2[1, 1].grid(True, alpha=0.3)
 
     if _has_hunting_data:
         axes2[2, 0].set_xlabel("Timesteps")
         axes2[2, 0].set_ylabel("Prey Distance (m)")
-        axes2[2, 0].set_title(f"{species_title} {algorithm} \u2013 Prey Distance")
+        axes2[2, 0].set_title(f"{model_title} {algorithm} \u2013 Prey Distance")
         _safe_legend(axes2[2, 0])
         axes2[2, 0].grid(True, alpha=0.3)
 
         axes2[2, 1].set_xlabel("Timesteps")
         axes2[2, 1].set_ylabel("Strike Success Rate")
-        axes2[2, 1].set_title(f"{species_title} {algorithm} \u2013 Strike Success Rate")
+        axes2[2, 1].set_title(f"{model_title} {algorithm} \u2013 Strike Success Rate")
         _safe_legend(axes2[2, 1])
         axes2[2, 1].grid(True, alpha=0.3)
 
@@ -538,7 +543,7 @@ def plot_diagnostics_graphs(
 def plot_foot_contacts(
     stage_dirs: StageDirs,
     stage_configs: dict[int | str, dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     save_path: "str | Path | None" = None,
     show: bool = True,
@@ -553,7 +558,7 @@ def plot_foot_contacts(
     Args:
         stage_dirs: Sequence of ``(stage_ref, stage_dir)`` tuples.
         stage_configs: Mapping of stage reference to config dict.
-        species: Species name for the figure title.
+        model_id: The model, whose display name titles the figure.
         algorithm: Algorithm name for the figure title.
         save_path: If provided, save the figure to this path.
         show: If ``False``, close the figure after saving (headless mode).
@@ -564,7 +569,7 @@ def plot_foot_contacts(
     import matplotlib.pyplot as plt
     import numpy as np
 
-    species_title = species_display_name(species)
+    model_title = model_display_name(model_id)
 
     def _has_finite(diag, key: str) -> bool:
         # Presence is not evidence: DiagnosticsCallback saves EVERY info key
@@ -662,14 +667,14 @@ def plot_foot_contacts(
 
     ax_feet.set_xlabel("Timesteps")
     ax_feet.set_ylabel("Mean Contact Force")
-    ax_feet.set_title(f"{species_title} {algorithm} \u2013 Per-Foot Contact Force")
+    ax_feet.set_title(f"{model_title} {algorithm} \u2013 Per-Foot Contact Force")
     _safe_legend(ax_feet, fontsize=8)
     ax_feet.grid(True, alpha=0.3)
 
     if ax_diag is not None:
         ax_diag.set_xlabel("Timesteps")
         ax_diag.set_ylabel("Mean Diagonal Pair Contact")
-        ax_diag.set_title(f"{species_title} {algorithm} \u2013 Diagonal Pair Contact (walk/trot pattern)")
+        ax_diag.set_title(f"{model_title} {algorithm} \u2013 Diagonal Pair Contact (walk/trot pattern)")
         _safe_legend(ax_diag, fontsize=8)
         ax_diag.grid(True, alpha=0.3)
 
@@ -687,22 +692,23 @@ def plot_foot_contacts(
 def plot_stance_diagnostics(
     stage_dirs: StageDirs,
     stage_configs: dict[int | str, dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     save_path: "str | Path | None" = None,
     show: bool = True,
 ) -> "Any":
     """Plot reporting-only Stage-1 stance measurements.
 
-    Returns ``None`` when no stance fields have been recorded, so older runs
-    and other species retain their existing artifact set.
+    Returns ``None`` for every model but :data:`STANCE_DIAGNOSTICS_MODEL_ID`
+    and when no stance fields have been recorded, so older runs and other
+    models retain their existing artifact set.
     """
     import matplotlib.pyplot as plt
     import numpy as np
 
     from environments.shared.stance_diagnostics import STANCE_INFO_KEYS
 
-    if species.lower() != "trex":
+    if model_id != STANCE_DIAGNOSTICS_MODEL_ID:
         return None
 
     panels: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -756,7 +762,7 @@ def plot_stance_diagnostics(
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle(
-        f"{species_display_name(species)} {algorithm} – Stance Diagnostics",
+        f"{model_display_name(model_id)} {algorithm} – Stance Diagnostics",
         fontsize=14,
         fontweight="bold",
     )

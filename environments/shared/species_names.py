@@ -11,8 +11,10 @@ display name is derived (``"Tyrannosaurus Rex (Anatomical)"``), never stored.
 
 from __future__ import annotations
 
+import argparse
 import copy
 import tomllib
+from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -167,3 +169,65 @@ def model_display_name(model_id: ModelId) -> str:
     """
     _embodiment_table(model_id)
     return f"{species_display_name(model_id.species)} ({EMBODIMENT_LABELS[model_id.embodiment]})"
+
+
+# The two command-line forms of a model (decision D-D33).  A single-model tool
+# takes ``--species`` and ``--embodiment``, both required, with no default
+# embodiment; a multi-model tool takes ``--model-id SPECIES EMBODIMENT``, as
+# often as needed, and defaults to its panel as an explicit tuple of models.
+
+
+def add_model_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add the required ``--species`` and ``--embodiment`` of a single-model tool.
+
+    The choices are the manifest's IDs; :func:`parsed_model_id` then checks the pair.
+    """
+    models = model_ids()
+    parser.add_argument("--species", required=True, choices=species_ids(), help="species ID")
+    parser.add_argument(
+        "--embodiment",
+        required=True,
+        choices=[embodiment for embodiment in EMBODIMENTS if any(m.embodiment == embodiment for m in models)],
+        help="embodiment of the species",
+    )
+
+
+def parsed_model_id(parser: argparse.ArgumentParser, args: argparse.Namespace) -> ModelId:
+    """The model ``--species`` and ``--embodiment`` name; a pair the manifest lacks is a usage error (exit 2)."""
+    try:
+        return require_model_id(args.species, args.embodiment)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+
+def add_model_id_argument(parser: argparse.ArgumentParser, *, default: Sequence[ModelId], what: str) -> None:
+    """Add the repeatable ``--model-id SPECIES EMBODIMENT`` of a multi-model tool.
+
+    *default* is the tool's panel, written out as models; *what* says what the
+    tool does with each model, for the help text.
+    """
+    parser.add_argument(
+        "--model-id",
+        nargs=2,
+        action="append",
+        metavar=("SPECIES", "EMBODIMENT"),
+        dest="model_ids",
+        help=f"a model to {what}; repeatable (default: {'; '.join(f'{m.species} {m.embodiment}' for m in default)})",
+    )
+    parser.set_defaults(model_ids_default=tuple(default))
+
+
+def parsed_model_ids(parser: argparse.ArgumentParser, args: argparse.Namespace) -> tuple[ModelId, ...]:
+    """The models ``--model-id`` named, in order, or the tool's default panel; an unknown pair is a usage error."""
+    if not args.model_ids:
+        return tuple(args.model_ids_default)
+    models: list[ModelId] = []
+    for species, embodiment in args.model_ids:
+        try:
+            model_id = require_model_id(species, embodiment)
+        except ValueError as exc:
+            parser.error(str(exc))
+        if model_id in models:
+            parser.error(f"--model-id {species} {embodiment} is given twice")
+        models.append(model_id)
+    return tuple(models)

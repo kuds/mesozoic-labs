@@ -31,31 +31,35 @@ The generic rule (no species knowledge)
   carries at rest -- never ``mj_getTotalmass``, which counts props and prey
   (STAGE1_SPLIT_PLAN's body-weight rule).
 
-The registry (explicit for all six species)
--------------------------------------------
-The generic rule is wrong for four of the six, so :data:`SUPPORT_REGISTRY`
-names every species' support set, sole and reference site explicitly, and
-``tests/test_gait_morphology.py`` pins each difference from the generic
-answer.  The registry is MEASUREMENT data, not plant data: it is recorded in
-:func:`.constants.measurement_manifest`, not in ``plant_versions.toml``, and
-editing an entry after a stage adopts ``stance_quality/v2`` needs a new
-:data:`.constants.MEASUREMENT_VERSION`.  A species with no entry falls back
-to the generic rule, and the manifest records ``registry: None``.
+The registry (explicit for all six models)
+------------------------------------------
+The generic rule is wrong for four of the six, so every embodiment class
+names its support set, sole and reference site explicitly in its
+``FOOT_SUPPORT`` class attribute, where the reason for each difference from
+the generic rule sits beside it, and :func:`support_entry` reads it (decision
+D-D33: a new embodiment needs no edit here).  ``tests/test_gait_morphology.py``
+pins each difference from the generic answer.  The registry is MEASUREMENT
+data, not plant data: it is recorded in :func:`.constants.measurement_manifest`,
+not in ``plant_versions.toml``, and editing an entry after a stage adopts
+``stance_quality/v2`` needs a new :data:`.constants.MEASUREMENT_VERSION`.  A
+model with no entry falls back to the generic rule, and the manifest records
+``registry: None``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
 import mujoco
 import numpy as np
 
+from environments.shared.model_id import ModelId
+
 
 @dataclass(frozen=True)
 class FootRegistryEntry:
-    """One species' foot geoms, as name templates.
+    """One model's foot geoms, as name templates.
 
     ``{s}`` is the foot label (``r``, ``l``, ``fr``, ``fl``, ``rr``, ``rl``)
     and ``{side}`` is ``right`` / ``left`` (the robot's geom names spell the
@@ -79,69 +83,22 @@ class FootRegistryEntry:
         return {"support": list(self.support), "sole": self.sole, "foot_site": self.foot_site}
 
 
-#: Every species' support set, sole and reference site, and why each
-#: differs from the generic rule (statue numbers are 40-episode means on the
-#: current plants, seeds 3042-3081):
-#:
-#: * ``trex`` drops ``{s}_metatarsus_geom``, the capsule above the plantar
-#:   box: it carries 0 load in the statue, and as a REQUIRED support geom it
-#:   would fail every statue's coverage.
-#: * ``velociraptor`` drops ``{s}_claw_geom``, digit II's sickle claw.  Since
-#:   physics r3 the metatarsus, digit III and digit IV each carry a touch site,
-#:   so the generic rule finds all three support geoms, and with them the claw
-#:   that hangs off the metatarsus: it is contype/conaffinity 2/2 against the
-#:   floor's 1/1, so it never touches the floor and is not support.  The
-#:   statue stands on d3 / d4 / metatarsus at 0.540 / 0.176 / 0.284 of each
-#:   foot's load.  It has no sole (capsules only).  The reference site is
-#:   pinned to ``{s}_foot``, digit III's, which leads the touch group.  The
-#:   entry predates the r3 sensors, when digit III's site was the foot's only
-#:   one and the generic rule missed digit IV and the metatarsus; pinning the
-#:   support set and the site then is why the r3 sensors moved neither.
-#: * ``compsognathus`` equals the generic answer: plantar pad plus d2-d4.  Its
-#:   metatarsus is a TERMINATING geom (``_body_ground_geoms``), not support.
-#: * ``compsognathus_robot`` drops the two ``{side}_roll_cheek_*`` geoms that
-#:   share the rolling-foot body: a cheek on the floor is a rolled foot, not a
-#:   supported one.
-#: * ``dibothrosuchus`` equals the generic answer: one box per foot.
-#: * ``brachiosaurus`` drops ``{s}_meta_geom``, the metapodial capsule in the
-#:   touch group, which carries 0 load in the statue (at most 3.2e-4 of the
-#:   floor load, grazing).  Its ellipsoid sole is authored tilted 19.2 degrees
-#:   (fore) and 15.8 degrees (hind), so its flatness keys must be the
-#:   ``*_excess_*`` forms measured against that keyframe tilt.
-SUPPORT_REGISTRY: Mapping[str, FootRegistryEntry] = MappingProxyType(
-    {
-        "trex": FootRegistryEntry(
-            support=("{s}_plantar_geom", "{s}_toe_d2_geom", "{s}_toe_d3_geom", "{s}_toe_d4_geom"),
-            sole="{s}_plantar_geom",
-            foot_site="{s}_foot",
-        ),
-        "velociraptor": FootRegistryEntry(
-            support=("{s}_toe_d3_geom", "{s}_toe_d4_geom", "{s}_metatarsus_geom"),
-            sole=None,
-            foot_site="{s}_foot",
-        ),
-        "compsognathus": FootRegistryEntry(
-            support=("{s}_plantar_pad", "{s}_toe_d2_geom", "{s}_toe_d3_geom", "{s}_toe_d4_geom"),
-            sole="{s}_plantar_pad",
-            foot_site="{s}_foot_touch_volume",
-        ),
-        "compsognathus_robot": FootRegistryEntry(
-            support=("{side}_sole",),
-            sole="{side}_sole",
-            foot_site="{side}_foot_touch_volume",
-        ),
-        "dibothrosuchus": FootRegistryEntry(
-            support=("{s}_foot_geom",),
-            sole="{s}_foot_geom",
-            foot_site="{s}_foot_contact",
-        ),
-        "brachiosaurus": FootRegistryEntry(
-            support=("{s}_foot_geom",),
-            sole="{s}_foot_geom",
-            foot_site="{s}_foot_contact",
-        ),
-    }
-)
+def support_entry(model_id: ModelId) -> FootRegistryEntry | None:
+    """The model's registry entry: its env class's ``FOOT_SUPPORT``, or ``None`` for the generic rule.
+
+    Read off the class the manifest names (``species_registry.env_class``),
+    so no model instance is built; a class without ``FOOT_SUPPORT`` gets the
+    generic rule.
+    """
+    from ..species_registry import env_class
+
+    declared = getattr(env_class(model_id), "FOOT_SUPPORT", None)
+    if declared is None:
+        return None
+    return FootRegistryEntry(
+        support=tuple(declared["support"]), sole=declared["sole"], foot_site=declared.get("foot_site")
+    )
+
 
 # The foot labels the first sensor's name prefix may give; any other prefix
 # becomes ``foot<i>``.  The last letter is the side.
@@ -197,10 +154,10 @@ class Morphology:
     ``support_geom_foot`` gives each one's foot.  ``registry_entry`` is the
     :class:`FootRegistryEntry` the geoms came from, ``None`` under the
     generic rule.  Build one per env INSTANCE: ``frame_skip`` and ``dt`` are
-    per instance (compsognathus and its robot run ``frame_skip = 10``).
+    per instance (both Compsognathus models run ``frame_skip = 10``).
     """
 
-    species: str
+    model_id: ModelId
     feet: tuple[FootSpec, ...]
     floor_geoms: tuple[int, ...]
     animal_geoms: tuple[int, ...]
@@ -238,7 +195,7 @@ class Morphology:
             return f"{'-' if sign < 0 else '+'}{'xyz'[index]}"
 
         return {
-            "species": self.species,
+            **self.model_id.record(),
             "body_weight_n": self.body_weight_n,
             "frame_skip": self.frame_skip,
             "dt": self.dt,
@@ -268,17 +225,16 @@ class Morphology:
     def from_env(
         cls,
         env: Any,
-        species: str,
+        model_id: ModelId,
         *,
-        registry: Mapping[str, FootRegistryEntry] = SUPPORT_REGISTRY,
+        registry: Mapping[ModelId, FootRegistryEntry | None] | None = None,
     ) -> "Morphology":
-        """Describe ``env`` (wrappers are looked through) for ``species``.
+        """Describe ``env`` (wrappers are looked through) for ``model_id``.
 
-        ``species`` takes any name ``species_names.resolve_species_id``
-        accepts (``raptor`` is ``velociraptor``); a name it does not know is
-        kept as given and, having no registry entry, gets the generic rule.
-        ``registry={}`` forces the generic rule for every species -- what the
-        registry test compares against.
+        The registry entry is :func:`support_entry` of ``model_id``, unless
+        ``registry`` (keyed by model) is given: then the model's entry there,
+        and the generic rule when it has none -- ``registry={}`` forces the
+        generic rule, what the registry test compares against.
 
         Raises :class:`MorphologyError` for: no ``_foot_sensor_groups`` (or
         an empty group), a group index that is not a sensor's, a foot sensor
@@ -290,7 +246,6 @@ class Morphology:
         """
         unwrapped = getattr(env, "unwrapped", env)
         model = unwrapped.model
-        species = _species_id(species)
         groups = tuple(tuple(int(index) for index in group) for group in getattr(unwrapped, "_foot_sensor_groups", ()))
         if not groups or any(not group for group in groups):
             raise MorphologyError(f"{type(unwrapped).__name__} declares no (or an empty) _foot_sensor_groups entry")
@@ -331,7 +286,7 @@ class Morphology:
         if len(set(labels)) != len(labels):
             raise MorphologyError(f"two feet share a label: {labels}")
         site_bodies = [{int(model.site_bodyid[site]) for site in sites} for sites in site_ids]
-        entry = registry.get(species)
+        entry = support_entry(model_id) if registry is None else registry.get(model_id)
 
         # The home keyframe, on scratch data: the sole axes are chosen there.
         scratch = mujoco.MjData(model)
@@ -374,7 +329,7 @@ class Morphology:
                 geom_foot[geom] = index
             side = label[-1].upper() if label[-1] in "rl" else "?"
             if entry is not None:
-                support, sole, primary_site = _registered_geoms(model, entry, label, side, species, leg_geoms, leg)
+                support, sole, primary_site = _registered_geoms(model, entry, label, side, model_id, leg_geoms, leg)
             else:
                 support, sole = _generic_geoms(model, leg_geoms, bodies, subtree)
                 primary_site = site_ids[index][0]
@@ -415,7 +370,7 @@ class Morphology:
         for array in (geom_foot, geom_support, is_floor, is_animal):
             array.setflags(write=False)
         return cls(
-            species=species,
+            model_id=model_id,
             feet=tuple(feet),
             floor_geoms=floor,
             animal_geoms=animal,
@@ -433,38 +388,26 @@ class Morphology:
         )
 
 
-def _species_id(name: str) -> str:
-    """The manifest id of ``name`` (``raptor`` -> ``velociraptor``), else ``name`` itself."""
-    from ..species_names import resolve_species_id
+def measurement_definition(model_id: ModelId) -> dict[str, Any]:
+    """This checkout's measurement DEFINITION for *model_id*, keyed as a manifest records it.
 
-    try:
-        return resolve_species_id(name)
-    except ValueError:
-        return name
-
-
-def measurement_definition(species: str) -> dict[str, Any]:
-    """This checkout's measurement DEFINITION for *species*, keyed as a manifest records it.
-
-    ``{schema, constants, species, registry}`` --
+    ``{schema, constants, species, embodiment, registry}`` --
     :data:`.constants.MEASUREMENT_DEFINITION_KEYS`, the part of a
     :func:`.constants.measurement_manifest` that code alone fixes, so a
     reader with no model (the judge, publication) can compare a recorded
     manifest's definition against the one it would measure with:
     :func:`.constants.measurement_definition_sha256` of a recorded manifest
     equals that of this dict exactly when the two were measured under the
-    same constants and the same registry entry.  *species* resolves as
-    :meth:`Morphology.from_env` resolves it (``raptor`` is
-    ``velociraptor``); a species with no entry records ``registry: None``.
+    same constants and the same registry entry (:func:`support_entry`); a
+    model with no entry records ``registry: None``.
     """
     from .constants import MEASUREMENT_MANIFEST_SCHEMA, measurement_constants
 
-    species = _species_id(species)
-    entry = SUPPORT_REGISTRY.get(species)
+    entry = support_entry(model_id)
     return {
         "schema": MEASUREMENT_MANIFEST_SCHEMA,
         "constants": measurement_constants(),
-        "species": species,
+        **model_id.record(),
         "registry": None if entry is None else entry.as_manifest(),
     }
 
@@ -474,7 +417,7 @@ def _registered_geoms(
     entry: FootRegistryEntry,
     label: str,
     side: str,
-    species: str,
+    model_id: ModelId,
     leg_geoms: tuple[int, ...],
     leg: set[int],
 ) -> tuple[list[int], int, int]:
@@ -485,26 +428,26 @@ def _registered_geoms(
         name = template.format(**names)
         geom = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)
         if geom < 0:
-            raise MorphologyError(f"registry geom {name!r} ({species}) is not in the model")
+            raise MorphologyError(f"registry geom {name!r} ({model_id}) is not in the model")
         if geom not in leg_geoms:
-            raise MorphologyError(f"registry geom {name!r} ({species}) is not a colliding geom of leg {label}")
+            raise MorphologyError(f"registry geom {name!r} ({model_id}) is not a colliding geom of leg {label}")
         if geom in support:
-            raise MorphologyError(f"registry geom {name!r} ({species}) is listed twice for foot {label}")
+            raise MorphologyError(f"registry geom {name!r} ({model_id}) is listed twice for foot {label}")
         support.append(geom)
     sole = -1
     if entry.sole is not None:
         name = entry.sole.format(**names)
         sole = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)
         if sole < 0 or sole not in support:
-            raise MorphologyError(f"registry sole {name!r} ({species}) is not one of foot {label}'s support geoms")
+            raise MorphologyError(f"registry sole {name!r} ({model_id}) is not one of foot {label}'s support geoms")
     if entry.foot_site is None:
-        raise MorphologyError(f"registry entry for {species} pins no foot_site")
+        raise MorphologyError(f"registry entry for {model_id} pins no foot_site")
     name = entry.foot_site.format(**names)
     site = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, name)
     if site < 0:
-        raise MorphologyError(f"registry foot site {name!r} ({species}) is not in the model")
+        raise MorphologyError(f"registry foot site {name!r} ({model_id}) is not in the model")
     if int(model.site_bodyid[site]) not in leg:
-        raise MorphologyError(f"registry foot site {name!r} ({species}) is not on leg {label}")
+        raise MorphologyError(f"registry foot site {name!r} ({model_id}) is not on leg {label}")
     return support, int(sole), int(site)
 
 

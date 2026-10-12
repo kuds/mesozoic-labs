@@ -19,21 +19,24 @@ derivation record: the judge is the P3 calibration (first-runs record
 and the two gate thresholds are the P5 decisions taken on the §9 measured
 results.  Nothing is re-derived at run time.
 
-New species load a measured, species-specific recovery calibration profile.
-Their frozen resolution also hashes ``evaluation_spec``: profile identity,
+Every other model loads a measured, model-specific recovery calibration
+profile. Its frozen resolution also hashes ``evaluation_spec``: profile identity,
 height reference, control timestep and safe set. A changed or missing judge
-refuses evaluation. Historical T-Rex resolutions retain their original judge
-and remain readable; its constants below are never a fallback for other species.
+refuses evaluation. Historical resolutions of the anatomical T-Rex
+(``gate_resolver.LEGACY_RECOVERY_JUDGE_MODEL_ID``) retain their original judge
+and remain readable; its constants below are never a fallback for other models.
 
-Examples (repo root):
+Examples (repo root; ``--species`` and ``--embodiment`` are required):
 
     # The frozen record: statue null only — the default paired null
     python -m environments.shared.harnesses.freeze_recovery_gate \
-        --stage-dir results/trex/recovery
+        --species tyrannosaurus_rex --embodiment anatomical \
+        --stage-dir results/tyrannosaurus_rex/anatomical/recovery
 
     # Both nulls: the brace is the policy's post-settle mean, held
     python -m environments.shared.harnesses.freeze_recovery_gate \
-        --stage-dir results/trex/recovery \
+        --species tyrannosaurus_rex --embodiment anatomical \
+        --stage-dir results/tyrannosaurus_rex/anatomical/recovery \
         --policy-zip <robust_best_model.zip> --vecnorm <..._vecnorm.pkl>
 """
 
@@ -55,6 +58,7 @@ import numpy as np
 from environments.shared.config import build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_resolver import (
+    LEGACY_RECOVERY_JUDGE_MODEL_ID,
     GateResolutionError,
     build_gate_resolution,
     require_gate_resolution,
@@ -62,6 +66,7 @@ from environments.shared.curriculum.gate_resolver import (
     write_gate_resolution,
 )
 from environments.shared.curriculum.recovery_gate import RecoveryGateThresholds
+from environments.shared.model_id import ModelId
 from environments.shared.recovery_calibration import RecoveryCalibration, load_recovery_calibration
 from environments.shared.recovery_evaluation import (
     CALIBRATED_HEIGHT_REFERENCE_M,
@@ -74,7 +79,7 @@ from environments.shared.recovery_evaluation import (
     write_recovery_evidence,
     zero_action_controller,
 )
-from environments.shared.species_names import resolve_species_id
+from environments.shared.species_names import add_model_arguments, parsed_model_id
 from environments.shared.task_fingerprint import stage_task_fingerprint
 
 logger = logging.getLogger(__name__)
@@ -253,7 +258,7 @@ def policy_controller(
     action_space: Any,
     inference: str = "auto",
     algorithm: str = "ppo",
-    expected_species: str | None = None,
+    expected_model_id: ModelId | None = None,
     expected_stage: int | str | None = None,
 ) -> Callable[[Any], np.ndarray]:
     """A deterministic controller for a checkpoint, on whichever path works.
@@ -272,10 +277,10 @@ def policy_controller(
         raise ValueError(f"unknown recovery algorithm {algorithm!r}; expected ppo or sac")
     if algorithm == "sac" and inference == "numpy":
         raise ValueError("SAC recovery evaluation requires SB3 inference; the NumPy fallback supports PPO only")
-    if (expected_species is None) != (expected_stage is None):
-        raise ValueError("expected_species and expected_stage must be supplied together")
-    if expected_species is not None and expected_stage is not None:
-        plant = _validate_checkpoint_source(policy_zip, expected_species, expected_stage, algorithm)
+    if (expected_model_id is None) != (expected_stage is None):
+        raise ValueError("expected_model_id and expected_stage must be supplied together")
+    if expected_model_id is not None and expected_stage is not None:
+        plant = _validate_checkpoint_source(policy_zip, expected_model_id, expected_stage, algorithm)
         stats = load_vecnormalize_obs_stats(vecnorm_pkl, expected_plant=plant)
     else:
         stats = load_vecnormalize_obs_stats(vecnorm_pkl)
@@ -314,7 +319,7 @@ def policy_controller(
     return predict_numpy
 
 
-def _validate_checkpoint_source(policy_zip: str | Path, species: str, stage: int | str, algorithm: str) -> Any:
+def _validate_checkpoint_source(policy_zip: str | Path, model_id: ModelId, stage: int | str, algorithm: str) -> Any:
     """Validate source metadata even when inference uses the NumPy fallback."""
     from environments.shared.plant_contract import (
         MODEL_IDENTITY_ATTRIBUTE,
@@ -334,12 +339,12 @@ def _validate_checkpoint_source(policy_zip: str | Path, species: str, stage: int
     is_sac = "target_entropy" in metadata and "replay_buffer_class" in metadata
     if is_ppo == is_sac or (algorithm == "ppo") != is_ppo:
         raise GateResolutionError(f"{policy_zip} does not identify the selected {algorithm.upper()} algorithm")
-    identity = current_plant_identity(species)
+    identity = current_plant_identity(model_id)
     validate_recorded_identity(metadata.get(MODEL_IDENTITY_ATTRIBUTE), identity, artifact=str(policy_zip))
     task = metadata.get(MODEL_TASK_ATTRIBUTE)
     if task is not None and not isinstance(task, dict):
         raise GateResolutionError(f"{policy_zip} contains invalid task fingerprint metadata")
-    current_task = stage_task_fingerprint(species, stage)
+    current_task = stage_task_fingerprint(model_id, stage)
     validate_recorded_task(task, current_task, mode="resume_same_stage", artifact=str(policy_zip))
     return identity
 
@@ -384,10 +389,10 @@ def _require_judged_pushes(evidence: RecoveryPanelEvidence) -> None:
         )
 
 
-def _species_calibration(species: str, stage: int | str, *, env: Any = None) -> RecoveryCalibration | None:
-    if resolve_species_id(species) == "trex":
+def _model_calibration(model_id: ModelId, stage: int | str, *, env: Any = None) -> RecoveryCalibration | None:
+    if model_id == LEGACY_RECOVERY_JUDGE_MODEL_ID:
         return None  # The historical judge remains explicit and T-Rex-only.
-    return load_recovery_calibration(species, stage, env=env)
+    return load_recovery_calibration(model_id, stage, env=env)
 
 
 def _file_sha256(path: str | Path) -> str:
@@ -399,16 +404,16 @@ def _file_sha256(path: str | Path) -> str:
 
 
 def _quiet_brace_controller(
-    species: str, predict: Callable[[Any], np.ndarray], *, calibration: RecoveryCalibration
+    model_id: ModelId, predict: Callable[[Any], np.ndarray], *, calibration: RecoveryCalibration
 ) -> tuple[Callable[[Any], np.ndarray], dict[str, Any]]:
     """Derive a constant brace from quiet stance, before any pushed evaluation.
 
     The initial one-second settling interval and following one-second sample
-    are physical durations, converted through this species' control timestep.
+    are physical durations, converted through this model's control timestep.
     A checkpoint that cannot survive that reference interval is not suitable
     for a stance warm start; partial trajectories never define its brace.
     """
-    env = build_env(species, "stance")
+    env = build_env(model_id, "stance")
     seeds = (6042, 6043, 6044, 6045)
     # An engineering compatibility check, not a learned recovery result: the
     # stance source must inhabit the same judge that recovery will be scored by.
@@ -457,20 +462,20 @@ def _quiet_brace_controller(
             "quiet_safe_fractions_by_seed": quiet_safe_fractions,
             "quiet_safe_set": calibration.safe_set,
             "quiet_height_reference_m": calibration.height_reference_m,
-            "stance_env_kwargs": load_stage_config(species, "stance")["env_kwargs"],
+            "stance_env_kwargs": load_stage_config(model_id, "stance")["env_kwargs"],
         }
     finally:
         env.close()
 
 
 def _validated_recovery_resolution(
-    stage_dir: str | Path, species: str, stage: int | str
+    stage_dir: str | Path, model_id: ModelId, stage: int | str
 ) -> tuple[dict[str, Any], RecoveryCalibration | None]:
     """Resolve the task, judge and pairing domain before training or evaluation."""
-    fingerprint = stage_task_fingerprint(species, stage)
+    fingerprint = stage_task_fingerprint(model_id, stage)
     resolution = require_gate_resolution(stage_dir, current_task_sha256=fingerprint["task_sha256"])
     spec = resolution["capability_spec"]
-    calibration = _species_calibration(species, stage)
+    calibration = _model_calibration(model_id, stage)
     active_safe_set = calibration.safe_set if calibration else dict(CALIBRATED_POSTURE_ONLY)
     if calibration is not None:
         if resolution.get("evaluation_spec") != calibration.evaluation_spec():
@@ -542,7 +547,7 @@ def _validated_recovery_resolution(
 def validate_recovery_resolution(
     stage_dir: str | Path,
     *,
-    species: str = "trex",
+    model_id: ModelId,
     stage: int | str = "recovery",
     policy_zip: str | Path | None = None,
     vecnorm: str | Path | None = None,
@@ -551,7 +556,7 @@ def validate_recovery_resolution(
     """Refuse stale or rehearsal resolutions before spending a training budget."""
     if bool(policy_zip) != bool(vecnorm):
         raise ValueError("policy_zip and vecnorm must be supplied together")
-    resolution, calibration = _validated_recovery_resolution(stage_dir, species, stage)
+    resolution, calibration = _validated_recovery_resolution(stage_dir, model_id, stage)
     if calibration and policy_zip is not None and vecnorm is not None:
         provenance = resolution.get("null_provenance", {}).get("brace", {})
         expected = {
@@ -572,7 +577,7 @@ def roll_policy_panel(
     policy_zip: "str | Path",
     vecnorm_pkl: "str | Path",
     *,
-    species: str = "trex",
+    model_id: ModelId,
     stage: "int | str" = "recovery",
     inference: str = "auto",
     algorithm: str = "ppo",
@@ -589,13 +594,13 @@ def roll_policy_panel(
     ``generate_stage_artifacts(recovery_successes_by_seed=...)`` needs to
     make the frozen gate produce a verdict (gap review EE2).
     """
-    resolution, calibration = _validated_recovery_resolution(stage_dir, species, stage)
+    resolution, calibration = _validated_recovery_resolution(stage_dir, model_id, stage)
     spec = resolution["capability_spec"]
     procedure = resolution["decision_procedure"]
     panel_episodes = int(next(iter(resolution["null_manifest"].values()))["n_episodes"])
     active_safe_set = calibration.safe_set if calibration else dict(CALIBRATED_POSTURE_ONLY)
 
-    env = build_env(species, stage)
+    env = build_env(model_id, stage)
     try:
         predict = policy_controller(
             policy_zip,
@@ -603,7 +608,7 @@ def roll_policy_panel(
             action_space=env.action_space,
             inference=inference,
             algorithm=algorithm,
-            expected_species=species if calibration else None,
+            expected_model_id=model_id if calibration else None,
             expected_stage=stage if calibration else None,
         )
         evidence = roll_recovery_panel(
@@ -626,7 +631,7 @@ def roll_policy_panel(
 def freeze_recovery_gate(
     stage_dir: "str | Path",
     *,
-    species: str = "trex",
+    model_id: ModelId,
     stage: "int | str" = "recovery",
     episodes: int = MIN_EVAL_EPISODES,
     seed: int = PANEL_SEED_START,
@@ -662,11 +667,11 @@ def freeze_recovery_gate(
             "side effect. Re-run with replace=True (--replace) if re-freezing is what you mean."
         )
 
-    task_fingerprint = stage_task_fingerprint(species, stage)
-    env = build_env(species, stage)
+    task_fingerprint = stage_task_fingerprint(model_id, stage)
+    env = build_env(model_id, stage)
     null_provenance: dict[str, Any] | None = None
     try:
-        calibration = _species_calibration(species, stage, env=env)
+        calibration = _model_calibration(model_id, stage, env=env)
         if (
             calibration
             and episodes >= calibration.thresholds.min_eval_episodes
@@ -693,11 +698,11 @@ def freeze_recovery_gate(
                 action_space=env.action_space,
                 inference=inference,
                 algorithm=algorithm,
-                expected_species=species if calibration else None,
+                expected_model_id=model_id if calibration else None,
                 expected_stage="stance" if calibration else None,
             )
             if calibration:
-                brace_predict, brace_metadata = _quiet_brace_controller(species, predict, calibration=calibration)
+                brace_predict, brace_metadata = _quiet_brace_controller(model_id, predict, calibration=calibration)
                 brace_metadata.update(
                     algorithm=algorithm.lower(),
                     checkpoint_sha256=_file_sha256(policy_zip),
@@ -834,7 +839,7 @@ def main(argv: "list[str] | None" = None) -> None:
         epilog=__doc__,
     )
     parser.add_argument("--stage-dir", required=True, help="directory to write gate_resolution.json into")
-    parser.add_argument("--species", default="trex")
+    add_model_arguments(parser)
     parser.add_argument("--stage", default="recovery")
     parser.add_argument("--episodes", type=int, default=MIN_EVAL_EPISODES, help="null panel size (frozen: 40)")
     parser.add_argument("--seed", type=int, default=PANEL_SEED_START, help="first panel seed (frozen: 3042)")
@@ -852,7 +857,7 @@ def main(argv: "list[str] | None" = None) -> None:
 
     result = freeze_recovery_gate(
         args.stage_dir,
-        species=args.species,
+        model_id=parsed_model_id(parser, args),
         stage=args.stage,
         episodes=args.episodes,
         seed=args.seed,

@@ -25,6 +25,7 @@ from stable_baselines3.common.utils import ConstantSchedule
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, VecNormalize, unwrap_vec_normalize
 
 from environments.shared.command_frame import COMMAND_WIDTH, reseed_command_slice
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
     current_plant_identity,
@@ -41,7 +42,7 @@ from environments.shared.policy_loading import (
     neutralize_command_columns,
 )
 from environments.shared.result_bundle import sha256_file
-from environments.shared.species_names import resolve_species_id, species_display_names
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import STAGE_ID_PATTERN
 from environments.shared.task_fingerprint import (
     MODEL_TASK_ATTRIBUTE,
@@ -59,15 +60,22 @@ class BehaviorCheckpointError(ValueError):
     """A checkpoint cannot safely initialize or resume this behavior experiment."""
 
 
-def _species(species: str | None, task: Mapping[str, Any]) -> str:
-    """Resolve the requested plant, retaining old T-Rex API calls without metadata."""
-    recorded = task.get("species")
-    resolved = resolve_species_id(species or recorded or "trex")
-    if resolved not in species_display_names(backend="stable-baselines3"):
-        raise BehaviorCheckpointError(f"Species {resolved!r} has no supported SB3 behavior interface")
-    if recorded is not None and recorded != resolved:
-        raise BehaviorCheckpointError("Behavior task fingerprint and requested species disagree")
-    return resolved
+def _require_model(model_id: ModelId, task: Mapping[str, Any]) -> None:
+    """Refuse a model without an SB3 behavior interface, or a task fingerprint naming another model.
+
+    The model is required, with no default (decision D-D33); a fingerprint that
+    names a species must name the embodiment too, and is never matched on its
+    species alone.
+    """
+    if model_id not in model_ids(backend="stable-baselines3"):
+        raise BehaviorCheckpointError(f"{model_id} has no supported SB3 behavior interface")
+    if "species" in task or "embodiment" in task:
+        try:
+            same_model = model_id.matches(task)
+        except ValueError as exc:
+            raise BehaviorCheckpointError(f"Behavior task fingerprint does not name its model: {exc}") from exc
+        if not same_model:
+            raise BehaviorCheckpointError(f"Behavior task fingerprint and the requested model {model_id} disagree")
 
 
 def _paths(model_path: str | Path, vecnorm_path: str | Path) -> tuple[Path, Path]:
@@ -174,7 +182,7 @@ def prepare_behavior_checkpoint(
     *,
     learning_rate: float = 5e-5,
     task_fingerprint: Mapping[str, Any],
-    species: str | None = None,
+    model_id: ModelId,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Initialize a separate behavior task from a canonical current-interface PPO walker.
 
@@ -188,7 +196,7 @@ def prepare_behavior_checkpoint(
     """
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
     behavior = _identity(task_fingerprint)
-    species = _species(species, behavior)
+    _require_model(model_id, behavior)
     if "task_sha256" not in behavior:
         raise BehaviorCheckpointError(
             "Preparation needs the recipe env's task fingerprint (env.task_fingerprint) with its task_sha256: "
@@ -202,12 +210,18 @@ def prepare_behavior_checkpoint(
             "Preparation stamps the recipe env's task fingerprint, whose stage is never a stage id: stage "
             f"{stage!r} would let a manifest node resume or warm-start from the artifact (decision D-D9)"
         )
-    current = current_plant_identity(species)
+    current = current_plant_identity(model_id)
     raw_plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
     validate_recorded_identity(raw_plant, current, artifact="parent walker checkpoint")
     task = read_checkpoint_attribute(model_path, MODEL_TASK_ATTRIBUTE)
-    if not isinstance(task, Mapping) or task.get("species") != species or task.get("stage") not in (2, "locomotion"):
-        raise BehaviorCheckpointError(f"The source must record the {species} locomotion task")
+    if not isinstance(task, Mapping):
+        raise BehaviorCheckpointError(f"The source must record the {model_id} locomotion task")
+    try:
+        same_model = model_id.matches(task)
+    except ValueError as exc:
+        raise BehaviorCheckpointError(f"The source's task fingerprint does not name its model: {exc}") from exc
+    if not same_model or task.get("stage") not in (2, "locomotion"):
+        raise BehaviorCheckpointError(f"The source must record the {model_id} locomotion task")
     venv = _venv(env, current.observation_dim, current.action_dim)
     normalizer = _normalizer(vecnorm_path, venv, plant_identity=current)
     assert isinstance(normalizer.obs_rms, RunningMeanStd)
@@ -238,7 +252,7 @@ def prepare_behavior_checkpoint(
         "mode": "initialize_next_stage",
         "parent_task_sha256": task.get("task_sha256"),
         "child_task_sha256": behavior.get("task_sha256"),
-        "species": species,
+        **model_id.record(),
         "task_fingerprint": behavior,
         "parent_plant_identity": current.to_dict(),
         "parent_checkpoint_sha256": sha256_file(model_path),
@@ -277,7 +291,7 @@ def load_behavior_checkpoint(
     *,
     task_fingerprint: Mapping[str, Any],
     learning_rate: float = 5e-5,
-    species: str | None = None,
+    model_id: ModelId,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Resume an exact behavior task without resetting learned command connections.
 
@@ -290,8 +304,8 @@ def load_behavior_checkpoint(
     if recorded != requested:
         differing = sorted(key for key in recorded.keys() | requested.keys() if recorded.get(key) != requested.get(key))
         raise BehaviorCheckpointError(f"Behavior task fingerprint differs from the saved task in {differing}")
-    species = _species(species, recorded)
-    current = current_plant_identity(species)
+    _require_model(model_id, recorded)
+    current = current_plant_identity(model_id)
     plant = read_checkpoint_attribute(model_path, MODEL_IDENTITY_ATTRIBUTE)
     validate_recorded_identity(plant, current, artifact="behavior checkpoint plant")
     venv = _venv(env, current.observation_dim, current.action_dim)
@@ -386,7 +400,7 @@ def _validate_behavior_transition(previous: Mapping[str, Any], requested: Mappin
         _validate_sampler_config(fingerprint["env"].get("terrain_sampler"))
     differences = [
         name
-        for name in ("schema", "species", "stage", "backend", "plant", "perturbation")
+        for name in ("schema", "species", "embodiment", "stage", "backend", "plant", "perturbation")
         if previous.get(name) != requested.get(name)
     ]
     old_command, new_command = previous["command"], requested["command"]
@@ -413,7 +427,7 @@ def adapt_behavior_checkpoint(
     *,
     task_fingerprint: Mapping[str, Any],
     learning_rate: float = 5e-5,
-    species: str | None = None,
+    model_id: ModelId,
 ) -> tuple[PPO, VecNormalize, dict[str, Any]]:
     """Warm-start another compatible behavior stage without erasing command learning.
 
@@ -433,7 +447,7 @@ def adapt_behavior_checkpoint(
         )
     model_path, vecnorm_path = _paths(model_path, vecnorm_path)
     previous = _recorded_task(model_path)
-    species = _species(species, requested)
+    _require_model(model_id, requested)
     _validate_behavior_transition(previous, requested)
     model, normalizer, report = load_behavior_checkpoint(
         model_path,
@@ -441,7 +455,7 @@ def adapt_behavior_checkpoint(
         env,
         task_fingerprint=previous,
         learning_rate=learning_rate,
-        species=species,
+        model_id=model_id,
     )
     transition = {
         "schema": "mesozoic.behavior-transition/v2",

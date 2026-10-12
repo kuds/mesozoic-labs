@@ -20,15 +20,18 @@ lives next to the run, not in the repository.
 
 Usage::
 
-    python environments/shared/scripts/stance_gate_report.py trex \\
+    python environments/shared/scripts/stance_gate_report.py \\
+        --species tyrannosaurus_rex --embodiment anatomical \\
         --model  path/to/robust_best_model.zip \\
         --vecnorm path/to/robust_best_model_vecnorm.pkl
 
     # the do-nothing reference, for the same panel and seeds
-    python environments/shared/scripts/stance_gate_report.py trex --zero-action
+    python environments/shared/scripts/stance_gate_report.py \\
+        --species tyrannosaurus_rex --embodiment anatomical --zero-action
 
     # probe: does the pose this policy holds need feedback, or only a constant?
-    python environments/shared/scripts/stance_gate_report.py trex \\
+    python environments/shared/scripts/stance_gate_report.py \\
+        --species tyrannosaurus_rex --embodiment anatomical \\
         --model path/to/robust_best_model.zip \\
         --vecnorm path/to/robust_best_model_vecnorm.pkl \\
         --hold-constant
@@ -42,7 +45,8 @@ probes then annotate its 0 degree cell.  ``--seed 7042`` rolls the fresh
 audit grid (seeds 7042-7081), which the judge refuses as evidence for the
 gate -- it is the separately reported audit, a recorded manual step::
 
-    python environments/shared/scripts/stance_gate_report.py trex \\
+    python environments/shared/scripts/stance_gate_report.py \\
+        --species tyrannosaurus_rex --embodiment anatomical \\
         --model path/to/robust_best_model.zip \\
         --vecnorm path/to/robust_best_model_vecnorm.pkl \\
         --seed 7042 --out-dir path/to/scratch/fresh_audit
@@ -103,6 +107,7 @@ from environments.shared.reporting.stance_report import (  # noqa: E402
     write_stance_heading_report,
     write_stance_panel_evidence,
 )
+from environments.shared.species_names import add_model_arguments, parsed_model_id  # noqa: E402
 
 #: The implementation lives in :mod:`environments.shared.reporting.stance_report`
 #: (library code, so the artifact path can call it without importing a
@@ -161,7 +166,7 @@ def hold_source_report(path: "str | Path") -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", help="Species id, e.g. trex")
+    add_model_arguments(parser)
     parser.add_argument("--stage", type=int, default=1)
     parser.add_argument("--model", help="Path to a saved SB3 checkpoint (.zip)")
     parser.add_argument("--vecnorm", help="Path to the checkpoint's VecNormalize .pkl")
@@ -281,6 +286,7 @@ def main() -> int:
         help="Episodes per heading-probe row (default 8).",
     )
     args = parser.parse_args()
+    model_id = parsed_model_id(parser, args)
     args.hold_constant = args.hold_constant or args.hold_release_ablation
 
     if not args.zero_action and not args.model:
@@ -324,7 +330,7 @@ def main() -> int:
     if args.episodes is not None and args.episodes < 1:
         parser.error(f"--episodes must be at least 1, got {args.episodes}")
 
-    stage_config = load_stage_config(args.species, args.stage, config_path=args.config)
+    stage_config = load_stage_config(model_id, args.stage, config_path=args.config)
     # The six-heading certificate (D-D32) is the verdict of a stage that declares it; a filtered rollout is a
     # probe and keeps the v1-shaped report on any stage.
     certificate = (
@@ -334,7 +340,7 @@ def main() -> int:
     try:
         if certificate:
             report = build_stance_heading_report(
-                args.species,
+                model_id,
                 args.stage,
                 stage_config=stage_config,
                 model_path=args.model,
@@ -346,7 +352,7 @@ def main() -> int:
             )
         else:
             report = build_stance_gate_report(
-                args.species,
+                model_id,
                 args.stage,
                 stage_config=stage_config,
                 model_path=args.model,
@@ -401,7 +407,7 @@ def main() -> int:
         )
         probes = [
             build_stance_gate_report(
-                args.species,
+                model_id,
                 args.stage,
                 stage_config=stage_config,
                 model_path=args.model,
@@ -432,7 +438,7 @@ def main() -> int:
         def _sweep(zero_action: bool) -> list[dict[str, Any]]:
             return [
                 build_stance_gate_report(
-                    args.species,
+                    model_id,
                     args.stage,
                     stage_config=stage_config,
                     model_path=None if zero_action else args.model,
@@ -466,7 +472,7 @@ def main() -> int:
         def _heading_sweep(zero_action: bool) -> list[dict[str, Any]]:
             return [
                 build_stance_gate_report(
-                    args.species,
+                    model_id,
                     args.stage,
                     stage_config=stage_config,
                     model_path=None if zero_action else args.model,

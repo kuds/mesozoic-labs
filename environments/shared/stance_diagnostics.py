@@ -15,6 +15,8 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
+from environments.shared.model_id import ModelId
+
 # Raw environment measurements and reporting-only values derived from them.
 # Reward-shaped qualities deliberately live outside this module.
 STANCE_INFO_KEYS: tuple[str, ...] = (
@@ -198,24 +200,21 @@ def _home_joint_error(env: Any, joint_name: str) -> float | None:
 _TYRANNOSAURUS_REX_SIDE_NAMES: dict[str, tuple[str, str]] = {"r": ("r_foot", "r"), "l": ("l_foot", "l")}
 
 
-def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
-    """Each column side's ``(foot site, leg-joint prefix)`` in *species*' model.
+def _biped_side_names(model_id: ModelId | None) -> dict[str, tuple[str, str]]:
+    """Each column side's ``(foot site, leg-joint prefix)`` in *model_id*'s model.
 
-    The foot site is the gait support registry's ``foot_site``, the reference
+    The foot site is the gait support registry's ``foot_site`` (the
+    embodiment class's ``FOOT_SUPPORT``, ``gait.morphology.support_entry``), the reference
     point the floor-truth recorder measures stance width and foot shift from
     (and the one the T. rex and anatomical Compsognathus stance-width rewards
     read). Its name prefix is how the model spells that side, which its leg
     joints share: ``r_foot_touch_volume`` / ``r_knee``,
-    ``right_foot_touch_volume`` / ``right_knee``. A name without a registry
-    entry keeps the T. rex names.
+    ``right_foot_touch_volume`` / ``right_knee``. No model, or a model
+    without a registry entry, keeps the T. rex names.
     """
-    from .gait.morphology import SUPPORT_REGISTRY
-    from .species_names import resolve_species_id
+    from .gait.morphology import support_entry
 
-    try:
-        entry = SUPPORT_REGISTRY.get(resolve_species_id(species)) if species else None
-    except ValueError:
-        entry = None
+    entry = support_entry(model_id) if model_id is not None else None
     if entry is None or entry.foot_site is None:
         return dict(_TYRANNOSAURUS_REX_SIDE_NAMES)
     names = {}
@@ -225,7 +224,7 @@ def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
     return names
 
 
-def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
+def capture_tyrannosaurus_rex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
     """Capture one reporting-only T. rex stance row from a replay environment."""
     return _capture_biped_snapshot(env, info, step, _TYRANNOSAURUS_REX_SIDE_NAMES)
 
@@ -336,14 +335,14 @@ def _capture_biped_snapshot(
 
 
 def capture_stance_snapshot(
-    env: Any, info: Mapping[str, Any], step: int, *, species: str | None = None
+    env: Any, info: Mapping[str, Any], step: int, *, model_id: ModelId | None = None
 ) -> dict[str, float]:
     """Record common root pose and measured info, with optional biped geometry.
 
     Species expose different anatomy and instrumentation. Missing measurements
     stay absent; in particular, a quadruped's front-foot pair is not treated as
     its complete support. Instrumented bipeds get the historical T. rex
-    columns, without changing their simulation state, measured at *species*'
+    columns, without changing their simulation state, measured at *model_id*'s
     own foot sites and leg joints (:func:`_biped_side_names`). The derived
     ``stance_width`` (``|dy|`` of the foot sites) replaces an env's own.
     """
@@ -353,7 +352,7 @@ def capture_stance_snapshot(
         if scalar is not None:
             row[key] = scalar
     if has_stance_diagnostics(info):
-        row.update(_capture_biped_snapshot(env, info, step, _biped_side_names(species)))
+        row.update(_capture_biped_snapshot(env, info, step, _biped_side_names(model_id)))
 
     root_id = getattr(env, "_root_body_id", None)
     if isinstance(root_id, (int, np.integer)) and root_id >= 0:
