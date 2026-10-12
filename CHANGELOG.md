@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-foot pad telemetry and the sagittal leg DC at every periodic
   evaluation** (the maintainer's approval of 2026-10-12, after the T. rex
   stance run `20261011_165957` was refused by `stance_quality/v2` on its pad
-  centre-of-pressure rail, `max_sole_cop_fore_aft`, 39/40 at 0.9999).
+  centre-of-pressure rail, `max_sole_cop_fore_aft`, failing it on 39 of 40
+  episodes at a median of 0.9999; 1/40 clean).
   The left-right ankle offset that put its right pad on the toe edge had
   formed by about 1M steps, 11M steps before the verdict, and was readable
   only from the unnamed per-actuator action DC. Its artifacts kept only the
@@ -43,11 +44,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     each pad field into `gate_progress.npz` and TensorBoard
     (`diagnostics/eval_<key>`). The keys are `<label>_sole_cop_fore_aft`,
     `<label>_sole_cop_fore_aft_gate` and `<label>_digit_share`.
-  - It also writes `leg_dc_<left>_minus_<right>_<joint>`: the left minus
-    right action DC of hip pitch, knee and ankle, in action units, from
-    `action_dc_per_actuator`. Each side's joints are spelled with the prefix
-    of its foot site. All six models have these keys, two pairs on the
-    quadrupeds.
+  - Beside them it writes the rail's own per-episode number, averaged over
+    the same episodes: `max_sole_cop_fore_aft_mean`, the mean of each
+    episode's maximum over the feet. The maximum over the feet of the
+    per-foot means is only a lower bound of it: when the worse pad changes
+    between episodes, both means can sit under the bar while most episodes
+    fail. Where the stage declares the bar (T. rex 0.80, anatomical
+    Compsognathus 0.70) it also writes
+    `max_sole_cop_fore_aft_over_bar_fraction`, the fraction of those
+    episodes above the bar.
+  - It also writes `leg_dc_<left>_minus_<right>_<joint>_deg` for hip pitch,
+    knee and ankle. Each is the left joint's commanded offset from home minus
+    the right one's, in degrees, signed as a rotation about the animal's
+    leftward axis. The values come from `action_dc_per_actuator`, mapped
+    through the env's own action map (`leg_dc_degrees`). Each joint's sign is
+    its axis along the right-to-left foot direction at the home keyframe
+    (`sagittal_leg_dc_pairs`). So a mirror-symmetric posture reads 0 on every
+    model, including the Compsognathus robot. That robot's hip pitch axes and
+    control ranges are mirrored, so a symmetric 0.03 rad hip pitch offset
+    read -0.036 or +0.61 as a raw action difference. The mean action of run
+    `20261011_165957` reads -3.2° at the ankle and -2.1° at the knee. Each
+    side's joints are spelled with the prefix of its foot site. All six
+    models have these keys, with two pairs on the quadrupeds.
   - The stance replay CSV (`*_selected_stance.csv`, `*_final_stance.csv`)
     gains `<label>_sole_cop_fore_aft` and `<label>_digit_share` per step, from
     the recorder attached to the replay env.

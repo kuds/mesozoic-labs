@@ -3,9 +3,10 @@
 ``stance_quality/v2``'s ``max_sole_cop_fore_aft`` keeps one number per
 episode, the worse pad's, unsigned.  A run that fails it says neither which
 foot nor which edge, nor when in training the posture formed (the T. rex
-stance run of 2026-10-11 failed it 39/40 with its right pad on the toe edge,
-and its artifacts could not say where the left pad stood).  This module
-reduces the same trace, with the same normalization, per foot:
+stance run of 2026-10-11 failed it on 39 of 40 episodes with its right pad
+on the toe edge, and its artifacts could not say where the left pad
+stood).  This module reduces the same trace, with the same normalization,
+per foot:
 
 * ``<label>_sole_cop_fore_aft`` -- the SIGNED fore-aft centre of pressure on
   the pad, in pad half-lengths, + toward the toe (``EpisodeTrace.sole_cop``,
@@ -55,8 +56,11 @@ if TYPE_CHECKING:
 
 NAN = float("nan")
 
+#: The per-episode field that is the gate's own per-foot statistic: its maximum over the feet is the
+#: episode's ``max_sole_cop_fore_aft``.
+GATE_COP_FIELD = "sole_cop_fore_aft_gate"
 #: The per-episode pad fields, as suffixes of ``<label>_``.
-PAD_EPISODE_FIELDS: tuple[str, ...] = ("sole_cop_fore_aft", "sole_cop_fore_aft_gate", "digit_share")
+PAD_EPISODE_FIELDS: tuple[str, ...] = ("sole_cop_fore_aft", GATE_COP_FIELD, "digit_share")
 #: The per-step pad fields (the replay CSV): the signed CoP and the digit share of one step.
 PAD_STEP_FIELDS: tuple[str, ...] = ("sole_cop_fore_aft", "digit_share")
 
@@ -151,7 +155,7 @@ def episode_pad_telemetry(trace: "EpisodeTrace", layout: PadLayout, *, settle_st
             mine = loaded[:, index]
             if mine.any():
                 out[f"{label}_sole_cop_fore_aft"] = float(signed[mine, index].mean())
-            out[f"{label}_sole_cop_fore_aft_gate"] = float(per_foot[index])
+            out[f"{label}_{GATE_COP_FIELD}"] = float(per_foot[index])
         leg_total = float(trace.leg_floor_mean[window, index].sum())
         if foot.digit_support and leg_total > 0:
             digits = float(trace.support_floor_mean[window][:, list(foot.digit_support)].sum())

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -24,11 +25,38 @@ from .stance_diagnostics import derive_stance_info
 
 logger = logging.getLogger(__name__)
 
-#: The sagittal leg joints whose left-minus-right action DC the plateau
-#: callback records (``leg_dc_<left>_minus_<right>_<joint>``): the offsets
-#: that, with both feet planted, move the OTHER pad's centre of pressure
-#: (0.19-0.23 pad half-lengths per degree on the T. rex anatomical stance).
+#: The sagittal leg joints whose left-minus-right DC the plateau callback
+#: records (``leg_dc_<left>_minus_<right>_<joint>_deg``): the offsets that,
+#: with both feet planted, move the OTHER pad's centre of pressure (0.19-0.23
+#: pad half-lengths per degree on the T. rex anatomical stance).
 SAGITTAL_LEG_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
+
+#: A sagittal joint's axis must lie within about 45 degrees of the animal's
+#: lateral axis at the home pose (``|axis . lateral| >= 0.7``) for its pair to
+#: be read: the leg DC is a rotation about that axis, and a joint far off it
+#: does not pitch the leg.  Every manifest model's hip pitch, knee and ankle
+#: read 0.99 or more.
+SAGITTAL_AXIS_MIN_LATERAL = 0.7
+
+
+class SagittalLegPair(NamedTuple):
+    """One left/right sagittal joint pair of the leg DC (:func:`sagittal_leg_dc_pairs`).
+
+    ``left`` and ``right`` are actuator indices (an ``action_dc_per_actuator``
+    column).  ``left_sign`` and ``right_sign`` are each joint axis's sign
+    along the animal's leftward axis at the home pose, +1 or -1: ``sign *
+    angle`` is then a rotation about the leftward axis by the right-hand rule
+    on either side, so a mirror-symmetric posture reads the same on both and
+    their difference is 0.  The compsognathus robot needs them: its left hip
+    pitch axis points right and its right one left, while its knees and
+    ankles both point right.
+    """
+
+    key: str
+    left: int
+    right: int
+    left_sign: float
+    right_sign: float
 
 
 def _in_process_envs(vec_env: Any) -> list[Any] | None:
@@ -48,8 +76,8 @@ def _in_process_envs(vec_env: Any) -> list[Any] | None:
     return None
 
 
-def sagittal_leg_dc_pairs(env: Any, morphology: Any) -> tuple[tuple[str, int, int], ...]:
-    """``(key, left action index, right action index)`` for each left/right foot pair and sagittal joint.
+def sagittal_leg_dc_pairs(env: Any, morphology: Any) -> tuple[SagittalLegPair, ...]:
+    """The sagittal joint pairs of every left/right foot pair: :class:`SagittalLegPair`, in foot then joint order.
 
     The pairs are the feet whose labels differ only in the side letter
     (``l``/``r``; ``fl``/``fr`` and ``rl``/``rr`` on a quadruped), and a
@@ -57,30 +85,99 @@ def sagittal_leg_dc_pairs(env: Any, morphology: Any) -> tuple[tuple[str, int, in
     (``FOOT_SUPPORT``'s ``foot_site``: ``r_foot`` -> ``r_knee``,
     ``right_foot_touch_volume`` -> ``right_knee``), the rule
     ``stance_diagnostics._biped_side_names`` reads the leg-home columns by.
-    A joint with no actuator on either side is left out.  The action index
-    is the actuator index, as every ``action_dc_per_actuator`` row assumes.
+
+    A pair is read only when both joints are driven by a direct, unit-gear
+    hinge position servo (the stance report's
+    ``_is_angular_position_control``: a control value is then a joint angle
+    in radians) and both axes lie within :data:`SAGITTAL_AXIS_MIN_LATERAL`
+    of the lateral axis; any other joint is left out.  The lateral axis is
+    the horizontal direction from the right foot's reference site to the
+    left one's in the model's ``home`` keyframe (``qpos0`` without one),
+    computed on a scratch ``MjData``: the env's own state is never touched.
     """
     import mujoco
 
+    from .reporting.stance_report import _is_angular_position_control
+
     unwrapped = getattr(env, "unwrapped", env)
     model = unwrapped.model
-    actuator_of_joint: dict[str, int] = {}
+    servo_of_joint: dict[str, int] = {}
     for actuator in range(int(model.nu)):
-        if int(model.actuator_trntype[actuator]) == int(mujoco.mjtTrn.mjTRN_JOINT):
-            joint_id = int(model.actuator_trnid[actuator, 0])
-            actuator_of_joint.setdefault(str(model.joint(joint_id).name), actuator)
-    prefix = {foot.label: str(model.site(foot.primary_site).name).split("_", 1)[0] for foot in morphology.feet}
-    pairs: list[tuple[str, int, int]] = []
+        joint_id = int(model.actuator_trnid[actuator, 0])
+        if _is_angular_position_control(model, actuator, joint_id):
+            servo_of_joint.setdefault(str(model.joint(joint_id).name), actuator)
+    feet = {foot.label: foot for foot in morphology.feet}
+    prefix = {label: str(model.site(foot.primary_site).name).split("_", 1)[0] for label, foot in feet.items()}
+    data = mujoco.MjData(model)
+    home = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+    if home >= 0:
+        mujoco.mj_resetDataKeyframe(model, data, home)
+    mujoco.mj_kinematics(model, data)
+    pairs: list[SagittalLegPair] = []
     for left in prefix:
         right = left[:-1] + "r"
         if not left.endswith("l") or right not in prefix:
             continue
+        lateral = np.array(data.site_xpos[feet[left].primary_site] - data.site_xpos[feet[right].primary_site])
+        lateral[2] = 0.0
+        norm = float(np.linalg.norm(lateral))
+        if not norm > 0.0:
+            continue
+        lateral /= norm
         for joint in SAGITTAL_LEG_JOINTS:
-            left_actuator = actuator_of_joint.get(f"{prefix[left]}_{joint}")
-            right_actuator = actuator_of_joint.get(f"{prefix[right]}_{joint}")
-            if left_actuator is not None and right_actuator is not None:
-                pairs.append((f"leg_dc_{left}_minus_{right}_{joint}", left_actuator, right_actuator))
+            left_actuator = servo_of_joint.get(f"{prefix[left]}_{joint}")
+            right_actuator = servo_of_joint.get(f"{prefix[right]}_{joint}")
+            if left_actuator is None or right_actuator is None:
+                continue
+            components = [
+                float(np.dot(data.xaxis[int(model.actuator_trnid[actuator, 0])], lateral))
+                for actuator in (left_actuator, right_actuator)
+            ]
+            if min(abs(component) for component in components) < SAGITTAL_AXIS_MIN_LATERAL:
+                continue
+            pairs.append(
+                SagittalLegPair(
+                    key=f"leg_dc_{left}_minus_{right}_{joint}_deg",
+                    left=left_actuator,
+                    right=right_actuator,
+                    left_sign=math.copysign(1.0, components[0]),
+                    right_sign=math.copysign(1.0, components[1]),
+                )
+            )
     return tuple(pairs)
+
+
+def leg_dc_degrees(env: Any, pairs: "tuple[SagittalLegPair, ...]", action_dc: Any) -> dict[str, float]:
+    """Each pair's left-minus-right commanded joint offset, in degrees, about the leftward axis.
+
+    *action_dc* is one evaluation's per-actuator action DC
+    (``action_dc_per_actuator``).  It is mapped through the env's own
+    ``_scale_action`` (as the stance report probes it), less the control of
+    action zero, the home control: that is the joint target offset the DC
+    commands, in radians on the servos :func:`sagittal_leg_dc_pairs` keeps.
+    Each side's offset is signed by its axis along the leftward axis, and the
+    right one is subtracted from the left one, so a mirror-symmetric offset
+    reads 0 on every model and the zero action reads exactly 0.  The DC is
+    mapped, not each step's action, so under a curved map (the anatomical
+    compsognathus legs' softcubic residual) this is the target of the mean
+    action rather than the mean target, which differ by the curvature times
+    the tremor's variance.  A DC that is empty, not finite or not one value
+    per actuator gives NaN for every key.  The function reads the map and
+    the model only.
+    """
+    out = {pair.key: float("nan") for pair in pairs}
+    if not pairs:
+        return out
+    unwrapped = getattr(env, "unwrapped", env)
+    dc = np.asarray(action_dc, dtype=np.float64).reshape(-1)
+    if dc.size != int(unwrapped.model.nu) or not np.isfinite(dc).all():
+        return out
+    target = np.asarray(unwrapped._scale_action(dc), dtype=np.float64).reshape(-1)
+    home = np.asarray(unwrapped._scale_action(np.zeros_like(dc)), dtype=np.float64).reshape(-1)
+    offset = target - home
+    for pair in pairs:
+        out[pair.key] = math.degrees(pair.left_sign * offset[pair.left] - pair.right_sign * offset[pair.right])
+    return out
 
 
 try:
@@ -150,8 +247,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     the physics and never writes it, so the evaluation is the one an
     unrecorded callback runs, and anything that goes wrong with it costs the
     telemetry, not the run.  The model is also described once for the
-    **sagittal leg DC** the plateau callback derives from the per-actuator
-    action DC: :attr:`leg_dc_pairs`.
+    **sagittal leg DC** (:attr:`leg_dc_pairs`), and after each evaluation
+    its per-actuator action DC is mapped through the env's action map into
+    each pair's left-minus-right commanded joint offset, in degrees about
+    the leftward axis (:func:`leg_dc_degrees`, :attr:`evaluations_leg_dc`).
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -160,12 +259,12 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     #: first evaluation resolved -- the pad keys
     #: (:meth:`~environments.shared.gait.pad_telemetry.PadLayout.episode_keys`,
     #: empty for a model with no box sole) and the sagittal leg DC pairs
-    #: ``(key, left action index, right action index)``.  Both stay empty for
-    #: good when the model cannot be described, so every evaluation of a run
-    #: carries the same keys.
+    #: (:class:`SagittalLegPair`).  Both stay empty for good when the model
+    #: cannot be described, so every evaluation of a run carries the same
+    #: keys.
     model_id: "ModelId | None" = None
     foot_pad_keys: tuple[str, ...] = ()
-    leg_dc_pairs: tuple[tuple[str, int, int], ...] = ()
+    leg_dc_pairs: tuple[SagittalLegPair, ...] = ()
     _foot_resolved = False
     _warned_foot_telemetry = False
 
@@ -192,6 +291,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # (`foot_pad_keys`), positionally aligned with `evaluations_length`
         # like the duties; `{}` for a model with no box sole.
         self.evaluations_foot_pad: list[dict[str, list[float]]] = []
+        # Per evaluation, each sagittal pair's left-minus-right commanded joint offset in degrees
+        # (`leg_dc_pairs`, `leg_dc_degrees`); `{}` for a model with no pair.
+        self.evaluations_leg_dc: list[dict[str, float]] = []
         self._current_eval_foot_pad: dict[str, list[float]] = {}
         # Per sub-env: (unwrapped env, its model, Morphology, PadLayout), and
         # during an evaluation the attached recorders and the episodes each
@@ -471,6 +573,28 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             {key: [float("nan")] * len(values) if failed else list(values) for key, values in current.items()}
         )
 
+    def _publish_leg_dc(self) -> None:
+        """Append this evaluation's sagittal leg DC in degrees, from the action DC just published.
+
+        Mapped through the first evaluation sub-env's action map (every
+        sub-env runs the same model); NaN for every key when the DC is
+        unmeasured or the map cannot be read.
+        """
+        pairs = tuple(self.__dict__.get("leg_dc_pairs", ()) or ())
+        values: dict[str, float] = {pair.key: float("nan") for pair in pairs}
+        setup = self.__dict__.get("_foot_setup") or []
+        series = self.__dict__.get("evaluations_action_dc") or []
+        if pairs and setup and series and series[-1]:
+            try:
+                values = leg_dc_degrees(setup[0][0], pairs, series[-1])
+            except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+                if not self.__dict__.get("_warned_leg_dc", False):
+                    self._warned_leg_dc = True
+                    logger.warning(
+                        "Leg DC: the action DC could not be mapped to joint targets; it reads NaN.", exc_info=True
+                    )
+        self.__dict__.setdefault("evaluations_leg_dc", []).append(values)
+
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
         """Capture evaluation velocity and duty, conditionally delegate success."""
 
@@ -558,6 +682,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.evaluations_action_jerk.append(float("nan"))
             self.evaluations_reward_terms.append({})
             self.__dict__.setdefault("evaluations_foot_pad", []).append({})
+            self.__dict__.setdefault("evaluations_leg_dc", []).append({})
 
     def _publish_action_statistics(self) -> None:
         """Reduce one evaluation's accumulators into the published series.
@@ -616,10 +741,34 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.evaluations_bilateral_duties.append(list(self._current_eval_bilateral_duties))
             self._publish_action_statistics()
             self._publish_pad_telemetry()
+            self._publish_leg_dc()
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
         return bool(continue_training)
+
+
+def _episode_max_over_feet(series: "list[Any]") -> list[float] | None:
+    """Per episode, the maximum over the feet of their finite values (NaN where none is); ``None`` unless aligned.
+
+    The gate's ``max_sole_cop_fore_aft`` is the maximum over the box feet it
+    measured, so a foot with no value in an episode is skipped, not read as 0.
+    """
+    if not series or any(values is None for values in series) or len({len(values) for values in series}) != 1:
+        return None
+    out = []
+    for episode in zip(*series):
+        finite = [float(value) for value in episode if math.isfinite(float(value))]
+        out.append(max(finite) if finite else float("nan"))
+    return out
+
+
+def _declared_bar(curriculum_kwargs: Any, key: str) -> float | None:
+    """The stage's declared bar for *key* as a finite float, or ``None`` when it declares none."""
+    value = curriculum_kwargs.get(key) if isinstance(curriculum_kwargs, Mapping) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        return None
+    return float(value)
 
 
 @dataclass(frozen=True)
@@ -825,28 +974,56 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     def _foot_telemetry_scalars(self, index: int) -> dict[str, float]:
         """This evaluation's pad telemetry and sagittal leg DC, one float per key (NaN: unmeasured).
 
-        The keys are the capture callback's ``foot_pad_keys`` and
-        ``leg_dc_pairs``, fixed at its first evaluation, so every evaluation
-        supplies the same set and none is dropped from ``gate_progress.npz``
-        as a short series.  A pad value is the mean of its per-episode values
-        over the full-horizon episodes -- the set the duty and the bilateral
-        share are averaged over -- so an early fall's transient does not read
-        as a posture.  A leg DC is ``dc[left] - dc[right]`` of this
-        evaluation's per-actuator action DC (``action_dc_per_actuator``, the
-        deterministic policy's post-settle mean action over the panel), in
-        action units: negative when the left joint is commanded below the
-        right.
+        The keys are fixed by the capture callback's first evaluation
+        (``foot_pad_keys``, ``leg_dc_pairs``) and by the stage's declared
+        ``max_sole_cop_fore_aft`` bar, so every evaluation supplies the same
+        set and none is dropped from ``gate_progress.npz`` as a short series.
+
+        * Each pad key is the mean of its per-episode values over the
+          full-horizon episodes -- the set the duty and the bilateral share
+          are averaged over -- so an early fall's transient does not read as
+          a posture.
+        * ``max_sole_cop_fore_aft_mean`` (a model with a box pad) is the mean
+          over the same episodes of each episode's maximum over the feet of
+          ``<label>_sole_cop_fore_aft_gate``: the episode's own
+          ``max_sole_cop_fore_aft``, the number the gate's rail reads.  The
+          maximum over the feet of the per-foot means is only a lower bound
+          of it, an equality only when one foot is the worse one in every
+          episode.  With the stage's bar declared,
+          ``max_sole_cop_fore_aft_over_bar_fraction`` is the fraction of
+          those episodes whose value exceeds the bar (``value > bar``, the
+          gate's comparison): the rail's own criterion on this panel.  An
+          episode measured on no foot is left out of both.
+        * Each ``leg_dc_<left>_minus_<right>_<joint>_deg`` is the capture
+          callback's :attr:`~StageAwareEvalCallback.evaluations_leg_dc`
+          (:func:`leg_dc_degrees`).
         """
+        from .gait.pad_telemetry import GATE_COP_FIELD
+
         source = getattr(self, "eval_callback", None)
+        nan = float("nan")
         out: dict[str, float] = {}
         pads = self._eval_series("evaluations_foot_pad", index) or {}
         lengths = self._series("evaluations_length", index)
-        for key in tuple(getattr(source, "foot_pad_keys", ()) or ()):
+        pad_keys = tuple(getattr(source, "foot_pad_keys", ()) or ())
+        for key in pad_keys:
             value = self._full_horizon_mean_of(pads.get(key), lengths)
-            out[key] = float("nan") if value is None else value
-        dc = self._eval_series("evaluations_action_dc", index)
-        for key, left, right in tuple(getattr(source, "leg_dc_pairs", ()) or ()):
-            out[key] = float(dc[left]) - float(dc[right]) if dc and max(left, right) < len(dc) else float("nan")
+            out[key] = nan if value is None else value
+        gate_keys = tuple(key for key in pad_keys if key.endswith(f"_{GATE_COP_FIELD}"))
+        if gate_keys:
+            per_episode = _episode_max_over_feet([pads.get(key) for key in gate_keys])
+            mean = self._full_horizon_mean_of(per_episode, lengths)
+            out["max_sole_cop_fore_aft_mean"] = nan if mean is None else mean
+            bar = _declared_bar(getattr(self, "curriculum_kwargs", None), "max_sole_cop_fore_aft")
+            if bar is not None:
+                above = (
+                    None if per_episode is None else [float(v > bar) if math.isfinite(v) else nan for v in per_episode]
+                )
+                fraction = self._full_horizon_mean_of(above, lengths)
+                out["max_sole_cop_fore_aft_over_bar_fraction"] = nan if fraction is None else fraction
+        leg_dc = self._eval_series("evaluations_leg_dc", index) or {}
+        for pair in tuple(getattr(source, "leg_dc_pairs", ()) or ()):
+            out[pair.key] = float(leg_dc.get(pair.key, nan))
         return out
 
     def _metrics_for_evaluation(self, index: int, panel: Any | None = None) -> list[_GateMetric]:
