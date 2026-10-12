@@ -1,15 +1,21 @@
-"""CLI entry point for species training scripts.
+"""CLI entry point for training a model.
 
 Extracted from ``train_base.py`` for maintainability.  Provides the
-``main()`` function used by each species' ``train_sb3.py`` wrapper, along
-with argument parsing and config-override helpers.
+``main()`` function that ``python -m environments.shared.train --species
+<species> --embodiment <embodiment>`` hands the rest of its command line to
+(there is no per-species wrapper script; decision D-D33), along with
+argument parsing and config-override helpers.
 """
 
 import argparse
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .species_names import species_display_name
+from .species_names import model_display_name
+
+if TYPE_CHECKING:
+    from .model_id import ModelId
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +41,11 @@ def _cast_value(v: str):
             return v
 
 
-def _resolve_override_stage_token(token: str, configs: dict, species: "str | None") -> "int | str | None":
+def _resolve_override_stage_token(token: str, configs: dict, model_id: "ModelId | None") -> "int | str | None":
     """Map an override's leading token onto its ``configs`` key, if it is one.
 
     Digits mean a legacy stage number; a string token can be a semantic
-    config key directly (``recovery``) or, when *species* is known, any
+    config key directly (``recovery``) or, when *model_id* is known, any
     manifest stage id (``stance``, ``locomotion``) resolved through the
     manifest.
     Returns ``None`` when the token does not name a stage — the override is
@@ -49,11 +55,11 @@ def _resolve_override_stage_token(token: str, configs: dict, species: "str | Non
         return int(token)
     if token in configs:
         return token
-    if species is not None:
+    if model_id is not None:
         from .stage_manifest import StageManifestError, load_stage_manifest
 
         try:
-            entry = load_stage_manifest(species).by_id(token)
+            entry = load_stage_manifest(model_id).by_id(token)
         except StageManifestError:
             return None
         if entry.id in configs:
@@ -63,7 +69,7 @@ def _resolve_override_stage_token(token: str, configs: dict, species: "str | Non
     return None
 
 
-def _apply_overrides(configs: dict, overrides: list | None, species: "str | None" = None) -> None:
+def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId | None" = None) -> None:
     """Apply dot-notation ``key=value`` overrides to stage configs.
 
     Two formats are supported:
@@ -71,7 +77,7 @@ def _apply_overrides(configs: dict, overrides: list | None, species: "str | None
     - ``section.key=value``       -- applies to **all** stages
     - ``STAGE.section.key=value`` -- applies to one stage only, where STAGE
       is a legacy number (``2``), a semantic config key (``recovery``), or —
-      when *species* is given — any manifest stage id (``stance``,
+      when *model_id* is given — any manifest stage id (``stance``,
       ``locomotion``)
 
     Unknown stages and unknown config sections raise instead of silently
@@ -87,7 +93,7 @@ def _apply_overrides(configs: dict, overrides: list | None, species: "str | None
         key, _, raw_value = item.partition("=")
         value = _cast_value(raw_value)
         parts = key.split(".")
-        stage_key = _resolve_override_stage_token(parts[0], configs, species) if len(parts) == 3 else None
+        stage_key = _resolve_override_stage_token(parts[0], configs, model_id) if len(parts) == 3 else None
         if len(parts) == 3 and (stage_key is None or stage_key not in configs):
             # The token was meant as a stage whenever the MIDDLE token is a
             # real config section: a typo'd semantic id ('recvery.env.x')
@@ -171,14 +177,14 @@ def _default_resume_timesteps(load_path: "str | None", load_mode: str, stage_bud
     return max(stage_budget - int(match.group(2)), 0)
 
 
-def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, species: str) -> "int | str | None":
+def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, model_id: "ModelId") -> "int | str | None":
     """Map a --stage reference onto its ``stage_configs`` key.
 
     A ref that is already a config key passes through: legacy numbers
     (1-3) and semantic ids without a numeric history ("recovery").  A
     semantic id naming a LEGACY stage resolves to its historical number,
     so ``--stage locomotion`` works wherever ``--stage 2`` does.  Returns
-    ``None`` for a ref this species cannot satisfy — the caller owns the
+    ``None`` for a ref this model cannot satisfy — the caller owns the
     friendly ``parser.error``.  Resolution must run before ANY
     ``stage_configs[...]`` lookup: the default-timesteps lookup used to
     run first and turned unknown refs into raw KeyErrors (F10).
@@ -189,7 +195,7 @@ def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, species: str
         from .stage_manifest import StageManifestError, load_stage_manifest
 
         try:
-            entry = load_stage_manifest(species).by_id(stage_ref)
+            entry = load_stage_manifest(model_id).by_id(stage_ref)
         except StageManifestError:
             return None
         if entry.legacy_number is not None and entry.legacy_number in stage_configs:
@@ -209,9 +215,9 @@ def main(species_cfg):
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    stage_configs = load_all_stages(species_cfg.species)
+    stage_configs = load_all_stages(species_cfg.model_id)
 
-    parser = argparse.ArgumentParser(description=f"Train {species_display_name(species_cfg.species)} with SB3 PPO")
+    parser = argparse.ArgumentParser(description=f"Train {model_display_name(species_cfg.model_id)} with SB3 PPO")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # -- train ---------------------------------------------------------
@@ -222,7 +228,7 @@ def main(species_cfg):
         default=1,
         help=(
             f"Curriculum stage: a legacy number ({species_cfg.stage_descriptions}) "
-            "or a semantic stage id from the species' manifest (e.g. 'recovery')"
+            "or a semantic stage id from the model's manifest (e.g. 'recovery')"
         ),
     )
     train_parser.add_argument(
@@ -242,7 +248,7 @@ def main(species_cfg):
             "requires an exact task match; initialize_next_stage records the boundary as "
             "lineage (use it to warm-start a new stage, e.g. --stage recovery from a "
             "stance checkpoint) and refuses a checkpoint whose recorded stage is not this "
-            "node's declared warm_start_from parent in the species' stage manifest"
+            "node's declared warm_start_from parent in the model's stage manifest"
         ),
     )
     train_parser.add_argument(
@@ -314,8 +320,8 @@ def main(species_cfg):
         help="Run the automated end-to-end curriculum to a target behavior (--target; default: the last "
         "advancing stage), walking the target's chain of advancing stages in manifest order; each node "
         "warm-starts from its manifest parent (warm_start_from) and a node whose parent has no certified "
-        "checkpoint stops the curriculum (a non-advancing pilot stage such as trex 'recovery' is skipped "
-        "with a log line; train it on its own with `train --stage recovery`)",
+        "checkpoint stops the curriculum (a non-advancing pilot stage such as tyrannosaurus_rex/anatomical "
+        "'recovery' is skipped with a log line; train it on its own with `train --stage recovery`)",
     )
     cur_parser.add_argument(
         "--target",
@@ -327,8 +333,9 @@ def main(species_cfg):
             "stage id ('locomotion'), resolved as the notebook's BEHAVIOR knob resolves them, or a legacy "
             "number (2), resolved as --stage resolves it. The run walks the target's chain of advancing "
             "stages and stops there, so `--target walk` certifies a walk-only run. Default: the last advancing "
-            "stage (the whole ladder). A chain through a non-advancing stage ('stand' on trex runs through "
-            "recovery) or one that skips a ladder stage is refused here; train it through the notebook"
+            "stage (the whole ladder). A chain through a non-advancing stage ('stand' on "
+            "tyrannosaurus_rex/anatomical runs through recovery) or one that skips a ladder stage is refused "
+            "here; train it through the notebook"
         ),
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)
@@ -398,7 +405,7 @@ def main(species_cfg):
         help=(
             "Curriculum stage (auto-detected if omitted): a legacy number "
             f"({species_cfg.stage_descriptions}) or a semantic stage id from "
-            "the species' manifest (e.g. 'recovery')"
+            "the model's manifest (e.g. 'recovery')"
         ),
     )
     eval_parser.add_argument("--episodes", type=int, default=10, help="Number of episodes")
@@ -455,11 +462,11 @@ def main(species_cfg):
             args.n_envs = _SAC_DEFAULT_N_ENVS
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
-        _apply_overrides(stage_configs, args.override, species_cfg.species)
+        _apply_overrides(stage_configs, args.override, species_cfg.model_id)
 
-        stage_ref = _resolve_stage_ref(args.stage, stage_configs, species_cfg.species)
+        stage_ref = _resolve_stage_ref(args.stage, stage_configs, species_cfg.model_id)
         if stage_ref is None:
-            parser.error(f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}")
+            parser.error(f"unknown stage {args.stage!r} for this model; available: {sorted(map(str, stage_configs))}")
 
         # Resolve after overrides so --override curriculum.timesteps=... wins
         if args.timesteps is None:
@@ -516,7 +523,7 @@ def main(species_cfg):
             args.n_envs = _SAC_DEFAULT_N_ENVS
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
-        _apply_overrides(stage_configs, args.override, species_cfg.species)
+        _apply_overrides(stage_configs, args.override, species_cfg.model_id)
         from .ancestors import AUTO_TRUNK
 
         trunk_from = getattr(args, "trunk_from", None)
@@ -540,7 +547,7 @@ def main(species_cfg):
             from .stage_manifest import load_stage_manifest
             from .train_base import _resolve_curriculum_target, _resolve_retrain_from
 
-            manifest = load_stage_manifest(species_cfg.species)
+            manifest = load_stage_manifest(species_cfg.model_id)
             try:
                 _, chain = _resolve_curriculum_target(manifest, target, flag="--target")
             except ValueError as exc:
@@ -576,10 +583,10 @@ def main(species_cfg):
         # manifest vocabulary — not int choices=[1, 2, 3] (F11).
         eval_stage = args.stage
         if eval_stage is not None:
-            eval_stage = _resolve_stage_ref(args.stage, stage_configs, species_cfg.species)
+            eval_stage = _resolve_stage_ref(args.stage, stage_configs, species_cfg.model_id)
             if eval_stage is None:
                 parser.error(
-                    f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}"
+                    f"unknown stage {args.stage!r} for this model; available: {sorted(map(str, stage_configs))}"
                 )
         evaluate(
             species_cfg=species_cfg,

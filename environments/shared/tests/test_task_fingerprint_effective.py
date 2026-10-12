@@ -1,7 +1,7 @@
 """Effective-config fingerprints (schema v2) and the v1 schema valve.
 
 Review F6: schema v1 hashed only the TOML-present ``[env]`` kwargs, so a
-retuned constructor default — a real transition-kernel change, e.g. TRexEnv
+retuned constructor default — a real transition-kernel change, e.g. TyrannosaurusRexAnatomicalEnv
 ``healthy_z_range`` — moved no hash and ``resume_same_stage`` would have
 crossed it silently.  v2 hashes the effective config (constructor defaults
 overlaid with the TOML kwargs).  These tests pin the new identity axis and
@@ -18,10 +18,10 @@ import json
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.task_fingerprint import (
     NON_TASK_ENV_PARAMS,
     TASK_FINGERPRINT_SCHEMA,
-    TASK_FINGERPRINT_SCHEMA_V1,
     TaskFingerprintError,
     compute_task_fingerprint,
     derive_stage_task_fingerprint,
@@ -31,14 +31,14 @@ from environments.shared.task_fingerprint import (
 _PLANT = {
     "physics_sha256": "sha256:aaaa",
     "policy_interface_sha256": "sha256:bbbb",
-    "model_path": "environments/trex/assets/trex.xml",
+    "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
 }
 _ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps": 1000}
 
 
 def _fingerprint(**overrides):
     kwargs = dict(
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage=1,
         backend="stable-baselines3",
         env_kwargs=_ENV,
@@ -50,16 +50,16 @@ def _fingerprint(**overrides):
 
 
 def _v1_fingerprint(env_kwargs=_ENV, current=None):
-    """A fingerprint exactly as schema v1 (04be963..HEAD) recorded it.
+    """A fingerprint in the shape schema v1 (04be963..b6d4cfd) recorded.
 
-    ``env`` is the raw TOML-present kwargs; every other section is shared
-    between v1 and v2, so it is copied from ``current`` (the perturbation
-    block in particular must be identical for a valve pass).
+    ``env`` is the raw TOML-present kwargs; every other section is copied
+    from ``current`` (the perturbation block in particular is identical, the
+    case the deleted v1 valve used to pass).
     """
     if current is None:
         current = _fingerprint(env_kwargs=env_kwargs)
     payload = {
-        "schema": TASK_FINGERPRINT_SCHEMA_V1,
+        "schema": "mesozoic.task-fingerprint/v1",
         "species": current["species"],
         "stage": current["stage"],
         "backend": current["backend"],
@@ -96,15 +96,16 @@ def _retune_constructor_default(monkeypatch, env_class, name, value):
 
 
 class TestEffectiveEnvSection:
-    def test_schema_is_v2(self):
+    def test_schema_is_v3(self):
+        """Re-pinned from /v2: the fingerprint names the embodiment (decision D-D33)."""
         payload = _fingerprint()
         assert payload["schema"] == TASK_FINGERPRINT_SCHEMA
-        assert payload["schema"].endswith("/v2")
+        assert payload["schema"].endswith("/v3")
 
     def test_constructor_defaults_enter_the_env_section(self):
         env = _fingerprint()["env"]
         # TOML-present kwargs win over defaults; absent params come from
-        # the TRexEnv constructor.
+        # the TyrannosaurusRexAnatomicalEnv constructor.
         assert env["alive_bonus"] == 1.0
         assert env["healthy_z_range"] == [0.70, 1.30]
         assert env["fall_penalty"] == -100.0
@@ -118,83 +119,85 @@ class TestEffectiveEnvSection:
 
     def test_retuned_constructor_default_moves_the_hash(self, monkeypatch):
         """The F6 gap: a termination default is task identity, TOML or not."""
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
         base = _fingerprint()
-        _retune_constructor_default(monkeypatch, TRexEnv, "nosedive_termination_threshold", 0.55)
+        _retune_constructor_default(monkeypatch, TyrannosaurusRexAnatomicalEnv, "nosedive_termination_threshold", 0.55)
         retuned = _fingerprint()
         assert retuned["env"]["nosedive_termination_threshold"] == 0.55
         assert retuned["task_sha256"] != base["task_sha256"]
 
-    def test_unknown_species_fails_closed(self):
-        with pytest.raises(TaskFingerprintError, match="Unknown species"):
-            _fingerprint(species="stegosaurus")
+    def test_unknown_model_fails_closed(self):
+        with pytest.raises(TaskFingerprintError, match="Unknown species 'stegosaurus_stenops'"):
+            _fingerprint(model_id=ModelId("stegosaurus_stenops", "anatomical"))
 
 
-class TestSchemaV1Valve:
-    def test_v1_record_resumes_through_the_valve_with_a_warning(self, caplog):
+class TestSchemaV1IsRefused:
+    """Decision D-D33 deleted the schema-v1 transition valve (a v1 record named a species ID that the rename
+    retired, so it could never match a current model): every v1 record is a different task, never resumed."""
+
+    def test_a_v1_record_with_the_same_env_is_refused(self, caplog):
         current = _fingerprint()
         recorded = _v1_fingerprint(current=current)
         assert recorded["task_sha256"] != current["task_sha256"]
-        with caplog.at_level("WARNING"):
-            assert validate_recorded_task(recorded, current, mode="resume_same_stage") is None
-        assert "schema-v1" in caplog.text
-        assert "valve" in caplog.text
+        with pytest.raises(TaskFingerprintError, match="different task"):
+            validate_recorded_task(recorded, current, mode="resume_same_stage")
+        assert "valve" not in caplog.text
 
-    def test_head_schema_recovery_fingerprint_remains_resumable(self, caplog):
-        """The 20260821_142144 run's fingerprints must survive the bump."""
+    def test_a_v1_recovery_fingerprint_is_refused(self):
+        """The 20260821_142144 run's v1 fingerprints no longer resume (the valve that carried them is gone)."""
         pytest.importorskip("mujoco")
         from environments.shared.config import load_stage_config
 
-        env_kwargs = load_stage_config("trex", "recovery")["env_kwargs"]
+        env_kwargs = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "recovery")["env_kwargs"]
         current = derive_stage_task_fingerprint(
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             stage="recovery",
             backend="stable-baselines3",
             env_kwargs=env_kwargs,
             plant_identity=_PLANT,
         )
         recorded = _v1_fingerprint(env_kwargs=env_kwargs, current=current)
-        with caplog.at_level("WARNING"):
-            assert validate_recorded_task(recorded, current, mode="resume_same_stage") is None
-        assert "valve" in caplog.text
+        with pytest.raises(TaskFingerprintError, match="different task"):
+            validate_recorded_task(recorded, current, mode="resume_same_stage")
 
-    def test_valve_rejects_a_raw_kwarg_mismatch(self):
+    def test_a_raw_kwarg_mismatch_is_refused(self):
         recorded = _v1_fingerprint(env_kwargs={**_ENV, "alive_bonus": 0.5})
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, _fingerprint(), mode="resume_same_stage")
 
-    def test_valve_rejects_a_recorded_kwarg_the_current_task_lacks(self):
+    def test_a_recorded_kwarg_the_current_task_lacks_is_refused(self):
         recorded = _v1_fingerprint(env_kwargs={**_ENV, "not_a_constructor_param": 1.0})
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, _fingerprint(), mode="resume_same_stage")
 
-    def test_valve_accepts_a_kwarg_that_moved_into_the_defaults(self):
+    def test_a_kwarg_that_moved_into_the_defaults_is_refused(self):
         # v1 pinned fall_penalty explicitly at the constructor's value; the
-        # current TOML omits it — the effective config makes them equal.
+        # current TOML omits it.  The valve used to pass this; nothing does now.
         recorded = _v1_fingerprint(env_kwargs={**_ENV, "fall_penalty": -100.0})
-        assert validate_recorded_task(recorded, _fingerprint(), mode="resume_same_stage") is None
+        with pytest.raises(TaskFingerprintError, match="different task"):
+            validate_recorded_task(recorded, _fingerprint(), mode="resume_same_stage")
 
-    def test_valve_rejects_a_non_env_section_mismatch(self):
+    def test_a_non_env_section_mismatch_is_refused(self):
         current = _fingerprint()
         recorded = dict(_v1_fingerprint(current=current))
         recorded["plant"] = {"physics_sha256": "sha256:cccc", "policy_interface_sha256": "sha256:bbbb"}
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, current, mode="resume_same_stage")
 
-    def test_valve_never_applies_between_v2_fingerprints(self):
+    def test_current_schema_fingerprints_compare_exactly(self):
         recorded = _fingerprint(env_kwargs={**_ENV, "alive_bonus": 0.5})
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, _fingerprint(), mode="resume_same_stage")
 
-    def test_valve_never_applies_to_an_unknown_schema(self):
+    def test_an_unknown_schema_is_refused(self):
         current = _fingerprint()
         recorded = dict(_v1_fingerprint(current=current))
         recorded["schema"] = "mesozoic.task-fingerprint/v0"
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, current, mode="resume_same_stage")
 
-    def test_initialize_next_stage_records_v1_parent_lineage_unvalved(self):
+    def test_initialize_next_stage_records_v1_parent_lineage(self):
         parent = _v1_fingerprint()
         child = _fingerprint(stage=2)
         lineage = validate_recorded_task(parent, child, mode="initialize_next_stage")

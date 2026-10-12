@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import stage_layout
 
 
@@ -29,30 +30,33 @@ class TestDirectoryAccessors:
 
 class TestIterReplayFiles:
     def test_finds_nested_videos_and_stance_csvs(self, tmp_path):
-        _touch(tmp_path / "replays" / "trex_ppo_stage1_best.mp4")
-        _touch(tmp_path / "replays" / "trex_ppo_stage1_best_side.mp4")
-        _touch(tmp_path / "replays" / "trex_ppo_stage1_best_stance.csv")
+        _touch(tmp_path / "replays" / "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4")
+        _touch(tmp_path / "replays" / "tyrannosaurus_rex_anatomical_ppo_stage1_best_side.mp4")
+        _touch(tmp_path / "replays" / "tyrannosaurus_rex_anatomical_ppo_stage1_best_stance.csv")
         names = {p.name for p in stage_layout.iter_replay_files(tmp_path)}
         assert names == {
-            "trex_ppo_stage1_best.mp4",
-            "trex_ppo_stage1_best_side.mp4",
-            "trex_ppo_stage1_best_stance.csv",
+            "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4",
+            "tyrannosaurus_rex_anatomical_ppo_stage1_best_side.mp4",
+            "tyrannosaurus_rex_anatomical_ppo_stage1_best_stance.csv",
         }
 
     def test_legacy_flat_layout_excludes_the_publication_evidence_csvs(self, tmp_path):
         # A legacy stage root holds the replays beside evaluation_*.csv. Those
         # are the result-bundle evidence files, not replay artifacts; sweeping
         # them in here would list them as replay artifacts and imply they moved.
-        _touch(tmp_path / "trex_ppo_stage1_best.mp4")
-        _touch(tmp_path / "trex_ppo_stage1_best_stance.csv")
+        _touch(tmp_path / "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4")
+        _touch(tmp_path / "tyrannosaurus_rex_anatomical_ppo_stage1_best_stance.csv")
         _touch(tmp_path / "evaluation_selected.csv")
         _touch(tmp_path / "evaluation_final.csv")
         names = {p.name for p in stage_layout.iter_replay_files(tmp_path)}
-        assert names == {"trex_ppo_stage1_best.mp4", "trex_ppo_stage1_best_stance.csv"}
+        assert names == {
+            "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4",
+            "tyrannosaurus_rex_anatomical_ppo_stage1_best_stance.csv",
+        }
 
     def test_a_nested_replay_shadows_its_legacy_twin(self, tmp_path):
-        _touch(tmp_path / "trex_ppo_stage1_best.mp4")
-        _touch(tmp_path / "replays" / "trex_ppo_stage1_best.mp4")
+        _touch(tmp_path / "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4")
+        _touch(tmp_path / "replays" / "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4")
         found = list(stage_layout.iter_replay_files(tmp_path))
         assert len(found) == 1
         assert found[0].parent.name == "replays"
@@ -169,11 +173,14 @@ class TestGenerateStageArtifactsLayout:
         )
 
         species_cfg = MagicMock()
-        species_cfg.species = "velociraptor"
+        species_cfg.model_id = ModelId("velociraptor_mongoliensis", "anatomical")
         species_cfg.env_class = MagicMock
 
         fake_model = MagicMock()
-        attach_plant_identity(fake_model, current_plant_identity("velociraptor", verify_generated=False))
+        attach_plant_identity(
+            fake_model,
+            current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False),
+        )
         algorithm = MagicMock()
         algorithm.load.return_value = fake_model
 
@@ -188,7 +195,7 @@ class TestGenerateStageArtifactsLayout:
             # checkpoint's plant identity does: no partial file is produced.
             if video_side_effect is not None:
                 video_side_effect(label)
-            (output_dir / f"velociraptor_ppo_stage1_{label}.mp4").write_bytes(b"mp4")
+            (output_dir / f"velociraptor_mongoliensis_anatomical_ppo_stage1_{label}.mp4").write_bytes(b"mp4")
 
         with (
             patch("environments.shared.policy_loading._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
@@ -217,8 +224,8 @@ class TestGenerateStageArtifactsLayout:
         # Replays are rendered off the stage directory, then published into it.
         assert captured and all(d != tmp_path for d in captured), "replays must render off the Drive mount"
         assert sorted(p.name for p in (tmp_path / "replays").iterdir()) == [
-            "velociraptor_ppo_stage1_final.mp4",
-            "velociraptor_ppo_stage1_selected.mp4",
+            "velociraptor_mongoliensis_anatomical_ppo_stage1_final.mp4",
+            "velociraptor_mongoliensis_anatomical_ppo_stage1_selected.mp4",
         ]
         assert (tmp_path / "figures" / "training_curves.png").is_file()
 
@@ -237,7 +244,7 @@ class TestGenerateStageArtifactsLayout:
 
         self._run(tmp_path, video_side_effect=blow_up_on_final)
         published = sorted(p.name for p in (tmp_path / "replays").iterdir())
-        assert published == ["velociraptor_ppo_stage1_selected.mp4"]
+        assert published == ["velociraptor_mongoliensis_anatomical_ppo_stage1_selected.mp4"]
 
 
 class TestSelectedCheckpointReplay:
@@ -270,11 +277,14 @@ class TestSelectedCheckpointReplay:
         )
 
         species_cfg = MagicMock()
-        species_cfg.species = "velociraptor"
+        species_cfg.model_id = ModelId("velociraptor_mongoliensis", "anatomical")
         species_cfg.env_class = MagicMock
 
         fake_model = MagicMock()
-        attach_plant_identity(fake_model, current_plant_identity("velociraptor", verify_generated=False))
+        attach_plant_identity(
+            fake_model,
+            current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False),
+        )
         algorithm = MagicMock()
         algorithm.load.return_value = fake_model
 

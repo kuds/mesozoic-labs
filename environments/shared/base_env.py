@@ -1250,7 +1250,7 @@ class BaseDinoEnv(gym.Env, ABC):
             # first-order pole is not a wall, though: the trex 10 Hz filter
             # passes 24-54% of 12.5-50 Hz content, enough for a +-1
             # bang-bang command to hop the animal (the two physics-r8 trex
-            # stance runs), so TRexEnv can price the pre-filter command
+            # stance runs), so TyrannosaurusRexAnatomicalEnv can price the pre-filter command
             # instead (its action_penalty_source, which reads the command
             # its _filter_action override keeps).
             action = self._filter_action(action)

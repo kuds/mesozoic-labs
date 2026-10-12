@@ -27,6 +27,7 @@ from typing import Any, Callable, Iterable, Iterator
 import pytest
 
 from environments.shared import ancestors, config, file_io
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import gates, save_result_bundle, stage_artifacts
 from environments.shared.result_bundle import (
     ResultBundleError,
@@ -157,7 +158,7 @@ def _save(run_dir: Path, stage_results: Any, stage_configs: Any) -> Any:
     return save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        ModelId("velociraptor_mongoliensis", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -297,8 +298,8 @@ def _stage_config_self_parsers(sources: Iterable[tuple[str, list[ast.AST]]]) -> 
 STAGE_CONFIG_SELF_PARSERS = {
     # A read-modify-write: a missing or unreadable record is an error.
     "environments/shared/config.py::record_stage_duration",
-    # The recovery-gate species check refuses an unreadable record and ignores a non-object.
-    "environments/shared/curriculum/gate_resolver.py::_resolution_species",
+    # The recovery-gate model check refuses an unreadable record and ignores a non-object.
+    "environments/shared/curriculum/gate_resolver.py::_resolution_model_id",
     # The bundle writer, audit and evidence reader refuse a bad record with their own errors.
     "environments/shared/reporting/bundles.py::save_result_bundle",
     "environments/shared/result_bundle/audit.py::audit_result_bundle",

@@ -18,29 +18,38 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import mjx_env
 from environments.shared.command_frame import COMMAND_PROBE_VECTOR, COMMAND_WIDTH
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import PlantContractError, load_plant_versions
 from environments.shared.plant_contract.policy_layer import _policy_interface_payload
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-DUAL_BACKEND_SPECIES = (
-    pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
-    pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+
+DUAL_BACKEND_MODELS = (
+    pytest.param(
+        BrachiosaurusAltithoraxAnatomicalEnv, BRACHIOSAURUS_ALTITHORAX, id="brachiosaurus_altithorax-anatomical"
+    ),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, DIBOTHROSUCHUS_ELAPHROS, id="dibothrosuchus_elaphros-anatomical"),
 )
 
 
-@pytest.mark.parametrize(("env_class", "species"), DUAL_BACKEND_SPECIES)
-def test_plant_contract_probe_exercises_a_non_zero_command_on_both_backends(env_class, species, monkeypatch):
+@pytest.mark.parametrize(("env_class", "model_id"), DUAL_BACKEND_MODELS)
+def test_plant_contract_probe_exercises_a_non_zero_command_on_both_backends(env_class, model_id, monkeypatch):
     expected_tail = np.round(np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float64), 6)
     assert np.all(expected_tail != 0.0)
     env = env_class(reset_noise_scale=0.0)
     try:
-        version = load_plant_versions()[1][species]
+        version = load_plant_versions()[1][model_id]
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
 
         sb3_values = np.asarray(payload["observation_probe"]["values"])
@@ -68,14 +77,18 @@ def test_plant_contract_probe_exercises_a_non_zero_command_on_both_backends(env_
 
 
 @pytest.mark.parametrize(
-    ("env_class", "species"),
+    ("env_class", "model_id"),
     (
-        pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
-        pytest.param(TRexEnv, "trex", id="trex"),
-        pytest.param(CompsognathusBiologicalEnv, "compsognathus", id="compsognathus"),
+        pytest.param(
+            VelociraptorMongoliensisAnatomicalEnv, VELOCIRAPTOR_MONGOLIENSIS, id="velociraptor_mongoliensis-anatomical"
+        ),
+        pytest.param(TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX, id="tyrannosaurus_rex-anatomical"),
+        pytest.param(
+            CompsognathusLongipesAnatomicalEnv, COMPSOGNATHUS_LONGIPES, id="compsognathus_longipes-anatomical"
+        ),
     ),
 )
-def test_sb3_only_probe_still_exercises_a_non_zero_command(env_class, species):
+def test_sb3_only_probe_still_exercises_a_non_zero_command(env_class, model_id):
     """The SB3 half of the pin survives each species' exit from the frozen MJX core.
 
     Since the velociraptor's policy-interface revision 11 (plant_versions note
@@ -87,7 +100,7 @@ def test_sb3_only_probe_still_exercises_a_non_zero_command(env_class, species):
     expected_tail = np.round(np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float64), 6)
     env = env_class(reset_noise_scale=0.0)
     try:
-        version = load_plant_versions()[1][species]
+        version = load_plant_versions()[1][model_id]
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
         sb3_values = np.asarray(payload["observation_probe"]["values"])
         np.testing.assert_array_equal(sb3_values[-COMMAND_WIDTH:], expected_tail)

@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest
 
 from .notebook_cells import cell_index as _cell_index
@@ -47,7 +49,7 @@ TRAIN_BASE_PATH = REPO_ROOT / "environments" / "shared" / "train_base.py"
 # cell numbers move when a markdown cell is added).
 CONFIG_CELL_MARKER = "# ===== SPECIES SELECTION ====="
 STORAGE_CELL_MARKER = "# Storage Configuration"
-RESOLVE_CELL_MARKER = "STAGE_CONFIGS = load_all_stages(SPECIES)"
+RESOLVE_CELL_MARKER = "STAGE_CONFIGS = load_all_stages(MODEL_ID)"
 INFRA_CELL_MARKER = "def train_stage("
 CHAIN_CELL_MARKER = "# ===== BEHAVIOR CHAIN LOOP ====="
 MANUAL_CELL_MARKER = "# ===== MANUAL SINGLE NODE"
@@ -62,8 +64,8 @@ PREFLIGHT_CELL_MARKER = '# SB3 archive load preflight (KNOWN_ISSUES "Training / 
 #: The knobs every ``halt`` / ``disconnect_runtime`` call passes by name, read when it runs (consolidation PR-14b).
 DISCONNECT_KNOBS = (("in_colab", "IN_COLAB"), ("auto", "AUTO_DISCONNECT"), ("flush_drive", "USE_GOOGLE_DRIVE"))
 
-#: Every species with a committed stage manifest (the notebook's SPECIES menu).
-SPECIES_WITH_MANIFESTS = sorted(path.parent.name for path in (REPO_ROOT / "configs").glob("*/stages.toml"))
+#: Every model (each has a committed stage manifest; the notebook's SPECIES and EMBODIMENT menus).
+MODELS_WITH_MANIFESTS = model_ids()
 
 
 def _code_cells() -> list[str]:
@@ -317,10 +319,11 @@ class TestBehaviorKnob:
         # terminal deliverable, so a Run-all still walks stance -> ... -> behavior.
         behavior = assigns["BEHAVIOR"].value
         assert behavior
-        for species in SPECIES_WITH_MANIFESTS:
-            manifest = load_stage_manifest(species)
+        assert MODELS_WITH_MANIFESTS
+        for model_id in MODELS_WITH_MANIFESTS:
+            manifest = load_stage_manifest(model_id)
             assert manifest.resolve_behavior(behavior).id == "behavior", (
-                f"BEHAVIOR={behavior!r} must resolve to the terminal deliverable of {species}"
+                f"BEHAVIOR={behavior!r} must resolve to the terminal deliverable of {model_id}"
             )
 
     def test_run_recovery_stage_knob_is_gone(self):
@@ -393,7 +396,7 @@ class TestChainResolution:
         cells = _code_cells()
         resolve_src = cells[_cell_index(cells, RESOLVE_CELL_MARKER)]
         assigns = _top_level_assigns(resolve_src)
-        assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(SPECIES)"
+        assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(MODEL_ID)"
         assert ast.unparse(assigns["TARGET_NODE"]) == "MANIFEST.resolve_behavior(BEHAVIOR)"
         assert ast.unparse(assigns["CHAIN"]) == "MANIFEST.chain_for(TARGET_NODE.id)"
         # D-A19: RETRAIN_FROM is resolved beside the chain and must lie on it.
@@ -436,7 +439,7 @@ class TestReuseRule:
         assert "canonical_algorithm(ALGORITHM)" in body
         assert '"stable-baselines3"' in body
         assert len(_raises(trunk_if, "RuntimeError")) >= 3, (
-            "missing provenance, this run's own directory, and a species/algorithm/backend mismatch each refuse"
+            "missing provenance, this run's own directory, and a model/algorithm/backend mismatch each refuse"
         )
         # The resolution happens BEFORE any node runs, at the top level of the storage cell.
         assert trunk_if in tree.body
@@ -445,7 +448,7 @@ class TestReuseRule:
         src, loop = _chain_loop()
         find = _call(loop, "find_certified_ancestor")
         assert {
-            "species",
+            "model_id",
             "entry",
             "current_task_sha256",
             "plant_identity",
@@ -465,7 +468,7 @@ class TestReuseRule:
         # refuse every reuse with "judged under task". Executed:
         # test_executed_the_loop_derives_the_task_through_the_stage_helper below.
         fingerprint = _call(loop, "stage_task_fingerprint")
-        assert [ast.unparse(arg) for arg in fingerprint.args] == ["SPECIES", "stage"]
+        assert [ast.unparse(arg) for arg in fingerprint.args] == ["MODEL_ID", "stage"]
         assert {kw.arg: ast.get_source_segment(src, kw.value) for kw in fingerprint.keywords} == {
             "stage_config": "config",
             "plant_identity": "PLANT_IDENTITY",
@@ -495,7 +498,7 @@ class TestReuseRule:
         unjudged_assign, lineage_if, last = target_if.orelse
         assert last is else_assign
         assert isinstance(unjudged_assign, ast.Assign) and ast.unparse(unjudged_assign.targets[0]) == "unjudged"
-        assert ast.unparse(unjudged_assign.value) == "unjudged_stage_dir(RUN_DIR, species=SPECIES, entry=NODE)"
+        assert ast.unparse(unjudged_assign.value) == "unjudged_stage_dir(RUN_DIR, model_id=MODEL_ID, entry=NODE)"
         assert isinstance(lineage_if, ast.If)
         assert ast.get_source_segment(src, lineage_if.test) == "unjudged is not None and TRUNK_DIR is not None"
         assert not lineage_if.orelse
@@ -742,7 +745,7 @@ class TestReuseRule:
             Path=Path,
             stage_dirname=stage_dirname,
             stage_label=stage_label,
-            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
             NODE_RESULTS={},
             completed_stages=[],
             NODE_HANDOFF={},
@@ -786,17 +789,17 @@ class TestReuseRule:
         with pytest.raises(Asked):
             self._run_chain_loop(namespace, tmp_path / "20260930_000000", behavior="stance", trunk_dir=None)
 
-        reference = load_stage_manifest("velociraptor").resolve("stance").reference
+        reference = load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).resolve("stance").reference
         config = namespace["STAGE_CONFIGS"][reference]
         identity = namespace["PLANT_IDENTITY"]
         ((args, kwargs),) = helper_calls
-        assert args == ("velociraptor", reference)
+        assert args == (ModelId("velociraptor_mongoliensis", "anatomical"), reference)
         assert set(kwargs) == {"stage_config", "plant_identity"}
         # The session's own objects, not copies re-read from disk.
         assert kwargs["stage_config"] is config and kwargs["plant_identity"] is identity
         assert derived == [
             {
-                "species": "velociraptor",
+                "model_id": ModelId("velociraptor_mongoliensis", "anatomical"),
                 "stage": reference,
                 "backend": "stable-baselines3",
                 "env_kwargs": config.get("env_kwargs", {}),
@@ -865,9 +868,9 @@ def _storage_namespace(tmp_path, monkeypatch, **knobs):
 
     from environments.shared import plant_contract, result_bundle
 
-    identity = {"species": "trex", "test_identity": True}
+    identity = {"species": "tyrannosaurus_rex", "embodiment": "anatomical", "test_identity": True}
     monkeypatch.setattr(
-        plant_contract, "current_plant_identity", lambda species: types.SimpleNamespace(to_dict=lambda: identity)
+        plant_contract, "current_plant_identity", lambda model_id: types.SimpleNamespace(to_dict=lambda: identity)
     )
     calls: list = []
 
@@ -882,7 +885,9 @@ def _storage_namespace(tmp_path, monkeypatch, **knobs):
         "repo_root": tmp_path,
         "IN_COLAB": False,
         "USE_GOOGLE_DRIVE": False,
-        "SPECIES": "trex",
+        "SPECIES": "tyrannosaurus_rex",
+        "EMBODIMENT": "anatomical",
+        "MODEL_ID": ModelId("tyrannosaurus_rex", "anatomical"),
         "ALGORITHM": "ppo",
         "SEED": 42,
         "N_ENVS": 1,
@@ -934,7 +939,9 @@ class TestStorageCellRerun:
         # An explicit id beats the memo: the remedy every refusal names (a fresh RUN_ID) takes effect ...
         namespace["RUN_ID"] = "20260924_120000"
         exec(compile(src, "sb3_storage_explicit", "exec"), namespace)
-        assert namespace["RUN_DIR"] == tmp_path / "logs" / "trex" / "ppo" / "20260924_120000"
+        assert (
+            namespace["RUN_DIR"] == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260924_120000"
+        )
         assert namespace["_ACTIVE_RUN_ID"] == "20260924_120000"
         assert "(new run: RUN_ID names no existing run)" in capsys.readouterr().out
         # ... and is memoised in turn (D-D15): RUN_ID = "" now re-enters it.
@@ -959,7 +966,7 @@ class TestStorageCellRerun:
         cell refuses another SEED before ``initialize_result_bundle`` and before it moves RUN_DIR or the memo."""
         from environments.shared.result_bundle import ResultBundleError
 
-        run_dir = tmp_path / "logs" / "trex" / "ppo" / "20260924_000000"
+        run_dir = tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260924_000000"
         stage_dir = run_dir / "01_stance"
         stage_dir.mkdir(parents=True)
         (stage_dir / "stage_config.json").write_text(
@@ -990,7 +997,7 @@ class TestStorageCellRerun:
         namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch)
         exec(compile(src, "sb3_storage", "exec"), namespace)
         earlier = namespace["RUN_DIR"]
-        other = tmp_path / "logs" / "trex" / "ppo" / "20260815_205206"
+        other = tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260815_205206"
         other.mkdir(parents=True)
 
         def initialize(directory, **kwargs):
@@ -1016,10 +1023,18 @@ class TestStorageCellRerun:
         """A 50k-step QUICK_TEST stance can pass a statue-level gate, so it must never be what ``TRUNK_FROM = "auto"``
         selects or what seed replication counts: its run lives under ``<algo>_quick_test/``, beside the ``<algo>/``
         tree ``select_trunk`` and ``discover_replicates_for_run`` scan, while a pinned trunk still resolves there."""
-        real = tmp_path / "logs" / "trex" / "ppo" / "20260101_000000"
+        real = tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260101_000000"
         real.mkdir(parents=True)
         (real / "provenance.json").write_text(
-            json.dumps({"species": "trex", "algorithm": "PPO", "backend": "stable-baselines3", "run_id": real.name})
+            json.dumps(
+                {
+                    "species": "tyrannosaurus_rex",
+                    "embodiment": "anatomical",
+                    "algorithm": "PPO",
+                    "backend": "stable-baselines3",
+                    "run_id": real.name,
+                }
+            )
         )
         src = _cell(STORAGE_CELL_MARKER)
         namespace, provenance_calls, _ = _storage_namespace(
@@ -1027,32 +1042,41 @@ class TestStorageCellRerun:
         )
         exec(compile(src, "sb3_storage_quick", "exec"), namespace)
         quick = namespace["RUN_DIR"]
-        assert quick == tmp_path / "logs" / "trex" / "ppo_quick_test" / "20260101_000001" and quick.is_dir()
+        assert (
+            quick == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo_quick_test" / "20260101_000001"
+            and quick.is_dir()
+        )
         assert provenance_calls[0][0] == quick and provenance_calls[0][1]["run_id"] == quick.name
         assert namespace["TRUNK_DIR"] == real, "a pinned trunk resolves under the real <algo>/ tree"
-        assert sorted(path.name for path in (tmp_path / "logs" / "trex" / "ppo").iterdir()) == [real.name]
+        assert sorted(
+            path.name for path in (tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo").iterdir()
+        ) == [real.name]
         # A real session writes into <algo>/ exactly as before, and the refusal names the tree RUN_ID lives in.
         namespace.update(QUICK_TEST=False, RUN_ID="20260924_120000", TRUNK_FROM="")
         exec(compile(src, "sb3_storage_real", "exec"), namespace)
-        assert namespace["RUN_DIR"] == tmp_path / "logs" / "trex" / "ppo" / "20260924_120000"
+        assert (
+            namespace["RUN_DIR"] == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260924_120000"
+        )
         namespace.update(QUICK_TEST=True, RUN_ID="../x")
         with pytest.raises(ValueError, match=r"names a run directory under .*ppo_quick_test"):
             exec(compile(src, "sb3_storage_bad_quick", "exec"), namespace)
 
     def test_the_memo_counts_only_in_the_tree_it_was_opened_in(self, tmp_path, monkeypatch, capsys):
-        """With ``RUN_ID = ""`` the memo re-enters this runtime's run only in the tree SPECIES, ALGORITHM and
-        QUICK_TEST select: a quick test first and then the real session (the usual order in one runtime) gives the
+        """With ``RUN_ID = ""`` the memo re-enters this runtime's run only in the tree SPECIES, EMBODIMENT,
+        ALGORITHM and QUICK_TEST select: a quick test first and then the real session (the usual order in one runtime) gives the
         real run its own timestamp, instead of opening ``ppo/<the quick test's id>``; a rerun in one tree keeps its
         run as before."""
         src = _cell(STORAGE_CELL_MARKER)
         namespace, provenance_calls, _ = _storage_namespace(tmp_path, monkeypatch, QUICK_TEST=True)
         exec(compile(src, "sb3_storage_quick", "exec"), namespace)
         quick = namespace["RUN_DIR"]
-        assert quick == tmp_path / "logs" / "trex" / "ppo_quick_test" / "20260101_000001"
+        assert quick == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo_quick_test" / "20260101_000001"
         namespace.update(QUICK_TEST=False, RUN_ID="")
         exec(compile(src, "sb3_storage_real", "exec"), namespace)
         real = namespace["RUN_DIR"]
-        assert real == tmp_path / "logs" / "trex" / "ppo" / "20260101_000002", "a fresh timestamp, not the memo's id"
+        assert real == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "20260101_000002", (
+            "a fresh timestamp, not the memo's id"
+        )
         assert namespace["_ACTIVE_RUN_ID"] == real.name and "(new run)" in capsys.readouterr().out
         exec(compile(src, "sb3_storage_real_rerun", "exec"), namespace)
         assert namespace["RUN_DIR"] == real, "a rerun in the same tree keeps the run"
@@ -1060,21 +1084,30 @@ class TestStorageCellRerun:
         # The same for the other two knobs that pick the tree.
         namespace.update(ALGORITHM="sac")
         exec(compile(src, "sb3_storage_sac", "exec"), namespace)
-        assert namespace["RUN_DIR"] == tmp_path / "logs" / "trex" / "sac" / "20260101_000003"
-        namespace.update(SPECIES="velociraptor")
+        assert (
+            namespace["RUN_DIR"] == tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "sac" / "20260101_000003"
+        )
+        namespace.update(
+            SPECIES="velociraptor_mongoliensis",
+            EMBODIMENT="anatomical",
+            MODEL_ID=ModelId("velociraptor_mongoliensis", "anatomical"),
+        )
         exec(compile(src, "sb3_storage_species", "exec"), namespace)
-        assert namespace["RUN_DIR"] == tmp_path / "logs" / "velociraptor" / "sac" / "20260101_000004"
+        assert (
+            namespace["RUN_DIR"]
+            == tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "sac" / "20260101_000004"
+        )
 
     def test_the_trunk_and_replicate_scans_never_follow_run_dir_into_the_quick_test_tree(self):
         """The two scans the quick-test tree hides from: the auto-trunk selection names the real ``<algo>/`` tree (not
         ``RUN_DIR``'s parent), and replicate discovery scans ``RUN_DIR``'s own siblings."""
         resolve = _cell(RESOLVE_CELL_MARKER)
         select = _call(ast.parse(resolve), "select_trunk")
-        assert ast.unparse(select.args[0]) == "LOG_BASE / SPECIES / ALGORITHM.lower()"
+        assert ast.unparse(select.args[0]) == "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()"
         storage = _cell(STORAGE_CELL_MARKER)
         assigns = _top_level_assigns(storage)
         assert ast.unparse(assigns["_runs_root"]) == (
-            "LOG_BASE / SPECIES / (ALGORITHM.lower() + ('_quick_test' if QUICK_TEST else ''))"
+            "MODEL_ID.path(LOG_BASE) / (ALGORITHM.lower() + ('_quick_test' if QUICK_TEST else ''))"
         )
         assert ast.unparse(assigns["_run_dir"]) == "_runs_root / _run_id"
 
@@ -1140,8 +1173,8 @@ class TestAutoTrunk:
         auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "selecting the trunk")
         assert auto_if in tree.body, "the selection runs at the top level of the resolve cell"
         select = _call(auto_if, "select_trunk")
-        assert ast.unparse(select.args[0]) == "LOG_BASE / SPECIES / ALGORITHM.lower()", (
-            "the siblings under this species/algorithm log directory are scanned"
+        assert ast.unparse(select.args[0]) == "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()", (
+            "the siblings under this model/algorithm log directory are scanned"
         )
         assert _keyword_source(src, select, "chain") == "CHAIN"
         assert _keyword_source(src, select, "stage_configs") == "STAGE_CONFIGS"
@@ -1168,7 +1201,7 @@ class TestAutoTrunk:
         assert auto_if in tree.body and auto_if.lineno < loop.lineno, "before the loop, at the top level"
         body = _branch_source(src, auto_if.body)
         assert 'globals().get("TRUNK_SELECTION")' in body
-        assert "LOG_BASE / SPECIES / ALGORITHM.lower()" in body, "a selection for another log directory is refused"
+        assert "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()" in body, "a selection for another log directory is refused"
         assert "TRUNK_DIR = _selection.run_dir" in body
         assert len(_raises(auto_if, "RuntimeError")) == 1
         assert "WIDEN_FROM" not in src, "D-D14: widening is the command-line tool's; no widen session is special-cased"
@@ -1192,7 +1225,7 @@ class TestAutoTrunk:
         complete = _call(guard, "refuse_complete_run_session")
         assert [ast.unparse(arg) for arg in complete.args] == ["RUN_DIR"]
         for keyword, value in (
-            ("species", "SPECIES"),
+            ("model_id", "MODEL_ID"),
             ("chain", "CHAIN"),
             ("target", "TARGET_NODE"),
             ("retrain_from", "RETRAIN_NODE"),
@@ -1206,7 +1239,7 @@ class TestAutoTrunk:
         ]
         assert isinstance(refused, ast.Expr) and refused.value is complete, "the refusal comes first"
         assert isinstance(recorded, ast.Expr) and ast.unparse(recorded) == (
-            "print(record_trunk_run(RUN_DIR, trunk_dir=TRUNK_DIR, log_dir=LOG_BASE / SPECIES / ALGORITHM.lower()))"
+            "print(record_trunk_run(RUN_DIR, trunk_dir=TRUNK_DIR, log_dir=MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()))"
         ), "then the trunk record, printed, under the directory a TRUNK_FROM id resolves under"
         every = _all_cell_sources()
         section = every[every.index(_cell(STORAGE_CELL_MARKER)) - 1]
@@ -1226,7 +1259,7 @@ class TestAutoTrunk:
         from environments.shared.stage_manifest import stage_dirname
 
         run_dir = tmp_path / "20260920_010912"
-        stance_dir = run_dir / stage_dirname("velociraptor", 1)
+        stance_dir = run_dir / stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
         stance_dir.mkdir(parents=True)
         (stance_dir / "gate_verdict.json").write_text("{}")
         (run_dir / DEFAULT_MANIFEST_NAME).write_text(json.dumps({"status": "complete"}))
@@ -1260,7 +1293,7 @@ class TestTrunkRecord:
         ``select_trunk`` returns (the caller patches it). Returns the namespace, which a second call may reuse."""
         from environments.shared.config import load_all_stages
 
-        log_dir = tmp_path / "logs" / "velociraptor" / "ppo"
+        log_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo"
         run_dir = log_dir / cls.RUN_ID
         run_dir.mkdir(parents=True, exist_ok=True)
         trunk_dir = log_dir / trunk if isinstance(trunk, str) else trunk
@@ -1271,13 +1304,16 @@ class TestTrunkRecord:
         if auto:
             from environments.shared.plant_contract import current_plant_identity
 
-            namespace.update(AUTO_TRUNK=True, PLANT_IDENTITY=current_plant_identity("velociraptor"))
+            namespace.update(
+                AUTO_TRUNK=True,
+                PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
+            )
         exec(_cell(RESOLVE_CELL_MARKER), namespace)
         return namespace
 
     @classmethod
     def _run_dir(cls, tmp_path: Path) -> Path:
-        return tmp_path / "logs" / "velociraptor" / "ppo" / cls.RUN_ID
+        return tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / cls.RUN_ID
 
     @staticmethod
     def _ancestor_record(run_dir: Path, node: str) -> None:
@@ -1314,7 +1350,7 @@ class TestTrunkRecord:
 
     def test_executed_a_trunk_outside_the_log_directory_is_recorded_as_its_absolute_directory(self, tmp_path):
         """A pinned ``TRUNK_FROM`` may be an absolute path to a run anywhere; its name alone would resolve under
-        ``LOG_BASE/<species>/<algo>/``, another directory."""
+        ``LOG_BASE/<species>/<embodiment>/<algo>/``, another directory."""
         elsewhere = tmp_path / "elsewhere" / self.TRUNK_ID
         self._resolve(tmp_path, trunk=elsewhere)
         assert self._recorded(self._run_dir(tmp_path)) == str(elsewhere.resolve())
@@ -1324,7 +1360,7 @@ class TestTrunkRecord:
 
         from environments.shared import ancestors
 
-        selected = tmp_path / "logs" / "velociraptor" / "ppo" / self.TRUNK_ID
+        selected = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / self.TRUNK_ID
         monkeypatch.setattr(
             ancestors,
             "select_trunk",
@@ -1603,7 +1639,7 @@ class TestJudgeBranch:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
-        species = "compsognathus_robot"
+        model_id = ModelId("compsognathus_longipes", "robot")
         model = SimpleNamespace(num_timesteps=1_234)
         trained: list[tuple[tuple, dict]] = []
         evaluated: list[tuple[tuple, dict]] = []
@@ -1623,9 +1659,11 @@ class TestJudgeBranch:
             "Path": Path,
             "stage_dirname": stage_dirname,
             "stage_label": stage_label,
-            "MANIFEST": load_stage_manifest(species),
-            "SPECIES": species,
-            "STAGE_CONFIGS": load_all_stages(species),
+            "MANIFEST": load_stage_manifest(model_id),
+            "SPECIES": model_id.species,
+            "EMBODIMENT": model_id.embodiment,
+            "MODEL_ID": model_id,
+            "STAGE_CONFIGS": load_all_stages(model_id),
             "SPECIES_CFG": object(),
             "ALGORITHM": "PPO",
             "N_ENVS": 4,
@@ -1635,7 +1673,7 @@ class TestJudgeBranch:
             "EVALUATION_SEED": 3042,
         }
         exec_top_level_def(_cell(INFRA_CELL_MARKER), "train_stage", namespace)
-        stage_dir = tmp_path / stage_dirname(species, 2)
+        stage_dir = tmp_path / stage_dirname(model_id, 2)
 
         evaluated_tuple = namespace["train_stage"](2, 1_000, run_dir=tmp_path, task_load_mode="resume_same_stage")
         printed = capsys.readouterr().out
@@ -1723,8 +1761,8 @@ class TestJudgeBranch:
         assert excinfo.value.code == 0
         help_text = " ".join(capsys.readouterr().out.split())
         for phrase in (
-            "<LOG_BASE>/<species>/<algo>/<new run",
-            "<stage_dirname(species, root)>",
+            "<LOG_BASE>/<species>/<embodiment>/<algo>/<new run",
+            "<stage_dirname(model_id, root)>",
             "has not opened yet",
             'RUN_ID = "<new run id>"',
             "SEED = the parent's run seed",
@@ -1921,7 +1959,7 @@ class TestChainLoop:
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
         run_dir = tmp_path / "20260920_010912"
-        locomotion = run_dir / stage_dirname("velociraptor", "locomotion")
+        locomotion = run_dir / stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), "locomotion")
         locomotion.mkdir(parents=True)
         (locomotion / "gate_verdict.json").write_text("{}")
         (run_dir / "artifact_manifest.json").write_text(json.dumps({"status": "complete"}))
@@ -1941,7 +1979,7 @@ class TestChainLoop:
             Path=Path,
             stage_dirname=stage_dirname,
             stage_label=stage_label,
-            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
             NODE_RESULTS={},
             completed_stages=[],
             NODE_HANDOFF={},
@@ -1970,8 +2008,8 @@ class TestChainLoop:
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
         run_dir = tmp_path / "20260925_000000"
-        reference = load_stage_manifest("velociraptor").resolve("stance").reference
-        models = run_dir / stage_dirname("velociraptor", reference) / "models"
+        reference = load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).resolve("stance").reference
+        models = run_dir / stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), reference) / "models"
         final = models / f"{stage_label(reference)}_final"
         TestResumeCell._write_pair(Path(f"{final}.zip"), Path(f"{final}_vecnorm.pkl"))
         if broken == "zip":
@@ -2005,7 +2043,7 @@ class TestChainLoop:
             Path=Path,
             stage_dirname=stage_dirname,
             stage_label=stage_label,
-            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
             NODE_RESULTS={},
             completed_stages=[],
             NODE_HANDOFF={},
@@ -2063,7 +2101,7 @@ class TestChainLoop:
             raise AncestorReuseError("refused by the reuse rule")
 
         def judge_stance(run_dir):
-            stance = run_dir / stage_dirname("velociraptor", "stance")
+            stance = run_dir / stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")
             stance.mkdir(parents=True)
             (stance / "gate_verdict.json").write_text("{}")
 
@@ -2104,7 +2142,7 @@ class TestJudgeFirst:
         from environments.shared.plant_contract import current_plant_identity
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
-        run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / cls.RUN_ID
+        run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / cls.RUN_ID
         trunk_dir = run_dir.parent / cls.TRUNK_ID if trunk else None
         run_dir.mkdir(parents=True)
         prepare(run_dir)
@@ -2117,7 +2155,9 @@ class TestJudgeFirst:
             entry = kwargs["entry"]
             asked.append((Path(candidate).name, entry.id))
             if trunk_dir is not None and candidate == trunk_dir:
-                stage_dir = trunk_dir / stage_dirname("velociraptor", entry.reference)
+                stage_dir = trunk_dir / stage_dirname(
+                    ModelId("velociraptor_mongoliensis", "anatomical"), entry.reference
+                )
                 return types.SimpleNamespace(
                     stage_id=entry.id,
                     run_id=cls.TRUNK_ID,
@@ -2159,7 +2199,7 @@ class TestJudgeFirst:
             Path=Path,
             stage_dirname=stage_dirname,
             stage_label=stage_label,
-            PLANT_IDENTITY=current_plant_identity("velociraptor"),
+            PLANT_IDENTITY=current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
             NODE_RESULTS={},
             completed_stages=[],
             NODE_HANDOFF={},
@@ -2178,7 +2218,10 @@ class TestJudgeFirst:
     def _stage_dir(run_dir: Path, node: str) -> Path:
         from environments.shared.stage_manifest import stage_dirname
 
-        return run_dir / stage_dirname("velociraptor", load_stage_manifest("velociraptor").resolve(node).reference)
+        return run_dir / stage_dirname(
+            ModelId("velociraptor_mongoliensis", "anatomical"),
+            load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).resolve(node).reference,
+        )
 
     @classmethod
     def _final_pair(cls, run_dir: Path, node: str, *, run_block: "dict | None" = None) -> Path:
@@ -2188,7 +2231,9 @@ class TestJudgeFirst:
 
         stage_dir = cls._stage_dir(run_dir, node)
         final = (
-            stage_dir / "models" / f"{stage_label(load_stage_manifest('velociraptor').resolve(node).reference)}_final"
+            stage_dir
+            / "models"
+            / f"{stage_label(load_stage_manifest(ModelId('velociraptor_mongoliensis', 'anatomical')).resolve(node).reference)}_final"
         )
         TestResumeCell._write_pair(Path(f"{final}.zip"), Path(f"{final}_vecnorm.pkl"))
         if run_block is not None:
@@ -2275,7 +2320,9 @@ class TestJudgeFirst:
         def prepare(run_dir):
             if held == "periodic checkpoints only":
                 models = self._stage_dir(run_dir, "stance") / "models"
-                label = stage_label(load_stage_manifest("velociraptor").resolve("stance").reference)
+                label = stage_label(
+                    load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).resolve("stance").reference
+                )
                 TestResumeCell._write_pair(
                     models / f"{label}_100000_steps.zip", models / f"{label}_vecnormalize_100000_steps.pkl"
                 )
@@ -2344,7 +2391,9 @@ class TestJudgeFirst:
         with pytest.raises(self.Trained):
             exec(_cell(CHAIN_CELL_MARKER), namespace)
         assert asked == [] and recorded == [] and judged == []
-        assert trained == [load_stage_manifest("velociraptor").resolve("stance").reference]
+        assert trained == [
+            load_stage_manifest(ModelId("velociraptor_mongoliensis", "anatomical")).resolve("stance").reference
+        ]
         assert "Not consulting the trunk" not in capsys.readouterr().out
 
     def test_executed_the_target_is_judged_from_this_run_as_before(self, tmp_path, monkeypatch, capsys):
@@ -2495,7 +2544,7 @@ class TestPublication:
             for call in _calls(tree, "save_run_bundle"):
                 bundle_calls += 1
                 assert call.args and ast.unparse(call.args[0]) == "chain_results()", f"cell {index} line {call.lineno}"
-                assert _keyword_source(src, call, "species") == "SPECIES"
+                assert _keyword_source(src, call, "model_id") == "MODEL_ID"
             for call in _calls(tree, "write_training_summary"):
                 summary_calls += 1
                 assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR", "chain_results()"], (
@@ -2511,9 +2560,9 @@ class TestPublication:
         assert ast.unparse(forwarded.args[0]) == "stage_results_list"
         assert _keyword_source(infra, forwarded, "run_dir") == "RUN_DIR", "the bundle is this run's, never another"
         summary_def = _top_level_def(infra, "write_training_summary")
-        assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "species") == "SPECIES"
-        # No dead parameters (cleanup CU-5): the run directory and species are forwarded, never taken and ignored.
-        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "species"]
+        assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "model_id") == "MODEL_ID"
+        # No dead parameters (cleanup CU-5): the run directory and model are forwarded, never taken and ignored.
+        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "model_id"]
         assert [arg.arg for arg in summary_def.args.args] == ["run_dir", "stage_results_list"]
         assert not bundle_def.args.kwonlyargs and not summary_def.args.kwonlyargs
         chain_def = _top_level_def(infra, "chain_results")
@@ -2778,15 +2827,15 @@ class TestNodeBudget:
     def test_executed_the_budget_is_the_toml_budget_or_the_quick_test_budget(self):
         from environments.shared.config import load_all_stages
 
-        for species in SPECIES_WITH_MANIFESTS:
-            stage_configs = load_all_stages(species)
+        for model_id in MODELS_WITH_MANIFESTS:
+            stage_configs = load_all_stages(model_id)
             for quick_test in (False, True):
                 namespace = {"QUICK_TEST": quick_test, "STAGE_CONFIGS": stage_configs}
                 _define_node_budget(namespace)
-                for entry in load_stage_manifest(species).stages:
+                for entry in load_stage_manifest(model_id).stages:
                     toml_budget = stage_configs[entry.reference]["curriculum_kwargs"]["timesteps"]
                     expected = 50_000 if quick_test else toml_budget
-                    assert namespace["node_budget"](entry.reference) == expected, (species, entry.id, quick_test)
+                    assert namespace["node_budget"](entry.reference) == expected, (model_id, entry.id, quick_test)
 
 
 class TestResumeCell:
@@ -2855,7 +2904,7 @@ class TestResumeCell:
         assert _raises(spent_body, "RuntimeError") and not _calls(spent_body, "train_stage")
         assert train in [node for stmt in spent.orelse for node in ast.walk(stmt)]
         assert "entry_res = MANIFEST.resolve(RESUME_STAGE)" in src and "stage_res = entry_res.reference" in src
-        assert "stage_dirname(SPECIES, stage_res)" in src and "stage_label(stage_res)" in src
+        assert "stage_dirname(MODEL_ID, stage_res)" in src and "stage_label(stage_res)" in src
 
     @staticmethod
     def _write_pair(zip_path: Path, vecnorm_path: Path) -> None:
@@ -2873,7 +2922,7 @@ class TestResumeCell:
     def _run_resume_cell(
         cls,
         tmp_path,
-        species: str,
+        model_id: ModelId,
         behavior: str,
         resume_stage,
         reference,
@@ -2887,17 +2936,17 @@ class TestResumeCell:
         None: a widened root holds only its handoff and final pairs); return the train_stage calls. Whatever else the
         stage directory holds (a verdict, a final pair, an ``ancestors/`` record, ``trunk_run.json``) is the
         caller's. ``RUN_DIR`` is *tmp_path*, and ``LOG_BASE`` and ``ALGORITHM`` are bound as the storage and
-        configuration cells bind them, so a trunk under ``LOG_BASE/<species>/ppo/`` is recorded by its id;
+        configuration cells bind them, so a trunk under ``LOG_BASE/<species>/<embodiment>/ppo/`` is recorded by its id;
         ``TRUNK_DIR`` is *trunk_dir* (cleanup ROW-4/6, decision 4 (a))."""
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
-        models = tmp_path / stage_dirname(species, reference) / "models"
+        models = tmp_path / stage_dirname(model_id, reference) / "models"
         models.mkdir(parents=True, exist_ok=True)
         label = stage_label(reference)
         if steps is not None:
             cls._write_pair(models / f"{label}_{steps}_steps.zip", models / f"{label}_vecnormalize_{steps}_steps.pkl")
-        manifest = load_stage_manifest(species)
+        manifest = load_stage_manifest(model_id)
         made: list[dict] = [] if calls is None else calls
 
         def train_stage(save_freq=100_000, **kwargs):  # the notebook's default checkpoint cadence
@@ -2905,11 +2954,13 @@ class TestResumeCell:
             return (None,) * 6
 
         namespace = {
-            "SPECIES": species,
+            "SPECIES": model_id.species,
+            "EMBODIMENT": model_id.embodiment,
+            "MODEL_ID": model_id,
             "BEHAVIOR": behavior,
             "MANIFEST": manifest,
             "CHAIN": manifest.chain_for(manifest.resolve_behavior(behavior).id),
-            "STAGE_CONFIGS": load_all_stages(species),
+            "STAGE_CONFIGS": load_all_stages(model_id),
             "QUICK_TEST": False,
             "RUN_DIR": tmp_path,
             "LOG_BASE": tmp_path / "logs",
@@ -2934,12 +2985,12 @@ class TestResumeCell:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
 
-        species = "compsognathus_robot"
-        [call] = self._run_resume_cell(tmp_path, species, behavior, resume_stage, reference)
-        models = tmp_path / stage_dirname(species, reference) / "models"
+        model_id = ModelId("compsognathus_longipes", "robot")
+        [call] = self._run_resume_cell(tmp_path, model_id, behavior, resume_stage, reference)
+        models = tmp_path / stage_dirname(model_id, reference) / "models"
         assert call["stage"] == reference
         assert call["load_path"] == str(models / f"{stage_label(reference)}_100000_steps.zip")
-        budget = load_all_stages(species)[reference]["curriculum_kwargs"]["timesteps"]
+        budget = load_all_stages(model_id)[reference]["curriculum_kwargs"]["timesteps"]
         assert call["timesteps"] == budget - 100_000
         assert call["evaluate"] is False, "the chain loop's JUDGE branch evaluates the resumed node (cleanup CU-6)"
         assert "WARNING" not in capsys.readouterr().out, "an ordinary resume warns about nothing"
@@ -2948,7 +2999,7 @@ class TestResumeCell:
         """Executed: the chain loop visits only CHAIN, so a node off it would train and never be judged — a
         ``stand`` run's recovery reopened under ``walk`` is refused with the knobs to restore."""
         with pytest.raises(RuntimeError, match=r"'recovery', which is not on the chain of behavior 'walk'") as refused:
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "recovery", "recovery")
+            self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "recovery", "recovery")
         assert "BEHAVIOR" in str(refused.value) and "re-run sections 2-3" in str(refused.value)
 
     @pytest.mark.parametrize("steps", [100_000, None])
@@ -2962,12 +3013,26 @@ class TestResumeCell:
         from environments.shared.result_bundle import GATE_VERDICT_SCHEMA
         from environments.shared.stage_manifest import stage_dirname
 
-        stage_dir = tmp_path / stage_dirname("compsognathus_robot", 2)
+        model_id = ModelId("compsognathus_longipes", "robot")
+        stage_dir = tmp_path / stage_dirname(model_id, 2)
         stage_dir.mkdir(parents=True)
+        # A gate verdict names its model whole (gate-verdict/v2, decision D-D33); the reader refuses one that does not.
         (stage_dir / "gate_verdict.json").write_text(
-            json.dumps({"schema": GATE_VERDICT_SCHEMA, "passed": passed, "failures": [] if passed else ["too slow"]})
+            json.dumps(
+                {
+                    "schema": GATE_VERDICT_SCHEMA,
+                    **model_id.record(),
+                    "passed": passed,
+                    "failures": [] if passed else ["too slow"],
+                }
+            )
         )
-        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=steps) == []
+        assert (
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=steps
+            )
+            == []
+        )
         out = capsys.readouterr().out
         assert "Nothing to resume: 'locomotion' already holds a gate verdict" in out and "JUDGE" in out
 
@@ -2979,9 +3044,11 @@ class TestResumeCell:
         JUDGE branch judges the final pair instead."""
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
-        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=steps) == []
+        assert (
+            self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=steps) == []
+        )
         assert "already holds its final pair stage2_final.zip" in capsys.readouterr().out
 
     def test_a_half_written_final_pair_is_resumed_from_the_periodic_checkpoint(self, tmp_path):
@@ -2990,10 +3057,12 @@ class TestResumeCell:
         cadence of the budget, the state a reclaim during the final save leaves)."""
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         models.mkdir(parents=True)
         (models / "stage2_final.zip").write_bytes(b"truncated")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        [call] = self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=2_900_000
+        )
         assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
 
     @pytest.mark.parametrize("broken", ["zip", "sidecar"])
@@ -3005,14 +3074,16 @@ class TestResumeCell:
 
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
         if broken == "zip":
             data = (models / "stage2_final.zip").read_bytes()
             (models / "stage2_final.zip").write_bytes(data[: len(data) // 2])
         else:
             (models / "stage2_final_vecnorm.pkl").write_bytes(pickle.dumps({"obs_rms": list(range(50))})[:20])
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        [call] = self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=2_900_000
+        )
         assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
         assert "WARNING: the final pair of 'locomotion' is incomplete" in capsys.readouterr().out
 
@@ -3022,12 +3093,14 @@ class TestResumeCell:
         (D-D16), never the rest of the budget in place."""
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
         (models / "stage2_final_vecnorm.pkl").unlink()
         calls: list[dict] = []
         with pytest.raises(RuntimeError, match=r"200,000 steps short .* early stop .* fresh RUN_ID"):
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=2_800_000, calls=calls)
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=2_800_000, calls=calls
+            )
         assert calls == []
 
     @pytest.mark.parametrize("reclaimed_in", ["sidecar removal", "local save", "zip copy", "sidecar copy"])
@@ -3077,8 +3150,8 @@ class TestResumeCell:
         monkeypatch.setattr(train_base, "_REMOTE_MOUNT_ROOTS", (str(root),))
         (tmp_path / "scratch").mkdir()
         monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "scratch"))
-        run_dir = root / "MyDrive" / "compsognathus_robot" / "ppo" / "20260926_000000"
-        models = run_dir / stage_dirname("compsognathus_robot", 2) / "models"
+        run_dir = root / "MyDrive" / "compsognathus_longipes" / "robot" / "ppo" / "20260926_000000"
+        models = run_dir / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         models.mkdir(parents=True)
         if reclaimed_in == "sidecar removal":
             # A previous final pair (here as a save straight to the mount left it: zip cut short, sidecar intact);
@@ -3103,10 +3176,14 @@ class TestResumeCell:
         calls: list[dict] = []
         if refused:
             with pytest.raises(RuntimeError, match=r"200,000 steps short .* early stop .* fresh RUN_ID"):
-                self._run_resume_cell(run_dir, "compsognathus_robot", "walk", 2, 2, steps=steps, calls=calls)
+                self._run_resume_cell(
+                    run_dir, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=steps, calls=calls
+                )
             assert calls == []
         else:
-            [call] = self._run_resume_cell(run_dir, "compsognathus_robot", "walk", 2, 2, steps=steps, calls=calls)
+            [call] = self._run_resume_cell(
+                run_dir, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=steps, calls=calls
+            )
             assert call["timesteps"] == 100_000 and call["load_path"].endswith("stage2_2900000_steps.zip")
 
     def test_a_spent_budget_with_a_final_pair_cut_short_names_it(self, tmp_path):
@@ -3114,14 +3191,14 @@ class TestResumeCell:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
         (models / "stage2_final_vecnorm.pkl").write_bytes(b"\x80\x04truncated")
-        budget = load_all_stages("compsognathus_robot")[2]["curriculum_kwargs"]["timesteps"]
+        budget = load_all_stages(ModelId("compsognathus_longipes", "robot"))[2]["curriculum_kwargs"]["timesteps"]
         with pytest.raises(
             RuntimeError, match=r"stage2_final\.zip is incomplete \(VecNormalize sidecar .* fresh RUN_ID"
         ):
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=budget)
+            self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=budget)
 
     @pytest.mark.parametrize("retrain_from", ["stance", "locomotion"])
     def test_a_node_retrain_from_covers_is_refused_before_it_trains(self, tmp_path, retrain_from):
@@ -3130,7 +3207,13 @@ class TestResumeCell:
         calls: list[dict] = []
         with pytest.raises(RuntimeError, match=r"which RETRAIN_FROM .* covers.*Set RETRAIN_FROM = \"\"") as excinfo:
             self._run_resume_cell(
-                tmp_path, "compsognathus_robot", "walk", "locomotion", 2, retrain_from=retrain_from, calls=calls
+                tmp_path,
+                ModelId("compsognathus_longipes", "robot"),
+                "walk",
+                "locomotion",
+                2,
+                retrain_from=retrain_from,
+                calls=calls,
             )
         assert calls == [], "refused before anything trains"
         # Decision 6 (b): the loop judges the resumed node before it consults any trunk, so the BEHAVIOR route left.
@@ -3141,7 +3224,7 @@ class TestResumeCell:
         """Executed: RETRAIN_FROM covers the named node and its descendants only; resuming an ancestor of it
         trains as usual."""
         [call] = self._run_resume_cell(
-            tmp_path, "compsognathus_robot", "hunt", "locomotion", 2, retrain_from="behavior"
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "hunt", "locomotion", 2, retrain_from="behavior"
         )
         assert call["stage"] == 2
 
@@ -3150,10 +3233,12 @@ class TestResumeCell:
         skipped with a warning and the next older intact step-point is resumed."""
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
         (models / "stage2_2800000_steps.zip").write_bytes(b"PK\x03\x04 truncated")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_700_000)
+        [call] = self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=2_700_000
+        )
         assert call["load_path"].endswith("stage2_2700000_steps.zip") and call["timesteps"] == 300_000
         assert "WARNING: skipping stage2_2800000_steps.zip: bad/truncated checkpoint zip" in capsys.readouterr().out
 
@@ -3164,11 +3249,13 @@ class TestResumeCell:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
         (models / "stage2_vecnormalize_2800000_steps.pkl").unlink()
-        self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_700_000)
-        budget = load_all_stages("compsognathus_robot")[2]["curriculum_kwargs"]["timesteps"]
+        self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=2_700_000
+        )
+        budget = load_all_stages(ModelId("compsognathus_longipes", "robot"))[2]["curriculum_kwargs"]["timesteps"]
         lines = capsys.readouterr().out.splitlines()
         assert lines[0].startswith("Resuming 'locomotion' (stage 2) from ")
         assert lines[1:6] == [
@@ -3186,7 +3273,9 @@ class TestResumeCell:
         means; nothing trains and nothing is warned about. The library walk returns no pair and no skip for it."""
         calls: list[dict] = []
         with pytest.raises(RuntimeError) as refused:
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=None, calls=calls)
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=None, calls=calls
+            )
         message = str(refused.value)
         assert message.startswith("No periodic checkpoint stage2_*_steps.zip in ")
         assert "RUN_ID in the configuration cell names the interrupted run" in message
@@ -3200,14 +3289,16 @@ class TestResumeCell:
         cell warns about each, newest first, and refuses naming them all; it never trains a broken pair."""
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_2800000_steps.zip", models / "stage2_vecnormalize_2800000_steps.pkl")
         (models / "stage2_2800000_steps.zip").write_bytes(b"PK\x03\x04 truncated")
         self._write_pair(models / "stage2_2700000_steps.zip", models / "stage2_vecnormalize_2700000_steps.pkl")
         (models / "stage2_vecnormalize_2700000_steps.pkl").unlink()
         calls: list[dict] = []
         with pytest.raises(FileNotFoundError) as refused:
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=None, calls=calls)
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=None, calls=calls
+            )
         message = str(refused.value)
         assert message.startswith(
             "No intact periodic checkpoint pair stage2_<steps>_steps.zip + stage2_vecnormalize_<steps>_steps.pkl in "
@@ -3233,12 +3324,14 @@ class TestResumeCell:
 
         from environments.shared.stage_manifest import stage_dirname
 
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
         with zipfile.ZipFile(models / "stage2_final.zip", "w") as archive:
             for member in members:
                 archive.writestr(member, b"x")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, steps=2_900_000)
+        [call] = self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, steps=2_900_000
+        )
         assert call["timesteps"] == 100_000
 
     def test_a_spent_budget_without_the_final_pair_is_refused(self, tmp_path):
@@ -3247,9 +3340,9 @@ class TestResumeCell:
         which would send the operator straight back here."""
         from environments.shared.config import load_all_stages
 
-        budget = load_all_stages("compsognathus_robot")[2]["curriculum_kwargs"]["timesteps"]
+        budget = load_all_stages(ModelId("compsognathus_longipes", "robot"))[2]["curriculum_kwargs"]["timesteps"]
         with pytest.raises(RuntimeError, match=r"never saved .* fresh RUN_ID"):
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", 2, 2, steps=budget)
+            self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", 2, 2, steps=budget)
 
     def test_the_resume_cell_refuses_a_complete_run_before_it_trains(self):
         """A complete bundle is immutable (consolidation PR-14a): nothing is resumed into it; the spent-budget branch
@@ -3269,11 +3362,11 @@ class TestResumeCell:
         assert isinstance(second, ast.Expr) and second.value is recorded, "right after the complete-run guard"
         assert ast.unparse(recorded) == (
             "refuse_trunk_other_than_recorded(RUN_DIR, trunk_dir=globals().get('TRUNK_DIR'), "
-            "log_dir=LOG_BASE / SPECIES / ALGORITHM.lower(), what=f'Resuming {stage_res!r}', resumed=entry_res)"
+            "log_dir=MODEL_ID.path(LOG_BASE) / ALGORITHM.lower(), what=f'Resuming {stage_res!r}', resumed=entry_res)"
         ), "the session's trunk, under the directory a TRUNK_FROM id resolves under, and the node to resume"
         assert recorded.lineno < _call(tree, "train_stage").lineno
 
-    #: The trunk the ``trunk_run.json`` of the resume tests below records, under ``LOG_BASE/compsognathus_robot/ppo/``.
+    #: The trunk the ``trunk_run.json`` of the resume tests below records, under ``LOG_BASE/compsognathus_longipes/robot/ppo/``.
     RECORDED_TRUNK = "20260921_000000"
 
     @staticmethod
@@ -3307,7 +3400,7 @@ class TestResumeCell:
         written = (tmp_path / "trunk_run.json").read_bytes()
         trunk_dir = {
             "no trunk": None,
-            "another run": tmp_path / "logs" / "compsognathus_robot" / "ppo" / "20260922_000000",
+            "another run": tmp_path / "logs" / "compsognathus_longipes" / "robot" / "ppo" / "20260922_000000",
             "the same name elsewhere": tmp_path / "elsewhere" / self.RECORDED_TRUNK,
         }[session]
         calls: list[dict] = []
@@ -3315,7 +3408,13 @@ class TestResumeCell:
             ResultBundleError, match=r"Resuming 2 under TRUNK_FROM = .* is refused before anything"
         ) as excinfo:
             self._run_resume_cell(
-                tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls, trunk_dir=trunk_dir
+                tmp_path,
+                ModelId("compsognathus_longipes", "robot"),
+                "walk",
+                "locomotion",
+                2,
+                calls=calls,
+                trunk_dir=trunk_dir,
             )
         assert f'Set TRUNK_FROM = "{self.RECORDED_TRUNK}" in the configuration cell' in str(excinfo.value)
         assert calls == [], "refused before anything trains"
@@ -3325,8 +3424,10 @@ class TestResumeCell:
     def test_executed_a_resume_under_the_trunk_the_run_records_trains(self, tmp_path, capsys, recorded):
         self._ancestor_record(tmp_path, "stance")
         self._trunk_record(tmp_path, recorded)
-        trunk_dir = tmp_path / "logs" / "compsognathus_robot" / "ppo" / recorded if recorded else None
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, trunk_dir=trunk_dir)
+        trunk_dir = tmp_path / "logs" / "compsognathus_longipes" / "robot" / "ppo" / recorded if recorded else None
+        [call] = self._run_resume_cell(
+            tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, trunk_dir=trunk_dir
+        )
         assert call["stage"] == 2
         assert "WARNING" not in capsys.readouterr().out
 
@@ -3337,13 +3438,13 @@ class TestResumeCell:
             self._trunk_record(tmp_path, self.RECORDED_TRUNK)
         else:
             (tmp_path / "trunk_run.json").write_text("{")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2)
+        [call] = self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2)
         assert call["stage"] == 2
 
     def test_executed_a_run_with_records_but_no_trunk_record_resumes_by_the_manual_route(self, tmp_path):
         """A run opened before ROW-4/6: nothing records its trunk, and the recipe's manual route pins it."""
         self._ancestor_record(tmp_path, "stance")
-        [call] = self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2)
+        [call] = self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2)
         assert call["stage"] == 2
 
     def test_executed_an_unreadable_trunk_record_in_a_run_with_records_is_refused(self, tmp_path):
@@ -3353,7 +3454,9 @@ class TestResumeCell:
         (tmp_path / "trunk_run.json").write_text("{")
         calls: list[dict] = []
         with pytest.raises(ResultBundleError, match=r"cannot read the trunk record .* Remove that file") as excinfo:
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls)
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, calls=calls
+            )
         assert calls == [] and "manual route (section 5, step 1)" in str(excinfo.value)
 
     def test_executed_a_node_the_run_holds_as_an_ancestor_record_is_never_resumed(self, tmp_path):
@@ -3367,7 +3470,9 @@ class TestResumeCell:
         self._trunk_record(tmp_path, "")
         calls: list[dict] = []
         with pytest.raises(ResultBundleError, match=r"holds 'locomotion' as a reused ancestor .* fresh RUN_ID"):
-            self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2, calls=calls)
+            self._run_resume_cell(
+                tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2, calls=calls
+            )
         assert calls == []
 
     def test_executed_a_finished_record_held_node_left_in_resume_stage_still_only_prints(self, tmp_path, capsys):
@@ -3376,9 +3481,11 @@ class TestResumeCell:
         from environments.shared.stage_manifest import stage_dirname
 
         self._ancestor_record(tmp_path, "locomotion")
-        models = tmp_path / stage_dirname("compsognathus_robot", 2) / "models"
+        models = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2) / "models"
         self._write_pair(models / "stage2_final.zip", models / "stage2_final_vecnorm.pkl")
-        assert self._run_resume_cell(tmp_path, "compsognathus_robot", "walk", "locomotion", 2) == []
+        assert (
+            self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "locomotion", 2) == []
+        )
         assert "Nothing to resume" in capsys.readouterr().out
 
     def test_the_resume_prose_routes_old_checkpoints_to_the_command_line_widen(self):
@@ -3496,14 +3603,14 @@ class TestArchiveLoadPreflightCell:
         assert "COMMAND_TERRAIN_BEHAVIOR" not in src
 
     def test_the_preflight_loads_a_real_archive_through_the_loader_with_the_print_flushed_first(self):
-        """Since cleanup CU-6 the cell is one call of the library's preflight on this session's species, chain root
+        """Since cleanup CU-6 the cell is one call of the library's preflight on this session's model, chain root
         and trunk; the one load, the flushed print right before it, the trunk's root handoff under either directory
         naming else a throwaway in a temporary directory, and the fall-back that never raises are the function's,
         pinned and executed in test_policy_loading.py. The cell itself neither loads nor prints."""
         src, tree = _preflight_cell()
         assert "from environments.shared.policy_loading import sb3_archive_load_preflight" in src
         (call,) = _calls(tree, "sb3_archive_load_preflight")
-        assert ast.unparse(call) == "sb3_archive_load_preflight(SPECIES, CHAIN[0].reference, trunk_dir=TRUNK_DIR)"
+        assert ast.unparse(call) == "sb3_archive_load_preflight(MODEL_ID, CHAIN[0].reference, trunk_dir=TRUNK_DIR)"
         statements = [node for node in tree.body if not isinstance(node, ast.ImportFrom)]
         assert len(statements) == 1 and isinstance(statements[0], ast.Assign) and statements[0].value is call, (
             "one top-level call and nothing around it, its result bound so the notebook shows no repr"
@@ -3548,7 +3655,7 @@ class TestArchiveLoadPreflightCell:
         }
         free = _loaded_names(tree) - bound - parameters - set(dir(builtins))
         assert free <= earlier, f"the preflight cell reads names no earlier cell binds: {sorted(free - earlier)}"
-        assert free <= {"SPECIES", "CHAIN", "TRUNK_DIR"}, sorted(free)
+        assert free <= {"MODEL_ID", "CHAIN", "TRUNK_DIR"}, sorted(free)
 
 
 class TestCommandSliceReseed:
@@ -3605,9 +3712,9 @@ class TestCommandSliceReseed:
         """The flag is False on every committed config today; Phase D flips it per stage, not the notebook."""
         from environments.shared.config import load_all_stages
 
-        for species in SPECIES_WITH_MANIFESTS:
-            for reference, config in load_all_stages(species).items():
-                assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (species, reference)
+        for model_id in MODELS_WITH_MANIFESTS:
+            for reference, config in load_all_stages(model_id).items():
+                assert config.get("env_kwargs", {}).get("command_mode", "none") == "none", (model_id, reference)
 
 
 class TestDeliverableAwareCells:
@@ -3715,9 +3822,9 @@ class TestDeliverableAwareCells:
             assert [arg.arg for arg in wrapper.args.args] == ["stage_dirs", "stage_configs", "algo_name"], name
             assert not wrapper.args.kwonlyargs, name
             assert not {"save_path", "save_dir", "show"} & _keyword_names(_call(wrapper, f"_lib_{name}")), name
-        species = "velociraptor"
+        model_id = ModelId("velociraptor_mongoliensis", "anatomical")
         run_dir = tmp_path / "run"
-        stage_dir = run_dir / stage_dirname(species, 2)
+        stage_dir = run_dir / stage_dirname(model_id, 2)
         stage_dir.mkdir(parents=True)
         np.savez(
             stage_dir / "evaluations.npz",
@@ -3727,10 +3834,12 @@ class TestDeliverableAwareCells:
         )
         before = sorted(path.relative_to(run_dir) for path in run_dir.rglob("*"))
         namespace = {
-            "SPECIES": species,
+            "SPECIES": model_id.species,
+            "EMBODIMENT": model_id.embodiment,
+            "MODEL_ID": model_id,
             "ALGORITHM": "PPO",
-            "STAGE_CONFIGS": load_all_stages(species),
-            "MANIFEST": load_stage_manifest(species),
+            "STAGE_CONFIGS": load_all_stages(model_id),
+            "MANIFEST": load_stage_manifest(model_id),
             "completed_stages": [(2, str(stage_dir))],
             "plt": plt,
             "Path": Path,
@@ -3799,7 +3908,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
         assert namespace["BEHAVIOR"] == "hunt"
-        assert namespace["SPECIES"] == "velociraptor"
+        assert (namespace["SPECIES"], namespace["EMBODIMENT"]) == ("velociraptor_mongoliensis", "anatomical")
+        assert namespace["MODEL_ID"] == ModelId("velociraptor_mongoliensis", "anatomical")
         assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
         assert namespace["RUN_ID"] == "", "a fresh run by default (consolidation PR-14a)"
         assert "WIDEN_FROM" not in namespace and "WIDEN_MAX_REVISION_GAP" not in namespace

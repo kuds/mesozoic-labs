@@ -34,6 +34,10 @@ present they must agree — ``gate_sha256`` is the digest of ``gate`` — which
 refused everywhere the reader is used (reuse, the ancestor records, the
 bundle audit).
 
+Schema v2 (decision D-D33): the verdict names its model by ``species`` and
+``embodiment``, and :func:`read_gate_verdict` requires both; a v1 verdict
+(named by the species ID of its date) is refused by its schema.
+
 This module lives under ``result_bundle`` because ``result_bundle`` never
 imports ``reporting``; it depends only on :func:`.hashing.sha256_file`,
 :func:`.hashing.gate_config_sha256`, :func:`..file_io.atomic_write_text` and
@@ -48,12 +52,13 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..file_io import atomic_write_text
+from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from .errors import ResultBundleError
 from .hashing import gate_config_sha256, sha256_file
 
 GATE_VERDICT_FILENAME = "gate_verdict.json"
-GATE_VERDICT_SCHEMA = "mesozoic.gate-verdict/v1"
+GATE_VERDICT_SCHEMA = "mesozoic.gate-verdict/v2"
 
 #: The keys of the gate-configuration view a verdict records (D-A22): what
 #: ``curriculum.gate_schema.gate_config_view`` returns, and nothing else.
@@ -188,7 +193,7 @@ def _handoff_record(stage_dir: Path, path: "Path | None") -> tuple[str | None, s
 def write_gate_verdict(
     stage_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     stage_id: str,
     gate_kind: str,
@@ -230,7 +235,7 @@ def write_gate_verdict(
         projected = {key: stage_result[key] for key in _PERSISTED_STAGE_RESULT_KEYS if key in stage_result}
     record: dict[str, Any] = {
         "schema": GATE_VERDICT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "stage_id": stage_id,
         "gate_kind": gate_kind,
@@ -275,6 +280,10 @@ def read_gate_verdict(stage_dir: "str | Path") -> "dict[str, Any] | None":
         raise GateVerdictError(f"{path} must hold a JSON object")
     if verdict.get("schema") != GATE_VERDICT_SCHEMA:
         raise GateVerdictError(f"{path} declares schema {verdict.get('schema')!r}; expected {GATE_VERDICT_SCHEMA!r}")
+    try:
+        ModelId.from_record(verdict)
+    except ValueError as exc:
+        raise GateVerdictError(f"{path} does not name its model: {exc}") from exc
     if not isinstance(verdict.get("passed"), bool):
         raise GateVerdictError(f"{path}: 'passed' must be a JSON boolean")
     if not isinstance(verdict.get("failures"), list):

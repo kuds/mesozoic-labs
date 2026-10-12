@@ -27,6 +27,7 @@ import pytest
 
 from environments.shared.config import save_stage_config
 from environments.shared.curriculum.gate_resolver import write_gate_resolution
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import write_plant_identity
 from environments.shared.recovery_evaluation import (
     EpisodeRecord,
@@ -39,6 +40,8 @@ from environments.shared.reporting.csv_output import save_evaluation_episodes
 from environments.shared.task_fingerprint import write_task_fingerprint
 
 from .reporting_helpers import make_plant_identity
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 
 STAGE_CONFIG = {
     "name": "balance",
@@ -116,7 +119,8 @@ def _filter_sweep_reports() -> list[dict]:
             "terminations": {"fell": 4},
             "horizon": 1000,
             "policy": f"ppo — actions low-passed at {hz} Hz",
-            "species": "trex",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
             "stage": 1,
         }
         for hz in (35.0, 5.0)
@@ -137,7 +141,7 @@ class TestPublishedAtomically:
         target = tmp_path / "stage1" / "stage_config.json"
         _write_old(target)
         with pytest.raises(OSError, match="reclaimed"):
-            save_stage_config(tmp_path / "stage1", 1, STAGE_CONFIG, "PPO")
+            save_stage_config(tmp_path / "stage1", 1, STAGE_CONFIG, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         assert target.read_text(encoding="utf-8") == "old"
         assert _left_behind(target.parent, {"stage_config.json"}) == []
 
@@ -149,7 +153,7 @@ class TestPublishedAtomically:
         (tmp_path / "models").mkdir()
         with pytest.raises(OSError, match="reclaimed"):
             train_base._report_hpt_metrics(
-                SimpleNamespace(species="velociraptor", success_keys=["strike_success"]),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
                 MagicMock(),
                 MagicMock(),
                 SimpleNamespace(best_mean_reward=12.5),
@@ -250,11 +254,13 @@ class TestBytesUnchanged:
     """The converted writers keep the format they had before CU-3."""
 
     def test_stage_config_is_indent_2_in_insertion_order_with_a_trailing_newline(self, tmp_path):
-        text = save_stage_config(tmp_path, 1, STAGE_CONFIG, "PPO").read_text(encoding="utf-8")
+        text = save_stage_config(tmp_path, 1, STAGE_CONFIG, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS).read_text(
+            encoding="utf-8"
+        )
         record = json.loads(text)
         assert text == json.dumps(record, indent=2) + "\n"
         assert "\\u2014" in text, "non-ASCII is escaped (ensure_ascii)"
-        assert list(record)[:3] == ["species", "stage", "name"], "insertion order, not sorted"
+        assert list(record)[:4] == ["species", "embodiment", "stage", "name"], "insertion order, not sorted"
         assert list(record["reward_weights"]) == ["z_bonus", "alive_bonus"]
 
     def test_metrics_json_has_no_trailing_newline(self, tmp_path):
@@ -262,7 +268,7 @@ class TestBytesUnchanged:
 
         (tmp_path / "models").mkdir()
         train_base._report_hpt_metrics(
-            SimpleNamespace(species="velociraptor", success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
             MagicMock(),
             MagicMock(),
             SimpleNamespace(best_mean_reward=12.5),
@@ -276,7 +282,7 @@ class TestBytesUnchanged:
         text = (tmp_path / "metrics.json").read_text(encoding="utf-8")
         record = json.loads(text)
         assert text == json.dumps(record, indent=2)
-        assert list(record)[:2] == ["species", "algorithm"], "insertion order, not sorted"
+        assert list(record)[:3] == ["species", "embodiment", "algorithm"], "insertion order, not sorted"
 
     def test_stance_report_json_is_sorted_and_the_text_is_utf8(self, tmp_path, monkeypatch):
         monkeypatch.setattr(stance_report, "render_stance_gate_report", lambda report: "panel — ok")

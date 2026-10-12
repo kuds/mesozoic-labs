@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import json
 import math
-import tomllib
 
 import numpy as np
 import pytest
 
 from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.curriculum.gate_schema import _DIAGNOSTIC_KEYS
+from environments.shared.model_id import ModelId
 from environments.shared.reporting.stance_report import (
     HEADING_PROBE_JSON,
     SpawnYaw,
@@ -33,31 +33,29 @@ from environments.shared.reporting.stance_report import (
     stage_heading_probe_warnings,
     write_heading_probe,
 )
-from environments.shared.species_catalog import DEFAULT_MANIFEST_PATH
-from environments.trex.envs.trex_env import TRexEnv
+from environments.shared.species_names import model_entry, model_ids
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-#: Each species' gait, from the species manifest: every biped's stance without the six-heading certificate declares
+#: Each model's gait, from the species manifest: every biped's stance without the six-heading certificate declares
 #: the heading probe, every biped's stance with it declares none (the certificate replaces it, D-D32), and no other
-#: species' stance declares it, so a new species lands in one of the three tests below.
-_GAITS = {
-    entry["id"]: entry["gait"] for entry in tomllib.loads(DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8"))["species"]
-}
+#: model's stance declares it, so a new model lands in one of the three tests below.
+_GAITS = {model_id: model_entry(model_id)["gait"] for model_id in model_ids()}
 _CERTIFIED = {
-    species
-    for species in _GAITS
-    if load_stage_config(species, "stance")["curriculum_kwargs"].get("gate_kind") == "stance_quality_heading/v1"
+    model_id
+    for model_id in _GAITS
+    if load_stage_config(model_id, "stance")["curriculum_kwargs"].get("gate_kind") == "stance_quality_heading/v1"
 }
 
 
 @pytest.fixture
 def env():
-    e = TRexEnv(prey_distance_range=(10.0, 15.0), reset_noise_scale=0.05)
+    e = TyrannosaurusRexAnatomicalEnv(prey_distance_range=(10.0, 15.0), reset_noise_scale=0.05)
     yield e
     e.close()
 
 
 def _obs_slices(env) -> dict[str, slice]:
-    """Where TRexEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
+    """Where TyrannosaurusRexAnatomicalEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
 
     After the joint positions and velocities: projected gravity, the gyro, the heading-frame velocity, the
     accelerometer, the two feet, then the pelvis-frame prey direction.
@@ -126,11 +124,17 @@ class TestTurn:
 
     def test_the_statue_scores_the_same_episode_from_a_turned_scene(self):
         """Physics and reward are rotation-invariant for a constant command when the prey turns too."""
-        stage_config = load_stage_config("trex", "stance")
+        stage_config = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")
 
         def roll(spawn_yaw):
             report = build_stance_gate_report(
-                "trex", 1, stage_config=stage_config, zero_action=True, episodes=1, seed=3042, spawn_yaw=spawn_yaw
+                ModelId("tyrannosaurus_rex", "anatomical"),
+                1,
+                stage_config=stage_config,
+                zero_action=True,
+                episodes=1,
+                seed=3042,
+                spawn_yaw=spawn_yaw,
             )
             return report
 
@@ -230,28 +234,37 @@ class TestProbeTable:
         assert written["heading_probe_json"].exists()
 
     @pytest.mark.parametrize(
-        "species", sorted(s for s, gait in _GAITS.items() if gait == "Bipedal" and s not in _CERTIFIED)
+        "model_id",
+        sorted(m for m, gait in _GAITS.items() if gait == "Bipedal" and m not in _CERTIFIED),
+        ids=lambda m: f"{m.species}-{m.embodiment}",
     )
-    def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance_without_the_certificate(self, species):
+    def test_the_probe_key_is_a_diagnostic_declared_by_every_biped_stance_without_the_certificate(self, model_id):
         # The maintainer's decision of 2026-10-11 for the velociraptor and the compsognathus robot (D-D27 for the
         # trex until the certificate replaced it there, D-D32).
         assert "stance_probe_spawn_yaw_deg" in _DIAGNOSTIC_KEYS
-        curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
+        curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
         assert curriculum["stance_probe_spawn_yaw_deg"] == [-90.0, -45.0, 45.0, 90.0]
         assert declares_heading_probe(curriculum)
 
     def test_the_two_anatomical_stances_declare_the_certificate_and_no_probe(self):
         """The maintainer's approval of 2026-10-11 (D-D32): T. rex and the anatomical compsognathus only."""
-        assert _CERTIFIED == {"trex", "compsognathus"}
-        for species in sorted(_CERTIFIED):
-            curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
+        assert _CERTIFIED == {
+            ModelId("tyrannosaurus_rex", "anatomical"),
+            ModelId("compsognathus_longipes", "anatomical"),
+        }
+        for model_id in sorted(_CERTIFIED):
+            curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
             assert "stance_probe_spawn_yaw_deg" not in curriculum
             assert not declares_heading_probe(curriculum)
 
-    @pytest.mark.parametrize("species", sorted(s for s, gait in _GAITS.items() if gait != "Bipedal"))
-    def test_no_quadruped_stance_declares_the_probe(self, species):
+    @pytest.mark.parametrize(
+        "model_id",
+        sorted(m for m, gait in _GAITS.items() if gait != "Bipedal"),
+        ids=lambda m: f"{m.species}-{m.embodiment}",
+    )
+    def test_no_quadruped_stance_declares_the_probe(self, model_id):
         # Their reward_and_length gate rolls no stance report, and the probe runs only after one.
-        curriculum = load_stage_config(species, "stance")["curriculum_kwargs"]
+        curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
         assert curriculum["gate_kind"] == "reward_and_length/v1"
         assert "stance_probe_spawn_yaw_deg" not in curriculum
         assert not declares_heading_probe(curriculum)
@@ -416,28 +429,63 @@ class TestHandoffWarning:
         # does not, nor does a velociraptor stance recorded before its config declared the probe (2026-10-11),
         # whatever the checkout's config now says.  The trex stance's certificate replaced it (D-D32): with no
         # certificate on disk it warns the certificate missing instead, whatever *declared* says.
-        trex, raptor, brachio = tmp_path / "trex", tmp_path / "raptor", tmp_path / "brachio"
-        save_stage_config(trex, 1, load_stage_config("trex", "stance"), "PPO", species="trex")
-        save_stage_config(raptor, 1, load_stage_config("velociraptor", "stance"), "PPO", species="velociraptor")
-        save_stage_config(brachio, 1, load_stage_config("brachiosaurus", "stance"), "PPO", species="brachiosaurus")
-        old_raptor, before = tmp_path / "old_raptor", load_stage_config("velociraptor", "stance")
+        tyrannosaurus_rex, velociraptor_mongoliensis, brachiosaurus_altithorax = (
+            tmp_path / "tyrannosaurus_rex",
+            tmp_path / "velociraptor_mongoliensis",
+            tmp_path / "brachiosaurus_altithorax",
+        )
+        save_stage_config(
+            tyrannosaurus_rex,
+            1,
+            load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance"),
+            "PPO",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
+        )
+        save_stage_config(
+            velociraptor_mongoliensis,
+            1,
+            load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance"),
+            "PPO",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+        )
+        save_stage_config(
+            brachiosaurus_altithorax,
+            1,
+            load_stage_config(ModelId("brachiosaurus_altithorax", "anatomical"), "stance"),
+            "PPO",
+            model_id=ModelId("brachiosaurus_altithorax", "anatomical"),
+        )
+        old_velociraptor_mongoliensis, before = (
+            tmp_path / "old_velociraptor_mongoliensis",
+            load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance"),
+        )
         before["curriculum_kwargs"].pop("stance_probe_spawn_yaw_deg")
-        save_stage_config(old_raptor, 1, before, "PPO", species="velociraptor")
-        (message,) = stage_heading_probe_warnings(trex)
+        save_stage_config(
+            old_velociraptor_mongoliensis, 1, before, "PPO", model_id=ModelId("velociraptor_mongoliensis", "anatomical")
+        )
+        (message,) = stage_heading_probe_warnings(tyrannosaurus_rex)
         assert (
             "stance_heading_report.json is missing although the stage declares the six-heading certificate" in message
         )
-        assert stage_heading_probe_warnings(trex, declared=False) == [message]
-        assert len(stage_heading_probe_warnings(raptor)) == 1
-        assert stage_heading_probe_warnings(brachio) == []
-        assert stage_heading_probe_warnings(old_raptor) == []
-        assert stage_heading_probe_warnings(raptor, declared=False) == []
+        assert stage_heading_probe_warnings(tyrannosaurus_rex, declared=False) == [message]
+        assert len(stage_heading_probe_warnings(velociraptor_mongoliensis)) == 1
+        assert stage_heading_probe_warnings(brachiosaurus_altithorax) == []
+        assert stage_heading_probe_warnings(old_velociraptor_mongoliensis) == []
+        assert stage_heading_probe_warnings(velociraptor_mongoliensis, declared=False) == []
 
     def test_declares_heading_probe(self):
-        assert not declares_heading_probe(load_stage_config("trex", "stance")["curriculum_kwargs"])
-        assert declares_heading_probe(load_stage_config("velociraptor", "stance")["curriculum_kwargs"])
-        assert not declares_heading_probe(load_stage_config("brachiosaurus", "stance")["curriculum_kwargs"])
-        assert not declares_heading_probe(load_stage_config("trex", "recovery")["curriculum_kwargs"])
+        assert not declares_heading_probe(
+            load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["curriculum_kwargs"]
+        )
+        assert declares_heading_probe(
+            load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")["curriculum_kwargs"]
+        )
+        assert not declares_heading_probe(
+            load_stage_config(ModelId("brachiosaurus_altithorax", "anatomical"), "stance")["curriculum_kwargs"]
+        )
+        assert not declares_heading_probe(
+            load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "recovery")["curriculum_kwargs"]
+        )
         stance = {"gate_kind": "stance_quality/v2"}
         assert declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": [0.0, "north", 90.0]})
         assert declares_heading_probe({**stance, "stance_probe_spawn_yaw_deg": -45.0})

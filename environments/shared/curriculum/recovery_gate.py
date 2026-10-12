@@ -23,7 +23,7 @@ isolates control.
 
 The thresholds were provisional until the P3/P5 calibration runs measured
 the finalized pushed task; since 2026-08-28 the trex recovery config
-(configs/trex/recovery.toml) declares ``recovery_quality/v1`` at measured
+(configs/tyrannosaurus_rex/anatomical/recovery.toml) declares ``recovery_quality/v1`` at measured
 values, and the resolver's (W5) frozen null panels supply the paired
 criterion this gate consumes.  Everything fails closed: NaN or
 missing inputs are gate failures, never passes.

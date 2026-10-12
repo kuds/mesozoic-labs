@@ -6,16 +6,23 @@ is committed as ``configs/digest_snapshot.generated.txt``, and CI compares a
 full run with that golden on every pull request (see "The committed golden"
 below): any line that differs names the digest that moved.  One
 tab-separated line per value, in a fixed order, with no timestamps and no
-checkout paths, so two runs on the same tree are byte-identical:
+checkout paths, so two runs on the same tree are byte-identical.  A model
+is two columns, its species and its embodiment (decision D-D33), never one
+joined column:
 
     plant.check_plant_manifest  OK
-    plant     <species>  <identity key>  <value>
-    policy    <species>  <payload key>   <digest>
-    stage     <species>  <stage id>      <name>  <digest>
-    recovery  <species>  <name>          <digest or OK>
-    behavior  <species>  <recipe>        <name>  <digest>
-    reward    <species>  <stage id>      <name>  <summary, poses or digest>
-    <label>   ERROR      <exception>     <first line of its message>
+    plant     <species>  <embodiment>  <identity key>  <value>
+    policy    <species>  <embodiment>  <payload key>   <digest>
+    stage     <species>  <embodiment>  <stage id>      <name>  <digest>
+    recovery  <species>  <embodiment>  <name>          <digest or OK>
+    behavior  <species>  <embodiment>  <recipe>        <name>  <digest>
+    reward    <species>  <embodiment>  <stage id>      <name>  <summary, poses or digest>
+    <label>   ERROR      <exception>   <first line of its message>
+
+Every model comes from the species manifest (``species_names.model_ids()``),
+in sorted order, and every path is built from it: a recovery calibration or
+a behavior recipe under ``configs/`` that no model owns is an ERROR line, as
+is a section that finds none at all.
 
 The sections are the plant identities and their policy-interface payload
 (whole and per key), each stage's task fingerprint, gate, hyperparameter and
@@ -127,12 +134,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Iterator, Sequence
 
+from environments.shared.model_id import ModelId
+
 #: The optional backends an SB3-only install does not have.
 BLOCKED_BACKENDS = ("jax", "jaxlib", "flax", "optax", "mujoco.mjx", "ray", "mjlab", "hypertune", "google.cloud")
 
 #: ``stage_config.json`` keys left out of ``stage_config_view_sha256``: the
-#: line already names the species and stage, and the rest change per run.
-UNPINNED_STAGE_CONFIG_KEYS = ("species", "stage", "library_version", "git_commit", "run", "gpu")
+#: line already names the model (species and embodiment) and stage, and the
+#: rest change per run.
+UNPINNED_STAGE_CONFIG_KEYS = ("species", "embodiment", "stage", "library_version", "git_commit", "run", "gpu")
 
 #: The committed golden (D-D22): the full output for the committed tree,
 #: relative to the repository root.  The default PATH of --check and --write.
@@ -143,18 +153,10 @@ WRITE_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block
 
 #: The reward captures (CU-11).  Every part starts from ``reset(seed=REWARD_SEED)`` unless it says otherwise.
 REWARD_SEED, REWARD_ACTION_SEED = 1042, 7
-#: The roll: uniform action noise at the species' amplitude, then a held-sign kick until the episode ends.
+#: The roll: uniform action noise at the model's amplitude, then a held-sign kick until the episode ends.  The
+#: amplitude (half the largest that kept every stage of the model up for 300 steps and past the first push) and
+#: the MJCF element the success probe moves the target (mocap body 0) onto are the env class's ``REWARD_PROBE``.
 REWARD_NOISE_STEPS, REWARD_KICK_STEPS = 300, 200
-#: Per species: the roll's noise amplitude (half the largest that kept every stage of the species up for 300
-#: steps and past the first push), and the MJCF element the success probe moves the target (mocap body 0) onto.
-REWARD_SPECIES = {
-    "brachiosaurus": (0.2, "site", "head_tip"),
-    "compsognathus": (0.01, "body", "pelvis"),
-    "compsognathus_robot": (0.01, "body", "pelvis"),
-    "dibothrosuchus": (0.2, "geom", "snout_snap"),
-    "trex": (0.1, "geom", "head_bite"),
-    "velociraptor": (0.1, "geom", "r_claw_geom"),
-}
 #: State probes: (name, root dz as a fraction of the healthy_z_range width, root pitch about world y as
 #: (sign, kind): zero, mid (half max_tilt_angle), in / out (max_tilt_angle -/+ REWARD_TILT_MARGIN), roll about
 #: world x beyond max_tilt_angle or None, every limited neck/head hinge at its upper limit).  Each is scored
@@ -240,7 +242,28 @@ def _file_sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def plant_section(out: _Snapshot) -> dict[str, Any]:
+def _models() -> list[ModelId]:
+    """Every manifest model, sorted (species, then embodiment): the order of every section."""
+    from environments.shared.species_names import model_ids
+
+    return sorted(model_ids())
+
+
+def _label(model_id: ModelId) -> str:
+    """``<species>.<embodiment>``: a model in a guard label (never in a snapshot column)."""
+    return f"{model_id.species}.{model_id.embodiment}"
+
+
+def _check_coverage(section: str, visited: list[Path], pattern: str) -> None:
+    """Refuse a file under ``configs/`` matching *pattern* that the model loop did not visit, and an empty result."""
+    orphans = sorted(set(Path("configs").glob(pattern)) - set(visited))
+    if orphans:
+        raise ValueError(f"{len(orphans)} {section} file(s) no manifest model owns: {', '.join(map(str, orphans))}")
+    if not visited:
+        raise ValueError(f"no {section} file found for any manifest model")
+
+
+def plant_section(out: _Snapshot) -> dict[ModelId, Any]:
     """Plant identities, and the policy-interface payload digest by key."""
     from environments.shared.plant_contract import current_plant_identity
     from environments.shared.plant_contract.manifest import check_plant_manifest
@@ -252,25 +275,33 @@ def plant_section(out: _Snapshot) -> dict[str, Any]:
     if registry is None:
         return {}
     versions, entries = registry
-    identities: dict[str, Any] = {}
-    for species in sorted(entries):
+    identities: dict[ModelId, Any] = {}
+    for model_id in sorted(entries):
+        columns = (model_id.species, model_id.embodiment)
         # The committed manifest must still describe the live plant ...
-        if out.guard(f"plant.{species}.verify_generated", current_plant_identity, species) is not None:
-            out.emit("plant", species, "verify_generated", "OK")
+        if out.guard(f"plant.{_label(model_id)}.verify_generated", current_plant_identity, model_id) is not None:
+            out.emit("plant", *columns, "verify_generated", "OK")
         # ... and the live identity prints either way, so a diff names the moved digest.
-        identity = out.guard(f"plant.{species}.identity", current_plant_identity, species, verify_generated=False)
+        identity = out.guard(
+            f"plant.{_label(model_id)}.identity", current_plant_identity, model_id, verify_generated=False
+        )
         if identity is None:
             continue
-        identities[species] = identity
+        identities[model_id] = identity
         for key, value in sorted(identity.to_dict().items()):
-            out.emit("plant", species, key, value)
+            out.emit("plant", *columns, key, value)
         out.guard(
-            f"policy.{species}", _policy_lines, out, species, str(entries[species]["env_entrypoint"]), versions[species]
+            f"policy.{_label(model_id)}",
+            _policy_lines,
+            out,
+            model_id,
+            str(entries[model_id]["env_entrypoint"]),
+            versions[model_id],
         )
     return identities
 
 
-def _policy_lines(out: _Snapshot, species: str, entrypoint: str, version: Any) -> None:
+def _policy_lines(out: _Snapshot, model_id: ModelId, entrypoint: str, version: Any) -> None:
     # Private helpers on purpose: the per-key digests name the part of the
     # payload that moved, which the identity's one digest cannot.
     from environments.shared.plant_contract.constants import POLICY_INTERFACE_SCHEMA
@@ -283,51 +314,54 @@ def _policy_lines(out: _Snapshot, species: str, entrypoint: str, version: Any) -
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
     finally:
         env.close()
-    out.emit("policy", species, "WHOLE", _semantic_digest(POLICY_INTERFACE_SCHEMA, payload))
+    columns = (model_id.species, model_id.embodiment)
+    out.emit("policy", *columns, "WHOLE", _semantic_digest(POLICY_INTERFACE_SCHEMA, payload))
     for key in sorted(payload):
-        out.emit("policy", species, key, _semantic_digest("breakdown", _canonical_value(payload[key])))
+        out.emit("policy", *columns, key, _semantic_digest("breakdown", _canonical_value(payload[key])))
     for group in ("interface_implementations", "jax_interface"):
         value = payload.get(group)
         if isinstance(value, dict):
             for sub in sorted(value):
                 out.emit(
-                    "policy", species, f"{group}.{sub}", _semantic_digest("breakdown", _canonical_value(value[sub]))
+                    "policy", *columns, f"{group}.{sub}", _semantic_digest("breakdown", _canonical_value(value[sub]))
                 )
 
 
-def stage_section(out: _Snapshot, identities: dict[str, Any]) -> None:
+def stage_section(out: _Snapshot, identities: dict[ModelId, Any]) -> None:
     """Per stage: task fingerprint, gate, hyperparameters, stage_config.json body."""
-    from environments.shared.config import SPECIES_NAMES, load_stage_config
+    from environments.shared.config import load_stage_config
     from environments.shared.stage_manifest import load_stage_manifest
 
     with tempfile.TemporaryDirectory(prefix="digest_snapshot_") as scratch:
-        for species in SPECIES_NAMES:
-            manifest = out.guard(f"stage.{species}.manifest", load_stage_manifest, species)
+        for model_id in _models():
+            manifest = out.guard(f"stage.{_label(model_id)}.manifest", load_stage_manifest, model_id)
             if manifest is None:
                 continue
             for entry in manifest.stages:
-                config = out.guard(f"stage.{species}.{entry.id}.config", load_stage_config, species, entry.reference)
+                config = out.guard(
+                    f"stage.{_label(model_id)}.{entry.id}.config", load_stage_config, model_id, entry.reference
+                )
                 if config is not None:
-                    _stage_lines(out, species, entry, config, identities.get(species), Path(scratch))
+                    _stage_lines(out, model_id, entry, config, identities.get(model_id), Path(scratch))
 
 
 def _stage_lines(
-    out: _Snapshot, species: str, entry: Any, config: dict[str, Any], identity: Any, scratch: Path
+    out: _Snapshot, model_id: ModelId, entry: Any, config: dict[str, Any], identity: Any, scratch: Path
 ) -> None:
     from environments.shared.config import hyperparameters_sha256
     from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
     from environments.shared.task_fingerprint import derive_stage_task_fingerprint
 
     ref = entry.reference
-    label = f"{species}\t{entry.id}"
-    prefix = f"stage.{species}.{entry.id}"
+    label = f"{model_id.species}\t{model_id.embodiment}\t{entry.id}"
+    prefix = f"stage.{_label(model_id)}.{entry.id}"
     out.emit("stage", label, "config_file", entry.config_file)
     if identity is not None:
         # The call train_base makes before it writes stage_config.json.
         fingerprint = out.guard(
             f"{prefix}.task",
             derive_stage_task_fingerprint,
-            species=species,
+            model_id=model_id,
             stage=ref,
             backend="stable-baselines3",
             env_kwargs=config.get("env_kwargs", {}),
@@ -344,13 +378,15 @@ def _stage_lines(
         if digest is not None:
             out.emit("stage", label, f"hyperparameters_sha256.{algorithm}", digest)
     for algorithm in ("PPO", "SAC"):
-        stage_dir = scratch / species / str(entry.id) / algorithm
-        digest = out.guard(f"{prefix}.view", _stage_config_view_sha256, species, ref, config, algorithm, stage_dir)
+        stage_dir = model_id.path(scratch) / str(entry.id) / algorithm
+        digest = out.guard(f"{prefix}.view", _stage_config_view_sha256, model_id, ref, config, algorithm, stage_dir)
         if digest is not None:
             out.emit("stage", label, f"stage_config_view_sha256.{algorithm}", digest)
 
 
-def _stage_config_view_sha256(species: str, stage: Any, config: dict[str, Any], algorithm: str, stage_dir: Path) -> str:
+def _stage_config_view_sha256(
+    model_id: ModelId, stage: Any, config: dict[str, Any], algorithm: str, stage_dir: Path
+) -> str:
     """Digest of the stage_config.json a new stage records, minus UNPINNED_STAGE_CONFIG_KEYS.
 
     Written by the real writer, with the env class train_base passes, so a
@@ -360,8 +396,8 @@ def _stage_config_view_sha256(species: str, stage: Any, config: dict[str, Any], 
     from environments.shared.result_bundle.hashing import canonical_json_sha256
     from environments.shared.species_registry import get_species_config
 
-    env_class = get_species_config(species).env_class
-    path = save_stage_config(stage_dir, stage, config, algorithm, env_class=env_class, species=species)
+    env_class = get_species_config(model_id).env_class
+    path = save_stage_config(stage_dir, stage, config, algorithm, env_class=env_class, model_id=model_id)
     record = json.loads(path.read_text())
     return canonical_json_sha256({key: value for key, value in record.items() if key not in UNPINNED_STAGE_CONFIG_KEYS})
 
@@ -370,35 +406,53 @@ def recovery_section(out: _Snapshot) -> None:
     """Every committed recovery calibration: loads, and its file digest."""
     from environments.shared.recovery_calibration import load_recovery_calibration
 
-    for path in sorted(Path("configs").glob("*/recovery_calibration.json")):
-        species = path.parent.name
-        if out.guard(f"recovery.{species}", load_recovery_calibration, species) is not None:
-            out.emit("recovery", species, "load_recovery_calibration", "OK")
-        out.emit("recovery", species, "file_sha256", "sha256:" + _file_sha(path))
+    visited: list[Path] = []
+    for model_id in _models():
+        path = model_id.path(Path("configs")) / "recovery_calibration.json"
+        if not path.is_file():
+            continue
+        visited.append(path)
+        columns = (model_id.species, model_id.embodiment)
+        if out.guard(f"recovery.{_label(model_id)}", load_recovery_calibration, model_id) is not None:
+            out.emit("recovery", *columns, "load_recovery_calibration", "OK")
+        out.emit("recovery", *columns, "file_sha256", "sha256:" + _file_sha(path))
+    out.guard("recovery.coverage", _check_coverage, "recovery calibration", visited, "*/*/recovery_calibration.json")
+
+
+def _recipes(model_id: ModelId) -> list[Path]:
+    """The model's behavior recipes, ``configs/<species>/<embodiment>/behaviors/*.toml``, sorted."""
+    return sorted((model_id.path(Path("configs")) / "behaviors").glob("*.toml"))
 
 
 def behavior_section(out: _Snapshot) -> None:
-    """Every behavior recipe: its file digest and its task fingerprint's digest."""
-    for recipe_path in sorted(Path("configs").glob("*/behaviors/*.toml")):
-        species = recipe_path.parent.parent.name
-        label = f"{species}\t{recipe_path.stem}"
-        out.emit("behavior", label, "recipe_sha256", _file_sha(recipe_path))
-        value = out.guard(f"behavior.{species}.{recipe_path.stem}", _behavior_task, recipe_path, species)
-        if value is not None:
-            out.emit("behavior", label, "task_sha256", value["task_sha256"])
+    """Every behavior recipe: its file digest and its task fingerprint's digest.
+
+    The recipe is read as the model whose directory holds it, so a recipe
+    declaring another model is an ERROR line (decision D-D33).
+    """
+    visited: list[Path] = []
+    for model_id in _models():
+        for recipe_path in _recipes(model_id):
+            visited.append(recipe_path)
+            label = f"{model_id.species}\t{model_id.embodiment}\t{recipe_path.stem}"
+            out.emit("behavior", label, "recipe_sha256", _file_sha(recipe_path))
+            value = out.guard(f"behavior.{_label(model_id)}.{recipe_path.stem}", _behavior_task, recipe_path, model_id)
+            if value is not None:
+                out.emit("behavior", label, "task_sha256", value["task_sha256"])
+    out.guard("behavior.coverage", _check_coverage, "behavior recipe", visited, "*/*/behaviors/*.toml")
 
 
-def _behavior_env(recipe_path: Path, species: str) -> Any:
+def _behavior_env(recipe_path: Path, model_id: ModelId) -> Any:
     """The recipe's environment, built as train_behaviors builds it."""
     from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
-    _, commands, terrain, kwargs = read_recipe(recipe_path, species)
-    return create_behavior_env(species, commands=commands, terrain=terrain, run_seed=0, **kwargs)
+    _, commands, terrain, kwargs = read_recipe(recipe_path, model_id)
+    return create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=0, **kwargs)
 
 
-def _behavior_task(recipe_path: Path, species: str) -> Any:
+def _behavior_task(recipe_path: Path, model_id: ModelId) -> Any:
     """The task fingerprint the recipe's environment records."""
-    env = _behavior_env(recipe_path, species)
+    env = _behavior_env(recipe_path, model_id)
     try:
         return env.task_fingerprint
     finally:
@@ -412,12 +466,12 @@ def reward_section(out: _Snapshot, exact: bool = False, behaviors: bool = False)
     With *exact* (--exact), one bit-exact digest per part and stream instead, also for every behavior recipe
     with *behaviors*; exact digests move across machines and environments, so they are never a golden.
     """
-    for species, name, env in _reward_envs(out, behaviors):
+    for model_id, name, env in _reward_envs(out, behaviors):
         parts = _behavior_parts if hasattr(env, "terrain_config") else _stage_parts
         # Encoded inside the guard, so a value no encoder takes is an ERROR line, not a stopped run.
-        lines = out.guard(f"reward.{species}.{name}", lambda: _reward_lines(_capture(env, parts(env, species)), exact))
+        lines = out.guard(f"reward.{_label(model_id)}.{name}", lambda: _reward_lines(_capture(env, parts(env)), exact))
         for kind, *fields in lines or ():
-            out.emit(kind, species, name, *fields)
+            out.emit(kind, model_id.species, model_id.embodiment, name, *fields)
 
 
 def _reward_lines(capture: list[tuple[str, Any, list[Any]]], exact: bool) -> list[tuple[str, ...]]:
@@ -433,37 +487,40 @@ def _reward_lines(capture: list[tuple[str, Any, list[Any]]], exact: bool) -> lis
     ]
 
 
-def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[str, str, Any]]:
-    """(species, stage id or recipe, env), each closed after use: the stages as train_base.make_env builds them."""
-    from environments.shared.config import SPECIES_NAMES, load_stage_config
+def _reward_envs(out: _Snapshot, behaviors: bool) -> Iterator[tuple[ModelId, str, Any]]:
+    """(model, stage id or recipe, env), each closed after use: the stages as train_base.make_env builds them."""
+    from environments.shared.config import load_stage_config
     from environments.shared.species_registry import get_species_config
     from environments.shared.stage_manifest import load_stage_manifest
 
-    def stage_env(species: str, stage: Any) -> Any:
-        return get_species_config(species).env_class(**load_stage_config(species, stage)["env_kwargs"])
+    def stage_env(model_id: ModelId, stage: Any) -> Any:
+        return get_species_config(model_id).env_class(**load_stage_config(model_id, stage)["env_kwargs"])
 
-    builds: list[tuple[str, str, Callable[[], Any]]] = []
-    for species in SPECIES_NAMES:
-        for entry in getattr(out.guard(f"reward.{species}.manifest", load_stage_manifest, species), "stages", ()):
-            builds.append((species, str(entry.id), functools.partial(stage_env, species, entry.reference)))
-    for path in sorted(Path("configs").glob("*/behaviors/*.toml")) if behaviors else []:
-        builds.append(
-            (path.parent.parent.name, path.stem, functools.partial(_behavior_env, path, path.parent.parent.name))
-        )
-    for species, name, build in builds:
-        env = out.guard(f"reward.{species}.{name}.env", build)
+    builds: list[tuple[ModelId, str, Callable[[], Any]]] = []
+    for model_id in _models():
+        manifest = out.guard(f"reward.{_label(model_id)}.manifest", load_stage_manifest, model_id)
+        for entry in getattr(manifest, "stages", ()):
+            builds.append((model_id, str(entry.id), functools.partial(stage_env, model_id, entry.reference)))
+    for model_id in _models() if behaviors else []:
+        for path in _recipes(model_id):
+            builds.append((model_id, path.stem, functools.partial(_behavior_env, path, model_id)))
+    for model_id, name, build in builds:
+        env = out.guard(f"reward.{_label(model_id)}.{name}.env", build)
         if env is not None:
             try:
-                yield species, name, env
+                yield model_id, name, env
             finally:
                 env.close()
 
 
-def _stage_parts(env: Any, species: str) -> list[_Part]:
-    """(part, set-up, actions or zero-action steps): the roll, zero action if the stage pushes, the probes."""
+def _stage_parts(env: Any) -> list[_Part]:
+    """(part, set-up, actions or zero-action steps): the roll, zero action if the stage pushes, the probes.
+
+    The roll's amplitude and the success probe's element are the env class's ``REWARD_PROBE``.
+    """
     import numpy as np
 
-    shape, (amplitude, *effector) = env.action_space.shape, REWARD_SPECIES[species]
+    shape, (amplitude, *effector) = env.action_space.shape, type(env).REWARD_PROBE
 
     def roll() -> Iterator[Any]:
         rng = np.random.default_rng(REWARD_ACTION_SEED)
@@ -496,7 +553,7 @@ def _state_parts() -> list[_Part]:
     return [*poses, ("nonfinite", {"nonfinite": True}, None)]
 
 
-def _behavior_parts(env: Any, species: str) -> list[_Part]:
+def _behavior_parts(env: Any) -> list[_Part]:
     """A seeded zero-action episode, unseeded resets and, on terrain, the root halfway from the apron to the edge."""
     parts: list[_Part] = [("episode", {}, REWARD_BEHAVIOR_STEPS)]
     parts += [(f"reset{index}", {"seed": None}, 0) for index in range(1, REWARD_BEHAVIOR_RESETS + 1)]

@@ -21,11 +21,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import stance_report
 from environments.shared.reporting.stance_report import (
     StanceGateReportError,
     write_stance_gate_report,
 )
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class _StubModel:
@@ -149,7 +153,7 @@ class TestTrainingPipelineHook:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_stance_gate_report(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=2,
             stage_config=self._stage_config("reward_and_length/v1"),
             stage_dir=tmp_path,
@@ -163,7 +167,7 @@ class TestTrainingPipelineHook:
 
         with caplog.at_level("WARNING"):
             stage_artifacts._write_stance_gate_report(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config=self._stage_config("stance_quality/v1"),
                 stage_dir=tmp_path,
@@ -188,7 +192,7 @@ class TestTrainingPipelineHook:
         )
         with caplog.at_level("WARNING"):
             stage_artifacts._write_stance_gate_report(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config=self._stage_config("stance_quality/v1"),
                 stage_dir=tmp_path,
@@ -218,7 +222,7 @@ class TestTrainingPipelineHook:
         )
         with caplog.at_level("WARNING"):
             stage_artifacts._write_stance_gate_report(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config=self._stage_config("stance_quality/v1"),
                 stage_dir=tmp_path,
@@ -246,7 +250,7 @@ class TestTrainingPipelineHook:
             lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop here")),
         )
         stage_artifacts._write_stance_gate_report(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=self._stage_config("stance_quality/v1"),
             stage_dir=tmp_path,
@@ -266,12 +270,12 @@ class TestTrainingPipelineHook:
             (models / f"{name}_vecnorm.pkl").write_bytes(b"stats")
         seen: dict = {}
 
-        def _fake(species, stage, *, stage_config, model_path, vecnorm_path=None, **kwargs):
+        def _fake(model_id, stage, *, stage_config, model_path, vecnorm_path=None, **kwargs):
             seen["model_path"] = model_path
             seen["vecnorm_path"] = vecnorm_path
             return {
                 "schema": "mesozoic.stance-gate-report/v2",
-                "species": species,
+                **model_id.record(),
                 "stage": stage,
                 "gate_kind": "stance_quality/v1",
                 "policy": "stub",
@@ -305,7 +309,7 @@ class TestTrainingPipelineHook:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _fake)
         stage_artifacts._write_stance_gate_report(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=self._stage_config("stance_quality/v1"),
             stage_dir=tmp_path,
@@ -360,7 +364,8 @@ class TestJsonIsParseable:
         metrics.update(metric_overrides)
         return {
             "schema": "mesozoic.stance-gate-report/v2",
-            "species": "trex",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
             "policy": "robust_best_model.zip",
@@ -474,11 +479,9 @@ class TestStanceSharesSumToOne:
         # monkeypatch rather than assign-and-restore: it restores on failure
         # too, and it keeps mypy from checking a SimpleNamespace stub against
         # the registry's declared Callable[[], SpeciesConfig].
-        monkeypatch.setattr(
-            stance_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
-        )
+        monkeypatch.setattr(stance_report, "model_env_class", lambda model_id: FakeEnv)
         return stance_report.run_panel(
-            "trex",
+            TYRANNOSAURUS_REX,
             predict=lambda obs: np.zeros(6),
             episodes=40,
             seed=0,
@@ -538,15 +541,10 @@ class TestPanelHygiene:
         return FakeEnv
 
     def _run_panel(self, monkeypatch, recorder, **overrides):
-        import types
 
         import numpy as np
 
-        monkeypatch.setattr(
-            stance_report,
-            "SPECIES_FACTORIES",
-            {"trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))},
-        )
+        monkeypatch.setattr(stance_report, "model_env_class", lambda model_id: self._fake_env_class(recorder))
         kwargs = dict(
             predict=lambda obs: np.zeros(6),
             episodes=3,
@@ -556,7 +554,7 @@ class TestPanelHygiene:
             env_kwargs={},
         )
         kwargs.update(overrides)
-        return stance_report.run_panel("trex", **kwargs)
+        return stance_report.run_panel(TYRANNOSAURUS_REX, **kwargs)
 
     def test_the_environment_is_closed(self, monkeypatch):
         # A MuJoCo env holds native handles and the artifact path builds one
@@ -613,13 +611,21 @@ class TestBuildReportArguments:
         # so the flag read as an override that did nothing.
         with pytest.raises(ValueError, match="at least 1"):
             stance_report.build_stance_gate_report(
-                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=0
+                TYRANNOSAURUS_REX,
+                1,
+                stage_config=self._stage_config(),
+                zero_action=True,
+                episodes=0,
             )
 
     def test_negative_episodes_is_rejected(self):
         with pytest.raises(ValueError, match="at least 1"):
             stance_report.build_stance_gate_report(
-                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=-5
+                TYRANNOSAURUS_REX,
+                1,
+                stage_config=self._stage_config(),
+                zero_action=True,
+                episodes=-5,
             )
 
 
@@ -657,7 +663,7 @@ class TestStanceReportEpisodesKnob:
             lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop after the call")),
         )
         stage_artifacts._write_stance_gate_report(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=stage_config,
             stage_dir=tmp_path,
@@ -712,14 +718,14 @@ class TestPlantValidation:
     def test_a_checkpoint_without_a_plant_identity_is_refused(self, stub_ppo):
         from environments.shared.plant_contract import PlantCompatibilityError, current_plant_identity
 
-        identity = current_plant_identity("trex", verify_generated=False)
+        identity = current_plant_identity(TYRANNOSAURUS_REX, verify_generated=False)
         with pytest.raises(PlantCompatibilityError):
             stance_report._load_policy("model.zip", None, lambda: None, plant_identity=identity)
 
     def test_allow_legacy_plant_permits_it(self, stub_ppo):
         from environments.shared.plant_contract import current_plant_identity
 
-        identity = current_plant_identity("trex", verify_generated=False)
+        identity = current_plant_identity(TYRANNOSAURUS_REX, verify_generated=False)
         predict, _ = stance_report._load_policy(
             "model.zip", None, lambda: None, plant_identity=identity, allow_legacy_plant=True
         )
@@ -734,7 +740,8 @@ class TestPlantValidation:
         # only from whoever happened to read the console.
         report = {
             "schema": "mesozoic.stance-gate-report/v2",
-            "species": "trex",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
             "policy": "p",
@@ -818,19 +825,18 @@ class TestCheckpointPlantProvenance:
             def close(self):
                 pass
 
-        monkeypatch.setattr(
-            stance_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
-        )
+        monkeypatch.setattr(stance_report, "model_env_class", lambda model_id: FakeEnv)
         monkeypatch.setattr(
             "environments.shared.plant_contract.validate_environment_plant", lambda *a, **k: None, raising=False
         )
         return stance_report.build_stance_gate_report(
-            "trex", 1, stage_config=self._stage_config(), episodes=1, **kwargs
+            TYRANNOSAURUS_REX, 1, stage_config=self._stage_config(), episodes=1, **kwargs
         )
 
     def test_zero_action_records_none_because_there_is_no_checkpoint(self, monkeypatch):
         report = self._report(monkeypatch, zero_action=True)
-        assert report["schema"] == "mesozoic.stance-gate-report/v2"
+        # Re-pinned from /v2 (decision D-D33); /v3 already named the kind-v2 report, so the bump is /v4.
+        assert report["schema"] == "mesozoic.stance-gate-report/v4"
         assert report["checkpoint_plant_validated"] is None
 
     def test_zero_action_with_allow_legacy_still_records_none(self, monkeypatch):
@@ -853,7 +859,8 @@ class TestStancePanelEvidenceFile:
     def _report(episodes):
         return {
             "schema": "mesozoic.stance-gate-report/v2",
-            "species": "trex",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
             "policy": "robust_best_model.zip",
@@ -961,7 +968,8 @@ def _minimal_stance_report() -> dict:
     """A report dict complete enough for the renderer."""
     return {
         "schema": "mesozoic.stance-gate-report/v2",
-        "species": "trex",
+        "species": "tyrannosaurus_rex",
+        "embodiment": "anatomical",
         "stage": 1,
         "gate_kind": "stance_quality/v1",
         "policy": "robust_best_model.zip",
@@ -1118,7 +1126,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_filtered_action_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {}},
             stage_dir=tmp_path,
@@ -1184,7 +1192,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _flaky)
         stage_artifacts._write_filtered_action_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": [5.0, 10.0, 20.0]}},
             stage_dir=tmp_path,
@@ -1211,7 +1219,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _capture)
         stage_artifacts._write_filtered_action_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": [5.0]}},
             stage_dir=tmp_path,
@@ -1234,7 +1242,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _capture)
         stage_artifacts._write_filtered_action_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
             stage_dir=tmp_path,
@@ -1256,7 +1264,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         )
         with caplog.at_level("WARNING"):
             stage_artifacts._write_filtered_action_probe(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
                 stage_dir=tmp_path,
@@ -1271,7 +1279,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.config import load_stage_config
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
-        curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
+        curriculum = load_stage_config(TYRANNOSAURUS_REX, 1)["curriculum_kwargs"]
         assert curriculum["stance_probe_filter_hz"] == [1.0, 2.5, 5.0, 8.0, 10.0]
         validate_gate_config(1, curriculum)
 
@@ -1653,7 +1661,7 @@ class TestTheConstantHoldProbeIsWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_constant_hold_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {}},
             stage_dir=tmp_path,
@@ -1669,7 +1677,7 @@ class TestTheConstantHoldProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.reporting import stage_artifacts
 
         stage_artifacts._write_constant_hold_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {"stance_probe_hold_constant": True}},
             stage_dir=tmp_path,
@@ -1703,7 +1711,7 @@ def _report_with_actuators(entries):
     return report
 
 
-_TREX_ACTUATORS = [
+_TYRANNOSAURUS_REX_ACTUATORS = [
     ("neck_pitch", -0.433),
     ("neck_yaw", -0.208),
     ("head_pitch", -1.0),
@@ -1726,7 +1734,7 @@ class TestActuatorGroupSelection:
     def test_saturation_is_measured_not_named(self):
         from environments.shared.reporting.stance_report import saturated_actuator_indices
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         assert saturated_actuator_indices(report) == (2, 4, 7, 8, 9)
 
     def test_the_threshold_is_a_magnitude_so_both_limits_count(self):
@@ -1739,7 +1747,7 @@ class TestActuatorGroupSelection:
     def test_groups_match_by_joint_name(self):
         from environments.shared.reporting.stance_report import actuator_indices_matching
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         assert actuator_indices_matching(report, ("tail",)) == (9,)
         assert actuator_indices_matching(report, ("toe",)) == (7,)
         assert actuator_indices_matching(report, ("hip_roll",)) == (4, 8)
@@ -1771,7 +1779,7 @@ class TestReleaseAblationVariants:
             constant_hold_release_variants,
         )
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         hold = constant_hold_actions(report)
         return {v.label: v for v in constant_hold_release_variants(hold, report, horizon=1000)}
 
@@ -1983,7 +1991,7 @@ class TestAblationVerdicts:
     #: the pipeline's 8 episodes. The full pose survives 3 of 8 episodes, and
     #: knees_ankles alone carries the fall -- releasing them rescues 8/8 and
     #: holding them alone nosedives 8/8.
-    _TREX_20261006_185704 = (
+    _TYRANNOSAURUS_REX_20261006_185704 = (
         ("policy (control)", None, 1000.0, 1.0, 3778.3),
         ("hold_all", 0, 584.1, 0.375, 2055.2),
         ("release_tail", 4, 619.2, 0.375, 2190.7),
@@ -2005,7 +2013,7 @@ class TestAblationVerdicts:
         from environments.shared.reporting.stance_report import render_constant_hold_ablation
 
         reports = []
-        for label, released, length, full, reward in self._TREX_20261006_185704:
+        for label, released, length, full, reward in self._TYRANNOSAURUS_REX_20261006_185704:
             report = _ablation_row(label, full, holds=released is not None, length=length, released=released or 0)
             report["metrics"]["reward_mean"] = reward
             reports.append(report)
@@ -2039,7 +2047,7 @@ class TestAblationVerdicts:
     #: investigation), its release ablation as Addendum 2 of
     #: docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md records it over 8
     #: episodes, in the same columns. The full pose falls 8 of 8.
-    _TREX_20260805_011234 = (
+    _TYRANNOSAURUS_REX_20260805_011234 = (
         ("policy (control)", None, 1000.0, 1.0, 3010.1),
         ("hold_all", 0, 128.6, 0.0, 268.8),
         ("release_saturated", 12, 224.6, 0.0, 460.1),
@@ -2063,7 +2071,7 @@ class TestAblationVerdicts:
         from environments.shared.reporting.stance_report import render_constant_hold_ablation
 
         reports = []
-        for label, released, length, full, reward in self._TREX_20260805_011234:
+        for label, released, length, full, reward in self._TYRANNOSAURUS_REX_20260805_011234:
             report = _ablation_row(label, full, holds=released is not None, length=length, released=released or 0)
             report["metrics"]["reward_mean"] = reward
             reports.append(report)
@@ -2314,7 +2322,8 @@ class TestAblationVerdicts:
         reports = self._reports({"tail": (1.0, 1.0)}, hold_all=1.0)
         written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
         payload = json.loads(written["constant_hold_ablation_json"].read_text())
-        assert payload["schema"] == "mesozoic.constant-hold-ablation/v3"
+        # Re-pinned from /v3 when the payload began naming the embodiment (decision D-D33).
+        assert payload["schema"] == "mesozoic.constant-hold-ablation/v4"
         assert payload["statistics"] == {
             "test": "fisher-exact",
             "sided": "one",
@@ -2517,16 +2526,16 @@ class TestControlTargetsInDegrees:
         assert "ac_rms_deg" not in entry
         assert entry["action_zero_ctrl"] == pytest.approx(self._TOE["action_zero_ctrl"])
 
-    def test_trex_mapping_uses_home_control_and_keeps_preload_separate(self):
+    def test_tyrannosaurus_rex_mapping_uses_home_control_and_keeps_preload_separate(self):
         """Action zero is home control; ankle control-vs-pose preload is intentional."""
         from environments.shared.reporting.stance_report import (
             _actuator_joint_names,
             _actuator_pose_mapping,
             render_stance_gate_report,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             mapping = _actuator_pose_mapping(env)
             names = _actuator_joint_names(env)
@@ -2549,15 +2558,15 @@ class TestControlTargetsInDegrees:
         assert "Nominal control preload" in text
         assert "this is not policy displacement" in text
 
-    def test_trex_asymmetric_piecewise_mapping_matches_the_environment(self):
+    def test_tyrannosaurus_rex_asymmetric_piecewise_mapping_matches_the_environment(self):
         from environments.shared.reporting.stance_report import (
             _actuator_joint_names,
             _actuator_pose_mapping,
             _commanded_angle,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             by_joint = dict(zip(_actuator_joint_names(env), _actuator_pose_mapping(env)))
             neck = by_joint["neck_pitch"]
@@ -2566,7 +2575,7 @@ class TestControlTargetsInDegrees:
         finally:
             env.close()
 
-    def test_trex_cross_zero_controls_are_reduced_after_scaling(self):
+    def test_tyrannosaurus_rex_cross_zero_controls_are_reduced_after_scaling(self):
         from environments.shared.reporting.stance_report import (
             _accumulate_action,
             _actuator_joint_names,
@@ -2574,9 +2583,9 @@ class TestControlTargetsInDegrees:
             _new_action_stats,
             _reduce_action_stats,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             names = _actuator_joint_names(env)
             mapping = _actuator_pose_mapping(env)
@@ -2595,11 +2604,11 @@ class TestControlTargetsInDegrees:
         assert by_joint["neck_pitch"]["dc_deg"] == pytest.approx(2.5, abs=0.01)
         assert by_joint["neck_pitch"]["ac_rms_deg"] == pytest.approx(17.5, abs=0.01)
 
-    def test_real_panel_records_the_controls_applied_by_trex(self):
+    def test_real_panel_records_the_controls_applied_by_tyrannosaurus_rex(self):
         from environments.shared.reporting.stance_report import run_panel
 
         result = run_panel(
-            "trex",
+            TYRANNOSAURUS_REX,
             predict=lambda obs: np.zeros(15, dtype=np.float32),
             episodes=1,
             seed=3042,
@@ -2619,7 +2628,7 @@ class TestControlTargetsInDegrees:
         action = np.zeros(22, dtype=np.float32)
         action[[6, 13]] = 1.0  # r/l claw motors, each with gear=50
         result = run_panel(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             predict=lambda obs: action,
             episodes=1,
             seed=3042,
@@ -2960,7 +2969,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         report = _minimal_stance_report()
 
         self._artifacts()._run_stance_probes(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=self._probe_stage_config(),
             stage_dir=tmp_path,
@@ -2991,7 +3000,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         calls = self._record_probes(monkeypatch)
 
         self._artifacts()._run_stance_probes(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=self._probe_stage_config(),
             stage_dir=tmp_path,
@@ -3014,7 +3023,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
         with caplog.at_level("WARNING"):
             self._artifacts()._run_stance_probes(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config=self._probe_stage_config(),
                 stage_dir=tmp_path,
@@ -3053,7 +3062,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         stage_config = {"curriculum_kwargs": {"stance_probe_spawn_yaw_deg": [90.0, "north", 0.0, math.nan, -45.0]}}
 
         self._artifacts()._write_heading_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=stage_config,
             stage_dir=tmp_path,
@@ -3086,7 +3095,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         monkeypatch.setattr(stance_report, "build_stance_gate_report", lambda *a, **k: pytest.fail("rolled a panel"))
         curriculum = {} if offsets is None else {"stance_probe_spawn_yaw_deg": offsets}
         self._artifacts()._write_heading_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": curriculum},
             stage_dir=tmp_path,
@@ -3120,7 +3129,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _panel)
         with caplog.at_level("WARNING"):
             self._artifacts()._write_heading_probe(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config={"curriculum_kwargs": {"stance_probe_spawn_yaw_deg": [-90.0, 90.0]}},
                 stage_dir=tmp_path,
@@ -3173,11 +3182,11 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         ):
             assert key in _DIAGNOSTIC_KEYS
 
-    def test_trex_stage_1_switches_all_four_on(self):
+    def test_tyrannosaurus_rex_stage_1_switches_all_four_on(self):
         """The species this was built for must actually produce the artifacts."""
         from environments.shared.config import load_stage_config
 
-        curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
+        curriculum = load_stage_config(TYRANNOSAURUS_REX, 1)["curriculum_kwargs"]
         assert curriculum.get("stance_probe_filter_hz")
         assert curriculum.get("stance_probe_hold_constant") is True
         assert curriculum.get("stance_probe_release_ablation") is True
@@ -3192,7 +3201,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_constant_hold_ablation(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {}},
             stage_dir=tmp_path,
@@ -3211,7 +3220,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_impulse_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {}},
             stage_dir=tmp_path,
@@ -3230,7 +3239,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_impulse_probe(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config={"curriculum_kwargs": {"stance_probe_impulse_speeds": ["x", -1.0, 0.0]}},
             stage_dir=tmp_path,
@@ -3247,7 +3256,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             ("_write_impulse_probe", {"settle_steps": 200}),
         ):
             getattr(self._artifacts(), name)(
-                species="trex",
+                model_id=TYRANNOSAURUS_REX,
                 stage=1,
                 stage_config={
                     "curriculum_kwargs": {

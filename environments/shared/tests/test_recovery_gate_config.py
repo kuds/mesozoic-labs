@@ -1,6 +1,6 @@
 """The T-Rex recovery stage's FROZEN gate declaration (plan P5, 2026-08-28).
 
-``configs/trex/recovery.toml`` stopped being a non-advancing pilot on
+``configs/tyrannosaurus_rex/anatomical/recovery.toml`` stopped being a non-advancing pilot on
 2026-08-28: its ``[curriculum]`` block declares ``recovery_quality/v1`` with
 thresholds taken from measurement, not from aspiration.  This module pins
 that declaration in three ways, because each is a different failure:
@@ -53,8 +53,9 @@ from environments.shared.curriculum.recovery_gate import (
     binomial_ucb,
     evaluate_recovery_gate,
 )
+from environments.shared.model_id import ModelId
 
-RECOVERY_CONFIG = Path("configs/trex/recovery.toml")
+RECOVERY_CONFIG = Path("configs/tyrannosaurus_rex/anatomical/recovery.toml")
 
 #: The §9.1 training-schedule panels, as their counts.  Every bound this
 #: module checks is recomputed from these rather than quoted, so the frozen
@@ -68,7 +69,7 @@ STATUE_SUCCESSES = 0
 @pytest.fixture(scope="module")
 def curriculum() -> dict[str, Any]:
     """The committed ``[curriculum]`` block, read the way a stage reads it."""
-    loaded = load_stage_config("trex", "recovery")
+    loaded = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "recovery")
     block: dict[str, Any] = dict(loaded["curriculum_kwargs"])
     # The loader is the path that matters, but the raw TOML is what a reviewer
     # edits; a divergence between them would make every pin below vacuous.

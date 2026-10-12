@@ -218,7 +218,7 @@ def build_mjcf(cfg: ChassisConfig) -> str:
     home_qpos = " ".join(["0"] * (len(LEGS) * 4))
     home_ctrl = " ".join(["0"] * (len(LEGS) * 3))
 
-    return f"""<mujoco model="dibothrosuchus_hw_study">
+    return f"""<mujoco model="dibothrosuchus_elaphros_hw_study">
   <compiler angle="degree" autolimits="true"/>
   <option timestep="0.001" gravity="0 0 -9.81" integrator="implicitfast">
     <flag warmstart="enable"/>

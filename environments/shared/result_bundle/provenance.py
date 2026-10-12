@@ -19,6 +19,7 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
 from ..constants import PUBLICATION_SEED_START
+from ..model_id import ModelId
 from . import constants, hashing
 from .constants import (
     _DEPENDENCY_PACKAGES,
@@ -131,7 +132,7 @@ def _dependency_versions() -> dict[str, str | None]:
 def initialize_result_bundle(
     run_dir: str | Path,
     *,
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     backend: str | None = None,
@@ -150,7 +151,7 @@ def initialize_result_bundle(
     Repeated calls from the same process are byte-identical no-ops.  A reused
     run directory is compared against the captured provenance in two tiers:
 
-    - **Identity** fields (species, algorithm, backend, training seed, seed
+    - **Identity** fields (species and embodiment, algorithm, backend, training seed, seed
       roles, evaluation protocols/seeds/episodes, parallel envs, plant
       identity, and ``run_id`` when provided) must match exactly; a mismatch
       is rejected instead of silently mixing artifacts.
@@ -233,7 +234,7 @@ def initialize_result_bundle(
         for role, role_seed in normalized_seed_roles.items()
         if "evaluation" in role
     }
-    normalized_plant_identity = _normalize_plant_identity(plant_identity, species=species)
+    normalized_plant_identity = _normalize_plant_identity(plant_identity, model_id=model_id)
 
     run_path = Path(run_dir)
     run_path.mkdir(parents=True, exist_ok=True)
@@ -250,7 +251,7 @@ def initialize_result_bundle(
     if provenance_path.exists():
         existing = json.loads(provenance_path.read_text(encoding="utf-8"))
         expected_identity = {
-            "species": species,
+            **model_id.record(),
             "algorithm": public_algorithm,
             "backend": public_backend,
             "training_seed": seed,
@@ -330,12 +331,14 @@ def initialize_result_bundle(
         existing["sessions"] = [*recorded_sessions, session_entry]
         return hashing._write_json(provenance_path, existing)
 
+    # The default run id is opaque and never split (decision D-D33).
+    default_run_id_prefix = f"{model_id.species}-{model_id.embodiment}-{public_backend}-{public_algorithm.lower()}"
     provenance: dict[str, Any] = {
         "schema_version": PROVENANCE_SCHEMA_VERSION,
-        "run_id": run_id or f"{species}-{public_backend}-{public_algorithm.lower()}-{uuid.uuid4().hex[:12]}",
+        "run_id": run_id or f"{default_run_id_prefix}-{uuid.uuid4().hex[:12]}",
         "captured_at": captured_timestamp,
         "sessions": [{"session_token": _PROCESS_SESSION_TOKEN, "started_at": captured_timestamp}],
-        "species": species,
+        **model_id.record(),
         "algorithm": public_algorithm,
         "backend": public_backend,
         "training_seed": seed,

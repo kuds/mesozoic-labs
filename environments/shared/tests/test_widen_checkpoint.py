@@ -57,6 +57,7 @@ from environments.shared.config import (  # noqa: E402
 from environments.shared.curriculum.checkpoints import load_vecnorm_stats, select_handoff_checkpoint  # noqa: E402
 from environments.shared.curriculum.gate_schema import gate_config_view  # noqa: E402
 from environments.shared.harnesses import freeze_recovery_gate  # noqa: E402
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import (  # noqa: E402
     MODEL_IDENTITY_ATTRIBUTE,
     PlantCompatibilityError,
@@ -104,7 +105,7 @@ from environments.shared.task_fingerprint import (  # noqa: E402
     validate_declared_parent,
 )
 
-SPECIES = "trex"
+MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
 STAGE = "stance"
 ALGORITHMS = ("ppo", "sac")
 #: The ``widened`` fixture's parametrisation: one r-1 widening per algorithm
@@ -201,7 +202,7 @@ def build_narrow_parent(
     root: Path,
     algorithm: str,
     *,
-    species: str = SPECIES,
+    model_id: ModelId = MODEL_ID,
     stage: str = STAGE,
     seed: int = PARENT_SEED,
     run_name: str = PARENT_RUN_NAME,
@@ -224,15 +225,15 @@ def build_narrow_parent(
     Hidden widths stay away from the parent width and parent width +
     action_dim: the tool's tensor rule is width-based.
     """
-    current = current_plant_identity(species)
+    current = current_plant_identity(model_id)
     narrow = narrow_identity(current, revision_gap=revision_gap)
-    stage_config = load_stage_config(species, stage)
-    entry = load_stage_manifest(species).resolve(stage)
-    stage_dir = root / run_name / stage_dirname(species, stage)
+    stage_config = load_stage_config(model_id, stage)
+    entry = load_stage_manifest(model_id).resolve(stage)
+    stage_dir = root / run_name / stage_dirname(model_id, stage)
     models_dir = stage_dir / "models"
     models_dir.mkdir(parents=True)
 
-    venv = VecNormalize(DummyVecEnv([lambda: NarrowObservation(build_env(species, stage))]))
+    venv = VecNormalize(DummyVecEnv([lambda: NarrowObservation(build_env(model_id, stage))]))
     model: PPO | SAC
     try:
         if algorithm == "ppo":
@@ -268,7 +269,7 @@ def build_narrow_parent(
             raise ValueError(algorithm)
         model.learn(PARENT_TIMESTEPS)
         parent_task = derive_stage_task_fingerprint(
-            species=species,
+            model_id=model_id,
             stage=entry.reference,
             backend=FINGERPRINT_BACKEND,
             env_kwargs=stage_config["env_kwargs"],
@@ -288,15 +289,15 @@ def build_narrow_parent(
         stage_config,
         algorithm.upper(),
         extra={"seed": seed, "n_envs": 1, "timesteps": PARENT_TIMESTEPS},
-        env_class=get_species_config(species).env_class,
-        species=species,
+        env_class=get_species_config(model_id).env_class,
+        model_id=model_id,
         plant_identity=narrow,
         task_fingerprint=parent_task,
     )
     record_stage_duration(stage_dir, PARENT_DURATION_SECONDS)
     return {
         "algorithm": algorithm,
-        "species": species,
+        "model_id": model_id,
         "stage": stage,
         "reference": entry.reference,
         "run_dir": stage_dir.parent,
@@ -350,7 +351,7 @@ def rewrite_sidecar(pkl_path: Path, mutate: Callable[[Any], None]) -> None:
     """Rewrite a narrow VecNormalize sidecar in place after *mutate(wrapper)* (re-bound to the narrow env to save)."""
     with open(pkl_path, "rb") as handle:
         wrapper = pickle.load(handle)
-    venv = DummyVecEnv([lambda: NarrowObservation(build_env(SPECIES, STAGE))])
+    venv = DummyVecEnv([lambda: NarrowObservation(build_env(MODEL_ID, STAGE))])
     try:
         wrapper.set_venv(venv)
         mutate(wrapper)
@@ -368,9 +369,9 @@ def widen_into(
     max_revision_gap: int = DEFAULT_MAX_REVISION_GAP,
 ) -> dict:
     """Run the tool over *parent* into ``<root>/<run_name>/<stage dir>`` (under *max_revision_gap*)."""
-    target = root / run_name / stage_dirname(parent["species"], parent["stage"])
+    target = root / run_name / stage_dirname(parent["model_id"], parent["stage"])
     result = widen_checkpoint(
-        species=parent["species"],
+        model_id=parent["model_id"],
         stage=parent["stage"],
         target_stage_dir=target,
         parent_stage_dir=parent["stage_dir"],
@@ -394,10 +395,10 @@ def widen_into(
 def stance_task_sha256(current: PlantIdentity) -> str:
     """The stance task digest the CURRENT config derives (what reuse rule 3 compares against)."""
     fingerprint = derive_stage_task_fingerprint(
-        species=SPECIES,
-        stage=load_stage_manifest(SPECIES).by_id(STAGE).reference,
+        model_id=MODEL_ID,
+        stage=load_stage_manifest(MODEL_ID).by_id(STAGE).reference,
         backend=FINGERPRINT_BACKEND,
-        env_kwargs=load_stage_config(SPECIES, STAGE)["env_kwargs"],
+        env_kwargs=load_stage_config(MODEL_ID, STAGE)["env_kwargs"],
         plant_identity=current.to_dict(),
     )
     return str(fingerprint["task_sha256"])
@@ -522,7 +523,7 @@ def test_widen_round_trip(widened):
     assert report == result.report
     assert report["schema"] == WIDEN_REPORT_SCHEMA
     assert report["tool"] == WIDEN_TOOL_VERSION
-    assert (report["species"], report["stage"], report["stage_id"]) == (SPECIES, parent["reference"], STAGE)
+    assert (ModelId.from_record(report), report["stage"], report["stage_id"]) == (MODEL_ID, parent["reference"], STAGE)
     assert report["max_padded_column_abs"] == 0.0
     assert report["padded_columns_exactly_zero"] is True
     assert report["num_timesteps"] == PARENT_TIMESTEPS
@@ -556,7 +557,7 @@ def test_widen_round_trip(widened):
     alg_cls = PPO if algorithm == "ppo" else SAC
     with open(parent["vecnorm_pkl"], "rb") as handle:
         parent_norm = pickle.load(handle)
-    venv = DummyVecEnv([lambda: build_env(SPECIES, STAGE)])
+    venv = DummyVecEnv([lambda: build_env(MODEL_ID, STAGE)])
     try:
         normalizer = VecNormalize.load(str(result.vecnorm_pkl), venv)
         assert normalizer.obs_rms.mean.shape == (current.observation_dim,)
@@ -661,12 +662,12 @@ def test_actions_equal_parent_on_zero_padded_and_live_command_observations(widen
     model, normalizer, _ = load_sb3_checkpoint(
         str(result.model_zip),
         str(result.vecnorm_pkl),
-        env_factory=lambda: build_env(SPECIES, STAGE),
+        env_factory=lambda: build_env(MODEL_ID, STAGE),
         guess_sidecar=False,
         plant_identity=current,
     )
     probe = np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32)
-    env = build_env(SPECIES, STAGE)
+    env = build_env(MODEL_ID, STAGE)
     delta_zero = 0.0
     delta_probe = 0.0
     steps = 0
@@ -760,10 +761,10 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
     stripped = copy_parent(parent, tmp_path / "stripped")
     rewrite_archive(stripped["model_zip"], lambda data, params: params.pop(first_member))
     bound = widened["max_revision_gap"]
-    target = tmp_path / "stripped_out" / stage_dirname(SPECIES, STAGE)
+    target = tmp_path / "stripped_out" / stage_dirname(MODEL_ID, STAGE)
     with pytest.raises(WidenError, match=f"carries no {first_member!r} member"):
         widen_checkpoint(
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=STAGE,
             target_stage_dir=target,
             parent_stage_dir=stripped["stage_dir"],
@@ -780,10 +781,10 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
         params[first_member]["state"][stale_index]["exp_avg"] = moment[:, :-1].clone()
 
     rewrite_archive(stale["model_zip"], corrupt)
-    target = tmp_path / "stale_out" / stage_dirname(SPECIES, STAGE)
+    target = tmp_path / "stale_out" / stage_dirname(MODEL_ID, STAGE)
     with pytest.raises(WidenError, match="stale moment") as excinfo:
         widen_checkpoint(
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=STAGE,
             target_stage_dir=target,
             parent_stage_dir=stale["stage_dir"],
@@ -801,10 +802,10 @@ def test_adam_moments_are_padded_and_a_stale_moment_is_refused(widened, tmp_path
         record["square_avg"] = record.pop("exp_avg")
 
     rewrite_archive(foreign["model_zip"], rmsprop_like)
-    target = tmp_path / "foreign_out" / stage_dirname(SPECIES, STAGE)
+    target = tmp_path / "foreign_out" / stage_dirname(MODEL_ID, STAGE)
     with pytest.raises(WidenError, match="the tool does not pad") as excinfo:
         widen_checkpoint(
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=STAGE,
             target_stage_dir=target,
             parent_stage_dir=foreign["stage_dir"],
@@ -830,7 +831,7 @@ def test_self_verification_asserts_every_widened_width_before_the_zero_block(wid
 
     def verify(stage_dir: Path):
         return widen_module._verify(
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=parent["reference"],
             algorithm=algorithm,
             parent_zip=parent["model_zip"],
@@ -876,7 +877,7 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
     current = widened_ppo["current"]
     result = widened_ppo["result"]
     parent_obs = widened_ppo["parent_obs"]
-    manifest = load_stage_manifest(SPECIES)
+    manifest = load_stage_manifest(MODEL_ID)
     child = manifest.by_id("locomotion")
     parent_entry = manifest.by_id(STAGE)
     assert child.warm_start_from == parent_entry.id
@@ -886,13 +887,13 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
     validate_declared_parent(
         read_checkpoint_task_fingerprint(result.model_zip),
         declared_parent=parent_entry.reference,
-        species=SPECIES,
+        model_id=MODEL_ID,
         child_stage=child.reference,
         artifact=stem,
     )
 
-    species_cfg = get_species_config(SPECIES)
-    locomotion = load_stage_config(SPECIES, child.reference)
+    species_cfg = get_species_config(MODEL_ID)
+    locomotion = load_stage_config(MODEL_ID, child.reference)
     stage_configs = {child.reference: locomotion}
     gamma = locomotion["ppo_kwargs"]["gamma"]
     train_env = train_base.create_vec_env(
@@ -916,7 +917,7 @@ def test_one_ppo_update_completes_under_initialize_next_stage(widened_ppo):
         assert eval_env.training is False
 
         locomotion_task = derive_stage_task_fingerprint(
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=child.reference,
             backend=FINGERPRINT_BACKEND,
             env_kwargs=locomotion["env_kwargs"],
@@ -979,7 +980,8 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
     parent_obs = widened["parent_obs"]
 
     lineage = read_checkpoint_attribute(result.model_zip, MODEL_WIDEN_LINEAGE_ATTRIBUTE)
-    assert lineage["schema"] == "mesozoic.widen-lineage/v1"
+    # Re-pinned from /v1 when the lineage began naming the embodiment (decision D-D33).
+    assert lineage["schema"] == "mesozoic.widen-lineage/v2"
     assert lineage["tool"] == WIDEN_TOOL_VERSION
     assert lineage["parent_checkpoint_sha256"] == sha256_file(parent["model_zip"]) == result.parent_checkpoint_sha256
     assert lineage["parent_normalization_sha256"] == sha256_file(parent["vecnorm_pkl"])
@@ -1009,7 +1011,7 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
     assert archive_task["task_sha256"] != parent["task_fingerprint"]["task_sha256"]
     assert archive_task["plant"]["policy_interface_sha256"] == current.policy_interface_sha256
     assert parent["task_fingerprint"]["plant"]["policy_interface_sha256"] == parent["narrow"].policy_interface_sha256
-    assert (archive_task["species"], archive_task["stage"]) == (SPECIES, parent["reference"])
+    assert (ModelId.from_record(archive_task), archive_task["stage"]) == (MODEL_ID, parent["reference"])
 
     # The run block: every WIDEN_LINEAGE_KEYS value, none of the LOAD_LINEAGE_KEYS (D-C8).
     run = record["run"]
@@ -1039,6 +1041,8 @@ REFUSAL_CASES = (
     "width_changing_hop_under_gap_2",
     "max_revision_gap_zero",
     "physics_sha256_differs",
+    "parent_of_another_embodiment",
+    "parent_identity_naming_half_its_model",
     "action_dim_differs",
     "parent_verdict_failed",
     "occupied_target",
@@ -1047,6 +1051,7 @@ REFUSAL_CASES = (
     "missing_sidecar",
     "unstamped_sidecar",
     "legacy_sidecar_foreign_species",
+    "legacy_sidecar_of_another_embodiment",
     "target_not_a_stage_dirname",
     "target_inside_parent_run",
     "parent_inside_target",
@@ -1060,10 +1065,10 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
     parent = copy_parent(narrow_parent_ppo, tmp_path / "parent")
     current = parent["current"]
     narrow = parent["narrow"]
-    target = tmp_path / "widened" / stage_dirname(SPECIES, STAGE)
-    kwargs: dict[str, Any] = dict(species=SPECIES, stage=STAGE, target_stage_dir=target)
+    target = tmp_path / "widened" / stage_dirname(MODEL_ID, STAGE)
+    kwargs: dict[str, Any] = dict(model_id=MODEL_ID, stage=STAGE, target_stage_dir=target)
     explicit: dict[str, Any] = dict(
-        species=SPECIES,
+        model_id=MODEL_ID,
         stage=STAGE,
         target_stage_dir=target,
         model_zip=parent["model_zip"],
@@ -1073,8 +1078,8 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         n_envs=1,
         timesteps=PARENT_TIMESTEPS,
     )
-    gate_prefix = f"is not the current {SPECIES} plant one interface-only revision behind"
-    gap_2_prefix = f"is not the current {SPECIES} plant at most 2 interface-only revisions behind"
+    gate_prefix = f"is not the current {MODEL_ID} plant one interface-only revision behind"
+    gap_2_prefix = f"is not the current {MODEL_ID} plant at most 2 interface-only revisions behind"
     fragments: tuple[str, ...]
     absent: tuple[str, ...] = ()
 
@@ -1134,14 +1139,24 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         other = "sha256:" + hashlib.sha256(b"another physics plant").hexdigest()
         restamp_identity(parent["model_zip"], dataclasses.replace(narrow, physics_sha256=other).to_dict())
         fragments = (gate_prefix, f"physics_sha256: parent={other!r}, current={current.physics_sha256!r}")
+    elif case == "parent_of_another_embodiment":
+        # Decision D-D33 (review H3): the gate compares the model, both fields; the same species' other
+        # embodiment, on the same physics digest and widths, is refused.
+        restamp_identity(parent["model_zip"], dataclasses.replace(narrow, embodiment="robot").to_dict())
+        fragments = (gate_prefix, f"model: parent=tyrannosaurus_rex/robot, current={MODEL_ID}")
+    elif case == "parent_identity_naming_half_its_model":
+        identity = narrow.to_dict()
+        del identity["embodiment"]
+        restamp_identity(parent["model_zip"], identity)
+        fragments = (str(parent["model_zip"]), "embodiment")
     elif case == "action_dim_differs":
         restamp_identity(parent["model_zip"], dataclasses.replace(narrow, action_dim=narrow.action_dim + 1).to_dict())
         fragments = (gate_prefix, f"action_dim: parent={current.action_dim + 1}, current={current.action_dim}")
     elif case == "parent_verdict_failed":
-        curriculum = load_stage_config(SPECIES, STAGE)["curriculum_kwargs"]
+        curriculum = load_stage_config(MODEL_ID, STAGE)["curriculum_kwargs"]
         write_gate_verdict(
             parent["stage_dir"],
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=parent["reference"],
             stage_id=STAGE,
             gate_kind=curriculum["gate_kind"],
@@ -1177,19 +1192,30 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
     elif case == "legacy_sidecar_foreign_species":
         # Under the legacy allowance the sidecar's own identity still has to be the parent's species and width.
         restamp_identity(parent["model_zip"], None)
-        foreign = current_plant_identity("velociraptor")
+        foreign = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"))
         rewrite_sidecar(parent["vecnorm_pkl"], lambda wrapper: attach_plant_identity(wrapper, foreign))
         kwargs["allow_legacy_plant"] = True
         fragments = (
-            f"{parent['vecnorm_pkl']} records a velociraptor plant of observation_dim {foreign.observation_dim}, "
-            f"not the {SPECIES} parent's {narrow.observation_dim}",
+            f"{parent['vecnorm_pkl']} records a velociraptor_mongoliensis/anatomical plant of observation_dim {foreign.observation_dim}, "
+            f"not the {MODEL_ID} parent's {narrow.observation_dim}",
+        )
+    elif case == "legacy_sidecar_of_another_embodiment":
+        # Decision D-D33 (review H3): a sidecar of the species' other embodiment with the parent's width is
+        # still not the parent's; the observation width alone does not tell two embodiments apart.
+        restamp_identity(parent["model_zip"], None)
+        other = dataclasses.replace(narrow, embodiment="robot")
+        rewrite_sidecar(parent["vecnorm_pkl"], lambda wrapper: attach_plant_identity(wrapper, other))
+        kwargs["allow_legacy_plant"] = True
+        fragments = (
+            f"{parent['vecnorm_pkl']} records a tyrannosaurus_rex/robot plant of observation_dim "
+            f"{narrow.observation_dim}, not the {MODEL_ID} parent's {narrow.observation_dim}",
         )
     elif case == "target_not_a_stage_dirname":
         target = tmp_path / "widened" / "01_stanc"
         kwargs["target_stage_dir"] = target
-        fragments = (f"{target} is not a {SPECIES} {STAGE} stage directory", "01_stance / stage1 / stance")
+        fragments = (f"{target} is not a {MODEL_ID} {STAGE} stage directory", "01_stance / stage1 / stance")
     elif case == "target_inside_parent_run":
-        target = parent["stage_dir"] / "models" / stage_dirname(SPECIES, STAGE)
+        target = parent["stage_dir"] / "models" / stage_dirname(MODEL_ID, STAGE)
         kwargs["target_stage_dir"] = target
         fragments = (f"{target} lies inside the parent's directory {parent['run_dir']}",)
     elif case == "parent_inside_target":
@@ -1227,7 +1253,7 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         return
     if case in ("target_inside_parent_run", "parent_inside_target"):
         # The target lay inside the parent tree (or around it): the parent's files are all that exists there.
-        assert not (parent["stage_dir"] / "models" / stage_dirname(SPECIES, STAGE)).exists()
+        assert not (parent["stage_dir"] / "models" / stage_dirname(MODEL_ID, STAGE)).exists()
         return
     assert not target.exists()
     assert not target.parent.exists()
@@ -1247,7 +1273,7 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         kept = tmp_path / "kept"
         kept.mkdir()
         (kept / "marker.txt").write_text("pre-existing\n", encoding="utf-8")
-        kept_target = kept / WIDENED_RUN_NAME / stage_dirname(SPECIES, STAGE)
+        kept_target = kept / WIDENED_RUN_NAME / stage_dirname(MODEL_ID, STAGE)
         with pytest.raises(WidenError, match="has no plant identity"):
             widen_checkpoint(**{**kwargs, "target_stage_dir": kept_target})
         assert not kept_target.parent.exists()
@@ -1357,13 +1383,13 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
     result = widened["result"]
     current = widened["current"]
     algorithm = widened["algorithm"]
-    entry = load_stage_manifest(SPECIES).by_id(STAGE)
+    entry = load_stage_manifest(MODEL_ID).by_id(STAGE)
 
     # policy_loading.load_sb3_checkpoint with the current identity.
     model, normalizer, resolved = load_sb3_checkpoint(
         str(result.model_zip),
         str(result.vecnorm_pkl),
-        env_factory=lambda: build_env(SPECIES, STAGE),
+        env_factory=lambda: build_env(MODEL_ID, STAGE),
         guess_sidecar=False,
         plant_identity=current,
     )
@@ -1382,14 +1408,14 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         load_sb3_checkpoint(
             str(parent["model_zip"]),
             str(parent["vecnorm_pkl"]),
-            env_factory=lambda: build_env(SPECIES, STAGE),
+            env_factory=lambda: build_env(MODEL_ID, STAGE),
             guess_sidecar=False,
             plant_identity=current,
         )
 
     # curriculum.load_vecnorm_stats into train_base.create_vec_env train / eval envs.
-    species_cfg = get_species_config(SPECIES)
-    stage_configs = {entry.reference: load_stage_config(SPECIES, entry.reference)}
+    species_cfg = get_species_config(MODEL_ID)
+    stage_configs = {entry.reference: load_stage_config(MODEL_ID, entry.reference)}
     train_env = train_base.create_vec_env(
         species_cfg, stage_configs, entry.reference, 1, 0, algorithm=algorithm, plant_identity=current
     )
@@ -1413,14 +1439,14 @@ def test_widened_pair_loads_through_every_repo_loader(widened):
         eval_env.close()
 
     # freeze_recovery_gate: the source check (algorithm sniff, identity, re-stamped fingerprint) ...
-    identity = freeze_recovery_gate._validate_checkpoint_source(result.model_zip, SPECIES, STAGE, algorithm)
+    identity = freeze_recovery_gate._validate_checkpoint_source(result.model_zip, MODEL_ID, STAGE, algorithm)
     assert identity == current
     with pytest.raises(freeze_recovery_gate.GateResolutionError):
         freeze_recovery_gate._validate_checkpoint_source(
-            result.model_zip, SPECIES, STAGE, "sac" if algorithm == "ppo" else "ppo"
+            result.model_zip, MODEL_ID, STAGE, "sac" if algorithm == "ppo" else "ppo"
         )
     with pytest.raises(PlantCompatibilityError):
-        freeze_recovery_gate._validate_checkpoint_source(parent["model_zip"], SPECIES, STAGE, algorithm)
+        freeze_recovery_gate._validate_checkpoint_source(parent["model_zip"], MODEL_ID, STAGE, algorithm)
     # ... and the raw observation statistics against the current plant.
     stats = freeze_recovery_gate.load_vecnormalize_obs_stats(result.vecnorm_pkl, expected_plant=current)
     assert stats["mean"].shape == (current.observation_dim,)
@@ -1449,7 +1475,7 @@ def _passing_certificate(stage_dir: Path, curriculum: dict[str, Any], *, task_sh
 
     above_the_rail = {(index, yaw): {"reward": 3000.0} for index in range(40) for yaw in HEADING_GRID_DEG}
     certificate = heading_report(
-        stage_dir, curriculum, defects=above_the_rail, species=SPECIES, task_sha256=task_sha256, handoff_name=handoff
+        stage_dir, curriculum, defects=above_the_rail, model_id=MODEL_ID, task_sha256=task_sha256, handoff_name=handoff
     )
     assert certificate["passed"] is True, certificate["failures"]
     write_stance_heading_report(stage_dir, certificate)
@@ -1465,8 +1491,8 @@ def test_widened_stage_dir_is_reusable_as_a_root_after_a_passed_verdict(widened,
     parent = widened["parent"]
     result = widened["result"]
     current = widened["current"]
-    entry = load_stage_manifest(SPECIES).by_id(STAGE)
-    curriculum = load_stage_config(SPECIES, STAGE)["curriculum_kwargs"]
+    entry = load_stage_manifest(MODEL_ID).by_id(STAGE)
+    curriculum = load_stage_config(MODEL_ID, STAGE)["curriculum_kwargs"]
     current_task = stance_task_sha256(current)
     directory_task = json.loads((widened["target"] / "task_fingerprint.json").read_text())["task_sha256"]
     assert directory_task == current_task
@@ -1483,7 +1509,7 @@ def test_widened_stage_dir_is_reusable_as_a_root_after_a_passed_verdict(widened,
             path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         write_gate_verdict(
             stage_dir,
-            species=SPECIES,
+            model_id=MODEL_ID,
             stage=entry.reference,
             stage_id=entry.id,
             gate_kind=curriculum["gate_kind"],
@@ -1501,7 +1527,7 @@ def test_widened_stage_dir_is_reusable_as_a_root_after_a_passed_verdict(widened,
     def find(run_dir: Path):
         return find_certified_ancestor(
             run_dir,
-            species=SPECIES,
+            model_id=MODEL_ID,
             entry=entry,
             current_task_sha256=current_task,
             plant_identity=current,
@@ -1577,7 +1603,7 @@ def test_widened_pair_hashes_are_stable_after_self_verification(widened):
     model, normalizer, _ = load_sb3_checkpoint(
         str(result.model_zip),
         str(result.vecnorm_pkl),
-        env_factory=lambda: build_env(SPECIES, STAGE),
+        env_factory=lambda: build_env(MODEL_ID, STAGE),
         guess_sidecar=False,
         plant_identity=current,
     )
@@ -1611,7 +1637,7 @@ def test_widening_a_closure_schedule_parent_yields_a_bytecode_free_archive(narro
     assert inspect_sb3_archive(result.model_zip).bytecode_members == frozenset()
     assert inspect_sb3_archive(result.final_zip).bytecode_members == frozenset()
     # The recorded [ppo] block (the stage TOML's, saved by save_stage_config) is the source of the re-statement.
-    block = load_stage_config(SPECIES, STAGE)["ppo_kwargs"]
+    block = load_stage_config(MODEL_ID, STAGE)["ppo_kwargs"]
     expected_lr = LinearSchedule(block["learning_rate"], block["learning_rate_end"])
     restated = result.report["schedule_members_restated"]
     assert result.report["schedule_members_source"] == "parent_stage_config"
@@ -1645,10 +1671,12 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     """The argv form writes the layout and prints the report; a second run on the same target exits 1."""
     parent = narrow_parent_ppo
     current = parent["current"]
-    target = tmp_path / "cli_run" / stage_dirname(SPECIES, STAGE)
+    target = tmp_path / "cli_run" / stage_dirname(MODEL_ID, STAGE)
     argv = [
         "--species",
-        SPECIES,
+        MODEL_ID.species,
+        "--embodiment",
+        MODEL_ID.embodiment,
         "--stage",
         STAGE,
         "--from-stage-dir",
@@ -1689,17 +1717,22 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     # seed check in the notebook's storage cell, and the chain loop's judge-first helpers (cleanup ROW-4/6,
     # decision 6 (b)): the widened root is a node this run holds trained but unjudged, so the loop judges it
     # before it consults any trunk, and rule 4 passes it as a root (it records no load lineage).
-    manifest = load_stage_manifest(SPECIES)
+    manifest = load_stage_manifest(MODEL_ID)
     walk = (manifest.resolve("stance"), manifest.resolve("locomotion"))
     refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED)
     with pytest.raises(ResultBundleError, match=f"SEED = {PARENT_SEED + 1}.*seed {PARENT_SEED}"):
         refuse_widened_seed_mismatch(target.parent, seed=PARENT_SEED + 1)
-    assert unjudged_stage_dir(target.parent, species=SPECIES, entry=walk[0]) == target
+    assert unjudged_stage_dir(target.parent, model_id=MODEL_ID, entry=walk[0]) == target
     refuse_judging_off_the_resolved_parent(target, entry=walk[0], parent_model_sha256=None)
     # D-C13's resolve-cell refusal, which the notebook no longer calls, still refuses the same tree.
     with pytest.raises(ResultBundleError, match="never judge the widened root"):
         refuse_trunk_over_unjudged_widened_root(
-            target.parent, species=SPECIES, chain=walk, target=walk[1], retrain_from=None, trunk_dir=tmp_path / "trunk"
+            target.parent,
+            model_id=MODEL_ID,
+            chain=walk,
+            target=walk[1],
+            retrain_from=None,
+            trunk_dir=tmp_path / "trunk",
         )
 
     # The second invocation on the same target is refused as occupied; nothing changes, nothing is printed.
@@ -1713,10 +1746,12 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
 
     # The explicit-pair form: the run facts come from the flags, the run id from --parent-run-id,
     # and no duration is invented.
-    explicit_target = tmp_path / "cli_explicit" / stage_dirname(SPECIES, STAGE)
+    explicit_target = tmp_path / "cli_explicit" / stage_dirname(MODEL_ID, STAGE)
     explicit = [
         "--species",
-        SPECIES,
+        MODEL_ID.species,
+        "--embodiment",
+        MODEL_ID.embodiment,
         "--stage",
         str(parent["reference"]),
         "--model",
@@ -1766,7 +1801,7 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     assert set(WIDEN_LINEAGE_KEYS) <= set(explicit_run)
 
     # ... and the declared algorithm is checked against the archive.
-    mismatch_target = tmp_path / "cli_mismatch" / stage_dirname(SPECIES, STAGE)
+    mismatch_target = tmp_path / "cli_mismatch" / stage_dirname(MODEL_ID, STAGE)
     mismatch = [*explicit[:-1], str(mismatch_target)]
     mismatch[mismatch.index("--algorithm") + 1] = "sac"
     with caplog.at_level(logging.ERROR, logger=widen_module.logger.name):
@@ -1778,7 +1813,7 @@ def test_main_cli_round_trip(narrow_parent_ppo, tmp_path, capsys, caplog):
     # (exit 1, nothing written, nothing printed).  The exit code and the no-write guarantee are ALSO
     # given by the API's own _check_max_revision_gap (test_refusals[max_revision_gap_zero]); what this
     # pins beyond them is the boundary's wording and that the API refusal never had to fire.
-    zero_target = tmp_path / "cli_gap_zero" / stage_dirname(SPECIES, STAGE)
+    zero_target = tmp_path / "cli_gap_zero" / stage_dirname(MODEL_ID, STAGE)
     zero = [*argv[: argv.index("--to-stage-dir")], "--to-stage-dir", str(zero_target), "--max-revision-gap", "0"]
     with caplog.at_level(logging.ERROR, logger=widen_module.logger.name):
         assert widen_main(zero) == 1
@@ -1797,10 +1832,12 @@ def test_main_cli_round_trip_with_max_revision_gap(narrow_parent_ppo_r2, tmp_pat
     parent = narrow_parent_ppo_r2
     current = parent["current"]
     assert parent["revision_gap"] == 2
-    target = tmp_path / "cli_r2" / stage_dirname(SPECIES, STAGE)
+    target = tmp_path / "cli_r2" / stage_dirname(MODEL_ID, STAGE)
     argv = [
         "--species",
-        SPECIES,
+        MODEL_ID.species,
+        "--embodiment",
+        MODEL_ID.embodiment,
         "--stage",
         STAGE,
         "--from-stage-dir",
@@ -1813,7 +1850,7 @@ def test_main_cli_round_trip_with_max_revision_gap(narrow_parent_ppo_r2, tmp_pat
     with caplog.at_level(logging.ERROR, logger=widen_module.logger.name):
         assert widen_main(argv) == 1
     assert "Refusing to widen" in caplog.text
-    assert f"is not the current {SPECIES} plant one interface-only revision behind" in caplog.text
+    assert f"is not the current {MODEL_ID} plant one interface-only revision behind" in caplog.text
     assert (
         f"policy_interface_revision: parent={current.policy_interface_revision - 2}, "
         f"current={current.policy_interface_revision} (gap 2 exceeds max_revision_gap=1"

@@ -17,8 +17,8 @@ Modules, bottom-up:
 * :mod:`~environments.shared.gait.events` -- the down state and debounced
   touchdowns, windows in seconds; pure numpy;
 * :mod:`~environments.shared.gait.morphology` -- feet, legs, support geoms,
-  soles and body weight read off a live env, with the explicit six-species
-  ``SUPPORT_REGISTRY``; imports mujoco;
+  soles and body weight read off a live env, with each embodiment class's
+  explicit ``FOOT_SUPPORT`` entry (``support_entry``); imports mujoco;
 * :mod:`~environments.shared.gait.recorder` -- ``SubstepContactRecorder``,
   attached through ``BaseDinoEnv._substep_probe_hook``, and the per-step
   ``EpisodeTrace`` it reduces an episode to; imports mujoco;

@@ -23,6 +23,7 @@ import pytest
 from environments.shared.curriculum import CurriculumManager, thresholds_from_configs
 from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION, GateSchemaError
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from environments.shared.model_id import ModelId
 
 #: A schema-valid recovery gate declaration.  Threshold values are stand-ins:
 #: they are irrelevant here because the dispatch must refuse before reading
@@ -56,7 +57,7 @@ _FULL_PANEL = [1000.0] * 30
 
 def _manager(gate_kind: str) -> CurriculumManager:
     return CurriculumManager(
-        species="velociraptor",
+        model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
         stage_thresholds={
             1: {
                 "gate_kind": gate_kind,
@@ -98,7 +99,9 @@ class TestManagerRefusesUnevaluatableKinds:
         20/30 (bound 0.5006) with hysteresis 1 advances.
         """
         thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         low = [1.0] * 10 + [0.0] * 20
         for _ in range(3):
             assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL, success_rates=low)
@@ -106,12 +109,16 @@ class TestManagerRefusesUnevaluatableKinds:
         latest = mgr.summary()["eval_history"][1][-1]
         assert (latest["success_count"], latest["n_success_samples"]) == (10, 30)
 
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         assert mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL, success_rates=[1.0] * 20 + [0.0] * 10)
 
     def test_task_success_refuses_without_a_success_sample(self, caplog):
         thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         with caplog.at_level(logging.WARNING, logger="environments.shared.curriculum.manager"):
             assert not mgr.should_advance(_SKY_HIGH_PANEL, _FULL_PANEL)
         assert "no per-episode success sample" in caplog.text
@@ -120,7 +127,9 @@ class TestManagerRefusesUnevaluatableKinds:
     def test_task_success_refuses_a_panel_below_the_declared_size(self):
         """19/19 bounds at 0.85 but the bound's power is specified at n=30."""
         thresholds = thresholds_from_configs({1: {"curriculum_kwargs": dict(_TASK_SUCCESS, required_consecutive=1)}})
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         assert not mgr.should_advance([1e9] * 19, [1000.0] * 19, success_rates=[1.0] * 19)
 
     def test_a_schema_valid_recovery_config_still_refuses_end_to_end(self):
@@ -135,7 +144,9 @@ class TestManagerRefusesUnevaluatableKinds:
         thresholds = thresholds_from_configs(configs, advancement_enabled=True)
         assert thresholds[1]["gate_kind"] == "recovery_quality/v1"
 
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         for _ in range(5):
             assert not mgr.should_advance(_SKY_HIGH_REWARDS, _FULL_LENGTHS)
 
@@ -340,7 +351,9 @@ class TestStanceV2GateIsConsulted:
             {1: {"curriculum_kwargs": dict(self._curriculum(), required_consecutive=1)}}
         )
         assert thresholds[1]["gate_kind"] == "stance_quality/v2"
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         for _ in range(3):
             assert not mgr.should_advance(_SKY_HIGH_PANEL * 2, _FULL_PANEL * 2)
 
@@ -507,7 +520,9 @@ class TestStanceHeadingGateIsConsulted:
             {1: {"curriculum_kwargs": dict(self._curriculum(), required_consecutive=1)}}
         )
         assert thresholds[1]["gate_kind"] == "stance_quality_heading/v1"
-        mgr = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        mgr = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         for _ in range(3):
             assert not mgr.should_advance(_SKY_HIGH_PANEL * 2, _FULL_PANEL * 2)
 

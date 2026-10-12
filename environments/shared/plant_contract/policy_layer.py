@@ -195,7 +195,9 @@ def _jax_policy_interface_payload(
     their observation builder with NumPy catches stale numeric body IDs and
     sensor offsets while keeping the canonical contract usable in CPU-only CI.
     """
-    module_name = f"environments.{version.species}.mjx_config"
+    # The model's frozen registration module (D-D17), beside its env module;
+    # the registry inside it stays keyed by species (register_species_mjx).
+    module_name = f"{version.model_id.package}.mjx_config"
     try:
         registration_module = importlib.import_module(module_name)
         mjx_env_module = importlib.import_module("environments.shared.mjx_env")
@@ -203,24 +205,24 @@ def _jax_policy_interface_payload(
         raise PlantContractError(f"cannot import MJX plant registration {module_name}: {exc}") from exc
 
     registry = getattr(mjx_env_module, "_SPECIES_CONFIGS", {})
-    if version.species not in registry:
+    if version.model_id.species not in registry:
         # A test or embedding process may have cleared the registry after the
         # module's first import.  Reloading deterministically re-registers it.
         importlib.reload(registration_module)
-    raw_config = getattr(mjx_env_module, "_SPECIES_CONFIGS", {}).get(version.species)
+    raw_config = getattr(mjx_env_module, "_SPECIES_CONFIGS", {}).get(version.model_id.species)
     if not isinstance(raw_config, Mapping):
-        raise PlantContractError(f"MJX plant registration is missing for {version.species}")
+        raise PlantContractError(f"MJX plant registration is missing for {version.model_id}")
 
     from ..obs_functions import SensorLayout
 
     body_ids = {str(name): int(body_id) for name, body_id in dict(raw_config.get("body_ids", {})).items()}
     if not body_ids:
-        raise PlantContractError(f"MJX plant registration has no root body mapping for {version.species}")
+        raise PlantContractError(f"MJX plant registration has no root body mapping for {version.model_id}")
     resolved_bodies: dict[str, dict[str, Any]] = {}
     for body_name, registered_id in body_ids.items():
         resolved_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body_name)
         if resolved_id < 0:
-            raise PlantContractError(f"MJX root body {body_name!r} does not exist for {version.species}")
+            raise PlantContractError(f"MJX root body {body_name!r} does not exist for {version.model_id}")
         if registered_id != resolved_id:
             raise PlantContractError(
                 f"MJX root body ID for {body_name!r} is stale: registered={registered_id}, resolved={resolved_id}"
@@ -235,7 +237,7 @@ def _jax_policy_interface_payload(
     registered_roots = sorted({"torso", "pelvis"}.intersection(body_ids))
     if registered_roots != [root_name]:
         raise PlantContractError(
-            f"MJX plant registration for {version.species} must map exactly one root body, {root_name!r} "
+            f"MJX plant registration for {version.model_id} must map exactly one root body, {root_name!r} "
             f"(observation schema {version.observation_schema!r}); it maps {registered_roots}"
         )
 
@@ -250,7 +252,7 @@ def _jax_policy_interface_payload(
     )
     if len(sensor_layout.foot_aux_indices) > len(sensor_layout.foot_indices):
         raise PlantContractError(
-            f"MJX sensor layout for {version.species} declares more aux foot sensor groups "
+            f"MJX sensor layout for {version.model_id} declares more aux foot sensor groups "
             f"({len(sensor_layout.foot_aux_indices)}) than feet ({len(sensor_layout.foot_indices)})"
         )
     used_sensor_indices = (
@@ -262,24 +264,24 @@ def _jax_policy_interface_payload(
     )
     if any(index < 0 or index >= model.nsensordata for index in used_sensor_indices):
         raise PlantContractError(
-            f"MJX sensor layout for {version.species} indexes outside nsensordata={model.nsensordata}"
+            f"MJX sensor layout for {version.model_id} indexes outside nsensordata={model.nsensordata}"
         )
 
     registered_frame_skip = int(raw_config.get("frame_skip", -1))
     if registered_frame_skip <= 0:
-        raise PlantContractError(f"MJX frame_skip must be positive for {version.species}")
+        raise PlantContractError(f"MJX frame_skip must be positive for {version.model_id}")
     registered_action_mapping = str(raw_config.get("action_mapping", _ACTION_MAPPING_MIDPOINT))
     sb3_action_mapping = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
     if registered_action_mapping != sb3_action_mapping:
         raise PlantContractError(
-            f"SB3 and MJX action mappings diverge for {version.species}: "
+            f"SB3 and MJX action mappings diverge for {version.model_id}: "
             f"sb3={sb3_action_mapping!r}, mjx={registered_action_mapping!r}"
         )
     registered_filter_cutoff = float(raw_config.get("action_filter_cutoff_hz", 0.0))
     sb3_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
     if registered_filter_cutoff != sb3_filter_cutoff:
         raise PlantContractError(
-            f"SB3 and MJX action filter cutoffs diverge for {version.species}: "
+            f"SB3 and MJX action filter cutoffs diverge for {version.model_id}: "
             f"sb3={sb3_filter_cutoff!r}, mjx={registered_filter_cutoff!r}"
         )
 
@@ -290,7 +292,7 @@ def _jax_policy_interface_payload(
             probe_data,
             target_pos,
             {
-                "species": version.species,
+                "species": version.model_id.species,
                 "body_ids": body_ids,
                 "sensor_gyro_start": sensor_layout.gyro_start,
                 "sensor_accel_start": sensor_layout.accel_start,
@@ -464,7 +466,7 @@ def _policy_interface_payload(
         observation_width = int(np.prod(env.observation_space.shape))
         if sum(segment_widths) != observation_width or observation_segments[-1]["name"] != COMMAND_SEGMENT_NAME:
             raise PlantContractError(
-                f"{version.species}'s {HEADING_FREE_OBSERVATION_SCHEMA} segments must sum to the observation "
+                f"{version.model_id}'s {HEADING_FREE_OBSERVATION_SCHEMA} segments must sum to the observation "
                 f"width {observation_width} and end with the command; widths {segment_widths} sum to "
                 f"{sum(segment_widths)}, last segment {observation_segments[-1]['name']!r}"
             )
@@ -487,18 +489,18 @@ def _policy_interface_payload(
     action_mapping, jax_action_functions = _action_mapping_contract(model, env)
     backends = tuple(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
     if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
-        raise PlantContractError(f"invalid training backends for {version.species}: {backends}")
+        raise PlantContractError(f"invalid training backends for {version.model_id}: {backends}")
     supports_jax = "jax-mjx" in backends
     if supports_jax and not jax_action_functions:
         raise PlantContractError(
-            f"{version.species} declares the jax-mjx backend, but its action mapping "
+            f"{version.model_id} declares the jax-mjx backend, but its action mapping "
             f"{getattr(env, 'action_mapping', _ACTION_MAPPING_MIDPOINT)!r} has no JAX implementation"
         )
     if supports_jax and heading_free:
         # The frozen MJX builders (D-D17) emit the legacy world-frame layout;
         # a parity claim against them would be false.
         raise PlantContractError(
-            f"{version.species} declares the jax-mjx backend, but the {HEADING_FREE_OBSERVATION_SCHEMA} "
+            f"{version.model_id} declares the jax-mjx backend, but the {HEADING_FREE_OBSERVATION_SCHEMA} "
             "observation has no MJX builder: declare supported_training_backends = ('stable-baselines3',)"
         )
     interface_implementations: dict[str, Any] = {
@@ -522,7 +524,7 @@ def _policy_interface_payload(
         )
         if require_backend_parity and not backend_observation_equal:
             raise PlantContractError(
-                f"SB3 and MJX observation probes diverge for {version.species}; "
+                f"SB3 and MJX observation probes diverge for {version.model_id}; "
                 "check cached body IDs, sensor offsets, and observation builders"
             )
         interface_implementations.update(

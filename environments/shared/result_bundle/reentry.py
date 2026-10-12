@@ -21,7 +21,7 @@ naming the way out:
   prediction cannot see without the reuse rule), the manual and the resume
   cells call.
 * **A root widened on the command line** (``widen_checkpoint --to-stage-dir
-  <run>/<stage_dirname(species, root)>``; decision D-D14 removed the notebook's
+  <run>/<stage_dirname(model_id, root)>``; decision D-D14 removed the notebook's
   widen cell) records ``widened_from_run_id`` in its ``stage_config.json`` run
   block and keeps its parent run's ``seed``, while the provenance the storage
   cell mints publishes ``training_seed = SEED`` (decision D-C14):
@@ -61,6 +61,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
 from ..config import read_recorded_stage_config
+from ..model_id import ModelId
 from ..stage_manifest import stage_dir_candidates, stage_dirname
 from .constants import ANCESTOR_RECORD_NAME, ANCESTORS_DIRNAME, DEFAULT_PROVENANCE_NAME, TRUNK_RECORD_NAME
 from .errors import ResultBundleError
@@ -91,7 +92,7 @@ def _fresh_run_remedy(run_path: Path, fresh_run_id: "str | None") -> str:
 def complete_run_writes(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     chain: "Sequence[StageEntry]",
     target: "StageEntry",
     trunk_dir: "str | Path | None",
@@ -101,7 +102,7 @@ def complete_run_writes(
     Read from the directory alone, node by node, without applying the reuse
     rule (``RETRAIN_FROM`` is :func:`refuse_complete_run_session`'s concern):
 
-    * a node whose loop directory ``stage_dirname(species, ref)`` holds a
+    * a node whose loop directory ``stage_dirname(model_id, ref)`` holds a
       ``gate_verdict.json`` writes nothing: the loop reuses it in place, or its
       verdict branch raises before any write (a verdict the reuse rule refuses
       is never judged or trained over);
@@ -126,13 +127,13 @@ def complete_run_writes(
     run_path = Path(run_dir)
     writes: list[str] = []
     for entry in chain:
-        if (run_path / stage_dirname(species, entry.reference) / GATE_VERDICT_FILENAME).is_file():
+        if (run_path / stage_dirname(model_id, entry.reference) / GATE_VERDICT_FILENAME).is_file():
             continue
         held_as_record = (
             entry.id != target.id
             and trunk_dir is not None
             and (run_path / ANCESTORS_DIRNAME / entry.id / ANCESTOR_RECORD_NAME).is_file()
-            and not any((run_path / name).is_dir() for name in stage_dir_candidates(species, entry.reference))
+            and not any((run_path / name).is_dir() for name in stage_dir_candidates(model_id, entry.reference))
         )
         if not held_as_record:
             writes.append(entry.id)
@@ -142,7 +143,7 @@ def complete_run_writes(
 def refuse_complete_run_session(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     chain: "Sequence[StageEntry]",
     target: "StageEntry",
     retrain_from: "StageEntry | None",
@@ -179,7 +180,7 @@ def refuse_complete_run_session(
             "and a variant is a new run (decisions D-A19, D-A20); keep RETRAIN_FROM in the fresh run. "
             + _fresh_run_remedy(run_path, fresh_run_id)
         )
-    nodes = complete_run_writes(run_path, species=species, chain=chain, target=target, trunk_dir=trunk_dir)
+    nodes = complete_run_writes(run_path, model_id=model_id, chain=chain, target=target, trunk_dir=trunk_dir)
     if nodes:
         raise ResultBundleError(
             f"{header} The chain loop would judge or train {', '.join(repr(node) for node in nodes)} here. "
@@ -260,7 +261,7 @@ def refuse_widened_seed_mismatch(run_dir: "str | Path", *, seed: int) -> None:
                 f"training_seed {minted!r}: it was minted under another SEED before the root was widened into this "
                 "run, so this run can never publish the widened root (decision D-C14). The storage cell refused "
                 "before writing anything, but no SEED fixes this run: widen the parent again into a run id no run "
-                f"uses yet (widen_checkpoint --to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/"
+                f"uses yet (widen_checkpoint --to-stage-dir <LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/"
                 f"{config_path.parent.name}), then set RUN_ID to that id and SEED = {recorded}."
             )
         if recorded != seed:
@@ -275,7 +276,7 @@ def refuse_widened_seed_mismatch(run_dir: "str | Path", *, seed: int) -> None:
 def refuse_trunk_over_unjudged_widened_root(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     chain: "Sequence[StageEntry]",
     target: "StageEntry",
     retrain_from: "StageEntry | None",
@@ -306,7 +307,7 @@ def refuse_trunk_over_unjudged_widened_root(
     root = chain[0]
     if root.id == target.id or (retrain_from is not None and retrain_from.id == root.id):
         return
-    stage_dir = Path(run_dir) / stage_dirname(species, root.reference)
+    stage_dir = Path(run_dir) / stage_dirname(model_id, root.reference)
     run = _run_block(stage_dir)
     if run is None or WIDENED_FROM_RUN_ID not in run or (stage_dir / GATE_VERDICT_FILENAME).is_file():
         return
@@ -397,14 +398,14 @@ def refuse_trunk_other_than_recorded(
     )
 
 
-def unjudged_stage_dir(run_dir: "str | Path", *, species: str, entry: "StageEntry") -> "Path | None":
+def unjudged_stage_dir(run_dir: "str | Path", *, model_id: ModelId, entry: "StageEntry") -> "Path | None":
     """*entry*'s loop directory in *run_dir* when it holds checkpoints this run trained but never judged.
 
     Cleanup ROW-4/6, decision 6 (b), amending D-A17 and D-C13, has the chain
     loop judge such a directory before it consults any trunk, so a trunk's
     copy never stands in for this run's own training (except where the run
     already holds the trunk's copy as an ``ancestors/`` record, below).  The
-    directory is ``stage_dirname(species, entry.reference)``, the one the
+    directory is ``stage_dirname(model_id, entry.reference)``, the one the
     loop judges and trains (as in :func:`complete_run_writes`), and it is
     returned when it holds any ``models/*.zip`` and no
     ``gate_verdict.json``: an intact final pair is what the loop's JUDGE
@@ -425,7 +426,7 @@ def unjudged_stage_dir(run_dir: "str | Path", *, species: str, entry: "StageEntr
     ``stage_config.json`` run block, only then) and writes nothing.
     """
     run_path = Path(run_dir)
-    stage_dir = run_path / stage_dirname(species, entry.reference)
+    stage_dir = run_path / stage_dirname(model_id, entry.reference)
     if (stage_dir / GATE_VERDICT_FILENAME).is_file():
         return None
     if not any((stage_dir / "models").glob("*.zip")):
@@ -441,7 +442,8 @@ def unjudged_stage_dir(run_dir: "str | Path", *, species: str, entry: "StageEntr
                 "both trained in this run and reused), so the widened root would never be judged into this run's "
                 "bundle (decision D-C13, as amended by decision 6 (b)). Nothing has been judged or trained. A root is "
                 f"widened into a run id no run uses yet: move {stage_dir.name} out of this run, widen the parent again "
-                f"with widen_checkpoint --to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/{stage_dir.name}, "
+                "with widen_checkpoint --to-stage-dir "
+                f"<LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/{stage_dir.name}, "
                 "then set RUN_ID to that new run id."
             )
         return None

@@ -44,9 +44,9 @@ _SHORT_PUSH = {
 
 
 def _pushed_env():
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-    return TRexEnv(reset_noise_scale=0.0, max_episode_steps=120, **_SHORT_PUSH)
+    return TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, max_episode_steps=120, **_SHORT_PUSH)
 
 
 def _roll(env, controller_id, episodes=2, seed=3042):
@@ -94,9 +94,9 @@ class TestPanelHarness:
         assert schedule(policy) == schedule(null)
 
     def test_push_free_env_is_refused(self):
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv(reset_noise_scale=0.0, max_episode_steps=120)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, max_episode_steps=120)
         with pytest.raises(ValueError, match="perturbation-enabled"):
             _roll(env, "policy")
 
@@ -183,7 +183,7 @@ class TestBraceController:
 
 
 def _resolution(tmp_path, evidence, *, paired_delta=None, min_episodes=2):
-    fingerprint = {"task_sha256": "sha256:task-a", "species": "trex"}
+    fingerprint = {"task_sha256": "sha256:task-a", "species": "tyrannosaurus_rex", "embodiment": "anatomical"}
     thresholds = RecoveryGateThresholds(
         min_recovery_success_lcb=0.01,
         t_recover_steps=20,

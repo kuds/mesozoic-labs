@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 
 from ..curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+from ..model_id import ModelId
 from .formatting import _optional_metric, parse_optional_bool
 
 logger = logging.getLogger(__name__)
@@ -191,7 +192,7 @@ def write_results_csv(
 def build_results_csv_rows(
     stage_results_list: Sequence[Mapping[str, Any]],
     stage_configs: "Mapping[int | str, Mapping[str, Any]]",
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     *,
@@ -219,7 +220,7 @@ def build_results_csv_rows(
         row: dict[str, Any] = {
             "schema_version": RESULT_SCHEMA_VERSION,
             "run_id": run_id or "",
-            "species": species,
+            **model_id.record(),
             "algorithm": public_algorithm,
             "backend": public_backend,
             "seed": seed,
@@ -327,7 +328,7 @@ def build_results_csv_rows(
 def save_results_csv(
     stage_results_list: list[dict[str, Any]],
     stage_configs: "dict[int | str, dict[str, Any]]",
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     run_dir: "str | Path",
@@ -346,7 +347,7 @@ def save_results_csv(
     rows = build_results_csv_rows(
         stage_results_list,
         stage_configs,
-        species,
+        model_id,
         algorithm,
         seed,
         backend=backend,
@@ -362,6 +363,7 @@ def save_results_csv(
             "schema_version",
             "run_id",
             "species",
+            "embodiment",
             "algorithm",
             "backend",
             "seed",

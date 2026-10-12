@@ -1,7 +1,8 @@
 """Build the public species catalog from executable and versioned sources.
 
 The hand-authored species manifest contains presentation metadata and pointers
-only. Interface dimensions come from the environments/MJCF models, layered plant
+only; the catalog lists one entry per model, the pair (species, embodiment) of
+decision D-D33, in manifest order. Interface dimensions come from the environments/MJCF models, layered plant
 identity comes from the committed generated plant manifest, curriculum facts come
 from the stage TOML files, and published metrics come from immutable result
 summaries. The generated JSON is committed so the Docusaurus site can build
@@ -15,7 +16,6 @@ import importlib
 import json
 import math
 import posixpath
-import tomllib
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
@@ -41,6 +41,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
 )
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from environments.shared.model_id import EMBODIMENT_LABELS, EMBODIMENTS, ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
@@ -61,6 +62,8 @@ from environments.shared.result_schema import (
     validate_provenance,
     validate_result_summary,
 )
+from environments.shared.species_names import SPECIES_MANIFEST_SCHEMA_VERSION as SPECIES_MANIFEST_SCHEMA_VERSION
+from environments.shared.species_names import _read_manifest as _read_species_manifest
 from environments.shared.stage_manifest import stage_display_name
 
 DEFAULT_CONFIGS_DIR = REPOSITORY_ROOT / "configs"
@@ -71,13 +74,13 @@ DEFAULT_README_PATH = REPOSITORY_ROOT / "README.md"
 DEFAULT_CATALOG_PAGE_PATH = REPOSITORY_ROOT / "docs" / "SPECIES_CATALOG.md"
 
 #: The root README's generated blocks (decision D-A10, amended by cleanup CU-17):
-#: one row per species, linking its full entry, and the notebook inventory.
+#: one row per model, linking its full entry, and the notebook inventory.
 README_BLOCKS = {
     "species": ("<!-- BEGIN GENERATED: SPECIES -->", "<!-- END GENERATED: SPECIES -->"),
     "notebooks": ("<!-- BEGIN GENERATED: NOTEBOOKS -->", "<!-- END GENERATED: NOTEBOOKS -->"),
 }
 
-#: docs/SPECIES_CATALOG.md, which this module writes whole: every species' full
+#: docs/SPECIES_CATALOG.md, which this module writes whole: every model's full
 #: entry and the published run summaries.  Its links are written relative to
 #: CATALOG_PAGE_DIR, the page's directory under the repository root.
 CATALOG_PAGE_DIR = "docs"
@@ -86,10 +89,16 @@ CATALOG_PAGE_BLOCKS = {
     "results": ("<!-- BEGIN GENERATED: RESULTS -->", "<!-- END GENERATED: RESULTS -->"),
 }
 
-#: A species' page on the documentation site; ``website/docs/models/<id>.mdx``
+#: A model's page on the documentation site; ``website/docs/models/<species>/<embodiment>.mdx``
 #: renders the same entry from the catalog JSON
 #: (test_readme_species_summary_rows_keep_anchors_and_resolve).
-SITE_MODEL_PAGE_URL = "https://mesozoiclabs.com/docs/models/{species_id}"
+SITE_MODEL_PAGE_URL = "https://mesozoiclabs.com/docs/models/{species}/{embodiment}"
+
+#: The catalog JSON's schema.  5 (decision D-D33): a top-level ``models`` list,
+#: one entry per (species, embodiment) in manifest order, each naming its
+#: ``species``, ``embodiment``, ``species_display_name`` and model
+#: ``display_name``; the ``species`` list with its ``id`` and ``aliases`` is gone.
+CATALOG_SCHEMA_VERSION = 5
 
 ALLOWED_CAPABILITY_STATUSES = {"implemented", "experimental", "in_progress", "planned", "not_started"}
 DEFAULT_STAGE_THRESHOLD = StageThreshold()
@@ -105,11 +114,6 @@ DEFAULT_STAGE_THRESHOLD = StageThreshold()
 #: species, so any species that gains a recovery stage inherits the honest
 #: description.
 _PENDING_GATE_KINDS = {"recovery": RECOVERY_GATE_KIND}
-
-#: The species manifest schema this reader accepts.  2 (decision D-A8,
-#: 2026-09-12): ``[[species.deliverable_metrics]]`` beside the per-backend
-#: success metrics, and ``[[species.stage_videos]]`` keyed by stage id.
-SPECIES_MANIFEST_SCHEMA_VERSION = 2
 
 #: The units a deliverable headline metric can carry; the website formats
 #: by unit, so this vocabulary is part of the catalog contract.
@@ -269,11 +273,11 @@ def _repo_path(relative_path: str, *, field: str) -> Path:
 
 
 def _load_manifest(path: Path) -> dict[str, Any]:
-    with path.open("rb") as manifest_file:
-        manifest = tomllib.load(manifest_file)
-    if manifest.get("schema_version") != SPECIES_MANIFEST_SCHEMA_VERSION:
-        raise CatalogError(f"species manifest schema_version must be {SPECIES_MANIFEST_SCHEMA_VERSION}")
-    return manifest
+    """The species manifest at *path*, read and checked by the one manifest reader (``species_names``)."""
+    try:
+        return _read_species_manifest(path)
+    except (OSError, ValueError) as exc:
+        raise CatalogError(f"species manifest {path}: {exc}") from exc
 
 
 # The shared field validators (``record_fields``), raising CatalogError.
@@ -355,7 +359,7 @@ def _environment_facts(entrypoint: str, expected_nu: int) -> dict[str, Any]:
 
 
 def _public_plant_contract(
-    species_id: str,
+    model_id: ModelId,
     raw_entry: Any,
     *,
     model_relative_path: str,
@@ -363,76 +367,82 @@ def _public_plant_contract(
     environment: dict[str, Any],
 ) -> dict[str, Any]:
     """Validate one generated plant entry and select its public contract."""
-    entry = _require_mapping(raw_entry, field=f"plant contract for {species_id}")
-    if entry.get("species") != species_id:
-        raise CatalogError(f"plant contract species mismatch for {species_id}: {entry.get('species')}")
+    entry = _require_mapping(raw_entry, field=f"plant contract for {model_id}")
+    try:
+        same_model = model_id.matches(entry)
+    except ValueError as exc:
+        raise CatalogError(f"plant contract for {model_id} does not name its model: {exc}") from exc
+    if not same_model:
+        raise CatalogError(
+            f"plant contract model mismatch for {model_id}: {entry.get('species')}/{entry.get('embodiment')}"
+        )
     if entry.get("model_path") != model_relative_path:
         raise CatalogError(
-            f"plant contract model_path mismatch for {species_id}: expected {model_relative_path}, "
+            f"plant contract model_path mismatch for {model_id}: expected {model_relative_path}, "
             f"got {entry.get('model_path')}"
         )
 
-    source = _require_mapping(entry.get("source"), field=f"plant source for {species_id}")
+    source = _require_mapping(entry.get("source"), field=f"plant source for {model_id}")
     if source.get("schema") != SOURCE_SCHEMA:
-        raise CatalogError(f"plant source for {species_id} must use schema {SOURCE_SCHEMA}")
+        raise CatalogError(f"plant source for {model_id} must use schema {SOURCE_SCHEMA}")
     if source.get("root") != model_relative_path:
-        raise CatalogError(f"plant source root mismatch for {species_id}: {source.get('root')}")
+        raise CatalogError(f"plant source root mismatch for {model_id}: {source.get('root')}")
 
-    policy = _require_mapping(entry.get("policy_interface"), field=f"plant policy interface for {species_id}")
+    policy = _require_mapping(entry.get("policy_interface"), field=f"plant policy interface for {model_id}")
     if policy.get("schema") != POLICY_INTERFACE_SCHEMA:
-        raise CatalogError(f"plant policy interface for {species_id} must use schema {POLICY_INTERFACE_SCHEMA}")
-    policy_revision = _require_positive_int(policy.get("revision"), field=f"{species_id} policy revision")
+        raise CatalogError(f"plant policy interface for {model_id} must use schema {POLICY_INTERFACE_SCHEMA}")
+    policy_revision = _require_positive_int(policy.get("revision"), field=f"{model_id} policy revision")
     policy_observation_dim = _require_positive_int(
-        policy.get("observation_dim"), field=f"{species_id} plant observation_dim"
+        policy.get("observation_dim"), field=f"{model_id} plant observation_dim"
     )
-    policy_action_dim = _require_positive_int(policy.get("action_dim"), field=f"{species_id} plant action_dim")
+    policy_action_dim = _require_positive_int(policy.get("action_dim"), field=f"{model_id} plant action_dim")
     if policy_observation_dim != environment["observation_dim"]:
         raise CatalogError(
-            f"plant observation_dim mismatch for {species_id}: contract={policy_observation_dim}, "
+            f"plant observation_dim mismatch for {model_id}: contract={policy_observation_dim}, "
             f"environment={environment['observation_dim']}"
         )
     if policy_action_dim != environment["action_dim"]:
         raise CatalogError(
-            f"plant action_dim mismatch for {species_id}: contract={policy_action_dim}, "
+            f"plant action_dim mismatch for {model_id}: contract={policy_action_dim}, "
             f"environment={environment['action_dim']}"
         )
 
-    physics = _require_mapping(entry.get("physics"), field=f"plant physics for {species_id}")
+    physics = _require_mapping(entry.get("physics"), field=f"plant physics for {model_id}")
     if physics.get("schema") != PHYSICS_SCHEMA:
-        raise CatalogError(f"plant physics for {species_id} must use schema {PHYSICS_SCHEMA}")
-    physics_revision = _require_positive_int(physics.get("revision"), field=f"{species_id} physics revision")
+        raise CatalogError(f"plant physics for {model_id} must use schema {PHYSICS_SCHEMA}")
+    physics_revision = _require_positive_int(physics.get("revision"), field=f"{model_id} physics revision")
     for dimension in ("nq", "nv", "nu"):
-        contract_value = _require_positive_int(physics.get(dimension), field=f"{species_id} plant {dimension}")
+        contract_value = _require_positive_int(physics.get(dimension), field=f"{model_id} plant {dimension}")
         if contract_value != model[dimension]:
             raise CatalogError(
-                f"plant {dimension} mismatch for {species_id}: contract={contract_value}, model={model[dimension]}"
+                f"plant {dimension} mismatch for {model_id}: contract={contract_value}, model={model[dimension]}"
             )
 
-    visual = _require_mapping(entry.get("visual"), field=f"plant visual for {species_id}")
+    visual = _require_mapping(entry.get("visual"), field=f"plant visual for {model_id}")
     if visual.get("schema") != VISUAL_SCHEMA:
-        raise CatalogError(f"plant visual for {species_id} must use schema {VISUAL_SCHEMA}")
-    visual_revision = _require_positive_int(visual.get("revision"), field=f"{species_id} visual revision")
+        raise CatalogError(f"plant visual for {model_id} must use schema {VISUAL_SCHEMA}")
+    visual_revision = _require_positive_int(visual.get("revision"), field=f"{model_id} visual revision")
 
     return {
-        "bundle_sha256": _require_sha256(entry.get("bundle_sha256"), field=f"{species_id} plant bundle"),
-        "source_closure_sha256": _require_sha256(source.get("closure_sha256"), field=f"{species_id} source closure"),
+        "bundle_sha256": _require_sha256(entry.get("bundle_sha256"), field=f"{model_id} plant bundle"),
+        "source_closure_sha256": _require_sha256(source.get("closure_sha256"), field=f"{model_id} source closure"),
         "policy_interface": {
             "schema": POLICY_INTERFACE_SCHEMA,
             "revision": policy_revision,
             "observation_schema": _require_nonempty_string(
-                policy.get("observation_schema"), field=f"{species_id} observation_schema"
+                policy.get("observation_schema"), field=f"{model_id} observation_schema"
             ),
-            "sha256": _require_sha256(policy.get("sha256"), field=f"{species_id} policy interface"),
+            "sha256": _require_sha256(policy.get("sha256"), field=f"{model_id} policy interface"),
         },
         "physics": {
             "schema": PHYSICS_SCHEMA,
             "revision": physics_revision,
-            "sha256": _require_sha256(physics.get("sha256"), field=f"{species_id} physics"),
+            "sha256": _require_sha256(physics.get("sha256"), field=f"{model_id} physics"),
         },
         "visual": {
             "schema": VISUAL_SCHEMA,
             "revision": visual_revision,
-            "sha256": _require_sha256(visual.get("sha256"), field=f"{species_id} visual"),
+            "sha256": _require_sha256(visual.get("sha256"), field=f"{model_id} visual"),
         },
     }
 
@@ -440,47 +450,46 @@ def _public_plant_contract(
 def _configs_root(configs_dir: "Path | str | None") -> Path:
     """The configs directory the catalog reads stage manifests and TOMLs from.
 
-    ``None`` is the repository's ``configs/``; a test may point at a
-    synthesized tree (a species directory without ``stages.toml``) without
-    monkeypatching the loaders' private constants.
+    ``None`` is the repository's ``configs/``; a test may point at a tree
+    of its own without monkeypatching the loaders' private constants.
     """
     return DEFAULT_CONFIGS_DIR if configs_dir is None else Path(configs_dir).resolve()
 
 
 def _load_manifest_and_configs(
-    species_id: str, configs_dir: "Path | str | None" = None
+    model_id: ModelId, configs_dir: "Path | str | None" = None
 ) -> "tuple[Any, dict[int | str, dict[str, Any]]]":
-    """The species' stage manifest and every stage config it declares, in manifest order."""
+    """The model's stage manifest and every stage config it declares, in manifest order."""
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
     root = _configs_root(configs_dir)
     try:
-        manifest = load_stage_manifest(species_id, root)
+        manifest = load_stage_manifest(model_id, root)
     except StageManifestError as exc:
-        raise CatalogError(f"cannot load the stage manifest for {species_id}: {exc}") from exc
+        raise CatalogError(f"cannot load the stage manifest for {model_id}: {exc}") from exc
     if configs_dir is None:
-        return manifest, load_all_stages(species_id)
+        return manifest, load_all_stages(model_id)
     # A non-default root bypasses load_all_stages (which reads the
     # repository's configs/) by naming each TOML explicitly; the manifest
     # already validated that every config file exists.
     configs: dict[int | str, dict[str, Any]] = {
         entry.reference: load_stage_config(
-            species_id, entry.reference, config_path=str(root / species_id / entry.config_file)
+            model_id, entry.reference, config_path=str(model_id.path(root) / entry.config_file)
         )
         for entry in manifest.stages
     }
     return manifest, configs
 
 
-def _stage_config_path(species_id: str, stage_ref: "int | str", configs_dir: "Path | str | None" = None) -> Path:
+def _stage_config_path(model_id: ModelId, stage_ref: "int | str", configs_dir: "Path | str | None" = None) -> Path:
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
     root = _configs_root(configs_dir)
     try:
-        entry = load_stage_manifest(species_id, root).resolve(stage_ref)
+        entry = load_stage_manifest(model_id, root).resolve(stage_ref)
     except StageManifestError as exc:
-        raise CatalogError(f"cannot resolve stage {stage_ref} config for {species_id}: {exc}") from exc
-    return root / species_id / entry.config_file
+        raise CatalogError(f"cannot resolve stage {stage_ref} config for {model_id}: {exc}") from exc
+    return model_id.path(root) / entry.config_file
 
 
 #: The ``stance_quality/v2`` keys the catalog exports beside the shared ones,
@@ -547,9 +556,9 @@ def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
     return gate
 
 
-def current_advancement_gates(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, dict[str, Any]]:
-    """The gate each of the species' stages declares TODAY, by stage id."""
-    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+def current_advancement_gates(model_id: ModelId, configs_dir: "Path | str | None" = None) -> dict[str, dict[str, Any]]:
+    """The gate each of the model's stages declares TODAY, by stage id."""
+    manifest, configs = _load_manifest_and_configs(model_id, configs_dir)
     return {
         entry.id: _advancement_gate(entry, configs[entry.reference]["curriculum_kwargs"]) for entry in manifest.stages
     }
@@ -563,63 +572,63 @@ def _public_video_path(relative_path: str) -> str:
 
 
 def _build_stages(
-    species_id: str,
+    model_id: ModelId,
     raw_videos: list[dict[str, Any]],
     *,
     configs_dir: "Path | str | None" = None,
 ) -> list[dict[str, Any]]:
     from environments.shared.stage_manifest import StageManifestError
 
-    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
-    # Videos are keyed by stage id (species manifest schema 2); the legacy
+    manifest, configs = _load_manifest_and_configs(model_id, configs_dir)
+    # Videos are keyed by stage id (species manifest schema 2 and later); the legacy
     # number stays an accepted alias because the stage manifest resolves
     # both spellings an entry can carry, and fails closed on anything the
-    # species does not declare.  Two spellings of one stage are a duplicate.
+    # model does not declare.  Two spellings of one stage are a duplicate.
     video_by_stage: dict[str, dict[str, Any]] = {}
     for raw_video in raw_videos:
         raw_stage_ref = raw_video["stage"]
         try:
             video_entry = manifest.resolve(raw_stage_ref)
         except StageManifestError as exc:
-            raise CatalogError(f"stage video for {species_id} names an unknown stage {raw_stage_ref!r}: {exc}") from exc
+            raise CatalogError(f"stage video for {model_id} names an unknown stage {raw_stage_ref!r}: {exc}") from exc
         stage_number = video_entry.reference
         if video_entry.id in video_by_stage:
-            raise CatalogError(f"duplicate stage video for {species_id} stage {stage_number}")
+            raise CatalogError(f"duplicate stage video for {model_id} stage {stage_number}")
         relative_path = str(raw_video["path"])
-        video_path = _repo_path(relative_path, field=f"{species_id} stage {stage_number} video")
+        video_path = _repo_path(relative_path, field=f"{model_id} stage {stage_number} video")
         poster_path = REPOSITORY_ROOT / "website" / "static" / "img" / "posters" / f"{video_path.stem}.jpg"
         if not poster_path.exists():
             raise CatalogError(f"poster does not exist for {relative_path}: {poster_path.relative_to(REPOSITORY_ROOT)}")
         algorithm = _require_nonempty_string(
-            raw_video.get("algorithm"), field=f"{species_id} stage {stage_number} video algorithm"
+            raw_video.get("algorithm"), field=f"{model_id} stage {stage_number} video algorithm"
         )
         backend = raw_video.get("backend")
         backend_version = _optional_nonempty_string(
-            raw_video.get("backend_version"), field=f"{species_id} stage {stage_number} video backend_version"
+            raw_video.get("backend_version"), field=f"{model_id} stage {stage_number} video backend_version"
         )
         model_revision_status = raw_video.get("model_revision_status")
         verification_status = raw_video.get("verification_status")
         if backend not in ALLOWED_TRAINING_BACKENDS:
-            raise CatalogError(f"invalid stage-video backend for {species_id} stage {stage_number}: {backend}")
+            raise CatalogError(f"invalid stage-video backend for {model_id} stage {stage_number}: {backend}")
         if model_revision_status not in ALLOWED_MODEL_REVISION_STATUSES:
             raise CatalogError(
-                f"invalid stage-video model_revision_status for {species_id} stage {stage_number}: "
+                f"invalid stage-video model_revision_status for {model_id} stage {stage_number}: "
                 f"{model_revision_status}"
             )
         if verification_status not in ALLOWED_VERIFICATION_STATUSES:
             raise CatalogError(
-                f"invalid stage-video verification_status for {species_id} stage {stage_number}: {verification_status}"
+                f"invalid stage-video verification_status for {model_id} stage {stage_number}: {verification_status}"
             )
         identifiers = {key: raw_video.get(key) for key in PROVENANCE_IDENTIFIERS}
         for key, value in identifiers.items():
-            identifiers[key] = _optional_nonempty_string(value, field=f"{species_id} stage {stage_number} video {key}")
+            identifiers[key] = _optional_nonempty_string(value, field=f"{model_id} stage {stage_number} video {key}")
         if model_revision_status == "current" or verification_status == "verified":
             missing = [key for key, value in identifiers.items() if not value]
             if backend_version is None:
                 missing.append("backend_version")
             if missing:
                 raise CatalogError(
-                    f"current or verified stage video for {species_id} stage {stage_number} "
+                    f"current or verified stage video for {model_id} stage {stage_number} "
                     f"is missing identifiers: {missing}"
                 )
         video_by_stage[video_entry.id] = {
@@ -634,7 +643,7 @@ def _build_stages(
 
     # config_path is rendered relative to the configs root's parent: the
     # repository root for the committed tree (unchanged), a temporary root
-    # for a synthesized fixture.
+    # for a test's fixture tree.
     path_root = _configs_root(configs_dir).parent
     stages: list[dict[str, Any]] = []
     # Every stage the manifest declares, in manifest (curriculum) order —
@@ -643,7 +652,7 @@ def _build_stages(
     for entry in manifest.stages:
         stage_config = configs[entry.reference]
         curriculum = stage_config["curriculum_kwargs"]
-        config_path = _stage_config_path(species_id, entry.reference, configs_dir)
+        config_path = _stage_config_path(model_id, entry.reference, configs_dir)
         name = str(stage_config["name"])
         stages.append(
             {
@@ -665,7 +674,7 @@ def _build_stages(
                 # EARLIER stage id it warm-starts from (null for a root), and
                 # the behavior label it belongs to.  Top-level rather than
                 # inside advancement_gate, which stays the gate alone.  A v1
-                # or synthesized manifest derives these as the loader did
+                # manifest derives these as the loader did
                 # before v2 (last advancing entry the only deliverable, no
                 # labels), so the catalog never invents a recipe.
                 "deliverable": entry.deliverable,
@@ -692,7 +701,7 @@ def _validate_provenance(provenance: Any, *, result_path: str) -> dict[str, Any]
         raise CatalogError(str(exc)) from exc
 
 
-def _validate_result_summary(summary: Any, *, species_id: str, relative_path: str) -> dict[str, Any]:
+def _validate_result_summary(summary: Any, *, model_id: ModelId, relative_path: str) -> dict[str, Any]:
     """Validate public results while preserving the catalog error API.
 
     Publishable, not complete (decision D-A2): a schema-4 run that certified
@@ -703,7 +712,7 @@ def _validate_result_summary(summary: Any, *, species_id: str, relative_path: st
     try:
         return validate_result_summary(
             summary,
-            expected_species=species_id,
+            expected_model_id=model_id,
             relative_path=relative_path,
             require_complete=False,
             require_publishable=True,
@@ -719,8 +728,8 @@ def _declared_certification_seeds(curriculum: dict[str, Any], *, stage: "int | s
         raise CatalogError(str(exc)) from exc
 
 
-def current_certification_seeds(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, int]:
-    """The ``certification_seeds`` each of the species' stages declares TODAY, by stage id (default 1).
+def current_certification_seeds(model_id: ModelId, configs_dir: "Path | str | None" = None) -> dict[str, int]:
+    """The ``certification_seeds`` each of the model's stages declares TODAY, by stage id (default 1).
 
     What a published replication count is read against (decision D-B10):
     the catalog re-derives ``provisional`` from the CURRENT declaration,
@@ -728,22 +737,22 @@ def current_certification_seeds(species_id: str, configs_dir: "Path | str | None
     raising a stage's bar relabels a committed n = 1 bundle without
     republishing it.  The recorded flag is audited at publication.
     """
-    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    manifest, configs = _load_manifest_and_configs(model_id, configs_dir)
     return {
         entry.id: _declared_certification_seeds(configs[entry.reference]["curriculum_kwargs"], stage=entry.reference)
         for entry in manifest.stages
     }
 
 
-def current_gate_kinds(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, "str | None"]:
-    """The gate kind each of the species' stages declares TODAY, by stage id.
+def current_gate_kinds(model_id: ModelId, configs_dir: "Path | str | None" = None) -> dict[str, "str | None"]:
+    """The gate kind each of the model's stages declares TODAY, by stage id.
 
     What a published verdict is compared against: a ``stage_passed`` earned
     under a different (or unrecorded) gate is a pass of a retired gate, and
     the catalog says so instead of re-serving the bare boolean beneath the
     current gate's description (review SS5).
     """
-    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    manifest, configs = _load_manifest_and_configs(model_id, configs_dir)
     return {entry.id: configs[entry.reference]["curriculum_kwargs"].get("gate_kind") for entry in manifest.stages}
 
 
@@ -754,10 +763,10 @@ def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float
     return max(reported_velocities) if reported_velocities else None
 
 
-def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
-    result_path = _repo_path(relative_path, field=f"{species_id} result summary")
+def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
+    result_path = _repo_path(relative_path, field=f"{model_id} result summary")
     with result_path.open(encoding="utf-8") as result_file:
-        summary = _validate_result_summary(json.load(result_file), species_id=species_id, relative_path=relative_path)
+        summary = _validate_result_summary(json.load(result_file), model_id=model_id, relative_path=relative_path)
 
     # Manifest order, manifest vocabulary: a recovery-bearing summary renders
     # its stage between stance and locomotion, and sorting never calls int()
@@ -765,10 +774,10 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
     # above, so resolution cannot fail here except through the same
     # CatalogError channel.
     try:
-        stage_entries = ordered_stage_entries(summary["stages"], species=species_id, field=f"stages in {relative_path}")
+        stage_entries = ordered_stage_entries(summary["stages"], model_id=model_id, field=f"stages in {relative_path}")
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
-    declared_gates = current_gate_kinds(species_id)
+    declared_gates = current_gate_kinds(model_id)
     stage_summaries: list[dict[str, Any]] = []
     for stage_key, entry in stage_entries:
         raw_stage = summary["stages"][stage_key]
@@ -798,7 +807,7 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
                 "stage_passed": raw_stage.get("stage_passed"),
                 # Provenance for the verdict: the gate the summary recorded
                 # (None for a producer that predates the key), the gate the
-                # species declares now, and whether the two differ.
+                # model declares now, and whether the two differ.
                 "gate_kind": recorded_gate,
                 "current_gate_kind": current_gate,
                 "gate_retired": recorded_gate is None or recorded_gate != current_gate,
@@ -808,7 +817,7 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
     validated_provenance = _validate_provenance(summary["provenance"], result_path=relative_path)
     raw_stages_by_id = {entry.id: summary["stages"][stage_key] for stage_key, entry in stage_entries}
     deliverables, primary_deliverable, target_deliverable = _build_result_deliverables(
-        species_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path
+        model_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path
     )
     # The exported provenance is the identity/status surface alone.  A v4
     # block also validates to its deliverables map, ancestors, primary and
@@ -843,7 +852,7 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
         "stage3_success_rate": stage_three.get("mean_success_rate") if stage_three else None,
         "provenance": provenance,
         # Per-deliverable publication (schema 4): [] and nulls for every
-        # schema-2/3 summary — never synthesized from a ladder pass.
+        # schema-2 summary — never synthesized from a ladder pass.
         "deliverables": deliverables,
         "primary_deliverable": primary_deliverable,
         "target_deliverable": target_deliverable,
@@ -852,7 +861,7 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
 
 
 def _build_result_deliverables(
-    species_id: str,
+    model_id: ModelId,
     summary: dict[str, Any],
     provenance: dict[str, Any],
     raw_stages_by_id: dict[str, dict[str, Any]],
@@ -870,7 +879,7 @@ def _build_result_deliverables(
     hunt is exported now) rather than the ladder projection, which carries
     only the fixed ladder columns.
 
-    A schema-2/3 ladder summary publishes NO deliverable: its ``stage_passed``
+    A schema-2 ladder summary publishes NO deliverable: its ``stage_passed``
     was a pass of the retired reward gate, and relabelling it "certified"
     would mint a certification nothing measured.  From schema 4 on each
     ``provenance.deliverables`` record becomes a row carrying its gate kind,
@@ -891,12 +900,12 @@ def _build_result_deliverables(
         raise CatalogError(f"schema-{schema_version} result {relative_path} publishes no provenance.deliverables")
     try:
         entries = ordered_stage_entries(
-            raw_records, species=species_id, field=f"provenance.deliverables in {relative_path}"
+            raw_records, model_id=model_id, field=f"provenance.deliverables in {relative_path}"
         )
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
-    current_gates = current_advancement_gates(species_id)
-    current_seeds = current_certification_seeds(species_id)
+    current_gates = current_advancement_gates(model_id)
+    current_seeds = current_certification_seeds(model_id)
     deliverables: list[dict[str, Any]] = []
     for key, entry in entries:
         record = raw_records[key]
@@ -940,7 +949,7 @@ def _build_result_deliverables(
             "publishes only a certified primary"
         )
     try:
-        expected_primary = primary_deliverable_key(raw_records, species=species_id, target=target_deliverable)
+        expected_primary = primary_deliverable_key(raw_records, model_id=model_id, target=target_deliverable)
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
     if primary_deliverable != expected_primary:
@@ -952,37 +961,37 @@ def _build_result_deliverables(
 
 
 def _build_success_metrics(
-    species_id: str, raw_metrics: Any, expected_backends: set[str] | None = None
+    model_id: ModelId, raw_metrics: Any, expected_backends: set[str] | None = None
 ) -> list[dict[str, Any]]:
     if not isinstance(raw_metrics, list) or not raw_metrics:
-        raise CatalogError(f"{species_id} must define at least one backend-scoped success metric")
+        raise CatalogError(f"{model_id} must define at least one backend-scoped success metric")
 
     covered_backends: set[str] = set()
     metrics: list[dict[str, Any]] = []
     for index, raw_metric_value in enumerate(raw_metrics, start=1):
-        raw_metric = _require_mapping(raw_metric_value, field=f"{species_id} success metric {index}")
+        raw_metric = _require_mapping(raw_metric_value, field=f"{model_id} success metric {index}")
         backends = raw_metric.get("backends")
         if not isinstance(backends, list) or not backends:
-            raise CatalogError(f"{species_id} success metric {index} must name at least one backend")
+            raise CatalogError(f"{model_id} success metric {index} must name at least one backend")
         if any(backend not in ALLOWED_TRAINING_BACKENDS for backend in backends):
-            raise CatalogError(f"{species_id} success metric {index} has invalid backends: {backends}")
+            raise CatalogError(f"{model_id} success metric {index} has invalid backends: {backends}")
         if len(set(backends)) != len(backends):
-            raise CatalogError(f"{species_id} success metric {index} repeats a backend")
+            raise CatalogError(f"{model_id} success metric {index} repeats a backend")
         duplicate_backends = covered_backends.intersection(backends)
         if duplicate_backends:
-            raise CatalogError(f"{species_id} defines more than one success metric for {sorted(duplicate_backends)}")
+            raise CatalogError(f"{model_id} defines more than one success metric for {sorted(duplicate_backends)}")
         covered_backends.update(backends)
         metrics.append(
             {
                 "backends": list(backends),
                 "key": _require_nonempty_string(
-                    raw_metric.get("key"), field=f"key for {species_id} success metric {index}"
+                    raw_metric.get("key"), field=f"key for {model_id} success metric {index}"
                 ),
                 "label": _require_nonempty_string(
-                    raw_metric.get("label"), field=f"label for {species_id} success metric {index}"
+                    raw_metric.get("label"), field=f"label for {model_id} success metric {index}"
                 ),
                 "definition": _require_nonempty_string(
-                    raw_metric.get("definition"), field=f"definition for {species_id} success metric {index}"
+                    raw_metric.get("definition"), field=f"definition for {model_id} success metric {index}"
                 ),
             }
         )
@@ -991,24 +1000,24 @@ def _build_success_metrics(
     if covered_backends != expected:
         missing = sorted(expected - covered_backends)
         extra = sorted(covered_backends - expected)
-        raise CatalogError(f"{species_id} success metric backends mismatch; missing={missing}, unsupported={extra}")
+        raise CatalogError(f"{model_id} success metric backends mismatch; missing={missing}, unsupported={extra}")
     return metrics
 
 
 def _build_deliverable_metrics(
-    species_id: str,
+    model_id: ModelId,
     raw_metrics: Any,
     expected_backends: set[str] | None = None,
     *,
     configs_dir: "Path | str | None" = None,
 ) -> list[dict[str, Any]]:
-    """Validate ``[[species.deliverable_metrics]]`` against the species' stage manifest.
+    """Validate a model's ``deliverable_metrics`` against its stage manifest.
 
     Each entry names a deliverable (a recipe label or a deliverable stage
     id, resolved exactly as the notebook's ``BEHAVIOR`` knob is — a label
     means its deepest deliverable), the backends the definition holds for,
     and the metric's key, label and definition.  Fail-closed: an unknown
-    deliverable or label, a backend the species does not train, and two
+    deliverable or label, a backend the model does not train, and two
     entries for one (stage, backend) are all fatal.  Coverage: every
     deliverable the manifest declares has a ``stable-baselines3``
     definition, the evidence backend (plan §4.9), so a newly declared
@@ -1016,42 +1025,42 @@ def _build_deliverable_metrics(
     """
     from environments.shared.stage_manifest import StageManifestError
 
-    manifest, _configs = _load_manifest_and_configs(species_id, configs_dir)
+    manifest, _configs = _load_manifest_and_configs(model_id, configs_dir)
     if not isinstance(raw_metrics, list):
-        raise CatalogError(f"{species_id} deliverable_metrics must be a list")
+        raise CatalogError(f"{model_id} deliverable_metrics must be a list")
     expected = ALLOWED_TRAINING_BACKENDS if expected_backends is None else expected_backends
 
     covered: set[tuple[str, str]] = set()
     metrics: list[dict[str, Any]] = []
     for index, raw_metric_value in enumerate(raw_metrics, start=1):
-        raw_metric = _require_mapping(raw_metric_value, field=f"{species_id} deliverable metric {index}")
+        raw_metric = _require_mapping(raw_metric_value, field=f"{model_id} deliverable metric {index}")
         deliverable = _require_nonempty_string(
-            raw_metric.get("deliverable"), field=f"deliverable for {species_id} deliverable metric {index}"
+            raw_metric.get("deliverable"), field=f"deliverable for {model_id} deliverable metric {index}"
         )
         try:
             entry = manifest.resolve_behavior(deliverable)
         except StageManifestError as exc:
             raise CatalogError(
-                f"{species_id} deliverable metric {index} names unknown deliverable {deliverable!r}: {exc}"
+                f"{model_id} deliverable metric {index} names unknown deliverable {deliverable!r}: {exc}"
             ) from exc
         backends = raw_metric.get("backends")
         if not isinstance(backends, list) or not backends:
-            raise CatalogError(f"{species_id} deliverable metric {index} must name at least one backend")
+            raise CatalogError(f"{model_id} deliverable metric {index} must name at least one backend")
         unknown_backends = [backend for backend in backends if backend not in ALLOWED_TRAINING_BACKENDS]
         if unknown_backends:
-            raise CatalogError(f"{species_id} deliverable metric {index} has unknown backends: {unknown_backends}")
+            raise CatalogError(f"{model_id} deliverable metric {index} has unknown backends: {unknown_backends}")
         untrained = sorted(set(backends) - expected)
         if untrained:
             raise CatalogError(
-                f"{species_id} deliverable metric {index} names backends the species does not train: {untrained}"
+                f"{model_id} deliverable metric {index} names backends the model does not train: {untrained}"
             )
         if len(set(backends)) != len(backends):
-            raise CatalogError(f"{species_id} deliverable metric {index} repeats a backend")
+            raise CatalogError(f"{model_id} deliverable metric {index} repeats a backend")
         for backend in backends:
             scope = (entry.id, str(backend))
             if scope in covered:
                 raise CatalogError(
-                    f"{species_id} defines more than one deliverable metric for stage {entry.id!r} on {backend}"
+                    f"{model_id} defines more than one deliverable metric for stage {entry.id!r} on {backend}"
                 )
             covered.add(scope)
         metrics.append(
@@ -1060,13 +1069,13 @@ def _build_deliverable_metrics(
                 "stage_id": entry.id,
                 "backends": [str(backend) for backend in backends],
                 "key": _require_nonempty_string(
-                    raw_metric.get("key"), field=f"key for {species_id} deliverable metric {index}"
+                    raw_metric.get("key"), field=f"key for {model_id} deliverable metric {index}"
                 ),
                 "label": _require_nonempty_string(
-                    raw_metric.get("label"), field=f"label for {species_id} deliverable metric {index}"
+                    raw_metric.get("label"), field=f"label for {model_id} deliverable metric {index}"
                 ),
                 "definition": _require_nonempty_string(
-                    raw_metric.get("definition"), field=f"definition for {species_id} deliverable metric {index}"
+                    raw_metric.get("definition"), field=f"definition for {model_id} deliverable metric {index}"
                 ),
             }
         )
@@ -1074,7 +1083,7 @@ def _build_deliverable_metrics(
     uncovered = [entry.id for entry in manifest.deliverables if (entry.id, "stable-baselines3") not in covered]
     if uncovered:
         raise CatalogError(
-            f"{species_id} deliverable_metrics must define a stable-baselines3 metric for every manifest "
+            f"{model_id} deliverable_metrics must define a stable-baselines3 metric for every manifest "
             f"deliverable; missing {uncovered}"
         )
     return metrics
@@ -1084,7 +1093,7 @@ def build_catalog(
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
     plant_manifest_path: Path = DEFAULT_PLANT_MANIFEST_PATH,
 ) -> dict[str, Any]:
-    """Build and validate the deterministic public species catalog."""
+    """Build and validate the deterministic public species catalog: one entry per manifest model."""
     manifest_path = manifest_path.resolve()
     manifest = _load_manifest(manifest_path)
     plant_manifest_path = plant_manifest_path.resolve()
@@ -1118,104 +1127,120 @@ def build_catalog(
             }
         )
 
-    species_entries = sorted(manifest.get("species", []), key=lambda item: int(item["display_order"]))
-    species_ids: set[str] = set()
-    aliases: set[str] = set()
+    species_tables: dict[str, Any] = manifest["species"]
+    manifest_models = [
+        ModelId(species, embodiment)
+        for species in sorted(species_tables, key=lambda name: int(species_tables[name]["display_order"]))
+        for embodiment in EMBODIMENTS
+        if embodiment in species_tables[species]["embodiments"]
+    ]
     manifested_result_paths: set[str] = set()
-    species_catalog: list[dict[str, Any]] = []
-    for raw_species in species_entries:
-        species_id = str(raw_species["id"])
-        if species_id in species_ids:
-            raise CatalogError(f"duplicate species id: {species_id}")
-        species_ids.add(species_id)
+    models: list[dict[str, Any]] = []
+    for model_id in manifest_models:
+        species_table = species_tables[model_id.species]
+        raw_model = species_table["embodiments"][model_id.embodiment]
 
-        species_aliases = [str(alias) for alias in raw_species.get("aliases", [])]
-        duplicate_aliases = aliases.intersection(species_aliases)
-        if duplicate_aliases:
-            raise CatalogError(f"duplicate species aliases: {sorted(duplicate_aliases)}")
-        aliases.update(species_aliases)
-
-        model_relative_path = str(raw_species["model_path"])
-        model_path = _repo_path(model_relative_path, field=f"{species_id} model")
+        # Both are derived from the pair (decision D-D33) and stay explicit
+        # in the manifest only so a reader sees them; they must agree.
+        entrypoint = str(raw_model["env_entrypoint"])
+        expected_entrypoint = f"{model_id.package}.env:{model_id.env_class_name}"
+        if entrypoint != expected_entrypoint:
+            raise CatalogError(f"{model_id} env_entrypoint must be {expected_entrypoint}, got {entrypoint}")
+        model_relative_path = str(raw_model["model_path"])
+        expected_model_path = model_id.asset_path(Path("environments")).as_posix()
+        if model_relative_path != expected_model_path:
+            raise CatalogError(f"{model_id} model_path must be {expected_model_path}, got {model_relative_path}")
+        model_path = _repo_path(model_relative_path, field=f"{model_id} model")
         model: dict[str, Any] = {"path": model_relative_path, **_model_facts(model_path)}
-        environment = _environment_facts(str(raw_species["env_entrypoint"]), int(model["nu"]))
+        environment = _environment_facts(entrypoint, int(model["nu"]))
+        plant_species = raw_plant_entries.get(model_id.species)
         model["plant_contract"] = _public_plant_contract(
-            species_id,
-            raw_plant_entries.get(species_id),
+            model_id,
+            plant_species.get(model_id.embodiment) if isinstance(plant_species, dict) else None,
             model_relative_path=model_relative_path,
             model=model,
             environment=environment,
         )
 
-        training_notebook_ids = [str(notebook_id) for notebook_id in raw_species.get("training_notebooks", [])]
-        training_backends = set(raw_species.get("training_backends", ALLOWED_TRAINING_BACKENDS))
+        training_notebook_ids = [str(notebook_id) for notebook_id in raw_model.get("training_notebooks", [])]
+        training_backends = set(raw_model["training_backends"])
         if not training_backends or training_backends - ALLOWED_TRAINING_BACKENDS:
-            raise CatalogError(f"{species_id} has invalid training backends: {training_backends}")
+            raise CatalogError(f"{model_id} has invalid training backends: {training_backends}")
         if "sb3_training" in training_notebook_ids and "stable-baselines3" not in training_backends:
-            raise CatalogError(f"{species_id} advertises unsupported notebook sb3_training")
+            raise CatalogError(f"{model_id} advertises unsupported notebook sb3_training")
         unknown_notebooks = sorted(set(training_notebook_ids) - notebook_ids)
         if unknown_notebooks:
-            raise CatalogError(f"{species_id} references unknown notebooks: {unknown_notebooks}")
+            raise CatalogError(f"{model_id} references unknown notebooks: {unknown_notebooks}")
 
-        result_summary_paths = [str(path) for path in raw_species.get("result_summary_paths", [])]
+        result_summary_paths = [str(path) for path in raw_model.get("result_summary_paths", [])]
         duplicate_result_paths = manifested_result_paths.intersection(result_summary_paths)
         if duplicate_result_paths:
             raise CatalogError(f"result summaries are listed more than once: {sorted(duplicate_result_paths)}")
         manifested_result_paths.update(result_summary_paths)
 
-        species_catalog.append(
+        species_display_name = str(species_table["display_name"])
+        models.append(
             {
-                "id": species_id,
-                "display_name": str(raw_species["display_name"]),
-                "tagline": str(raw_species["tagline"]),
-                "gait": str(raw_species["gait"]),
-                "specialty": str(raw_species["specialty"]),
-                "aliases": species_aliases,
+                "species": model_id.species,
+                "embodiment": model_id.embodiment,
+                "species_display_name": species_display_name,
+                # The model display name, always derived (species_names.model_display_name).
+                "display_name": f"{species_display_name} ({EMBODIMENT_LABELS[model_id.embodiment]})",
+                "tagline": str(raw_model["tagline"]),
+                "gait": str(raw_model["gait"]),
+                "specialty": str(raw_model["specialty"]),
                 "environment": environment,
                 "model": model,
                 "training_notebooks": training_notebook_ids,
                 "success_metrics": _build_success_metrics(
-                    species_id, raw_species.get("success_metrics"), training_backends
+                    model_id, raw_model.get("success_metrics"), training_backends
                 ),
                 "deliverable_metrics": _build_deliverable_metrics(
-                    species_id, raw_species.get("deliverable_metrics", []), training_backends
+                    model_id, raw_model.get("deliverable_metrics", []), training_backends
                 ),
-                "stages": _build_stages(species_id, raw_species.get("stage_videos", [])),
-                "historical_results": [_build_result(species_id, result_path) for result_path in result_summary_paths],
+                "stages": _build_stages(model_id, raw_model.get("stage_videos", [])),
+                "historical_results": [_build_result(model_id, result_path) for result_path in result_summary_paths],
             }
         )
 
     discovered_result_paths = {
-        path.relative_to(REPOSITORY_ROOT).as_posix() for path in (REPOSITORY_ROOT / "results").glob("*/*/summary.json")
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in (REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")
     }
     if manifested_result_paths != discovered_result_paths:
         missing = sorted(discovered_result_paths - manifested_result_paths)
         unknown = sorted(manifested_result_paths - discovered_result_paths)
         raise CatalogError(f"manifest/result summary coverage mismatch; unlisted={missing}, unknown={unknown}")
 
-    implemented_species = {
-        path.name
-        for path in (REPOSITORY_ROOT / "environments").iterdir()
-        if path.is_dir() and (path / "envs").is_dir() and (path / "assets").is_dir()
+    # An implemented model is an environments/<species>/<embodiment>/ holding
+    # env.py and assets/; a shared package (environments/shared/, a future
+    # robotics package) holds no such pair, so it is never mistaken for one.
+    manifest_pairs = {(model_id.species, model_id.embodiment) for model_id in manifest_models}
+    implemented_models = {
+        (path.parent.name, path.name)
+        for path in (REPOSITORY_ROOT / "environments").glob("*/*")
+        if path.is_dir() and (path / "env.py").is_file() and (path / "assets").is_dir()
     }
-    variants = {str(entry["id"]): str(entry["variant_of"]) for entry in species_entries if "variant_of" in entry}
-    for entry in species_entries:
-        if entry["id"] in variants:
-            parent = variants[entry["id"]]
-            if parent not in species_ids - variants.keys() or parent not in implemented_species:
-                raise CatalogError(f"invalid parent species for variant {entry['id']}: {parent}")
-            if not str(entry["env_entrypoint"]).startswith(f"environments.{parent}.envs."):
-                raise CatalogError(f"variant {entry['id']} must use its parent species' environment package")
-    primary_species = species_ids - variants.keys()
-    if primary_species != implemented_species:
-        missing = sorted(implemented_species - primary_species)
-        unknown = sorted(primary_species - implemented_species)
-        raise CatalogError(f"manifest/implemented species coverage mismatch; unlisted={missing}, unknown={unknown}")
+    if manifest_pairs != implemented_models:
+        missing = sorted("/".join(pair) for pair in implemented_models - manifest_pairs)
+        unknown = sorted("/".join(pair) for pair in manifest_pairs - implemented_models)
+        raise CatalogError(f"manifest/implemented model coverage mismatch; unlisted={missing}, unknown={unknown}")
+    missing_readmes = sorted(
+        species
+        for species in species_tables
+        if not (REPOSITORY_ROOT / "environments" / species / "README.md").is_file()
+    )
+    if missing_readmes:
+        raise CatalogError(f"species without environments/<species>/README.md: {missing_readmes}")
 
-    plant_species = set(raw_plant_entries)
-    if species_ids != plant_species:
-        missing = sorted(species_ids - plant_species)
-        unknown = sorted(plant_species - species_ids)
+    plant_pairs = {
+        (species, embodiment)
+        for species, entries in raw_plant_entries.items()
+        for embodiment in (entries if isinstance(entries, dict) else {})
+    }
+    if manifest_pairs != plant_pairs:
+        missing = sorted("/".join(pair) for pair in manifest_pairs - plant_pairs)
+        unknown = sorted("/".join(pair) for pair in plant_pairs - manifest_pairs)
         raise CatalogError(f"plant/species manifest coverage mismatch; missing={missing}, unknown={unknown}")
 
     return {
@@ -1232,7 +1257,9 @@ def build_catalog(
         # carry recipe / deliverable, and species carry deliverable_metrics
         # beside the untouched success_metrics.  The website adapter guards
         # on this number, hence the bump.
-        "schema_version": 4,
+        # v5 (decision D-D33): one entry per model under "models", named by
+        # species and embodiment, with no id or aliases.
+        "schema_version": CATALOG_SCHEMA_VERSION,
         "manifest_path": manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
         "plant_manifest": {
             "path": plant_manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
@@ -1242,7 +1269,7 @@ def build_catalog(
         },
         "project_capabilities": capabilities,
         "notebooks": notebooks,
-        "species": species_catalog,
+        "models": models,
     }
 
 
@@ -1298,11 +1325,21 @@ def _format_backend(backend: str, version: str | None = None) -> str:
     return f"{label} {version}" if version else f"{label} (version not recorded)"
 
 
-def _success_metric_for_backend(species: dict[str, Any], backend: str) -> dict[str, Any]:
-    for metric in species["success_metrics"]:
+def _success_metric_for_backend(model: dict[str, Any], backend: str) -> dict[str, Any]:
+    for metric in model["success_metrics"]:
         if backend in metric["backends"]:
             return cast(dict[str, Any], metric)
-    raise CatalogError(f"{species['id']} has no success metric for backend {backend}")
+    raise CatalogError(f"{model['species']}/{model['embodiment']} has no success metric for backend {backend}")
+
+
+def _anchor(model: dict[str, Any]) -> str:
+    """A catalog entry's one anchor, ``<species>-<embodiment>`` (``ModelId.anchor``)."""
+    return f"{model['species']}-{model['embodiment']}"
+
+
+def _species_readme(model: dict[str, Any]) -> str:
+    """The repository path of the model's species README, ``environments/<species>/README.md``."""
+    return f"environments/{model['species']}/README.md"
 
 
 def _stage_heading(stage: dict[str, Any]) -> str:
@@ -1328,9 +1365,7 @@ def _format_warm_start(stage: dict[str, Any], stage_headings: dict[str, str]) ->
     except KeyError:
         # The stage manifest only accepts edges to declared earlier entries,
         # so this is a catalog bug, not a manifest error.
-        raise CatalogError(
-            f"stage {stage['id']} warm-starts from {parent!r}, which the species does not list"
-        ) from None
+        raise CatalogError(f"stage {stage['id']} warm-starts from {parent!r}, which the model does not list") from None
 
 
 def _format_headline_metric(metric: dict[str, Any]) -> str:
@@ -1520,40 +1555,39 @@ def _page_link(path: str, page_dir: str) -> str:
 
 
 def render_readme_species_summary(catalog: dict[str, Any]) -> str:
-    """Render the root README's species table: one row per species, linking its full entry.
+    """Render the root README's model table: one row per model, linking its full entry.
 
-    Each row keeps the explicit ``<a id>`` anchors of the id and every alias,
-    so ``README.md#velociraptor``, ``#t-rex`` and the rest resolve as they did
-    when the README carried the full entry (cleanup CU-17).
+    Each row carries the model's one explicit ``<a id>`` anchor,
+    ``<species>-<embodiment>`` (decision D-D33 dropped the alias anchors), as
+    its catalog entry does.
     """
     lines = [
         "<!-- Generated by `python -m environments.shared.species_catalog` from `configs/species_manifest.toml`",
         "and the executable environments; do not edit by hand. -->",
         "",
-        "| Species | Description | Gait | Task | Observation / action dim. | Details |",
+        "| Model | Description | Gait | Task | Observation / action dim. | Details |",
         "|---|---|---|---|---:|---|",
     ]
     catalog_page = DEFAULT_CATALOG_PAGE_PATH.relative_to(REPOSITORY_ROOT).as_posix()
-    for species in catalog["species"]:
-        anchors = "".join(f'<a id="{anchor}"></a>' for anchor in [species["id"], *species["aliases"]])
-        package = Path(species["model"]["path"]).parent.parent.as_posix()
-        page = SITE_MODEL_PAGE_URL.format(species_id=species["id"])
+    for model in catalog["models"]:
+        anchor = _anchor(model)
+        page = SITE_MODEL_PAGE_URL.format(species=model["species"], embodiment=model["embodiment"])
         lines.append(
-            f"| {anchors}**{species['display_name']}** | {species['tagline']} | {species['gait']} | "
-            f"{species['specialty']} | {species['environment']['observation_dim']} / "
-            f"{species['environment']['action_dim']} | [README]({package}/README.md) · "
-            f"[catalog entry]({catalog_page}#{species['id']}) · [model page]({page}) |"
+            f'| <a id="{anchor}"></a>**{model["display_name"]}** | {model["tagline"]} | {model["gait"]} | '
+            f"{model['specialty']} | {model['environment']['observation_dim']} / "
+            f"{model['environment']['action_dim']} | [README]({_species_readme(model)}) · "
+            f"[catalog entry]({catalog_page}#{anchor}) · [model page]({page}) |"
         )
     lines += [
         "",
-        f"The [species catalog]({catalog_page}) holds each species' full entry: specifications, current stages",
+        f"The [species catalog]({catalog_page}) holds each model's full entry: specifications, current stages",
         "with their recipes, budgets and gates, success definitions and run summaries; each model page renders it too.",
     ]
     return "\n".join(lines)
 
 
 def render_readme_species(catalog: dict[str, Any], *, page_dir: str = ".") -> str:
-    """Render every species' full catalog entry: specifications, current stages, success semantics.
+    """Render every model's full catalog entry: specifications, current stages, success semantics.
 
     The SPECIES block of docs/SPECIES_CATALOG.md (the root README's until
     cleanup CU-17).  ``page_dir`` is the directory of the page that embeds the
@@ -1564,18 +1598,18 @@ def render_readme_species(catalog: dict[str, Any], *, page_dir: str = ".") -> st
         "the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and",
         "gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.",
     ]
-    for species in catalog["species"]:
-        environment = species["environment"]
-        model = species["model"]
+    for entry in catalog["models"]:
+        environment = entry["environment"]
+        model = entry["model"]
         plant = model["plant_contract"]
         lines.extend(
             [
                 "",
-                *[f'<a id="{anchor}"></a>' for anchor in [species["id"], *species["aliases"]]],
+                f'<a id="{_anchor(entry)}"></a>',
                 "",
-                f"### {species['display_name']}",
+                f"### {entry['display_name']}",
                 "",
-                f"{species['tagline']}. **Specialty:** {species['specialty']}.",
+                f"{entry['tagline']}. **Specialty:** {entry['specialty']}.",
                 "",
                 "| Generated specification | Value |",
                 "|---|---|",
@@ -1594,8 +1628,8 @@ def render_readme_species(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                 "|---|---|---|---|---:|---:|",
             ]
         )
-        stage_headings = {stage["id"]: _stage_heading(stage) for stage in species["stages"]}
-        for stage in species["stages"]:
+        stage_headings = {stage["id"]: _stage_heading(stage) for stage in entry["stages"]}
+        for stage in entry["stages"]:
             # The row label is the stage's canonical reference: the legacy
             # number where one exists, the semantic id (recovery) where none
             # does — the manifest is the authority, and no "1b" is invented.
@@ -1610,13 +1644,13 @@ def render_readme_species(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                 f"{_format_advancement_gate(stage['advancement_gate'])} |"
             )
         lines.extend(["", "**Backend-specific success semantics:**"])
-        for metric in species["success_metrics"]:
+        for metric in entry["success_metrics"]:
             scopes = " / ".join(
                 _format_backend(backend).replace(" (version not recorded)", "") for backend in metric["backends"]
             )
             lines.append(f"- **{scopes} — {metric['label']}:** {metric['definition']}")
         lines.extend(["", "**Per-deliverable success semantics:**"])
-        for metric in species["deliverable_metrics"]:
+        for metric in entry["deliverable_metrics"]:
             scopes = " / ".join(
                 _format_backend(backend).replace(" (version not recorded)", "") for backend in metric["backends"]
             )
@@ -1624,8 +1658,7 @@ def render_readme_species(catalog: dict[str, Any], *, page_dir: str = ".") -> st
                 f"- **{metric['deliverable']} ({stage_headings[metric['stage_id']]}) · {scopes} — "
                 f"{metric['label']}:** {metric['definition']}"
             )
-        model_package = Path(species["model"]["path"]).parent.parent.as_posix()
-        lines.extend(["", f"[Full documentation →]({_page_link(f'{model_package}/README.md', page_dir)})"])
+        lines.extend(["", f"[Full documentation →]({_page_link(_species_readme(entry), page_dir)})"])
     return "\n".join(lines)
 
 
@@ -1641,14 +1674,14 @@ def render_readme_results(catalog: dict[str, Any], *, page_dir: str = ".") -> st
         "`results/`. They are not evidence for the current model revision unless provenance is marked both current",
         "and verified. Current stage budgets may therefore differ from the steps reported here.",
     ]
-    for species in catalog["species"]:
-        for result in species["historical_results"]:
+    for model in catalog["models"]:
+        for result in model["historical_results"]:
             provenance = result["provenance"]
-            result_metric = _success_metric_for_backend(species, result["backend"])
+            result_metric = _success_metric_for_backend(model, result["backend"])
             lines.extend(
                 [
                     "",
-                    f"### {species['display_name']} ({result['algorithm'].upper()} · "
+                    f"### {model['display_name']} ({result['algorithm'].upper()} · "
                     f"{_format_backend(result['backend']).replace(' (version not recorded)', '')}) — {result['date']}",
                     "",
                     f"**Provenance:** {provenance['model_revision_status'].title()} model; "
@@ -1733,8 +1766,8 @@ def render_catalog_page(catalog: dict[str, Any]) -> str:
         "<!-- Written whole by `python -m environments.shared.species_catalog`, which CI runs with `--check`;",
         "do not edit by hand. -->",
         "",
-        "Each species' full entry and the published run summaries. The [root README](../README.md#species)",
-        "has one row per species, and each species' page on [mesozoiclabs.com](https://mesozoiclabs.com)",
+        "Each model's full entry and the published run summaries. The [root README](../README.md#species)",
+        "has one row per model, and each model's page on [mesozoiclabs.com](https://mesozoiclabs.com)",
         "renders the same entry.",
         "",
         "## Species",

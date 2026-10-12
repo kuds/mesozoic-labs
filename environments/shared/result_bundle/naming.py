@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Any, Mapping
 
+from ..model_id import ModelId
 from .errors import ResultBundleError
 
 
@@ -42,7 +43,7 @@ def canonical_backend(algorithm: str, backend: str | None = None) -> str:
 def _normalize_plant_identity(
     value: Mapping[str, Any] | None,
     *,
-    species: str | None = None,
+    model_id: ModelId | None = None,
 ) -> dict[str, Any] | None:
     """Return a canonical plant-identity mapping or raise a bundle error."""
     if value is None:
@@ -53,11 +54,11 @@ def _normalize_plant_identity(
         identity = PlantIdentity.from_mapping(value)
     except (PlantContractError, KeyError, TypeError, ValueError) as exc:
         raise ResultBundleError(f"invalid plant identity: {exc}") from exc
-    if species is not None and identity.species != species:
-        raise ResultBundleError(f"plant identity species mismatch: expected {species!r}, found {identity.species!r}")
+    if model_id is not None and identity.model_id != model_id:
+        raise ResultBundleError(f"plant identity model mismatch: expected {model_id}, found {identity.model_id}")
     normalized = identity.to_dict()
     if dict(value) != normalized:
-        raise ResultBundleError("plant identity must use the canonical v1 field types and values")
+        raise ResultBundleError("plant identity must use the canonical field types and values")
     return normalized
 
 

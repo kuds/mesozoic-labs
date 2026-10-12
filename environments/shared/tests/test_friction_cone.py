@@ -9,7 +9,7 @@ Since D-D30 every species declares ``cone="elliptic"`` (``configs/plant_versions
 the two compsognathus plants were built with, so the whole zoo has one friction model.
 
 The guard fails a new species, or an MJCF edit that drops the attribute, by name, instead of letting it fall back to
-the default unnoticed. The turn tests are the T. rex's (``test_trex_env.py``) on the three species D-D30 moved: raw
+the default unnoticed. The turn tests are the T. rex's (``test_anatomical_env.py``) on the three species D-D30 moved: raw
 MuJoCo on the env's model, so nothing but the physics is compared.
 """
 
@@ -19,25 +19,29 @@ import mujoco
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract.versions import _species_entries
+from environments.shared.species_names import model_ids
 from environments.shared.species_registry import get_species_config
 
-REGISTERED_SPECIES = sorted(_species_entries())
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+
+REGISTERED_MODELS = sorted(_species_entries())
 
 
-def test_the_guard_reads_every_registered_species():
-    """The registry the guard walks is the species manifest's, so a new species is guarded from its first commit."""
-    assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot"} <= set(
-        REGISTERED_SPECIES
-    )
+def test_the_guard_reads_every_registered_model():
+    """The registry the guard walks is the species manifest's, so a new model is guarded from its first commit."""
+    assert set(model_ids()) <= set(REGISTERED_MODELS)
 
 
-@pytest.mark.parametrize("species", REGISTERED_SPECIES)
-def test_every_registered_plant_declares_the_elliptic_cone(species):
-    env = get_species_config(species).env_class()
+@pytest.mark.parametrize("model_id", REGISTERED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_every_registered_plant_declares_the_elliptic_cone(model_id):
+    env = get_species_config(model_id).env_class()
     try:
         assert env.model.opt.cone == mujoco.mjtCone.mjCONE_ELLIPTIC, (
-            f"{species}'s MJCF falls back to MuJoCo's default pyramidal friction cone: declare "
+            f"{model_id}'s MJCF falls back to MuJoCo's default pyramidal friction cone: declare "
             '<option cone="elliptic"> (D-D30), or a turned animal stands on different friction'
         )
     finally:
@@ -80,14 +84,18 @@ def _joint_trajectory(model: mujoco.MjModel, yaw_deg: float) -> np.ndarray:
     return np.array(rows)
 
 
-@pytest.mark.parametrize("species", ["velociraptor", "brachiosaurus", "dibothrosuchus"])
-def test_a_45_degree_whole_scene_turn_reproduces_the_joints(species):
+@pytest.mark.parametrize(
+    "model_id",
+    [VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
+def test_a_45_degree_whole_scene_turn_reproduces_the_joints(model_id):
     """The turned run repeats the unturned one to rounding error (at most 4e-14 rad measured).
 
     Under the pyramidal cone the same turn separated the joints by 5.4e-3 rad on velociraptor physics r3 (once it
     fell onto its ellipsoid head), 7.9e-3 on brachiosaurus r4 and 8.7e-2 on dibothrosuchus r1.
     """
-    env = get_species_config(species).env_class()
+    env = get_species_config(model_id).env_class()
     try:
         straight = _joint_trajectory(env.model, 0.0)
         turned = _joint_trajectory(env.model, 45.0)

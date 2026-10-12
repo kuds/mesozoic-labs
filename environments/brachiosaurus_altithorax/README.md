@@ -1,0 +1,98 @@
+# Brachiosaurus Altithorax Environment
+
+Quadrupedal dinosaur-inspired locomotion and target-reaching environment using MuJoCo and Gymnasium.
+
+## Overview
+
+This Brachiosaurus-inspired model has longer front legs than rear legs and a long articulated neck. The environment trains the agent to walk with a coordinated four-legged gait and move its head toward an elevated food target. "Food reach" succeeds when the head tip enters a configured distance threshold around the target; it does not require contact between physical food and head geoms.
+
+## Generated Specifications, Curriculum, and Results
+
+The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
+results are in the generator-managed [Brachiosaurus Altithorax (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical). They are derived
+from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+
+## Models
+
+The species has one model, the pair (species, embodiment) of
+[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+
+| | Anatomical |
+|---|---|
+| Species / embodiment | `brachiosaurus_altithorax` / `anatomical` |
+| Environment class | `BrachiosaurusAltithoraxAnatomicalEnv` (`anatomical/env.py`), on the species base `BrachiosaurusAltithoraxEnv` (`base_env.py`) |
+| Gymnasium ID | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` |
+| MJCF | `anatomical/assets/brachiosaurus_altithorax_anatomical.xml` |
+| Configs | `configs/brachiosaurus_altithorax/anatomical/` |
+| Catalog | [Brachiosaurus Altithorax (Anatomical)](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) |
+
+## Implementation Notes
+
+### Body Structure
+- **Torso**: Simplified barrel-shaped body
+- **Neck**: 4 articulated segments + head with nasal crest (pitch + yaw control)
+- **Front legs**: Longer than rear (shoulder height ~2.2m), 5 joints each (hip pitch/roll, knee, ankle, toe) with semi-digitigrade metacarpal segment
+- **Rear legs**: Shorter (hip height ~1.8m), same joint structure with semi-digitigrade metatarsal segment
+- **Tail**: Segmented counterbalance with actuated controls
+- **Contacts**: an elliptic friction cone since physics r5 (`configs/plant_versions.toml` note 17, decision D-D30), so the ellipsoid feet, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics, more than on any other species
+
+### Reward Components
+- **Forward velocity** - Movement toward food target
+- **Alive bonus** - Survival reward
+- **Energy penalty** - Penalizes excessive actuator use
+- **Gait stability** - Penalizes excessive torso angular velocity
+- **Food reach bonus** - Large reward when the head tip enters the configured distance threshold around food
+
+## Quick Start
+
+```bash
+# Install from the repository root
+pip install -e ".[all]"
+
+# Run environment tests
+python -m pytest environments/brachiosaurus_altithorax/tests/ -v
+
+# Train stage 1 using its current TOML-configured budget
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
+
+# Train the full chain (stance -> locomotion -> food reach), each stage
+# warm-started from its declared parent in configs/brachiosaurus_altithorax/anatomical/stages.toml
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
+
+# Or reuse an earlier run's certified trunk and train only what is missing above it
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
+    curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+
+# View the model (requires display)
+python environments/brachiosaurus_altithorax/scripts/view_model.py --embodiment anatomical
+```
+
+Stance, locomotion and food reach are each a published deliverable (`stand`,
+`walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
+
+## Files
+
+```
+brachiosaurus_altithorax/
+├── __init__.py
+├── base_env.py                  # BrachiosaurusAltithoraxEnv, the species base class
+├── anatomical/
+│   ├── __init__.py
+│   ├── env.py                   # BrachiosaurusAltithoraxAnatomicalEnv and its body data
+│   ├── mjx_config.py            # frozen MJX registration (docs/PLANT_CONTRACT.md); never edited
+│   └── assets/
+│       └── brachiosaurus_altithorax_anatomical.xml   # MuJoCo MJCF model
+├── scripts/
+│   ├── test_env.py              # Environment validation script
+│   └── view_model.py            # MuJoCo passive viewer
+├── tests/
+│   ├── test_anatomical_env.py      # Model-specific env tests
+│   ├── test_anatomical_rewards.py  # Model-specific reward tests
+│   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
+│   └── test_anatomical_static_balance.py   # Static balance tests
+├── requirements.txt
+└── README.md
+```
+
+Hyperparameter configs are at `configs/brachiosaurus_altithorax/anatomical/` in the repo root
+(`stance.toml`, `locomotion.toml`, `food_reach.toml`, `stages.toml` and `behaviors/`).

@@ -8,46 +8,54 @@ Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
-All hyperparameters are defined in TOML config files under `configs/<species>/`. Every species commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Velociraptor, Brachiosaurus and Dibothrosuchus have three stage configs named by stage number; T-Rex, Compsognathus and the Compsognathus robot have four, named by stage id:
+All hyperparameters are defined in TOML config files under `configs/<species>/<embodiment>/`, one directory per model (a species and an embodiment, `anatomical` or `robot`). Every model commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Each stage config is named by its stage, with no number. The anatomical Velociraptor, Brachiosaurus and Dibothrosuchus have three stage configs; the anatomical T-Rex and both Compsognathus models have four:
 
 ```
 configs/
-├── velociraptor/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_strike.toml
-│   └── stages.toml
-├── trex/
-│   ├── stance.toml
-│   ├── recovery.toml
-│   ├── locomotion.toml
-│   ├── behavior.toml
-│   └── stages.toml
-├── brachiosaurus/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_food_reach.toml
-│   └── stages.toml
-├── dibothrosuchus/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_snap.toml
-│   └── stages.toml
-├── compsognathus/
-│   ├── stance.toml
-│   ├── recovery.toml
-│   ├── locomotion.toml
-│   ├── behavior.toml
-│   └── stages.toml
-└── compsognathus_robot/
-    ├── stance.toml
-    ├── recovery.toml
-    ├── locomotion.toml
-    ├── behavior.toml
-    └── stages.toml
+├── velociraptor_mongoliensis/
+│   └── anatomical/
+│       ├── stance.toml
+│       ├── locomotion.toml
+│       ├── strike.toml
+│       └── stages.toml
+├── tyrannosaurus_rex/
+│   └── anatomical/
+│       ├── stance.toml
+│       ├── recovery.toml
+│       ├── locomotion.toml
+│       ├── behavior.toml
+│       └── stages.toml
+├── brachiosaurus_altithorax/
+│   └── anatomical/
+│       ├── stance.toml
+│       ├── locomotion.toml
+│       ├── food_reach.toml
+│       └── stages.toml
+├── dibothrosuchus_elaphros/
+│   └── anatomical/
+│       ├── stance.toml
+│       ├── locomotion.toml
+│       ├── snap.toml
+│       └── stages.toml
+└── compsognathus_longipes/
+    ├── anatomical/
+    │   ├── stance.toml
+    │   ├── recovery.toml
+    │   ├── locomotion.toml
+    │   ├── behavior.toml
+    │   └── stages.toml
+    └── robot/
+        ├── stance.toml
+        ├── recovery.toml
+        ├── locomotion.toml
+        ├── behavior.toml
+        └── stages.toml
 ```
 
-Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its species through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
+Each model directory also holds its behavior recipes under `behaviors/`, and the
+Compsognathus models their `recovery_calibration.json`.
+
+Each stage's config has `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` for every stage except the T-Rex `recovery`, which is PPO-only. A stage TOML file declares these tables itself or inherits any of them but `[curriculum]` from another stage of its model through a top-level key written before the first table, `extends = { stage = "stance", tables = ["stage", "env", "ppo"] }`: each listed table is the parent's, with the file's own keys overriding in place or appended, one level deep (a nested table such as `[ppo.policy_kwargs]` is replaced whole), and a parent that itself extends is refused. Each `recovery.toml` extends its `stance.toml` this way; the T-Rex one does not list `sac`. The loader rejects any other table, `[jax]` included: the JAX/MJX backend was retired (decision D-D17). `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
@@ -56,7 +64,7 @@ file or inherited through `extends`; the T-Rex `recovery` has no `[sac]`. When
 the `curriculum` command advances, it loads the next TOML file and
 re-initialises the algorithm with that stage's settings; the next node's
 weights come from its declared `warm_start_from` parent's handoff checkpoint,
-loaded under `initialize_next_stage`. Values differ across species and change
+loaded under `initialize_next_stage`. Values differ across models and change
 as experiments evolve, so the stage TOML files are the authoritative source.
 
 Every trained node records a `hyperparameters_sha256` in the `run` block of
@@ -71,7 +79,7 @@ variants of one node are told apart later.
 The broad curriculum intent is balance first, locomotion second, and a
 species-specific simulator task third. Reward weights shift with that intent;
 do not infer current values from a copied range in this guide. The generated
-[model pages](/docs/models/velociraptor) show the current stage names, budgets,
+[model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current stage names, budgets,
 and advancement gates read from the same configs.
 
 ## PPO Parameters
@@ -111,9 +119,9 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
 | `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
-| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; retired for the trex hunt, which is gated on the bound below) |
-| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar (trex hunt: 0.5, provisional — 20/30 clears it, 19/30 does not); `min_avg_reward` is then a collapse rail, never the gate |
-| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n; trex hunt: 30) |
+| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; retired for the T-Rex hunt, which is gated on the bound below) |
+| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar (T-Rex hunt: 0.5, provisional — 20/30 clears it, 19/30 does not); `min_avg_reward` is then a collapse rail, never the gate |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n; T-Rex hunt: 30) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
 
 For the SB3 curriculum, every enabled criterion must pass in the same evaluation
@@ -133,12 +141,12 @@ Use `--override` to change TOML values without editing files — useful for hype
 
 ```bash
 # Override learning rate and entropy coefficient for all stages
-python scripts/train_sb3.py train --stage 1 \
-  --override ppo.learning_rate=1e-3 ppo.ent_coef=0.02 env.alive_bonus=5.0
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage 1 --override ppo.learning_rate=1e-3 ppo.ent_coef=0.02 env.alive_bonus=5.0
 
 # Works with curriculum too — applies to ALL stages
-python scripts/train_sb3.py curriculum \
-  --override ppo.learning_rate=2e-4
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --override ppo.learning_rate=2e-4
 ```
 
 Supported key prefixes:
@@ -216,7 +224,7 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 | Crab-walks sideways toward target | No lateral or heading constraint | Set `env.lateral_penalty_weight` to `0.1`, raise `env.heading_weight` |
 | Walks forward but falls frequently | Balance reward zeroed too aggressively | Keep `env.posture_weight ≥ 0.3`, re-enable mild `env.alive_bonus` (`0.3–0.5`) |
 | Unrealistic "ice-skating" gait | Symmetry and smoothness under-weighted | Raise `env.gait_symmetry_weight`, raise `env.smoothness_weight` |
-| Max forward speed exceeds physical reasonableness | Reward uncapped | Set `env.forward_vel_max` (e.g. `3.0` for raptor, `1.5` for brachio) |
+| Max forward speed exceeds physical reasonableness | Reward uncapped | Set `env.forward_vel_max` (e.g. `3.0` for the Velociraptor, `1.5` for the Brachiosaurus) |
 
 ### Stage 3 — Behavior (Strike / Bite / Food Reach)
 

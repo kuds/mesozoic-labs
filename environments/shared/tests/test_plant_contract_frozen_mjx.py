@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract.digests import _callable_semantics
 from environments.shared.plant_contract.versions import _species_entries
 
@@ -40,12 +41,13 @@ FROZEN_TOKEN_DIGESTS = {
     "action_filter.apply_low_pass": "8c619d7021723c3f74bfc3d5ccb45c27738c931d176c487a3a76a18b1affaa19",
 }
 
-#: The keys ``policy_layer._jax_policy_interface_payload`` reads, per species.
+#: The keys ``policy_layer._jax_policy_interface_payload`` reads, per species: the frozen registry is keyed by
+#: species, and each registration is its anatomical model's ``environments.<species>.anatomical.mjx_config``.
 _PROBED = {"action_mapping", "frame_skip", "body_ids", "sensor_foot_indices"}
 _PROBED |= {"sensor_gyro_start", "sensor_accel_start", "sensor_quat_start"}
 REGISTRATION_KEYS = {
-    "brachiosaurus": _PROBED | {"sensor_foot_aux_indices"},
-    "dibothrosuchus": _PROBED,
+    "brachiosaurus_altithorax": _PROBED | {"sensor_foot_aux_indices"},
+    "dibothrosuchus_elaphros": _PROBED,
 }
 
 
@@ -56,8 +58,8 @@ def test_frozen_function_keeps_its_hashed_tokens(target: str) -> None:
     expected = {"qualname": name, "tokens_sha256": f"sha256:{FROZEN_TOKEN_DIGESTS[target]}"}
     if module == "action_filter":
         why = (
-            "Its tokens are part of trex's policy-interface digest (the low-pass filter): change it only inside a "
-            "trex policy_interface_revision bump and update this pin, otherwise revert the change."
+            "Its tokens are part of the T-Rex's policy-interface digest (the low-pass filter): change it only inside a "
+            "T-Rex policy_interface_revision bump and update this pin, otherwise revert the change."
         )
     else:
         why = "It is frozen by D-D17: its tokens are part of two species' policy-interface digests. Revert the change."
@@ -68,28 +70,28 @@ def test_frozen_function_keeps_its_hashed_tokens(target: str) -> None:
 
 @pytest.mark.parametrize("species", list(REGISTRATION_KEYS))
 def test_frozen_mjx_registration_keeps_exactly_the_probed_keys(species: str) -> None:
-    registration = importlib.import_module(f"environments.{species}.mjx_config")
+    registration = importlib.import_module(f"environments.{species}.anatomical.mjx_config")
     registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
     if species not in registry:
         importlib.reload(registration)
     assert set(registry[species]) == REGISTRATION_KEYS[species], (
-        f"environments/{species}/mjx_config.py registers {sorted(registry[species])}; D-D17 freezes it "
+        f"environments/{species}/anatomical/mjx_config.py registers {sorted(registry[species])}; D-D17 freezes it "
         f"to the keys the plant contract's MJX probe reads: {sorted(REGISTRATION_KEYS[species])}"
     )
 
 
 def test_frozen_registrations_are_exactly_the_dual_backend_species() -> None:
-    default = ("stable-baselines3", "jax-mjx")
-    dual = {name for name, entry in _species_entries().items() if "jax-mjx" in entry.get("training_backends", default)}
-    assert dual == set(REGISTRATION_KEYS), (
-        f"species declaring jax-mjx: {sorted(dual)}; the D-D17 frozen core registers {sorted(REGISTRATION_KEYS)}. "
+    dual = {model_id for model_id, entry in _species_entries().items() if "jax-mjx" in entry["training_backends"]}
+    assert dual == {ModelId(species, "anatomical") for species in REGISTRATION_KEYS}, (
+        f"models declaring jax-mjx: {sorted(map(str, dual))}; the D-D17 frozen core registers the anatomical "
+        f"models of {sorted(REGISTRATION_KEYS)}. "
         "A species leaves it only inside a policy_interface_revision bump (CLEANUP_PLAN_2026_09.md §4.1)."
     )
 
 
 def test_ruff_leaves_the_frozen_modules_alone() -> None:
     frozen = {f"environments/shared/{module}.py" for module in ("mjx_env", "jax_setup", "mjx_utils", "obs_functions")}
-    frozen |= {f"environments/{species}/mjx_config.py" for species in REGISTRATION_KEYS}
+    frozen |= {f"environments/{species}/anatomical/mjx_config.py" for species in REGISTRATION_KEYS}
     with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as handle:
         ruff = tomllib.load(handle)["tool"]["ruff"]
     assert frozen <= set(ruff.get("extend-exclude", ())) and ruff.get("force-exclude") is True, (

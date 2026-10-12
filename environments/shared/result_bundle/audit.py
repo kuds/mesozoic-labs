@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from ..curriculum.gate_schema import GateSchemaError, declared_certification_seeds
+from ..model_id import ModelId
 from ..record_fields import is_sha256_digest
 from ..stage_manifest import StageManifestError, find_stage_dir, resolve_stage_key
 from . import evidence, hashing
@@ -35,6 +36,21 @@ from .provenance import load_provenance
 #: Audited when present, skipped when absent, so bundles from either side of
 #: that change keep auditing.
 _LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_task_sha256", "parent_checkpoint_sha256", "parent_run_id")
+
+
+def _named_model(record: Mapping[str, Any] | None) -> ModelId | None:
+    """The model a summary or provenance record names, or ``None`` when it does not name one whole.
+
+    Read leniently so the audit keeps going: a record missing either identity
+    field names no model here (decision D-D33: never the species alone), and
+    that record's own validation reports the gap as an error.
+    """
+    if record is None:
+        return None
+    try:
+        return ModelId.from_record(record)
+    except ValueError:
+        return None
 
 
 def _lineage_parent_keys(load_path: str, run_path: Path) -> list[str]:
@@ -184,7 +200,6 @@ def audit_result_bundle(
             # synonyms, so every historical bundle audits as before.
             validate_result_summary(
                 summary,
-                expected_species=summary.get("species"),
                 require_complete=False,
                 require_publishable=True,
                 require_canonical_provenance=canonical,
@@ -242,32 +257,30 @@ def audit_result_bundle(
 
     # The stages a publishable bundle must prove are the stages its summary
     # RECORDS — historically the hardcoded trio (1, 2, 3), now resolved
-    # through the species' manifest so a recorded recovery stage is audited
+    # through the model's stage manifest so a recorded recovery stage is audited
     # too (configs, evidence, hashes) rather than treated as foreign.  When
     # the summary is absent or its stage keys do not resolve, the audit
-    # falls back to the species' advancing stages (the literal trio only
-    # when no species is readable); the summary validation above has
+    # falls back to the model's advancing stages (the literal trio only
+    # when no model is readable); the summary validation above has
     # already recorded that failure as an error of its own.
     ordered_stage_refs: "list[int | str]" = [1, 2, 3]
-    fallback_species = None
-    if summary is not None and isinstance(summary.get("species"), str):
-        fallback_species = summary["species"]
-    elif provenance is not None and isinstance(provenance.get("species"), str):
-        fallback_species = provenance["species"]
-    if fallback_species:
+    summary_model_id = _named_model(summary)
+    provenance_model_id = _named_model(provenance)
+    fallback_model_id = summary_model_id or provenance_model_id
+    if fallback_model_id is not None:
         try:
             from ..stage_manifest import load_stage_manifest
 
-            ordered_stage_refs = [entry.reference for entry in load_stage_manifest(fallback_species).advancing_stages]
+            ordered_stage_refs = [entry.reference for entry in load_stage_manifest(fallback_model_id).advancing_stages]
         except Exception:
             # An unreadable manifest is reported by the summary / provenance
             # validation; the literal trio keeps the audit going.
             pass
-    if summary is not None and isinstance(summary.get("stages"), Mapping):
+    if summary is not None and summary_model_id is not None and isinstance(summary.get("stages"), Mapping):
         try:
             summary_stage_entries = ordered_stage_entries(
                 summary["stages"],
-                species=str(summary.get("species")),
+                model_id=summary_model_id,
                 field="summary stages",
             )
         except ResultSchemaError:
@@ -297,7 +310,7 @@ def audit_result_bundle(
             try:
                 provenance_plant = _normalize_plant_identity(
                     provenance["plant_identity"],
-                    species=provenance.get("species"),
+                    model_id=provenance_model_id,
                 )
             except ResultBundleError as exc:
                 errors.append(str(exc))
@@ -308,6 +321,7 @@ def audit_result_bundle(
             for summary_key, provenance_key in (
                 ("run_id", "run_id"),
                 ("species", "species"),
+                ("embodiment", "embodiment"),
                 ("algorithm", "algorithm"),
                 ("backend", "backend"),
                 ("seed", "training_seed"),
@@ -322,7 +336,7 @@ def audit_result_bundle(
             try:
                 summary_plant = _normalize_plant_identity(
                     summary.get("plant_identity"),
-                    species=summary.get("species"),
+                    model_id=summary_model_id,
                 )
                 if summary_plant != provenance_plant:
                     errors.append("summary plant_identity does not match provenance.json")
@@ -336,7 +350,7 @@ def audit_result_bundle(
                     raise ResultBundleError("plant_identity.json must contain an object")
                 root_plant = _normalize_plant_identity(
                     loaded_plant,
-                    species=provenance.get("species"),
+                    model_id=provenance_model_id,
                 )
                 if root_plant != provenance_plant:
                     errors.append("plant_identity.json does not match provenance.json")
@@ -344,12 +358,11 @@ def audit_result_bundle(
                 errors.append(str(exc))
 
         # The records of nodes reused from another run.  Loaded whenever the
-        # species is known — a failed or partial bundle's lineage binds to
+        # model is known — a failed or partial bundle's lineage binds to
         # them too — and every malformation is an error, never a pass.
-        provenance_species = provenance.get("species")
-        if isinstance(provenance_species, str) and provenance_species.strip():
+        if provenance_model_id is not None:
             try:
-                ancestor_records = load_ancestor_records(run_path, species=provenance_species)
+                ancestor_records = load_ancestor_records(run_path, model_id=provenance_model_id)
             except ResultBundleError as exc:
                 errors.append(str(exc))
 
@@ -394,10 +407,10 @@ def audit_result_bundle(
                 # Every ancestor the provenance claims must be on disk as a
                 # record: ancestor.json, the verdict it copied, the config.
                 claimed_ancestors = provenance.get("ancestors")
-                if isinstance(claimed_ancestors, Mapping) and isinstance(provenance_species, str):
+                if isinstance(claimed_ancestors, Mapping) and provenance_model_id is not None:
                     for ancestor_key in claimed_ancestors:
                         try:
-                            ancestor_id = resolve_stage_key(provenance_species, str(ancestor_key)).id
+                            ancestor_id = resolve_stage_key(provenance_model_id, str(ancestor_key)).id
                         except StageManifestError as exc:
                             errors.append(f"provenance.ancestors names an unknown stage {ancestor_key!r}: {exc}")
                             continue
@@ -449,7 +462,7 @@ def audit_result_bundle(
                         else:
                             normalized_config_plant = _normalize_plant_identity(
                                 config_plant,
-                                species=provenance.get("species"),
+                                model_id=provenance_model_id,
                             )
                             if normalized_config_plant != provenance_plant:
                                 errors.append(f"stage {stage} config plant_identity does not match provenance.json")

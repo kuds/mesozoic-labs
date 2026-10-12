@@ -1,4 +1,4 @@
-"""Real-model integration checks for the shared species behavior environments."""
+"""Real-model integration checks for the shared behavior environments of every model."""
 
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ from environments.shared import behavior_env as behavior_module
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.behavior_env import RECIPE_TASK_STAGE, SpeciesBehaviorMixin, get_behavior_env_class
 from environments.shared.direction_commands import DirectionCommandConfig, gaussian_tracking_reward
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity, validate_compiled_plant
-from environments.shared.species_names import species_display_name
+from environments.shared.species_names import model_ids
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import STAGE_ID_PATTERN, load_stage_manifest
 from environments.shared.task_fingerprint import (
@@ -30,14 +31,28 @@ from environments.shared.task_fingerprint import (
 from environments.shared.terrain import TerrainConfig, TerrainRealization, apply_terrain
 from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig
 
-SPECIES = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot")
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+
+MODEL_IDS = (
+    TYRANNOSAURUS_REX,
+    VELOCIRAPTOR_MONGOLIENSIS,
+    BRACHIOSAURUS_ALTITHORAX,
+    DIBOTHROSUCHUS_ELAPHROS,
+    COMPSOGNATHUS_LONGIPES,
+    COMPSOGNATHUS_LONGIPES_ROBOT,
+)
 SPEEDS = {
-    "velociraptor": 2.0,
-    "brachiosaurus": 0.75,
-    "dibothrosuchus": 0.9,
-    "compsognathus": 0.08,
-    "compsognathus_robot": 0.04,
-    "trex": 1.05,
+    VELOCIRAPTOR_MONGOLIENSIS: 2.0,
+    BRACHIOSAURUS_ALTITHORAX: 0.75,
+    DIBOTHROSUCHUS_ELAPHROS: 0.9,
+    COMPSOGNATHUS_LONGIPES: 0.08,
+    COMPSOGNATHUS_LONGIPES_ROBOT: 0.04,
+    TYRANNOSAURUS_REX: 1.05,
 }
 RECIPES = Path(__file__).resolve().parents[3] / "configs"
 # Height-derived reward/info keys; every species reports at least pelvis_height.
@@ -61,8 +76,8 @@ def _one_plant_identity_per_species():
         yield
 
 
-def commands(species, **kwargs):
-    speed = SPEEDS[species]
+def commands(model_id, **kwargs):
+    speed = SPEEDS[model_id]
     return DirectionCommandConfig(cruise_speed=speed, speed_scale=speed * 1.5, **kwargs)
 
 
@@ -70,9 +85,9 @@ def commands(species, **kwargs):
 def make_env():
     instances = []
 
-    def factory(species, **kwargs):
-        kwargs.setdefault("commands", commands(species))
-        env = get_behavior_env_class(species)(**kwargs)
+    def factory(model_id, **kwargs):
+        kwargs.setdefault("commands", commands(model_id))
+        env = get_behavior_env_class(model_id)(**kwargs)
         instances.append(env)
         return env
 
@@ -106,28 +121,34 @@ def _translate_surface_and_animal(env, height):
     mujoco.mj_forward(env.model, env.data)
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_factory_preserves_canonical_inheritance(species):
-    behavior = get_behavior_env_class(species)
-    canonical = get_species_config(species).env_class
+def test_the_model_tables_cover_every_model():
+    """A new model fails here, naming the table, instead of going untested (review M4)."""
+    assert set(MODEL_IDS) == set(model_ids()), "MODEL_IDS must list every manifest model"
+    assert set(SPEEDS) == set(model_ids()), "SPEEDS must pin every manifest model"
+
+
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_factory_preserves_canonical_inheritance(model_id):
+    behavior = get_behavior_env_class(model_id)
+    canonical = get_species_config(model_id).env_class
     assert issubclass(behavior, canonical) and issubclass(behavior, SpeciesBehaviorMixin)
     assert behavior.__mro__[1:3] == (SpeciesBehaviorMixin, canonical)
     assert "forward_vel_weight" in inspect.signature(canonical).parameters
-    assert behavior is get_behavior_env_class(species) is get_behavior_env_class(species_display_name(species))
+    assert behavior is get_behavior_env_class(model_id)
     # The species declaration must not be hidden by a mixin default earlier in the MRO.
-    assert behavior._terrain_contact_probe_geoms == (("neck_geom",) if species == "trex" else ())
+    assert behavior._terrain_contact_probe_geoms == (("neck_geom",) if model_id == TYRANNOSAURUS_REX else ())
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_species_has_real_surface_command_inputs_and_reproducible_rollout(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_species_has_real_surface_command_inputs_and_reproducible_rollout(make_env, model_id):
     env = make_env(
-        species,
-        commands=commands(species, switch_interval_s=0.02, straight_probability=0.0),
+        model_id,
+        commands=commands(model_id, switch_interval_s=0.02, straight_probability=0.0),
         terrain=terrain(template="mixed"),
         run_seed=17,
         reset_noise_scale=0.01,
     )
-    canonical = get_species_config(species).env_class(reset_noise_scale=0.01)
+    canonical = get_species_config(model_id).env_class(reset_noise_scale=0.01)
     actions = np.random.default_rng(912).uniform(-0.01, 0.01, (8, *env.action_space.shape))
 
     def replay(seed):
@@ -149,7 +170,7 @@ def test_species_has_real_surface_command_inputs_and_reproducible_rollout(make_e
         np.testing.assert_allclose(qpos, canonical.data.qpos, atol=1e-12, rtol=0)
         np.testing.assert_array_equal(qvel, canonical.data.qvel)
         assert observation[-3] > 0
-        assert env.task_fingerprint["species"] == species
+        assert ModelId.from_record(env.task_fingerprint) == model_id
         assert env.model.nhfield == 1
         assert info["terrain"]["template"] == "mixed"
         props = np.flatnonzero(env.model.body_mocapid >= 0)
@@ -172,16 +193,16 @@ def test_species_has_real_surface_command_inputs_and_reproducible_rollout(make_e
         canonical.close()
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_plane_and_terrain_free_behavior_env_score_identically(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_plane_and_terrain_free_behavior_env_score_identically(make_env, model_id):
     """Consolidation PR-7's mitigation: on the plane the ground-height hook is ``z - 0.0``.
 
     The canonical env built with the behavior env's own parameters (zeroed
     objectives, 2,500-step horizon) sees the same states, reward terms,
     terminations and reasons; the behavior env only adds command tracking.
     """
-    env = make_env(species, terrain=None, reset_noise_scale=0.05)
-    canonical = get_species_config(species).env_class
+    env = make_env(model_id, terrain=None, reset_noise_scale=0.05)
+    canonical = get_species_config(model_id).env_class
     accepted = set(inspect.signature(canonical).parameters) - {"command_mode", "command_config"}
     plane = canonical(**{key: value for key, value in env._task_env_kwargs.items() if key in accepted})
     try:
@@ -211,8 +232,8 @@ def test_plane_and_terrain_free_behavior_env_score_identically(make_env, species
 
 
 @pytest.mark.parametrize("height", [0.8, -1.5])
-@pytest.mark.parametrize("species", SPECIES)
-def test_rewards_and_terminations_follow_a_translated_surface(make_env, species, height):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_rewards_and_terminations_follow_a_translated_surface(make_env, model_id, height):
     """A raised or lowered surface leaves every height term and termination where it was.
 
     Lowering by 1.5 m puts trex's head tip and skull (and the dibothrosuchus
@@ -221,10 +242,10 @@ def test_rewards_and_terminations_follow_a_translated_surface(make_env, species,
     """
     extra = (
         dict(height_weight=0.3, height_target_tolerance=0.1, head_clearance_weight=0.35, head_clearance_target=1.0)
-        if species == "trex"
+        if model_id == TYRANNOSAURUS_REX
         else {}
     )
-    env = make_env(species, terrain=terrain(mode="flat"), reset_noise_scale=0.0, **extra)
+    env = make_env(model_id, terrain=terrain(mode="flat"), reset_noise_scale=0.0, **extra)
     env.reset(seed=42)
     action = zeros(env)
     reward, original = env._get_reward_info(action)
@@ -249,10 +270,12 @@ def test_rewards_and_terminations_follow_a_translated_surface(make_env, species,
     assert info["termination_reason"] == "fallen"
 
 
-@pytest.mark.parametrize("species", ["trex", "dibothrosuchus"])
-def test_substep_height_minima_are_surface_relative(make_env, species):
+@pytest.mark.parametrize(
+    "model_id", [TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS], ids=lambda m: f"{m.species}-{m.embodiment}"
+)
+def test_substep_height_minima_are_surface_relative(make_env, model_id):
     """BaseDinoEnv.step aggregates head/snout clearance, not world z, on a raised surface."""
-    level, raised = (make_env(species, terrain=terrain(mode="flat"), reset_noise_scale=0.0) for _ in range(2))
+    level, raised = (make_env(model_id, terrain=terrain(mode="flat"), reset_noise_scale=0.0) for _ in range(2))
     level.reset(seed=42)
     raised.reset(seed=42)
     _translate_surface_and_animal(raised, 0.8)
@@ -270,15 +293,15 @@ def test_substep_height_minima_are_surface_relative(make_env, species):
     assert terminated and info["termination_reason"] == "head_contact"
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, species):
-    env = make_env(species, reset_noise_scale=0.0)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, model_id):
+    env = make_env(model_id, reset_noise_scale=0.0)
     env.reset(seed=42)
     env.data.qvel[:] = 0
     mujoco.mj_forward(env.model, env.data)
     env._get_reward_info(zeros(env))
     assert not env._command_metrics["tracking_in_tolerance"]
-    assert env._command_metrics["tracking_error_requested_speed"] == pytest.approx(SPEEDS[species])
+    assert env._command_metrics["tracking_error_requested_speed"] == pytest.approx(SPEEDS[model_id])
     ratio = env.task_fingerprint["command"]["config"]["speed_scale"] / 1.5
     assert env.tracking_tolerances == {"velocity_tolerance": 0.2 * ratio, "stop_speed_tolerance": 0.1 * ratio}
     assert env.tracking_velocity_sigma == pytest.approx(env.direction_controller.config.speed_scale / 6)
@@ -286,7 +309,7 @@ def test_small_species_cannot_pass_a_walk_command_while_stationary(make_env, spe
 
 @pytest.mark.parametrize("on_terrain", [False, True])
 def test_neck_probe_detects_penetration_without_adding_physical_support(make_env, on_terrain):
-    env = make_env("trex", terrain=terrain() if on_terrain else None, reset_noise_scale=0.0)
+    env = make_env(TYRANNOSAURUS_REX, terrain=terrain() if on_terrain else None, reset_noise_scale=0.0)
     env.reset(seed=1)
     (neck,) = env._probe_geom_ids
     assert neck == mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "neck_geom")
@@ -315,10 +338,10 @@ def test_neck_probe_detects_penetration_without_adding_physical_support(make_env
     assert terminated and info["termination_reason"] == "neck_ground_contact"
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_different_run_seeds_change_surface_without_perturbing_pose_stream(make_env, species):
-    left = make_env(species, terrain=terrain(), run_seed=42, reset_noise_scale=0.05)
-    right = make_env(species, terrain=terrain(), run_seed=44, reset_noise_scale=0.05)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_different_run_seeds_change_surface_without_perturbing_pose_stream(make_env, model_id):
+    left = make_env(model_id, terrain=terrain(), run_seed=42, reset_noise_scale=0.05)
+    right = make_env(model_id, terrain=terrain(), run_seed=44, reset_noise_scale=0.05)
     left.reset(seed=2042)
     right.reset(seed=2042)
     np.testing.assert_array_equal(left.data.qpos, right.data.qpos)
@@ -330,10 +353,10 @@ def test_different_run_seeds_change_surface_without_perturbing_pose_stream(make_
     assert not np.array_equal(first_surface, left.model.hfield_data)
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_hfield_spawn_uses_canonical_pose_and_does_not_inject_motion(make_env, species):
-    env = make_env(species, terrain=terrain(), reset_noise_scale=0.05)
-    canonical = get_species_config(species).env_class(reset_noise_scale=0.05)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_hfield_spawn_uses_canonical_pose_and_does_not_inject_motion(make_env, model_id):
+    env = make_env(model_id, terrain=terrain(), reset_noise_scale=0.05)
+    canonical = get_species_config(model_id).env_class(reset_noise_scale=0.05)
     try:
         for seed in (42, 43, 44, 1042):
             env.reset(seed=seed)
@@ -372,10 +395,10 @@ def test_hfield_spawn_uses_canonical_pose_and_does_not_inject_motion(make_env, s
         canonical.close()
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(make_env, species):
-    canonical = get_species_config(species).env_class(reset_noise_scale=0.05)
-    identity = behavior_module.current_plant_identity(species)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(make_env, model_id):
+    canonical = get_species_config(model_id).env_class(reset_noise_scale=0.05)
+    identity = behavior_module.current_plant_identity(model_id)
     try:
         first, _ = canonical.reset(seed=1042)
         qpos, qvel = canonical.data.qpos.copy(), canonical.data.qvel.copy()
@@ -390,8 +413,8 @@ def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(mak
                 "actuator_gainprm",
             )
         }
-        env = make_env(species, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), reset_noise_scale=0.05)
-        assert (env._substep_probe_hook is not None) == hasattr(env, "_probe_model") == (species == "trex")
+        env = make_env(model_id, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), reset_noise_scale=0.05)
+        assert (env._substep_probe_hook is not None) == hasattr(env, "_probe_model") == (model_id == TYRANNOSAURUS_REX)
         seeds = _mixed_surface_seeds(env)
         props = np.flatnonzero(env.model.body_mocapid >= 0)
         for is_plane in (True, False, True):
@@ -416,11 +439,11 @@ def test_behavior_pools_leave_an_independent_canonical_environment_unchanged(mak
         canonical.close()
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_switch_rewards_executed_command_and_exposes_next_command(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_switch_rewards_executed_command_and_exposes_next_command(make_env, model_id):
     env = make_env(
-        species,
-        commands=commands(species, switch_interval_s=0.02, straight_probability=0.0, turn_increment_max=0.6),
+        model_id,
+        commands=commands(model_id, switch_interval_s=0.02, straight_probability=0.0, turn_increment_max=0.6),
         reset_noise_scale=0.0,
     )
     observation, _ = env.reset(seed=123)
@@ -446,12 +469,12 @@ def test_switch_rewards_executed_command_and_exposes_next_command(make_env, spec
     assert len(env.direction_controller.events) == executed.event_id + 1
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_external_direction_takes_effect_on_next_action_and_masks_stops(make_env, species):
-    env = make_env(species, commands=commands(species, switch_interval_s=0.02), reset_noise_scale=0.0)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_external_direction_takes_effect_on_next_action_and_masks_stops(make_env, model_id):
+    env = make_env(model_id, commands=commands(model_id, switch_interval_s=0.02), reset_noise_scale=0.0)
     env.reset(seed=17)
     target_heading = env._heading() + np.pi / 4
-    observation = env.set_direction(target_heading, SPEEDS[species])
+    observation = env.set_direction(target_heading, SPEEDS[model_id])
     np.testing.assert_array_equal(observation[-3:], env._command_state.normalized)
     assert observation[-1] > 0.0
     external_event = env._command_state.event_id
@@ -468,12 +491,12 @@ def test_external_direction_takes_effect_on_next_action_and_masks_stops(make_env
     assert info["desired_speed"] == 0.0
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_recipe_commands_draw_from_their_own_stream_through_the_base_hook(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_recipe_commands_draw_from_their_own_stream_through_the_base_hook(make_env, model_id):
     """Consolidation PR-9: the base hook seeds the controller from the recipe env's own command stream
     (0xC044), so the reset stream stays the canonical env's and the reported command seed is the one used."""
-    env = make_env(species, reset_noise_scale=0.01)
-    canonical = get_species_config(species).env_class(reset_noise_scale=0.01)
+    env = make_env(model_id, reset_noise_scale=0.01)
+    canonical = get_species_config(model_id).env_class(reset_noise_scale=0.01)
     try:
         for seed in (5, None, None):
             observation, info = env.reset(seed=seed)
@@ -493,7 +516,7 @@ def test_the_behavior_env_has_no_command_source_of_its_own():
 
     for name in ("_draw_episode_command", "_update_command", "command_manifest", "_heading", "behavior_identity"):
         assert name not in vars(SpeciesBehaviorMixin), name
-    assert get_behavior_env_class("trex")._draw_episode_command is BaseDinoEnv._draw_episode_command
+    assert get_behavior_env_class(TYRANNOSAURUS_REX)._draw_episode_command is BaseDinoEnv._draw_episode_command
     tree = ast.parse(Path(inspect.getfile(SpeciesBehaviorMixin)).read_text())
     writes = [
         ast.unparse(node)
@@ -505,12 +528,14 @@ def test_the_behavior_env_has_no_command_source_of_its_own():
     assert writes == ["self._command = self._update_command()"]
 
 
-@pytest.mark.parametrize("species", ("velociraptor", "dibothrosuchus"))
-def test_dwell_is_reported_before_a_new_command_event_restarts_it(make_env, species):
+@pytest.mark.parametrize(
+    "model_id", (VELOCIRAPTOR_MONGOLIENSIS, DIBOTHROSUCHUS_ELAPHROS), ids=lambda m: f"{m.species}-{m.embodiment}"
+)
+def test_dwell_is_reported_before_a_new_command_event_restarts_it(make_env, model_id):
     """Consolidation PR-9: the base step advances the command; the mixin still reports the dwell the executed
     command earned and restarts it afterwards (a stand-still stop stays in tolerance for these two)."""
     env = make_env(
-        species, commands=commands(species, stop_probability=1.0, switch_interval_s=0.05), reset_noise_scale=0.0
+        model_id, commands=commands(model_id, stop_probability=1.0, switch_interval_s=0.05), reset_noise_scale=0.0
     )
     env.reset(seed=5)
     rows = [env.step(zeros(env))[4] for _ in range(2 * round(0.05 / env.dt))]
@@ -521,17 +546,19 @@ def test_dwell_is_reported_before_a_new_command_event_restarts_it(make_env, spec
     )
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_identity_binds_task_options_but_not_episode_draws(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_identity_binds_task_options_but_not_episode_draws(make_env, model_id):
     """Consolidation PR-9: the identity is the task fingerprint; terrain enters its env section as constructor
     kwargs and the commands its command section, and the implementation is a versioned stage, not source hashes."""
-    env = make_env(species, terrain=terrain(), run_seed=42)
+    env = make_env(model_id, terrain=terrain(), run_seed=42)
     first = copy.deepcopy(env.task_fingerprint)
-    assert first["schema"] == "mesozoic.task-fingerprint/v2" and first["species"] == species
-    plant = behavior_module.current_plant_identity(species).to_dict()
+    assert first["schema"] == "mesozoic.task-fingerprint/v3" and ModelId.from_record(first) == model_id
+    plant = behavior_module.current_plant_identity(model_id).to_dict()
     assert first["plant"] == {key: plant[key] for key in ("physics_sha256", "policy_interface_sha256")}
     assert first["stage"] == RECIPE_TASK_STAGE and first["backend"] == "stable-baselines3"
-    assert set(first) == set("schema species stage backend plant env perturbation command task_sha256".split())
+    assert set(first) == set(
+        "schema species embodiment stage backend plant env perturbation command task_sha256".split()
+    )
     assert first["command"] == env.direction_controller.manifest()
     assert first["env"]["command_mode"] == "heading_and_speed"
     assert first["env"]["command_config"] == first["command"]["config"]
@@ -543,39 +570,42 @@ def test_identity_binds_task_options_but_not_episode_draws(make_env, species):
     env.step(zeros(env))
     env.reset(seed=2)
     assert env.task_fingerprint == first
-    assert make_env(species, terrain=terrain(), run_seed=7).task_fingerprint == first
-    changed = make_env(species, terrain=terrain(max_slope_degrees=1.0), run_seed=44)
+    assert make_env(model_id, terrain=terrain(), run_seed=7).task_fingerprint == first
+    changed = make_env(model_id, terrain=terrain(max_slope_degrees=1.0), run_seed=44)
     assert changed.task_fingerprint["task_sha256"] != first["task_sha256"]
     for option in ({"tracking_weight": 3.0}, {"course_distance": 12.0}):
-        moved = make_env(species, terrain=terrain(), run_seed=42, **option).task_fingerprint
+        moved = make_env(model_id, terrain=terrain(), run_seed=42, **option).task_fingerprint
         assert moved["env"] == {**first["env"], **option} and moved["task_sha256"] != first["task_sha256"]
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_a_recipe_task_neither_resumes_nor_parents_a_canonical_stage(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_a_recipe_task_neither_resumes_nor_parents_a_canonical_stage(make_env, model_id):
     """Decision D-D9 under the canonical stamps: the recipe stage is never a stage id, so no manifest node
     resumes from a recipe checkpoint (the task differs) or warm-starts from one (not its declared parent)."""
-    recorded = make_env(species).task_fingerprint
+    recorded = make_env(model_id).task_fingerprint
     assert STAGE_ID_PATTERN.match(recorded["stage"]) is None
-    for entry in load_stage_manifest(species).stages:
-        current = stage_task_fingerprint(species, entry.id)
+    for entry in load_stage_manifest(model_id).stages:
+        current = stage_task_fingerprint(model_id, entry.id)
         with pytest.raises(TaskFingerprintError, match="different task"):
             validate_recorded_task(recorded, current, mode="resume_same_stage")
         with pytest.raises(TaskFingerprintError, match="command-terrain"):
             validate_declared_parent(
                 recorded,
                 declared_parent=entry.warm_start_from,
-                species=species,
+                model_id=model_id,
                 child_stage=entry.reference,
                 artifact="recipe checkpoint",
             )
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("family", ["terrain_contact", "flat"])
-def test_flat_family_uses_plane_and_terrain_contact_keeps_hfield(make_env, species, family):
+def test_flat_family_uses_plane_and_terrain_contact_keeps_hfield(make_env, model_id, family):
     env = make_env(
-        species, terrain=terrain(mode="flat"), terrain_sampler=sampler(flat=1, terrain_contact=3), reset_noise_scale=0.0
+        model_id,
+        terrain=terrain(mode="flat"),
+        terrain_sampler=sampler(flat=1, terrain_contact=3),
+        reset_noise_scale=0.0,
     )
     observation, info = env.reset(seed=1042, options={"terrain_family": family})
     is_plane = family == "flat"
@@ -622,10 +652,10 @@ def _pools(env, is_plane):
     return tuple(getattr(env, f"_{'plane' if is_plane else 'terrain'}_{name}") for name in names)
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, model_id):
     env = make_env(
-        species, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), run_seed=17, reset_noise_scale=0.05
+        model_id, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), run_seed=17, reset_noise_scale=0.05
     )
     pairs = {is_plane: _pools(env, is_plane) for is_plane in (True, False)}
     for plane_member, terrain_member in zip(pairs[True], pairs[False], strict=True):
@@ -671,10 +701,10 @@ def test_mixed_resets_reuse_compiled_pairs_and_replay_both_surfaces(make_env, sp
     assert env.task_fingerprint == identity
 
 
-@pytest.mark.parametrize("species", SPECIES)
-def test_switching_surfaces_clears_reused_physics_and_contact_caches(make_env, species):
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_switching_surfaces_clears_reused_physics_and_contact_caches(make_env, model_id):
     kwargs = dict(terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1), run_seed=17, reset_noise_scale=0.05)
-    env, fresh = make_env(species, **kwargs), make_env(species, **kwargs)
+    env, fresh = make_env(model_id, **kwargs), make_env(model_id, **kwargs)
     seeds = _mixed_surface_seeds(env)
     probes = bool(env._terrain_contact_probe_geoms)
     for is_plane in (False, True, False):
@@ -729,7 +759,7 @@ def test_switching_surfaces_clears_reused_physics_and_contact_caches(make_env, s
 def test_model_switch_closes_rendering_resources_bound_to_old_model(make_env):
     from unittest.mock import Mock
 
-    env = make_env("trex", terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1))
+    env = make_env(TYRANNOSAURUS_REX, terrain=terrain(), terrain_sampler=sampler(flat=1, sloped=1))
     seeds = _mixed_surface_seeds(env)
     env.reset(seed=seeds[True])
     for is_plane in (False, True):
@@ -743,7 +773,7 @@ def test_model_switch_closes_rendering_resources_bound_to_old_model(make_env):
 
 
 def test_surface_boundary_protects_complete_animal(make_env):
-    env = make_env("brachiosaurus", terrain=terrain(), reset_noise_scale=0.0)
+    env = make_env(BRACHIOSAURUS_ALTITHORAX, terrain=terrain(), reset_noise_scale=0.0)
     env.reset(seed=42)
     env.data.qpos[0] = 7.0
     mujoco.mj_forward(env.model, env.data)
@@ -762,10 +792,10 @@ def test_wrong_compiled_animal_is_rejected(monkeypatch):
 
     monkeypatch.setattr(behavior_module, "build_terrain_model", changed_model)
     with pytest.raises(ValueError, match="animal field body_mass"):
-        get_behavior_env_class("velociraptor")(terrain=terrain())
+        get_behavior_env_class(VELOCIRAPTOR_MONGOLIENSIS)(terrain=terrain())
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize(
     "name",
     [
@@ -779,13 +809,15 @@ def test_wrong_compiled_animal_is_rejected(monkeypatch):
         "combined_terrain",
     ],
 )
-def test_each_committed_recipe_instantiates_and_steps(species, name):
+def test_each_committed_recipe_instantiates_and_steps(model_id, name):
     from environments.shared.train_behaviors import read_recipe
 
-    recipe, recipe_commands, recipe_terrain, kwargs = read_recipe(RECIPES / species / "behaviors" / f"{name}.toml")
-    assert recipe["behavior"]["species"] == species and recipe["behavior"]["name"] == name
+    recipe, recipe_commands, recipe_terrain, kwargs = read_recipe(
+        model_id.path(RECIPES) / "behaviors" / f"{name}.toml", model_id
+    )
+    assert ModelId.from_record(recipe["behavior"]) == model_id and recipe["behavior"]["name"] == name
     assert recipe["behavior"]["timesteps"] > 0
-    env = get_behavior_env_class(species)(commands=recipe_commands, terrain=recipe_terrain, run_seed=42, **kwargs)
+    env = get_behavior_env_class(model_id)(commands=recipe_commands, terrain=recipe_terrain, run_seed=42, **kwargs)
     try:
         # Consolidation PR-8: a terrain recipe runs one plane episode in each shuffled block of four.
         if recipe_terrain is None:

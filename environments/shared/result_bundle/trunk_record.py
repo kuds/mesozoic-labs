@@ -3,8 +3,8 @@
 ``<run_dir>/trunk_run.json`` names the trunk run (``TRUNK_DIR``) a session of
 the SB3 notebook resolved for the run, as the ``TRUNK_FROM`` value that
 reproduces it: ``""`` for none, the run id when the trunk lies (or
-resolves) directly under the species/algorithm log directory a
-``TRUNK_FROM`` id resolves under (``LOG_BASE/<species>/<algo>``), else its
+resolves) directly under the model/algorithm log directory a
+``TRUNK_FROM`` id resolves under (``LOG_BASE/<species>/<embodiment>/<algo>``), else its
 absolute directory (and for a run named ``auto``, which ``TRUNK_FROM``
 cannot name by id; :func:`trunk_from_value`).  It holds no timestamp and no
 session token, so a session that resolved the same trunk, however spelt,
@@ -51,7 +51,7 @@ def trunk_from_value(trunk_dir: "str | Path | None", *, log_dir: "str | Path") -
     """The ``TRUNK_FROM`` value that resolves to *trunk_dir* in the SB3 notebook's storage cell.
 
     ``""`` for no trunk; the directory name when *trunk_dir* lies directly
-    under *log_dir* (``LOG_BASE/<species>/<algo>``, where the storage cell
+    under *log_dir* (``LOG_BASE/<species>/<embodiment>/<algo>``, where the storage cell
     resolves a run id and ``ancestors.select_trunk`` scans), and the run id
     too when *trunk_dir* resolves directly under it (a link to an in-tree
     run, or a ``..`` spelling of one), so every spelling of one trunk gives

@@ -1,0 +1,155 @@
+[stage]
+name = "locomotion"
+description = "Learn forward walking/running"
+
+[env]
+forward_vel_weight = 2.0               # Match raptor: was 0.8, far too low. Primary driver of locomotion speed.
+                                       # At 2.0, forward velocity dominates the reward landscape and
+                                       # pushes the agent past the slow-walking local optimum.
+alive_bonus = 0.5                      # Keep: already reduced from Stage 1
+fall_penalty = -150.0                  # Raised from -50: hedge against late-episode falls, which stay cheap
+                                       # in the discounted objective at gamma=0.995 (corrected break-even math
+                                       # in docs/investigations/STAGE2_RECOMMENDATIONS.md section 2.1).
+forward_vel_max = 2.5                  # NEW: was unset (env default 8.0 -> effectively uncapped speed
+                                       # incentive). Saturate just past the 2.0 m/s gate instead of paying
+                                       # for robustness-destroying top speed — the trap that collapsed
+                                       # velociraptor stage 2 (STAGE2_RECOMMENDATIONS.md R4).
+energy_penalty_weight = 0.002          # Increase from 0.001: CoT was near 0, provide some efficiency signal
+tail_stability_weight = 0.05           # Reduce from 0.08 to match raptor: tail oscillation is less
+                                       # critical than forward progress at this stage
+posture_weight = 0.2                   # Reduce from 0.5 to match raptor: allow dynamic forward lean for running
+nosedive_weight = 0.5                  # Reduce from 1.0 (raptor uses 0.3): allow head-forward running posture
+                                       # Keep slightly above raptor since head_contact is major termination cause
+height_weight = 0.3                    # Reduce from 1.0: pelvis already at 0.932m (above 0.90 target),
+                                       # this was wasting reward budget; raptor doesn't use height at all
+gait_symmetry_weight = 0.0            # Kept at 0.0: the alternation formula is fixed (base_env.py) but untested and
+                                      # unswept for the T-Rex; brachiosaurus/dibothrosuchus train stage 2 on it
+smoothness_weight = 0.05              # Reduce from 0.1 to match raptor: less penalty for dynamic motion
+heading_weight = 0.3                   # Reduce from 0.5 to match raptor: heading is already ~0.99
+lateral_penalty_weight = 0.1           # Reduce from 0.3 to match raptor: allow lateral dynamics for gait
+bite_bonus = 0.0
+bite_approach_weight = 0.0
+prey_distance_range = [8.0, 12.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
+                                       # while the retired [jax] table used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # inherited a 5x narrower reset distribution by accident.
+
+[ppo]
+learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
+learning_rate_end = 1e-5
+n_steps = 4096                          # Increase from 2048: larger rollout buffer for more stable gradients
+batch_size = 256                       # Increase from 128 to match raptor: more stable gradient estimates
+n_epochs = 10
+gamma = 0.995                           # Increase from 0.99: longer horizon values sustained locomotion
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefDecayCallback). This decay
+                                        # (with fall_penalty -150 and forward_vel_max 2.5) is what carried
+                                        # velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant.
+                                        # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+ent_coef_decay_timesteps = 4000000      # Anchor the decay to half the 8M budget. (Record fixed 2026-08-23:
+                                        # originally "matching stage 1's 3M-of-6M" — that anchor is retired,
+                                        # stance now decays over 7M of 11M; the half-budget choice here
+                                        # stands on the measurement below, not on the mirror.)
+                                        # Without it decay_timesteps defaults to the full stage budget
+                                        # (train_base._maybe_ent_coef_decay_callback:502) and ent_coef coasts high.
+                                        # Measured on run 20260725_194916, this was the only T-Rex stage without the
+                                        # anchor and the only one whose policy std ROSE: algo_std climbed
+                                        # monotonically 1.024 -> 1.211 across all five quintiles, the same signature
+                                        # as un-anchored velociraptor stage 2 (1.01 -> 1.22). It also compounds --
+                                        # stage 3 inherited the inflated std (started 1.213 against stage 1's 0.947
+                                        # finish) and climbed to 1.438 despite carrying its own anchor.
+
+target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning).
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]                  # Match raptor width; T-Rex obs is 63 (heading-free since policy interface r14; arms/distal tail welded, plus the Phase C command segment)
+
+[sac]
+learning_rate = 1e-4              # 3x reduction from Stage 1 — replay buffer provides natural gradient smoothing
+batch_size = 256
+gamma = 0.99                     # Keep at 0.99 — replay staleness at high gamma makes
+                                 # high gamma risky; the buffer naturally handles temporal credit assignment
+tau = 0.005
+ent_coef = "auto"                # Auto-entropy handles Stage 1→2 transition exploration naturally
+buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions — key advantage over PPO
+                                 # for mitigating catastrophic forgetting (PPO's biggest pain point for T-Rex)
+learning_starts = 10_000
+train_freq = 16                  # Collect 16 env steps before training — matches proven raptor SAC config
+gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on replay buffer
+
+[sac.policy_kwargs]
+net_arch = [512, 256]            # Match raptor width; T-Rex obs is 63 (heading-free since policy interface r14; arms/distal tail welded, plus the Phase C command segment)
+
+[curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
+min_avg_reward = 100.0
+# Collapse backstop: the relative floor pair stance and recovery use
+# (PLANT_VALIDATION §14 item 3), replacing the absolute
+# collapse_peak_floor = 100.0 — which sat 11x BELOW the measured do-nothing
+# reward, so it armed on the first qualifying eval of any run, healthy or
+# not, and encoded nothing about this stage. The absolute key is REMOVED,
+# not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
+# lets an explicit collapse_peak_floor win over the pair, so leaving it in
+# place would silently keep the old floor.
+collapse_peak_floor_reference = 1091.5  # The zero-action locomotion statue's reward at noise 0.05:
+                                        # 1091.51 ± 5.46 over 40 episodes, 40/40 full horizon, measured
+                                        # 2026-08-23 with environments/shared/scripts/
+                                        # zero_action_baseline.py --model-id tyrannosaurus_rex anatomical
+                                        # --stage 2 (2026-08 review §5.3). Re-measure
+                                        # with the same script whenever a reward weight OR the plant
+                                        # changes: a weight change rescales the statue's terms exactly and
+                                        # cheaply; a plant change moves its trajectory, so only a re-run is
+                                        # evidence. Forgetting either is silent. Re-measured on physics r8
+                                        # (plant_versions note 13) with the same command: 1091.52 ± 5.46,
+                                        # 40/40 full horizon, so the reference carries. This stage's [env]
+                                        # sets none of the stance shaping keys, and the hip-roll servos only
+                                        # trim the statue's spawn-noise foot roll. Carries through the stance
+                                        # follow-up (D-D27) too: this [env] sets none of its TyrannosaurusRexAnatomicalEnv kwargs,
+                                        # whose defaults keep the r8 reward bit for bit (test_anatomical_rewards.py;
+                                        # the digest snapshot's trex locomotion reward summary did not move).
+                                        # Re-measured on physics r9 (plant_versions note 16) with the same
+                                        # command: 1069.94 ± 138.75 with 39/40 full horizon (seed 3081
+                                        # nosedives, as in stance), its 39 standing episodes 1092.14 ± 5.74,
+                                        # so the reference carries: +0.6 against a 0.9 standard error.
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1091.5 =
+                                        # 491.2. The interrupted run 20260821_142144's best eval (1494.47
+                                        # at 5.3M) clears it, and even its ~1100 ramp-window plateau does,
+                                        # so the backstop arms as soon as collapse_min_evals is met and
+                                        # watches the rest of the run. The ratio, not the product, is what
+                                        # carries across a reward change.
+statue_constants_physics_revision = 9   # The trex PHYSICS revision the 1091.5 reference was measured on
+                                        # (2026-08-23 on r7, re-measured unchanged on r8 and r9 above).
+                                        # test_statue_constant_freshness.py holds this pin
+                                        # against the plant manifest, so a plant bump that forgets the
+                                        # re-measure fails CI instead of silently training against a
+                                        # backstop calibrated on a plant that no longer exists.
+min_avg_episode_length = 750            # Reduce from 800: T-Rex best run reached 682, 800 is too strict
+min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plant (2026-08 review §5.3
+                                        # decision (b)). The previous 2.0 was a velociraptor copy: on this
+                                        # plant 2.0 m/s is Froude 0.46-0.57 (CoM height 0.72-0.88 m) — the
+                                        # walk-run boundary — while the raptor runs its own 2.0 gate at
+                                        # Froude ~1.07; the dynamically-similar raptor-gate equivalent here
+                                        # is 2.7-3.0 m/s. Measured against run 20260821_142144: its
+                                        # velocity curve first-touches 2.0 m/s at 7.1M/10.5M/13.5M steps
+                                        # (exponential/quadratic/linear post-ramp fits) on an 8M budget,
+                                        # with 0/109 in-training evals passing; 1.0 m/s (Froude 0.14-0.16)
+                                        # first-touches at 6.4-8.0M on the same fits — inside the budget.
+                                        # The 2.0 m/s capability target moved to the behavior stage's gate
+                                        # and was retired there on 2026-09-13 (2026-08 review CF2, plan D1):
+                                        # a bite episode cannot average it, so closing speed is measured,
+                                        # not gated. Re-derive this floor by refitting the post-ramp
+                                        # velocity curve of the next full run.
+required_consecutive = 3
+collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
+collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.
+warmup_timesteps = 300000               # Increased from 100k: give critic more time to adapt to new reward landscape (matches raptor stage 2 proportional warmup)
+warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
+warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
+ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
+ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)

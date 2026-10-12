@@ -19,7 +19,11 @@ import pytest
 
 from environments.shared.cli import _parse_stage_ref, _resolve_stage_ref, main
 from environments.shared.evaluation import detect_stage_from_path
+from environments.shared.model_id import ModelId
 from environments.shared.visualization import _stage_style_index
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class TestStageStyleIndex:
@@ -30,18 +34,18 @@ class TestStageStyleIndex:
         # their exact historical colors and linestyles.
         for stage in (1, 2, 3):
             assert _stage_style_index(stage) == stage
-            assert _stage_style_index(stage, species="trex") == stage
+            assert _stage_style_index(stage, model_id=TYRANNOSAURUS_REX) == stage
 
     def test_semantic_id_uses_manifest_position(self):
-        # configs/trex/stages.toml places recovery at position 2.
-        assert _stage_style_index("recovery", species="trex") == 2
+        # configs/tyrannosaurus_rex/anatomical/stages.toml places recovery at position 2.
+        assert _stage_style_index("recovery", model_id=TYRANNOSAURUS_REX) == 2
 
     def test_unresolvable_id_gets_stable_crc32_fallback(self):
         # crc32, not hash(): hash() varies per process, which would shuffle
         # colors between figure regenerations of the same run.
         expected = zlib.crc32(b"recovery") % 1000
         assert _stage_style_index("recovery") == expected
-        assert _stage_style_index("recovery", species="no_such_species") == expected
+        assert _stage_style_index("recovery", model_id=ModelId("no_such_species", "anatomical")) == expected
         assert _stage_style_index("recovery") != _stage_style_index("behavior")
 
 
@@ -86,7 +90,7 @@ class TestRecoveryStageFigures:
         fig = plot_training_curves(
             [("recovery", recovery_stage_dir)],
             self._CONFIGS,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -104,7 +108,7 @@ class TestRecoveryStageFigures:
         plot_diagnostics_graphs(
             [("recovery", recovery_stage_dir)],
             self._CONFIGS,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             algorithm="ppo",
             save_dir=recovery_stage_dir,
             show=False,
@@ -119,7 +123,7 @@ class TestRecoveryStageFigures:
         fig = plot_foot_contacts(
             [("recovery", recovery_stage_dir)],
             self._CONFIGS,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -135,7 +139,7 @@ class TestRecoveryStageFigures:
         fig = plot_stance_diagnostics(
             [("recovery", recovery_stage_dir)],
             self._CONFIGS,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -150,10 +154,20 @@ class TestDetectStageFromPathSemanticLayouts:
     def test_single_stage_run_dir_with_trailing_timestamp(self):
         # train()'s default log dir is f"{stage_dirname(...)}_{timestamp}" —
         # this exact layout was misread as stage 1 in the 5M pilot.
-        assert detect_stage_from_path("/logs/trex/02_recovery_20260821_142144/models/best_model.zip") == "recovery"
+        assert (
+            detect_stage_from_path(
+                "/logs/tyrannosaurus_rex/anatomical/02_recovery_20260821_142144/models/best_model.zip"
+            )
+            == "recovery"
+        )
 
     def test_bare_semantic_dir_from_20260819_layout(self):
-        assert detect_stage_from_path("/logs/trex/ppo_20260819_120000/recovery/models/best_model.zip") == "recovery"
+        assert (
+            detect_stage_from_path(
+                "/logs/tyrannosaurus_rex/anatomical/ppo_20260819_120000/recovery/models/best_model.zip"
+            )
+            == "recovery"
+        )
 
     def test_stage1b_component_does_not_read_as_stage1(self):
         # "stage1" matched as a raw substring of "stage1b" and outranked the
@@ -191,25 +205,25 @@ class TestCliStageResolution:
 
     def test_legacy_semantic_id_resolves_to_historical_number(self):
         configs = {1: {}, 2: {"curriculum_kwargs": {"timesteps": 123_456}}, 3: {}}
-        resolved = _resolve_stage_ref("locomotion", configs, "trex")
+        resolved = _resolve_stage_ref("locomotion", configs, TYRANNOSAURUS_REX)
         assert resolved == 2
         # The default-timesteps lookup that used to raise a raw KeyError.
         assert configs[resolved]["curriculum_kwargs"]["timesteps"] == 123_456
 
     def test_semantic_only_id_passes_through_as_config_key(self):
-        assert _resolve_stage_ref("recovery", {1: {}, "recovery": {}}, "trex") == "recovery"
+        assert _resolve_stage_ref("recovery", {1: {}, "recovery": {}}, TYRANNOSAURUS_REX) == "recovery"
 
     def test_unknown_refs_return_none_for_the_friendly_error(self):
         configs = {1: {}, 2: {}, 3: {}}
-        assert _resolve_stage_ref("cartwheel", configs, "trex") is None
-        assert _resolve_stage_ref(5, configs, "trex") is None
+        assert _resolve_stage_ref("cartwheel", configs, TYRANNOSAURUS_REX) is None
+        assert _resolve_stage_ref(5, configs, TYRANNOSAURUS_REX) is None
         # A species whose manifest has no recovery stage fails closed.
-        assert _resolve_stage_ref("recovery", configs, "velociraptor") is None
+        assert _resolve_stage_ref("recovery", configs, VELOCIRAPTOR_MONGOLIENSIS) is None
 
     @pytest.fixture
     def species_cfg(self):
         cfg = MagicMock()
-        cfg.species = "velociraptor"
+        cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         cfg.stage_descriptions = "1=balance, 2=locomotion, 3=strike"
         return cfg
 
@@ -249,7 +263,7 @@ class TestCliStageResolution:
         # F11: eval --stage was int choices=[1, 2, 3], so a misdetected
         # recovery checkpoint could not be corrected from the CLI.
         species_cfg = MagicMock()
-        species_cfg.species = "trex"
+        species_cfg.model_id = TYRANNOSAURUS_REX
         species_cfg.stage_descriptions = "1=stance, 2=locomotion, 3=behavior"
         mock_eval = MagicMock()
         mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}, "recovery": {}})
@@ -295,16 +309,16 @@ class TestWandbRunName:
         with patch("environments.shared.wandb_integration.wandb") as mock:
             yield mock
 
-    def test_integer_stage_has_full_species_and_stance_title(self, mock_wandb):
+    def test_integer_stage_has_full_model_and_stance_title(self, mock_wandb):
         from environments.shared.wandb_integration import init_wandb
 
-        init_wandb("trex", 1, {"name": "stance"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex / Stance"
-        assert mock_wandb.init.call_args.kwargs["tags"] == ["trex", "stage1"]
+        init_wandb(TYRANNOSAURUS_REX, 1, {"name": "stance"})
+        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex (Anatomical) / Stance"
+        assert mock_wandb.init.call_args.kwargs["tags"] == ["tyrannosaurus_rex", "anatomical", "stage1"]
 
     def test_semantic_stage_named_by_id(self, mock_wandb):
         from environments.shared.wandb_integration import init_wandb
 
-        init_wandb("trex", "recovery", {"name": "recovery"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex / Recovery"
-        assert mock_wandb.init.call_args.kwargs["tags"] == ["trex", "recovery"]
+        init_wandb(TYRANNOSAURUS_REX, "recovery", {"name": "recovery"})
+        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex (Anatomical) / Recovery"
+        assert mock_wandb.init.call_args.kwargs["tags"] == ["tyrannosaurus_rex", "anatomical", "recovery"]

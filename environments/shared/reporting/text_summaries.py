@@ -6,7 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..species_names import species_display_name
+from ..model_id import ModelId
+from ..species_names import model_display_name
 from ..stage_manifest import stage_display_name
 from .formatting import format_duration
 
@@ -29,7 +30,7 @@ def _forward_velocity(results: dict[str, Any]) -> str:
 def write_stage_summary(
     stage_dir,
     results_dict: dict[str, Any],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
 ) -> Path:
     """Write a text summary for a single completed stage to its directory.
@@ -47,7 +48,7 @@ def write_stage_summary(
         f"Mesozoic Labs: Stage {results_dict['stage']} Summary",
         "=" * 50,
         "",
-        f"Species:        {species_display_name(species)}",
+        f"Model:          {model_display_name(model_id)}",
         f"Stage:          {results_dict['stage']} ({stage_display_name(results_dict['stage'], results_dict['name'])})",
         f"Description:    {results_dict['description']}",
         f"Algorithm:      {algorithm}",
@@ -124,7 +125,7 @@ def write_stage_summary(
 def write_training_summary(
     run_dir,
     stage_results_list: list[dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     n_envs: int,
@@ -141,7 +142,7 @@ def write_training_summary(
         "Mesozoic Labs Training Summary",
         "=" * 50,
         "",
-        f"Species:        {species_display_name(species)}",
+        f"Model:          {model_display_name(model_id)}",
         f"Algorithm:      {algorithm}",
         f"Date:           {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"Seed:           {seed}",

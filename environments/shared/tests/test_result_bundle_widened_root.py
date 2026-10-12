@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import ResultBundleError, audit_result_bundle, validate_result_bundle
 
@@ -50,7 +51,7 @@ def _save(run_dir: Path, stage_results, stage_configs) -> dict[str, Path]:
     return save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        ModelId("velociraptor_mongoliensis", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -59,7 +60,7 @@ def _save(run_dir: Path, stage_results, stage_configs) -> dict[str, Path]:
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity("velociraptor"),
+        plant_identity=_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
         run_id="widened-root-test",
     )
 

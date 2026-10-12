@@ -1,14 +1,15 @@
 """
 Load curriculum stage configurations from TOML files.
 
-Each species has a configs/<species>/ directory with one TOML file per stage,
-named as the species' stage manifest declares (trex: stance.toml,
-recovery.toml, locomotion.toml, behavior.toml; manifest-less species keep
-their historical stage{N}_* names, which their synthesized manifest records).
+Each model (species, embodiment; decision D-D33) has a
+configs/<species>/<embodiment>/ directory with one TOML file per stage,
+named by its stage with no number, as the model's stage manifest
+(``stages.toml`` in the same directory) declares (tyrannosaurus_rex/anatomical:
+stance.toml, recovery.toml, locomotion.toml, behavior.toml).
 
 Each TOML file has up to five tables: [stage], [env], [ppo], [sac] and
 [curriculum].  A top-level ``extends`` key, before the first table header,
-inherits the listed tables from another stage of the same species, one
+inherits the listed tables from another stage of the same model, one
 level deep and never [curriculum]:
 
     extends = { stage = "stance", tables = ["stage", "env", "ppo"] }
@@ -35,22 +36,10 @@ from .file_io import read_json_object
 from .paths import REPOSITORY_ROOT as _REPO_ROOT
 
 if TYPE_CHECKING:
+    from .model_id import ModelId
     from .plant_contract import PlantIdentity
 
 _logger = logging.getLogger(__name__)
-
-#: The canonical species names, sorted, as the report scripts expose them
-#: for argparse ``choices``.  Deliberately not the registry's key set: that
-#: also carries aliases (raptor, t-rex, brachio, dibo) that are not part of
-#: the CLI surface.
-SPECIES_NAMES: tuple[str, ...] = (
-    "brachiosaurus",
-    "compsognathus",
-    "compsognathus_robot",
-    "dibothrosuchus",
-    "trex",
-    "velociraptor",
-)
 
 
 def get_library_version() -> str:
@@ -172,9 +161,8 @@ def _detect_gpu_info_nvidia_smi() -> dict[str, Any]:
 
 _CONFIGS_DIR = _REPO_ROOT / "configs"
 
-# Integer stage refs resolve through the stage manifest (declared or
-# synthesized) — the old stage{N}_* glob lives on only inside the manifest
-# synthesizer for manifest-less species.
+# Every stage ref, integer or id, resolves through the model's declared stage
+# manifest; no stage file is found by globbing its name.
 
 #: Every top-level table a stage TOML may declare.  This is the complete set
 #: the loader below reads, once :func:`_read_stage_toml` has resolved and
@@ -239,9 +227,12 @@ def _read_stage_toml(path: Path) -> dict[str, Any]:
 
     ``extends = { stage = "<id>", tables = [...] }`` names a parent stage and
     the tables inherited from it.  The id resolves through the stage manifest
-    of *path*'s own directory (``<configs root>/<species>/stages.toml``),
-    never through a species argument, so an explicit ``config_path`` into
-    another configs root reads that root's parent.  Each listed table is
+    file beside *path* (``stages.toml`` in the same directory,
+    ``configs/<species>/<embodiment>/`` for a committed stage), never through
+    a model argument and never through an identity read off directory names
+    (review L2), so a stage file extends only a sibling in its own embodiment
+    directory, and an explicit ``config_path`` into another configs root reads
+    its parent from beside it.  Each listed table is
     ``{**parent[table], **child[table]}``: a child key overrides in the
     parent's position, a new child key is appended, and a nested table the
     child declares (``[ppo.policy_kwargs]``) replaces the parent's whole.  An
@@ -252,7 +243,7 @@ def _read_stage_toml(path: Path) -> dict[str, Any]:
     malformed value; ``curriculum`` or an unknown table in the list; a
     listed table the parent does not declare; a parent that itself extends
     (one level only); and an id the directory's manifest cannot resolve,
-    which is how a copied TOML outside its species directory fails.
+    which is how a copied TOML outside its model directory fails.
     """
     raw = _load_stage_toml(path)
     if "extends" not in raw:
@@ -279,17 +270,17 @@ def _read_stage_toml(path: Path) -> dict[str, Any]:
             f"{path}: extends cannot inherit {refused}; it may list only {list(_INHERITABLE_TABLES)}, "
             "and never [curriculum]: a stage's budget and advancement gate are its own."
         )
-    from .stage_manifest import StageManifestError, load_stage_manifest
+    from .stage_manifest import StageManifestError, load_stage_manifest_file
 
-    species_dir = path.absolute().parent
+    model_dir = path.absolute().parent
     try:
-        entry = load_stage_manifest(species_dir.name, species_dir.parent).by_id(parent_id)
+        entry = load_stage_manifest_file(model_dir / "stages.toml").by_id(parent_id)
     except StageManifestError as exc:
         raise ValueError(
             f"{path}: extends stage {parent_id!r}, which the stage manifest of its own directory does not "
-            f"resolve ({exc}); a stage TOML that extends another loads only from its species directory."
+            f"resolve ({exc}); a stage TOML that extends another loads only from its model directory."
         ) from exc
-    parent_path = species_dir / entry.config_file
+    parent_path = model_dir / entry.config_file
     parent = _load_stage_toml(parent_path)
     if "extends" in parent:
         raise ValueError(
@@ -304,25 +295,25 @@ def _read_stage_toml(path: Path) -> dict[str, Any]:
 
 
 def load_stage_config(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Load a curriculum stage configuration from TOML.
 
     Args:
-        species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
+        model_id: The model (e.g. ``ModelId("tyrannosaurus_rex", "anatomical")``).
         stage: Either a legacy stage number (1, 2, or 3 — resolved through
             the stage manifest's legacy_number mapping, so existing callers
             and artifacts keep their meaning) or a semantic stage ID — any
-            id the species' manifest declares, resolved through it.  Stages
+            id the model's manifest declares, resolved through it.  Stages
             without a legacy number — recovery, every open id — are
             reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
             automatic discovery when provided.  A file that ``extends``
             another stage finds that parent through the stage manifest of
-            its own directory, whatever *species* says, so it loads only
-            from inside a species directory (:func:`_read_stage_toml`).
+            its own directory, whatever *model_id* says, so it loads only
+            from inside a model directory (:func:`_read_stage_toml`).
 
     Returns:
         Dictionary with keys "name", "description", "env_kwargs",
@@ -334,15 +325,13 @@ def load_stage_config(
     if config_path is not None:
         path = Path(config_path)
     else:
-        # Every stage reference resolves through the manifest: declared
-        # manifests name their config files explicitly (trex's are id-named
-        # as of 2026-08-20 — stance.toml, not stage1_balance.toml), and
-        # synthesized manifests record the historical stage{N}_* filename
-        # they were built from, so manifest-less species are unchanged.
+        # Every stage reference resolves through the model's manifest, which
+        # names its config files explicitly: each is named by its stage,
+        # with no number (decision D).
         from .stage_manifest import load_stage_manifest
 
-        entry = load_stage_manifest(species).resolve(stage)
-        path = _CONFIGS_DIR / species / entry.config_file
+        entry = load_stage_manifest(model_id).resolve(stage)
+        path = model_id.path(_CONFIGS_DIR) / entry.config_file
 
     raw = _read_stage_toml(path)
 
@@ -390,8 +379,8 @@ def load_stage_config(
     }
 
 
-def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
-    """Load every stage config the species' manifest declares.
+def load_all_stages(model_id: ModelId) -> "dict[int | str, dict[str, Any]]":
+    """Load every stage config the model's manifest declares.
 
     Returns:
         Dictionary keyed the way each stage is referenced: legacy stages by
@@ -401,15 +390,15 @@ def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
     """
     from .stage_manifest import load_stage_manifest
 
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     configs: "dict[int | str, dict[str, Any]]" = {}
     for entry in manifest.stages:
         key: "int | str" = entry.legacy_number if entry.legacy_number is not None else entry.id
-        configs[key] = load_stage_config(species, key)
+        configs[key] = load_stage_config(model_id, key)
     return configs
 
 
-def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
+def build_env(model_id: ModelId, stage: "int | str", **env_overrides: Any) -> Any:
     """Construct the stage's environment from its committed config.
 
     The one construction path the report scripts and the frozen recovery
@@ -432,11 +421,11 @@ def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
     from .plant_contract import current_plant_identity, validate_compiled_plant
     from .species_registry import get_species_config
 
-    config = load_stage_config(species, stage)
-    species_config = get_species_config(species)
-    identity = current_plant_identity(species_config.species, verify_generated=False)
+    config = load_stage_config(model_id, stage)
+    species_config = get_species_config(model_id)
+    identity = current_plant_identity(model_id, verify_generated=False)
     env = species_config.env_class(**{**config["env_kwargs"], **env_overrides})
-    validate_compiled_plant(env.model, identity, artifact=f"{species_config.species} stage {stage} environment")
+    validate_compiled_plant(env.model, identity, artifact=f"{model_id} stage {stage} environment")
     return env
 
 
@@ -482,7 +471,7 @@ def read_recorded_stage_config(stage_dir: str | Path) -> dict[str, Any] | None:
     :func:`~environments.shared.file_io.read_json_object` reads it; NaN is
     accepted, as the writer writes it.  Callers that must refuse a bad record
     read the file themselves: :func:`record_stage_duration`, the result-bundle
-    writer, audit, evidence and ancestor readers, the recovery-gate species
+    writer, audit, evidence and ancestor readers, the recovery-gate identity
     check, the stage-results builder and the backfill and widen tools.
     """
     return read_json_object(Path(stage_dir) / STAGE_CONFIG_FILENAME)
@@ -848,10 +837,10 @@ def save_stage_config(
     algorithm: str,
     extra: dict[str, Any] | None = None,
     env_class: type | None = None,
-    species: str | None = None,
+    *,
+    model_id: ModelId,
     plant_identity: PlantIdentity | None = None,
     task_fingerprint: dict[str, Any] | None = None,
-    *,
     load_path: str | None = None,
     load_mode: str | None = None,
     parent_run_id: str | None = None,
@@ -877,7 +866,8 @@ def save_stage_config(
             (e.g. ``{"seed": 42, "n_envs": 4}``).
         env_class: Optional environment class whose ``__init__`` defaults are
             merged into ``env_kwargs`` for completeness.
-        species: Optional species name (e.g. ``"velociraptor"``, ``"trex"``).
+        model_id: The model the stage belongs to, recorded as its two
+            fields, ``species`` and ``embodiment`` (decision D-D33).
         plant_identity: Optional current plant identity.  When supplied it is
             embedded in the config and written as ``plant_identity.json``.
         load_path: The checkpoint this stage's weights were loaded from, as
@@ -940,7 +930,7 @@ def save_stage_config(
             env_kwargs[key] = list(value)
 
     data: dict[str, Any] = {
-        "species": species or "",
+        **model_id.record(),
         "stage": stage,
         "name": stage_config.get("name", ""),
         "description": stage_config.get("description", ""),

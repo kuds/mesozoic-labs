@@ -1,6 +1,6 @@
 """The T-Rex stance stage's floor-truth declaration (decision D-D24, 2026-10-06; D-D32, 2026-10-11).
 
-``configs/trex/stance.toml`` moved from ``stance_quality/v1`` to the
+``configs/tyrannosaurus_rex/anatomical/stance.toml`` moved from ``stance_quality/v1`` to the
 floor-truth gate with physics r8, and to the six-heading certificate
 (``stance_quality_heading/v1``, v2's block judged at six whole-scene
 headings) on 2026-10-11.  Its bars were set on the r8 statue's
@@ -41,6 +41,7 @@ from environments.shared.curriculum.stance_gate_v2 import (
 )
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from environments.shared.gait.stance_metrics import episode_stance_metrics, spawn_grace_steps
+from environments.shared.model_id import ModelId
 
 from .test_gait_stance_metrics import statue_trace
 
@@ -70,7 +71,7 @@ PROP_WITH_A_QUIET_RESET: dict[str, float] = {
 
 @pytest.fixture(scope="module")
 def stage() -> dict[str, Any]:
-    return load_stage_config("trex", "stance")
+    return load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")
 
 
 @pytest.fixture(scope="module")
@@ -249,18 +250,21 @@ def test_the_statue_and_a_flat_forward_loaded_pad_clear_the_cop_bar(curriculum, 
     assert _reasons(curriculum, max_sole_cop_fore_aft=value) == set()
 
 
-def test_only_the_trex_and_compsognathus_stances_declare_the_cop_bar():
+def test_only_the_tyrannosaurus_rex_and_compsognathus_longipes_stances_declare_the_cop_bar():
     """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
     stance's [env], not its [curriculum]).  The compsognathus declares its own bar on its r2 statue (D-D26 after
-    D-D28; ``test_compsognathus_stance_gate_config.py``)."""
-    from environments.shared.config import SPECIES_NAMES
+    D-D28; ``test_compsognathus_longipes_stance_gate_config.py``)."""
     from environments.shared.curriculum.gate_schema import gate_config_view
+    from environments.shared.species_names import model_ids
     from environments.shared.stage_manifest import load_stage_manifest
 
     declaring = []
-    for species in SPECIES_NAMES:
-        for entry in load_stage_manifest(species).stages:
-            block = load_stage_config(species, entry.reference).get("curriculum_kwargs", {})
+    for model_id in model_ids():
+        for entry in load_stage_manifest(model_id).stages:
+            block = load_stage_config(model_id, entry.reference).get("curriculum_kwargs", {})
             if "max_sole_cop_fore_aft" in gate_config_view(block)["thresholds"]:
-                declaring.append((species, entry.id))
-    assert declaring == [("compsognathus", "stance"), ("trex", "stance")]
+                declaring.append((model_id, entry.id))
+    assert declaring == [
+        (ModelId("tyrannosaurus_rex", "anatomical"), "stance"),
+        (ModelId("compsognathus_longipes", "anatomical"), "stance"),
+    ]

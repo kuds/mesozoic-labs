@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from environments.shared.curriculum.gate_schema import gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import (
     GATE_VERDICT_FILENAME,
     GATE_VERDICT_SCHEMA,
@@ -27,6 +28,8 @@ from environments.shared.result_bundle import (
 )
 from environments.shared.result_bundle import gate_verdict as gate_verdict_module
 from environments.shared.result_bundle.hashing import gate_config_sha256
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: The block every verdict here is judged under (a stance stage's), and the
 #: view the writer records as ``gate`` (decision D-A22).
@@ -57,7 +60,7 @@ def _stage_dir(tmp_path: Path) -> Path:
 
 def _write_kwargs(stage_dir: Path) -> dict[str, Any]:
     return dict(
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         stage=1,
         stage_id="stance",
         gate_kind="stance_quality/v1",
@@ -94,8 +97,9 @@ class TestWrite:
         assert path == stage_dir / GATE_VERDICT_FILENAME
         verdict = json.loads(path.read_text())
         assert verdict == read_gate_verdict(stage_dir)
-        assert verdict["schema"] == GATE_VERDICT_SCHEMA == "mesozoic.gate-verdict/v1"
-        assert verdict["species"] == "trex"
+        # Re-pinned from /v1 when the verdict began naming the embodiment (decision D-D33).
+        assert verdict["schema"] == GATE_VERDICT_SCHEMA == "mesozoic.gate-verdict/v2"
+        assert ModelId.from_record(verdict) == TYRANNOSAURUS_REX
         assert verdict["stage"] == 1 and verdict["stage_id"] == "stance"
         assert verdict["gate_kind"] == "stance_quality/v1" and verdict["gate_schema_version"] == 1
         assert verdict["passed"] is False and verdict["failures"] == ["duty_ucb"]
@@ -133,6 +137,7 @@ class TestWrite:
         assert set(verdict) == {
             "schema",
             "species",
+            "embodiment",
             "stage",
             "stage_id",
             "gate_kind",
@@ -210,7 +215,7 @@ class TestWrite:
         stage_result = {**numbers, "headings": [{"yaw_deg": -90.0}] * 6}  # not persisted: the cells live in the report
         _write(stage_dir, gate_kind="stance_quality_heading/v1", stage_result=stage_result)
         verdict = read_gate_verdict(stage_dir)
-        assert verdict is not None and verdict["schema"] == "mesozoic.gate-verdict/v1"
+        assert verdict is not None and verdict["schema"] == "mesozoic.gate-verdict/v2"
         assert verdict["stage_result"] == numbers
 
     def test_a_semantic_stage_records_its_id_as_the_stage(self, tmp_path):
@@ -338,7 +343,7 @@ class TestWrite:
 
         stage_dir = _stage_dir(tmp_path)
         (stage_dir / "replays").mkdir()
-        (stage_dir / "replays" / "trex_ppo_stage1_best.mp4").write_bytes(b"v")
+        (stage_dir / "replays" / "tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4").write_bytes(b"v")
         path = _write(stage_dir)
         assert path.parent == stage_dir
         assert path.name == "gate_verdict.json"
@@ -365,9 +370,10 @@ class TestRead:
         _write(stage_dir)
         path = stage_dir / GATE_VERDICT_FILENAME
         verdict = json.loads(path.read_text())
-        verdict["schema"] = "mesozoic.gate-verdict/v2"
+        # A v1 verdict named its species alone; decision D-D33 retired the schema.
+        verdict["schema"] = "mesozoic.gate-verdict/v1"
         path.write_text(json.dumps(verdict))
-        with pytest.raises(GateVerdictError, match="declares schema 'mesozoic.gate-verdict/v2'"):
+        with pytest.raises(GateVerdictError, match="declares schema 'mesozoic.gate-verdict/v1'"):
             read_gate_verdict(stage_dir)
         path.write_text("not json")
         with pytest.raises(GateVerdictError, match="not readable JSON"):

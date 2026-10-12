@@ -21,8 +21,8 @@ reuses the push trigger's path list by a YAML alias, so the two cannot drift.
 The test matrix's suites run every directory of pyproject.toml's testpaths
 exactly once, installing the ``test`` extra, under the check names
 ``test (<python>, <suite>)``. At reduced depth the SB3 job's integration step
-leaves out exactly the compsognathus_robot parametrisations of
-test_compsognathus_training.py (decision 10 (a)), which the nightly schedule, a
+leaves out exactly the compsognathus_longipes/robot parametrisations of
+test_compsognathus_longipes_training.py (decision 10 (a)), which the nightly schedule, a
 manual dispatch and the ``full-ci`` label run.
 """
 
@@ -41,7 +41,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
-COMPSOGNATHUS_TRAINING = REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_training.py"
+COMPSOGNATHUS_LONGIPES_TRAINING = (
+    REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_longipes_training.py"
+)
 
 _HOOK_REPOS = {
     "ruff": "https://github.com/astral-sh/ruff-pre-commit",
@@ -57,8 +59,8 @@ _DIGEST_DATA_GLOBS = (
     "environments/*/data/*.json",
     "configs/plant_manifest.generated.json",
     "configs/plant_versions.toml",
-    "configs/*/recovery_calibration.json",
-    "configs/*/behaviors/*.toml",
+    "configs/*/*/recovery_calibration.json",
+    "configs/*/*/behaviors/*.toml",
 )
 
 
@@ -132,7 +134,7 @@ def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
 def test_every_file_these_checks_read_triggers_the_workflow() -> None:
     filters = path_filters()
     assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
-    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK, COMPSOGNATHUS_TRAINING):
+    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK, COMPSOGNATHUS_LONGIPES_TRAINING):
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()
         for patterns in filters:
             assert any(glob_matches(pattern, relative) for pattern in patterns), (
@@ -234,25 +236,34 @@ def _selection_at_depth(selection: str, *, full: bool) -> str:
 
 
 def test_reduced_depth_leaves_out_only_the_robot_training_runs() -> None:
-    # Decision 10 (a), CU-14a: pull requests and pushes skip the compsognathus_robot parametrisations of
-    # test_compsognathus_training.py's training tests and keep the compsognathus ones; the full depth runs both.
-    # A bare `not compsognathus_robot` would also drop the robot's parameters in the step's other files.
+    # Decision 10 (a), CU-14a: pull requests and pushes skip the compsognathus_longipes/robot parametrisations of
+    # test_compsognathus_longipes_training.py's training tests and keep the anatomical ones; the full depth runs
+    # both. A bare `not compsognathus_longipes-robot` would also drop the robot's parameters in the step's other files.
     job = job_block("test-sb3")
     for full in ("true", "false"):
         assert f'echo "full={full}" >> "$GITHUB_OUTPUT"' in job, f"the SB3 depth step no longer sets full={full}"
     (step,) = [candidate for candidate in job_steps("test-sb3") if "name: Run SB3 integration tests\n" in candidate]
-    assert "environments/shared/tests/test_compsognathus_training.py" in step
+    assert "environments/shared/tests/test_compsognathus_longipes_training.py" in step
     # Either quote style; the selection holds no quote of its own kind.
     ((_, selection),) = re.findall(r"""^\s+-k (["'])(.*)\1 \\$""", step, re.MULTILINE)
     notebook = "not test_actual_notebook_training_stance_and_recovery_reports"
     assert _selection_at_depth(selection, full=True) == notebook
     assert _selection_at_depth(selection, full=False) == (
-        f"{notebook} and not (test_compsognathus_training and compsognathus_robot)"
+        f"{notebook} and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)"
     )
-    # The -k terms are the module's name and the robot's parameter id, which the compsognathus id does not contain.
-    (species,) = [
-        ast.literal_eval(node.value)
-        for node in ast.parse(COMPSOGNATHUS_TRAINING.read_text(encoding="utf-8")).body
-        if isinstance(node, ast.Assign) and [ast.unparse(target) for target in node.targets] == ["SPECIES"]
+    # The -k terms are the module's name and the robot's parameter id, `<species>-<embodiment>` inside the
+    # `<algorithm>-<species>-<embodiment>` test ids, which the anatomical model's id does not contain. The module
+    # parametrizes over its MODEL_IDS, a tuple of ModelId(species, embodiment) calls with literal arguments.
+    (calls,) = [
+        node.value.elts
+        for node in ast.parse(COMPSOGNATHUS_LONGIPES_TRAINING.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [ast.unparse(target) for target in node.targets] == ["MODEL_IDS"]
+        and isinstance(node.value, (ast.Tuple, ast.List))
     ]
-    assert set(species) == {"compsognathus", "compsognathus_robot"}, species
+    model_calls = [call for call in calls if isinstance(call, ast.Call) and ast.unparse(call.func) == "ModelId"]
+    assert len(model_calls) == len(calls), calls
+    model_ids = [tuple(ast.literal_eval(argument) for argument in call.args) for call in model_calls]
+    assert model_ids == [("compsognathus_longipes", "anatomical"), ("compsognathus_longipes", "robot")], model_ids
+    anatomical, robot = ("-".join(model_id) for model_id in model_ids)
+    assert robot not in anatomical

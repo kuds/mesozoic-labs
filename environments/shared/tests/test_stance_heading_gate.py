@@ -66,6 +66,7 @@ from environments.shared.gait.stance_metrics import (
     StanceEpisodeMetrics,
     episode_stance_metrics,
 )
+from environments.shared.model_id import ModelId
 
 from .test_gait_stance_metrics import statue_trace
 
@@ -136,7 +137,8 @@ def judge(rows: list[HeadingEpisode], block: StanceV2Thresholds | None = None, *
 class TestRegistration:
     def test_the_schema_registers_the_kind_with_the_v2_key_sets(self):
         assert STANCE_HEADING_GATE_KIND == "stance_quality_heading/v1"
-        assert STANCE_HEADING_REPORT_SCHEMA == "mesozoic.stance-heading-report/v1"
+        # Re-pinned from /v1 when the report began naming the embodiment (decision D-D33).
+        assert STANCE_HEADING_REPORT_SCHEMA == "mesozoic.stance-heading-report/v2"
         assert HEADING_PROTOCOL == "whole_scene_yaw/v1"
         assert GATE_KINDS[STANCE_HEADING_GATE_KIND] == STANCE_HEADING_THRESHOLD_KEYS == STANCE_V2_THRESHOLD_KEYS
         assert gate_schema._REQUIRED_THRESHOLD_KEYS[STANCE_HEADING_GATE_KIND] == STANCE_HEADING_REQUIRED_KEYS
@@ -152,17 +154,18 @@ class TestRegistration:
         others = frozenset().union(*(keys for kind, keys in GATE_KINDS.items() if kind != STANCE_HEADING_GATE_KIND))
         assert gate_schema._ALL_THRESHOLD_KEYS == others
         from environments.shared.config import load_all_stages
-        from environments.shared.stage_manifest import _CONFIGS_DIR
+        from environments.shared.species_names import model_ids
 
-        for species in sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml")):
-            for stage, cfg in load_all_stages(species).items():
+        assert model_ids()
+        for model_id in model_ids():
+            for stage, cfg in load_all_stages(model_id).items():
                 curriculum = cfg["curriculum_kwargs"]
                 if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
                     continue
                 kind = curriculum.get("gate_kind")
                 keys = GATE_KINDS[kind] if kind in GATE_KINDS else others
                 expected = {key: curriculum[key] for key in sorted(keys) if key in curriculum}
-                assert gate_config_view(curriculum)["thresholds"] == expected, (species, stage)
+                assert gate_config_view(curriculum)["thresholds"] == expected, (model_id, stage)
 
     def test_a_stance_moves_to_the_kind_by_its_gate_kind_alone(self):
         v2_block = {**BLOCK, "gate_kind": STANCE_GATE_V2_KIND}
@@ -216,7 +219,9 @@ class TestRegistration:
         assert fields[1]["gate_kind"] == STANCE_HEADING_GATE_KIND
         assert fields[1]["min_clean_stance_lcb"] == 0.80 and fields[1]["max_sole_corner_lift_m"] == 0.006
         assert StageThreshold(**fields[1]).stance_v2_thresholds() == thresholds(required_consecutive=1)
-        manager = CurriculumManager(species="velociraptor", stage_thresholds=fields)
+        manager = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=fields
+        )
         with caplog.at_level("ERROR", logger="environments.shared.curriculum.manager"):
             for _ in range(5):
                 assert not manager.should_advance([1e9] * 40, [1000.0] * 40)

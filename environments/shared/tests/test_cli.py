@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from environments.shared.cli import _apply_overrides, _cast_value, main
+from environments.shared.model_id import ModelId
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class TestCastValue:
@@ -73,7 +77,7 @@ class TestMainDispatch:
     @pytest.fixture
     def species_cfg(self):
         cfg = MagicMock()
-        cfg.species = "velociraptor"
+        cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         cfg.stage_descriptions = "1=balance, 2=locomotion, 3=strike"
         return cfg
 
@@ -154,7 +158,7 @@ class TestMainDispatch:
     def test_retrain_from_must_name_an_advancing_stage(self, species_cfg, tmp_path, capsys, ref, expected):
         """A non-advancing id (trex's recovery) or an unknown one is a parser.error naming the
         advancing ids, before train_curriculum is reached."""
-        species_cfg.species = "trex"
+        species_cfg.model_id = TYRANNOSAURUS_REX
         with pytest.raises(SystemExit) as excinfo:
             self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path), "--retrain-from", ref])
         assert excinfo.value.code == 2
@@ -176,10 +180,10 @@ class TestMainDispatch:
         assert (kwargs["trunk_from"], kwargs["target"], kwargs["retrain_from"]) == (str(tmp_path), "walk", "locomotion")
 
     @pytest.mark.parametrize(
-        ("species", "target", "expected"),
+        ("model_id", "target", "expected"),
         [
             (
-                "trex",
+                TYRANNOSAURUS_REX,
                 "stand",
                 "--target 'stand' resolves to 'recovery', whose chain ['stance', 'recovery'] runs through the "
                 "non-advancing stage(s) ['recovery']; the command-line curriculum walks only the advancing stages "
@@ -187,18 +191,20 @@ class TestMainDispatch:
                 "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'stand')",
             ),
             (
-                "velociraptor",
+                VELOCIRAPTOR_MONGOLIENSIS,
                 "fly",
-                "--target 'fly' does not name a behavior of velociraptor: velociraptor has no behavior 'fly'; "
+                "--target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: "
+                "velociraptor_mongoliensis/anatomical has no behavior 'fly'; "
                 "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
             ),
         ],
+        ids=["tyrannosaurus_rex-anatomical-stand", "velociraptor_mongoliensis-anatomical-fly"],
     )
-    def test_target_must_resolve_to_a_chain_of_advancing_stages(self, species_cfg, target, species, expected, capsys):
+    def test_target_must_resolve_to_a_chain_of_advancing_stages(self, species_cfg, target, model_id, expected, capsys):
         """A chain through a non-advancing node (trex's stand runs through recovery) is a parser.error
         naming the notebook's BEHAVIOR knob; an unknown label lists the labels — both before
         train_curriculum is reached."""
-        species_cfg.species = species
+        species_cfg.model_id = model_id
         with pytest.raises(SystemExit) as excinfo:
             self._run_curriculum(species_cfg, ["--target", target])
         assert excinfo.value.code == 2
@@ -215,8 +221,10 @@ class TestMainDispatch:
         from environments.shared import stage_manifest
 
         configs = tmp_path / "configs"
-        shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
-        manifest_path = configs / "velociraptor" / "stages.toml"
+        shutil.copytree(
+            VELOCIRAPTOR_MONGOLIENSIS.path(stage_manifest._CONFIGS_DIR), VELOCIRAPTOR_MONGOLIENSIS.path(configs)
+        )
+        manifest_path = VELOCIRAPTOR_MONGOLIENSIS.path(configs) / "stages.toml"
         text = manifest_path.read_text(encoding="utf-8")
         assert text.count('warm_start_from = "locomotion"') == 1
         manifest_path.write_text(text.replace('warm_start_from = "locomotion"', 'warm_start_from = "stance"'))
@@ -407,7 +415,7 @@ class TestApplyOverridesStageScoping:
 
     def test_manifest_stage_id_resolves_through_the_species_manifest(self):
         configs = self._configs()
-        _apply_overrides(configs, ["locomotion.ppo.learning_rate=0.0002"], "trex")
+        _apply_overrides(configs, ["locomotion.ppo.learning_rate=0.0002"], TYRANNOSAURUS_REX)
         assert configs[2]["ppo_kwargs"] == {"learning_rate": 0.0002}
         assert configs[1]["ppo_kwargs"] == {}
 
@@ -420,7 +428,7 @@ class TestApplyOverridesStageScoping:
         # 'recvery' — the middle token IS a real section, so the head token
         # was meant as a stage and the error must list the available stages.
         with pytest.raises(ValueError, match="unknown stage 'recvery'.*available"):
-            _apply_overrides(self._configs(), ["recvery.env.alive_bonus=1.0"], "trex")
+            _apply_overrides(self._configs(), ["recvery.env.alive_bonus=1.0"], TYRANNOSAURUS_REX)
 
     def test_unknown_section_raises_instead_of_bare_keyerror(self):
         with pytest.raises(ValueError, match="unknown config section"):

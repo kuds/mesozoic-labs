@@ -72,7 +72,7 @@ def test_the_scan_reaches_its_files_and_matches_only_the_retired_names() -> None
     assert {
         "environments/shared/train_base.py",
         "environments/shared/tests/test_train_base.py",
-        "configs/trex/stance.toml",
+        "configs/tyrannosaurus_rex/anatomical/stance.toml",
         "notebooks/sb3_training.ipynb",
         "pyproject.toml",
         ".github/workflows/python-ci.yml",

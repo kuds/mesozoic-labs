@@ -13,7 +13,7 @@ A stage that declares ``stance_quality/v2`` (decision D-D23) is scored by
 :mod:`~environments.shared.curriculum.stance_gate_v2` instead: the same
 rollout with the floor-truth recorder (``environments.shared.gait``)
 attached, a statue panel on the same seeds when the gate's statue-relative
-criteria need one, and a ``mesozoic.stance-gate-report/v3`` report that
+criteria need one, and a ``mesozoic.stance-gate-report/v5`` report that
 records what scored it, under which thresholds and measurement, for which
 handoff pair -- everything ``reporting.gates`` checks before it re-derives
 the verdict.  Probes on such a stage stay v1-shaped and unrecorded.
@@ -23,7 +23,7 @@ certified by :func:`build_stance_heading_report` instead: the v2 panel and
 its statue panel rolled at each heading of the fixed whole-scene grid
 (:data:`~environments.shared.curriculum.stance_heading_gate.HEADING_GRID_DEG`),
 scored by :mod:`~environments.shared.curriculum.stance_heading_gate` into a
-``mesozoic.stance-heading-report/v1`` certificate and its
+``mesozoic.stance-heading-report/v2`` certificate and its
 ``stance_heading_panel_selected.csv``.  Such a stage writes no
 ``stance_gate_report.*``; its probes annotate the certificate's 0 degree
 cell (:func:`heading_zero_panel`).
@@ -108,9 +108,10 @@ from ..gait.stance_metrics import (
     StanceEpisodeMetrics,
     episode_stance_metrics,
 )
+from ..model_id import ModelId
 from ..policy_loading import PolicyLoadError, load_sb3_checkpoint
-from ..species_names import species_display_name
-from ..species_registry import SPECIES_FACTORIES
+from ..species_names import model_display_name
+from ..species_registry import env_class as model_env_class
 from ..stage_manifest import stage_display_name
 from ..stance_diagnostics import derive_stance_info
 
@@ -210,7 +211,7 @@ def _load_policy(
 
 
 def run_panel(
-    species: str,
+    model_id: ModelId,
     *,
     predict: Any,
     episodes: int,
@@ -247,13 +248,13 @@ def run_panel(
     one an unrecorded panel would produce.  Without it the rollout is
     exactly the v1 one.
     """
-    env_class = SPECIES_FACTORIES[species]().env_class
+    env_class = model_env_class(model_id)
     env = env_class(**env_kwargs)
     if plant_identity is not None:
         from environments.shared.plant_contract import validate_environment_plant
 
         try:
-            validate_environment_plant(env, plant_identity, artifact=f"{species} stance gate report environment")
+            validate_environment_plant(env, plant_identity, artifact=f"{model_id} stance gate report environment")
         except BaseException:
             env.close()
             raise
@@ -290,7 +291,7 @@ def run_panel(
             from ..gait.morphology import Morphology
             from ..gait.recorder import SubstepContactRecorder
 
-            morphology = Morphology.from_env(env, species)
+            morphology = Morphology.from_env(env, model_id)
             measurement = measurement_manifest(morphology, env.unwrapped.model)
             recorder = SubstepContactRecorder(env, morphology).attach()
         _roll_episodes(
@@ -818,13 +819,15 @@ def _roll_episodes(
 
 #: Bumped when the JSON report's field meanings change.  This is the schema
 #: of a report that scored the ``stance_quality/v1`` criteria (every probe
-#: report among them); "v2" here is the REPORT's revision, not the gate kind's.
-REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
+#: report among them); the number is the REPORT's revision, not the gate
+#: kind's.  /v4 since decision D-D33 (the report names its model by
+#: ``species`` and ``embodiment``): /v3 already named the v2 kind's report.
+REPORT_SCHEMA = "mesozoic.stance-gate-report/v4"
 
 #: A report that scored ``stance_quality/v2`` (decision D-D23) has another
 #: shape (per-episode floor-truth rows, the measurement manifest, the handoff
 #: digests, the statue block) and its own revision,
-#: ``stance_gate_v2.STANCE_V2_REPORT_SCHEMA`` = ``mesozoic.stance-gate-report/v3``.
+#: ``stance_gate_v2.STANCE_V2_REPORT_SCHEMA`` = ``mesozoic.stance-gate-report/v5``.
 
 
 def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
@@ -995,14 +998,14 @@ class SpawnYaw:
     """The spawn turned about vertical right after reset: the heading probe's one modification.
 
     The stance stage always spawns facing +x with the prey within about 11
-    degrees of it, and up to policy interface r13 the trex observation
+    degrees of it, and up to policy interface r13 the T-Rex observation
     carried heading through the world-frame pelvis quaternion (and the
     world-frame velocity and prey direction), so a stance could depend on
     the world heading without any v2 criterion seeing it: both physics-r8
-    trex stances fell when spawned 90 degrees off, where the statue stands.
-    The velociraptor and the compsognathus robot still observe those
-    world-frame channels; the trex from policy interface r14 and the
-    anatomical compsognathus from r4 observe no world heading (D-D31,
+    T-Rex stances fell when spawned 90 degrees off, where the statue stands.
+    The Velociraptor and the Compsognathus robot still observe those
+    world-frame channels; the T-Rex from policy interface r14 and the
+    anatomical Compsognathus from r4 observe no world heading (D-D31,
     ``bipedal-target-heading-free/v1``: projected gravity, the root velocity
     in the gravity-aligned heading frame and the prey direction in pelvis
     coordinates, :mod:`environments.shared.heading_observation`).  Turning the spawn
@@ -1173,7 +1176,7 @@ def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
 
 
 def build_stance_gate_report(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     *,
     stage_config: dict[str, Any],
@@ -1194,7 +1197,7 @@ def build_stance_gate_report(
     produce by hand, rather than a second implementation that could disagree.
 
     The checkpoint and the rollout environment are validated against the
-    species' current plant identity: a verdict measured on a different plant
+    model's current plant identity: a verdict measured on a different plant
     than the one in the tree is not a verdict about this stage, and every
     other artifact path in the repository already refuses that pairing. Pass
     *allow_legacy_plant* to score a checkpoint that predates the contract --
@@ -1208,7 +1211,7 @@ def build_stance_gate_report(
     A stage declaring ``stance_quality/v2`` is scored under THAT kind
     (:func:`_stance_v2_report`): strict thresholds, the floor-truth recorder
     on the panel, a statue panel on the same seeds when a statue-relative
-    criterion is declared, and a ``mesozoic.stance-gate-report/v3`` report
+    criterion is declared, and a ``mesozoic.stance-gate-report/v5`` report
     that records which code scored it (``scored_gate_kind``), the handoff
     digests and the measurement manifest, so the judge can refuse a report
     that does not describe this gate, this checkpoint or this measurement.
@@ -1252,9 +1255,9 @@ def build_stance_gate_report(
 
     from environments.shared.plant_contract import current_plant_identity
 
-    plant_identity = current_plant_identity(species)
+    plant_identity = current_plant_identity(model_id)
 
-    env_class = SPECIES_FACTORIES[species]().env_class
+    env_class = model_env_class(model_id)
     if zero_action:
         predict = _zero_action_predict(env_class, env_kwargs)
         description = _ZERO_ACTION_DESCRIPTION
@@ -1281,7 +1284,7 @@ def build_stance_gate_report(
             # broadcasts a mismatched length silently, which would score a
             # policy nobody asked for and report it as this one.
             raise ValueError(
-                f"hold_constant carries {len(hold_constant.actions)} actions but {species} has action_dim {expected}"
+                f"hold_constant carries {len(hold_constant.actions)} actions but {model_id} has action_dim {expected}"
             )
         predict = _hold_constant_predict(predict, hold_constant)
         description += (
@@ -1292,7 +1295,7 @@ def build_stance_gate_report(
 
     if v2_thresholds is not None:
         return _stance_v2_report(
-            species,
+            model_id,
             stage,
             curriculum=curriculum,
             env_class=env_class,
@@ -1312,7 +1315,7 @@ def build_stance_gate_report(
         )
 
     result = run_panel(
-        species,
+        model_id,
         predict=predict,
         episodes=panel_episodes,
         seed=seed,
@@ -1329,7 +1332,7 @@ def build_stance_gate_report(
 
     return {
         "schema": REPORT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "gate_kind": curriculum.get("gate_kind"),
         # Which criteria THIS code scored, whatever the stage declares: the
@@ -1458,7 +1461,7 @@ def _stance_v2_episode_rows(
 
 
 def _stance_v2_report(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     *,
     curriculum: dict[str, Any],
@@ -1504,18 +1507,16 @@ def _stance_v2_report(
     """
     from ..gait.constants import measurement_sha256
     from ..result_bundle.hashing import sha256_file
-    from ..species_names import resolve_species_id
     from ..task_fingerprint import stage_task_fingerprint
 
-    # Derived before anything is rolled, under the manifest id training
-    # derives it under (``raptor`` is ``velociraptor``): a task that cannot be
-    # fingerprinted (a live command mode without its manifest) could only
-    # produce a report the judge refuses.
-    task_sha256 = stage_task_fingerprint(
-        resolve_species_id(species), stage, env_kwargs=env_kwargs, plant_identity=plant_identity
-    )["task_sha256"]
+    # Derived before anything is rolled, exactly as training derives it: a
+    # task that cannot be fingerprinted (a live command mode without its
+    # manifest) could only produce a report the judge refuses.
+    task_sha256 = stage_task_fingerprint(model_id, stage, env_kwargs=env_kwargs, plant_identity=plant_identity)[
+        "task_sha256"
+    ]
     result = run_panel(
-        species,
+        model_id,
         predict=predict,
         episodes=episodes,
         seed=seed,
@@ -1536,7 +1537,7 @@ def _stance_v2_report(
             statue_result = result
         else:
             statue_result = run_panel(
-                species,
+                model_id,
                 predict=_zero_action_predict(env_class, env_kwargs),
                 episodes=episodes,
                 seed=seed,
@@ -1566,7 +1567,7 @@ def _stance_v2_report(
     panel = result["panel"]
     return {
         "schema": STANCE_V2_REPORT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "gate_kind": curriculum.get("gate_kind"),
         "scored_gate_kind": STANCE_GATE_V2_KIND,
@@ -1698,6 +1699,11 @@ def _probe_banner(report: dict[str, Any]) -> list[str]:
     ]
 
 
+def _model_title(report: Mapping[str, Any]) -> str:
+    """The display name of the model a report names by its ``species`` and ``embodiment`` (decision D-D33)."""
+    return model_display_name(ModelId.from_record(report))
+
+
 def _kind_note(report: dict[str, Any]) -> list[str]:
     """The NOTE a report carries when the criteria it scored are not the ones its stage advances on."""
     declared = report["gate_kind"]
@@ -1706,14 +1712,14 @@ def _kind_note(report: dict[str, Any]) -> list[str]:
         return []
     if declared in STANCE_GATE_KINDS:
         return [
-            f"NOTE: {species_display_name(report['species'])} {stage_display_name(report['stage'])} "
+            f"NOTE: {_model_title(report)} {stage_display_name(report['stage'])} "
             f"(stage {report['stage']}) declares gate_kind {declared!r}; this "
             f"report scored the {scored!r} criteria, which are reported but are not what this stage "
             "advances on.",
             "",
         ]
     return [
-        f"NOTE: {species_display_name(report['species'])} {stage_display_name(report['stage'])} "
+        f"NOTE: {_model_title(report)} {stage_display_name(report['stage'])} "
         f"(stage {report['stage']}) declares gate_kind {declared!r}, not a "
         "stance kind. The stance criteria below are reported but are not what this stage advances on.",
         "",
@@ -1736,7 +1742,7 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
-        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"stage               {_model_title(report)} — {stage_display_name(report['stage'])} "
         f"(stage {report['stage']}, {report['gate_kind']})",
         f"panel               {report['episodes']} episodes, "
         f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
@@ -1859,7 +1865,7 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
     lines = _kind_note(report)
     lines += [
         f"policy              {report['policy']}",
-        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"stage               {_model_title(report)} — {stage_display_name(report['stage'])} "
         f"(stage {report['stage']}, {report['scored_gate_kind']}, floor truth)",
         f"panel               {report['episodes']} episodes, "
         f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
@@ -2080,7 +2086,7 @@ def _normalization_record(predict: Any, *, zero_action: bool) -> dict[str, Any]:
 
 
 def build_stance_heading_report(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     *,
     stage_config: dict[str, Any],
@@ -2129,7 +2135,6 @@ def build_stance_heading_report(
     from ..gait.constants import measurement_sha256
     from ..plant_contract import current_plant_identity
     from ..result_bundle.hashing import sha256_file
-    from ..species_names import resolve_species_id
     from ..task_fingerprint import stage_task_fingerprint
 
     curriculum = stage_config["curriculum_kwargs"]
@@ -2149,7 +2154,7 @@ def build_stance_heading_report(
     grid = validate_heading_grid(HEADING_GRID_DEG)
     seeds = [seed + index for index in range(n)]
 
-    env_class = SPECIES_FACTORIES[species]().env_class
+    env_class = model_env_class(model_id)
     refusals = heading_protocol_refusals(env_kwargs)
     if not refusals:
         probe = env_class(**env_kwargs)
@@ -2163,10 +2168,10 @@ def build_stance_heading_report(
             "turns the animal, the prey and the episode's reference direction; a task with other world-frame "
             "inputs needs a protocol that turns them too."
         )
-    plant_identity = current_plant_identity(species)
-    task_sha256 = stage_task_fingerprint(
-        resolve_species_id(species), stage, env_kwargs=env_kwargs, plant_identity=plant_identity
-    )["task_sha256"]
+    plant_identity = current_plant_identity(model_id)
+    task_sha256 = stage_task_fingerprint(model_id, stage, env_kwargs=env_kwargs, plant_identity=plant_identity)[
+        "task_sha256"
+    ]
 
     if zero_action:
         predict = _zero_action_predict(env_class, env_kwargs)
@@ -2186,7 +2191,7 @@ def build_stance_heading_report(
 
     def panel(policy: Any, yaw: float) -> dict[str, Any]:
         return run_panel(
-            species,
+            model_id,
             predict=policy,
             episodes=n,
             seed=seed,
@@ -2204,7 +2209,7 @@ def build_stance_heading_report(
     for index, yaw in enumerate(grid):
         logger.info(
             "Heading certificate for %s stage %s: heading %+g deg (%d of %d), %d seeds%s",
-            species,
+            model_id,
             stage,
             yaw,
             index + 1,
@@ -2307,7 +2312,7 @@ def build_stance_heading_report(
     view = gate_config_view(curriculum)
     return {
         "schema": STANCE_HEADING_REPORT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "gate_kind": curriculum.get("gate_kind"),
         "scored_gate_kind": STANCE_HEADING_GATE_KIND,
@@ -2379,6 +2384,7 @@ def heading_zero_panel(report: Mapping[str, Any]) -> dict[str, Any]:
         "heading_cell_of": STANCE_HEADING_REPORT_SCHEMA,
         "heading_cell_deg": 0.0,
         "species": report.get("species"),
+        "embodiment": report.get("embodiment"),
         "stage": report.get("stage"),
         "gate_kind": report.get("gate_kind"),
         "scored_gate_kind": STANCE_GATE_V2_KIND,
@@ -2422,7 +2428,7 @@ def render_stance_heading_report(report: dict[str, Any]) -> str:
     grid_text = ", ".join(f"{float(yaw):+g}" for yaw in report.get("heading_grid_deg") or ())
     lines = [
         f"policy              {report['policy']}",
-        f"stage               {species_display_name(report['species'])} — {stage_display_name(report['stage'])} "
+        f"stage               {_model_title(report)} — {stage_display_name(report['stage'])} "
         f"(stage {report['stage']}, {report['scored_gate_kind']}, floor truth)",
         f"protocol            {report['protocol']}: the whole scene turned about vertical through the root "
         "(the animal, the prey and the reference direction)",
@@ -2553,8 +2559,8 @@ def write_action_filter_sweep(
     # row. Strip it; the per-cutoff values are the table's first column.
     policy = str(reports[0]["policy"]).split(" — actions low-passed at ")[0]
     payload = {
-        "schema": "mesozoic.action-filter-sweep/v1",
-        "species": reports[0]["species"],
+        "schema": "mesozoic.action-filter-sweep/v2",
+        **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,
         "horizon": horizon,
@@ -2572,7 +2578,7 @@ def write_action_filter_sweep(
         "Every row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"stage               {_model_title(reports[0])} — "
         f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per cutoff, horizon {horizon}",
         "",
@@ -2658,8 +2664,8 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
         [],
     )
     payload = {
-        "schema": "mesozoic.constant-hold-probe/v1",
-        "species": reports[0]["species"],
+        "schema": "mesozoic.constant-hold-probe/v2",
+        **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,
         "horizon": horizon,
@@ -2680,7 +2686,7 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
         "Every held row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"stage               {_model_title(reports[0])} — "
         f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
         f"hold                the policy's own post-settle mean action, {len(hold_actions)} actuators",
@@ -3183,8 +3189,8 @@ def render_impulse_probe(
         )
     disturbed = [row for row in rows if row["speed"] > 0 and row["margin_steps"] is not None]
     payload = {
-        "schema": "mesozoic.impulse-recovery-probe/v1",
-        "species": policy_reports[0]["species"],
+        "schema": "mesozoic.impulse-recovery-probe/v2",
+        **ModelId.from_record(policy_reports[0]).record(),
         "stage": policy_reports[0]["stage"],
         "policy": policy,
         "horizon": horizon,
@@ -3206,7 +3212,7 @@ def render_impulse_probe(
         "Scores the unmodified policy on a MODIFIED TASK. No row is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {species_display_name(policy_reports[0]['species'])} — "
+        f"stage               {_model_title(policy_reports[0])} — "
         f"{stage_display_name(policy_reports[0]['stage'])} (stage {policy_reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per row, horizon {horizon}, impulse at step {step}",
         "control             the zero-action statue, which commands a constant and CANNOT respond",
@@ -3334,8 +3340,8 @@ def render_heading_probe(
             "UNMODIFIED policy; 'animal' turns the animal alone (the prey stays, so the heading reward term pays a "
             "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so the physics "
             "is the same at every heading (every plant declares the elliptic friction cone) and only a world-frame "
-            "observation differs: the velociraptor's and the compsognathus robot's; the trex (policy interface "
-            "r14) and the anatomical compsognathus (r4) observe no world heading (D-D31), so their 'scene' rows "
+            "observation differs: the Velociraptor's and the Compsognathus robot's; the T-Rex (policy interface "
+            "r14) and the anatomical Compsognathus (r4) observe no world heading (D-D31), so their 'scene' rows "
             "differ from the unturned one only by rounding the closed loop amplifies. The statue is the control. "
             "Not a gate verdict; the six-heading certificate (stance_quality_heading/v1, D-D32) is the gate, on the "
             "stages that declare it."
@@ -3349,10 +3355,13 @@ def render_heading_probe(
         f"policy              {payload['policy']}",
         *(
             [
-                f"stage               {species_display_name(policy_reports[0]['species'])} — "
+                f"stage               {_model_title(policy_reports[0])} — "
                 f"{stage_display_name(policy_reports[0]['stage'])} (stage {policy_reports[0]['stage']})"
             ]
-            if policy_reports and "species" in policy_reports[0] and "stage" in policy_reports[0]
+            if policy_reports
+            and "species" in policy_reports[0]
+            and "embodiment" in policy_reports[0]
+            and "stage" in policy_reports[0]
             else []
         ),
         f"panel               {probe_episodes} episodes per row, seeds {first_seed}-"
@@ -3360,7 +3369,7 @@ def render_heading_probe(
         "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
         "                    scene  = the prey and the reference direction too (every plant's elliptic friction cone",
         "                             makes the physics the same at every heading; only a world-frame observation",
-        "                             differs, and the trex r14 and anatomical compsognathus r4 observe none)",
+        "                             differs, and the T-Rex r14 and anatomical Compsognathus r4 observe none)",
         "",
         f"  {'yaw':>6} {'turned':<7}{'policy fh':>10}{'reward':>9}{'|dyaw| mean/max':>17}"
         f"{'statue fh':>11}{'reward':>9}{'|dyaw| max':>11}",
@@ -3642,8 +3651,8 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
     horizon = reports[0]["horizon"]
     policy = str(reports[0]["policy"]).split(" — ")[0]
     payload = {
-        "schema": "mesozoic.constant-hold-ablation/v3",
-        "species": reports[0]["species"],
+        "schema": "mesozoic.constant-hold-ablation/v4",
+        **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,
         "horizon": horizon,
@@ -3679,7 +3688,7 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         "Every row scores a MODIFIED policy. None of them is a gate verdict.",
         "",
         f"policy              {policy}",
-        f"stage               {species_display_name(reports[0]['species'])} — "
+        f"stage               {_model_title(reports[0])} — "
         f"{stage_display_name(reports[0]['stage'])} (stage {reports[0]['stage']})",
         f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
         "released            commanded 0, the named home control under home-keyframe-residual/v1",

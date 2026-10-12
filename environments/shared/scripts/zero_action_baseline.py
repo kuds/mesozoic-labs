@@ -1,6 +1,6 @@
 """Score the do-nothing policy on a stage, as the floor every run must clear.
 
-Residual actions are centred on each species' home keyframe, so ``action = 0``
+Residual actions are centred on each model's home keyframe, so ``action = 0``
 commands exactly the nominal stance.  On a passively stable plant that is a
 real policy, and on a balance stage it can be a *strong* one: the T-Rex
 stage-1 zero-action score beat both trained policies from the 2026-07-23/24
@@ -18,11 +18,12 @@ plant survives on its own, leaving nothing for a policy to earn (T-Rex at
 ``reset_noise_scale = 0.05`` scores 93% full-horizon); too much and the task
 stops being learnable.
 
-Usage::
+Usage (``--model-id`` repeats; with none, the four anatomical models below)::
 
-    python environments/shared/scripts/zero_action_baseline.py trex
-    python environments/shared/scripts/zero_action_baseline.py trex:2 velociraptor
-    python environments/shared/scripts/zero_action_baseline.py trex --sweep-noise
+    python environments/shared/scripts/zero_action_baseline.py --model-id tyrannosaurus_rex anatomical
+    python environments/shared/scripts/zero_action_baseline.py --stage 2 \
+        --model-id tyrannosaurus_rex anatomical --model-id velociraptor_mongoliensis anatomical
+    python environments/shared/scripts/zero_action_baseline.py --model-id tyrannosaurus_rex anatomical --sweep-noise
 """
 
 import argparse
@@ -37,17 +38,34 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env, load_stage_config
+from environments.shared.config import build_env, load_stage_config
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_schema import STANCE_GATE_KINDS
 from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.result_bundle import read_bundle_status
-from environments.shared.species_names import resolve_species_id, species_display_name
+from environments.shared.species_names import add_model_id_argument, model_display_name, parsed_model_ids
 
 #: Legacy stage numbers this script accepts; files resolve via the manifest.
 KNOWN_STAGES = frozenset({1, 2, 3})
+
+#: The models scored when no ``--model-id`` is given: the panel this tool has
+#: always measured, written out as models (decision D-D33) so its default
+#: output does not change.
+DEFAULT_MODEL_IDS = (
+    ModelId("tyrannosaurus_rex", "anatomical"),
+    ModelId("velociraptor_mongoliensis", "anatomical"),
+    ModelId("brachiosaurus_altithorax", "anatomical"),
+    ModelId("dibothrosuchus_elaphros", "anatomical"),
+)
+
+#: The baseline record: one per model under ``<log_base>/<species>/<embodiment>/zero_action_baselines/``
+#: and a copy in the run directory.  v2 (decision D-D33) nests the results by
+#: species, then embodiment (``results[<species>][<embodiment>]``), each
+#: carrying both identity fields.
+ZERO_ACTION_BASELINE_SCHEMA = "mesozoic.zero-action-baseline/v2"
 
 NOISE_SWEEP = (0.01, 0.05, 0.10, 0.15, 0.20)
 
@@ -121,10 +139,10 @@ def _standing_text(result: dict) -> str:
     return f"{result['reward_mean_standing']:.1f}"
 
 
-def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> None:
-    env = build_env(species, stage)
+def report(model_id: ModelId, stage: int, episodes: int, seed: int, sweep: bool) -> None:
+    env = build_env(model_id, stage)
     try:
-        label = f"{species} stage {stage}"
+        label = f"{model_id} stage {stage}"
         if sweep:
             print(f"\n{label}: zero-action baseline vs reset_noise_scale ({episodes} episodes)")
             print(f"  {'noise':>7}{'reward':>12}{'mean-std':>11}{'standing':>11}{'ep length':>11}{'full-horizon':>14}")
@@ -159,7 +177,7 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         env.close()
 
 
-def statue_stance_verdict(species: str, stage: int, stage_cfg: dict, *, episodes: int, seed: int) -> dict:
+def statue_stance_verdict(model_id: ModelId, stage: int, stage_cfg: dict, *, episodes: int, seed: int) -> dict:
     """The stance gate's verdict on the statue, for a stage that declares a stance kind.
 
     A stance gate is the opposite of a reward gate here: the statue is the
@@ -193,7 +211,7 @@ def statue_stance_verdict(species: str, stage: int, stage_cfg: dict, *, episodes
             "curriculum_kwargs": {**stage_cfg["curriculum_kwargs"], "gate_kind": STANCE_GATE_V2_KIND},
         }
     report = build_stance_gate_report(
-        species, stage, stage_config=scored_cfg, zero_action=True, episodes=episodes, seed=seed
+        model_id, stage, stage_config=scored_cfg, zero_action=True, episodes=episodes, seed=seed
     )
     record = {
         "gate_kind": kind,
@@ -214,21 +232,20 @@ def statue_stance_verdict(species: str, stage: int, stage_cfg: dict, *, episodes
     return record
 
 
-def preflight(species_names, *, stage: int, episodes: int, seed: int, species: str, log_base, run_dir) -> None:
-    """The notebook's pre-flight: judge each species' stage gate against its zero-action floor and print the table.
+def preflight(model_ids, *, stage: int, episodes: int, seed: int, model_id: ModelId, log_base, run_dir) -> None:
+    """The notebook's pre-flight: judge each model's stage gate against its zero-action floor and print the table.
 
-    Saves one record per species under ``<log_base>/<species>/zero_action_baselines/`` and the table beside the
-    record of *species* (the species the notebook trains), whose record is also copied into *run_dir* (what
-    ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.
+    Saves one record per model of *model_ids* under ``<log_base>/<species>/<embodiment>/zero_action_baselines/``
+    and the table beside the record of *model_id* (the model the notebook trains), whose record is also copied
+    into *run_dir* (what ``curriculum.baseline_watch`` reads) unless that run's bundle is complete.
 
     A stage that declares a stance kind (``gate_schema.STANCE_GATE_KINDS``) is judged by the stance gate's own
     verdict on the statue (:func:`statue_stance_verdict`), recorded under ``stance_gate``, rather than by its
     reward RAIL -- which the statue clears by design, so the old reading printed "FAILS — a statue clears this
     gate" for every stance stage while saying nothing about the stance criteria.
     """
-    results = {}
-    for species_input in species_names:
-        name = resolve_species_id(species_input)
+    results: dict[ModelId, dict] = {}
+    for name in model_ids:
         env = build_env(name, stage)
         try:
             result = score(env, episodes, seed)
@@ -266,8 +283,8 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
 
         result.update(
             {
-                "species": name,
-                "display_name": species_display_name(name),
+                **name.record(),
+                "display_name": model_display_name(name),
                 "stage": stage,
                 "min_avg_reward": gate,
                 "verdict": verdict,
@@ -281,7 +298,7 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
         results[name] = result
 
     # ---- table ----------------------------------------------------------------
-    header = f"{'species':<30}{'reward':>10}{'mean-std':>10}{'standing':>10}{'full-hz':>9}{'gate':>9}  verdict"
+    header = f"{'model':<42}{'reward':>10}{'mean-std':>10}{'standing':>10}{'full-hz':>9}{'gate':>9}  verdict"
     lines = [
         f"zero-action baseline — stage {stage}, {episodes} episodes, seed {seed}",
         "",
@@ -292,7 +309,7 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
         gate_text = "—" if r["min_avg_reward"] is None else f"{r['min_avg_reward']:.0f}"
         standing_text = "—" if r["n_standing"] == 0 else f"{r['reward_mean_standing']:.1f}"
         lines.append(
-            f"{species_display_name(name):<30}{r['reward_mean']:>10.1f}{r['reward_mean_minus_std']:>10.1f}"
+            f"{model_display_name(name):<42}{r['reward_mean']:>10.1f}{r['reward_mean_minus_std']:>10.1f}"
             f"{standing_text:>10}{r['full_horizon_share']:>8.0%}"
             f"{gate_text:>9}  {r['verdict']}"
         )
@@ -300,7 +317,7 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
         (name, r["stance_gate"]) for name, r in results.items() if r.get("stance_gate", {}).get("passed") is False
     ]
     for name, stance_gate in refused:
-        lines += ["", f"{species_display_name(name)}: the {stance_gate['gate_kind']} gate refuses the statue:"]
+        lines += ["", f"{model_display_name(name)}: the {stance_gate['gate_kind']} gate refuses the statue:"]
         lines += [f"  - {failure}" for failure in stance_gate["failures"]]
     lines += [
         "",
@@ -322,26 +339,29 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
     captured_at = datetime.now().isoformat()
 
     def payload_for(names):
+        nested: dict[str, dict[str, dict]] = {}
+        for name in names:
+            nested.setdefault(name.species, {})[name.embodiment] = results[name]
         return {
-            "schema": "mesozoic.zero-action-baseline/v1",
+            "schema": ZERO_ACTION_BASELINE_SCHEMA,
             "captured_at": captured_at,
             "stage": stage,
             "episodes": episodes,
             "seed": seed,
-            "results": {name: results[name] for name in names},
+            "results": nested,
         }
 
     for name in results:
-        species_dir = Path(log_base) / name / "zero_action_baselines"
-        species_dir.mkdir(parents=True, exist_ok=True)
-        (species_dir / f"{stamp}.json").write_text(
+        model_dir = name.path(Path(log_base)) / "zero_action_baselines"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        (model_dir / f"{stamp}.json").write_text(
             json.dumps(payload_for([name]), indent=2, sort_keys=True, allow_nan=False)
         )
-        print(f"\nSaved: {species_dir / (stamp + '.json')}")
+        print(f"\nSaved: {model_dir / (stamp + '.json')}")
 
-    # The human-readable table covers every species measured, so it belongs with
+    # The human-readable table covers every model measured, so it belongs with
     # the one this notebook is training.
-    table_dir = Path(log_base) / species / "zero_action_baselines"
+    table_dir = model_id.path(Path(log_base)) / "zero_action_baselines"
     table_dir.mkdir(parents=True, exist_ok=True)
     (table_dir / f"{stamp}.txt").write_text(report_text + "\n")
 
@@ -349,23 +369,25 @@ def preflight(species_names, *, stage: int, episodes: int, seed: int, species: s
     # its own gate was judged against — except in a run whose bundle is complete:
     # that bundle is immutable and keeps the copy it was sealed with (a rewrite,
     # with its new captured_at, would stop the bundle verifying).
-    if run_dir is not None and species in results:
+    if run_dir is not None and model_id in results:
         if read_bundle_status(run_dir) == "complete":
             print(f"Not copied to run: {run_dir} holds a complete bundle, which keeps the copy it was sealed with")
         else:
             (Path(run_dir) / "zero_action_baseline.json").write_text(
-                json.dumps(payload_for([species]), indent=2, sort_keys=True, allow_nan=False)
+                json.dumps(payload_for([model_id]), indent=2, sort_keys=True, allow_nan=False)
             )
             print(f"Copied to run: {Path(run_dir) / 'zero_action_baseline.json'}")
 
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    add_model_id_argument(parser, default=DEFAULT_MODEL_IDS, what="score")
     parser.add_argument(
-        "targets",
-        nargs="*",
-        default=["trex", "velociraptor", "brachiosaurus", "dibothrosuchus"],
-        help="species, optionally with a stage suffix (e.g. trex:2). Default: all species, stage 1.",
+        "--stage",
+        type=int,
+        default=1,
+        choices=sorted(KNOWN_STAGES),
+        help="legacy stage number, applied to every model (default 1)",
     )
     parser.add_argument("--episodes", type=int, default=30, help="episodes per measurement (default 30)")
     parser.add_argument(
@@ -377,14 +399,8 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--sweep-noise", action="store_true", help="sweep reset_noise_scale instead of one point")
     args = parser.parse_args(argv)
 
-    for target in args.targets:
-        species, _, stage_text = target.partition(":")
-        if species not in SPECIES_NAMES:
-            raise SystemExit(f"unknown species {species!r}; choose from {sorted(SPECIES_NAMES)}")
-        stage = int(stage_text) if stage_text else 1
-        if stage not in KNOWN_STAGES:
-            raise SystemExit(f"unknown stage {stage}; choose from {sorted(KNOWN_STAGES)}")
-        report(species, stage, args.episodes, args.seed, args.sweep_noise)
+    for model_id in parsed_model_ids(parser, args):
+        report(model_id, args.stage, args.episodes, args.seed, args.sweep_noise)
 
 
 if __name__ == "__main__":

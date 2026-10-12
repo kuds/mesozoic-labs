@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from environments.shared.action_filter import apply_low_pass, low_pass_alpha
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 
 class TestLowPassPrimitives:
@@ -49,8 +49,8 @@ class TestLowPassPrimitives:
 
 
 class TestSB3ActionFilter:
-    def test_trex_declares_ten_hz(self) -> None:
-        env = TRexEnv()
+    def test_tyrannosaurus_rex_declares_ten_hz(self) -> None:
+        env = TyrannosaurusRexAnatomicalEnv()
         assert env.action_filter_cutoff_hz == 10.0
         assert env._action_filter_alpha == pytest.approx(low_pass_alpha(10.0, env.dt))
 
@@ -58,12 +58,12 @@ class TestSB3ActionFilter:
         # Plant-level by construction: stage TOML [env] tables become
         # constructor kwargs, so the cutoff must not be accepted there.
         with pytest.raises(TypeError):
-            TRexEnv(action_filter_cutoff_hz=5.0)  # type: ignore[call-arg]
+            TyrannosaurusRexAnatomicalEnv(action_filter_cutoff_hz=5.0)  # type: ignore[call-arg]
 
     def test_first_step_seeds_with_the_action(self) -> None:
         # No transient toward zero at the episode boundary: the first
         # filtered command equals the first (clipped) action exactly.
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         env.reset(seed=0)
         action = np.full(env.model.nu, 0.5, dtype=np.float32)
         env.step(action)
@@ -71,7 +71,7 @@ class TestSB3ActionFilter:
         assert env.data.ctrl == pytest.approx(expected)
 
     def test_blend_and_reseed_across_reset(self) -> None:
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         env.reset(seed=0)
         up = np.ones(env.model.nu, dtype=np.float32)
         down = -up
@@ -86,10 +86,10 @@ class TestSB3ActionFilter:
         assert env._action_filter_state == pytest.approx(-1.0)
 
     def test_disabled_cutoff_preserves_legacy_arithmetic(self) -> None:
-        class UnfilteredTRexEnv(TRexEnv):
+        class UnfilteredTyrannosaurusRexAnatomicalEnv(TyrannosaurusRexAnatomicalEnv):
             action_filter_cutoff_hz = 0.0
 
-        env = UnfilteredTRexEnv()
+        env = UnfilteredTyrannosaurusRexAnatomicalEnv()
         env.reset(seed=0)
         rng = np.random.default_rng(3)
         for _ in range(3):
@@ -103,7 +103,7 @@ class TestSB3ActionFilter:
         # The smoothness/jerk history must hold the filtered command, not
         # the raw policy output: raw content above the cutoff never reaches
         # the plant, and pricing it would penalise a phantom.
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         env.reset(seed=0)
         up = np.ones(env.model.nu, dtype=np.float32)
         env.step(up)

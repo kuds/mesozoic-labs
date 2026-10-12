@@ -1,129 +1,60 @@
-"""Species registry for unified training entry point.
+"""The training registry: each manifest model's env class and :class:`SpeciesConfig`.
 
-Maps species names to their SpeciesConfig, eliminating the need
-for per-species training scripts with nearly identical boilerplate.
+Nothing here is keyed by hand (decision D-D33).  :func:`env_class` imports
+the model's ``env_entrypoint`` from ``configs/species_manifest.toml``, and
+:func:`get_species_config` builds the :class:`SpeciesConfig` from that
+class, the model's stage manifest and three class attributes every species
+base class carries: ``HEIGHT_LABEL``, ``BEHAVIOR_SECTION_LABEL`` and
+``SUCCESS_KEYS``.  A new embodiment therefore needs no edit here.  These
+three are presentation and success bookkeeping only; the policy layer reads
+other class attributes (``supported_training_backends``, ``action_mapping``,
+``action_filter_cutoff_hz``, ``residual_linear_slope``,
+``_shaped_residual_mask`` and ``_foot_sensor_groups``), not these.
 
 Usage:
-    python -m environments.shared.train --species velociraptor train --stage 1
-    python -m environments.shared.train --species trex curriculum
-    python -m environments.shared.train --species brachiosaurus train --stage 2
-    python -m environments.shared.train --species dibothrosuchus train --stage 1
+    python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1
+    python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum
+    python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 2
+    python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 """
 
-from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
+from __future__ import annotations
+
+import importlib
+
+from environments.shared.config import load_stage_config
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_entry
+from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.train_base import SpeciesConfig
 
 
-def _make_raptor_config() -> SpeciesConfig:
-    from environments.velociraptor.envs.raptor_env import RaptorEnv
+def env_class(model_id: ModelId) -> type:
+    """The model's environment class, imported from its manifest ``env_entrypoint`` (``module:Class``)."""
+    module_name, _, class_name = str(model_entry(model_id)["env_entrypoint"]).partition(":")
+    cls = getattr(importlib.import_module(module_name), class_name)
+    if not isinstance(cls, type):
+        raise TypeError(f"{model_id} env_entrypoint {module_name}:{class_name} is not a class")
+    return cls
 
-    return SpeciesConfig(
-        species="velociraptor",
-        env_class=RaptorEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=strike",
-        height_label="Pelvis height",
-        stage3_section_label="Hunting",
-        # The raptor env only emits strike_success (bite_success was
-        # impossible and was removed).
-        success_keys=["strike_success"],
+
+def get_species_config(model_id: ModelId) -> SpeciesConfig:
+    """The model's training config, derived from the manifest, its stage manifest and its env class.
+
+    ``stage_descriptions`` lists each legacy-numbered stage as
+    ``<legacy number>=<[stage] name>`` (``"1=stance, 2=locomotion, 3=bite"``
+    on the T-Rex), the integers ``--stage`` accepts.
+    """
+    cls = env_class(model_id)
+    descriptions = ", ".join(
+        f"{entry.reference}={load_stage_config(model_id, entry.reference)['name']}"
+        for entry in load_stage_manifest(model_id).advancing_stages
     )
-
-
-def _make_trex_config() -> SpeciesConfig:
-    from environments.trex.envs.trex_env import TRexEnv
-
     return SpeciesConfig(
-        species="trex",
-        env_class=TRexEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=bite",
-        height_label="Pelvis height",
-        stage3_section_label="Hunting",
-        success_keys=["bite_success", "strike_success"],
+        model_id=model_id,
+        env_class=cls,
+        stage_descriptions=descriptions,
+        height_label=str(getattr(cls, "HEIGHT_LABEL")),
+        behavior_section_label=str(getattr(cls, "BEHAVIOR_SECTION_LABEL")),
+        success_keys=list(getattr(cls, "SUCCESS_KEYS")),
     )
-
-
-def _make_brachio_config() -> SpeciesConfig:
-    from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-
-    return SpeciesConfig(
-        species="brachiosaurus",
-        env_class=BrachioEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=food_reach",
-        height_label="Torso height",
-        stage3_section_label="Food Reaching",
-        success_keys=["food_reached"],
-    )
-
-
-def _make_dibothrosuchus_config() -> SpeciesConfig:
-    from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
-
-    return SpeciesConfig(
-        species="dibothrosuchus",
-        env_class=DibothrosuchusEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=snap",
-        height_label="Trunk height",
-        stage3_section_label="Hunting",
-        success_keys=["snap_success"],
-    )
-
-
-def _make_compsognathus_config() -> SpeciesConfig:
-    # The soft-cubic leg-residual subclass (policy interface r3, D-D26); the
-    # robot below keeps CompsognathusEnv's linear residual.
-    from environments.compsognathus.envs import CompsognathusBiologicalEnv
-
-    return SpeciesConfig(
-        species="compsognathus",
-        env_class=CompsognathusBiologicalEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
-        height_label="Pelvis height",
-        stage3_section_label="Target Reaching",
-        success_keys=["target_success"],
-    )
-
-
-def _make_compsognathus_robot_config() -> SpeciesConfig:
-    from environments.compsognathus.envs import CompsognathusRobotEnv
-
-    return SpeciesConfig(
-        species="compsognathus_robot",
-        env_class=CompsognathusRobotEnv,
-        stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
-        height_label="Pelvis height",
-        stage3_section_label="Target Reaching",
-        success_keys=["target_success"],
-    )
-
-
-# Lazy registry — factories are called only when the species is selected,
-# so we don't import all env modules at startup.
-SPECIES_FACTORIES = {
-    "velociraptor": _make_raptor_config,
-    "raptor": _make_raptor_config,  # alias
-    "trex": _make_trex_config,
-    "t-rex": _make_trex_config,  # alias
-    "brachiosaurus": _make_brachio_config,
-    "brachio": _make_brachio_config,  # alias
-    "dibothrosuchus": _make_dibothrosuchus_config,
-    "dibo": _make_dibothrosuchus_config,  # alias
-    "compsognathus": _make_compsognathus_config,
-    "compso": _make_compsognathus_config,
-    "compsognathus_robot": _make_compsognathus_robot_config,
-    "compso-robot": _make_compsognathus_robot_config,
-}
-
-
-def get_species_config(species: str) -> SpeciesConfig:
-    """Look up a training config by full name, stable ID or legacy alias."""
-    key = resolve_species_id(species)
-    factory = SPECIES_FACTORIES.get(key)
-    if factory is None:
-        available = ", ".join(species_display_names().values())
-        raise ValueError(
-            f"{species_display_name(key)} is a model-only prototype: no registered "
-            "Gymnasium environment or SB3 curriculum exists yet. "
-            f"See environments/{key}/README.md for model validation. "
-            f"Trainable species: {available}"
-        )
-    return factory()

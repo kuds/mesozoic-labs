@@ -21,21 +21,25 @@ from environments.shared.curriculum.baseline_watch import (
     build_baseline_progress_callback,
     read_zero_action_baseline,
 )
+from environments.shared.model_id import ModelId
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: The real numbers from run 20260804_143747 / its captured baseline.
 STATUE = 3271.770493548379
 POLICY = 2686.917084553575
 
 
-def _write_baseline(run_dir: Path, *, species: str = "trex", reward: float = STATUE) -> Path:
+def _write_baseline(run_dir: Path, *, model_id: ModelId = TYRANNOSAURUS_REX, reward: float = STATUE) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     path = run_dir / "zero_action_baseline.json"
     path.write_text(
         json.dumps(
             {
-                "schema": "mesozoic.zero-action-baseline/v1",
+                "schema": "mesozoic.zero-action-baseline/v2",
                 "stage": 1,
-                "results": {species: {"reward_mean": reward, "episodes": 40}},
+                "results": {model_id.species: {model_id.embodiment: {"reward_mean": reward, "episodes": 40}}},
             }
         ),
         encoding="utf-8",
@@ -46,25 +50,25 @@ def _write_baseline(run_dir: Path, *, species: str = "trex", reward: float = STA
 class TestReadZeroActionBaseline:
     def test_reads_the_species_reward(self, tmp_path):
         _write_baseline(tmp_path)
-        assert read_zero_action_baseline(tmp_path, "trex") == pytest.approx(STATUE)
+        assert read_zero_action_baseline(tmp_path, TYRANNOSAURUS_REX) == pytest.approx(STATUE)
 
     def test_missing_file_is_none_not_a_guess(self, tmp_path):
-        assert read_zero_action_baseline(tmp_path, "trex") is None
+        assert read_zero_action_baseline(tmp_path, TYRANNOSAURUS_REX) is None
 
-    def test_other_species_is_none(self, tmp_path):
-        _write_baseline(tmp_path, species="velociraptor")
-        assert read_zero_action_baseline(tmp_path, "trex") is None
+    def test_another_model_is_none(self, tmp_path):
+        _write_baseline(tmp_path, model_id=VELOCIRAPTOR_MONGOLIENSIS)
+        assert read_zero_action_baseline(tmp_path, TYRANNOSAURUS_REX) is None
 
     def test_corrupt_file_is_none_rather_than_raising(self, tmp_path):
         (tmp_path / "zero_action_baseline.json").write_text("{not json", encoding="utf-8")
-        assert read_zero_action_baseline(tmp_path, "trex") is None
+        assert read_zero_action_baseline(tmp_path, TYRANNOSAURUS_REX) is None
 
     @pytest.mark.parametrize("value", [None, "abc", float("nan"), float("inf")])
     def test_unusable_reward_is_none(self, tmp_path, value):
         (tmp_path / "zero_action_baseline.json").write_text(
-            json.dumps({"results": {"trex": {"reward_mean": value}}}), encoding="utf-8"
+            json.dumps({"results": {"tyrannosaurus_rex": {"anatomical": {"reward_mean": value}}}}), encoding="utf-8"
         )
-        assert read_zero_action_baseline(tmp_path, "trex") is None
+        assert read_zero_action_baseline(tmp_path, TYRANNOSAURUS_REX) is None
 
 
 class TestBaselineProgressCallback:
@@ -144,13 +148,19 @@ class TestBaselineProgressCallback:
 class TestBuilder:
     def test_returns_none_without_a_baseline_file(self, tmp_path):
         built = build_baseline_progress_callback(
-            MagicMock(), run_dir=tmp_path, species="trex", stage_config={"curriculum_kwargs": {}}
+            MagicMock(),
+            run_dir=tmp_path,
+            model_id=TYRANNOSAURUS_REX,
+            stage_config={"curriculum_kwargs": {}},
         )
         assert built is None
 
     def test_returns_none_without_a_run_dir(self):
         built = build_baseline_progress_callback(
-            MagicMock(), run_dir=None, species="trex", stage_config={"curriculum_kwargs": {}}
+            MagicMock(),
+            run_dir=None,
+            model_id=TYRANNOSAURUS_REX,
+            stage_config={"curriculum_kwargs": {}},
         )
         assert built is None
 
@@ -167,7 +177,7 @@ class TestBuilder:
         built = build_baseline_progress_callback(
             MagicMock(),
             run_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage_config={
                 "curriculum_kwargs": {
                     "timesteps": 10_000_000,
@@ -196,7 +206,7 @@ class TestBuilder:
         build_baseline_progress_callback(
             MagicMock(),
             run_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage_config={"curriculum_kwargs": {"timesteps": 10_000_000}},
             total_timesteps=2_000_000,
         )
@@ -264,10 +274,10 @@ def test_the_config_key_is_accepted_by_the_gate_schema():
     )
 
 
-def test_every_trainer_call_site_passes_species():
-    """`species` is optional, so omitting it silently disables the watch.
+def test_every_trainer_call_site_passes_the_model():
+    """`model_id` is optional, so omitting it silently disables the watch.
 
-    `train_stage` and `train_curriculum` both shipped omitting `species`,
+    `train_stage` and `train_curriculum` both shipped omitting the model (then `species`),
     which left the watch dead on both library entry points while a pin on
     the notebook's own call passed — the same dead-code failure one call
     site over. So this asserts over every call site in `train_base.py`
@@ -286,7 +296,7 @@ def test_every_trainer_call_site_passes_species():
     ]
     assert calls, "expected _build_core_callbacks to be called in train_base.py"
     for call in calls:
-        assert any(kw.arg == "species" for kw in call.keywords), (
-            f"_build_core_callbacks call at train_base.py:{call.lineno} omits species=, "
+        assert any(kw.arg == "model_id" for kw in call.keywords), (
+            f"_build_core_callbacks call at train_base.py:{call.lineno} omits model_id=, "
             "so the zero-action baseline watch is never constructed on that path"
         )

@@ -1,20 +1,35 @@
-# Species manifest schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3).
+# Species manifest schema 3 (decision D-D33, 2026-10-11): every model is the
+# pair (species, embodiment).  [species.<species>] holds what the species
+# shares, its display_order and display_name; each model is one
+# [species.<species>.embodiments.<embodiment>] table, the embodiment one of
+# "anatomical" and "robot" (environments/shared/model_id.py), holding the
+# model's tagline, gait, specialty, env_entrypoint, model_path,
+# training_backends, training_notebooks, result_summary_paths and its
+# success, deliverable and video tables.  IDs are exact strings: there are no
+# aliases, and the model display name is derived ("Compsognathus Longipes
+# (Robot)"), never stored.  Models are ordered by the species display_order,
+# then by embodiment in model_id.EMBODIMENTS order.  training_backends is
+# required on every embodiment; only the two frozen MJX registrations
+# (brachiosaurus_altithorax and dibothrosuchus_elaphros anatomical, D-D17)
+# declare jax-mjx.  environments/shared/species_names.py is the one reader.
 #
-# [[species.deliverable_metrics]] states the success semantics of every
-# behavior a species publishes.  `deliverable` is a recipe label ("stand",
-# "walk", "hunt") or a deliverable stage id, resolved exactly as the
-# notebook's BEHAVIOR knob is: a label means its DEEPEST deliverable in
-# manifest order (on the T-Rex "stand" is recovery, so its stance node is
-# addressed by id).  Every manifest deliverable needs a stable-baselines3
-# entry (the evidence backend, plan §4.9); an unknown deliverable, a backend
-# the species does not train, or two entries for one (stage, backend) fail
-# the generator.  The per-backend [[species.success_metrics]] are unchanged.
+# Schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3) added the
+# deliverable tables.  [[species.<species>.embodiments.<embodiment>.deliverable_metrics]]
+# states the success semantics of every behavior a model publishes.
+# `deliverable` is a recipe label ("stand", "walk", "hunt") or a deliverable
+# stage id, resolved exactly as the notebook's BEHAVIOR knob is: a label
+# means its DEEPEST deliverable in manifest order (on the T-Rex "stand" is
+# recovery, so its stance node is addressed by id).  Every manifest
+# deliverable needs a stable-baselines3 entry (the evidence backend, plan
+# §4.9); an unknown deliverable, a backend the model does not train, or two
+# entries for one (stage, backend) fail the generator.  The per-backend
+# [[...success_metrics]] are unchanged.
 #
-# [[species.stage_videos]] are keyed by STAGE ID (`stage = "stance"`), the
+# [[...stage_videos]] are keyed by STAGE ID (`stage = "stance"`), the
 # spelling that survives renumbering; a legacy integer (`stage = 1`) stays an
 # accepted alias through the stage manifest's legacy_number mapping, and
 # naming one stage both ways is a duplicate.
-schema_version = 2
+schema_version = 3
 
 [project_capabilities.simulation]
 label = "MuJoCo simulation"
@@ -50,348 +65,345 @@ label = "Google Drive results summary"
 description = "Collect and summarize training artifacts from Google Drive."
 path = "notebooks/google_drive_summary.ipynb"
 
-[[species]]
-id = "velociraptor"
+[species.velociraptor_mongoliensis]
 display_order = 1
 display_name = "Velociraptor Mongoliensis"
+
+[species.velociraptor_mongoliensis.embodiments.anatomical]
 tagline = "Swift Bipedal Predator"
 gait = "Bipedal"
 specialty = "Sickle-claw contact attacks"
-aliases = ["raptor"]
-env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"
-model_path = "environments/velociraptor/assets/raptor.xml"
+env_entrypoint = "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv"
+model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = [
-    "results/velociraptor/ppo/summary.json",
-    "results/velociraptor/sac/summary.json",
+    "results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
+    "results/velociraptor_mongoliensis/anatomical/sac/summary.json",
 ]
 
-[[species.success_metrics]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
 key = "strike_success"
 label = "Sickle-claw contact success"
 definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
 
-[[species.deliverable_metrics]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v2)"
 definition = "The stance checkpoint clears the stance_quality/v2 gate, judged post-stage on the handoff pair: the one-sided 95% lower bound on the share of the 40 certification-panel episodes that are clean on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, both toes and the metatarsal head of each foot loaded, no actuator held at its limit) meets the configured bound, with the reward rails as collapse floors only. The clean count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
-[[species.deliverable_metrics]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "strike_success"
 label = "Sickle-claw contact success"
 definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
 
-[[species.stage_videos]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.stage_videos]]
 stage = "stance"
-path = "website/static/videos/velociraptor_ppo_stage1_best.mp4"
+path = "website/static/videos/velociraptor_mongoliensis_anatomical_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.stage_videos]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.stage_videos]]
 stage = "locomotion"
-path = "website/static/videos/velociraptor_ppo_stage2_best.mp4"
+path = "website/static/videos/velociraptor_mongoliensis_anatomical_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.stage_videos]]
+[[species.velociraptor_mongoliensis.embodiments.anatomical.stage_videos]]
 stage = "behavior"
-path = "website/static/videos/velociraptor_ppo_stage3_best.mp4"
+path = "website/static/videos/velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species]]
-id = "trex"
+[species.tyrannosaurus_rex]
 display_order = 2
 display_name = "Tyrannosaurus Rex"
+
+[species.tyrannosaurus_rex.embodiments.anatomical]
 tagline = "Apex Predator"
 gait = "Bipedal"
 specialty = "Head-contact attack task"
-aliases = ["t-rex"]
-env_entrypoint = "environments.trex.envs.trex_env:TRexEnv"
-model_path = "environments/trex/assets/trex.xml"
+env_entrypoint = "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv"
+model_path = "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
-result_summary_paths = ["results/trex/ppo/summary.json"]
+result_summary_paths = ["results/tyrannosaurus_rex/anatomical/ppo/summary.json"]
 
-[[species.success_metrics]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
 key = "bite_success"
 label = "Head-contact bite proxy"
 definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
 
-[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
 deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality at six headings (stance_quality_heading/v1)"
 definition = "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
-[[species.deliverable_metrics]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
 definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
-[[species.deliverable_metrics]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "bite_success"
 label = "Head-contact bite success (task_success/v1)"
 definition = "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
 
-[[species.stage_videos]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.stage_videos]]
 stage = "stance"
-path = "website/static/videos/trex_ppo_stage1_best.mp4"
+path = "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.stage_videos]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.stage_videos]]
 stage = "locomotion"
-path = "website/static/videos/trex_ppo_stage2_best.mp4"
+path = "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species.stage_videos]]
+[[species.tyrannosaurus_rex.embodiments.anatomical.stage_videos]]
 stage = "behavior"
-path = "website/static/videos/trex_ppo_stage3_best.mp4"
+path = "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 
-[[species]]
-id = "brachiosaurus"
+[species.brachiosaurus_altithorax]
 display_order = 3
 display_name = "Brachiosaurus Altithorax"
+
+[species.brachiosaurus_altithorax.embodiments.anatomical]
 tagline = "Gentle Giant Herbivore"
 gait = "Quadrupedal"
 specialty = "Head-to-food reaching"
-aliases = ["brachio"]
-env_entrypoint = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
-model_path = "environments/brachiosaurus/assets/brachiosaurus.xml"
+env_entrypoint = "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv"
+model_path = "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
+training_backends = ["stable-baselines3", "jax-mjx"]
 training_notebooks = ["sb3_training"]
-result_summary_paths = ["results/brachiosaurus/ppo/summary.json"]
+result_summary_paths = ["results/brachiosaurus_altithorax/anatomical/ppo/summary.json"]
 
-[[species.success_metrics]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3", "jax-mjx"]
 key = "food_reached"
 label = "Head-tip distance-threshold success"
 definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
 
-[[species.deliverable_metrics]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_reward_rail"
 label = "Reward-gated stance (reward_and_length/v1)"
 definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on shin instrumentation (a kneeling pose currently reads identically to airborne) (plan §4.8)."
 
-[[species.deliverable_metrics]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3", "jax-mjx"]
 key = "food_reached"
 label = "Head-tip distance-threshold success"
 definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
 
-[[species.stage_videos]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.stage_videos]]
 stage = "stance"
-path = "website/static/videos/brachiosaurus_ppo_stage1_best.mp4"
+path = "website/static/videos/brachiosaurus_altithorax_anatomical_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
 
-[[species.stage_videos]]
+[[species.brachiosaurus_altithorax.embodiments.anatomical.stage_videos]]
 stage = "locomotion"
-path = "website/static/videos/brachiosaurus_ppo_stage2_best.mp4"
+path = "website/static/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
 
-[[species]]
-id = "dibothrosuchus"
+[species.dibothrosuchus_elaphros]
 display_order = 4
 display_name = "Dibothrosuchus Elaphros"
+
+[species.dibothrosuchus_elaphros.embodiments.anatomical]
 tagline = "Gracile Erect-Limbed Crocodylomorph"
 gait = "Quadrupedal"
 specialty = "Snout-contact snap task"
-aliases = ["dibo"]
-env_entrypoint = "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv"
-model_path = "environments/dibothrosuchus/assets/dibothrosuchus.xml"
+env_entrypoint = "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv"
+model_path = "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml"
+training_backends = ["stable-baselines3", "jax-mjx"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
-[[species.success_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
 key = "snap_success"
 label = "Snout-contact snap proxy"
 definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
 
-[[species.success_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.success_metrics]]
 backends = ["jax-mjx"]
 key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
-[[species.deliverable_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_reward_rail"
 label = "Reward-gated stance (reward_and_length/v1)"
 definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a stance-quality and perturbation preflight this plant has not had (plan §4.8)."
 
-[[species.deliverable_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "snap_success"
 label = "Snout-contact snap proxy"
 definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
 
-[[species.deliverable_metrics]]
+[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["jax-mjx"]
 key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
-[[species]]
-id = "compsognathus"
+[species.compsognathus_longipes]
 display_order = 5
 display_name = "Compsognathus Longipes"
+
+[species.compsognathus_longipes.embodiments.anatomical]
 tagline = "Small Bipedal Theropod"
 gait = "Bipedal"
 specialty = "Non-contact target reaching"
-aliases = ["compso"]
-env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusBiologicalEnv"
-model_path = "environments/compsognathus/assets/compsognathus.xml"
+env_entrypoint = "environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv"
+model_path = "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
-[[species.success_metrics]]
+[[species.compsognathus_longipes.embodiments.anatomical.success_metrics]]
 backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
 
-[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
 deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality at six headings (stance_quality_heading/v1)"
 definition = "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, the two-foot flight time and the landing peak bounded over the scored window, both feet down and loaded, the pad and all three digits of each foot loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
 definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
 
-[[species]]
-id = "compsognathus_robot"
-variant_of = "compsognathus"
-display_order = 6
-display_name = "Compsognathus Longipes (Robot)"
+[species.compsognathus_longipes.embodiments.robot]
 tagline = "Twelve-Servo Biped Prototype"
 gait = "Bipedal"
 specialty = "Non-contact target reaching with fixed head and tail"
-aliases = ["compso-robot"]
-env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv"
-model_path = "environments/compsognathus/assets/compsognathus_robot.xml"
+env_entrypoint = "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv"
+model_path = "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml"
 training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
-[[species.success_metrics]]
+[[species.compsognathus_longipes.embodiments.robot.success_metrics]]
 backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
 
-[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
 deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v1)"
 definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
 definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
 deliverable = "walk"
 backends = ["stable-baselines3"]
 key = "forward_velocity_gate"
 label = "Gated forward velocity (reward_and_length/v1)"
 definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
 
-[[species.deliverable_metrics]]
+[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "target_success"

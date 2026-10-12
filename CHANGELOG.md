@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
-- **A six-heading stance certificate, `stance_quality_heading/v1`** (decision
+- **A six-heading stance certificate, `stance_quality_heading/v1`** (#617; decision
   D-D32, the maintainer's approval of 2026-10-11;
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `stance_quality/v2` judges a
   stance at the heading it trained at, and certified the seed-52 T-Rex stance
@@ -275,6 +275,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Nothing recorded under the old identifiers resolves** (D-D33). These are
+  refused or not found when they are named `velociraptor`, `trex`,
+  `brachiosaurus`, `dibothrosuchus`, `compsognathus` or
+  `compsognathus_robot`: checkpoints, VecNormalize statistics, run
+  directories, bundles, provenance, gate verdicts, ancestor and trunk
+  records, stage configs, result summaries of schema 3 or 4, and W&B runs.
+  The plant contract refuses every existing checkpoint (its plant identity
+  is v1, and every policy-interface revision moved); start fresh weights and
+  statistics.
+
+  `TRUNK_FROM = "auto"` and `--trunk-from` find no trunk, so the first run
+  of each model trains every node.
+
+  This change migrates, identity only, the two recovery calibrations (their
+  `calibration_id` renamed, the old one kept in `restamp_history`), the
+  Phase C reset golden and the four committed result summaries. Drive trees
+  under `mesozoic-labs/logs/<old id>/` stay where they are; the Drive
+  summary notebook lists them as skipped, and new runs write
+  `logs/<species>/<embodiment>/`. To read or rerun a pre-rename run, check
+  out `f40c11d3`.
+
+  Old → new, one model at a time (the species-level material, README,
+  `data/`, `scripts/` and `tests/`, moves from `environments/<old id>/` to
+  `environments/<species>/`):
+  - `velociraptor` (alias `raptor`) → `velociraptor_mongoliensis`,
+    `anatomical`. `RaptorEnv` → `VelociraptorMongoliensisEnv` (species base)
+    and `VelociraptorMongoliensisAnatomicalEnv`; `MesozoicLabs/Raptor-v0` →
+    `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0`;
+    `environments.velociraptor.envs.raptor_env` →
+    `environments.velociraptor_mongoliensis.base_env` and
+    `environments.velociraptor_mongoliensis.anatomical.env`;
+    `environments/velociraptor/assets/raptor.xml` →
+    `environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml`;
+    `configs/velociraptor/stage1_balance.toml`, `stage2_locomotion.toml`
+    and `stage3_strike.toml` →
+    `configs/velociraptor_mongoliensis/anatomical/stance.toml`,
+    `locomotion.toml` and `strike.toml`.
+  - `trex` (alias `t-rex`) → `tyrannosaurus_rex`, `anatomical`. `TRexEnv` →
+    `TyrannosaurusRexEnv` (species base) and `TyrannosaurusRexAnatomicalEnv`;
+    `MesozoicLabs/TRex-v0` → `MesozoicLabs/TyrannosaurusRex-Anatomical-v0`;
+    `environments.trex.envs.trex_env` →
+    `environments.tyrannosaurus_rex.base_env` and
+    `environments.tyrannosaurus_rex.anatomical.env`;
+    `environments/trex/assets/trex.xml` →
+    `environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml`;
+    `configs/trex/` → `configs/tyrannosaurus_rex/anatomical/` (`stance.toml`,
+    `recovery.toml`, `locomotion.toml` and `behavior.toml` keep their
+    names).
+  - `brachiosaurus` (alias `brachio`) → `brachiosaurus_altithorax`,
+    `anatomical`. `BrachioEnv` → `BrachiosaurusAltithoraxEnv` (species base)
+    and `BrachiosaurusAltithoraxAnatomicalEnv`; `MesozoicLabs/Brachio-v0` →
+    `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0`;
+    `environments.brachiosaurus.envs.brachio_env` →
+    `environments.brachiosaurus_altithorax.base_env` and
+    `environments.brachiosaurus_altithorax.anatomical.env`, and
+    `environments.brachiosaurus.mjx_config` →
+    `environments.brachiosaurus_altithorax.anatomical.mjx_config`;
+    `environments/brachiosaurus/assets/brachiosaurus.xml` →
+    `environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml`;
+    `configs/brachiosaurus/stage1_balance.toml`, `stage2_locomotion.toml`
+    and `stage3_food_reach.toml` →
+    `configs/brachiosaurus_altithorax/anatomical/stance.toml`,
+    `locomotion.toml` and `food_reach.toml`.
+  - `dibothrosuchus` (alias `dibo`) → `dibothrosuchus_elaphros`,
+    `anatomical`. `DibothrosuchusEnv` → `DibothrosuchusElaphrosEnv` (species
+    base) and `DibothrosuchusElaphrosAnatomicalEnv`;
+    `MesozoicLabs/Dibothrosuchus-v0` →
+    `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0`;
+    `environments.dibothrosuchus.envs.dibothrosuchus_env` →
+    `environments.dibothrosuchus_elaphros.base_env` and
+    `environments.dibothrosuchus_elaphros.anatomical.env`, and
+    `environments.dibothrosuchus.mjx_config` →
+    `environments.dibothrosuchus_elaphros.anatomical.mjx_config`;
+    `environments/dibothrosuchus/assets/dibothrosuchus.xml` →
+    `environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml`;
+    `configs/dibothrosuchus/stage1_balance.toml`, `stage2_locomotion.toml`
+    and `stage3_snap.toml` →
+    `configs/dibothrosuchus_elaphros/anatomical/stance.toml`,
+    `locomotion.toml` and `snap.toml`.
+  - `compsognathus` (alias `compso`; the "biological" model) →
+    `compsognathus_longipes`, `anatomical`. `CompsognathusEnv` →
+    `CompsognathusLongipesEnv` (species base, shared with the robot) and
+    `CompsognathusBiologicalEnv` → `CompsognathusLongipesAnatomicalEnv`;
+    `MesozoicLabs/Compsognathus-v0` →
+    `MesozoicLabs/CompsognathusLongipes-Anatomical-v0`;
+    `environments.compsognathus.envs.compsognathus_env` →
+    `environments.compsognathus_longipes.base_env` and
+    `environments.compsognathus_longipes.anatomical.env`;
+    `environments/compsognathus/assets/compsognathus.xml` →
+    `environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml`;
+    `configs/compsognathus/` → `configs/compsognathus_longipes/anatomical/`
+    (file names kept); calibration ID
+    `compsognathus-fixed-command-recovery-2026-10-v2` →
+    `compsognathus_longipes-anatomical-fixed-command-recovery-2026-10-v2`.
+  - `compsognathus_robot` (alias `compso-robot`,
+    `variant_of = "compsognathus"`) → `compsognathus_longipes`, `robot`.
+    `CompsognathusRobotEnv` → `CompsognathusLongipesRobotEnv`;
+    `MesozoicLabs/CompsognathusRobot-v0` →
+    `MesozoicLabs/CompsognathusLongipes-Robot-v0`;
+    `environments.compsognathus.envs.compsognathus_env` →
+    `environments.compsognathus_longipes.robot.env`;
+    `environments/compsognathus/assets/compsognathus_robot.xml`, its
+    `meshes/` and `references/` →
+    `environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml`,
+    `robot/assets/meshes/` and `robot/references/`;
+    `configs/compsognathus_robot/` → `configs/compsognathus_longipes/robot/`
+    (file names kept); calibration ID
+    `compsognathus_robot-fixed-command-recovery-2026-09-v1` →
+    `compsognathus_longipes-robot-fixed-command-recovery-2026-09-v1`.
 - **A T-Rex or anatomical Compsognathus stance is judged, reused and
   published on its six-heading certificate only** (D-D32). Both stances'
   `gate_sha256` moves, so reuse rule 7 refuses every verdict judged under
@@ -410,9 +519,123 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **Species are named by their binomial, and every model is a species and an
+  embodiment** (breaking — identifier change: every species ID, package,
+  module, class, Gymnasium ID, MJCF, config path, record field, plant key,
+  results path and model page; no alias remains; decision D-D33, the
+  maintainer's approval of 2026-10-11).
+
+  The species IDs are `velociraptor_mongoliensis`, `tyrannosaurus_rex`,
+  `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` and
+  `compsognathus_longipes`. A model is the pair (species, embodiment), with
+  embodiment `anatomical` or `robot`: the five anatomical models, and
+  `compsognathus_longipes`/`robot`, which was the species
+  `compsognathus_robot` (`variant_of = "compsognathus"`). `anatomical`
+  replaces "biological" (`CompsognathusBiologicalEnv`, `--model biological`,
+  `MODEL_PATHS["biological"]`). In code a model is a `ModelId`
+  (`environments/shared/model_id.py`), held in `model_id` variables.
+
+  One rule names everything from the pair:
+  - the species base class `<Species>Env` in
+    `environments/<species>/base_env.py`, which holds the observation,
+    action and sensor code the species' embodiments share;
+  - the package `environments.<species>.<embodiment>`, module `env`, class
+    `<Species><Embodiment>Env` (`TyrannosaurusRexAnatomicalEnv`,
+    `CompsognathusLongipesRobotEnv`), which carries the embodiment's model
+    path, foot-support geoms and reward probe;
+  - the Gymnasium ID `MesozoicLabs/<Species>-<Embodiment>-v0`, registered
+    from the manifest by `environments/__init__.py`;
+  - the MJCF
+    `environments/<species>/<embodiment>/assets/<species>_<embodiment>.xml`;
+  - the configs `configs/<species>/<embodiment>/`, each stage file named by
+    its stage with no number (`stance.toml`, `locomotion.toml`,
+    `strike.toml`, `snap.toml`, `food_reach.toml`; `recovery.toml` and
+    `behavior.toml` keep their names; the `stage1_balance.toml`,
+    `stage2_locomotion.toml` and `stage3_*.toml` names are gone);
+  - the runs `<LOG_BASE>/<species>/<embodiment>/<algo>/<run_id>/`;
+  - the results `results/<species>/<embodiment>/<algo>/`;
+  - the model pages `/docs/models/<species>/<embodiment>`.
+
+  Records carry `species` and `embodiment` as two fields, and every
+  schema-versioned record bumps its schema:
+  - plant identity and plant manifest v2 (`[plants.<species>.<embodiment>]`,
+    `plant_versions.toml` schema 2);
+  - task fingerprint v3;
+  - result summary 5 (readers accept 2 and 5; the four curated schema-2
+    summaries carry their identity amended in place) and provenance 2;
+  - gate verdict, gate resolution, recovery calibration, recovery evaluation
+    and floor-truth measurement v2;
+  - the recovery-calibration measurement and PPO-probe outputs
+    `schema_version` 2;
+  - the stance gate reports v4 and v5 and the heading report v2;
+  - the action-filter sweep, constant-hold probe and impulse-recovery probe
+    v2, and the constant-hold ablation v4;
+  - behavior run and preparation v3;
+  - widen lineage and report v2;
+  - zero-action baseline v2;
+  - the Phase C reset golden v2 (`captures[species][embodiment][stage]`);
+  - the Compsognathus tooling labels, renamed from `compso-*`:
+    `mesozoic.compsognathus-longipes-preflight/v3`, `-shell-screen/v2`,
+    `-model-prototype/v3` (key `anatomical`, was `biological`) and
+    `-sensors/v1`;
+  - species manifest 3 (`[species.<s>.embodiments.<e>]`, `training_backends`
+    required; no `variant_of`, no `aliases`);
+  - catalog 5.
+
+  Every identity check compares both fields, so the two Compsognathus plants
+  never pass for each other; mypy runs with `strict_equality`. A plant
+  identity whose species or embodiment names no model is refused when it is
+  read. `backfill_gate_verdict.py`'s `--species` and `--embodiment` name the
+  model only for a `stage_config.json` that does not name it whole, and an
+  override that disagrees with one that does is refused. The plant
+  contract's revision check pairs a baseline's plants by key, then by
+  physics digest, and refuses a plant that leaves the manifest.
+
+  The training CLI and every single-model tool take `--species` and
+  `--embodiment`, both required, canonical IDs only; a species' own scripts
+  (`view_model`, `test_actuators`, `test_env`) take a required
+  `--embodiment`. Report tools that cover several models take
+  `--model-id S E`, repeated, and keep their default panels.
+  `calibrate_recovery.py` moved to `environments/shared/scripts/` and serves
+  any model with a recovery stage. The SB3 notebook selects `SPECIES` and
+  `EMBODIMENT` from two dropdowns. Adding a robot to a species takes
+  `environments/<species>/robot/`, `configs/<species>/robot/`, its manifest
+  embodiment table and its plant table, and no edit to shared code.
+
+  Plant contract: policy-interface revision +1 on all six models
+  (11 → 12, 14 → 15, 8 → 9, 7 → 8, 4 → 5, 2 → 3;
+  `configs/plant_versions.toml` note 19). Only names moved: the hashed
+  qualnames (now on the species base classes), the brachiosaurus and
+  dibothrosuchus MJX registration module and the compsognathus
+  `pelvis_subtree_body_ids` helper (was `robot_body_ids`). Physics and
+  visual digests are unchanged, which the PR-base check proves by pairing
+  the v1 baseline's plants by physics digest.
+
+  Digest golden (643 → 649 lines): every model line gains the embodiment
+  column and six `embodiment` lines are new. After mapping the 643 old rows to
+  their models, 232 values move: plant 36 (`species`, `schema`, `model_path`,
+  `source_closure_sha256`, `policy_interface_sha256` and
+  `policy_interface_revision` of each model), policy 32, stage 30 (21
+  `task_sha256`, 9 `config_file`), recovery 2 (the two calibrations'
+  `file_sha256`), behavior 132 (every recipe's `recipe_sha256` and
+  `task_sha256`). None of the 255 physics, visual, dimension, gate,
+  hyperparameter, stage-config-view or reward values moves, and the
+  harness's `--exact` mode finds all 37,034 bit-exact digests (every stage
+  capture and every behavior recipe's env) equal after mapping.
+
+  Records: D-D33 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, with D-A10's third
+  amendment and A5 superseded, and in the consolidation plan's tables;
+  `docs/SPECIES_NAMING.md` rewritten; CONTRIBUTING (layout, adding a
+  species, adding an embodiment); the README and `results/README.md`; the
+  species READMEs and the Compsognathus calibration guide; PLANT_CONTRACT,
+  RESULT_BUNDLES, TRAINING_ARTIFACT_PRESENTATION, KNOWN_ISSUES, NEXT_STEPS,
+  TRAIN_DIRECTION_AND_TERRAIN, ROADMAP and the hardware README; the docs
+  map's note on pre-rename names; both notebooks; the website's model pages
+  (moved), sidebar, footer, guides and landing page, and the six model links
+  of the 2026-10-11 blog post; the species catalog.
 - **The T-Rex and anatomical Compsognathus stances certify under the
   six-heading certificate, and no longer declare the heading probe**
-  (D-D32). `configs/trex/stance.toml` and `configs/compsognathus/stance.toml`
+  (#617; D-D32). `configs/trex/stance.toml` and `configs/compsognathus/stance.toml`
   declare `gate_kind = "stance_quality_heading/v1"` with every v2 bar and
   rail unchanged (the comments say what `min_eval_episodes` and
   `min_clean_stance_lcb` mean under it), and drop
@@ -447,7 +670,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TRAINING_ARTIFACT_PRESENTATION, the T-Rex and Compsognathus READMEs and
   website pages, and the species catalog.
 - **The T-Rex and the anatomical Compsognathus no longer observe their world
-  heading** (breaking — policy interface change: T-Rex revision 13 → 14, 64 →
+  heading** (#616; breaking — policy interface change: T-Rex revision 13 → 14, 64 →
   63 wide; anatomical Compsognathus 3 → 4, 56 → 55; every existing checkpoint
   of both is invalidated; decision D-D31, which the maintainer approved on
   2026-10-11 for these two species only, carrying out
@@ -2097,6 +2320,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The species aliases, selection by display name, and the per-species
+  training wrappers** (D-D33):
+  - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and
+    `compso-robot`;
+  - `species_names.resolve_species_id`, `species_display_names` and their
+    case and separator folding;
+  - `config.SPECIES_NAMES` and `species_registry.SPECIES_FACTORIES` with its
+    six per-species factories (`get_species_config` builds the config from
+    the model's environment class and stage manifest);
+  - the manifest's `aliases` and `variant_of`;
+  - the README and catalog alias anchors;
+  - `environments/<species>/scripts/train_sb3.py` (five; use
+    `python -m environments.shared.train --species … --embodiment …`);
+  - the `environments/<species>/envs/` packages and their re-exports;
+  - the shared per-species tables `SUPPORT_REGISTRY` and `REWARD_SPECIES`
+    and the `gym.register` calls in the env modules (the embodiment classes
+    and the manifest carry them);
+  - `configs/__init__.py` and `configs/compsognathus{,_robot}/__init__.py`;
+  - `view_model --model biological` (the Compsognathus `view_model.py`
+    takes `--embodiment anatomical|robot`);
+  - the result-summary readers of schema 3 and 4;
+  - the task-fingerprint v1 transition valve and the compsognathus
+    quiet-task carve-out, with `test_compsognathus_task_compatibility.py`
+    and its fixture;
+  - the stage-manifest synthesizer for `stage{N}_*.toml` names.
 - **`environments/velociraptor/mjx_config.py`, the Velociraptor's frozen
   MJX registration** (#601, decision D-D25, 2026-10-06), with its
   `pyproject.toml` ruff exclusion: the Velociraptor is SB3-only since its
@@ -2129,8 +2377,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **`pre-commit run --all-files` modifies nothing on a fresh checkout** (with
+  D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
+  final newline, so `end-of-file-fixer` rewrote both on every run (noted in
+  `docs/investigations/TREX_REVIEW_2026_07.md`); each now ends with one. The
+  hook keeps its scope, and no digest data file changes.
 - **Statistics or a checkpoint of another observation width are refused by
-  plant, not by SB3's shape errors** (with the heading-free observation,
+  plant, not by SB3's shape errors** (#616; with the heading-free observation,
   decision D-D31). SB3's `VecNormalize.load` re-binds the unpickled wrapper to
   the env (`set_venv`), asserting equal observation shapes before any caller
   can read the plant identity pickled with it, and `PPO.load` rebuilds a model

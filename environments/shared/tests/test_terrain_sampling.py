@@ -11,6 +11,7 @@ import pytest
 from environments.shared.behavior_env import get_behavior_env_class
 from environments.shared.behavior_evaluation import terrain_family_from_reset
 from environments.shared.direction_commands import DirectionCommandConfig
+from environments.shared.model_id import ModelId
 from environments.shared.species_registry import get_species_config
 from environments.shared.terrain import TerrainConfig
 from environments.shared.terrain_sampling import (
@@ -18,6 +19,10 @@ from environments.shared.terrain_sampling import (
     TerrainSamplerConfig,
     select_terrain_family,
 )
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 
 
 def only(**weights):
@@ -128,7 +133,7 @@ def canonical_init_forbidden(monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("the canonical model was built before the refusal")
 
-    monkeypatch.setattr(get_species_config("trex").env_class, "__init__", forbidden)
+    monkeypatch.setattr(get_species_config(TYRANNOSAURUS_REX).env_class, "__init__", forbidden)
 
 
 @pytest.mark.parametrize(
@@ -142,15 +147,17 @@ def canonical_init_forbidden(monkeypatch):
 def test_invalid_mixture_is_rejected_before_model_creation(canonical_init_forbidden, kwargs, message):
     arguments = {"terrain_sampler": TerrainSamplerConfig(), "terrain": terrain(), **kwargs}
     with pytest.raises(ValueError, match=message):
-        get_behavior_env_class("trex")(**arguments)
+        get_behavior_env_class(TYRANNOSAURUS_REX)(**arguments)
 
 
 def test_flat_probability_is_no_longer_a_behavior_env_argument():
     with pytest.raises(TypeError, match="flat_probability"):
-        get_behavior_env_class("trex")(terrain=terrain(), terrain_sampler=TerrainSamplerConfig(), flat_probability=0.25)
+        get_behavior_env_class(TYRANNOSAURUS_REX)(
+            terrain=terrain(), terrain_sampler=TerrainSamplerConfig(), flat_probability=0.25
+        )
 
 
-@pytest.fixture(params=["trex", "velociraptor"])
+@pytest.fixture(params=[TYRANNOSAURUS_REX, VELOCIRAPTOR_MONGOLIENSIS], ids=lambda m: f"{m.species}-{m.embodiment}")
 def sampled_env(request):
     env = get_behavior_env_class(request.param)(terrain_sampler=TerrainSamplerConfig(), terrain=terrain(), **ENV_KWARGS)
     yield env
@@ -188,7 +195,7 @@ def test_resets_balance_families_without_changing_task_identity(sampled_env):
     assert Counter(selected[:5]) == Counter(TerrainSamplerConfig().families)
     assert Counter(selected[5:]) == Counter(TerrainSamplerConfig().families)
     assert identity["env"]["terrain_sampler"] == asdict(TerrainSamplerConfig())
-    fixed = get_behavior_env_class(env.species)(terrain=terrain(), **ENV_KWARGS)
+    fixed = get_behavior_env_class(env.model_id)(terrain=terrain(), **ENV_KWARGS)
     try:
         fixed_identity = fixed.task_fingerprint
     finally:
@@ -287,12 +294,12 @@ def test_a_family_whose_surface_cannot_be_built_is_refused_before_the_episode_st
     """A sampler reassigned after construction is checked at reset: a family the terrain map cannot carry, or any
     terrain family on an env without terrain, is refused with seed, index and model unchanged (as the sampled env
     left them for a family its map could not carry)."""
-    coarse = get_behavior_env_class("trex")(
+    coarse = get_behavior_env_class(TYRANNOSAURUS_REX)(
         terrain=replace(terrain(), template="sloped", feature_radius_min=0.2),
         terrain_sampler=only(flat=1, sloped=1),
         **ENV_KWARGS,
     )
-    plane = get_behavior_env_class("trex")(**ENV_KWARGS)
+    plane = get_behavior_env_class(TYRANNOSAURUS_REX)(**ENV_KWARGS)
     try:
         for env, sampler, message in (
             (coarse, only(bumps=1), "three samples"),
@@ -311,15 +318,17 @@ def test_a_family_whose_surface_cannot_be_built_is_refused_before_the_episode_st
         plane.close()
 
 
-@pytest.mark.parametrize("species", ["trex", "brachiosaurus"])
+@pytest.mark.parametrize(
+    "model_id", [TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX], ids=lambda m: f"{m.species}-{m.embodiment}"
+)
 @pytest.mark.parametrize("base_mode", ["gentle", "flat"])
-def test_each_family_sets_its_own_surface_on_the_terrain_map(species, base_mode):
+def test_each_family_sets_its_own_surface_on_the_terrain_map(model_id, base_mode):
     """terrain_contact, which the sampler could not express before consolidation PR-8, is the zero-height
     heightfield on either base, and a template family is that gentle template on either base. The reset record
     carries this sampler's own weights."""
     base = terrain(mode=base_mode)
     sampler = only(flat=1, sloped=1, terrain_contact=1)
-    env = get_behavior_env_class(species)(terrain=base, terrain_sampler=sampler, run_seed=5, reset_noise_scale=0.0)
+    env = get_behavior_env_class(model_id)(terrain=base, terrain_sampler=sampler, run_seed=5, reset_noise_scale=0.0)
     try:
         assert env.terrain_families == ("flat", "sloped", "terrain_contact")
         _, info = env.reset(seed=3, options={"terrain_family": "terrain_contact"})
@@ -350,11 +359,13 @@ def test_each_family_sets_its_own_surface_on_the_terrain_map(species, base_mode)
         env.close()
 
 
-@pytest.mark.parametrize("species", ["trex", "velociraptor"])
-def test_the_task_fingerprint_follows_a_reassigned_sampler(species):
+@pytest.mark.parametrize(
+    "model_id", [TYRANNOSAURUS_REX, VELOCIRAPTOR_MONGOLIENSIS], ids=lambda m: f"{m.species}-{m.embodiment}"
+)
+def test_the_task_fingerprint_follows_a_reassigned_sampler(model_id):
     """Reset reads the sampler, the reward the tracking weight and the step the course distance as they stand, so
     the task fingerprint does too: after a reassignment it is the fingerprint of an env built with the new values."""
-    env_class = get_behavior_env_class(species)
+    env_class = get_behavior_env_class(model_id)
     env = env_class(terrain=terrain(), terrain_sampler=only(flat=1, sloped=1), **ENV_KWARGS)
     fresh = env_class(terrain=terrain(), terrain_sampler=only(bumps=1), **ENV_KWARGS)
     retuned = env_class(
@@ -377,8 +388,8 @@ def test_the_task_fingerprint_follows_a_reassigned_sampler(species):
 
 def test_a_task_without_a_sampler_has_one_family_and_no_sampling_record():
     """The plane, or the terrain's own surface on every episode, as before; only its own family is accepted."""
-    plane = get_behavior_env_class("trex")(**ENV_KWARGS)
-    contact = get_behavior_env_class("trex")(terrain=terrain(mode="flat"), **ENV_KWARGS)
+    plane = get_behavior_env_class(TYRANNOSAURUS_REX)(**ENV_KWARGS)
+    contact = get_behavior_env_class(TYRANNOSAURUS_REX)(terrain=terrain(mode="flat"), **ENV_KWARGS)
     try:
         assert plane.terrain_families == ("flat",)
         assert contact.terrain_families == ("terrain_contact",)

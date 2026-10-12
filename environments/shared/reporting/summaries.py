@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..file_io import atomic_write_text
+from ..model_id import ModelId
 from .formatting import _optional_metric, format_duration_hms, parse_optional_bool
 
 
@@ -138,7 +139,7 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
 
 def build_result_summary(
     stage_results_list: Sequence[Mapping[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     *,
@@ -170,11 +171,11 @@ def build_result_summary(
 
     if not stage_results_list:
         raise ValueError("at least one stage result is required")
-    # Stage keys and their order come from the species' manifest: legacy
+    # Stage keys and their order come from the model's stage manifest: legacy
     # stages keep their historical decimal keys, semantic stages (recovery)
     # their ids, and the dict is built in manifest position order — never by
     # int() on the key, which the manifest migration retired.
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     keyed_results: list[tuple[Any, Mapping[str, Any]]] = []
     for result in stage_results_list:
         entry = manifest.resolve(_stage_reference(result["stage"]))
@@ -194,8 +195,8 @@ def build_result_summary(
         # and the target the run aimed at (bundles.py's finalization).
         target = provenance.get("target_deliverable") if provenance is not None else None
         verdicts = {key: stage["stage_passed"] for key, stage in stages.items()}
-        bundle_status = bundle_status_for(deliverables, species=species, target=target, stages=verdicts)
-        primary_key = primary_deliverable_key(deliverables, species=species, target=target)
+        bundle_status = bundle_status_for(deliverables, model_id=model_id, target=target, stages=verdicts)
+        primary_key = primary_deliverable_key(deliverables, model_id=model_id, target=target)
         if primary_key is None:
             raise ValueError("a summary with a deliverables map needs at least one certified deliverable")
         final_stage_key = manifest.resolve(_stage_reference(primary_key)).key
@@ -212,7 +213,7 @@ def build_result_summary(
     summary: dict[str, Any] = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "bundle_status": bundle_status,
-        "species": species,
+        **model_id.record(),
         "algorithm": public_algorithm,
         "backend": public_backend,
         "backend_version": backend_version
@@ -244,7 +245,7 @@ def build_result_summary(
 
 def save_results_json(
     stage_results_list: list[dict[str, Any]],
-    species: str,
+    model_id: ModelId,
     algorithm: str,
     seed: int,
     results_dir: "str | Path",
@@ -268,7 +269,7 @@ def save_results_json(
     results_path.mkdir(parents=True, exist_ok=True)
     summary = build_result_summary(
         stage_results_list,
-        species,
+        model_id,
         algorithm,
         seed,
         hardware=hardware,

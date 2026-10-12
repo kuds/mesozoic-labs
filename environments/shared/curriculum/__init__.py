@@ -8,8 +8,9 @@ algorithms with per-stage hyperparameter loading from TOML configs.
 Usage with CurriculumManager directly::
 
     from environments.shared.curriculum import CurriculumManager
+    from environments.shared.model_id import ModelId
 
-    manager = CurriculumManager(species="velociraptor")
+    manager = CurriculumManager(model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
     if manager.should_advance(eval_rewards, eval_lengths):
         manager.advance()
@@ -18,8 +19,9 @@ Usage with CurriculumManager directly::
 Usage with CurriculumCallback (SB3 integration)::
 
     from environments.shared.curriculum import CurriculumManager, CurriculumCallback
+    from environments.shared.model_id import ModelId
 
-    manager = CurriculumManager(species="velociraptor")
+    manager = CurriculumManager(model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
     curriculum_cb = CurriculumCallback(manager, eval_env, eval_freq=50000)
 
     model.learn(total_timesteps=500_000, callback=curriculum_cb)

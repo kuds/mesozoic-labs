@@ -5,7 +5,7 @@ section 4.9 keeps it in the notebook), so no library test reaches it, and a chan
 would otherwise surface only in a Colab session. The reader test runs those cells whole and in
 order -- cell 9 keeps cell 8's ``scan_run`` as ``_legacy_scan_run`` before replacing it, so
 defining one function at a time would not do -- on a logs tree that takes every route of cell 9's
-``scan_run``: in today's layout (``<species>/<algorithm>/<run_id>/NN_<stage id>/``, built by the
+``scan_run``: in today's layout (``<species>/<embodiment>/<algorithm>/<run_id>/NN_<stage id>/``, built by the
 bundle test helpers) a complete run, a partial one, a failed one and one whose summary no longer
 matches its manifest, and beside them an older flat run and a March 2026 sweep. Two folders pin
 the walk itself: an interrupted run, which ``discover_runs`` finds only by its ``NN_<stage id>``
@@ -32,6 +32,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import initialize_result_bundle
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
@@ -102,14 +103,16 @@ def test_the_install_cell_asks_for_the_package_before_it_puts_the_checkout_on_th
 def _failed_bundle(run_dir: Path) -> None:
     """A canonical run none of whose stages passed: a ``failed`` manifest and its CSV, and no summary."""
     stage_results, stage_configs = _complete_bundle_inputs(
-        run_dir, algorithm="PPO", dirname=lambda stage: stage_dirname("velociraptor", stage)
+        run_dir,
+        algorithm="PPO",
+        dirname=lambda stage: stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), stage),
     )
     for stage_result in stage_results:
         stage_result["gate_passed"] = stage_result["publication_gate_passed"] = False
     save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        ModelId("velociraptor_mongoliensis", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -118,8 +121,8 @@ def _failed_bundle(run_dir: Path) -> None:
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity("velociraptor"),
-        run_id="velociraptor-stable-baselines3-ppo-failed",
+        plant_identity=_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-failed",
     )
 
 
@@ -128,17 +131,17 @@ def _interrupted_run(run_dir: Path) -> None:
     one ``NN_<stage id>`` directory, but no CSV, summary or artifact manifest yet."""
     initialize_result_bundle(
         run_dir,
-        species="velociraptor",
+        model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
         algorithm="PPO",
         backend="stable-baselines3",
         seed=42,
         evaluation_seeds=[101, 102],
         parallel_envs=4,
         hardware="test-cpu",
-        plant_identity=_plant_identity("velociraptor"),
-        run_id="velociraptor-stable-baselines3-ppo-interrupted",
+        plant_identity=_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical")),
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-interrupted",
     )
-    stage_dir = run_dir / stage_dirname("velociraptor", 1)
+    stage_dir = run_dir / stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
     stage_dir.mkdir()
     (stage_dir / "stage_config.json").write_text(json.dumps({"name": "Stage 1", "algorithm": "PPO"}), encoding="utf-8")
 
@@ -179,32 +182,37 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     legacy, sweep = "ppo_20260301_120000", "sweeps/stage1_ppo_20260315_101500"
     for run in (valid, conflict):
         paths, _, _ = _complete_bundle(
-            logs / "velociraptor" / run,
+            logs / "velociraptor_mongoliensis" / "anatomical" / run,
             algorithm="PPO",
             backend="stable-baselines3",
-            dirname=lambda stage: stage_dirname("velociraptor", stage),
+            dirname=lambda stage: stage_dirname(ModelId("velociraptor_mongoliensis", "anatomical"), stage),
         )
     # The second run's summary no longer matches its artifact manifest: a canonical conflict.
     paths["summary"].write_text(paths["summary"].read_text(encoding="utf-8") + "\n", encoding="utf-8")
     _complete_bundle(
-        logs / "trex" / partial,
+        logs / "tyrannosaurus_rex" / "anatomical" / partial,
         algorithm="PPO",
         backend="stable-baselines3",
-        species="trex",
-        stage_refs=tuple(entry.reference for entry in load_stage_manifest("trex").stages),
-        dirname=lambda stage: stage_dirname("trex", stage),
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
+        stage_refs=tuple(
+            entry.reference for entry in load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical")).stages
+        ),
+        dirname=lambda stage: stage_dirname(ModelId("tyrannosaurus_rex", "anatomical"), stage),
     )
-    _failed_bundle(logs / "velociraptor" / failed)
+    _failed_bundle(logs / "velociraptor_mongoliensis" / "anatomical" / failed)
     interrupted = "ppo/20260930_120000"
-    _interrupted_run(logs / "velociraptor" / interrupted)
-    _legacy_run(logs / "velociraptor" / legacy)
-    _legacy_sweep(logs / "velociraptor" / sweep)
+    _interrupted_run(logs / "velociraptor_mongoliensis" / "anatomical" / interrupted)
+    _legacy_run(logs / "velociraptor_mongoliensis" / "anatomical" / legacy)
+    _legacy_sweep(logs / "velociraptor_mongoliensis" / "anatomical" / sweep)
     # NB2, accepted: no row from a sweep folder without the stage<N>_ prefix, and no run either.
-    unread_sweep = logs / "velociraptor" / "sweeps" / "ppo_20260828_143000"
+    unread_sweep = logs / "velociraptor_mongoliensis" / "anatomical" / "sweeps" / "ppo_20260828_143000"
     unread_sweep.mkdir()
     (unread_sweep / "collected_results.csv").write_text(
         "trial_id,stage,stage_name,stage_passed,best_mean_reward\nt9,1,Stance,True,99.0\n", encoding="utf-8"
     )
+    # A top-level directory that is no species of the manifest (a tree written under a species ID decision D-D33
+    # retired looks the same) is named as skipped and never read, though it holds a run.
+    _legacy_run(logs / "pre_rename_tree" / legacy)
 
     sources = code_cell_sources(DRIVE_SUMMARY_PATH)
     indexes = [cell_index(sources, marker) for marker in READER_CELL_MARKERS]
@@ -214,29 +222,51 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     for index in indexes:
         exec(compile(sources[index], f"google_drive_summary code cell {index}", "exec"), namespace)
 
-    assert "Found 13 stage results across 5 runs/sweeps." in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Found 13 stage results across 5 runs/sweeps." in out
+    assert "Skipped top-level directories (not a species of the manifest; not read): pre_rename_tree" in out
+    assert namespace["SKIPPED_DIRS"] == ["pre_rename_tree"]
+    assert set(zip(namespace["df"]["species"], namespace["df"]["embodiment"])) == {
+        ("velociraptor_mongoliensis", "anatomical"),
+        ("tyrannosaurus_rex", "anatomical"),
+    }
     columns = ["species", "run_dir", "stage", "stage_name", "stage_passed", "source", "backend", "bundle_status"]
     rows = [tuple(str(value) for value in row) for row in namespace["df"][columns].itertuples(index=False)]
     sb3 = "stable-baselines3"
     expected = [
-        *(("velociraptor", valid, str(s), f"Stage {s}", "True", "training", sb3, "canonical-valid") for s in (1, 2, 3)),
         *(
-            ("trex", partial, str(s), f"Stage {s}", str(s != "recovery"), "training", sb3, "canonical-partial")
+            ("velociraptor_mongoliensis", valid, str(s), f"Stage {s}", "True", "training", sb3, "canonical-valid")
+            for s in (1, 2, 3)
+        ),
+        *(
+            (
+                "tyrannosaurus_rex",
+                partial,
+                str(s),
+                f"Stage {s}",
+                str(s != "recovery"),
+                "training",
+                sb3,
+                "canonical-partial",
+            )
             for s in (1, "recovery", 2, 3)
         ),
-        *(("velociraptor", failed, str(s), f"Stage {s}", "False", "training", sb3, "failed") for s in (1, 2, 3)),
-        ("velociraptor", legacy, "1", "Stance", "True", "training", sb3, "legacy-unverified"),
-        ("velociraptor", sweep, "1", "Stance", "True", "sweep", sb3, "sweep"),
-        ("velociraptor", sweep, "1", "Stance", "False", "sweep", sb3, "sweep"),
+        *(
+            ("velociraptor_mongoliensis", failed, str(s), f"Stage {s}", "False", "training", sb3, "failed")
+            for s in (1, 2, 3)
+        ),
+        ("velociraptor_mongoliensis", legacy, "1", "Stance", "True", "training", sb3, "legacy-unverified"),
+        ("velociraptor_mongoliensis", sweep, "1", "Stance", "True", "sweep", sb3, "sweep"),
+        ("velociraptor_mongoliensis", sweep, "1", "Stance", "False", "sweep", sb3, "sweep"),
     ]
     assert sorted(rows) == sorted(expected)
     df = namespace["df"]
     assert set(df["algorithm"]) == {"PPO"}
     bundled = df[df["bundle_status"].isin(["canonical-valid", "canonical-partial", "failed"])]
     assert set(zip(bundled["run_dir"], bundled["run_id"])) == {
-        (valid, "velociraptor-stable-baselines3-ppo-test"),
-        (partial, "trex-stable-baselines3-ppo-test"),
-        (failed, "velociraptor-stable-baselines3-ppo-failed"),
+        (valid, "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test"),
+        (partial, "tyrannosaurus_rex-anatomical-stable-baselines3-ppo-test"),
+        (failed, "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-failed"),
     }
     assert df["best_mean_reward"].notna().all() and df.loc[df["source"] == "training", "timesteps"].notna().all()
     # Cell 9 reads these from summary.json with .get(), so a renamed key would give None, not an error.
@@ -272,17 +302,19 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
 
     # Section 7's example names a run as <algorithm>/<run_id>; its stage directory is found by reference.
     exec(compile(code_cell(DRIVE_SUMMARY_PATH, "def show_full_config("), "show_full_config", "exec"), namespace)
-    namespace["show_full_config"]("trex", partial, 1)
+    namespace["show_full_config"]("tyrannosaurus_rex", "anatomical", partial, 1)
     assert json.loads(capsys.readouterr().out.split("---\n", 1)[1])["name"] == "Stage 1"
 
 
 def test_display_and_export_cells_align_historical_stance_names_without_rewriting_ids(tmp_path, capsys):
     pd = pytest.importorskip("pandas")
-    from environments.shared.species_names import species_display_names
+    from environments.shared.species_names import model_ids, species_display_name, species_ids
+
+    labels = {species: species_display_name(species) for species in species_ids()}
 
     rows = [
         {
-            "species": species,
+            **model_id.record(),
             "source": source,
             "run_dir": f"ppo/{source}_{index}",
             "algorithm": "PPO",
@@ -294,7 +326,7 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
             "stage_passed": index != 0,
             "best_mean_reward": float(index),
         }
-        for species in species_display_names()
+        for model_id in model_ids()
         for index, (source, name) in enumerate((("training", "balance"), ("training", "stance"), ("sweep", None)))
     ]
     frame = pd.DataFrame(rows)
@@ -306,16 +338,19 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
         exec(compile(code_cell(DRIVE_SUMMARY_PATH, marker), marker, "exec"), namespace)
     # Both old and new records occupy the same Stance column in each pivot.
     for pivot in displayed[:2]:
-        assert set(pivot["species"]) == set(species_display_names().values())
+        assert set(pivot["species"]) == set(labels.values())
         assert "stage1 (Stance)" in pivot and not any("balance" in column for column in pivot)
     details = displayed[2].data
     assert set(details["stage_name"]) == {"Stance"}
-    assert set(details["species"]) == set(species_display_names().values())
+    assert set(details["species"]) == set(labels.values())
     output = capsys.readouterr().out
-    assert all(label in output for label in species_display_names().values())
+    assert all(label in output for label in labels.values())
     pd.testing.assert_frame_equal(frame, before)
     exported = pd.read_csv(tmp_path / "runs_summary.csv")
-    assert set(exported["species"]) == set(species_display_names())
+    assert set(exported["species"]) == set(labels)
+    assert set(zip(exported["species"], exported["embodiment"])) == {(m.species, m.embodiment) for m in model_ids()}
     assert set(exported["stage_name"].dropna()) == {"balance", "stance"}
-    for species in species_display_names():
-        assert (tmp_path / species / "runs_summary.csv").is_file()
+    # One file per model, in its own directory (decision D-D33).
+    for model_id in model_ids():
+        assert (model_id.path(tmp_path) / "runs_summary.csv").is_file()
+        assert (model_id.path(tmp_path) / "sweeps" / "sweeps_summary.csv").is_file()

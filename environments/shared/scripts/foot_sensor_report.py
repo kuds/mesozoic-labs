@@ -19,10 +19,11 @@ The weight denominator is the mass of the ANIMAL's kinematic subtree, not
 prey is 65.45 kg of a 151.17 kg model total -- so dividing by the model mass
 reports a false 0.57 on a plant standing in perfect equilibrium.
 
-Usage::
+Usage (``--model-id`` repeats; with none, every model in the species manifest)::
 
     python environments/shared/scripts/foot_sensor_report.py
-    python environments/shared/scripts/foot_sensor_report.py trex brachiosaurus
+    python environments/shared/scripts/foot_sensor_report.py \
+        --model-id tyrannosaurus_rex anatomical --model-id brachiosaurus_altithorax anatomical
 """
 
 from __future__ import annotations
@@ -37,7 +38,9 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.config import build_env
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import add_model_id_argument, model_ids, parsed_model_ids
 
 #: Sensor attribute names to try, in order, per species.
 _FOOT_SENSOR_ATTRS = (
@@ -96,11 +99,11 @@ def _animal_weight(env) -> float:
     return mass * 9.81
 
 
-def report(species: str, settle_steps: int = 200) -> dict:
+def report(model_id: ModelId, settle_steps: int = 200) -> dict:
     # The stage-1 plant exactly as training builds it, minus the reset noise:
     # the invariants below hold on a SETTLED plant, and a jittered start would
     # turn a physics identity into a distribution.
-    env = build_env(species, 1, reset_noise_scale=0.0)
+    env = build_env(model_id, 1, reset_noise_scale=0.0)
     try:
         env.reset(seed=0)
         zero = np.zeros(env.action_space.shape)
@@ -111,7 +114,7 @@ def report(species: str, settle_steps: int = 200) -> dict:
         contact, n_contacts = _floor_normal_force(env)
         weight = _animal_weight(env)
         return {
-            "species": species,
+            **model_id.record(),
             "sensor_total_n": sensors,
             "contact_total_n": contact,
             "n_floor_contacts": n_contacts,
@@ -125,38 +128,30 @@ def report(species: str, settle_steps: int = 200) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument(
-        "species",
-        nargs="*",
-        default=[],
-        help=f"species to check (default: all of {', '.join(SPECIES_NAMES)})",
-    )
+    # The panel of today: every model the manifest lists (decision D-D33).
+    add_model_id_argument(parser, default=model_ids(), what="check")
     parser.add_argument("--settle-steps", type=int, default=200)
     args = parser.parse_args()
-    species_list = args.species or list(SPECIES_NAMES)
-    unknown = [s for s in species_list if s not in SPECIES_NAMES]
-    if unknown:
-        parser.error(f"unknown species {unknown}; choose from {list(SPECIES_NAMES)}")
 
-    print(f"{'species':16} {'sensors':>10} {'contact':>10} {'weight':>10} {'sens/con':>9} {'con/wt':>8}")
+    print(f"{'model':36} {'sensors':>10} {'contact':>10} {'weight':>10} {'sens/con':>9} {'con/wt':>8}")
     bad = []
-    for species in species_list:
-        r = report(species, args.settle_steps)
+    for model_id in parsed_model_ids(parser, args):
+        r = report(model_id, args.settle_steps)
         s = "n/a" if r["sensor_total_n"] is None else f"{r['sensor_total_n']:10.1f}"
         soc = "  n/a" if r["sensor_over_contact"] is None else f"{r['sensor_over_contact']:9.3f}"
         cow = "  n/a" if r["contact_over_weight"] is None else f"{r['contact_over_weight']:8.3f}"
-        print(f"{species:16} {s} {r['contact_total_n']:10.1f} {r['animal_weight_n']:10.1f} {soc} {cow}")
+        print(f"{str(model_id):36} {s} {r['contact_total_n']:10.1f} {r['animal_weight_n']:10.1f} {soc} {cow}")
         if r["sensor_over_contact"] is not None and not 0.95 <= r["sensor_over_contact"] <= 1.05:
-            bad.append(f"{species}: touch sensors see {r['sensor_over_contact']:.1%} of measured floor contact")
+            bad.append(f"{model_id}: touch sensors see {r['sensor_over_contact']:.1%} of measured floor contact")
         if r["contact_over_weight"] is not None and not 0.95 <= r["contact_over_weight"] <= 1.05:
-            bad.append(f"{species}: floor reaction is {r['contact_over_weight']:.1%} of body weight")
+            bad.append(f"{model_id}: floor reaction is {r['contact_over_weight']:.1%} of body weight")
 
     if bad:
         print("\nFAILED invariants:")
         for line in bad:
             print(f"  {line}")
         return 1
-    print("\nAll species: touch sensors agree with mj_contactForce, and floor reaction equals body weight.")
+    print("\nAll models: touch sensors agree with mj_contactForce, and floor reaction equals body weight.")
     return 0
 
 

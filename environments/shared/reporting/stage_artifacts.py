@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Mapping
 from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
+from ..model_id import ModelId
 from ..policy_loading import load_sb3_model
 from . import csv_output, stage_layout, text_summaries
 
@@ -189,7 +190,7 @@ def build_stage_results_from_eval_data(
 
 def _write_stance_gate_report(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -276,7 +277,7 @@ def _write_stance_gate_report(
 
     if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
         return _write_stance_heading_certificate(
-            species=species,
+            model_id=model_id,
             stage=stage,
             stage_config=stage_config,
             stage_dir=stage_dir,
@@ -293,7 +294,7 @@ def _write_stance_gate_report(
 
         logger.info("Stance gate report scoring stage %s checkpoint: %s", stage, selected_name)
         report = build_stance_gate_report(
-            species,
+            model_id,
             stage,
             stage_config=stage_config,
             model_path=f"{selected_path}.zip",
@@ -327,7 +328,7 @@ def _write_stance_gate_report(
 
 def _write_stance_heading_certificate(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -359,7 +360,7 @@ def _write_stance_heading_certificate(
 
         logger.info("Six-heading stance certificate scoring stage %s checkpoint: %s", stage, selected_name)
         report = build_stance_heading_report(
-            species,
+            model_id,
             stage,
             stage_config=stage_config,
             model_path=model_path,
@@ -515,7 +516,7 @@ def _write_task_success_evidence(
 
         sb3 = _ensure_sb3()
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-        plant_identity = current_plant_identity(species_cfg.species)
+        plant_identity = current_plant_identity(species_cfg.model_id)
         algo_kwargs = stage_config.get(f"{algorithm}_kwargs", {})
         eval_env = create_vec_env(
             species_cfg,
@@ -580,7 +581,7 @@ def _write_task_success_evidence(
 
 def _run_stance_probes(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -645,7 +646,7 @@ def _run_stance_probes(
         (
             "filtered action",
             lambda: _write_filtered_action_probe(
-                species=species,
+                model_id=model_id,
                 stage=stage,
                 stage_config=stage_config,
                 stage_dir=stage_dir,
@@ -657,7 +658,7 @@ def _run_stance_probes(
         (
             "constant hold",
             lambda: _write_constant_hold_probe(
-                species=species,
+                model_id=model_id,
                 stage=stage,
                 stage_config=stage_config,
                 stage_dir=stage_dir,
@@ -670,7 +671,7 @@ def _run_stance_probes(
         (
             "release ablation",
             lambda: _write_constant_hold_ablation(
-                species=species,
+                model_id=model_id,
                 stage=stage,
                 stage_config=stage_config,
                 stage_dir=stage_dir,
@@ -682,7 +683,7 @@ def _run_stance_probes(
         (
             "impulse",
             lambda: _write_impulse_probe(
-                species=species,
+                model_id=model_id,
                 stage=stage,
                 stage_config=stage_config,
                 stage_dir=stage_dir,
@@ -697,7 +698,7 @@ def _run_stance_probes(
                 None
                 if certificate
                 else _write_heading_probe(
-                    species=species,
+                    model_id=model_id,
                     stage=stage,
                     stage_config=stage_config,
                     stage_dir=stage_dir,
@@ -741,7 +742,7 @@ def _probe_cutoffs(raw: Any) -> list[float]:
 
 def _write_filtered_action_probe(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -786,7 +787,7 @@ def _write_filtered_action_probe(
 
         for cutoff in cutoffs:
             probe = build_stance_gate_report(
-                species,
+                model_id,
                 stage,
                 stage_config=stage_config,
                 model_path=model_path,
@@ -820,7 +821,7 @@ def _write_filtered_action_probe(
 
 def _write_constant_hold_probe(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -867,7 +868,7 @@ def _write_constant_hold_probe(
         )
         for variant in variants:
             probe = build_stance_gate_report(
-                species,
+                model_id,
                 stage,
                 stage_config=stage_config,
                 model_path=model_path,
@@ -901,7 +902,7 @@ def _write_constant_hold_probe(
 
 def _write_constant_hold_ablation(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -936,7 +937,7 @@ def _write_constant_hold_ablation(
         hold = constant_hold_actions(measured)
         for variant in constant_hold_release_variants(hold, measured, horizon=int(measured["horizon"])):
             probe = build_stance_gate_report(
-                species,
+                model_id,
                 stage,
                 stage_config=stage_config,
                 model_path=model_path,
@@ -965,7 +966,7 @@ def _write_constant_hold_ablation(
 
 def _write_impulse_probe(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -1019,7 +1020,7 @@ def _write_impulse_probe(
         def _sweep(zero_action: bool) -> list[dict[str, Any]]:
             return [
                 build_stance_gate_report(
-                    species,
+                    model_id,
                     stage,
                     stage_config=stage_config,
                     model_path=None if zero_action else model_path,
@@ -1050,7 +1051,7 @@ def _write_impulse_probe(
 
 def _write_heading_probe(
     *,
-    species: str,
+    model_id: ModelId,
     stage: int,
     stage_config: dict[str, Any],
     stage_dir: Path,
@@ -1103,7 +1104,7 @@ def _write_heading_probe(
         def _sweep(zero_action: bool) -> list[dict[str, Any]]:
             return [
                 build_stance_gate_report(
-                    species,
+                    model_id,
                     stage,
                     stage_config=stage_config,
                     model_path=None if zero_action else model_path,
@@ -1138,7 +1139,7 @@ GATE_VERDICT_JUDGED_BY = "reporting.stage_artifacts.generate_stage_artifacts"
 def _write_stage_gate_verdict(
     *,
     stage_dir: Path,
-    species: "str | None",
+    model_id: ModelId,
     stage: "int | str",
     curriculum: Mapping[str, Any],
     passed: bool,
@@ -1151,7 +1152,9 @@ def _write_stage_gate_verdict(
     scored and the notebook's evidence CSVs bind (all through
     ``select_handoff_checkpoint``), so the verdict is hash-bound to the
     checkpoint the evidence describes.  ``stage_id`` is the manifest id when
-    the species is known, else the stage reference spelled out.
+    the model's stage manifest resolves *stage*, else the stage reference
+    spelled out.  The model is required (decision D-D33): a verdict always
+    names the model it judged.
     """
     from ..curriculum.gate_schema import gate_config_view
     from ..result_bundle import write_gate_verdict
@@ -1159,17 +1162,16 @@ def _write_stage_gate_verdict(
     from .gates import _current_task_sha256
 
     stage_id = str(stage)
-    if species:
-        try:
-            stage_id = load_stage_manifest(species).resolve(stage).id
-        except StageManifestError:
-            logger.warning("Stage %s is not in the %s manifest; recording the verdict by reference", stage, species)
+    try:
+        stage_id = load_stage_manifest(model_id).resolve(stage).id
+    except StageManifestError:
+        logger.warning("Stage %s is not in the %s manifest; recording the verdict by reference", stage, model_id)
     handoff = select_handoff_checkpoint(stage_dir / "models")
     # Recorded as declared: null for a stage that declares no gate kind.
     gate_kind: Any = curriculum.get("gate_kind")
     write_gate_verdict(
         stage_dir,
-        species=species or "",
+        model_id=model_id,
         stage=stage,
         stage_id=stage_id,
         gate_kind=gate_kind,
@@ -1368,7 +1370,7 @@ def _apply_stage_gate(
     stance_report: dict[str, Any] | None,
     stage_dir: "str | Path | None" = None,
     recovery_successes_by_seed: "dict[int, bool] | None" = None,
-    species: "str | None" = None,
+    model_id: ModelId,
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
@@ -1485,7 +1487,7 @@ def _apply_stage_gate(
         try:
             _write_stage_gate_verdict(
                 stage_dir=Path(stage_dir),
-                species=species,
+                model_id=model_id,
                 stage=stage,
                 curriculum=curriculum,
                 passed=passed,
@@ -1817,7 +1819,7 @@ def generate_stage_artifacts(
     """
     stage_dir = Path(stage_dir)
     model_dir = stage_dir / "models"
-    species = species_cfg.species
+    model_id = species_cfg.model_id
 
     if stage_results is None:
         # The summaries print episode length × sim_dt as sim time, so take the
@@ -1837,7 +1839,7 @@ def generate_stage_artifacts(
         )
 
     stance_report = _write_stance_gate_report(
-        species=species,
+        model_id=model_id,
         stage=stage,
         stage_config=stage_config,
         stage_dir=stage_dir,
@@ -1857,7 +1859,7 @@ def generate_stage_artifacts(
     )
     # Before the replays and graphs below, which are best-effort and can be
     # skipped: the verdict must not depend on whether matplotlib imported.
-    # This also writes the stage's gate_verdict.json (species names the id).
+    # This also writes the stage's gate_verdict.json (the model names the id).
     _apply_stage_gate(
         stage=stage,
         stage_config=stage_config,
@@ -1865,13 +1867,13 @@ def generate_stage_artifacts(
         stance_report=stance_report,
         stage_dir=stage_dir,
         recovery_successes_by_seed=recovery_successes_by_seed,
-        species=species,
+        model_id=model_id,
     )
 
     # After the gate, not before it: the summary now states the verdict and
     # every criterion that failed, and writing it first would print a stage
     # summary that says nothing about the decision the stage turns on.
-    text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
+    text_summaries.write_stage_summary(stage_dir, stage_results, model_id, algorithm)
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
 
     # Figures and replays render into local scratch and publish to the stage
@@ -1899,7 +1901,7 @@ def generate_stage_artifacts(
                 plot_training_curves(
                     stage_dirs,
                     stage_configs,
-                    species,
+                    model_id,
                     algorithm,
                     save_path=figures_out / "training_curves.png",
                     show=False,
@@ -1907,7 +1909,7 @@ def generate_stage_artifacts(
                 plot_diagnostics_graphs(
                     stage_dirs,
                     stage_configs,
-                    species,
+                    model_id,
                     algorithm,
                     save_dir=figures_out,
                     show=False,
@@ -1915,7 +1917,7 @@ def generate_stage_artifacts(
                 plot_foot_contacts(
                     stage_dirs,
                     stage_configs,
-                    species,
+                    model_id,
                     algorithm,
                     save_path=figures_out / "foot_contacts.png",
                     show=False,
@@ -1923,7 +1925,7 @@ def generate_stage_artifacts(
                 plot_stance_diagnostics(
                     stage_dirs,
                     stage_configs,
-                    species,
+                    model_id,
                     algorithm,
                     save_path=figures_out / "stance_diagnostics.png",
                     show=False,
@@ -1956,7 +1958,7 @@ def generate_stage_artifacts(
     # mid-probe costs the probes alone -- never the recorded verdict, summary,
     # graphs or replays above. Ordering is pinned by the wiring tests.
     _run_stance_probes(
-        species=species,
+        model_id=model_id,
         stage=stage,
         stage_config=stage_config,
         stage_dir=stage_dir,
@@ -1986,7 +1988,7 @@ def _record_stage_replays(
     context there stays readable; the behaviour is unchanged apart from
     the videos landing under ``replays/`` instead of the stage root.
     """
-    species = species_cfg.species
+    model_id = species_cfg.model_id
 
     # ── Record replay videos for the selected and final checkpoints ──────
     from ..plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
@@ -1999,15 +2001,15 @@ def _record_stage_replays(
         sb3 = _ensure_sb3()
         env_kwargs = stage_config["env_kwargs"].copy()
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-        plant_identity = current_plant_identity(species)
+        plant_identity = current_plant_identity(model_id)
 
         final_path = model_dir / f"{stage_label(stage)}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
-        # Every species' stance and recovery replays share the same views and
-        # per-frame CSV. Framing follows each species' camera size; the old
+        # Every model's stance and recovery replays share the same views and
+        # per-frame CSV. Framing follows each model's camera size; the old
         # T. rex distance stays compatible with its existing comparisons.
         replay_diagnostics = stage in (1, "stance", "recovery")
-        replay_camera_views = stance_camera_views(species) if replay_diagnostics else None
+        replay_camera_views = stance_camera_views(model_id) if replay_diagnostics else None
 
         # The SELECTED checkpoint, via the same selector that decides the
         # next-stage handoff and that `evaluation_selected.csv` is evidence
@@ -2050,7 +2052,7 @@ def _record_stage_replays(
                 stage=stage,
                 stage_dir=stage_dir,
                 output_dir=replays_out,
-                species=species,
+                model_id=model_id,
                 algorithm=algorithm,
                 seed=seed,
                 vecnorm_path=selected_vecnorm,
@@ -2083,7 +2085,7 @@ def _record_stage_replays(
                 stage=stage,
                 stage_dir=stage_dir,
                 output_dir=replays_out,
-                species=species,
+                model_id=model_id,
                 algorithm=algorithm,
                 seed=seed,
                 vecnorm_path=final_vecnorm_path,

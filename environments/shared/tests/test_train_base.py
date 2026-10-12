@@ -11,6 +11,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
     PlantCompatibilityError,
@@ -37,6 +38,10 @@ from environments.shared.train_base import (
 )
 
 from .reporting_helpers import make_plant_identity as _plant_identity
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 
 # ── linear_schedule ──────────────────────────────────────────────────────
 
@@ -86,54 +91,54 @@ class TestSpeciesConfig:
     def test_required_fields(self):
         fields = {f.name for f in dataclasses.fields(SpeciesConfig)}
         expected = {
-            "species",
+            "model_id",
             "env_class",
             "stage_descriptions",
             "height_label",
-            "stage3_section_label",
+            "behavior_section_label",
             "success_keys",
         }
         assert expected == fields
 
-    def test_from_velociraptor(self):
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+    def test_from_velociraptor_mongoliensis(self):
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
         cfg = SpeciesConfig(
-            species="velociraptor",
-            env_class=RaptorEnv,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            env_class=VelociraptorMongoliensisAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=strike",
             height_label="Pelvis height",
-            stage3_section_label="Hunting",
+            behavior_section_label="Hunting",
             success_keys=["strike_success"],
         )
-        assert cfg.species == "velociraptor"
-        assert cfg.env_class is RaptorEnv
+        assert cfg.model_id == VELOCIRAPTOR_MONGOLIENSIS
+        assert cfg.env_class is VelociraptorMongoliensisAnatomicalEnv
 
-    def test_from_trex(self):
-        from environments.trex.envs.trex_env import TRexEnv
+    def test_from_tyrannosaurus_rex(self):
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
         cfg = SpeciesConfig(
-            species="trex",
-            env_class=TRexEnv,
+            model_id=TYRANNOSAURUS_REX,
+            env_class=TyrannosaurusRexAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=bite",
             height_label="Pelvis height",
-            stage3_section_label="Hunting",
+            behavior_section_label="Hunting",
             success_keys=["bite_success"],
         )
-        assert cfg.species == "trex"
+        assert cfg.model_id == TYRANNOSAURUS_REX
 
-    def test_from_brachiosaurus(self):
-        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+    def test_from_brachiosaurus_altithorax(self):
+        from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
         cfg = SpeciesConfig(
-            species="brachiosaurus",
-            env_class=BrachioEnv,
+            model_id=BRACHIOSAURUS_ALTITHORAX,
+            env_class=BrachiosaurusAltithoraxAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
             height_label="Torso height",
-            stage3_section_label="Food Reaching",
+            behavior_section_label="Food Reaching",
             success_keys=["food_reached"],
         )
-        assert cfg.species == "brachiosaurus"
+        assert cfg.model_id == BRACHIOSAURUS_ALTITHORAX
 
 
 class TestBuildCoreCallbacks:
@@ -717,12 +722,12 @@ class TestCreateOrLoadModel:
         from stable_baselines3.common.monitor import Monitor
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-        identity = current_plant_identity("velociraptor")
+        identity = current_plant_identity(VELOCIRAPTOR_MONGOLIENSIS)
 
         def make_env():
-            return Monitor(RaptorEnv())
+            return Monitor(VelociraptorMongoliensisAnatomicalEnv())
 
         vec_env = VecNormalize(DummyVecEnv([make_env]), norm_obs=True, norm_reward=True)
         attach_plant_identity(vec_env, identity)
@@ -936,7 +941,7 @@ class TestTrainCurriculumWalksTheManifest:
 
     def _run(
         self,
-        species,
+        model_id,
         tmp_path,
         monkeypatch,
         caplog,
@@ -1054,7 +1059,7 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(
             train_base,
             "current_plant_identity",
-            lambda species: SimpleNamespace(to_dict=dict) if plant is None else plant,
+            lambda model_id: SimpleNamespace(to_dict=dict) if plant is None else plant,
         )
         monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
         monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", lambda *args, **kwargs: None)
@@ -1084,7 +1089,7 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(
             train_base,
             "_post_training_stance_verdict",
-            lambda species, stage, config, **kwargs: (
+            lambda model_id, stage, config, **kwargs: (
                 True,
                 [],
                 {"stage": stage, "gate_kind": config["curriculum_kwargs"].get("gate_kind"), "gate_passed": True},
@@ -1105,11 +1110,11 @@ class TestTrainCurriculumWalksTheManifest:
         )
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
 
-        species_cfg = SimpleNamespace(species=species, env_class=object)
+        species_cfg = SimpleNamespace(model_id=model_id, env_class=object)
         with caplog.at_level(logging.INFO):
             train_base.train_curriculum(
                 species_cfg,
-                load_all_stages(species) if stage_configs is None else stage_configs,
+                load_all_stages(model_id) if stage_configs is None else stage_configs,
                 n_envs=1,
                 seed=1,
                 verbose=0,
@@ -1130,7 +1135,7 @@ class TestTrainCurriculumWalksTheManifest:
         stage_key: str = "1",
         model_sha256: str = "a" * 64,
         *,
-        species: str = "velociraptor",
+        model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
         edits: "dict[str, dict] | None" = None,
         record_config: bool = True,
     ):
@@ -1145,11 +1150,11 @@ class TestTrainCurriculumWalksTheManifest:
         stage_dir = trunk / f"01_{stage_id}"
         (stage_dir / "models").mkdir(parents=True, exist_ok=True)
         stage_ref = int(stage_key) if stage_key.isdigit() else stage_key
-        recorded = dict(load_all_stages(species)[stage_ref])
+        recorded = dict(load_all_stages(model_id)[stage_ref])
         if record_config:
             for section, changes in (edits or {}).items():
                 recorded[section] = {**recorded.get(section, {}), **changes}
-            save_stage_config(stage_dir, stage_ref, recorded, "PPO", species=species)
+            save_stage_config(stage_dir, stage_ref, recorded, "PPO", model_id=model_id)
         return CertifiedAncestor(
             stage_id=stage_id,
             stage_key=stage_key,
@@ -1185,7 +1190,7 @@ class TestTrainCurriculumWalksTheManifest:
         def find_ancestor(
             run_dir,
             *,
-            species,
+            model_id,
             entry,
             current_task_sha256,
             plant_identity,
@@ -1194,10 +1199,10 @@ class TestTrainCurriculumWalksTheManifest:
             follow_records,
         ):
             asked.append((entry.id, parent_model_sha256))
-            assert Path(run_dir) == trunk and species == "velociraptor"
+            assert Path(run_dir) == trunk and model_id == VELOCIRAPTOR_MONGOLIENSIS
             # D-A22 (rule 7): the rule is handed the node's CURRENT [curriculum]
             # block, so it can refuse a verdict judged under another gate.
-            assert current_gate_config == load_all_stages(species)[entry.reference]["curriculum_kwargs"]
+            assert current_gate_config == load_all_stages(model_id)[entry.reference]["curriculum_kwargs"]
             # The trunk is another run by construction, so the curriculum opts
             # in to following its ancestor records (D-A23); the notebook's
             # same-run candidate must not, which is why the library defaults off.
@@ -1206,7 +1211,9 @@ class TestTrainCurriculumWalksTheManifest:
                 return ancestor
             raise AncestorReuseError(f"{entry.id}: no gate_verdict.json in the trunk")
 
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+        record = self._run(
+            VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor
+        )
 
         # The rule is handed the resolved parent's digest so it can check the
         # chain (rule 4): None for the root, the reused stance's for walk.
@@ -1219,7 +1226,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
         # D-A22: each verdict digests the block the node was judged under.
         assert [v["gate_sha256"] for v in record["verdicts"]] == [
-            gate_config_sha256(gate_config_view(load_all_stages("velociraptor")[stage]["curriculum_kwargs"]))
+            gate_config_sha256(gate_config_view(load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[stage]["curriculum_kwargs"]))
             for stage in (2, 3)
         ]
         # Walk entered on the ancestor's handoff, crossing the edge, with the
@@ -1269,7 +1276,7 @@ class TestTrainCurriculumWalksTheManifest:
             raise AncestorReuseError(f"{entry.id}: no gate_verdict.json in the trunk")
 
         record = self._run(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             tmp_path,
             monkeypatch,
             caplog,
@@ -1281,7 +1288,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert len(asked) == 1
         assert asked[0]["log_dir"] == runs.resolve(), "the siblings of the run directory are scanned"
         assert [Path(path).resolve() for path in asked[0]["exclude"]] == [run_dir.resolve()]
-        assert asked[0]["species"] == "velociraptor" and asked[0]["retrain_from"] is None
+        assert asked[0]["model_id"] == VELOCIRAPTOR_MONGOLIENSIS and asked[0]["retrain_from"] is None
         assert asked[0]["algorithm"] == "ppo", "a SAC sibling never trunks a PPO curriculum"
         assert [entry.id for entry in asked[0]["chain"]] == ["stance", "locomotion", "behavior"]
         assert asked[0]["plant_identity"] is not None
@@ -1313,7 +1320,7 @@ class TestTrainCurriculumWalksTheManifest:
             raise AssertionError("no trunk was selected, so the rule must not be consulted")
 
         record = self._run(
-            "velociraptor", tmp_path, monkeypatch, caplog, trunk_from="auto", find_ancestor=find_ancestor
+            VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, trunk_from="auto", find_ancestor=find_ancestor
         )
         assert asked == []
         assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
@@ -1332,7 +1339,9 @@ class TestTrainCurriculumWalksTheManifest:
             asked.append(entry.id)
             raise AncestorReuseError("stance: gate_verdict.json records a FAILED gate")
 
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+        record = self._run(
+            VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor
+        )
 
         assert asked == ["stance"]
         assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
@@ -1360,7 +1369,9 @@ class TestTrainCurriculumWalksTheManifest:
             asked.append((entry.id, parent_model_sha256))
             return {"stance": stance, "locomotion": locomotion}[entry.id]
 
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+        record = self._run(
+            VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor
+        )
 
         # Root-first, each child checked against the digest its parent resolved to.
         assert asked == [("stance", None), ("locomotion", stance.model_sha256)]
@@ -1393,16 +1404,18 @@ class TestTrainCurriculumWalksTheManifest:
         original.mkdir(parents=True)
         # The trunk's stance was judged under the checkout's own velociraptor
         # stance block, so rule 7 (D-A22) matches the gate this run declares.
-        stance_curriculum = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
-        stance_dir = build_trunk_run(original, species="velociraptor", plant=plant, curriculum=stance_curriculum)
+        stance_curriculum = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]["curriculum_kwargs"]
+        stance_dir = build_trunk_run(
+            original, model_id=VELOCIRAPTOR_MONGOLIENSIS, plant=plant, curriculum=stance_curriculum
+        )
         middle = tmp_path / "logs" / "middle-run"
         middle.mkdir()
         record_ancestor(
             middle,
             find_certified_ancestor(
                 original,
-                species="velociraptor",
-                entry=load_stage_manifest("velociraptor").by_id("stance"),
+                model_id=VELOCIRAPTOR_MONGOLIENSIS,
+                entry=load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).by_id("stance"),
                 current_task_sha256=STANCE_TASK,
                 plant_identity=plant,
                 current_gate_config=stance_curriculum,
@@ -1411,7 +1424,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert [child.name for child in middle.iterdir()] == ["ancestors"]
 
         record = self._run(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             tmp_path,
             monkeypatch,
             caplog,
@@ -1477,8 +1490,8 @@ class TestTrainCurriculumWalksTheManifest:
         from environments.shared import stage_manifest
 
         configs = tmp_path / "configs"
-        shutil.copytree(stage_manifest._CONFIGS_DIR / "trex", configs / "trex")
-        manifest_path = configs / "trex" / "stages.toml"
+        shutil.copytree(TYRANNOSAURUS_REX.path(stage_manifest._CONFIGS_DIR), TYRANNOSAURUS_REX.path(configs))
+        manifest_path = TYRANNOSAURUS_REX.path(configs) / "stages.toml"
         lines = manifest_path.read_text(encoding="utf-8").splitlines()
         marker = 'warm_start_from = "stance"       # the 2026-08-23 lineage rule'
         (index,) = [i for i, line in enumerate(lines) if line.startswith(marker)]
@@ -1486,7 +1499,7 @@ class TestTrainCurriculumWalksTheManifest:
         manifest_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
         monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
-        return self._run("trex", tmp_path, monkeypatch, caplog, **run_kwargs)
+        return self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, **run_kwargs)
 
     def test_a_node_whose_parent_has_no_certified_checkpoint_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
         """Nothing is trained from scratch silently: with locomotion's edge pointing at the
@@ -1500,12 +1513,14 @@ class TestTrainCurriculumWalksTheManifest:
         assert "declared parent 'recovery' has no certified checkpoint" in skipped[0].message
         assert record["loads"] == [None]
 
-    def test_trex_visits_the_advancing_stages_in_manifest_order_and_logs_the_skip(self, tmp_path, monkeypatch, caplog):
+    def test_tyrannosaurus_rex_visits_the_advancing_stages_in_manifest_order_and_logs_the_skip(
+        self, tmp_path, monkeypatch, caplog
+    ):
         from environments.shared.stage_manifest import load_stage_manifest
 
-        record = self._run("trex", tmp_path, monkeypatch, caplog)
+        record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog)
 
-        manifest = load_stage_manifest("trex")
+        manifest = load_stage_manifest(TYRANNOSAURUS_REX)
         assert [stage for stage, _, _ in record["saved"]] == [entry.reference for entry in manifest.advancing_stages]
         assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
         skips = [r for r in caplog.records if "Skipping non-advancing stage 'recovery'" in r.message]
@@ -1517,7 +1532,7 @@ class TestTrainCurriculumWalksTheManifest:
         assert record["parents"] == [None, "stance", "locomotion"]
 
     def test_the_handoff_skips_over_the_non_advancing_stage(self, tmp_path, monkeypatch, caplog):
-        record = self._run("trex", tmp_path, monkeypatch, caplog)
+        record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog)
 
         stance_final = str(tmp_path / "01_stance" / "models" / "stage1_final")
         locomotion_final = str(tmp_path / "03_locomotion" / "models" / "stage2_final")
@@ -1530,7 +1545,7 @@ class TestTrainCurriculumWalksTheManifest:
         ]
 
     def test_a_manifest_less_species_is_unchanged(self, tmp_path, monkeypatch, caplog):
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog)
 
         assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
         # The v2 file declares the edges the synthesizer used to derive.
@@ -1540,7 +1555,7 @@ class TestTrainCurriculumWalksTheManifest:
     def test_every_trained_node_is_seeded_and_records_its_duration(self, tmp_path, monkeypatch, caplog):
         """Decision D-D11 on the curriculum's path: every node is built (the root) or warm-started (its
         children) under the run's seed, and records its duration once, into its own stage directory."""
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog)
 
         assert record["seeds"] == [1, 1, 1]
         assert [name for name, _ in record["durations"]] == ["01_stance", "02_locomotion", "03_behavior"]
@@ -1552,7 +1567,7 @@ class TestTrainCurriculumWalksTheManifest:
         judge's (stubbed by ``_run``) and the other two nodes' the manager's."""
         from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY, STANCE_V2_POST_TRAINING_JUDGED_BY
 
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog)
 
         assert [v["stage_id"] for v in record["verdicts"]] == ["stance", "locomotion", "behavior"]
         for verdict in record["verdicts"]:
@@ -1582,11 +1597,15 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
         # An in-memory edit (as the CLI's ``--override env.*`` makes) that a re-read of the committed
         # TOML would drop from the recorded digest.
-        configs = load_all_stages("velociraptor")
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         configs[2]["env_kwargs"] = {**configs[2].get("env_kwargs", {}), "alive_bonus": 0.25}
-        self._run("velociraptor", tmp_path, monkeypatch, caplog, plant=plant, stage_configs=configs)
+        self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, plant=plant, stage_configs=configs)
 
-        assert [args for args, _ in calls] == [("velociraptor", 1), ("velociraptor", 2), ("velociraptor", 3)]
+        assert [args for args, _ in calls] == [
+            (VELOCIRAPTOR_MONGOLIENSIS, 1),
+            (VELOCIRAPTOR_MONGOLIENSIS, 2),
+            (VELOCIRAPTOR_MONGOLIENSIS, 3),
+        ]
         for (_, stage), kwargs in calls:
             assert set(kwargs) == {"stage_config", "plant_identity"}
             assert kwargs["stage_config"] is configs[stage]
@@ -1606,7 +1625,7 @@ class TestTrainCurriculumWalksTheManifest:
             "required_consecutive": 1,
         }
         manager = CurriculumManager(
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             stage_thresholds={3: {k: v for k, v in curriculum.items() if k != "gate_schema_version"}},
             start_stage=3,
         )
@@ -1634,7 +1653,7 @@ class TestTrainCurriculumWalksTheManifest:
         (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
         write_gate_verdict(
             stage_dir,
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             stage=3,
             stage_id="behavior",
             gate_kind="task_success/v1",
@@ -1662,7 +1681,7 @@ class TestTrainCurriculumWalksTheManifest:
             if manager.current_stage == 3:
                 manager.should_advance([600.0] * 30, [1000.0] * 30, success_rates=[1.0] * 20 + [0.0] * 10)
 
-        record = self._run("trex", tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
+        record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, eval_panel=eval_panel)
 
         by_id = {verdict["stage_id"]: verdict for verdict in record["verdicts"]}
         assert by_id["behavior"]["gate_kind"] == "task_success/v1"
@@ -1679,7 +1698,9 @@ class TestTrainCurriculumWalksTheManifest:
 
     def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
         """A Ctrl-C partway through a budget is not a gate failure: no verdict, no handoff, loop stops."""
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, learn_side_effect=KeyboardInterrupt)
+        record = self._run(
+            VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, learn_side_effect=KeyboardInterrupt
+        )
 
         assert [stage for stage, _, _ in record["saved"]] == [1]
         assert record["verdicts"] == []
@@ -1706,7 +1727,7 @@ class TestTrainCurriculumWalksTheManifest:
             return {"stance": stance, "locomotion": locomotion}[entry.id]
 
         record = self._run(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             tmp_path,
             monkeypatch,
             caplog,
@@ -1748,7 +1769,13 @@ class TestTrainCurriculumWalksTheManifest:
             raise AssertionError("the trunk must not be consulted for a covered node")
 
         record = self._run(
-            "velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor, retrain_from=1
+            VELOCIRAPTOR_MONGOLIENSIS,
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from=trunk,
+            find_ancestor=find_ancestor,
+            retrain_from=1,
         )
 
         assert asked == []
@@ -1762,8 +1789,8 @@ class TestTrainCurriculumWalksTheManifest:
         ("retrain_from", "match"),
         [
             ("recovery", "non-advancing stage 'recovery'"),
-            ("no_such_node", "not a stage of trex"),
-            (7, "not a stage of trex"),
+            ("no_such_node", "not a stage of tyrannosaurus_rex/anatomical"),
+            (7, "not a stage of tyrannosaurus_rex/anatomical"),
         ],
     )
     def test_an_unknown_or_non_advancing_retrain_from_raises_before_any_directory_is_written(
@@ -1776,7 +1803,7 @@ class TestTrainCurriculumWalksTheManifest:
 
         with pytest.raises(ValueError, match=match) as excinfo:
             self._run(
-                "trex",
+                TYRANNOSAURUS_REX,
                 tmp_path,
                 monkeypatch,
                 caplog,
@@ -1812,7 +1839,7 @@ class TestTrainCurriculumWalksTheManifest:
         the target, so a walk-only run leaves it at stage 2 mid-ladder: ``is_final_stage`` False,
         one more ``advance()`` legal (to 3), a second one a RuntimeError — the semantics the loop
         relies on, pinned here."""
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, target="walk")
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, target="walk")
 
         assert [stage for stage, _, _ in record["saved"]] == [1, 2]
         assert record["loads"] == [None, str(tmp_path / "01_stance" / "models" / "stage1_final")]
@@ -1852,7 +1879,7 @@ class TestTrainCurriculumWalksTheManifest:
             return {"stance": stance, "locomotion": locomotion}[entry.id]
 
         record = self._run(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             tmp_path,
             monkeypatch,
             caplog,
@@ -1882,7 +1909,9 @@ class TestTrainCurriculumWalksTheManifest:
         walks = {}
         for name, target in (("default", None), ("hunt", "hunt"), ("behavior", "behavior"), ("three", 3)):
             run_dir = tmp_path / name
-            record = self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            record = self._run(
+                VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target
+            )
             walks[name] = self._walk(record, run_dir)
         assert walks["hunt"] == walks["behavior"] == walks["three"] == walks["default"]
         assert [stage for stage, _, _ in walks["default"]["saved"]] == [1, 2, 3]
@@ -1896,7 +1925,9 @@ class TestTrainCurriculumWalksTheManifest:
         caplog.clear()
         for name, target in (("walk", "walk"), ("locomotion", "locomotion"), ("two", 2)):
             run_dir = tmp_path / name
-            record = self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            record = self._run(
+                VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target
+            )
             walks[name] = self._walk(record, run_dir)
         assert walks["locomotion"] == walks["two"] == walks["walk"]
         assert [stage for stage, _, _ in walks["walk"]["saved"]] == [1, 2]
@@ -1913,7 +1944,7 @@ class TestTrainCurriculumWalksTheManifest:
         run_dir = tmp_path / "fresh-run"
 
         with pytest.raises(ValueError) as excinfo:
-            self._run("trex", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
 
         message = str(excinfo.value)
         assert message.startswith(
@@ -1934,14 +1965,16 @@ class TestTrainCurriculumWalksTheManifest:
         from environments.shared import stage_manifest
 
         configs = tmp_path / "configs"
-        shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
-        manifest_path = configs / "velociraptor" / "stages.toml"
+        shutil.copytree(
+            VELOCIRAPTOR_MONGOLIENSIS.path(stage_manifest._CONFIGS_DIR), VELOCIRAPTOR_MONGOLIENSIS.path(configs)
+        )
+        manifest_path = VELOCIRAPTOR_MONGOLIENSIS.path(configs) / "stages.toml"
         text = manifest_path.read_text(encoding="utf-8")
         assert text.count('warm_start_from = "locomotion"') == 1
         manifest_path.write_text(text.replace('warm_start_from = "locomotion"', 'warm_start_from = "stance"'))
         monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
         monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
-        return self._run("velociraptor", tmp_path, monkeypatch, caplog, **run_kwargs)
+        return self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, **run_kwargs)
 
     @pytest.mark.parametrize("target", ["hunt", "behavior", 3])
     def test_a_target_whose_chain_skips_a_ladder_stage_raises_before_any_directory_is_written(
@@ -1984,9 +2017,12 @@ class TestTrainCurriculumWalksTheManifest:
         [
             (
                 "fly",
-                "target 'fly' does not name a behavior of velociraptor: velociraptor has no behavior 'fly'; recipe labels: \\['stand', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
+                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stand', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
             ),
-            (7, "target 7 does not name a behavior of velociraptor: velociraptor has no stage with legacy number 7"),
+            (
+                7,
+                "target 7 does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no stage with legacy number 7",
+            ),
         ],
     )
     def test_an_unknown_target_raises_listing_the_labels(self, tmp_path, monkeypatch, caplog, target, match):
@@ -1994,7 +2030,7 @@ class TestTrainCurriculumWalksTheManifest:
         says so; neither leaves a footprint."""
         run_dir = tmp_path / "fresh-run"
         with pytest.raises(ValueError, match=match):
-            self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
         assert not run_dir.exists()
 
     def test_retrain_from_outside_the_targets_chain_raises_before_any_directory_is_written(
@@ -2005,7 +2041,7 @@ class TestTrainCurriculumWalksTheManifest:
         run_dir = tmp_path / "fresh-run"
         with pytest.raises(ValueError) as excinfo:
             self._run(
-                "velociraptor",
+                VELOCIRAPTOR_MONGOLIENSIS,
                 tmp_path,
                 monkeypatch,
                 caplog,
@@ -2032,7 +2068,7 @@ class TestTrainCurriculumWalksTheManifest:
         (occupied / "gate_verdict.json").write_text("{}")
 
         with pytest.raises(StageDirectoryOccupiedError, match="gate_verdict.json") as excinfo:
-            self._run("velociraptor", tmp_path, monkeypatch, caplog)
+            self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog)
 
         message = str(excinfo.value)
         assert str(occupied) in message and "--output-dir" in message and "resume_same_stage" in message
@@ -2053,7 +2089,7 @@ class TestTrainCurriculumWalksTheManifest:
             raise AncestorReuseError(f"{entry.id}: not in the trunk")
 
         return self._run(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             tmp_path,
             monkeypatch,
             caplog,
@@ -2145,18 +2181,18 @@ class TestTrainCurriculumWalksTheManifest:
         label the config gets ``None`` (nothing recorded) and only the ``hp:`` tag is set."""
         from environments.shared.config import hyperparameters_sha256, load_all_stages
 
-        configs = load_all_stages("velociraptor")
+        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         expected_hp = {
             stage: "hp:" + hyperparameters_sha256(configs[stage], "ppo").removeprefix("sha256:")[:12]
             for stage in (1, 2, 3)
         }
         assert all(len(tag) == len("hp:") + 12 for tag in expected_hp.values())
 
-        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, label="lr-sweep-a", use_wandb=True)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, label="lr-sweep-a", use_wandb=True)
         assert record["labels"] == [(1, "lr-sweep-a"), (2, "lr-sweep-a"), (3, "lr-sweep-a")]
         assert record["wandb_tags"] == [(stage, [expected_hp[stage], "label:lr-sweep-a"]) for stage in (1, 2, 3)]
 
-        record = self._run("velociraptor", tmp_path / "unlabelled", monkeypatch, caplog, use_wandb=True)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path / "unlabelled", monkeypatch, caplog, use_wandb=True)
         assert record["labels"] == [(1, None), (2, None), (3, None)]
         assert record["wandb_tags"] == [(stage, [expected_hp[stage]]) for stage in (1, 2, 3)]
 
@@ -2179,14 +2215,14 @@ class TestTrainRecordsTheLabel:
             captured.update(kwargs)
             raise self.ConfigReached()
 
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         with pytest.raises(self.ConfigReached):
             train_base.train(
-                SimpleNamespace(species="velociraptor", env_class=object),
-                load_all_stages("velociraptor"),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+                load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
                 1,
                 total_timesteps=1,
                 output_dir=str(tmp_path / "run"),
@@ -2210,7 +2246,7 @@ class TestTrainRecordsTheLabel:
         from environments.shared.config import hyperparameters_sha256, load_all_stages
         from environments.shared.train_base import _wandb_run_tags
 
-        config = load_all_stages("velociraptor")[1]
+        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
         hp_tag = "hp:" + hyperparameters_sha256(config, "ppo").removeprefix("sha256:")[:12]
         assert _wandb_run_tags(config, "ppo", None) == [hp_tag]
         assert _wandb_run_tags(config, "ppo", "  ") == [hp_tag]
@@ -2231,7 +2267,7 @@ class TestTrainDerivesTheTaskThroughTheStageHelper:
         from environments.shared.config import load_all_stages
 
         identity = SimpleNamespace(to_dict=lambda: {"physics_sha256": "sha256:plant"})
-        stage_configs = load_all_stages("velociraptor")
+        stage_configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_configs[1]["env_kwargs"] = {**stage_configs[1].get("env_kwargs", {}), "alive_bonus": 0.25}
         real_helper = task_fingerprint.stage_task_fingerprint
         helper_calls: list = []
@@ -2250,14 +2286,14 @@ class TestTrainDerivesTheTaskThroughTheStageHelper:
             saved.update(kwargs)
             raise self.ConfigReached()
 
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: identity)
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: identity)
         monkeypatch.setattr(task_fingerprint, "stage_task_fingerprint", helper)
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         with pytest.raises(self.ConfigReached):
             train_base.train(
-                SimpleNamespace(species="velociraptor", env_class=object),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
                 stage_configs,
                 1,
                 total_timesteps=1,
@@ -2267,12 +2303,12 @@ class TestTrainDerivesTheTaskThroughTheStageHelper:
             )
 
         ((args, kwargs),) = helper_calls
-        assert args == ("velociraptor", 1)
+        assert args == (VELOCIRAPTOR_MONGOLIENSIS, 1)
         assert set(kwargs) == {"stage_config", "plant_identity"}
         assert kwargs["stage_config"] is stage_configs[1] and kwargs["plant_identity"] is identity
         assert derived == [
             {
-                "species": "velociraptor",
+                "model_id": VELOCIRAPTOR_MONGOLIENSIS,
                 "stage": 1,
                 "backend": "stable-baselines3",
                 "env_kwargs": stage_configs[1]["env_kwargs"],
@@ -2294,7 +2330,12 @@ class TestTrainRefusesAnUndeclaredParent:
         from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
 
         with zipfile.ZipFile(path, "w") as archive:
-            archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: {"species": "trex", "stage": stage}}))
+            archive.writestr(
+                "data",
+                json.dumps(
+                    {MODEL_TASK_ATTRIBUTE: {"species": "tyrannosaurus_rex", "embodiment": "anatomical", "stage": stage}}
+                ),
+            )
         return path
 
     def _train(self, tmp_path, monkeypatch, *, parent_stage, child_stage, parent_stem=None):
@@ -2305,7 +2346,7 @@ class TestTrainRefusesAnUndeclaredParent:
         class SB3Reached(RuntimeError):
             """The check passed: train() went on to import the backend."""
 
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(
             "environments.shared.policy_loading._ensure_sb3", lambda: (_ for _ in ()).throw(SB3Reached())
@@ -2319,8 +2360,8 @@ class TestTrainRefusesAnUndeclaredParent:
         output_dir.mkdir(exist_ok=True)
         try:
             train_base.train(
-                SimpleNamespace(species="trex", env_class=object),
-                load_all_stages("trex"),
+                SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object),
+                load_all_stages(TYRANNOSAURUS_REX),
                 child_stage,
                 total_timesteps=1,
                 load_path=str(parent),
@@ -2449,7 +2490,7 @@ class TestTrainRefusesAnUndeclaredParent:
         from environments.shared.config import load_all_stages
 
         calls = []
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: calls.append(k))
         monkeypatch.setattr(
@@ -2458,8 +2499,8 @@ class TestTrainRefusesAnUndeclaredParent:
         parent = self._checkpoint(tmp_path / "parent.zip", 3)
         with pytest.raises(KeyboardInterrupt):
             train_base.train(
-                SimpleNamespace(species="trex", env_class=object),
-                load_all_stages("trex"),
+                SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object),
+                load_all_stages(TYRANNOSAURUS_REX),
                 2,
                 total_timesteps=1,
                 load_path=str(parent),
@@ -2488,7 +2529,7 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         def save_config(*args, **kwargs):
             raise self.ConfigReached()
 
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         # The declared-parent check (pinned above) runs first and reads the checkpoint; the guard
         # under test is what happens once a load has passed it.
@@ -2498,8 +2539,8 @@ class TestTrainRefusesAnOccupiedStageDirectory:
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         try:
             train_base.train(
-                SimpleNamespace(species="velociraptor", env_class=object),
-                load_all_stages("velociraptor"),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+                load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
                 1,
                 total_timesteps=1,
                 load_path=load_path,
@@ -2587,7 +2628,7 @@ class TestTrainResumeKeepsTheEdge:
         )
         from environments.shared.result_bundle import sha256_file
 
-        stage_configs = load_all_stages("velociraptor")
+        stage_configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_dir = tmp_path / "run" / "02_locomotion"
         parent = self._zip(tmp_path / "run" / "01_stance" / "models" / "stance_final.zip")
         save_stage_config(
@@ -2595,7 +2636,7 @@ class TestTrainResumeKeepsTheEdge:
             2,
             stage_configs[2],
             "PPO",
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             load_path=str(parent),
             load_mode="initialize_next_stage",
             parent_run_id="20260901_120000",
@@ -2609,7 +2650,7 @@ class TestTrainResumeKeepsTheEdge:
         def envs_reached(*args, **kwargs):
             raise self.EnvsReached()
 
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: _plant_identity())
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: None)
         monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
@@ -2617,7 +2658,7 @@ class TestTrainResumeKeepsTheEdge:
         monkeypatch.setattr(train_base, "create_vec_env", envs_reached)
         with pytest.raises(self.EnvsReached):
             train_base.train(
-                SimpleNamespace(species="velociraptor", env_class=object),
+                SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
                 stage_configs,
                 2,
                 total_timesteps=1,
@@ -2669,7 +2710,7 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
             return model_dir / "stage1_final"
 
         monkeypatch.setattr(train_base, "time", SimpleNamespace(monotonic=lambda: clock[0]))
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: _plant_identity())
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"CallbackList": list})
         monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
@@ -2691,11 +2732,11 @@ class TestTrainSeedsRecordsDurationAndServesTheNotebook:
             clock[0] += 100.0
 
         monkeypatch.setattr(train_base, "_report_hpt_metrics", report)
-        stages = load_all_stages("velociraptor")
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         if ppo_seed is not None:
             stages[1]["ppo_kwargs"]["seed"] = ppo_seed  # what `--override ppo.seed=N` leaves in the config
         train_base.train(
-            SimpleNamespace(species="velociraptor", env_class=object),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
             stages,
             1,
             total_timesteps=10,
@@ -2856,7 +2897,7 @@ class TestOneStageBody:
 
         monkeypatch.setattr(train_base, "_train_stage_body", body)
         monkeypatch.setattr(train_base, "time", SimpleNamespace(monotonic=lambda: clock[0]))
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: _plant_identity())
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"CallbackList": callback_list})
         monkeypatch.setattr(train_base, "create_vec_env", create_vec_env)
@@ -2880,7 +2921,7 @@ class TestOneStageBody:
         monkeypatch.setattr(
             train_base,
             "_post_training_stance_verdict",
-            lambda species, stage, config, **kwargs: (
+            lambda model_id, stage, config, **kwargs: (
                 True,
                 [],
                 {"stage": stage, "gate_kind": config["curriculum_kwargs"].get("gate_kind"), "gate_passed": True},
@@ -2895,8 +2936,8 @@ class TestOneStageBody:
 
         model, eval_callback = self._patch(monkeypatch, interrupt=interrupt)
         returned = train_base.train(
-            SimpleNamespace(species="velociraptor", env_class=object),
-            load_all_stages("velociraptor"),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+            load_all_stages(VELOCIRAPTOR_MONGOLIENSIS),
             1,
             total_timesteps=10,
             seed=self.SEED,
@@ -2918,8 +2959,8 @@ class TestOneStageBody:
         from environments.shared.config import load_all_stages
 
         train_base.train_curriculum(
-            SimpleNamespace(species="velociraptor", env_class=object),
-            load_all_stages("velociraptor") if stage_configs is None else stage_configs,
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=object),
+            load_all_stages(VELOCIRAPTOR_MONGOLIENSIS) if stage_configs is None else stage_configs,
             n_envs=1,
             seed=self.SEED,
             verbose=0,
@@ -2951,7 +2992,7 @@ class TestOneStageBody:
         from environments.shared.stage_manifest import load_stage_manifest, stage_dirname
 
         self._curriculum(tmp_path, monkeypatch)
-        manifest = load_stage_manifest("velociraptor")
+        manifest = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS)
         bodies = self.record["bodies"]
         assert [body["parent_id"] for body in bodies] == [entry.warm_start_from for entry in manifest.advancing_stages]
         assert len(bodies) == 3
@@ -2964,7 +3005,7 @@ class TestOneStageBody:
             else:
                 # The parent's handoff pair: the final pair, as no best pair is selected here.
                 parent = manifest.advancing_stages[index - 1].reference
-                parent_final = tmp_path / "run" / stage_dirname("velociraptor", parent) / "models" / "final"
+                parent_final = tmp_path / "run" / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, parent) / "models" / "final"
                 assert body["load_path"] == str(parent_final)
                 assert body["vecnorm_load_path"] == f"{parent_final}_vecnorm.pkl"
         # The statistics load from the parent's sidecar itself, never through an explicit vecnorm_path.
@@ -3041,7 +3082,7 @@ class TestOneStageBody:
         assert self.record["seeds"] == [self.SEED]
         self._curriculum(tmp_path, monkeypatch)
         assert self.record["seeds"] == [self.SEED] * 3
-        stage_configs = load_all_stages("velociraptor")
+        stage_configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         stage_configs[2]["ppo_kwargs"]["seed"] = 7
         self._curriculum(tmp_path / "seeded", monkeypatch, stage_configs=stage_configs)
         assert self.record["seeds"] == [self.SEED, 7, self.SEED]
@@ -3061,8 +3102,10 @@ class TestOneStageBody:
 
         monkeypatch.setattr(config_module, "record_stage_duration", recorded)
         self._run_curriculum(tmp_path)
-        stages = [entry.reference for entry in load_stage_manifest("velociraptor").advancing_stages]
-        return [read_stage_duration(tmp_path / "run" / stage_dirname("velociraptor", stage)) for stage in stages]
+        stages = [entry.reference for entry in load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).advancing_stages]
+        return [
+            read_stage_duration(tmp_path / "run" / stage_dirname(VELOCIRAPTOR_MONGOLIENSIS, stage)) for stage in stages
+        ]
 
     def test_the_curriculum_records_each_nodes_duration_at_its_final_save(self, tmp_path, monkeypatch):
         """Decision D-A15 on the curriculum's path, as ``train()`` records it: each node's ``stage_config.json``
@@ -3177,7 +3220,7 @@ def _command_columns() -> slice:
     """The walker's command columns: the trailing COMMAND_WIDTH inputs of the current trex observation."""
     from environments.shared.command_frame import command_slice
 
-    return command_slice(current_plant_identity("trex").observation_dim)
+    return command_slice(current_plant_identity(TYRANNOSAURUS_REX).observation_dim)
 
 
 def _walker_optimizers(model, algorithm):
@@ -3220,9 +3263,12 @@ def never_live_walkers(tmp_path_factory):
     from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, stage_task_fingerprint
 
     root = tmp_path_factory.mktemp("never-live-walkers")
-    cfg = get_species_config("trex")
-    identity = current_plant_identity("trex")
-    stance, locomotion = load_stage_config("trex", 1), load_stage_config("trex", 2)
+    cfg = get_species_config(TYRANNOSAURUS_REX)
+    identity = current_plant_identity(TYRANNOSAURUS_REX)
+    stance, locomotion = (
+        load_stage_config(TYRANNOSAURUS_REX, 1),
+        load_stage_config(TYRANNOSAURUS_REX, 2),
+    )
     live_kwargs = dict(
         locomotion["env_kwargs"], command_mode="heading_and_speed", command_config=DirectionCommandConfig()
     )
@@ -3230,10 +3276,14 @@ def never_live_walkers(tmp_path_factory):
     manifest = probe_env.command_manifest()
     probe_env.close()
     fingerprints = {
-        "stance": stage_task_fingerprint("trex", 1, plant_identity=identity),
-        "locomotion": stage_task_fingerprint("trex", 2, plant_identity=identity),
+        "stance": stage_task_fingerprint(TYRANNOSAURUS_REX, 1, plant_identity=identity),
+        "locomotion": stage_task_fingerprint(TYRANNOSAURUS_REX, 2, plant_identity=identity),
         "live": stage_task_fingerprint(
-            "trex", 2, env_kwargs=live_kwargs, plant_identity=identity, command_manifest=manifest
+            TYRANNOSAURUS_REX,
+            2,
+            env_kwargs=live_kwargs,
+            plant_identity=identity,
+            command_manifest=manifest,
         ),
     }
     assert "command" in fingerprints["live"] and "command" not in fingerprints["locomotion"]
@@ -3341,7 +3391,8 @@ class TestCommandColumnWarmStart:
                 "mode": "initialize_next_stage",
                 "parent_task_sha256": walkers["fingerprints"]["stance"]["task_sha256"],
                 "child_task_sha256": walkers["fingerprints"]["live"]["task_sha256"],
-                "parent_species": "trex",
+                "parent_species": "tyrannosaurus_rex",
+                "parent_embodiment": "anatomical",
                 "parent_stage": 1,
                 "zeroed_command_parameters": names,
             }
@@ -3443,6 +3494,7 @@ class TestCommandColumnWarmStart:
                     "parent_task_sha256",
                     "child_task_sha256",
                     "parent_species",
+                    "parent_embodiment",
                     "parent_stage",
                 }
         finally:

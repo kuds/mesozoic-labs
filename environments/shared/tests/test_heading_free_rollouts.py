@@ -53,6 +53,7 @@ from stable_baselines3 import PPO  # noqa: E402
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # noqa: E402
 
 from environments.shared.config import load_stage_config  # noqa: E402
+from environments.shared.model_id import ModelId
 from environments.shared.reporting.stance_report import SpawnYaw, run_panel  # noqa: E402
 
 from .heading_free_helpers import (  # noqa: E402
@@ -70,11 +71,15 @@ SEEDS = (3042, 3043)
 METRIC_ATOL = 1e-6
 
 
-@pytest.fixture(scope="module", params=("trex", "compsognathus"))
+@pytest.fixture(
+    scope="module",
+    params=(ModelId("tyrannosaurus_rex", "anatomical"), ModelId("compsognathus_longipes", "anatomical")),
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
 def frozen_policy(request):
     """An untrained PPO behind a VecNormalize gathered on 512 steps of N(0, 0.1) actions, then frozen."""
-    species = request.param
-    normalizer = VecNormalize(DummyVecEnv([lambda: stance_env(species)]), norm_reward=False)
+    model_id = request.param
+    normalizer = VecNormalize(DummyVecEnv([lambda: stance_env(model_id)]), norm_reward=False)
     normalizer.seed(3042)
     normalizer.reset()
     rng = np.random.default_rng(0)
@@ -87,16 +92,16 @@ def frozen_policy(request):
     def predict(observation: np.ndarray) -> np.ndarray:
         return np.asarray(model.predict(normalizer.normalize_obs(observation), deterministic=True)[0])
 
-    yield species, predict
+    yield model_id, predict
     normalizer.close()
 
 
 def test_full_horizon_traces_repeat_at_every_heading(frozen_policy):
-    species, predict = frozen_policy
-    horizon = int(load_stage_config(species, "stance")["env_kwargs"]["max_episode_steps"])
+    model_id, predict = frozen_policy
+    horizon = int(load_stage_config(model_id, "stance")["env_kwargs"]["max_episode_steps"])
     for seed in SEEDS:
-        traces = paired_traces(species, seed, lambda env, observation_dim: predict, horizon)
-        assert len(traces[0.0]["actions"]) == horizon, f"{species} seed {seed} must stand the whole horizon"
+        traces = paired_traces(model_id, seed, lambda env, observation_dim: predict, horizon)
+        assert len(traces[0.0]["actions"]) == horizon, f"{model_id} seed {seed} must stand the whole horizon"
         assert_paired(traces, state_atol=CLOSED_LOOP_STATE_ATOL, observation_atol=CLOSED_LOOP_OBSERVATION_ATOL)
 
 
@@ -105,13 +110,13 @@ def _metric_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def test_full_horizon_floor_truth_metrics_repeat_at_every_heading(frozen_policy):
-    species, predict = frozen_policy
-    config = load_stage_config(species, "stance")
+    model_id, predict = frozen_policy
+    config = load_stage_config(model_id, "stance")
     env_kwargs = config["env_kwargs"]
     horizon = int(env_kwargs["max_episode_steps"])
     panels = {
         heading: run_panel(
-            species,
+            model_id,
             predict=predict,
             episodes=len(SEEDS),
             seed=SEEDS[0],

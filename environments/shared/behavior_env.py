@@ -1,4 +1,4 @@
-"""Direction and terrain behavior environments for every registered species.
+"""Direction and terrain behavior environments for every registered model.
 
 The canonical animal, observation ordering and action mapping remain unchanged.
 Task rewards and safety clearances use the actual surface under each body/site:
@@ -24,8 +24,8 @@ from environments.shared.direction_commands import (
     tracking_metrics,
     wrap_angle,
 )
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import REPOSITORY_ROOT, current_plant_identity, validate_compiled_plant
-from environments.shared.species_names import resolve_species_id
 from environments.shared.species_registry import get_species_config
 from environments.shared.task_fingerprint import FINGERPRINT_BACKEND, compute_task_fingerprint
 from environments.shared.terrain import (
@@ -54,7 +54,7 @@ RECIPE_TASK_STAGE = "command-terrain/v2"
 class SpeciesBehaviorMixin(BaseDinoEnv):
     """Compose command tracking with each species' canonical balance behavior."""
 
-    species: str
+    model_id: ModelId
     _canonical_env_class: type[BaseDinoEnv]
     floor_geom_id: int
     _initial_pos_2d: np.ndarray
@@ -139,7 +139,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
                 env_kwargs[name] = 0.0
         env_kwargs.setdefault("max_episode_steps", 2500)
         super().__init__(command_mode="heading_and_speed", command_config=commands, **env_kwargs)
-        self.parent_plant_identity = current_plant_identity(self.species)
+        self.parent_plant_identity = current_plant_identity(self.model_id)
         validate_compiled_plant(self.model, self.parent_plant_identity)
         self._home_ground_clearance_m = self.home_ground_clearance()
         self._spawn_model = copy.copy(self.model)
@@ -276,7 +276,7 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
     def task_fingerprint(self) -> dict[str, Any]:
         """This task's identity: plant, effective constructor kwargs (its own four read live) and command manifest."""
         return compute_task_fingerprint(
-            species=self.species,
+            model_id=self.model_id,
             stage=RECIPE_TASK_STAGE,
             backend=FINGERPRINT_BACKEND,
             env_kwargs={
@@ -533,15 +533,15 @@ class SpeciesBehaviorMixin(BaseDinoEnv):
 
 
 @lru_cache(maxsize=None)
-def _behavior_env_class(species: str) -> type[Any]:
-    canonical = get_species_config(species).env_class
+def _behavior_env_class(model_id: ModelId) -> type[Any]:
+    canonical = get_species_config(model_id).env_class
     return type(
-        f"{canonical.__name__.removesuffix('Env')}BehaviorEnv",
+        f"{model_id.pascal}BehaviorEnv",
         (SpeciesBehaviorMixin, canonical),
-        {"species": species, "_canonical_env_class": canonical, "__module__": __name__},
+        {"model_id": model_id, "_canonical_env_class": canonical, "__module__": __name__},
     )
 
 
-def get_behavior_env_class(species: str) -> type[Any]:
-    """Return a behavior subclass of the selected canonical species environment."""
-    return _behavior_env_class(resolve_species_id(species))
+def get_behavior_env_class(model_id: ModelId) -> type[Any]:
+    """Return a behavior subclass of the model's canonical environment (``<Pascal s><Pascal e>BehaviorEnv``)."""
+    return _behavior_env_class(model_id)

@@ -55,14 +55,17 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
 ### Milestone: v0.2.0 — "Clean Slate"
 
 - [x] **Externalize reward configs to TOML files**
-  - Create `configs/` directory with per-species, per-stage TOML files
-  - Refactor `train_sb3.py` and env constructors to load from config
+  - Create `configs/` directory with per-species, per-stage TOML files (per model,
+    `configs/<species>/<embodiment>/`, since decision D-D33)
+  - Refactor the training scripts and env constructors to load from config
   - Enables rapid reward experimentation without code changes
   - _Dependency: None_
 
 - [x] **Register the Gymnasium environments**
-  - Each species' env module calls `gym.register` in the `MesozoicLabs` namespace
-  - Users can then do `gym.make("MesozoicLabs/Raptor-v0")` after `import environments`
+  - `environments/__init__.py` registers every model of the species manifest in the
+    `MesozoicLabs` namespace (decision D-D33; each species' env module called
+    `gym.register` before it)
+  - Users can then do `gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")` after `import environments`
   - Auto-registration on `import environments`; the `pyproject.toml` entry-point
     groups first added for this were never read by Gymnasium and were deleted
     (cleanup CU-7a, #572)
@@ -123,7 +126,7 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - _Dependency: None (parallel with Velociraptor)_
 
 - [x] **T-Rex environment buildout**
-  - [x] Implement `TRexEnv` subclass (env, tests, training script)
+  - [x] Implement `TyrannosaurusRexAnatomicalEnv` subclass (env, tests, training script)
   - [x] The MJCF model, assets, and Gymnasium registration exist
   - [x] Publish the existing PPO run summary as historical and unverified
   - [ ] Run Stages 1-3 with SAC
@@ -394,9 +397,9 @@ Deepen the RL capabilities and expand the species roster.
   - _Dependency: Phase 1 (use Velociraptor as template)_
 
 - [x] **Compsognathus (small fast biped)** — delivered ahead of this phase
-  - Landed in #521 as two variants, the anatomical model
-    (`MesozoicLabs/Compsognathus-v0`) and a twelve-servo robot prototype
-    (`MesozoicLabs/CompsognathusRobot-v0`); both have certified stance and
+  - Landed in #521 as two embodiments, the anatomical model
+    (`MesozoicLabs/CompsognathusLongipes-Anatomical-v0`) and a twelve-servo robot prototype
+    (`MesozoicLabs/CompsognathusLongipes-Robot-v0`); both have certified stance and
     walk nodes ([NEXT_STEPS.md](NEXT_STEPS.md) §2)
   - MJCF model: small, lightweight, fast
   - Focus on speed and agility benchmarks
@@ -470,9 +473,9 @@ The signature feature: coordinated pack hunting and interspecies dynamics.
 
 - [ ] **Pre-trained model zoo**
   - Publish all checkpoints on Hugging Face Hub
-  - Per-species, per-stage, per-algorithm checkpoints
+  - Per-model, per-stage, per-algorithm checkpoints
   - Include training configs and evaluation results
-  - Loading script: `load_pretrained("velociraptor", stage=3, algo="sac")`
+  - Loading script: `load_pretrained(ModelId("velociraptor_mongoliensis", "anatomical"), stage=3, algo="sac")`
   - _Dependency: Phase 3 (need a critical mass of trained models)_
 
 - [ ] **Web-based visualizer**
@@ -510,6 +513,14 @@ recoverable from the same tag._
 **Status: planned.** Physical robot construction and sim-to-real policy transfer
 are roadmap goals. The repository does not currently include a hardware prototype,
 a ROS 2 bridge, or published sim-to-real validation results.
+
+- **Where robot code goes** (decision D-D33, 2026-10-11): a robot is an
+  embodiment of its species, at `environments/<species>/robot/` and
+  `configs/<species>/robot/` beside the anatomical model, as the Compsognathus
+  robot is ([SPECIES_NAMING.md](SPECIES_NAMING.md)). What robots share (servo
+  and IMU models, system identification, and the ROS 2 bridge behind an
+  optional extra) goes in one shared package, `environments/shared/robot/`,
+  never per species. None of it is built yet.
 
 ### Milestone: v1.0.0 — "Life Finds a Way"
 

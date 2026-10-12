@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
+
 matplotlib = pytest.importorskip("matplotlib")
 
 
@@ -31,7 +33,7 @@ class TestPlotTrainingCurves:
         fig = plot_training_curves(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
         )
@@ -53,7 +55,7 @@ class TestPlotTrainingCurves:
         fig = plot_training_curves(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
         )
@@ -89,7 +91,7 @@ class TestPlotDiagnosticsGraphs:
         fig1, fig2 = plot_diagnostics_graphs(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_dir=tmp_path,
             show=False,
@@ -120,7 +122,7 @@ class TestPlotDiagnosticsGraphs:
         fig1, fig2 = plot_diagnostics_graphs(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_dir=tmp_path,
             show=False,
@@ -153,7 +155,7 @@ class TestPlotDiagnosticsGraphs:
         fig1, fig2 = plot_diagnostics_graphs(
             [(3, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_dir=tmp_path,
             show=False,
@@ -173,7 +175,7 @@ class TestPlotDiagnosticsGraphs:
         fig1, fig2 = plot_diagnostics_graphs(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_dir=tmp_path,
             show=False,
@@ -206,7 +208,7 @@ class TestPlotFootContacts:
         fig = plot_foot_contacts(
             [(1, tmp_path)],
             stage_configs,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -248,7 +250,7 @@ class TestPlotFootContacts:
         fig = plot_foot_contacts(
             [(1, tmp_path)],
             stage_configs,
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -282,7 +284,7 @@ class TestPlotFootContacts:
         fig = plot_foot_contacts(
             [(2, tmp_path)],
             stage_configs,
-            species="brachiosaurus",
+            model_id=ModelId("brachiosaurus_altithorax", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -304,7 +306,7 @@ class TestPlotFootContacts:
         plot_foot_contacts(
             [(1, tmp_path)],
             stage_configs,
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -334,7 +336,7 @@ class TestPlotStanceDiagnostics:
         fig = plot_stance_diagnostics(
             [(1, tmp_path)],
             {1: {"name": "Balance"}},
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             algorithm="ppo",
             save_path=save_path,
             show=False,
@@ -360,7 +362,7 @@ class TestPlotStanceDiagnostics:
         result = plot_stance_diagnostics(
             [(1, tmp_path)],
             {1: {"name": "Balance"}},
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             algorithm="ppo",
             save_path=tmp_path / "stance_diagnostics.png",
             show=False,
@@ -383,7 +385,7 @@ class TestPlotStanceDiagnostics:
         result = plot_stance_diagnostics(
             [(1, tmp_path)],
             {1: {"name": "Balance"}},
-            species="brachiosaurus",
+            model_id=ModelId("brachiosaurus_altithorax", "anatomical"),
             algorithm="ppo",
             save_path=tmp_path / "stance_diagnostics.png",
             show=False,

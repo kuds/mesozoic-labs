@@ -58,8 +58,8 @@ on:
     paths: *ci-paths
   # Nightly run of the whole workflow on `main`. In it the SB3 job runs what
   # pull-request and push runs leave out: the every-species and
-  # four-notebook-parameter sets, and the six compsognathus_robot
-  # parametrisations of test_compsognathus_training.py's trainer-handoff,
+  # four-notebook-parameter sets, and the six compsognathus_longipes/robot
+  # parametrisations of test_compsognathus_longipes_training.py's trainer-handoff,
   # warm-start and freeze-rehearsal tests (the SB3 job's "Decide the SB3
   # depth" step; consolidation PR-3, and decision 10 (a) in CU-14a). GitHub
   # pauses scheduled workflows after 60 days without a commit.
@@ -154,18 +154,25 @@ jobs:
       # frozen-core pin test_plant_contract_frozen_mjx.py among them, run in
       # the `test (<python>, shared)` legs on every Python version, which cover
       # every line this job's own run of them covered.
+      # Every model of the manifest (decision D-D33), from the wheel: its plant
+      # identity (which loads every MJCF and the robot's meshes), its stage
+      # configs, and its behavior recipes, each naming the model by species
+      # AND embodiment; the wheel's configs/ must be exactly the tracked
+      # TOML and JSON files.
       - name: Verify plant identity from an installed wheel
         run: |
           python -m pip wheel --no-deps --wheel-dir /tmp/mesozoic-wheel .
           python -m venv --system-site-packages /tmp/mesozoic-wheel-venv
           /tmp/mesozoic-wheel-venv/bin/pip install --no-deps --force-reinstall /tmp/mesozoic-wheel/*.whl
+          git ls-files 'configs/*.toml' 'configs/*.json' > /tmp/mesozoic-tracked-configs.txt
           cd /tmp
           /tmp/mesozoic-wheel-venv/bin/python - <<'PY'
           from pathlib import Path
           import environments
-          from environments.shared.config import load_stage_config
+          from environments.shared.config import load_all_stages
+          from environments.shared.model_id import ModelId
           from environments.shared.plant_contract import current_plant_identity
-          from environments.shared.species_names import species_display_names
+          from environments.shared.species_names import model_ids
           from environments.shared.train_behaviors import REPO_ROOT, read_recipe
 
           # The eleven direction/terrain recipes every species ships (the notebook's list left with the
@@ -179,13 +186,19 @@ jobs:
               )
           }
           assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
-          assert current_plant_identity("velociraptor").nu == 22
-          assert load_stage_config("velociraptor", 1)["name"]
-          for species in species_display_names(backend="stable-baselines3"):
-              recipes = list((REPO_ROOT / "configs" / species / "behaviors").glob("*.toml"))
-              assert {recipe.name for recipe in recipes} == BEHAVIOR_RECIPE_FILES, (species, recipes)
+          configs = REPO_ROOT / "configs"
+          shipped = {path.relative_to(REPO_ROOT).as_posix() for path in configs.rglob("*") if path.is_file()}
+          tracked = set(Path("/tmp/mesozoic-tracked-configs.txt").read_text(encoding="utf-8").split())
+          assert shipped == tracked, (sorted(shipped - tracked), sorted(tracked - shipped))
+          assert model_ids(), "the manifest names no model"
+          for model_id in model_ids():
+              assert current_plant_identity(model_id).model_id == model_id
+              assert load_all_stages(model_id), model_id
+          for model_id in model_ids(backend="stable-baselines3"):
+              recipes = list((model_id.path(configs) / "behaviors").glob("*.toml"))
+              assert {recipe.name for recipe in recipes} == BEHAVIOR_RECIPE_FILES, (str(model_id), recipes)
               for recipe in recipes:
-                  assert read_recipe(recipe, species)[0]["behavior"]["species"] == species
+                  assert ModelId.from_record(read_recipe(recipe, model_id)[0]["behavior"]) == model_id, recipe
           PY
 
   # One matrix of two suites per Python version (gap review ST1, then CU-14a):
@@ -211,11 +224,11 @@ jobs:
             tests: environments/shared/tests/
           - suite: species
             tests: >-
-              environments/velociraptor/tests/
-              environments/brachiosaurus/tests/
-              environments/trex/tests/
-              environments/dibothrosuchus/tests/
-              environments/compsognathus/tests/
+              environments/velociraptor_mongoliensis/tests/
+              environments/brachiosaurus_altithorax/tests/
+              environments/tyrannosaurus_rex/tests/
+              environments/dibothrosuchus_elaphros/tests/
+              environments/compsognathus_longipes/tests/
     steps:
       - uses: actions/checkout@v4
 
@@ -300,10 +313,10 @@ jobs:
       # three times in the `test` matrix, and because every real-PPO smoke ran
       # for all six species and all four notebook parameters on every PR. Pull
       # requests and pushes now keep ONE real-PPO smoke per body of work in the
-      # notebook and behavior steps, on the compsognathus_robot parameter (the
-      # costliest plant to build), and the integration step skips the six
-      # compsognathus_robot parametrisations of test_compsognathus_training's
-      # twelve training runs and keeps the six compsognathus ones (decision 10
+      # notebook and behavior steps, on the compsognathus_longipes/robot parameter
+      # (the costliest plant to build), and the integration step skips the six
+      # robot parametrisations of test_compsognathus_longipes_training's
+      # twelve training runs and keeps the six anatomical ones (decision 10
       # (a), CU-14a). The nightly schedule, a manual dispatch and the `full-ci`
       # label on a pull request run the full sets and all twelve.
       # (`cond && value || ''` puts the non-empty string on the selecting
@@ -323,7 +336,7 @@ jobs:
       - name: Validate canonical notebook training
         run: |
           pytest \
-            environments/shared/tests/test_compsognathus_training.py \
+            environments/shared/tests/test_compsognathus_longipes_training.py \
             -k "test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and ppo and robot' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
@@ -337,7 +350,7 @@ jobs:
         run: |
           pytest \
             environments/shared/tests/test_behavior_species_training.py \
-            ${{ steps.depth.outputs.full != 'true' && '-k compsognathus_robot' || '' }} \
+            ${{ steps.depth.outputs.full != 'true' && '-k compsognathus_longipes-robot' || '' }} \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
@@ -346,8 +359,8 @@ jobs:
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
       # test_behavior_env, test_phase_c_interface) run in the `test` matrix and are
       # not repeated here. At reduced depth -k also leaves out the robot's six
-      # test_compsognathus_training runs (decision 10 (a)); a bare
-      # `not compsognathus_robot` would drop the robot's parameters in
+      # test_compsognathus_longipes_training runs (decision 10 (a)); a bare
+      # `not compsognathus_longipes-robot` would drop the robot's parameters in
       # test_config.py and test_recovery_calibration.py too.
       # test_drive_summary_notebook.py needs no SB3 but runs here for pandas,
       # which stable-baselines3[extra] brings: its reader test skips in the
@@ -359,7 +372,7 @@ jobs:
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
-            environments/shared/tests/test_compsognathus_training.py \
+            environments/shared/tests/test_compsognathus_longipes_training.py \
             environments/shared/tests/test_recovery_calibration.py \
             environments/shared/tests/test_curriculum_*.py \
             environments/shared/tests/test_diagnostics.py \
@@ -377,7 +390,7 @@ jobs:
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
             environments/shared/tests/test_drive_summary_notebook.py \
-            -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_training and compsognathus_robot)' || '' }}" \
+            -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_longipes-robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

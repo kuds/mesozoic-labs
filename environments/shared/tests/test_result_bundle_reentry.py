@@ -21,6 +21,7 @@ import pytest
 
 from environments.shared import config
 from environments.shared.config import WIDEN_LINEAGE_KEYS, save_stage_config
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
     ANCESTORS_DIRNAME,
@@ -45,7 +46,9 @@ from environments.shared.stage_manifest import load_stage_manifest, stage_dirnam
 
 from .result_bundle_helpers import _complete_bundle, _snapshot_files
 
-MANIFEST = load_stage_manifest("trex")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
+MANIFEST = load_stage_manifest(TYRANNOSAURUS_REX)
 STANCE, RECOVERY, LOCOMOTION, BEHAVIOR = (
     MANIFEST.by_id(node) for node in ("stance", "recovery", "locomotion", "behavior")
 )
@@ -62,7 +65,7 @@ def _marker(run_dir: Path, status: str) -> None:
 
 def _judged(run_dir: Path, *nodes) -> None:
     for node in nodes:
-        stage_dir = run_dir / stage_dirname("trex", node.reference)
+        stage_dir = run_dir / stage_dirname(TYRANNOSAURUS_REX, node.reference)
         stage_dir.mkdir(parents=True, exist_ok=True)
         (stage_dir / GATE_VERDICT_FILENAME).write_text("{}")
 
@@ -76,7 +79,7 @@ def _recorded(run_dir: Path, node) -> None:
 def _session(run_dir: Path, *, chain=WALK, target=LOCOMOTION, retrain_from=None, trunk_dir=None) -> None:
     refuse_complete_run_session(
         run_dir,
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         chain=chain,
         target=target,
         retrain_from=retrain_from,
@@ -128,7 +131,16 @@ class TestCompleteRunSession:
         before = _snapshot_files(tmp_path)
         _session(tmp_path)
         _session(tmp_path, chain=(STANCE,), target=STANCE)
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=None) == ()
+        assert (
+            complete_run_writes(
+                tmp_path,
+                model_id=TYRANNOSAURUS_REX,
+                chain=WALK,
+                target=LOCOMOTION,
+                trunk_dir=None,
+            )
+            == ()
+        )
         assert _snapshot_files(tmp_path) == before
 
     def test_a_new_node_is_refused_with_the_fresh_run_remedy(self, tmp_path):
@@ -155,16 +167,16 @@ class TestCompleteRunSession:
     def test_a_directory_without_a_verdict_would_be_judged_or_resumed(self, tmp_path, content):
         _marker(tmp_path, "complete")
         _judged(tmp_path, STANCE)
-        models = tmp_path / stage_dirname("trex", LOCOMOTION.reference) / "models"
+        models = tmp_path / stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference) / "models"
         models.mkdir(parents=True)
         if content == "final pair":
             (models / "stage2_final.zip").write_bytes(b"zip")
             (models / "stage2_final_vecnorm.pkl").write_bytes(b"pkl")
         elif content == "periodic checkpoints only":
             (models / "stage2_100000_steps.zip").write_bytes(b"zip")
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=None) == (
-            "locomotion",
-        )
+        assert complete_run_writes(
+            tmp_path, model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, trunk_dir=None
+        ) == ("locomotion",)
 
     def test_a_verdict_outside_the_loop_directory_does_not_count(self, tmp_path):
         """The loop judges and trains only stage_dirname's directory: a legacy stage1/ verdict is refused."""
@@ -172,25 +184,34 @@ class TestCompleteRunSession:
         (tmp_path / "stage1").mkdir()
         (tmp_path / "stage1" / GATE_VERDICT_FILENAME).write_text("{}")
         _judged(tmp_path, LOCOMOTION)
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=None) == (
-            "stance",
-        )
+        assert complete_run_writes(
+            tmp_path, model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, trunk_dir=None
+        ) == ("stance",)
 
     def test_an_ancestor_record_stands_in_only_for_a_non_target_node_with_a_trunk(self, tmp_path):
         _marker(tmp_path, "complete")
         _recorded(tmp_path, STANCE)
         _judged(tmp_path, LOCOMOTION)
         trunk = tmp_path.parent / "trunk"
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=trunk) == ()
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=None) == (
-            "stance",
+        assert (
+            complete_run_writes(
+                tmp_path,
+                model_id=TYRANNOSAURUS_REX,
+                chain=WALK,
+                target=LOCOMOTION,
+                trunk_dir=trunk,
+            )
+            == ()
         )
+        assert complete_run_writes(
+            tmp_path, model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, trunk_dir=None
+        ) == ("stance",)
         # The target is looked for in this run only: a record never stands in for it.
         _recorded(tmp_path, BEHAVIOR)
         chain = (STANCE, LOCOMOTION, BEHAVIOR)
-        assert complete_run_writes(tmp_path, species="trex", chain=chain, target=BEHAVIOR, trunk_dir=trunk) == (
-            "behavior",
-        )
+        assert complete_run_writes(
+            tmp_path, model_id=TYRANNOSAURUS_REX, chain=chain, target=BEHAVIOR, trunk_dir=trunk
+        ) == ("behavior",)
 
     def test_a_record_with_a_stage_directory_beside_it_does_not_stand_in(self, tmp_path):
         """A stage directory without a verdict is what the loop judges or trains into when the trunk does not cover
@@ -198,11 +219,15 @@ class TestCompleteRunSession:
         _marker(tmp_path, "complete")
         _recorded(tmp_path, STANCE)
         _judged(tmp_path, LOCOMOTION)
-        (tmp_path / stage_dirname("trex", STANCE.reference) / "models").mkdir(parents=True)
+        (tmp_path / stage_dirname(TYRANNOSAURUS_REX, STANCE.reference) / "models").mkdir(parents=True)
         trunk = tmp_path.parent / "trunk"
-        assert complete_run_writes(tmp_path, species="trex", chain=WALK, target=LOCOMOTION, trunk_dir=trunk) == (
-            "stance",
-        )
+        assert complete_run_writes(
+            tmp_path,
+            model_id=TYRANNOSAURUS_REX,
+            chain=WALK,
+            target=LOCOMOTION,
+            trunk_dir=trunk,
+        ) == ("stance",)
 
     def test_an_unreadable_marker_refuses(self, tmp_path):
         (tmp_path / DEFAULT_MANIFEST_NAME).write_text("{truncated")
@@ -226,7 +251,7 @@ class TestWriteIntoCompleteRun:
 
 
 def _widened_root(run_dir: Path, *, seed=44, judged=False) -> Path:
-    stage_dir = run_dir / stage_dirname("trex", STANCE.reference)
+    stage_dir = run_dir / stage_dirname(TYRANNOSAURUS_REX, STANCE.reference)
     stage_dir.mkdir(parents=True, exist_ok=True)
     run = {"n_envs": 4, "widened_from_run_id": "20260815_205206"}
     if seed is not None:
@@ -248,7 +273,7 @@ class TestWidenedRoot:
         assert _snapshot_files(tmp_path) == before
 
     def test_only_a_widened_run_block_is_checked(self, tmp_path):
-        trained = tmp_path / stage_dirname("trex", LOCOMOTION.reference)
+        trained = tmp_path / stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference)
         trained.mkdir()
         (trained / "stage_config.json").write_text(json.dumps({"run": {"seed": 7}}))
         (tmp_path / "02_recovery").mkdir()
@@ -269,7 +294,7 @@ class TestWidenedRoot:
             message = str(excinfo.value)
             assert "records training_seed 42" in message and "keeps that run's seed 44" in message
             assert "no SEED fixes this run" in message
-            assert "--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/01_stance" in message
+            assert "--to-stage-dir <LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/01_stance" in message
         assert _snapshot_files(tmp_path) == before
         # A provenance minted under the parent's seed is the normal re-entry: only SEED is checked.
         (tmp_path / DEFAULT_PROVENANCE_NAME).write_text(json.dumps({"training_seed": 44}))
@@ -284,7 +309,7 @@ class TestWidenedRoot:
 
     def test_a_trunk_is_refused_until_the_widened_root_holds_a_verdict(self, tmp_path):
         trunk = tmp_path.parent / "trunk"
-        kwargs = dict(species="trex", chain=WALK, target=LOCOMOTION, retrain_from=None)
+        kwargs = dict(model_id=TYRANNOSAURUS_REX, chain=WALK, target=LOCOMOTION, retrain_from=None)
         refuse_trunk_over_unjudged_widened_root(tmp_path, trunk_dir=trunk, **kwargs)  # nothing widened
         stage_dir = _widened_root(tmp_path)
         refuse_trunk_over_unjudged_widened_root(tmp_path, trunk_dir=None, **kwargs)
@@ -296,10 +321,20 @@ class TestWidenedRoot:
         assert "fixes SEED, N_ENVS and the plant" in message and 'set TRUNK_FROM = ""' in message
         # The root is the target (never reused across runs) or RETRAIN_FROM names it: no trunk stands in.
         refuse_trunk_over_unjudged_widened_root(
-            tmp_path, species="trex", chain=(STANCE,), target=STANCE, retrain_from=None, trunk_dir=trunk
+            tmp_path,
+            model_id=TYRANNOSAURUS_REX,
+            chain=(STANCE,),
+            target=STANCE,
+            retrain_from=None,
+            trunk_dir=trunk,
         )
         refuse_trunk_over_unjudged_widened_root(
-            tmp_path, species="trex", chain=WALK, target=LOCOMOTION, retrain_from=STANCE, trunk_dir=trunk
+            tmp_path,
+            model_id=TYRANNOSAURUS_REX,
+            chain=WALK,
+            target=LOCOMOTION,
+            retrain_from=STANCE,
+            trunk_dir=trunk,
         )
         (stage_dir / GATE_VERDICT_FILENAME).write_text("{}")
         refuse_trunk_over_unjudged_widened_root(tmp_path, trunk_dir=trunk, **kwargs)
@@ -319,7 +354,7 @@ class TestTrunkOtherThanRecorded:
 
     @staticmethod
     def _run(tmp_path: Path) -> "tuple[Path, Path]":
-        log_dir = tmp_path / "logs" / "trex" / "ppo"
+        log_dir = tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo"
         run_dir = log_dir / "20261003_000000"
         run_dir.mkdir(parents=True)
         return run_dir, log_dir
@@ -457,7 +492,7 @@ SHA_C = "sha256:" + "c" * 64
 
 
 def _checkpoints(run_dir: Path, *names: str, dirname: "str | None" = None) -> Path:
-    stage_dir = run_dir / (dirname or stage_dirname("trex", LOCOMOTION.reference))
+    stage_dir = run_dir / (dirname or stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference))
     models = stage_dir / "models"
     models.mkdir(parents=True, exist_ok=True)
     for name in names:
@@ -479,25 +514,25 @@ class TestUnjudgedStageDir:
         """An intact pair goes to JUDGE, anything else to the interrupted-node refusal: either way not the trunk."""
         stage_dir = _checkpoints(tmp_path, *names)
         before = _snapshot_files(tmp_path)
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) == stage_dir
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) == stage_dir
         assert _snapshot_files(tmp_path) == before
 
     def test_no_loop_directory_or_no_checkpoint_is_not(self, tmp_path):
-        assert unjudged_stage_dir(tmp_path / "missing", species="trex", entry=LOCOMOTION) is None
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path / "missing", model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
         _checkpoints(tmp_path, "stage2_final_vecnorm.pkl")  # models/ without a zip
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
 
     def test_a_checkpoint_outside_the_loop_directory_is_not(self, tmp_path):
         """The loop judges and trains stage_dirname's directory only, as complete_run_writes reads it, and counts
         the zips directly in its ``models/``, as the loop's interrupted-node branch does (``model_dir.glob``)."""
         _checkpoints(tmp_path, "stage2_final.zip", "stage2_final_vecnorm.pkl", dirname="stage2")
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
         stage_dir = _checkpoints(tmp_path, "stage2_final_vecnorm.pkl")
         (stage_dir / "stage2_final.zip").write_bytes(b"zip")
         (stage_dir / "models" / "old").mkdir()
         (stage_dir / "models" / "old" / "stage2_final.zip").write_bytes(b"zip")
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
 
     @pytest.mark.parametrize(
         "verdict",
@@ -508,7 +543,7 @@ class TestUnjudgedStageDir:
         """Tested by presence: a malformed verdict still reaches the reuse rule and the loop's verdict branch."""
         stage_dir = _checkpoints(tmp_path, "stage2_final.zip", "stage2_final_vecnorm.pkl")
         (stage_dir / GATE_VERDICT_FILENAME).write_text(verdict)
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
 
     def test_a_node_the_run_holds_as_an_ancestor_record_is_not(self, tmp_path):
         """A run that took the trunk's copy over its own before ROW-4/6: the record is the node here, and judging the
@@ -516,10 +551,10 @@ class TestUnjudgedStageDir:
         ancestors")."""
         _checkpoints(tmp_path, "stage2_final.zip", "stage2_final_vecnorm.pkl")
         _recorded(tmp_path, LOCOMOTION)
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is None
         _recorded(tmp_path, STANCE)  # another node's record is not this one's
         (tmp_path / ANCESTORS_DIRNAME / LOCOMOTION.id / ANCESTOR_RECORD_NAME).unlink()
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=LOCOMOTION) is not None
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=LOCOMOTION) is not None
 
     def test_a_root_widened_beside_its_ancestor_record_is_refused(self, tmp_path):
         """``widen_checkpoint`` into a run that already took the root from a trunk: the record would stand in for the
@@ -529,14 +564,14 @@ class TestUnjudgedStageDir:
         for name in ("stage1_final.zip", "stage1_final_vecnorm.pkl"):
             (stage_dir / "models").mkdir(exist_ok=True)
             (stage_dir / "models" / name).write_bytes(name.encode())
-        assert unjudged_stage_dir(tmp_path, species="trex", entry=STANCE) == stage_dir
+        assert unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=STANCE) == stage_dir
         _recorded(tmp_path, STANCE)
         before = _snapshot_files(tmp_path)
         with pytest.raises(
             ResultBundleError,
             match=r"widened from run '20260815_205206' .*already holds 'stance' as a reused ancestor.*new run id",
         ):
-            unjudged_stage_dir(tmp_path, species="trex", entry=STANCE)
+            unjudged_stage_dir(tmp_path, model_id=TYRANNOSAURUS_REX, entry=STANCE)
         assert _snapshot_files(tmp_path) == before
 
 
@@ -566,7 +601,7 @@ class TestJudgingOffTheResolvedParent:
         return message
 
     def test_a_root_without_a_parent_passes(self, tmp_path):
-        stance = tmp_path / stage_dirname("trex", STANCE.reference)
+        stance = tmp_path / stage_dirname(TYRANNOSAURUS_REX, STANCE.reference)
         stance.mkdir()
         self._passes(stance, STANCE, None)  # no stage_config.json at all
         _run_block(stance, {"seed": 42, "n_envs": 4})
@@ -576,19 +611,19 @@ class TestJudgingOffTheResolvedParent:
 
     def test_a_widened_root_passes(self, tmp_path):
         """A widened root records its parent under WIDEN_LINEAGE_KEYS, never as a load lineage."""
-        stance = tmp_path / stage_dirname("trex", STANCE.reference)
+        stance = tmp_path / stage_dirname(TYRANNOSAURUS_REX, STANCE.reference)
         _run_block(stance, {"seed": 44, "n_envs": 4, **{key: "x" for key in WIDEN_LINEAGE_KEYS}})
         self._passes(stance, STANCE, None)
 
     def test_a_root_that_entered_from_a_parent_is_refused(self, tmp_path):
-        stance = tmp_path / stage_dirname("trex", STANCE.reference)
+        stance = tmp_path / stage_dirname(TYRANNOSAURUS_REX, STANCE.reference)
         _run_block(
             stance, {"load_path": "x.zip", "load_mode": "initialize_next_stage", "parent_checkpoint_sha256": SHA_A}
         )
         assert "is a root node in the current manifest" in self._refused(stance, STANCE, None)
 
     def test_a_non_root_on_the_resolved_parent_passes_and_on_another_is_refused(self, tmp_path):
-        locomotion = tmp_path / stage_dirname("trex", LOCOMOTION.reference)
+        locomotion = tmp_path / stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference)
         _run_block(
             locomotion, {"load_path": "x.zip", "load_mode": "initialize_next_stage", "parent_checkpoint_sha256": SHA_A}
         )
@@ -597,7 +632,7 @@ class TestJudgingOffTheResolvedParent:
         assert f"descends from 'stance' checkpoint {SHA_A}, not the {SHA_C} resolved" in message
 
     def test_a_non_root_without_a_recorded_edge_is_refused(self, tmp_path):
-        locomotion = tmp_path / stage_dirname("trex", LOCOMOTION.reference)
+        locomotion = tmp_path / stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference)
         locomotion.mkdir()
         assert "records no initialize_next_stage load" in self._refused(locomotion, LOCOMOTION, SHA_A)
         _run_block(
@@ -613,10 +648,26 @@ class TestJudgingOffTheResolvedParent:
         parent.write_bytes(b"parent")
         periodic = tmp_path / "stage2_100000_steps.zip"
         periodic.write_bytes(b"periodic")
-        locomotion = tmp_path / "run" / stage_dirname("trex", LOCOMOTION.reference)
+        locomotion = tmp_path / "run" / stage_dirname(TYRANNOSAURUS_REX, LOCOMOTION.reference)
         stage_config = {"name": "locomotion", "curriculum_kwargs": {}, "ppo_kwargs": {}}
-        save_stage_config(locomotion, 2, stage_config, "ppo", load_path=str(parent), load_mode="initialize_next_stage")
-        save_stage_config(locomotion, 2, stage_config, "ppo", load_path=str(periodic), load_mode="resume_same_stage")
+        save_stage_config(
+            locomotion,
+            2,
+            stage_config,
+            "ppo",
+            load_path=str(parent),
+            load_mode="initialize_next_stage",
+            model_id=TYRANNOSAURUS_REX,
+        )
+        save_stage_config(
+            locomotion,
+            2,
+            stage_config,
+            "ppo",
+            load_path=str(periodic),
+            load_mode="resume_same_stage",
+            model_id=TYRANNOSAURUS_REX,
+        )
         run = json.loads((locomotion / "stage_config.json").read_text(encoding="utf-8"))["run"]
         assert run["load_mode"] == "initialize_next_stage" and run["resume_load_path"] == str(periodic)
         self._passes(locomotion, LOCOMOTION, sha256_file(parent))

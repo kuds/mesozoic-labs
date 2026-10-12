@@ -9,7 +9,7 @@ Usage:
     from environments.shared.wandb_integration import WandbCallback, init_wandb
 
     run = init_wandb(
-        species="velociraptor",
+        model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
         stage=1,
         config=stage_config,
     )
@@ -32,6 +32,8 @@ import logging
 import math
 import subprocess
 from typing import Any
+
+from environments.shared.model_id import ModelId
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ def is_available() -> bool:
 
 
 def init_wandb(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     config: dict[str, Any],
     project: str = "mesozoic-labs",
@@ -69,7 +71,8 @@ def init_wandb(
     """Initialize a W&B run for a training session.
 
     Args:
-        species: Species name (e.g. "velociraptor").
+        model_id: The model (decision D-D33); its species and embodiment are
+            the run's config fields and first two tags.
         stage: Curriculum stage reference — a legacy number, or a semantic
             stage id ("recovery") for stages without a numeric history.
         config: Full stage config dict (from ``load_stage_config``).
@@ -95,21 +98,22 @@ def init_wandb(
         logger.warning("wandb not installed. Skipping W&B initialization.")
         return None
 
-    from .species_names import species_display_name
+    from .species_names import model_display_name, species_display_name
     from .stage_manifest import stage_display_name, stage_label
 
     # The visible title uses full names; the resume id and filter tags below
-    # retain the stable species/stage identifiers.
-    species_title = species_display_name(species)
+    # retain the stable species/embodiment/stage identifiers.
+    model_title = model_display_name(model_id)
     stage_title = stage_display_name(stage, config.get("name"))
-    run_name = f"{species_title} / {stage_title}"
+    run_name = f"{model_title} / {stage_title}"
 
     # Collect git info
     git_hash = _get_git_hash()
 
     flat_config = {
-        "species": species,
-        "species_display_name": species_title,
+        **model_id.record(),
+        "species_display_name": species_display_name(model_id.species),
+        "model_display_name": model_title,
         "stage": stage,
         "stage_name": config.get("name", ""),
         "stage_display_name": stage_title,
@@ -124,7 +128,7 @@ def init_wandb(
     for key, value in config.get("sac_kwargs", {}).items():
         flat_config[f"sac/{key}"] = value
 
-    all_tags = [species, stage_label(stage)]
+    all_tags = [model_id.species, model_id.embodiment, stage_label(stage)]
     if tags:
         all_tags.extend(tags)
 
@@ -141,7 +145,7 @@ def init_wandb(
         if id_sidecar.exists():
             effective_id = id_sidecar.read_text().strip() or None
     if effective_id is None:
-        effective_id = f"{species}-s{stage}-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
+        effective_id = f"{model_id.species}-{model_id.embodiment}-s{stage}-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
 
     try:
         run = wandb.init(

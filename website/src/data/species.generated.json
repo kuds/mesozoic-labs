@@ -1,9 +1,9 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "manifest_path": "configs/species_manifest.toml",
   "plant_manifest": {
     "path": "configs/plant_manifest.generated.json",
-    "schema": "mesozoic.plant-manifest/v1",
+    "schema": "mesozoic.plant-manifest/v2",
     "fingerprint_tool_version": 2,
     "generated_with": {
       "float_significant_digits": 12,
@@ -46,35 +46,34 @@
       "path": "notebooks/google_drive_summary.ipynb"
     }
   ],
-  "species": [
+  "models": [
     {
-      "id": "velociraptor",
-      "display_name": "Velociraptor Mongoliensis",
+      "species": "velociraptor_mongoliensis",
+      "embodiment": "anatomical",
+      "species_display_name": "Velociraptor Mongoliensis",
+      "display_name": "Velociraptor Mongoliensis (Anatomical)",
       "tagline": "Swift Bipedal Predator",
       "gait": "Bipedal",
       "specialty": "Sickle-claw contact attacks",
-      "aliases": [
-        "raptor"
-      ],
       "environment": {
-        "entrypoint": "environments.velociraptor.envs.raptor_env:RaptorEnv",
+        "entrypoint": "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
         "observation_dim": 70,
         "action_dim": 22
       },
       "model": {
-        "path": "environments/velociraptor/assets/raptor.xml",
+        "path": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
         "nq": 31,
         "nv": 30,
         "nu": 22,
         "dynamic_mass_kg": 13.5,
         "plant_contract": {
-          "bundle_sha256": "sha256:c9ce369376fe5c1d3dd2a1a2f2db52758f8835e40d3664922d2da78f97eb0239",
-          "source_closure_sha256": "sha256:b610ad8155a14d09c777d881648847565fe101422487be3662c8b297c8d35dd1",
+          "bundle_sha256": "sha256:ebeb35d73a8f57c58a44dbdce07526db9d5933ba34782eec64d06fe96f04af8c",
+          "source_closure_sha256": "sha256:62f142427e6f6a851964bd210bf6bf704fc5e2916d468dc96710c9e7cdbe2127",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 11,
+            "revision": 12,
             "observation_schema": "bipedal-target/v1",
-            "sha256": "sha256:f1225162483ec0e000baa619ffaea6165f4214e5884d01503bff62c8be946b6f"
+            "sha256": "sha256:c11825a0f66004b93b86b855b802a48a5890f3d43848b622ea00419230c129f1"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -142,7 +141,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Learn to stand and balance without falling",
-          "config_path": "configs/velociraptor/stage1_balance.toml",
+          "config_path": "configs/velociraptor_mongoliensis/anatomical/stance.toml",
           "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -195,7 +194,7 @@
             "settle_steps": 100
           },
           "video": {
-            "path": "/videos/velociraptor_ppo_stage1_best.mp4",
+            "path": "/videos/velociraptor_mongoliensis_anatomical_ppo_stage1_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -214,7 +213,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn forward walking/running",
-          "config_path": "configs/velociraptor/stage2_locomotion.toml",
+          "config_path": "configs/velociraptor_mongoliensis/anatomical/locomotion.toml",
           "timesteps": 8000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -239,7 +238,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/velociraptor_ppo_stage2_best.mp4",
+            "path": "/videos/velociraptor_mongoliensis_anatomical_ppo_stage2_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -258,7 +257,7 @@
           "name": "strike",
           "title": "Strike",
           "description": "Sprint and strike prey with sickle claw",
-          "config_path": "configs/velociraptor/stage3_strike.toml",
+          "config_path": "configs/velociraptor_mongoliensis/anatomical/strike.toml",
           "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": "locomotion",
@@ -283,7 +282,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/velociraptor_ppo_stage3_best.mp4",
+            "path": "/videos/velociraptor_mongoliensis_anatomical_ppo_stage3_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -297,7 +296,7 @@
       ],
       "historical_results": [
         {
-          "summary_path": "results/velociraptor/ppo/summary.json",
+          "summary_path": "results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
           "algorithm": "PPO",
           "backend": "stable-baselines3",
           "backend_version": null,
@@ -388,7 +387,7 @@
           ]
         },
         {
-          "summary_path": "results/velociraptor/sac/summary.json",
+          "summary_path": "results/velociraptor_mongoliensis/anatomical/sac/summary.json",
           "algorithm": "SAC",
           "backend": "stable-baselines3",
           "backend_version": null,
@@ -481,33 +480,32 @@
       ]
     },
     {
-      "id": "trex",
-      "display_name": "Tyrannosaurus Rex",
+      "species": "tyrannosaurus_rex",
+      "embodiment": "anatomical",
+      "species_display_name": "Tyrannosaurus Rex",
+      "display_name": "Tyrannosaurus Rex (Anatomical)",
       "tagline": "Apex Predator",
       "gait": "Bipedal",
       "specialty": "Head-contact attack task",
-      "aliases": [
-        "t-rex"
-      ],
       "environment": {
-        "entrypoint": "environments.trex.envs.trex_env:TRexEnv",
+        "entrypoint": "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
         "observation_dim": 63,
         "action_dim": 15
       },
       "model": {
-        "path": "environments/trex/assets/trex.xml",
+        "path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
         "nq": 28,
         "nv": 27,
         "nu": 15,
         "dynamic_mass_kg": 85.72,
         "plant_contract": {
-          "bundle_sha256": "sha256:10937faa407fdddd7e0db0624cff81d4207c73946d6e2338f430d03077b2cd8e",
-          "source_closure_sha256": "sha256:02f6d3ceb49df11c8b8f1f909546c2230b9ed176587c56157db9853fcdad7581",
+          "bundle_sha256": "sha256:56c199b1740d3d99742c544d6671b4485f35a16e0584908e5fe793309d934580",
+          "source_closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 14,
+            "revision": 15,
             "observation_schema": "bipedal-target-heading-free/v1",
-            "sha256": "sha256:169b010de87e363735d6b87d95057964561cf6a064db10bd72667a9ae110a73e"
+            "sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -585,7 +583,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Learn to stand and balance without falling",
-          "config_path": "configs/trex/stance.toml",
+          "config_path": "configs/tyrannosaurus_rex/anatomical/stance.toml",
           "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -638,7 +636,7 @@
             "settle_steps": 200
           },
           "video": {
-            "path": "/videos/trex_ppo_stage1_best.mp4",
+            "path": "/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -657,7 +655,7 @@
           "name": "recovery",
           "title": "Recovery",
           "description": "Hold the stance against scheduled external pushes and recover from each",
-          "config_path": "configs/trex/recovery.toml",
+          "config_path": "configs/tyrannosaurus_rex/anatomical/recovery.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -691,7 +689,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn forward walking/running",
-          "config_path": "configs/trex/locomotion.toml",
+          "config_path": "configs/tyrannosaurus_rex/anatomical/locomotion.toml",
           "timesteps": 8000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -716,7 +714,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/trex_ppo_stage2_best.mp4",
+            "path": "/videos/tyrannosaurus_rex_anatomical_ppo_stage2_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -735,7 +733,7 @@
           "name": "bite",
           "title": "Bite",
           "description": "Sprint to prey and make contact with the head bite proxy",
-          "config_path": "configs/trex/behavior.toml",
+          "config_path": "configs/tyrannosaurus_rex/anatomical/behavior.toml",
           "timesteps": 8000000,
           "deliverable": true,
           "warm_start_from": "locomotion",
@@ -760,7 +758,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/trex_ppo_stage3_best.mp4",
+            "path": "/videos/tyrannosaurus_rex_anatomical_ppo_stage3_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -774,7 +772,7 @@
       ],
       "historical_results": [
         {
-          "summary_path": "results/trex/ppo/summary.json",
+          "summary_path": "results/tyrannosaurus_rex/anatomical/ppo/summary.json",
           "algorithm": "PPO",
           "backend": "stable-baselines3",
           "backend_version": null,
@@ -867,33 +865,32 @@
       ]
     },
     {
-      "id": "brachiosaurus",
-      "display_name": "Brachiosaurus Altithorax",
+      "species": "brachiosaurus_altithorax",
+      "embodiment": "anatomical",
+      "species_display_name": "Brachiosaurus Altithorax",
+      "display_name": "Brachiosaurus Altithorax (Anatomical)",
       "tagline": "Gentle Giant Herbivore",
       "gait": "Quadrupedal",
       "specialty": "Head-to-food reaching",
-      "aliases": [
-        "brachio"
-      ],
       "environment": {
-        "entrypoint": "environments.brachiosaurus.envs.brachio_env:BrachioEnv",
+        "entrypoint": "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv",
         "observation_dim": 86,
         "action_dim": 30
       },
       "model": {
-        "path": "environments/brachiosaurus/assets/brachiosaurus.xml",
+        "path": "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml",
         "nq": 38,
         "nv": 37,
         "nu": 30,
         "dynamic_mass_kg": 175.3,
         "plant_contract": {
-          "bundle_sha256": "sha256:63dd2cb5a8fb22a72b3914d7a3f4ac95a805eefc8c07ae1db05c8305fedb8772",
-          "source_closure_sha256": "sha256:5b8ae4539bebc2c47a50f59ba54a32a76c1591c23a8144d6ca22d12a23fb652f",
+          "bundle_sha256": "sha256:271592336f09095376401ce442b700a760e605da8d59847d7c56027ade1fdde1",
+          "source_closure_sha256": "sha256:9f5d79cf52e076ef03a78a138bc05cf9f7bfed446cae162342c74ebc1eb4ec0e",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 8,
+            "revision": 9,
             "observation_schema": "quadrupedal-target/v1",
-            "sha256": "sha256:506613fdca0330e8d4bde7a44cfd18d0de0b41a389f99c2614f09fb955da7ca9"
+            "sha256": "sha256:03a4a8af531de9ab48c510618e1087ca40feb057e85c8f5cbe32db0d7d9f6aa3"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -963,7 +960,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Learn to stand on four legs without falling",
-          "config_path": "configs/brachiosaurus/stage1_balance.toml",
+          "config_path": "configs/brachiosaurus_altithorax/anatomical/stance.toml",
           "timesteps": 6000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -988,7 +985,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/brachiosaurus_ppo_stage1_best.mp4",
+            "path": "/videos/brachiosaurus_altithorax_anatomical_ppo_stage1_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -1007,7 +1004,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn coordinated quadrupedal walking",
-          "config_path": "configs/brachiosaurus/stage2_locomotion.toml",
+          "config_path": "configs/brachiosaurus_altithorax/anatomical/locomotion.toml",
           "timesteps": 16000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1032,7 +1029,7 @@
             "required_consecutive": 3
           },
           "video": {
-            "path": "/videos/brachiosaurus_ppo_stage2_best.mp4",
+            "path": "/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4",
             "algorithm": "PPO",
             "backend": "stable-baselines3",
             "backend_version": null,
@@ -1051,7 +1048,7 @@
           "name": "food_reach",
           "title": "Food Reach",
           "description": "Move the head tip within the configured distance threshold of food",
-          "config_path": "configs/brachiosaurus/stage3_food_reach.toml",
+          "config_path": "configs/brachiosaurus_altithorax/anatomical/food_reach.toml",
           "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": "locomotion",
@@ -1080,7 +1077,7 @@
       ],
       "historical_results": [
         {
-          "summary_path": "results/brachiosaurus/ppo/summary.json",
+          "summary_path": "results/brachiosaurus_altithorax/anatomical/ppo/summary.json",
           "algorithm": "PPO",
           "backend": "stable-baselines3",
           "backend_version": null,
@@ -1173,33 +1170,32 @@
       ]
     },
     {
-      "id": "dibothrosuchus",
-      "display_name": "Dibothrosuchus Elaphros",
+      "species": "dibothrosuchus_elaphros",
+      "embodiment": "anatomical",
+      "species_display_name": "Dibothrosuchus Elaphros",
+      "display_name": "Dibothrosuchus Elaphros (Anatomical)",
       "tagline": "Gracile Erect-Limbed Crocodylomorph",
       "gait": "Quadrupedal",
       "specialty": "Snout-contact snap task",
-      "aliases": [
-        "dibo"
-      ],
       "environment": {
-        "entrypoint": "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
+        "entrypoint": "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
         "observation_dim": 80,
         "action_dim": 27
       },
       "model": {
-        "path": "environments/dibothrosuchus/assets/dibothrosuchus.xml",
+        "path": "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml",
         "nq": 35,
         "nv": 34,
         "nu": 27,
         "dynamic_mass_kg": 8.65,
         "plant_contract": {
-          "bundle_sha256": "sha256:396f0bacc4fb46fa6440125cbcc6f8df7beeed639590a7dfa59a449cd390492d",
-          "source_closure_sha256": "sha256:952450ec06cc3908cb51ab2124cf0e7fb3d972b6ed349916d950a2984e644259",
+          "bundle_sha256": "sha256:540ec261da1104640fb8e745bd11074383d1bd50d8e9df3385ac98a7f041c363",
+          "source_closure_sha256": "sha256:a94dc82cbe058de5175e6cf8502d125599e56dd0be84db260efb4da9b967c1d2",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 7,
+            "revision": 8,
             "observation_schema": "quadrupedal-target/v1",
-            "sha256": "sha256:d0194cb2ea34a2aae666c421db9f5218960d432db95b0ceb27c8f4e3cf45ab44"
+            "sha256": "sha256:60437733ba35e508f6dcb1231b941198db98f453e1d6005c23b08ac5fca214e6"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -1285,7 +1281,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Hold the erect quadrupedal stance without collapsing into a sprawl",
-          "config_path": "configs/dibothrosuchus/stage1_balance.toml",
+          "config_path": "configs/dibothrosuchus_elaphros/anatomical/stance.toml",
           "timesteps": 6000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -1319,7 +1315,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn a coordinated erect-limbed diagonal-pair walk",
-          "config_path": "configs/dibothrosuchus/stage2_locomotion.toml",
+          "config_path": "configs/dibothrosuchus_elaphros/anatomical/locomotion.toml",
           "timesteps": 12000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1353,7 +1349,7 @@
           "name": "snap",
           "title": "Snap",
           "description": "Close on small prey and touch it with the snout snap proxy",
-          "config_path": "configs/dibothrosuchus/stage3_snap.toml",
+          "config_path": "configs/dibothrosuchus_elaphros/anatomical/snap.toml",
           "timesteps": 8000000,
           "deliverable": true,
           "warm_start_from": "locomotion",
@@ -1383,33 +1379,32 @@
       "historical_results": []
     },
     {
-      "id": "compsognathus",
-      "display_name": "Compsognathus Longipes",
+      "species": "compsognathus_longipes",
+      "embodiment": "anatomical",
+      "species_display_name": "Compsognathus Longipes",
+      "display_name": "Compsognathus Longipes (Anatomical)",
       "tagline": "Small Bipedal Theropod",
       "gait": "Bipedal",
       "specialty": "Non-contact target reaching",
-      "aliases": [
-        "compso"
-      ],
       "environment": {
-        "entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusBiologicalEnv",
+        "entrypoint": "environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv",
         "observation_dim": 55,
         "action_dim": 14
       },
       "model": {
-        "path": "environments/compsognathus/assets/compsognathus.xml",
+        "path": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
         "nq": 24,
         "nv": 23,
         "nu": 14,
         "dynamic_mass_kg": 1.0,
         "plant_contract": {
-          "bundle_sha256": "sha256:379d2121a70f33e30b1cfd35a3533ea07612480758708faa069614115447d33b",
-          "source_closure_sha256": "sha256:0748b0a88012be7a8f191cb3f7ca0a54a2a3421da8894584758c1fcb3e374d85",
+          "bundle_sha256": "sha256:d16b41754db89c84bcbde262caab046ce6ee72e7349efd2d50f1a2e0918d829e",
+          "source_closure_sha256": "sha256:6c8ae74fd658aeabf513e8fc529700dfe8f9a4af175d053e7611cc4fc15a25eb",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 4,
+            "revision": 5,
             "observation_schema": "bipedal-target-heading-free/v1",
-            "sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769"
+            "sha256": "sha256:997ba18017a8673aaeb607267fac03e90fabe7d1f7bfae3b3cfa9518b6247d76"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -1487,7 +1482,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Hold an upright stance with foot support",
-          "config_path": "configs/compsognathus/stance.toml",
+          "config_path": "configs/compsognathus_longipes/anatomical/stance.toml",
           "timesteps": 11000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -1549,7 +1544,7 @@
           "name": "recovery",
           "title": "Recovery",
           "description": "Pilot: recover an upright stance after calibrated horizontal pushes",
-          "config_path": "configs/compsognathus/recovery.toml",
+          "config_path": "configs/compsognathus_longipes/anatomical/recovery.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1583,7 +1578,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Move forward while remaining upright and avoiding body-floor contact",
-          "config_path": "configs/compsognathus/locomotion.toml",
+          "config_path": "configs/compsognathus_longipes/anatomical/locomotion.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1617,7 +1612,7 @@
           "name": "target_reach",
           "title": "Target Reach",
           "description": "Reach the randomized horizontal target and slow down while upright",
-          "config_path": "configs/compsognathus/behavior.toml",
+          "config_path": "configs/compsognathus_longipes/anatomical/behavior.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "locomotion",
@@ -1647,33 +1642,32 @@
       "historical_results": []
     },
     {
-      "id": "compsognathus_robot",
+      "species": "compsognathus_longipes",
+      "embodiment": "robot",
+      "species_display_name": "Compsognathus Longipes",
       "display_name": "Compsognathus Longipes (Robot)",
       "tagline": "Twelve-Servo Biped Prototype",
       "gait": "Bipedal",
       "specialty": "Non-contact target reaching with fixed head and tail",
-      "aliases": [
-        "compso-robot"
-      ],
       "environment": {
-        "entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv",
+        "entrypoint": "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv",
         "observation_dim": 46,
         "action_dim": 12
       },
       "model": {
-        "path": "environments/compsognathus/assets/compsognathus_robot.xml",
+        "path": "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml",
         "nq": 19,
         "nv": 18,
         "nu": 12,
         "dynamic_mass_kg": 1.5856,
         "plant_contract": {
-          "bundle_sha256": "sha256:20ddda2be1e8fa99c2fc402afc6104dcee2341015deba54fa3a01dae8f6ced8a",
-          "source_closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
+          "bundle_sha256": "sha256:235483d44ecd679e483f85a53c9602420d2ca8f367e35d8cc489f833e973eaf9",
+          "source_closure_sha256": "sha256:6c0ff1cd5918ff8c68c8b546ba0afd665ac86d9dc99781391d5524beb2a6217e",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 2,
+            "revision": 3,
             "observation_schema": "bipedal-target/v1",
-            "sha256": "sha256:0149b68f0c4c085ab029563f57a1f7d92e74a3a2229ef51554073a387e9b3a4d"
+            "sha256": "sha256:1bab5586a613d2cd3444afab6242f5ed771e4aa3875251704a3b82c1b42dbeb0"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -1751,7 +1745,7 @@
           "name": "stance",
           "title": "Stance",
           "description": "Hold an upright stance with foot support",
-          "config_path": "configs/compsognathus_robot/stance.toml",
+          "config_path": "configs/compsognathus_longipes/robot/stance.toml",
           "timesteps": 11000000,
           "deliverable": true,
           "warm_start_from": null,
@@ -1785,7 +1779,7 @@
           "name": "recovery",
           "title": "Recovery",
           "description": "Pilot: recover an upright stance after calibrated horizontal pushes",
-          "config_path": "configs/compsognathus_robot/recovery.toml",
+          "config_path": "configs/compsognathus_longipes/robot/recovery.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1819,7 +1813,7 @@
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Move forward while remaining upright and avoiding body-floor contact",
-          "config_path": "configs/compsognathus_robot/locomotion.toml",
+          "config_path": "configs/compsognathus_longipes/robot/locomotion.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
@@ -1853,7 +1847,7 @@
           "name": "target_reach",
           "title": "Target Reach",
           "description": "Reach the randomized horizontal target and slow down while upright",
-          "config_path": "configs/compsognathus_robot/behavior.toml",
+          "config_path": "configs/compsognathus_longipes/robot/behavior.toml",
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "locomotion",

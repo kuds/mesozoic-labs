@@ -5,310 +5,326 @@
     "mujoco": "3.10.0"
   },
   "plants": {
-    "brachiosaurus": {
-      "bundle_sha256": "sha256:63dd2cb5a8fb22a72b3914d7a3f4ac95a805eefc8c07ae1db05c8305fedb8772",
-      "env_entrypoint": "environments.brachiosaurus.envs.brachio_env:BrachioEnv",
-      "model_path": "environments/brachiosaurus/assets/brachiosaurus.xml",
-      "physics": {
-        "nq": 38,
-        "nu": 30,
-        "nv": 37,
-        "revision": 5,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:11fda2fc45538506f03cf7382189a39a49bd1f4b6aa82f966658638752c6c02f"
-      },
-      "policy_interface": {
-        "action_dim": 30,
-        "observation_dim": 86,
-        "observation_schema": "quadrupedal-target/v1",
-        "revision": 8,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:506613fdca0330e8d4bde7a44cfd18d0de0b41a389f99c2614f09fb955da7ca9"
-      },
-      "source": {
-        "closure_sha256": "sha256:5b8ae4539bebc2c47a50f59ba54a32a76c1591c23a8144d6ca22d12a23fb652f",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:d458fcff73fcf89583f21317e75e3bd147aa00eb1a0d971317951b747a25ee04",
-            "kind": "mjcf",
-            "logical_path": "environments/brachiosaurus/assets/brachiosaurus.xml"
-          }
-        ],
-        "root": "environments/brachiosaurus/assets/brachiosaurus.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "brachiosaurus",
-      "visual": {
-        "revision": 2,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:445b4d9a4a3b8d4cc41af2ddec2f590b2ad2ec86dcdf4c1b17ee6e3373d32047"
+    "brachiosaurus_altithorax": {
+      "anatomical": {
+        "bundle_sha256": "sha256:271592336f09095376401ce442b700a760e605da8d59847d7c56027ade1fdde1",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv",
+        "model_path": "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml",
+        "physics": {
+          "nq": 38,
+          "nu": 30,
+          "nv": 37,
+          "revision": 5,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:11fda2fc45538506f03cf7382189a39a49bd1f4b6aa82f966658638752c6c02f"
+        },
+        "policy_interface": {
+          "action_dim": 30,
+          "observation_dim": 86,
+          "observation_schema": "quadrupedal-target/v1",
+          "revision": 9,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:03a4a8af531de9ab48c510618e1087ca40feb057e85c8f5cbe32db0d7d9f6aa3"
+        },
+        "source": {
+          "closure_sha256": "sha256:9f5d79cf52e076ef03a78a138bc05cf9f7bfed446cae162342c74ebc1eb4ec0e",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:2a93ad6cece5ede21defda4adb0c7be88b3645b76de050a595c02638808dc972",
+              "kind": "mjcf",
+              "logical_path": "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
+            }
+          ],
+          "root": "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "brachiosaurus_altithorax",
+        "visual": {
+          "revision": 2,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:445b4d9a4a3b8d4cc41af2ddec2f590b2ad2ec86dcdf4c1b17ee6e3373d32047"
+        }
       }
     },
-    "compsognathus": {
-      "bundle_sha256": "sha256:379d2121a70f33e30b1cfd35a3533ea07612480758708faa069614115447d33b",
-      "env_entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusBiologicalEnv",
-      "model_path": "environments/compsognathus/assets/compsognathus.xml",
-      "physics": {
-        "nq": 24,
-        "nu": 14,
-        "nv": 23,
-        "revision": 2,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:5920646d31570f1ed5b80f9cf2a54697c1818d7b309377de8782176f732b6036"
+    "compsognathus_longipes": {
+      "anatomical": {
+        "bundle_sha256": "sha256:d16b41754db89c84bcbde262caab046ce6ee72e7349efd2d50f1a2e0918d829e",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv",
+        "model_path": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
+        "physics": {
+          "nq": 24,
+          "nu": 14,
+          "nv": 23,
+          "revision": 2,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:5920646d31570f1ed5b80f9cf2a54697c1818d7b309377de8782176f732b6036"
+        },
+        "policy_interface": {
+          "action_dim": 14,
+          "observation_dim": 55,
+          "observation_schema": "bipedal-target-heading-free/v1",
+          "revision": 5,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:997ba18017a8673aaeb607267fac03e90fabe7d1f7bfae3b3cfa9518b6247d76"
+        },
+        "source": {
+          "closure_sha256": "sha256:6c8ae74fd658aeabf513e8fc529700dfe8f9a4af175d053e7611cc4fc15a25eb",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:e588a651d9e16980d9b587b34ffae34555236f95b676451a63502a1c422595c1",
+              "kind": "mjcf",
+              "logical_path": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml"
+            }
+          ],
+          "root": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "compsognathus_longipes",
+        "visual": {
+          "revision": 2,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:340185bee8e965548753e59813f9b7096e3d6c2fcbfcf41a6cca63e4eaea4766"
+        }
       },
-      "policy_interface": {
-        "action_dim": 14,
-        "observation_dim": 55,
-        "observation_schema": "bipedal-target-heading-free/v1",
-        "revision": 4,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769"
-      },
-      "source": {
-        "closure_sha256": "sha256:0748b0a88012be7a8f191cb3f7ca0a54a2a3421da8894584758c1fcb3e374d85",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:e47a3c50b7ff938f067c1bc2634e81d4a2b9961313e8672587e68244161bfa4d",
-            "kind": "mjcf",
-            "logical_path": "environments/compsognathus/assets/compsognathus.xml"
-          }
-        ],
-        "root": "environments/compsognathus/assets/compsognathus.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "compsognathus",
-      "visual": {
-        "revision": 2,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:340185bee8e965548753e59813f9b7096e3d6c2fcbfcf41a6cca63e4eaea4766"
+      "robot": {
+        "bundle_sha256": "sha256:235483d44ecd679e483f85a53c9602420d2ca8f367e35d8cc489f833e973eaf9",
+        "embodiment": "robot",
+        "env_entrypoint": "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv",
+        "model_path": "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml",
+        "physics": {
+          "nq": 19,
+          "nu": 12,
+          "nv": 18,
+          "revision": 1,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d"
+        },
+        "policy_interface": {
+          "action_dim": 12,
+          "observation_dim": 46,
+          "observation_schema": "bipedal-target/v1",
+          "revision": 3,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:1bab5586a613d2cd3444afab6242f5ed771e4aa3875251704a3b82c1b42dbeb0"
+        },
+        "source": {
+          "closure_sha256": "sha256:6c0ff1cd5918ff8c68c8b546ba0afd665ac86d9dc99781391d5524beb2a6217e",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:2f04979d4d0547d8f01c00e7a7a64befb383b9bf6086824699b7623835454c5c",
+              "kind": "mjcf",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml"
+            },
+            {
+              "content_sha256": "sha256:70ba3a79ca51aa6c39739cba934d0cf91ad3a6115da3d995cadff1811080c217",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/drive_palonier.stl"
+            },
+            {
+              "content_sha256": "sha256:8ba1ec39e643b0ba932eb7de9e6327c8bf7d2991cd8642068a99f8038963faf4",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/left_cache.stl"
+            },
+            {
+              "content_sha256": "sha256:c49d18abcd227c01132ffbf1825c4c2e8f46b27f90cb08936d4a955b09532dec",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/left_knee_to_ankle_left_sheet.stl"
+            },
+            {
+              "content_sha256": "sha256:831703441094337352fec9adef68c79b660c25e643e68b19aefb2f088b6fb673",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/left_knee_to_ankle_right_sheet.stl"
+            },
+            {
+              "content_sha256": "sha256:6f876a11c3c2076ddc9d437948aba94217dad5de75dba9e1f5fab663e8598379",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/left_roll_to_pitch.stl"
+            },
+            {
+              "content_sha256": "sha256:f7e2d0c4ca470032ce6c5cce07447a4c321b6f217a14d1e467cbee972344c14d",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/leg_spacer.stl"
+            },
+            {
+              "content_sha256": "sha256:88f1ac81c6214080d7ef083a5faafcde9e986b551136e531a1ac7bb1b6b11a4a",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/passive_palonier.stl"
+            },
+            {
+              "content_sha256": "sha256:7cf3edfd76be032fcb657ded24e7b098a7c4107919f6420073ae86276df9d002",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/right_cache.stl"
+            },
+            {
+              "content_sha256": "sha256:60c5ac394fceafa042103745cca33d09dc879ba78867c76cee5950c3f2d59b43",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/right_roll_to_pitch.stl"
+            },
+            {
+              "content_sha256": "sha256:20c85b387cd88a8939e70d86cdfc1556f562c8c3e39fc105cfe84e50c977e60a",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/roll_motor_bottom.stl"
+            },
+            {
+              "content_sha256": "sha256:e9b6e70d23ad1aee3704de2b2240d3450daaa69d55429a57e50702d98c8c8fb4",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/roll_motor_top.stl"
+            },
+            {
+              "content_sha256": "sha256:aa68a42a6e95bf1c90f2875232804982630ec1d6011efba559a7b7681c595cb4",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/wj-wk00-0122topcabinetcase_95.stl"
+            },
+            {
+              "content_sha256": "sha256:2d0c841a7d7f2bb7cdb17ee7cb7cab7871cc6bb33ca3cee375beab2fdac2f6b4",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/wj-wk00-0123middlecase_56.stl"
+            },
+            {
+              "content_sha256": "sha256:bf0d8a2b7c00710e6c5e6a0f100f3dc27132e6d0bac215480d37dc3236395349",
+              "kind": "asset",
+              "logical_path": "environments/compsognathus_longipes/robot/assets/meshes/wj-wk00-0124bottomcase_45.stl"
+            }
+          ],
+          "root": "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "compsognathus_longipes",
+        "visual": {
+          "revision": 1,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d"
+        }
       }
     },
-    "compsognathus_robot": {
-      "bundle_sha256": "sha256:20ddda2be1e8fa99c2fc402afc6104dcee2341015deba54fa3a01dae8f6ced8a",
-      "env_entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv",
-      "model_path": "environments/compsognathus/assets/compsognathus_robot.xml",
-      "physics": {
-        "nq": 19,
-        "nu": 12,
-        "nv": 18,
-        "revision": 1,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d"
-      },
-      "policy_interface": {
-        "action_dim": 12,
-        "observation_dim": 46,
-        "observation_schema": "bipedal-target/v1",
-        "revision": 2,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:0149b68f0c4c085ab029563f57a1f7d92e74a3a2229ef51554073a387e9b3a4d"
-      },
-      "source": {
-        "closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:2bb1040d5a057653e4a67355317d20b4fa55f57ff1ab485eb92036b80bfffffe",
-            "kind": "mjcf",
-            "logical_path": "environments/compsognathus/assets/compsognathus_robot.xml"
-          },
-          {
-            "content_sha256": "sha256:70ba3a79ca51aa6c39739cba934d0cf91ad3a6115da3d995cadff1811080c217",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/drive_palonier.stl"
-          },
-          {
-            "content_sha256": "sha256:8ba1ec39e643b0ba932eb7de9e6327c8bf7d2991cd8642068a99f8038963faf4",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/left_cache.stl"
-          },
-          {
-            "content_sha256": "sha256:c49d18abcd227c01132ffbf1825c4c2e8f46b27f90cb08936d4a955b09532dec",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/left_knee_to_ankle_left_sheet.stl"
-          },
-          {
-            "content_sha256": "sha256:831703441094337352fec9adef68c79b660c25e643e68b19aefb2f088b6fb673",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/left_knee_to_ankle_right_sheet.stl"
-          },
-          {
-            "content_sha256": "sha256:6f876a11c3c2076ddc9d437948aba94217dad5de75dba9e1f5fab663e8598379",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/left_roll_to_pitch.stl"
-          },
-          {
-            "content_sha256": "sha256:f7e2d0c4ca470032ce6c5cce07447a4c321b6f217a14d1e467cbee972344c14d",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/leg_spacer.stl"
-          },
-          {
-            "content_sha256": "sha256:88f1ac81c6214080d7ef083a5faafcde9e986b551136e531a1ac7bb1b6b11a4a",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/passive_palonier.stl"
-          },
-          {
-            "content_sha256": "sha256:7cf3edfd76be032fcb657ded24e7b098a7c4107919f6420073ae86276df9d002",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/right_cache.stl"
-          },
-          {
-            "content_sha256": "sha256:60c5ac394fceafa042103745cca33d09dc879ba78867c76cee5950c3f2d59b43",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/right_roll_to_pitch.stl"
-          },
-          {
-            "content_sha256": "sha256:20c85b387cd88a8939e70d86cdfc1556f562c8c3e39fc105cfe84e50c977e60a",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/roll_motor_bottom.stl"
-          },
-          {
-            "content_sha256": "sha256:e9b6e70d23ad1aee3704de2b2240d3450daaa69d55429a57e50702d98c8c8fb4",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/roll_motor_top.stl"
-          },
-          {
-            "content_sha256": "sha256:aa68a42a6e95bf1c90f2875232804982630ec1d6011efba559a7b7681c595cb4",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0122topcabinetcase_95.stl"
-          },
-          {
-            "content_sha256": "sha256:2d0c841a7d7f2bb7cdb17ee7cb7cab7871cc6bb33ca3cee375beab2fdac2f6b4",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0123middlecase_56.stl"
-          },
-          {
-            "content_sha256": "sha256:bf0d8a2b7c00710e6c5e6a0f100f3dc27132e6d0bac215480d37dc3236395349",
-            "kind": "asset",
-            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0124bottomcase_45.stl"
-          }
-        ],
-        "root": "environments/compsognathus/assets/compsognathus_robot.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "compsognathus_robot",
-      "visual": {
-        "revision": 1,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d"
+    "dibothrosuchus_elaphros": {
+      "anatomical": {
+        "bundle_sha256": "sha256:540ec261da1104640fb8e745bd11074383d1bd50d8e9df3385ac98a7f041c363",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
+        "model_path": "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml",
+        "physics": {
+          "nq": 35,
+          "nu": 27,
+          "nv": 34,
+          "revision": 2,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:a58c350722031fa29949381a0c4ee6ddb0610a723e8933e53ad08dcdc9f47ea7"
+        },
+        "policy_interface": {
+          "action_dim": 27,
+          "observation_dim": 80,
+          "observation_schema": "quadrupedal-target/v1",
+          "revision": 8,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:60437733ba35e508f6dcb1231b941198db98f453e1d6005c23b08ac5fca214e6"
+        },
+        "source": {
+          "closure_sha256": "sha256:a94dc82cbe058de5175e6cf8502d125599e56dd0be84db260efb4da9b967c1d2",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:040b7ab3a00e2c68f2165847f999abd0e667e96b40c4450317c1989863a2ba1e",
+              "kind": "mjcf",
+              "logical_path": "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml"
+            }
+          ],
+          "root": "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "dibothrosuchus_elaphros",
+        "visual": {
+          "revision": 1,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:0a5f29f25ebc959470b0204cc2091e11a0e6d61db848e93077d80e68a4e6892e"
+        }
       }
     },
-    "dibothrosuchus": {
-      "bundle_sha256": "sha256:396f0bacc4fb46fa6440125cbcc6f8df7beeed639590a7dfa59a449cd390492d",
-      "env_entrypoint": "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
-      "model_path": "environments/dibothrosuchus/assets/dibothrosuchus.xml",
-      "physics": {
-        "nq": 35,
-        "nu": 27,
-        "nv": 34,
-        "revision": 2,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:a58c350722031fa29949381a0c4ee6ddb0610a723e8933e53ad08dcdc9f47ea7"
-      },
-      "policy_interface": {
-        "action_dim": 27,
-        "observation_dim": 80,
-        "observation_schema": "quadrupedal-target/v1",
-        "revision": 7,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:d0194cb2ea34a2aae666c421db9f5218960d432db95b0ceb27c8f4e3cf45ab44"
-      },
-      "source": {
-        "closure_sha256": "sha256:952450ec06cc3908cb51ab2124cf0e7fb3d972b6ed349916d950a2984e644259",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:3143869eed379e0b3c65d98b15aeebf03857a95510e6f499aa320f26fb6fd32c",
-            "kind": "mjcf",
-            "logical_path": "environments/dibothrosuchus/assets/dibothrosuchus.xml"
-          }
-        ],
-        "root": "environments/dibothrosuchus/assets/dibothrosuchus.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "dibothrosuchus",
-      "visual": {
-        "revision": 1,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:0a5f29f25ebc959470b0204cc2091e11a0e6d61db848e93077d80e68a4e6892e"
+    "tyrannosaurus_rex": {
+      "anatomical": {
+        "bundle_sha256": "sha256:56c199b1740d3d99742c544d6671b4485f35a16e0584908e5fe793309d934580",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
+        "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+        "physics": {
+          "nq": 28,
+          "nu": 15,
+          "nv": 27,
+          "revision": 9,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
+        },
+        "policy_interface": {
+          "action_dim": 15,
+          "observation_dim": 63,
+          "observation_schema": "bipedal-target-heading-free/v1",
+          "revision": 15,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+        },
+        "source": {
+          "closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:4c3068f395d464771f403613c965659e22fbbe2fc29e0749afb451c0332f5a61",
+              "kind": "mjcf",
+              "logical_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+            }
+          ],
+          "root": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "tyrannosaurus_rex",
+        "visual": {
+          "revision": 4,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
+        }
       }
     },
-    "trex": {
-      "bundle_sha256": "sha256:10937faa407fdddd7e0db0624cff81d4207c73946d6e2338f430d03077b2cd8e",
-      "env_entrypoint": "environments.trex.envs.trex_env:TRexEnv",
-      "model_path": "environments/trex/assets/trex.xml",
-      "physics": {
-        "nq": 28,
-        "nu": 15,
-        "nv": 27,
-        "revision": 9,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
-      },
-      "policy_interface": {
-        "action_dim": 15,
-        "observation_dim": 63,
-        "observation_schema": "bipedal-target-heading-free/v1",
-        "revision": 14,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:169b010de87e363735d6b87d95057964561cf6a064db10bd72667a9ae110a73e"
-      },
-      "source": {
-        "closure_sha256": "sha256:02f6d3ceb49df11c8b8f1f909546c2230b9ed176587c56157db9853fcdad7581",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:1dba4743cd5ae918383a5e3b207a67ae4d774c2f65d6f532bb5a955a2a89ec20",
-            "kind": "mjcf",
-            "logical_path": "environments/trex/assets/trex.xml"
-          }
-        ],
-        "root": "environments/trex/assets/trex.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "trex",
-      "visual": {
-        "revision": 4,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
-      }
-    },
-    "velociraptor": {
-      "bundle_sha256": "sha256:c9ce369376fe5c1d3dd2a1a2f2db52758f8835e40d3664922d2da78f97eb0239",
-      "env_entrypoint": "environments.velociraptor.envs.raptor_env:RaptorEnv",
-      "model_path": "environments/velociraptor/assets/raptor.xml",
-      "physics": {
-        "nq": 31,
-        "nu": 22,
-        "nv": 30,
-        "revision": 4,
-        "schema": "mesozoic.mujoco-physics/v1",
-        "sha256": "sha256:6b4dfb8d1f3d1f4e7cf5f8c29e65cb716b75ee47161e80369a5984468e91ca02"
-      },
-      "policy_interface": {
-        "action_dim": 22,
-        "observation_dim": 70,
-        "observation_schema": "bipedal-target/v1",
-        "revision": 11,
-        "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:f1225162483ec0e000baa619ffaea6165f4214e5884d01503bff62c8be946b6f"
-      },
-      "source": {
-        "closure_sha256": "sha256:b610ad8155a14d09c777d881648847565fe101422487be3662c8b297c8d35dd1",
-        "dependencies": [
-          {
-            "content_sha256": "sha256:e830ed49f6e448af0c49d9149256a168a1389b9be18b98488ee666db2e4503c3",
-            "kind": "mjcf",
-            "logical_path": "environments/velociraptor/assets/raptor.xml"
-          }
-        ],
-        "root": "environments/velociraptor/assets/raptor.xml",
-        "schema": "mesozoic.source-closure/v1"
-      },
-      "species": "velociraptor",
-      "visual": {
-        "revision": 4,
-        "schema": "mesozoic.mujoco-visual/v1",
-        "sha256": "sha256:1bf2430b170ed55f545d5e7f58ca370d21c7352db108e9fc826f9e907ff11ea2"
+    "velociraptor_mongoliensis": {
+      "anatomical": {
+        "bundle_sha256": "sha256:ebeb35d73a8f57c58a44dbdce07526db9d5933ba34782eec64d06fe96f04af8c",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
+        "model_path": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
+        "physics": {
+          "nq": 31,
+          "nu": 22,
+          "nv": 30,
+          "revision": 4,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:6b4dfb8d1f3d1f4e7cf5f8c29e65cb716b75ee47161e80369a5984468e91ca02"
+        },
+        "policy_interface": {
+          "action_dim": 22,
+          "observation_dim": 70,
+          "observation_schema": "bipedal-target/v1",
+          "revision": 12,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:c11825a0f66004b93b86b855b802a48a5890f3d43848b622ea00419230c129f1"
+        },
+        "source": {
+          "closure_sha256": "sha256:62f142427e6f6a851964bd210bf6bf704fc5e2916d468dc96710c9e7cdbe2127",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:35aba7fecb24498543ea7fd93e15460e4b3b437943b446a3c5551128395cc793",
+              "kind": "mjcf",
+              "logical_path": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"
+            }
+          ],
+          "root": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "velociraptor_mongoliensis",
+        "visual": {
+          "revision": 4,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:1bf2430b170ed55f545d5e7f58ca370d21c7352db108e9fc826f9e907ff11ea2"
+        }
       }
     }
   },
-  "schema": "mesozoic.plant-manifest/v1"
+  "schema": "mesozoic.plant-manifest/v2"
 }

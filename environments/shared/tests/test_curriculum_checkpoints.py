@@ -22,10 +22,10 @@ class TestLoadVecnormStats:
         from stable_baselines3.common.monitor import Monitor
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
         def _make():
-            env = RaptorEnv()
+            env = VelociraptorMongoliensisAnatomicalEnv()
             return Monitor(env)
 
         train = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
@@ -41,7 +41,7 @@ class TestLoadVecnormStats:
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
         from environments.shared.curriculum import load_vecnorm_stats
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
         train_env, _ = vec_envs
 
@@ -63,7 +63,7 @@ class TestLoadVecnormStats:
 
         # Create fresh envs (simulating a new stage)
         def _make():
-            return Monitor(RaptorEnv())
+            return Monitor(VelociraptorMongoliensisAnatomicalEnv())
 
         new_train = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
         new_eval = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)

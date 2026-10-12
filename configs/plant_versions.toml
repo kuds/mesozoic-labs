@@ -1,4 +1,4 @@
-schema_version = 1
+schema_version = 2
 fingerprint_tool_version = 2
 canonical_mujoco_version = "3.10.0"
 
@@ -9,6 +9,8 @@ canonical_mujoco_version = "3.10.0"
 # Human-reviewed compatibility counters. The generator refuses to update a
 # changed policy/physics/visual fingerprint unless its corresponding revision
 # increases. Source-only changes (for example comments) do not require a bump.
+# Schema 2 (decision D-D33, note 19) holds one [plants.<species>.<embodiment>]
+# table per model.
 
 # Two shared-interface changes drive the policy revisions below.
 #
@@ -161,6 +163,34 @@ canonical_mujoco_version = "3.10.0"
 #     environments/shared/scripts/restamp_recovery_calibration.py; their
 #     profile_sha256 therefore moves and every compsognathus recovery freeze
 #     made before this revision must be re-frozen.
+#
+# 19. Species named by their binomial, and every plant keyed by (species,
+#     embodiment) (decision D-D33; schema_version 2).  The tables were
+#     [plants.velociraptor], [plants.trex], [plants.brachiosaurus],
+#     [plants.dibothrosuchus], [plants.compsognathus] and
+#     [plants.compsognathus_robot]; they are now the anatomical models of
+#     velociraptor_mongoliensis, tyrannosaurus_rex, brachiosaurus_altithorax,
+#     dibothrosuchus_elaphros and compsognathus_longipes, and
+#     compsognathus_longipes.robot.  Notes 1-18 name the plants by the IDs of
+#     their date.  No observation, action, reset or dynamics change.  The
+#     POLICY INTERFACE digests move only because the payload records the
+#     qualnames of the hashed methods, which now sit on one base class per
+#     species that a later robot of the species shares (TRexEnv._get_obs ->
+#     TyrannosaurusRexEnv._get_obs, RaptorEnv -> VelociraptorMongoliensisEnv,
+#     CompsognathusEnv -> CompsognathusLongipesEnv,
+#     CompsognathusBiologicalEnv -> CompsognathusLongipesAnatomicalEnv, ...),
+#     because the frozen MJX registrations of brachiosaurus and
+#     dibothrosuchus moved to environments.<species>.anatomical.mjx_config
+#     (jax_interface.registration_module), and because the compsognathus
+#     helper robot_body_ids, read in CompsognathusLongipesEnv._cache_ids, is
+#     renamed pelvis_subtree_body_ids; every hashed method's tokens are
+#     otherwise unchanged.  policy_interface_revision +1 on all six
+#     (11 -> 12, 14 -> 15, 8 -> 9, 7 -> 8, 4 -> 5, 2 -> 3).  The PHYSICS and
+#     VISUAL digests are byte-identical: the plant contract paired each plant
+#     of the v1 manifest with its new key by physics digest and found every
+#     physics and visual digest equal, so those counters carry over.  Source
+#     closures move with the paths (source-only).  Every existing checkpoint
+#     is invalidated, which D-D33 accepts.
 
 # 14. The velociraptor stands on its servos, on flat toes, and feels its whole
 #     foot.  Four measured defects of the r2 plant, fixed together so the
@@ -288,9 +318,9 @@ canonical_mujoco_version = "3.10.0"
 #     velociraptor physics-r3, brachiosaurus physics-r4 and dibothrosuchus
 #     physics-r1 checkpoint is invalidated (the plant check compares
 #     physics_sha256); no widen applies.
-[plants.velociraptor]
+[plants.velociraptor_mongoliensis.anatomical]
 physics_revision = 4
-policy_interface_revision = 11
+policy_interface_revision = 12
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
@@ -517,9 +547,9 @@ observation_schema = "bipedal-target/v1"
 #     unchanged, and its fixed-command nulls do not read the observation);
 #     its profile_sha256 moves, so a recovery freeze made before must be
 #     re-frozen.
-[plants.trex]
+[plants.tyrannosaurus_rex.anatomical]
 physics_revision = 9
-policy_interface_revision = 14
+policy_interface_revision = 15
 visual_revision = 4
 observation_schema = "bipedal-target-heading-free/v1"
 
@@ -602,16 +632,17 @@ observation_schema = "bipedal-target-heading-free/v1"
 #    section 3) remains open and is NOT part of this entry.
 #
 # Brachiosaurus physics r5 and dibothrosuchus physics r2: note 17, above
-# [plants.velociraptor] (the elliptic friction cone, D-D30).
-[plants.brachiosaurus]
+# [plants.velociraptor_mongoliensis.anatomical] (the elliptic friction cone,
+# D-D30).
+[plants.brachiosaurus_altithorax.anatomical]
 physics_revision = 5
-policy_interface_revision = 8
+policy_interface_revision = 9
 visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
-[plants.dibothrosuchus]
+[plants.dibothrosuchus_elaphros.anatomical]
 physics_revision = 2
-policy_interface_revision = 7
+policy_interface_revision = 8
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
 
@@ -713,16 +744,16 @@ observation_schema = "quadrupedal-target/v1"
 #     20260921_203149 walker included, and the task digest of every
 #     compsognathus stage and behavior recipe moves with the plant.
 #
-# Compsognathus policy interface r4: note 18, above [plants.trex] (the
-# heading-free observation, D-D31).
-[plants.compsognathus]
+# Compsognathus policy interface r4: note 18, above
+# [plants.tyrannosaurus_rex.anatomical] (the heading-free observation, D-D31).
+[plants.compsognathus_longipes.anatomical]
 physics_revision = 2
-policy_interface_revision = 4
+policy_interface_revision = 5
 visual_revision = 2
 observation_schema = "bipedal-target-heading-free/v1"
 
-[plants.compsognathus_robot]
+[plants.compsognathus_longipes.robot]
 physics_revision = 1
-policy_interface_revision = 2
+policy_interface_revision = 3
 visual_revision = 1
 observation_schema = "bipedal-target/v1"

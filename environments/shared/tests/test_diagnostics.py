@@ -78,7 +78,7 @@ class TestOnStep:
         assert callback._step_infos["forward_vel"] == [2.0]
         assert callback._step_infos["prey_distance"] == [5.0]
 
-    def test_derives_trex_contact_duties_and_load_share(self, callback):
+    def test_derives_tyrannosaurus_rex_contact_duties_and_load_share(self, callback):
         callback.locals = {
             "infos": [
                 {
@@ -552,9 +552,9 @@ class TestActionJerkIsNotDiscarded:
         assert "action_delta" in DiagnosticsCallback.INFO_KEYS
         assert "action_jerk" in DiagnosticsCallback.INFO_KEYS
 
-    def test_the_trex_env_actually_emits_it(self):
+    def test_the_tyrannosaurus_rex_env_actually_emits_it(self):
         """A tracked key the environment never sets is a silently empty column."""
         from pathlib import Path
 
-        source = (Path(__file__).resolve().parents[3] / "environments/trex/envs/trex_env.py").read_text()
+        source = (Path(__file__).resolve().parents[3] / "environments/tyrannosaurus_rex/base_env.py").read_text()
         assert 'info["action_jerk"]' in source

@@ -335,7 +335,7 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
         These are historical experiment records. A result is not evidence for the current model revision unless its
         provenance is explicitly marked current and verified.
       </p>
-      {species.historicalResults.length === 0 && <p>No run summary has been published for this species.</p>}
+      {species.historicalResults.length === 0 && <p>No run summary has been published for this model.</p>}
       {species.historicalResults.map((result) => (
         <section key={result.summaryPath}>
           <h3>{result.algorithm} · {backendLabel(result.backend)} · {result.date}</h3>

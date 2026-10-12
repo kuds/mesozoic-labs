@@ -6,7 +6,6 @@ import ast
 import json
 import posixpath
 import re
-import shutil
 import tomllib
 from copy import deepcopy
 from pathlib import Path
@@ -17,6 +16,7 @@ import pytest
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_schema import GATE_KINDS
 from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERION_KEYS
+from environments.shared.model_id import ModelId
 from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
     _HEADLINE_BY_GATE_KIND,
@@ -48,11 +48,31 @@ from environments.shared.species_catalog import (
     render_readme_species,
     render_readme_species_summary,
 )
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest, resolve_stage_key
 
 from .notebook_cells import cell_sources, code_cell_sources
 
 GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+MODEL_IDS = (
+    VELOCIRAPTOR_MONGOLIENSIS,
+    TYRANNOSAURUS_REX,
+    BRACHIOSAURUS_ALTITHORAX,
+    DIBOTHROSUCHUS_ELAPHROS,
+    COMPSOGNATHUS_LONGIPES,
+    COMPSOGNATHUS_LONGIPES_ROBOT,
+)
+
+
+def _models(catalog: dict[str, Any]) -> dict[ModelId, dict[str, Any]]:
+    """The catalog's model rows keyed by model (decision D-D33: a row names its species and embodiment)."""
+    return {ModelId.from_record(entry): entry for entry in catalog["models"]}
 
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
@@ -61,13 +81,15 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     Re-pinned 3 -> 4 on 2026-09-12 (decision D-A8): stage rows carry the
     recipe DAG and result rows publish per-deliverable certification, and
     the website adapter guards on this number, so the bump is the contract.
+    Re-pinned 4 -> 5 on 2026-10-11 (decision D-D33): the rows are the models,
+    each naming its species and embodiment.
     """
     catalog = build_catalog()
-    assert catalog["schema_version"] == 4
-    species = {entry["id"]: entry for entry in catalog["species"]}
+    assert catalog["schema_version"] == 5
+    models = _models(catalog)
 
     assert {
-        species_id: (
+        model_id: (
             entry["environment"]["observation_dim"],
             entry["environment"]["action_dim"],
             entry["model"]["nq"],
@@ -75,22 +97,26 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
             entry["model"]["nu"],
             entry["model"]["dynamic_mass_kg"],
         )
-        for species_id, entry in species.items()
+        for model_id, entry in models.items()
     } == {
         # Observation widths carry the Phase C 3-dim command segment
         # (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77/53/43 -> 70/64/86/80/56/46.
         # The heading-free observation (plant_versions note 18) replaced the
         # trex's and the anatomical compsognathus's 4-wide quaternion with
         # 3-wide projected gravity: 64/56 -> 63/55.
-        "velociraptor": (70, 22, 31, 30, 22, 13.5),
-        "trex": (63, 15, 28, 27, 15, 85.72),
-        "brachiosaurus": (86, 30, 38, 37, 30, 175.3),
-        "dibothrosuchus": (80, 27, 35, 34, 27, 8.65),
-        "compsognathus": (55, 14, 24, 23, 14, 1.0),
-        "compsognathus_robot": (46, 12, 19, 18, 12, 1.5856),
+        VELOCIRAPTOR_MONGOLIENSIS: (70, 22, 31, 30, 22, 13.5),
+        TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
+        BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
+        DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
+        COMPSOGNATHUS_LONGIPES: (55, 14, 24, 23, 14, 1.0),
+        COMPSOGNATHUS_LONGIPES_ROBOT: (46, 12, 19, 18, 12, 1.5856),
     }
 
-    assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [12_000_000, 8_000_000, 12_000_000]
+    assert [stage["timesteps"] for stage in models[VELOCIRAPTOR_MONGOLIENSIS]["stages"]] == [
+        12_000_000,
+        8_000_000,
+        12_000_000,
+    ]
     # Stage 1 is 12M, not the 6M of the quadrupeds: trex 1a is the
     # stance-gated stage, and its 6M budget ran out mid-improvement -- run
     # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
@@ -101,14 +127,15 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
     # sits between stance and locomotion, labelled by its semantic id — it
     # has no legacy number and none is invented for it.
-    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [
+    assert [stage["timesteps"] for stage in models[TYRANNOSAURUS_REX]["stages"]] == [
         12_000_000,
         3_000_000,
         8_000_000,
         8_000_000,
     ]
     assert [
-        (stage["id"], stage["number"], stage["label"], stage["position"]) for stage in species["trex"]["stages"]
+        (stage["id"], stage["number"], stage["label"], stage["position"])
+        for stage in models[TYRANNOSAURUS_REX]["stages"]
     ] == [
         ("stance", 1, "1", 1),
         ("recovery", None, "recovery", 2),
@@ -120,23 +147,23 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # "stand" spanning stance and recovery.
     assert [
         (stage["id"], stage["deliverable"], stage["warm_start_from"], stage["recipe"])
-        for stage in species["trex"]["stages"]
+        for stage in models[TYRANNOSAURUS_REX]["stages"]
     ] == [
         ("stance", True, None, "stand"),
         ("recovery", True, "stance", "stand"),
         ("locomotion", True, "stance", "walk"),
         ("behavior", True, "locomotion", "hunt"),
     ]
-    for species_id in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
-        assert [stage["deliverable"] for stage in species[species_id]["stages"]] == [True, True, True]
-        assert [stage["warm_start_from"] for stage in species[species_id]["stages"]] == [None, "stance", "locomotion"]
-        assert [stage["recipe"] for stage in species[species_id]["stages"]] == ["stand", "walk", "hunt"]
-    assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
+    for model_id in (VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS):
+        assert [stage["deliverable"] for stage in models[model_id]["stages"]] == [True, True, True]
+        assert [stage["warm_start_from"] for stage in models[model_id]["stages"]] == [None, "stance", "locomotion"]
+        assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stand", "walk", "hunt"]
+    assert [stage["timesteps"] for stage in models[BRACHIOSAURUS_ALTITHORAX]["stages"]] == [
         6_000_000,
         16_000_000,
         12_000_000,
     ]
-    assert [stage["timesteps"] for stage in species["dibothrosuchus"]["stages"]] == [
+    assert [stage["timesteps"] for stage in models[DIBOTHROSUCHUS_ELAPHROS]["stages"]] == [
         6_000_000,
         12_000_000,
         8_000_000,
@@ -144,21 +171,23 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
 
 
 def test_catalog_publishes_layered_plant_contract() -> None:
+    """Re-pinned plant-manifest/v1 -> v2 on 2026-10-11 (decision D-D33): plants are keyed by species and
+    embodiment."""
     catalog = build_catalog()
 
     assert catalog["plant_manifest"] == {
         "path": "configs/plant_manifest.generated.json",
-        "schema": "mesozoic.plant-manifest/v1",
+        "schema": "mesozoic.plant-manifest/v2",
         "fingerprint_tool_version": 2,
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
-        "velociraptor": "bipedal-target/v1",
-        "trex": "bipedal-target-heading-free/v1",
-        "brachiosaurus": "quadrupedal-target/v1",
-        "dibothrosuchus": "quadrupedal-target/v1",
-        "compsognathus": "bipedal-target-heading-free/v1",
-        "compsognathus_robot": "bipedal-target/v1",
+        VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target/v1",
+        TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
+        BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
+        DIBOTHROSUCHUS_ELAPHROS: "quadrupedal-target/v1",
+        COMPSOGNATHUS_LONGIPES: "bipedal-target-heading-free/v1",
+        COMPSOGNATHUS_LONGIPES_ROBOT: "bipedal-target/v1",
     }
     # The T-Rex is at physics r5 for the theropod stance correction: the home
     # keyframe moved off a near-straight knee onto a 135 deg one and the leg
@@ -199,7 +228,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # The anatomical compsognathus then took one bump of all three (plant_versions
     # note 15): a one-density tail, a metatarsus capsule 4 mm short of the MTP and
     # digit II medial on both feet (physics, visual, and the regenerated home
-    # preload), and the soft-cubic leg residual of CompsognathusBiologicalEnv.
+    # preload), and the soft-cubic leg residual of CompsognathusLongipesAnatomicalEnv.
     # The robot is untouched.
     # T-Rex physics r9 (plant_versions note 16) switched the friction cone to
     # elliptic: PHYSICS only, policy and visual unchanged. Velociraptor r4,
@@ -208,54 +237,73 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # anatomical compsognathus's policy revisions once more (projected
     # gravity, heading-frame velocity, pelvis-frame target; the T-Rex SB3-only
     # with it): POLICY only, physics and visual unchanged, the robot untouched.
+    # The binomial rename (plant_versions note 19, decision D-D33) bumped every
+    # policy revision once more: the hashed methods' qualnames moved to the
+    # species base classes. POLICY only, physics and visual unchanged.
     expected_policy_revisions = {
-        "velociraptor": 11,
-        "trex": 14,
-        "brachiosaurus": 8,
-        "dibothrosuchus": 7,
-        "compsognathus": 4,
-        "compsognathus_robot": 2,
+        VELOCIRAPTOR_MONGOLIENSIS: 12,
+        TYRANNOSAURUS_REX: 15,
+        BRACHIOSAURUS_ALTITHORAX: 9,
+        DIBOTHROSUCHUS_ELAPHROS: 8,
+        COMPSOGNATHUS_LONGIPES: 5,
+        COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
-    expected_physics_revisions = {"velociraptor": 4, "trex": 9, "brachiosaurus": 5, "dibothrosuchus": 2}
-    expected_visual_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
+    expected_physics_revisions = {
+        VELOCIRAPTOR_MONGOLIENSIS: 4,
+        TYRANNOSAURUS_REX: 9,
+        BRACHIOSAURUS_ALTITHORAX: 5,
+        DIBOTHROSUCHUS_ELAPHROS: 2,
+    }
+    expected_visual_revisions = {
+        VELOCIRAPTOR_MONGOLIENSIS: 4,
+        TYRANNOSAURUS_REX: 4,
+        BRACHIOSAURUS_ALTITHORAX: 2,
+        DIBOTHROSUCHUS_ELAPHROS: 1,
+    }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update(compsognathus=2, compsognathus_robot=1)
+        revisions.update({COMPSOGNATHUS_LONGIPES: 2, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+    # Every table pins every model (review M4): a new model fails here, naming the table.
+    for name, table in (
+        ("expected_policy_revisions", expected_policy_revisions),
+        ("expected_observation_schemas", expected_observation_schemas),
+        ("expected_physics_revisions", expected_physics_revisions),
+        ("expected_visual_revisions", expected_visual_revisions),
+    ):
+        assert set(table) == set(_models(catalog)) == set(model_ids()), name
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
-    for species in catalog["species"]:
-        plant = species["model"]["plant_contract"]
+    for model_id, entry in _models(catalog).items():
+        plant = entry["model"]["plant_contract"]
         assert digest_pattern.fullmatch(plant["bundle_sha256"])
         assert digest_pattern.fullmatch(plant["source_closure_sha256"])
-        assert plant["policy_interface"]["revision"] == expected_policy_revisions[species["id"]]
-        assert plant["policy_interface"]["observation_schema"] == expected_observation_schemas[species["id"]]
-        assert plant["physics"]["revision"] == expected_physics_revisions[species["id"]]
-        assert plant["visual"]["revision"] == expected_visual_revisions[species["id"]]
+        assert plant["policy_interface"]["revision"] == expected_policy_revisions[model_id]
+        assert plant["policy_interface"]["observation_schema"] == expected_observation_schemas[model_id]
+        assert plant["physics"]["revision"] == expected_physics_revisions[model_id]
+        assert plant["visual"]["revision"] == expected_visual_revisions[model_id]
         for layer in ("policy_interface", "physics", "visual"):
             assert digest_pattern.fullmatch(plant[layer]["sha256"])
 
 
 def test_catalog_keeps_current_configs_separate_from_historical_results() -> None:
     catalog = build_catalog()
-    brachiosaurus = next(entry for entry in catalog["species"] if entry["id"] == "brachiosaurus")
-    current_stage_three = brachiosaurus["stages"][2]
-    published_stage_three = brachiosaurus["historical_results"][0]["stages"][2]
+    brachiosaurus_altithorax = _models(catalog)[BRACHIOSAURUS_ALTITHORAX]
+    current_stage_three = brachiosaurus_altithorax["stages"][2]
+    published_stage_three = brachiosaurus_altithorax["historical_results"][0]["stages"][2]
 
     assert current_stage_three["timesteps"] == 12_000_000
     assert published_stage_three["timesteps"] == 12_009_472
-    assert brachiosaurus["historical_results"][0]["provenance"]["model_revision_status"] == "historical"
-    assert brachiosaurus["historical_results"][0]["provenance"]["verification_status"] == "unverified"
+    assert brachiosaurus_altithorax["historical_results"][0]["provenance"]["model_revision_status"] == "historical"
+    assert brachiosaurus_altithorax["historical_results"][0]["provenance"]["verification_status"] == "unverified"
 
 
 def test_catalog_uses_nullable_video_for_unpublished_stage() -> None:
     catalog = build_catalog()
-    brachiosaurus = next(entry for entry in catalog["species"] if entry["id"] == "brachiosaurus")
-    assert brachiosaurus["stages"][2]["video"] is None
+    brachiosaurus_altithorax = _models(catalog)[BRACHIOSAURUS_ALTITHORAX]
+    assert brachiosaurus_altithorax["stages"][2]["video"] is None
 
 
 def test_catalog_labels_published_videos_with_artifact_provenance() -> None:
     catalog = build_catalog()
-    videos = [
-        stage["video"] for species in catalog["species"] for stage in species["stages"] if stage["video"] is not None
-    ]
+    videos = [stage["video"] for entry in catalog["models"] for stage in entry["stages"] if stage["video"] is not None]
 
     assert len(videos) == 8
     assert all(video["algorithm"] == "PPO" for video in videos)
@@ -267,7 +315,7 @@ def test_catalog_labels_published_videos_with_artifact_provenance() -> None:
 
 def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
-    species = {entry["id"]: entry for entry in catalog["species"]}
+    models = _models(catalog)
 
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
@@ -309,11 +357,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # -> 2100 nearest-10, for physics r8 with its stance task: statue
         # 3766.1, x0.60 = 2259.7 -> 2260, and for the D-D27 follow-up: statue
         # 3756.8, x0.60 = 2254.1 -> 2250.
-        "trex": 2250.0,
+        TYRANNOSAURUS_REX: 2250.0,
         # 0.60 x 2842.76 = 1705.7 -> 1710 nearest-10 (1050 on the r2 plant).
-        "velociraptor": 1710.0,
-        "brachiosaurus": 1040.0,
-        "dibothrosuchus": 1560.0,
+        VELOCIRAPTOR_MONGOLIENSIS: 1710.0,
+        BRACHIOSAURUS_ALTITHORAX: 1040.0,
+        DIBOTHROSUCHUS_ELAPHROS: 1560.0,
     }
 
     # T-Rex 1a moved to stance_quality/v1 and then, with physics r8, to
@@ -324,10 +372,20 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # >= 95% requirement directly instead of encoding it as a step count. Their
     # min_avg_reward stays, demoted to a rail. The other two species are still
     # on reward_and_length/v1 pending their own stance calibration.
-    stage_one_length = {"trex": None, "velociraptor": None, "brachiosaurus": 950, "dibothrosuchus": 950}
+    stage_one_length = {
+        TYRANNOSAURUS_REX: None,
+        VELOCIRAPTOR_MONGOLIENSIS: None,
+        BRACHIOSAURUS_ALTITHORAX: 950,
+        DIBOTHROSUCHUS_ELAPHROS: 950,
+    }
     # The stance bound's power is specified at n=40; the other species keep
     # the historical default.
-    stage_one_eval_episodes = {"trex": 40, "velociraptor": 40, "brachiosaurus": 10, "dibothrosuchus": 10}
+    stage_one_eval_episodes = {
+        TYRANNOSAURUS_REX: 40,
+        VELOCIRAPTOR_MONGOLIENSIS: 40,
+        BRACHIOSAURUS_ALTITHORAX: 10,
+        DIBOTHROSUCHUS_ELAPHROS: 10,
+    }
     # Only the T-Rex and velociraptor 1a declare stance criteria; the rest
     # export nulls.
     stance_null: dict[str, float | None] = {
@@ -335,11 +393,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_unsupported_duty": None,
         "max_unsupported_duty_ucb": None,
     }
-    # T-Rex 1a's stance_quality/v2 block (configs/trex/stance.toml, D-D24),
+    # T-Rex 1a's stance_quality/v2 block (configs/tyrannosaurus_rex/anatomical/stance.toml, D-D24),
     # judged at six headings under stance_quality_heading/v1 since D-D32:
     # v1's duty pair exports null, and the v2 keys are exported beside the
     # shared ones on this stage alone, each declared value or null.
-    trex_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
+    tyrannosaurus_rex_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
         "min_clean_stance_lcb": 0.80,
         "settle_steps": 200,
         "min_all_feet_support": 0.98,
@@ -365,13 +423,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # The pad's fore-aft centre of pressure (D-D28): the seed-44 left foot on its pad's front edge.
         "max_sole_cop_fore_aft": 0.80,
     }
-    # Velociraptor 1a's block (configs/velociraptor/stage1_balance.toml,
+    # Velociraptor 1a's block (configs/velociraptor_mongoliensis/anatomical/stance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and
     # coverage, with the settle-window width change and the statue's own
     # load share beside them; the sole keys export null. The foot bars and the
     # settle peak sit mid-gap between the statue and the audited hacks, so a
     # statue with command jitter stays clean.
-    velociraptor_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
+    velociraptor_mongoliensis_stance_v2: dict[str, float | None] = {key: None for key in _STANCE_V2_EXPORTED_KEYS} | {
         "min_clean_stance_lcb": 0.80,
         "settle_steps": 100,
         "min_all_feet_support": 0.98,
@@ -391,21 +449,21 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_nonfoot_load_fraction": 0.01,
         "min_avg_reward_statue_ratio": 0.60,
     }
-    stage_one_stance: dict[str, dict[str, float | None]] = {
-        "trex": {
+    stage_one_stance: dict[ModelId, dict[str, float | None]] = {
+        TYRANNOSAURUS_REX: {
             "min_full_horizon_fraction": 0.95,
             "max_unsupported_duty": None,
             "max_unsupported_duty_ucb": None,
-            **trex_stance_v2,
+            **tyrannosaurus_rex_stance_v2,
         },
-        "velociraptor": {
+        VELOCIRAPTOR_MONGOLIENSIS: {
             "min_full_horizon_fraction": 0.95,
             "max_unsupported_duty": None,
             "max_unsupported_duty_ucb": None,
-            **velociraptor_stance_v2,
+            **velociraptor_mongoliensis_stance_v2,
         },
-        "brachiosaurus": stance_null,
-        "dibothrosuchus": stance_null,
+        BRACHIOSAURUS_ALTITHORAX: stance_null,
+        DIBOTHROSUCHUS_ELAPHROS: stance_null,
     }
 
     # Recovery stages declare recovery_quality/v1 criteria; every numbered
@@ -425,7 +483,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # the declared panel n (D-B1), the statue-derived collapse rail 361 =
     # round(0.6 x 602.13) (D-B4) and neither retired criterion (CF2 / D1
     # retired the velocity target, SS2 the raw-mean success rate).
-    trex_stage_three = {
+    tyrannosaurus_rex_stage_three = {
         "gate_kind": "task_success/v1",
         "pending_gate_kind": None,
         "min_avg_reward": 361.0,
@@ -439,19 +497,19 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
 
     stage_one_gate_kind = {
         # The six-heading certificate since D-D32 (v2's block judged at six whole-scene headings).
-        "trex": "stance_quality_heading/v1",
-        "velociraptor": "stance_quality/v2",
-        "brachiosaurus": "reward_and_length/v1",
-        "dibothrosuchus": "reward_and_length/v1",
+        TYRANNOSAURUS_REX: "stance_quality_heading/v1",
+        VELOCIRAPTOR_MONGOLIENSIS: "stance_quality/v2",
+        BRACHIOSAURUS_ALTITHORAX: "reward_and_length/v1",
+        DIBOTHROSUCHUS_ELAPHROS: "reward_and_length/v1",
     }
 
-    for species_id, entry in species.items():
-        if species_id in ("compsognathus", "compsognathus_robot"):
+    for model_id, entry in models.items():
+        if model_id.species == "compsognathus_longipes":
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
             first, second, third = (
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
             )
-            if species_id == "compsognathus":
+            if model_id == COMPSOGNATHUS_LONGIPES:
                 # The anatomical stance moved to stance_quality/v2 with physics r2 (D-D26) and to the six-heading
                 # certificate, which declares the same keys, with D-D32; the robot keeps v1.
                 assert first["gate_kind"] == "stance_quality_heading/v1"
@@ -467,7 +525,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 assert first["max_unsupported_duty"] == 0.02
                 assert first["max_unsupported_duty_ucb"] == 0.02
             assert first["min_full_horizon_fraction"] == 0.95
-            assert second["min_avg_forward_velocity"] == (0.04 if species_id.endswith("_robot") else 0.08)
+            assert second["min_avg_forward_velocity"] == (0.04 if model_id.embodiment == "robot" else 0.08)
             assert second["min_avg_episode_length"] == 900
             assert third["min_success_rate"] == 0.7
             assert third["min_avg_episode_length"] is None
@@ -475,7 +533,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             assert all(gate["min_eval_episodes"] == 20 for gate in (second, third))
             # The semantic recovery row is published without renumbering the
             # advancing curriculum or turning its pilot verdict into a handoff.
-            assert [stage.id for stage in load_stage_manifest(species_id).advancing_stages] == [
+            assert [stage.id for stage in load_stage_manifest(model_id).advancing_stages] == [
                 "stance",
                 "locomotion",
                 "behavior",
@@ -508,15 +566,15 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         gates_by_number = {stage["number"]: stage["advancement_gate"] for stage in entry["stages"]}
         stage_one, stage_two, stage_three = (gates_by_number[number] for number in (1, 2, 3))
         assert stage_one == {
-            "gate_kind": stage_one_gate_kind[species_id],
+            "gate_kind": stage_one_gate_kind[model_id],
             "pending_gate_kind": None,
-            "min_avg_reward": stage_one_min_avg_reward[species_id],
-            "min_avg_episode_length": stage_one_length[species_id],
+            "min_avg_reward": stage_one_min_avg_reward[model_id],
+            "min_avg_episode_length": stage_one_length[model_id],
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
-            "min_eval_episodes": stage_one_eval_episodes[species_id],
+            "min_eval_episodes": stage_one_eval_episodes[model_id],
             "required_consecutive": 3,
-            **stage_one_stance[species_id],
+            **stage_one_stance[model_id],
             **recovery_null,
             **task_success_null,
         }
@@ -535,8 +593,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             **recovery_null,
             **task_success_null,
         }
-        if species_id == "trex":
-            assert stage_three == {**trex_stage_three, **stance_null, **recovery_null}
+        if model_id == TYRANNOSAURUS_REX:
+            assert stage_three == {**tyrannosaurus_rex_stage_three, **stance_null, **recovery_null}
             continue
         assert stage_three | {"min_avg_forward_velocity": None} == {
             "gate_kind": "reward_and_length/v1",
@@ -557,11 +615,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # pending placeholder, and no invented number. Full-dict equality so a
     # silently added or dropped export key fails here, as for the numbered
     # stages above.
-    trex_recovery = next(stage for stage in species["trex"]["stages"] if stage["id"] == "recovery")
-    assert trex_recovery["number"] is None
-    assert trex_recovery["label"] == "recovery"
-    assert trex_recovery["timesteps"] == 3_000_000
-    assert trex_recovery["advancement_gate"] == {
+    tyrannosaurus_rex_recovery = next(
+        stage for stage in models[TYRANNOSAURUS_REX]["stages"] if stage["id"] == "recovery"
+    )
+    assert tyrannosaurus_rex_recovery["number"] is None
+    assert tyrannosaurus_rex_recovery["label"] == "recovery"
+    assert tyrannosaurus_rex_recovery["timesteps"] == 3_000_000
+    assert tyrannosaurus_rex_recovery["advancement_gate"] == {
         "gate_kind": "recovery_quality/v1",
         "pending_gate_kind": None,
         "min_avg_reward": None,
@@ -577,7 +637,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         **stance_null,
         **task_success_null,
     }
-    assert trex_recovery["video"] is None
+    assert tyrannosaurus_rex_recovery["video"] is None
 
     # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude
     # 0.14-0.16; the copied raptor 2.0 was this plant's walk-run boundary and
@@ -585,12 +645,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stages addressed by legacy NUMBER, not list index: trex's list gained
     # a recovery row at position 2, and "stage 2" must keep meaning
     # locomotion (the no-silent-renumbering invariant).
-    def _gate(species_id: str, number: int) -> dict:
-        return next(stage["advancement_gate"] for stage in species[species_id]["stages"] if stage["number"] == number)
+    def _gate(model_id: ModelId, number: int) -> dict:
+        return next(stage["advancement_gate"] for stage in models[model_id]["stages"] if stage["number"] == number)
 
-    assert _gate("velociraptor", 2)["min_avg_forward_velocity"] == 2.0
-    assert _gate("trex", 2)["min_avg_forward_velocity"] == 1.0
-    assert _gate("brachiosaurus", 2)["min_avg_forward_velocity"] == 0.75
+    assert _gate(VELOCIRAPTOR_MONGOLIENSIS, 2)["min_avg_forward_velocity"] == 2.0
+    assert _gate(TYRANNOSAURUS_REX, 2)["min_avg_forward_velocity"] == 1.0
+    assert _gate(BRACHIOSAURUS_ALTITHORAX, 2)["min_avg_forward_velocity"] == 0.75
     # No species gates stage 3 on speed. The 2.0 m/s capability target that
     # review §5.3 decision (b) relocated to trex's behavior stage was retired
     # by plan D1 (review CF2: a bite terminates the episode after ~0.5 m, so
@@ -598,58 +658,67 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # gated. The trex hunt instead certifies the binomial LCB95 on task
     # success (task_success/v1, plan §4.4; D-B2's provisional 0.5 bar) and
     # consumes no raw-mean success rate (review SS2).
-    for stage_three_species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
-        assert _gate(stage_three_species, 3)["min_avg_forward_velocity"] is None
-    assert _gate("trex", 3)["min_success_lcb"] == 0.5
-    assert _gate("trex", 3)["min_success_rate"] is None
+    for stage_three_model in (
+        TYRANNOSAURUS_REX,
+        VELOCIRAPTOR_MONGOLIENSIS,
+        BRACHIOSAURUS_ALTITHORAX,
+        DIBOTHROSUCHUS_ELAPHROS,
+    ):
+        assert _gate(stage_three_model, 3)["min_avg_forward_velocity"] is None
+    assert _gate(TYRANNOSAURUS_REX, 3)["min_success_lcb"] == 0.5
+    assert _gate(TYRANNOSAURUS_REX, 3)["min_success_rate"] is None
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     catalog = build_catalog()
-    species = {entry["id"]: entry for entry in catalog["species"]}
+    models = _models(catalog)
 
     # Velociraptor is SB3-only since policy-interface revision 11 and the
     # T-Rex since revision 14, so each catalog carries the contact semantics
     # alone; brachiosaurus and dibothrosuchus still declare both backends and
     # keep one metric per backend.
-    for sb3_only in ("velociraptor", "trex"):
-        metrics = species[sb3_only]["success_metrics"]
+    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX):
+        metrics = models[sb3_only]["success_metrics"]
         assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], sb3_only
         assert "contacts the prey geom" in metrics[0]["definition"], sb3_only
-        assert all(
-            metric["backends"] == ["stable-baselines3"] for metric in species[sb3_only]["deliverable_metrics"]
-        ), sb3_only
+        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[sb3_only]["deliverable_metrics"]), (
+            sb3_only
+        )
 
-    brachio_metrics = species["brachiosaurus"]["success_metrics"]
-    assert {backend for metric in brachio_metrics for backend in metric["backends"]} == {
+    brachiosaurus_altithorax_metrics = models[BRACHIOSAURUS_ALTITHORAX]["success_metrics"]
+    assert {backend for metric in brachiosaurus_altithorax_metrics for backend in metric["backends"]} == {
         "stable-baselines3",
         "jax-mjx",
     }
 
 
-def test_manifest_covers_all_curated_results_and_implemented_species() -> None:
+def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
     catalog = build_catalog()
     manifested_results = {
-        result["summary_path"] for species in catalog["species"] for result in species["historical_results"]
+        result["summary_path"] for entry in catalog["models"] for result in entry["historical_results"]
     }
+    # Coverage equality with the committed files: a result is results/<species>/<embodiment>/<algorithm>/.
     curated_results = {
-        path.relative_to(REPOSITORY_ROOT).as_posix() for path in (REPOSITORY_ROOT / "results").glob("*/*/summary.json")
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in (REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")
     }
-    assert manifested_results == curated_results
+    assert curated_results and manifested_results == curated_results
 
-    manifested_species = {species["id"] for species in catalog["species"]}
-    implemented_species = {
-        path.name
-        for path in (REPOSITORY_ROOT / "environments").iterdir()
-        if path.is_dir() and (path / "envs").is_dir() and (path / "assets").is_dir()
+    manifested_models = set(_models(catalog))
+    implemented_models = {
+        ModelId(path.parent.name, path.name)
+        for path in (REPOSITORY_ROOT / "environments").glob("*/*")
+        if path.is_dir() and (path / "env.py").is_file() and (path / "assets").is_dir()
     }
-    assert manifested_species - {"compsognathus_robot"} == implemented_species
-    robot = next(entry for entry in catalog["species"] if entry["id"] == "compsognathus_robot")
-    assert robot["environment"]["entrypoint"].startswith("environments.compsognathus.envs.")
+    assert implemented_models and manifested_models == implemented_models
+    robot = _models(catalog)[COMPSOGNATHUS_LONGIPES_ROBOT]
+    assert robot["environment"]["entrypoint"] == (
+        "environments.compsognathus_longipes.robot.env:CompsognathusLongipesRobotEnv"
+    )
 
 
 def _published_summary() -> dict[str, Any]:
-    summary_path = REPOSITORY_ROOT / "results" / "velociraptor" / "ppo" / "summary.json"
+    summary_path = VELOCIRAPTOR_MONGOLIENSIS.path(REPOSITORY_ROOT / "results") / "ppo" / "summary.json"
     return cast(dict[str, Any], json.loads(summary_path.read_text(encoding="utf-8")))
 
 
@@ -660,8 +729,8 @@ def test_result_validator_rejects_missing_public_metric() -> None:
     with pytest.raises(CatalogError, match="best_eval_reward is required"):
         _validate_result_summary(
             summary,
-            species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -671,8 +740,8 @@ def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None
     with pytest.raises(CatalogError, match="must be between 0 and 1"):
         _validate_result_summary(
             summary,
-            species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
     summary = deepcopy(_published_summary())
@@ -680,8 +749,8 @@ def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None
     with pytest.raises(CatalogError, match="stage totals sum"):
         _validate_result_summary(
             summary,
-            species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -691,16 +760,16 @@ def test_result_validator_uses_backend_aware_paths() -> None:
 
     validated = _validate_result_summary(
         summary,
-        species_id="velociraptor",
-        relative_path="results/velociraptor/jax_ppo/summary.json",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        relative_path="results/velociraptor_mongoliensis/anatomical/jax_ppo/summary.json",
     )
     assert validated is summary
 
     with pytest.raises(CatalogError, match=r"expected jax_ppo for jax-mjx"):
         _validate_result_summary(
             summary,
-            species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -711,8 +780,8 @@ def test_shared_result_errors_remain_catalog_errors() -> None:
     with pytest.raises(CatalogError, match="provenance.*missing fields"):
         _validate_result_summary(
             summary,
-            species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -740,9 +809,7 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
 def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
     # Velociraptor declares itself SB3-only (policy-interface revision 11), so
     # the broken copy flips that declaration rather than adding a second one.
-    declaration = (
-        'model_path = "environments/velociraptor/assets/raptor.xml"\ntraining_backends = ["stable-baselines3"]\n'
-    )
+    declaration = 'model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"\ntraining_backends = ["stable-baselines3"]\n'
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
     assert manifest_text.count(declaration) == 1
     broken_manifest = tmp_path / "species_manifest.toml"
@@ -751,17 +818,19 @@ def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_s
         encoding="utf-8",
     )
 
-    with pytest.raises(CatalogError, match="velociraptor advertises unsupported notebook sb3_training"):
+    with pytest.raises(
+        CatalogError, match="velociraptor_mongoliensis/anatomical advertises unsupported notebook sb3_training"
+    ):
         build_catalog(broken_manifest)
 
 
 def test_catalog_rejects_plant_contract_that_disagrees_with_environment(tmp_path: Path) -> None:
     plant_manifest = json.loads(DEFAULT_PLANT_MANIFEST_PATH.read_text(encoding="utf-8"))
-    plant_manifest["plants"]["velociraptor"]["policy_interface"]["observation_dim"] += 1
+    plant_manifest["plants"]["velociraptor_mongoliensis"]["anatomical"]["policy_interface"]["observation_dim"] += 1
     stale_manifest = tmp_path / "plant_manifest.generated.json"
     stale_manifest.write_text(json.dumps(plant_manifest), encoding="utf-8")
 
-    with pytest.raises(CatalogError, match="plant observation_dim mismatch for velociraptor"):
+    with pytest.raises(CatalogError, match="plant observation_dim mismatch for velociraptor_mongoliensis/anatomical"):
         build_catalog(plant_manifest_path=stale_manifest)
 
 
@@ -926,21 +995,15 @@ def test_sb3_notebook_routes_every_bundle_write_through_chain_results() -> None:
     assert "validate_result_bundle(RUN_DIR, require_complete=True)" in completion_cells[0]
 
 
-@pytest.mark.parametrize(
-    ("species_id", "website_constant"),
-    [
-        ("velociraptor", "VELOCIRAPTOR"),
-        ("trex", "TREX"),
-        ("brachiosaurus", "BRACHIOSAURUS"),
-        ("dibothrosuchus", "DIBOTHROSUCHUS"),
-    ],
-)
-def test_public_model_pages_render_generated_catalog(species_id: str, website_constant: str) -> None:
-    page = (REPOSITORY_ROOT / "website" / "docs" / "models" / f"{species_id}.mdx").read_text(encoding="utf-8")
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_public_model_pages_render_generated_catalog(model_id: ModelId) -> None:
+    page = (
+        REPOSITORY_ROOT / "website" / "docs" / "models" / model_id.species / f"{model_id.embodiment}.mdx"
+    ).read_text(encoding="utf-8")
 
     assert "import SpeciesCatalog from '@site/src/components/SpeciesCatalog';" in page
-    assert f"import {{{website_constant}}} from '@site/src/data/species';" in page
-    assert f"<SpeciesCatalog species={{{website_constant}}} />" in page
+    assert f"requireModel('{model_id.species}', '{model_id.embodiment}')" in page
+    assert "<SpeciesCatalog species={" in page
 
 
 def test_every_species_model_page_is_tracked_by_git() -> None:
@@ -970,8 +1033,8 @@ def test_every_species_model_page_is_tracked_by_git() -> None:
         pytest.skip("not a git work tree")
 
     tracked_pages = set(tracked.stdout.split())
-    for species in build_catalog()["species"]:
-        page = f"website/docs/models/{species['id']}.mdx"
+    for entry in build_catalog()["models"]:
+        page = f"website/docs/models/{entry['species']}/{entry['embodiment']}.mdx"
         assert page in tracked_pages, (
             f"{page} is not tracked by git. It may exist locally while being excluded by a "
             f".gitignore rule, which builds fine here and fails the Docusaurus job in CI."
@@ -998,13 +1061,13 @@ def test_default_paths_are_inside_repository() -> None:
 def test_current_gate_kinds_follow_the_manifest() -> None:
     # The trex hunt adopted task_success/v1 (plan §4.4, WS-B2); every other
     # species' hunt stays on reward_and_length/v1 (D-B14).
-    assert current_gate_kinds("trex") == {
+    assert current_gate_kinds(TYRANNOSAURUS_REX) == {
         "stance": "stance_quality_heading/v1",
         "recovery": "recovery_quality/v1",
         "locomotion": "reward_and_length/v1",
         "behavior": "task_success/v1",
     }
-    assert current_gate_kinds("velociraptor") == {
+    assert current_gate_kinds(VELOCIRAPTOR_MONGOLIENSIS) == {
         "stance": "stance_quality/v2",
         "locomotion": "reward_and_length/v1",
         "behavior": "reward_and_length/v1",
@@ -1013,8 +1076,8 @@ def test_current_gate_kinds_follow_the_manifest() -> None:
 
 def test_published_verdicts_carry_gate_provenance() -> None:
     catalog = build_catalog()
-    trex = next(entry for entry in catalog["species"] if entry["id"] == "trex")
-    stance = next(stage for stage in trex["historical_results"][0]["stages"] if stage["id"] == "stance")
+    tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
+    stance = next(stage for stage in tyrannosaurus_rex["historical_results"][0]["stages"] if stage["id"] == "stance")
     assert stance["stage_passed"] is True
     assert stance["gate_kind"] is None
     assert stance["current_gate_kind"] == "stance_quality_heading/v1"
@@ -1028,13 +1091,17 @@ def test_published_verdicts_carry_gate_provenance() -> None:
 def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path, monkeypatch: Any) -> None:
     from environments.shared import species_catalog
 
-    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
+    summary = deepcopy(
+        json.loads(
+            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
+        )
+    )
     summary["stages"]["1"]["gate_kind"] = "stance_quality_heading/v1"
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
 
-    result = species_catalog._build_result("trex", "results/trex/ppo/summary.json")
+    result = species_catalog._build_result(TYRANNOSAURUS_REX, "results/tyrannosaurus_rex/anatomical/ppo/summary.json")
 
     stages = {stage["id"]: stage for stage in result["stages"]}
     assert stages["stance"]["gate_retired"] is False
@@ -1074,9 +1141,8 @@ def test_format_verdict_labels_retired_gates(stage: dict[str, Any], expected: st
 # generated README (BEHAVIOR_RECIPES_PLAN §4.3, decisions D-A8 / D-A9 / D-A10).
 
 
-def _build_catalog_stages(species_id: str) -> list[dict[str, Any]]:
-    species = next(entry for entry in build_catalog()["species"] if entry["id"] == species_id)
-    return cast(list[dict[str, Any]], species["stages"])
+def _build_catalog_stages(model_id: ModelId) -> list[dict[str, Any]]:
+    return cast(list[dict[str, Any]], _models(build_catalog())[model_id]["stages"])
 
 
 def test_stage_rows_carry_the_recipe_dag() -> None:
@@ -1086,11 +1152,11 @@ def test_stage_rows_carry_the_recipe_dag() -> None:
     must keep holding, and the edge is a property of the node, not of its
     gate.  The values are the committed v2 manifest's, not a derivation.
     """
-    for stage in _build_catalog_stages("trex"):
+    for stage in _build_catalog_stages(TYRANNOSAURUS_REX):
         assert {"deliverable", "warm_start_from", "recipe"} <= set(stage)
         assert not {"deliverable", "warm_start_from", "recipe"} & set(stage["advancement_gate"])
-    manifest = load_stage_manifest("trex")
-    for stage in _build_catalog_stages("trex"):
+    manifest = load_stage_manifest(TYRANNOSAURUS_REX)
+    for stage in _build_catalog_stages(TYRANNOSAURUS_REX):
         entry = manifest.by_id(stage["id"])
         assert (stage["deliverable"], stage["warm_start_from"], stage["recipe"]) == (
             entry.deliverable,
@@ -1099,52 +1165,20 @@ def test_stage_rows_carry_the_recipe_dag() -> None:
         )
 
 
-def test_synthesized_manifest_stage_rows_derive_legacy_edges(tmp_path: Path) -> None:
-    """A manifest-less species publishes plan §8.1 as the catalog sees it.
-
-    Only the committed v2 files make stand and walk deliverables: with the
-    velociraptor's three stage TOMLs and no stages.toml the reader
-    synthesizes the legacy manifest, and the catalog must publish exactly
-    what it derives — edges to the previous advancing entry, the last
-    advancing entry the only deliverable, no recipe labels — never invent
-    a recipe of its own.  The configs_dir kwarg points the builder at the
-    temporary tree without monkeypatching the loaders' private constants.
-    """
-    species_dir = tmp_path / "configs" / "velociraptor"
-    species_dir.mkdir(parents=True)
-    for config in sorted((REPOSITORY_ROOT / "configs" / "velociraptor").glob("stage*_*.toml")):
-        shutil.copy(config, species_dir / config.name)
-    assert not (species_dir / "stages.toml").exists()
-
-    stages = _build_stages("velociraptor", [], configs_dir=tmp_path / "configs")
-
-    assert [stage["id"] for stage in stages] == ["stance", "locomotion", "behavior"]
-    assert [stage["deliverable"] for stage in stages] == [False, False, True]
-    assert [stage["warm_start_from"] for stage in stages] == [None, "stance", "locomotion"]
-    assert [stage["recipe"] for stage in stages] == [None, None, None]
-    assert stages[0]["config_path"] == "configs/velociraptor/stage1_balance.toml"
-    # The gates come from the temporary tree too, through the same kwarg.
-    assert current_gate_kinds("velociraptor", tmp_path / "configs") == {
-        "stance": "stance_quality/v2",
-        "locomotion": "reward_and_length/v1",
-        "behavior": "reward_and_length/v1",
-    }
-
-
-def test_stage_rows_carry_recipe_edges_for_every_species() -> None:
+def test_stage_rows_carry_recipe_edges_for_every_model() -> None:
     """Every non-root row names an EARLIER row id (list order is topological)."""
-    for species in build_catalog()["species"]:
+    for model_id, entry in _models(build_catalog()).items():
         seen: list[str] = []
         roots = 0
-        for stage in species["stages"]:
+        for stage in entry["stages"]:
             parent = stage["warm_start_from"]
             if parent is None:
                 roots += 1
             else:
-                assert parent in seen, f"{species['id']} {stage['id']} warm-starts from a later or unknown {parent!r}"
+                assert parent in seen, f"{model_id} {stage['id']} warm-starts from a later or unknown {parent!r}"
             seen.append(stage["id"])
         assert roots >= 1
-        assert any(stage["deliverable"] for stage in species["stages"])
+        assert any(stage["deliverable"] for stage in entry["stages"])
 
 
 def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> None:
@@ -1157,15 +1191,15 @@ def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> 
     """
     catalog = build_catalog()
     rows = {
-        (species["id"], result["algorithm"].lower()): result
-        for species in catalog["species"]
-        for result in species["historical_results"]
+        (model_id, result["algorithm"].lower()): result
+        for model_id, entry in _models(catalog).items()
+        for result in entry["historical_results"]
     }
     assert {key: row["stage3_success_rate"] for key, row in rows.items()} == {
-        ("velociraptor", "ppo"): 0.9333,
-        ("velociraptor", "sac"): 0.9,
-        ("trex", "ppo"): 0.9667,
-        ("brachiosaurus", "ppo"): 1.0,
+        (VELOCIRAPTOR_MONGOLIENSIS, "ppo"): 0.9333,
+        (VELOCIRAPTOR_MONGOLIENSIS, "sac"): 0.9,
+        (TYRANNOSAURUS_REX, "ppo"): 0.9667,
+        (BRACHIOSAURUS_ALTITHORAX, "ppo"): 1.0,
     }
     for row in rows.values():
         assert row["deliverables"] == []
@@ -1177,14 +1211,15 @@ def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> 
 _SHA = "sha256:" + "a" * 64
 
 
-def _trex_v4_summary(
+def _tyrannosaurus_rex_v5_summary(
     verdicts: dict[str, bool],
     *,
     target: str | None,
     primary: str | None,
     bundle_status: str,
 ) -> dict[str, Any]:
-    """The committed trex ladder summary re-cut as a schema-4 result.
+    """The committed T-Rex ladder summary re-cut as a result under the deliverable rules, at the writers' schema
+    (v5; it was schema 4 until decision D-D33 retired it).
 
     Non-canonical provenance (historical, identifiers null), which is the
     shape the catalog validates: `provenance.species` / `backend` plus the
@@ -1192,21 +1227,26 @@ def _trex_v4_summary(
     from the recorded verdicts through the shared rule so a fixture can
     never claim more than its chain supports.
     """
-    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
-    summary["schema_version"] = 4
+    summary = deepcopy(
+        json.loads(
+            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
+        )
+    )
+    summary["schema_version"] = 5
     summary["bundle_status"] = bundle_status
     summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
-    gates = current_gate_kinds("trex")
-    manifest = load_stage_manifest("trex")
+    gates = current_gate_kinds(TYRANNOSAURUS_REX)
+    manifest = load_stage_manifest(TYRANNOSAURUS_REX)
     for key, passed in verdicts.items():
         summary["stages"][key]["stage_passed"] = passed
-        summary["stages"][key]["gate_kind"] = gates[resolve_stage_key("trex", key).id]
+        summary["stages"][key]["gate_kind"] = gates[resolve_stage_key(TYRANNOSAURUS_REX, key).id]
     summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
     entries = [(entry.key, entry) for entry in manifest.stages if entry.key in verdicts]
-    certified = certified_deliverables(entries, verdicts, None, species="trex")
+    certified = certified_deliverables(entries, verdicts, None, model_id=TYRANNOSAURUS_REX)
     summary["provenance"].update(
         {
-            "species": "trex",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
             "backend": "stable-baselines3",
             "deliverables": {
                 key: {
@@ -1215,7 +1255,10 @@ def _trex_v4_summary(
                     "normalization_hash": _SHA,
                     "gate_kind": summary["stages"][key]["gate_kind"],
                     "certified": certified[key],
-                    "replication": {"count": 1, "runs": [{"run_id": "trex-test", "training_seed": 42}]},
+                    "replication": {
+                        "count": 1,
+                        "runs": [{"run_id": "tyrannosaurus_rex-anatomical-test", "training_seed": 42}],
+                    },
                 }
                 for key in verdicts
             },
@@ -1232,7 +1275,7 @@ def _build_result_from(tmp_path: Path, monkeypatch: Any, summary: dict[str, Any]
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
-    return _build_result("trex", "results/trex/ppo/summary.json")
+    return _build_result(TYRANNOSAURUS_REX, "results/tyrannosaurus_rex/anatomical/ppo/summary.json")
 
 
 def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1243,7 +1286,9 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     kind, certification, hash, replication and headline, and the stance
     headline names its statistics with null values (D-A9).
     """
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+    )
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
 
@@ -1321,7 +1366,9 @@ def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkey
     The recorded pair is validated (the schema refuses an inconsistent one)
     but never re-served over the current bar.
     """
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+    )
     stance = summary["provenance"]["deliverables"]["1"]
     stance.update({"certification_seeds": 1, "provisional": False})
 
@@ -1330,7 +1377,10 @@ def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkey
 
     stance["replication"] = {
         "count": 2,
-        "runs": [{"run_id": "trex-test", "training_seed": 42}, {"run_id": "trex-seed-44", "training_seed": 44}],
+        "runs": [
+            {"run_id": "tyrannosaurus_rex-anatomical-test", "training_seed": 42},
+            {"run_id": "tyrannosaurus_rex-anatomical-seed-44", "training_seed": 44},
+        ],
     }
     stance.update({"certification_seeds": 2, "provisional": False})
     row = next(r for r in _build_result_from(tmp_path, monkeypatch, summary)["deliverables"] if r["id"] == "stance")
@@ -1345,12 +1395,14 @@ def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkey
 
 def test_stage_rows_carry_the_current_certification_seeds() -> None:
     """Every stage row exports ``certification_seeds`` top-level (never inside the gate): trex stance 2, else 1."""
-    for species in build_catalog()["species"]:
-        expected = current_certification_seeds(species["id"])
-        for stage in species["stages"]:
+    for model_id, entry in _models(build_catalog()).items():
+        expected = current_certification_seeds(model_id)
+        for stage in entry["stages"]:
             assert stage["certification_seeds"] == expected[stage["id"]]
             assert "certification_seeds" not in stage["advancement_gate"]
-            assert stage["certification_seeds"] == (2 if (species["id"], stage["id"]) == ("trex", "stance") else 1)
+            assert stage["certification_seeds"] == (
+                2 if (model_id, stage["id"]) == (TYRANNOSAURUS_REX, "stance") else 1
+            )
 
 
 @pytest.mark.parametrize(
@@ -1373,7 +1425,9 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
     ladder projection that carries only the fixed ladder columns: Phase
     B's export must surface without a second catalog edit.
     """
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+    )
     summary["stages"]["1"]["gate_kind"] = gate_kind
     summary["provenance"]["deliverables"]["1"]["gate_kind"] = gate_kind
     summary["stages"]["1"].update(statistics)
@@ -1389,7 +1443,9 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
 
 def test_v4_headline_reads_the_task_success_lcb_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
     """A task_success/v1 hunt deliverable headlines selected_model_success_lcb from the stage row as written."""
-    summary = _trex_v4_summary({"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
+    )
     summary["stages"]["3"]["gate_kind"] = "task_success/v1"
     summary["provenance"]["deliverables"]["3"]["gate_kind"] = "task_success/v1"
     summary["stages"]["3"]["selected_model_success_lcb"] = 0.851
@@ -1418,7 +1474,7 @@ def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected
     validator rejects it with a message naming the keys (a CatalogError
     here, never a bare StopIteration escaping ``python -m ...species_catalog``).
     """
-    summary = _trex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="locomotion", bundle_status="partial"
     )
     with pytest.raises(
@@ -1429,24 +1485,32 @@ def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected
 
 def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """The catalog never headlines a failed leaf: an uncertified primary is fatal."""
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="3", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="3", bundle_status="partial"
+    )
     with pytest.raises(CatalogError, match="not certified"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
     # A certified primary that is not the one the deliverables and target
     # imply (walk is the deepest certified, so stance cannot be primary).
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="1", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="1", bundle_status="partial"
+    )
     with pytest.raises(CatalogError, match="is not the one its deliverables and target"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary=None, bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary=None, bundle_status="partial"
+    )
     with pytest.raises(CatalogError, match="no primary deliverable"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
 
 def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """A deliverable key outside the species' manifest vocabulary fails closed."""
-    summary = _trex_v4_summary({"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
+    )
     summary["provenance"]["deliverables"]["follow_direction"] = deepcopy(summary["provenance"]["deliverables"]["3"])
     with pytest.raises(CatalogError, match="follow_direction"):
         _build_result_from(tmp_path, monkeypatch, summary)
@@ -1454,7 +1518,7 @@ def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, m
 
 def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -> None:
     """A walk-targeted run with no behavior stage publishes (plan §8.5) and has no ladder headline."""
-    summary = _trex_v4_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
 
@@ -1579,8 +1643,8 @@ def test_a_stance_v2_stage_exports_and_renders_its_own_criteria() -> None:
 
     from .stance_v2_helpers import V2_CURRICULUM
 
-    entry = load_stage_manifest("compsognathus_robot").resolve(1)
-    v1_curriculum = load_stage_config("compsognathus_robot", 1)["curriculum_kwargs"]
+    entry = load_stage_manifest(ModelId("compsognathus_longipes", "robot")).resolve(1)
+    v1_curriculum = load_stage_config(ModelId("compsognathus_longipes", "robot"), 1)["curriculum_kwargs"]
     assert v1_curriculum["gate_kind"] == "stance_quality/v1"
     v1_gate = _advancement_gate(entry, v1_curriculum)
     assert "min_clean_stance_lcb" not in v1_gate and "max_sole_corner_lift_m" not in v1_gate
@@ -1607,28 +1671,28 @@ def test_every_registered_gate_kind_has_a_headline() -> None:
 
 
 def test_deliverable_metrics_cover_every_declared_deliverable() -> None:
-    """Every manifest deliverable of every species has a stable-baselines3 definition.
+    """Every manifest deliverable of every model has a stable-baselines3 definition.
 
     The rows resolve exactly as the notebook's BEHAVIOR knob does, so the
     published semantics attach to the node a chain would actually target.
     """
     catalog = build_catalog()
-    for species in catalog["species"]:
-        manifest = load_stage_manifest(species["id"])
-        metrics = species["deliverable_metrics"]
-        assert metrics, species["id"]
+    for model_id, entry in _models(catalog).items():
+        manifest = load_stage_manifest(model_id)
+        metrics = entry["deliverable_metrics"]
+        assert metrics, model_id
         for metric in metrics:
             assert set(metric) == {"deliverable", "stage_id", "backends", "key", "label", "definition"}
             assert manifest.resolve_behavior(metric["deliverable"]).id == metric["stage_id"]
         sb3_covered = {metric["stage_id"] for metric in metrics if "stable-baselines3" in metric["backends"]}
-        assert {entry.id for entry in manifest.deliverables} <= sb3_covered, species["id"]
+        assert {node.id for node in manifest.deliverables} <= sb3_covered, model_id
         # The per-backend success metrics are untouched beside them.
-        assert species["success_metrics"]
-        assert all(set(metric) == {"backends", "key", "label", "definition"} for metric in species["success_metrics"])
+        assert entry["success_metrics"]
+        assert all(set(metric) == {"backends", "key", "label", "definition"} for metric in entry["success_metrics"])
 
     with pytest.raises(CatalogError, match=r"missing \['behavior'\]"):
         _build_deliverable_metrics(
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             [
                 {
                     "deliverable": "stand",
@@ -1653,49 +1717,53 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     """Label resolution follows the manifest; unknown names, backends and duplicate scopes fail closed."""
     # "stand" is the recovery node on trex (the deepest deliverable carrying
     # the label) and the stance node everywhere else.
-    trex = _build_deliverable_metrics(
-        "trex",
+    tyrannosaurus_rex = _build_deliverable_metrics(
+        TYRANNOSAURUS_REX,
         [_metric("stance"), _metric("stand"), _metric("walk"), _metric("hunt")],
         {"stable-baselines3", "jax-mjx"},
     )
-    assert [(metric["deliverable"], metric["stage_id"]) for metric in trex] == [
+    assert [(metric["deliverable"], metric["stage_id"]) for metric in tyrannosaurus_rex] == [
         ("stance", "stance"),
         ("stand", "recovery"),
         ("walk", "locomotion"),
         ("hunt", "behavior"),
     ]
-    velociraptor = _build_deliverable_metrics(
-        "velociraptor", [_metric("stand"), _metric("walk"), _metric("hunt")], {"stable-baselines3", "jax-mjx"}
+    velociraptor_mongoliensis = _build_deliverable_metrics(
+        VELOCIRAPTOR_MONGOLIENSIS,
+        [_metric("stand"), _metric("walk"), _metric("hunt")],
+        {"stable-baselines3", "jax-mjx"},
     )
-    assert [metric["stage_id"] for metric in velociraptor] == ["stance", "locomotion", "behavior"]
+    assert [metric["stage_id"] for metric in velociraptor_mongoliensis] == ["stance", "locomotion", "behavior"]
 
     with pytest.raises(CatalogError, match="unknown deliverable 'follow_direction'"):
-        _build_deliverable_metrics("trex", [_metric("follow_direction")], {"stable-baselines3"})
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("follow_direction")], {"stable-baselines3"})
     with pytest.raises(CatalogError, match="unknown backends: \\['torch'\\]"):
-        _build_deliverable_metrics("trex", [_metric("stance", "torch")], {"stable-baselines3"})
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stance", "torch")], {"stable-baselines3"})
     with pytest.raises(CatalogError, match="does not train: \\['jax-mjx'\\]"):
-        _build_deliverable_metrics("compsognathus", [_metric("stance", "jax-mjx")], {"stable-baselines3"})
+        _build_deliverable_metrics(
+            ModelId("compsognathus_longipes", "anatomical"), [_metric("stance", "jax-mjx")], {"stable-baselines3"}
+        )
     # Two spellings of one (stage, backend) scope are a duplicate.
     with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'recovery'"):
-        _build_deliverable_metrics("trex", [_metric("stand"), _metric("recovery")], {"stable-baselines3"})
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stand"), _metric("recovery")], {"stable-baselines3"})
 
 
 def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
     """Reward-cleared stance is labelled by gate kind, never claimed as stance quality (plan §4.8)."""
-    species = {entry["id"]: entry for entry in build_catalog()["species"]}
+    models = _models(build_catalog())
 
-    def stance_definition(species_id: str) -> str:
+    def stance_definition(model_id: ModelId) -> str:
         return next(
             str(metric["definition"])
-            for metric in species[species_id]["deliverable_metrics"]
+            for metric in models[model_id]["deliverable_metrics"]
             if metric["stage_id"] == "stance" and "stable-baselines3" in metric["backends"]
         )
 
-    for species_id in ("brachiosaurus", "dibothrosuchus"):
-        definition = stance_definition(species_id)
-        assert "reward_and_length/v1" in definition, species_id
-        assert "statue" in definition, species_id
-        assert "certified stance quality" in definition, species_id
+    for model_id in (BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS):
+        definition = stance_definition(model_id)
+        assert "reward_and_length/v1" in definition, model_id
+        assert "statue" in definition, model_id
+        assert "certified stance quality" in definition, model_id
     # A stance-quality stance names the kind its stage declares today: trex moved to
     # stance_quality/v2 with physics r8 (D-D24), velociraptor from the reward gate
     # with physics r3 (D-D25) and the anatomical compsognathus with physics r2
@@ -1703,38 +1771,41 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
     # certificate (D-D32), whose definition names the v2 decision it applies at
     # each heading; the compsognathus robot keeps v1.
     expected = {
-        "trex": "stance_quality_heading/v1",
-        "velociraptor": "stance_quality/v2",
-        "compsognathus": "stance_quality_heading/v1",
-        "compsognathus_robot": "stance_quality/v1",
+        TYRANNOSAURUS_REX: "stance_quality_heading/v1",
+        VELOCIRAPTOR_MONGOLIENSIS: "stance_quality/v2",
+        COMPSOGNATHUS_LONGIPES: "stance_quality_heading/v1",
+        COMPSOGNATHUS_LONGIPES_ROBOT: "stance_quality/v1",
     }
-    for species_id, kind in expected.items():
-        assert current_gate_kinds(species_id)["stance"] == kind, species_id
-        definition = stance_definition(species_id)
-        assert kind in definition, species_id
+    for model_id, kind in expected.items():
+        assert current_gate_kinds(model_id)["stance"] == kind, model_id
+        definition = stance_definition(model_id)
+        assert kind in definition, model_id
         if kind == "stance_quality_heading/v1":
-            assert "stance_quality/v2 decision" in definition and "stance_quality/v1" not in definition, species_id
-            assert "-90, -45, 0, 45, 90 and 180 degrees" in definition, species_id
+            assert "stance_quality/v2 decision" in definition and "stance_quality/v1" not in definition, model_id
+            assert "-90, -45, 0, 45, 90 and 180 degrees" in definition, model_id
         else:
             other = "stance_quality/v1" if kind == "stance_quality/v2" else "stance_quality/v2"
-            assert other not in definition and "stance_quality_heading/v1" not in definition, species_id
+            assert other not in definition and "stance_quality_heading/v1" not in definition, model_id
 
 
-def test_species_manifest_schema_version_is_2(tmp_path: Path) -> None:
-    """The committed manifest is schema 2 (D-A8) and the reader refuses schema 1."""
+def test_species_manifest_schema_version_is_3(tmp_path: Path) -> None:
+    """The committed manifest is schema 3 and the reader refuses schema 2.
+
+    Re-pinned 2 -> 3 on 2026-10-11 (decision D-D33): one table per species, one per embodiment.
+    """
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
     with DEFAULT_MANIFEST_PATH.open("rb") as handle:
-        assert tomllib.load(handle)["schema_version"] == 2
+        assert tomllib.load(handle)["schema_version"] == 3
     stale = tmp_path / "species_manifest.toml"
-    stale.write_text(manifest_text.replace("schema_version = 2", "schema_version = 1", 1), encoding="utf-8")
-    with pytest.raises(CatalogError, match="schema_version must be 2"):
+    stale.write_text(manifest_text.replace("schema_version = 3", "schema_version = 2", 1), encoding="utf-8")
+    with pytest.raises(CatalogError, match="declares schema_version 2; this reader accepts 3"):
         build_catalog(stale)
 
 
 def _video(stage: "int | str") -> dict[str, Any]:
     return {
         "stage": stage,
-        "path": "website/static/videos/trex_ppo_stage1_best.mp4",
+        "path": "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4",
         "algorithm": "PPO",
         "backend": "stable-baselines3",
         "model_revision_status": "historical",
@@ -1744,42 +1815,53 @@ def _video(stage: "int | str") -> dict[str, Any]:
 
 def test_stage_videos_accept_ids_and_integer_aliases_interchangeably() -> None:
     """Videos are keyed by stage id; the legacy integer is an alias, and both together are a duplicate."""
-    by_id = _build_stages("trex", [_video("stance")])
-    by_number = _build_stages("trex", [_video(1)])
+    by_id = _build_stages(TYRANNOSAURUS_REX, [_video("stance")])
+    by_number = _build_stages(TYRANNOSAURUS_REX, [_video(1)])
     assert by_id == by_number
     assert by_id[0]["video"] is not None
-    assert by_id[0]["video"]["path"] == "/videos/trex_ppo_stage1_best.mp4"
+    assert by_id[0]["video"]["path"] == "/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4"
 
     with pytest.raises(CatalogError, match="duplicate stage video"):
-        _build_stages("trex", [_video("stance"), _video(1)])
+        _build_stages(TYRANNOSAURUS_REX, [_video("stance"), _video(1)])
     # A semantic-only stage is reachable by its id.
-    recovery = next(stage for stage in _build_stages("trex", [_video("recovery")]) if stage["id"] == "recovery")
+    recovery = next(
+        stage for stage in _build_stages(TYRANNOSAURUS_REX, [_video("recovery")]) if stage["id"] == "recovery"
+    )
     assert recovery["video"] is not None
     with pytest.raises(CatalogError, match="unknown stage"):
-        _build_stages("trex", [_video("follow_direction")])
+        _build_stages(TYRANNOSAURUS_REX, [_video("follow_direction")])
 
 
 def test_committed_stage_videos_are_keyed_by_id() -> None:
     """The committed manifest spells every stage video by id, and the generated rows are unchanged."""
     with DEFAULT_MANIFEST_PATH.open("rb") as handle:
         manifest = tomllib.load(handle)
-    for species in manifest["species"]:
-        declared = {entry.id for entry in load_stage_manifest(species["id"]).stages}
-        for video in species.get("stage_videos", []):
-            assert isinstance(video["stage"], str), (species["id"], video["stage"])
+    models = [
+        (ModelId(species, embodiment), table)
+        for species, species_table in manifest["species"].items()
+        for embodiment, table in species_table["embodiments"].items()
+    ]
+    assert models
+    for model_id, table in models:
+        declared = {entry.id for entry in load_stage_manifest(model_id).stages}
+        for video in table.get("stage_videos", []):
+            assert isinstance(video["stage"], str), (model_id, video["stage"])
             assert video["stage"] in declared
     # Migration is presentation-neutral: the committed rows still label the
     # eight historical videos exactly as test_catalog_labels_published_videos
     # pins, keyed onto the stage rows by id.
     videos = {
-        (species["id"], stage["id"]): stage["video"]["path"]
-        for species in build_catalog()["species"]
-        for stage in species["stages"]
+        (model_id, stage["id"]): stage["video"]["path"]
+        for model_id, entry in _models(build_catalog()).items()
+        for stage in entry["stages"]
         if stage["video"] is not None
     }
-    assert videos[("trex", "stance")] == "/videos/trex_ppo_stage1_best.mp4"
-    assert videos[("brachiosaurus", "locomotion")] == "/videos/brachiosaurus_ppo_stage2_best.mp4"
-    assert ("trex", "recovery") not in videos
+    assert videos[(TYRANNOSAURUS_REX, "stance")] == "/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4"
+    assert (
+        videos[(BRACHIOSAURUS_ALTITHORAX, "locomotion")]
+        == "/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4"
+    )
+    assert (TYRANNOSAURUS_REX, "recovery") not in videos
 
 
 def test_readme_species_table_renders_recipe_edges() -> None:
@@ -1806,15 +1888,37 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     The golden fixture is the block between the RESULTS markers of
     README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
     2026-09-12 before any WS4 edit).  A Deliverables line is only emitted
-    for a schema-4 result, and the four committed summaries are schema 2.
-    Since cleanup CU-17 the block lives in docs/SPECIES_CATALOG.md (D-A10's
-    amendment), whose links are relative to docs/: the committed block there
-    is the golden with its four source-summary links one directory up, and
-    the root README no longer embeds it.
+    for a result under the deliverable rules (schema 5), and the four
+    committed summaries are schema 2.  Since cleanup CU-17 the block lives in
+    docs/SPECIES_CATALOG.md (D-A10's amendment), whose links are relative to
+    docs/: the committed block there is the golden with its four
+    source-summary links one directory up, and the root README no longer
+    embeds it.
+
+    Decision D-D33 moved the four summaries to ``results/<species>/<embodiment>/``
+    and heads each section with the model display name.  The fixture is
+    unchanged: its four headings and four source links are normalised here
+    from the catalog's own records (the species display name becomes the
+    model's, each link the recorded ``summary_path``), and every other byte
+    must still match.
     """
     golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
     assert golden.count("### ") == 4
     catalog = build_catalog()
+    recorded = [(entry, result) for entry in catalog["models"] for result in entry["historical_results"]]
+    assert len(recorded) == 4
+    lines = golden.splitlines(keepends=True)
+    sections = iter(recorded)
+    for index, line in enumerate(lines):
+        if line.startswith("### "):
+            entry, _ = next(sections)
+            heading = f"### {entry['species_display_name']} ("
+            assert line.startswith(heading), line
+            lines[index] = f"### {entry['display_name']} (" + line[len(heading) :]
+    golden = "".join(lines)
+    links = iter(result["summary_path"] for _, result in recorded)
+    golden = re.sub(r"\]\(results/[^)]+/summary\.json\)", lambda _: f"]({next(links)})", golden)
+    assert next(links, None) is None
     assert render_readme_results(catalog).rstrip() + "\n" == golden
     assert golden.count("](results/") == 4
     on_page = golden.replace("](results/", "](../results/")
@@ -1827,30 +1931,32 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
 
 
 def test_readme_species_summary_rows_keep_anchors_and_resolve() -> None:
-    """One README row per species keeps every public anchor, and its three links resolve (cleanup CU-17).
+    """One README row per model keeps its public anchor, and its three links resolve (cleanup CU-17).
 
-    The anchors are the ids and aliases that older links address
-    (``README.md#velociraptor``, ``#t-rex``, ...).  The catalog-entry link
-    lands on the species' anchor in docs/SPECIES_CATALOG.md.  The model-page
-    link is built from the species id, so ``website/docs/models/<id>.mdx``
-    exists, sets no ``slug`` of its own and renders the entry (``SpeciesCatalog``).
+    The anchor is the model's ``<species>-<embodiment>`` (decision D-D33; the
+    retired IDs and aliases have none).  The catalog-entry link lands on that
+    anchor in docs/SPECIES_CATALOG.md, and the README link on the species'
+    README.  The model-page link is built from the model, so
+    ``website/docs/models/<species>/<embodiment>.mdx`` exists, sets no
+    ``slug`` of its own and renders the entry (``SpeciesCatalog``).
     """
     catalog = build_catalog()
     rendered = render_readme_species_summary(catalog)
     rows = [line for line in rendered.splitlines() if line.startswith("| <a id=")]
-    assert len(rows) == len(catalog["species"])
+    assert len(rows) == len(catalog["models"])
     page = DEFAULT_CATALOG_PAGE_PATH.read_text(encoding="utf-8")
-    for species, row in zip(catalog["species"], rows, strict=True):
+    for entry, row in zip(catalog["models"], rows, strict=True):
+        model_id = ModelId.from_record(entry)
         assert row.count("|") == 7, "a manifest field must not carry a table pipe"
-        for anchor in [species["id"], *species["aliases"]]:
-            assert f'<a id="{anchor}"></a>' in row
-            assert f'<a id="{anchor}"></a>' in page
-        package_readme = Path(species["model"]["path"]).parent.parent / "README.md"
+        assert f'<a id="{model_id.anchor}"></a>' in row
+        assert f'<a id="{model_id.anchor}"></a>' in page
+        package_readme = Path(entry["model"]["path"]).parents[2] / "README.md"
+        assert package_readme == Path("environments") / model_id.species / "README.md"
         assert f"]({package_readme.as_posix()})" in row
         assert (REPOSITORY_ROOT / package_readme).is_file()
-        assert f"](docs/SPECIES_CATALOG.md#{species['id']})" in row
-        assert f"](https://mesozoiclabs.com/docs/models/{species['id']})" in row
-        model_page = REPOSITORY_ROOT / "website" / "docs" / "models" / f"{species['id']}.mdx"
+        assert f"](docs/SPECIES_CATALOG.md#{model_id.anchor})" in row
+        assert f"](https://mesozoiclabs.com/docs/models/{model_id.species}/{model_id.embodiment})" in row
+        model_page = REPOSITORY_ROOT / "website" / "docs" / "models" / model_id.species / f"{model_id.embodiment}.mdx"
         assert model_page.is_file()
         model_source = model_page.read_text(encoding="utf-8")
         assert "slug:" not in model_source.split("---", 2)[1]
@@ -1992,13 +2098,16 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
 
 
 def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
-    """A schema-4 result adds one Deliverables line, and every ladder section stays as it was."""
+    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line,
+    and every ladder section stays as it was."""
     catalog = build_catalog()
     baseline = render_readme_results(catalog)
-    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    summary = _tyrannosaurus_rex_v5_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+    )
     v4_result = _build_result_from(tmp_path, monkeypatch, summary)
-    trex = next(species for species in catalog["species"] if species["id"] == "trex")
-    trex["historical_results"] = [v4_result]
+    tyrannosaurus_rex = _models(catalog)[TYRANNOSAURUS_REX]
+    tyrannosaurus_rex["historical_results"] = [v4_result]
 
     rendered = render_readme_results(catalog)
 
@@ -2015,8 +2124,12 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert "; 2 runs of 2 seeds; " in _format_deliverable(replicated, primary=False)
     assert "provisional" not in _format_deliverable(replicated, primary=False)
     assert rendered.count("**Deliverables:**") == 1
-    # The non-trex sections are untouched by the new line.
-    for heading in ("### Velociraptor Mongoliensis (PPO", "### Velociraptor Mongoliensis (SAC", "### Brachiosaurus"):
+    # The other models' sections are untouched by the new line (headed by the model display name, D-D33).
+    for heading in (
+        "### Velociraptor Mongoliensis (Anatomical) (PPO",
+        "### Velociraptor Mongoliensis (Anatomical) (SAC",
+        "### Brachiosaurus Altithorax (Anatomical)",
+    ):
         section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
         assert section(rendered) == section(baseline)
 
@@ -2102,13 +2215,15 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
     """
     source = _website_source("data/species.ts")
     catalog = build_catalog()
-    species = catalog["species"]
-    stage_rows = [stage for entry in species for stage in entry["stages"]]
-    results = [result for entry in species for result in entry["historical_results"]]
+    models = catalog["models"]
+    stage_rows = [stage for entry in models for stage in entry["stages"]]
+    results = [result for entry in models for result in entry["historical_results"]]
     v4_result = _build_result_from(
         tmp_path,
         monkeypatch,
-        _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"),
+        _tyrannosaurus_rex_v5_summary(
+            {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
+        ),
     )
     videos = [stage["video"] for stage in stage_rows if stage["video"] is not None]
     assert videos, "at least one published video is needed to pin the video row"
@@ -2124,7 +2239,7 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
     species_block = _ts_block(source, "interface RawSpecies ")
     expectations = {
         "RawCatalog": (_ts_block(source, "interface RawCatalog "), exported([catalog])),
-        "RawSpecies": (species_block, exported(species)),
+        "RawSpecies": (species_block, exported(models)),
         "RawStage": (stage_block, exported(stage_rows)),
         "RawStage.advancement_gate": (
             _ts_block(stage_block, "advancement_gate:"),
@@ -2150,11 +2265,11 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
         ),
         "RawSuccessMetric": (
             _ts_block(source, "interface RawSuccessMetric "),
-            exported([metric for entry in species for metric in entry["success_metrics"]]),
+            exported([metric for entry in models for metric in entry["success_metrics"]]),
         ),
         "RawDeliverableMetric": (
             _ts_block(source, "interface RawDeliverableMetric "),
-            exported([metric for entry in species for metric in entry["deliverable_metrics"]]),
+            exported([metric for entry in models for metric in entry["deliverable_metrics"]]),
         ),
     }
     mismatches = {

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
@@ -38,7 +39,7 @@ RUN_ID = "20261003_000000"
 
 
 def _log_dir(tmp_path: Path) -> Path:
-    return tmp_path / "logs" / "velociraptor" / "ppo"
+    return tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo"
 
 
 def _run_dir(tmp_path: Path) -> Path:
@@ -81,8 +82,8 @@ class TestTrunkFromValue:
         assert trunk_from_value(str(log_dir / "20260921_000000"), log_dir=str(log_dir)) == "20260921_000000"
         # Spelled relative to the working directory on either side, or through a "..", it is still that run.
         monkeypatch.chdir(tmp_path)
-        assert trunk_from_value(Path("logs/velociraptor/ppo/A"), log_dir=log_dir) == "A"
-        assert trunk_from_value(log_dir / "A", log_dir=Path("logs/velociraptor/ppo")) == "A"
+        assert trunk_from_value(Path("logs/velociraptor_mongoliensis/anatomical/ppo/A"), log_dir=log_dir) == "A"
+        assert trunk_from_value(log_dir / "A", log_dir=Path("logs/velociraptor_mongoliensis/anatomical/ppo")) == "A"
         assert trunk_from_value(log_dir / ".." / "ppo" / "A", log_dir=log_dir) == "A"
         # A run linked into the log directory is its link's name, the id the storage cell resolves to that link.
         (tmp_path / "elsewhere" / "B").mkdir(parents=True)
@@ -145,12 +146,12 @@ class TestTrunkFromValue:
         "trunk",
         [
             None,
-            "logs/velociraptor/ppo/A",
+            "logs/velociraptor_mongoliensis/anatomical/ppo/A",
             "elsewhere/B",
-            "logs/velociraptor/ppo/..",
-            "logs/velociraptor/ppo/x y",
-            "logs/velociraptor/ppo/A/x/..",
-            "logs/velociraptor/ppo/auto",
+            "logs/velociraptor_mongoliensis/anatomical/ppo/..",
+            "logs/velociraptor_mongoliensis/anatomical/ppo/x y",
+            "logs/velociraptor_mongoliensis/anatomical/ppo/A/x/..",
+            "logs/velociraptor_mongoliensis/anatomical/ppo/auto",
         ],
     )
     def test_every_value_it_writes_reads_back(self, tmp_path, trunk):
@@ -372,7 +373,9 @@ def test_an_interrupted_write_keeps_the_old_record_and_the_next_bundle_write_dro
     file whole, and build_artifact_manifest discards the stranded temporary before hashing."""
     log_dir = _log_dir(tmp_path)
     run_dir = _run_dir(tmp_path)
-    initialize_result_bundle(run_dir, species="velociraptor", algorithm="PPO", seed=42, run_id=RUN_ID)
+    initialize_result_bundle(
+        run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"), algorithm="PPO", seed=42, run_id=RUN_ID
+    )
     record_trunk_run(run_dir, trunk_dir=log_dir / "A", log_dir=log_dir)
     old = (run_dir / TRUNK_RECORD_NAME).read_bytes()
     temporary = run_dir / f".{TRUNK_RECORD_NAME}.tmp"
@@ -398,7 +401,13 @@ def test_an_interrupted_write_keeps_the_old_record_and_the_next_bundle_write_dro
 class TestManifest:
     def _initialized(self, tmp_path):
         run_dir = _run_dir(tmp_path)
-        initialize_result_bundle(run_dir, species="velociraptor", algorithm="PPO", seed=42, run_id=RUN_ID)
+        initialize_result_bundle(
+            run_dir,
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+            algorithm="PPO",
+            seed=42,
+            run_id=RUN_ID,
+        )
         return run_dir, _log_dir(tmp_path)
 
     def test_declared_by_the_next_bundle_write_and_kept_verifying_by_a_same_trunk_session(
@@ -462,7 +471,7 @@ class TestManifest:
             save_result_bundle(
                 stage_results,
                 stage_configs,
-                "velociraptor",
+                ModelId("velociraptor_mongoliensis", "anatomical"),
                 "PPO",
                 42,
                 run_dir,
@@ -472,7 +481,7 @@ class TestManifest:
                 evaluation_episodes=3,
                 evaluation_seeds=[101, 102, 103],
                 plant_identity=_plant_identity(),
-                run_id="velociraptor-stable-baselines3-ppo-test",
+                run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
             )
 
         export()

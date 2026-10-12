@@ -1,0 +1,117 @@
+---
+sidebar_position: 1
+sidebar_label: Anatomical
+---
+
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
+
+# T-Rex Model
+
+A dinosaur-inspired bipedal simulation model with an oversized head and vestigial forelimbs. Its stage 3 task uses contact from a fixed head geom as a bite proxy; the model has no articulated jaw.
+
+Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
+
+<SpeciesCatalog species={MODEL} />
+
+## Curriculum
+
+The T-Rex manifest (`configs/tyrannosaurus_rex/anatomical/stages.toml`, schema
+`mesozoic.stage-manifest/v2`) declares four nodes and three recipes — stand,
+walk and hunt — every one of them a published deliverable:
+
+1. **`stance`** (recipe `stand`; root, historical stage 1) — settle from a
+   randomized spawn and hold a stable upright pose; gated on physical stance
+   quality, not reward, because a zero-action "statue" earns nearly all the
+   reward the undisturbed task pays. Since physics r8 the gate is `stance_quality/v2`:
+   every episode of a 40-episode panel is judged on the floor's force under
+   each foot (no hop at reset, both feet planted, pads flat and not stood on
+   an edge, no actuator held at its limit, no turning away), and the stance
+   certifies when at least 37 of 40 are clean and at most one hops for the
+   whole episode or falls. Since 2026-10-11 (decision D-D32) the gate is the
+   six-heading certificate `stance_quality_heading/v1`: the same panel is
+   rolled with the whole scene turned −90°, −45°, 0°, 45°, 90° and 180°, every
+   heading must pass that decision, and at least 37 of the 40 seeds must be
+   clean at all six, so a stance that stands only at the heading it trained
+   at fails.
+2. **`recovery`** (recipe `stand`; `warm_start_from = "stance"`; no legacy
+   number, addressed by id) — the same task plus scheduled external pushes
+   (165.5 N for 0.20 s on the current plant, derived from the plant's own
+   mass and stance geometry), warm-started from the certified stance
+   checkpoint. Only a disturbance can certify *active* balance control; the
+   `recovery_quality/v1` gate judges per-shove recovery against frozen null
+   baselines. It was frozen on 2026-08-28 with measured thresholds; the
+   verdict comes from the stage directory's `gate_resolution.json`, written
+   by `freeze_recovery_gate.py`.
+3. **`locomotion`** (recipe `walk`; `warm_start_from = "stance"`, historical
+   stage 2) — forward walking/running. Its edge is declared `stance` today;
+   the plan is to re-declare it as `recovery` by a manifest edit once a
+   recovery run passes the frozen gate (plan assumption A2) — nothing
+   re-parents it on its own.
+4. **`behavior`** (recipe `hunt`; `warm_start_from = "locomotion"`,
+   historical stage 3) — the head-contact "bite" proxy task.
+
+A recipe label resolves to its deepest deliverable, so the notebook's
+`BEHAVIOR = "stand"` trains stance and then recovery and enforces the
+recovery verdict; the stance node alone is addressed by its id. Integer stage
+references keep their historical meaning everywhere (stage 2 remains
+locomotion). The catalog table above shows each node's recipe and warm-start
+parent, and the video cards below are keyed by stage id. See
+[Behavior Recipes](/docs/training/recipes).
+
+## Anatomy
+
+The T-Rex model includes:
+- **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
+- **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
+- **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
+- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7; hip-roll servos sized for the body mass since physics r8; an elliptic friction cone since physics r9, so every heading is physically identical)
+- **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
+- **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
+
+## Diagnostic Metrics (behavior node, hunt)
+
+After each training stage the `eval` command reports:
+
+| Metric | Description |
+|--------|-------------|
+| `mean_forward_velocity` | Average forward speed (m/s) |
+| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] |
+| `stride_frequency` | Step frequency (Hz) |
+| `cost_of_transport` | Energy efficiency (lower is better) |
+| `mean_pelvis_height` | Upright stability (m) |
+| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
+| `success_rate` | Fraction of episodes where the fixed head-contact proxy touches the prey target |
+| `success_lcb` | One-sided 95% lower bound on that fraction over the selected checkpoint's 30-episode panel — the `task_success/v1` hunt gate statistic (bar 0.5, provisional), published as `selected_model_success_lcb` |
+| `min_prey_distance` | Closest approach to prey (m) |
+
+## Training Videos
+
+<SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
+
+## Usage
+
+```bash
+# From the repository root. View the model
+python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
+
+# Train the stance node using its current TOML-configured budget
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
+
+# The advancing stages (stance, locomotion, behavior) in manifest order
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
+
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+
+# The recovery node, entering from a certified stance handoff (PPO-only)
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage recovery \
+  --algorithm ppo --load logs/<run>/01_stance/models/robust_best_model.zip \
+  --load-mode initialize_next_stage
+```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.

@@ -1,0 +1,165 @@
+{
+  "schema": "mesozoic.recovery-calibration/v2",
+  "species": "compsognathus_longipes",
+  "embodiment": "anatomical",
+  "calibration_id": "compsognathus_longipes-anatomical-fixed-command-recovery-2026-10-v2",
+  "status": "physical pilot calibration; learned-policy qualification outstanding",
+  "control_dt_s": 0.02,
+  "height_reference_m": 0.24447244198030454,
+  "safe_set": {
+    "height_error_max_m": 0.005,
+    "tilt_max_rad": 0.08,
+    "planar_speed_max_mps": 0.08,
+    "min_foot_force_n": 0.0
+  },
+  "recovery_env_kwargs": {
+    "frame_skip": 10,
+    "max_episode_steps": 1000,
+    "reset_noise_scale": 0.01,
+    "reset_height_noise_scale": 0.0,
+    "forward_vel_max": 0.25,
+    "fall_penalty": -25.0,
+    "energy_penalty_weight": 0.02,
+    "smoothness_weight": 0.02,
+    "spin_penalty_weight": 0.02,
+    "lateral_penalty_weight": 0.1,
+    "max_tilt_angle": 0.7,
+    "forward_vel_weight": 0.0,
+    "alive_bonus": 1.0,
+    "posture_weight": 1.0,
+    "height_weight": 1.0,
+    "home_pose_weight": 0.15,
+    "drift_penalty_weight": 0.5,
+    "heading_weight": 0.0,
+    "gait_symmetry_weight": 0.0,
+    "target_approach_weight": 0.0,
+    "target_reach_bonus": 0.0,
+    "prey_distance_range": [
+      0.8,
+      1.2
+    ],
+    "prey_lateral_range": [
+      0.0,
+      0.0
+    ],
+    "support_force_aggregation": "mean",
+    "bilateral_support_weight": 0.5,
+    "foot_contact_saturation_force": 4.4,
+    "support_conditioned_alive_fraction": 0.2,
+    "foot_terms_min_support_force": 2.45,
+    "foot_flatness_weight": 0.5,
+    "foot_flatness_tolerance_deg": 2.0,
+    "stance_width_weight": 0.1,
+    "stance_width_tolerance_m": 0.03,
+    "stance_width_reference": "settled",
+    "stance_width_settle_steps": 200,
+    "leg_home_pose_weight": 0.5,
+    "leg_home_pose_tolerance": 0.15,
+    "support_geom_coverage_weight": 0.2,
+    "floor_impact_weight": 0.25,
+    "floor_impact_threshold_bw": 2.5,
+    "airborne_substep_weight": 0.2,
+    "action_saturation_weight": 0.3,
+    "action_saturation_threshold": 0.9,
+    "action_jerk_weight": 0.5,
+    "perturbation_capture_velocity_multiple": 1.3,
+    "perturbation_interval": 2.0,
+    "perturbation_jitter": 0.25,
+    "perturbation_duration": 0.2,
+    "perturbation_direction": "uniform_horizontal"
+  },
+  "capability_spec": {
+    "gate_kind": "recovery_quality/v1",
+    "min_recovery_success_lcb": 0.5,
+    "recovery_t_recover_steps": 40,
+    "recovery_dwell_steps": 20,
+    "min_eval_episodes": 40,
+    "min_paired_success_delta_lcb": 0.1
+  },
+  "required_paired_nulls": [
+    "zero_action",
+    "brace"
+  ],
+  "plant_identity": {
+    "schema": "mesozoic.plant-identity/v2",
+    "species": "compsognathus_longipes",
+    "embodiment": "anatomical",
+    "model_path": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
+    "physics_revision": 2,
+    "policy_interface_revision": 5,
+    "visual_revision": 2,
+    "source_closure_sha256": "sha256:6c8ae74fd658aeabf513e8fc529700dfe8f9a4af175d053e7611cc4fc15a25eb",
+    "policy_interface_sha256": "sha256:997ba18017a8673aaeb607267fac03e90fabe7d1f7bfae3b3cfa9518b6247d76",
+    "physics_sha256": "sha256:5920646d31570f1ed5b80f9cf2a54697c1818d7b309377de8782176f732b6036",
+    "visual_sha256": "sha256:340185bee8e965548753e59813f9b7096e3d6c2fcbfcf41a6cca63e4eaea4766",
+    "nq": 24,
+    "nv": 23,
+    "nu": 14,
+    "observation_dim": 55,
+    "action_dim": 14
+  },
+  "task_sha256": "sha256:7ec053100a59d199b83aaa50dc94e9c3275e49e60c73136717b62c2f16120f88",
+  "derived_push_manifest": {
+    "root_body_id": 2.0,
+    "subtree_mass_kg": 0.9999999999999999,
+    "com_height_m": 0.22841349245684445,
+    "support_radius_m": 0.029347178774961194,
+    "capture_velocity_mps": 0.1923268790547016,
+    "capture_velocity_multiple": 1.3,
+    "delta_v_mps": 0.2500249427711121,
+    "impulse_ns": 0.25002494277111204,
+    "force_n": 1.25012471385556,
+    "duration_s": 0.2,
+    "interval_s": 2.0,
+    "jitter_s": 0.25,
+    "direction": "uniform_horizontal"
+  },
+  "provenance": {
+    "measurement_artifact": "environments/compsognathus_longipes/data/recovery_calibration_v1.json",
+    "method": "Fixed-command PD quiet reference; max(engineering floor, 1.5 * quiet p99.9). Force selection on 32 separate seeds; no trained-policy calibration.",
+    "quiet_seed_range": [
+      1042,
+      1049
+    ],
+    "selection_seed_range": [
+      2042,
+      2073
+    ],
+    "diagnostic_seed_range": [
+      7042,
+      7081
+    ],
+    "stress_seed_range": [
+      8042,
+      8081
+    ],
+    "reserved_publication_seed_range": [
+      3042,
+      3081
+    ],
+    "nominal_recovery_seconds": 0.8,
+    "nominal_dwell_seconds": 0.4,
+    "qualification_targets": "Pre-registered pilot engineering targets, not measured policy achievement."
+  },
+  "restamp_history": [
+    {
+      "restamped_at_commit": "69734c076f65168ddc7249d0bb6e7783ef68e720",
+      "previous_policy_interface_revision": 3,
+      "previous_policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
+      "previous_task_sha256": "sha256:fce8b5199e4755334fab78de9d6f257cc37475b0aec80daeb6930681ca3db55a",
+      "reason": "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free observations bipedal-target-heading-free/v1; physics r2 and the recovery [env] block unchanged; the fixed-command nulls do not read the observation and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
+    },
+    {
+      "restamped_at_commit": "60dd12beb6fa0ce685d4621fc13a79231be82eff",
+      "previous_identity": {
+        "schema": "mesozoic.recovery-calibration/v1",
+        "species": "compsognathus",
+        "calibration_id": "compsognathus-fixed-command-recovery-2026-10-v2"
+      },
+      "previous_policy_interface_revision": 4,
+      "previous_policy_interface_sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769",
+      "previous_task_sha256": "sha256:b1d8238de47d3da2a89cb8168da23d3b5b6686bf2360b00bbe9775b936f078cb",
+      "reason": "plant_versions note 19 (D-D33)"
+    }
+  ]
+}

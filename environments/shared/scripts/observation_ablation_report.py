@@ -45,7 +45,8 @@ number in ``stage_summary.txt`` then nothing below it means anything.
 
 Usage::
 
-    python environments/shared/scripts/observation_ablation_report.py trex 1 \\
+    python environments/shared/scripts/observation_ablation_report.py \\
+        --species tyrannosaurus_rex --embodiment anatomical 1 \\
         --model /path/to/run/stage1/models/robust_best_model.zip
 
     # The VecNormalize sidecar is found automatically under either naming
@@ -65,31 +66,33 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.config import build_env
 from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.model_id import ModelId
 from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadError, load_sb3_checkpoint
+from environments.shared.species_names import add_model_arguments, parsed_model_id
 
-# Named observation slices per species, as (start, stop, quat_start_or_None).
+# Named observation slices per model, as (start, stop, quat_start_or_None).
 # quat_start is the index of the pelvis/torso quaternion, needed only by the
 # "body" intervention; None means the slice is not a world-frame 3-vector.
-# Derived by reading each species' _get_obs, not by assuming a shared layout;
+# Derived by reading each model's _get_obs, not by assuming a shared layout;
 # test_plant_contract_heading_free checks them against the plant contract's
-# observation segments.  The trex table is policy interface r14's
+# observation segments.  The T-Rex table is policy interface r14's
 # (bipedal-target-heading-free/v1: heading-frame velocity, pelvis-frame target,
 # so no slice is world-frame).  An r13 checkpoint does not load against it
 # (its 64-wide statistics cannot bind to the 63-wide env); its own table is in
 # this file's history.
-SLICES: dict[str, dict[str, tuple[int, int, int | None]]] = {
-    "trex": {
+SLICES: dict[ModelId, dict[str, tuple[int, int, int | None]]] = {
+    ModelId("tyrannosaurus_rex", "anatomical"): {
         "root_linvel": (48, 51, None),
         "target_dir": (56, 59, None),
         "target_dist": (59, 60, None),
         "command": (60, 63, None),
     },
 }
-# Slices the simulator can supply but a physical robot could not, per species.
+# Slices the simulator can supply but a physical robot could not, per model.
 # "privileged" ablates all of them at once.
-PRIVILEGED_SLICES = {"trex": ("root_linvel", "target_dir", "target_dist")}
+PRIVILEGED_SLICES = {ModelId("tyrannosaurus_rex", "anatomical"): ("root_linvel", "target_dir", "target_dist")}
 
 
 def quat_to_rotation(quat: np.ndarray) -> np.ndarray:
@@ -161,10 +164,10 @@ def rollout(env, model, normalizer, condition, episodes: int, seed: int) -> dict
     }
 
 
-def build_conditions(species: str, requested: list[str]) -> list[tuple]:
+def build_conditions(model_id: ModelId, requested: list[str]) -> list[tuple]:
     """Expand the named slices into (label, mode, spans) conditions."""
-    table = SLICES[species]
-    privileged = [table[key] for key in PRIVILEGED_SLICES[species]]
+    table = SLICES[model_id]
+    privileged = [table[key] for key in PRIVILEGED_SLICES[model_id]]
 
     conditions: list[tuple] = [("baseline", "none", [])]
     for key in requested:
@@ -181,7 +184,7 @@ def build_conditions(species: str, requested: list[str]) -> list[tuple]:
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", choices=SPECIES_NAMES)
+    add_model_arguments(parser)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", required=True, help="SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -201,28 +204,29 @@ def main(argv: list[str]) -> None:
         help="named slices to ablate",
     )
     args = parser.parse_args(argv)
+    model_id = parsed_model_id(parser, args)
 
-    if args.species not in SLICES:
-        raise SystemExit(f"no observation slice table for {args.species!r}; add one to SLICES")
+    if model_id not in SLICES:
+        raise SystemExit(f"no observation slice table for {model_id}; add one to SLICES")
 
-    env = build_env(args.species, args.stage)
+    env = build_env(model_id, args.stage)
     try:
         model, normalizer, _ = load_sb3_checkpoint(
             args.model,
             args.vecnorm,
-            lambda: build_env(args.species, args.stage),
+            lambda: build_env(model_id, args.stage),
             allow_unnormalized=args.allow_unnormalized,
         )
     except PolicyLoadError as exc:
         # The CLI boundary is where a loading failure becomes an exit status.
         raise SystemExit(str(exc)) from exc
 
-    print(f"\n{args.species} stage {args.stage}: {Path(args.model).name}")
+    print(f"\n{model_id} stage {args.stage}: {Path(args.model).name}")
     print(f"{args.episodes} episodes, seeds {args.seed}..{args.seed + args.episodes - 1}, deterministic")
     print(f"VecNormalize: {'loaded' if normalizer is not None else 'NONE — ' + UNNORMALIZED_BANNER}\n")
 
     results = []
-    for condition in build_conditions(args.species, args.slices):
+    for condition in build_conditions(model_id, args.slices):
         results.append(rollout(env, model, normalizer, condition, args.episodes, args.seed))
     env.close()
 

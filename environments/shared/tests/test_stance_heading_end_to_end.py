@@ -35,6 +35,7 @@ import pytest
 from environments.shared.ancestors import AncestorReuseError, find_certified_ancestor
 from environments.shared.curriculum.gate_schema import gate_config_view
 from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_PANEL_CSV
+from environments.shared.model_id import ModelId
 from environments.shared.reporting.stage_artifacts import _apply_stage_gate
 from environments.shared.reporting.stance_report import write_stance_gate_report, write_stance_heading_report
 from environments.shared.result_bundle import (
@@ -50,11 +51,13 @@ from .ancestors_helpers import JUDGED_BY, trunk_plant
 from .stance_heading_helpers import HEADING_CURRICULUM, heading_report, heading_trunk_run, seed52_like_report
 from .stance_v2_helpers import HORIZON, TASK_SHA256, V2_CURRICULUM, v2_report
 
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
 
 def _find(run_dir: Path, **overrides: Any):
     kwargs: dict[str, Any] = dict(
-        species="trex",
-        entry=load_stage_manifest("trex").by_id("stance"),
+        model_id=TYRANNOSAURUS_REX,
+        entry=load_stage_manifest(TYRANNOSAURUS_REX).by_id("stance"),
         current_task_sha256=TASK_SHA256,
         plant_identity=trunk_plant(),
         current_gate_config=HEADING_CURRICULUM,
@@ -68,7 +71,7 @@ def _forge_pass(stage_dir: Path) -> None:
     models = stage_dir / "models"
     write_gate_verdict(
         stage_dir,
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         stage=1,
         stage_id="stance",
         gate_kind=HEADING_CURRICULUM["gate_kind"],
@@ -104,7 +107,7 @@ def test_yaw_zero_passes_but_minus_90_fails_and_handoff_publication_and_reuse_al
         stage_results=stage_results,
         stance_report=certificate,
         stage_dir=stage_dir,
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
     )
     assert stage_results["gate_passed"] is False and stage_results["publication_gate_passed"] is False
     named = {failure.split(":", 1)[0] for failure in stage_results["gate_failures"]}
@@ -135,7 +138,7 @@ def test_yaw_zero_passes_but_minus_90_fails_and_handoff_publication_and_reuse_al
             panel_seed_start=3042,
             certified_hash=sha256_file(stage_dir / "models" / "robust_best_model.zip"),
             certified_normalization=sha256_file(stage_dir / "models" / "robust_best_model_vecnorm.pkl"),
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             task_sha256=TASK_SHA256,
         )
 
@@ -153,7 +156,11 @@ def test_yaw_zero_passes_but_minus_90_fails_and_handoff_publication_and_reuse_al
 
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", lambda **kwargs: certificate)
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, {"curriculum_kwargs": HEADING_CURRICULUM}, stage_dir=stage_dir, model_dir=stage_dir / "models"
+        TYRANNOSAURUS_REX,
+        1,
+        {"curriculum_kwargs": HEADING_CURRICULUM},
+        stage_dir=stage_dir,
+        model_dir=stage_dir / "models",
     )
     assert passed is False and any("heading -45" in failure for failure in failures)
     assert stage_result["stance_heading_clean_seeds"] == 0
@@ -169,14 +176,15 @@ def test_a_v2_pass_cannot_be_promoted_by_attaching_a_heading_report(tmp_path):
     # Under the heading kind the v2 PASS is refused by name.
     passed, failures = evaluate_stage_gate(HEADING_CURRICULUM, {}, stage=1, stance_report=v2_pass, stage_dir=stage_dir)
     assert passed is False and "certifies yaw zero only and cannot be promoted" in failures[0]
-    # A heading report attached to the v2 report, or relabelled as one, is still a v3 report.
+    # A heading report attached to the v2 report, or relabelled as one, is still a kind-v2 (schema /v5) report.
     attached = {**v2_pass, "headings": heading_report(tmp_path / "other")["headings"]}
     passed, failures = evaluate_stage_gate(HEADING_CURRICULUM, {}, stage=1, stance_report=attached, stage_dir=stage_dir)
     assert passed is False and "certifies yaw zero only" in failures[0]
     # And under v2, a certificate is not a v2 report either: each kind admits only its own.
     certificate = heading_report(tmp_path / "third")
     passed, failures = evaluate_stage_gate(V2_CURRICULUM, {}, stage=1, stance_report=certificate, stage_dir=stage_dir)
-    assert passed is False and any("not 'mesozoic.stance-gate-report/v3'" in failure for failure in failures)
+    # The kind-v2 report schema was re-pinned from /v3 to /v5 (decision D-D33).
+    assert passed is False and any("not 'mesozoic.stance-gate-report/v5'" in failure for failure in failures)
 
 
 def test_the_cli_curriculum_judges_a_heading_node_after_training(tmp_path, monkeypatch):
@@ -186,8 +194,8 @@ def test_the_cli_curriculum_judges_a_heading_node_after_training(tmp_path, monke
 
     calls = []
 
-    def fake_write(*, species, stage, stage_config, stage_dir, model_dir):
-        calls.append((species, stage, stage_config["curriculum_kwargs"]["gate_kind"], model_dir))
+    def fake_write(*, model_id, stage, stage_config, stage_dir, model_dir):
+        calls.append((model_id, stage, stage_config["curriculum_kwargs"]["gate_kind"], model_dir))
         return heading_report(stage_dir)
 
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", fake_write)
@@ -198,16 +206,16 @@ def test_the_cli_curriculum_judges_a_heading_node_after_training(tmp_path, monke
         "env_kwargs": {},
     }
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, config, stage_dir=tmp_path, model_dir=tmp_path / "models"
+        TYRANNOSAURUS_REX, 1, config, stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
-    assert calls == [("trex", 1, "stance_quality_heading/v1", tmp_path / "models")]
+    assert calls == [(TYRANNOSAURUS_REX, 1, "stance_quality_heading/v1", tmp_path / "models")]
     assert (passed, failures) == (True, [])
     assert stage_result["gate_kind"] == "stance_quality_heading/v1" and stage_result["gate_passed"] is True
     assert stage_result["stance_heading_clean_seeds"] == 40 and "stance_clean_count" not in stage_result
     # No certificate is a named FAIL, never the yaw-zero panel's verdict.
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", lambda **kwargs: None)
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, config, stage_dir=tmp_path, model_dir=tmp_path / "models"
+        TYRANNOSAURUS_REX, 1, config, stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert passed is False and "no six-heading certificate" in failures[0]
     assert not any(key.startswith("stance_heading") for key in stage_result)

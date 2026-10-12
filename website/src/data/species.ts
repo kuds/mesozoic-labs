@@ -1,4 +1,9 @@
-/** Typed website adapter for the generated public species catalog. */
+/**
+ * Typed website adapter for the generated public species catalog.
+ *
+ * Each catalog row is a model: a species in one embodiment, named by its species ID and its embodiment
+ * (`anatomical` or `robot`) and never by an alias (decision D-D33).
+ */
 
 import generatedCatalog from './species.generated.json';
 
@@ -212,7 +217,7 @@ export interface PublishedResult {
   /** Historical ladder headline; read only through headlineFor. */
   stage3SuccessRate: number | null;
   provenance: ResultProvenance;
-  /** Empty for every schema-2/3 ladder summary; never synthesized. */
+  /** Empty for every schema-2 ladder summary; never synthesized. */
   deliverables: ResultDeliverable[];
   primaryDeliverable: string | null;
   targetDeliverable: string | null;
@@ -233,8 +238,14 @@ export interface DeliverableMetric extends SuccessMetric {
   stageId: string;
 }
 
+/** One model of the catalog (a species in one embodiment); the type keeps the name the components use. */
 export interface Species {
-  id: string;
+  /** The species ID (its binomial in snake_case) and the embodiment: together, the model's identity. */
+  species: string;
+  embodiment: string;
+  /** The species display name ("Compsognathus Longipes"). */
+  speciesName: string;
+  /** The model display name ("Compsognathus Longipes (Robot)"). */
   name: string;
   tagline: string;
   observationDim: number;
@@ -242,7 +253,6 @@ export interface Species {
   actuators: number;
   gait: 'Bipedal' | 'Quadrupedal';
   specialty: string;
-  aliases: string[];
   environmentEntrypoint: string;
   trainingNotebooks: string[];
   model: {
@@ -435,12 +445,13 @@ interface RawDeliverableMetric {
 }
 
 interface RawSpecies {
-  id: string;
+  species: string;
+  embodiment: string;
+  species_display_name: string;
   display_name: string;
   tagline: string;
   gait: 'Bipedal' | 'Quadrupedal';
   specialty: string;
-  aliases: string[];
   environment: {
     entrypoint: string;
     observation_dim: number;
@@ -478,7 +489,7 @@ interface RawCatalog {
   };
   project_capabilities: Record<string, {label: string; status: string}>;
   notebooks: Array<{id: string; label: string; description: string; path: string}>;
-  species: RawSpecies[];
+  models: RawSpecies[];
 }
 
 const catalog = generatedCatalog as RawCatalog;
@@ -486,7 +497,7 @@ const catalog = generatedCatalog as RawCatalog;
 // The adapter maps the catalog key for key, so a regenerated JSON of another
 // schema would be read through stale field names; refuse it at module load
 // (build time) rather than render undefined fields (decision D-A8).
-if (catalog.schema_version !== 4) throw new Error(`Generated catalog schema_version must be 4, got ${catalog.schema_version}`);
+if (catalog.schema_version !== 5) throw new Error(`Generated catalog schema_version must be 5, got ${catalog.schema_version}`);
 
 function adaptSuccessMetric(metric: RawSuccessMetric): SuccessMetric {
   return {
@@ -597,7 +608,9 @@ function adaptResult(result: RawResult): PublishedResult {
 function adaptSpecies(raw: RawSpecies): Species {
   const historicalResults = raw.historical_results.map(adaptResult);
   return {
-    id: raw.id,
+    species: raw.species,
+    embodiment: raw.embodiment,
+    speciesName: raw.species_display_name,
     name: raw.display_name,
     tagline: raw.tagline,
     observationDim: raw.environment.observation_dim,
@@ -605,7 +618,6 @@ function adaptSpecies(raw: RawSpecies): Species {
     actuators: raw.environment.action_dim,
     gait: raw.gait,
     specialty: raw.specialty,
-    aliases: raw.aliases,
     environmentEntrypoint: raw.environment.entrypoint,
     trainingNotebooks: raw.training_notebooks,
     model: {
@@ -694,7 +706,7 @@ export function backendLabel(backend: TrainingBackend): string {
 
 export function successMetricForBackend(species: Species, backend: TrainingBackend) {
   const metric = species.successMetrics.find((candidate) => candidate.backends.includes(backend));
-  if (!metric) throw new Error(`Generated catalog is missing ${backend} success semantics for ${species.id}`);
+  if (!metric) throw new Error(`Generated catalog is missing ${backend} success semantics for ${species.species}/${species.embodiment}`);
   return metric;
 }
 
@@ -751,24 +763,19 @@ export function headlineFor(result: PublishedResult): {label: string; value: str
 export const PROJECT_CAPABILITIES = catalog.project_capabilities;
 export const PUBLIC_NOTEBOOKS = catalog.notebooks;
 export const PLANT_MANIFEST = catalog.plant_manifest;
-export const ALL_SPECIES: Species[] = catalog.species.map(adaptSpecies);
+/** Every model of the catalog, in manifest order (species display order, then embodiment). */
+export const ALL_MODELS: Species[] = catalog.models.map(adaptSpecies);
 
-function requireSpecies(speciesId: string): Species {
-  const species = ALL_SPECIES.find((entry) => entry.id === speciesId);
-  if (!species) throw new Error(`Generated catalog is missing species: ${speciesId}`);
-  return species;
+/** The model named exactly by its species ID and embodiment; anything else is a build error (decision D-D33). */
+export function requireModel(species: string, embodiment: string): Species {
+  const model = ALL_MODELS.find((entry) => entry.species === species && entry.embodiment === embodiment);
+  if (!model) throw new Error(`Generated catalog is missing model: ${species}/${embodiment}`);
+  return model;
 }
 
-export const VELOCIRAPTOR = requireSpecies('velociraptor');
-export const TREX = requireSpecies('trex');
-export const BRACHIOSAURUS = requireSpecies('brachiosaurus');
-export const DIBOTHROSUCHUS = requireSpecies('dibothrosuchus');
-export const COMPSOGNATHUS = requireSpecies('compsognathus');
-export const COMPSOGNATHUS_ROBOT = requireSpecies('compsognathus_robot');
-
-/** Sum of current actuator/action dimensions across implemented species. */
-export const TOTAL_ACTUATORS = ALL_SPECIES.reduce((total, species) => total + species.actionDim, 0);
+/** Sum of current actuator/action dimensions across implemented models. */
+export const TOTAL_ACTUATORS = ALL_MODELS.reduce((total, model) => total + model.actionDim, 0);
 
 /** Total environment steps across every published historical run. */
-export const TOTAL_TRAINED_STEPS = ALL_SPECIES.flatMap((species) => species.historicalResults)
+export const TOTAL_TRAINED_STEPS = ALL_MODELS.flatMap((model) => model.historicalResults)
   .reduce((total, result) => total + result.totalTimesteps, 0);

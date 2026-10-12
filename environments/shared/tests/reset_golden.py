@@ -61,8 +61,9 @@ first -- a pass proves the revision consumed no reset draw -- then re-take
 only that species' captures, leaving every other capture byte-identical::
 
     PYTHONPATH=. python environments/shared/tests/reset_golden.py \\
-        --recapture trex/stance trex/recovery \\
-        --reason "trex physics r8 (plant_versions note 13)"
+        --recapture tyrannosaurus_rex anatomical stance \\
+        --recapture tyrannosaurus_rex anatomical recovery \\
+        --reason "T-Rex physics r8 (plant_versions note 13)"
 
 ``recaptures`` then records, per re-taken capture, the plant it was taken
 on and why; its observation is captured with the command segment already
@@ -81,6 +82,26 @@ neither the draw stream nor the dynamics.  Recapture the species' captures
 the same way; each record also names the ``policy_interface_revision`` and
 ``observation_schema`` its observation was taken under, so the observation
 half is bound to its layout as the trajectory half is to its physics.
+
+Schema v2 (decision D-D33): every capture is named by its model, and the
+fixture nests ``captures[species][embodiment][stage]`` (and ``recaptures``
+the same way), each capture recording ``species``, ``embodiment`` and
+``stage``; no joined key is written.  A v1 fixture named its captures by the
+species IDs of its date (``"trex/stance"``).  ``--migrate-identity --reason
+TEXT`` migrates a v1 fixture, and only a v1 fixture (a migrated one is left
+untouched): it pairs the stored ``spec[i]`` with :data:`DEFAULT_SPEC` ``[i]``
+(same stage, seeds and steps, so no old-to-new table is needed), re-takes
+every capture on the current tree and refuses unless the ``reset``,
+``second_reset`` and ``trajectory`` halves are byte-equal and the
+observation reproduces (whole for a recapture, on the captured prefix with
+zero command dims otherwise), then rewrites the keys and identity fields,
+refreshes each recapture's ``policy_interface_revision`` (an identity move
+is an interface revision, plant_versions note 19) and appends an
+``identity_migrations`` record.  ``source_commit`` and every captured value
+stay as recorded::
+
+    PYTHONPATH=. python environments/shared/tests/reset_golden.py \\
+        --migrate-identity --reason "plant_versions note 19 (D-D33)"
 """
 
 from __future__ import annotations
@@ -97,19 +118,23 @@ from typing import Any, Sequence
 
 import numpy as np
 
-FIXTURE_SCHEMA = "mesozoic.phase-c-reset-golden/v1"
+from environments.shared.model_id import ModelId
+
+FIXTURE_SCHEMA = "mesozoic.phase-c-reset-golden/v2"
+#: The one schema ``--migrate-identity`` migrates from (decision D-D33).
+_PRE_D_D33_FIXTURE_SCHEMA = "mesozoic.phase-c-reset-golden/v1"
 FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "phase_c_reset_golden.json"
 QUANTIZATION_DECIMALS = 6
 
-#: The capture specification: (species, stage, seeds, steps).  Trex stance
+#: The capture specification: (model, stage, seeds, steps).  T-Rex stance
 #: seeds are the certified run's training seed and the first/second/last
-#: publication-panel seeds; trex recovery exercises the push schedule; the
-#: two compsognathus recovery captures back the calibration restamp.
-DEFAULT_SPEC: tuple[tuple[str, str, tuple[int, ...], int], ...] = (
-    ("trex", "stance", (42, 3042, 3043, 3081), 20),
-    ("trex", "recovery", (3042,), 20),
-    ("compsognathus", "recovery", (1042, 7042), 20),
-    ("compsognathus_robot", "recovery", (1042,), 20),
+#: publication-panel seeds; T-Rex recovery exercises the push schedule; the
+#: two Compsognathus recovery captures back the calibration restamp.
+DEFAULT_SPEC: tuple[tuple[ModelId, str, tuple[int, ...], int], ...] = (
+    (ModelId("tyrannosaurus_rex", "anatomical"), "stance", (42, 3042, 3043, 3081), 20),
+    (ModelId("tyrannosaurus_rex", "anatomical"), "recovery", (3042,), 20),
+    (ModelId("compsognathus_longipes", "anatomical"), "recovery", (1042, 7042), 20),
+    (ModelId("compsognathus_longipes", "robot"), "recovery", (1042,), 20),
 )
 
 
@@ -139,12 +164,12 @@ def _reset_record(env: Any) -> dict[str, Any]:
     return record
 
 
-def capture_key(species: str, stage: str) -> str:
-    return f"{species}/{stage}"
+def _nested_set(records: dict[str, Any], model_id: ModelId, stage: str, value: Any) -> None:
+    records.setdefault(model_id.species, {}).setdefault(model_id.embodiment, {})[stage] = value
 
 
-def capture(species: str, stage: str, seeds: Sequence[int], steps: int) -> dict[str, Any]:
-    """Reset/step traces for one species stage, keyed by seed.
+def capture(model_id: ModelId, stage: str, seeds: Sequence[int], steps: int) -> dict[str, Any]:
+    """Reset/step traces for one model stage, keyed by seed.
 
     Builds the stage environment exactly as training does
     (``config.build_env``), then for each seed records the reset state,
@@ -153,7 +178,7 @@ def capture(species: str, stage: str, seeds: Sequence[int], steps: int) -> dict[
     """
     from environments.shared.config import build_env
 
-    env = build_env(species, stage)
+    env = build_env(model_id, stage)
     try:
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         per_seed: dict[str, Any] = {}
@@ -173,7 +198,7 @@ def capture(species: str, stage: str, seeds: Sequence[int], steps: int) -> dict[
             }
     finally:
         env.close()
-    return {"species": species, "stage": stage, "steps": int(steps), "seeds": per_seed}
+    return {**model_id.record(), "stage": stage, "steps": int(steps), "seeds": per_seed}
 
 
 def _source_commit() -> str:
@@ -189,16 +214,16 @@ def _source_commit() -> str:
 
 
 def build_fixture(
-    spec: Sequence[tuple[str, str, Sequence[int], int]] = DEFAULT_SPEC,
+    spec: Sequence[tuple[ModelId, str, Sequence[int], int]] = DEFAULT_SPEC,
     *,
     source_commit: str | None = None,
 ) -> dict[str, Any]:
     """The complete fixture document for *spec*."""
     import mujoco
 
-    captures = {
-        capture_key(species, stage): capture(species, stage, seeds, steps) for species, stage, seeds, steps in spec
-    }
+    captures: dict[str, Any] = {}
+    for model_id, stage, seeds, steps in spec:
+        _nested_set(captures, model_id, stage, capture(model_id, stage, seeds, steps))
     return {
         "schema": FIXTURE_SCHEMA,
         "source_commit": _source_commit() if source_commit is None else source_commit,
@@ -206,26 +231,27 @@ def build_fixture(
         "numpy_version": np.__version__,
         "platform": platform.platform(),
         "quantization_decimals": QUANTIZATION_DECIMALS,
-        "spec": [
-            {"species": species, "stage": stage, "seeds": [int(seed) for seed in seeds], "steps": int(steps)}
-            for species, stage, seeds, steps in spec
-        ],
+        "spec": [_spec_entry(model_id, stage, seeds, steps) for model_id, stage, seeds, steps in spec],
         "captures": captures,
     }
 
 
+def _spec_entry(model_id: ModelId, stage: str, seeds: Sequence[int], steps: int) -> dict[str, Any]:
+    return {**model_id.record(), "stage": stage, "seeds": [int(seed) for seed in seeds], "steps": int(steps)}
+
+
 def recapture_fixture(
     fixture: dict[str, Any],
-    keys: Sequence[str],
+    keys: Sequence[tuple[ModelId, str]],
     *,
     reason: str,
     source_commit: str | None = None,
 ) -> dict[str, Any]:
-    """*fixture* with the captures named by *keys* re-taken on the current tree.
+    """*fixture* with the captures named by *keys* (model, stage) re-taken on the current tree.
 
     Every other capture, and the top-level provenance of the original
     capture, stays byte-identical.  Each re-taken capture is recorded under
-    ``recaptures`` with the species' plant identity at re-capture time (its
+    ``recaptures`` with the model's plant identity at re-capture time (its
     physics, and the policy interface and observation schema its observation
     was taken under), so a later physics or interface move is reported as a
     stale recapture rather than as an unexplained mismatch.
@@ -234,39 +260,160 @@ def recapture_fixture(
 
     from environments.shared.plant_contract import current_plant_identity
 
-    spec = {
-        capture_key(species, stage): (species, stage, seeds, steps) for species, stage, seeds, steps in DEFAULT_SPEC
-    }
-    unknown = sorted(set(keys) - set(spec))
+    if fixture.get("schema") != FIXTURE_SCHEMA:
+        raise ValueError(f"recapture needs a {FIXTURE_SCHEMA} fixture, not {fixture.get('schema')!r}")
+    spec = {(model_id, stage): (seeds, steps) for model_id, stage, seeds, steps in DEFAULT_SPEC}
+    unknown = sorted(f"{model_id} {stage}" for model_id, stage in set(keys) - set(spec))
     if unknown:
-        raise ValueError(f"no capture named {unknown}; the spec names {sorted(spec)}")
+        raise ValueError(f"no capture named {unknown}; the spec names {sorted(f'{m} {s}' for m, s in spec)}")
     updated = copy.deepcopy(fixture)
     recaptures = updated.setdefault("recaptures", {})
-    for key in keys:
-        species, stage, seeds, steps = spec[key]
-        updated["captures"][key] = capture(species, stage, seeds, steps)
-        plant = current_plant_identity(species)
-        recaptures[key] = {
-            "reason": reason,
-            "source_commit": _source_commit() if source_commit is None else source_commit,
-            "physics_revision": int(plant.physics_revision),
-            "physics_sha256": plant.physics_sha256,
-            "policy_interface_revision": int(plant.policy_interface_revision),
-            "observation_schema": _observation_schema(species),
-            "observation_includes_command_segment": True,
-            "mujoco_version": mujoco.__version__,
-            "numpy_version": np.__version__,
-            "platform": platform.platform(),
-        }
+    for model_id, stage in keys:
+        seeds, steps = spec[(model_id, stage)]
+        _nested_set(updated["captures"], model_id, stage, capture(model_id, stage, seeds, steps))
+        plant = current_plant_identity(model_id)
+        _nested_set(
+            recaptures,
+            model_id,
+            stage,
+            {
+                "reason": reason,
+                "source_commit": _source_commit() if source_commit is None else source_commit,
+                "physics_revision": int(plant.physics_revision),
+                "physics_sha256": plant.physics_sha256,
+                "policy_interface_revision": int(plant.policy_interface_revision),
+                "observation_schema": _observation_schema(model_id),
+                "observation_includes_command_segment": True,
+                "mujoco_version": mujoco.__version__,
+                "numpy_version": np.__version__,
+                "platform": platform.platform(),
+            },
+        )
     return updated
 
 
-def _observation_schema(species: str) -> str:
-    """The observation schema configs/plant_versions.toml declares for *species*."""
+def _observation_schema(model_id: ModelId) -> str:
+    """The observation schema configs/plant_versions.toml declares for *model_id*."""
     from environments.shared.plant_contract.versions import load_plant_versions
 
     _, versions = load_plant_versions()
-    return str(versions[species].observation_schema)
+    return str(versions[model_id].observation_schema)
+
+
+def _command_width() -> int:
+    from environments.shared.command_frame import COMMAND_WIDTH
+
+    return int(COMMAND_WIDTH)
+
+
+def _retake_refusals(stored: dict[str, Any], retaken: dict[str, Any], *, recaptured: bool) -> list[str]:
+    """Why *retaken* is not the same capture as *stored* (empty when it is).
+
+    The reset, second-reset and trajectory halves must be byte-equal (after
+    quantization).  The observation must reproduce whole for a recapture
+    (taken with the command segment) and, for a capture taken before the
+    Phase C bump, on the captured prefix with zero command dims after it.
+    """
+    refusals: list[str] = []
+    if int(stored.get("steps", -1)) != retaken["steps"] or set(stored.get("seeds", {})) != set(retaken["seeds"]):
+        return ["the stored steps or seeds differ from the re-take's"]
+    width = _command_width()
+    for seed, record in stored["seeds"].items():
+        current = retaken["seeds"][seed]
+        for half in ("reset", "second_reset", "trajectory"):
+            if record.get(half) != current[half]:
+                refusals.append(f"seed {seed}: the {half} half moved")
+        before, after = record.get("observation"), current["observation"]
+        if recaptured:
+            if before != after:
+                refusals.append(f"seed {seed}: the recaptured observation moved")
+        elif (
+            not isinstance(before, list)
+            or len(after) != len(before) + width
+            or after[: len(before)] != before
+            or any(value != 0.0 for value in after[len(before) :])
+        ):
+            refusals.append(f"seed {seed}: the observation is not the captured prefix plus {width} zero command dims")
+    return refusals
+
+
+def migrate_fixture_identity(
+    fixture: dict[str, Any],
+    *,
+    reason: str,
+    migrated_at_commit: str | None = None,
+) -> dict[str, Any]:
+    """*fixture* (schema v1) under the models' identities (decision D-D33); a v2 fixture is returned unchanged.
+
+    The module docstring lists every guard.  Raises ``ValueError`` on every
+    refusal.
+    """
+    import mujoco
+
+    from environments.shared.plant_contract import current_plant_identity
+
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("the migration reason must be a non-empty string")
+    if fixture.get("schema") == FIXTURE_SCHEMA:
+        return fixture
+    if fixture.get("schema") != _PRE_D_D33_FIXTURE_SCHEMA:
+        raise ValueError(
+            f"--migrate-identity migrates only {_PRE_D_D33_FIXTURE_SCHEMA!r}, not {fixture.get('schema')!r}"
+        )
+    stored_spec = fixture.get("spec")
+    if not isinstance(stored_spec, list) or len(stored_spec) != len(DEFAULT_SPEC):
+        raise ValueError(f"the stored spec does not pair with the {len(DEFAULT_SPEC)} entries of DEFAULT_SPEC")
+    stored_captures = fixture.get("captures") or {}
+    stored_recaptures = fixture.get("recaptures") or {}
+    paired_keys: set[str] = set()
+    captures: dict[str, Any] = {}
+    recaptures: dict[str, Any] = {}
+    refusals: list[str] = []
+    for entry, (model_id, stage, seeds, steps) in zip(stored_spec, DEFAULT_SPEC):
+        if (entry.get("stage"), entry.get("seeds"), entry.get("steps")) != (stage, list(seeds), steps):
+            raise ValueError(f"stored spec entry {entry} does not pair with ({model_id}, {stage}, {seeds}, {steps})")
+        if "embodiment" in entry:
+            raise ValueError(f"stored spec entry {entry} already names an embodiment; refusing to guess")
+        key = f"{entry['species']}/{stage}"
+        stored = stored_captures.get(key)
+        if not isinstance(stored, dict) or (stored.get("species"), stored.get("stage")) != (entry["species"], stage):
+            raise ValueError(f"the stored fixture has no capture {key!r} for spec entry {entry}")
+        paired_keys.add(key)
+        recaptured = key in stored_recaptures
+        retaken = capture(model_id, stage, seeds, steps)
+        for refusal in _retake_refusals(stored, retaken, recaptured=recaptured):
+            refusals.append(f"{key} as {model_id} {stage}: {refusal}")
+        _nested_set(captures, model_id, stage, {**stored, **model_id.record()})
+        if recaptured:
+            record = dict(stored_recaptures[key])
+            plant = current_plant_identity(model_id)
+            if record.get("physics_sha256") != plant.physics_sha256:
+                refusals.append(f"{key} was recaptured on physics {record.get('physics_sha256')!r}, not {model_id}'s")
+            record["policy_interface_revision"] = int(plant.policy_interface_revision)
+            _nested_set(recaptures, model_id, stage, record)
+    unpaired = sorted(set(stored_captures) - paired_keys) + sorted(set(stored_recaptures) - paired_keys)
+    if unpaired:
+        refusals.append(f"stored captures or recaptures no spec entry pairs with: {unpaired}")
+    if refusals:
+        if mujoco.__version__ != fixture.get("mujoco_version"):
+            refusals.append(f"running mujoco {mujoco.__version__} is not the fixture's {fixture.get('mujoco_version')}")
+        raise ValueError("refusing to migrate the reset golden:\n  " + "\n  ".join(refusals))
+    migrated = {key: value for key, value in fixture.items() if key not in {"schema", "spec", "captures", "recaptures"}}
+    migrated["schema"] = FIXTURE_SCHEMA
+    migrated["spec"] = [_spec_entry(model_id, stage, seeds, steps) for model_id, stage, seeds, steps in DEFAULT_SPEC]
+    migrated["captures"] = captures
+    if recaptures:
+        migrated["recaptures"] = recaptures
+    migrated["identity_migrations"] = [
+        *fixture.get("identity_migrations", []),
+        {
+            "reason": reason,
+            "migrated_at_commit": _source_commit() if migrated_at_commit is None else migrated_at_commit,
+            "previous_schema": fixture["schema"],
+            "previous_spec": copy.deepcopy(stored_spec),
+        },
+    ]
+    return migrated
 
 
 _NUMERIC_ARRAY = re.compile(r"\[\s*((?:-?\d[\d.e+-]*,\s*)*-?\d[\d.e+-]*)\s*\]")
@@ -295,18 +442,40 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--recapture",
-        nargs="+",
-        metavar="SPECIES/STAGE",
-        help="re-take only these captures in the existing --out fixture, leaving every other one untouched",
+        nargs=3,
+        action="append",
+        metavar=("SPECIES", "EMBODIMENT", "STAGE"),
+        help="re-take only this capture in the existing --out fixture, leaving every other one untouched; repeatable",
     )
-    parser.add_argument("--reason", help="why the --recapture captures moved (recorded with them)")
+    parser.add_argument(
+        "--migrate-identity",
+        action="store_true",
+        help="migrate a schema-v1 --out fixture to the models' identities (decision D-D33); a no-op on a v2 one",
+    )
+    parser.add_argument("--reason", help="why the --recapture captures moved, or why --migrate-identity ran (recorded)")
     args = parser.parse_args(argv)
-    if args.recapture:
+    if args.recapture and args.migrate_identity:
+        parser.error("--recapture and --migrate-identity are separate runs")
+    if args.migrate_identity:
+        if not args.reason:
+            parser.error("--migrate-identity needs --reason")
+        original = load_fixture(args.out)
+        try:
+            fixture = migrate_fixture_identity(original, reason=args.reason, migrated_at_commit=args.source_commit)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        if fixture is original:
+            print(f"{args.out} is already {FIXTURE_SCHEMA}; nothing to migrate")
+            return 0
+    elif args.recapture:
         if not args.reason:
             parser.error("--recapture needs --reason")
-        fixture = recapture_fixture(
-            load_fixture(args.out), args.recapture, reason=args.reason, source_commit=args.source_commit
-        )
+        try:
+            keys = [(ModelId(species, embodiment), stage) for species, embodiment, stage in args.recapture]
+        except ValueError as exc:
+            parser.error(str(exc))
+        fixture = recapture_fixture(load_fixture(args.out), keys, reason=args.reason, source_commit=args.source_commit)
     else:
         fixture = build_fixture(source_commit=args.source_commit)
     args.out.parent.mkdir(parents=True, exist_ok=True)

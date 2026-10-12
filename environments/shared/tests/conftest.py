@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import pytest
 
+from environments.shared.model_id import EMBODIMENTS, ModelId
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PlantVersion,
     fingerprint_model_layers,
 )
 from environments.shared.result_bundle import provenance as result_bundle_provenance
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.shared.species_names import embodiments_of, species_ids
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 from .result_bundle_helpers import _COMMIT
 
@@ -45,15 +47,38 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture
+def missing_model_id() -> ModelId:
+    """A (species, embodiment) pair the manifest does not declare, found at run time.
+
+    A test that a missing model is refused must not name one: the next model
+    is added by a manifest table (decision D-D33), and its refusal would turn
+    into whatever that model does (a training run, for the entry point).
+    Skips once every species has every embodiment.
+    """
+    missing = [
+        ModelId(species, embodiment)
+        for species in species_ids()
+        for embodiment in EMBODIMENTS
+        if embodiment not in embodiments_of(species)
+    ]
+    if not missing:
+        pytest.skip("every species has every embodiment, so no model is missing")
+    return missing[0]
+
+
 @pytest.fixture(scope="module")
-def raptor_layers():
+def velociraptor_mongoliensis_layers():
     """Return original model source, interface shell, version, and hashes."""
-    env = RaptorEnv(reset_noise_scale=0.0)
+    env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
     try:
-        source = (GENERATED_MANIFEST_PATH.parent.parent / "environments/velociraptor/assets/raptor.xml").read_text()
+        source = (
+            GENERATED_MANIFEST_PATH.parent.parent
+            / "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"
+        ).read_text()
         interface = env
         version = PlantVersion(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             physics_revision=1,
             policy_interface_revision=1,
             visual_revision=1,

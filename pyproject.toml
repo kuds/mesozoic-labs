@@ -43,7 +43,7 @@ viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
     "imageio-ffmpeg>=0.5.0",
-    # compsognathus/scripts/view_model.py --video (imageio.v2 needs 2.16; 2.16.0 was yanked).
+    # compsognathus_longipes/scripts/view_model.py --video (imageio.v2 needs 2.16; 2.16.0 was yanked).
     "imageio>=2.16.1",
 ]
 test = [
@@ -67,18 +67,17 @@ all = [
 include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
-"*" = ["assets/*.xml", "data/*.json"]
-"environments.compsognathus" = ["assets/meshes/*.stl", "references/*.xml", "references/LICENSE*", "references/*.md"]
-"configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json", "*/behaviors/*.toml"]
+"*" = ["assets/*.xml", "assets/meshes/*.stl", "data/*.json", "references/*"]
+"configs" = ["*.toml", "*.json", "*/*/*.toml", "*/*/*.json", "*/*/behaviors/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = [
     "environments/shared/tests",
-    "environments/velociraptor/tests",
-    "environments/brachiosaurus/tests",
-    "environments/trex/tests",
-    "environments/dibothrosuchus/tests",
-    "environments/compsognathus/tests",
+    "environments/velociraptor_mongoliensis/tests",
+    "environments/brachiosaurus_altithorax/tests",
+    "environments/tyrannosaurus_rex/tests",
+    "environments/dibothrosuchus_elaphros/tests",
+    "environments/compsognathus_longipes/tests",
 ]
 norecursedirs = [
     "scripts",
@@ -98,6 +97,9 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+# A comparison of non-overlapping types is an error, so a species string is
+# never compared with a ModelId: an identity is compared whole (decision D-D33).
+strict_equality = true
 
 [tool.ruff]
 line-length = 120
@@ -112,8 +114,8 @@ extend-exclude = [
     "environments/shared/jax_setup.py",
     "environments/shared/mjx_utils.py",
     "environments/shared/obs_functions.py",
-    "environments/brachiosaurus/mjx_config.py",
-    "environments/dibothrosuchus/mjx_config.py",
+    "environments/brachiosaurus_altithorax/anatomical/mjx_config.py",
+    "environments/dibothrosuchus_elaphros/anatomical/mjx_config.py",
 ]
 force-exclude = true
 
@@ -159,16 +161,16 @@ omit = [
     # Hand-run Compsognathus MJCF generators (the plant digests and the
     # Compsognathus model tests check the committed MJCFs they write) and
     # hand-run render and geometry review tools.
-    "environments/compsognathus/scripts/build_models.py",
-    "environments/compsognathus/scripts/robot_shells.py",
-    "environments/compsognathus/scripts/robot_finish.py",
-    "environments/compsognathus/scripts/styling.py",
-    "environments/compsognathus/scripts/standing_targets.py",
-    "environments/compsognathus/scripts/validate_shells.py",
-    "environments/compsognathus/scripts/render_style_comparison.py",
+    "environments/compsognathus_longipes/scripts/build_models.py",
+    "environments/compsognathus_longipes/scripts/robot_shells.py",
+    "environments/compsognathus_longipes/scripts/robot_finish.py",
+    "environments/compsognathus_longipes/scripts/styling.py",
+    "environments/compsognathus_longipes/scripts/standing_targets.py",
+    "environments/compsognathus_longipes/scripts/validate_shells.py",
+    "environments/compsognathus_longipes/scripts/render_style_comparison.py",
     # A one-off PPO update probe; by its own docstring it is not convergence
     # or stance-gate evidence.
-    "environments/compsognathus/scripts/probe_ppo_updates.py",
+    "environments/compsognathus_longipes/scripts/probe_ppo_updates.py",
     # Hand-run investigation and study scripts that feed no gate. (The statue
     # baselines, zero_action_baseline.py and stance_quality_baseline.py, count:
     # they measure the statue-derived stage-1 gate constants.)
@@ -177,7 +179,7 @@ omit = [
     "environments/shared/scripts/compare_run_diagnostics.py",
     "environments/shared/scripts/foot_sensor_report.py",
     "environments/shared/scripts/actuator_saturation_report.py",
-    "environments/velociraptor/scripts/actuator_saturation_report.py",
+    "environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py",
 ]
 
 [tool.coverage.report]

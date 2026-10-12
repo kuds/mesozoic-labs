@@ -12,9 +12,10 @@ import zlib
 from pathlib import Path
 from typing import Any, Mapping
 
+from .model_id import ModelId
 from .plant_contract import PlantIdentity
 from .policy_loading import load_sb3_model
-from .species_names import species_display_name
+from .species_names import model_display_name
 from .stage_manifest import stage_display_name, stage_label
 
 
@@ -47,26 +48,26 @@ DEFAULT_EVAL_SEED = 2000
 
 STANCE_CAMERA_VIEWS: dict[str, dict[str, float]] = {
     # Fixed view angles make stance comparisons repeatable while preserving
-    # each species' own tracking body and camera distance.
+    # each model's own tracking body and camera distance.
     "side": {"azimuth": 90.0, "elevation": -8.0},
     "front": {"azimuth": 180.0, "elevation": -8.0},
 }
-_STANCE_CAMERA_OVERRIDES: dict[str, dict[str, dict[str, float]]] = {
-    "trex": {"side": {"distance": 3.4}, "front": {"distance": 3.4}},
+_STANCE_CAMERA_OVERRIDES: dict[ModelId, dict[str, dict[str, float]]] = {
+    ModelId("tyrannosaurus_rex", "anatomical"): {"side": {"distance": 3.4}, "front": {"distance": 3.4}},
     # Its tall neck fits the default oblique and side views, but is cropped
     # when viewed head-on at the default 5 m distance.
-    "brachiosaurus": {"front": {"distance": 9.0}},
+    ModelId("brachiosaurus_altithorax", "anatomical"): {"front": {"distance": 9.0}},
 }
 
 
-def stance_camera_views(species: str) -> dict[str, dict[str, float]]:
-    """Shared view names and angles, with species-sized framing where needed."""
-    overrides = _STANCE_CAMERA_OVERRIDES.get(species, {})
+def stance_camera_views(model_id: ModelId) -> dict[str, dict[str, float]]:
+    """Shared view names and angles, with model-sized framing where needed."""
+    overrides = _STANCE_CAMERA_OVERRIDES.get(model_id, {})
     return {name: {**preset, **overrides.get(name, {})} for name, preset in STANCE_CAMERA_VIEWS.items()}
 
 
 # Keep the historical T. rex framing and the public preset name compatible.
-TREX_STAGE1_CAMERA_VIEWS = stance_camera_views("trex")
+TYRANNOSAURUS_REX_STAGE1_CAMERA_VIEWS = stance_camera_views(ModelId("tyrannosaurus_rex", "anatomical"))
 
 try:
     import numpy as _np
@@ -242,7 +243,8 @@ def record_stage_video(
     env_kwargs: dict,
     stage: int,
     stage_dir,
-    species: str = "dino",
+    *,
+    model_id: ModelId | None = None,
     algorithm: str = "ppo",
     seed: int = 42,
     vecnorm_path: str | None = None,
@@ -265,6 +267,12 @@ def record_stage_video(
     true, a per-frame ``*_stance.csv`` is written beside the replay. Playback
     follows the environment's control timestep, including 0.02 s species.
 
+    *model_id* names the model the replay shows (decision D-D33): it checks
+    the plant against the model's current identity and names the files
+    ``<species>_<embodiment>_<algorithm>_<stage>[_<label>].mp4``.  ``None``
+    records an unnamed replay with no plant check (``dino_...``); *model*
+    is the SB3 policy.
+
     *output_dir* is where the video files land; it defaults to *stage_dir*
     for callers that predate the ``replays/`` subdirectory. *stage_dir* is
     still what identifies the stage in log messages, so the two are separate
@@ -282,13 +290,14 @@ def record_stage_video(
     from .policy_loading import _ensure_sb3, load_vecnormalize
 
     sb3 = _ensure_sb3()
-    if plant_identity is None and species != "dino":
-        plant_identity = current_plant_identity(species)
+    if plant_identity is None and model_id is not None:
+        plant_identity = current_plant_identity(model_id)
+    subject = "unnamed model" if model_id is None else str(model_id)
     if plant_identity is not None:
         validate_model_plant(
             model,
             plant_identity,
-            artifact=f"{species} stage {stage} video model",
+            artifact=f"{subject} stage {stage} video model",
             allow_legacy=allow_legacy_plant,
         )
     render_env = env_class(render_mode="rgb_array", **env_kwargs)
@@ -297,7 +306,7 @@ def record_stage_video(
             validate_environment_plant(
                 render_env,
                 plant_identity,
-                artifact=f"{species} stage {stage} video environment",
+                artifact=f"{subject} stage {stage} video environment",
             )
         except Exception:
             render_env.close()
@@ -351,7 +360,7 @@ def record_stage_video(
         if collect_stance_diagnostics:
             from .stance_diagnostics import capture_stance_snapshot
 
-            row = capture_stance_snapshot(render_env, info, step_index + 1, species=species)
+            row = capture_stance_snapshot(render_env, info, step_index + 1, model_id=model_id)
             row.update(
                 time_s=(step_index + 1) * control_dt,
                 reward=float(reward),
@@ -388,7 +397,8 @@ def record_stage_video(
     suffix = f"_{label}" if label else ""
     destination = Path(output_dir) if output_dir is not None else Path(stage_dir)
     destination.mkdir(parents=True, exist_ok=True)
-    video_path = str(destination / f"{species}_{algorithm.lower()}_{stage_label(stage)}{suffix}.mp4")
+    prefix = "dino" if model_id is None else f"{model_id.species}_{model_id.embodiment}"
+    video_path = str(destination / f"{prefix}_{algorithm.lower()}_{stage_label(stage)}{suffix}.mp4")
     fps = 1.0 / control_dt
     mediapy.write_video(video_path, frames, fps=fps)
     video_stem = Path(video_path).with_suffix("")
@@ -406,7 +416,7 @@ def record_stage_video(
             logger.info("  Saved stance diagnostics to: %s", stance_path)
     logger.info(
         "%s / %s / %s replay: reward=%.2f | %d frames | %.1f fps",
-        species_display_name(species),
+        subject if model_id is None else model_display_name(model_id),
         stage_display_name(stage),
         label or "default",
         episode_reward,
@@ -426,7 +436,7 @@ _RUN_TIMESTAMP_SUFFIX = re.compile(r"_\d{8}_\d{6}$")
 _PATH_TOKEN_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
 
-def detect_stage_from_path(model_path: str, *, species: "str | None" = None) -> "int | str":
+def detect_stage_from_path(model_path: str, *, model_id: ModelId | None = None) -> "int | str":
     """Infer the stage a checkpoint belongs to from its path, any layout.
 
     Walks path components deepest-first, so the stage directory next to the
@@ -435,10 +445,10 @@ def detect_stage_from_path(model_path: str, *, species: "str | None" = None) -> 
     :func:`~environments.shared.stage_manifest.stage_ref_from_dirname`,
     which recognises ``stage{N}``, the ``NN_{id}`` layout (2026-08-20) and
     the bare id the 20260819 runs used, mapping a numbered id to its legacy
-    number and passing a semantic id (``"recovery"``) through.  Species-free
+    number and passing a semantic id (``"recovery"``) through.  Model-free
     (the default) only the reserved ids are recognised — an ``NN_<word>``
     directory cannot claim a stage on its own (decision D-A12); with
-    *species*, any id that species' manifest declares (``05_follow_direction``
+    *model_id*, any id that model's stage manifest declares (``05_follow_direction``
     -> ``"follow_direction"``) and nothing it does not.  Bare ids are the
     reserved four only in either mode.  Historical ``stage{N}`` references
     also match as whole tokens inside a component.  Falls back to stage 1,
@@ -449,7 +459,7 @@ def detect_stage_from_path(model_path: str, *, species: "str | None" = None) -> 
     legacy_tokens = {f"stage{number}": number for number in LEGACY_STAGE_IDS}
     for part in reversed(Path(model_path).parts):
         candidate = _RUN_TIMESTAMP_SUFFIX.sub("", part)
-        ref = stage_ref_from_dirname(candidate, species=species)
+        ref = stage_ref_from_dirname(candidate, model_id=model_id)
         if ref is not None:
             return ref
         for token in _PATH_TOKEN_SPLIT.split(part):
@@ -491,12 +501,12 @@ def evaluate(
     from .policy_loading import _ensure_sb3, _resolve_vecnorm_sidecar, load_vecnormalize
 
     sb3 = _ensure_sb3()
-    plant_identity = current_plant_identity(species_cfg.species)
+    plant_identity = current_plant_identity(species_cfg.model_id)
 
     logger.info("Loading model from: %s", model_path)
 
     if stage is None:
-        stage = detect_stage_from_path(model_path, species=species_cfg.species)
+        stage = detect_stage_from_path(model_path, model_id=species_cfg.model_id)
         logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
@@ -511,7 +521,7 @@ def evaluate(
             validate_environment_plant(
                 env,
                 plant_identity,
-                artifact=f"{species_cfg.species} stage {stage} evaluation environment",
+                artifact=f"{species_cfg.model_id} stage {stage} evaluation environment",
             )
         except Exception:
             env.close()
@@ -582,7 +592,7 @@ def evaluate(
 
     logger.info(
         "Evaluating %s for %d episodes (stage %s: %s, seed %d)...",
-        species_display_name(species_cfg.species),
+        model_display_name(species_cfg.model_id),
         n_episodes,
         stage,
         stage_display_name(stage, stage_configs[stage]["name"]),
@@ -691,7 +701,7 @@ def _log_eval_results(
     logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
 
     if "mean_initial_prey_distance" in agg:
-        logger.info("--- %s ---", species_cfg.stage3_section_label)
+        logger.info("--- %s ---", species_cfg.behavior_section_label)
         logger.info(
             "  Initial dist:   %.3f m",
             agg.get("mean_initial_prey_distance", 0),

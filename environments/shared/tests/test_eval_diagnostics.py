@@ -15,6 +15,11 @@ from environments.shared.eval_diagnostics import (
     StageGatePlateauCallback,
     success_metric_applicable,
 )
+from environments.shared.model_id import ModelId
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 
 
 class TestSuccessMetricApplicable:
@@ -40,11 +45,15 @@ class TestSuccessMetricApplicable:
         assert metric.label == "success rate (LCB95 bar)"
         assert metric.threshold == 0.5
 
-    @pytest.mark.parametrize("species", ["velociraptor", "trex", "brachiosaurus"])
-    def test_real_configs_enable_success_only_for_stage_three(self, species):
+    @pytest.mark.parametrize(
+        "model_id",
+        [VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, BRACHIOSAURUS_ALTITHORAX],
+        ids=lambda m: f"{m.species}-{m.embodiment}",
+    )
+    def test_real_configs_enable_success_only_for_stage_three(self, model_id):
         from environments.shared.config import load_all_stages
 
-        configs = load_all_stages(species)
+        configs = load_all_stages(model_id)
 
         assert success_metric_applicable(configs[1]) is False
         assert success_metric_applicable(configs[2]) is False

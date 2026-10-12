@@ -45,6 +45,7 @@ from environments.shared.curriculum.recovery_gate import (
     paired_difference_lcb,
 )
 from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND, StancePanel
+from environments.shared.model_id import ModelId
 from environments.shared.recovery_evaluation import (
     CALIBRATED_POSTURE_ONLY,
     EpisodeRecord,
@@ -53,6 +54,9 @@ from environments.shared.recovery_evaluation import (
 from environments.shared.reporting import evaluate_stage_gate
 
 from .notebook_cells import code_cell_sources
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 # ── The values P5 freezes ────────────────────────────────────────────────
 # Derivation record: docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md
@@ -145,7 +149,7 @@ def _freeze_resolution(
     null_successes: Sequence[bool] = STATUE_PANEL,
 ) -> dict[str, Any]:
     resolution = build_gate_resolution(
-        task_fingerprint={"task_sha256": task_sha256, "species": "trex"},
+        task_fingerprint={"task_sha256": task_sha256, "species": "tyrannosaurus_rex", "embodiment": "anatomical"},
         thresholds=FROZEN_THRESHOLDS,
         null_evidence={"zero_action": _null_evidence(null_successes)},
         panel_seed_start=PANEL_SEED_START,
@@ -211,7 +215,7 @@ class TestRollPolicyPanel:
         from environments.shared.harnesses import freeze_recovery_gate as fz
 
         stage_dir = _stage_dir(tmp_path, stage_task_sha256=task_sha)
-        monkeypatch.setattr(fz, "stage_task_fingerprint", lambda species, stage: {"task_sha256": TASK_SHA256})
+        monkeypatch.setattr(fz, "stage_task_fingerprint", lambda model_id, stage: {"task_sha256": TASK_SHA256})
 
         class FakeEnv:
             action_space = None
@@ -221,7 +225,7 @@ class TestRollPolicyPanel:
                 FakeEnv.closed = True
 
         FakeEnv.closed = False
-        monkeypatch.setattr(fz, "build_env", lambda species, stage: FakeEnv())
+        monkeypatch.setattr(fz, "build_env", lambda model_id, stage: FakeEnv())
         monkeypatch.setattr(fz, "policy_controller", lambda *a, **k: lambda obs: obs)
         rolled: dict[str, Any] = {}
 
@@ -239,7 +243,7 @@ class TestRollPolicyPanel:
         )
 
         fz, stage_dir, rolled, FakeEnv = self._wire(monkeypatch, tmp_path)
-        evidence = fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+        evidence = fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl", model_id=TYRANNOSAURUS_REX)
 
         assert evidence.controller_id == "policy"
         # The pairing domain is the frozen nulls' panel, not a caller choice.
@@ -263,7 +267,7 @@ class TestRollPolicyPanel:
         _reseal(stage_dir, resolution)
 
         with pytest.raises(GateResolutionError, match="different safe set"):
-            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl", model_id=TYRANNOSAURUS_REX)
         assert not rolled
 
     def test_a_rehearsal_freeze_refuses_before_rolling(self, monkeypatch, tmp_path):
@@ -276,7 +280,7 @@ class TestRollPolicyPanel:
         _reseal(stage_dir, resolution)
 
         with pytest.raises(GateResolutionError, match="rehearsal"):
-            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl", model_id=TYRANNOSAURUS_REX)
         assert not rolled
 
     def test_a_stage_trained_on_a_different_task_refuses(self, monkeypatch, tmp_path):
@@ -288,7 +292,7 @@ class TestRollPolicyPanel:
         fz, stage_dir, rolled, _ = self._wire(monkeypatch, tmp_path, task_sha="f" * 64)
 
         with pytest.raises(GateResolutionError, match="different task"):
-            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl", model_id=TYRANNOSAURUS_REX)
         assert not rolled
 
 
@@ -364,6 +368,7 @@ class TestSharedEntryPointReachesTheFrozenGate:
             stance_report=None,
             stage_dir=stage_dir,
             recovery_successes_by_seed=successes,
+            model_id=TYRANNOSAURUS_REX,
         )
         return stage_results
 
@@ -641,7 +646,7 @@ class TestReportingPathStillFailsClosedElsewhere:
 
 def _manager(gate_kind: str, **threshold_fields: Any) -> CurriculumManager:
     return CurriculumManager(
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         stage_thresholds={
             1: dict(
                 {"gate_kind": gate_kind, "min_eval_episodes": 1, "required_consecutive": 1},

@@ -17,7 +17,12 @@ from environments.shared.curriculum.gate_resolver import (
     write_gate_resolution,
 )
 from environments.shared.harnesses import freeze_recovery_gate as producer
+from environments.shared.model_id import ModelId
 from environments.shared.recovery_evaluation import EpisodeRecord, RecoveryPanelEvidence
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 
 @pytest.fixture
@@ -35,10 +40,11 @@ def profile_task(tmp_path, monkeypatch):
         "recovery_dwell_steps": 20,
         "min_eval_episodes": 40,
     }
-    identity = {"species": "compsognathus", "physics_sha256": "sha256:measured"}
+    identity = {"species": "compsognathus_longipes", "embodiment": "anatomical", "physics_sha256": "sha256:measured"}
     profile = {
         "schema": calibration.PROFILE_SCHEMA,
-        "species": "compsognathus",
+        "species": "compsognathus_longipes",
+        "embodiment": "anatomical",
         "calibration_id": "test-fixed-command-reference-v1",
         "control_dt_s": 0.02,
         "height_reference_m": 0.24,
@@ -54,8 +60,8 @@ def profile_task(tmp_path, monkeypatch):
         "task_sha256": "sha256:measured-task",
         "required_paired_nulls": ["zero_action", "brace"],
     }
-    path = tmp_path / "compsognathus" / "recovery_calibration.json"
-    path.parent.mkdir()
+    path = tmp_path / "compsognathus_longipes" / "anatomical" / "recovery_calibration.json"
+    path.parent.mkdir(parents=True)
     path.write_text(json.dumps(profile))
     monkeypatch.setattr(calibration, "CONFIGS_ROOT", tmp_path)
     monkeypatch.setattr(calibration, "current_plant_identity", lambda _: SimpleNamespace(to_dict=lambda: identity))
@@ -71,9 +77,9 @@ def profile_task(tmp_path, monkeypatch):
     return profile, path, env
 
 
-def test_profile_loads_physical_judge_not_trex_defaults(profile_task):
+def test_profile_loads_physical_judge_not_tyrannosaurus_rex_defaults(profile_task):
     profile, _, env = profile_task
-    loaded = calibration.load_recovery_calibration("Compsognathus Longipes", env=env)
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
     assert loaded.safe_set == profile["safe_set"]
     assert loaded.height_reference_m == 0.24
     assert loaded.thresholds.t_recover_steps * env.dt == pytest.approx(0.8)
@@ -81,10 +87,24 @@ def test_profile_loads_physical_judge_not_trex_defaults(profile_task):
     assert loaded.evaluation_spec()["profile_sha256"].startswith("sha256:")
 
 
+def test_the_anatomical_profile_offered_for_the_robot_and_one_naming_half_its_model_are_refused(profile_task):
+    """Decision D-D33 (review H3): a profile is the model's only when its species AND embodiment name it."""
+    profile, path, env = profile_task
+    robot_path = COMPSOGNATHUS_LONGIPES_ROBOT.path(calibration.CONFIGS_ROOT) / "recovery_calibration.json"
+    robot_path.parent.mkdir(parents=True)
+    robot_path.write_text(json.dumps(profile))  # the anatomical profile, filed in the robot's directory
+    with pytest.raises(GateResolutionError, match="is not a recovery calibration of compsognathus_longipes/robot"):
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, env=env)
+    del profile["embodiment"]
+    path.write_text(json.dumps(profile))
+    with pytest.raises(GateResolutionError, match="does not name its model.*embodiment"):
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
+
+
 @pytest.mark.parametrize(
     "field,value,match",
     [
-        ("species", "compsognathus_robot", "schema or species"),
+        ("embodiment", "robot", "not a recovery calibration of compsognathus_longipes/anatomical"),
         ("control_dt_s", 0.01, "control timestep"),
         ("height_reference_m", 0.4, "healthy range"),
         ("height_reference_m", False, "finite number"),
@@ -101,7 +121,7 @@ def test_changed_calibration_is_refused(profile_task, field, value, match):
     profile[field] = value
     path.write_text(json.dumps(profile))
     with pytest.raises(GateResolutionError, match=match):
-        calibration.load_recovery_calibration("compsognathus", env=env)
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
 
 
 def test_nonfinite_measurement_is_refused(profile_task):
@@ -109,14 +129,14 @@ def test_nonfinite_measurement_is_refused(profile_task):
     profile["safe_set"]["tilt_max_rad"] = float("nan")
     path.write_text(json.dumps(profile))
     with pytest.raises(GateResolutionError, match="cannot load recovery calibration"):
-        calibration.load_recovery_calibration("compsognathus", env=env)
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
 
 
 def test_actual_environment_override_requires_recalibration(profile_task):
     _, _, env = profile_task
     env.perturbation_capture_velocity_multiple = 2.0
     with pytest.raises(GateResolutionError, match="actual environment perturbation"):
-        calibration.load_recovery_calibration("compsognathus", env=env)
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
 
 
 def test_capability_spec_must_agree_with_curriculum(profile_task):
@@ -124,12 +144,12 @@ def test_capability_spec_must_agree_with_curriculum(profile_task):
     profile["capability_spec"]["min_recovery_success_lcb"] = 0.1
     path.write_text(json.dumps(profile))
     with pytest.raises(GateResolutionError, match="disagrees with the stage curriculum"):
-        calibration.load_recovery_calibration("compsognathus", env=env)
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
 
 
-def test_missing_species_profile_never_falls_back_to_trex(profile_task):
+def test_missing_species_profile_never_falls_back_to_tyrannosaurus_rex(profile_task):
     with pytest.raises(GateResolutionError, match="cannot load recovery calibration"):
-        producer._species_calibration("compsognathus_robot", "recovery")
+        producer._model_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, "recovery")
 
 
 def _evidence(safe_set, *, full_horizon=False, n_pushes=0):
@@ -138,7 +158,7 @@ def _evidence(safe_set, *, full_horizon=False, n_pushes=0):
 
 
 def test_complete_judge_is_hashed_and_legacy_records_remain_readable(profile_task, tmp_path):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     kwargs = {
         "task_fingerprint": {"task_sha256": "sha256:task"},
         "thresholds": loaded.thresholds,
@@ -165,7 +185,7 @@ def test_complete_judge_is_hashed_and_legacy_records_remain_readable(profile_tas
 
 @pytest.mark.parametrize("change", ["missing", "height", "timebase", "provenance"])
 def test_policy_panel_rejects_changed_or_missing_frozen_judge(profile_task, tmp_path, monkeypatch, change):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     judge = loaded.evaluation_spec()
     if change == "height":
         judge["height_reference_m"] += 0.005
@@ -183,7 +203,7 @@ def test_policy_panel_rejects_changed_or_missing_frozen_judge(profile_task, tmp_
     write_gate_resolution(tmp_path, frozen)
     monkeypatch.setattr(producer, "stage_task_fingerprint", lambda *_: {"task_sha256": "sha256:task"})
     with pytest.raises(GateResolutionError, match="evaluation_spec"):
-        producer.roll_policy_panel(tmp_path, "unopened.zip", "unopened.pkl", species="compsognathus")
+        producer.roll_policy_panel(tmp_path, "unopened.zip", "unopened.pkl", model_id=COMPSOGNATHUS_LONGIPES)
 
 
 def test_full_horizon_without_a_judged_push_cannot_certify():
@@ -249,8 +269,8 @@ def test_brace_uses_complete_quiet_stance_and_closes_env(monkeypatch, fail_step,
 
     env = QuietEnv()
 
-    def build(species, stage):
-        assert species == "compsognathus"
+    def build(model_id, stage):
+        assert model_id == COMPSOGNATHUS_LONGIPES
         assert stage == "stance"
         return env
 
@@ -260,13 +280,13 @@ def test_brace_uses_complete_quiet_stance_and_closes_env(monkeypatch, fail_step,
     judge = SimpleNamespace(safe_set={"height_error_max_m": 0.01}, height_reference_m=0.24)
     if fail_step:
         with pytest.raises(GateResolutionError, match="complete quiet brace reference"):
-            producer._quiet_brace_controller("compsognathus", lambda _: np.array([0.1, -0.2]), calibration=judge)
+            producer._quiet_brace_controller(COMPSOGNATHUS_LONGIPES, lambda _: np.array([0.1, -0.2]), calibration=judge)
     elif not occupancy:
         with pytest.raises(GateResolutionError, match="calibrated recovery safe set"):
-            producer._quiet_brace_controller("compsognathus", lambda _: np.array([0.1, -0.2]), calibration=judge)
+            producer._quiet_brace_controller(COMPSOGNATHUS_LONGIPES, lambda _: np.array([0.1, -0.2]), calibration=judge)
     else:
         controller, metadata = producer._quiet_brace_controller(
-            "compsognathus", lambda _: np.array([0.1, -0.2]), calibration=judge
+            COMPSOGNATHUS_LONGIPES, lambda _: np.array([0.1, -0.2]), calibration=judge
         )
         np.testing.assert_allclose(controller(None), [0.1, -0.2])
         assert metadata["settle_steps"] == metadata["sample_steps"] == 50
@@ -288,7 +308,7 @@ def test_checkpoint_source_is_bound_to_plant_task_and_algorithm(tmp_path, monkey
     )
     from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, TaskFingerprintError
 
-    identity = current_plant_identity("compsognathus")
+    identity = current_plant_identity(COMPSOGNATHUS_LONGIPES)
     task = {"task_sha256": "sha256:stance"}
     metadata = {
         "clip_range": 0.2,
@@ -299,7 +319,7 @@ def test_checkpoint_source_is_bound_to_plant_task_and_algorithm(tmp_path, monkey
     if mutation == "task":
         metadata[MODEL_TASK_ATTRIBUTE]["task_sha256"] = "sha256:other-stage"
     elif mutation == "plant":
-        metadata[MODEL_IDENTITY_ATTRIBUTE]["species"] = "compsognathus_robot"
+        metadata[MODEL_IDENTITY_ATTRIBUTE]["embodiment"] = "robot"
     elif mutation == "algorithm":
         del metadata["clip_range"]
         del metadata["n_epochs"]
@@ -310,9 +330,9 @@ def test_checkpoint_source_is_bound_to_plant_task_and_algorithm(tmp_path, monkey
     monkeypatch.setattr(producer, "stage_task_fingerprint", lambda *_: task)
     if mutation:
         with pytest.raises((GateResolutionError, PlantCompatibilityError, TaskFingerprintError)):
-            producer._validate_checkpoint_source(path, "compsognathus", "stance", "ppo")
+            producer._validate_checkpoint_source(path, COMPSOGNATHUS_LONGIPES, "stance", "ppo")
     else:
-        assert producer._validate_checkpoint_source(path, "compsognathus", "stance", "ppo") == identity
+        assert producer._validate_checkpoint_source(path, COMPSOGNATHUS_LONGIPES, "stance", "ppo") == identity
 
 
 def _outcome_panel(controller_id, outcomes, safe_set):
@@ -323,14 +343,14 @@ def _outcome_panel(controller_id, outcomes, safe_set):
     return RecoveryPanelEvidence(controller_id, episodes, (), safe_set)
 
 
-def _comparison_resolution(loaded, *, brace_success=False, include_brace=True, legacy=False, species=None):
+def _comparison_resolution(loaded, *, brace_success=False, include_brace=True, legacy=False, model_id=None):
     nulls = {"zero_action": _outcome_panel("zero_action", [False] * 40, loaded.safe_set)}
     if include_brace:
         nulls["brace"] = _outcome_panel("brace", [brace_success] * 40, loaded.safe_set)
     return build_gate_resolution(
         task_fingerprint={
             "task_sha256": "sha256:measured-task",
-            "species": species or ("trex" if legacy else "compsognathus"),
+            **(model_id or (TYRANNOSAURUS_REX if legacy else COMPSOGNATHUS_LONGIPES)).record(),
         },
         thresholds=loaded.thresholds,
         null_evidence=nulls,
@@ -341,7 +361,7 @@ def _comparison_resolution(loaded, *, brace_success=False, include_brace=True, l
 
 @pytest.mark.parametrize("brace_success", [False, True])
 def test_recovery_must_beat_both_statue_and_brace(profile_task, tmp_path, brace_success):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     resolution = _comparison_resolution(loaded, brace_success=brace_success)
     write_gate_resolution(tmp_path, resolution)
     result = evaluate_recovery_gate_from_resolution(
@@ -357,7 +377,7 @@ def test_recovery_must_beat_both_statue_and_brace(profile_task, tmp_path, brace_
 
 
 def test_missing_brace_blocks_direct_gate_and_pretraining_check(profile_task, tmp_path, monkeypatch):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     write_gate_resolution(tmp_path, _comparison_resolution(loaded, include_brace=False))
     with pytest.raises(GateResolutionError, match="brace"):
         evaluate_recovery_gate_from_resolution(
@@ -367,11 +387,11 @@ def test_missing_brace_blocks_direct_gate_and_pretraining_check(profile_task, tm
         )
     monkeypatch.setattr(producer, "stage_task_fingerprint", lambda *_: {"task_sha256": "sha256:measured-task"})
     with pytest.raises(GateResolutionError, match="brace"):
-        producer.validate_recovery_resolution(tmp_path, species="compsognathus")
+        producer.validate_recovery_resolution(tmp_path, model_id=COMPSOGNATHUS_LONGIPES)
 
 
 def test_legacy_gate_keeps_original_single_null_behavior(profile_task, tmp_path):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     write_gate_resolution(tmp_path, _comparison_resolution(loaded, brace_success=True, legacy=True))
     result = evaluate_recovery_gate_from_resolution(
         tmp_path,
@@ -382,13 +402,15 @@ def test_legacy_gate_keeps_original_single_null_behavior(profile_task, tmp_path)
     assert result.paired_delta_lcb == 1.0
 
 
-def test_compsognathus_missing_judge_refuses_cached_direct_and_reporting_verdict(profile_task, tmp_path):
+def test_compsognathus_longipes_missing_judge_refuses_cached_direct_and_reporting_verdict(profile_task, tmp_path):
     from environments.shared.reporting import evaluate_stage_gate
 
-    loaded = calibration.load_recovery_calibration("compsognathus")
-    write_gate_resolution(tmp_path, _comparison_resolution(loaded, legacy=True, species="compsognathus"))
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
+    write_gate_resolution(tmp_path, _comparison_resolution(loaded, legacy=True, model_id=COMPSOGNATHUS_LONGIPES))
     (tmp_path / "task_fingerprint.json").write_text(
-        json.dumps({"task_sha256": "sha256:measured-task", "species": "compsognathus"})
+        json.dumps(
+            {"task_sha256": "sha256:measured-task", "species": "compsognathus_longipes", "embodiment": "anatomical"}
+        )
     )
     counts = dict.fromkeys(range(3042, 3082), True)
     with pytest.raises(GateResolutionError, match="missing recovery evaluation_spec"):
@@ -407,10 +429,10 @@ def test_compsognathus_missing_judge_refuses_cached_direct_and_reporting_verdict
 
 
 @pytest.mark.parametrize("identity_source", ["sidecar", "explicit", "unknown"])
-def test_historical_record_requires_trex_identity(profile_task, tmp_path, identity_source):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+def test_historical_record_requires_tyrannosaurus_rex_identity(profile_task, tmp_path, identity_source):
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     legacy = build_gate_resolution(
-        task_fingerprint={"task_sha256": "sha256:old-trex-task"},
+        task_fingerprint={"task_sha256": "sha256:old-tyrannosaurus-rex-task"},
         thresholds=loaded.thresholds,
         null_evidence={"zero_action": _outcome_panel("zero_action", [False] * 40, loaded.safe_set)},
         panel_seed_start=3042,
@@ -418,22 +440,30 @@ def test_historical_record_requires_trex_identity(profile_task, tmp_path, identi
     write_gate_resolution(tmp_path, legacy)
     if identity_source == "sidecar":
         (tmp_path / "task_fingerprint.json").write_text(
-            json.dumps({"task_sha256": "sha256:old-trex-task", "species": "trex"})
+            json.dumps(
+                {
+                    "task_sha256": "sha256:old-tyrannosaurus-rex-task",
+                    "species": "tyrannosaurus_rex",
+                    "embodiment": "anatomical",
+                }
+            )
         )
     kwargs = {
-        "current_task_sha256": "sha256:old-trex-task",
+        "current_task_sha256": "sha256:old-tyrannosaurus-rex-task",
         "policy_successes_by_seed": dict.fromkeys(range(3042, 3082), True),
-        "expected_species": "trex" if identity_source == "explicit" else None,
+        "expected_model_id": TYRANNOSAURUS_REX if identity_source == "explicit" else None,
     }
     if identity_source == "unknown":
-        with pytest.raises(GateResolutionError, match="only an identified historical T-Rex"):
+        with pytest.raises(
+            GateResolutionError, match="only an identified historical tyrannosaurus_rex/anatomical task"
+        ):
             evaluate_recovery_gate_from_resolution(tmp_path, **kwargs)
     else:
         assert evaluate_recovery_gate_from_resolution(tmp_path, **kwargs).passed
 
 
 def test_cached_counts_cannot_recertify_after_profile_height_changes(profile_task, tmp_path):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     write_gate_resolution(tmp_path, _comparison_resolution(loaded))
     profile, path, _ = profile_task
     profile["height_reference_m"] += 0.005
@@ -448,7 +478,7 @@ def test_cached_counts_cannot_recertify_after_profile_height_changes(profile_tas
 
 @pytest.mark.parametrize("change", [None, "checkpoint", "vecnormalize", "algorithm"])
 def test_pretraining_check_binds_brace_to_current_stance_sources(profile_task, tmp_path, monkeypatch, change):
-    loaded = calibration.load_recovery_calibration("compsognathus")
+    loaded = calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
     checkpoint, stats = tmp_path / "stance.zip", tmp_path / "stance.pkl"
     checkpoint.write_bytes(b"stance checkpoint")
     stats.write_bytes(b"matched statistics")
@@ -466,7 +496,7 @@ def test_pretraining_check_binds_brace_to_current_stance_sources(profile_task, t
     elif change == "vecnormalize":
         stats.write_bytes(b"a different statistics file")
     kwargs = {
-        "species": "compsognathus",
+        "model_id": COMPSOGNATHUS_LONGIPES,
         "policy_zip": checkpoint,
         "vecnorm": stats,
         "algorithm": "sac" if change == "algorithm" else "ppo",

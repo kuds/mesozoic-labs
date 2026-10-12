@@ -23,7 +23,8 @@ this package rather than from a submodule:
 * :mod:`~environments.shared.plant_contract.identity` — :class:`PlantVersion`
   and :class:`PlantIdentity`
 * :mod:`~environments.shared.plant_contract.versions` — reviewed revisions,
-  species entries, and the committed manifest, read from disk
+  species-manifest entries, and the committed manifest, read from disk and
+  keyed by model, the pair (species, embodiment) of decision D-D33
 * :mod:`~environments.shared.plant_contract.introspection` — shared MuJoCo
   model-introspection helpers
 * ``source_layer`` / ``policy_layer`` / ``physics_layer`` / ``visual_layer`` —

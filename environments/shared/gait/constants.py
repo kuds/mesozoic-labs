@@ -5,8 +5,9 @@ threshold key: ``min_all_feet_support = 0.98`` means "0.98 of the window's
 steps had every leg's floor force above :data:`CONTACT_THRESHOLD_N` on at
 least :data:`DOWN_SUBSTEP_FRACTION` of the substeps", and the same bar under
 another threshold is another gate.  So the constants are versioned together:
-changing any one of them after a stage adopts the kind, or changing an entry
-of :data:`.morphology.SUPPORT_REGISTRY`, needs a new
+changing any one of them after a stage adopts the kind, or changing a
+model's registry entry (its env class's ``FOOT_SUPPORT``,
+:func:`.morphology.support_entry`), needs a new
 :data:`MEASUREMENT_VERSION`, and the gate refuses a report measured under a
 manifest other than the one it re-derives (the gate map's "measurement
 block").  :func:`measurement_manifest` is that manifest, and
@@ -72,8 +73,10 @@ if TYPE_CHECKING:
 #: definition changes what an adopted ``stance_quality/v2`` key means.
 MEASUREMENT_VERSION = "floor-truth/v1"
 
-#: Schema of the dict :func:`measurement_manifest` returns.
-MEASUREMENT_MANIFEST_SCHEMA = "mesozoic.floor-truth-measurement/v1"
+#: Schema of the dict :func:`measurement_manifest` returns.  v2 (decision
+#: D-D33) records the model as ``species`` and ``embodiment``; the definitions
+#: are unchanged, so :data:`MEASUREMENT_VERSION` is not bumped.
+MEASUREMENT_MANIFEST_SCHEMA = "mesozoic.floor-truth-measurement/v2"
 
 CONTACT_THRESHOLD_N = 0.1
 DOWN_SUBSTEP_FRACTION = 0.5
@@ -115,14 +118,14 @@ def measurement_constants() -> dict[str, Any]:
 
 
 def measurement_manifest(morphology: "Morphology", model: Any) -> dict[str, Any]:
-    """Everything that fixes what a floor-truth metric MEANS for one species' env.
+    """Everything that fixes what a floor-truth metric MEANS for one model's env.
 
-    ``{schema, constants, species, frame_skip, dt, body_weight_n, registry,
-    feet}``:
+    ``{schema, constants, species, embodiment, frame_skip, dt, body_weight_n,
+    registry, feet}``:
 
     * ``constants`` -- :func:`measurement_constants`;
-    * ``registry`` -- the species' :class:`.morphology.FootRegistryEntry`
-      templates as declared (``None`` when the species has no entry and the
+    * ``registry`` -- the model's :class:`.morphology.FootRegistryEntry`
+      templates as declared (``None`` when the model has no entry and the
       generic rule chose its geoms), so a registry edit moves the digest even
       where the resolved names happen not to change;
     * ``feet`` -- per foot, in ``_foot_sensor_groups`` order: the label, the
@@ -165,7 +168,7 @@ def measurement_manifest(morphology: "Morphology", model: Any) -> dict[str, Any]
     return {
         "schema": MEASUREMENT_MANIFEST_SCHEMA,
         "constants": measurement_constants(),
-        "species": morphology.species,
+        **morphology.model_id.record(),
         "frame_skip": int(morphology.frame_skip),
         "dt": round(float(morphology.dt), _DT_DECIMALS),
         "body_weight_n": round(float(morphology.body_weight_n), _BODY_WEIGHT_DECIMALS),
@@ -175,12 +178,12 @@ def measurement_manifest(morphology: "Morphology", model: Any) -> dict[str, Any]
 
 
 #: The manifest keys code alone fixes -- the schema, the constants, the
-#: species and its registry entry -- as opposed to the ones read off a
+#: model (species and embodiment) and its registry entry -- as opposed to the ones read off a
 #: compiled model (``frame_skip``, ``dt``, ``body_weight_n``, ``feet``).  A
 #: reader with no model compares these against
 #: :func:`.morphology.measurement_definition`; the model-read ones are bound
 #: through the plant and task identity instead.
-MEASUREMENT_DEFINITION_KEYS: tuple[str, ...] = ("schema", "constants", "species", "registry")
+MEASUREMENT_DEFINITION_KEYS: tuple[str, ...] = ("schema", "constants", "species", "embodiment", "registry")
 
 
 def measurement_definition_sha256(manifest: Mapping[str, Any]) -> str:

@@ -9,9 +9,11 @@ from types import SimpleNamespace
 import mujoco
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
     PlantCompatibilityError,
+    PlantIdentity,
     attach_plant_identity,
     current_plant_identity,
     validate_compiled_plant,
@@ -20,12 +22,12 @@ from environments.shared.plant_contract import (
     validate_recorded_identity,
     write_plant_identity,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 
 def test_runtime_environment_binding_rejects_control_cadence_override():
-    current = current_plant_identity("velociraptor", verify_generated=False)
-    env = RaptorEnv(frame_skip=4, reset_noise_scale=0.0)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
+    env = VelociraptorMongoliensisAnatomicalEnv(frame_skip=4, reset_noise_scale=0.0)
     try:
         with pytest.raises(PlantCompatibilityError, match="policy_interface_sha256"):
             validate_environment_plant(env, current)
@@ -33,17 +35,17 @@ def test_runtime_environment_binding_rejects_control_cadence_override():
         env.close()
 
 
-def test_compiled_backend_binding_rejects_different_model(raptor_layers):
-    source, _interface, _version, _original = raptor_layers
+def test_compiled_backend_binding_rejects_different_model(velociraptor_mongoliensis_layers):
+    source, _interface, _version, _original = velociraptor_mongoliensis_layers
     changed_source = source.replace('mass="4.0" material="body_mat"', 'mass="4.1" material="body_mat"', 1)
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
 
     with pytest.raises(PlantCompatibilityError, match="physics_sha256"):
         validate_compiled_plant(mujoco.MjModel.from_xml_string(changed_source), current)
 
 
 def test_missing_checkpoint_identity_fails_closed_unless_explicitly_allowed():
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
 
     with pytest.raises(PlantCompatibilityError, match="has no plant identity"):
         validate_recorded_identity(None, current)
@@ -52,7 +54,7 @@ def test_missing_checkpoint_identity_fails_closed_unless_explicitly_allowed():
 
 
 def test_malformed_checkpoint_identity_is_a_compatibility_error():
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
     recorded = current.to_dict()
     recorded["physics_sha256"] = "not-a-digest"
 
@@ -60,8 +62,22 @@ def test_malformed_checkpoint_identity_is_a_compatibility_error():
         validate_recorded_identity(recorded, current)
 
 
+@pytest.mark.parametrize(("field", "value"), [("species", "tyrannosaurus"), ("embodiment", "exoskeleton")])
+def test_an_identity_that_names_no_model_is_a_compatibility_error(field, value):
+    """Decision D-D33: a species or embodiment that names no model is refused when the identity is parsed,
+    so ``PlantIdentity.model_id`` never raises a bare ``ValueError`` in a reader."""
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
+    recorded = current.to_dict()
+    recorded[field] = value
+
+    with pytest.raises(PlantCompatibilityError, match=f"invalid plant identity metadata: {field} must be"):
+        PlantIdentity.from_mapping(recorded)
+    with pytest.raises(PlantCompatibilityError, match="invalid plant identity metadata"):
+        validate_recorded_identity(recorded, current)
+
+
 def test_non_mapping_model_identity_is_not_treated_as_legacy():
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
     model = SimpleNamespace(**{MODEL_IDENTITY_ATTRIBUTE: "corrupt"})
 
     with pytest.raises(PlantCompatibilityError, match="invalid plant identity metadata"):
@@ -69,7 +85,7 @@ def test_non_mapping_model_identity_is_not_treated_as_legacy():
 
 
 def test_visual_and_source_changes_do_not_invalidate_policy_checkpoint():
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
     recorded = replace(
         current,
         visual_revision=current.visual_revision + 1,
@@ -90,7 +106,7 @@ def test_visual_and_source_changes_do_not_invalidate_policy_checkpoint():
     ],
 )
 def test_policy_or_physics_mismatch_is_rejected(field, value, message):
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
     recorded = replace(current, **{field: value})
 
     with pytest.raises(PlantCompatibilityError, match=message):
@@ -98,7 +114,7 @@ def test_policy_or_physics_mismatch_is_rejected(field, value, message):
 
 
 def test_identity_attaches_to_model_and_round_trips_to_json(tmp_path):
-    current = current_plant_identity("velociraptor", verify_generated=False)
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
     model = SimpleNamespace()
 
     attach_plant_identity(model, current)

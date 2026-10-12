@@ -35,6 +35,7 @@ from typing import Any
 
 import numpy as np
 
+from ..model_id import ModelId
 from . import sb3_compat
 from .sb3_compat import BaseCallback
 
@@ -50,12 +51,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_WARN_AFTER_BUDGET_FRACTION = 0.35
 
 
-def read_zero_action_baseline(run_dir: "str | Path", species: str) -> float | None:
-    """The statue's mean reward for *species* from a run's captured baseline.
+def read_zero_action_baseline(run_dir: "str | Path", model_id: ModelId) -> float | None:
+    """The statue's mean reward for *model_id* from a run's captured baseline.
 
-    ``None`` when the file is absent, unreadable, or does not cover this
-    species -- the caller then skips the comparison rather than inventing a
-    reference.  A wrong baseline is worse than none: it would either mute a
+    The record nests its results by species, then embodiment
+    (``mesozoic.zero-action-baseline/v2``, decision D-D33).  ``None`` when the
+    file is absent, unreadable, or does not cover this model -- the caller
+    then skips the comparison rather than inventing a reference.  A wrong baseline is worse than none: it would either mute a
     real warning or cry wolf for a whole run.
     """
     path = Path(run_dir) / "zero_action_baseline.json"
@@ -66,7 +68,8 @@ def read_zero_action_baseline(run_dir: "str | Path", species: str) -> float | No
     except (OSError, json.JSONDecodeError):
         logger.warning("Zero-action baseline at %s could not be read; skipping the comparison.", path)
         return None
-    entry = (payload.get("results") or {}).get(species)
+    by_embodiment = (payload.get("results") or {}).get(model_id.species)
+    entry = by_embodiment.get(model_id.embodiment) if isinstance(by_embodiment, dict) else None
     if not isinstance(entry, dict):
         return None
     value: Any = entry.get("reward_mean")
@@ -83,7 +86,7 @@ class BaselineProgressCallback(BaseCallback):  # type: ignore[misc]
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations_results`` to
             read.  Same source as the collapse backstop, so no extra rollouts.
-        baseline_reward: The statue's mean reward for this species and stage.
+        baseline_reward: The statue's mean reward for this model and stage.
         total_timesteps: The stage's configured budget, used to decide when a
             still-unbeaten baseline is worth warning about.
         warn_after_budget_fraction: Fraction of the budget after which the
@@ -174,7 +177,7 @@ def build_baseline_progress_callback(
     eval_callback: Any,
     *,
     run_dir: "str | Path | None",
-    species: str,
+    model_id: ModelId,
     stage_config: dict[str, Any],
     total_timesteps: int | None = None,
     verbose: int = 0,
@@ -194,11 +197,11 @@ def build_baseline_progress_callback(
     """
     if run_dir is None:
         return None
-    baseline = read_zero_action_baseline(run_dir, species)
+    baseline = read_zero_action_baseline(run_dir, model_id)
     if baseline is None:
         logger.info(
             "No zero-action baseline for %s in %s; skipping the below-baseline watch.",
-            species,
+            model_id,
             run_dir,
         )
         return None

@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 
 from environments.shared.curriculum.recovery_gate import binomial_lcb
 from environments.shared.direction_commands import wrap_angle
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import sha256_file
 
 RULES_PATH = Path(__file__).resolve().parents[2] / "configs" / "behavior_certification.toml"
@@ -24,12 +25,12 @@ def load_certification_rules() -> dict[str, Any]:
     return tomllib.loads(RULES_PATH.read_text())
 
 
-def _panel_env(species: str, recipe_path: Path, run_seed: int) -> Any:
+def _panel_env(model_id: ModelId, recipe_path: Path, run_seed: int) -> Any:
     """The recipe's own env on a fixed panel seed; its ``terrain_family`` reset option stratifies the panel."""
     from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
-    _, commands, terrain, kwargs = read_recipe(recipe_path, species)
-    return create_behavior_env(species, commands=commands, terrain=terrain, run_seed=run_seed, **kwargs)
+    _, commands, terrain, kwargs = read_recipe(recipe_path, model_id)
+    return create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=run_seed, **kwargs)
 
 
 def evaluate_saved_panel(
@@ -37,7 +38,7 @@ def evaluate_saved_panel(
     model_path: Path,
     normalization_path: Path,
     recipe_path: Path,
-    species: str,
+    model_id: ModelId,
     identity: Mapping[str, Any],
     output_dir: Path,
     run_seed: int,
@@ -49,12 +50,12 @@ def evaluate_saved_panel(
     from environments.shared.behavior_evaluation import evaluate_behavior
 
     original_hashes = sha256_file(model_path), sha256_file(normalization_path)
-    env = _panel_env(species, recipe_path, run_seed)
+    env = _panel_env(model_id, recipe_path, run_seed)
     try:
         if env.task_fingerprint != dict(identity):
             raise ValueError("Certification environment differs from the saved task fingerprint")
         model, normalizer, _ = load_behavior_checkpoint(
-            model_path, normalization_path, env, task_fingerprint=identity, species=species
+            model_path, normalization_path, env, task_fingerprint=identity, model_id=model_id
         )
     except BaseException:
         env.close()

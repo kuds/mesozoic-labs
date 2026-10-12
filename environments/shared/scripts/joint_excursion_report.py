@@ -19,7 +19,7 @@ that floor means tight oscillation; well above it means genuine repositioning.
 Usage::
 
     python environments/shared/scripts/joint_excursion_report.py \\
-        trex 1 /path/to/run/stage1/models/robust_best_model.zip
+        --species tyrannosaurus_rex --embodiment anatomical 1 /path/to/run/stage1/models/robust_best_model.zip
 
     # The VecNormalize sidecar is found automatically under either naming
     # convention (curated ``<stem>_vecnorm.pkl`` or SB3's periodic
@@ -39,14 +39,15 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.config import build_env
 from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadError, load_sb3_checkpoint
+from environments.shared.species_names import add_model_arguments, parsed_model_id
 
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("species", choices=SPECIES_NAMES)
+    add_model_arguments(parser)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("model", help="path to the SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -58,13 +59,14 @@ def main(argv: list[str]) -> None:
     parser.add_argument("--episodes", type=int, default=10)
     parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START)
     args = parser.parse_args(argv)
+    model_id = parsed_model_id(parser, args)
 
-    env = build_env(args.species, args.stage)
+    env = build_env(model_id, args.stage)
     try:
         model, normalizer, _ = load_sb3_checkpoint(
             args.model,
             args.vecnorm,
-            lambda: build_env(args.species, args.stage),
+            lambda: build_env(model_id, args.stage),
             allow_unnormalized=args.allow_unnormalized,
         )
     except PolicyLoadError as exc:
@@ -88,7 +90,7 @@ def main(argv: list[str]) -> None:
 
     ctrl = np.asarray(ctrl_log)
     qpos = np.asarray(qpos_log)
-    print(f"\n{args.species} stage {args.stage}: {len(ctrl)} steps over {args.episodes} episodes")
+    print(f"\n{model_id} stage {args.stage}: {len(ctrl)} steps over {args.episodes} episodes")
     if normalizer is None:
         print(f"  {UNNORMALIZED_BANNER}")
     print(

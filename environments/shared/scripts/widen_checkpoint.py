@@ -2,7 +2,7 @@
 
 BEHAVIOR_RECIPES_PLAN §4.6 ("Widening instead of retraining", "Exact
 transfer"; invariant 7; decisions D-C8, D-C9, D-C10, D-C12): Phase C appends
-a 3-dim body-relative command segment at the END of every species'
+a 3-dim body-relative command segment at the END of every model's
 observation, so a policy trained under the previous interface is the SAME
 function under the new one once its first layers gain zero columns for the
 new dims.  This tool maps one PPO or SAC checkpoint plus its VecNormalize
@@ -13,7 +13,7 @@ never re-trained:
 
 * **Identity gate** (never hand-edited): the parent's recorded plant
   identity must be the current plant a bounded number of interface-only
-  revisions behind — same species, physics digest, ``nq``/``nv``/``nu`` and
+  revisions behind — same model (species and embodiment), physics digest, ``nq``/``nv``/``nu`` and
   ``action_dim``, ``1 <= current.policy_interface_revision -
   parent.policy_interface_revision <= max_revision_gap`` and
   ``observation_dim + COMMAND_WIDTH == current``.  The bound defaults to 1
@@ -77,13 +77,13 @@ non-empty target directory, one not named as the stage's directory
 (``stage_dir_candidates``), or one inside the parent's run directory; an
 explicit ``--model`` that is not a handoff checkpoint; a missing identity
 without ``--allow-legacy-plant``; a missing or unstamped sidecar (or, under
-the legacy allowance, one recording another species / width); any
+the legacy allowance, one recording another model / width); any
 identity-gate failure (a parent further behind than ``--max-revision-gap``
 named with the gap and the bound); a ``--max-revision-gap`` below 1.  A
 failure after the first write removes the target and every directory the
 tool created above it.
 
-Run: ``python -m environments.shared.scripts.widen_checkpoint --species trex
+Run: ``python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_rex --embodiment anatomical
 --stage stance --from-stage-dir <run>/01_stance --to-stage-dir
 <newrun>/01_stance [--label L] [--parent-run-id ID] [--allow-legacy-plant]
 [--max-revision-gap N]`` or the explicit-pair form ``--model <zip> --vecnorm
@@ -99,7 +99,7 @@ NEW run id, one no run uses and the notebook has not opened yet, written as a
 timestamp ``YYYYMMDD_HHMMSS`` like the ids the storage cell mints
 (``TRUNK_FROM = "auto"`` breaks a coverage tie by the greatest directory name,
 so an id in another format would outrank every later run), with
-``--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>``
+``--to-stage-dir <LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/<stage_dirname(model_id, root)>``
 (``01_stance`` for every current root: the chain loop judges the
 ``<stage_label>_final`` pair in that directory only) and ``--label`` set to
 the session's ``RUN_LABEL`` when it sets one.  On Colab, in three steps:
@@ -140,6 +140,7 @@ from typing import Any, Mapping, cast
 import numpy as np
 
 from environments.shared.command_frame import COMMAND_PROBE_VECTOR, COMMAND_WIDTH, pad_running_stats
+from environments.shared.model_id import ModelId
 from environments.shared.policy_loading import _OPTIMIZER_MEMBERS, ACTION_DELTA_ATOL, VERIFICATION_ROLLOUT_SEED
 
 logger = logging.getLogger(__name__)
@@ -147,8 +148,10 @@ logger = logging.getLogger(__name__)
 #: Archive attribute recording the parent the checkpoint was widened from.
 MODEL_WIDEN_LINEAGE_ATTRIBUTE = "mesozoic_widen_lineage"
 WIDEN_TOOL_VERSION = "widen_checkpoint/v1"
-WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v1"
-WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v1"
+#: v2 (decision D-D33): the report names its model by ``species`` and
+#: ``embodiment``, and the lineage's parent plant identity is ``plant-identity/v2``.
+WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v2"
+WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v2"
 WIDEN_REPORT_FILENAME = "widen_report.json"
 ALGORITHMS = ("ppo", "sac")
 #: The handoff names ``select_handoff_checkpoint`` recognises, in its order.
@@ -407,15 +410,15 @@ def identity_gate_errors(parent: Any, current: Any, *, max_revision_gap: int = D
 
     The revision rule (D-C17) is ``1 <= current.policy_interface_revision -
     parent.policy_interface_revision <= max_revision_gap``; every other field
-    (species, physics digest, ``nq``/``nv``/``nu``, ``observation_dim +
+    (model, physics digest, ``nq``/``nv``/``nu``, ``observation_dim +
     COMMAND_WIDTH``, ``action_dim``) is checked regardless of the bound, so a
     gap above 1 can only be crossed when every intermediate bump was
     fingerprint-only.  Raises :class:`WidenError` for a bound below 1.
     """
     bound = _check_max_revision_gap(max_revision_gap)
     problems: list[str] = []
-    if parent.species != current.species:
-        problems.append(f"species: parent={parent.species!r}, current={current.species!r}")
+    if parent.model_id != current.model_id:
+        problems.append(f"model: parent={parent.model_id}, current={current.model_id}")
     gap = int(current.policy_interface_revision) - int(parent.policy_interface_revision)
     if gap < 1:
         problems.append(
@@ -691,7 +694,7 @@ def _widen_sidecar(
     parent_pkl: Path,
     out_pkl: Path,
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     parent_obs: int,
     new_dim: int,
@@ -734,16 +737,16 @@ def _widen_sidecar(
             raise WidenError(f"the sidecar does not record the parent archive's plant: {exc}") from exc
     elif recorded is not None:
         # A legacy archive gives the sidecar's identity nothing to validate
-        # against; the species and the width it records must still be the
+        # against; the model and the width it records must still be the
         # parent's.
         try:
             sidecar_identity = PlantIdentity.from_mapping(recorded)
         except PlantCompatibilityError as exc:
             raise WidenError(f"{parent_pkl}: {exc}") from exc
-        if sidecar_identity.species != species or int(sidecar_identity.observation_dim) != parent_obs:
+        if sidecar_identity.model_id != model_id or int(sidecar_identity.observation_dim) != parent_obs:
             raise WidenError(
-                f"{parent_pkl} records a {sidecar_identity.species} plant of observation_dim "
-                f"{sidecar_identity.observation_dim}, not the {species} parent's {parent_obs}; the sidecar "
+                f"{parent_pkl} records a {sidecar_identity.model_id} plant of observation_dim "
+                f"{sidecar_identity.observation_dim}, not the {model_id} parent's {parent_obs}; the sidecar "
                 "does not belong to the archive being widened"
             )
     obs_rms = getattr(vecnorm, "obs_rms", None)
@@ -757,7 +760,7 @@ def _widen_sidecar(
     vecnorm.obs_rms = cast(Any, pad_running_stats(obs_rms, COMMAND_WIDTH))
     vecnorm.observation_space = _widened_box(new_dim)
     attach_plant_identity(vecnorm, current)
-    venv = DummyVecEnv([lambda: build_env(species, stage)])
+    venv = DummyVecEnv([lambda: build_env(model_id, stage)])
     try:
         vecnorm.set_venv(venv)
         vecnorm.old_obs = np.zeros((vecnorm.num_envs, new_dim), dtype=np.float32)
@@ -769,7 +772,7 @@ def _widen_sidecar(
 
 def _verify(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     algorithm: str,
     parent_zip: Path,
@@ -831,7 +834,7 @@ def _verify(
     model, normalizer, _ = load_sb3_checkpoint(
         str(widened_zip),
         str(widened_pkl),
-        env_factory=lambda: build_env(species, stage),
+        env_factory=lambda: build_env(model_id, stage),
         guess_sidecar=False,
         plant_identity=current,
     )
@@ -842,7 +845,7 @@ def _verify(
 
     # (b) actions equal the parent's over a seeded rollout of the real env,
     # with the command slice zero and with the probe vector in it.
-    env = build_env(species, stage)
+    env = build_env(model_id, stage)
     probe = np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32)
     delta_zero = 0.0
     delta_probe = 0.0
@@ -914,7 +917,7 @@ def _library_versions() -> dict[str, str | None]:
 
 def widen_checkpoint(
     *,
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     target_stage_dir: "str | Path",
     parent_stage_dir: "str | Path | None" = None,
@@ -935,7 +938,7 @@ def widen_checkpoint(
     and the run facts its ``stage_config.json`` records) or the explicit
     *model_zip* / *vecnorm_pkl* pair, for which *algorithm*, *seed*,
     *n_envs* and *timesteps* are required.  *stage* is any reference the
-    species' manifest resolves; the widened artifacts are stamped with that
+    model's stage manifest resolves; the widened artifacts are stamped with that
     stage's CURRENT task fingerprint.  *max_revision_gap* (default 1, an
     ``int >= 1``; D-C17) bounds how many interface revisions behind the
     parent may be — see :func:`identity_gate_errors`.  Raises
@@ -976,15 +979,15 @@ def widen_checkpoint(
 
     max_revision_gap = _check_max_revision_gap(max_revision_gap)
     try:
-        entry = load_stage_manifest(species).resolve(stage)
+        entry = load_stage_manifest(model_id).resolve(stage)
     except (StageManifestError, TypeError, ValueError) as exc:
-        raise WidenError(f"cannot resolve {species} stage {stage!r}: {exc}") from exc
+        raise WidenError(f"cannot resolve {model_id} stage {stage!r}: {exc}") from exc
     reference = entry.reference
     label_prefix = stage_label(reference)
     try:
-        current = current_plant_identity(species)
+        current = current_plant_identity(model_id)
     except PlantContractError as exc:
-        raise WidenError(f"the current {species} plant identity is unavailable: {exc}") from exc
+        raise WidenError(f"the current {model_id} plant identity is unavailable: {exc}") from exc
 
     parent = _resolve_parent(
         parent_stage_dir=parent_stage_dir,
@@ -1023,7 +1026,7 @@ def widen_checkpoint(
         problems = identity_gate_errors(parent_identity, current, max_revision_gap=max_revision_gap)
         if problems:
             raise WidenError(
-                f"{parent.model_zip} is not the current {species} plant "
+                f"{parent.model_zip} is not the current {model_id} plant "
                 f"{revision_gap_bound_text(max_revision_gap)}:\n- " + "\n- ".join(problems)
             )
     revision_gap: int | None = (
@@ -1040,10 +1043,10 @@ def widen_checkpoint(
     # locates a stage (``stage_dir_candidates``): a target under any other
     # name would be written in full and then invisible to the reuse rule and
     # the chain loop.
-    candidates = stage_dir_candidates(species, reference)
+    candidates = stage_dir_candidates(model_id, reference)
     if target.name not in candidates:
         raise WidenError(
-            f"{target} is not a {species} {entry.id} stage directory (its name must be one of "
+            f"{target} is not a {model_id} {entry.id} stage directory (its name must be one of "
             f"{' / '.join(candidates)}, the names every reader locates the stage under)"
         )
     # A parent run is a published result bundle whose every file is a
@@ -1076,8 +1079,8 @@ def widen_checkpoint(
                 "a widened root is written only into a fresh stage directory"
             )
 
-    stage_config = load_stage_config(species, reference)
-    task_fingerprint = stage_task_fingerprint(species, reference, stage_config=stage_config, plant_identity=current)
+    stage_config = load_stage_config(model_id, reference)
+    task_fingerprint = stage_task_fingerprint(model_id, reference, stage_config=stage_config, plant_identity=current)
     parent_task = read_checkpoint_task_fingerprint(parent.model_zip)
     parent_task_sha256 = parent_task.get("task_sha256") if parent_task else None
     parent_checkpoint_sha256 = sha256_file(parent.model_zip)
@@ -1162,7 +1165,7 @@ def widen_checkpoint(
         _widen_sidecar(
             parent.vecnorm_pkl,
             widened_pkl,
-            species=species,
+            model_id=model_id,
             stage=reference,
             parent_obs=parent_obs,
             new_dim=new_dim,
@@ -1176,7 +1179,7 @@ def widen_checkpoint(
         widened_normalization_sha256 = sha256_file(widened_pkl)
 
         verification = _verify(
-            species=species,
+            model_id=model_id,
             stage=reference,
             algorithm=resolved_algorithm,
             parent_zip=parent.model_zip,
@@ -1210,8 +1213,8 @@ def widen_checkpoint(
             stage_config,
             resolved_algorithm.upper(),
             extra=extra,
-            env_class=get_species_config(species).env_class,
-            species=species,
+            env_class=get_species_config(model_id).env_class,
+            model_id=model_id,
             plant_identity=current,
             task_fingerprint=task_fingerprint,
             load_path=None,
@@ -1222,7 +1225,7 @@ def widen_checkpoint(
         report: dict[str, Any] = {
             "schema": WIDEN_REPORT_SCHEMA,
             "tool": WIDEN_TOOL_VERSION,
-            "species": species,
+            **model_id.record(),
             "stage": reference,
             "stage_id": entry.id,
             "algorithm": resolved_algorithm,
@@ -1318,17 +1321,18 @@ def widen_checkpoint(
 
 
 def main(argv: "list[str] | None" = None) -> int:
-    from environments.shared.config import SPECIES_NAMES
+    from environments.shared.species_names import add_model_arguments, parsed_model_id
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
-    parser.add_argument("--species", required=True, choices=SPECIES_NAMES)
+    add_model_arguments(parser)
     parser.add_argument("--stage", required=True, help="the stage reference (a legacy number or a stage id)")
     parser.add_argument(
         "--to-stage-dir",
         required=True,
         help=(
             "the fresh stage directory to write the widened pair into; for the SB3 notebook to judge it, "
-            "<LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)> (01_stance) in a run the "
+            "<LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/<stage_dirname(model_id, root)> (01_stance) "
+            "in a run the "
             "notebook has not opened yet, <new run id> being a new timestamp id (YYYYMMDD_HHMMSS, the format the "
             'storage cell mints) that no run uses yet, then the notebook with RUN_ID = "<new run id>", SEED = the '
             'parent\'s run seed and TRUNK_FROM = "" (decision D-D14; the module docstring has the Colab steps)'
@@ -1366,6 +1370,7 @@ def main(argv: "list[str] | None" = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    model_id = parsed_model_id(parser, args)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     if args.max_revision_gap < 1:
         logger.error(
@@ -1378,7 +1383,7 @@ def main(argv: "list[str] | None" = None) -> int:
     stage: "int | str" = int(args.stage) if args.stage.isdigit() else args.stage
     try:
         result = widen_checkpoint(
-            species=args.species,
+            model_id=model_id,
             stage=stage,
             target_stage_dir=args.to_stage_dir,
             parent_stage_dir=args.from_stage_dir,

@@ -7,12 +7,12 @@ trainer (``test_train_base.py::TestTrainCurriculumWalksTheManifest`` mocks the
 model, environments, callbacks, config writer, CSV writer and verdict writer;
 ``test_cli.py`` mocks ``train_curriculum`` itself), so nothing ran the path from
 argv to artifacts.  These tests do: the real entry point,
-``environments/<species>/scripts/train_sb3.py curriculum``, runs in a
+``environments/shared/train.py --species <s> --embodiment <e> curriculum``, runs in a
 subprocess with tiny budgets and 32-step episodes, and ``--override`` sets
 every gate so that each stage advances on its first evaluation.  They check
 the run's on-disk contract, not learning.
 
-The ladder is dibothrosuchus's: all three of its advancing stages gate on
+The ladder is the Dibothrosuchus's: all three of its advancing stages gate on
 ``reward_and_length/v1``, which ``--override`` opens (velociraptor's was, until
 its stance moved to ``stance_quality/v2`` with physics r3, decision D-D25: the
 overrides that open a reward gate are keys v2 refuses).  Compsognathus's stance
@@ -46,14 +46,15 @@ pytest.importorskip("stable_baselines3")
 from environments.shared.cli import _apply_overrides  # noqa: E402
 from environments.shared.config import load_all_stages  # noqa: E402
 from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view  # noqa: E402
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.reporting import CSV_METRIC_COLUMNS  # noqa: E402
 from environments.shared.result_bundle import sha256_file  # noqa: E402
 from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label  # noqa: E402
 from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SPECIES = "dibothrosuchus"
-SCRIPT = REPO_ROOT / "environments" / SPECIES / "scripts" / "train_sb3.py"
+MODEL_ID = ModelId("dibothrosuchus_elaphros", "anatomical")
+SCRIPT = REPO_ROOT / "environments" / "shared" / "train.py"
 LABEL = "cli-e2e"
 
 # The run's shape: one 64-step stage (two 32-step PPO rollouts), one evaluation
@@ -83,8 +84,7 @@ OPEN_GATES = (
 # fraction and the 40-episode panel keep the TOML's values. The robot, not the
 # anatomical species, since the latter's stance moved to stance_quality/v2
 # (decision D-D26); the robot trains through the unified entry point.
-STANCE_SPECIES = "compsognathus_robot"
-STANCE_SCRIPT = REPO_ROOT / "environments" / "shared" / "train.py"
+STANCE_MODEL_ID = ModelId("compsognathus_longipes", "robot")
 STANCE_AT_32_STEPS = (
     "stance.curriculum.settle_steps=6",
     "stance.curriculum.min_avg_reward=-1000000000",
@@ -99,8 +99,10 @@ FLAGS = ("--n-envs", "1", "--seed", "0", "--eval-freq", "64", "--save-freq", "64
 _GOOGLE_CLOUD_IMPORT = re.compile(r"^import time:.*\|\s+google\.cloud(\.|\s*$)")
 
 
-def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES, script: Path = SCRIPT):
-    """Run ``train_sb3.py curriculum`` as a user would, and return the finished process."""
+def _run_cli(
+    output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHAPE + OPEN_GATES, model_id: ModelId = MODEL_ID
+):
+    """Run ``train.py --species <s> --embodiment <e> curriculum`` as a user would, and return the finished process."""
     env = dict(os.environ)
     # One thread per process: the SB3 job runs one pytest process on a
     # four-vCPU runner, and torch's default would oversubscribe it.
@@ -109,7 +111,11 @@ def _run_cli(output_dir: Path, *extra: str, overrides: tuple[str, ...] = RUN_SHA
         sys.executable,
         "-X",
         "importtime",
-        str(script),
+        str(SCRIPT),
+        "--species",
+        model_id.species,
+        "--embodiment",
+        model_id.embodiment,
         "curriculum",
         *FLAGS,
         "--label",
@@ -138,10 +144,10 @@ def _assert_no_cloud_imports(result: subprocess.CompletedProcess) -> None:
     assert not [line for line in lines if _GOOGLE_CLOUD_IMPORT.search(line)]
 
 
-def _expected_configs(*overrides: str, species: str = SPECIES) -> dict:
+def _expected_configs(*overrides: str, model_id: ModelId = MODEL_ID) -> dict:
     """The stage configs the run judged under: the TOMLs with the same overrides applied."""
-    configs = load_all_stages(species)
-    _apply_overrides(configs, list(overrides), species)
+    configs = load_all_stages(model_id)
+    _apply_overrides(configs, list(overrides), model_id)
     return configs
 
 
@@ -186,14 +192,16 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     _assert_no_cloud_imports(result)
     assert "Curriculum training complete!" in result.stderr
 
-    manifest = load_stage_manifest(SPECIES)
+    manifest = load_stage_manifest(MODEL_ID)
     chain = [entry for entry in manifest.stages if entry in manifest.advancing_stages]
     assert [entry.reference for entry in chain] == [1, 2, 3]
     configs = _expected_configs(*RUN_SHAPE, *OPEN_GATES)
 
     # The run directory: one stage directory per advancing node, the run's
     # plant identity and the stage CSV; nothing reused, nothing else written.
-    assert {path.name for path in run_dir.iterdir()} == {stage_dirname(SPECIES, entry.reference) for entry in chain} | {
+    assert {path.name for path in run_dir.iterdir()} == {
+        stage_dirname(MODEL_ID, entry.reference) for entry in chain
+    } | {
         "plant_identity.json",
         "curriculum_results.csv",
     }
@@ -206,7 +214,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     parent_dir = parent_verdict = None
     for entry in chain:
         stage = entry.reference
-        stage_dir = run_dir / stage_dirname(SPECIES, stage)
+        stage_dir = run_dir / stage_dirname(MODEL_ID, stage)
         label = stage_label(stage)
         models = stage_dir / "models"
 
@@ -227,7 +235,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
         # the gate this run judged under (D-A22).
         verdict = _read(stage_dir / "gate_verdict.json")
         assert verdict["passed"] is True and verdict["failures"] == []
-        assert verdict["species"] == SPECIES
+        assert ModelId.from_record(verdict) == MODEL_ID
         assert verdict["stage"] == stage and verdict["stage_id"] == entry.id
         assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
         assert verdict["gate_kind"] == "reward_and_length/v1"
@@ -243,7 +251,7 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
 
         # The stage config: the recipe, the run block and the lineage.
         recorded = _read(stage_dir / "stage_config.json")
-        assert recorded["species"] == SPECIES and recorded["stage"] == stage
+        assert ModelId.from_record(recorded) == MODEL_ID and recorded["stage"] == stage
         assert recorded["algorithm"] == "PPO"
         run = recorded["run"]
         assert (run["seed"], run["n_envs"], run["timesteps"]) == (0, 1, 64)
@@ -277,12 +285,15 @@ def test_the_cli_curriculum_trains_every_advancing_stage_and_records_it(ladder):
     assert {row["stage_passed"] for row in rows} == {"True"}
     # The CSV records the time learn() took, a part of the node's recorded duration (to 0.1 s).
     for row, entry in zip(rows, chain):
-        run = _read(run_dir / stage_dirname(SPECIES, entry.reference) / "stage_config.json")["run"]
+        run = _read(run_dir / stage_dirname(MODEL_ID, entry.reference) / "stage_config.json")["run"]
         assert 0 <= float(row["training_duration_seconds"]) <= run["duration_seconds"] + 0.05
-    assert {(row["species"], row["algorithm"], row["run_dir"], row["seed"], row["n_envs"]) for row in rows} == {
-        (SPECIES, "PPO", run_dir.name, "0", "1")
+    assert {
+        (row["species"], row["embodiment"], row["algorithm"], row["run_dir"], row["seed"], row["n_envs"])
+        for row in rows
+    } == {(MODEL_ID.species, MODEL_ID.embodiment, "PPO", run_dir.name, "0", "1")}
+    assert {(row["plant_species"], row["plant_embodiment"]) for row in rows} == {
+        (MODEL_ID.species, MODEL_ID.embodiment)
     }
-    assert {row["plant_species"] for row in rows} == {SPECIES}
     assert {row["reward_threshold"] for row in rows} == {"-1000000000"}
     header = _header(run_dir)
     assert header[-len(CSV_METRIC_COLUMNS) :] == CSV_METRIC_COLUMNS
@@ -302,7 +313,7 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
 
-    target_dir = stage_dirname(SPECIES, 3)
+    target_dir = stage_dirname(MODEL_ID, 3)
     assert {path.name for path in run_dir.iterdir()} == {
         "ancestors",
         target_dir,
@@ -315,10 +326,10 @@ def test_a_cli_run_serves_as_the_next_runs_trunk(ladder):
         # A record, never the checkpoint.
         assert not list((run_dir / "ancestors" / stage_id).glob("*.zip"))
 
-    parent_verdict = _read(trunk / stage_dirname(SPECIES, 2) / "gate_verdict.json")
+    parent_verdict = _read(trunk / stage_dirname(MODEL_ID, 2) / "gate_verdict.json")
     run = _read(run_dir / target_dir / "stage_config.json")["run"]
     assert run["seed"] == 1  # not the trunk's 0, so a warm start that keeps its parent's seed is caught
-    assert Path(run["load_path"]) == trunk / stage_dirname(SPECIES, 2) / parent_verdict["checkpoint"]
+    assert Path(run["load_path"]) == trunk / stage_dirname(MODEL_ID, 2) / parent_verdict["checkpoint"]
     assert run["parent_checkpoint_sha256"] == parent_verdict["checkpoint_sha256"]
     assert run["parent_run_id"] == trunk.name
     assert _read(run_dir / target_dir / "gate_verdict.json")["passed"] is True
@@ -338,7 +349,7 @@ def test_a_failed_gate_stops_the_cli_curriculum_after_recording_it(tmp_path):
     _assert_no_cloud_imports(result)
     assert "Stopping curriculum" in result.stderr
 
-    stance_dir = stage_dirname(SPECIES, 1)
+    stance_dir = stage_dirname(MODEL_ID, 1)
     assert {path.name for path in run_dir.iterdir()} == {stance_dir, "plant_identity.json", "curriculum_results.csv"}
     verdict = _read(run_dir / stance_dir / "gate_verdict.json")
     assert verdict["passed"] is False and verdict["failures"]
@@ -354,31 +365,23 @@ def test_the_cli_curriculum_judges_a_stance_gate_at_the_overridden_horizon(tmp_p
     Its 40 evaluation episodes end at 32 steps, short of the TOML's horizon; the
     callback must count them as full-horizon for any of them to supply a duty.
     """
-    toml = load_all_stages(STANCE_SPECIES)[1]
+    toml = load_all_stages(STANCE_MODEL_ID)[1]
     assert toml["curriculum_kwargs"]["gate_kind"] == "stance_quality/v1"
     assert toml["env_kwargs"]["max_episode_steps"] > 32  # the override shortens the TOML's horizon
 
     run_dir = tmp_path / "stance"
-    result = _run_cli(
-        run_dir,
-        "--species",
-        STANCE_SPECIES,
-        "--target",
-        "stance",
-        overrides=RUN_SHAPE + STANCE_AT_32_STEPS,
-        script=STANCE_SCRIPT,
-    )
+    result = _run_cli(run_dir, "--target", "stance", overrides=RUN_SHAPE + STANCE_AT_32_STEPS, model_id=STANCE_MODEL_ID)
     _assert_succeeded(result)
     _assert_no_cloud_imports(result)
     assert "Curriculum training complete!" in result.stderr
 
-    stance_dir = run_dir / stage_dirname(STANCE_SPECIES, 1)
+    stance_dir = run_dir / stage_dirname(STANCE_MODEL_ID, 1)
     assert {path.name for path in run_dir.iterdir()} == {
         stance_dir.name,
         "plant_identity.json",
         "curriculum_results.csv",
     }
-    configs = _expected_configs(*RUN_SHAPE, *STANCE_AT_32_STEPS, species=STANCE_SPECIES)
+    configs = _expected_configs(*RUN_SHAPE, *STANCE_AT_32_STEPS, model_id=STANCE_MODEL_ID)
     assert configs[1]["env_kwargs"]["max_episode_steps"] == 32
     cur_kwargs = configs[1]["curriculum_kwargs"]
 
@@ -387,7 +390,7 @@ def test_the_cli_curriculum_judges_a_stance_gate_at_the_overridden_horizon(tmp_p
     # the diagnosis when the gate does not pass.
     evaluations = [line for line in result.stderr.splitlines() if "Stage 1 eval:" in line]
     assert verdict["passed"] is True and verdict["failures"] == [], evaluations
-    assert verdict["species"] == STANCE_SPECIES
+    assert ModelId.from_record(verdict) == STANCE_MODEL_ID
     assert verdict["stage"] == 1 and verdict["stage_id"] == "stance"
     assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
     assert verdict["gate_kind"] == "stance_quality/v1"

@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from environments.shared import result_bundle
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import (
     ResultBundleError,
@@ -39,19 +40,21 @@ from .result_bundle_helpers import (
     _write_stage_configs,
 )
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 
-def _save(run_dir: Path, stage_results, stage_configs, *, species: str = "velociraptor", **overrides):
+
+def _save(run_dir: Path, stage_results, stage_configs, *, model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS, **overrides):
     kwargs: dict[str, Any] = dict(
         backend="stable-baselines3",
         backend_version="test-backend-1.0",
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity(species),
-        run_id=f"{species}-{run_dir.name}",
+        plant_identity=_plant_identity(model_id),
+        run_id=f"{model_id.species}-{model_id.embodiment}-{run_dir.name}",
     )
     kwargs.update(overrides)
-    return save_result_bundle(stage_results, stage_configs, species, "PPO", 42, run_dir, **kwargs)
+    return save_result_bundle(stage_results, stage_configs, model_id, "PPO", 42, run_dir, **kwargs)
 
 
 def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
@@ -65,14 +68,14 @@ def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
     so the bundle is never ``complete`` and stays writable for the chain's
     next node.  Before Phase A the same run was partial WITHOUT a summary.
     """
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260718_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
 
     paths = _save(run_dir, stage_results, stage_configs, run_id="partial-test")
 
     assert paths["summary"] == run_dir / "summary.json"
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
-    assert summary["schema_version"] == 4
+    assert summary["schema_version"] == 5  # re-pinned from 4: the summary names its embodiment (decision D-D33)
     assert summary["bundle_status"] == "partial"
     assert summary["provenance"]["primary_deliverable"] == "1"
     assert summary["provenance"]["target_deliverable"] == "3"
@@ -194,19 +197,26 @@ def test_v1_manifest_species_bundle_rules_are_unchanged(
     stable_provenance: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Under a synthesized manifest — one deliverable, the last advancing node — the
-    v4 rules collapse to the pre-Phase-A ones, byte for byte in outcome."""
+    """Under a v1 manifest — one deliverable, the last advancing node — the v4
+    rules collapse to the pre-Phase-A ones, byte for byte in outcome."""
     import shutil
 
     from environments.shared import stage_manifest
-    from environments.shared.stage_manifest import load_stage_manifest
+    from environments.shared.stage_manifest import STAGE_MANIFEST_SCHEMA_V1, load_stage_manifest
 
     configs = tmp_path / "configs"
-    shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
-    (configs / "velociraptor" / "stages.toml").unlink()
+    model_dir = VELOCIRAPTOR_MONGOLIENSIS.path(configs)
+    shutil.copytree(VELOCIRAPTOR_MONGOLIENSIS.path(stage_manifest._CONFIGS_DIR), model_dir)
+    (model_dir / "stages.toml").write_text(
+        f'schema = "{STAGE_MANIFEST_SCHEMA_V1}"\n'
+        '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
+        '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\n'
+        '[[stages]]\nid = "behavior"\nconfig = "strike.toml"\nlegacy_number = 3\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
-    manifest = load_stage_manifest("velociraptor")
-    assert manifest.synthesized and [entry.id for entry in manifest.deliverables] == ["behavior"]
+    manifest = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS)
+    assert manifest.schema == STAGE_MANIFEST_SCHEMA_V1 and [entry.id for entry in manifest.deliverables] == ["behavior"]
 
     # A passing stance-only run: partial WITHOUT a summary.
     stance_dir = tmp_path / "stance-only"
@@ -352,7 +362,7 @@ def test_complete_bundle_round_trips_exporter_schema_csv_and_manifest(
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     validate_result_summary(
         summary,
-        expected_species="velociraptor",
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
         require_complete=True,
         canonical_provenance=True,
     )
@@ -367,7 +377,7 @@ def test_complete_bundle_round_trips_exporter_schema_csv_and_manifest(
     second_paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         algorithm,
         42,
         run_dir,
@@ -377,7 +387,7 @@ def test_complete_bundle_round_trips_exporter_schema_csv_and_manifest(
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
         plant_identity=_plant_identity(),
-        run_id=f"velociraptor-{backend}-{algorithm.lower()}-test",
+        run_id=f"velociraptor_mongoliensis-anatomical-{backend}-{algorithm.lower()}-test",
     )
     assert {name: path.read_bytes() for name, path in second_paths.items()} == first_bytes
 
@@ -398,7 +408,7 @@ def test_failed_save_preserves_existing_complete_bundle_byte_for_byte(
         save_result_bundle(
             stage_results[:1],
             {1: stage_configs[1]},
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             "PPO",
             42,
             run_dir,
@@ -408,7 +418,7 @@ def test_failed_save_preserves_existing_complete_bundle_byte_for_byte(
             evaluation_episodes=3,
             evaluation_seeds=[101, 102, 103],
             plant_identity=_plant_identity(),
-            run_id="velociraptor-stable-baselines3-ppo-test",
+            run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
         )
 
     assert _snapshot_files(run_dir) == before
@@ -444,7 +454,7 @@ def test_any_failed_curriculum_gate_is_not_a_complete_bundle(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -540,7 +550,7 @@ def test_mixed_stage_plant_identities_are_rejected(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             "PPO",
             42,
             run_dir,
@@ -569,7 +579,7 @@ def test_malformed_plant_identity_is_rejected(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             "PPO",
             42,
             run_dir,
@@ -646,7 +656,7 @@ def test_identical_completed_export_is_a_write_free_noop(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -656,7 +666,7 @@ def test_identical_completed_export_is_a_write_free_noop(
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
         plant_identity=_plant_identity(),
-        run_id="velociraptor-stable-baselines3-ppo-test",
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
     )
 
     assert paths["artifact_manifest"].is_file()
@@ -675,7 +685,7 @@ def test_save_rejects_skipped_curriculum_stages_before_writing(
         save_result_bundle(
             [_stage_result(2)],
             {2: config},
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             "PPO",
             42,
             run_dir,
@@ -703,7 +713,7 @@ def test_complete_save_requires_plant_identity_in_every_hashed_stage_config(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "velociraptor",
+            VELOCIRAPTOR_MONGOLIENSIS,
             "PPO",
             42,
             run_dir,
@@ -726,7 +736,7 @@ def test_csv_hyperparameters_are_derived_from_hashed_stage_configs(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -746,7 +756,7 @@ def _save_bundle(run_dir: Path, stage_results: Any, stage_configs: Any) -> dict[
     return save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -756,7 +766,7 @@ def _save_bundle(run_dir: Path, stage_results: Any, stage_configs: Any) -> dict[
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
         plant_identity=_plant_identity(),
-        run_id="velociraptor-stable-baselines3-ppo-test",
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
     )
 
 
@@ -869,19 +879,25 @@ def test_save_result_bundle_records_replicates_and_the_provisional_label(
     recorded after this run, ``certification_seeds`` is the stage's declaration and ``provisional`` is
     the count read against it — stage 1 at n = 2 of 2 is not provisional, stage 3 at n = 1 of 2 is,
     stage 2 at the default bar of 1 is not — and the whole bundle audits clean."""
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260901_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
     _declare_certification_seeds(run_dir, stage_configs, 1, 2)
     _declare_certification_seeds(run_dir, stage_configs, 3, 2)
-    replicate = {"run_id": "velociraptor-stable-baselines3-ppo-seed43", "training_seed": 43}
+    replicate = {"run_id": "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-seed43", "training_seed": 43}
 
-    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates={"1": [replicate]})
+    _save(
+        run_dir,
+        stage_results,
+        stage_configs,
+        run_id="velociraptor_mongoliensis-anatomical-this-run",
+        replicates={"1": [replicate]},
+    )
 
     provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
     records = provenance["deliverables"]
     assert records["1"]["replication"] == {
         "count": 2,
-        "runs": [{"run_id": "velociraptor-this-run", "training_seed": 42}, replicate],
+        "runs": [{"run_id": "velociraptor_mongoliensis-anatomical-this-run", "training_seed": 42}, replicate],
     }
     assert (records["1"]["certification_seeds"], records["1"]["provisional"]) == (2, False)
     assert records["2"]["replication"]["count"] == 1
@@ -901,7 +917,10 @@ def test_save_result_bundle_records_replicates_and_the_provisional_label(
             {"1": [{"run_id": "other", "training_seed": 42}]},
             "repeats training seed 42: a replicate is a different seed",
         ),
-        ({"1": [{"run_id": "velociraptor-this-run", "training_seed": 43}]}, "is this run or is listed twice"),
+        (
+            {"1": [{"run_id": "velociraptor_mongoliensis-anatomical-this-run", "training_seed": 43}]},
+            "is this run or is listed twice",
+        ),
         (
             {"1": [{"run_id": "a", "training_seed": 43}, {"run_id": "a", "training_seed": 44}]},
             "replicate a for 1 is this run or is listed twice",
@@ -914,7 +933,7 @@ def test_save_result_bundle_records_replicates_and_the_provisional_label(
         ({"1": [{"run_id": "a", "training_seed": True}]}, "must record a non-negative integer training_seed"),
         (
             {"9": [{"run_id": "a", "training_seed": 43}]},
-            "replicates name stage key\\(s\\) \\['9'\\] that are not deliverables of this species",
+            "replicates name stage key\\(s\\) \\['9'\\] that are not deliverables of this model",
         ),
     ],
     ids=[
@@ -938,7 +957,13 @@ def test_a_malformed_replicate_is_refused_before_anything_is_written(
     before = _snapshot_files(run_dir)
 
     with pytest.raises(ResultBundleError, match=expected_error):
-        _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates=replicates)
+        _save(
+            run_dir,
+            stage_results,
+            stage_configs,
+            run_id="velociraptor_mongoliensis-anatomical-this-run",
+            replicates=replicates,
+        )
 
     assert _snapshot_files(run_dir) == before
 
@@ -952,12 +977,22 @@ def test_replicates_of_a_deliverable_outside_the_published_chain_are_dropped(
     later session may publish a chain that leaves one of them out (stance + recovery over a run that also
     certified walk): its key names a real deliverable with no record in this bundle, so it is dropped with a
     logged reason — empty or not — while a key naming no deliverable of the species is still refused."""
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260901_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
-    replicates = {"1": [], "2": [{"run_id": "velociraptor-other-run", "training_seed": 43}], "3": []}
+    replicates = {
+        "1": [],
+        "2": [{"run_id": "velociraptor_mongoliensis-anatomical-other-run", "training_seed": 43}],
+        "3": [],
+    }
 
     with caplog.at_level(logging.INFO, logger="environments.shared.reporting.bundles"):
-        _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates=replicates)
+        _save(
+            run_dir,
+            stage_results,
+            stage_configs,
+            run_id="velociraptor_mongoliensis-anatomical-this-run",
+            replicates=replicates,
+        )
 
     provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
     assert set(provenance["deliverables"]) == {"1"}
@@ -980,27 +1015,33 @@ def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_chang
     no-op, and a re-run that would change any other result is still
     refused as immutable.
     """
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260901_120000"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
     _declare_certification_seeds(run_dir, stage_configs, 3, 2)
-    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor_mongoliensis-anatomical-this-run")
     assert verify_artifact_manifest(run_dir)["status"] == "complete"
     published = _snapshot_files(run_dir)
     records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
     assert (records["3"]["replication"]["count"], records["3"]["provisional"]) == (1, True)
 
     # No sibling yet: the re-export is the read-only no-op it always was.
-    paths = _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+    paths = _save(run_dir, stage_results, stage_configs, run_id="velociraptor_mongoliensis-anatomical-this-run")
     assert paths["artifact_manifest"] == run_dir / "artifact_manifest.json"
     assert _snapshot_files(run_dir) == published
 
-    replicate = {"run_id": "velociraptor-other-run", "training_seed": 43}
-    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates={"3": [replicate]})
+    replicate = {"run_id": "velociraptor_mongoliensis-anatomical-other-run", "training_seed": 43}
+    _save(
+        run_dir,
+        stage_results,
+        stage_configs,
+        run_id="velociraptor_mongoliensis-anatomical-this-run",
+        replicates={"3": [replicate]},
+    )
 
     records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
     assert records["3"]["replication"] == {
         "count": 2,
-        "runs": [{"run_id": "velociraptor-this-run", "training_seed": 42}, replicate],
+        "runs": [{"run_id": "velociraptor_mongoliensis-anatomical-this-run", "training_seed": 42}, replicate],
     }
     assert records["3"]["provisional"] is False
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
@@ -1019,7 +1060,13 @@ def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_chang
     different = [dict(result) for result in stage_results]
     different[2]["best_eval_timestep"] = different[2]["best_eval_timestep"] + 1
     with pytest.raises(ResultBundleError, match="completed result bundle is immutable"):
-        _save(run_dir, different, stage_configs, run_id="velociraptor-this-run", replicates={"3": [replicate]})
+        _save(
+            run_dir,
+            different,
+            stage_configs,
+            run_id="velociraptor_mongoliensis-anatomical-this-run",
+            replicates={"3": [replicate]},
+        )
     assert _snapshot_files(run_dir) == counted
 
 
@@ -1092,7 +1139,7 @@ def test_a_replication_record_not_listing_this_run_first_is_refused_by_the_audit
 ) -> None:
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor_mongoliensis-anatomical-this-run")
 
     _tamper_deliverable(
         run_dir,
@@ -1100,8 +1147,8 @@ def test_a_replication_record_not_listing_this_run_first_is_refused_by_the_audit
         replication={
             "count": 2,
             "runs": [
-                {"run_id": "velociraptor-other-run", "training_seed": 43},
-                {"run_id": "velociraptor-this-run", "training_seed": 42},
+                {"run_id": "velociraptor_mongoliensis-anatomical-other-run", "training_seed": 43},
+                {"run_id": "velociraptor_mongoliensis-anatomical-this-run", "training_seed": 42},
             ],
         },
     )
@@ -1384,10 +1431,12 @@ def test_a_complete_bundle_the_new_audit_rejects_is_left_byte_identical(
 
 
 def test_legacy_drive_directory_is_audited_without_mutation(tmp_path: Path) -> None:
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260315_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260315_120000"
     run_dir.mkdir(parents=True)
     csv_path = run_dir / "collected_results.csv"
-    csv_path.write_text("species,algorithm,stage\nvelociraptor,ppo,1\n", encoding="utf-8")
+    csv_path.write_text(
+        "species,embodiment,algorithm,stage\nvelociraptor_mongoliensis,anatomical,ppo,1\n", encoding="utf-8"
+    )
     before = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
 
     report = audit_result_bundle(run_dir)

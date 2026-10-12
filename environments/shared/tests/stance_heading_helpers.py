@@ -6,7 +6,7 @@ return for a grid of synthetic statue episodes (the perfect-statue trace of
 ``test_gait_stance_metrics.py``), with the (seed, heading) cells a test
 names carrying a defect, bound exactly as :mod:`.stance_v2_helpers` binds a
 v2 report: to a byte-file handoff pair under ``<stage_dir>/models``, to a
-measurement manifest the judge accepts for the species, and to the
+measurement manifest the judge accepts for the model, and to the
 synthetic task :data:`~.stance_v2_helpers.TASK_SHA256` the stage's
 ``stage_config.json`` records.  Every number in it re-derives from its rows,
 so the judge, publication, the backfill tool and reuse rule 8 accept it
@@ -35,9 +35,18 @@ from environments.shared.curriculum.stance_heading_gate import (
 )
 from environments.shared.gait.constants import measurement_sha256
 from environments.shared.gait.stance_metrics import episode_stance_metrics
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import sha256_file
 
-from .stance_v2_helpers import HORIZON, TASK_SHA256, V2_CURRICULUM, handoff_pair, measurement, stage_record
+from .stance_v2_helpers import (
+    HORIZON,
+    TASK_SHA256,
+    TYRANNOSAURUS_REX,
+    V2_CURRICULUM,
+    handoff_pair,
+    measurement,
+    stage_record,
+)
 from .test_gait_stance_metrics import statue_trace
 
 #: The v2 helper's block under the certificate's kind: the same keys and bars, one statue-relative criterion.
@@ -58,7 +67,7 @@ def heading_report(
     *,
     n: int = 40,
     defects: dict[tuple[int, float], dict[str, Any]] | None = None,
-    species: str = "trex",
+    model_id: ModelId = TYRANNOSAURUS_REX,
     task_sha256: str = TASK_SHA256,
     handoff_name: str = "robust_best_model",
 ) -> dict[str, Any]:
@@ -76,7 +85,7 @@ def heading_report(
 
     block = dict(HEADING_CURRICULUM if curriculum is None else curriculum)
     if not (Path(stage_dir) / "stage_config.json").exists():
-        stage_record(stage_dir, block, species=species, task_sha256=task_sha256)
+        stage_record(stage_dir, block, model_id=model_id, task_sha256=task_sha256)
     thresholds = StanceV2Thresholds.from_curriculum(block)
     clean = episode_stance_metrics(statue_trace(HORIZON), settle_steps=thresholds.settle_steps)
     seed = PUBLICATION_SEED_START
@@ -99,7 +108,7 @@ def heading_report(
     )
     touch = [{"unsupported_duty": 0.0, "bilateral_support_duty": 1.0, "single_support_duty": 0.0}] * n
     model, vecnorm = handoff_pair(stage_dir, name=handoff_name)
-    manifest = measurement(species)
+    manifest = measurement(model_id)
     headings = []
     for yaw, metrics in cells.items():
         cell = verdict.heading_result(yaw)
@@ -145,7 +154,7 @@ def heading_report(
     view = gate_config_view(block)
     return {
         "schema": STANCE_HEADING_REPORT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": 1,
         "gate_kind": block.get("gate_kind"),
         "scored_gate_kind": STANCE_HEADING_GATE_KIND,

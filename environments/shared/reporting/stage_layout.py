@@ -14,8 +14,8 @@ Generated, renderable artifacts are grouped by kind::
     stage1/
     ├── figures/    training_curves.png  foot_contacts.png  stance_diagnostics.png
     │               locomotion_health.png  behavioral_metrics.png
-    ├── replays/    <species>_<algo>_stage<N>_<label>.mp4  (+ _front/_side views)
-    │               <species>_<algo>_stage<N>_<label>_stance.csv
+    ├── replays/    <species>_<embodiment>_<algo>_stage<N>_<label>.mp4  (+ _front/_side views)
+    │               <species>_<embodiment>_<algo>_stage<N>_<label>_stance.csv
     ├── models/     (unchanged)
     ├── tensorboard/ (unchanged)
     └── stage_summary.txt  stage_config.json  plant_identity.json
@@ -30,10 +30,11 @@ evaluation CSVs are the publication evidence contract that
 larger change with a different risk profile and is not what this module is
 for.
 
-Filenames inside ``replays/`` are unchanged.  They still carry the
-redundant ``<species>_<algo>_stage<N>`` prefix that the path already
-states; dropping it is a separate rename, and doing both at once would
-make a mechanical move indistinguishable from a semantic one in review.
+Filenames inside ``replays/`` are unchanged by the move.  They still carry
+the redundant ``<species>_<embodiment>_<algo>_stage<N>`` prefix that the
+path already states (the model is two parts since decision D-D33); dropping
+it is a separate rename, and doing both at once would make a mechanical move
+indistinguishable from a semantic one in review.
 
 Reading old runs
 ----------------

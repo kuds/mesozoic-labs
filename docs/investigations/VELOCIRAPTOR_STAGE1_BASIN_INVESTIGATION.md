@@ -397,8 +397,8 @@ configured gate, not an invariant cross-reward score.
 - [Behavioral metrics](https://drive.google.com/file/d/1K_w-ZQ1ZfHAhwA3uJ066yPvVWNuR3fvm/view?usp=drivesdk)
 - [Result-bundle contract](../RESULT_BUNDLES.md)
 - [Plant/policy compatibility contract](../PLANT_CONTRACT.md)
-- [Velociraptor Stage-1 config](../../configs/velociraptor/stage1_balance.toml)
-- [Velociraptor environment](../../environments/velociraptor/envs/raptor_env.py)
+- [Velociraptor Stage-1 config](../../configs/velociraptor_mongoliensis/anatomical/stance.toml)
+- [Velociraptor environment](../../environments/velociraptor_mongoliensis/base_env.py)
 
 ## 9. Follow-up outcome (append only)
 

@@ -3,9 +3,14 @@
 The rules the bundle writer, the summary and the audit share: which
 deliverables a run certified (its own gate plus every ``warm_start_from``
 ancestor's), which one is published (the target when certified, else the
-deepest certified), and the target-aware bundle status.  The v2/v3 pins in
+deepest certified), and the target-aware bundle status.  The v2 pins in
 ``test_result_summaries.py`` are untouched: below schema 4 every rule runs
 verbatim, and ``require_publishable`` is a synonym of ``require_complete``.
+
+Schema v5 (decision D-D33) carries the v4 rules unchanged and adds
+``embodiment`` to the canonical runtime provenance; the reader accepts
+{2, 5}, so the summaries here are written at v5 (the writers' version) and
+the ``test_v4_*`` names keep the rule set they pin.
 """
 
 from __future__ import annotations
@@ -18,11 +23,14 @@ from typing import Any
 import pytest
 
 from environments.shared import stage_manifest
+from environments.shared.model_id import ModelId
 from environments.shared.result_schema import (
     CANONICAL_RUNTIME_PROVENANCE_FIELDS,
     CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4,
+    CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5,
     DELIVERABLE_RECORD_FIELDS,
     OPTIONAL_DELIVERABLE_RECORD_FIELDS,
+    RESULT_SCHEMA_VERSION,
     ResultSchemaError,
     bundle_status_for,
     certified_deliverables,
@@ -33,9 +41,12 @@ from environments.shared.stage_manifest import load_stage_manifest
 
 from .result_bundle_helpers import _canonical_summary
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
-def _entries(species: str, *ids: str) -> list[tuple[str, Any]]:
-    manifest = load_stage_manifest(species)
+
+def _entries(model_id: ModelId, *ids: str) -> list[tuple[str, Any]]:
+    manifest = load_stage_manifest(model_id)
     return [(entry.key, entry) for entry in manifest.stages if not ids or entry.id in ids]
 
 
@@ -44,14 +55,20 @@ def _entries(species: str, *ids: str) -> list[tuple[str, Any]]:
 
 def test_certified_requires_the_whole_chain() -> None:
     # trex: stance -> recovery, stance -> locomotion -> behavior; every node a deliverable.
-    entries = _entries("trex")
+    entries = _entries(TYRANNOSAURUS_REX)
     certified = certified_deliverables(
-        entries, {"1": True, "recovery": False, "2": True, "3": False}, None, species="trex"
+        entries,
+        {"1": True, "recovery": False, "2": True, "3": False},
+        None,
+        model_id=TYRANNOSAURUS_REX,
     )
     assert certified == {"1": True, "recovery": False, "2": True, "3": False}
     # A failed root certifies nothing below it, whatever the children's own verdicts.
     certified = certified_deliverables(
-        entries, {"1": False, "recovery": True, "2": True, "3": True}, None, species="trex"
+        entries,
+        {"1": False, "recovery": True, "2": True, "3": True},
+        None,
+        model_id=TYRANNOSAURUS_REX,
     )
     assert certified == {"1": False, "recovery": False, "2": False, "3": False}
     # Records carrying the verdict (a summary's stage rows) read the same as bools.
@@ -64,75 +81,95 @@ def test_certified_requires_the_whole_chain() -> None:
             "3": {"stage_passed": True},
         },
         None,
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
     )
     assert certified == {"1": True, "recovery": False, "2": True, "3": True}
 
 
 def test_an_absent_ancestor_never_reads_as_passed() -> None:
     # Walk and hunt recorded without stance: their chain is incomplete.
-    entries = _entries("velociraptor", "locomotion", "behavior")
-    assert certified_deliverables(entries, {"2": True, "3": True}, None, species="velociraptor") == {
+    entries = _entries(VELOCIRAPTOR_MONGOLIENSIS, "locomotion", "behavior")
+    assert certified_deliverables(entries, {"2": True, "3": True}, None, model_id=VELOCIRAPTOR_MONGOLIENSIS) == {
         "2": False,
         "3": False,
     }
 
 
 def test_ancestor_records_complete_a_chain() -> None:
-    entries = _entries("velociraptor", "locomotion", "behavior")
+    entries = _entries(VELOCIRAPTOR_MONGOLIENSIS, "locomotion", "behavior")
     stages = {"2": True, "3": True}
-    assert certified_deliverables(entries, stages, {"1": {"passed": True}}, species="velociraptor") == {
+    assert certified_deliverables(entries, stages, {"1": {"passed": True}}, model_id=VELOCIRAPTOR_MONGOLIENSIS) == {
         "2": True,
         "3": True,
     }
-    assert certified_deliverables(entries, stages, {"1": {"passed": False}}, species="velociraptor") == {
+    assert certified_deliverables(entries, stages, {"1": {"passed": False}}, model_id=VELOCIRAPTOR_MONGOLIENSIS) == {
         "2": False,
         "3": False,
     }
     # A stage cannot be both trained here and reused from another run.
     with pytest.raises(ResultSchemaError, match="both as a trained stage and as a reused ancestor"):
         certified_deliverables(
-            _entries("velociraptor"), {"1": True, "2": True, "3": True}, {"1": True}, species="velociraptor"
+            _entries(VELOCIRAPTOR_MONGOLIENSIS),
+            {"1": True, "2": True, "3": True},
+            {"1": True},
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
 
 
 def test_primary_is_the_target_when_certified_else_the_deepest_certified() -> None:
     deliverables = {"1": True, "recovery": False, "2": True, "3": False}
     # The hunt target failed: walk, the deepest certified, is published.
-    assert primary_deliverable_key(deliverables, species="trex", target="3") == "2"
-    assert primary_deliverable_key(deliverables, species="trex", target=3) == "2"
+    assert primary_deliverable_key(deliverables, model_id=TYRANNOSAURUS_REX, target="3") == "2"
+    assert primary_deliverable_key(deliverables, model_id=TYRANNOSAURUS_REX, target=3) == "2"
     # Walk targeted and certified: walk.
-    assert primary_deliverable_key(deliverables, species="trex", target="2") == "2"
+    assert primary_deliverable_key(deliverables, model_id=TYRANNOSAURUS_REX, target="2") == "2"
     # Only the stand recipe certified: recovery is deeper than stance along its chain.
-    assert primary_deliverable_key({"1": True, "recovery": True, "2": False}, species="trex", target=3) == "recovery"
+    assert (
+        primary_deliverable_key({"1": True, "recovery": True, "2": False}, model_id=TYRANNOSAURUS_REX, target=3)
+        == "recovery"
+    )
     # Nothing certified: no primary, so no summary.
-    assert primary_deliverable_key({"1": False, "2": False}, species="trex", target=3) is None
+    assert primary_deliverable_key({"1": False, "2": False}, model_id=TYRANNOSAURUS_REX, target=3) is None
 
 
 def test_bundle_status_is_target_aware() -> None:
-    assert bundle_status_for({"1": True, "2": True}, species="velociraptor", target="2") == "complete"
+    assert bundle_status_for({"1": True, "2": True}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="2") == "complete"
     # The same run aimed at hunt is partial: its target is absent.
-    assert bundle_status_for({"1": True, "2": True}, species="velociraptor", target="3") == "partial"
-    assert bundle_status_for({"1": True, "2": True}, species="velociraptor", target=None) == "partial"
-    assert bundle_status_for({"1": True, "2": False, "3": False}, species="velociraptor", target="3") == "partial"
+    assert bundle_status_for({"1": True, "2": True}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="3") == "partial"
+    assert bundle_status_for({"1": True, "2": True}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target=None) == "partial"
+    assert (
+        bundle_status_for({"1": True, "2": False, "3": False}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="3")
+        == "partial"
+    )
     # Every present deliverable certified and the target present: complete.
-    assert bundle_status_for({"1": True, "2": True, "3": True}, species="velociraptor", target="3") == "complete"
-    assert bundle_status_for({"1": False, "2": False, "3": False}, species="velociraptor", target="3") == "failed"
+    assert (
+        bundle_status_for({"1": True, "2": True, "3": True}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="3")
+        == "complete"
+    )
+    assert (
+        bundle_status_for(
+            {"1": False, "2": False, "3": False},
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            target="3",
+        )
+        == "failed"
+    )
 
 
 def test_a_run_with_no_deliverable_yet_but_every_stage_passing_is_partial() -> None:
     # The pre-Phase-A rule under a v1 / synthesized manifest (one deliverable,
     # the last advancing node): a passing stance-only run is partial, not failed.
-    assert bundle_status_for({}, species="velociraptor", target="3", stages={"1": True}) == "partial"
-    assert bundle_status_for({}, species="velociraptor", target="3", stages={"1": False}) == "failed"
+    assert bundle_status_for({}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="3", stages={"1": True}) == "partial"
+    assert bundle_status_for({}, model_id=VELOCIRAPTOR_MONGOLIENSIS, target="3", stages={"1": False}) == "failed"
 
 
-# ── The v4 canonical summary ─────────────────────────────────────────────
+# ── The v4 canonical summary, written at v5 ──────────────────────────────
 
 
-def _canonical_summary_v4() -> dict[str, Any]:
+def _canonical_summary_v5() -> dict[str, Any]:
+    """The canonical summary under the deliverable rules, at the writers' schema (v4 before decision D-D33)."""
     summary = deepcopy(_canonical_summary())
-    summary["schema_version"] = 4
+    summary["schema_version"] = RESULT_SCHEMA_VERSION
     provenance = summary["provenance"]
     provenance["deliverables"] = {
         key: {
@@ -156,9 +193,19 @@ def _fail_stage(summary: dict[str, Any], key: str) -> None:
 
 
 def test_v4_canonical_summary_validates_complete() -> None:
-    summary = _canonical_summary_v4()
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True)
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=False, require_publishable=True)
+    summary = _canonical_summary_v5()
+    validate_result_summary(
+        summary,
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        require_complete=True,
+        canonical_provenance=True,
+    )
+    validate_result_summary(
+        summary,
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        require_complete=False,
+        require_publishable=True,
+    )
 
 
 def test_v4_runtime_fields_extend_the_v3_tuple_without_changing_it() -> None:
@@ -172,9 +219,21 @@ def test_v4_runtime_fields_extend_the_v3_tuple_without_changing_it() -> None:
     }
 
 
-@pytest.mark.parametrize("field", ["deliverables", "primary_deliverable", "target_deliverable"])
+def test_v5_runtime_fields_are_the_v4_tuple_with_the_embodiment_after_the_species() -> None:
+    """Deliberately a NEW tuple (decision D-D33): the v3 and v4 tuples stay as they were."""
+    assert RESULT_SCHEMA_VERSION == 5
+    after_species = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4.index("species") + 1
+    assert CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 == (
+        CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[:after_species]
+        + ("embodiment",)
+        + CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[after_species:]
+    )
+    assert "embodiment" not in CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4
+
+
+@pytest.mark.parametrize("field", ["deliverables", "primary_deliverable", "target_deliverable", "embodiment"])
 def test_v4_canonical_provenance_requires_deliverables_primary_and_target(field: str) -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     del summary["provenance"][field]
 
     with pytest.raises(ResultSchemaError, match=rf"canonical provenance.*missing fields.*{field}"):
@@ -183,7 +242,7 @@ def test_v4_canonical_provenance_requires_deliverables_primary_and_target(field:
 
 def test_v4_primary_must_be_certified_never_the_failed_leaf() -> None:
     """Plan invariant 5: a failed hunt publishes walk; the leaf never headlines."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     _fail_stage(summary, "3")
     provenance = summary["provenance"]
     provenance["deliverables"]["3"]["certified"] = False
@@ -195,13 +254,13 @@ def test_v4_primary_must_be_certified_never_the_failed_leaf() -> None:
 
     validate_result_summary(
         summary,
-        expected_species="velociraptor",
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
         require_complete=False,
         require_publishable=True,
         canonical_provenance=True,
     )
     with pytest.raises(ResultSchemaError, match="bundle_status 'partial'"):
-        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=True)
 
     # Naming the failed leaf as the primary is refused.
     laundered = deepcopy(summary)
@@ -217,33 +276,33 @@ def test_v4_primary_must_be_certified_never_the_failed_leaf() -> None:
 
 
 def test_v4_certified_flag_cannot_be_laundered() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     _fail_stage(summary, "3")
     # The leaf failed but is recorded as certified.
     with pytest.raises(ResultSchemaError, match="recorded as certified, but its recorded verdicts"):
         validate_result_summary(summary, require_complete=False, require_publishable=True)
 
     # The mirror image: a node whose whole chain passed cannot be hidden either.
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["provenance"]["deliverables"]["3"]["certified"] = False
     with pytest.raises(ResultSchemaError, match="recorded as uncertified although"):
         validate_result_summary(summary, require_complete=False, require_publishable=True)
 
 
 def test_v4_bundle_status_must_match_the_deliverables_and_target() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["bundle_status"] = "partial"
     with pytest.raises(ResultSchemaError, match="bundle_status.*must be 'complete'"):
         validate_result_summary(summary, require_complete=False, require_publishable=True)
 
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["bundle_status"] = "certified"
     with pytest.raises(ResultSchemaError, match="bundle_status.*must be one of"):
         validate_result_summary(summary, require_complete=False)
 
 
 def test_v4_summary_with_no_certified_deliverable_is_not_publishable() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     for key in ("1", "2", "3"):
         _fail_stage(summary, key)
         summary["provenance"]["deliverables"][key]["certified"] = False
@@ -251,7 +310,7 @@ def test_v4_summary_with_no_certified_deliverable_is_not_publishable() -> None:
     summary["bundle_status"] = "failed"
 
     # A non-publishable stage subset still validates as such.
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=False)
+    validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=False)
     with pytest.raises(ResultSchemaError, match="records no certified deliverable"):
         validate_result_summary(summary, require_complete=False, require_publishable=True)
     with pytest.raises(ResultSchemaError):
@@ -259,14 +318,14 @@ def test_v4_summary_with_no_certified_deliverable_is_not_publishable() -> None:
 
 
 def test_v4_deliverables_must_record_every_deliverable_stage_the_summary_records() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     del summary["provenance"]["deliverables"]["2"]
     with pytest.raises(ResultSchemaError, match="must record every deliverable stage.*missing \\['2'\\]"):
         validate_result_summary(summary, require_complete=False, require_publishable=True)
 
 
 def test_v4_walk_only_summary_is_complete_when_walk_is_the_target() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     del summary["stages"]["3"]
     provenance = summary["provenance"]
     del provenance["selected_checkpoints"]["3"]
@@ -281,7 +340,12 @@ def test_v4_walk_only_summary_is_complete_when_walk_is_the_target() -> None:
         sum(float(stage.get("training_time_seconds") or 0.0) for stage in summary["stages"].values()), 1
     )
 
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True)
+    validate_result_summary(
+        summary,
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        require_complete=True,
+        canonical_provenance=True,
+    )
 
     # The same two stages aimed at hunt are partial: the target is absent.
     aimed_at_hunt = deepcopy(summary)
@@ -289,25 +353,28 @@ def test_v4_walk_only_summary_is_complete_when_walk_is_the_target() -> None:
     aimed_at_hunt["bundle_status"] = "partial"
     validate_result_summary(
         aimed_at_hunt,
-        expected_species="velociraptor",
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
         require_complete=False,
         require_publishable=True,
         canonical_provenance=True,
     )
     with pytest.raises(ResultSchemaError, match="bundle_status 'partial'"):
-        validate_result_summary(aimed_at_hunt, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(aimed_at_hunt, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=True)
 
 
 def test_v4_without_publication_flags_accepts_a_summary_without_deliverables() -> None:
     # A Colab run checked after each node, before anything is publishable.
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     del summary["provenance"]["deliverables"]
     del summary["provenance"]["primary_deliverable"]
     del summary["provenance"]["target_deliverable"]
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=False)
+    validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=False)
     with pytest.raises(ResultSchemaError, match="without provenance.deliverables"):
         validate_result_summary(
-            summary, expected_species="velociraptor", require_complete=False, require_publishable=True
+            summary,
+            expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            require_complete=False,
+            require_publishable=True,
         )
 
 
@@ -318,12 +385,15 @@ def test_require_publishable_equals_require_complete_below_v4() -> None:
     summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
     summary["final_avg_reward"] = summary["stages"]["2"]["final_eval_reward"]
 
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=False)
+    validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=False)
     with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
-        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(summary, expected_model_id=VELOCIRAPTOR_MONGOLIENSIS, require_complete=True)
     with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
         validate_result_summary(
-            summary, expected_species="velociraptor", require_complete=False, require_publishable=True
+            summary,
+            expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            require_complete=False,
+            require_publishable=True,
         )
 
 
@@ -333,7 +403,7 @@ def test_require_publishable_equals_require_complete_below_v4() -> None:
 def _canonical_publishable(summary: dict[str, Any]) -> dict[str, Any]:
     return validate_result_summary(
         summary,
-        expected_species="velociraptor",
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
         require_complete=False,
         require_publishable=True,
         canonical_provenance=True,
@@ -342,7 +412,7 @@ def _canonical_publishable(summary: dict[str, Any]) -> dict[str, Any]:
 
 def _walk_only_v4() -> dict[str, Any]:
     """The v4 canonical summary reduced to stance and walk, walk targeted."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     del summary["stages"]["3"]
     provenance = summary["provenance"]
     del provenance["selected_checkpoints"]["3"]
@@ -439,7 +509,7 @@ def _ancestor_record(**overrides: Any) -> dict[str, Any]:
     ],
 )
 def test_v4_deliverable_record_shape_is_fail_closed(mutate, message: str) -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     mutate(summary["provenance"]["deliverables"]["3"])
     with pytest.raises(ResultSchemaError, match=message):
         _canonical_publishable(summary)
@@ -453,9 +523,9 @@ def _with_second_run(record: dict[str, Any], *, run_id: str, training_seed: int)
 def test_v4_replication_with_two_runs_validates() -> None:
     """Seed replication (plan §4.5, D-B16): a record may list this run plus a replicate on another seed,
     and the D-B11 pair beside it — certification_seeds 2 with the count 2 is NOT provisional."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     record = summary["provenance"]["deliverables"]["3"]
-    _with_second_run(record, run_id="velociraptor-seed-43", training_seed=43)
+    _with_second_run(record, run_id="velociraptor_mongoliensis-anatomical-seed-43", training_seed=43)
     record.update({"certification_seeds": 2, "provisional": False})
     summary["provenance"]["deliverables"]["1"].update({"certification_seeds": 2, "provisional": True})
 
@@ -463,7 +533,10 @@ def test_v4_replication_with_two_runs_validates() -> None:
 
     records = validated["provenance"]["deliverables"]
     assert records["3"]["replication"]["count"] == 2
-    assert records["3"]["replication"]["runs"][1] == {"run_id": "velociraptor-seed-43", "training_seed": 43}
+    assert records["3"]["replication"]["runs"][1] == {
+        "run_id": "velociraptor_mongoliensis-anatomical-seed-43",
+        "training_seed": 43,
+    }
     assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (2, False)
     assert (records["1"]["certification_seeds"], records["1"]["provisional"]) == (2, True)
     assert not {"certification_seeds", "provisional"} & set(records["2"])
@@ -484,7 +557,7 @@ def test_v4_deliverable_record_optional_fields_validate_and_are_kept() -> None:
     )
     assert not set(OPTIONAL_DELIVERABLE_RECORD_FIELDS) & set(DELIVERABLE_RECORD_FIELDS)
     digest = "sha256:" + "d" * 64
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["provenance"]["deliverables"]["3"].update({"hyperparameters_sha256": digest, "label": "lr-sweep-a"})
     summary["provenance"]["deliverables"]["2"]["label"] = "walk-only"
 
@@ -508,7 +581,7 @@ def test_v4_deliverable_record_optional_fields_validate_and_are_kept() -> None:
 )
 def test_v4_wrong_typed_optional_deliverable_fields_are_refused(field: str, value: Any, message: str) -> None:
     """Optional means absent-or-valid: a present field of the wrong shape fails closed."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["provenance"]["deliverables"]["3"][field] = value
     with pytest.raises(ResultSchemaError, match=message):
         _canonical_publishable(summary)
@@ -516,7 +589,7 @@ def test_v4_wrong_typed_optional_deliverable_fields_are_refused(field: str, valu
 
 def test_v4_an_unknown_deliverable_field_is_still_refused_beside_the_optional_ones() -> None:
     """The optional set widens the record by exactly two names; anything else is still an error."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["provenance"]["deliverables"]["3"].update(
         {"hyperparameters_sha256": "sha256:" + "d" * 64, "label": "lr-sweep-a", "notes": "free text"}
     )
@@ -527,14 +600,21 @@ def test_v4_an_unknown_deliverable_field_is_still_refused_beside_the_optional_on
 def test_v4_rejects_a_deliverable_key_the_manifest_does_not_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Under a synthesized manifest only the last advancing node is a deliverable."""
+    """Under a v1 manifest only the last advancing node is a deliverable."""
     configs = tmp_path / "configs"
-    shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
-    (configs / "velociraptor" / "stages.toml").unlink()
+    model_dir = VELOCIRAPTOR_MONGOLIENSIS.path(configs)
+    shutil.copytree(VELOCIRAPTOR_MONGOLIENSIS.path(stage_manifest._CONFIGS_DIR), model_dir)
+    (model_dir / "stages.toml").write_text(
+        f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V1}"\n'
+        '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
+        '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\n'
+        '[[stages]]\nid = "behavior"\nconfig = "strike.toml"\nlegacy_number = 3\n',
+        encoding="utf-8",
+    )
     monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
-    assert [entry.id for entry in load_stage_manifest("velociraptor").deliverables] == ["behavior"]
+    assert [entry.id for entry in load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).deliverables] == ["behavior"]
 
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     with pytest.raises(ResultSchemaError, match="does not flag as a deliverable"):
         _canonical_publishable(summary)
 
@@ -596,7 +676,7 @@ def test_v4_ancestor_record_shape_is_fail_closed(mutate, message: str) -> None:
 
 
 def test_v4_a_stage_cannot_be_both_trained_and_a_reused_ancestor() -> None:
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     summary["provenance"]["ancestors"] = {"1": _ancestor_record()}
     with pytest.raises(ResultSchemaError, match="cannot be both trained here and reused"):
         _canonical_publishable(summary)
@@ -642,14 +722,19 @@ def test_v4_canonical_best_eval_reward_is_null_only_for_a_widened_root() -> None
     EvalCallback panel ``best_eval_reward`` summarizes — is the parent run's. The 2026-09-20 widen
     session died at its first bundle write on exactly this rule (the judged stance had no
     evaluations.npz), so the exemption is keyed on the deliverable record naming the parent run."""
-    summary = _canonical_summary_v4()
+    summary = _canonical_summary_v5()
     for key in ("best_eval_reward", "best_eval_std", "best_eval_step"):
         summary["stages"]["1"][key] = None
     with pytest.raises(ResultSchemaError, match="best_eval_reward must be a finite number.*widened_from_run_id"):
         validate_result_summary(summary, canonical_provenance=True)
 
     summary["provenance"]["deliverables"]["1"]["widened_from_run_id"] = "20260815_205206"
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True)
+    validate_result_summary(
+        summary,
+        expected_model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        require_complete=True,
+        canonical_provenance=True,
+    )
 
     # Per stage: a null on a stage that trained here is still missing evidence.
     trained_null = deepcopy(summary)

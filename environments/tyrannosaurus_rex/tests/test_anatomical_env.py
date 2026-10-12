@@ -1,0 +1,845 @@
+"""Species-specific tests for the T-Rex Gymnasium environment.
+
+Common env tests (spaces, reset, step, determinism, observation bounds) are in
+environments/shared/tests/test_species_integration.py.
+"""
+
+import mujoco
+import numpy as np
+import pytest
+
+from environments.shared.model_id import ModelId
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+
+
+@pytest.fixture
+def env():
+    e = TyrannosaurusRexAnatomicalEnv()
+    yield e
+    e.close()
+
+
+class TestHeadFloorTermination:
+    def test_head_geom_ids_cached(self, env):
+        """Head geom IDs should be resolved and present in termination sets."""
+        env.reset(seed=42)
+        for attr in ("skull_upper_geom_id", "snout_geom_id"):
+            gid = getattr(env, attr)
+            assert gid >= 0, f"{attr} was not resolved"
+            assert gid in env._body_ground_geoms
+            assert gid in env._head_ground_geoms
+
+    def test_head_floor_contact_terminates(self, env):
+        """Forcing the skull into the ground should terminate the episode."""
+        env.reset(seed=42)
+
+        # Pitch the T-Rex forward so the skull hits the floor
+        env.data.qpos[2] = 0.3  # lower pelvis
+        # Pitch pelvis forward aggressively via quaternion (w, x, y, z)
+        env.data.qpos[3] = 0.7071  # w
+        env.data.qpos[4] = 0.0  # x
+        env.data.qpos[5] = 0.7071  # y (90-deg pitch forward)
+        env.data.qpos[6] = 0.0  # z
+        mujoco.mj_forward(env.model, env.data)
+
+        terminated, info = env._is_terminated()
+        assert terminated, f"Expected termination but got info={info}"
+
+    def test_head_contact_reason_is_reported(self, env):
+        """When the skull contacts the floor the reason should be 'head_contact'."""
+        env.reset(seed=42)
+
+        # Pitch forward so skull slams into the ground while pelvis stays in healthy range
+        neck_jid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, "neck_pitch")
+        head_jid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, "head_pitch")
+        neck_qadr = env.model.jnt_qposadr[neck_jid]
+        head_qadr = env.model.jnt_qposadr[head_jid]
+        env.data.qpos[neck_qadr] = -0.52  # pitch neck downward (radians)
+        env.data.qpos[head_qadr] = -0.44  # pitch head downward
+
+        mujoco.mj_step(env.model, env.data)
+        mujoco.mj_forward(env.model, env.data)
+
+        terminated, info = env._is_terminated()
+        if terminated and "termination_reason" in info:
+            assert info["termination_reason"] in (
+                "head_contact",
+                "torso_contact",
+                "tail_contact",
+                "fallen",
+                "excessive_tilt",
+                "nosedive",
+            )
+
+
+class TestTyrannosaurusRexSpecific:
+    """T-Rex-specific reward component tests."""
+
+    def test_bite_not_triggered_initially(self, env):
+        """Prey is far away on first step."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["bite_success"] == 0.0
+        assert info["reward_bite"] == 0.0
+
+    def test_height_reward_non_negative(self, env):
+        """Height reward should be non-negative (bonus for staying upright)."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["reward_height"] >= 0.0
+
+    def test_nosedive_penalty_non_positive(self, env):
+        """Nosedive penalty should be non-positive."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["reward_nosedive"] <= 0.0
+
+
+class TestNominalPoseActionScaling:
+    """T-Rex actions are residuals around the complete XML home controls."""
+
+    def test_reset_and_action_origin_use_same_named_home_keyframe(self, env):
+        assert env._reset_keyframe_id == env.home_keyframe_id
+
+    def test_zero_action_maps_exactly_to_home_controls(self, env):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        np.testing.assert_array_equal(
+            env._scale_action(action),
+            env.model.key_ctrl[env.home_keyframe_id],
+        )
+
+    def test_action_endpoints_retain_full_control_range(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+        np.testing.assert_allclose(
+            env._scale_action(-np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 0],
+            atol=1e-12,
+        )
+        np.testing.assert_allclose(
+            env._scale_action(np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 1],
+            atol=1e-12,
+        )
+
+    def test_piecewise_mapping_interpolates_on_each_side_of_home(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+        home_ctrl = env.model.key_ctrl[env.home_keyframe_id]
+
+        below = env._scale_action(np.full(env.action_space.shape, -0.5, dtype=np.float32))
+        above = env._scale_action(np.full(env.action_space.shape, 0.5, dtype=np.float32))
+
+        np.testing.assert_allclose(below, (ctrl_range[:, 0] + home_ctrl) / 2.0, atol=1e-12)
+        np.testing.assert_allclose(above, (home_ctrl + ctrl_range[:, 1]) / 2.0, atol=1e-12)
+
+    def test_zero_residual_keeps_energy_and_smoothness_penalties_zero(self, env):
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+
+        _, _, terminated, truncated, first_info = env.step(action)
+        assert not terminated
+        assert not truncated
+        _, _, _, _, second_info = env.step(action)
+
+        assert first_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_smoothness"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)
+
+
+def _true_floor_force_per_foot(env) -> dict[str, float]:
+    """Sum the real floor normal force under each foot, straight from contacts."""
+    floor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    totals = {"r": 0.0, "l": 0.0}
+    for index in range(env.data.ncon):
+        contact = env.data.contact[index]
+        if floor_id not in (contact.geom1, contact.geom2):
+            continue
+        other = contact.geom2 if contact.geom1 == floor_id else contact.geom1
+        name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, other) or ""
+        side = name[:1]
+        if side in totals:
+            force = np.zeros(6)
+            mujoco.mj_contactForce(env.model, env.data, index, force)
+            totals[side] += float(force[0])
+    return totals
+
+
+class TestFootContactSensors:
+    """Touch observations must measure plantar-floor load, not self-contact."""
+
+    def test_every_load_bearing_foot_body_carries_a_touch_sensor(self, env):
+        """A touch sensor only sums geoms on its site's own body.
+
+        The digits are child bodies of the metatarsus, so the plantar site
+        cannot see them however large it is made.  Each load-bearing body
+        therefore needs its own sensor.
+        """
+        for side in ("r", "l"):
+            sensor_bodies = set()
+            for name in (
+                f"{side}_foot_touch",
+                f"{side}_toe_d2_touch",
+                f"{side}_toe_d3_touch",
+                f"{side}_toe_d4_touch",
+            ):
+                sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                assert sensor_id >= 0, f"missing touch sensor {name}"
+                sensor_bodies.add(int(env.model.site_bodyid[env.model.sensor_objid[sensor_id]]))
+
+            for geom_name in (
+                f"{side}_plantar_geom",
+                f"{side}_toe_d2_geom",
+                f"{side}_toe_d3_geom",
+                f"{side}_toe_d4_geom",
+            ):
+                geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_name)
+                body_id = int(env.model.geom_bodyid[geom_id])
+                assert body_id in sensor_bodies, (
+                    f"{geom_name} bears load on a body with no touch sensor; "
+                    "its contacts would be invisible to the foot-contact signal"
+                )
+
+    def test_sensors_account_for_all_floor_force_at_settled_stance(self):
+        """The summed reading must equal the force the foot really transmits.
+
+        A pad-only reading also passes a ``> 0`` check, which is how the
+        digits went unmeasured after they were made load-bearing, so assert
+        against the measured contact forces instead of a threshold.
+        """
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            info = {}
+            for _ in range(200):
+                _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                assert not terminated
+
+            truth = _true_floor_force_per_foot(env)
+            assert truth["r"] > 1.0, "right foot carries no measurable load at stance"
+            assert truth["l"] > 1.0, "left foot carries no measurable load at stance"
+            assert info["r_foot_contact"] == pytest.approx(truth["r"], rel=1e-6)
+            assert info["l_foot_contact"] == pytest.approx(truth["l"], rel=1e-6)
+
+            # Guard the specific regression: the pad alone must not be
+            # mistaken for the whole foot while the digits bear load.
+            pad_only = float(env.data.sensordata[env._sensor_r_foot])
+            assert pad_only < truth["r"], (
+                "digits carry no load at stance, so this test can no longer detect a pad-only foot-contact signal"
+            )
+        finally:
+            env.close()
+
+    def test_sensors_read_zero_airborne(self):
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
+            env.data.qpos[2] += 1.0
+            mujoco.mj_forward(env.model, env.data)
+            for _ in range(10):
+                mujoco.mj_step(env.model, env.data)
+            for side in ("r", "l"):
+                for name in (
+                    f"{side}_foot_touch",
+                    f"{side}_toe_d2_touch",
+                    f"{side}_toe_d3_touch",
+                    f"{side}_toe_d4_touch",
+                ):
+                    sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                    sensor_address = env.model.sensor_adr[sensor_id]
+                    assert env.data.sensordata[sensor_address] == pytest.approx(0.0, abs=1e-9)
+            assert env._foot_contact_forces() == pytest.approx((0.0, 0.0), abs=1e-9)
+        finally:
+            env.close()
+
+    def test_observation_foot_contact_dims_are_live(self):
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            obs = None
+            for _ in range(200):
+                obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                assert not terminated
+            # foot contacts sit before direction (3) + distance (1) + command (3).
+            foot_dims = obs[-9:-7]
+            assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
+            truth = _true_floor_force_per_foot(env)
+            assert foot_dims[0] == pytest.approx(truth["r"], rel=1e-5)
+            assert foot_dims[1] == pytest.approx(truth["l"], rel=1e-5)
+        finally:
+            env.close()
+
+    def test_adjacent_digits_do_not_self_contact_at_home(self, env):
+        env.reset(seed=0)
+        adjacent_pairs = {
+            frozenset(
+                (
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d2_geom"),
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d3_geom"),
+                )
+            )
+            for side in ("r", "l")
+        } | {
+            frozenset(
+                (
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d3_geom"),
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d4_geom"),
+                )
+            )
+            for side in ("r", "l")
+        }
+        actual_pairs = {
+            frozenset((env.data.contact[index].geom1, env.data.contact[index].geom2)) for index in range(env.data.ncon)
+        }
+        assert adjacent_pairs.isdisjoint(actual_pairs)
+
+
+class TestFootContactForceSummationOrder:
+    """The shared ``_foot_contact_forces`` adds each group's pad to the running sum of the rest.
+
+    ``pad + (d1 + d2 + d3)`` is the association the retired T-Rex override used, and the
+    recorded T-Rex forces depend on it: summing left to right from zero instead moved 87
+    exact digest lines, all T-Rex.  The sensordata items must also reach ``sum()`` as
+    ``np.float64``: from Python 3.12 ``sum()`` compensates exact ``float`` items, which
+    a per-item ``float()`` or ``.tolist()`` would hand it.  Exact equality throughout.
+    """
+
+    def test_tyrannosaurus_rex_four_sensor_feet_add_the_pad_to_the_digit_sum(self, env):
+        env.reset(seed=0)
+        right, left = env._foot_sensor_groups
+        assert len(right) == len(left) == 4, "the T-Rex feet are a pad plus three digit sensors"
+        sensordata = env.data.sensordata
+        # pad + (((0 + 1e-16) + 1e-16) + 0.0) rounds up to the next float after 1.0;
+        # from zero, (((0 + 1.0) + 1e-16) + 1e-16) + 0.0 rounds back down to 1.0 at every step.
+        for index, value in zip(right, (1.0, 1e-16, 1e-16, 0.0), strict=True):
+            sensordata[index] = value
+        # 0.0 + ((1.0 + 1e-16) + 1e-16) is 1.0 when the digits are summed plainly;
+        # a compensated sum of Python floats gives the next float after 1.0.
+        for index, value in zip(left, (0.0, 1.0, 1e-16, 1e-16), strict=True):
+            sensordata[index] = value
+
+        forces = env._foot_contact_forces()
+
+        assert forces == (1.0000000000000002, 1.0)
+        assert all(type(force) is float for force in forces)
+
+    def test_brachiosaurus_altithorax_two_sensor_legs_add_pad_and_meta_in_group_order(self):
+        from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+
+        env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            groups = env._foot_sensor_groups
+            assert [len(group) for group in groups] == [2, 2, 2, 2], "each leg is a pad plus a meta sensor"
+            readings = ((0.1, 0.2), (1.0, 1e-16), (2.5, 0.0), (0.0, 3.0))
+            for group, values in zip(groups, readings, strict=True):
+                for index, value in zip(group, values, strict=True):
+                    env.data.sensordata[index] = value
+
+            # fr, fl, rr, rl: each the pad + meta sum the retired override returned.
+            assert env._foot_contact_forces() == (0.30000000000000004, 1.0, 2.5, 3.0)
+        finally:
+            env.close()
+
+
+class TestHeightTargetTracksStance:
+    """The height-maintenance reward must have gradient at the operating point.
+
+    ``target_z`` is a measured constant: it has to track the plant's settled
+    stance.  It did not, and that is how it went stale.  The pre-repair T-Rex
+    stood at 0.90 m; the July 2026 home-equilibrium fix raised the stance to
+    0.9757 m and nothing updated the target, so ``height_frac`` clipped to 1.0
+    everywhere in the healthy band.  The term became a flat constant worth 39%
+    of stage-1 and 10% of stage-2 return while shaping nothing -- measured on
+    run 20260725_194916 as ``reward_height`` = 0.9995/step against
+    ``height_weight`` = 1.0.
+
+    These assert the property rather than the literal, so they stay valid if
+    the plant moves again.  (A cross-species version is blocked on the
+    brachiosaurus stance bug: its target is 1.2 m against a settled 1.078 m.)
+    """
+
+    @staticmethod
+    def _height_reward_at(env, pelvis_z: float) -> float:
+        # ``env`` is left untyped to match the rest of this module: annotating
+        # it resolves ``action_space.shape`` to ``tuple[int, ...] | None``,
+        # which then fails the np.zeros and step() calls below. The explicit
+        # float() on the return is what keeps mypy happy about the Any.
+        mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
+        # xpos is only populated by mj_forward, so resolve the current pelvis
+        # height before differencing against the target.
+        mujoco.mj_forward(env.model, env.data)
+        env.data.qpos[2] += pelvis_z - float(env.data.xpos[env.pelvis_id, 2])
+        mujoco.mj_forward(env.model, env.data)
+        assert float(env.data.xpos[env.pelvis_id, 2]) == pytest.approx(pelvis_z, abs=1e-6)
+        _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        return float(info["reward_height"])
+
+    @staticmethod
+    def _settled_height(env) -> float:
+        env.reset(seed=0)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        for _ in range(300):
+            env.step(action)
+        return float(env.data.xpos[env.pelvis_id, 2])
+
+    def test_reward_is_saturated_at_the_settled_stance(self):
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            settled = self._settled_height(env)
+            reward = self._height_reward_at(env, settled)
+            # Near-full rather than exactly 1.0: the target sits a hair above
+            # the settled stance, which leaves a sliver of headroom instead of
+            # clipping. Anything well below 1.0 means the target is too high.
+            assert 0.99 <= reward <= 1.0, (
+                f"a correctly standing T-Rex should earn essentially the full height reward, got {reward:.4f} "
+                f"at the settled stance {settled:.4f}"
+            )
+        finally:
+            env.close()
+
+    def test_reward_still_has_gradient_below_the_settled_stance(self):
+        """The regression: a target below the stance flattens the whole band."""
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            settled = self._settled_height(env)
+            floor = env.healthy_z_range[0]
+            # Sample the healthy band between the fallen floor and the stance.
+            sagged = [settled - f * (settled - floor) for f in (0.25, 0.5, 0.75)]
+            rewards = [self._height_reward_at(env, z) for z in sagged]
+            assert all(r < 1.0 for r in rewards), (
+                f"height reward is saturated while sagging ({rewards} at {sagged}) -- target_z is "
+                f"below the settled stance {settled:.4f}, so the term is a constant, not a gradient"
+            )
+            assert rewards[0] > rewards[1] > rewards[2], (
+                f"height reward must fall monotonically as the pelvis sags, got {rewards}"
+            )
+        finally:
+            env.close()
+
+
+class TestSettledPoseTargetsTrackTheStatue:
+    """The settled-pose reward targets are measured constants, like ``target_z``.
+
+    ``_NECK_SETTLED_QPOS`` (the neck term under ``neck_posture_reference =
+    "settled"``) and ``_TAIL_SETTLED_QPOS`` are the noise-free statue's pose
+    over the post-settle window, measured on physics r8 and carried on r9
+    (inside the tolerances below).  Nothing derives them from the plant at
+    run time, so a gain, spring or mass edit that moves the
+    neck or tail would silently re-centre the statue off its own targets; this
+    re-measures them instead, as TestHeightTargetTracksStance does for the
+    height target that went stale exactly that way.
+    """
+
+    SETTLE_STEPS = 200
+    HORIZON = 1000
+
+    @classmethod
+    def _post_settle_means(cls) -> tuple[np.ndarray, np.ndarray]:
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            action = np.zeros(env.model.nu, dtype=np.float32)
+            neck, tail = [], []
+            for step in range(cls.HORIZON):
+                _, _, terminated, _, _ = env.step(action)
+                assert not terminated
+                if step >= cls.SETTLE_STEPS:
+                    neck.append(env.data.qpos[env._neck_home_qpos_indices].copy())
+                    tail.append(env.data.qpos[env._tail_home_qpos_indices].copy())
+            return np.mean(neck, axis=0), np.mean(tail, axis=0)
+        finally:
+            env.close()
+
+    def test_settled_targets_are_the_statues_post_settle_pose(self):
+        neck, tail = self._post_settle_means()
+        # Measured 0.21432 / 0.0 / 0.21963 (to 3e-7) and -0.21069 / 0.0 /
+        # -0.20280 / -0.09252 on r8, 0.21431 / 0.0 / 0.21968 and -0.21069 /
+        # 0.0 / -0.20274 / -0.09249 on r9; the 40-seed spread at reset noise
+        # 0.05 is under 2e-4 rad.
+        np.testing.assert_allclose(neck, TyrannosaurusRexAnatomicalEnv._NECK_SETTLED_QPOS, atol=1e-4)
+        np.testing.assert_allclose(tail, TyrannosaurusRexAnatomicalEnv._TAIL_SETTLED_QPOS, atol=5e-4)
+
+
+class TestEveryHeadingIsPhysicallyIdentical:
+    """Physics r9 (plant_versions note 16): the friction cone is elliptic.
+
+    The plantar pads are boxes, whose contact tangent frames stay on the world
+    axes whichever way the animal faces, and MuJoCo's default pyramidal cone
+    is weaker between those axes.  On r8 a 45 deg turn of the whole scene was
+    therefore a small physical perturbation as well as an observation change:
+    under the random commands below it separated the joints by 7.7e-2 rad.
+    The elliptic cone is isotropic, so the turned run repeats the unturned one
+    to rounding error (4.8e-14 rad measured).  Raw MuJoCo on the env's model:
+    nothing but the physics is compared.
+    """
+
+    STEPS = 2000
+    HOLD_STEPS = 10  # physics steps each random command is held
+    AMPLITUDE = 0.15  # of each actuator's half range, about the home ctrl
+
+    def test_the_model_declares_the_elliptic_cone(self, env):
+        assert env.model.opt.cone == mujoco.mjtCone.mjCONE_ELLIPTIC
+
+    @classmethod
+    def _joint_trajectory(cls, model, yaw_deg: float) -> np.ndarray:
+        """Joint qpos per step from the home keyframe, the root and the prey turned *yaw_deg* about world z."""
+        data = mujoco.MjData(model)
+        mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
+        half = np.radians(yaw_deg) / 2
+        turn = np.array([np.cos(half), 0.0, 0.0, np.sin(half)])
+        root = np.zeros(4)
+        mujoco.mju_mulQuat(root, turn, data.qpos[3:7].copy())
+        data.qpos[3:7] = root
+        pivot = data.qpos[:2].copy()
+        cos, sin = np.cos(2 * half), np.sin(2 * half)
+        for body in range(model.nmocap):
+            offset = data.mocap_pos[body, :2] - pivot
+            data.mocap_pos[body, :2] = pivot + [cos * offset[0] - sin * offset[1], sin * offset[0] + cos * offset[1]]
+            mocap = np.zeros(4)
+            mujoco.mju_mulQuat(mocap, turn, data.mocap_quat[body].copy())
+            data.mocap_quat[body] = mocap
+        mujoco.mj_forward(model, data)
+        rng = np.random.default_rng(0)
+        low, high = model.actuator_ctrlrange[:, 0], model.actuator_ctrlrange[:, 1]
+        home = model.key("home").ctrl.copy()
+        rows = []
+        for step in range(cls.STEPS):
+            if step % cls.HOLD_STEPS == 0:
+                noise = rng.uniform(-cls.AMPLITUDE, cls.AMPLITUDE, model.nu) * (high - low) / 2
+                data.ctrl[:] = np.clip(home + noise, low, high)
+            mujoco.mj_step(model, data)
+            rows.append(data.qpos[7:].copy())
+        return np.array(rows)
+
+    def test_a_45_degree_whole_scene_turn_reproduces_the_joints(self, env):
+        straight = self._joint_trajectory(env.model, 0.0)
+        turned = self._joint_trajectory(env.model, 45.0)
+        np.testing.assert_allclose(turned, straight, rtol=0, atol=1e-10)
+
+
+class TestStage1ResetStaysInsideTheHealthyEnvelope:
+    """No stage-1 seed may start already terminated.
+
+    Dibothrosuchus hit this first and fixed it by decoupling
+    ``reset_height_noise_scale`` from the radian-scale joint noise.  T-Rex was
+    left coupled, and at the then-current ``reset_noise_scale = 0.10`` its
+    0.926 m home pelvis sat only 0.226 m — 2.26 sigma — above the 0.70 m floor,
+    so 1.19% of spawns landed below it.  Measured over seeds 3042-5041 before
+    the fix: 18/2000 spawned sub-floor and 16 terminated on step 1 whatever the
+    policy did.  That is the direct cause of the 39/40 evaluation panels, and it
+    caps any reliability gate below the level a stance gate needs to certify.
+
+    Two things have since moved and this test outlives both, which is why it
+    reads the shipped config rather than a literal: stage 1 now runs at 0.05
+    (PLANT_VALIDATION section 12), and root height is no longer sampled at all
+    — the ground settle derives it from the sampled joint pose, leaving the
+    whole height-jitter channel state-inert (see KNOWN_ISSUES).  The invariant
+    asserted here — no seed starts already terminated — is what must hold
+    regardless.
+    """
+
+    def test_stage1_reset_never_spawns_out_of_bounds(self):
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1)["env_kwargs"]
+        kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+        try:
+            low, high = env.healthy_z_range
+            for seed in range(3042, 3242):
+                env.reset(seed=seed)
+                pelvis_z = float(env.data.qpos[2])
+                assert low < pelvis_z < high, f"seed {seed} spawned at {pelvis_z:.4f} m, outside [{low}, {high}]"
+                terminated, info = env._is_terminated()
+                assert not terminated, f"seed {seed} starts terminated: {info.get('termination_reason')}"
+        finally:
+            env.close()
+
+    def test_seed_3077_is_no_longer_terminal_on_the_first_step(self):
+        """The specific seed that produced the first failure of a 40-episode panel."""
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1)["env_kwargs"]
+        kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+        try:
+            env.reset(seed=3077)
+            assert float(env.data.qpos[2]) > env.healthy_z_range[0]
+            _, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape))
+            assert not terminated, "seed 3077 must survive one zero-action step"
+        finally:
+            env.close()
+
+
+class TestSubstepContactAggregation:
+    """The duty signal must see every physics substep, not one in frame_skip.
+
+    Physics runs at 500 Hz, control at 100 Hz.  Before the substep-MIN
+    aggregation, every contact consumer read only the final substep, so a
+    control-clock-locked hop could unload for 4 of every 5 substeps and
+    still read as continuous support -- the seed-43 stage-1 bounce measured
+    exactly one unloaded sample per 5 and the gate certified a sampled duty,
+    not airborne time.
+    """
+
+    def test_info_carries_the_min_across_substeps_and_catches_hidden_unloading(self):
+        """Two pins in one rollout: info == min(per-substep sums) exactly, and
+        the aggregate catches unloading the boundary sample misses."""
+
+        class UnfilteredTyrannosaurusRexAnatomicalEnv(TyrannosaurusRexAnatomicalEnv):
+            # The witness drive below is a 20 Hz control-clock-locked hop
+            # tuned on the unfiltered plant; the r11 command low-pass would
+            # attenuate it ~2.2x and hide the very unloading this regression
+            # guards.  The aggregation machinery under test is independent
+            # of the filter, so probe it with the filter off.
+            action_filter_cutoff_hz = 0.0
+
+        env = UnfilteredTyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            substep_forces: list[tuple[float, float]] = []
+            env._substep_probe_hook = lambda: substep_forces.append(env._foot_contact_forces())
+
+            # Settle, then drive a control-clock-locked hop (period 5 control
+            # steps = 20 Hz): the cycle is commensurate with frame_skip=5, the
+            # regime where boundary sampling aliases.
+            for _ in range(200):
+                _, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                if terminated:
+                    pytest.fail("statue fell during settle")
+
+            # Amplitude tuned empirically (mujoco 3.10, seed 0): 0.3 survives
+            # ~157 steps and yields 9 caught events; 0.9 dies at step 36 with
+            # a single-event margin that any solver drift could delete.
+            caught = 0
+            for t in range(400):
+                action = np.full(env.action_space.shape, 0.3 * np.sin(2 * np.pi * t / 5.0), dtype=np.float32)
+                substep_forces.clear()
+                _, _, terminated, _, info = env.step(action)
+
+                assert len(substep_forces) == env.frame_skip
+                r_min = min(f[0] for f in substep_forces)
+                l_min = min(f[1] for f in substep_forces)
+                assert info["r_foot_contact"] == pytest.approx(r_min, abs=1e-9)
+                assert info["l_foot_contact"] == pytest.approx(l_min, abs=1e-9)
+
+                # Boundary sample = the final substep's instantaneous read --
+                # what the pre-aggregation metric consumed.
+                r_last, l_last = substep_forces[-1]
+                boundary_supported = r_last > 0.1 and l_last > 0.1
+                aggregated_unsupported = info["r_foot_contact"] <= 0.1 and info["l_foot_contact"] <= 0.1
+                if boundary_supported and aggregated_unsupported:
+                    caught += 1
+                if terminated:
+                    break
+
+            # Structurally zero before the aggregation existed: info equalled
+            # the boundary sample, so no step could diverge.  Measured 9 at
+            # the tuned drive; >= 3 leaves solver-drift headroom while still
+            # proving the mechanism fires repeatedly, not by fluke.
+            assert caught >= 3, (
+                f"only {caught} control steps unloaded between boundary samples in "
+                "this rollout -- the aggregation regression has lost its witness; "
+                "retune the drive before trusting the duty metric"
+            )
+        finally:
+            env._substep_probe_hook = None
+            env.close()
+
+    def test_statue_duty_is_unchanged_by_aggregation(self):
+        """The statue stands continuously: MIN across substeps must not move
+        its duty, and its per-foot drift from the boundary sample stays small."""
+        from environments.shared.stance_diagnostics import derive_stance_info
+
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            zeros = np.zeros(env.action_space.shape, dtype=np.float32)
+            for _ in range(200):
+                _, _, terminated, _, _ = env.step(zeros)
+                assert not terminated
+            for _ in range(200):
+                _, _, terminated, _, info = env.step(zeros)
+                assert not terminated
+                stance = derive_stance_info(info)
+                assert stance["unsupported_duty"] == 0.0
+                assert stance["bilateral_support_duty"] == 1.0
+                # The MIN property itself, not a ripple bound: a future plant
+                # (e.g. passive toes) may legitimately oscillate within the
+                # control step while both feet stay far above the duty
+                # threshold, and the claim under test is the duty invariants.
+                r_last, l_last = env._foot_contact_forces()
+                assert info["r_foot_contact"] <= r_last + 1e-9
+                assert info["l_foot_contact"] <= l_last + 1e-9
+        finally:
+            env.close()
+
+    def test_aggregate_is_invalidated_by_reset(self):
+        """The first observation of an episode must not inherit the previous
+        episode's minima.  Invalidation rides the step-count tag rather than
+        code in reset(): reset()'s source is fingerprinted by the plant
+        contract's home_reset interface, and it already zeroes _step_count."""
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert env._substep_min_foot_forces is not None
+            assert env._substep_contact_step == env._step_count
+            # Arm the strike latch as a striking episode would have left it --
+            # a zero-action statue never strikes, so without this the latch
+            # half of the pin would be vacuous.
+            env._substep_floor_hit_geom = next(iter(env._body_ground_geoms))
+            env._substep_contact_step = env._step_count
+            env.reset(seed=1)
+            # The stale aggregate's tag no longer matches the zeroed count,
+            # so the accessor falls back to the instantaneous read.
+            assert env._substep_contact_step != env._step_count
+            assert env._aggregated_foot_contact_forces() == env._foot_contact_forces()
+            # The stale strike latch must not terminate the fresh episode.
+            terminated, _ = env._is_terminated()
+            assert not terminated
+        finally:
+            env.close()
+
+
+class TestSubstepHeightTermination:
+    """Height terminations must see every physics substep, like contact does.
+
+    These pin the any-substep height termination: the step loop
+    records each declared entity's MIN z, and _is_terminated consumes it by
+    declaration index while the info keys keep the boundary sample.
+    """
+
+    def test_min_heights_track_the_probe_and_the_declaration_order(self):
+        """env._substep_min_heights == per-substep elementwise min of
+        (head_tip_z, skull_z), in the declared order."""
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            substep_heights: list[tuple[float, float]] = []
+            env._substep_probe_hook = lambda: substep_heights.append(
+                (
+                    float(env.data.site_xpos[env.head_tip_site_id, 2]),
+                    float(env.data.xpos[env.skull_body_id, 2]),
+                )
+            )
+            for t in range(20):
+                action = np.full(env.action_space.shape, 0.3 * np.sin(2 * np.pi * t / 5.0), dtype=np.float32)
+                substep_heights.clear()
+                env.step(action)
+                assert len(substep_heights) == env.frame_skip
+                assert env._substep_min_heights is not None
+                assert env._substep_min_heights[0] == pytest.approx(min(h[0] for h in substep_heights), abs=1e-12)
+                assert env._substep_min_heights[1] == pytest.approx(min(h[1] for h in substep_heights), abs=1e-12)
+        finally:
+            env._substep_probe_hook = None
+            env.close()
+
+    def test_between_sample_dip_terminates_while_boundary_reads_healthy(self):
+        """A substep-only dip must terminate with the per-check reason even
+        when the boundary sample is healthy -- the direction the boundary
+        scan could never see.  The aggregate is armed by hand because a
+        statue never dips; the witness that real rollouts populate it is the
+        probe test above."""
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+
+            boundary_head = float(env.data.site_xpos[env.head_tip_site_id, 2])
+            boundary_skull = float(env.data.xpos[env.skull_body_id, 2])
+            assert boundary_head > 0.12 and boundary_skull > 0.45
+
+            # Index 0 = head_tip site check.
+            env._substep_min_heights = np.array([0.11, boundary_skull])
+            env._substep_contact_step = env._step_count
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "head_contact"
+            assert info["head_tip_z"] == pytest.approx(boundary_head)
+
+            # Index 1 = skull body check.
+            env._substep_min_heights = np.array([boundary_head, 0.44])
+            env._substep_contact_step = env._step_count
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "skull_low"
+        finally:
+            env.close()
+
+    def test_reset_invalidates_the_height_aggregate(self):
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            env._substep_min_heights = np.array([0.0, 0.0])
+            env._substep_contact_step = env._step_count
+            env.reset(seed=1)
+            terminated, info = env._is_terminated()
+            assert not terminated, f"stale height aggregate terminated a fresh episode: {info}"
+        finally:
+            env.close()
+
+
+class TestFootSensorGroupLockstep:
+    """Each dual-backend species' SB3 _foot_sensor_groups must mirror its frozen MJX registration.
+
+    The registration (D-D17 frozen core) feeds the plant contract's MJX
+    observation probe; if the two declarations drift, the probe and the SB3
+    env read different foot sensors.  Built from the registered MJX config, so
+    a new species or an index edit on either side fails here.  Velociraptor
+    left the frozen core as SB3-only at its policy-interface revision 11
+    (plant_versions note 14), when its foot groups gained the metatarsus and
+    digit-4 sensors its registration never had, and the T-Rex at its revision
+    14 (note 18), whose heading-free observation the frozen builder cannot
+    produce; the plant contract now records the T-Rex's per-foot sensor
+    groups by name in its foot_contact segment instead."""
+
+    @pytest.mark.parametrize(
+        "model_id, env_factory",
+        [
+            (
+                ModelId("brachiosaurus_altithorax", "anatomical"),
+                lambda: __import__(
+                    "environments.brachiosaurus_altithorax.anatomical.env",
+                    fromlist=["BrachiosaurusAltithoraxAnatomicalEnv"],
+                ).BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0),
+            ),
+            (
+                ModelId("dibothrosuchus_elaphros", "anatomical"),
+                lambda: __import__(
+                    "environments.dibothrosuchus_elaphros.anatomical.env",
+                    fromlist=["DibothrosuchusElaphrosAnatomicalEnv"],
+                ).DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.0),
+            ),
+        ],
+        ids=["brachiosaurus_altithorax-anatomical", "dibothrosuchus_elaphros-anatomical"],
+    )
+    def test_sb3_groups_match_mjx_registration(self, model_id, env_factory):
+        import importlib
+
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+
+        # Registration happens at mjx_config import time; the SB3 env class
+        # never imports it, so pull it in explicitly (idempotent).
+        importlib.import_module(f"{model_id.package}.mjx_config")
+        config = _SPECIES_CONFIGS[model_id.species]
+
+        foot_indices = config["sensor_foot_indices"]
+        aux_groups = config.get("sensor_foot_aux_indices", ()) or ()
+        expected = tuple(
+            (foot_idx, *(aux_groups[i] if i < len(aux_groups) else ())) for i, foot_idx in enumerate(foot_indices)
+        )
+
+        def norm(groups):
+            return tuple(tuple(int(i) for i in group) for group in groups)
+
+        env = env_factory()
+        try:
+            assert norm(env._foot_sensor_groups) == norm(expected)
+        finally:
+            env.close()

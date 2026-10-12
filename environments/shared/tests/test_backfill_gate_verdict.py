@@ -26,6 +26,7 @@ import pytest
 
 from environments.shared.config import load_all_stages
 from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import GATE_VERDICT_FILENAME, read_gate_verdict, sha256_file
 from environments.shared.scripts.backfill_gate_verdict import (
     BACKFILL_JUDGED_BY,
@@ -36,6 +37,7 @@ from environments.shared.scripts.backfill_gate_verdict import (
 )
 
 TASK = "sha256:" + "5" * 64
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 
 #: The block the fixture directory recorded as its ``[curriculum]``: a
 #: ``reward_and_length/v1`` gate the evidence below passes, plus schedule
@@ -63,12 +65,19 @@ TASK_SUCCESS_CURRICULUM: dict[str, Any] = {
 }
 
 
-def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evidence: bool = True) -> Path:
+def _stage_dir(
+    tmp_path: Path,
+    *,
+    curriculum: dict[str, Any] | None = None,
+    evidence: bool = True,
+    model_id: ModelId = DIBOTHROSUCHUS_ELAPHROS,
+) -> Path:
     """A dibothrosuchus stance directory as a pre-Phase-A run left it: config, handoff pair, evidence.
 
     Dibothrosuchus because its stance still declares ``reward_and_length/v1``, the kind ``--gate current``
     re-judges this evidence under; the velociraptor stance these tests used moved to ``stance_quality/v2``
-    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.
+    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.  *model_id* names
+    another model in ``stage_config.json``.
     """
     stage_dir = tmp_path / "20260801_120000" / "stage1"
     models = stage_dir / "models"
@@ -80,7 +89,7 @@ def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evid
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
-                "species": "dibothrosuchus",
+                **model_id.record(),
                 "stage": 1,
                 "name": "Balance",
                 "description": "Stand",
@@ -147,7 +156,8 @@ def _stance_report(curriculum: dict[str, Any], *, mean_reward: float = 1950.0, t
     """A ``stance_gate_report.json`` as ``reporting.stance_report`` writes it: a PASS scored under *curriculum*."""
     report: dict[str, Any] = {
         "schema": "mesozoic.stance-gate-report/v2",
-        "species": "trex",
+        "species": "tyrannosaurus_rex",
+        "embodiment": "anatomical",
         "stage": 1,
         "gate_kind": "stance_quality/v1",
         "episodes": 40,
@@ -185,7 +195,8 @@ def _stance_stage_dir(tmp_path: Path, *, recorded: dict[str, Any], report: dict[
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
-                "species": "trex",
+                "species": "tyrannosaurus_rex",
+                "embodiment": "anatomical",
                 "stage": 1,
                 "name": "Balance",
                 "description": "Stand",
@@ -224,7 +235,12 @@ class TestBackfill:
         verdict = read_gate_verdict(stage_dir)
         assert verdict is not None
         assert verdict["passed"] is True and verdict["failures"] == []
-        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("dibothrosuchus", 1, "stance")
+        assert (verdict["species"], verdict["embodiment"], verdict["stage"], verdict["stage_id"]) == (
+            "dibothrosuchus_elaphros",
+            "anatomical",
+            1,
+            "stance",
+        )
         assert verdict["gate_kind"] == "reward_and_length/v1" and verdict["gate_schema_version"] == 1
         assert verdict["judged_by"] == BACKFILL_JUDGED_BY
         assert verdict["checkpoint"] == "models/best_model.zip"
@@ -274,7 +290,7 @@ class TestBackfill:
         under the checkout's dibothrosuchus stance block (whose floors this evidence does not clear)
         and records THAT gate — not the block the directory trained under."""
         stage_dir = _stage_dir(tmp_path)
-        current = load_all_stages("dibothrosuchus")[1]["curriculum_kwargs"]
+        current = load_all_stages(ModelId("dibothrosuchus_elaphros", "anatomical"))[1]["curriculum_kwargs"]
         assert current["gate_kind"] == "reward_and_length/v1"
         assert gate_config_sha256(gate_config_view(current)) != gate_config_sha256(
             gate_config_view(RECORDED_CURRICULUM)
@@ -289,7 +305,7 @@ class TestBackfill:
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
         assert verdict["passed"] is False
         assert any("best model reward 200.00 <" in failure for failure in verdict["failures"])
-        assert "under the checkout's current dibothrosuchus 'stance' gate" in caplog.text
+        assert "under the checkout's current dibothrosuchus_elaphros/anatomical 'stance' gate" in caplog.text
         # The recorded block on disk is untouched: only the verdict names the gate judged under.
         recorded = json.loads((stage_dir / "stage_config.json").read_text(encoding="utf-8"))["curriculum"]
         assert recorded == RECORDED_CURRICULUM
@@ -371,10 +387,36 @@ class TestBackfill:
                 "recovery_t_recover_steps": 100,
                 "recovery_dwell_steps": 50,
             },
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         )
         with pytest.raises(BackfillError, match="never persisted"):
-            backfill_gate_verdict(stage_dir, species="trex", stage="recovery")
+            backfill_gate_verdict(stage_dir, stage="recovery")
         assert read_gate_verdict(stage_dir) is None
+
+    def test_an_override_names_the_model_only_of_a_record_that_does_not_name_it_whole(self, tmp_path):
+        """Decision D-D33: a pre-D-D33 record (no ``embodiment``) needs the override, and a record that names
+        its model whole is the directory's model, so an override naming another model, even the other
+        embodiment of the same species, is refused and writes nothing."""
+        robot = ModelId("compsognathus_longipes", "robot")
+        anatomical = ModelId("compsognathus_longipes", "anatomical")
+        stage_dir = _stage_dir(tmp_path, model_id=robot)
+        with pytest.raises(
+            BackfillError,
+            match="names its model compsognathus_longipes/robot, not the override compsognathus_longipes/anatomical",
+        ):
+            backfill_gate_verdict(stage_dir, model_id=anatomical)
+        assert read_gate_verdict(stage_dir) is None
+        backfill_gate_verdict(stage_dir, model_id=robot)
+        assert ModelId.from_record(read_gate_verdict(stage_dir)) == robot
+
+        config_path = stage_dir / "stage_config.json"
+        record = json.loads(config_path.read_text(encoding="utf-8"))
+        del record["embodiment"]
+        config_path.write_text(json.dumps(record), encoding="utf-8")
+        with pytest.raises(BackfillError, match="does not name its model .*pass --species and --embodiment"):
+            backfill_gate_verdict(stage_dir, force=True)
+        backfill_gate_verdict(stage_dir, model_id=anatomical, force=True)
+        assert ModelId.from_record(read_gate_verdict(stage_dir)) == anatomical
 
     def test_missing_evidence_is_refused(self, tmp_path):
         stage_dir = _stage_dir(tmp_path, evidence=False)
@@ -428,7 +470,7 @@ class TestStanceReports:
         ``stance_heading_report.json`` the heading code scored on this handoff pair; the directory holds
         none, and a v1 report scored under the 1940 rail (whose 1950 would also fail the current 2250
         rail) is not one under any name."""
-        current = load_all_stages("trex")[1]["curriculum_kwargs"]
+        current = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]["curriculum_kwargs"]
         assert current["gate_kind"] == "stance_quality_heading/v1" and current["min_avg_reward"] == 2250.0
         stage_dir = _stance_stage_dir(
             tmp_path, recorded=STANCE_CURRICULUM_AT_1940, report=_stance_report(STANCE_CURRICULUM_AT_1940)
@@ -444,7 +486,8 @@ class TestStanceReports:
             backfill_gate_verdict(stage_dir, gate="current", force=True)
         message = str(excinfo.value)
         assert "cannot back a stance_quality_heading/v1 verdict under the current 'stance' block" in message
-        assert "not 'mesozoic.stance-heading-report/v1'" in message
+        # The certificate schema was re-pinned from /v1 to /v2 (decision D-D33).
+        assert "not 'mesozoic.stance-heading-report/v2'" in message
         assert "notebook JUDGE branch" in message
         assert read_gate_verdict(stage_dir) is None
         (stage_dir / "stance_heading_report.json").unlink()
@@ -481,12 +524,14 @@ class TestStanceReports:
 
         from .stance_v2_helpers import stage_record, v2_report
 
-        current = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
+        current = load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))[1]["curriculum_kwargs"]
         assert current["gate_kind"] == "stance_quality/v2" and current["min_avg_reward"] == 1710.0
         older = {**current, "min_avg_reward": 900.0}
         stale_dir = tmp_path / "20261009_120000" / "01_stance"
-        stage_record(stale_dir, older, species="velociraptor")
-        write_stance_gate_report(stale_dir, v2_report(stale_dir, older, species="velociraptor"))
+        stage_record(stale_dir, older, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
+        write_stance_gate_report(
+            stale_dir, v2_report(stale_dir, older, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
+        )
         with pytest.raises(BackfillError) as excinfo:
             backfill_gate_verdict(stale_dir, gate="current", force=True)
         message = str(excinfo.value)
@@ -499,8 +544,10 @@ class TestStanceReports:
         assert read_gate_verdict(stale_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(older))
 
         v2_dir = tmp_path / "20261010_120000" / "01_stance"
-        stage_record(v2_dir, current, species="velociraptor")
-        write_stance_gate_report(v2_dir, v2_report(v2_dir, current, species="velociraptor"))
+        stage_record(v2_dir, current, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
+        write_stance_gate_report(
+            v2_dir, v2_report(v2_dir, current, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
+        )
         backfill_gate_verdict(v2_dir, gate="current")
         verdict = read_gate_verdict(v2_dir)
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
@@ -548,13 +595,20 @@ class TestCommandLine:
         assert main([str(stage_dir)]) == 1
         assert "gate_sha256" not in read_gate_verdict(stage_dir)
         assert main([str(stage_dir), "--force", "--gate", "current"]) == 0
-        current = load_all_stages("dibothrosuchus")[1]["curriculum_kwargs"]
+        current = load_all_stages(ModelId("dibothrosuchus_elaphros", "anatomical"))[1]["curriculum_kwargs"]
         assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(current))
 
     def test_an_unknown_gate_source_is_rejected_by_the_parser(self, tmp_path):
         stage_dir = _stage_dir(tmp_path)
         with pytest.raises(SystemExit):
             main([str(stage_dir), "--gate", "edited"])
+        assert read_gate_verdict(stage_dir) is None
+
+    def test_an_override_that_disagrees_with_the_record_is_refused(self, tmp_path, caplog):
+        stage_dir = _stage_dir(tmp_path)
+        with caplog.at_level(logging.ERROR):
+            assert main([str(stage_dir), "--species", "tyrannosaurus_rex", "--embodiment", "anatomical"]) == 1
+        assert "names its model dibothrosuchus_elaphros/anatomical, not the override" in caplog.text
         assert read_gate_verdict(stage_dir) is None
 
 

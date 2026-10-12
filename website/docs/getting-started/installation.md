@@ -33,19 +33,19 @@ pip install -e ".[all]"
 
 ```bash
 # View a model (requires display)
-python environments/velociraptor/scripts/view_model.py
+python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
 
 # Run environment tests
-pytest environments/velociraptor/tests/ -v
+pytest environments/velociraptor_mongoliensis/tests/ -v
 ```
 
 ## Google Colab
 
-For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook uses a species selector rather than separate files for each species, and it handles dependency installation automatically.
+For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook selects the model with two dropdowns, `SPECIES` and `EMBODIMENT`, rather than separate files for each model, and it handles dependency installation automatically.
 
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"walk"` or a deliverable's stage id) for any of the six species with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"walk"` or a deliverable's stage id) for any of the six models with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies

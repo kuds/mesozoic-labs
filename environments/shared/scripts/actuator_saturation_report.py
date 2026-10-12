@@ -1,4 +1,4 @@
-"""Report per-actuator force saturation for any species plant.
+"""Report per-actuator force saturation for any model's plant.
 
 Measures what fraction of simulation steps each position actuator spends
 at its ``forcerange`` cap, under (a) settling with the XML home-keyframe
@@ -11,15 +11,17 @@ spike-cap ``forcerange`` sizing validated only against home-control settling
 clipped a large fraction of gait torque on every species. Re-run this
 after any actuator re-sizing, before spending GPU hours.
 
-Usage::
+Usage (``--model-id`` repeats; with none, the four anatomical models of
+:data:`DEFAULT_MODEL_IDS`; ``--hz`` applies to every listed model)::
 
-    python environments/shared/scripts/actuator_saturation_report.py [species[:hz] ...]
+    python environments/shared/scripts/actuator_saturation_report.py [--model-id SPECIES EMBODIMENT ...] [--hz F]
 
-    # e.g. all species at their default cadence:
+    # e.g. the brachiosaurus at a 1.5 Hz cadence:
     python environments/shared/scripts/actuator_saturation_report.py \\
-        velociraptor trex brachiosaurus:1.5
+        --model-id brachiosaurus_altithorax anatomical --hz 1.5
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -34,6 +36,9 @@ if _repo_root not in sys.path:
 
 # The scripted excitation is shared with the per-species plant tests so the
 # report and the CI pins always measure the same thing.
+from environments.shared.model_id import ModelId
+from environments.shared.paths import ENVIRONMENTS_ROOT
+from environments.shared.species_names import add_model_id_argument, parsed_model_ids
 from environments.shared.tests.actuator_bounds_helpers import (
     CLIP_EPS,
     GAIT_AMPLITUDE,
@@ -41,13 +46,15 @@ from environments.shared.tests.actuator_bounds_helpers import (
     gait_commands,
 )
 
-_ROOT = Path(__file__).resolve().parents[2]
-XML_PATHS = {
-    "velociraptor": _ROOT / "velociraptor" / "assets" / "raptor.xml",
-    "trex": _ROOT / "trex" / "assets" / "trex.xml",
-    "brachiosaurus": _ROOT / "brachiosaurus" / "assets" / "brachiosaurus.xml",
-    "dibothrosuchus": _ROOT / "dibothrosuchus" / "assets" / "dibothrosuchus.xml",
-}
+#: The models measured when no ``--model-id`` is given: the panel this tool
+#: has always measured, written out as models (decision D-D33).  Each plant
+#: is the model's MJCF (``ModelId.asset_path``).
+DEFAULT_MODEL_IDS = (
+    ModelId("velociraptor_mongoliensis", "anatomical"),
+    ModelId("tyrannosaurus_rex", "anatomical"),
+    ModelId("brachiosaurus_altithorax", "anatomical"),
+    ModelId("dibothrosuchus_elaphros", "anatomical"),
+)
 
 
 def _run(xml_str, gait, steps, hz, amplitude):
@@ -67,8 +74,8 @@ def _run(xml_str, gait, steps, hz, amplitude):
     return model, clip_hits / steps, np.array(zs)
 
 
-def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
-    xml = XML_PATHS[species].read_text()
+def report(model_id: ModelId, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
+    xml = model_id.asset_path(ENVIRONMENTS_ROOT).read_text()
     xml_unbounded = re.sub(r' forcerange="[^"]*"', "", xml)
 
     model, clip_home_control, _ = _run(xml, gait=False, steps=steps, hz=hz, amplitude=amplitude)
@@ -78,7 +85,7 @@ def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
     names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)]
     is_position = model.actuator_biasprm[:, 1] < 0
 
-    print(f"\n{species} actuator saturation over {steps} steps ({hz} Hz, {amplitude:.0%} amplitude gait excitation)")
+    print(f"\n{model_id} actuator saturation over {steps} steps ({hz} Hz, {amplitude:.0%} amplitude gait excitation)")
     print(f"{'actuator':26s} {'kp':>6s} {'forcerange':>10s} {'home':>8s} {'gait':>8s}")
     for i in np.argsort(-clip_gait):
         if not is_position[i]:
@@ -92,12 +99,14 @@ def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
 
 
 def main(argv):
-    targets = argv or ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"]
-    for arg in targets:
-        species, _, hz = arg.partition(":")
-        if species not in XML_PATHS:
-            raise SystemExit(f"unknown species {species!r}; choose from {sorted(XML_PATHS)}")
-        report(species, hz=float(hz) if hz else GAIT_HZ)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    add_model_id_argument(parser, default=DEFAULT_MODEL_IDS, what="measure")
+    parser.add_argument(
+        "--hz", type=float, default=GAIT_HZ, help=f"gait excitation cadence for every model (default {GAIT_HZ})"
+    )
+    args = parser.parse_args(argv)
+    for model_id in parsed_model_ids(parser, args):
+        report(model_id, hz=args.hz)
 
 
 if __name__ == "__main__":

@@ -20,9 +20,10 @@ from environments.shared.behavior_checkpoint import (  # noqa: E402
     load_behavior_checkpoint,
     prepare_behavior_checkpoint,
 )
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import attach_plant_identity, current_plant_identity  # noqa: E402
 from environments.shared.result_bundle import sha256_file  # noqa: E402
-from environments.shared.species_names import species_display_names  # noqa: E402
+from environments.shared.species_names import model_ids  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE  # noqa: E402
 from environments.shared.train_behaviors import (  # noqa: E402
@@ -34,19 +35,21 @@ from environments.shared.train_behaviors import (  # noqa: E402
 )
 
 
-@pytest.fixture(scope="module", params=list(species_display_names(backend="stable-baselines3")))
+@pytest.fixture(
+    scope="module", params=model_ids(backend="stable-baselines3"), ids=lambda m: f"{m.species}-{m.embodiment}"
+)
 def walker(request, tmp_path_factory):
     """A short optimizer smoke fixture, explicitly not a trained locomotion policy.
 
     Module-scoped: the two tests below only READ the saved pair (each writes its
-    own output under its own ``tmp_path``), so one PPO build per species serves all
+    own output under its own ``tmp_path``), so one PPO build per model serves all
     of them instead of one per test (consolidation PR-3; 6 builds instead of 18).
     """
     torch.set_num_threads(1)
-    species = request.param
-    tmp_path = tmp_path_factory.mktemp(f"walker_{species}")
-    identity = current_plant_identity(species)
-    normalizer = VecNormalize(DummyVecEnv([get_species_config(species).env_class]))
+    model_id = request.param
+    tmp_path = tmp_path_factory.mktemp(f"walker_{model_id.species}_{model_id.embodiment}")
+    identity = current_plant_identity(model_id)
+    normalizer = VecNormalize(DummyVecEnv([get_species_config(model_id).env_class]))
     model = PPO(
         "MlpPolicy",
         normalizer,
@@ -61,19 +64,21 @@ def walker(request, tmp_path_factory):
         model.learn(16)
         for artifact in (model, normalizer):
             attach_plant_identity(artifact, identity)
-        setattr(model, MODEL_TASK_ATTRIBUTE, {"species": species, "stage": "locomotion"})
+        setattr(model, MODEL_TASK_ATTRIBUTE, {**model_id.record(), "stage": "locomotion"})
         checkpoint, stats = tmp_path / "parent.zip", tmp_path / "parent.pkl"
         model.save(checkpoint)
         normalizer.save(str(stats))
     finally:
         normalizer.close()
-    return species, checkpoint, stats
+    return model_id, checkpoint, stats
 
 
-def _args(recipe, checkpoint, stats, output, species):
+def _args(recipe, checkpoint, stats, output, model_id):
     return [
         "--species",
-        species,
+        model_id.species,
+        "--embodiment",
+        model_id.embodiment,
         "--recipe",
         str(recipe),
         "--checkpoint",
@@ -91,27 +96,27 @@ def _args(recipe, checkpoint, stats, output, species):
     ]
 
 
-def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp_path):
-    species, checkpoint, stats = walker
+def test_real_model_prepare_resume_and_combined_terrain_adaptation(walker, tmp_path):
+    model_id, checkpoint, stats = walker
     source_bytes = checkpoint.read_bytes(), stats.read_bytes()
-    recipe = REPO_ROOT / "configs" / species / "behaviors" / "follow_direction.toml"
+    recipe = model_id.path(REPO_ROOT / "configs") / "behaviors" / "follow_direction.toml"
     prepared, resumed, adapted = (tmp_path / name for name in ("prepared", "resumed", "adapted"))
-    main(_args(recipe, checkpoint, stats, prepared, species))
-    resume_args = _args(recipe, prepared / "model.zip", prepared / "vecnormalize.pkl", resumed, species)
+    main(_args(recipe, checkpoint, stats, prepared, model_id))
+    resume_args = _args(recipe, prepared / "model.zip", prepared / "vecnormalize.pkl", resumed, model_id)
     resume_args[resume_args.index("--seed") + 1] = "29"
     main(resume_args + ["--resume"])
-    mixed = REPO_ROOT / "configs" / species / "behaviors" / "follow_direction_difficult_terrain.toml"
+    mixed = model_id.path(REPO_ROOT / "configs") / "behaviors" / "follow_direction_difficult_terrain.toml"
     # Short diagnostic horizon keeps this integration test bounded while using
     # the complete real heightfield, normalization, optimizer and CSV scorer.
     short_recipe = tmp_path / "combined.toml"
     short_recipe.write_text(re.sub(r"max_episode_steps = \d+", "max_episode_steps = 4", mixed.read_text()))
-    arguments = _args(short_recipe, resumed / "model.zip", resumed / "vecnormalize.pkl", adapted, species)
+    arguments = _args(short_recipe, resumed / "model.zip", resumed / "vecnormalize.pkl", adapted, model_id)
     arguments[arguments.index("--eval-episodes") + 1] = "5"
     main(arguments + ["--adapt"])
     reports = [json.loads((output / "run.json").read_text()) for output in (prepared, resumed, adapted)]
     for report, output in zip(reports, (prepared, resumed, adapted), strict=True):
         assert report["status"] == "complete"
-        assert report["species"] == species
+        assert ModelId.from_record(report) == model_id
         assert report["parent_stage"] == "locomotion"
         assert report["training"]["actual_additional_steps"] == 8
         assert not report["canonical_certification"]
@@ -140,7 +145,7 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
         model_path=adapted / "model.zip",
         normalization_path=adapted / "vecnormalize.pkl",
         recipe_path=short_recipe,
-        species=species,
+        model_id=model_id,
         identity=reports[2]["task_fingerprint"],
         output_dir=tmp_path / "saved-panel",
         run_seed=910001,
@@ -161,14 +166,14 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
             assert episode["terrain"]["family"] == "flat_plane"
         else:
             assert episode["terrain"]["template"] == episode["terrain_family"]
-    _, commands, terrain, kwargs = read_recipe(short_recipe, species)
-    env = create_behavior_env(species, commands=commands, terrain=terrain, run_seed=17, **kwargs)
+    _, commands, terrain, kwargs = read_recipe(short_recipe, model_id)
+    env = create_behavior_env(model_id, commands=commands, terrain=terrain, run_seed=17, **kwargs)
     loaded, normalizer, _ = load_behavior_checkpoint(
         adapted / "model.zip",
         adapted / "vecnormalize.pkl",
         env,
         task_fingerprint=env.task_fingerprint,
-        species=species,
+        model_id=model_id,
     )
     try:
         assert loaded.num_timesteps == 40
@@ -180,15 +185,15 @@ def test_real_species_prepare_resume_and_combined_terrain_adaptation(walker, tmp
         normalizer.close()
 
 
-def test_explicit_species_cannot_disagree_with_behavior_parent(walker):
-    species, checkpoint, stats = walker
-    other = next(name for name in species_display_names() if name != species)
-    # Check before loading a network: some different species share tensor shapes.
-    with pytest.raises(BehaviorCheckpointError, match="task fingerprint and requested species disagree"):
+def test_explicit_model_cannot_disagree_with_behavior_parent(walker):
+    model_id, checkpoint, stats = walker
+    other = next(other for other in model_ids() if other != model_id)
+    # Check before loading a network: some different models share tensor shapes.
+    with pytest.raises(BehaviorCheckpointError, match="task fingerprint and the requested model .* disagree"):
         prepare_behavior_checkpoint(
             checkpoint,
             stats,
             None,
-            species=other,
-            task_fingerprint={"species": species},
+            model_id=other,
+            task_fingerprint=model_id.record(),
         )

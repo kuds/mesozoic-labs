@@ -2,7 +2,7 @@
 
 A run trains one seed, so replication is a property of a SET of runs.  A
 replicate of a deliverable is a sibling run of the SAME recipe (decision
-D-B16): under the same ``LOG_BASE/<species>/<algo>/`` directory (the layout
+D-B16): under the same ``LOG_BASE/<species>/<embodiment>/<algo>/`` directory (the layout
 Colab, Drive and bucket runs keep side by side, which decision D-A23's
 record-following relies on too), whose stage directory for the node holds a
 passed, reusable ``gate_verdict.json`` with the same ``task_sha256`` and the
@@ -46,6 +46,8 @@ import logging
 from pathlib import Path
 from typing import Any, Mapping
 
+from environments.shared.model_id import ModelId
+
 _logger = logging.getLogger(__name__)
 
 #: Exactly the fields of one ``replication.runs`` entry (result schema v4).
@@ -88,7 +90,7 @@ def _stage_dir_or_none(run_dir: Path, reference: "int | str") -> Path | None:
 def discover_replicates(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     entry: Any,
     task_sha256: str,
     plant_identity: Any,
@@ -125,7 +127,7 @@ def discover_replicates(
         own_run_id: str | None = run_id_for(run_path)
     except AncestorReuseError:
         own_run_id = None
-    current_plant = _normalize_plant_identity(_plant_mapping(plant_identity), species=species)
+    current_plant = _normalize_plant_identity(_plant_mapping(plant_identity), model_id=model_id)
     if current_plant is None:
         raise ResultBundleError("replicate discovery needs the run's plant identity")
 
@@ -187,7 +189,7 @@ def discover_replicates(
             _skip(sibling, "its recorded plant identity is not an object")
             continue
         try:
-            sibling_plant = _normalize_plant_identity(plant_value, species=species)
+            sibling_plant = _normalize_plant_identity(plant_value, model_id=model_id)
         except ResultBundleError as exc:
             _skip(sibling, f"invalid recorded plant identity: {exc}")
             continue
@@ -238,12 +240,12 @@ def discover_replicates(
 def discover_replicates_for_run(
     run_dir: "str | Path",
     *,
-    species: str,
+    model_id: ModelId,
     plant_identity: Any,
 ) -> dict[str, list[dict[str, Any]]]:
     """Replicates of every deliverable node *run_dir* holds a certifiable verdict for, keyed by stage key.
 
-    For each deliverable of the species' manifest whose stage directory in
+    For each deliverable of the model's stage manifest whose stage directory in
     *run_dir* holds a passed, reusable ``gate_verdict.json`` carrying
     ``task_sha256`` and ``gate_sha256`` and a ``stage_config.json`` with a
     training seed and a recipe digest (recorded, else derived — D-B16),
@@ -257,7 +259,7 @@ def discover_replicates_for_run(
     from .stage_manifest import load_stage_manifest
 
     run_path = Path(run_dir).resolve()
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     replicates: dict[str, list[dict[str, Any]]] = {}
     for entry in manifest.deliverables:
         stage_dir = _stage_dir_or_none(run_path, entry.reference)
@@ -308,7 +310,7 @@ def discover_replicates_for_run(
             continue
         replicates[entry.key] = discover_replicates(
             run_path,
-            species=species,
+            model_id=model_id,
             entry=entry,
             task_sha256=task_sha256,
             plant_identity=plant_identity,

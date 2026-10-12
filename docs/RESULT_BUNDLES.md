@@ -16,8 +16,9 @@ evidence needed to make that hand-off reproducible.
   evaluation episodes for every recorded stage, a canonical `summary.json`,
   matching CSV metrics, and valid artifact hashes.
 
-Publication is **per deliverable** (result schema v4,
-[BEHAVIOR_RECIPES_PLAN §4.3](BEHAVIOR_RECIPES_PLAN.md)). The species' stage
+Publication is **per deliverable** (result schema v4, and v5 since decision
+D-D33 added the `embodiment` field;
+[BEHAVIOR_RECIPES_PLAN §4.3](BEHAVIOR_RECIPES_PLAN.md)). The model's stage
 manifest flags which nodes are deliverables and which node each one
 warm-starts from. A deliverable is *certified* when its own gate passed and
 every `warm_start_from` ancestor is present — trained in the bundle, or
@@ -52,11 +53,10 @@ failed-but-auditable example; its role in the Velociraptor diagnosis is
 documented in the
 [Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
 
-Under a v1 or synthesized stage manifest (one deliverable — the last
-advancing node — with edges to the previous advancing node) these rules
-collapse to the historical "every advancing stage present and passed /
-terminal = last advancing stage" rule, so every pre-Phase-A bundle audits
-exactly as before. Schema-2 and schema-3 summaries keep their own rules.
+Under a v1 stage manifest (one deliverable — the last advancing node — with
+edges to the previous advancing node) these rules collapse to the historical
+"every advancing stage present and passed / terminal = last advancing stage"
+rule. Schema-2 summaries keep their own rules.
 
 ## Canonical layout
 
@@ -89,7 +89,7 @@ specified in [Training artifact names and stance replays](TRAINING_ARTIFACT_PRES
         └── plant_identity.json
 ```
 
-`gate_verdict.json` (`mesozoic.gate-verdict/v1`) lives in the stage
+`gate_verdict.json` (`mesozoic.gate-verdict/v2`) lives in the stage
 directory root beside `stage_config.json` and records the node's verdict with
 the SHA-256 of the handoff checkpoint and its VecNormalize sidecar; it is what
 makes a node reusable as an ancestor by a later run. Pre-Phase-A bundles have
@@ -170,7 +170,7 @@ no reader consumes. The same parent digests sit in the archive's
 `mesozoic_widen_lineage` attribute; both artifacts are re-stamped with the
 current plant identity and the stage's current task fingerprint (the
 parent's `mesozoic_task_lineage`, when present, is kept). `widen_report.json`
-beside `stage_config.json` (`mesozoic.widen-report/v1`; since 2026-09-19 also
+beside `stage_config.json` (`mesozoic.widen-report/v2`; since 2026-09-19 also
 `schedule_members_restated`, a member-name to `repr` map of the parent's
 cloudpickled schedule members the tool re-stated so the widened archive
 carries no interpreter-specific bytecode, and `schedule_members_source`,
@@ -250,7 +250,8 @@ validator treats disagreements as conflicts.
 
 `provenance.json` is initialized before training and records:
 
-- run ID, species, algorithm, and backend;
+- run ID, species and embodiment (two fields; provenance schema 2), algorithm,
+  and backend;
 - repository URL, exact commit, dirty state, and patch hash when dirty;
 - training and evaluation seed roles, and the `certification_panel` role
   (decision D-B17): the start seed of the registered 40-seed panel block
@@ -287,7 +288,7 @@ validator treats disagreements as conflicts.
   session, carrying an `environment_drift` map when that session's
   environment differed from the original capture.
 
-The bundle writer adds the **finalization** fields (schema v4):
+The bundle writer adds the **finalization** fields (result schema v4 onward):
 
 - every stage's selected checkpoint hash, matching SB3 VecNormalize path/hash,
   and resolved-config hashes (`selected_checkpoints`, `config_hash`);
@@ -298,7 +299,7 @@ The bundle writer adds the **finalization** fields (schema v4):
   the stage's `stage_config.json` run block (decision D-A21).
   `replication.runs` has exactly `count` entries with distinct run ids and
   distinct training seeds, THIS run first, then its replicates — the sibling
-  runs under the same `LOG_BASE/<species>/<algo>/` directory that certified
+  runs under the same `LOG_BASE/<species>/<embodiment>/<algo>/` directory that certified
   the SAME recipe on another seed (decision D-B16; plan §4.5): a sibling
   counts when its stage directory for the node holds a passed, reusable
   `gate_verdict.json` with equal `task_sha256` and equal `gate_sha256`, its
@@ -320,9 +321,9 @@ The bundle writer adds the **finalization** fields (schema v4):
   bundle stays immutable, and a re-run that would change anything else is
   still refused.  A key naming a deliverable the run holds outside the
   published chain is dropped (its node has no record in this bundle); a
-  key naming no deliverable of the species is refused.
+  key naming no deliverable of the model is refused.
   `certification_seeds` is the stage's declared `[curriculum]` value
-  (default 1; trex stance 2) and `provisional` is
+  (default 1; the T-Rex stance 2) and `provisional` is
   `count < certification_seeds` (decision D-B11) — the audit refuses a
   record whose first run is not this run, whose `certification_seeds` is
   not the stage config's, or whose label disagrees with its count, and the
@@ -359,7 +360,7 @@ evidence but is not re-judged, and can never be certified. Training-time
 are not inferred from episodes in the publication evaluation.
 
 Reusing a run in a fresh Colab session revalidates the run's identity:
-species, algorithm, backend, seed roles, evaluation protocols and seeds,
+species, embodiment, algorithm, backend, seed roles, evaluation protocols and seeds,
 episode and parallel-environment counts, plant identity, and the run ID must
 match the captured provenance exactly, and the initializer refuses a mismatch
 instead of combining stages from different experiments. Environment fields —
@@ -399,13 +400,21 @@ runtime disconnect.
 The public algorithm remains `PPO` or `SAC`; backend identity is separate:
 
 ```text
-results/<species>/ppo/summary.json       # SB3 PPO
-results/<species>/sac/summary.json       # SB3 SAC
-results/<species>/jax_ppo/summary.json   # JAX/MJX PPO, recorded before D-D17
+results/<species>/<embodiment>/ppo/summary.json       # SB3 PPO
+results/<species>/<embodiment>/sac/summary.json       # SB3 SAC
+results/<species>/<embodiment>/jax_ppo/summary.json   # JAX/MJX PPO, recorded before D-D17
 ```
 
 The validator still files a `jax-mjx` summary under `jax_<algorithm>/`, so a
 JAX run recorded before D-D17 retired that backend (cleanup PR-B) is never
 mislabeled as a different reinforcement-learning algorithm; nothing writes one
 now, and `results/` holds only Stable-Baselines3 results. The paths are
-unchanged by schema v4; the summary carries the deliverables map.
+unchanged by schema v4; the summary carries the deliverables map. Decision
+D-D33 added the `<embodiment>` level and made `species` and `embodiment` two
+required fields of every summary (result schema 5; the CSV gains an
+`embodiment` column). The readers accept schema 2 and 5. Schema 2 is the
+curated historical form: the four committed summaries predate the plant
+contract, and D-D33 amended their identity in place (the binomial `species`
+and `"embodiment": "anatomical"`), leaving every other value as recorded. A
+summary of schema 3 or 4 names a species ID that no longer exists and is
+refused.

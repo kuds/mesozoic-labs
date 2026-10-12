@@ -10,7 +10,7 @@ test here. These tests pin that step, keep the committed golden complete
 writes, every stage's reward capture and the ends its probes reach), and
 exercise ``--check``'s comparison and failure message and ``--write`` on tiny
 snapshots. The reward captures (CU-11) also get unit tests of their two
-encodings, one species' capture in each shared leg of the test matrix, and a
+encodings, one model's capture in each shared leg of the test matrix, and a
 check that no state probe sits on its tilt, height or nosedive threshold.
 """
 
@@ -26,8 +26,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from environments.shared.config import SPECIES_NAMES
 from environments.shared.harnesses import digest_snapshot
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest
 
 from .ci_workflow_helpers import ci_code, glob_matches, job_block, job_steps, path_filters
@@ -37,16 +38,18 @@ GOLDEN = REPOSITORY_ROOT / digest_snapshot.GOLDEN
 HARNESS = Path(digest_snapshot.__file__).resolve()
 CI_COMMAND = "python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check"
 
-#: Fields per line, by section (the first field).
+#: Fields per line, by section (the first field); a model is two columns, species and embodiment (decision D-D33).
 _FIELDS = {
     "plant.check_plant_manifest": 2,
-    "plant": 4,
-    "policy": 4,
-    "stage": 5,
-    "recovery": 4,
-    "behavior": 5,
-    "reward": 5,
+    "plant": 5,
+    "policy": 5,
+    "stage": 6,
+    "recovery": 5,
+    "behavior": 6,
+    "reward": 6,
 }
+#: The order of every section: the manifest models, sorted (species, then embodiment).
+_MODELS = sorted(model_ids())
 #: The lines of one stage, in order: _stage_lines emits them.
 _STAGE_NAMES = [
     "config_file",
@@ -59,24 +62,61 @@ _STAGE_NAMES = [
 ]
 #: The lines of one stage's reward capture (CU-11), in order.
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
-#: The success reason each species' behavior stage ends the success probe with.
+#: The success reason each model's behavior stage ends the success probe with.
 _SUCCESS = {
-    "brachiosaurus": "food_reached",
-    "compsognathus": "target_reached",
-    "compsognathus_robot": "target_reached",
-    "dibothrosuchus": "snap_success",
-    "trex": "bite_success",
-    "velociraptor": "strike_success",
+    ModelId("brachiosaurus_altithorax", "anatomical"): "food_reached",
+    ModelId("compsognathus_longipes", "anatomical"): "target_reached",
+    ModelId("compsognathus_longipes", "robot"): "target_reached",
+    ModelId("dibothrosuchus_elaphros", "anatomical"): "snap_success",
+    ModelId("tyrannosaurus_rex", "anatomical"): "bite_success",
+    ModelId("velociraptor_mongoliensis", "anatomical"): "strike_success",
 }
-#: The reasons each species' state probes reach (the union over its stages' poses line).
+#: The reasons each model's state probes reach (the union over its stages' poses line).
 _POSE_REASONS = {
-    "brachiosaurus": {"fallen", "too_high", "excessive_tilt", "tail_contact", "head_contact"},
-    "compsognathus": {"fallen", "too_high", "excessive_tilt", "body_contact", "nonfinite_state"},
-    "compsognathus_robot": {"fallen", "too_high", "excessive_tilt", "body_contact", "nonfinite_state"},
-    "dibothrosuchus": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact", "head_contact"},
-    "trex": {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact"},
-    "velociraptor": {"fallen", "too_high", "excessive_tilt", "tail_contact", "body_contact"},
+    ModelId("brachiosaurus_altithorax", "anatomical"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "tail_contact",
+        "head_contact",
+    },
+    ModelId("compsognathus_longipes", "anatomical"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "body_contact",
+        "nonfinite_state",
+    },
+    ModelId("compsognathus_longipes", "robot"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "body_contact",
+        "nonfinite_state",
+    },
+    ModelId("dibothrosuchus_elaphros", "anatomical"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "nosedive",
+        "tail_contact",
+        "head_contact",
+    },
+    ModelId("tyrannosaurus_rex", "anatomical"): {"fallen", "too_high", "excessive_tilt", "nosedive", "tail_contact"},
+    ModelId("velociraptor_mongoliensis", "anatomical"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "tail_contact",
+        "body_contact",
+    },
 }
+
+
+@pytest.mark.parametrize("name", ["_SUCCESS", "_POSE_REASONS"])
+def test_the_per_model_tables_cover_every_model(name: str) -> None:
+    """A new model fails here, naming the table, instead of going unpinned (review M4)."""
+    assert set(globals()[name]) == set(model_ids()), f"{name} must pin every manifest model"
 
 
 # -- the CI step --------------------------------------------------------------
@@ -162,43 +202,50 @@ def test_golden_holds_every_section_in_order() -> None:
     assert lines[0] == "plant.check_plant_manifest\tOK"
     sections = [line.split("\t")[0] for line in lines[1:]]
     blocks = [section for i, section in enumerate(sections) if i == 0 or section != sections[i - 1]]
-    plants = sorted(json.loads((REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json").read_text())["plants"])
+    manifest = json.loads((REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json").read_text())
+    plants = sorted(
+        (species, embodiment) for species, embodiments in manifest["plants"].items() for embodiment in embodiments
+    )
+    assert plants == [(m.species, m.embodiment) for m in _MODELS]
     # Each plant's identity, then its policy-interface lines; then the other sections.
     assert blocks == ["plant", "policy"] * len(plants) + ["stage", "recovery", "behavior", "reward"]
     for kind, field in (("plant", "verify_generated"), ("plant", "physics_sha256"), ("policy", "WHOLE")):
-        species = [line.split("\t")[1] for line in lines if line.startswith(f"{kind}\t") and f"\t{field}\t" in line]
-        assert species == plants, (kind, field, species)
+        models = [
+            tuple(line.split("\t")[1:3]) for line in lines if line.startswith(f"{kind}\t") and f"\t{field}\t" in line
+        ]
+        assert models == plants, (kind, field, models)
 
 
 def test_golden_holds_every_stage() -> None:
     stages = [line.split("\t") for line in _golden_lines() if line.startswith("stage\t")]
     expected = [
-        (species, entry.id, name)
-        for species in SPECIES_NAMES
-        for entry in load_stage_manifest(species).stages
+        (model_id.species, model_id.embodiment, entry.id, name)
+        for model_id in _MODELS
+        for entry in load_stage_manifest(model_id).stages
         for name in _STAGE_NAMES
     ]
-    assert [tuple(fields[1:4]) for fields in stages] == expected
+    assert expected and [tuple(fields[1:5]) for fields in stages] == expected
 
 
 def test_golden_holds_every_stage_reward_capture() -> None:
     rewards = [line.split("\t") for line in _golden_lines() if line.startswith("reward\t")]
     expected = [
-        (species, entry.id, name)
-        for species in SPECIES_NAMES
-        for entry in load_stage_manifest(species).stages
+        (model_id.species, model_id.embodiment, entry.id, name)
+        for model_id in _MODELS
+        for entry in load_stage_manifest(model_id).stages
         for name in _REWARD_NAMES
     ]
-    assert [tuple(fields[1:4]) for fields in rewards] == expected
+    assert expected and [tuple(fields[1:5]) for fields in rewards] == expected
 
 
 def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
     # A probe that stops reaching its end (a renamed element, a moved attribute) would pass --check once regenerated.
     for fields in (line.split("\t") for line in _golden_lines() if line.startswith("reward\t")):
-        if fields[3] != "summary":
+        if fields[4] != "summary":
             continue
-        assert fields[4].split(" ")[1] == "second_reset=0:-:0.0000", fields
-        (species, stage), ends = fields[1:3], dict(part.split("=") for part in fields[4].split(" "))
+        assert fields[5].split(" ")[1] == "second_reset=0:-:0.0000", fields
+        model_id, stage = ModelId(fields[1], fields[2]), fields[3]
+        ends = dict(part.split("=") for part in fields[5].split(" "))
         steps = {part: end.split(":")[:2] for part, end in ends.items()}
         pushes = ["zero"] if stage == "recovery" else []
         assert list(steps) == [
@@ -211,11 +258,11 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
             "high_tilt",
             "truncation",
         ], fields
-        assert steps["roll"][1] not in ("-", "truncated"), f"{species} {stage}: the roll must end the episode"
+        assert steps["roll"][1] not in ("-", "truncated"), f"{model_id} {stage}: the roll must end the episode"
         if pushes:  # zero action to the episode's end (a termination, or truncation at the horizon), past the pushes
-            assert steps["zero"][1] != "-", f"{species} {stage}: the zero part must run to the episode's end"
-        success = [_SUCCESS[species] if stage == "behavior" else "-"]
-        assert steps["success"] == ["1", *success], (species, stage, steps["success"])
+            assert steps["zero"][1] != "-", f"{model_id} {stage}: the zero part must run to the episode's end"
+        success = [_SUCCESS[model_id] if stage == "behavior" else "-"]
+        assert steps["success"] == ["1", *success], (model_id, stage, steps["success"])
         assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
         assert steps["tilt"] == ["1", "excessive_tilt"] and steps["truncation"] == ["3", "truncated"], steps
 
@@ -223,30 +270,35 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
 def test_golden_state_probes_reach_every_branch_they_cover() -> None:
     reached: dict = {}
     for fields in (line.split("\t") for line in _golden_lines() if line.startswith("reward\t")):
-        if fields[3] == "poses":
-            ends = dict(item.split("=") for item in fields[4].split(" "))
+        if fields[4] == "poses":
+            ends = dict(item.split("=") for item in fields[5].split(" "))
             assert list(ends) == [name for name, *_ in digest_snapshot.REWARD_POSES] + ["nonfinite"], fields
             assert ends["low_roll"] == "fallen" and ends["high"] == "too_high", fields  # the prefix's precedence
-            reached.setdefault(fields[1], set()).update(ends.values())
-    assert {species: reasons - {"-"} for species, reasons in reached.items()} == _POSE_REASONS
+            reached.setdefault(ModelId(fields[1], fields[2]), set()).update(ends.values())
+    assert {model_id: reasons - {"-"} for model_id, reasons in reached.items()} == _POSE_REASONS
 
 
 def test_golden_holds_every_recovery_calibration_and_behavior_recipe() -> None:
     lines = [line.split("\t") for line in _golden_lines()]
     configs = REPOSITORY_ROOT / "configs"
-    recoveries = sorted(path.parent.name for path in configs.glob("*/recovery_calibration.json"))
+    # Coverage equality with the committed files: a model is configs/<species>/<embodiment>/.
+    recoveries = sorted(
+        (path.parent.parent.name, path.parent.name) for path in configs.glob("*/*/recovery_calibration.json")
+    )
     assert recoveries, "no recovery calibration is committed"
-    assert [fields[1:3] for fields in lines if fields[0] == "recovery"] == [
-        [species, name] for species in recoveries for name in ("load_recovery_calibration", "file_sha256")
+    assert [tuple(fields[1:4]) for fields in lines if fields[0] == "recovery"] == [
+        (*model, name) for model in recoveries for name in ("load_recovery_calibration", "file_sha256")
     ]
-    recipes = sorted((path.parent.parent.name, path.stem) for path in configs.glob("*/behaviors/*.toml"))
+    recipes = sorted(
+        (path.parents[2].name, path.parents[1].name, path.stem) for path in configs.glob("*/*/behaviors/*.toml")
+    )
     assert recipes, "no behavior recipe is committed"
     behavior = [fields for fields in lines if fields[0] == "behavior"]
     for name in ("recipe_sha256", "task_sha256"):
-        assert sorted((fields[1], fields[2]) for fields in behavior if fields[3] == name) == recipes, name
+        assert sorted(tuple(fields[1:4]) for fields in behavior if fields[4] == name) == recipes, name
     assert len(behavior) == 2 * len(recipes), "a recipe's identity is its task fingerprint, not source digests"
-    recipe_tasks = [fields[4] for fields in behavior if fields[3] == "task_sha256"]
-    stage_tasks = {fields[4] for fields in lines if fields[0] == "stage" and fields[3] == "task_sha256"}
+    recipe_tasks = [fields[5] for fields in behavior if fields[4] == "task_sha256"]
+    stage_tasks = {fields[5] for fields in lines if fields[0] == "stage" and fields[4] == "task_sha256"}
     assert len(set(recipe_tasks)) == len(recipes) and stage_tasks and not stage_tasks & set(recipe_tasks)
 
 
@@ -287,13 +339,15 @@ def test_exact_streams_see_an_ulp_that_the_rounded_golden_does_not() -> None:
     assert digest_snapshot._summary(_capture(0.3)) == "roll=1:fallen:1.5000"
 
 
-def test_one_species_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch) -> None:
-    # CI's digest step runs every stage on Python 3.12; this runs one species in each shared leg of the test matrix,
-    # where Python 3.11's float sum() moves the compsognathus reward by an ulp that the golden rounds away.
-    monkeypatch.setattr("environments.shared.config.SPECIES_NAMES", ("compsognathus",))
+def test_one_model_reproduces_its_golden_reward_lines(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CI's digest step runs every stage on Python 3.12; this runs one model in each shared leg of the test matrix,
+    # where Python 3.11's float sum() moves the anatomical Compsognathus reward by an ulp that the golden rounds away.
+    model_id = ModelId("compsognathus_longipes", "anatomical")
+    monkeypatch.setattr(digest_snapshot, "_models", lambda: [model_id])
     out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
     digest_snapshot.reward_section(out)
-    assert out.kept == [line for line in _golden_lines() if line.startswith("reward\tcompsognathus\t")]
+    prefix = f"reward\t{model_id.species}\t{model_id.embodiment}\t"
+    assert out.kept and out.kept == [line for line in _golden_lines() if line.startswith(prefix)]
 
 
 def test_state_probes_keep_clear_of_the_thresholds() -> None:
@@ -302,19 +356,22 @@ def test_state_probes_keep_clear_of_the_thresholds() -> None:
     # 0.15 rad, 2.9 mm, 0.015).
     out = digest_snapshot._Snapshot(REPOSITORY_ROOT, keep=True)
     probes = 0
-    for species, stage, env in digest_snapshot._reward_envs(out, False):
+    for model_id, stage, env in digest_snapshot._reward_envs(out, False):
         low, high = env.healthy_z_range
-        # trex and dibothrosuchus take the nosedive threshold as a parameter; raptor_env.py hard-codes its 0.5.
-        nosedive = getattr(env, "nosedive_termination_threshold", 0.5 if species == "velociraptor" else None)
+        # The T-Rex and Dibothrosuchus take the nosedive threshold as a parameter; velociraptor_mongoliensis/base_env.py
+        # hard-codes its 0.5.
+        nosedive = getattr(
+            env, "nosedive_termination_threshold", 0.5 if model_id.species == "velociraptor_mongoliensis" else None
+        )
         for part, _, rows in digest_snapshot._capture(env, digest_snapshot._state_parts()[:-1]):
             info = rows[0][1]
             height = info.get("torso_height", info.get("pelvis_height"))
-            assert abs(info["tilt_angle"] - env.max_tilt_angle) > 1e-3, (species, stage, part)
-            assert min(abs(height - low), abs(height - high)) > 1e-3, (species, stage, part)
+            assert abs(info["tilt_angle"] - env.max_tilt_angle) > 1e-3, (model_id, stage, part)
+            assert min(abs(height - low), abs(height - high)) > 1e-3, (model_id, stage, part)
             if nosedive is not None:
-                assert abs(info["forward_z"] - (env._natural_forward_z - nosedive)) > 1e-3, (species, stage, part)
+                assert abs(info["forward_z"] - (env._natural_forward_z - nosedive)) > 1e-3, (model_id, stage, part)
             probes += 1
-    stages = sum(len(load_stage_manifest(species).stages) for species in SPECIES_NAMES)
+    stages = sum(len(load_stage_manifest(model_id).stages) for model_id in model_ids())
     assert not out.kept and stages and probes == len(digest_snapshot.REWARD_POSES) * stages
 
 
@@ -322,9 +379,9 @@ def test_state_probes_keep_clear_of_the_thresholds() -> None:
 
 _LINES = [
     "plant.check_plant_manifest\tOK",
-    "plant\ttrex\tphysics_sha256\tsha256:aaa",
-    "stage\ttrex\tstance\tgate_sha256\tsha256:bbb",
-    "behavior\ttrex\twalk\tbehavior_identity_sha256\tsha256:ccc",
+    "plant\ttyrannosaurus_rex\tanatomical\tphysics_sha256\tsha256:aaa",
+    "stage\ttyrannosaurus_rex\tanatomical\tstance\tgate_sha256\tsha256:bbb",
+    "behavior\ttyrannosaurus_rex\tanatomical\twalk\tbehavior_identity_sha256\tsha256:ccc",
 ]
 
 
@@ -343,25 +400,28 @@ def test_check_failure_names_every_moved_line_and_the_write_command() -> None:
         _LINES[0],
         _LINES[1].replace("sha256:aaa", "sha256:ddd"),  # changed
         _LINES[3],  # the stage line is gone
-        "behavior\ttrex\twalk\tsource:environments/trex/envs/trex_env.py\teee",  # added
+        "behavior\ttyrannosaurus_rex\tanatomical\twalk\tsource:environments/tyrannosaurus_rex/base_env.py\teee",  # added
     ]
     report = digest_snapshot.golden_mismatch(golden, run, 0, digest_snapshot.GOLDEN)
     assert report is not None
     lines = report.splitlines()
     assert "3 digest line(s) moved (1 changed, 1 added, 1 removed):" in lines
-    assert "  changed  plant trex physics_sha256" in lines
-    assert "  removed  stage trex stance gate_sha256" in lines
-    assert "  added    behavior trex walk source:environments/trex/envs/trex_env.py" in lines
+    assert "  changed  plant tyrannosaurus_rex anatomical physics_sha256" in lines
+    assert "  removed  stage tyrannosaurus_rex anatomical stance gate_sha256" in lines
+    assert (
+        "  added    behavior tyrannosaurus_rex anatomical walk source:environments/tyrannosaurus_rex/base_env.py"
+        in lines
+    )
     assert not any("behavior_identity_sha256" in line for line in lines), "an unmoved line is not reported"
     assert f"--- {digest_snapshot.GOLDEN} (committed)" in lines and "+++ this checkout" in lines
-    assert "-plant\ttrex\tphysics_sha256\tsha256:aaa" in lines
-    assert "+plant\ttrex\tphysics_sha256\tsha256:ddd" in lines
+    assert "-plant\ttyrannosaurus_rex\tanatomical\tphysics_sha256\tsha256:aaa" in lines
+    assert "+plant\ttyrannosaurus_rex\tanatomical\tphysics_sha256\tsha256:ddd" in lines
     assert f"    {digest_snapshot.WRITE_COMMAND}" in lines
     assert "D-D22" in report
 
 
 def test_check_fails_a_run_with_an_error_line_even_when_the_golden_holds_it() -> None:
-    run = [*_LINES, "behavior.trex.walk\tERROR\tValueError\tgenerated plant manifest is stale"]
+    run = [*_LINES, "behavior.tyrannosaurus_rex.anatomical.walk\tERROR\tValueError\tgenerated plant manifest is stale"]
     report = digest_snapshot.golden_mismatch(digest_snapshot.render(run), run, 1, digest_snapshot.GOLDEN)
     assert report is not None
     assert f"  {run[-1]}" in report.splitlines()
@@ -383,7 +443,7 @@ def test_check_reports_a_byte_order_mark_or_extra_newlines_as_form_not_moves() -
 
 
 def test_check_counts_every_moved_line_once() -> None:
-    error = "stage.trex.stance.view\tERROR\tTypeError\tbad env class"
+    error = "stage.tyrannosaurus_rex.anatomical.stance.view\tERROR\tTypeError\tbad env class"
     report = digest_snapshot.golden_mismatch(digest_snapshot.render(_LINES), [*_LINES, error, error], 2, "x")
     assert report is not None
     assert "2 digest line(s) moved (0 changed, 2 added, 0 removed):" in report.splitlines()
@@ -397,9 +457,9 @@ def test_check_golden_and_write_golden(tmp_path: Path, capsys: pytest.CaptureFix
     assert digest_snapshot.check_golden(path, "snapshot.txt", _LINES, 0) == 0
     assert "Digest snapshot is current: snapshot.txt (4 lines)" in capsys.readouterr().out
     assert digest_snapshot.check_golden(path, "snapshot.txt", _LINES[:-1], 0) == 1
-    assert "  removed  behavior trex walk behavior_identity_sha256" in capsys.readouterr().err
+    assert "  removed  behavior tyrannosaurus_rex anatomical walk behavior_identity_sha256" in capsys.readouterr().err
     # A run with an ERROR line writes nothing.
-    error = "plant.trex.identity\tERROR\tRuntimeError\tno MuJoCo"
+    error = "plant.tyrannosaurus_rex.anatomical.identity\tERROR\tRuntimeError\tno MuJoCo"
     assert digest_snapshot.write_golden(path, "snapshot.txt", [*_LINES, error], 1) == 1
     assert path.read_text(encoding="utf-8") == digest_snapshot.render(_LINES)
     assert f"  {error}" in capsys.readouterr().err
@@ -466,7 +526,7 @@ def test_main_checks_without_writing_and_writes_what_check_accepts(
 
     assert digest_snapshot.main([*repo, "--check", str(path)]) == 1
     assert path.read_text(encoding="utf-8") == stale, "--check never writes the golden"
-    assert "  added    behavior trex walk behavior_identity_sha256" in capsys.readouterr().err
+    assert "  added    behavior tyrannosaurus_rex anatomical walk behavior_identity_sha256" in capsys.readouterr().err
     assert digest_snapshot.main([*repo, "--write", str(path)]) == 0
     assert path.read_text(encoding="utf-8") == digest_snapshot.render(_LINES)
     assert digest_snapshot.main([*repo, "--check", str(path)]) == 0
@@ -480,13 +540,15 @@ def test_main_exact_prints_only_the_reward_captures(
 
     def reward_section(out: digest_snapshot._Snapshot, exact: bool = False, behaviors: bool = False) -> None:
         calls.append((exact, behaviors))
-        out.emit("reward-exact", "trex", "stance", "roll", "reward", "sha256:e")
+        out.emit("reward-exact", "tyrannosaurus_rex", "anatomical", "stance", "roll", "reward", "sha256:e")
 
     monkeypatch.setattr(digest_snapshot, "reward_section", reward_section)
     repo = ["--repo", str(REPOSITORY_ROOT)]
     assert digest_snapshot.main([*repo, "--exact", "--skip-behaviors"]) == 0
     assert digest_snapshot.main([*repo, "--exact"]) == 0
-    assert capsys.readouterr().out == "reward-exact\ttrex\tstance\troll\treward\tsha256:e\n" * 2, "no other section"
+    assert (
+        capsys.readouterr().out == "reward-exact\ttyrannosaurus_rex\tanatomical\tstance\troll\treward\tsha256:e\n" * 2
+    ), "no other section"
     assert calls == [(True, False), (True, True)]
     with pytest.raises(SystemExit):  # never a golden
         digest_snapshot.main([*repo, "--exact", "--check"])

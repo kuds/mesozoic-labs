@@ -23,6 +23,7 @@ from environments.shared.curriculum.checkpoints import (
     prune_periodic_checkpoints,
     seed_resume_eval_state,
 )
+from environments.shared.model_id import ModelId
 
 from .tiny_env_helpers import tiny_env_class
 
@@ -457,7 +458,7 @@ class TestTrainResumeIntegration:
         pytest.importorskip("mujoco")
         from environments.shared import train_base
         from environments.shared.config import load_all_stages
-        from environments.trex.scripts.train_sb3 import SPECIES_CONFIG
+        from environments.shared.species_registry import get_species_config
 
         # Smoke budget: skip the 50+30-episode post-training panel and run
         # single-episode evals so the test stays in CI budget.
@@ -465,9 +466,9 @@ class TestTrainResumeIntegration:
         monkeypatch.setattr(train_base, "_eval_episodes_for_stage", lambda cfg: 1)
 
         out = tmp_path / "run"
-        configs = load_all_stages("trex")
+        configs = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))
         common = dict(
-            species_cfg=SPECIES_CONFIG,
+            species_cfg=get_species_config(ModelId("tyrannosaurus_rex", "anatomical")),
             stage_configs=configs,
             stage=1,
             n_envs=1,

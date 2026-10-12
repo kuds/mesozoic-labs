@@ -6,9 +6,13 @@ import re
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import build_stage_results_from_eval_data
 
 from .reporting_helpers import plant_identity
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 
 class TestBuildStageResultsFromEvalData:
@@ -190,7 +194,9 @@ class TestBuildStageResultsFromEvalData:
         config = self._velocity_gated()
         results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=10)
 
-        _apply_stage_gate(stage=2, stage_config=config, stage_results=results, stance_report=None)
+        _apply_stage_gate(
+            stage=2, stage_config=config, stage_results=results, stance_report=None, model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
 
         assert results["gate_passed"] is False
         assert any("no forward-velocity measurement" in failure for failure in results["gate_failures"])
@@ -204,7 +210,9 @@ class TestBuildStageResultsFromEvalData:
         config = self._velocity_gated()
         results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=10)
 
-        _apply_stage_gate(stage=2, stage_config=config, stage_results=results, stance_report=None)
+        _apply_stage_gate(
+            stage=2, stage_config=config, stage_results=results, stance_report=None, model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
 
         assert (results["gate_passed"], results["gate_failures"]) == (True, [])
 
@@ -214,7 +222,7 @@ class TestBuildStageResultsFromEvalData:
         (tmp_path / "models").mkdir()
         results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=self._LOCO, timesteps=10)
 
-        text = write_stage_summary(tmp_path, results, "velociraptor", "PPO").read_text()
+        text = write_stage_summary(tmp_path, results, VELOCIRAPTOR_MONGOLIENSIS, "PPO").read_text()
 
         assert "Avg fwd vel:    not measured" in text
         assert "0.00 +/- 0.00 m/s" not in text
@@ -241,7 +249,13 @@ class TestSaveStageConfigKeepsTheCurriculumTable:
                 "jax": {"min_avg_reward": 40.0},
             },
         }
-        path = save_stage_config(tmp_path, stage=1, stage_config=stage_config, algorithm="PPO", species="velociraptor")
+        path = save_stage_config(
+            tmp_path,
+            stage=1,
+            stage_config=stage_config,
+            algorithm="PPO",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        )
         saved = json.loads(path.read_text())["curriculum"]
         assert saved["min_avg_reward"] == 100.0
         assert saved["jax"] == {"min_avg_reward": 40.0}
@@ -278,6 +292,7 @@ class TestApplyStageGate:
             stage_config=stage_config,
             stage_results=stage_results,
             stance_report=stance_report,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         return stage_results
 
@@ -378,7 +393,7 @@ class TestStageSummaryRecordsTheVerdict:
                     "unsupported_duty_ucb 0.2153 > 0.0200",
                 ],
             ),
-            "trex",
+            TYRANNOSAURUS_REX,
             "PPO",
         )
         summary = (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
@@ -393,7 +408,7 @@ class TestStageSummaryRecordsTheVerdict:
         text_summaries.write_stage_summary(
             tmp_path,
             self._results(publication_gate_passed=True, gate_failures=[]),
-            "trex",
+            TYRANNOSAURUS_REX,
             "PPO",
         )
         summary = (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
@@ -403,7 +418,7 @@ class TestStageSummaryRecordsTheVerdict:
         """Pre-gate callers must still work."""
         from environments.shared.reporting import text_summaries
 
-        text_summaries.write_stage_summary(tmp_path, self._results(), "trex", "PPO")
+        text_summaries.write_stage_summary(tmp_path, self._results(), TYRANNOSAURUS_REX, "PPO")
         assert "Curriculum Gate" not in (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
 
     def test_generate_stage_artifacts_writes_the_summary_after_the_gate(self):
@@ -439,7 +454,7 @@ class TestStageGateVerdictRecord:
         )
         return stage_dir
 
-    def _apply(self, stage_dir, stance_report, *, species="velociraptor", stage=1):
+    def _apply(self, stage_dir, stance_report, *, model_id=VELOCIRAPTOR_MONGOLIENSIS, stage=1):
         from environments.shared.reporting.stage_artifacts import _apply_stage_gate
 
         results = {"best_model_reward": 2297.0, "mean_reward": 2200.0, "timesteps": 10}
@@ -449,7 +464,7 @@ class TestStageGateVerdictRecord:
             stage_results=results,
             stance_report=stance_report,
             stage_dir=stage_dir,
-            species=species,
+            model_id=model_id,
         )
         return results
 
@@ -462,7 +477,12 @@ class TestStageGateVerdictRecord:
 
         verdict = read_gate_verdict(stage_dir)
         assert verdict is not None and verdict["passed"] is True and verdict["failures"] == []
-        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("velociraptor", 1, "stance")
+        assert (verdict["species"], verdict["embodiment"], verdict["stage"], verdict["stage_id"]) == (
+            "velociraptor_mongoliensis",
+            "anatomical",
+            1,
+            "stance",
+        )
         assert verdict["gate_kind"] == "stance_quality/v1" and verdict["gate_schema_version"] == 1
         assert verdict["checkpoint"] == "models/best_model.zip"
         assert verdict["checkpoint_sha256"] == sha256_file(stage_dir / "models" / "best_model.zip")
@@ -586,13 +606,21 @@ class TestStageGateVerdictRecord:
 
         verdict = read_gate_verdict(stage_dir)
         assert verdict is not None and verdict["stage_id"] == "warp"
-        assert any("is not in the velociraptor manifest" in record.message for record in caplog.records)
+        assert any(
+            "is not in the velociraptor_mongoliensis/anatomical manifest" in record.message for record in caplog.records
+        )
 
     def test_no_stage_dir_means_no_verdict_and_the_gate_still_records(self, tmp_path):
         from environments.shared.reporting.stage_artifacts import _apply_stage_gate
 
         results: dict = {"best_model_reward": 2297.0}
-        _apply_stage_gate(stage=1, stage_config=self.STANCE_CONFIG, stage_results=results, stance_report=None)
+        _apply_stage_gate(
+            stage=1,
+            stage_config=self.STANCE_CONFIG,
+            stage_results=results,
+            stance_report=None,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        )
         assert results["publication_gate_passed"] is False
         assert not list(tmp_path.iterdir())
 
@@ -677,7 +705,9 @@ class TestTaskSuccessEvidence:
         monkeypatch.setattr(train_base, "create_vec_env", create_vec_env)
         monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
         monkeypatch.setattr(evaluation, "eval_policy", eval_policy)
-        monkeypatch.setattr(plant_contract, "current_plant_identity", lambda species: SimpleNamespace(species=species))
+        monkeypatch.setattr(
+            plant_contract, "current_plant_identity", lambda model_id: SimpleNamespace(model_id=model_id)
+        )
         monkeypatch.setattr(plant_contract, "validate_model_plant", lambda *a, **k: None)
         monkeypatch.setattr(curriculum_package, "load_vecnorm_stats", lambda *a, **k: True)
 
@@ -687,7 +717,7 @@ class TestTaskSuccessEvidence:
         from environments.shared.reporting.stage_artifacts import _write_task_success_evidence
 
         return _write_task_success_evidence(
-            species_cfg=SimpleNamespace(species="trex", success_keys=["bite_success"]),
+            species_cfg=SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
             stage=3,
             stage_config=stage_config or self.TASK_SUCCESS_CONFIG,
             stage_dir=stage_dir,
@@ -871,6 +901,7 @@ class TestTaskSuccessEvidence:
             stage_results=results,
             stance_report=None,
             stage_dir=tmp_path,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["publication_gate_passed"] is False
         assert any("absent" in failure for failure in results["gate_failures"])
@@ -908,7 +939,7 @@ class TestTaskSuccessEvidence:
             stage_results=results,
             stance_report=None,
             stage_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
         )
         assert results["publication_gate_passed"] is True
         assert (results["best_model_success_count"], results["best_model_n_episodes"]) == (29, 30)
@@ -1001,7 +1032,11 @@ class TestStanceV2StageGate:
 
         monkeypatch.setattr(stance_report, "build_stance_gate_report", fake_build)
         report = _write_stance_gate_report(
-            species="trex", stage=1, stage_config=self._config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+            model_id=TYRANNOSAURUS_REX,
+            stage=1,
+            stage_config=self._config(),
+            stage_dir=tmp_path,
+            model_dir=tmp_path / "models",
         )
         assert report is not None and report["scored_gate_kind"] == "stance_quality/v2"
         assert seen == {"model_path": str(tmp_path / "models" / "robust_best_model.zip"), "episodes": 40}
@@ -1021,7 +1056,7 @@ class TestStanceV2StageGate:
             stage_results=results,
             stance_report=report,
             stage_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
         )
         assert results["gate_passed"] is True and results["gate_failures"] == []
         assert results["stance_clean_count"] == 40 and results["stance_n_episodes"] == 40
@@ -1042,7 +1077,12 @@ class TestStanceV2StageGate:
         (tmp_path / "models" / "robust_best_model.zip").write_bytes(b"another checkpoint")
         results: dict = {"stage": 1}
         _apply_stage_gate(
-            stage=1, stage_config=self._config(), stage_results=results, stance_report=report, stage_dir=tmp_path
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=report,
+            stage_dir=tmp_path,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["gate_passed"] is False
         assert any("not the handoff robust_best_model's" in failure for failure in results["gate_failures"])
@@ -1053,7 +1093,12 @@ class TestStanceV2StageGate:
 
         results: dict = {"stage": 1, "best_model_reward": 1e9}
         _apply_stage_gate(
-            stage=1, stage_config=self._config(), stage_results=results, stance_report=None, stage_dir=tmp_path
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=None,
+            stage_dir=tmp_path,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["publication_gate_passed"] is False
         assert any("no stance gate report was produced" in failure for failure in results["gate_failures"])
@@ -1100,9 +1145,14 @@ class TestStanceHeadingStageGate:
 
         handoff_pair(tmp_path)
         report = _write_stance_gate_report(
-            species="trex", stage=1, stage_config=self._config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+            model_id=TYRANNOSAURUS_REX,
+            stage=1,
+            stage_config=self._config(),
+            stage_dir=tmp_path,
+            model_dir=tmp_path / "models",
         )
-        assert report is not None and report["schema"] == "mesozoic.stance-heading-report/v1"
+        # Re-pinned from /v1 when the report began naming the embodiment (decision D-D33).
+        assert report is not None and report["schema"] == "mesozoic.stance-heading-report/v2"
         assert seen == {"model_path": str(tmp_path / "models" / "robust_best_model.zip"), "episodes": 40}
         assert (tmp_path / "stance_heading_report.json").is_file()
         assert (tmp_path / "stance_heading_panel_selected.csv").is_file()
@@ -1124,7 +1174,7 @@ class TestStanceHeadingStageGate:
             stage_results=results,
             stance_report=heading_report(tmp_path),
             stage_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
         )
         assert results["gate_passed"] is True and results["gate_failures"] == []
         assert results["stance_heading_n_seeds"] == 40 and results["stance_heading_clean_seeds"] == 40
@@ -1155,7 +1205,7 @@ class TestStanceHeadingStageGate:
             stage_results=results,
             stance_report=report,
             stage_dir=tmp_path,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
         )
         assert results["gate_passed"] is True
         assert results["stance_heading_n_seeds"] == 40 and results["stance_heading_clean_seeds"] == 38
@@ -1172,7 +1222,12 @@ class TestStanceHeadingStageGate:
 
         results: dict = {"stage": 1, "best_model_reward": 1e9}
         _apply_stage_gate(
-            stage=1, stage_config=self._config(), stage_results=results, stance_report=None, stage_dir=tmp_path
+            stage=1,
+            stage_config=self._config(),
+            stage_results=results,
+            stance_report=None,
+            stage_dir=tmp_path,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["publication_gate_passed"] is False
         assert any("no six-heading certificate" in failure for failure in results["gate_failures"])
@@ -1184,6 +1239,7 @@ class TestStanceHeadingStageGate:
             stage_results=results,
             stance_report=v2_report(tmp_path / "v2", V2_CURRICULUM),
             stage_dir=tmp_path,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["gate_passed"] is False and not any(key.startswith("stance_") for key in results)
         # Nor does a heading certificate the judge refuses: here one whose handoff was retrained after rolling.
@@ -1200,6 +1256,7 @@ class TestStanceHeadingStageGate:
             stage_results=results,
             stance_report=report,
             stage_dir=refused_dir,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
         )
         assert results["gate_passed"] is False
         assert any("scored checkpoint" in failure for failure in results["gate_failures"])
@@ -1228,7 +1285,7 @@ class TestStanceHeadingStageGate:
         calls = self._record_probes(monkeypatch)
         report = heading_report(tmp_path)
         _run_stance_probes(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_config=self._config(),
             stage_dir=tmp_path,
@@ -1276,7 +1333,7 @@ def test_collected_results_carry_the_heading_bar_and_grouped_count_on_a_heading_
             {**base, "stage": 2},
         ],
         {1: heading_config, 2: other_config},
-        "trex",
+        TYRANNOSAURUS_REX,
         "PPO",
         42,
     )
@@ -1301,7 +1358,7 @@ def test_collected_results_carry_the_v2_bar_on_a_v2_row_only():
             {**base, "stage": 2},
         ],
         {1: v2_config, 2: other_config},
-        "trex",
+        TYRANNOSAURUS_REX,
         "PPO",
         42,
     )

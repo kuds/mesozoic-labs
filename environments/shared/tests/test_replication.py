@@ -21,6 +21,7 @@ import pytest
 
 from environments.shared.config import hyperparameters_sha256, recorded_hyperparameters_sha256
 from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.replication import REPLICATE_RUN_FIELDS, discover_replicates, discover_replicates_for_run
 from environments.shared.stage_manifest import load_stage_manifest
 
@@ -34,11 +35,13 @@ from .ancestors_helpers import (
 )
 from .reporting_helpers import make_plant_identity
 
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
 #: The recipe every same-recipe sibling records (D-A21 shape or pre-D-A21 shape).
 RECIPE = {"learning_rate": 3e-4, "n_steps": 2048}
 RECIPE_DIGEST = hyperparameters_sha256({"ppo_kwargs": RECIPE, "curriculum_kwargs": STANCE_CURRICULUM}, "PPO")
 STANCE_GATE = gate_config_sha256(gate_config_view(STANCE_CURRICULUM))
-STANCE_ENTRY = load_stage_manifest("trex").by_id("stance")
+STANCE_ENTRY = load_stage_manifest(TYRANNOSAURUS_REX).by_id("stance")
 
 
 def _run(log_base: Path, name: str, **overrides: Any) -> Path:
@@ -53,14 +56,14 @@ def _run(log_base: Path, name: str, **overrides: Any) -> Path:
 
 @pytest.fixture
 def log_base(tmp_path: Path) -> Path:
-    base = tmp_path / "logs" / "trex" / "ppo"
+    base = tmp_path / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo"
     base.mkdir(parents=True)
     return base
 
 
 def _discover(run: Path, **overrides: Any) -> list[dict[str, Any]]:
     kwargs: dict[str, Any] = dict(
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         entry=STANCE_ENTRY,
         task_sha256=STANCE_TASK,
         plant_identity=trunk_plant(),
@@ -84,7 +87,10 @@ def test_only_passed_same_recipe_distinct_seed_siblings_are_replicates(log_base:
     strip_gate_record(_run(log_base, "20260904_120000", seed=45) / "01_stance")
     _run(log_base, "20260905_120000", seed=46, hyperparameters={**RECIPE, "learning_rate": 1e-4})
     other_plant = make_plant_identity(
-        species="trex", model_path="environments/trex/assets/trex.xml", physics_sha256="sha256:" + "9" * 64
+        species="tyrannosaurus_rex",
+        embodiment="anatomical",
+        model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+        physics_sha256="sha256:" + "9" * 64,
     )
     _run(log_base, "20260906_120000", seed=47, plant=other_plant)
     # Today's certified runs: a run block without hyperparameters_sha256,
@@ -119,20 +125,28 @@ def test_replicates_are_sorted_by_run_id_and_one_per_run_id(log_base: Path) -> N
     earlier = _run(log_base, "20260910_120000", seed=43)
     copy = _run(log_base, "20260920_120000", seed=44)
     for run in (later, copy):
-        (run / "provenance.json").write_text(json.dumps({"run_id": "trex-sb3-ppo-seed44"}) + "\n", encoding="utf-8")
-    (earlier / "provenance.json").write_text(json.dumps({"run_id": "trex-sb3-ppo-seed43"}) + "\n", encoding="utf-8")
+        (run / "provenance.json").write_text(
+            json.dumps({"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-seed44"}) + "\n", encoding="utf-8"
+        )
+    (earlier / "provenance.json").write_text(
+        json.dumps({"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-seed43"}) + "\n", encoding="utf-8"
+    )
 
     assert _discover(this_run) == [
-        {"run_id": "trex-sb3-ppo-seed43", "training_seed": 43},
-        {"run_id": "trex-sb3-ppo-seed44", "training_seed": 44},
+        {"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-seed43", "training_seed": 43},
+        {"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-seed44", "training_seed": 44},
     ]
 
 
 def test_a_sibling_carrying_this_runs_own_id_is_skipped(log_base: Path) -> None:
     this_run = _run(log_base, "20260901_120000", seed=42)
-    (this_run / "provenance.json").write_text(json.dumps({"run_id": "trex-own"}) + "\n", encoding="utf-8")
+    (this_run / "provenance.json").write_text(
+        json.dumps({"run_id": "tyrannosaurus_rex-anatomical-own"}) + "\n", encoding="utf-8"
+    )
     copy = _run(log_base, "20260902_120000", seed=43)
-    (copy / "provenance.json").write_text(json.dumps({"run_id": "trex-own"}) + "\n", encoding="utf-8")
+    (copy / "provenance.json").write_text(
+        json.dumps({"run_id": "tyrannosaurus_rex-anatomical-own"}) + "\n", encoding="utf-8"
+    )
 
     assert _discover(this_run) == []
 
@@ -176,7 +190,9 @@ def test_a_malformed_sibling_is_skipped_with_a_logged_reason_never_raised(log_ba
     assert any("skipping 20260905_120000: no stage directory for 'stance'" in message for message in messages)
 
 
-@pytest.mark.parametrize("plant_value", ["trex", ["a", "b"], 7, None], ids=["string", "list", "int", "null"])
+@pytest.mark.parametrize(
+    "plant_value", ["tyrannosaurus_rex", ["a", "b"], 7, None], ids=["string", "list", "int", "null"]
+)
 def test_a_sibling_recording_a_non_object_plant_identity_is_skipped_never_raised(
     log_base: Path, caplog: Any, plant_value: Any
 ) -> None:
@@ -220,7 +236,7 @@ def test_discover_replicates_for_run_keys_by_stage_key(log_base: Path) -> None:
     _run(log_base, "20260902_120000", seed=43)
     _run(log_base, "20260903_120000", seed=44, record_recipe_digest=False)
 
-    replicates = discover_replicates_for_run(this_run, species="trex", plant_identity=trunk_plant())
+    replicates = discover_replicates_for_run(this_run, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant())
 
     assert replicates == {
         "1": [
@@ -229,7 +245,10 @@ def test_discover_replicates_for_run_keys_by_stage_key(log_base: Path) -> None:
         ]
     }
     # The plant may be given as the dict the notebook passes to the writer.
-    assert discover_replicates_for_run(this_run, species="trex", plant_identity=trunk_plant().to_dict()) == replicates
+    assert (
+        discover_replicates_for_run(this_run, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant().to_dict())
+        == replicates
+    )
 
 
 def test_discover_replicates_for_run_skips_a_node_whose_own_verdict_lacks_gate_sha256(
@@ -241,7 +260,7 @@ def test_discover_replicates_for_run_skips_a_node_whose_own_verdict_lacks_gate_s
     _run(log_base, "20260902_120000", seed=43)
 
     with caplog.at_level(logging.INFO, logger="environments.shared.replication"):
-        assert discover_replicates_for_run(this_run, species="trex", plant_identity=trunk_plant()) == {}
+        assert discover_replicates_for_run(this_run, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant()) == {}
     assert any("records no gate_sha256" in record.getMessage() for record in caplog.records)
 
 
@@ -252,7 +271,7 @@ def test_discover_replicates_for_run_logs_a_node_without_a_readable_stage_config
     _run(log_base, "20260902_120000", seed=43)
 
     with caplog.at_level(logging.INFO, logger="environments.shared.replication"):
-        assert discover_replicates_for_run(this_run, species="trex", plant_identity=trunk_plant()) == {}
+        assert discover_replicates_for_run(this_run, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant()) == {}
     assert any(
         "'stance' has no readable stage_config.json, counting this run alone" in record.getMessage()
         for record in caplog.records
@@ -262,10 +281,10 @@ def test_discover_replicates_for_run_logs_a_node_without_a_readable_stage_config
 def test_discover_replicates_for_run_skips_a_failed_or_unjudged_node(log_base: Path) -> None:
     failed = _run(log_base, "20260901_120000", seed=42, passed=False)
     _run(log_base, "20260902_120000", seed=43)
-    assert discover_replicates_for_run(failed, species="trex", plant_identity=trunk_plant()) == {}
+    assert discover_replicates_for_run(failed, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant()) == {}
 
     unjudged = _run(log_base, "20260903_120000", seed=44, verdict=False)
-    assert discover_replicates_for_run(unjudged, species="trex", plant_identity=trunk_plant()) == {}
+    assert discover_replicates_for_run(unjudged, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant()) == {}
 
 
 def test_a_pre_d_a21_node_derives_its_own_recipe_digest(log_base: Path) -> None:
@@ -273,6 +292,6 @@ def test_a_pre_d_a21_node_derives_its_own_recipe_digest(log_base: Path) -> None:
     this_run = _run(log_base, "20260901_120000", seed=42, record_recipe_digest=False)
     _run(log_base, "20260902_120000", seed=43)
 
-    assert discover_replicates_for_run(this_run, species="trex", plant_identity=trunk_plant()) == {
+    assert discover_replicates_for_run(this_run, model_id=TYRANNOSAURUS_REX, plant_identity=trunk_plant()) == {
         "1": [{"run_id": "20260902_120000", "training_seed": 43}]
     }

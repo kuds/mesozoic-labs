@@ -46,17 +46,22 @@ from environments.shared.curriculum.stance_heading_gate import (
     statue_references,
 )
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.reporting import evaluate_stage_gate, stance_report
 from environments.shared.reporting.gates import stance_heading_report_refusals
 from environments.shared.result_bundle import sha256_file
+from environments.shared.species_registry import env_class as model_env_class
 from environments.shared.task_fingerprint import stage_task_fingerprint
 
-SPECIES = "compsognathus"
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+
+MODEL_ID = COMPSOGNATHUS_LONGIPES
 HORIZON = 150
 SEEDS = 2
 
-#: The compsognathus floor map §5.4 criteria on a 2-seed grid (2/2 bounds at 0.2236), with both statue ratios.
+#: The Compsognathus floor map §5.4 criteria on a 2-seed grid (2/2 bounds at 0.2236), with both statue ratios.
 CURRICULUM: dict[str, Any] = {
     "gate_schema_version": 1,
     "gate_kind": STANCE_HEADING_GATE_KIND,
@@ -76,24 +81,24 @@ CURRICULUM: dict[str, Any] = {
 }
 
 
-def _stage_config(species: str = SPECIES, **curriculum: Any) -> dict[str, Any]:
-    config = copy.deepcopy(load_stage_config(species, 1))
+def _stage_config(model_id: ModelId = MODEL_ID, **curriculum: Any) -> dict[str, Any]:
+    config = copy.deepcopy(load_stage_config(model_id, 1))
     config["env_kwargs"]["max_episode_steps"] = HORIZON
     config["curriculum_kwargs"] = {**CURRICULUM, **curriculum}
     return config
 
 
-def _record_stage(stage_dir: Path, config: dict[str, Any], *, species: str = SPECIES) -> str:
+def _record_stage(stage_dir: Path, config: dict[str, Any], *, model_id: ModelId = MODEL_ID) -> str:
     """Write the ``stage_config.json`` / ``task_fingerprint.json`` training writes for *config*; its task digest."""
-    identity = current_plant_identity(species)
-    fingerprint = stage_task_fingerprint(species, 1, stage_config=config, plant_identity=identity)
+    identity = current_plant_identity(model_id)
+    fingerprint = stage_task_fingerprint(model_id, 1, stage_config=config, plant_identity=identity)
     save_stage_config(
         stage_dir,
         1,
         config,
         "PPO",
-        env_class=stance_report.SPECIES_FACTORIES[species]().env_class,
-        species=species,
+        env_class=model_env_class(model_id),
+        model_id=model_id,
         plant_identity=identity,
         task_fingerprint=fingerprint,
     )
@@ -123,8 +128,8 @@ def _scripted(command: np.ndarray, *, raise_at: int | None = None) -> Any:
     return predict
 
 
-def _nu(species: str = SPECIES) -> int:
-    env = stance_report.SPECIES_FACTORIES[species]().env_class(**_stage_config(species)["env_kwargs"])
+def _nu(model_id: ModelId = MODEL_ID) -> int:
+    env = model_env_class(model_id)(**_stage_config(model_id)["env_kwargs"])
     try:
         return int(env.action_space.shape[0])
     finally:
@@ -135,7 +140,7 @@ def _certificate(monkeypatch: Any, stage_dir: Path, predict: Any, *, config: dic
     model, vecnorm = _handoff(stage_dir)
     monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (predict, "scripted command"))
     return stance_report.build_stance_heading_report(
-        SPECIES,
+        MODEL_ID,
         1,
         stage_config=_stage_config() if config is None else config,
         model_path=str(model),
@@ -183,13 +188,13 @@ def test_the_statue_certificate_rolls_every_heading_with_its_own_statue_panel(st
     assert report["passed"] is True and report["result"]["n_clean_seeds"] == SEEDS
 
 
-@pytest.mark.parametrize("species", ["trex", "compsognathus"])
-def test_the_turned_statue_repeats_the_unturned_one_to_solver_tolerance(species):
+@pytest.mark.parametrize("model_id", [TYRANNOSAURUS_REX, MODEL_ID], ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_turned_statue_repeats_the_unturned_one_to_solver_tolerance(model_id):
     """Every certified plant declares the elliptic cone, so a whole-scene turn changes nothing physical."""
-    config = _stage_config(species)
-    if species == "trex":
+    config = _stage_config(model_id)
+    if model_id == TYRANNOSAURUS_REX:
         config["curriculum_kwargs"]["max_sole_corner_lift_m"] = 0.006
-    report = stance_report.build_stance_heading_report(species, 1, stage_config=config, zero_action=True)
+    report = stance_report.build_stance_heading_report(model_id, 1, stage_config=config, zero_action=True)
     zero = next(heading for heading in report["headings"] if heading["yaw_deg"] == 0.0)
     for heading in report["headings"]:
         assert heading["statue"]["reused_policy_panel"] is True  # the statue IS the policy here
@@ -218,7 +223,7 @@ def test_the_zero_cell_is_the_v2_panel_bit_for_bit(statue_as_policy, monkeypatch
         lambda *a, **k: (_scripted(np.zeros(_nu(), dtype=np.float32)), "scripted command"),
     )
     v2 = stance_report.build_stance_gate_report(
-        SPECIES,
+        MODEL_ID,
         1,
         stage_config=_stage_config(gate_kind=STANCE_GATE_V2_KIND),
         model_path=str(model),
@@ -250,7 +255,7 @@ def test_the_report_records_everything_the_judge_binds(statue_as_policy):
     assert (report["settle_steps"], report["horizon"], report["control_dt"]) == (50, HORIZON, pytest.approx(0.02))
     view = gate_config_view(_stage_config()["curriculum_kwargs"])
     assert report["thresholds"] == view["thresholds"] and report["gate_sha256"] == gate_config_sha256(view)
-    assert report["measurement"]["species"] == SPECIES and report["measurement_sha256"].startswith("sha256:")
+    assert ModelId.from_record(report["measurement"]) == MODEL_ID and report["measurement_sha256"].startswith("sha256:")
     assert report["handoff"]["checkpoint_sha256"] == sha256_file(stage_dir / "models" / "robust_best_model.zip")
     assert report["handoff"]["normalization_sha256"] == sha256_file(
         stage_dir / "models" / "robust_best_model_vecnorm.pkl"
@@ -258,10 +263,10 @@ def test_the_report_records_everything_the_judge_binds(statue_as_policy):
     assert (
         report["task_sha256"]
         == stage_task_fingerprint(
-            SPECIES, 1, stage_config=_stage_config(), plant_identity=current_plant_identity(SPECIES)
+            MODEL_ID, 1, stage_config=_stage_config(), plant_identity=current_plant_identity(MODEL_ID)
         )["task_sha256"]
     )
-    assert report["plant_identity"] == current_plant_identity(SPECIES).to_dict()
+    assert report["plant_identity"] == current_plant_identity(MODEL_ID).to_dict()
     assert report["checkpoint_plant_validated"] is True
     assert all(report[key] is None for key in stance_report._PROBE_MARKERS)
     assert stance_report.probe_stem(report) is None
@@ -326,7 +331,7 @@ def test_a_rollout_that_raises_at_one_heading_writes_no_certificate_and_the_stag
     monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (predict, "scripted command"))
     with caplog.at_level("WARNING"):
         report = stage_artifacts._write_stance_gate_report(
-            species=SPECIES, stage=1, stage_config=config, stage_dir=tmp_path, model_dir=tmp_path / "models"
+            model_id=MODEL_ID, stage=1, stage_config=config, stage_dir=tmp_path, model_dir=tmp_path / "models"
         )
     assert report is None and "no yaw-zero fallback" in caplog.text
     assert not any(tmp_path.glob("stance_heading_*")) and not any(tmp_path.glob("stance_gate_report*"))
@@ -350,20 +355,20 @@ def test_a_stage_with_commands_pushes_or_terrain_is_refused_before_anything_is_r
         config = _stage_config()
         config["env_kwargs"].update(env)
         with pytest.raises(stance_report.StanceGateReportError, match="cannot be certified under whole_scene_yaw/v1"):
-            stance_report.build_stance_heading_report(SPECIES, 1, stage_config=config, zero_action=True)
+            stance_report.build_stance_heading_report(MODEL_ID, 1, stage_config=config, zero_action=True)
 
 
 def test_a_non_probe_v1_or_v2_build_of_a_heading_stage_is_refused(monkeypatch):
     config = _stage_config()
     with pytest.raises(ValueError, match="build it with build_stance_heading_report"):
-        stance_report.build_stance_gate_report(SPECIES, 1, stage_config=config, zero_action=True)
+        stance_report.build_stance_gate_report(MODEL_ID, 1, stage_config=config, zero_action=True)
     with pytest.raises(ValueError, match="not 'stance_quality_heading/v1'"):
         stance_report.build_stance_heading_report(
-            SPECIES, 1, stage_config=_stage_config(gate_kind=STANCE_GATE_V2_KIND), zero_action=True
+            MODEL_ID, 1, stage_config=_stage_config(gate_kind=STANCE_GATE_V2_KIND), zero_action=True
         )
     # A probe stays the v1-shaped report it always was: it annotates, it never certifies.
     probe = stance_report.build_stance_gate_report(
-        SPECIES, 1, stage_config=config, zero_action=True, episodes=1, spawn_yaw=stance_report.SpawnYaw(90.0, True)
+        MODEL_ID, 1, stage_config=config, zero_action=True, episodes=1, spawn_yaw=stance_report.SpawnYaw(90.0, True)
     )
     assert probe["scored_gate_kind"] == "stance_quality/v1" and stance_report.probe_stem(probe) is not None
 
@@ -376,13 +381,13 @@ def test_the_turn_text_cites_the_elliptic_cone():
     assert "stance_quality_heading/v1" in doc and "makes this probe a gate check" not in doc
     from .test_stance_heading_probe import STANDS, _sweeps
 
-    # The observation half (D-D31): the trex from r14 and the anatomical compsognathus from r4 observe no world
-    # heading, so a whole-scene turn changes nothing they see; the velociraptor and the robot still observe it.
-    assert "D-D31" in doc and "policy interface r14" in doc and "anatomical compsognathus from r4" in doc
-    assert "The velociraptor and the compsognathus robot still observe those world-frame channels" in doc
+    # The observation half (D-D31): the T-Rex from r14 and the anatomical Compsognathus from r4 observe no world
+    # heading, so a whole-scene turn changes nothing they see; the Velociraptor and the robot still observe it.
+    assert "D-D31" in doc and "policy interface r14" in doc and "anatomical Compsognathus from r4" in doc
+    assert "The Velociraptor and the Compsognathus robot still observe those world-frame channels" in doc
     assert "only the world-frame observation differs" not in doc
     text, payload = stance_report.render_heading_probe(*_sweeps(STANDS), probe_episodes=8)
     assert "elliptic friction cone" in payload["note"] and "stance_quality_heading/v1" in payload["note"]
     assert "the six-heading certificate, D-D32" in text and "not a gate result" in text
     assert "observe no world heading (D-D31)" in payload["note"] and "only the world-frame" not in payload["note"]
-    assert "the trex r14 and anatomical compsognathus r4 observe none" in text
+    assert "the T-Rex r14 and anatomical Compsognathus r4 observe none" in text

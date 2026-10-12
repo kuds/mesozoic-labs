@@ -6,9 +6,11 @@ import math
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 from environments.shared.stance_diagnostics import (
     capture_stance_snapshot,
-    capture_trex_stance_snapshot,
+    capture_tyrannosaurus_rex_stance_snapshot,
     derive_stance_info,
     write_stance_diagnostics_csv,
 )
@@ -39,7 +41,7 @@ def test_derive_stance_info_distinguishes_single_and_unsupported_contact():
 
 
 def test_snapshot_gracefully_records_info_without_mujoco_environment():
-    row = capture_trex_stance_snapshot(
+    row = capture_tyrannosaurus_rex_stance_snapshot(
         object(),
         {
             "r_foot_contact": 60.0,
@@ -57,9 +59,9 @@ def test_snapshot_gracefully_records_info_without_mujoco_environment():
 
 
 def test_snapshot_records_geometry_without_mutating_simulation_state():
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-    env = TRexEnv(reset_noise_scale=0.0)
+    env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
     try:
         env.reset(seed=0)
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -71,7 +73,7 @@ def test_snapshot_records_geometry_without_mutating_simulation_state():
             "time": float(env.data.time),
         }
 
-        row = capture_trex_stance_snapshot(env, info, step=1)
+        row = capture_tyrannosaurus_rex_stance_snapshot(env, info, step=1)
 
         right_foot = np.asarray(env.data.site_xpos[env.r_foot_site_id], dtype=float)
         left_foot = np.asarray(env.data.site_xpos[env.l_foot_site_id], dtype=float)
@@ -123,28 +125,26 @@ def test_write_stance_csv_skips_empty_rows(tmp_path):
     assert not path.exists()
 
 
-@pytest.mark.parametrize(
-    "species", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot"]
-)
-def test_shared_replay_snapshot_preserves_each_species_state_and_measured_support(species):
+@pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_shared_replay_snapshot_preserves_each_model_state_and_measured_support(model_id):
     from environments.shared.config import load_stage_config
     from environments.shared.species_registry import get_species_config
 
-    env = get_species_config(species).env_class(**load_stage_config(species, 1)["env_kwargs"])
+    env = get_species_config(model_id).env_class(**load_stage_config(model_id, 1)["env_kwargs"])
     try:
         env.reset(seed=2043)
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape))
         before = [value.copy() for value in (env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl)]
         before_time = float(env.data.time)
-        row = capture_stance_snapshot(env, info, 1, species=species)
+        row = capture_stance_snapshot(env, info, 1, model_id=model_id)
         assert row["step"] == 1
         assert [row[f"root_{axis}"] for axis in "xyz"] == pytest.approx(env.data.xpos[env._root_body_id])
         assert all(np.isfinite(value) for value in row.values())
-        if species in ("brachiosaurus", "dibothrosuchus"):
+        if model_id.species in ("brachiosaurus_altithorax", "dibothrosuchus_elaphros"):
             assert "unsupported_duty" not in info and "unsupported_duty" not in row
             assert "bilateral_support_duty" not in row
-        if species == "trex":
-            legacy = capture_trex_stance_snapshot(env, info, 1)
+        if model_id == ModelId("tyrannosaurus_rex", "anatomical"):
+            legacy = capture_tyrannosaurus_rex_stance_snapshot(env, info, 1)
             assert {key: row[key] for key in legacy} == legacy
         for actual, expected in zip((env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl), before):
             np.testing.assert_array_equal(actual, expected)
@@ -153,19 +153,28 @@ def test_shared_replay_snapshot_preserves_each_species_state_and_measured_suppor
         env.close()
 
 
-@pytest.mark.parametrize("species", ["trex", "velociraptor", "compsognathus", "compsognathus_robot"])
-def test_shared_replay_snapshot_measures_each_biped_at_its_own_feet_and_leg_joints(species):
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        ModelId("tyrannosaurus_rex", "anatomical"),
+        ModelId("velociraptor_mongoliensis", "anatomical"),
+        ModelId("compsognathus_longipes", "anatomical"),
+        ModelId("compsognathus_longipes", "robot"),
+    ],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
+def test_shared_replay_snapshot_measures_each_biped_at_its_own_feet_and_leg_joints(model_id):
     import mujoco
 
     from environments.shared.config import load_stage_config
-    from environments.shared.gait.morphology import SUPPORT_REGISTRY
+    from environments.shared.gait.morphology import support_entry
     from environments.shared.species_registry import get_species_config
 
-    env = get_species_config(species).env_class(**load_stage_config(species, 1)["env_kwargs"])
+    env = get_species_config(model_id).env_class(**load_stage_config(model_id, 1)["env_kwargs"])
     try:
         env.reset(seed=2043)
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape))
-        row = capture_stance_snapshot(env, info, 1, species=species)
+        row = capture_stance_snapshot(env, info, 1, model_id=model_id)
 
         expected = {"stance_width", "foot_fore_aft_offset", "pelvis_support_offset_xy", "leg_home_error_asymmetry_rad"}
         expected |= {f"{side}_foot_{axis}" for side in "rl" for axis in "xyz"}
@@ -178,7 +187,9 @@ def test_shared_replay_snapshot_measures_each_biped_at_its_own_feet_and_leg_join
         # Column sides map to the model's own names: the support registry's foot
         # site (the floor-truth recorder's reference point) and the joints
         # spelled as it spells the side (the robot's right_knee is r_knee).
-        foot_site = SUPPORT_REGISTRY[species].foot_site
+        entry = support_entry(model_id)
+        assert entry is not None
+        foot_site = entry.foot_site
         assert foot_site is not None
         home = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_KEY, "home")
         for side, word in (("r", "right"), ("l", "left")):
@@ -194,6 +205,6 @@ def test_shared_replay_snapshot_measures_each_biped_at_its_own_feet_and_leg_join
         if "stance_width" in info:
             assert math.hypot(row["stance_width"], row["foot_fore_aft_offset"]) == pytest.approx(info["stance_width"])
         # The robot's env has no leg-home-pose term; its CSV does not invent one.
-        assert ("leg_home_pose_error" in row) == (species != "compsognathus_robot")
+        assert ("leg_home_pose_error" in row) == (model_id.embodiment != "robot")
     finally:
         env.close()
