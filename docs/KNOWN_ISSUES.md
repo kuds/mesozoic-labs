@@ -1797,16 +1797,17 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   intentional? (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)
-- **LOW** — `website/static/img/logo.svg` is 38,405 bytes because it is not a
+- **LOW** — `website/static/img/logo.svg` is 38,406 bytes because it is not a
   vector drawing: it is a 1000×1000 SVG wrapping one base64 PNG (500×500,
   28,552 bytes, with a 418-byte XMP text chunk) and has no paths and no
   SVG editor metadata, so SVGO or path simplification, the remedy
   [WEBSITE_PLAN.md](WEBSITE_PLAN.md) proposed, would not shrink it; the
-  navbar's dark-mode `logo-dark.svg` (25,293 bytes) is built the same way
+  navbar's dark-mode `logo-dark.svg` (25,294 bytes) is built the same way
   (`website/docusaurus.config.ts:108-112`), its PNG (18,720 bytes) without
   the text chunk. Fix: recompress both PNGs, dropping `logo.svg`'s XMP chunk,
-  or redraw the logo as a vector. (measured 2026-09-30; moved
-  from WEBSITE_PLAN.md's "Optimize Logo SVG")
+  or redraw the logo as a vector. (measured 2026-09-30, each file 1 byte
+  longer since its final newline was added on 2026-10-12; moved from
+  WEBSITE_PLAN.md's "Optimize Logo SVG")
 
 ## Notebooks
 

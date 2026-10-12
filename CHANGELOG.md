@@ -2373,6 +2373,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **`pre-commit run --all-files` modifies nothing on a fresh checkout** (with
+  D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
+  final newline, so `end-of-file-fixer` rewrote both on every run (noted in
+  `docs/investigations/TREX_REVIEW_2026_07.md`); each now ends with one. The
+  hook keeps its scope, and no digest data file changes.
 - **Statistics or a checkpoint of another observation width are refused by
   plant, not by SB3's shape errors** (#616; with the heading-free observation,
   decision D-D31). SB3's `VecNormalize.load` re-binds the unpickled wrapper to
