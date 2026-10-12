@@ -12,7 +12,7 @@ from environments.compsognathus_longipes.model import (
     PARAMETERS,
     floor_contacts,
     load_model,
-    robot_body_ids,
+    pelvis_subtree_body_ids,
     set_motors_enabled,
 )
 from environments.compsognathus_longipes.sensors import onboard_readings
@@ -98,7 +98,7 @@ def test_camera_orientation_target_and_frustum_are_unoccluded(embodiment):
     assert 0 < distance < 0.5
     assert model.geom_bodyid[geom_id[0]] == model.body("prey").id
     tan_v = np.tan(np.deg2rad(model.cam_fovy[cam]) / 2)
-    bodies = set(robot_body_ids(model))
+    bodies = set(pelvis_subtree_body_ids(model))
     # Includes visual-only geoms and the camera's own body; no exclusion cheat.
     for x in np.linspace(-1, 1, 9):
         for y in np.linspace(-1, 1, 7):

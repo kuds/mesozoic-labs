@@ -6,6 +6,11 @@ Uses the current implementation for both arms. Only the original stance TOMLs
 come from the pinned baseline commit. Each arm preserves the production rollout,
 network, episode horizon, normalization, and complete learning-rate/entropy
 schedules, then stops on a rollout boundary. No checkpoints are written.
+
+Both arms read each model's stance file at its decision D-D33 path,
+``configs/<species>/<embodiment>/stance.toml``, so the baseline ref must hold
+that layout; the recorded probe (``data/ppo_recipe_probe_v1.json``, baseline
+``BASELINE_REF``) predates it and is re-run from a checkout of ``f40c11d3``.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ from stable_baselines3.common.logger import configure  # noqa: E402
 from stable_baselines3.common.vec_env import sync_envs_normalization  # noqa: E402
 
 from environments.shared.config import load_stage_config  # noqa: E402
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.train_base import (  # noqa: E402
@@ -43,7 +49,8 @@ from environments.shared.train_base import (  # noqa: E402
 BASELINE_REF = "21dfa4521b0822f0bee60be927893c2099c139c7"
 N_ENVS = 4
 N_EVAL_EPISODES = 10
-SPECIES = ("compsognathus", "compsognathus_robot")
+#: The probed models, in order: both Compsognathus embodiments.
+MODEL_IDS = (ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot"))
 
 
 def _positive_int(value: str) -> int:
@@ -93,21 +100,21 @@ class BoundedProbePPO(PPO):
         self.update_records.append(metrics)
 
 
-def _run_arm(species: str, arm: str, output: Path, baseline_ref: str, updates: int, seed: int) -> dict:
-    stage_relative = f"configs/{species}/stance.toml"
+def _run_arm(model_id: ModelId, arm: str, output: Path, baseline_ref: str, updates: int, seed: int) -> dict:
+    stage_relative = (model_id.path(Path("configs")) / "stance.toml").as_posix()
     if arm == "baseline":
         config_bytes = subprocess.check_output(["git", "show", f"{baseline_ref}:{stage_relative}"], cwd=REPO_ROOT)
     else:
         config_bytes = (REPO_ROOT / stage_relative).read_bytes()
-    config_path = output / f"{species}_{arm}.toml"
+    config_path = output / f"{model_id.species}_{model_id.embodiment}_{arm}.toml"
     config_path.write_bytes(config_bytes)
-    config = load_stage_config(species, "stance", config_path=str(config_path))
+    config = load_stage_config(model_id, "stance", config_path=str(config_path))
     configs: dict[int | str, dict[str, Any]] = {"stance": config}
     horizon = config["curriculum_kwargs"]["timesteps"]
     budget = updates * N_ENVS * config["ppo_kwargs"]["n_steps"]
     if budget > horizon:
-        raise ValueError(f"Probe budget {budget} exceeds {species} {arm} stage budget {horizon}")
-    species_cfg = get_species_config(species)
+        raise ValueError(f"Probe budget {budget} exceeds {model_id} {arm} stage budget {horizon}")
+    species_cfg = get_species_config(model_id)
     env = create_vec_env(
         species_cfg, configs, "stance", N_ENVS, seed, algorithm="ppo", gamma=config["ppo_kwargs"]["gamma"]
     )
@@ -117,7 +124,7 @@ def _run_arm(species: str, arm: str, output: Path, baseline_ref: str, updates: i
         model = BoundedProbePPO("MlpPolicy", env, probe_timesteps=budget, seed=seed, device="cpu", **model_kwargs)
         model.set_logger(configure(format_strings=[]))
         callback = _maybe_ent_coef_decay_callback(config, "ppo", horizon)
-        print(f"START {species} {arm} horizon={horizon} diagnostic_steps={budget}", flush=True)
+        print(f"START {model_id} {arm} horizon={horizon} diagnostic_steps={budget}", flush=True)
         start = time.perf_counter()
         model.learn(total_timesteps=horizon, callback=callback)
         training_seconds = time.perf_counter() - start
@@ -141,7 +148,7 @@ def _run_arm(species: str, arm: str, output: Path, baseline_ref: str, updates: i
             eval_env.close()
         env.close()
     return {
-        "species": species,
+        **model_id.record(),
         "arm": arm,
         "toml_sha256": hashlib.sha256(config_bytes).hexdigest(),
         "config": config,
@@ -178,7 +185,8 @@ def main() -> None:
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
     results = {
-        "schema_version": 1,
+        # 2 since decision D-D33: each arm records species and embodiment.
+        "schema_version": 2,
         "purpose": "Early optimizer-update diagnostic, not a learning qualification or gate evaluation",
         "baseline_ref": args.baseline_ref,
         "working_tree_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
@@ -210,15 +218,15 @@ def main() -> None:
         ],
         "arms": [],
     }
-    for species in SPECIES:
+    for model_id in MODEL_IDS:
         for arm in ("baseline", "candidate"):
-            record = _run_arm(species, arm, output, args.baseline_ref, args.updates, args.seed)
+            record = _run_arm(model_id, arm, output, args.baseline_ref, args.updates, args.seed)
             results["arms"].append(record)
             (output / "results.json").write_text(json.dumps(results, indent=2, allow_nan=False) + "\n")
             print(
                 json.dumps(
                     {
-                        "species": species,
+                        **model_id.record(),
                         "arm": arm,
                         "training_seconds": record["training_seconds"],
                         "KL": [update["approx_kl"] for update in record["updates"]],

@@ -28,5 +28,8 @@ from pathlib import Path
 
 #: ``environments/shared``, this module's directory.
 SHARED_ROOT = Path(__file__).resolve().parent
+#: The ``environments`` package: ``environments/shared`` one level up.  Each
+#: model's MJCF is built from it (``ModelId.asset_path``; decision D-D33).
+ENVIRONMENTS_ROOT = SHARED_ROOT.parent
 #: The repository checkout: ``environments/shared`` two levels up.
 REPOSITORY_ROOT = SHARED_ROOT.parents[1]

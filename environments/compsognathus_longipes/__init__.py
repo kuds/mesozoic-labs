@@ -1,9 +1,16 @@
-"""Compsognathus anatomical/robot models and SB3 training environments."""
+"""Compsognathus longipes: the species base environment, model API, data, scripts and tests.
 
-from pathlib import Path
+Each embodiment (decision D-D33) is a subpackage holding its environment
+module and MJCF: ``anatomical/`` and ``robot/``.  :data:`MODEL_PATHS` maps
+each embodiment to its MJCF, built by ``ModelId.asset_path``, the one rule
+the environment classes and the species manifest share (no hand-written
+third copy).
+"""
 
-ASSET_DIR = Path(__file__).resolve().parent / "assets"
+from environments.shared.model_id import ModelId
+from environments.shared.paths import ENVIRONMENTS_ROOT
+
 MODEL_PATHS = {
-    "anatomical": ASSET_DIR / "compsognathus_longipes_anatomical.xml",
-    "robot": ASSET_DIR / "compsognathus_longipes_robot.xml",
+    embodiment: ModelId("compsognathus_longipes", embodiment).asset_path(ENVIRONMENTS_ROOT)
+    for embodiment in ("anatomical", "robot")
 }

@@ -1,8 +1,11 @@
-"""Measure provisional Compsognathus push tasks against fixed-command PD nulls.
+"""Measure a model's provisional push task against fixed-command PD nulls.
 
-Run from the repository root::
+Any model whose stage manifest declares a ``recovery`` stage, named by
+``--species`` and ``--embodiment`` (both required; decision D-D33).  Run from
+the repository root::
 
-    python -m environments.shared.scripts.calibrate_recovery --output calibration.json
+    python -m environments.shared.scripts.calibrate_recovery \
+        --species compsognathus_longipes --embodiment robot --output calibration.json
 
 This calibrates the task, not a learned recovery policy. It does not consume the
 publication seeds 3042--3081. Quiet, force-selection, and held-out diagnostic
@@ -15,6 +18,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import inspect
 import json
 import math
 import subprocess
@@ -30,12 +34,14 @@ import numpy as np
 
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.recovery_gate import binomial_lcb, binomial_ucb
+from environments.shared.model_id import EMBODIMENTS, ModelId
 from environments.shared.paths import REPOSITORY_ROOT as REPO_ROOT
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.recovery_evaluation import constant_action_controller, roll_recovery_panel
-from environments.shared.species_registry import get_species_config
+from environments.shared.species_names import model_entry, model_ids
+from environments.shared.species_registry import env_class, get_species_config
+from environments.shared.stage_manifest import load_stage_manifest
 
-SPECIES = ("compsognathus", "compsognathus_robot")
 QUIET_SEED = 1042
 SELECTION_SEED = 2042
 HELDOUT_SEED = 7042
@@ -45,6 +51,40 @@ RECOVER_STEPS = 40
 DWELL_STEPS = 20
 MULTIPLES = (0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0)
 FLOORS = {"height_error_max_m": 0.005, "tilt_max_rad": 0.08, "planar_speed_max_mps": 0.08}
+
+
+def _recovery_models() -> tuple[ModelId, ...]:
+    """Every manifest model whose stage manifest declares a ``recovery`` stage."""
+    return tuple(
+        model_id
+        for model_id in model_ids()
+        if any(entry.id == "recovery" for entry in load_stage_manifest(model_id).stages)
+    )
+
+
+def _source_paths(model_id: ModelId) -> list[str]:
+    """The repository files the calibration depends on, recorded with their digests.
+
+    This script, the model's environment modules (the embodiment's class and
+    its bases inside ``environments/<species>/``), the shared base environment,
+    perturbation and recovery judge, the model's MJCF and its stance config.
+    """
+    env_modules = [
+        Path(inspect.getsourcefile(cls) or "").resolve().relative_to(REPO_ROOT).as_posix()
+        for cls in env_class(model_id).__mro__
+        if cls.__module__.startswith(f"environments.{model_id.species}.")
+    ]
+    stance = load_stage_manifest(model_id).resolve("stance").config_file
+    return [
+        "environments/shared/scripts/calibrate_recovery.py",
+        *env_modules,
+        "environments/shared/base_env.py",
+        "environments/shared/perturbation.py",
+        "environments/shared/recovery_evaluation.py",
+        "environments/shared/curriculum/recovery_gate.py",
+        str(model_entry(model_id)["model_path"]),
+        (model_id.path(Path("configs")) / stance).as_posix(),
+    ]
 
 
 def _metrics(env: Any) -> list[float]:
@@ -76,8 +116,8 @@ class TracedEnv:
         return result
 
 
-def _new_env(species: str, multiple: float, interval: float = 2.0) -> Any:
-    kwargs = dict(load_stage_config(species, "stance")["env_kwargs"])
+def _new_env(model_id: ModelId, multiple: float, interval: float = 2.0) -> Any:
+    kwargs = dict(load_stage_config(model_id, "stance")["env_kwargs"])
     kwargs.update(
         perturbation_capture_velocity_multiple=multiple,
         perturbation_interval=interval,
@@ -85,7 +125,7 @@ def _new_env(species: str, multiple: float, interval: float = 2.0) -> Any:
         perturbation_duration=0.20,
         perturbation_direction="uniform_horizontal",
     )
-    return get_species_config(species).env_class(**kwargs)
+    return get_species_config(model_id).env_class(**kwargs)
 
 
 def _brace(env: Any) -> np.ndarray:
@@ -135,8 +175,8 @@ def _geometry(env: Any) -> dict[str, Any]:
     }
 
 
-def _quiet(species: str, episodes: int) -> dict[str, Any]:
-    env = _new_env(species, 0.0)
+def _quiet(model_id: ModelId, episodes: int) -> dict[str, Any]:
+    env = _new_env(model_id, 0.0)
     traces = []
     lengths = []
     try:
@@ -152,7 +192,7 @@ def _quiet(species: str, episodes: int) -> dict[str, Any]:
             traces.append(np.asarray(trace))
             lengths.append(len(trace))
         if min(lengths) != env.max_episode_steps:
-            raise RuntimeError(f"{species}: quiet zero-command null did not survive every calibration episode")
+            raise RuntimeError(f"{model_id}: quiet zero-command null did not survive every calibration episode")
         samples = np.concatenate([trace[SETTLE_STEPS:] for trace in traces])
         reference = float(np.median(samples[:, 0]))
         p999 = {
@@ -203,8 +243,8 @@ def _quiet(species: str, episodes: int) -> dict[str, Any]:
         env.close()
 
 
-def _quiet_brace(species: str, calibration: dict[str, Any], episodes: int) -> dict[str, Any]:
-    env = _new_env(species, 0.0)
+def _quiet_brace(model_id: ModelId, calibration: dict[str, Any], episodes: int) -> dict[str, Any]:
+    env = _new_env(model_id, 0.0)
     rows = []
     try:
         for seed in range(QUIET_SEED, QUIET_SEED + episodes):
@@ -232,7 +272,7 @@ def _quiet_brace(species: str, calibration: dict[str, Any], episodes: int) -> di
 
 
 def _panel(
-    species: str,
+    model_id: ModelId,
     calibration: dict[str, Any],
     *,
     multiple: float,
@@ -241,7 +281,7 @@ def _panel(
     brace: bool = False,
     interval: float = 2.0,
 ) -> dict[str, Any]:
-    env = _new_env(species, multiple, interval)
+    env = _new_env(model_id, multiple, interval)
     traced = TracedEnv(env)
     try:
         action = _brace(env) if brace else np.zeros(env.model.nu)
@@ -315,29 +355,29 @@ def _panel(
         env.close()
 
 
-def _run_species(arguments: tuple[str, int, int, int, int, str | None]) -> dict[str, Any]:
-    species, quiet_episodes, screen_episodes, heldout_episodes, screen_workers, checkpoint_dir = arguments
-    calibration = _quiet(species, quiet_episodes)
-    print(f"QUIET {species}: {json.dumps(calibration['safe_set'])}", flush=True)
+def _run_model(arguments: tuple[ModelId, int, int, int, int, str | None]) -> dict[str, Any]:
+    model_id, quiet_episodes, screen_episodes, heldout_episodes, screen_workers, checkpoint_dir = arguments
+    calibration = _quiet(model_id, quiet_episodes)
+    print(f"QUIET {model_id}: {json.dumps(calibration['safe_set'])}", flush=True)
     screens: list[dict[str, Any]] = []
 
     def checkpoint(extra: dict[str, Any] | None = None) -> None:
         if checkpoint_dir is not None:
-            path = Path(checkpoint_dir) / f"{species}.json"
+            path = Path(checkpoint_dir) / f"{model_id.species}_{model_id.embodiment}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
-            values = {"species": species, "quiet_calibration": calibration, "selection_panels": screens}
+            values = {**model_id.record(), "quiet_calibration": calibration, "selection_panels": screens}
             values.update(extra or {})
             path.write_text(json.dumps(values, separators=(",", ":"), allow_nan=False) + "\n", encoding="utf-8")
 
     # Independent force levels can use a bounded worker pool. Sorting the
     # returned panels preserves the same selection with any worker count.
     with ProcessPoolExecutor(max_workers=screen_workers) as pool:
-        screen = partial(_screen_panel, species, calibration, screen_episodes)
+        screen = partial(_screen_panel, model_id, calibration, screen_episodes)
         for panel in pool.map(screen, MULTIPLES):
             screens.append(panel)
             checkpoint()
             print(
-                f"SCREEN {species} {panel['perturbation']['capture_velocity_multiple']:g}: "
+                f"SCREEN {model_id} {panel['perturbation']['capture_velocity_multiple']:g}: "
                 f"{json.dumps(panel['summary'])}",
                 flush=True,
             )
@@ -365,7 +405,7 @@ def _run_species(arguments: tuple[str, int, int, int, int, str | None]) -> dict[
                 screens.append(panel)
                 checkpoint()
                 print(
-                    f"REFINE {species} {panel['perturbation']['capture_velocity_multiple']:g}: "
+                    f"REFINE {model_id} {panel['perturbation']['capture_velocity_multiple']:g}: "
                     f"{json.dumps(panel['summary'])}",
                     flush=True,
                 )
@@ -375,17 +415,17 @@ def _run_species(arguments: tuple[str, int, int, int, int, str | None]) -> dict[
     # while still allowing at least 25% full-horizon PD-null survival.
     candidates = _candidates(screens)
     if not candidates:
-        raise RuntimeError(f"{species}: no screened multiple meets selection rule; expand/reconsider sweep")
+        raise RuntimeError(f"{model_id}: no screened multiple meets selection rule; expand/reconsider sweep")
     selected = candidates[0]["perturbation"]["capture_velocity_multiple"]
-    print(f"SELECTED {species}: {selected:g}", flush=True)
-    quiet_brace = _quiet_brace(species, calibration, quiet_episodes)
+    print(f"SELECTED {model_id}: {selected:g}", flush=True)
+    quiet_brace = _quiet_brace(model_id, calibration, quiet_episodes)
     heldout = [
-        _panel(species, calibration, multiple=selected, episodes=heldout_episodes, seed=HELDOUT_SEED, brace=brace)
+        _panel(model_id, calibration, multiple=selected, episodes=heldout_episodes, seed=HELDOUT_SEED, brace=brace)
         for brace in (False, True)
     ]
     stress = [
         _panel(
-            species,
+            model_id,
             calibration,
             multiple=1.25 * selected,
             interval=1.9,
@@ -396,8 +436,8 @@ def _run_species(arguments: tuple[str, int, int, int, int, str | None]) -> dict[
         for brace in (False, True)
     ]
     result = {
-        "species": species,
-        "stance_env_kwargs": load_stage_config(species, "stance")["env_kwargs"],
+        **model_id.record(),
+        "stance_env_kwargs": load_stage_config(model_id, "stance")["env_kwargs"],
         "quiet_calibration": calibration,
         "quiet_brace_check": quiet_brace,
         "selection_rule": "first ascending multiple with zero-command success <=0.5 and full-horizon survival >=0.25",
@@ -409,15 +449,15 @@ def _run_species(arguments: tuple[str, int, int, int, int, str | None]) -> dict[
     checkpoint(result)
     for panel in heldout + stress:
         print(
-            f"HELDOUT {species} {panel['controller_id']} {panel['perturbation']['capture_velocity_multiple']:g}: "
+            f"HELDOUT {model_id} {panel['controller_id']} {panel['perturbation']['capture_velocity_multiple']:g}: "
             f"{json.dumps(panel['summary'])}",
             flush=True,
         )
     return result
 
 
-def _screen_panel(species: str, calibration: dict[str, Any], episodes: int, multiple: float) -> dict[str, Any]:
-    return _panel(species, calibration, multiple=multiple, episodes=episodes, seed=SELECTION_SEED)
+def _screen_panel(model_id: ModelId, calibration: dict[str, Any], episodes: int, multiple: float) -> dict[str, Any]:
+    return _panel(model_id, calibration, multiple=multiple, episodes=episodes, seed=SELECTION_SEED)
 
 
 def _candidates(screens: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -438,37 +478,31 @@ def _episode_count(value: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--species", choices=SPECIES, nargs="+", default=list(SPECIES))
+    recovery_models = _recovery_models()
+    parser.add_argument("--species", required=True, choices=sorted({model.species for model in recovery_models}))
+    parser.add_argument(
+        "--embodiment",
+        required=True,
+        choices=[embodiment for embodiment in EMBODIMENTS if any(m.embodiment == embodiment for m in recovery_models)],
+    )
     parser.add_argument("--quiet-episodes", type=_episode_count, default=8)
     parser.add_argument("--screen-episodes", type=_episode_count, default=32)
     parser.add_argument("--heldout-episodes", type=_episode_count, default=40)
     parser.add_argument("--screen-workers", type=int, choices=range(1, 5), default=4)
-    parser.add_argument(
-        "--checkpoint-dir", type=Path, help="Optional directory retaining intermediate species evidence"
-    )
+    parser.add_argument("--checkpoint-dir", type=Path, help="Optional directory retaining intermediate evidence")
     args = parser.parse_args()
-    arguments = [
-        (
-            species,
-            args.quiet_episodes,
-            args.screen_episodes,
-            args.heldout_episodes,
-            args.screen_workers,
-            str(args.checkpoint_dir) if args.checkpoint_dir is not None else None,
-        )
-        for species in args.species
-    ]
-    source_paths = [
-        "environments/shared/scripts/calibrate_recovery.py",
-        "environments/compsognathus_longipes/anatomical/env.py",
-        "environments/shared/base_env.py",
-        "environments/shared/perturbation.py",
-        "environments/shared/recovery_evaluation.py",
-        "environments/shared/curriculum/recovery_gate.py",
-        "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
-        "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml",
-        *[f"configs/{species}/stance.toml" for species in args.species],
-    ]
+    model_id = ModelId(args.species, args.embodiment)
+    if model_id not in recovery_models:
+        parser.error(f"{model_id} has no recovery stage; models with one: {', '.join(map(str, recovery_models))}")
+    arguments = (
+        model_id,
+        args.quiet_episodes,
+        args.screen_episodes,
+        args.heldout_episodes,
+        args.screen_workers,
+        str(args.checkpoint_dir) if args.checkpoint_dir is not None else None,
+    )
+    source_paths = _source_paths(model_id)
     provenance = {
         "working_tree_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True).strip(),
         "python": sys.version,
@@ -476,10 +510,10 @@ def main() -> None:
         "source_sha256": {path: hashlib.sha256((REPO_ROOT / path).read_bytes()).hexdigest() for path in source_paths},
         "arguments": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
     }
-    with ProcessPoolExecutor(max_workers=len(arguments)) as pool:
-        results = list(pool.map(_run_species, arguments))
+    measured = _run_model(arguments)
     result = {
-        "schema_version": 1,
+        # 2 since decision D-D33: one model per run, named by species and embodiment.
+        "schema_version": 2,
         "purpose": "Provisional physical task calibration from fixed-command PD nulls; no learned capability certification",
         "provenance": provenance,
         "reserved_publication_seed_range_untouched": [3042, 3081],
@@ -490,7 +524,7 @@ def main() -> None:
             "not literally instantaneous physical recovery."
         ),
         "limitations": [
-            "No certified Compsognathus stance or recovery policy was available for calibration.",
+            "No certified stance or recovery policy of the model was used for calibration.",
             "Fixed commands retain the model's built-in position-actuator PD feedback; they are not passive dynamics.",
             "Capture-velocity scaling uses a linear-inverted-pendulum approximation and home contact AABB, not a stability proof.",
             "Forces act at the selected massive body's center of mass, not the whole robot subtree center of mass.",
@@ -498,7 +532,7 @@ def main() -> None:
             "Per-shove outcomes are correlated within an episode; confidence bounds are computed only across episodes.",
             "The separate held-out and stress panels characterize task difficulty, not publication-policy performance.",
         ],
-        "species": results,
+        **measured,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, separators=(",", ":"), allow_nan=False) + "\n", encoding="utf-8")

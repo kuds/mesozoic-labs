@@ -1,11 +1,11 @@
-"""Report per-actuator force saturation on the raptor plant.
+"""Report per-actuator force saturation on the anatomical Velociraptor plant.
 
 Thin wrapper kept at this documented path; the measurement now lives in
 ``environments/shared/scripts/actuator_saturation_report.py`` so every
 species runs the identical excitation (docs/investigations/
 STAGE2_RECOMMENDATIONS.md). Extra CLI args are forwarded, so this also
-accepts a cadence override, e.g. ``... velociraptor:1.5`` style args of
-the shared script.
+accepts the shared script's arguments, e.g. a cadence override,
+``--model-id velociraptor_mongoliensis anatomical --hz 1.5``.
 
 Usage::
 
@@ -23,4 +23,4 @@ if _repo_root not in sys.path:
 from environments.shared.scripts.actuator_saturation_report import main
 
 if __name__ == "__main__":
-    main(sys.argv[1:] or ["velociraptor"])
+    main(sys.argv[1:] or ["--model-id", "velociraptor_mongoliensis", "anatomical"])

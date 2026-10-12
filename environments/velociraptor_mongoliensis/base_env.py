@@ -57,7 +57,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import gymnasium as gym
 import mujoco
 import numpy as np
 
@@ -74,8 +73,25 @@ from environments.shared.reward_functions import (
 )
 
 
-class VelociraptorMongoliensisAnatomicalEnv(BaseDinoEnv):
-    """Velociraptor locomotion and strike environment."""
+class VelociraptorMongoliensisEnv(BaseDinoEnv):
+    """Velociraptor locomotion and strike environment.
+
+    The species base (decision D-D33): the task, the rewards and the hashed
+    policy-interface methods (``_get_obs``, ``_scale_action``,
+    ``_cache_ids``), shared by every embodiment of the species.  An
+    embodiment subclass (``anatomical/env.py``) sets ``embodiment`` and
+    ``MODEL_PATH``; this class is never instantiated itself.
+    """
+
+    #: Set by each embodiment subclass: its embodiment and its MJCF.
+    embodiment: str
+    MODEL_PATH: Path
+    #: The species' training labels (species_registry.get_species_config).
+    HEIGHT_LABEL = "Pelvis height"
+    BEHAVIOR_SECTION_LABEL = "Hunting"
+    # The raptor env only emits strike_success (bite_success was
+    # impossible and was removed).
+    SUCCESS_KEYS = ("strike_success",)
 
     # SB3-only since policy-interface revision 11 (plant_versions note 14).
     # The foot observation sums three touch sensors per foot, and the frozen
@@ -120,7 +136,7 @@ class VelociraptorMongoliensisAnatomicalEnv(BaseDinoEnv):
         speed_penalty_threshold: float = 0.10,
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
-        # Stance-quality terms, named as on TyrannosaurusRexAnatomicalEnv.  Every default is inert:
+        # Stance-quality terms, named as on TyrannosaurusRexEnv.  Every default is inert:
         # a zero weight (or alive fraction) reproduces the reward that
         # predates them bit for bit.
         bilateral_support_weight: float = 0.0,
@@ -144,7 +160,7 @@ class VelociraptorMongoliensisAnatomicalEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "velociraptor_mongoliensis_anatomical.xml")
+        model_path = str(self.MODEL_PATH)
 
         # Raptor-specific reward weights
         self.forward_vel_max = forward_vel_max
@@ -665,11 +681,3 @@ class VelociraptorMongoliensisAnatomicalEnv(BaseDinoEnv):
 
         # Reset gait symmetry tracking
         self._reset_gait_state()
-
-
-# Register with Gymnasium (MesozoicLabs namespace)
-gym.register(
-    id="MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
-    entry_point="environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
-    max_episode_steps=1000,
-)

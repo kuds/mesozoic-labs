@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from environments.compsognathus_longipes import MODEL_PATHS
 from environments.compsognathus_longipes.scripts.standing_targets import write_gravity_targets
 from environments.compsognathus_longipes.scripts.styling import apply_styles
 
@@ -114,7 +115,8 @@ def build_robot(parameters):
         raise ValueError("Rev B reference changed: review provenance before regenerating")
     p = parameters["robot"]
     root = ET.parse(source).getroot()
-    root.set("model", "compsognathus_robot_rev_b_dynamics_v2_style_v3")
+    # The model name is the asset stem, <species>_<embodiment> (decision D-D33).
+    root.set("model", MODEL_PATHS["robot"].stem)
     root.insert(
         0, ET.Comment("Generated prototype. Rev B geometry/inertias preserved. See README and references/NOTICE.md.")
     )
@@ -215,13 +217,13 @@ def build_robot(parameters):
     home = p["home_qpos"]
     element(element(root, "keyframe"), "key", name="home", qpos=fmt(home), ctrl=fmt(home[7:]))
     apply_styles(root, "robot", parameters)
-    write(root, ROOT / "assets/compsognathus_robot.xml")
-    write_gravity_targets(ROOT / "assets/compsognathus_robot.xml")
+    write(root, MODEL_PATHS["robot"])
+    write_gravity_targets(MODEL_PATHS["robot"])
 
 
 def build_anatomical(parameters):
     p = parameters["anatomical"]
-    root = ET.Element("mujoco", model="compsognathus_biological_v2")
+    root = ET.Element("mujoco", model=MODEL_PATHS["anatomical"].stem)
     root.append(ET.Comment("Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction."))
     element(root, "compiler", angle="radian", autolimits="true")
     element(
@@ -461,15 +463,15 @@ def build_anatomical(parameters):
         ctrl=fmt([0] * len(actuator)),
     )
     apply_styles(root, "anatomical", parameters)
-    write(root, ROOT / "assets/compsognathus.xml")
-    write_gravity_targets(ROOT / "assets/compsognathus.xml")
+    write(root, MODEL_PATHS["anatomical"])
+    write_gravity_targets(MODEL_PATHS["anatomical"])
 
 
 def main():
     parameters = json.loads(PARAMETERS.read_text())
     build_robot(parameters)
     build_anatomical(parameters)
-    print("Generated assets/compsognathus.xml and assets/compsognathus_robot.xml")
+    print("Generated " + " and ".join(str(path.relative_to(ROOT)) for path in MODEL_PATHS.values()))
 
 
 if __name__ == "__main__":

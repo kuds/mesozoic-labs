@@ -21,7 +21,7 @@ from environments.compsognathus_longipes.model import (
     floor_contacts,
     load_model,
     model_bounds,
-    robot_body_ids,
+    pelvis_subtree_body_ids,
     set_motors_enabled,
 )
 
@@ -137,7 +137,7 @@ def hold_trial(embodiment: str, *, mass_scale=1.0, seconds=10.0, seed=None, moto
     final_support = support_sample(model, data)
     support_samples.append(final_support)
     margin = final_support["support_margin_m"]
-    mass = float(model.body_mass[robot_body_ids(model)].sum())
+    mass = float(model.body_mass[pelvis_subtree_body_ids(model)].sum())
     foot_force = sum(float(data.sensor(name).data[0]) for name in ("r_foot_touch", "l_foot_touch"))
     ground_force = sum(c["normal_force"] for c in contacts)
     cap = np.max(np.abs(model.actuator_forcerange), axis=1)
@@ -215,7 +215,7 @@ def geometry(embodiment):
         "nv": model.nv,
         "actuators": model.nu,
         "joints_including_root": model.njnt,
-        "mass_kg": float(model.body_mass[robot_body_ids(model)].sum()),
+        "mass_kg": float(model.body_mass[pelvis_subtree_body_ids(model)].sum()),
         "bounds_min_m": low.tolist(),
         "bounds_max_m": high.tolist(),
         "dimensions_xyz_m": (high - low).tolist(),

@@ -3,9 +3,9 @@
 Test the T-Rex Gymnasium environment.
 
 Usage:
-    python test_env.py
-    python test_env.py --render
-    python test_env.py --episodes 5 --steps 200
+    python test_env.py --embodiment anatomical
+    python test_env.py --embodiment anatomical --render
+    python test_env.py --embodiment anatomical --episodes 5 --steps 200
 """
 
 import sys
@@ -17,7 +17,8 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from environments.shared.harnesses.env_smoke import run_env_tests
-from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+
+SPECIES = "tyrannosaurus_rex"
 
 REWARD_KEYS = [
     "reward_forward",
@@ -30,4 +31,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(TyrannosaurusRexAnatomicalEnv, REWARD_KEYS, "T-Rex"))
+    sys.exit(run_env_tests(SPECIES, REWARD_KEYS, "T-Rex"))

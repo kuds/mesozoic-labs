@@ -1,4 +1,4 @@
-<mujoco model="velociraptor">
+<mujoco model="velociraptor_mongoliensis_anatomical">
   <compiler angle="degree" autolimits="true"/>
 
   <!-- Elliptic friction cone since physics r4 (plant_versions note 17,
@@ -457,7 +457,8 @@
        Those are load-bearing constants elsewhere and must be re-measured
        together with any edit here, along with the ctrl preload
        (re-measure tau_g):
-         velociraptor_mongoliensis/base_env.py  natural_pitch (0.35), the leg_home_pose target (this
+         velociraptor_mongoliensis/base_env.py
+                        natural_pitch (0.35), the leg_home_pose target (this
                         key)
          configs/velociraptor_mongoliensis/anatomical/stance.toml
                         the stance-quality weights and min_avg_reward /

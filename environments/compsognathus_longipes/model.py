@@ -17,8 +17,8 @@ from . import MODEL_PATHS
 PARAMETERS = json.loads((Path(__file__).parent / "data/model_parameters.json").read_text())
 
 
-def robot_body_ids(model: mujoco.MjModel) -> list[int]:
-    """Descendants of pelvis only: never count the world or mocap target."""
+def pelvis_subtree_body_ids(model: mujoco.MjModel) -> list[int]:
+    """The pelvis and its descendants, on either embodiment: never the world or the mocap target."""
     root = model.body("pelvis").id
     included = {root}
     for body in range(root + 1, model.nbody):
@@ -29,13 +29,13 @@ def robot_body_ids(model: mujoco.MjModel) -> list[int]:
 
 def load_model(embodiment: str, mass_scale: float = 1.0):
     if embodiment not in MODEL_PATHS:
-        raise ValueError(f"Unknown model {embodiment!r}; choose {tuple(MODEL_PATHS)}")
+        raise ValueError(f"Unknown embodiment {embodiment!r}; choose {tuple(MODEL_PATHS)}")
     if not np.isfinite(mass_scale) or mass_scale <= 0:
         raise ValueError("mass_scale must be finite and positive")
     model = mujoco.MjModel.from_xml_path(str(MODEL_PATHS[embodiment]))
     data = mujoco.MjData(model)
     if mass_scale != 1:
-        ids = robot_body_ids(model)
+        ids = pelvis_subtree_body_ids(model)
         model.body_mass[ids] *= mass_scale
         model.body_inertia[ids] *= mass_scale
         mujoco.mj_setConst(model, data)
@@ -56,7 +56,7 @@ def set_motors_enabled(model: mujoco.MjModel, enabled: bool):
 def model_bounds(model: mujoco.MjModel, data: mujoco.MjData):
     """World-space visual AABB of the animal/robot, excluding floor and target."""
     low, high = np.full(3, np.inf), np.full(3, -np.inf)
-    bodies = set(robot_body_ids(model))
+    bodies = set(pelvis_subtree_body_ids(model))
     for geom in range(model.ngeom):
         if int(model.geom_bodyid[geom]) not in bodies:
             continue

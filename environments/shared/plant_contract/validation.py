@@ -43,9 +43,9 @@ def validate_compiled_plant(
     the identity computed from the canonical species entrypoint.
     """
     _, versions = load_plant_versions()
-    version = versions.get(current.species)
+    version = versions.get(current.model_id)
     if version is None:
-        raise PlantCompatibilityError(f"{artifact} uses unknown species {current.species!r}")
+        raise PlantCompatibilityError(f"{artifact} uses unknown model {current.model_id}")
     actual_physics = _semantic_digest(PHYSICS_SCHEMA, physics_layer._physics_payload(model, version))
     errors = []
     for field_name in ("nq", "nv", "nu"):
@@ -57,7 +57,7 @@ def validate_compiled_plant(
         errors.append(f"physics_sha256: runtime={actual_physics!r}, current={current.physics_sha256!r}")
     if errors:
         raise PlantCompatibilityError(
-            f"{artifact} is not the current {current.species} plant:\n- " + "\n- ".join(errors)
+            f"{artifact} is not the current {current.model_id} plant:\n- " + "\n- ".join(errors)
         )
 
 
@@ -72,9 +72,9 @@ def validate_environment_plant(
     if not isinstance(model, mujoco.MjModel):
         raise PlantCompatibilityError(f"{artifact} exposes no MuJoCo model for plant validation")
     _, versions = load_plant_versions()
-    version = versions.get(current.species)
+    version = versions.get(current.model_id)
     if version is None:
-        raise PlantCompatibilityError(f"{artifact} uses unknown species {current.species!r}")
+        raise PlantCompatibilityError(f"{artifact} uses unknown model {current.model_id}")
     layers = fingerprint_model_layers(model, env, version, require_backend_parity=True)
     observation_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -94,7 +94,7 @@ def validate_environment_plant(
             errors.append(f"{field_name}: runtime={actual!r}, current={expected!r}")
     if errors:
         raise PlantCompatibilityError(
-            f"{artifact} is not the current {current.species} plant:\n- " + "\n- ".join(errors)
+            f"{artifact} is not the current {current.model_id} plant:\n- " + "\n- ".join(errors)
         )
 
 
@@ -137,7 +137,7 @@ def validate_recorded_identity(
     errors = current.compatibility_errors(checkpoint_identity)
     if errors:
         raise PlantCompatibilityError(
-            f"{artifact} is incompatible with the current {current.species} plant:\n- " + "\n- ".join(errors)
+            f"{artifact} is incompatible with the current {current.model_id} plant:\n- " + "\n- ".join(errors)
         )
 
 

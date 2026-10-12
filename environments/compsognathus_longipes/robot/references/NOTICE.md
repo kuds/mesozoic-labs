@@ -15,7 +15,7 @@ Leg Mechanism Rev B, September 6, 2026**. That adaptation fixed the head
 and tail, allocated core mass, added 19.5 g per hip-roll servo assembly and
 replaced the reference feet with proposed ankle-roll adapters and broader
 soles. Its file hash and original home-pose source are recorded in
-`../data/model_parameters.json`.
+`../../data/model_parameters.json`.
 
 This September 7 adaptation adds floor/inter-leg/head-tail collisions,
 limited position servos, explicit joint dynamics, foot sensor volumes,
@@ -24,5 +24,5 @@ Mechanical transforms and inertias are unchanged. Decorative geometry adds
 no mass outside the previous allowances.
 
 The anatomical model is new primitive geometry following Mesozoic Labs
-conventions. Scientific references and limitations are in `../README.md`.
+conventions. Scientific references and limitations are in `../../README.md`.
 No external skeletal illustration or animal mesh is redistributed.

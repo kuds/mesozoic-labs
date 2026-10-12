@@ -85,7 +85,7 @@ def apply_leg_finish(root):
     # Use MuJoCo's imported vertices and original transforms, not guessed STL
     # axes, to attach the finishes exactly to their existing rigid bodies.
     reference = copy.deepcopy(root)
-    reference.find("compiler").set("meshdir", str(Path(__file__).resolve().parents[1] / "assets/meshes"))
+    reference.find("compiler").set("meshdir", str(Path(__file__).resolve().parents[1] / "robot/assets/meshes"))
     model = mujoco.MjModel.from_xml_string(ET.tostring(reference, encoding="unicode"))
     for side, name, sign in (("left", "knee_and_ankle_assembly", -1), ("right", "knee_and_ankle_assembly_3", -1)):
         body = root.find(f".//body[@name='{name}']")

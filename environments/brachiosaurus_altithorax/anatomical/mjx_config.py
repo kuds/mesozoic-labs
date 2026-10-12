@@ -26,7 +26,7 @@ _SENSOR_RR_META = 28
 _SENSOR_RL_META = 29
 
 register_species_mjx(
-    species="brachiosaurus",
+    species="brachiosaurus_altithorax",
     frame_skip=5,
     action_mapping="home-keyframe-residual/v1",
     sensor_foot_indices=(_SENSOR_FR_FOOT, _SENSOR_FL_FOOT, _SENSOR_RR_FOOT, _SENSOR_RL_FOOT),

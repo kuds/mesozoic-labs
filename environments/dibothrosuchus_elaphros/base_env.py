@@ -53,7 +53,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import gymnasium as gym
 import mujoco
 import numpy as np
 
@@ -61,8 +60,23 @@ from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
 
 
-class DibothrosuchusElaphrosAnatomicalEnv(BaseDinoEnv):
-    """Dibothrosuchus quadrupedal locomotion and snout-snap environment."""
+class DibothrosuchusElaphrosEnv(BaseDinoEnv):
+    """Dibothrosuchus quadrupedal locomotion and snout-snap environment.
+
+    The species base (decision D-D33): the task, the rewards and the hashed
+    policy-interface methods (``_get_obs``, ``_scale_action``,
+    ``_cache_ids``), shared by every embodiment of the species.  An
+    embodiment subclass (``anatomical/env.py``) sets ``embodiment`` and
+    ``MODEL_PATH``; this class is never instantiated itself.
+    """
+
+    #: Set by each embodiment subclass: its embodiment and its MJCF.
+    embodiment: str
+    MODEL_PATH: Path
+    #: The species' training labels (species_registry.get_species_config).
+    HEIGHT_LABEL = "Trunk height"
+    BEHAVIOR_SECTION_LABEL = "Hunting"
+    SUCCESS_KEYS = ("snap_success",)
 
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 1.6
@@ -131,7 +145,7 @@ class DibothrosuchusElaphrosAnatomicalEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "dibothrosuchus_elaphros_anatomical.xml")
+        model_path = str(self.MODEL_PATH)
 
         # Dibothrosuchus-specific reward weights
         self.gait_stability_weight = gait_stability_weight
@@ -563,11 +577,3 @@ class DibothrosuchusElaphrosAnatomicalEnv(BaseDinoEnv):
 
         # Reset gait symmetry tracking (quadrupedal diagonal pairs)
         self._reset_quadruped_gait_state()
-
-
-# Register with Gymnasium (MesozoicLabs namespace)
-gym.register(
-    id="MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
-    entry_point="environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
-    max_episode_steps=1000,
-)

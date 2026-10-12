@@ -14,8 +14,11 @@ PLANT_VERSIONS_PATH = REPOSITORY_ROOT / "configs" / "plant_versions.toml"
 GENERATED_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json"
 BUNDLED_MANIFEST_PATH = _SHARED_ROOT / "data" / "plant_manifest.generated.json"
 
-PLANT_MANIFEST_SCHEMA = "mesozoic.plant-manifest/v1"
-PLANT_IDENTITY_SCHEMA = "mesozoic.plant-identity/v1"
+# v2 since decision D-D33: the manifest nests each plant as
+# plants[<species>][<embodiment>], and an identity names its plant by species
+# and embodiment.
+PLANT_MANIFEST_SCHEMA = "mesozoic.plant-manifest/v2"
+PLANT_IDENTITY_SCHEMA = "mesozoic.plant-identity/v2"
 POLICY_INTERFACE_SCHEMA = "mesozoic.policy-interface/v1"
 PHYSICS_SCHEMA = "mesozoic.mujoco-physics/v1"
 VISUAL_SCHEMA = "mesozoic.mujoco-visual/v1"

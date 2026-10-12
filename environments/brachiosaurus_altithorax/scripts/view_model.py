@@ -3,7 +3,7 @@
 Passive viewer for Brachiosaurus MJCF iteration.
 
 Usage (from the repository root):
-    python -m environments.brachiosaurus_altithorax.scripts.view_model
+    python -m environments.brachiosaurus_altithorax.scripts.view_model --embodiment anatomical
 
 Controls:
     - Mouse drag: rotate view
@@ -15,15 +15,23 @@ Controls:
     - Tab: toggle UI panels
 """
 
-from pathlib import Path
+import argparse
 
 from environments.shared.harnesses.viewer import ViewerConfig, view_model
+from environments.shared.model_id import ModelId
+from environments.shared.paths import ENVIRONMENTS_ROOT
+from environments.shared.species_names import embodiments_of
+
+SPECIES = "brachiosaurus_altithorax"
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--embodiment", required=True, choices=embodiments_of(SPECIES), help="The model to view")
+    model_id = ModelId(SPECIES, parser.parse_args().embodiment)
     view_model(
         ViewerConfig(
-            model_path=Path(__file__).parent.parent / "assets" / "brachiosaurus_altithorax_anatomical.xml",
-            species_name="brachiosaurus",
+            model_path=model_id.asset_path(ENVIRONMENTS_ROOT),
+            species_name=str(model_id),
             height_label="Torso height",
             camera_distance=8.0,
             camera_lookat_z=1.5,

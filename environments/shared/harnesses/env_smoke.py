@@ -1,8 +1,9 @@
 """
 Shared environment smoke-test functions.
 
-Each species' ``scripts/test_env.py`` calls these functions with its
-own environment class, eliminating ~500 lines of duplicated test logic.
+Each species' ``scripts/test_env.py`` calls :func:`run_env_tests` with its
+species ID, eliminating ~500 lines of duplicated test logic; the model's
+environment class comes from the species manifest.
 """
 
 import gymnasium as gym
@@ -214,19 +215,26 @@ def check_observation_bounds(env_class):
     return True
 
 
-def run_env_tests(env_class, reward_keys: list[str], description: str) -> int:
+def run_env_tests(species: str, reward_keys: list[str], description: str) -> int:
     """CLI entry point shared by all species ``scripts/test_env.py``.
 
-    Parses ``--render``, ``--episodes``, ``--steps`` and runs the standard
-    smoke-test suite.  Returns 0 on success, 1 on failure.
+    Parses ``--embodiment`` (required, with no default even for a species
+    with one embodiment; decision D-D33), ``--render``, ``--episodes`` and
+    ``--steps``, and runs the standard smoke-test suite on that model's
+    environment class.  Returns 0 on success, 1 on failure.
     """
     import argparse
 
+    from environments.shared.species_names import embodiments_of, require_model_id
+    from environments.shared.species_registry import env_class as model_env_class
+
     parser = argparse.ArgumentParser(description=f"Test {description} Gymnasium environment")
+    parser.add_argument("--embodiment", required=True, choices=embodiments_of(species), help="The model to test")
     parser.add_argument("--render", action="store_true", help="Enable rendering")
     parser.add_argument("--episodes", type=int, default=3, help="Number of episodes for rollout test")
     parser.add_argument("--steps", type=int, default=100, help="Max steps per episode")
     args = parser.parse_args()
+    env_class = model_env_class(require_model_id(species, args.embodiment))
 
     all_passed = True
     all_passed &= check_basic_functionality(env_class, render=args.render)

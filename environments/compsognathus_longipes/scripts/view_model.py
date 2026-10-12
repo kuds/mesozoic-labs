@@ -1,13 +1,14 @@
 """Desktop viewer or actual MuJoCo renders for the two experimental plants.
 
 Examples:
-  python -m environments.compsognathus_longipes.scripts.view_model --model robot
+  python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot
   MUJOCO_GL=osmesa python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/compsognathus_longipes.png
-  MUJOCO_GL=osmesa python -m environments.compsognathus_longipes.scripts.view_model --model robot --video /tmp/robot.mp4
+  MUJOCO_GL=osmesa python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --video /tmp/robot.mp4
 
 Render outputs need Pillow; videos additionally need imageio and imageio-ffmpeg
 (the ``viz`` extra). A headless host needs an EGL or OSMesa runtime. Interactive viewing uses the platform GL
-window system (on macOS use mjpython instead of python).
+window system (on macOS use mjpython instead of python). Name the model with --embodiment, which has no
+default (decision D-D33), or render both with --compare.
 """
 
 from __future__ import annotations
@@ -20,7 +21,13 @@ import mujoco
 import numpy as np
 
 from environments.compsognathus_longipes import MODEL_PATHS
-from environments.compsognathus_longipes.model import load_model, model_bounds, robot_body_ids, set_motors_enabled
+from environments.compsognathus_longipes.model import (
+    load_model,
+    model_bounds,
+    pelvis_subtree_body_ids,
+    set_motors_enabled,
+)
+from environments.shared.species_names import embodiments_of
 
 
 def camera_for(model, data, *, side=False, shared=False):
@@ -50,7 +57,7 @@ def comparison(path):
     for column, embodiment in enumerate(MODEL_PATHS):
         model, data = load_model(embodiment)
         low, high = model_bounds(model, data)
-        mass = model.body_mass[robot_body_ids(model)].sum()
+        mass = model.body_mass[pelvis_subtree_body_ids(model)].sum()
         with mujoco.Renderer(model, height=380, width=704) as renderer:
             for row, side in enumerate((True, False)):
                 renderer.update_scene(data, camera=camera_for(model, data, side=side, shared=True))
@@ -83,11 +90,12 @@ def comparison(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=MODEL_PATHS, default="robot")
+    model_or_compare = parser.add_mutually_exclusive_group(required=True)
+    model_or_compare.add_argument("--embodiment", choices=embodiments_of("compsognathus_longipes"))
+    model_or_compare.add_argument("--compare", type=Path, help="Render both embodiments side by side")
     parser.add_argument("--mass-scale", type=float, default=1.0)
     parser.add_argument("--motors-off", action="store_true")
     parser.add_argument("--snapshot", type=Path)
-    parser.add_argument("--compare", type=Path)
     parser.add_argument("--head-camera", action="store_true", help="View the onboard 640x480 RGB camera")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--seconds", type=float, default=5)
@@ -97,7 +105,7 @@ def main():
     if args.compare:
         comparison(args.compare)
         return
-    model, data = load_model(args.model, args.mass_scale)
+    model, data = load_model(args.embodiment, args.mass_scale)
     if args.motors_off:
         set_motors_enabled(model, False)
     camera = camera_for(model, data)

@@ -11,7 +11,7 @@ from environments.compsognathus_longipes.anatomical.env import (
     CompsognathusLongipesAnatomicalEnv,
     CompsognathusLongipesRobotEnv,
 )
-from environments.compsognathus_longipes.model import robot_body_ids
+from environments.compsognathus_longipes.model import pelvis_subtree_body_ids
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.task_fingerprint import compute_task_fingerprint, derive_stage_task_fingerprint
 
@@ -129,7 +129,7 @@ def test_push_magnitude_uses_this_plants_mass_geometry_and_duration(env_class):
         env_class(perturbation_capture_velocity_multiple=0.5, perturbation_duration=0.10) as shorter,
     ):
         params = nominal.perturbation_manifest()
-        mass = float(nominal.model.body_mass[robot_body_ids(nominal.model)].sum())
+        mass = float(nominal.model.body_mass[pelvis_subtree_body_ids(nominal.model)].sum())
         assert params["root_body_id"] == nominal.pelvis_id
         assert params["subtree_mass_kg"] == pytest.approx(mass)
         assert params["support_radius_m"] > 0

@@ -20,7 +20,7 @@ _SENSOR_RR_FOOT = 12
 _SENSOR_RL_FOOT = 13
 
 register_species_mjx(
-    species="dibothrosuchus",
+    species="dibothrosuchus_elaphros",
     action_mapping="home-keyframe-residual/v1",
     frame_skip=5,
     sensor_foot_indices=(_SENSOR_FR_FOOT, _SENSOR_FL_FOOT, _SENSOR_RR_FOOT, _SENSOR_RL_FOOT),

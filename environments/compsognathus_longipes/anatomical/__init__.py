@@ -1,9 +1,6 @@
-"""Gymnasium training environments for the anatomical and robot models."""
+"""The anatomical Compsognathus longipes: its environment and MJCF (decision D-D33).
 
-from .compsognathus_env import (
-    CompsognathusLongipesAnatomicalEnv,
-    CompsognathusLongipesEnv,
-    CompsognathusLongipesRobotEnv,
-)
-
-__all__ = ["CompsognathusLongipesAnatomicalEnv", "CompsognathusLongipesEnv", "CompsognathusLongipesRobotEnv"]
+Import the class from its one module, ``environments.compsognathus_longipes.anatomical.env``
+(:class:`CompsognathusLongipesAnatomicalEnv`); this package re-exports nothing.  The MJCF is
+``assets/compsognathus_longipes_anatomical.xml``.
+"""

@@ -11,7 +11,7 @@ import pytest
 
 from environments.compsognathus_longipes import MODEL_PATHS
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
-from environments.compsognathus_longipes.model import PARAMETERS, load_model, model_bounds, robot_body_ids
+from environments.compsognathus_longipes.model import PARAMETERS, load_model, model_bounds, pelvis_subtree_body_ids
 from environments.compsognathus_longipes.scripts.validate_models import geometry, hold_trial
 from environments.shared.plant_contract import GENERATED_MANIFEST_PATH, current_plant_identity
 
@@ -20,7 +20,7 @@ from environments.shared.plant_contract import GENERATED_MANIFEST_PATH, current_
 def test_model_contract(embodiment, nq, nv, nu, mass):
     model, data = load_model(embodiment)
     assert (model.nq, model.nv, model.nu) == (nq, nv, nu)
-    assert model.body_mass[robot_body_ids(model)].sum() == pytest.approx(mass)
+    assert model.body_mass[pelvis_subtree_body_ids(model)].sum() == pytest.approx(mass)
     assert model.joint("root").type == mujoco.mjtJoint.mjJNT_FREE
     assert model.camera("head_camera").id >= 0
     assert model.site("tail_tip").id >= 0
@@ -29,7 +29,7 @@ def test_model_contract(embodiment, nq, nv, nu, mass):
     for j in range(1, model.njnt):
         q = data.qpos[model.jnt_qposadr[j]]
         assert model.jnt_range[j, 0] <= q <= model.jnt_range[j, 1]
-    for body in robot_body_ids(model):
+    for body in pelvis_subtree_body_ids(model):
         if model.body_mass[body] > 0:
             inertia = model.body_inertia[body]
             assert np.all(inertia > 0)
@@ -176,7 +176,7 @@ def test_standing_contacts_and_motor_limits(embodiment):
 def test_robot_stands_with_mass_growth_without_increasing_motor_caps():
     model, _ = load_model("robot")
     heavy, _ = load_model("robot", 1.15)
-    assert heavy.body_mass[robot_body_ids(heavy)].sum() == pytest.approx(1.82344)
+    assert heavy.body_mass[pelvis_subtree_body_ids(heavy)].sum() == pytest.approx(1.82344)
     np.testing.assert_array_equal(model.actuator_forcerange, heavy.actuator_forcerange)
     assert hold_trial("robot", mass_scale=1.15, seconds=5)["stood"]
 

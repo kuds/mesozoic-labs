@@ -3,9 +3,9 @@
 Test the Brachiosaurus Gymnasium environment.
 
 Usage:
-    python test_env.py
-    python test_env.py --render
-    python test_env.py --episodes 5 --steps 200
+    python test_env.py --embodiment anatomical
+    python test_env.py --embodiment anatomical --render
+    python test_env.py --embodiment anatomical --episodes 5 --steps 200
 """
 
 import sys
@@ -16,8 +16,9 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.shared.harnesses.env_smoke import run_env_tests
+
+SPECIES = "brachiosaurus_altithorax"
 
 REWARD_KEYS = [
     "reward_forward",
@@ -30,4 +31,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(BrachiosaurusAltithoraxAnatomicalEnv, REWARD_KEYS, "Brachiosaurus"))
+    sys.exit(run_env_tests(SPECIES, REWARD_KEYS, "Brachiosaurus"))

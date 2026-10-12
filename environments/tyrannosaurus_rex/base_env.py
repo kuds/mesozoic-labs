@@ -67,7 +67,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import gymnasium as gym
 import mujoco
 import numpy as np
 
@@ -100,8 +99,23 @@ from environments.shared.reward_functions import (
 )
 
 
-class TyrannosaurusRexAnatomicalEnv(BaseDinoEnv):
-    """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
+class TyrannosaurusRexEnv(BaseDinoEnv):
+    """Tyrannosaurus Rex bipedal locomotion and bite-attack environment.
+
+    The species base (decision D-D33): the task, the rewards and the hashed
+    policy-interface methods (``_get_obs``, ``_scale_action``,
+    ``_cache_ids``), shared by every embodiment of the species.  An
+    embodiment subclass (``anatomical/env.py``) sets ``embodiment`` and
+    ``MODEL_PATH``; this class is never instantiated itself.
+    """
+
+    #: Set by each embodiment subclass: its embodiment and its MJCF.
+    embodiment: str
+    MODEL_PATH: Path
+    #: The species' training labels (species_registry.get_species_config).
+    HEIGHT_LABEL = "Pelvis height"
+    BEHAVIOR_SECTION_LABEL = "Hunting"
+    SUCCESS_KEYS = ("bite_success", "strike_success")
 
     action_mapping = "home-keyframe-residual/v1"
     # SB3 only since policy interface r14 (configs/plant_versions.toml note
@@ -250,7 +264,7 @@ class TyrannosaurusRexAnatomicalEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "tyrannosaurus_rex_anatomical.xml")
+        model_path = str(self.MODEL_PATH)
 
         # T-Rex-specific reward weights
         self.tail_stability_weight = tail_stability_weight
@@ -1224,11 +1238,3 @@ class TyrannosaurusRexAnatomicalEnv(BaseDinoEnv):
 
         # Reset gait symmetry tracking
         self._reset_gait_state()
-
-
-# Register with Gymnasium (MesozoicLabs namespace)
-gym.register(
-    id="MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
-    entry_point="environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
-    max_episode_steps=1000,
-)
