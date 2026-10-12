@@ -29,16 +29,16 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 SPECIES = [
-    pytest.param(TRexEnv, id="trex"),
-    pytest.param(RaptorEnv, id="velociraptor"),
-    pytest.param(BrachioEnv, id="brachiosaurus"),
-    pytest.param(DibothrosuchusEnv, id="dibothrosuchus"),
+    pytest.param(TyrannosaurusRexAnatomicalEnv, id="trex"),
+    pytest.param(VelociraptorMongoliensisAnatomicalEnv, id="velociraptor"),
+    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, id="brachiosaurus"),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, id="dibothrosuchus"),
 ]
 
 # Reset noise large enough to exercise the settling path.  Every shipped stage

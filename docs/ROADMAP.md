@@ -62,7 +62,7 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
 
 - [x] **Register the Gymnasium environments**
   - Each species' env module calls `gym.register` in the `MesozoicLabs` namespace
-  - Users can then do `gym.make("MesozoicLabs/Raptor-v0")` after `import environments`
+  - Users can then do `gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")` after `import environments`
   - Auto-registration on `import environments`; the `pyproject.toml` entry-point
     groups first added for this were never read by Gymnasium and were deleted
     (cleanup CU-7a, #572)
@@ -123,7 +123,7 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - _Dependency: None (parallel with Velociraptor)_
 
 - [x] **T-Rex environment buildout**
-  - [x] Implement `TRexEnv` subclass (env, tests, training script)
+  - [x] Implement `TyrannosaurusRexAnatomicalEnv` subclass (env, tests, training script)
   - [x] The MJCF model, assets, and Gymnasium registration exist
   - [x] Publish the existing PPO run summary as historical and unverified
   - [ ] Run Stages 1-3 with SAC
@@ -395,8 +395,8 @@ Deepen the RL capabilities and expand the species roster.
 
 - [x] **Compsognathus (small fast biped)** — delivered ahead of this phase
   - Landed in #521 as two variants, the anatomical model
-    (`MesozoicLabs/Compsognathus-v0`) and a twelve-servo robot prototype
-    (`MesozoicLabs/CompsognathusRobot-v0`); both have certified stance and
+    (`MesozoicLabs/CompsognathusLongipes-Anatomical-v0`) and a twelve-servo robot prototype
+    (`MesozoicLabs/CompsognathusLongipes-Robot-v0`); both have certified stance and
     walk nodes ([NEXT_STEPS.md](NEXT_STEPS.md) §2)
   - MJCF model: small, lightweight, fast
   - Focus on speed and agility benchmarks

@@ -8,12 +8,12 @@ environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 import numpy as np
 import pytest
 
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = DibothrosuchusEnv()
+    e = DibothrosuchusElaphrosAnatomicalEnv()
     yield e
     e.close()
 
@@ -70,7 +70,7 @@ class TestRewardComponents:
 
 class TestRewardWeightEffects:
     def test_zero_snap_bonus_gives_no_snap_reward(self):
-        env = DibothrosuchusEnv(snap_bonus=0.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -78,7 +78,7 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_zero_gait_stability_weight_zeroes_gait_reward(self):
-        env = DibothrosuchusEnv(gait_stability_weight=0.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(gait_stability_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -86,7 +86,7 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_nonzero_gait_stability_weight_gives_nonpositive_reward(self):
-        env = DibothrosuchusEnv(gait_stability_weight=0.5)
+        env = DibothrosuchusElaphrosAnatomicalEnv(gait_stability_weight=0.5)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -94,7 +94,7 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_high_alive_bonus_dominates(self):
-        env = DibothrosuchusEnv(
+        env = DibothrosuchusElaphrosAnatomicalEnv(
             alive_bonus=100.0,
             forward_vel_weight=0.0,
             snap_approach_weight=0.0,
@@ -108,8 +108,8 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_snout_proximity_weight_scales_its_reward(self):
-        weak = DibothrosuchusEnv(snap_snout_proximity_weight=1.0)
-        strong = DibothrosuchusEnv(snap_snout_proximity_weight=4.0)
+        weak = DibothrosuchusElaphrosAnatomicalEnv(snap_snout_proximity_weight=1.0)
+        strong = DibothrosuchusElaphrosAnatomicalEnv(snap_snout_proximity_weight=4.0)
         try:
             action = np.zeros(weak.action_space.shape, dtype=np.float32)
             weak.reset(seed=11)
@@ -125,7 +125,7 @@ class TestRewardWeightEffects:
 
     def test_actuator_count(self):
         """27 actuators: 3 neck/skull + 20 legs (5 per leg) + 4 tail."""
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         assert env.model.nu == 27, f"Expected 27 actuators, got {env.model.nu}"
         assert env.action_space.shape == (27,)
         env.close()
@@ -136,7 +136,7 @@ class TestApproachIsMeasuredFromTheSnout:
     shaping would keep paying out after the snout had already overshot."""
 
     def test_approach_delta_tracks_snout_distance(self):
-        env = DibothrosuchusEnv(snap_approach_weight=1.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_approach_weight=1.0)
         try:
             env.reset(seed=5)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -150,7 +150,7 @@ class TestApproachIsMeasuredFromTheSnout:
             env.close()
 
     def test_snout_distance_differs_from_trunk_distance(self):
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         try:
             env.reset(seed=5)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -165,7 +165,7 @@ class TestApproachIsMeasuredFromTheSnout:
 
 class TestCurriculumStageRewards:
     def test_stage1_balance_zeroes_task_rewards(self):
-        env = DibothrosuchusEnv(
+        env = DibothrosuchusElaphrosAnatomicalEnv(
             forward_vel_weight=0.0,
             snap_bonus=0.0,
             snap_approach_weight=0.0,
@@ -181,7 +181,7 @@ class TestCurriculumStageRewards:
         env.close()
 
     def test_stage3_snap_has_approach_shaping(self):
-        env = DibothrosuchusEnv(snap_approach_weight=10.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_approach_weight=10.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)

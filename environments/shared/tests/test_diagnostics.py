@@ -556,5 +556,5 @@ class TestActionJerkIsNotDiscarded:
         """A tracked key the environment never sets is a silently empty column."""
         from pathlib import Path
 
-        source = (Path(__file__).resolve().parents[3] / "environments/trex/envs/trex_env.py").read_text()
+        source = (Path(__file__).resolve().parents[3] / "environments/tyrannosaurus_rex/base_env.py").read_text()
         assert 'info["action_jerk"]' in source

@@ -6,14 +6,17 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusRobotEnv
-from environments.compsognathus.model import robot_body_ids
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.anatomical.env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesRobotEnv,
+)
+from environments.compsognathus_longipes.model import robot_body_ids
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.task_fingerprint import compute_task_fingerprint, derive_stage_task_fingerprint
 
 
-@pytest.fixture(params=[CompsognathusBiologicalEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
+@pytest.fixture(params=[CompsognathusLongipesAnatomicalEnv, CompsognathusLongipesRobotEnv], ids=["anatomical", "robot"])
 def env_class(request):
     return request.param
 
@@ -145,7 +148,7 @@ def test_push_magnitude_uses_this_plants_mass_geometry_and_duration(env_class):
 
 
 def test_robot_force_targets_the_physical_core_com_instead_of_the_massless_root():
-    with CompsognathusRobotEnv(reset_noise_scale=0, **PUSH_KWARGS) as env:
+    with CompsognathusLongipesRobotEnv(reset_noise_scale=0, **PUSH_KWARGS) as env:
         env.reset(seed=0)
         params = env.perturbation_manifest()
         core = env.model.body("core").id
@@ -215,7 +218,7 @@ def test_massless_root_without_a_massive_rigid_segment_is_rejected():
 
 
 def test_massive_anatomical_root_keeps_its_original_force_target_and_manifest():
-    with CompsognathusBiologicalEnv(**PUSH_KWARGS) as env:
+    with CompsognathusLongipesAnatomicalEnv(**PUSH_KWARGS) as env:
         assert env.model.body_mass[env.pelvis_id] > 0
         assert env._push_root_body == env.pelvis_id
         assert "push_body_id" not in env.perturbation_manifest()
@@ -223,8 +226,8 @@ def test_massive_anatomical_root_keeps_its_original_force_target_and_manifest():
 
 def test_task_fingerprint_records_the_resolved_force_target(env_class):
     with env_class(**PUSH_KWARGS) as env:
-        species = "compsognathus_robot" if env.variant == "robot" else "compsognathus"
-        plant = {"model_path": str(MODEL_PATHS[env.variant])}
+        species = "compsognathus_robot" if env.embodiment == "robot" else "compsognathus"
+        plant = {"model_path": str(MODEL_PATHS[env.embodiment])}
         kwargs = {
             "species": species,
             "stage": "recovery",
@@ -235,7 +238,7 @@ def test_task_fingerprint_records_the_resolved_force_target(env_class):
         runtime = compute_task_fingerprint(**kwargs, perturbation_manifest=env.perturbation_manifest())
         recorded = derive_stage_task_fingerprint(**kwargs)
         assert recorded == runtime
-        if env.variant == "robot":
+        if env.embodiment == "robot":
             assert runtime["perturbation"]["push_body_id"] == env.model.body("core").id
             old_target = dict(env.perturbation_manifest())
             old_target.pop("push_body_id")

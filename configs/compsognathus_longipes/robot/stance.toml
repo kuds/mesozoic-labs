@@ -1,5 +1,5 @@
 # Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
-# See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
+# See environments/compsognathus_longipes/TRAINING_RECIPE_REVIEW.md for evidence,
 # validation limits, and the next-run protocol. State observations are privileged.
 # recovery.toml extends this file's [stage], [env], [ppo] and [sac] (its
 # `extends` key): an [env] or [sac] edit here, or a [ppo] edit other than
@@ -79,7 +79,7 @@ timesteps = 11000000
 # baseline-relative target; the robot's baseline and learned performance must
 # still be evaluated separately. Foot support and survival remain required.
 min_avg_reward = 1800.0
-# Mechanical stance criteria follow configs/trex/stance.toml. The reward rail
+# Mechanical stance criteria follow configs/tyrannosaurus_rex/anatomical/stance.toml. The reward rail
 # above remains species-specific because the reward functions differ.
 min_full_horizon_fraction = 0.95
 max_unsupported_duty = 0.02
@@ -104,7 +104,7 @@ required_consecutive = 3
 # without blocking, where the probe is written and wherever the stance is
 # handed on or reused, and a stance with none (a command-line curriculum run
 # rolls none) as unmeasured. Turned on by the maintainer's decision of
-# 2026-10-11, as configs/trex/stance.toml did until the six-heading
+# 2026-10-11, as configs/tyrannosaurus_rex/anatomical/stance.toml did until the six-heading
 # certificate replaced its probe (D-D32). The statue stands 8/8 on
 # every row, on each whole-scene row at the unturned control's reward
 # (2997.8, measured 2026-10-11). 18 panels of 8 episodes.

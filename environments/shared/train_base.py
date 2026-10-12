@@ -91,7 +91,7 @@ class SpeciesConfig:
     (e.g. ``"velociraptor"``, ``"trex"``, ``"brachiosaurus"``)."""
 
     env_class: type
-    """The Gymnasium environment class (e.g. ``RaptorEnv``)."""
+    """The Gymnasium environment class (e.g. ``VelociraptorMongoliensisAnatomicalEnv``)."""
 
     stage_descriptions: str
     """Short stage legend for ``--stage`` argparse help

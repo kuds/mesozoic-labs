@@ -67,7 +67,9 @@ def _sb3_style_zip(path: Path, data: dict[str, Any]) -> Path:
 
 def trunk_plant():
     """The plant every trunk fixture is tagged with (a fake trex)."""
-    return make_plant_identity(species="trex", model_path="environments/trex/assets/trex.xml")
+    return make_plant_identity(
+        species="trex", model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+    )
 
 
 def build_trunk_run(

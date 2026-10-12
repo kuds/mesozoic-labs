@@ -51,8 +51,8 @@ class _InitializeResultBundleKwargs(TypedDict):
 
 def _plant_identity(species: str = "velociraptor") -> dict[str, Any]:
     model_paths = {
-        "velociraptor": "environments/velociraptor/assets/raptor.xml",
-        "trex": "environments/trex/assets/trex.xml",
+        "velociraptor": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
+        "trex": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
     }
     return make_plant_identity(species=species, model_path=model_paths[species]).to_dict()
 

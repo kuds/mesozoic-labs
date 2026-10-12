@@ -1,13 +1,13 @@
 """The anatomical Compsognathus's stance-quality reward terms (D-D26).
 
-``CompsognathusBiologicalEnv`` adds reward kwargs on top of
-``CompsognathusEnv``'s reward, every one inert at its default.  These tests
+``CompsognathusLongipesAnatomicalEnv`` adds reward kwargs on top of
+``CompsognathusLongipesEnv``'s reward, every one inert at its default.  These tests
 pin, without the stage TOML's weights:
 
 1. **Legacy identity.**  With every new kwarg at its default the reward,
    the observation, the termination and every legacy info key equal
-   ``CompsognathusEnv._get_reward_info`` on the same dynamics, bit for bit,
-   for the subclass and, on the linear interface, for ``CompsognathusEnv``
+   ``CompsognathusLongipesEnv._get_reward_info`` on the same dynamics, bit for bit,
+   for the subclass and, on the linear interface, for ``CompsognathusLongipesEnv``
    itself (which then reads the subclass's heading-free observation, policy
    interface r4, in place of its own world-frame one); and the subclass's
    constructor repeats every inherited default.
@@ -28,7 +28,10 @@ import types
 import numpy as np
 import pytest
 
-from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusEnv
+from environments.compsognathus_longipes.anatomical.env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesEnv,
+)
 from environments.shared.config import load_stage_config
 from environments.shared.species_registry import get_species_config
 
@@ -61,8 +64,8 @@ def _stance_kwargs(**overrides):
 
 def _legacy_kwargs():
     """The stance task with every new kwarg at its inert default."""
-    names = set(inspect.signature(CompsognathusBiologicalEnv).parameters) - set(
-        inspect.signature(CompsognathusEnv).parameters
+    names = set(inspect.signature(CompsognathusLongipesAnatomicalEnv).parameters) - set(
+        inspect.signature(CompsognathusLongipesEnv).parameters
     )
     return {key: value for key, value in _stance_kwargs().items() if key not in names}
 
@@ -80,14 +83,14 @@ def _rollout(env, actions, seed):
 @pytest.mark.parametrize("sigma", [0.0, 0.3])
 def test_default_kwargs_reproduce_the_legacy_reward_bit_for_bit(sigma):
     actions = np.clip(sigma * np.random.default_rng(7).standard_normal((150, 14)), -1.0, 1.0)
-    new = CompsognathusBiologicalEnv(**_legacy_kwargs())
-    legacy = CompsognathusBiologicalEnv(**_legacy_kwargs())
-    legacy._get_reward_info = types.MethodType(CompsognathusEnv._get_reward_info, legacy)
-    linear = CompsognathusEnv(**_legacy_kwargs())
+    new = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
+    legacy = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
+    legacy._get_reward_info = types.MethodType(CompsognathusLongipesEnv._get_reward_info, legacy)
+    linear = CompsognathusLongipesEnv(**_legacy_kwargs())
     # Policy interface r4 gave the subclass its own heading-free _get_obs; the reward under test reads none of it.
-    linear._get_obs = types.MethodType(CompsognathusBiologicalEnv._get_obs, linear)
-    linear_new = CompsognathusBiologicalEnv(**_legacy_kwargs())
-    linear_new._scale_action = types.MethodType(CompsognathusEnv._scale_action, linear_new)
+    linear._get_obs = types.MethodType(CompsognathusLongipesAnatomicalEnv._get_obs, linear)
+    linear_new = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
+    linear_new._scale_action = types.MethodType(CompsognathusLongipesEnv._scale_action, linear_new)
     for first, second in ((new, legacy), (linear_new, linear)):
         a, b = _rollout(first, actions, 3042), _rollout(second, actions, 3042)
         assert len(a) == len(b)
@@ -104,8 +107,8 @@ def test_default_kwargs_reproduce_the_legacy_reward_bit_for_bit(sigma):
 
 def test_the_subclass_repeats_every_inherited_constructor_default():
     """The explicit signature is what the task fingerprint reads, so it must not drift from the parent's."""
-    parent = inspect.signature(CompsognathusEnv).parameters
-    child = inspect.signature(CompsognathusBiologicalEnv).parameters
+    parent = inspect.signature(CompsognathusLongipesEnv).parameters
+    child = inspect.signature(CompsognathusLongipesAnatomicalEnv).parameters
     assert set(parent) <= set(child)
     for name, param in parent.items():
         assert child[name].default == param.default, name
@@ -113,7 +116,7 @@ def test_the_subclass_repeats_every_inherited_constructor_default():
 
 @pytest.fixture
 def env():
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs())
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs())
     yield instance
     instance.close()
 
@@ -134,7 +137,9 @@ def test_the_bilateral_and_alive_terms_read_the_mean_while_the_legacy_gate_keeps
         bilateral_support_weight=0.5, foot_contact_saturation_force=4.4, support_conditioned_alive_fraction=0.3
     )
     for aggregation, quality in (("mean", 1.0), ("min", 0.0)):
-        instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_force_aggregation=aggregation, **weights))
+        instance = CompsognathusLongipesAnatomicalEnv(
+            **_stance_kwargs(support_force_aggregation=aggregation, **weights)
+        )
         instance.reset(seed=1)
         reward, info = _step_with_block(instance, block, block.min(axis=0))
         assert info["bilateral_support_quality"] == pytest.approx(min(1.0, 0.9 * 4.9 / 4.4) if quality else 0.0)
@@ -145,7 +150,7 @@ def test_the_bilateral_and_alive_terms_read_the_mean_while_the_legacy_gate_keeps
 
 
 def test_alive_conditioning_scales_the_legacy_bonus_by_bilateral_support():
-    instance = CompsognathusBiologicalEnv(
+    instance = CompsognathusLongipesAnatomicalEnv(
         **_stance_kwargs(support_conditioned_alive_fraction=0.3, support_force_aggregation="mean")
     )
     instance.reset(seed=1)
@@ -158,7 +163,7 @@ def test_alive_conditioning_scales_the_legacy_bonus_by_bilateral_support():
 
 
 def test_flatness_and_width_are_paid_only_on_a_loaded_foot():
-    instance = CompsognathusBiologicalEnv(
+    instance = CompsognathusLongipesAnatomicalEnv(
         **_stance_kwargs(
             foot_flatness_weight=0.3,
             stance_width_weight=0.1,
@@ -181,8 +186,8 @@ def test_flatness_and_width_are_paid_only_on_a_loaded_foot():
 
 def test_the_width_target_is_the_spawn_or_the_settled_width_never_the_keyframe():
     common = dict(stance_width_weight=0.1, foot_terms_min_support_force=0.0)
-    spawn = CompsognathusBiologicalEnv(**_stance_kwargs(stance_width_reference="spawn", **common))
-    settled = CompsognathusBiologicalEnv(
+    spawn = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(stance_width_reference="spawn", **common))
+    settled = CompsognathusLongipesAnatomicalEnv(
         **_stance_kwargs(stance_width_reference="settled", stance_width_settle_steps=5, **common)
     )
     zero = np.zeros(spawn.action_space.shape)
@@ -241,7 +246,7 @@ def _toe_command(env, value):
 
 def test_coverage_refuses_a_digit_that_touches_only_with_its_mtp_end():
     """Toes raised (a positive toe command lifts the digit tips): the pad and the digits' joint ends carry the foot."""
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
     instance.reset(seed=3042)
     action = _toe_command(instance, 0.2)
     for _ in range(10):
@@ -259,7 +264,7 @@ def test_coverage_refuses_a_digit_that_touches_only_with_its_mtp_end():
 
 def test_coverage_counts_a_digit_that_carries_the_foot_on_its_tip():
     """Toes pressed down (the digit-III tiptoe of the certified r1 marches): each foot stands on its digit-III tip."""
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
     instance.reset(seed=3042)
     action = _toe_command(instance, -0.6)
     for _ in range(30):
@@ -274,7 +279,7 @@ def test_coverage_counts_a_digit_that_carries_the_foot_on_its_tip():
 
 def test_coverage_sums_each_geoms_contacts_before_the_threshold():
     """As the floor-truth recorder does: two 0.06 N contacts on one geom load it, one does not."""
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
     instance.reset(seed=1)
     centre = instance.data.geom_xpos[instance._support_geom_ids].copy()
     frame = instance.data.geom_xmat[instance._support_geom_ids].copy()
@@ -296,7 +301,7 @@ def test_coverage_sums_each_geoms_contacts_before_the_threshold():
 
 def test_coverage_counts_the_substeps_after_each_physics_step():
     """The step's counts are its own ten substeps, each read after its mj_step (the hook's place in step())."""
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
     instance.reset(seed=3042)
     seen = []
     instance._substep_probe_hook = lambda: seen.append(_floor_truth_split(instance)[1] > 0.1)
@@ -313,7 +318,7 @@ def test_coverage_counts_the_substeps_after_each_physics_step():
 
 
 def test_coverage_is_the_gates_substep_fraction_and_full_on_the_settled_statue():
-    instance = CompsognathusBiologicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
+    instance = CompsognathusLongipesAnatomicalEnv(**_stance_kwargs(support_geom_coverage_weight=0.5))
     instance.reset(seed=3042)
     # The settle seats the digit tips last (on this seed every geom is loaded from step 176).
     for _ in range(200):
@@ -335,7 +340,7 @@ def test_coverage_is_the_gates_substep_fraction_and_full_on_the_settled_statue()
 
 
 def test_floor_impact_and_airborne_substeps_price_the_whole_block():
-    instance = CompsognathusBiologicalEnv(
+    instance = CompsognathusLongipesAnatomicalEnv(
         **_stance_kwargs(floor_impact_weight=2.0, floor_impact_threshold_bw=1.5, airborne_substep_weight=1.0)
     )
     instance.reset(seed=1)
@@ -376,12 +381,12 @@ def test_the_support_geoms_are_the_floor_truth_registry_entry():
     from environments.shared.gait.morphology import SUPPORT_REGISTRY
 
     entry = SUPPORT_REGISTRY["compsognathus"]
-    assert tuple("{s}_" + name for name in CompsognathusBiologicalEnv.support_geoms) == entry.support
+    assert tuple("{s}_" + name for name in CompsognathusLongipesAnatomicalEnv.support_geoms) == entry.support
     assert entry.sole == "{s}_plantar_pad" and entry.foot_site == "{s}_foot_touch_volume"
 
 
 def test_saturation_and_jerk_price_the_raw_command():
-    instance = CompsognathusBiologicalEnv(
+    instance = CompsognathusLongipesAnatomicalEnv(
         **_stance_kwargs(action_saturation_weight=0.5, action_saturation_threshold=0.9, action_jerk_weight=1.0)
     )
     assert instance.action_filter_cutoff_hz == 0.0  # no filter in front of the penalties
@@ -421,11 +426,11 @@ def test_leg_home_pose_is_full_at_the_keyframe(env):
 )
 def test_invalid_stance_terms_are_refused(bad):
     with pytest.raises(ValueError):
-        CompsognathusBiologicalEnv(**bad)
+        CompsognathusLongipesAnatomicalEnv(**bad)
 
 
 #: The robot's stage task digests on main before the anatomical revision (configs/digest_snapshot.generated.txt
-#: at 46e0b7c).  The stance-quality kwargs live on CompsognathusBiologicalEnv alone, so the robot's constructor, and
+#: at 46e0b7c).  The stance-quality kwargs live on CompsognathusLongipesAnatomicalEnv alone, so the robot's constructor, and
 #: with it every robot task fingerprint, must not move.
 ROBOT_TASK_SHA256 = {
     "stance": "sha256:26a8ec2b563e7bdc3808085b52edf0e8e0a785088d5f102f18274d4ab378c36c",

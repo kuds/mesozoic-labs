@@ -27,12 +27,12 @@ def robot_body_ids(model: mujoco.MjModel) -> list[int]:
     return sorted(included)
 
 
-def load_model(variant: str, mass_scale: float = 1.0):
-    if variant not in MODEL_PATHS:
-        raise ValueError(f"Unknown model {variant!r}; choose {tuple(MODEL_PATHS)}")
+def load_model(embodiment: str, mass_scale: float = 1.0):
+    if embodiment not in MODEL_PATHS:
+        raise ValueError(f"Unknown model {embodiment!r}; choose {tuple(MODEL_PATHS)}")
     if not np.isfinite(mass_scale) or mass_scale <= 0:
         raise ValueError("mass_scale must be finite and positive")
-    model = mujoco.MjModel.from_xml_path(str(MODEL_PATHS[variant]))
+    model = mujoco.MjModel.from_xml_path(str(MODEL_PATHS[embodiment]))
     data = mujoco.MjData(model)
     if mass_scale != 1:
         ids = robot_body_ids(model)

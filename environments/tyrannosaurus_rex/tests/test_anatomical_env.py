@@ -8,12 +8,12 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = TRexEnv()
+    e = TyrannosaurusRexAnatomicalEnv()
     yield e
     e.close()
 
@@ -208,7 +208,7 @@ class TestFootContactSensors:
         digits went unmeasured after they were made load-bearing, so assert
         against the measured contact forces instead of a threshold.
         """
-        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             info = {}
@@ -232,7 +232,7 @@ class TestFootContactSensors:
             env.close()
 
     def test_sensors_read_zero_airborne(self):
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
@@ -255,7 +255,7 @@ class TestFootContactSensors:
             env.close()
 
     def test_observation_foot_contact_dims_are_live(self):
-        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             obs = None
@@ -326,9 +326,9 @@ class TestFootContactForceSummationOrder:
         assert all(type(force) is float for force in forces)
 
     def test_brachiosaurus_two_sensor_legs_add_pad_and_meta_in_group_order(self):
-        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+        from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
-        env = BrachioEnv(reset_noise_scale=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             groups = env._foot_sensor_groups
@@ -386,7 +386,7 @@ class TestHeightTargetTracksStance:
         return float(env.data.xpos[env.pelvis_id, 2])
 
     def test_reward_is_saturated_at_the_settled_stance(self):
-        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
         try:
             settled = self._settled_height(env)
             reward = self._height_reward_at(env, settled)
@@ -402,7 +402,7 @@ class TestHeightTargetTracksStance:
 
     def test_reward_still_has_gradient_below_the_settled_stance(self):
         """The regression: a target below the stance flattens the whole band."""
-        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
         try:
             settled = self._settled_height(env)
             floor = env.healthy_z_range[0]
@@ -438,7 +438,7 @@ class TestSettledPoseTargetsTrackTheStatue:
 
     @classmethod
     def _post_settle_means(cls) -> tuple[np.ndarray, np.ndarray]:
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             action = np.zeros(env.model.nu, dtype=np.float32)
@@ -459,8 +459,8 @@ class TestSettledPoseTargetsTrackTheStatue:
         # -0.20280 / -0.09252 on r8, 0.21431 / 0.0 / 0.21968 and -0.21069 /
         # 0.0 / -0.20274 / -0.09249 on r9; the 40-seed spread at reset noise
         # 0.05 is under 2e-4 rad.
-        np.testing.assert_allclose(neck, TRexEnv._NECK_SETTLED_QPOS, atol=1e-4)
-        np.testing.assert_allclose(tail, TRexEnv._TAIL_SETTLED_QPOS, atol=5e-4)
+        np.testing.assert_allclose(neck, TyrannosaurusRexAnatomicalEnv._NECK_SETTLED_QPOS, atol=1e-4)
+        np.testing.assert_allclose(tail, TyrannosaurusRexAnatomicalEnv._TAIL_SETTLED_QPOS, atol=5e-4)
 
 
 class TestEveryHeadingIsPhysicallyIdentical:
@@ -546,7 +546,7 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
 
         kwargs = load_stage_config("trex", 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
-        env = TRexEnv(**kwargs)
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
             low, high = env.healthy_z_range
             for seed in range(3042, 3242):
@@ -564,7 +564,7 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
 
         kwargs = load_stage_config("trex", 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
-        env = TRexEnv(**kwargs)
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
             env.reset(seed=3077)
             assert float(env.data.qpos[2]) > env.healthy_z_range[0]
@@ -589,7 +589,7 @@ class TestSubstepContactAggregation:
         """Two pins in one rollout: info == min(per-substep sums) exactly, and
         the aggregate catches unloading the boundary sample misses."""
 
-        class UnfilteredTRexEnv(TRexEnv):
+        class UnfilteredTyrannosaurusRexAnatomicalEnv(TyrannosaurusRexAnatomicalEnv):
             # The witness drive below is a 20 Hz control-clock-locked hop
             # tuned on the unfiltered plant; the r11 command low-pass would
             # attenuate it ~2.2x and hide the very unloading this regression
@@ -597,7 +597,7 @@ class TestSubstepContactAggregation:
             # of the filter, so probe it with the filter off.
             action_filter_cutoff_hz = 0.0
 
-        env = UnfilteredTRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        env = UnfilteredTyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             substep_forces: list[tuple[float, float]] = []
@@ -654,7 +654,7 @@ class TestSubstepContactAggregation:
         its duty, and its per-foot drift from the boundary sample stays small."""
         from environments.shared.stance_diagnostics import derive_stance_info
 
-        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             zeros = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -682,7 +682,7 @@ class TestSubstepContactAggregation:
         episode's minima.  Invalidation rides the step-count tag rather than
         code in reset(): reset()'s source is fingerprinted by the plant
         contract's home_reset interface, and it already zeroes _step_count."""
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -716,7 +716,7 @@ class TestSubstepHeightTermination:
     def test_min_heights_track_the_probe_and_the_declaration_order(self):
         """env._substep_min_heights == per-substep elementwise min of
         (head_tip_z, skull_z), in the declared order."""
-        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             substep_heights: list[tuple[float, float]] = []
@@ -744,7 +744,7 @@ class TestSubstepHeightTermination:
         scan could never see.  The aggregate is armed by hand because a
         statue never dips; the witness that real rollouts populate it is the
         probe test above."""
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -771,7 +771,7 @@ class TestSubstepHeightTermination:
             env.close()
 
     def test_reset_invalidates_the_height_aggregate(self):
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -803,15 +803,17 @@ class TestFootSensorGroupLockstep:
         [
             (
                 "brachiosaurus",
-                lambda: __import__("environments.brachiosaurus.envs.brachio_env", fromlist=["BrachioEnv"]).BrachioEnv(
-                    reset_noise_scale=0.0
-                ),
+                lambda: __import__(
+                    "environments.brachiosaurus_altithorax.anatomical.env",
+                    fromlist=["BrachiosaurusAltithoraxAnatomicalEnv"],
+                ).BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0),
             ),
             (
                 "dibothrosuchus",
                 lambda: __import__(
-                    "environments.dibothrosuchus.envs.dibothrosuchus_env", fromlist=["DibothrosuchusEnv"]
-                ).DibothrosuchusEnv(reset_noise_scale=0.0),
+                    "environments.dibothrosuchus_elaphros.anatomical.env",
+                    fromlist=["DibothrosuchusElaphrosAnatomicalEnv"],
+                ).DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.0),
             ),
         ],
     )

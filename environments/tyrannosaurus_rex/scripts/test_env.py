@@ -17,7 +17,7 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from environments.shared.harnesses.env_smoke import run_env_tests
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 REWARD_KEYS = [
     "reward_forward",
@@ -30,4 +30,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(TRexEnv, REWARD_KEYS, "T-Rex"))
+    sys.exit(run_env_tests(TyrannosaurusRexAnatomicalEnv, REWARD_KEYS, "T-Rex"))

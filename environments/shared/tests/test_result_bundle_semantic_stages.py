@@ -32,7 +32,7 @@ from .result_bundle_helpers import (
     _snapshot_files,
 )
 
-_TREX_STAGES: "tuple[int | str, ...]" = (1, "recovery", 2, 3)
+_TYRANNOSAURUS_REX_STAGES: "tuple[int | str, ...]" = (1, "recovery", 2, 3)
 
 
 def test_trex_bundle_with_recovery_stage_is_canonical_valid(
@@ -52,7 +52,7 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
         algorithm="PPO",
         backend="stable-baselines3",
         species="trex",
-        stage_refs=_TREX_STAGES,
+        stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
@@ -108,7 +108,7 @@ def test_trex_bundle_with_recovery_stage_resaves_byte_identically(
         algorithm="PPO",
         backend="stable-baselines3",
         species="trex",
-        stage_refs=_TREX_STAGES,
+        stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
     before = _snapshot_files(run_dir)
 
@@ -143,7 +143,7 @@ def test_recovery_verdict_cannot_be_laundered_into_a_pass(
         run_dir,
         algorithm="PPO",
         species="trex",
-        stage_refs=_TREX_STAGES,
+        stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
     recovery_result = next(result for result in stage_results if result["stage"] == "recovery")
     recovery_result["gate_passed"] = True

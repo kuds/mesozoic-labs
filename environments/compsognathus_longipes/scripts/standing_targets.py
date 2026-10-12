@@ -12,7 +12,7 @@ import mujoco
 import numpy as np
 from scipy.optimize import minimize
 
-from environments.compsognathus.model import floor_contacts
+from environments.compsognathus_longipes.model import floor_contacts
 
 
 def gravity_targets(model, data):

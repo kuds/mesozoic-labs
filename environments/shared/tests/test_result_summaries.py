@@ -48,14 +48,14 @@ def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
     validate_result_summary(
         summary,
         expected_species="velociraptor",
-        relative_path="results/velociraptor/ppo/summary.json",
+        relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         require_complete=False,
     )
     with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
         validate_result_summary(
             summary,
             expected_species="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
             require_complete=True,
         )
 
@@ -103,7 +103,7 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
     validate_result_summary(
         summary,
         expected_species="trex",
-        relative_path="results/trex/ppo/summary.json",
+        relative_path="results/tyrannosaurus_rex/anatomical/ppo/summary.json",
         require_complete=True,
     )
 
@@ -467,7 +467,7 @@ def test_result_paths_are_backend_aware() -> None:
         validate_result_summary(
             summary,
             expected_species="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 

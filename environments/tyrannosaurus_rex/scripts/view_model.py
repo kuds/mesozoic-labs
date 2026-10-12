@@ -3,7 +3,7 @@
 Passive viewer for T-Rex MJCF model.
 
 Usage (from the repository root):
-    python -m environments.trex.scripts.view_model
+    python -m environments.tyrannosaurus_rex.scripts.view_model
 
 Controls:
     - Mouse drag: rotate view
@@ -22,7 +22,7 @@ from environments.shared.harnesses.viewer import ViewerConfig, view_model
 if __name__ == "__main__":
     view_model(
         ViewerConfig(
-            model_path=Path(__file__).parent.parent / "assets" / "trex.xml",
+            model_path=Path(__file__).parent.parent / "assets" / "tyrannosaurus_rex_anatomical.xml",
             species_name="tyrannosaurus_rex",
             height_label="Pelvis height",
             camera_distance=5.0,

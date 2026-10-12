@@ -1,7 +1,7 @@
 """Effective-config fingerprints (schema v2) and the v1 schema valve.
 
 Review F6: schema v1 hashed only the TOML-present ``[env]`` kwargs, so a
-retuned constructor default — a real transition-kernel change, e.g. TRexEnv
+retuned constructor default — a real transition-kernel change, e.g. TyrannosaurusRexAnatomicalEnv
 ``healthy_z_range`` — moved no hash and ``resume_same_stage`` would have
 crossed it silently.  v2 hashes the effective config (constructor defaults
 overlaid with the TOML kwargs).  These tests pin the new identity axis and
@@ -31,7 +31,7 @@ from environments.shared.task_fingerprint import (
 _PLANT = {
     "physics_sha256": "sha256:aaaa",
     "policy_interface_sha256": "sha256:bbbb",
-    "model_path": "environments/trex/assets/trex.xml",
+    "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
 }
 _ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps": 1000}
 
@@ -104,7 +104,7 @@ class TestEffectiveEnvSection:
     def test_constructor_defaults_enter_the_env_section(self):
         env = _fingerprint()["env"]
         # TOML-present kwargs win over defaults; absent params come from
-        # the TRexEnv constructor.
+        # the TyrannosaurusRexAnatomicalEnv constructor.
         assert env["alive_bonus"] == 1.0
         assert env["healthy_z_range"] == [0.70, 1.30]
         assert env["fall_penalty"] == -100.0
@@ -118,10 +118,10 @@ class TestEffectiveEnvSection:
 
     def test_retuned_constructor_default_moves_the_hash(self, monkeypatch):
         """The F6 gap: a termination default is task identity, TOML or not."""
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
         base = _fingerprint()
-        _retune_constructor_default(monkeypatch, TRexEnv, "nosedive_termination_threshold", 0.55)
+        _retune_constructor_default(monkeypatch, TyrannosaurusRexAnatomicalEnv, "nosedive_termination_threshold", 0.55)
         retuned = _fingerprint()
         assert retuned["env"]["nosedive_termination_threshold"] == 0.55
         assert retuned["task_sha256"] != base["task_sha256"]

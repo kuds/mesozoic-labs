@@ -195,7 +195,9 @@ class TestFindCertifiedAncestor:
     def test_refuses_a_plant_mismatch(self, tmp_path):
         build_trunk_run(tmp_path)
         other_plant = make_plant_identity(
-            species="trex", model_path="environments/trex/assets/trex.xml", physics_sha256="sha256:" + "9" * 64
+            species="trex",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+            physics_sha256="sha256:" + "9" * 64,
         )
         with pytest.raises(AncestorReuseError, match="incompatible with the current trex plant"):
             _find(tmp_path, plant_identity=other_plant)
@@ -1185,7 +1187,7 @@ class TestSelectTrunk:
         current = trunk_plant()
         older_plant = make_plant_identity(
             species="trex",
-            model_path="environments/trex/assets/trex.xml",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 2,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
         )
@@ -1197,7 +1199,7 @@ class TestSelectTrunk:
         # Older interface but behind a physics bump: the widen gate would refuse it, so no hint.
         physics_bumped = make_plant_identity(
             species="trex",
-            model_path="environments/trex/assets/trex.xml",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 2,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
             physics_sha256="sha256:" + "f" * 64,
@@ -1206,7 +1208,7 @@ class TestSelectTrunk:
         # Older interface but not exactly COMMAND_WIDTH narrower: not widenable either.
         wrong_width = make_plant_identity(
             species="trex",
-            model_path="environments/trex/assets/trex.xml",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 1,
             observation_dim=current.observation_dim - 7,
         )
@@ -1233,7 +1235,7 @@ class TestSelectTrunk:
         current = trunk_plant()
         older_plant = make_plant_identity(
             species="trex",
-            model_path="environments/trex/assets/trex.xml",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 1,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
         )

@@ -676,7 +676,7 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   *2026-10-01 (cleanup CU-14a, #581): the `test` matrix is six jobs, three
   Pythons × {shared, species}; the plant-contract job no longer re-runs its
   tests; pull requests and pushes skip the robot's six real-training
-  parametrisations of `test_compsognathus_training.py` (the cleanup plan's
+  parametrisations of `test_compsognathus_longipes_training.py` (the cleanup plan's
   decision 10 (a)), which the nightly schedule and `full-ci` still run.*
 - The SB3 notebook's Drive-mount block and `_ACTIVE_RUN_ID` memo are still
   candidates for D-D7-style moves (the JAX notebook, which carried copies of

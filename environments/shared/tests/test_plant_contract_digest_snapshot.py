@@ -304,7 +304,7 @@ def test_state_probes_keep_clear_of_the_thresholds() -> None:
     probes = 0
     for species, stage, env in digest_snapshot._reward_envs(out, False):
         low, high = env.healthy_z_range
-        # trex and dibothrosuchus take the nosedive threshold as a parameter; raptor_env.py hard-codes its 0.5.
+        # trex and dibothrosuchus take the nosedive threshold as a parameter; velociraptor_mongoliensis/base_env.py hard-codes its 0.5.
         nosedive = getattr(env, "nosedive_termination_threshold", 0.5 if species == "velociraptor" else None)
         for part, _, rows in digest_snapshot._capture(env, digest_snapshot._state_parts()[:-1]):
             info = rows[0][1]
@@ -343,7 +343,7 @@ def test_check_failure_names_every_moved_line_and_the_write_command() -> None:
         _LINES[0],
         _LINES[1].replace("sha256:aaa", "sha256:ddd"),  # changed
         _LINES[3],  # the stage line is gone
-        "behavior\ttrex\twalk\tsource:environments/trex/envs/trex_env.py\teee",  # added
+        "behavior\ttrex\twalk\tsource:environments/tyrannosaurus_rex/base_env.py\teee",  # added
     ]
     report = digest_snapshot.golden_mismatch(golden, run, 0, digest_snapshot.GOLDEN)
     assert report is not None
@@ -351,7 +351,7 @@ def test_check_failure_names_every_moved_line_and_the_write_command() -> None:
     assert "3 digest line(s) moved (1 changed, 1 added, 1 removed):" in lines
     assert "  changed  plant trex physics_sha256" in lines
     assert "  removed  stage trex stance gate_sha256" in lines
-    assert "  added    behavior trex walk source:environments/trex/envs/trex_env.py" in lines
+    assert "  added    behavior trex walk source:environments/tyrannosaurus_rex/base_env.py" in lines
     assert not any("behavior_identity_sha256" in line for line in lines), "an unmoved line is not reported"
     assert f"--- {digest_snapshot.GOLDEN} (committed)" in lines and "+++ this checkout" in lines
     assert "-plant\ttrex\tphysics_sha256\tsha256:aaa" in lines

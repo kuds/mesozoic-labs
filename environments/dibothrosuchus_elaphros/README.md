@@ -68,23 +68,23 @@ pads carry the full 84.9 N of weight, split 71/29 rear/front.
 pip install -e ".[all]"
 
 # Run environment tests
-python -m pytest environments/dibothrosuchus/tests/ -v
+python -m pytest environments/dibothrosuchus_elaphros/tests/ -v
 
 # Train stage 1 using its current TOML-configured budget
-python environments/dibothrosuchus/scripts/train_sb3.py train --stage 1
+python environments/dibothrosuchus_elaphros/scripts/train_sb3.py train --stage 1
 
 # Or through the shared entry point
-python -m environments.shared.train --species dibothrosuchus train --stage 1
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 
 # Train the full chain (stance -> locomotion -> snap), each stage warm-started
-# from its declared parent in configs/dibothrosuchus/stages.toml
-python environments/dibothrosuchus/scripts/train_sb3.py curriculum --algorithm ppo
+# from its declared parent in configs/dibothrosuchus_elaphros/anatomical/stages.toml
+python environments/dibothrosuchus_elaphros/scripts/train_sb3.py curriculum --algorithm ppo
 
 # Or reuse an earlier run's certified trunk and train only what is missing above it
-python environments/dibothrosuchus/scripts/train_sb3.py curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+python environments/dibothrosuchus_elaphros/scripts/train_sb3.py curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
 
 # View the model (requires display)
-python environments/dibothrosuchus/scripts/view_model.py
+python environments/dibothrosuchus_elaphros/scripts/view_model.py
 ```
 
 Stance, locomotion and snap are each a published deliverable (`stand`,
@@ -93,7 +93,7 @@ Stance, locomotion and snap are each a published deliverable (`stand`,
 ## Environment Details
 
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout
-and action-to-actuator mapping is `envs/dibothrosuchus_env.py`; actions are normalized to [-1, 1] residuals, where
+and action-to-actuator mapping is `environments/dibothrosuchus_elaphros/base_env.py`; actions are normalized to [-1, 1] residuals, where
 zero commands the complete XML `home` control and the endpoints retain access to the full actuator ranges.
 
 ### Termination Conditions
@@ -134,11 +134,11 @@ dibothrosuchus/
 │   ├── test_env.py                 # Environment validation script
 │   └── train_sb3.py                # SB3 PPO training with curriculum
 ├── tests/
-│   ├── test_dibothrosuchus_env.py      # Species-specific env tests
-│   ├── test_dibothrosuchus_rewards.py  # Species-specific reward tests
-│   ├── test_static_balance.py          # Home-pose and mass-distribution tests
-│   └── test_actuator_bounds.py         # Bounded-actuator plant characterization
+│   ├── test_anatomical_env.py      # Species-specific env tests
+│   ├── test_anatomical_rewards.py  # Species-specific reward tests
+│   ├── test_anatomical_static_balance.py          # Home-pose and mass-distribution tests
+│   └── test_anatomical_actuator_bounds.py         # Bounded-actuator plant characterization
 └── README.md
 ```
 
-Hyperparameter configs are at `configs/dibothrosuchus/` in the repo root.
+Hyperparameter configs are at `configs/dibothrosuchus_elaphros/anatomical/` in the repo root.

@@ -7,12 +7,12 @@ environments/shared/tests/test_species_integration.py.
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = BrachioEnv()
+    e = BrachiosaurusAltithoraxAnatomicalEnv()
     yield e
     e.close()
 
@@ -67,7 +67,7 @@ class TestFoodReachGating:
     accidental head-food proximity."""
 
     def test_no_success_termination_when_bonus_zero(self):
-        env = BrachioEnv(food_reach_bonus=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0)
         try:
             env.reset(seed=42)
             # Teleport food onto the head tip to force proximity
@@ -80,7 +80,7 @@ class TestFoodReachGating:
             env.close()
 
     def test_success_termination_when_bonus_positive(self):
-        env = BrachioEnv(food_reach_bonus=10.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=10.0)
         try:
             env.reset(seed=42)
             head_tip = env.data.site_xpos[env.head_tip_site_id].copy()
@@ -99,7 +99,7 @@ class TestFoodReachCamera:
     locomotion framing that leaves it out of view."""
 
     def test_default_locomotion_camera_when_food_task_inactive(self):
-        env = BrachioEnv(food_reach_bonus=0.0, food_approach_weight=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0, food_approach_weight=0.0)
         try:
             assert env._camera_distance == 5.0
             assert env._camera_azimuth == 135
@@ -108,7 +108,7 @@ class TestFoodReachCamera:
             env.close()
 
     def test_camera_widens_when_food_task_active(self):
-        env = BrachioEnv(food_reach_bonus=1000.0, food_approach_weight=3.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=1000.0, food_approach_weight=3.0)
         try:
             assert env._camera_distance == 9.0
             assert env._camera_azimuth == 110

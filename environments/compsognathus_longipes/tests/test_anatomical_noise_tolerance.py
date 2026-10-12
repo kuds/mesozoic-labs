@@ -27,13 +27,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.compsognathus.envs import CompsognathusBiologicalEnv
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.shared.config import load_stage_config
 
 
 def _survivors(sigma: float, episodes: int) -> int:
     kwargs = {**load_stage_config("compsognathus", "stance")["env_kwargs"], "support_geom_coverage_weight": 0.0}
-    env = CompsognathusBiologicalEnv(**kwargs)
+    env = CompsognathusLongipesAnatomicalEnv(**kwargs)
     survivors = 0
     try:
         for index in range(episodes):

@@ -74,9 +74,12 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv, CompsognathusRobotEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.compsognathus_longipes.anatomical.env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesRobotEnv,
+)
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.command_frame import (
     COMMAND_COMPONENTS,
@@ -100,24 +103,24 @@ from environments.shared.task_fingerprint import (
     stage_task_fingerprint,
 )
 from environments.shared.tests import reset_golden
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 SPECIES_ENVS = [
-    pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
-    pytest.param(TRexEnv, "trex", id="trex"),
-    pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
-    pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
-    pytest.param(CompsognathusBiologicalEnv, "compsognathus", id="compsognathus"),
-    pytest.param(CompsognathusRobotEnv, "compsognathus_robot", id="compsognathus_robot"),
+    pytest.param(VelociraptorMongoliensisAnatomicalEnv, "velociraptor", id="velociraptor"),
+    pytest.param(TyrannosaurusRexAnatomicalEnv, "trex", id="trex"),
+    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, "brachiosaurus", id="brachiosaurus"),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, "dibothrosuchus", id="dibothrosuchus"),
+    pytest.param(CompsognathusLongipesAnatomicalEnv, "compsognathus", id="compsognathus"),
+    pytest.param(CompsognathusLongipesRobotEnv, "compsognathus_robot", id="compsognathus_robot"),
 ]
 
 _FAKE_PLANT = {
     "physics_sha256": "sha256:aaaa",
     "policy_interface_sha256": "sha256:bbbb",
-    "model_path": "environments/trex/assets/trex.xml",
+    "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
 }
-_TREX_ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps": 1000}
+_TYRANNOSAURUS_REX_ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps": 1000}
 COMMAND_ENV_KEYS_SET = frozenset(COMMAND_ENV_KEYS)
 
 
@@ -314,9 +317,9 @@ def test_observation_segments_end_with_the_command_segment_for_every_species():
 
 
 def test_command_mode_none_is_inert_and_deterministic_on_sb3():
-    explicit_a = TRexEnv(reset_noise_scale=0.0, command_mode="none")
-    explicit_b = TRexEnv(reset_noise_scale=0.0, command_mode="none")
-    plain = TRexEnv(reset_noise_scale=0.0)
+    explicit_a = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, command_mode="none")
+    explicit_b = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, command_mode="none")
+    plain = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
     try:
         for env in (explicit_a, explicit_b, plain):
             env.reset(seed=7)
@@ -349,7 +352,7 @@ def test_command_hook_draws_no_rng_and_runs_after_every_reset_draw():
     marker = np.asarray([0.125, -0.25, 0.5], dtype=np.float32)
     seen: dict[str, Any] = {}
 
-    class RecordingEnv(TRexEnv):
+    class RecordingEnv(TyrannosaurusRexAnatomicalEnv):
         def _draw_episode_command(self) -> np.ndarray:
             seen["rng_state"] = self.np_random.bit_generator.state
             seen["push_starts"] = np.array(self._push_schedule_starts, copy=True)
@@ -383,7 +386,7 @@ def test_command_hook_draws_no_rng_and_runs_after_every_reset_draw():
         def __getattr__(self, name):
             raise AssertionError(f"_draw_episode_command touched np_random.{name} under command_mode 'none'")
 
-    plain = TRexEnv(reset_noise_scale=0.0)
+    plain = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
     try:
         plain.reset(seed=3)
         real_generator = plain._np_random
@@ -461,7 +464,10 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
     without a live mode, a live mode without a config (the dataclass defaults are T. rex-scale) and speed variation
     under "heading" (which holds cruise_speed) are refused at construction rather than ignored."""
     config = DirectionCommandConfig(cruise_speed=0.5)
-    for env_class, mode in ((TRexEnv, "heading"), (CompsognathusBiologicalEnv, "heading_and_speed")):
+    for env_class, mode in (
+        (TyrannosaurusRexAnatomicalEnv, "heading"),
+        (CompsognathusLongipesAnatomicalEnv, "heading_and_speed"),
+    ):
         env = env_class(command_mode=mode, command_config=config)
         try:
             assert env.command_mode == mode and env.command_config is config
@@ -469,28 +475,28 @@ def test_live_modes_build_the_controller_and_refuse_settings_they_would_ignore()
             assert env.command_manifest() == DirectionCommandController(config).manifest()
         finally:
             env.close()
-    plain = TRexEnv()
+    plain = TyrannosaurusRexAnatomicalEnv()
     try:
         assert plain.command_config is None and plain.direction_controller is None
         assert plain.command_manifest() is None
     finally:
         plain.close()
     with pytest.raises(ValueError, match="command_config needs a live command_mode"):
-        TRexEnv(command_config=config)
+        TyrannosaurusRexAnatomicalEnv(command_config=config)
     for mode in ("heading", "heading_and_speed"):
         with pytest.raises(ValueError, match=f"command_mode='{mode}' needs a command_config"):
-            TRexEnv(command_mode=mode)
+            TyrannosaurusRexAnatomicalEnv(command_mode=mode)
     for varied in (replace(config, speed_range=(0.25, 0.5)), replace(config, stop_probability=0.1)):
         with pytest.raises(ValueError, match="'heading' holds cruise_speed"):
-            TRexEnv(command_mode="heading", command_config=varied)
-        TRexEnv(command_mode="heading_and_speed", command_config=varied).close()
+            TyrannosaurusRexAnatomicalEnv(command_mode="heading", command_config=varied)
+        TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=varied).close()
     with pytest.raises(TypeError, match="DirectionCommandConfig"):
-        TRexEnv(command_mode="heading_and_speed", command_config={"cruise_speed": 0.5})
+        TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config={"cruise_speed": 0.5})
     with pytest.raises(ValueError, match=re.escape(f"command_mode='bogus' is not one of {COMMAND_MODES}")):
-        TRexEnv(command_mode="bogus")
+        TyrannosaurusRexAnatomicalEnv(command_mode="bogus")
     for removed in RETIRED_COMMAND_ENV_KEYS:
         with pytest.raises(TypeError, match=removed):
-            TRexEnv(**{removed: 0.0})
+            TyrannosaurusRexAnatomicalEnv(**{removed: 0.0})
 
 
 def test_a_live_mode_draws_after_the_push_schedule():
@@ -498,8 +504,8 @@ def test_a_live_mode_draws_after_the_push_schedule():
     the pushes, the pose and every other reset draw equal the "none" twin's."""
     kwargs = dict(load_stage_config("trex", "recovery")["env_kwargs"])
     config = DirectionCommandConfig(switch_interval_s=0.05, straight_probability=0.0, turn_increment_max=0.6)
-    live = TRexEnv(command_mode="heading_and_speed", command_config=config, **kwargs)
-    none = TRexEnv(**kwargs)
+    live = TyrannosaurusRexAnatomicalEnv(command_mode="heading_and_speed", command_config=config, **kwargs)
+    none = TyrannosaurusRexAnatomicalEnv(**kwargs)
     try:
         for seed in (11, 12):
             live.reset(seed=seed)
@@ -576,7 +582,7 @@ def _fingerprint(**overrides):
         species="trex",
         stage=1,
         backend="stable-baselines3",
-        env_kwargs=_TREX_ENV,
+        env_kwargs=_TYRANNOSAURUS_REX_ENV,
         plant_identity=_FAKE_PLANT,
         perturbation_manifest=None,
     )
@@ -607,12 +613,14 @@ def test_command_kwargs_enter_the_task_fingerprint_and_a_live_mode_has_a_command
     assert "command" not in base
     # An explicit "none" is carved out too, whatever config it names: same hash.
     config = DirectionCommandConfig(cruise_speed=0.5, speed_range=(0.25, 0.75))
-    explicit_none = _fingerprint(env_kwargs={**_TREX_ENV, "command_mode": "none", "command_config": config})
+    explicit_none = _fingerprint(
+        env_kwargs={**_TYRANNOSAURUS_REX_ENV, "command_mode": "none", "command_config": config}
+    )
     assert explicit_none["task_sha256"] == base["task_sha256"]
 
     # (ii): a live mode keeps both keys, the config field by field (decision D-D2), moves the hash, and its
     # controller's manifest is the command section.
-    live_env = {**_TREX_ENV, "command_mode": "heading_and_speed", "command_config": config}
+    live_env = {**_TYRANNOSAURUS_REX_ENV, "command_mode": "heading_and_speed", "command_config": config}
     manifest = DirectionCommandController(config).manifest()
     live = _fingerprint(env_kwargs=live_env, command_manifest=manifest)
     assert COMMAND_ENV_KEYS_SET <= set(live["env"])
@@ -640,13 +648,15 @@ def test_command_kwargs_enter_the_task_fingerprint_and_a_live_mode_has_a_command
     assert derived == live
 
     # (iii): a manifest goes with a live mode and only with one: neither half is hashed without the other.
-    for env_kwargs, command_manifest in ((_TREX_ENV, manifest), (live_env, None)):
+    for env_kwargs, command_manifest in ((_TYRANNOSAURUS_REX_ENV, manifest), (live_env, None)):
         with pytest.raises(TaskFingerprintError, match="exactly when command_mode is not 'none'"):
             _fingerprint(env_kwargs=env_kwargs, command_manifest=command_manifest)
 
     # (iv): no manifest while command_mode is "none"; under a live mode, the controller's, with the same config.
-    env = TRexEnv(reset_noise_scale=0.0)
-    live_env = TRexEnv(reset_noise_scale=0.0, command_mode="heading_and_speed", command_config=config)
+    env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
+    live_env = TyrannosaurusRexAnatomicalEnv(
+        reset_noise_scale=0.0, command_mode="heading_and_speed", command_config=config
+    )
     try:
         assert env.command_manifest() is None
         manifest = live_env.command_manifest()
@@ -664,7 +674,7 @@ def test_the_task_fingerprint_refuses_each_retired_command_kwarg_by_name(retired
     """A record written before PR-9 carries the five at their inert values; the fingerprint refuses each by name,
     in every mode, rather than hash it into a task that matches nothing (the reader drops them first)."""
     value = [0.0, 0.0] if retired.endswith("_range") else 0.0
-    env_kwargs: dict[str, Any] = {**_TREX_ENV, "command_mode": mode, retired: value}
+    env_kwargs: dict[str, Any] = {**_TYRANNOSAURUS_REX_ENV, "command_mode": mode, retired: value}
     manifest = None
     if mode != "none":
         config = DirectionCommandConfig(cruise_speed=0.5)

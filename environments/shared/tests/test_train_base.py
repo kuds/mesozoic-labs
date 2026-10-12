@@ -96,25 +96,25 @@ class TestSpeciesConfig:
         assert expected == fields
 
     def test_from_velociraptor(self):
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
         cfg = SpeciesConfig(
             species="velociraptor",
-            env_class=RaptorEnv,
+            env_class=VelociraptorMongoliensisAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=strike",
             height_label="Pelvis height",
             stage3_section_label="Hunting",
             success_keys=["strike_success"],
         )
         assert cfg.species == "velociraptor"
-        assert cfg.env_class is RaptorEnv
+        assert cfg.env_class is VelociraptorMongoliensisAnatomicalEnv
 
     def test_from_trex(self):
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
         cfg = SpeciesConfig(
             species="trex",
-            env_class=TRexEnv,
+            env_class=TyrannosaurusRexAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=bite",
             height_label="Pelvis height",
             stage3_section_label="Hunting",
@@ -123,11 +123,11 @@ class TestSpeciesConfig:
         assert cfg.species == "trex"
 
     def test_from_brachiosaurus(self):
-        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+        from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
         cfg = SpeciesConfig(
             species="brachiosaurus",
-            env_class=BrachioEnv,
+            env_class=BrachiosaurusAltithoraxAnatomicalEnv,
             stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
             height_label="Torso height",
             stage3_section_label="Food Reaching",
@@ -717,12 +717,12 @@ class TestCreateOrLoadModel:
         from stable_baselines3.common.monitor import Monitor
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-        from environments.velociraptor.envs.raptor_env import RaptorEnv
+        from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
         identity = current_plant_identity("velociraptor")
 
         def make_env():
-            return Monitor(RaptorEnv())
+            return Monitor(VelociraptorMongoliensisAnatomicalEnv())
 
         vec_env = VecNormalize(DummyVecEnv([make_env]), norm_obs=True, norm_reward=True)
         attach_plant_identity(vec_env, identity)

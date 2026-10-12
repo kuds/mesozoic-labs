@@ -7,14 +7,20 @@ import numpy as np
 import pytest
 from scipy.spatial import ConvexHull
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.model import PARAMETERS, floor_contacts, load_model, robot_body_ids, set_motors_enabled
-from environments.compsognathus.sensors import onboard_readings
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.model import (
+    PARAMETERS,
+    floor_contacts,
+    load_model,
+    robot_body_ids,
+    set_motors_enabled,
+)
+from environments.compsognathus_longipes.sensors import onboard_readings
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_onboard_encoders_exclude_privileged_state(variant):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_onboard_encoders_exclude_privileged_state(embodiment):
+    model, data = load_model(embodiment)
     data.qvel[:] = np.linspace(-0.2, 0.3, model.nv)
     mujoco.mj_forward(model, data)
     readings = onboard_readings(model, data)
@@ -34,9 +40,9 @@ def test_onboard_encoders_exclude_privileged_state(variant):
     assert readings["joint_position_rad"].shape == (model.nu,)
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_accelerometer_reports_specific_force_and_airborne_feet_are_zero(variant):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_accelerometer_reports_specific_force_and_airborne_feet_are_zero(embodiment):
+    model, data = load_model(embodiment)
     for _ in range(5000):
         mujoco.mj_step(model, data)
     mujoco.mj_forward(model, data)
@@ -53,10 +59,10 @@ def test_accelerometer_reports_specific_force_and_airborne_feet_are_zero(variant
     )
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
 @pytest.mark.parametrize("roll_deg", [-2, 2])
-def test_each_touch_sensor_captures_its_own_contacts_during_landing(variant, roll_deg):
-    model, data = load_model(variant)
+def test_each_touch_sensor_captures_its_own_contacts_during_landing(embodiment, roll_deg):
+    model, data = load_model(embodiment)
     angle = np.deg2rad(roll_deg) / 2
     data.qpos[3:7] = [np.cos(angle), np.sin(angle), 0, 0]
     data.qpos[2] += 0.005
@@ -66,16 +72,16 @@ def test_each_touch_sensor_captures_its_own_contacts_during_landing(variant, rol
         mujoco.mj_forward(model, data)
         contacts = floor_contacts(model, data)
         for short, long in (("r", "right"), ("l", "left")):
-            prefix = long if variant == "robot" else short
+            prefix = long if embodiment == "robot" else short
             force = sum(c["normal_force"] for c in contacts if c["geom"].startswith(prefix + "_"))
             assert float(data.sensor(f"{short}_foot_touch").data[0]) == pytest.approx(force, abs=1e-7)
             observed[short] |= force > 0.1
     assert all(observed.values())
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_camera_orientation_target_and_frustum_are_unoccluded(variant):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_camera_orientation_target_and_frustum_are_unoccluded(embodiment):
+    model, data = load_model(embodiment)
     cam = model.camera("head_camera").id
     rotation = data.cam_xmat[cam].reshape(3, 3)
     forward = -rotation[:, 2]
@@ -139,16 +145,16 @@ def test_robot_imu_is_inside_core_and_head_mass_is_accounted_for():
 
 
 def test_anatomical_palette_and_major_proportions_follow_species_style():
-    root = ET.parse(MODEL_PATHS["biological"])
-    trex = ET.parse(MODEL_PATHS["biological"].parents[2] / "trex/assets/trex.xml")
+    root = ET.parse(MODEL_PATHS["anatomical"])
+    trex = ET.parse(MODEL_PATHS["anatomical"].parents[2] / "trex/assets/trex.xml")
     for material in ("body_mat", "belly_mat", "head_mat", "claw_mat", "tooth_mat"):
         actual = root.find(f"asset/material[@name='{material}']").get("rgba")
         expected = trex.find(f"asset/material[@name='{material}']").get("rgba")
         np.testing.assert_allclose(np.fromstring(actual, sep=" "), np.fromstring(expected, sep=" "))
-    p = PARAMETERS["biological"]
+    p = PARAMETERS["anatomical"]
     assert sum(p["tail_segment_lengths_m"]) > 0.4
     # These are proxy proportions, not a specimen-level accuracy claim.
-    model, _ = load_model("biological")
+    model, _ = load_model("anatomical")
     assert np.linalg.norm(model.body_pos[model.body("r_metatarsus").id]) > np.linalg.norm(
         model.body_pos[model.body("r_tibia").id]
     )

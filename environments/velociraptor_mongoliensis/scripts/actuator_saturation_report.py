@@ -9,7 +9,7 @@ the shared script.
 
 Usage::
 
-    python environments/velociraptor/scripts/actuator_saturation_report.py
+    python environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py
 """
 
 import sys

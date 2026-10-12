@@ -29,12 +29,12 @@ whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
 
-- [Velociraptor](/docs/models/velociraptor)
-- [T-Rex](/docs/models/trex)
-- [Brachiosaurus](/docs/models/brachiosaurus)
-- [Dibothrosuchus](/docs/models/dibothrosuchus)
-- [Compsognathus](/docs/models/compsognathus)
-- [Compsognathus (Robot)](/docs/models/compsognathus_robot)
+- [Velociraptor](/docs/models/velociraptor_mongoliensis/anatomical)
+- [T-Rex](/docs/models/tyrannosaurus_rex/anatomical)
+- [Brachiosaurus](/docs/models/brachiosaurus_altithorax/anatomical)
+- [Dibothrosuchus](/docs/models/dibothrosuchus_elaphros/anatomical)
+- [Compsognathus](/docs/models/compsognathus_longipes/anatomical)
+- [Compsognathus (Robot)](/docs/models/compsognathus_longipes/robot)
 
 The published result summaries describe historical ladder runs with no
 per-deliverable records. They are marked unverified because the original
@@ -45,7 +45,7 @@ current model revision and configs.
 ## Quick Links
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
-- [Models](/docs/models/trex) - Explore available species models
+- [Models](/docs/models/tyrannosaurus_rex/anatomical) - Explore available species models
 - [Behavior Recipes](/docs/training/recipes) - Train stand, walk and hunt on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code

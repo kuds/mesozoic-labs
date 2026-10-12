@@ -13,9 +13,9 @@ All hyperparameters are defined in TOML config files under `configs/<species>/`.
 ```
 configs/
 ├── velociraptor/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_strike.toml
+│   ├── stance.toml
+│   ├── locomotion.toml
+│   ├── strike.toml
 │   └── stages.toml
 ├── trex/
 │   ├── stance.toml
@@ -24,14 +24,14 @@ configs/
 │   ├── behavior.toml
 │   └── stages.toml
 ├── brachiosaurus/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_food_reach.toml
+│   ├── stance.toml
+│   ├── locomotion.toml
+│   ├── food_reach.toml
 │   └── stages.toml
 ├── dibothrosuchus/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   ├── stage3_snap.toml
+│   ├── stance.toml
+│   ├── locomotion.toml
+│   ├── snap.toml
 │   └── stages.toml
 ├── compsognathus/
 │   ├── stance.toml
@@ -71,7 +71,7 @@ variants of one node are told apart later.
 The broad curriculum intent is balance first, locomotion second, and a
 species-specific simulator task third. Reward weights shift with that intent;
 do not infer current values from a copied range in this guide. The generated
-[model pages](/docs/models/velociraptor) show the current stage names, budgets,
+[model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current stage names, budgets,
 and advancement gates read from the same configs.
 
 ## PPO Parameters

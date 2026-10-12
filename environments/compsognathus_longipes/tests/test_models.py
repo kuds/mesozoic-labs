@@ -9,16 +9,16 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.envs import CompsognathusBiologicalEnv
-from environments.compsognathus.model import PARAMETERS, load_model, model_bounds, robot_body_ids
-from environments.compsognathus.scripts.validate_models import geometry, hold_trial
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.compsognathus_longipes.model import PARAMETERS, load_model, model_bounds, robot_body_ids
+from environments.compsognathus_longipes.scripts.validate_models import geometry, hold_trial
 from environments.shared.plant_contract import GENERATED_MANIFEST_PATH, current_plant_identity
 
 
-@pytest.mark.parametrize("variant,nq,nv,nu,mass", [("biological", 24, 23, 14, 1.0), ("robot", 19, 18, 12, 1.5856)])
-def test_model_contract(variant, nq, nv, nu, mass):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment,nq,nv,nu,mass", [("anatomical", 24, 23, 14, 1.0), ("robot", 19, 18, 12, 1.5856)])
+def test_model_contract(embodiment, nq, nv, nu, mass):
+    model, data = load_model(embodiment)
     assert (model.nq, model.nv, model.nu) == (nq, nv, nu)
     assert model.body_mass[robot_body_ids(model)].sum() == pytest.approx(mass)
     assert model.joint("root").type == mujoco.mjtJoint.mjJNT_FREE
@@ -41,14 +41,14 @@ def test_tail_mass_is_spread_at_one_density_over_its_tapered_meshes():
     that taper toward the tip, so the tip was denser than bone and the CoM sat over the rear quarter of the
     foot.  The 178 g is now spread at one density, and it still sums to exactly 0.178 kg so the anatomical
     body stays 1.000 kg (test_model_contract)."""
-    masses = PARAMETERS["biological"]["tail_segment_masses_kg"]
+    masses = PARAMETERS["anatomical"]["tail_segment_masses_kg"]
     assert math.fsum(masses) == 0.178
-    root = ET.parse(MODEL_PATHS["biological"]).getroot()
+    root = ET.parse(MODEL_PATHS["anatomical"]).getroot()
     for index in range(1, 5):
         # Without its mass attribute a geom takes MuJoCo's default 1000 kg/m3, so body mass / 1000 is the volume.
         root.find(f".//geom[@name='tail_{index}_geom']").attrib.pop("mass")
     unit = mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
-    model, _ = load_model("biological")
+    model, _ = load_model("anatomical")
     densities = [
         float(model.body_mass[model.body(f"tail_{index}").id] / (unit.body_mass[unit.body(f"tail_{index}").id] / 1000))
         for index in range(1, 5)
@@ -59,7 +59,7 @@ def test_tail_mass_is_spread_at_one_density_over_its_tapered_meshes():
 
 def test_digit_two_is_medial_on_both_feet():
     """r1 built the right foot as a left foot, its digit II tip lateral at world y -64 mm (note 15)."""
-    model, data = load_model("biological")
+    model, data = load_model("anatomical")
 
     def tip(name):
         # The end of the capsule's axis farther from the foot body's origin (the MTP joint).
@@ -92,7 +92,7 @@ def test_settled_statue_keeps_the_metatarsus_four_millimetres_off_the_floor(seed
     """The metatarsal head rests on the pad and is never support, yet its terminating capsule sat 1.07 mm
     above the floor on the settled r1 statue: any landing that sank the sole 1 mm touched it with 0 N on it
     and ended an upright episode as a fall.  r2 ends the capsule 4 mm short of the MTP joint (4.81 mm)."""
-    with CompsognathusBiologicalEnv() as env:
+    with CompsognathusLongipesAnatomicalEnv() as env:
         env.reset(seed=seed)
         for _ in range(200):
             _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape))
@@ -104,7 +104,7 @@ def test_settled_statue_keeps_the_metatarsus_four_millimetres_off_the_floor(seed
 
 
 def test_robot_plant_did_not_move_with_the_anatomical_revision():
-    """D-D26 confines physics r2 to build_biological and policy r3 to CompsognathusBiologicalEnv: the robot keeps
+    """D-D26 confines physics r2 to build_anatomical and policy r3 to CompsognathusLongipesAnatomicalEnv: the robot keeps
     physics 1 / policy 2 / visual 1 and the digests the committed manifest records for them."""
     committed = json.loads(GENERATED_MANIFEST_PATH.read_text())["plants"]["compsognathus_robot"]
     identity = current_plant_identity("compsognathus_robot", verify_generated=False)
@@ -117,7 +117,7 @@ def test_robot_plant_did_not_move_with_the_anatomical_revision():
 
 def test_robot_preserves_rev_b_mechanics():
     root = Path(__file__).resolve().parents[1]
-    source = ET.parse(root / "references/compso_rev_b.xml")
+    source = ET.parse(root / "robot/references/compsognathus_longipes_robot_rev_b.xml")
     source.find("compiler").set("meshdir", str(root / "assets/meshes"))
     reference = mujoco.MjModel.from_xml_string(ET.tostring(source.getroot(), encoding="unicode"))
     model, _ = load_model("robot")
@@ -162,9 +162,9 @@ def test_robot_preserves_rev_b_mechanics():
     assert high[2] == pytest.approx(0.353)
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_standing_contacts_and_motor_limits(variant):
-    trial = hold_trial(variant, seconds=10)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_standing_contacts_and_motor_limits(embodiment):
+    trial = hold_trial(embodiment, seconds=10)
     assert trial["stood"], trial
     assert all(trial["standing_checks"].values()), trial
     assert trial["maximum_torque_cap_fraction"] <= 1.000001
@@ -181,9 +181,9 @@ def test_robot_stands_with_mass_growth_without_increasing_motor_caps():
     assert hold_trial("robot", mass_scale=1.15, seconds=5)["stood"]
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_standing_is_not_a_hidden_weld_or_passive_statue(variant):
-    trial = hold_trial(variant, motors_off=True, seconds=5)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_standing_is_not_a_hidden_weld_or_passive_statue(embodiment):
+    trial = hold_trial(embodiment, motors_off=True, seconds=5)
     assert not trial["stood"]
     assert max(trial["peak_torque_Nm"].values()) == 0
 

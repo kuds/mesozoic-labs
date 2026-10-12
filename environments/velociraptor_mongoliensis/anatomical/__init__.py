@@ -1,5 +1,5 @@
 """Velociraptor Gymnasium environments."""
 
-from .raptor_env import RaptorEnv
+from .raptor_env import VelociraptorMongoliensisAnatomicalEnv
 
-__all__ = ["RaptorEnv"]
+__all__ = ["VelociraptorMongoliensisAnatomicalEnv"]

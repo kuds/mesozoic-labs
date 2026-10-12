@@ -21,7 +21,7 @@ dibothrosuchus`` for the full per-actuator numbers on the current model.
 import mujoco
 import pytest
 
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.tests.actuator_bounds_helpers import (
     PositionActuatorConfigurationBase,
     clip_fraction,
@@ -37,7 +37,7 @@ LEG_PREFIXES = ("fr_", "fl_", "rr_", "rl_")
 
 @pytest.fixture(scope="module")
 def model():
-    env = DibothrosuchusEnv()
+    env = DibothrosuchusElaphrosAnatomicalEnv()
     try:
         yield env.model
     finally:
@@ -86,7 +86,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
 class TestHomeControlSaturation:
     def test_no_saturation_during_home_control_settle(self):
         """Settling under XML home-keyframe controls never clips forces."""
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         try:
             frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -104,7 +104,7 @@ class TestDynamicSaturation:
         the plant has lost gait headroom — read
         docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000)
@@ -117,7 +117,7 @@ class TestDynamicSaturation:
     def test_sprint_excitation_stays_unclipped(self):
         """4 Hz full-amplitude excitation, the sprint-like regime that caught
         the velociraptor knee at its original sizing."""
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         try:
             frac = measure_clip_fractions(env, mode="gait", steps=2000, hz=4.0, amplitude=1.0)
             worst = max(frac[i] for i in position_actuator_ids(env.model))

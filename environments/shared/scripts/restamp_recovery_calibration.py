@@ -33,7 +33,7 @@ pass its own ``--reason`` (the entry names the revision it covers; nothing
 else in the history distinguishes one restamp from the next).
 
 Run: ``python -m environments.shared.scripts.restamp_recovery_calibration
-[--species compsognathus --species compsognathus_robot] [--configs-root DIR]
+[--species compsognathus_longipes --embodiment anatomical --species compsognathus_longipes --embodiment robot] [--configs-root DIR]
 [--reason TEXT]``.
 """
 

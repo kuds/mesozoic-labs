@@ -33,7 +33,7 @@ class TestStageStyleIndex:
             assert _stage_style_index(stage, species="trex") == stage
 
     def test_semantic_id_uses_manifest_position(self):
-        # configs/trex/stages.toml places recovery at position 2.
+        # configs/tyrannosaurus_rex/anatomical/stages.toml places recovery at position 2.
         assert _stage_style_index("recovery", species="trex") == 2
 
     def test_unresolvable_id_gets_stable_crc32_fallback(self):

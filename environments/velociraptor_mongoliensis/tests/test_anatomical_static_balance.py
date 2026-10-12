@@ -29,7 +29,7 @@ from environments.shared.tests.static_balance_helpers import (
     MassDistributionBase,
     NeutralActionStabilityBase,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 FOOT_GEOM_NAMES = [
     "r_toe_d3_geom",
@@ -44,7 +44,7 @@ ROOT_BODY = "pelvis"
 
 @pytest.fixture
 def env():
-    e = RaptorEnv(reset_noise_scale=0.0)
+    e = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()

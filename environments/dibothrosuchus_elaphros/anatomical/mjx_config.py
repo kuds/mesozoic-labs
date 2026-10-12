@@ -1,7 +1,7 @@
 """FROZEN (D-D17): dibothrosuchus's MJX plant registration. Nothing trains on it.
 
 The plant contract imports this module by name (a policy-interface digest
-input), checks it against ``DibothrosuchusEnv`` and executes ``build_mjx_observation``
+input), checks it against ``DibothrosuchusElaphrosAnatomicalEnv`` and executes ``build_mjx_observation``
 on it in its MJX probe on every SB3 training and evaluation run. It holds only
 the keys the probe reads. Do not edit, reformat or move it; see
 ``environments/shared/mjx_env.py``.

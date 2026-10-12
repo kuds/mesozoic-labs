@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
-from environments.compsognathus.scripts.robot_finish import apply_leg_finish
+from environments.compsognathus_longipes.scripts.robot_finish import apply_leg_finish
 
 
 def text(values):

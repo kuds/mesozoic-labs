@@ -14,7 +14,7 @@ from environments.shared.plant_contract import PlantIdentity
 #: The fake velociraptor plant every test that needs a PlantIdentity shares.
 _PLANT_IDENTITY_FIELDS: dict[str, Any] = {
     "species": "velociraptor",
-    "model_path": "environments/velociraptor/assets/raptor.xml",
+    "model_path": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
     "physics_revision": 1,
     "policy_interface_revision": 1,
     "visual_revision": 1,

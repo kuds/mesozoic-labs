@@ -1,6 +1,6 @@
 """The anatomical compsognathus stance's floor-truth declaration (decision D-D26, 2026-10-07; D-D32, 2026-10-11).
 
-``configs/compsognathus/stance.toml`` moved from ``stance_quality/v1``, which
+``configs/compsognathus_longipes/anatomical/stance.toml`` moved from ``stance_quality/v1``, which
 both certified r1 stances cleared while marching on one digit tip, to the
 floor-truth gate with physics r2 and the soft-cubic leg interface, and to
 the six-heading certificate (``stance_quality_heading/v1``, v2's block

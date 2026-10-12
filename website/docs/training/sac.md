@@ -21,10 +21,10 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 def make_env():
-    env = RaptorEnv(forward_vel_weight=1.0, alive_bonus=0.1)
+    env = VelociraptorMongoliensisAnatomicalEnv(forward_vel_weight=1.0, alive_bonus=0.1)
     return Monitor(env)
 
 vec_env = DummyVecEnv([make_env])
@@ -39,7 +39,7 @@ model.save("raptor_sac")
 Or use the included training script:
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 
 # Single stage; the current budget comes from its TOML config
 python scripts/train_sb3.py train --stage 1 --algorithm sac
@@ -95,11 +95,11 @@ Within the curriculum, advancement between the numbered stages is judged in
 training by the `CurriculumManager` using the thresholds in each stage's TOML
 config; its verdict is what the node's `gate_verdict.json` records. Current
 stage budgets and gates are shown on the
-[generated model pages](/docs/models/velociraptor).
+[generated model pages](/docs/models/velociraptor_mongoliensis/anatomical).
 
 ## Published Results
 
-The generated [Velociraptor model page](/docs/models/velociraptor) displays the
+The generated [Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical) displays the
 available SAC summary alongside its provenance status. That historical,
 unverified run is not a controlled comparison with PPO and does not establish a
 general performance or training-time advantage.

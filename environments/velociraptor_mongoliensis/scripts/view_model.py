@@ -3,7 +3,7 @@
 Passive viewer for velociraptor MJCF iteration.
 
 Usage (from the repository root):
-    python -m environments.velociraptor.scripts.view_model
+    python -m environments.velociraptor_mongoliensis.scripts.view_model
 
 Controls:
     - Mouse drag: rotate view
@@ -22,7 +22,7 @@ from environments.shared.harnesses.viewer import ViewerConfig, view_model
 if __name__ == "__main__":
     view_model(
         ViewerConfig(
-            model_path=Path(__file__).parent.parent / "assets" / "raptor.xml",
+            model_path=Path(__file__).parent.parent / "assets" / "velociraptor_mongoliensis_anatomical.xml",
             species_name="velociraptor",
             height_label="Pelvis height",
             camera_distance=2.0,

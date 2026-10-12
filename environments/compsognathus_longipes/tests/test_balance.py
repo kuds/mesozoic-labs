@@ -6,44 +6,44 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.compsognathus.model import load_model, set_motors_enabled
-from environments.compsognathus.scripts.validate_models import RESET_SEEDS, hold_trial, support_sample
+from environments.compsognathus_longipes.model import load_model, set_motors_enabled
+from environments.compsognathus_longipes.scripts.validate_models import RESET_SEEDS, hold_trial, support_sample
 from environments.shared.tests.static_balance_helpers import JointLimitsAtHomeBase
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_home_has_loaded_support_and_knee_travel(variant):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_home_has_loaded_support_and_knee_travel(embodiment):
+    model, data = load_model(embodiment)
     sample = support_sample(model, data)
     assert sample["support_margin_m"] is not None, sample
     assert sample["support_margin_m"] > 0.005
     assert min(sample["foot_loads_N"]) > 0
     checks = JointLimitsAtHomeBase()
-    checks.knee_names = [f"{s}_knee" for s in (("r", "l") if variant == "biological" else ("right", "left"))]
+    checks.knee_names = [f"{s}_knee" for s in (("r", "l") if embodiment == "anatomical" else ("right", "left"))]
     env = SimpleNamespace(model=model, data=data)
     checks.test_no_joint_limit_violations(env)
     checks.test_knees_flexed_at_home(env)
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
 @pytest.mark.parametrize("seed", RESET_SEEDS)
-def test_small_reset_errors_recover_double_support(variant, seed):
-    trial = hold_trial(variant, seed=seed, seconds=5)
+def test_small_reset_errors_recover_double_support(embodiment, seed):
+    trial = hold_trial(embodiment, seed=seed, seconds=5)
     assert trial["standing_passed"], trial
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_mass_growth_keeps_balance_with_original_motor_limits(variant):
-    normal, _ = load_model(variant)
-    heavy, _ = load_model(variant, 1.15)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_mass_growth_keeps_balance_with_original_motor_limits(embodiment):
+    normal, _ = load_model(embodiment)
+    heavy, _ = load_model(embodiment, 1.15)
     np.testing.assert_array_equal(normal.actuator_forcerange, heavy.actuator_forcerange)
-    trial = hold_trial(variant, mass_scale=1.15, seconds=10)
+    trial = hold_trial(embodiment, mass_scale=1.15, seconds=10)
     assert trial["standing_passed"], trial
 
 
-@pytest.mark.parametrize("variant", ["biological", "robot"])
-def test_disabling_actuation_is_real_and_reversible(variant):
-    model, data = load_model(variant)
+@pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
+def test_disabling_actuation_is_real_and_reversible(embodiment):
+    model, data = load_model(embodiment)
     original_flags = int(model.opt.disableflags)
     gains = model.actuator_gainprm.copy()
     data.ctrl[:] = model.actuator_ctrlrange[:, 1]

@@ -24,7 +24,7 @@ from environments.shared.tests.actuator_bounds_helpers import (
     measure_clip_fractions,
     position_actuator_ids,
 )
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 FORCERANGE_KP_RATIO = 0.8  # spike-cap sizing from the July 2026 hardening
 GAIT_HEADROOM_RATIO = 1.5
@@ -42,7 +42,7 @@ GAIT_HEADROOM_ACTUATORS = frozenset(
 
 @pytest.fixture(scope="module")
 def model():
-    env = TRexEnv()
+    env = TyrannosaurusRexAnatomicalEnv()
     try:
         yield env.model
     finally:
@@ -78,7 +78,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
 class TestHomeControlSaturation:
     def test_no_saturation_during_home_control_settle(self):
         """Settling under XML home-keyframe controls never clips forces."""
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -97,7 +97,7 @@ class TestDynamicSaturation:
         the plant lost gait headroom — see
         docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000)

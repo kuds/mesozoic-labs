@@ -57,9 +57,9 @@ def test_snapshot_gracefully_records_info_without_mujoco_environment():
 
 
 def test_snapshot_records_geometry_without_mutating_simulation_state():
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-    env = TRexEnv(reset_noise_scale=0.0)
+    env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
     try:
         env.reset(seed=0)
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))

@@ -1,5 +1,5 @@
 # Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
-# See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
+# See environments/compsognathus_longipes/TRAINING_RECIPE_REVIEW.md for evidence,
 # validation limits, and the next-run protocol. State observations are privileged.
 # recovery.toml extends this file's [stage], [env], [ppo] and [sac] (its
 # `extends` key): an [env] or [sac] edit here, or a [ppo] edit other than
@@ -34,8 +34,8 @@ target_approach_weight = 0.0
 target_reach_bonus = 0.0
 prey_distance_range = [0.8, 1.2]
 prey_lateral_range = [0.0, 0.0]
-# Stance-quality terms (CompsognathusBiologicalEnv; decision D-D26), added with physics r2 and policy interface r3
-# (plant_versions note 15). Every one is inert at its constructor default, which reproduces CompsognathusEnv's reward
+# Stance-quality terms (CompsognathusLongipesAnatomicalEnv; decision D-D26), added with physics r2 and policy interface r3
+# (plant_versions note 15). Every one is inert at its constructor default, which reproduces CompsognathusLongipesEnv's reward
 # bit for bit; recovery.toml inherits them (`extends`). Each weight is MEASURED by re-scoring recorded rollouts of the
 # landed plant, this file's [env] and the soft-cubic interface (a trajectory does not depend on the reward, so the
 # re-score is exact; it equals the env's own total to 5e-13 per episode), on these panels:
@@ -162,7 +162,7 @@ support_geom_coverage_weight = 0.2             # This species' own term: each fo
                                                # (-8.1 and -12.5 on its two panels, -23.6 at most). At 0.3 the rolled
                                                # foot would pay 50 more and the noisy statue (coverage 0.46 under
                                                # noise) 53 more.
-floor_impact_weight = 0.25                     # Named as on TRexEnv (D-D27); on the substep foot-force block from the
+floor_impact_weight = 0.25                     # Named as on TyrannosaurusRexAnatomicalEnv (D-D27); on the substep foot-force block from the
 floor_impact_threshold_bw = 2.5                # first step (the settle included): -w * min(peak - 2.5, 1) per step for
 airborne_substep_weight = 0.2                  # a peak summed foot force above 2.5 body weights, and -w per step with
                                                # both feet off the floor on every substep (the share of airborne
@@ -211,7 +211,7 @@ log_std_init = -2.0                     # std 0.135 at initialisation, at this p
                                         # blocks) and on 0/40 at 0.20 (median 180 steps; 129 on seeds 11042-11081
                                         # with an independent noise stream), so a larger initial std,
                                         # or an entropy schedule that lets the learned std grow toward 0.20,
-                                        # samples falls ([env] near-statues above; test_noise_tolerance.py pins
+                                        # samples falls ([env] near-statues above; test_anatomical_noise_tolerance.py pins
                                         # 0.10 and 0.135).
 
 [sac]

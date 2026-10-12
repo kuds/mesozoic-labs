@@ -2,7 +2,7 @@
 
 Run from the repository root::
 
-    python -m environments.compsognathus.scripts.calibrate_recovery --output calibration.json
+    python -m environments.shared.scripts.calibrate_recovery --output calibration.json
 
 This calibrates the task, not a learned recovery policy. It does not consume the
 publication seeds 3042--3081. Quiet, force-selection, and held-out diagnostic
@@ -459,14 +459,14 @@ def main() -> None:
         for species in args.species
     ]
     source_paths = [
-        "environments/compsognathus/scripts/calibrate_recovery.py",
-        "environments/compsognathus/envs/compsognathus_env.py",
+        "environments/shared/scripts/calibrate_recovery.py",
+        "environments/compsognathus_longipes/anatomical/env.py",
         "environments/shared/base_env.py",
         "environments/shared/perturbation.py",
         "environments/shared/recovery_evaluation.py",
         "environments/shared/curriculum/recovery_gate.py",
-        "environments/compsognathus/assets/compsognathus.xml",
-        "environments/compsognathus/assets/compsognathus_robot.xml",
+        "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
+        "environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml",
         *[f"configs/{species}/stance.toml" for species in args.species],
     ]
     provenance = {

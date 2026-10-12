@@ -100,7 +100,7 @@ from environments.shared.reward_functions import (
 )
 
 
-class TRexEnv(BaseDinoEnv):
+class TyrannosaurusRexAnatomicalEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
     action_mapping = "home-keyframe-residual/v1"
@@ -250,7 +250,7 @@ class TRexEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
+        model_path = str(Path(__file__).parent.parent / "assets" / "tyrannosaurus_rex_anatomical.xml")
 
         # T-Rex-specific reward weights
         self.tail_stability_weight = tail_stability_weight
@@ -375,7 +375,7 @@ class TRexEnv(BaseDinoEnv):
         # The theropod stance halved the residual: a flexed limb settles closer
         # to its commanded pose than a columnar one does, so the plant now
         # settles 1.55° nose-down where the columnar stance settled 2.9°.
-        # nosedive_termination_threshold in configs/trex/stance.toml is
+        # nosedive_termination_threshold in configs/tyrannosaurus_rex/anatomical/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
         # vertical (see _get_reward_info).
@@ -1228,7 +1228,7 @@ class TRexEnv(BaseDinoEnv):
 
 # Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="MesozoicLabs/TRex-v0",
-    entry_point="environments.trex.envs.trex_env:TRexEnv",
+    id="MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
+    entry_point="environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
     max_episode_steps=1000,
 )

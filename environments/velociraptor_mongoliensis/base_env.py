@@ -74,7 +74,7 @@ from environments.shared.reward_functions import (
 )
 
 
-class RaptorEnv(BaseDinoEnv):
+class VelociraptorMongoliensisAnatomicalEnv(BaseDinoEnv):
     """Velociraptor locomotion and strike environment."""
 
     # SB3-only since policy-interface revision 11 (plant_versions note 14).
@@ -120,7 +120,7 @@ class RaptorEnv(BaseDinoEnv):
         speed_penalty_threshold: float = 0.10,
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
-        # Stance-quality terms, named as on TRexEnv.  Every default is inert:
+        # Stance-quality terms, named as on TyrannosaurusRexAnatomicalEnv.  Every default is inert:
         # a zero weight (or alive fraction) reproduces the reward that
         # predates them bit for bit.
         bilateral_support_weight: float = 0.0,
@@ -144,7 +144,7 @@ class RaptorEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "raptor.xml")
+        model_path = str(Path(__file__).parent.parent / "assets" / "velociraptor_mongoliensis_anatomical.xml")
 
         # Raptor-specific reward weights
         self.forward_vel_max = forward_vel_max
@@ -669,7 +669,7 @@ class RaptorEnv(BaseDinoEnv):
 
 # Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="MesozoicLabs/Raptor-v0",
-    entry_point="environments.velociraptor.envs.raptor_env:RaptorEnv",
+    id="MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
+    entry_point="environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
     max_episode_steps=1000,
 )

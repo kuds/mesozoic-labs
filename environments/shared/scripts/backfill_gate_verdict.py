@@ -80,7 +80,7 @@ verdicts carry no ``gate_sha256`` and are refused by reuse rule 7;
 threshold edit forces a notebook re-roll of the node.
 
 Run: ``python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>
-[--species trex] [--stage 1] [--force] [--gate recorded|current]``.
+[--species tyrannosaurus_rex --embodiment anatomical] [--stage 1] [--force] [--gate recorded|current]``.
 """
 
 from __future__ import annotations

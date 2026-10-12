@@ -48,7 +48,7 @@ CERTIFICATION_CODE = (
     "environments/shared/scripts/widen_checkpoint.py",
     "environments/shared/scripts/backfill_gate_verdict.py",
     "environments/shared/scripts/restamp_recovery_calibration.py",
-    "environments/compsognathus/scripts/calibrate_recovery.py",
+    "environments/shared/scripts/calibrate_recovery.py",
 )
 #: The statue baselines: re-running them is the only evidence for the
 #: statue-derived stage-1 gate constants (test_statue_constant_freshness.py).

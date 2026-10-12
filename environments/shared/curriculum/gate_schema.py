@@ -127,7 +127,7 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     # success, with an optional paired null-superiority criterion that
     # consumes the resolver's frozen null panels and is authoritative when
     # declared.  Frozen for trex 2026-08-28 (plan P5) with measured
-    # thresholds (configs/trex/recovery.toml); none/v1 remains only for
+    # thresholds (configs/tyrannosaurus_rex/anatomical/recovery.toml); none/v1 remains only for
     # future non-advancing pilots.  See
     # :mod:`environments.shared.curriculum.recovery_gate` for the statistic.
     "recovery_quality/v1": frozenset(

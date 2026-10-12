@@ -10,7 +10,7 @@ from environments.shared.plant_contract import (
     fingerprint_model_layers,
 )
 from environments.shared.result_bundle import provenance as result_bundle_provenance
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 from .result_bundle_helpers import _COMMIT
 
@@ -48,9 +48,12 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(scope="module")
 def raptor_layers():
     """Return original model source, interface shell, version, and hashes."""
-    env = RaptorEnv(reset_noise_scale=0.0)
+    env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
     try:
-        source = (GENERATED_MANIFEST_PATH.parent.parent / "environments/velociraptor/assets/raptor.xml").read_text()
+        source = (
+            GENERATED_MANIFEST_PATH.parent.parent
+            / "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"
+        ).read_text()
         interface = env
         version = PlantVersion(
             species="velociraptor",

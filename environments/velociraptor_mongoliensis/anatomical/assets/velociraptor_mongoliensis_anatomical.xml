@@ -357,7 +357,7 @@
   <sensor>
     <!-- WARNING: the Python env indexes sensordata by POSITION (gyro 0-2,
          accel 3-5, quat 6-9, touch 10-11 and 27-30, ...).  Do not reorder or
-         insert sensors without updating RaptorEnv._cache_ids, whose foot
+         insert sensors without updating VelociraptorMongoliensisEnv._cache_ids, whose foot
          sensor groups the plant contract fingerprints. -->
     <!-- IMU-like sensors -->
     <gyro name="pelvis_gyro" site="imu"/>
@@ -457,13 +457,13 @@
        Those are load-bearing constants elsewhere and must be re-measured
        together with any edit here, along with the ctrl preload
        (re-measure tau_g):
-         raptor_env.py  natural_pitch (0.35), the leg_home_pose target (this
+         velociraptor_mongoliensis/base_env.py  natural_pitch (0.35), the leg_home_pose target (this
                         key)
-         configs/velociraptor/stage1_balance.toml
+         configs/velociraptor_mongoliensis/anatomical/stance.toml
                         the stance-quality weights and min_avg_reward /
                         collapse_peak_floor (statue-derived)
-       environments/velociraptor/tests/test_static_balance.py
-       (TestHomeKeyframeStance) and test_raptor_env.py
+       environments/velociraptor_mongoliensis/tests/test_anatomical_static_balance.py
+       (TestHomeKeyframeStance) and test_anatomical_env.py
        (TestNaturalPitchTracksStance) pin them to the settled stance. -->
 
   <keyframe>

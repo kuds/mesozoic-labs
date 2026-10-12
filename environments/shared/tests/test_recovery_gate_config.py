@@ -1,6 +1,6 @@
 """The T-Rex recovery stage's FROZEN gate declaration (plan P5, 2026-08-28).
 
-``configs/trex/recovery.toml`` stopped being a non-advancing pilot on
+``configs/tyrannosaurus_rex/anatomical/recovery.toml`` stopped being a non-advancing pilot on
 2026-08-28: its ``[curriculum]`` block declares ``recovery_quality/v1`` with
 thresholds taken from measurement, not from aspiration.  This module pins
 that declaration in three ways, because each is a different failure:
@@ -54,7 +54,7 @@ from environments.shared.curriculum.recovery_gate import (
     evaluate_recovery_gate,
 )
 
-RECOVERY_CONFIG = Path("configs/trex/recovery.toml")
+RECOVERY_CONFIG = Path("configs/tyrannosaurus_rex/anatomical/recovery.toml")
 
 #: The §9.1 training-schedule panels, as their counts.  Every bound this
 #: module checks is recomputed from these rather than quoted, so the frozen

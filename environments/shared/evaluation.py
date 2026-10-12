@@ -66,7 +66,7 @@ def stance_camera_views(species: str) -> dict[str, dict[str, float]]:
 
 
 # Keep the historical T. rex framing and the public preset name compatible.
-TREX_STAGE1_CAMERA_VIEWS = stance_camera_views("trex")
+TYRANNOSAURUS_REX_STAGE1_CAMERA_VIEWS = stance_camera_views("trex")
 
 try:
     import numpy as _np

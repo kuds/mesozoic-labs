@@ -61,7 +61,7 @@ from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
 
 
-class DibothrosuchusEnv(BaseDinoEnv):
+class DibothrosuchusElaphrosAnatomicalEnv(BaseDinoEnv):
     """Dibothrosuchus quadrupedal locomotion and snout-snap environment."""
 
     action_mapping = "home-keyframe-residual/v1"
@@ -104,7 +104,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         # Read only by the retired MJX reward, which gated its alive bonus on
         # foot contact and paid a per-step grounded bonus; this env gets the
         # same effect from snout-contact and body-contact termination.  They
-        # are accepted and stored (stage1_balance.toml sets them, and
+        # are accepted and stored (stance.toml sets them, and
         # task_sha256 hashes them) but not read by _get_reward_info.
         foot_contact_weight: float = 0.0,
         foot_contact_gate: float = 0.0,
@@ -131,7 +131,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "dibothrosuchus.xml")
+        model_path = str(Path(__file__).parent.parent / "assets" / "dibothrosuchus_elaphros_anatomical.xml")
 
         # Dibothrosuchus-specific reward weights
         self.gait_stability_weight = gait_stability_weight
@@ -567,7 +567,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
 
 # Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="MesozoicLabs/Dibothrosuchus-v0",
-    entry_point="environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
+    id="MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
+    entry_point="environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
     max_episode_steps=1000,
 )

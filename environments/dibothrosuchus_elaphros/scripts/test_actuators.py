@@ -4,7 +4,7 @@ Test actuators by applying sinusoidal control signals.
 Useful for verifying joint ranges and actuator gains.
 
 Usage (from the repository root):
-    python -m environments.dibothrosuchus.scripts.test_actuators
+    python -m environments.dibothrosuchus_elaphros.scripts.test_actuators
 """
 
 from pathlib import Path
@@ -14,7 +14,7 @@ from environments.shared.harnesses.actuators import ActuatorTestConfig, run_actu
 if __name__ == "__main__":
     run_actuator_test(
         ActuatorTestConfig(
-            model_path=Path(__file__).parent.parent / "assets" / "dibothrosuchus.xml",
+            model_path=Path(__file__).parent.parent / "assets" / "dibothrosuchus_elaphros_anatomical.xml",
             camera_distance=1.8,
         )
     )

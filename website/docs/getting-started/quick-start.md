@@ -31,7 +31,7 @@ pip install -e ".[train]"
 ### View the Model
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 python scripts/view_model.py
 ```
 
@@ -88,7 +88,7 @@ certifies a walk-only run on the command line as `BEHAVIOR = "walk"` does in
 the notebook.
 
 Pass `--timesteps` only when you intentionally want to override the stage
-config. The generated [model pages](/docs/models/velociraptor) show the current
+config. The generated [model pages](/docs/models/velociraptor_mongoliensis/anatomical) show the current
 budgets for every species and stage.
 
 ### Evaluate a Trained Policy
@@ -117,9 +117,9 @@ pytest -v
 import gymnasium as gym
 
 # Registers MesozoicLabs environments
-import environments.velociraptor.envs.raptor_env  # noqa: F401
+import environments.velociraptor_mongoliensis.anatomical.env  # noqa: F401
 
-env = gym.make("MesozoicLabs/Raptor-v0")
+env = gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")
 
 obs, info = env.reset(seed=42)
 for step in range(1000):

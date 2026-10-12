@@ -155,7 +155,7 @@ robustness, **LOW** = cosmetic / QoL.
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
   That is by design since the 1a/1b split: the disturbance lives in the
-  recovery stage (`configs/trex/recovery.toml` — stance's `[env]` plus the
+  recovery stage (`configs/tyrannosaurus_rex/anatomical/recovery.toml` — stance's `[env]` plus the
   scheduled pushes, warm-started from the certified stance checkpoint), whose
   `recovery_quality/v1` gate was frozen 2026-08-28 with measured thresholds.
   The pre-split `--impulse-probe` envelope (2026-08-06: 0.50 m/s one way,
@@ -254,7 +254,7 @@ robustness, **LOW** = cosmetic / QoL.
   calibrations were restamped, not re-measured, which moved their
   `profile_sha256`, so every compsognathus / compsognathus_robot recovery
   freeze made before Phase C is refused and must be re-frozen from the
-  restamped profile (`environments/compsognathus/RECOVERY_CALIBRATION.md`);
+  restamped profile (`environments/compsognathus_longipes/RECOVERY_CALIBRATION.md`);
   the anatomical profile has since been re-measured on physics r2 (D-D26,
   2026-10-07), which refuses every anatomical freeze made before it.
   **Update (2026-10-06):** moot for the T. rex since its physics revision
@@ -523,9 +523,9 @@ robustness, **LOW** = cosmetic / QoL.
   MEDIUM entry "run-level records go stale" above; a complete bundle is
   immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)).
 - **MEDIUM (provisional threshold)** — **the trex hunting bar
-  `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
+  `min_success_lcb = 0.5` in `configs/tyrannosaurus_rex/anatomical/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
-  on the strength of the schema-2 committed result (`results/trex/ppo/
+  on the strength of the schema-2 committed result (`results/tyrannosaurus_rex/anatomical/ppo/
   summary.json` stage 3: mean 0.9667 → 29/30 → LCB 0.8514, a recomputation
   from a rounded mean with no per-episode evidence, judged at
   `min_success_rate` 0.25 with no velocity term under a different `[env]`
@@ -600,7 +600,7 @@ robustness, **LOW** = cosmetic / QoL.
   The T-Rex is done: `stance.toml` and `recovery.toml` use the relative
   `collapse_peak_floor_fraction` (PLANT_VALIDATION §14 item 3) after the
   absolute floor failed to arm twice. `velociraptor`, `brachiosaurus` and
-  `dibothrosuchus` `stage1_balance.toml` still carry absolute floors
+  `dibothrosuchus` `stance.toml` still carry absolute floors
   (1300 / 1300 / 1950, each commented "Absolute pending §14 item 3") derived
   from their statues' standing reward; re-derive them as fractions the same
   way. (PLANT_VALIDATION §11.4) **Update 2026-09-23:** an absolute floor at
@@ -794,11 +794,11 @@ robustness, **LOW** = cosmetic / QoL.
   needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
-  `foot_contact_weight` / `foot_contact_gate` (`trex_env.py:155-156`,
-  `dibothrosuchus_env.py:109-110`) and no SB3 reward reads them: they were
+  `foot_contact_weight` / `foot_contact_gate` (`tyrannosaurus_rex/base_env.py:155-156`,
+  `dibothrosuchus_elaphros/base_env.py:109-110`) and no SB3 reward reads them: they were
   knobs of the MJX reward, which left with the JAX/MJX runtime (D-D17, cleanup
-  PR-B). They stay, with their six `[env]` keys (`configs/trex/stance.toml:13-14`,
-  `configs/trex/recovery.toml:62-63`, `configs/dibothrosuchus/stage1_balance.toml:13-14`),
+  PR-B). They stay, with their six `[env]` keys (`configs/tyrannosaurus_rex/anatomical/stance.toml:13-14`,
+  `configs/tyrannosaurus_rex/anatomical/recovery.toml:62-63`, `configs/dibothrosuchus_elaphros/anatomical/stance.toml:13-14`),
   because `task_sha256` hashes the constructor defaults overlaid with `[env]`:
   removing either moves the trex and dibothrosuchus task digests (stripping the
   dibothrosuchus keys moved its certified stance task from `083e2966` to
@@ -960,13 +960,13 @@ robustness, **LOW** = cosmetic / QoL.
 - **HIGH (hardware target)** — **compsognathus_robot stands and walks on
   stacked feet, and its touch sensors count sole-on-sole force as support
   (replayed 2026-09-28).** Its 10 × 9 cm soles collide with each other
-  (`compsognathus_robot.xml:181,254`), and both certified nodes of run
+  (`compsognathus_longipes_robot.xml:181,254`), and both certified nodes of run
   `20260924_031815` rest the right sole on the left foot: the stance carries
   81% of its floor load on the left foot, and its reported two-foot support of
   0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
   pushing 1.12 body weights into each touch sensor, so the support flag that
   scales its alive, posture and height rewards (touch sum above 4% of body
-  weight, `compsognathus_env.py:182,232`) is on 99.6% of steps by touch and
+  weight, `compsognathus_longipes/anatomical/env.py:182,232`) is on 99.6% of steps by touch and
   34.3% by floor: about 838 of its about 2627 reward pays for support the
   floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
   Plan: the robot's `gait-r1` revisions, with floor-contact support and a
@@ -1070,7 +1070,7 @@ robustness, **LOW** = cosmetic / QoL.
   support gate prices only a substep with both feet unloaded. Plan: until a
   gate revision lands, count each trained r2 stance's per-foot lift-offs and
   view its window root height for a steady rhythm before it is used ([recipe
-  review](../environments/compsognathus/TRAINING_RECIPE_REVIEW.md) amendment);
+  review](../environments/compsognathus_longipes/TRAINING_RECIPE_REVIEW.md) amendment);
   a follow-up revision of `stance_quality/v2` needs a periodicity criterion
   (for example a spectral peak of the window's floor force), measured on the
   statue, the jittered statue and these scripts ([stance-hack
@@ -1095,11 +1095,11 @@ robustness, **LOW** = cosmetic / QoL.
   second, window peaks 3.0–4.9 body weights), and only their deterministic
   means are clean (40/40), which shows only that the mean does not drift to a
   march or a hop early.
-  `environments/compsognathus/tests/test_noise_tolerance.py` pins σ 0.10 on
+  `environments/compsognathus_longipes/tests/test_anatomical_noise_tolerance.py` pins σ 0.10 on
   the first 5 episodes and σ 0.135 on at least 10 of the first 12 (the
   review's 0.8). Plan: keep `log_std_init` −2.0 and the decaying entropy
   schedule ([recipe
-  review](../environments/compsognathus/TRAINING_RECIPE_REVIEW.md)), watch the
+  review](../environments/compsognathus_longipes/TRAINING_RECIPE_REVIEW.md)), watch the
   learned standard deviation in the first r2 stance runs (at least two seeds),
   and re-measure the cliff with any plant or interface change.
 
@@ -1150,7 +1150,7 @@ robustness, **LOW** = cosmetic / QoL.
   prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
   success (trex 30/30, gate PASS) and 0 in training; a floor-contact fall on
   the contact step ends as a success in both. The compsognathus pair reads
-  success after its fall checks (`compsognathus_env.py:233-234`) and is
+  success after its fall checks (`compsognathus_longipes/anatomical/env.py:233-234`) and is
   unaffected. Leaves with each hunt's task revision, which the gait plan does
   not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
   [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
@@ -1158,7 +1158,7 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **the brachiosaurus zero-action statue reaches the food in 11
   of 40 hunt episodes (executed 2026-09-28).** The food spawns 1.5–4.0 m ahead
   and 2.0–3.5 m up and counts within 0.8 m of the head tip
-  (`configs/brachiosaurus/stage3_food_reach.toml:18-23`), so the statue
+  (`configs/brachiosaurus_altithorax/anatomical/food_reach.toml:18-23`), so the statue
   reaches it on 27.5% of the audit's seeds (3042–3081; a spawn draw, about
   ±7%) against a `min_success_rate` of 0.5: more than half the bar is free
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Leaves with the
@@ -1169,9 +1169,9 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
-  only the torso (and belly), head and distal tail (`trex_env.py:386-393`,
-  `raptor_env.py:298-305`, `brachio_env.py:224-230`,
-  `dibothrosuchus_env.py:240-247`; velociraptor adds its neck), so a policy
+  only the torso (and belly), head and distal tail (`tyrannosaurus_rex/base_env.py:386-393`,
+  `velociraptor_mongoliensis/base_env.py:298-305`, `brachiosaurus_altithorax/base_env.py:224-230`,
+  `dibothrosuchus_elaphros/base_env.py:240-247`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
   clearance of the lowest such geom, then the root drop allowed: trex tibia
   0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
@@ -1186,7 +1186,7 @@ robustness, **LOW** = cosmetic / QoL.
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
   (`stance_diagnostics.py:75`) takes `r_foot_contact` and `l_foot_contact`,
   which the brachiosaurus and dibothrosuchus envs set to their front feet
-  (`brachio_env.py:403-404`, `dibothrosuchus_env.py:442-443`), so its
+  (`brachiosaurus_altithorax/base_env.py:403-404`, `dibothrosuchus_elaphros/base_env.py:442-443`), so its
   unsupported duty and balance ignore the hind feet, which carry 79% of the
   certified dibothrosuchus stance's floor load
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
@@ -1236,7 +1236,7 @@ robustness, **LOW** = cosmetic / QoL.
   arithmetic, one with a true full-horizon rate near 0.93 fits about 46% of
   blocks and would fail a fresh one about 54% of the time. The blocks do
   differ: on physics r7 the statue scored 119/120 over three of them
-  (`configs/trex/stance.toml:453`), and on r8 it is clean on 40/40, 80/80
+  (`configs/tyrannosaurus_rex/anatomical/stance.toml:453`), and on r8 it is clean on 40/40, 80/80
   and 39/40 of three disjoint blocks under `stance_quality/v2` (seed 3174
   nosedives on reset noise alone). Seed replication (`certification_seeds`,
   the review's SS1 fix) counts training seeds, not fresh evaluation seeds.
@@ -1553,9 +1553,9 @@ robustness, **LOW** = cosmetic / QoL.
   refusal; no cleanup PR owns it yet. (2026-10 CU-8c review)
 - **LOW** — **the species `requirements.txt` files take any MuJoCo from
   3.0.0, and the stale-manifest error does not name the version (read from
-  the code 2026-09-30).** `environments/trex/requirements.txt:2`,
-  `environments/velociraptor/requirements.txt:2` and
-  `environments/brachiosaurus/requirements.txt:1` ask for `mujoco>=3.0.0`,
+  the code 2026-09-30).** `environments/tyrannosaurus_rex/requirements.txt:2`,
+  `environments/velociraptor_mongoliensis/requirements.txt:2` and
+  `environments/brachiosaurus_altithorax/requirements.txt:1` ask for `mujoco>=3.0.0`,
   while the package pins `mujoco==3.10.0` (`pyproject.toml:25`), the version
   the plant digests are built on. An install from one of them gets a newer
   MuJoCo, and training then stops in `current_plant_identity` with
@@ -1607,7 +1607,7 @@ sprint-like 3–4 Hz full-amplitude excitation while still capped at
 gait-cycle torque per species and collapsed velociraptor stage-2 twice — see
 [investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md)
 §5. Post-fix clipping on the pinned gait-critical hip/knee/ankle actuators is
-≤0.5 %, covered by each species' `tests/test_actuator_bounds.py`; re-measure
+≤0.5 %, covered by each species' `tests/test_anatomical_actuator_bounds.py`; re-measure
 any re-sizing with
 `environments/shared/scripts/actuator_saturation_report.py`.
 
@@ -1680,7 +1680,7 @@ its other findings follow.
 - **Not recommended:** porting the T-Rex stance correction here. That argument
   rests on a live stage-1 height term forcing knee travel through a
   near-singular joint, and the raptor env has **no height reward at all** —
-  `height` appears in `raptor_env.py` only in the `pelvis_height` diagnostic
+  `height` appears in `velociraptor_mongoliensis/base_env.py` only in the `pelvis_height` diagnostic
   and the shared height/tilt termination, never in a reward term.
 
 > **Note:** these changes alter the physics plant. Policies trained before the
@@ -1708,7 +1708,7 @@ Still open:
   11% / 17% and backward not at all (note 13). Physics r8 changed the hip
   roll only, so every r8 stance and recovery policy has to hold fore-aft
   balance actively. A fix re-derives the ankle gains and their 5.5° gravity
-  preload (`trex.xml`'s actuator comment), a physics revision that retires
+  preload (`tyrannosaurus_rex_anatomical.xml`'s actuator comment), a physics revision that retires
   every T-Rex checkpoint again.
   *Update (2026-10-11):* physics r9 (the elliptic friction cone, D-D29,
   `configs/plant_versions.toml` note 16) leaves it as marginal, and the

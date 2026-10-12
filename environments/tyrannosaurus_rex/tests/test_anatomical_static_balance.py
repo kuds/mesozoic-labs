@@ -20,7 +20,7 @@ from environments.shared.tests.static_balance_helpers import (
     MassDistributionBase,
     NeutralActionStabilityBase,
 )
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 FOOT_GEOM_NAMES = [
     "r_plantar_geom",
@@ -37,7 +37,7 @@ ROOT_BODY = "pelvis"
 
 @pytest.fixture
 def env():
-    e = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+    e = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
     e.reset(seed=0)
     yield e
     e.close()

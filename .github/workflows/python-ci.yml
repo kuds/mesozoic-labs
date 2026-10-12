@@ -59,7 +59,7 @@ on:
   # Nightly run of the whole workflow on `main`. In it the SB3 job runs what
   # pull-request and push runs leave out: the every-species and
   # four-notebook-parameter sets, and the six compsognathus_robot
-  # parametrisations of test_compsognathus_training.py's trainer-handoff,
+  # parametrisations of test_compsognathus_longipes_training.py's trainer-handoff,
   # warm-start and freeze-rehearsal tests (the SB3 job's "Decide the SB3
   # depth" step; consolidation PR-3, and decision 10 (a) in CU-14a). GitHub
   # pauses scheduled workflows after 60 days without a commit.
@@ -211,11 +211,11 @@ jobs:
             tests: environments/shared/tests/
           - suite: species
             tests: >-
-              environments/velociraptor/tests/
-              environments/brachiosaurus/tests/
-              environments/trex/tests/
-              environments/dibothrosuchus/tests/
-              environments/compsognathus/tests/
+              environments/velociraptor_mongoliensis/tests/
+              environments/brachiosaurus_altithorax/tests/
+              environments/tyrannosaurus_rex/tests/
+              environments/dibothrosuchus_elaphros/tests/
+              environments/compsognathus_longipes/tests/
     steps:
       - uses: actions/checkout@v4
 
@@ -302,7 +302,7 @@ jobs:
       # requests and pushes now keep ONE real-PPO smoke per body of work in the
       # notebook and behavior steps, on the compsognathus_robot parameter (the
       # costliest plant to build), and the integration step skips the six
-      # compsognathus_robot parametrisations of test_compsognathus_training's
+      # compsognathus_robot parametrisations of test_compsognathus_longipes_training's
       # twelve training runs and keeps the six compsognathus ones (decision 10
       # (a), CU-14a). The nightly schedule, a manual dispatch and the `full-ci`
       # label on a pull request run the full sets and all twelve.
@@ -323,7 +323,7 @@ jobs:
       - name: Validate canonical notebook training
         run: |
           pytest \
-            environments/shared/tests/test_compsognathus_training.py \
+            environments/shared/tests/test_compsognathus_longipes_training.py \
             -k "test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and ppo and robot' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
@@ -346,7 +346,7 @@ jobs:
       # Suites that import no SB3 (test_behavior_evaluation, test_behavior_certification,
       # test_behavior_env, test_phase_c_interface) run in the `test` matrix and are
       # not repeated here. At reduced depth -k also leaves out the robot's six
-      # test_compsognathus_training runs (decision 10 (a)); a bare
+      # test_compsognathus_longipes_training runs (decision 10 (a)); a bare
       # `not compsognathus_robot` would drop the robot's parameters in
       # test_config.py and test_recovery_calibration.py too.
       # test_drive_summary_notebook.py needs no SB3 but runs here for pandas,
@@ -359,7 +359,7 @@ jobs:
             environments/shared/tests/test_behavior_replay.py \
             environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
-            environments/shared/tests/test_compsognathus_training.py \
+            environments/shared/tests/test_compsognathus_longipes_training.py \
             environments/shared/tests/test_recovery_calibration.py \
             environments/shared/tests/test_curriculum_*.py \
             environments/shared/tests/test_diagnostics.py \
@@ -377,7 +377,7 @@ jobs:
             environments/shared/tests/test_wandb_integration.py \
             environments/shared/tests/test_widen_checkpoint.py \
             environments/shared/tests/test_drive_summary_notebook.py \
-            -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_training and compsognathus_robot)' || '' }}" \
+            -k "not test_actual_notebook_training_stance_and_recovery_reports${{ steps.depth.outputs.full != 'true' && ' and not (test_compsognathus_longipes_training and compsognathus_robot)' || '' }}" \
             -vv -rfEs --durations=30 --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa

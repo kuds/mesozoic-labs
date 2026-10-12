@@ -10,7 +10,7 @@ The upstream Apache 2.0 license is retained in `LICENSE_Open_Duck_Mini`.
 The project MIT license does not remove these third-party obligations.
 No upstream endorsement is implied.
 
-`compso_rev_b.xml` is the preserved generated reference from **Mesozoic Labs
+`compsognathus_longipes_robot_rev_b.xml` is the preserved generated reference from **Mesozoic Labs
 Leg Mechanism Rev B, September 6, 2026**. That adaptation fixed the head
 and tail, allocated core mass, added 19.5 g per hip-roll servo assembly and
 replaced the reference feet with proposed ankle-roll adapters and broader

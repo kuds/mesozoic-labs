@@ -16,7 +16,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.shared.harnesses.env_smoke import run_env_tests
 
 REWARD_KEYS = [
@@ -30,4 +30,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(BrachioEnv, REWARD_KEYS, "Brachiosaurus"))
+    sys.exit(run_env_tests(BrachiosaurusAltithoraxAnatomicalEnv, REWARD_KEYS, "Brachiosaurus"))

@@ -34,14 +34,14 @@ from typing import Any, Callable
 
 import numpy as np
 
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 #: The heading-free species and their environments.
-HEADING_FREE_ENVS = {"trex": TRexEnv, "compsognathus": CompsognathusBiologicalEnv}
+HEADING_FREE_ENVS = {"trex": TyrannosaurusRexAnatomicalEnv, "compsognathus": CompsognathusLongipesAnatomicalEnv}
 #: The certificate's heading grid, in degrees (``whole_scene_yaw/v1``, D-D32).
 HEADINGS_DEG = HEADING_GRID_DEG
 FLOAT32_BUDGET = 2e-6

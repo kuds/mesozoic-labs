@@ -76,7 +76,7 @@ the held-out null) keeps 0.971 of the quiet statue's per-step reward on the
 same seeds, and the terms take 0.104 of the 0.134 per step it loses (flatness
 0.039, coverage 0.038, bilateral 0.015, alive 0.006, width 0.005), for the
 pads and digits a push rocks off the floor
-(`configs/compsognathus/recovery.toml`). The recorded source hashes
+(`configs/compsognathus_longipes/anatomical/recovery.toml`). The recorded source hashes
 (`provenance.source_sha256`) match the committed files.
 
 ## Disturbance definition
@@ -259,14 +259,14 @@ than changing the judge after seeing recovery results.
 
 The calibration script and measurements live in
 `scripts/calibrate_recovery.py` and `data/recovery_calibration_v1.json`.
-The runtime profiles are in `configs/compsognathus/recovery_calibration.json`
-and `configs/compsognathus_robot/recovery_calibration.json`.
+The runtime profiles are in `configs/compsognathus_longipes/anatomical/recovery_calibration.json`
+and `configs/compsognathus_longipes/robot/recovery_calibration.json`.
 
 From the repository root, with the training dependencies installed:
 
 ```bash
-python -m environments.compsognathus.scripts.calibrate_recovery \
-  --output environments/compsognathus/data/recovery_calibration_v1.json
+python -m environments.shared.scripts.calibrate_recovery \
+  --output environments/compsognathus_longipes/data/recovery_calibration_v1.json
 ```
 
 The artifact records dependency versions and hashes of the calibration and

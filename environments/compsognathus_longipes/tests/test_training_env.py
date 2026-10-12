@@ -6,7 +6,11 @@ import numpy as np
 import pytest
 from gymnasium.utils.env_checker import check_env
 
-from environments.compsognathus.envs import CompsognathusBiologicalEnv, CompsognathusEnv, CompsognathusRobotEnv
+from environments.compsognathus_longipes.anatomical.env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesEnv,
+    CompsognathusLongipesRobotEnv,
+)
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics
 from environments.shared.plant_contract.manifest import _load_environment
@@ -16,7 +20,7 @@ from environments.shared.species_registry import get_species_config
 LEG_ACTUATORS = [f"{side}_{joint}_act" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle", "toe")]
 
 
-@pytest.fixture(params=[CompsognathusBiologicalEnv, CompsognathusRobotEnv], ids=["anatomical", "robot"])
+@pytest.fixture(params=[CompsognathusLongipesAnatomicalEnv, CompsognathusLongipesRobotEnv], ids=["anatomical", "robot"])
 def env(request):
     instance = request.param(reset_noise_scale=0)
     yield instance
@@ -27,7 +31,9 @@ def test_gymnasium_contract(env):
     check_env(env, skip_render_check=True)
 
 
-@pytest.mark.parametrize("gym_id", ["MesozoicLabs/Compsognathus-v0", "MesozoicLabs/CompsognathusRobot-v0"])
+@pytest.mark.parametrize(
+    "gym_id", ["MesozoicLabs/CompsognathusLongipes-Anatomical-v0", "MesozoicLabs/CompsognathusLongipes-Robot-v0"]
+)
 def test_registered_horizon_is_configurable(gym_id):
     with gym.make(gym_id, max_episode_steps=7, reset_noise_scale=0) as instance:
         instance.reset(seed=4)
@@ -80,24 +86,29 @@ def test_home_residual_holds_full_twenty_second_episode(env):
 
 
 def test_the_anatomical_species_trains_on_the_soft_cubic_subclass():
-    """Every path that builds the anatomical species gets CompsognathusBiologicalEnv (D-D26); the robot keeps the
-    linear residual of CompsognathusEnv, so its policy interface does not move."""
-    assert get_species_config("compsognathus").env_class is CompsognathusBiologicalEnv
-    assert _load_environment(_species_entries()["compsognathus"]["env_entrypoint"]) is CompsognathusBiologicalEnv
-    with gym.make("MesozoicLabs/Compsognathus-v0") as instance:
-        assert type(instance.unwrapped) is CompsognathusBiologicalEnv
-    assert get_species_config("compsognathus_robot").env_class is CompsognathusRobotEnv
-    assert not issubclass(CompsognathusRobotEnv, CompsognathusBiologicalEnv)
-    assert CompsognathusRobotEnv._scale_action is CompsognathusEnv._scale_action
-    assert CompsognathusRobotEnv.action_mapping == "home-keyframe-residual/v1"
-    assert CompsognathusBiologicalEnv.action_mapping == "home-keyframe-residual-softcubic/v1"
+    """Every path that builds the anatomical species gets CompsognathusLongipesAnatomicalEnv (D-D26); the robot keeps the
+    linear residual of CompsognathusLongipesEnv, so its policy interface does not move."""
+    assert get_species_config("compsognathus").env_class is CompsognathusLongipesAnatomicalEnv
+    assert (
+        _load_environment(_species_entries()["compsognathus"]["env_entrypoint"]) is CompsognathusLongipesAnatomicalEnv
+    )
+    with gym.make("MesozoicLabs/CompsognathusLongipes-Anatomical-v0") as instance:
+        assert type(instance.unwrapped) is CompsognathusLongipesAnatomicalEnv
+    assert get_species_config("compsognathus_robot").env_class is CompsognathusLongipesRobotEnv
+    assert not issubclass(CompsognathusLongipesRobotEnv, CompsognathusLongipesAnatomicalEnv)
+    assert CompsognathusLongipesRobotEnv._scale_action is CompsognathusLongipesEnv._scale_action
+    assert CompsognathusLongipesRobotEnv.action_mapping == "home-keyframe-residual/v1"
+    assert CompsognathusLongipesAnatomicalEnv.action_mapping == "home-keyframe-residual-softcubic/v1"
 
 
 def test_soft_cubic_leg_residual_keeps_home_and_both_endpoints():
     """b = 0.1 a + 0.9 a**3 on the ten leg servos, then the unchanged home-keyframe span: b(0) = 0 commands the
     gravity-preloaded home ctrl, b(+-1) = +-1 the ctrlrange ends, the slope at home is a tenth of the linear
     map's and the map is monotone.  Neck, jaw and tail keep the linear residual."""
-    with CompsognathusBiologicalEnv(reset_noise_scale=0) as soft, CompsognathusEnv(reset_noise_scale=0) as linear:
+    with (
+        CompsognathusLongipesAnatomicalEnv(reset_noise_scale=0) as soft,
+        CompsognathusLongipesEnv(reset_noise_scale=0) as linear,
+    ):
         model = soft.model
         names = [model.actuator(i).name for i in range(model.nu)]
         assert [name for name, shaped in zip(names, soft._shaped_residual_mask) if shaped] == LEG_ACTUATORS
@@ -168,7 +179,7 @@ def test_target_event_reaches_locomotion_metrics():
 
 
 def test_robot_training_does_not_add_head_or_tail_motors():
-    with CompsognathusRobotEnv() as instance:
+    with CompsognathusLongipesRobotEnv() as instance:
         assert instance.model.nu == 12
         for name in ("fixed_head", "passive_tail"):
             assert instance.model.body(name).jntnum[0] == 0

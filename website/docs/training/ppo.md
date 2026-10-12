@@ -21,10 +21,10 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 def make_env():
-    env = RaptorEnv(forward_vel_weight=0.0, alive_bonus=1.0)
+    env = VelociraptorMongoliensisAnatomicalEnv(forward_vel_weight=0.0, alive_bonus=1.0)
     return Monitor(env)
 
 vec_env = DummyVecEnv([make_env])
@@ -39,7 +39,7 @@ model.save("raptor_stage1")
 Or use the included training script with curriculum learning:
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 
 # Single stage; the current budget comes from its TOML config
 python scripts/train_sb3.py train --stage 1 --algorithm ppo
@@ -99,12 +99,12 @@ Within the curriculum, advancement between the numbered stages is judged in
 training by the `CurriculumManager` using the thresholds in each stage's TOML
 config; its verdict is what the node's `gate_verdict.json` records. Current
 stage budgets and gates are shown on the
-[generated model pages](/docs/models/velociraptor).
+[generated model pages](/docs/models/velociraptor_mongoliensis/anatomical).
 
 ## Published Results
 
 Published PPO summaries are displayed on the
-[Velociraptor](/docs/models/velociraptor), [T-Rex](/docs/models/trex), and
-[Brachiosaurus](/docs/models/brachiosaurus) pages from the generated catalog.
+[Velociraptor](/docs/models/velociraptor_mongoliensis/anatomical), [T-Rex](/docs/models/tyrannosaurus_rex/anatomical), and
+[Brachiosaurus](/docs/models/brachiosaurus_altithorax/anatomical) pages from the generated catalog.
 The available summaries are historical and unverified, so they do not establish
 that PPO is faster, slower, better, or worse than SAC under controlled conditions.

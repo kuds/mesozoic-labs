@@ -14,19 +14,19 @@ All environments are registered with the `MesozoicLabs` namespace:
 import gymnasium as gym
 
 # Import to trigger registration
-import environments.velociraptor.envs.raptor_env  # noqa: F401
+import environments.velociraptor_mongoliensis.anatomical.env  # noqa: F401
 
-env = gym.make("MesozoicLabs/Raptor-v0")
+env = gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")
 ```
 
 Available environment IDs:
 
-- `MesozoicLabs/Raptor-v0` - Velociraptor
-- `MesozoicLabs/Brachio-v0` - Brachiosaurus
-- `MesozoicLabs/TRex-v0` - T-Rex
-- `MesozoicLabs/Dibothrosuchus-v0` - Dibothrosuchus
-- `MesozoicLabs/Compsognathus-v0` - Compsognathus
-- `MesozoicLabs/CompsognathusRobot-v0` - Compsognathus robot prototype
+- `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor
+- `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus
+- `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - T-Rex
+- `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus
+- `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus
+- `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus robot prototype
 
 `import environments` registers all six at once.
 
@@ -35,9 +35,9 @@ Available environment IDs:
 The main environment for velociraptor locomotion and predatory strike training.
 
 ```python
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
-env = RaptorEnv(
+env = VelociraptorMongoliensisAnatomicalEnv(
     render_mode="human",       # "human" or "rgb_array"
     frame_skip=5,              # Action repeat steps
     max_episode_steps=1000,
@@ -57,7 +57,7 @@ Observations combine joint state, root-body sensors, foot contacts, and
 target-relative features. Actions are continuous values in `[-1, 1]`, scaled to
 the actuator control ranges in the MJCF. The exact observation and action
 dimensions are derived from the environment and compiled model and displayed on
-the generated [Velociraptor model page](/docs/models/velociraptor).
+the generated [Velociraptor model page](/docs/models/velociraptor_mongoliensis/anatomical).
 
 ### Reward Components
 
@@ -82,16 +82,16 @@ Stage 3 name "Bite" is retained in configs and metric keys, but the model has no
 articulated jaw: success means the fixed `head_bite` geom contacted the prey.
 
 ```python
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-env = TRexEnv(
+env = TyrannosaurusRexAnatomicalEnv(
     render_mode="human",
     bite_bonus=10.0,           # Reward for fixed head-geom/prey contact
     bite_approach_weight=1.0,  # Reward for closing distance
 )
 ```
 
-The generated [T-Rex model page](/docs/models/trex) is the authoritative public
+The generated [T-Rex model page](/docs/models/tyrannosaurus_rex/anatomical) is the authoritative public
 source for its current observation and action dimensions.
 
 ## Brachiosaurus Environment
@@ -101,12 +101,12 @@ Quadrupedal dinosaur-inspired model with a distance-based food-target task.
 does not require physical contact with a food geom.
 
 ```python
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
-env = BrachioEnv(render_mode="human")
+env = BrachiosaurusAltithoraxAnatomicalEnv(render_mode="human")
 ```
 
-The generated [Brachiosaurus model page](/docs/models/brachiosaurus) is the
+The generated [Brachiosaurus model page](/docs/models/brachiosaurus_altithorax/anatomical) is the
 authoritative public source for its current observation and action dimensions.
 
 ## Training with Stable-Baselines3
@@ -116,10 +116,10 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 def make_env():
-    env = RaptorEnv(forward_vel_weight=0.0, alive_bonus=1.0)
+    env = VelociraptorMongoliensisAnatomicalEnv(forward_vel_weight=0.0, alive_bonus=1.0)
     return Monitor(env)
 
 vec_env = DummyVecEnv([make_env])
@@ -134,7 +134,7 @@ model.save("raptor_stage1")
 Or use the included training script. The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 
 # Full 3-stage curriculum (recommended) — one command, stages 1-3
 python scripts/train_sb3.py curriculum --algorithm ppo --n-envs 4

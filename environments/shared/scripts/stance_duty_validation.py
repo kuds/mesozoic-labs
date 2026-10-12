@@ -133,11 +133,11 @@ def _collect(driver, episodes, max_steps, spawn_dz=0.0):
     import mujoco
 
     from environments.shared.stance_diagnostics import derive_stance_info
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
     rows = []
     for episode in range(episodes):
-        env = TRexEnv(reset_noise_scale=0.10)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.10)
         try:
             floor_gid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
             foot_gids = _foot_geom_ids(env.model)

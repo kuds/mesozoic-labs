@@ -1,5 +1,5 @@
 """T-Rex Gymnasium environments."""
 
-from .trex_env import TRexEnv
+from .trex_env import TyrannosaurusRexAnatomicalEnv
 
-__all__ = ["TRexEnv"]
+__all__ = ["TyrannosaurusRexAnatomicalEnv"]

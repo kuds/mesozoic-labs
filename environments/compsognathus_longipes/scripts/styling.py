@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 import mujoco
 import numpy as np
 
-from environments.compsognathus.scripts.robot_shells import robot_casings
+from environments.compsognathus_longipes.scripts.robot_shells import robot_casings
 
 
 def numbers(values):
@@ -100,7 +100,7 @@ def robot_head(head, parts):
     )
 
 
-def apply_styles(root, variant, parameters):
+def apply_styles(root, embodiment, parameters):
     asset = root.find("asset")
     # The first five are the T-Rex asset's exact palette.
     colours = {
@@ -124,7 +124,7 @@ def apply_styles(root, variant, parameters):
     pelvis = root.find("worldbody/body[@name='pelvis']")
     for geom in pelvis.iter("geom"):
         set_material(geom, "body_mat")
-    if variant == "robot":
+    if embodiment == "robot":
         for geom in pelvis.iter("geom"):
             set_material(geom, "servo_mat" if "wj-wk" in geom.get("mesh", "") else "frame_mat")
             if geom.get("name") in ("left_sole", "right_sole"):
@@ -164,7 +164,7 @@ def apply_styles(root, variant, parameters):
             type="capsule",
             fromto="-.050 0 .015 .100 0 .035",
             size=".035",
-            mass=str(parameters["biological"]["torso_mass_kg"] - 0.04),
+            mass=str(parameters["anatomical"]["torso_mass_kg"] - 0.04),
         )
         add(
             pelvis,
@@ -229,7 +229,7 @@ def apply_styles(root, variant, parameters):
         jaw_geom.attrib.update(type="ellipsoid", pos=".045 0 .008", size=".040 .009 .006")
         set_material(jaw_geom, "head_mat")
         radii = [0.019, 0.014, 0.009, 0.0045, 0.0015]
-        for i, length in enumerate(parameters["biological"]["tail_segment_lengths_m"]):
+        for i, length in enumerate(parameters["anatomical"]["tail_segment_lengths_m"]):
             name = f"tail_{i + 1}_taper"
             tapered_mesh(asset, name, 0.012 if i == 0 else 0, -length, radii[i], radii[i + 1])
             geom = pelvis.find(f".//geom[@name='tail_{i + 1}_geom']")
@@ -260,5 +260,5 @@ def apply_styles(root, variant, parameters):
         custom,
         "text",
         name="sensor_contract",
-        data="compso-sensors/v1: gyro+accel+joint-encoders+RGB; touch is ideal/optional; diagnostic_* is simulator-only",
+        data="compsognathus-longipes-sensors/v1: gyro+accel+joint-encoders+RGB; touch is ideal/optional; diagnostic_* is simulator-only",
     )

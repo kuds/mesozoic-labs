@@ -123,7 +123,7 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
     from environments.shared.behavior_evaluation import terrain_family_from_reset
     from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
-    recipe = ROOT / "configs/trex/behaviors" / f"{behavior}.toml"
+    recipe = ROOT / "configs/tyrannosaurus_rex/anatomical/behaviors" / f"{behavior}.toml"
     _, commands, terrain, kwargs = read_recipe(recipe)
     original = create_behavior_env("trex", commands=commands, terrain=terrain, run_seed=17, **kwargs)
     panel = _panel_env("trex", recipe, 910001)
@@ -176,7 +176,7 @@ def test_the_saved_panel_scores_a_checkpoint_only_on_its_own_task(monkeypatch, t
         ("behavior_evaluation", "evaluate_behavior"),
     ):
         monkeypatch.setitem(sys.modules, f"environments.shared.{name}", SimpleNamespace(**{attribute: reached}))
-    recipes = ROOT / "configs/trex/behaviors"
+    recipes = ROOT / "configs/tyrannosaurus_rex/anatomical/behaviors"
     env = _panel_env("trex", recipes / "follow_direction.toml", 910001)
     try:
         saved = env.task_fingerprint

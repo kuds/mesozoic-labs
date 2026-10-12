@@ -1,5 +1,9 @@
 """Gymnasium training environments for the anatomical and robot models."""
 
-from .compsognathus_env import CompsognathusBiologicalEnv, CompsognathusEnv, CompsognathusRobotEnv
+from .compsognathus_env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesEnv,
+    CompsognathusLongipesRobotEnv,
+)
 
-__all__ = ["CompsognathusBiologicalEnv", "CompsognathusEnv", "CompsognathusRobotEnv"]
+__all__ = ["CompsognathusLongipesAnatomicalEnv", "CompsognathusLongipesEnv", "CompsognathusLongipesRobotEnv"]

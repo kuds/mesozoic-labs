@@ -98,7 +98,7 @@ interface once the first layer of every network that reads the observation gains
 done by `environments/shared/scripts/widen_checkpoint.py`, never by hand and never by re-labelling:
 
 ```bash
-python -m environments.shared.scripts.widen_checkpoint --species trex --stage stance \
+python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_rex --embodiment anatomical --stage stance \
     --from-stage-dir <parent run>/01_stance --to-stage-dir <new run>/01_stance \
     [--label L] [--parent-run-id ID] [--allow-legacy-plant] [--max-revision-gap N]
 # or the explicit pair: --model <zip> --vecnorm <pkl> --algorithm ppo|sac --seed S --n-envs N --timesteps T

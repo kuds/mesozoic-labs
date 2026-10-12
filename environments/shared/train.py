@@ -2,9 +2,9 @@
 """Unified training entry point for all species.
 
 Usage:
-    python -m environments.shared.train --species velociraptor train --stage 1
-    python -m environments.shared.train --species trex curriculum --n-envs 4
-    python -m environments.shared.train --species brachiosaurus train --stage 2
+    python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1
+    python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --n-envs 4
+    python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 2
 
 This replaces the per-species train_sb3.py scripts with a single entry point.
 The per-species scripts still work for backward compatibility.

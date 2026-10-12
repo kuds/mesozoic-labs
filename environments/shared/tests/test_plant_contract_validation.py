@@ -20,12 +20,12 @@ from environments.shared.plant_contract import (
     validate_recorded_identity,
     write_plant_identity,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 
 def test_runtime_environment_binding_rejects_control_cadence_override():
     current = current_plant_identity("velociraptor", verify_generated=False)
-    env = RaptorEnv(frame_skip=4, reset_noise_scale=0.0)
+    env = VelociraptorMongoliensisAnatomicalEnv(frame_skip=4, reset_noise_scale=0.0)
     try:
         with pytest.raises(PlantCompatibilityError, match="policy_interface_sha256"):
             validate_environment_plant(env, current)

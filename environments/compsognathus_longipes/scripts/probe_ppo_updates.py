@@ -1,6 +1,6 @@
 """Compare early PPO updates; this is not convergence or stance-gate evidence.
 
-python -m environments.compsognathus.scripts.probe_ppo_updates --output /tmp/compso-probe
+python -m environments.compsognathus_longipes.scripts.probe_ppo_updates --output /tmp/compsognathus_longipes-probe
 
 Uses the current implementation for both arms. Only the original stance TOMLs
 come from the pinned baseline commit. Each arm preserves the production rollout,

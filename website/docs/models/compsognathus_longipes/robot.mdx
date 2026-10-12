@@ -13,14 +13,14 @@ The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an 
 
 ## Training
 
-Select **Compsognathus Longipes (Robot)** in the SB3 training notebook. Its manifest (`configs/compsognathus_robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every species. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Select **Compsognathus Longipes (Robot)** in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every species. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
 python -m pip install -e ".[train]"
-python -m environments.shared.train --species compsognathus_robot train --stage 1
+python -m environments.shared.train --species compsognathus_longipes --embodiment robot train --stage 1
 
 # The advancing stages in manifest order; reuse an earlier run's certified stance and walk
-python -m environments.shared.train --species compsognathus_robot curriculum \
+python -m environments.shared.train --species compsognathus_longipes --embodiment robot curriculum \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
@@ -28,4 +28,4 @@ Actions are residual joint-position commands around a preloaded standing pose. T
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 
-See the [model and training guide](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus/README.md) for mechanical assumptions, sensor details and validation commands.
+See the [model and training guide](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/README.md) for mechanical assumptions, sensor details and validation commands.

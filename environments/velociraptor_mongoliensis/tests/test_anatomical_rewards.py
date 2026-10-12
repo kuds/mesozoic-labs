@@ -17,12 +17,12 @@ from environments.shared.tests.reward_test_helpers import (
     assert_smoothness_penalty_for_action_change,
     assert_smoothness_zero_on_first_step,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = RaptorEnv()
+    e = VelociraptorMongoliensisAnatomicalEnv()
     yield e
     e.close()
 
@@ -139,7 +139,9 @@ class TestRaptorRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_high_alive_bonus_dominates(self):
-        env = RaptorEnv(alive_bonus=100.0, forward_vel_weight=0.0, strike_approach_weight=0.0, strike_bonus=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            alive_bonus=100.0, forward_vel_weight=0.0, strike_approach_weight=0.0, strike_bonus=0.0
+        )
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, terminated, _, info = env.step(action)
@@ -148,7 +150,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_strike_bonus_gives_no_strike_reward(self):
-        env = RaptorEnv(strike_bonus=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -156,7 +158,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_posture_weight_zeroes_posture_reward(self):
-        env = RaptorEnv(posture_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(posture_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -164,7 +166,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_gait_weight_zeroes_gait_reward(self):
-        env = RaptorEnv(gait_symmetry_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(gait_symmetry_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -172,7 +174,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_smoothness_weight_zeroes_smoothness_reward(self):
-        env = RaptorEnv(smoothness_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(smoothness_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)
@@ -182,7 +184,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_spin_weight_zeroes_spin_reward(self):
-        env = RaptorEnv(spin_penalty_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(spin_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -190,7 +192,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_nonzero_spin_weight_gives_nonpositive_reward(self):
-        env = RaptorEnv(spin_penalty_weight=0.5)
+        env = VelociraptorMongoliensisAnatomicalEnv(spin_penalty_weight=0.5)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -199,7 +201,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_drift_weight_zeroes_drift_reward(self):
-        env = RaptorEnv(drift_penalty_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(drift_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -208,7 +210,7 @@ class TestRaptorRewardWeightEffects:
 
     def test_nonzero_drift_weight_penalizes_displacement(self):
         """Drift penalty should be negative after several steps of movement."""
-        env = RaptorEnv(drift_penalty_weight=0.5)
+        env = VelociraptorMongoliensisAnatomicalEnv(drift_penalty_weight=0.5)
         env.reset(seed=42)
         for _ in range(20):
             action = env.action_space.sample()
@@ -221,7 +223,7 @@ class TestRaptorRewardWeightEffects:
         env.close()
 
     def test_zero_backward_vel_weight_zeroes_backward_reward(self):
-        env = RaptorEnv(backward_vel_penalty_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(backward_vel_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -230,7 +232,7 @@ class TestRaptorRewardWeightEffects:
 
     def test_nonzero_claw_proximity_weight_gives_positive_reward(self):
         """Claw proximity reward should be positive when weight is set and prey is within range."""
-        env = RaptorEnv(strike_claw_proximity_weight=5.0, prey_distance_range=(1.0, 2.0))
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_claw_proximity_weight=5.0, prey_distance_range=(1.0, 2.0))
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
@@ -240,7 +242,7 @@ class TestRaptorRewardWeightEffects:
 
     def test_nonzero_backward_vel_weight_penalizes_backward_motion(self):
         """Backward penalty should be negative when raptor moves backward."""
-        env = RaptorEnv(backward_vel_penalty_weight=1.0, forward_vel_weight=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(backward_vel_penalty_weight=1.0, forward_vel_weight=0.0)
         env.reset(seed=42)
         for _ in range(10):
             action = env.action_space.sample()
@@ -254,17 +256,17 @@ class TestRaptorRewardWeightEffects:
 
     def test_actuator_count(self):
         """All actuators should be enabled (22 total: 14 legs + 4 tail + 4 arms)."""
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         assert env.model.nu == 22, f"Expected 22 actuators, got {env.model.nu}"
         assert env.action_space.shape == (22,)
         env.close()
 
 
 class TestStanceQualityRewards:
-    """The stance-quality terms added with the physics-r3 plant (TRexEnv's names).
+    """The stance-quality terms added with the physics-r3 plant (TyrannosaurusRexAnatomicalEnv's names).
 
     Every default is inert, so an env that does not set them computes exactly
-    the reward that predates them; stage1_balance.toml sets them.
+    the reward that predates them; stance.toml sets them.
     """
 
     #: The reward components that predate the stance-quality terms, in the
@@ -299,7 +301,7 @@ class TestStanceQualityRewards:
         return info
 
     def test_new_stance_rewards_default_to_zero(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=42)
             _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -321,7 +323,7 @@ class TestStanceQualityRewards:
         ``==``, not a tolerance, over a perturbed episode with every branch
         live (random actions, stage-1 reset noise).
         """
-        env = RaptorEnv(reset_noise_scale=0.05)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.05)
         try:
             env.reset(seed=3042)
             rng = np.random.default_rng(0)
@@ -341,7 +343,9 @@ class TestStanceQualityRewards:
             env.close()
 
     def test_bilateral_support_is_bounded_and_uses_weaker_foot(self):
-        env = RaptorEnv(bilateral_support_weight=2.0, foot_contact_saturation_force=50.0, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            bilateral_support_weight=2.0, foot_contact_saturation_force=50.0, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             env._foot_contact_forces = lambda: (25.0, 60.0)
@@ -357,7 +361,7 @@ class TestStanceQualityRewards:
             env.close()
 
     def test_alive_bonus_can_be_partially_conditioned_on_support(self):
-        env = RaptorEnv(
+        env = VelociraptorMongoliensisAnatomicalEnv(
             alive_bonus=2.0,
             support_conditioned_alive_fraction=0.25,
             foot_contact_saturation_force=50.0,
@@ -381,7 +385,9 @@ class TestStanceQualityRewards:
         touch reads the whole foot, so the stage's saturation force pays the
         statue full credit; the old toe-d3-only reading (36 N) could not.
         """
-        env = RaptorEnv(bilateral_support_weight=1.0, foot_contact_saturation_force=50.0, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            bilateral_support_weight=1.0, foot_contact_saturation_force=50.0, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -395,7 +401,9 @@ class TestStanceQualityRewards:
 
     def test_leg_home_pose_is_soft_and_uses_the_home_keyframe(self):
         tolerance = 0.20
-        env = RaptorEnv(leg_home_pose_weight=3.0, leg_home_pose_tolerance=tolerance, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            leg_home_pose_weight=3.0, leg_home_pose_tolerance=tolerance, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             home = env.model.key_qpos[env.home_keyframe_id]
@@ -415,7 +423,9 @@ class TestStanceQualityRewards:
             env.close()
 
     def test_action_saturation_prices_parked_commands_only(self):
-        env = RaptorEnv(action_saturation_weight=0.5, action_saturation_threshold=0.9, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(
+            action_saturation_weight=0.5, action_saturation_threshold=0.9, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -435,7 +445,7 @@ class TestStanceQualityRewards:
         the jerk term must see (1 - 2*1 + 0) on the third step, which it only
         does if it reads the history before _reward_action_smoothness moves it.
         """
-        env = RaptorEnv(action_jerk_weight=2.0, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(action_jerk_weight=2.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             zero = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -462,7 +472,7 @@ class TestStanceQualityRewards:
     )
     def test_invalid_stance_settings_fail_fast(self, kwargs, message):
         with pytest.raises(ValueError, match=message):
-            RaptorEnv(**kwargs)
+            VelociraptorMongoliensisAnatomicalEnv(**kwargs)
 
 
 class TestCurriculumStageRewards:
@@ -470,7 +480,7 @@ class TestCurriculumStageRewards:
 
     def test_stage1_balance_no_forward_reward(self):
         """Stage 1 config disables forward velocity reward but penalizes backward drift."""
-        env = RaptorEnv(
+        env = VelociraptorMongoliensisAnatomicalEnv(
             forward_vel_weight=0.0,
             backward_vel_penalty_weight=0.5,
             strike_bonus=0.0,
@@ -486,7 +496,7 @@ class TestCurriculumStageRewards:
 
     def test_stage3_strike_has_approach_shaping(self):
         """Stage 3 config enables approach shaping (delta-based)."""
-        env = RaptorEnv(strike_approach_weight=10.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_approach_weight=10.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)

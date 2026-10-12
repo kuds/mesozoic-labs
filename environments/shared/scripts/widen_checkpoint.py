@@ -83,7 +83,7 @@ named with the gap and the bound); a ``--max-revision-gap`` below 1.  A
 failure after the first write removes the target and every directory the
 tool created above it.
 
-Run: ``python -m environments.shared.scripts.widen_checkpoint --species trex
+Run: ``python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_rex --embodiment anatomical
 --stage stance --from-stage-dir <run>/01_stance --to-stage-dir
 <newrun>/01_stance [--label L] [--parent-run-id ID] [--allow-legacy-plant]
 [--max-revision-gap N]`` or the explicit-pair form ``--model <zip> --vecnorm

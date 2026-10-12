@@ -419,8 +419,8 @@ def _without_later_metrics(report: dict[str, Any]) -> dict[str, Any]:
 # ── the pad's centre of pressure, on the T. rex and the compsognathus (D-D28) ──
 
 #: The species whose stance block declared ``max_sole_cop_fore_aft`` first (0.80, calibrated on its statue).
-TREX = "trex"
-TREX_HORIZON = 400
+TYRANNOSAURUS_REX = "trex"
+TYRANNOSAURUS_REX_HORIZON = 400
 #: The compsognathus stance declares it too (0.70, on its r2 statue): 200 window steps after its 200-step settle.
 COMPSOGNATHUS_HORIZON = 400
 
@@ -446,7 +446,7 @@ def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
 
 
 def _trex_stage_config() -> dict[str, Any]:
-    return _declared_stage_config(TREX, TREX_HORIZON)
+    return _declared_stage_config(TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_HORIZON)
 
 
 def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
@@ -481,23 +481,23 @@ class TestThePadCentreOfPressure:
         config = _trex_stage_config()
         curriculum = config["curriculum_kwargs"]
         assert curriculum["max_sole_cop_fore_aft"] == 0.80
-        _record_stage(tmp_path, config, species=TREX)
-        env = stance_report.SPECIES_FACTORIES[TREX]().env_class(**config["env_kwargs"])
+        _record_stage(tmp_path, config, species=TYRANNOSAURUS_REX)
+        env = stance_report.SPECIES_FACTORIES[TYRANNOSAURUS_REX]().env_class(**config["env_kwargs"])
         try:
             command = np.zeros(int(env.action_space.shape[0]))
             command[env.model.actuator("l_ankle_act").id] = -0.0825
         finally:
             env.close()
-        predict = _ramped(command, steps=300, horizon=TREX_HORIZON)
-        report = _report(monkeypatch, tmp_path, predict, species=TREX, stage_config=config)
+        predict = _ramped(command, steps=300, horizon=TYRANNOSAURUS_REX_HORIZON)
+        report = _report(monkeypatch, tmp_path, predict, species=TYRANNOSAURUS_REX, stage_config=config)
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
-            assert row["length"] == TREX_HORIZON and row["all_feet_support"] == 1.0
+            assert row["length"] == TYRANNOSAURUS_REX_HORIZON and row["all_feet_support"] == 1.0
             assert row["max_sole_cop_fore_aft"] > 0.82
             assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
         statue_rows = report["statue"]["episode_evidence"]
         assert all(row["max_sole_cop_fore_aft"] < curriculum["max_sole_cop_fore_aft"] for row in statue_rows)
-        statue = _reclassified({"episode_evidence": statue_rows}, curriculum, horizon=TREX_HORIZON)
+        statue = _reclassified({"episode_evidence": statue_rows}, curriculum, horizon=TYRANNOSAURUS_REX_HORIZON)
         assert all(row["reasons"] == [] for row in statue)
         stance_report.write_stance_gate_report(tmp_path, report)
         text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
@@ -512,7 +512,7 @@ class TestThePadCentreOfPressure:
         )
         assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
         without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
-        assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TREX_HORIZON))
+        assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TYRANNOSAURUS_REX_HORIZON))
 
     def test_compsognathus_pads_leaned_onto_their_front_edges_fail_the_bar_alone(self, tmp_path, monkeypatch, nu):
         """Real physics on the compsognathus r2 plant, under its own stance block.

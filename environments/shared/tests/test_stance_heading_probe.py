@@ -34,7 +34,7 @@ from environments.shared.reporting.stance_report import (
     write_heading_probe,
 )
 from environments.shared.species_catalog import DEFAULT_MANIFEST_PATH
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 #: Each species' gait, from the species manifest: every biped's stance without the six-heading certificate declares
 #: the heading probe, every biped's stance with it declares none (the certificate replaces it, D-D32), and no other
@@ -51,13 +51,13 @@ _CERTIFIED = {
 
 @pytest.fixture
 def env():
-    e = TRexEnv(prey_distance_range=(10.0, 15.0), reset_noise_scale=0.05)
+    e = TyrannosaurusRexAnatomicalEnv(prey_distance_range=(10.0, 15.0), reset_noise_scale=0.05)
     yield e
     e.close()
 
 
 def _obs_slices(env) -> dict[str, slice]:
-    """Where TRexEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
+    """Where TyrannosaurusRexAnatomicalEnv._get_obs (bipedal-target-heading-free/v1, policy interface r14) puts its root and prey channels.
 
     After the joint positions and velocities: projected gravity, the gyro, the heading-frame velocity, the
     accelerometer, the two feet, then the pelvis-frame prey direction.

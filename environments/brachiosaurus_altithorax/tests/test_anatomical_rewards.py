@@ -8,12 +8,12 @@ environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = BrachioEnv()
+    e = BrachiosaurusAltithoraxAnatomicalEnv()
     yield e
     e.close()
 
@@ -85,7 +85,7 @@ class TestBrachioRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_zero_food_bonus_gives_no_food_reward(self):
-        env = BrachioEnv(food_reach_bonus=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_bonus=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -93,7 +93,7 @@ class TestBrachioRewardWeightEffects:
         env.close()
 
     def test_high_alive_bonus_dominates(self):
-        env = BrachioEnv(
+        env = BrachiosaurusAltithoraxAnatomicalEnv(
             alive_bonus=100.0,
             forward_vel_weight=0.0,
             food_approach_weight=0.0,
@@ -107,7 +107,7 @@ class TestBrachioRewardWeightEffects:
         env.close()
 
     def test_zero_gait_weight_zeroes_gait_reward(self):
-        env = BrachioEnv(gait_stability_weight=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(gait_stability_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -116,7 +116,7 @@ class TestBrachioRewardWeightEffects:
 
     def test_nonzero_gait_weight_gives_nonpositive_reward(self):
         """Gait stability penalty should be non-positive when weight > 0."""
-        env = BrachioEnv(gait_stability_weight=0.5)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(gait_stability_weight=0.5)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -124,7 +124,7 @@ class TestBrachioRewardWeightEffects:
         env.close()
 
     def test_zero_speed_weight_zeroes_speed_reward(self):
-        env = BrachioEnv(speed_penalty_weight=0.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(speed_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -133,7 +133,7 @@ class TestBrachioRewardWeightEffects:
 
     def test_food_reach_threshold_respected(self):
         """Food reach should only trigger within threshold distance."""
-        env = BrachioEnv(food_reach_threshold=0.001)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_reach_threshold=0.001)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
@@ -143,7 +143,7 @@ class TestBrachioRewardWeightEffects:
 
     def test_actuator_count(self):
         """30 actuators: 6 neck + 20 legs (5 per leg) + 4 tail (pitch/yaw on tail_1, pitch on tail_2/3)."""
-        env = BrachioEnv()
+        env = BrachiosaurusAltithoraxAnatomicalEnv()
         assert env.model.nu == 30, f"Expected 30 actuators, got {env.model.nu}"
         assert env.action_space.shape == (30,)
         env.close()
@@ -153,7 +153,7 @@ class TestCurriculumStageRewards:
     """Test that reward configs from TOML produce expected behavior."""
 
     def test_stage1_balance_no_forward_reward(self):
-        env = BrachioEnv(
+        env = BrachiosaurusAltithoraxAnatomicalEnv(
             forward_vel_weight=0.0,
             food_reach_bonus=0.0,
             food_approach_weight=0.0,
@@ -167,7 +167,7 @@ class TestCurriculumStageRewards:
 
     def test_stage3_food_reach_has_approach_shaping(self):
         """Stage 3 config enables approach shaping (delta-based)."""
-        env = BrachioEnv(food_approach_weight=10.0)
+        env = BrachiosaurusAltithoraxAnatomicalEnv(food_approach_weight=10.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)

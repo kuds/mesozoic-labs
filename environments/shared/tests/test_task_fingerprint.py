@@ -31,7 +31,7 @@ from environments.shared.task_fingerprint import (
 _PLANT = {
     "physics_sha256": "sha256:aaaa",
     "policy_interface_sha256": "sha256:bbbb",
-    "model_path": "environments/trex/assets/trex.xml",
+    "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
 }
 _ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps": 1000}
 
@@ -220,7 +220,7 @@ class TestDeriveStageFingerprint:
                 stage="recovery",
                 backend="stable-baselines3",
                 env_kwargs={"perturbation_capture_velocity_multiple": 1.5},
-                plant_identity={"model_path": "environments/trex/assets/no_such_model.xml"},
+                plant_identity={"model_path": "environments/tyrannosaurus_rex/assets/no_such_model.xml"},
             )
 
 

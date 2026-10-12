@@ -132,7 +132,7 @@ adaptation. The two general terrain behaviors combine those terrain families in
 one training run.
 
 Each filename ends in `.toml`; for example,
-[`configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml).
+[`configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml).
 None of these names is a notebook `BEHAVIOR` value: the notebook's `stand`,
 `walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
 PR-11 adds the direction and terrain nodes to the species' manifests.
@@ -184,8 +184,8 @@ included in the repository.
 
 ```bash
 python -m environments.shared.train_behaviors \
-  --species compsognathus \
-  --recipe configs/compsognathus/behaviors/follow_direction.toml \
+  --species compsognathus_longipes --embodiment anatomical \
+  --recipe configs/compsognathus_longipes/anatomical/behaviors/follow_direction.toml \
   --checkpoint /path/to/compsognathus/walker.zip \
   --vecnormalize /path/to/compsognathus/walker_vecnormalize.pkl \
   --output /path/to/runs/compsognathus-follow \
@@ -270,8 +270,8 @@ recipe. For example, after contact adaptation and general terrain training:
 
 ```bash
 python -m environments.shared.train_behaviors \
-  --species compsognathus \
-  --recipe configs/compsognathus/behaviors/follow_direction_difficult_terrain.toml \
+  --species compsognathus_longipes --embodiment anatomical \
+  --recipe configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml \
   --checkpoint /path/to/runs/compsognathus-terrain/model.zip \
   --vecnormalize /path/to/runs/compsognathus-terrain/vecnormalize.pkl \
   --output /path/to/runs/compsognathus-combined --adapt
@@ -403,23 +403,23 @@ terrain exposure and keep a frozen parent for paired checks.
 
 ### Existing T. rex runs
 
-The eight `[pilot]` recipes that #540 shipped under `configs/trex/behavior_pilots/`
+The eight `[pilot]` recipes that #540 shipped under `configs/tyrannosaurus_rex/anatomical/behavior_pilots/`
 left with consolidation PR-6 (2026-09-20), together with the `[pilot]` recipe
-dialect and the `environments/trex/scripts/train_behaviors.py` entry point. Six
-of them were the `configs/trex/behaviors/` recipes with the defaults left
+dialect and the `environments/tyrannosaurus_rex/scripts/train_behaviors.py` entry point. Six
+of them were the `configs/tyrannosaurus_rex/anatomical/behaviors/` recipes with the defaults left
 unwritten (`trex_gentle_terrain` was `sloped_terrain`); `trex_combined_terrain`
 and `trex_follow_direction_speed` commanded a minimum speed of 0.5 where the
 supported recipes command 0.525 (half the 1.05 cruise speed). A 2026-09-15 pilot
 run stays self-describing, because its `run.json` `recipe` and `bundle.json`
 `training_recipe` hold the recipe inline, and its outputs are evaluation-only
 (decision D-D9); no recipe in the repository reproduces it for `--resume` or
-`--adapt`. T. rex training uses `configs/trex/behaviors/` and
+`--adapt`. T. rex training uses `configs/tyrannosaurus_rex/anatomical/behaviors/` and
 `python -m environments.shared.train_behaviors`. Do not edit old manifests or
 rename old recipe contents to force a resume: bundle identities guard the
 meaning of the saved evidence.
 
 Consolidation PR-7 (#556) deleted the separate T. rex behavior class
-(`environments/trex/envs/behavior_env.py`); T. rex now uses the same behavior
+(`environments/tyrannosaurus_rex/anatomical/behavior_env.py`); T. rex now uses the same behavior
 environment as every species. Its bundles carried the
 `mesozoic.trex-command-terrain/v1` identity, which `--adapt` no longer accepts,
 and every species' identity hashed the behavior sources that PR-7 changed. A

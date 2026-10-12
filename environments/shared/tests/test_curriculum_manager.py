@@ -658,7 +658,7 @@ class TestPublicationKeys:
         assert "certification_seeds" not in thresholds[1]
 
     def test_trex_stance_declares_two_certification_seeds_outside_every_digest(self):
-        """configs/trex/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES) and
+        """configs/tyrannosaurus_rex/anatomical/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES) and
         every other committed stage keeps the default 1; the stance gate digest AND its recipe digest
         are exactly what they were without the key, so the certified stance trunk stays reusable."""
         from environments.shared.config import hyperparameters_sha256, load_all_stages

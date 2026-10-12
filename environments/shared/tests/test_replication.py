@@ -84,7 +84,9 @@ def test_only_passed_same_recipe_distinct_seed_siblings_are_replicates(log_base:
     strip_gate_record(_run(log_base, "20260904_120000", seed=45) / "01_stance")
     _run(log_base, "20260905_120000", seed=46, hyperparameters={**RECIPE, "learning_rate": 1e-4})
     other_plant = make_plant_identity(
-        species="trex", model_path="environments/trex/assets/trex.xml", physics_sha256="sha256:" + "9" * 64
+        species="trex",
+        model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+        physics_sha256="sha256:" + "9" * 64,
     )
     _run(log_base, "20260906_120000", seed=47, plant=other_plant)
     # Today's certified runs: a run block without hyperparameters_sha256,

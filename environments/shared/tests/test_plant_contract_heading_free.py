@@ -19,7 +19,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv, CompsognathusRobotEnv
+from environments.compsognathus_longipes.anatomical.env import (
+    CompsognathusLongipesAnatomicalEnv,
+    CompsognathusLongipesRobotEnv,
+)
 from environments.shared import heading_observation
 from environments.shared.command_frame import COMMAND_SEGMENT_NAME
 from environments.shared.heading_observation import HEADING_FREE_FUNCTIONS, HEADING_FREE_OBSERVATION_SCHEMA
@@ -31,11 +34,11 @@ from environments.shared.plant_contract import (
 )
 from environments.shared.plant_contract.digests import _semantic_digest
 from environments.shared.scripts import observation_ablation_report
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 HEADING_FREE = (
-    pytest.param("trex", TRexEnv, id="trex"),
-    pytest.param("compsognathus", CompsognathusBiologicalEnv, id="compsognathus"),
+    pytest.param("trex", TyrannosaurusRexAnatomicalEnv, id="trex"),
+    pytest.param("compsognathus", CompsognathusLongipesAnatomicalEnv, id="compsognathus"),
 )
 #: Each species' per-foot touch-sensor groups, right foot first: the T-Rex sums its plantar pad and three digits.
 FOOT_GROUPS = {
@@ -115,7 +118,7 @@ def test_heading_free_payload_records_segments_frames_and_helper(animal):
 
 def test_the_legacy_schemas_keep_their_layout():
     """The robot (and every other species) stays on its world-frame layout and hashes no heading helper."""
-    with CompsognathusRobotEnv(reset_noise_scale=0.0) as env:
+    with CompsognathusLongipesRobotEnv(reset_noise_scale=0.0) as env:
         payload = _payload("compsognathus_robot", env)
     names = [segment["name"] for segment in payload["observation_segments"]]
     assert names[2] == "pelvis_orientation_quaternion" and "prey_direction" in names
@@ -193,7 +196,7 @@ def test_heading_free_probe_normalizes_the_synthetic_quaternion(animal, monkeypa
 
 
 def test_observation_ablation_slices_match_segments():
-    with TRexEnv(reset_noise_scale=0.0) as env:
+    with TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0) as env:
         layout = _offsets(_payload("trex", env))
     table = observation_ablation_report.SLICES["trex"]
     expected = {

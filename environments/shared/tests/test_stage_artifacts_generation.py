@@ -210,10 +210,10 @@ def test_generate_stage_artifacts_takes_sim_dt_from_the_nodes_env(tmp_path):
     assert ProbeEnv.closed
 
 
-@pytest.mark.parametrize("env_path", ["CompsognathusBiologicalEnv", "CompsognathusRobotEnv"])
+@pytest.mark.parametrize("env_path", ["CompsognathusLongipesAnatomicalEnv", "CompsognathusLongipesRobotEnv"])
 def test_the_compsognathus_pair_steps_at_twenty_milliseconds(env_path):
     """The premise of the probe: a 0.01 s default halves this pair's printed sim time."""
-    from environments.compsognathus.envs import compsognathus_env
+    from environments.compsognathus_longipes.anatomical.env import compsognathus_env
 
     env = getattr(compsognathus_env, env_path)()
     try:

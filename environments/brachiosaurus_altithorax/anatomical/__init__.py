@@ -1,3 +1,3 @@
-from .brachio_env import BrachioEnv
+from .brachio_env import BrachiosaurusAltithoraxAnatomicalEnv
 
-__all__ = ["BrachioEnv"]
+__all__ = ["BrachiosaurusAltithoraxAnatomicalEnv"]

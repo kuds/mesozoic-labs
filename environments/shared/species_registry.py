@@ -4,10 +4,10 @@ Maps species names to their SpeciesConfig, eliminating the need
 for per-species training scripts with nearly identical boilerplate.
 
 Usage:
-    python -m environments.shared.train --species velociraptor train --stage 1
-    python -m environments.shared.train --species trex curriculum
-    python -m environments.shared.train --species brachiosaurus train --stage 2
-    python -m environments.shared.train --species dibothrosuchus train --stage 1
+    python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1
+    python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum
+    python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 2
+    python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 """
 
 from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
@@ -15,11 +15,11 @@ from environments.shared.train_base import SpeciesConfig
 
 
 def _make_raptor_config() -> SpeciesConfig:
-    from environments.velociraptor.envs.raptor_env import RaptorEnv
+    from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
     return SpeciesConfig(
         species="velociraptor",
-        env_class=RaptorEnv,
+        env_class=VelociraptorMongoliensisAnatomicalEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=strike",
         height_label="Pelvis height",
         stage3_section_label="Hunting",
@@ -30,11 +30,11 @@ def _make_raptor_config() -> SpeciesConfig:
 
 
 def _make_trex_config() -> SpeciesConfig:
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
     return SpeciesConfig(
         species="trex",
-        env_class=TRexEnv,
+        env_class=TyrannosaurusRexAnatomicalEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=bite",
         height_label="Pelvis height",
         stage3_section_label="Hunting",
@@ -43,11 +43,11 @@ def _make_trex_config() -> SpeciesConfig:
 
 
 def _make_brachio_config() -> SpeciesConfig:
-    from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+    from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
     return SpeciesConfig(
         species="brachiosaurus",
-        env_class=BrachioEnv,
+        env_class=BrachiosaurusAltithoraxAnatomicalEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=food_reach",
         height_label="Torso height",
         stage3_section_label="Food Reaching",
@@ -56,11 +56,11 @@ def _make_brachio_config() -> SpeciesConfig:
 
 
 def _make_dibothrosuchus_config() -> SpeciesConfig:
-    from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+    from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 
     return SpeciesConfig(
         species="dibothrosuchus",
-        env_class=DibothrosuchusEnv,
+        env_class=DibothrosuchusElaphrosAnatomicalEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=snap",
         height_label="Trunk height",
         stage3_section_label="Hunting",
@@ -70,12 +70,12 @@ def _make_dibothrosuchus_config() -> SpeciesConfig:
 
 def _make_compsognathus_config() -> SpeciesConfig:
     # The soft-cubic leg-residual subclass (policy interface r3, D-D26); the
-    # robot below keeps CompsognathusEnv's linear residual.
-    from environments.compsognathus.envs import CompsognathusBiologicalEnv
+    # robot below keeps CompsognathusLongipesEnv's linear residual.
+    from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 
     return SpeciesConfig(
         species="compsognathus",
-        env_class=CompsognathusBiologicalEnv,
+        env_class=CompsognathusLongipesAnatomicalEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
         height_label="Pelvis height",
         stage3_section_label="Target Reaching",
@@ -84,11 +84,11 @@ def _make_compsognathus_config() -> SpeciesConfig:
 
 
 def _make_compsognathus_robot_config() -> SpeciesConfig:
-    from environments.compsognathus.envs import CompsognathusRobotEnv
+    from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesRobotEnv
 
     return SpeciesConfig(
         species="compsognathus_robot",
-        env_class=CompsognathusRobotEnv,
+        env_class=CompsognathusLongipesRobotEnv,
         stage_descriptions="1=stance, 2=locomotion, 3=target_reach",
         height_label="Pelvis height",
         stage3_section_label="Target Reaching",

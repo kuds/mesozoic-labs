@@ -10,7 +10,7 @@ spin_penalty_weight = 0.1                      # Penalize pelvis angular velocit
 speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — complements drift penalty with instantaneous signal
 speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
 alive_bonus = 1.0                              # Half of this bonus is conditioned on bilateral support below
-foot_contact_gate = 0.0                        # Read only by the retired MJX reward (a binary foot-contact gate); SB3 ignores it. Kept by the cleanup plan (§4.9); 0.0 is TRexEnv's default, so task_sha256 is the same without it. Bilateral support below is the smoother signal
+foot_contact_gate = 0.0                        # Read only by the retired MJX reward (a binary foot-contact gate); SB3 ignores it. Kept by the cleanup plan (§4.9); 0.0 is TyrannosaurusRexAnatomicalEnv's default, so task_sha256 is the same without it. Bilateral support below is the smoother signal
 foot_contact_weight = 0.0                      # Read only by the retired MJX reward (an any-foot bonus, which permits a one-leg stance); SB3 ignores it
 bilateral_support_weight = 0.6                 # Reward the weaker-loaded foot, so both feet must carry weight
 foot_contact_saturation_force = 350.0          # N per foot; quiet home support (~421 N/foot) already earns full credit
@@ -101,7 +101,7 @@ leg_home_pose_broad_scale = 6.0                # Width multiplier of the broad c
                                                # reaches the measured knee-lock offsets (~0.87 rad commanded)
                                                # with usable gradient; 4x dies by 0.6 rad.
 foot_flatness_weight = 0.15                    # Prices each plantar pad's tilt from level, exp(-(tilt/tol)^2) per
-                                               # pad averaged over both feet (TRexEnv reads the boxes' own frames).
+                                               # pad averaged over both feet (TyrannosaurusRexAnatomicalEnv reads the boxes' own frames).
                                                # The ankle has no roll joint, so hip roll alone sets a pad's roll,
                                                # and every 2026-09 stance (20260914 seed 42, 20260920 and 20260930
                                                # seed 44) propped one splayed leg on its pad's front-inner corner:
@@ -256,7 +256,7 @@ action_penalty_source = "raw"                  # smoothness_weight, action_jerk_
                                                # about twice what they lost before (-18 on its 36 standing episodes),
                                                # so whether it ends below the statue depends on its old margin: the v2
                                                # settle bars, not this reward, are what refuse its stomp. All seven are
-                                               # inert at TRexEnv's defaults (the legacy arithmetic, bit for bit).
+                                               # inert at TyrannosaurusRexAnatomicalEnv's defaults (the legacy arithmetic, bit for bit).
 tail_home_pose_weight = 0.25                   # Prices tail JOINT positions. tail_stability reads only the
                                                # tail-tip gyro, so a tail parked motionless against a hard stop is
                                                # optimal for it -- the 20260809 run parked tail_1_yaw, tail_2_pitch
@@ -265,8 +265,8 @@ tail_home_pose_tolerance = 0.05                # rad; around the SETTLED droop, 
                                                # rests on its ventral stops (tail_1/2 pitch -0.2107/-0.2029, tail_3
                                                # -0.0926; sub-milliradian spread over 40 seeds at noise 0.05), so
                                                # the keyframe zeros are unreachable and would cap the statue at
-                                               # ~0.25 quality. Targets live plant-side (TRexEnv._TAIL_SETTLED_QPOS
-                                               # in trex_env.py). At 0.05 the statue scores
+                                               # ~0.25 quality. Targets live plant-side (TyrannosaurusRexEnv._TAIL_SETTLED_QPOS
+                                               # in tyrannosaurus_rex/base_env.py). At 0.05 the statue scores
                                                # ~1.0 and every parked-tail pose from the 20260809 run scores ~0.
 action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold (linear ramp to
                                                # full range). A saturated command cannot oscillate, so it is
@@ -289,7 +289,7 @@ neck_posture_tolerance = 0.35                  # rad. Sized while the target was
                                                # against the statue relative to the keyframe target. 0.20 would add
                                                # 38-51 to that at a 1.6 statue cost, but the swing at 0.35 already
                                                # prices every audited head lift at 1.9-3.7x its whole gain.
-neck_posture_reference = "settled"             # Centres the term on TRexEnv._NECK_SETTLED_QPOS (0.21432, 0.0,
+neck_posture_reference = "settled"             # Centres the term on TyrannosaurusRexEnv._NECK_SETTLED_QPOS (0.21432, 0.0,
                                                # 0.21963 rad: the r8 statue's post-settle neck) instead of the
                                                # keyframe the kp 200 / kp 80 neck servos cannot hold against
                                                # gravity. On the keyframe target the statue scored 0.787 quality and

@@ -1,6 +1,6 @@
 """The velociraptor stance stage's ``stance_quality/v2`` declaration (decision D-D25, 2026-10-06).
 
-``configs/velociraptor/stage1_balance.toml`` moved from
+``configs/velociraptor_mongoliensis/anatomical/stance.toml`` moved from
 ``reward_and_length/v1``, which its zero-action statue cleared by design, to
 the floor-truth gate with physics r3.  Its bars were set on the r3 statue's
 40-episode panel and validated against the two audited checkpoints of the

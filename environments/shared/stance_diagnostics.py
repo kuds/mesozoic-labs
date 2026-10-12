@@ -195,7 +195,7 @@ def _home_joint_error(env: Any, joint_name: str) -> float | None:
 
 # Each column side's (foot site, leg-joint prefix) in the T. rex model, which
 # the historical columns were measured from.
-_TREX_SIDE_NAMES: dict[str, tuple[str, str]] = {"r": ("r_foot", "r"), "l": ("l_foot", "l")}
+_TYRANNOSAURUS_REX_SIDE_NAMES: dict[str, tuple[str, str]] = {"r": ("r_foot", "r"), "l": ("l_foot", "l")}
 
 
 def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
@@ -217,7 +217,7 @@ def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
     except ValueError:
         entry = None
     if entry is None or entry.foot_site is None:
-        return dict(_TREX_SIDE_NAMES)
+        return dict(_TYRANNOSAURUS_REX_SIDE_NAMES)
     names = {}
     for side, word in (("r", "right"), ("l", "left")):
         site = entry.foot_site.format(s=side, side=word)
@@ -227,7 +227,7 @@ def _biped_side_names(species: str | None) -> dict[str, tuple[str, str]]:
 
 def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -> dict[str, float]:
     """Capture one reporting-only T. rex stance row from a replay environment."""
-    return _capture_biped_snapshot(env, info, step, _TREX_SIDE_NAMES)
+    return _capture_biped_snapshot(env, info, step, _TYRANNOSAURUS_REX_SIDE_NAMES)
 
 
 def _capture_biped_snapshot(

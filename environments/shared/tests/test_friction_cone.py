@@ -9,7 +9,7 @@ Since D-D30 every species declares ``cone="elliptic"`` (``configs/plant_versions
 the two compsognathus plants were built with, so the whole zoo has one friction model.
 
 The guard fails a new species, or an MJCF edit that drops the attribute, by name, instead of letting it fall back to
-the default unnoticed. The turn tests are the T. rex's (``test_trex_env.py``) on the three species D-D30 moved: raw
+the default unnoticed. The turn tests are the T. rex's (``test_anatomical_env.py``) on the three species D-D30 moved: raw
 MuJoCo on the env's model, so nothing but the physics is compared.
 """
 

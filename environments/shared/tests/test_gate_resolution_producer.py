@@ -60,9 +60,9 @@ _SHORT_PUSH = {
 
 
 def _pushed_env():
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-    return TRexEnv(reset_noise_scale=0.0, max_episode_steps=120, **_SHORT_PUSH)
+    return TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, max_episode_steps=120, **_SHORT_PUSH)
 
 
 def _roll(env, *, episodes=2, seed=3042, **kwargs):

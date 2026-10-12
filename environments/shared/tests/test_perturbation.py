@@ -126,7 +126,9 @@ class TestDerivation:
 
     def test_trex_derivation_matches_design_doc_scale(self):
         mujoco = pytest.importorskip("mujoco")
-        model = mujoco.MjModel.from_xml_path("environments/trex/assets/trex.xml")
+        model = mujoco.MjModel.from_xml_path(
+            "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+        )
         params = derive_push_parameters(model, capture_velocity_multiple=1.5, duration_s=0.20)
         # STAGE1_SPLIT_PLAN §3.3 gives "~150 N for 0.20 s" [artifact-derived];
         # the first-principles derivation lands at 165.5 N on physics r7.
@@ -138,14 +140,18 @@ class TestDerivation:
 
     def test_derivation_scales_linearly_with_the_multiple(self):
         mujoco = pytest.importorskip("mujoco")
-        model = mujoco.MjModel.from_xml_path("environments/trex/assets/trex.xml")
+        model = mujoco.MjModel.from_xml_path(
+            "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+        )
         one = derive_push_parameters(model, capture_velocity_multiple=1.0, duration_s=0.20)
         three = derive_push_parameters(model, capture_velocity_multiple=3.0, duration_s=0.20)
         assert three["force_n"] == pytest.approx(3.0 * one["force_n"], rel=1e-9)
 
     def test_off_multiple_is_rejected(self):
         mujoco = pytest.importorskip("mujoco")
-        model = mujoco.MjModel.from_xml_path("environments/trex/assets/trex.xml")
+        model = mujoco.MjModel.from_xml_path(
+            "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+        )
         with pytest.raises(ValueError, match="positive"):
             derive_push_parameters(model, capture_velocity_multiple=0.0, duration_s=0.2)
 
@@ -155,9 +161,9 @@ class TestEnvIntegration:
 
     @staticmethod
     def _trex(**kwargs):
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        return TRexEnv(reset_noise_scale=0.0, **kwargs)
+        return TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, **kwargs)
 
     def test_off_is_inert_and_deterministic(self):
         a = self._trex()
@@ -232,10 +238,10 @@ class TestEnvIntegration:
     @pytest.mark.parametrize(
         "species_env",
         [
-            "environments.trex.envs.trex_env:TRexEnv",
-            "environments.velociraptor.envs.raptor_env:RaptorEnv",
-            "environments.brachiosaurus.envs.brachio_env:BrachioEnv",
-            "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
+            "environments.tyrannosaurus_rex.anatomical.env:TyrannosaurusRexAnatomicalEnv",
+            "environments.velociraptor_mongoliensis.anatomical.env:VelociraptorMongoliensisAnatomicalEnv",
+            "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv",
+            "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv",
         ],
     )
     def test_every_species_accepts_the_parameters(self, species_env):

@@ -433,7 +433,7 @@ node after the gap against the skipped stage's thresholds. `--retrain-from`
 must name a node on the target's chain.
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 
 # Reuse an earlier run's certified stance and locomotion; train behavior here
 python scripts/train_sb3.py curriculum --algorithm ppo \

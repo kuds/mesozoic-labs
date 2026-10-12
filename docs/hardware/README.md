@@ -6,7 +6,7 @@ has been built. `hardware_prototype` is still `planned` in
 [`species_manifest.toml`](../../configs/species_manifest.toml).
 
 **Compsognathus model update (2026-09-07):** an
-[anatomical proxy and Rev B robot prototype](../../environments/compsognathus/README.md)
+[anatomical proxy and Rev B robot prototype](../../environments/compsognathus_longipes/README.md)
 now load and stand in MuJoCo. The robot preserves the later twelve-leg-axis,
 1.5856 kg design with a fixed passive tail. Use that page for current
 geometry and validation limits; the older cost figures below are not an

@@ -2,7 +2,7 @@
 
 Dinosaur-inspired locomotion research using reinforcement learning and MuJoCo physics simulation.
 
-![A simulated Velociraptor holding its balance](results/velociraptor/ppo/stage1_balance.gif)
+![A simulated Velociraptor holding its balance](results/velociraptor_mongoliensis/anatomical/ppo/stance.gif)
 
 *Velociraptor balance policy trained with PPO. Historical, unverified Stable-Baselines3 artifact (backend version
 not recorded); not evidence for the current model or configuration.*
@@ -30,12 +30,12 @@ and the executable environments; do not edit by hand. -->
 
 | Species | Description | Gait | Task | Observation / action dim. | Details |
 |---|---|---|---|---:|---|
-| <a id="velociraptor"></a><a id="raptor"></a>**Velociraptor Mongoliensis** | Swift Bipedal Predator | Bipedal | Sickle-claw contact attacks | 70 / 22 | [README](environments/velociraptor/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor) · [model page](https://mesozoiclabs.com/docs/models/velociraptor) |
-| <a id="trex"></a><a id="t-rex"></a>**Tyrannosaurus Rex** | Apex Predator | Bipedal | Head-contact attack task | 63 / 15 | [README](environments/trex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#trex) · [model page](https://mesozoiclabs.com/docs/models/trex) |
-| <a id="brachiosaurus"></a><a id="brachio"></a>**Brachiosaurus Altithorax** | Gentle Giant Herbivore | Quadrupedal | Head-to-food reaching | 86 / 30 | [README](environments/brachiosaurus/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus) |
-| <a id="dibothrosuchus"></a><a id="dibo"></a>**Dibothrosuchus Elaphros** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Snout-contact snap task | 80 / 27 | [README](environments/dibothrosuchus/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus) |
-| <a id="compsognathus"></a><a id="compso"></a>**Compsognathus Longipes** | Small Bipedal Theropod | Bipedal | Non-contact target reaching | 55 / 14 | [README](environments/compsognathus/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus) · [model page](https://mesozoiclabs.com/docs/models/compsognathus) |
-| <a id="compsognathus_robot"></a><a id="compso-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Non-contact target reaching with fixed head and tail | 46 / 12 | [README](environments/compsognathus/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_robot) |
+| <a id="velociraptor"></a><a id="raptor"></a>**Velociraptor Mongoliensis** | Swift Bipedal Predator | Bipedal | Sickle-claw contact attacks | 70 / 22 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
+| <a id="trex"></a><a id="t-rex"></a>**Tyrannosaurus Rex** | Apex Predator | Bipedal | Head-contact attack task | 63 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#trex) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
+| <a id="brachiosaurus"></a><a id="brachio"></a>**Brachiosaurus Altithorax** | Gentle Giant Herbivore | Quadrupedal | Head-to-food reaching | 86 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
+| <a id="dibothrosuchus"></a><a id="dibo"></a>**Dibothrosuchus Elaphros** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Snout-contact snap task | 80 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
+| <a id="compsognathus"></a><a id="compso"></a>**Compsognathus Longipes** | Small Bipedal Theropod | Bipedal | Non-contact target reaching | 55 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
+| <a id="compsognathus_robot"></a><a id="compso-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Non-contact target reaching with fixed head and tail | 46 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
 
 The [species catalog](docs/SPECIES_CATALOG.md) holds each species' full entry: specifications, current stages
 with their recipes, budgets and gates, success definitions and run summaries; each model page renders it too.
@@ -64,7 +64,7 @@ import environments  # registers the MesozoicLabs/* environments
 
 print([env_id for env_id in gym.registry if env_id.startswith("MesozoicLabs/")])
 
-env = gym.make("MesozoicLabs/Raptor-v0")
+env = gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")
 obs, info = env.reset(seed=0)
 for _ in range(500):
     obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
@@ -73,7 +73,7 @@ for _ in range(500):
 env.close()
 ```
 
-On a machine with a display, `python environments/velociraptor/scripts/view_model.py` opens the model in MuJoCo's
+On a machine with a display, `python environments/velociraptor_mongoliensis/scripts/view_model.py` opens the model in MuJoCo's
 interactive viewer (on macOS, run it with `mjpython` instead of `python`).
 
 To train a policy, the easiest route is the training notebook, which installs its own dependencies:
@@ -91,7 +91,7 @@ On the command line, one command trains a species from balance up to its task, e
 hyperparameters of its stage config. Stages run for millions of steps, so a full run takes hours:
 
 ```bash
-cd environments/velociraptor
+cd environments/velociraptor_mongoliensis
 python scripts/train_sb3.py curriculum --algorithm ppo
 ```
 

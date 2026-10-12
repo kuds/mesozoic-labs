@@ -199,7 +199,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # The anatomical compsognathus then took one bump of all three (plant_versions
     # note 15): a one-density tail, a metatarsus capsule 4 mm short of the MTP and
     # digit II medial on both feet (physics, visual, and the regenerated home
-    # preload), and the soft-cubic leg residual of CompsognathusBiologicalEnv.
+    # preload), and the soft-cubic leg residual of CompsognathusLongipesAnatomicalEnv.
     # The robot is untouched.
     # T-Rex physics r9 (plant_versions note 16) switched the friction cone to
     # elliptic: PHYSICS only, policy and visual unchanged. Velociraptor r4,
@@ -335,7 +335,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_unsupported_duty": None,
         "max_unsupported_duty_ucb": None,
     }
-    # T-Rex 1a's stance_quality/v2 block (configs/trex/stance.toml, D-D24),
+    # T-Rex 1a's stance_quality/v2 block (configs/tyrannosaurus_rex/anatomical/stance.toml, D-D24),
     # judged at six headings under stance_quality_heading/v1 since D-D32:
     # v1's duty pair exports null, and the v2 keys are exported beside the
     # shared ones on this stage alone, each declared value or null.
@@ -365,7 +365,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # The pad's fore-aft centre of pressure (D-D28): the seed-44 left foot on its pad's front edge.
         "max_sole_cop_fore_aft": 0.80,
     }
-    # Velociraptor 1a's block (configs/velociraptor/stage1_balance.toml,
+    # Velociraptor 1a's block (configs/velociraptor_mongoliensis/anatomical/stance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and
     # coverage, with the settle-window width change and the statue's own
     # load share beside them; the sole keys export null. The foot bars and the
@@ -645,7 +645,7 @@ def test_manifest_covers_all_curated_results_and_implemented_species() -> None:
     }
     assert manifested_species - {"compsognathus_robot"} == implemented_species
     robot = next(entry for entry in catalog["species"] if entry["id"] == "compsognathus_robot")
-    assert robot["environment"]["entrypoint"].startswith("environments.compsognathus.envs.")
+    assert robot["environment"]["entrypoint"].startswith("environments.compsognathus_longipes.anatomical.env.")
 
 
 def _published_summary() -> dict[str, Any]:
@@ -661,7 +661,7 @@ def test_result_validator_rejects_missing_public_metric() -> None:
         _validate_result_summary(
             summary,
             species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -672,7 +672,7 @@ def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None
         _validate_result_summary(
             summary,
             species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
     summary = deepcopy(_published_summary())
@@ -681,7 +681,7 @@ def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None
         _validate_result_summary(
             summary,
             species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -700,7 +700,7 @@ def test_result_validator_uses_backend_aware_paths() -> None:
         _validate_result_summary(
             summary,
             species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -712,7 +712,7 @@ def test_shared_result_errors_remain_catalog_errors() -> None:
         _validate_result_summary(
             summary,
             species_id="velociraptor",
-            relative_path="results/velociraptor/ppo/summary.json",
+            relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 
 
@@ -740,9 +740,7 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
 def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
     # Velociraptor declares itself SB3-only (policy-interface revision 11), so
     # the broken copy flips that declaration rather than adding a second one.
-    declaration = (
-        'model_path = "environments/velociraptor/assets/raptor.xml"\ntraining_backends = ["stable-baselines3"]\n'
-    )
+    declaration = 'model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"\ntraining_backends = ["stable-baselines3"]\n'
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
     assert manifest_text.count(declaration) == 1
     broken_manifest = tmp_path / "species_manifest.toml"
@@ -930,7 +928,7 @@ def test_sb3_notebook_routes_every_bundle_write_through_chain_results() -> None:
     ("species_id", "website_constant"),
     [
         ("velociraptor", "VELOCIRAPTOR"),
-        ("trex", "TREX"),
+        ("trex", "TYRANNOSAURUS_REX"),
         ("brachiosaurus", "BRACHIOSAURUS"),
         ("dibothrosuchus", "DIBOTHROSUCHUS"),
     ],
@@ -1028,13 +1026,17 @@ def test_published_verdicts_carry_gate_provenance() -> None:
 def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path, monkeypatch: Any) -> None:
     from environments.shared import species_catalog
 
-    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
+    summary = deepcopy(
+        json.loads(
+            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
+        )
+    )
     summary["stages"]["1"]["gate_kind"] = "stance_quality_heading/v1"
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
 
-    result = species_catalog._build_result("trex", "results/trex/ppo/summary.json")
+    result = species_catalog._build_result("trex", "results/tyrannosaurus_rex/anatomical/ppo/summary.json")
 
     stages = {stage["id"]: stage for stage in result["stages"]}
     assert stages["stance"]["gate_retired"] is False
@@ -1122,7 +1124,7 @@ def test_synthesized_manifest_stage_rows_derive_legacy_edges(tmp_path: Path) -> 
     assert [stage["deliverable"] for stage in stages] == [False, False, True]
     assert [stage["warm_start_from"] for stage in stages] == [None, "stance", "locomotion"]
     assert [stage["recipe"] for stage in stages] == [None, None, None]
-    assert stages[0]["config_path"] == "configs/velociraptor/stage1_balance.toml"
+    assert stages[0]["config_path"] == "configs/velociraptor_mongoliensis/anatomical/stance.toml"
     # The gates come from the temporary tree too, through the same kwarg.
     assert current_gate_kinds("velociraptor", tmp_path / "configs") == {
         "stance": "stance_quality/v2",
@@ -1192,7 +1194,11 @@ def _trex_v4_summary(
     from the recorded verdicts through the shared rule so a fixture can
     never claim more than its chain supports.
     """
-    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
+    summary = deepcopy(
+        json.loads(
+            (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
+        )
+    )
     summary["schema_version"] = 4
     summary["bundle_status"] = bundle_status
     summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
@@ -1232,7 +1238,7 @@ def _build_result_from(tmp_path: Path, monkeypatch: Any, summary: dict[str, Any]
     summary_path = tmp_path / "summary.json"
     summary_path.write_text(json.dumps(summary), encoding="utf-8")
     monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
-    return _build_result("trex", "results/trex/ppo/summary.json")
+    return _build_result("trex", "results/tyrannosaurus_rex/anatomical/ppo/summary.json")
 
 
 def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1734,7 +1740,7 @@ def test_species_manifest_schema_version_is_2(tmp_path: Path) -> None:
 def _video(stage: "int | str") -> dict[str, Any]:
     return {
         "stage": stage,
-        "path": "website/static/videos/trex_ppo_stage1_best.mp4",
+        "path": "website/static/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4",
         "algorithm": "PPO",
         "backend": "stable-baselines3",
         "model_revision_status": "historical",
@@ -1748,7 +1754,7 @@ def test_stage_videos_accept_ids_and_integer_aliases_interchangeably() -> None:
     by_number = _build_stages("trex", [_video(1)])
     assert by_id == by_number
     assert by_id[0]["video"] is not None
-    assert by_id[0]["video"]["path"] == "/videos/trex_ppo_stage1_best.mp4"
+    assert by_id[0]["video"]["path"] == "/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4"
 
     with pytest.raises(CatalogError, match="duplicate stage video"):
         _build_stages("trex", [_video("stance"), _video(1)])
@@ -1777,8 +1783,8 @@ def test_committed_stage_videos_are_keyed_by_id() -> None:
         for stage in species["stages"]
         if stage["video"] is not None
     }
-    assert videos[("trex", "stance")] == "/videos/trex_ppo_stage1_best.mp4"
-    assert videos[("brachiosaurus", "locomotion")] == "/videos/brachiosaurus_ppo_stage2_best.mp4"
+    assert videos[("trex", "stance")] == "/videos/tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4"
+    assert videos[("brachiosaurus", "locomotion")] == "/videos/brachiosaurus_altithorax_anatomical_ppo_stage2_best.mp4"
     assert ("trex", "recovery") not in videos
 
 

@@ -12,8 +12,8 @@ from pathlib import Path
 import mujoco
 from PIL import Image, ImageDraw, ImageFont
 
-from environments.compsognathus.model import load_model
-from environments.compsognathus.scripts.validate_shells import read_reference
+from environments.compsognathus_longipes.model import load_model
+from environments.compsognathus_longipes.scripts.validate_shells import read_reference
 
 
 def render(before, output):

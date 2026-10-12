@@ -10,12 +10,12 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = RaptorEnv()
+    e = VelociraptorMongoliensisAnatomicalEnv()
     yield e
     e.close()
 
@@ -66,7 +66,7 @@ class TestTailFloorTermination:
 class TestStrikeTerminationGating:
     def test_strike_terminates_when_strike_bonus_positive(self):
         """Claw-prey contact should terminate when strike_bonus > 0."""
-        env = RaptorEnv(strike_bonus=10.0, prey_distance_range=(0.5, 0.5))
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0, prey_distance_range=(0.5, 0.5))
         env.reset(seed=42)
 
         # Move raptor toward prey to force contact
@@ -90,7 +90,7 @@ class TestStrikeTerminationGating:
 
     def test_strike_does_not_terminate_when_strike_bonus_zero(self):
         """Claw-prey contact should NOT terminate when strike_bonus == 0 (e.g. stage 2)."""
-        env = RaptorEnv(strike_bonus=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0)
         env.reset(seed=42)
 
         # Manually check that _is_terminated skips the strike check
@@ -123,7 +123,7 @@ class TestStrikeTerminationGating:
     @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
     def test_either_claw_alone_scores_and_ends_the_strike(self, claw, other):
         """Each sickle claw on its own pays the strike bonus and ends the episode as ``strike_success``."""
-        env = RaptorEnv(strike_bonus=10.0, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=10.0, reset_noise_scale=0.0)
         try:
             self._prey_on_one_claw(env, claw, other)
             _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -139,7 +139,7 @@ class TestStrikeTerminationGating:
     @pytest.mark.parametrize("claw, other", [("r_claw_geom", "l_claw_geom"), ("l_claw_geom", "r_claw_geom")])
     def test_either_claw_alone_does_not_end_the_episode_without_a_strike_bonus(self, claw, other):
         """With ``strike_bonus == 0.0`` the same claw contact pays nothing and ends nothing."""
-        env = RaptorEnv(strike_bonus=0.0, reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(strike_bonus=0.0, reset_noise_scale=0.0)
         try:
             self._prey_on_one_claw(env, claw, other)
             _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -156,7 +156,7 @@ class TestStrikeTerminationGating:
 class TestNosediveTermination:
     """Raptor ends an episode as ``nosedive`` once forward_z drops 0.5 below its natural lean.
 
-    ``raptor_env.py`` passes that 0.5 to the shared ``_root_termination`` as a literal,
+    ``velociraptor_mongoliensis/base_env.py`` passes that 0.5 to the shared ``_root_termination`` as a literal,
     and no digest probe reaches the branch (its raptor poses end on ``excessive_tilt``),
     so these posed states pin the threshold from both sides.  The pelvis is lifted clear
     of the floor and pitched nose-down about +y: a pure pitch gives
@@ -177,7 +177,7 @@ class TestNosediveTermination:
         return env._is_terminated()
 
     def test_just_past_the_threshold_terminates_as_nosedive(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             forward_z = env._natural_forward_z - 0.5 - self.MARGIN
             terminated, info = self._terminate_pitched(env, forward_z)
@@ -191,7 +191,7 @@ class TestNosediveTermination:
             env.close()
 
     def test_just_before_the_threshold_does_not_terminate(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             forward_z = env._natural_forward_z - 0.5 + self.MARGIN
             terminated, info = self._terminate_pitched(env, forward_z)
@@ -325,7 +325,7 @@ class TestFootContactSensors:
         assert env._foot_sensor_groups == ((10, 27, 28), (11, 29, 30))
 
     def test_sensors_account_for_all_floor_force_at_settled_stance(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             info = {}
@@ -351,7 +351,7 @@ class TestFootContactSensors:
             env.close()
 
     def test_sensors_read_zero_airborne(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             model, data = env.model, env.data
@@ -371,7 +371,7 @@ class TestFootContactSensors:
             env.close()
 
     def test_observation_foot_contact_dims_are_the_summed_feet(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             obs = None
@@ -401,7 +401,7 @@ class TestNaturalPitchTracksStance:
     """
 
     def test_noise_free_statue_settles_at_the_natural_pitch(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -412,8 +412,8 @@ class TestNaturalPitchTracksStance:
             settled_pitch = math.asin(-float(info["forward_z"]))
             assert abs(settled_pitch - natural_pitch) < 0.01, (
                 f"the statue settles at {settled_pitch:.4f} rad against natural_pitch {natural_pitch:.4f}: "
-                "re-measure natural_pitch for this plant (raptor_env.py default) together with the nosedive "
-                "threshold and stage1_balance.toml's statue-derived constants"
+                "re-measure natural_pitch for this plant (velociraptor_mongoliensis/base_env.py default) together with the nosedive "
+                "threshold and stance.toml's statue-derived constants"
             )
             assert natural_pitch == pytest.approx(0.35)
         finally:
@@ -422,4 +422,4 @@ class TestNaturalPitchTracksStance:
 
 def test_velociraptor_is_sb3_only():
     """The summed foot cannot be mirrored by the frozen MJX registration (D-D17)."""
-    assert RaptorEnv.supported_training_backends == ("stable-baselines3",)
+    assert VelociraptorMongoliensisAnatomicalEnv.supported_training_backends == ("stable-baselines3",)

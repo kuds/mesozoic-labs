@@ -215,19 +215,22 @@ def test_building_a_morphology_leaves_the_env_untouched(stance_env):
 
 # ── refusals ─────────────────────────────────────────────────────────────────
 
-_TREX = SUPPORT_REGISTRY["trex"]
+_TYRANNOSAURUS_REX = SUPPORT_REGISTRY["trex"]
 
 
 @pytest.mark.parametrize(
     ("entry", "message"),
     [
-        (replace(_TREX, support=(*_TREX.support, "{s}_no_such_geom")), "is not in the model"),
-        (replace(_TREX, support=(*_TREX.support, "l_toe_d2_geom")), "is not a colliding geom of leg"),
-        (replace(_TREX, support=(*_TREX.support, "{s}_toe_d2_geom")), "listed twice"),
-        (replace(_TREX, sole="{s}_metatarsus_geom"), "is not one of foot"),
-        (replace(_TREX, foot_site=None), "pins no foot_site"),
-        (replace(_TREX, foot_site="{s}_no_such_site"), "foot site"),
-        (replace(_TREX, foot_site="l_foot"), "is not on leg"),
+        (replace(_TYRANNOSAURUS_REX, support=(*_TYRANNOSAURUS_REX.support, "{s}_no_such_geom")), "is not in the model"),
+        (
+            replace(_TYRANNOSAURUS_REX, support=(*_TYRANNOSAURUS_REX.support, "l_toe_d2_geom")),
+            "is not a colliding geom of leg",
+        ),
+        (replace(_TYRANNOSAURUS_REX, support=(*_TYRANNOSAURUS_REX.support, "{s}_toe_d2_geom")), "listed twice"),
+        (replace(_TYRANNOSAURUS_REX, sole="{s}_metatarsus_geom"), "is not one of foot"),
+        (replace(_TYRANNOSAURUS_REX, foot_site=None), "pins no foot_site"),
+        (replace(_TYRANNOSAURUS_REX, foot_site="{s}_no_such_site"), "foot site"),
+        (replace(_TYRANNOSAURUS_REX, foot_site="l_foot"), "is not on leg"),
     ],
 )
 def test_a_bad_registry_entry_is_refused(stance_env, entry, message):
@@ -287,7 +290,7 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
     assert (manifest["species"], manifest["frame_skip"], manifest["dt"]) == ("trex", 5, 0.01)
     assert manifest["body_weight_n"] == pytest.approx(840.91, abs=0.01)
     assert manifest["registry"] == {
-        "support": list(_TREX.support),
+        "support": list(_TYRANNOSAURUS_REX.support),
         "sole": "{s}_plantar_geom",
         "foot_site": "{s}_foot",
     }
@@ -326,11 +329,11 @@ def test_a_constant_or_a_registry_edit_moves_the_manifest_digest(stance_env, mon
     assert measurement_sha256(measurement_manifest(morphology, env.model)) != digest
     monkeypatch.undo()
     assert measurement_sha256(measurement_manifest(morphology, env.model)) == digest
-    fewer_toes = replace(_TREX, support=_TREX.support[:-1])
+    fewer_toes = replace(_TYRANNOSAURUS_REX, support=_TYRANNOSAURUS_REX.support[:-1])
     edited = Morphology.from_env(env, "trex", registry={"trex": fewer_toes})
     assert measurement_sha256(measurement_manifest(edited, env.model)) != digest
     # Order matters too: the per-geom metric tuples (support_geom_duty, support_geom_share) are positional.
-    reordered = replace(_TREX, support=tuple(reversed(_TREX.support)))
+    reordered = replace(_TYRANNOSAURUS_REX, support=tuple(reversed(_TYRANNOSAURUS_REX.support)))
     moved = Morphology.from_env(env, "trex", registry={"trex": reordered})
     assert measurement_sha256(measurement_manifest(moved, env.model)) != digest
 

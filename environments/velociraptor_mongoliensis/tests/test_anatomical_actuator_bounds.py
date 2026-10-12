@@ -17,7 +17,7 @@ R2). These tests pin the resulting contract:
   saturate the leg actuators, so the force caps bound impact/reset spikes
   rather than learnable gaits.
 
-Run ``environments/velociraptor/scripts/actuator_saturation_report.py``
+Run ``environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py``
 for the full per-actuator numbers on the current model.
 """
 
@@ -30,7 +30,7 @@ from environments.shared.tests.actuator_bounds_helpers import (
     measure_clip_fractions,
     position_actuator_ids,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 # Default sizing from commit 156a933; gait-critical actuators carry extra
 # headroom so the caps only bind on impact/reset spikes, not gait torques.
@@ -53,7 +53,7 @@ GAIT_HEADROOM_ACTUATORS = frozenset(
 
 @pytest.fixture(scope="module")
 def model():
-    env = RaptorEnv()
+    env = VelociraptorMongoliensisAnatomicalEnv()
     try:
         yield env.model
     finally:
@@ -89,7 +89,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
 class TestHomeControlSaturation:
     def test_no_saturation_during_home_control_settle(self):
         """Settling under XML home-keyframe controls never clips forces."""
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -109,7 +109,7 @@ class TestDynamicSaturation:
         the plant lost gait headroom again — see
         docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000)
@@ -134,7 +134,7 @@ class TestDynamicSaturation:
         knee. Hips/ankles (already 1.5x) measure ~11%/~2% at this regime,
         which is their physical envelope, so only the knee is pinned here.
         """
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000, hz=3.5, amplitude=1.0)

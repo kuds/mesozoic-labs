@@ -82,12 +82,12 @@ SCHEDULES = {
 
 
 def build_env(schedule: str) -> Any:
-    from environments.trex.envs.trex_env import TRexEnv
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
     config = load_stage_config("trex", "recovery")
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
-    return TRexEnv(**env_kwargs)
+    return TyrannosaurusRexAnatomicalEnv(**env_kwargs)
 
 
 def roll_panel(

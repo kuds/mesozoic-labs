@@ -1,6 +1,6 @@
 """Regenerate both MJCFs from checked-in parameters and the pinned Rev B plant.
 
-Run from the repository root: python -m environments.compsognathus.scripts.build_models
+Run from the repository root: python -m environments.compsognathus_longipes.scripts.build_models
 Geometry is in metres; angles and position controls are radians. These assets
 deliberately have no Gymnasium registration or training certification.
 """
@@ -14,8 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
-from environments.compsognathus.scripts.standing_targets import write_gravity_targets
-from environments.compsognathus.scripts.styling import apply_styles
+from environments.compsognathus_longipes.scripts.standing_targets import write_gravity_targets
+from environments.compsognathus_longipes.scripts.styling import apply_styles
 
 ROOT = Path(__file__).resolve().parents[1]
 PARAMETERS = ROOT / "data/model_parameters.json"
@@ -109,7 +109,7 @@ def write(root, path):
 
 
 def build_robot(parameters):
-    source = ROOT / "references/compso_rev_b.xml"
+    source = ROOT / "robot/references/compsognathus_longipes_robot_rev_b.xml"
     if hashlib.sha256(source.read_bytes()).hexdigest() != parameters["source_xml_sha256"]:
         raise ValueError("Rev B reference changed: review provenance before regenerating")
     p = parameters["robot"]
@@ -219,8 +219,8 @@ def build_robot(parameters):
     write_gravity_targets(ROOT / "assets/compsognathus_robot.xml")
 
 
-def build_biological(parameters):
-    p = parameters["biological"]
+def build_anatomical(parameters):
+    p = parameters["anatomical"]
     root = ET.Element("mujoco", model="compsognathus_biological_v2")
     root.append(ET.Comment("Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction."))
     element(root, "compiler", angle="radian", autolimits="true")
@@ -460,7 +460,7 @@ def build_biological(parameters):
         qpos=fmt([0, 0, hip_z, 1, 0, 0, 0] + [0] * joint_count),
         ctrl=fmt([0] * len(actuator)),
     )
-    apply_styles(root, "biological", parameters)
+    apply_styles(root, "anatomical", parameters)
     write(root, ROOT / "assets/compsognathus.xml")
     write_gravity_targets(ROOT / "assets/compsognathus.xml")
 
@@ -468,7 +468,7 @@ def build_biological(parameters):
 def main():
     parameters = json.loads(PARAMETERS.read_text())
     build_robot(parameters)
-    build_biological(parameters)
+    build_anatomical(parameters)
     print("Generated assets/compsognathus.xml and assets/compsognathus_robot.xml")
 
 

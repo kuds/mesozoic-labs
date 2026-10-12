@@ -16,7 +16,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.harnesses.env_smoke import run_env_tests
 
 REWARD_KEYS = [
@@ -31,4 +31,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(DibothrosuchusEnv, REWARD_KEYS, "Dibothrosuchus"))
+    sys.exit(run_env_tests(DibothrosuchusElaphrosAnatomicalEnv, REWARD_KEYS, "Dibothrosuchus"))

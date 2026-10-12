@@ -1703,7 +1703,7 @@ def _report_with_actuators(entries):
     return report
 
 
-_TREX_ACTUATORS = [
+_TYRANNOSAURUS_REX_ACTUATORS = [
     ("neck_pitch", -0.433),
     ("neck_yaw", -0.208),
     ("head_pitch", -1.0),
@@ -1726,7 +1726,7 @@ class TestActuatorGroupSelection:
     def test_saturation_is_measured_not_named(self):
         from environments.shared.reporting.stance_report import saturated_actuator_indices
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         assert saturated_actuator_indices(report) == (2, 4, 7, 8, 9)
 
     def test_the_threshold_is_a_magnitude_so_both_limits_count(self):
@@ -1739,7 +1739,7 @@ class TestActuatorGroupSelection:
     def test_groups_match_by_joint_name(self):
         from environments.shared.reporting.stance_report import actuator_indices_matching
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         assert actuator_indices_matching(report, ("tail",)) == (9,)
         assert actuator_indices_matching(report, ("toe",)) == (7,)
         assert actuator_indices_matching(report, ("hip_roll",)) == (4, 8)
@@ -1771,7 +1771,7 @@ class TestReleaseAblationVariants:
             constant_hold_release_variants,
         )
 
-        report = _report_with_actuators(_TREX_ACTUATORS)
+        report = _report_with_actuators(_TYRANNOSAURUS_REX_ACTUATORS)
         hold = constant_hold_actions(report)
         return {v.label: v for v in constant_hold_release_variants(hold, report, horizon=1000)}
 
@@ -1983,7 +1983,7 @@ class TestAblationVerdicts:
     #: the pipeline's 8 episodes. The full pose survives 3 of 8 episodes, and
     #: knees_ankles alone carries the fall -- releasing them rescues 8/8 and
     #: holding them alone nosedives 8/8.
-    _TREX_20261006_185704 = (
+    _TYRANNOSAURUS_REX_20261006_185704 = (
         ("policy (control)", None, 1000.0, 1.0, 3778.3),
         ("hold_all", 0, 584.1, 0.375, 2055.2),
         ("release_tail", 4, 619.2, 0.375, 2190.7),
@@ -2005,7 +2005,7 @@ class TestAblationVerdicts:
         from environments.shared.reporting.stance_report import render_constant_hold_ablation
 
         reports = []
-        for label, released, length, full, reward in self._TREX_20261006_185704:
+        for label, released, length, full, reward in self._TYRANNOSAURUS_REX_20261006_185704:
             report = _ablation_row(label, full, holds=released is not None, length=length, released=released or 0)
             report["metrics"]["reward_mean"] = reward
             reports.append(report)
@@ -2039,7 +2039,7 @@ class TestAblationVerdicts:
     #: investigation), its release ablation as Addendum 2 of
     #: docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md records it over 8
     #: episodes, in the same columns. The full pose falls 8 of 8.
-    _TREX_20260805_011234 = (
+    _TYRANNOSAURUS_REX_20260805_011234 = (
         ("policy (control)", None, 1000.0, 1.0, 3010.1),
         ("hold_all", 0, 128.6, 0.0, 268.8),
         ("release_saturated", 12, 224.6, 0.0, 460.1),
@@ -2063,7 +2063,7 @@ class TestAblationVerdicts:
         from environments.shared.reporting.stance_report import render_constant_hold_ablation
 
         reports = []
-        for label, released, length, full, reward in self._TREX_20260805_011234:
+        for label, released, length, full, reward in self._TYRANNOSAURUS_REX_20260805_011234:
             report = _ablation_row(label, full, holds=released is not None, length=length, released=released or 0)
             report["metrics"]["reward_mean"] = reward
             reports.append(report)
@@ -2524,9 +2524,9 @@ class TestControlTargetsInDegrees:
             _actuator_pose_mapping,
             render_stance_gate_report,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             mapping = _actuator_pose_mapping(env)
             names = _actuator_joint_names(env)
@@ -2555,9 +2555,9 @@ class TestControlTargetsInDegrees:
             _actuator_pose_mapping,
             _commanded_angle,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             by_joint = dict(zip(_actuator_joint_names(env), _actuator_pose_mapping(env)))
             neck = by_joint["neck_pitch"]
@@ -2574,9 +2574,9 @@ class TestControlTargetsInDegrees:
             _new_action_stats,
             _reduce_action_stats,
         )
-        from environments.trex.envs.trex_env import TRexEnv
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             names = _actuator_joint_names(env)
             mapping = _actuator_pose_mapping(env)

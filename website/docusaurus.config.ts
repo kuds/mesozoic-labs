@@ -137,7 +137,7 @@ const config: Config = {
             },
             {
               label: 'Models',
-              to: '/docs/models/trex',
+              to: '/docs/models/tyrannosaurus_rex/anatomical',
             },
             {
               label: 'Training',

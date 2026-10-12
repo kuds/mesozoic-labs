@@ -17,8 +17,8 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.model import load_model
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.model import load_model
 
 
 def read_reference(path):
@@ -87,7 +87,7 @@ def compare(reference):
                 if name not in worsened or new - old < worsened[name]["after_m"] - worsened[name]["before_m"]:
                     worsened[name] = item
     return {
-        "schema": "mesozoic.compso-shell-screen/v1",
+        "schema": "mesozoic.compsognathus-longipes-shell-screen/v2",
         "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(),
         "current_sha256": hashlib.sha256(MODEL_PATHS["robot"].read_bytes()).hexdigest(),
         "mujoco_version": mujoco.__version__,

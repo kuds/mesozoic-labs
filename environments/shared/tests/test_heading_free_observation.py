@@ -36,20 +36,20 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.shared.command_frame import COMMAND_SEGMENT_NAME, COMMAND_WIDTH
 from environments.shared.config import load_stage_config
 from environments.shared.heading_observation import HEADING_FREE_OBSERVATION_SCHEMA, body_to_world, root_quaternion
 from environments.shared.plant_contract import load_plant_versions
 from environments.shared.plant_contract.policy_layer import _policy_interface_payload
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 from .heading_free_helpers import FLOAT32_BUDGET, assert_paired, linear_policy, paired_traces, zero_policy
 
 SPECIES = (
-    pytest.param("trex", TRexEnv, id="trex"),
-    pytest.param("compsognathus", CompsognathusBiologicalEnv, id="compsognathus"),
+    pytest.param("trex", TyrannosaurusRexAnatomicalEnv, id="trex"),
+    pytest.param("compsognathus", CompsognathusLongipesAnatomicalEnv, id="compsognathus"),
 )
 #: Whole-scene turns for the pointwise test, across the yaw wrap.
 TURNS_DEG = (-179.9, -90.0, -45.0, 17.0, 90.0, 180.0, 359.0)

@@ -14,7 +14,7 @@ with a 0.5 mm preload.
 import mujoco
 import pytest
 
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.tests.static_balance_helpers import (
     ActuatorDisabledPassiveBase,
     JointLimitsAtHomeBase,
@@ -31,7 +31,7 @@ ROOT_BODY = "torso"
 
 @pytest.fixture
 def env():
-    e = DibothrosuchusEnv(reset_noise_scale=0.0)
+    e = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()

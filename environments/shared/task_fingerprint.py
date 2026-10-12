@@ -15,7 +15,7 @@ backend, the plant's physics/interface hashes, the EFFECTIVE ``[env]``
 config (reward, termination, reset, horizon: the species constructor's
 defaults overlaid with the stage's TOML kwargs — schema v2; v1 hashed only
 the TOML-present kwargs, which left retunable constructor defaults such as
-TRexEnv ``healthy_z_range`` outside task identity, review F6), and the
+TyrannosaurusRexAnatomicalEnv ``healthy_z_range`` outside task identity, review F6), and the
 perturbation block with its per-species **derived** force constants plus
 the schedule implementation name (the PRF is part of task identity: change
 the hash function and every recorded schedule means something else).
@@ -90,8 +90,8 @@ FINGERPRINT_BACKEND = "stable-baselines3"
 
 #: Constructor params excluded from the effective env config: they select
 #: presentation, not task.  ``render_mode`` is the only such param across
-#: all five species constructors (``CompsognathusRobotEnv`` inherits
-#: ``CompsognathusEnv``'s, and ``CompsognathusBiologicalEnv`` repeats it in
+#: all five species constructors (``CompsognathusLongipesRobotEnv`` inherits
+#: ``CompsognathusLongipesEnv``'s, and ``CompsognathusLongipesAnatomicalEnv`` repeats it in
 #: full, its stance-quality reward kwargs added, because this helper reads
 #: defaults from the signature and a ``**kwargs`` pass-through would hide
 #: them; every other defaulted param shapes

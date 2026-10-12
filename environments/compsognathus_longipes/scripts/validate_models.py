@@ -1,6 +1,6 @@
 """Deterministic engineering smoke checks; no walking or robustness certificate.
 
-python -m environments.compsognathus.scripts.validate_models --output /tmp/compso.json
+python -m environments.compsognathus_longipes.scripts.validate_models --output /tmp/compsognathus_longipes.json
 Requires the repository's [test] dependencies for scipy's support-polygon hull.
 """
 
@@ -15,8 +15,8 @@ import mujoco
 import numpy as np
 from scipy.spatial import ConvexHull
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.model import (
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.model import (
     PARAMETERS,
     floor_contacts,
     load_model,
@@ -64,10 +64,10 @@ def support_sample(model, data):
     }
 
 
-def hold_trial(variant: str, *, mass_scale=1.0, seconds=10.0, seed=None, motors_off=False):
+def hold_trial(embodiment: str, *, mass_scale=1.0, seconds=10.0, seed=None, motors_off=False):
     if not np.isfinite(seconds) or seconds <= PROTOCOL["settling_time_s"]:
         raise ValueError("Trial must be longer than the 0.5-second settling interval")
-    model, data = load_model(variant, mass_scale)
+    model, data = load_model(embodiment, mass_scale)
     root = model.body("pelvis").id
     home_xy = data.xpos[root, :2].copy()
     home_height = float(data.xpos[model.body("pelvis").id, 2])
@@ -102,7 +102,7 @@ def hold_trial(variant: str, *, mass_scale=1.0, seconds=10.0, seed=None, motors_
     nonfoot_contacts: set[str] = set()
     foot_geoms = (
         {"left_sole", "right_sole"}
-        if variant == "robot"
+        if embodiment == "robot"
         else {
             f"{side}_{part}"
             for side in ("r", "l")
@@ -162,7 +162,7 @@ def hold_trial(variant: str, *, mass_scale=1.0, seconds=10.0, seed=None, motors_
         "torque_caps": bool(np.max(peak_torque / cap) <= 1.000001),
     }
     return {
-        "variant": variant,
+        "embodiment": embodiment,
         "mass_scale": mass_scale,
         "seed": seed,
         "reset_base_height_correction_m": reset_height_correction,
@@ -207,8 +207,8 @@ def hold_trial(variant: str, *, mass_scale=1.0, seconds=10.0, seed=None, motors_
     }
 
 
-def geometry(variant):
-    model, data = load_model(variant)
+def geometry(embodiment):
+    model, data = load_model(embodiment)
     low, high = model_bounds(model, data)
     result = {
         "nq": model.nq,
@@ -221,9 +221,9 @@ def geometry(variant):
         "dimensions_xyz_m": (high - low).tolist(),
         "pelvis_height_m": float(data.xpos[model.body("pelvis").id, 2]),
         "home_com_m": data.subtree_com[model.body("pelvis").id].tolist(),
-        "model_sha256": hashlib.sha256(MODEL_PATHS[variant].read_bytes()).hexdigest(),
+        "model_sha256": hashlib.sha256(MODEL_PATHS[embodiment].read_bytes()).hexdigest(),
     }
-    if variant == "robot":
+    if embodiment == "robot":
         lengths = {}
         for side in ("left", "right"):
             for a, b in (("hip_pitch", "knee"), ("knee", "ankle")):
@@ -242,19 +242,19 @@ def geometry(variant):
 
 def validate():
     trials = []
-    for variant in MODEL_PATHS:
-        trials.append(hold_trial(variant))
+    for embodiment in MODEL_PATHS:
+        trials.append(hold_trial(embodiment))
         for seed in RESET_SEEDS:
-            trials.append(hold_trial(variant, seed=seed, seconds=5))
-        trials.append(hold_trial(variant, motors_off=True, seconds=5))
-        trials.append(hold_trial(variant, mass_scale=PARAMETERS["robot"]["stress_mass_scale"]))
+            trials.append(hold_trial(embodiment, seed=seed, seconds=5))
+        trials.append(hold_trial(embodiment, motors_off=True, seconds=5))
+        trials.append(hold_trial(embodiment, mass_scale=PARAMETERS["robot"]["stress_mass_scale"]))
     return {
-        "schema": "mesozoic.compso-preflight/v2",
+        "schema": "mesozoic.compsognathus-longipes-preflight/v3",
         "protocol": PROTOCOL,
         "validator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "mujoco_version": mujoco.__version__,
         "numpy_version": np.__version__,
-        "geometry": {variant: geometry(variant) for variant in MODEL_PATHS},
+        "geometry": {embodiment: geometry(embodiment) for embodiment in MODEL_PATHS},
         "trials": trials,
         "scope": "Flat-floor fixed-target position-servo standing; ten seeded joint-reset perturbations per model; 15% mass growth for both; no gait, training, push recovery, or hardware validation.",
         "passed": all(
@@ -283,7 +283,7 @@ def main():
                     {
                         k: t[k]
                         for k in (
-                            "variant",
+                            "embodiment",
                             "mass_scale",
                             "seed",
                             "motors_off",

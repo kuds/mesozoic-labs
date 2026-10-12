@@ -457,7 +457,7 @@ class TestTrainResumeIntegration:
         pytest.importorskip("mujoco")
         from environments.shared import train_base
         from environments.shared.config import load_all_stages
-        from environments.trex.scripts.train_sb3 import SPECIES_CONFIG
+        from environments.tyrannosaurus_rex.scripts.train_sb3 import SPECIES_CONFIG
 
         # Smoke budget: skip the 50+30-episode post-training panel and run
         # single-episode evals so the test stays in CI budget.

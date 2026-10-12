@@ -1,6 +1,6 @@
 """The T-Rex stance stage's floor-truth declaration (decision D-D24, 2026-10-06; D-D32, 2026-10-11).
 
-``configs/trex/stance.toml`` moved from ``stance_quality/v1`` to the
+``configs/tyrannosaurus_rex/anatomical/stance.toml`` moved from ``stance_quality/v1`` to the
 floor-truth gate with physics r8, and to the six-heading certificate
 (``stance_quality_heading/v1``, v2's block judged at six whole-scene
 headings) on 2026-10-11.  Its bars were set on the r8 statue's
@@ -252,7 +252,7 @@ def test_the_statue_and_a_flat_forward_loaded_pad_clear_the_cop_bar(curriculum, 
 def test_only_the_trex_and_compsognathus_stances_declare_the_cop_bar():
     """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
     stance's [env], not its [curriculum]).  The compsognathus declares its own bar on its r2 statue (D-D26 after
-    D-D28; ``test_compsognathus_stance_gate_config.py``)."""
+    D-D28; ``test_compsognathus_longipes_stance_gate_config.py``)."""
     from environments.shared.config import SPECIES_NAMES
     from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.stage_manifest import load_stage_manifest

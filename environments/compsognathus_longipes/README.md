@@ -32,11 +32,11 @@ From the repository root with Python 3.11+:
 
 ```bash
 python -m pip install -e ".[test]"
-python -m environments.compsognathus.scripts.view_model --model robot
-python -m environments.compsognathus.scripts.view_model --model biological
-python -m environments.compsognathus.scripts.build_models
-python -m environments.compsognathus.scripts.validate_models --output /tmp/compso-preflight.json
-pytest environments/compsognathus/tests environments/shared/tests/test_mjcf_assets.py
+python -m environments.compsognathus_longipes.scripts.view_model --model robot
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment anatomical
+python -m environments.compsognathus_longipes.scripts.build_models
+python -m environments.compsognathus_longipes.scripts.validate_models --output /tmp/compsognathus_longipes-preflight.json
+pytest environments/compsognathus_longipes/tests environments/shared/tests/test_mjcf_assets.py
 ```
 
 The repository pins **MuJoCo 3.10.0**, used for these checks. The original
@@ -49,10 +49,10 @@ Pictures need Pillow; videos additionally need `imageio` and `imageio-ffmpeg`,
 both in the `viz` extra (`pip install -e ".[viz]"`):
 
 ```bash
-python -m environments.compsognathus.scripts.view_model --compare /tmp/models.png
-python -m environments.compsognathus.scripts.view_model --model robot --snapshot /tmp/robot.png
-python -m environments.compsognathus.scripts.view_model --model robot --head-camera --snapshot /tmp/onboard.png
-python -m environments.compsognathus.scripts.view_model --model robot --video /tmp/standing.mp4 --seconds 5
+python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/models.png
+python -m environments.compsognathus_longipes.scripts.view_model --model robot --snapshot /tmp/robot.png
+python -m environments.compsognathus_longipes.scripts.view_model --model robot --head-camera --snapshot /tmp/onboard.png
+python -m environments.compsognathus_longipes.scripts.view_model --model robot --video /tmp/standing.mp4 --seconds 5
 ```
 
 Headless rendering needs a working OSMesa runtime with `MUJOCO_GL=osmesa`,
@@ -71,7 +71,7 @@ the advancement gate and stop, as intended.
 | Contract | Anatomical proxy | Robot |
 |---|---|---|
 | Stable ID / config directory | `compsognathus` | `compsognathus_robot` |
-| Gymnasium ID | `MesozoicLabs/Compsognathus-v0` | `MesozoicLabs/CompsognathusRobot-v0` |
+| Gymnasium ID | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | `MesozoicLabs/CompsognathusLongipes-Robot-v0` |
 | Observation dimensions | 55 | 46 |
 | Action dimensions | 14 | 12 |
 | Control rate / episode horizon | 50 Hz / 1,000 steps (20 s) | 50 Hz / 1,000 steps (20 s) |
@@ -81,7 +81,7 @@ Actions in `[-1, 1]` specify position residuals about the gravity-preloaded
 `home` controls, with piecewise scaling to each servo's existing limits.
 Zero action holds that pose. The fixed robot head and tail acquire no
 actuators. Since policy interface r3 (`configs/plant_versions.toml` note 15,
-decision D-D26) the anatomical model trains on `CompsognathusBiologicalEnv`,
+decision D-D26) the anatomical model trains on `CompsognathusLongipesAnatomicalEnv`,
 whose ten leg residuals (hip pitch, hip roll, knee, ankle and toe) are
 shaped to `b = 0.1a + 0.9a³` before that scaling (mode
 `home-keyframe-residual-softcubic/v1`): zero is still the home pose and ±1
@@ -104,7 +104,7 @@ pre-scaled to `[-1, 1]`; constant zero under `command_mode = "none"`, the
 mode of every committed stage, per `BEHAVIOR_RECIPES_PLAN.md` §4.6). Since
 policy interface r4 (`configs/plant_versions.toml` note 18, decision D-D31)
 the anatomical model reads no world heading
-(`bipedal-target-heading-free/v1`, `CompsognathusBiologicalEnv._get_obs`):
+(`bipedal-target-heading-free/v1`, `CompsognathusLongipesAnatomicalEnv._get_obs`):
 projected gravity replaces the world pelvis quaternion, the linear velocity
 is in the gravity-aligned heading frame and the target direction in pelvis
 coordinates, so a turn of the whole scene leaves its observation unchanged;
@@ -142,7 +142,7 @@ step), both feet down and loaded, the plantar pad and all three digits of each
 foot loaded, level pads pushed on along their length rather than on an edge
 (the pad's fore-aft centre of pressure, D-D28, 0.70), no drift or re-seat, and
 no actuator held at its limit; the bars and their measured provenance are in
-[`configs/compsognathus/stance.toml`](../../configs/compsognathus/stance.toml).
+[`configs/compsognathus_longipes/anatomical/stance.toml`](../../configs/compsognathus_longipes/anatomical/stance.toml).
 The bars do not see everything: a two-foot bounce that lands softly, a foot
 that lifts for less than half a control step and a fast weight shuttle all
 certify, so check a trained stance's lift-offs by hand
@@ -159,7 +159,7 @@ reward pays the same things: bilateral support, a support-conditioned share of
 the alive bonus, level pads and the animal's own settled stance width on
 loaded feet, the home leg pose and every support geom loaded, and it charges
 floor impacts, airborne substeps and commands parked at their limits or
-chattering; each is a `CompsognathusBiologicalEnv` kwarg that is inert at its
+chattering; each is a `CompsognathusLongipesAnatomicalEnv` kwarg that is inert at its
 default, and recovery inherits them. The robot's post-stage report also writes
 a heading probe (`stance_heading_probe.txt`: the policy and the statue spawned
 turned by ±45° and ±90°), which is report only; a whole-scene row whose
@@ -170,7 +170,7 @@ anatomical stance declared the same probe until the certificate replaced it
 the same day.
 
 The robot uses the mechanical stance criteria from
-[Tyrannosaurus Rex's former stance configuration](../../configs/trex/stance.toml)
+[Tyrannosaurus Rex's former stance configuration](../../configs/tyrannosaurus_rex/anatomical/stance.toml)
 (`stance_quality/v1`):
 at least **40 evaluation episodes**, at least **95%** full-horizon episodes,
 mean unsupported duty at most **2%**, and its one-sided 95% upper confidence
@@ -248,7 +248,7 @@ python -m pip install -e ".[train,test,viz]"
 python -m environments.shared.train --species "Compsognathus Longipes" train --stage 1
 python -m environments.shared.train --species "Compsognathus Longipes (Robot)" curriculum --n-envs 4
 python -m environments.shared.scripts.zero_action_baseline compsognathus compsognathus_robot --episodes 20
-pytest environments/compsognathus/tests environments/shared/tests/test_compsognathus_training.py
+pytest environments/compsognathus_longipes/tests environments/shared/tests/test_compsognathus_longipes_training.py
 ```
 
 The final command includes real, small CPU PPO/SAC runs through all three
@@ -271,7 +271,7 @@ The older `preflight_v3.json` remains historical model evidence.
 
 ## Preserved robot design
 
-`references/compso_rev_b.xml` preserves the original September 6 Rev B model.
+`robot/references/compsognathus_longipes_robot_rev_b.xml` preserves the original September 6 Rev B model.
 The generator verifies its SHA-256 and uses the original first
 double-support pose stored in `data/model_parameters.json`. Body transforms,
 joint signs/ranges and leg/core inertials remain unchanged. The head's
@@ -354,9 +354,9 @@ render, not a generated illustration. To reproduce it or the local envelope
 screen, recover the previous robot XML from the v2 commit:
 
 ```bash
-git show 11d8469fb6973fa5638ce9f491f25f739ece3de9:environments/compsognathus/assets/compsognathus_robot.xml > /tmp/robot_v2.xml
-python -m environments.compsognathus.scripts.render_style_comparison --before /tmp/robot_v2.xml --output /tmp/style.png
-python -m environments.compsognathus.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
+git show 11d8469fb6973fa5638ce9f491f25f739ece3de9:environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml > /tmp/robot_v2.xml
+python -m environments.compsognathus_longipes.scripts.render_style_comparison --before /tmp/robot_v2.xml --output /tmp/style.png
+python -m environments.compsognathus_longipes.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
 ```
 
 `data/sensor_layout.json` defines the mounting frames and signal contract:
@@ -396,7 +396,7 @@ preload is kept unchanged in mass-growth trials. `standing_targets.py`
 reproduces it and rejects torque or control-limit violations.
 
 Robot damping was reduced from the original 0.4 to 0.2 to remove transient
-rocking in the reset trials. The biological leg actuators also use 0.2.
+rocking in the reset trials. The anatomical leg actuators also use 0.2.
 These are simulation tuning results, not measured motor responses. Contact
 time constants are 8 ms for the robot and 6 ms for the anatomical proxy,
 with a 50 µm contact margin; neither is a substitute for material testing.

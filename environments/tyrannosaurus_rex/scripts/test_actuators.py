@@ -4,7 +4,7 @@ Test actuators by applying sinusoidal control signals.
 Useful for verifying joint ranges and actuator gains.
 
 Usage (from the repository root):
-    python -m environments.trex.scripts.test_actuators
+    python -m environments.tyrannosaurus_rex.scripts.test_actuators
 """
 
 from pathlib import Path
@@ -14,7 +14,7 @@ from environments.shared.harnesses.actuators import ActuatorTestConfig, run_actu
 if __name__ == "__main__":
     run_actuator_test(
         ActuatorTestConfig(
-            model_path=Path(__file__).parent.parent / "assets" / "trex.xml",
+            model_path=Path(__file__).parent.parent / "assets" / "tyrannosaurus_rex_anatomical.xml",
             camera_distance=3.0,
         )
     )

@@ -43,10 +43,10 @@ from environments.shared.tests.actuator_bounds_helpers import (
 
 _ROOT = Path(__file__).resolve().parents[2]
 XML_PATHS = {
-    "velociraptor": _ROOT / "velociraptor" / "assets" / "raptor.xml",
-    "trex": _ROOT / "trex" / "assets" / "trex.xml",
-    "brachiosaurus": _ROOT / "brachiosaurus" / "assets" / "brachiosaurus.xml",
-    "dibothrosuchus": _ROOT / "dibothrosuchus" / "assets" / "dibothrosuchus.xml",
+    "velociraptor": _ROOT / "velociraptor" / "assets" / "velociraptor_mongoliensis_anatomical.xml",
+    "trex": _ROOT / "trex" / "assets" / "tyrannosaurus_rex_anatomical.xml",
+    "brachiosaurus": _ROOT / "brachiosaurus" / "assets" / "brachiosaurus_altithorax_anatomical.xml",
+    "dibothrosuchus": _ROOT / "dibothrosuchus" / "assets" / "dibothrosuchus_elaphros_anatomical.xml",
 }
 
 

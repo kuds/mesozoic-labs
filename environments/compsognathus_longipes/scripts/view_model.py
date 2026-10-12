@@ -1,9 +1,9 @@
 """Desktop viewer or actual MuJoCo renders for the two experimental plants.
 
 Examples:
-  python -m environments.compsognathus.scripts.view_model --model robot
-  MUJOCO_GL=osmesa python -m environments.compsognathus.scripts.view_model --compare /tmp/compso.png
-  MUJOCO_GL=osmesa python -m environments.compsognathus.scripts.view_model --model robot --video /tmp/robot.mp4
+  python -m environments.compsognathus_longipes.scripts.view_model --model robot
+  MUJOCO_GL=osmesa python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/compsognathus_longipes.png
+  MUJOCO_GL=osmesa python -m environments.compsognathus_longipes.scripts.view_model --model robot --video /tmp/robot.mp4
 
 Render outputs need Pillow; videos additionally need imageio and imageio-ffmpeg
 (the ``viz`` extra). A headless host needs an EGL or OSMesa runtime. Interactive viewing uses the platform GL
@@ -19,8 +19,8 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.model import load_model, model_bounds, robot_body_ids, set_motors_enabled
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.model import load_model, model_bounds, robot_body_ids, set_motors_enabled
 
 
 def camera_for(model, data, *, side=False, shared=False):
@@ -47,8 +47,8 @@ def comparison(path):
     draw.text(
         (32, 62), "Styled MuJoCo prototypes • authored home poses • equal camera scale", font=body, fill="#bac9cf"
     )
-    for column, variant in enumerate(MODEL_PATHS):
-        model, data = load_model(variant)
+    for column, embodiment in enumerate(MODEL_PATHS):
+        model, data = load_model(embodiment)
         low, high = model_bounds(model, data)
         mass = model.body_mass[robot_body_ids(model)].sum()
         with mujoco.Renderer(model, height=380, width=704) as renderer:
@@ -57,7 +57,7 @@ def comparison(path):
                 canvas.paste(Image.fromarray(renderer.render()), (8 + column * 720, 170 + row * 390))
         x = 24 + column * 720
         draw.text(
-            (x, 106), "ANATOMICAL PROXY" if variant == "biological" else "REV B ROBOT", font=title, fill="#efc06b"
+            (x, 106), "ANATOMICAL PROXY" if embodiment == "anatomical" else "REV B ROBOT", font=title, fill="#efc06b"
         )
         draw.text(
             (x, 145),
@@ -67,7 +67,7 @@ def comparison(path):
         )
     draw.text(
         (32, 964),
-        "Biological: longer tail, digitigrade legs.  Robot: original leg geometry, broad soles, fixed unmotorized tail.",
+        "Anatomical: longer tail, digitigrade legs.  Robot: original leg geometry, broad soles, fixed unmotorized tail.",
         font=body,
         fill="#d4e0e3",
     )

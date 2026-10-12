@@ -33,10 +33,10 @@ pip install -e ".[all]"
 
 ```bash
 # View a model (requires display)
-python environments/velociraptor/scripts/view_model.py
+python environments/velociraptor_mongoliensis/scripts/view_model.py
 
 # Run environment tests
-pytest environments/velociraptor/tests/ -v
+pytest environments/velociraptor_mongoliensis/tests/ -v
 ```
 
 ## Google Colab

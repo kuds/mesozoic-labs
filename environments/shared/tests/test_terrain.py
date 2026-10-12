@@ -16,7 +16,7 @@ from environments.shared.terrain import (
     generate_terrain,
 )
 
-_TREX_XML = Path(__file__).resolve().parents[2] / "trex" / "assets" / "trex.xml"
+_TYRANNOSAURUS_REX_XML = Path(__file__).resolve().parents[2] / "trex" / "assets" / "tyrannosaurus_rex_anatomical.xml"
 
 
 @pytest.fixture
@@ -123,10 +123,10 @@ def test_height_sampler_matches_mujoco_diagonal_triangles(sphere_xml):
 
 
 def test_model_replaces_floor_preserves_dinosaur_and_does_not_mutate_source(small_config):
-    source_before = _TREX_XML.read_bytes()
-    canonical = mujoco.MjModel.from_xml_path(str(_TREX_XML))
+    source_before = _TYRANNOSAURUS_REX_XML.read_bytes()
+    canonical = mujoco.MjModel.from_xml_path(str(_TYRANNOSAURUS_REX_XML))
     terrain = generate_terrain(small_config, run_seed=41)
-    model = build_terrain_model(_TREX_XML, terrain)
+    model = build_terrain_model(_TYRANNOSAURUS_REX_XML, terrain)
     assert model.nhfield == 1
     assert not np.any(model.geom_type == mujoco.mjtGeom.mjGEOM_PLANE)
     assert (model.nq, model.nv, model.nu, model.nsensor, model.nbody, model.ngeom) == (
@@ -139,7 +139,7 @@ def test_model_replaces_floor_preserves_dinosaur_and_does_not_mutate_source(smal
     )
     for name in ("body_mass", "body_inertia", "jnt_range", "actuator_ctrlrange", "key_qpos", "key_ctrl"):
         np.testing.assert_array_equal(getattr(model, name), getattr(canonical, name))
-    assert _TREX_XML.read_bytes() == source_before
+    assert _TYRANNOSAURUS_REX_XML.read_bytes() == source_before
     assert canonical.nhfield == 0
 
 

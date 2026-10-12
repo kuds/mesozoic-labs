@@ -5,7 +5,7 @@ Actions are normalized residuals about the gravity-preloaded ``home`` controls. 
 privileged bipedal state/target layout, followed by the 3-dim body-relative command
 segment (BEHAVIOR_RECIPES_PLAN §4.6; zeros under ``command_mode = "none"``). Since its
 policy interface r4 the anatomical layout is heading-free (``bipedal-target-heading-free/v1``,
-``CompsognathusBiologicalEnv._get_obs``): projected gravity, the heading-frame root
+``CompsognathusLongipesAnatomicalEnv._get_obs``): projected gravity, the heading-frame root
 velocity and the pelvis-frame target direction replace the world quaternion, velocity and
 direction the robot still reads. Camera pixels are available separately; these MLP
 policies are simulation baselines, not onboard policies.
@@ -19,8 +19,8 @@ import gymnasium as gym
 import mujoco
 import numpy as np
 
-from environments.compsognathus import MODEL_PATHS
-from environments.compsognathus.model import robot_body_ids
+from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.model import robot_body_ids
 from environments.shared import reward_functions
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
@@ -28,10 +28,10 @@ from environments.shared.heading_observation import heading_free_root_segments
 from environments.shared.stance_diagnostics import derive_stance_info
 
 
-class CompsognathusEnv(BaseDinoEnv):
+class CompsognathusLongipesEnv(BaseDinoEnv):
     """Balance, push recovery, locomotion and target reaching on the anatomical model."""
 
-    variant = "biological"
+    embodiment = "anatomical"
     supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 1.15
@@ -129,13 +129,13 @@ class CompsognathusEnv(BaseDinoEnv):
         self._initial_prey_dir_2d = np.array([1.0, 0.0])
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
-        nominal_height = 0.218 if self.variant == "robot" else 0.244391440454
+        nominal_height = 0.218 if self.embodiment == "robot" else 0.244391440454
         height_range = healthy_z_range or (0.60 * nominal_height, 1.45 * nominal_height)
         if len(height_range) != 2 or not 0 < height_range[0] < nominal_height < height_range[1]:
             raise ValueError("healthy_z_range must enclose the model's home pelvis height")
 
         super().__init__(
-            str(MODEL_PATHS[self.variant]),
+            str(MODEL_PATHS[self.embodiment]),
             render_mode=render_mode,
             frame_skip=frame_skip,
             max_episode_steps=max_episode_steps,
@@ -325,7 +325,7 @@ class CompsognathusEnv(BaseDinoEnv):
         return np.asarray(renderer.render()).copy()
 
 
-class CompsognathusBiologicalEnv(CompsognathusEnv):
+class CompsognathusLongipesAnatomicalEnv(CompsognathusLongipesEnv):
     """The anatomical model as the species trains it: soft-cubic leg residuals.
 
     Every leg servo saturates at forcerange / kp = 0.05 rad of position error,
@@ -353,7 +353,7 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
     between the recipe's initial sigma and 0.20 is a constraint on
     log_std_init and on any entropy schedule.
 
-    The robot keeps CompsognathusEnv's linear residual and its digests: this
+    The robot keeps CompsognathusLongipesEnv's linear residual and its digests: this
     is policy interface r3 of the anatomical species only (D-D26).  Policy
     interface r4 (D-D31) adds the anatomical-only heading-free ``_get_obs``
     below; the robot keeps the inherited world-frame observation.
@@ -363,12 +363,12 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
     support-conditioned alive bonus, sole flatness and stance width gated on
     each foot's load, leg home pose, support-geom coverage, floor impact,
     airborne substeps, action saturation and jerk); the stance task's weights
-    and their measurements are in ``configs/compsognathus/stance.toml``.  Their
+    and their measurements are in ``configs/compsognathus_longipes/anatomical/stance.toml``.  Their
     ids are resolved in ``__init__``, not in ``_cache_ids``: this SB3-only
     species fingerprints ``_cache_ids`` as part of its policy interface, and a
     reward target is not part of what a checkpoint observes.  The shaped
     residual mask is built there too, so the interface keeps hashing the
-    inherited ``CompsognathusEnv._cache_ids`` (the home ctrl and the contact
+    inherited ``CompsognathusLongipesEnv._cache_ids`` (the home ctrl and the contact
     threshold it sets), and the mask enters the digest as the action mapping's
     ``residual_shaping``.
     """
@@ -419,9 +419,9 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
         target_approach_weight: float = 0.0,
         target_reach_bonus: float = 0.0,
         # Stance-quality terms.  Every default is inert: zero weights (and
-        # alive fraction) reproduce CompsognathusEnv's reward bit for bit.
+        # alive fraction) reproduce CompsognathusLongipesEnv's reward bit for bit.
         # The weights, tolerances and saturation force are named as on
-        # TRexEnv, and so, since D-D27, are the stance-width reference, the
+        # TyrannosaurusRexAnatomicalEnv, and so, since D-D27, are the stance-width reference, the
         # per-foot load gate (foot_terms_min_support_force) and the
         # floor-impact and airborne terms, in this species' own forms (the
         # gate reads support_force_aggregation's load; the impact is capped);
@@ -569,7 +569,7 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
         # The shaped-residual mask, by actuator name.  Built here, not in an
         # override of _cache_ids: this SB3-only species' policy interface
         # hashes the _cache_ids it is handed, and an override would put its own
-        # few lines there in place of CompsognathusEnv._cache_ids, so an edit
+        # few lines there in place of CompsognathusLongipesEnv._cache_ids, so an edit
         # of the parent's (the home ctrl, the contact threshold) would no
         # longer move this interface.  The mask itself is in the digest, as
         # the action mapping's residual_shaping.  The behavior env's model swap
@@ -630,13 +630,13 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
     def _get_obs(self) -> np.ndarray:
         """The bipedal-target-heading-free/v1 observation (55 values; policy interface r4, D-D31).
 
-        CompsognathusEnv's layout with its three world-frame blocks replaced:
+        CompsognathusLongipesEnv's layout with its three world-frame blocks replaced:
         projected gravity for the pelvis quaternion, the root's world linear
         velocity in the gravity-aligned heading frame, and the target
         direction in pelvis coordinates, all from the free root's own
         quaternion qpos[3:7] (environments/shared/heading_observation.py).
         The gyro and accelerometer stay in their own site frame.  Overridden
-        here, not in CompsognathusEnv, so the robot keeps its observation and
+        here, not in CompsognathusLongipesEnv, so the robot keeps its observation and
         its digests.
         """
         relative = self.data.mocap_pos[self._target_mocap_id] - self.data.xpos[self.pelvis_id]
@@ -923,18 +923,18 @@ class CompsognathusBiologicalEnv(CompsognathusEnv):
         return reward, info
 
 
-class CompsognathusRobotEnv(CompsognathusEnv):
+class CompsognathusLongipesRobotEnv(CompsognathusLongipesEnv):
     """The 12-servo robot, with the original fixed head and unpowered tail."""
 
-    variant = "robot"
+    embodiment = "robot"
     _camera_distance = 0.9
 
 
 gym.register(
-    id="MesozoicLabs/Compsognathus-v0",
-    entry_point="environments.compsognathus.envs:CompsognathusBiologicalEnv",
+    id="MesozoicLabs/CompsognathusLongipes-Anatomical-v0",
+    entry_point="environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesAnatomicalEnv",
 )
 gym.register(
-    id="MesozoicLabs/CompsognathusRobot-v0",
-    entry_point="environments.compsognathus.envs:CompsognathusRobotEnv",
+    id="MesozoicLabs/CompsognathusLongipes-Robot-v0",
+    entry_point="environments.compsognathus_longipes.anatomical.env:CompsognathusLongipesRobotEnv",
 )

@@ -14,18 +14,18 @@ here via parametrization.
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.config import load_all_stages, load_stage_config
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 # Parametrise across every implemented species
 SPECIES_ENVS = [
-    pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
-    pytest.param(TRexEnv, "trex", id="trex"),
-    pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
-    pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
+    pytest.param(VelociraptorMongoliensisAnatomicalEnv, "velociraptor", id="velociraptor"),
+    pytest.param(TyrannosaurusRexAnatomicalEnv, "trex", id="trex"),
+    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, "brachiosaurus", id="brachiosaurus"),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, "dibothrosuchus", id="dibothrosuchus"),
 ]
 
 # Expected observation and action dimensions per species.  Phase C
@@ -111,10 +111,10 @@ class TestGymnasiumRegistration:
     @pytest.mark.parametrize(
         "gym_id",
         [
-            "MesozoicLabs/Raptor-v0",
-            "MesozoicLabs/TRex-v0",
-            "MesozoicLabs/Brachio-v0",
-            "MesozoicLabs/Dibothrosuchus-v0",
+            "MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
+            "MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
+            "MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0",
+            "MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
         ],
     )
     def test_gym_make(self, gym_id):

@@ -10,14 +10,14 @@ schema = "mesozoic.stage-manifest/v2"
 
 [[stages]]                       # quiet stance; stance_quality/v2 since physics r3 (D-D25), no r4 stance certified yet
 id = "stance"
-config = "stage1_balance.toml"
+config = "stance.toml"
 legacy_number = 1
 recipe = "stand"
 deliverable = true
 
 [[stages]]
 id = "locomotion"
-config = "stage2_locomotion.toml"
+config = "locomotion.toml"
 legacy_number = 2
 warm_start_from = "stance"
 recipe = "walk"
@@ -25,7 +25,7 @@ deliverable = true
 
 [[stages]]                       # id stays "behavior"; the task name (strike) is the TOML's [stage] name
 id = "behavior"
-config = "stage3_strike.toml"
+config = "strike.toml"
 legacy_number = 3
 warm_start_from = "locomotion"
 recipe = "hunt"

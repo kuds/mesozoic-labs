@@ -18,19 +18,19 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.compsognathus.envs.compsognathus_env import CompsognathusBiologicalEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import mjx_env
 from environments.shared.command_frame import COMMAND_PROBE_VECTOR, COMMAND_WIDTH
 from environments.shared.plant_contract import PlantContractError, load_plant_versions
 from environments.shared.plant_contract.policy_layer import _policy_interface_payload
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 DUAL_BACKEND_SPECIES = (
-    pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
-    pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
+    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, "brachiosaurus", id="brachiosaurus"),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, "dibothrosuchus", id="dibothrosuchus"),
 )
 
 
@@ -70,9 +70,9 @@ def test_plant_contract_probe_exercises_a_non_zero_command_on_both_backends(env_
 @pytest.mark.parametrize(
     ("env_class", "species"),
     (
-        pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
-        pytest.param(TRexEnv, "trex", id="trex"),
-        pytest.param(CompsognathusBiologicalEnv, "compsognathus", id="compsognathus"),
+        pytest.param(VelociraptorMongoliensisAnatomicalEnv, "velociraptor", id="velociraptor"),
+        pytest.param(TyrannosaurusRexAnatomicalEnv, "trex", id="trex"),
+        pytest.param(CompsognathusLongipesAnatomicalEnv, "compsognathus", id="compsognathus"),
     ),
 )
 def test_sb3_only_probe_still_exercises_a_non_zero_command(env_class, species):

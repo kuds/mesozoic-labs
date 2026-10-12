@@ -22,7 +22,7 @@ The test matrix's suites run every directory of pyproject.toml's testpaths
 exactly once, installing the ``test`` extra, under the check names
 ``test (<python>, <suite>)``. At reduced depth the SB3 job's integration step
 leaves out exactly the compsognathus_robot parametrisations of
-test_compsognathus_training.py (decision 10 (a)), which the nightly schedule, a
+test_compsognathus_longipes_training.py (decision 10 (a)), which the nightly schedule, a
 manual dispatch and the ``full-ci`` label run.
 """
 
@@ -41,7 +41,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
-COMPSOGNATHUS_TRAINING = REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_training.py"
+COMPSOGNATHUS_TRAINING = (
+    REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_longipes_training.py"
+)
 
 _HOOK_REPOS = {
     "ruff": "https://github.com/astral-sh/ruff-pre-commit",
@@ -235,19 +237,19 @@ def _selection_at_depth(selection: str, *, full: bool) -> str:
 
 def test_reduced_depth_leaves_out_only_the_robot_training_runs() -> None:
     # Decision 10 (a), CU-14a: pull requests and pushes skip the compsognathus_robot parametrisations of
-    # test_compsognathus_training.py's training tests and keep the compsognathus ones; the full depth runs both.
+    # test_compsognathus_longipes_training.py's training tests and keep the compsognathus ones; the full depth runs both.
     # A bare `not compsognathus_robot` would also drop the robot's parameters in the step's other files.
     job = job_block("test-sb3")
     for full in ("true", "false"):
         assert f'echo "full={full}" >> "$GITHUB_OUTPUT"' in job, f"the SB3 depth step no longer sets full={full}"
     (step,) = [candidate for candidate in job_steps("test-sb3") if "name: Run SB3 integration tests\n" in candidate]
-    assert "environments/shared/tests/test_compsognathus_training.py" in step
+    assert "environments/shared/tests/test_compsognathus_longipes_training.py" in step
     # Either quote style; the selection holds no quote of its own kind.
     ((_, selection),) = re.findall(r"""^\s+-k (["'])(.*)\1 \\$""", step, re.MULTILINE)
     notebook = "not test_actual_notebook_training_stance_and_recovery_reports"
     assert _selection_at_depth(selection, full=True) == notebook
     assert _selection_at_depth(selection, full=False) == (
-        f"{notebook} and not (test_compsognathus_training and compsognathus_robot)"
+        f"{notebook} and not (test_compsognathus_longipes_training and compsognathus_robot)"
     )
     # The -k terms are the module's name and the robot's parameter id, which the compsognathus id does not contain.
     (species,) = [

@@ -383,7 +383,7 @@ function SimulationSection() {
               <div className={styles.codeLine}>&nbsp;</div>
               <div className={styles.codeLine}>
                 <span>env = gym.make(</span>
-                <span className={styles.codeString}>"MesozoicLabs/Raptor-v0"</span>
+                <span className={styles.codeString}>"MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0"</span>
                 <span>)</span>
               </div>
               <div className={styles.codeLine}>
@@ -417,7 +417,7 @@ function SimulationSection() {
           <figure className={styles.previewPane}>
             <div className={styles.previewLabel}>PPO Stage 1 — Balance</div>
             <img
-              src="/img/raptor_balance_ppo.gif"
+              src="/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif"
               alt="Velociraptor learning to balance using PPO reinforcement learning"
               className={styles.previewGif}
             />

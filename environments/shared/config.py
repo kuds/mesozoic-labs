@@ -336,7 +336,7 @@ def load_stage_config(
     else:
         # Every stage reference resolves through the manifest: declared
         # manifests name their config files explicitly (trex's are id-named
-        # as of 2026-08-20 — stance.toml, not stage1_balance.toml), and
+        # as of 2026-08-20 — stance.toml, not stance.toml), and
         # synthesized manifests record the historical stage{N}_* filename
         # they were built from, so manifest-less species are unchanged.
         from .stage_manifest import load_stage_manifest

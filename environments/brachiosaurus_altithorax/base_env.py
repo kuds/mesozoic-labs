@@ -55,7 +55,7 @@ from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
 
 
-class BrachioEnv(BaseDinoEnv):
+class BrachiosaurusAltithoraxAnatomicalEnv(BaseDinoEnv):
     """Brachiosaurus quadrupedal locomotion and food-reaching environment."""
 
     action_mapping = "home-keyframe-residual/v1"
@@ -110,7 +110,7 @@ class BrachioEnv(BaseDinoEnv):
         command_mode: str = "none",
         command_config: DirectionCommandConfig | None = None,
     ):
-        model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
+        model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus_altithorax_anatomical.xml")
 
         # Brachio-specific reward weights
         self.gait_stability_weight = gait_stability_weight
@@ -559,7 +559,7 @@ class BrachioEnv(BaseDinoEnv):
 
 # Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="MesozoicLabs/Brachio-v0",
-    entry_point="environments.brachiosaurus.envs.brachio_env:BrachioEnv",
+    id="MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0",
+    entry_point="environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv",
     max_episode_steps=1000,
 )

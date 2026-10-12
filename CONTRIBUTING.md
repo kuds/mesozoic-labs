@@ -102,7 +102,7 @@ Never edit those files.
 pytest
 
 # Run tests for a specific species
-pytest environments/velociraptor/tests/ -v
+pytest environments/velociraptor_mongoliensis/tests/ -v
 
 # Run with coverage
 pytest --cov=environments --cov-report=term-missing
@@ -172,7 +172,7 @@ Follow this checklist:
 
 4. **Declare the species SB3-only** (`envs/<species>_env.py`):
    - Set the class attribute `supported_training_backends = ("stable-baselines3",)`,
-     as `CompsognathusEnv` does. Stable-Baselines3 is the only training backend
+     as `CompsognathusLongipesEnv` does. Stable-Baselines3 is the only training backend
      (decision D-D17); without the attribute the plant contract treats the
      species as dual-backend and fails with "cannot import MJX plant
      registration"
@@ -189,7 +189,7 @@ Follow this checklist:
      (`docs/PLANT_CONTRACT.md`, "The heading-free observation schema")
 
 5. **Add curriculum configs** (`configs/<species>/`):
-   - Create `stage1_balance.toml`, `stage2_locomotion.toml`, `stage3_<behavior>.toml`
+   - Create `stance.toml`, `locomotion.toml`, `stage3_<behavior>.toml`
    - Follow the TOML structure from an existing species
    - Calibrate `reset_noise_scale` for stage 1 against
      `python environments/shared/scripts/zero_action_baseline.py <species> --sweep-noise`:

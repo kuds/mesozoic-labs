@@ -7,12 +7,12 @@ environments/shared/tests/test_species_integration.py.
 import numpy as np
 import pytest
 
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 
 
 @pytest.fixture
 def env():
-    e = DibothrosuchusEnv()
+    e = DibothrosuchusElaphrosAnatomicalEnv()
     yield e
     e.close()
 
@@ -113,7 +113,7 @@ class TestSnapGating:
         mujoco.mj_forward(env.model, env.data)
 
     def test_no_success_termination_when_bonus_zero(self):
-        env = DibothrosuchusEnv(snap_bonus=0.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=0.0)
         try:
             env.reset(seed=42)
             self._teleport_prey_onto_snout(env)
@@ -124,7 +124,7 @@ class TestSnapGating:
             env.close()
 
     def test_success_termination_when_bonus_positive(self):
-        env = DibothrosuchusEnv(snap_bonus=10.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=10.0)
         try:
             env.reset(seed=42)
             self._teleport_prey_onto_snout(env)
@@ -136,7 +136,7 @@ class TestSnapGating:
             env.close()
 
     def test_snap_reward_paid_on_contact(self):
-        env = DibothrosuchusEnv(snap_bonus=25.0)
+        env = DibothrosuchusElaphrosAnatomicalEnv(snap_bonus=25.0)
         try:
             env.reset(seed=42)
             self._teleport_prey_onto_snout(env)
@@ -240,7 +240,7 @@ class TestResetStaysInsideTheHealthyEnvelope:
     """
 
     def test_height_noise_is_decoupled_from_joint_noise(self):
-        env = DibothrosuchusEnv()
+        env = DibothrosuchusElaphrosAnatomicalEnv()
         try:
             assert env.reset_height_noise_scale is not None, (
                 "this species must set its own metre-scale height jitter; inheriting the "
@@ -256,7 +256,7 @@ class TestResetStaysInsideTheHealthyEnvelope:
 
         kwargs = load_stage_config("dibothrosuchus", 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
-        env = DibothrosuchusEnv(**kwargs)
+        env = DibothrosuchusElaphrosAnatomicalEnv(**kwargs)
         try:
             low, high = env.healthy_z_range
             for seed in range(40):

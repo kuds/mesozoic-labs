@@ -1,3 +1,3 @@
-from .dibothrosuchus_env import DibothrosuchusEnv
+from .dibothrosuchus_env import DibothrosuchusElaphrosAnatomicalEnv
 
-__all__ = ["DibothrosuchusEnv"]
+__all__ = ["DibothrosuchusElaphrosAnatomicalEnv"]

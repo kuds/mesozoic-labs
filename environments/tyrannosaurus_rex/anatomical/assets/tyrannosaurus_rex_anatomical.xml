@@ -8,7 +8,7 @@
        world heading: a 45 deg turn of the whole scene was a small physical
        perturbation (under random commands the joints separated by 0.08
        rad).  The elliptic cone is isotropic, so every heading is physically
-       identical, as on Compsognathus; test_trex_env.py pins both.  The
+       identical, as on Compsognathus; test_anatomical_env.py pins both.  The
        other solver options already match Compsognathus's on MuJoCo 3.10.0
        (Newton, 100 iterations, impratio 1); impratio 10 was measured and
        left out (the statue clean on 25 of 40 seeds, 4 nosedives). -->
@@ -580,14 +580,14 @@
        Under the home controller this settles to pelvis 0.9262 m (0.9260 on
        physics r8) at forward_z -0.027.  Those two numbers are load-bearing
        constants elsewhere and must be re-measured together with any edit here:
-         trex_env.py    target_z, natural_pitch, healthy_z_range, and the
+         tyrannosaurus_rex/base_env.py    target_z, natural_pitch, healthy_z_range, and the
                         settled-pose targets _TAIL_SETTLED_QPOS and
                         _NECK_SETTLED_QPOS
-         configs/trex/stance.toml
+         configs/tyrannosaurus_rex/anatomical/stance.toml
                         nosedive_termination_threshold
-       plus every statue-derived constant the four configs/trex stage files
+       plus every statue-derived constant the four configs/tyrannosaurus_rex/anatomical stage files
        pin with statue_constants_physics_revision, as for any physics edit.
-       environments/trex/tests/test_trex_env.py::TestHeightTargetTracksStance
+       environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestHeightTargetTracksStance
        pins target_z to the settled stance so it cannot drift silently. -->
 
   <keyframe>

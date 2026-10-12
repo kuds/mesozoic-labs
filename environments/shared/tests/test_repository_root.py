@@ -21,7 +21,7 @@ from typing import Iterator
 import environments.shared.plant_contract as plant_contract
 import environments.shared.plant_contract.__main__ as plant_contract_cli
 import environments.shared.result_bundle.constants as result_bundle_constants
-from environments.compsognathus.scripts import calibrate_recovery
+from environments.compsognathus_longipes.scripts import calibrate_recovery
 from environments.shared import config, paths, species_catalog, task_fingerprint, train_behaviors
 from environments.shared.plant_contract import constants as plant_constants
 from environments.shared.plant_contract import versions
@@ -279,10 +279,10 @@ ALLOWED_ROOT_COMPUTATIONS = {
 #: a library module; a new script run by path adds itself here.
 SYS_PATH_BOOTSTRAPS = {
     "conftest.py",
-    "environments/brachiosaurus/scripts/test_env.py",
-    "environments/brachiosaurus/scripts/train_sb3.py",
-    "environments/dibothrosuchus/scripts/test_env.py",
-    "environments/dibothrosuchus/scripts/train_sb3.py",
+    "environments/brachiosaurus_altithorax/scripts/test_env.py",
+    "environments/brachiosaurus_altithorax/scripts/train_sb3.py",
+    "environments/dibothrosuchus_elaphros/scripts/test_env.py",
+    "environments/dibothrosuchus_elaphros/scripts/train_sb3.py",
     "environments/shared/scripts/action_bound_report.py",
     "environments/shared/scripts/actuator_saturation_report.py",
     "environments/shared/scripts/compare_run_diagnostics.py",
@@ -294,11 +294,11 @@ SYS_PATH_BOOTSTRAPS = {
     "environments/shared/scripts/stance_gate_report.py",
     "environments/shared/scripts/zero_action_baseline.py",
     "environments/shared/train.py",
-    "environments/trex/scripts/test_env.py",
-    "environments/trex/scripts/train_sb3.py",
-    "environments/velociraptor/scripts/actuator_saturation_report.py",
-    "environments/velociraptor/scripts/test_env.py",
-    "environments/velociraptor/scripts/train_sb3.py",
+    "environments/tyrannosaurus_rex/scripts/test_env.py",
+    "environments/tyrannosaurus_rex/scripts/train_sb3.py",
+    "environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py",
+    "environments/velociraptor_mongoliensis/scripts/test_env.py",
+    "environments/velociraptor_mongoliensis/scripts/train_sb3.py",
 }
 
 

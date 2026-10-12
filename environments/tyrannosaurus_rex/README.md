@@ -28,7 +28,7 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Tail stability** - Penalizes tail angular velocity
 - **Bite bonus** - Large reward when the fixed head contact geom touches prey
 - **Approach shaping** - Reward for closing distance to prey
-- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TRexEnv` kwarg that is inert at its default and set in `configs/trex/stance.toml`
+- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TyrannosaurusRexAnatomicalEnv` kwarg that is inert at its default and set in `configs/tyrannosaurus_rex/anatomical/stance.toml`
 
 ### Stance gate
 The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (decision D-D32), which
@@ -40,7 +40,7 @@ leg on every physics substep, and the stance passes when the one-sided 95% lower
 and loaded, no drift or chatter, no actuator held at its limit, flat pads (tilt, corner lift and contact points)
 pushed on along their length rather than on an edge (the pad's fore-aft centre of pressure, D-D28), at most one
 re-plant in the settle and no more than 25° of turning; and at most one of the 40 may hop for the whole episode or
-fall. The bars and their measured provenance are in `configs/trex/stance.toml`. The stance stage always spawns at
+fall. The bars and their measured provenance are in `configs/tyrannosaurus_rex/anatomical/stance.toml`. The stance stage always spawns at
 the same heading, so the certificate rolls the panel again with the whole scene (the animal, the prey and the heading
 reward's reference direction) turned −90°, −45°, 45°, 90° and 180°, each heading against the statue rolled at it, and
 passes only when every heading passes v2 and the lower bound on seeds clean at every heading reaches 0.80: the seed-52
@@ -63,29 +63,29 @@ calibration of D-D28's centre-of-pressure bar is its §10.
 pip install -e ".[all]"
 
 # Run environment tests
-python -m pytest environments/trex/tests/ -v
+python -m pytest environments/tyrannosaurus_rex/tests/ -v
 
 # Train stage 1 using its current TOML-configured budget
-python environments/trex/scripts/train_sb3.py train --stage 1
+python environments/tyrannosaurus_rex/scripts/train_sb3.py train --stage 1
 
 # Train the hunt chain (stance -> locomotion -> behavior), reusing an earlier
 # run's certified trunk and training only what is missing above it
-python environments/trex/scripts/train_sb3.py curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+python environments/tyrannosaurus_rex/scripts/train_sb3.py curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
 
 # Train the recovery stage — the second node of the `stand` recipe, a published
 # deliverable judged post-stage against the frozen recovery_quality/v1 gate
-# (configs/trex/recovery.toml, frozen 2026-08-28): the stance task plus scheduled
+# (configs/tyrannosaurus_rex/anatomical/recovery.toml, frozen 2026-08-28): the stance task plus scheduled
 # 165.5 N / 0.20 s external pushes derived from the plant itself. Warm-start from
 # a certified stance checkpoint: the load is refused unless the checkpoint records
 # stance, recovery's declared parent. The `curriculum` command skips this
 # non-advancing node; the notebook runs it with BEHAVIOR = "stand".
-python environments/trex/scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
+python environments/tyrannosaurus_rex/scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 
 # View the model (requires display)
-python environments/trex/scripts/view_model.py
+python environments/tyrannosaurus_rex/scripts/view_model.py
 ```
 
-Behaviors, their warm-start edges (`configs/trex/stages.toml`) and what a run
+Behaviors, their warm-start edges (`configs/tyrannosaurus_rex/anatomical/stages.toml`) and what a run
 reuses are described in [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md);
 the notebook equivalent is `BEHAVIOR` / `TRUNK_FROM` in
 [notebooks/sb3_training.ipynb](../../notebooks/sb3_training.ipynb).
@@ -97,7 +97,7 @@ These use a dedicated runner and separate behavior artifacts.
 ## Environment Details
 
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
-action-to-actuator mapping is `envs/trex_env.py`; actions are normalized to
+action-to-actuator mapping is `environments/tyrannosaurus_rex/base_env.py`; actions are normalized to
 [-1, 1] residuals, where zero commands the complete XML `home` control and
 the endpoints retain access to the full actuator ranges.
 
@@ -124,10 +124,10 @@ trex/
 │   ├── test_env.py             # Environment validation script
 │   └── train_sb3.py            # SB3 PPO training with curriculum
 ├── tests/
-│   ├── test_trex_env.py        # Species-specific env tests
-│   ├── test_trex_rewards.py    # Species-specific reward tests
-│   └── test_static_balance.py  # Static balance tests
+│   ├── test_anatomical_env.py        # Species-specific env tests
+│   ├── test_anatomical_rewards.py    # Species-specific reward tests
+│   └── test_anatomical_static_balance.py  # Static balance tests
 └── README.md
 ```
 
-Hyperparameter configs are at `configs/trex/` in the repo root.
+Hyperparameter configs are at `configs/tyrannosaurus_rex/anatomical/` in the repo root.

@@ -7,16 +7,16 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
+from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import reward_functions as rf
 from environments.shared.base_env import BaseDinoEnv
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 
 def test_base_env_lifecycle():
-    env = RaptorEnv(render_mode="rgb_array")
+    env = VelociraptorMongoliensisAnatomicalEnv(render_mode="rgb_array")
 
     # Test reset
     obs, info = env.reset(seed=42)
@@ -103,7 +103,7 @@ def test_human_render_loads_the_viewer_itself(monkeypatch):
     monkeypatch.delattr(mujoco, "viewer", raising=False)
     monkeypatch.setitem(sys.modules, "mujoco.viewer", types.SimpleNamespace(launch_passive=launch_passive))
 
-    env = RaptorEnv(render_mode="human")
+    env = VelociraptorMongoliensisAnatomicalEnv(render_mode="human")
     env.reset(seed=0)
     for _ in range(2):
         env.step(np.zeros(env.action_space.shape, dtype=np.float32))
@@ -136,7 +136,7 @@ def test_rgb_array_render_does_not_depend_on_the_human_branch(monkeypatch):
             pass
 
     monkeypatch.setattr(mujoco, "Renderer", FakeRenderer)
-    env = RaptorEnv(render_mode="rgb_array")
+    env = VelociraptorMongoliensisAnatomicalEnv(render_mode="rgb_array")
     env.reset(seed=0)
     frame = env.render()
     assert frame.shape == (480, 640, 3)
@@ -144,7 +144,7 @@ def test_rgb_array_render_does_not_depend_on_the_human_branch(monkeypatch):
 
 
 def test_base_env_scale_action():
-    env = RaptorEnv()
+    env = VelociraptorMongoliensisAnatomicalEnv()
 
     # Test action scaling
     action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -214,7 +214,7 @@ class TestSetRewardWeight:
 
     @pytest.fixture
     def env(self):
-        e = RaptorEnv()
+        e = VelociraptorMongoliensisAnatomicalEnv()
         yield e
         e.close()
 
@@ -246,7 +246,7 @@ class TestTruncation:
     """Test episode truncation at max steps."""
 
     def test_truncates_at_max_steps(self):
-        env = RaptorEnv(max_episode_steps=5)
+        env = VelociraptorMongoliensisAnatomicalEnv(max_episode_steps=5)
         env.reset(seed=42)
         for i in range(5):
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -259,7 +259,7 @@ class TestTruncation:
         env.close()
 
     def test_not_truncated_before_max_steps(self):
-        env = RaptorEnv(max_episode_steps=1000)
+        env = VelociraptorMongoliensisAnatomicalEnv(max_episode_steps=1000)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, truncated, _ = env.step(action)
@@ -273,7 +273,7 @@ class TestTruncation:
 class TestActionScaling:
     """Test ``BaseDinoEnv``'s shared midpoint action mapping.
 
-    This used to exercise the mapping through ``BrachioEnv``, which was the
+    This used to exercise the mapping through ``BrachiosaurusAltithoraxAnatomicalEnv``, which was the
     last species inheriting it.  Brachiosaurus moved to the home-keyframe
     residual mapping (plant_versions note 7), so **no species overrides
     ``_scale_action`` with the base implementation any more** and there is no
@@ -286,7 +286,7 @@ class TestActionScaling:
 
     @pytest.fixture
     def env(self):
-        e = BrachioEnv()
+        e = BrachiosaurusAltithoraxAnatomicalEnv()
         yield e
         e.close()
 
@@ -337,7 +337,7 @@ class TestDistanceTracking:
 
     @pytest.fixture
     def env(self):
-        e = RaptorEnv(max_episode_steps=100)
+        e = VelociraptorMongoliensisAnatomicalEnv(max_episode_steps=100)
         yield e
         e.close()
 
@@ -391,7 +391,7 @@ class TestGaitSymmetry:
 
     @pytest.fixture
     def env(self):
-        e = RaptorEnv(gait_symmetry_weight=1.0)
+        e = VelociraptorMongoliensisAnatomicalEnv(gait_symmetry_weight=1.0)
         e.reset(seed=42)
         yield e
         e.close()
@@ -464,10 +464,10 @@ class TestGaitSymmetry:
         assert ratio == 0.0
 
     def test_trex_uses_shared_helper(self):
-        """TRexEnv should use the shared gait symmetry (not the old buggy version)."""
-        from environments.trex.envs.trex_env import TRexEnv
+        """TyrannosaurusRexAnatomicalEnv should use the shared gait symmetry (not the old buggy version)."""
+        from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-        env = TRexEnv(gait_symmetry_weight=1.0)
+        env = TyrannosaurusRexAnatomicalEnv(gait_symmetry_weight=1.0)
         env.reset(seed=42)
         # Verify gait state was initialised
         assert hasattr(env, "_touchdown_sequence")
@@ -480,9 +480,9 @@ class TestQuadrupedGaitSymmetry:
 
     @pytest.fixture
     def env(self):
-        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+        from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
-        e = BrachioEnv(gait_symmetry_weight=1.0)
+        e = BrachiosaurusAltithoraxAnatomicalEnv(gait_symmetry_weight=1.0)
         e.reset(seed=42)
         yield e
         e.close()
@@ -564,12 +564,12 @@ class TestQuadrupedGaitSymmetry:
         assert ratio == 0.0
 
     def test_brachio_uses_quadruped_helper(self, env):
-        """BrachioEnv should use quadrupedal gait state."""
+        """BrachiosaurusAltithoraxAnatomicalEnv should use quadrupedal gait state."""
         assert hasattr(env, "_quad_touchdown_sequence")
         assert env._quad_touchdown_sequence == []
 
     def test_brachio_info_has_all_foot_contacts(self, env):
-        """BrachioEnv step info should include all 4 foot contacts."""
+        """BrachiosaurusAltithoraxAnatomicalEnv step info should include all 4 foot contacts."""
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert "r_foot_contact" in info
@@ -583,7 +583,7 @@ class TestIsSuccessInfo:
     consumes it to record per-episode success rates in evaluations.npz)."""
 
     def test_truncated_episode_reports_is_success_false(self):
-        env = RaptorEnv(max_episode_steps=3)
+        env = VelociraptorMongoliensisAnatomicalEnv(max_episode_steps=3)
         try:
             env.reset(seed=42)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -597,7 +597,7 @@ class TestIsSuccessInfo:
             env.close()
 
     def test_mid_episode_steps_omit_is_success(self):
-        env = RaptorEnv(max_episode_steps=1000)
+        env = VelociraptorMongoliensisAnatomicalEnv(max_episode_steps=1000)
         try:
             env.reset(seed=42)
             action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -612,7 +612,7 @@ class TestScaleActionClipping:
     """_scale_action clips out-of-range actions before mapping to ctrl."""
 
     def test_out_of_range_action_clipped_to_ctrl_range(self):
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             big = np.full(env.action_space.shape, 5.0, dtype=np.float32)
             scaled = env._scale_action(big)
@@ -639,7 +639,7 @@ class TestResetHeightTruncation:
     """
 
     def test_delta_is_bounded_by_distance_to_the_floor(self):
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             low, high = env.healthy_z_range
             base_z = 0.5 * (low + high)
@@ -652,7 +652,7 @@ class TestResetHeightTruncation:
             env.close()
 
     def test_bound_is_symmetric_so_the_mean_spawn_height_is_unchanged(self):
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             low, high = env.healthy_z_range
             base_z = 0.5 * (low + high)
@@ -665,7 +665,7 @@ class TestResetHeightTruncation:
 
     def test_small_deltas_pass_through_untouched(self):
         """Species with ample headroom must be unaffected in practice."""
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             low, high = env.healthy_z_range
             base_z = 0.5 * (low + high)
@@ -676,7 +676,7 @@ class TestResetHeightTruncation:
 
     def test_no_headroom_pins_the_spawn_to_the_keyframe(self):
         """A base height already at the floor yields a deterministic spawn."""
-        env = RaptorEnv()
+        env = VelociraptorMongoliensisAnatomicalEnv()
         try:
             low, _ = env.healthy_z_range
             assert env._bounded_reset_height_delta(low, 1.0) == pytest.approx(0.0)
@@ -684,7 +684,7 @@ class TestResetHeightTruncation:
         finally:
             env.close()
 
-    @pytest.mark.parametrize("env_cls", [RaptorEnv, BrachioEnv])
+    @pytest.mark.parametrize("env_cls", [VelociraptorMongoliensisAnatomicalEnv, BrachiosaurusAltithoraxAnatomicalEnv])
     def test_reset_never_spawns_outside_the_healthy_range(self, env_cls):
         env = env_cls(reset_noise_scale=0.5)
         try:
@@ -697,7 +697,7 @@ class TestResetHeightTruncation:
             env.close()
 
     def test_zero_noise_still_gives_a_deterministic_reset(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=1)
             first = env.data.qpos.copy()
@@ -719,10 +719,10 @@ class TestHeightJitterIsInertSinceGroundSettling:
     """
 
     def test_height_scale_does_not_change_the_post_reset_state(self):
-        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+        from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 
-        quiet = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
-        loud = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+        quiet = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
+        loud = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
         try:
             for seed in (0, 17, 41):
                 quiet.reset(seed=seed)
@@ -737,10 +737,10 @@ class TestHeightJitterIsInertSinceGroundSettling:
             loud.close()
 
     def test_height_scale_does_not_desync_the_rng_stream(self):
-        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+        from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 
-        quiet = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
-        loud = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+        quiet = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
+        loud = DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
         try:
             quiet.reset(seed=3)
             loud.reset(seed=3)
@@ -762,7 +762,7 @@ class TestLowestGroundClearanceDataArgument:
     def test_probe_reads_the_passed_data(self):
         import mujoco
 
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             mujoco.mj_forward(env.model, env.data)
@@ -786,11 +786,11 @@ class TestLowestGroundClearanceDataArgument:
             env.close()
 
     def test_home_clearance_no_longer_depends_on_live_state(self):
-        env = RaptorEnv(reset_noise_scale=0.1)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.1)
         try:
             env.reset(seed=5)
             home_after_reset = env.home_ground_clearance()
-            fresh = RaptorEnv(reset_noise_scale=0.1)
+            fresh = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.1)
             try:
                 assert home_after_reset == fresh.home_ground_clearance()
             finally:
@@ -838,7 +838,15 @@ class TestRewardTermHelpers:
             assert type(info[key]) is np.float64, f"{key} was converted to {type(info[key]).__name__}"
             assert info[key] == value, key
 
-    @pytest.mark.parametrize("env_cls", [TRexEnv, RaptorEnv, BrachioEnv, DibothrosuchusEnv])
+    @pytest.mark.parametrize(
+        "env_cls",
+        [
+            TyrannosaurusRexAnatomicalEnv,
+            VelociraptorMongoliensisAnatomicalEnv,
+            BrachiosaurusAltithoraxAnatomicalEnv,
+            DibothrosuchusElaphrosAnatomicalEnv,
+        ],
+    )
     def test_terms_are_recorded_unconverted_and_returned_in_chain_order(self, env_cls):
         env = env_cls(reset_noise_scale=0.0, **self.WEIGHTS)
         try:
@@ -962,7 +970,7 @@ class TestContactGeom:
         assert self._query([(5, 9), (3, 0), (0, 4)], {3, 4}, 0) == 3
 
     def test_a_live_airborne_body_has_no_floor_contact(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env.data.qpos[2] += 1.0
@@ -972,7 +980,7 @@ class TestContactGeom:
             env.close()
 
     def test_a_live_standing_body_reports_its_first_floor_contact(self):
-        env = RaptorEnv(reset_noise_scale=0.0)
+        env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             mujoco.mj_forward(env.model, env.data)
@@ -996,7 +1004,7 @@ class TestRootTermination:
 
     @pytest.fixture
     def env(self):
-        e = RaptorEnv(reset_noise_scale=0.0)
+        e = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
         e.reset(seed=0)
         yield e
         e.close()
@@ -1022,12 +1030,24 @@ class TestRootTermination:
     @pytest.mark.parametrize(
         "module, class_name, prefix",
         [
-            ("environments.trex.envs.trex_env", "TRexEnv", ["pelvis_height", "tilt_angle", "forward_z"]),
-            ("environments.velociraptor.envs.raptor_env", "RaptorEnv", ["pelvis_height", "tilt_angle", "forward_z"]),
-            ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv", ["torso_height", "tilt_angle"]),
             (
-                "environments.dibothrosuchus.envs.dibothrosuchus_env",
-                "DibothrosuchusEnv",
+                "environments.tyrannosaurus_rex.anatomical.env",
+                "TyrannosaurusRexAnatomicalEnv",
+                ["pelvis_height", "tilt_angle", "forward_z"],
+            ),
+            (
+                "environments.velociraptor_mongoliensis.anatomical.env",
+                "VelociraptorMongoliensisAnatomicalEnv",
+                ["pelvis_height", "tilt_angle", "forward_z"],
+            ),
+            (
+                "environments.brachiosaurus_altithorax.anatomical.env",
+                "BrachiosaurusAltithoraxAnatomicalEnv",
+                ["torso_height", "tilt_angle"],
+            ),
+            (
+                "environments.dibothrosuchus_elaphros.anatomical.env",
+                "DibothrosuchusElaphrosAnatomicalEnv",
                 ["torso_height", "tilt_angle", "forward_z"],
             ),
         ],
@@ -1046,7 +1066,7 @@ class TestRootTermination:
         finally:
             env.close()
 
-    @pytest.mark.parametrize("env_cls", [TRexEnv, DibothrosuchusEnv])
+    @pytest.mark.parametrize("env_cls", [TyrannosaurusRexAnatomicalEnv, DibothrosuchusElaphrosAnatomicalEnv])
     @pytest.mark.parametrize(
         "offset, reason", [pytest.param(-0.01, "nosedive", id="just_past"), pytest.param(0.01, None, id="just_short")]
     )

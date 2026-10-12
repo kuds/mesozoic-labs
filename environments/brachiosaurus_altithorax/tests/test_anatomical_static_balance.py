@@ -18,7 +18,7 @@ import mujoco
 import numpy as np
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.shared.tests.static_balance_helpers import (
     ActuatorDisabledPassiveBase,
     JointLimitsAtHomeBase,
@@ -35,7 +35,7 @@ ROOT_BODY = "torso"
 
 @pytest.fixture
 def env():
-    e = BrachioEnv(reset_noise_scale=0.0)
+    e = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()

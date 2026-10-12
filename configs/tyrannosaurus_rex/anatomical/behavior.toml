@@ -92,7 +92,7 @@ min_success_lcb = 0.5                   # PROVISIONAL (pre-pilot; decision D-B2)
                                         # evaluation_selected.csv, hash-bound to the handoff checkpoint. At
                                         # n = 30 it needs 20/30 (LCB 0.5006; 19/30 bounds at 0.4669 and
                                         # fails); at n = 40, 26/40 (0.5081; 25/40 at 0.4828). The committed
-                                        # 2026-03 result (results/trex/ppo/summary.json stage 3,
+                                        # 2026-03 result (results/tyrannosaurus_rex/anatomical/ppo/summary.json stage 3,
                                         # mean_success_rate 0.9667) recomputes to 29/30 -> LCB 0.8514 from
                                         # its rounded mean: a RECOMPUTATION, not a re-judgement -- that row
                                         # holds no per-episode evidence and was judged at min_success_rate
@@ -135,8 +135,8 @@ collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's rewar
                                         # and the rail (round(0.6 x 601.94) = 361) carry: the move is 0.2
                                         # against a 27.7 standard error, and this stage's [env] sets none of
                                         # the stance shaping keys. Carries through the stance follow-up
-                                        # (D-D27) too: this [env] sets none of its TRexEnv kwargs, whose
-                                        # defaults keep the r8 reward bit for bit (test_trex_rewards.py; the
+                                        # (D-D27) too: this [env] sets none of its TyrannosaurusRexAnatomicalEnv kwargs, whose
+                                        # defaults keep the r8 reward bit for bit (test_anatomical_rewards.py; the
                                         # digest snapshot's trex behavior reward summary did not move).
                                         # Re-measured on physics r9 (plant_versions note 16) with the same
                                         # command: 593.41 +/- 187.19 with 39/40 full horizon (seed 3081

@@ -17,7 +17,7 @@ brachiosaurus`` for the full per-actuator numbers on the current model.
 import mujoco
 import pytest
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.shared.tests.actuator_bounds_helpers import (
     PositionActuatorConfigurationBase,
     clip_fraction,
@@ -35,7 +35,7 @@ LEG_PREFIXES = ("fr_", "fl_", "rr_", "rl_")
 
 @pytest.fixture(scope="module")
 def model():
-    env = BrachioEnv()
+    env = BrachiosaurusAltithoraxAnatomicalEnv()
     try:
         yield env.model
     finally:
@@ -76,7 +76,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
 class TestHomeControlSaturation:
     def test_no_saturation_during_home_control_settle(self):
         """Settling under XML home-keyframe controls never clips forces."""
-        env = BrachioEnv()
+        env = BrachiosaurusAltithoraxAnatomicalEnv()
         try:
             frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -96,7 +96,7 @@ class TestDynamicSaturation:
         see docs/investigations/STAGE2_RECOMMENDATIONS.md before
         re-sizing.
         """
-        env = BrachioEnv()
+        env = BrachiosaurusAltithoraxAnatomicalEnv()
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000)

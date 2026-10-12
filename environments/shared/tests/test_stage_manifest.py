@@ -39,9 +39,9 @@ INTEGER_SPECIES = ["velociraptor", "brachiosaurus", "dibothrosuchus"]
 V1 = f'schema = "{STAGE_MANIFEST_SCHEMA_V1}"\n'
 V2 = f'schema = "{STAGE_MANIFEST_SCHEMA_V2}"\n'
 
-#: configs/trex/stages.toml exactly as committed before Phase A (2026-08-20
+#: configs/tyrannosaurus_rex/anatomical/stages.toml exactly as committed before Phase A (2026-08-20
 #: through 2026-09-05): the frozen v1 body the bit-identity pins read.
-TREX_V1_BODY = """# T-Rex stage manifest (mesozoic.stage-manifest/v1; STAGE1_SPLIT_PLAN §4,
+TYRANNOSAURUS_REX_V1_BODY = """# T-Rex stage manifest (mesozoic.stage-manifest/v1; STAGE1_SPLIT_PLAN §4,
 # adopted 2026-08-15). The curriculum has FOUR stages ordered by position;
 # a stage's identity is its semantic id, not its number. legacy_number is
 # the integer the stage was known as before this manifest existed — old
@@ -91,7 +91,7 @@ OPEN_ID_BODY = (
 )
 
 _STUB_CONFIGS = (
-    "stage1_balance.toml",
+    "stance.toml",
     "stance.toml",
     "recovery.toml",
     "locomotion.toml",
@@ -179,7 +179,7 @@ class TestDeclaredLegacyTrio:
 class TestSchemaVersions:
     def test_v1_and_v2_both_load_and_v3_is_fatal(self, tmp_path):
         assert STAGE_MANIFEST_SCHEMAS == (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
-        entry = '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nlegacy_number = 1\n'
+        entry = '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
         root = _write_manifest(tmp_path / "v1", "x", V1 + entry)
         assert load_stage_manifest("x", configs_dir=root).schema == STAGE_MANIFEST_SCHEMA_V1
         root = _write_manifest(tmp_path / "v2", "x", V2 + entry + "deliverable = true\n")
@@ -191,7 +191,7 @@ class TestSchemaVersions:
     @pytest.mark.parametrize("key", ['warm_start_from = "stance"', "deliverable = true", 'recipe = "stand"'])
     def test_v1_body_with_v2_keys_is_fatal(self, tmp_path, key):
         """A v1 file cannot smuggle an edge past a reader that would derive one."""
-        body = V1 + '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nlegacy_number = 1\n' + key + "\n"
+        body = V1 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n' + key + "\n"
         root = _write_manifest(tmp_path, "x", body)
         with pytest.raises(StageManifestError, match="declare schema 'mesozoic.stage-manifest/v2'"):
             load_stage_manifest("x", configs_dir=root)
@@ -206,7 +206,7 @@ class TestStageIdVocabulary:
 
     @pytest.mark.parametrize("stage_id", ["stage4", "stage10"])
     def test_legacy_label_shape_is_refused_as_an_id(self, tmp_path, stage_id):
-        body = V2 + f'[[stages]]\nid = "{stage_id}"\nconfig = "stage1_balance.toml"\ndeliverable = true\n'
+        body = V2 + f'[[stages]]\nid = "{stage_id}"\nconfig = "stance.toml"\ndeliverable = true\n'
         root = _write_manifest(tmp_path, "x", body)
         with pytest.raises(StageManifestError, match="label shape"):
             load_stage_manifest("x", configs_dir=root)
@@ -216,7 +216,7 @@ class TestLegacyReadsAreBitIdentical:
     """Plan §8.1: the v2 reader on a v1 or synthesized manifest changes nothing."""
 
     def test_v1_trex_body_derives_previous_advancing_edges_and_one_deliverable(self, tmp_path):
-        root = _write_manifest(tmp_path, "trex", TREX_V1_BODY)
+        root = _write_manifest(tmp_path, "trex", TYRANNOSAURUS_REX_V1_BODY)
         legacy = load_stage_manifest("trex", configs_dir=root)
         committed = load_stage_manifest("trex")
         assert legacy.schema == STAGE_MANIFEST_SCHEMA_V1 and not legacy.synthesized
@@ -246,7 +246,9 @@ class TestLegacyReadsAreBitIdentical:
         assert [entry.id for entry in manifest.advancing_stages] == ["stance", "locomotion", "behavior"]
 
     def test_committed_v2_files_are_the_only_place_stand_and_walk_become_deliverables(self, tmp_path):
-        legacy_trex = load_stage_manifest("trex", configs_dir=_write_manifest(tmp_path / "t", "trex", TREX_V1_BODY))
+        legacy_trex = load_stage_manifest(
+            "trex", configs_dir=_write_manifest(tmp_path / "t", "trex", TYRANNOSAURUS_REX_V1_BODY)
+        )
         synthesized = load_stage_manifest("x", configs_dir=_write_manifest(tmp_path / "s", "x", "", synthesized=True))
         assert [entry.id for entry in legacy_trex.deliverables] == ["behavior"]
         assert [entry.id for entry in synthesized.deliverables] == ["behavior"]
@@ -281,7 +283,9 @@ class TestLegacyReadsAreBitIdentical:
 
     def test_derived_edge_is_non_none_exactly_when_position_gt_1(self, tmp_path):
         """The entry-shaping bit-identity proof (plan §8.3): has_parent == position > 1."""
-        legacy_trex = load_stage_manifest("trex", configs_dir=_write_manifest(tmp_path / "t", "trex", TREX_V1_BODY))
+        legacy_trex = load_stage_manifest(
+            "trex", configs_dir=_write_manifest(tmp_path / "t", "trex", TYRANNOSAURUS_REX_V1_BODY)
+        )
         synthesized = load_stage_manifest("x", configs_dir=_write_manifest(tmp_path / "s", "x", "", synthesized=True))
         for manifest in (legacy_trex, synthesized):
             assert [entry.has_parent for entry in manifest.stages] == [entry.position > 1 for entry in manifest.stages]
@@ -295,7 +299,7 @@ class TestFailClosedValidation:
 
     @pytest.mark.parametrize("stage_id", ["Sprint", "4x", "", "stage4", "stance-2"])
     def test_malformed_stage_ids_are_fatal(self, tmp_path, stage_id):
-        body = V2 + f'[[stages]]\nid = "{stage_id}"\nconfig = "stage1_balance.toml"\ndeliverable = true\n'
+        body = V2 + f'[[stages]]\nid = "{stage_id}"\nconfig = "stance.toml"\ndeliverable = true\n'
         root = _write_manifest(tmp_path, "trex", body)
         with pytest.raises(StageManifestError, match="must match|label shape"):
             load_stage_manifest("trex", configs_dir=root)
@@ -308,14 +312,14 @@ class TestFailClosedValidation:
 
     def test_rewriting_history_is_fatal(self, tmp_path):
         """legacy_number 2 IS locomotion; a manifest cannot reassign it."""
-        body = V1 + '[[stages]]\nid = "behavior"\nconfig = "stage1_balance.toml"\nlegacy_number = 2\n'
+        body = V1 + '[[stages]]\nid = "behavior"\nconfig = "stance.toml"\nlegacy_number = 2\n'
         root = _write_manifest(tmp_path, "trex", body)
         with pytest.raises(StageManifestError, match="must not rewrite history"):
             load_stage_manifest("trex", configs_dir=root)
 
     def test_reordering_legacy_stages_is_fatal(self, tmp_path):
         body = (
-            V1 + '[[stages]]\nid = "locomotion"\nconfig = "stage1_balance.toml"\nlegacy_number = 2\n'
+            V1 + '[[stages]]\nid = "locomotion"\nconfig = "stance.toml"\nlegacy_number = 2\n'
             '[[stages]]\nid = "stance"\nconfig = "recovery.toml"\nlegacy_number = 1\n'
         )
         root = _write_manifest(tmp_path, "trex", body)
@@ -324,7 +328,7 @@ class TestFailClosedValidation:
 
     def test_duplicate_ids_are_fatal(self, tmp_path):
         body = (
-            V1 + '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nlegacy_number = 1\n'
+            V1 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
             '[[stages]]\nid = "stance"\nconfig = "recovery.toml"\n'
         )
         root = _write_manifest(tmp_path, "trex", body)
@@ -332,13 +336,13 @@ class TestFailClosedValidation:
             load_stage_manifest("trex", configs_dir=root)
 
     def test_unknown_entry_keys_are_fatal(self, tmp_path):
-        body = V1 + '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nnumber = 1\n'
+        body = V1 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nnumber = 1\n'
         root = _write_manifest(tmp_path, "trex", body)
         with pytest.raises(StageManifestError, match="unknown keys"):
             load_stage_manifest("trex", configs_dir=root)
         # The three v2 keys are accepted under v2 and fatal under v1.
         v2_entry = (
-            '[[stages]]\nid = "stance"\nconfig = "stage1_balance.toml"\nlegacy_number = 1\ndeliverable = true\n'
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
             'recipe = "stand"\n'
             '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\nwarm_start_from = "stance"\n'
         )
@@ -641,11 +645,11 @@ PERTURBATION_KEYS = [
 ]
 #: The T-Rex keys recovery.toml writes out with stance's values rather than
 #: inheriting them (the cleanup plan's CU-13 row).
-TREX_REDECLARED_ENV_KEYS = ["foot_contact_gate", "foot_contact_weight", "foot_contact_saturation_force"]
+TYRANNOSAURUS_REX_REDECLARED_ENV_KEYS = ["foot_contact_gate", "foot_contact_weight", "foot_contact_saturation_force"]
 #: The T-Rex [env] keys recovery.toml overrides with ITS OWN value, in place
 #: (decision D-D27): the settled stance-width capture moves before the first
 #: push, which lands at 200 +- 50 steps.
-TREX_OVERRIDDEN_ENV_KEYS = {"stance_width_settle_steps": 140}
+TYRANNOSAURUS_REX_OVERRIDDEN_ENV_KEYS = {"stance_width_settle_steps": 140}
 
 
 def _ordered(value):
@@ -702,8 +706,8 @@ class TestRecoveryStageConfig:
     def test_the_file_declares_only_its_deltas(self, species):
         recovery = _raw_stage_toml(species, "recovery")
         stance = _raw_stage_toml(species, "stance")
-        redeclared = TREX_REDECLARED_ENV_KEYS if species == "trex" else []
-        overridden = TREX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
+        redeclared = TYRANNOSAURUS_REX_REDECLARED_ENV_KEYS if species == "trex" else []
+        overridden = TYRANNOSAURUS_REX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
         assert list(recovery) == ["extends", "stage", "env", "ppo", "curriculum"]
         assert list(recovery["stage"]) == ["name", "description"]
         assert list(recovery["env"]) == redeclared + list(overridden) + PERTURBATION_KEYS
@@ -720,7 +724,7 @@ class TestRecoveryStageConfig:
         recovery = load_stage_config(species, "recovery")
         assert (recovery["name"], recovery["description"]) != (stance["name"], stance["description"])
         perturbation = [(key, recovery["env_kwargs"][key]) for key in PERTURBATION_KEYS]
-        overridden = TREX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
+        overridden = TYRANNOSAURUS_REX_OVERRIDDEN_ENV_KEYS if species == "trex" else {}
         expected = [(key, overridden.get(key, value)) for key, value in stance["env_kwargs"].items()]
         assert _ordered(recovery["env_kwargs"]) == expected + perturbation
 
@@ -765,7 +769,7 @@ class TestRecoveryStageConfig:
 
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
-        recovery = tomllib.load(open("configs/trex/recovery.toml", "rb"))
+        recovery = tomllib.load(open("configs/tyrannosaurus_rex/anatomical/recovery.toml", "rb"))
         curriculum = recovery["curriculum"]
         # Frozen 2026-08-28 (plan P5): the none/v1 placeholder is gone and the
         # declared kind validates whether or not the run advances. Advancement

@@ -19,9 +19,9 @@ from environments.shared.tests.reward_test_helpers import (
     assert_smoothness_penalty_for_action_change,
     assert_smoothness_zero_on_first_step,
 )
-from environments.trex.envs.trex_env import TRexEnv
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-#: The stance follow-up's TRexEnv kwargs (decision D-D27), all inert at their defaults.
+#: The stance follow-up's TyrannosaurusRexAnatomicalEnv kwargs (decision D-D27), all inert at their defaults.
 _FOLLOWUP_KEYS = frozenset(
     {
         "stance_width_reference",
@@ -37,7 +37,7 @@ _FOLLOWUP_KEYS = frozenset(
 
 @pytest.fixture
 def env():
-    e = TRexEnv()
+    e = TyrannosaurusRexAnatomicalEnv()
     yield e
     e.close()
 
@@ -125,7 +125,7 @@ class TestTRexRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_zero_bite_bonus_gives_no_bite_reward(self):
-        env = TRexEnv(bite_bonus=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(bite_bonus=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -133,7 +133,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_high_alive_bonus_dominates(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             alive_bonus=100.0,
             forward_vel_weight=0.0,
             bite_approach_weight=0.0,
@@ -147,7 +147,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_posture_weight_zeroes_posture_reward(self):
-        env = TRexEnv(posture_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(posture_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -155,7 +155,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_gait_weight_zeroes_gait_reward(self):
-        env = TRexEnv(gait_symmetry_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(gait_symmetry_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -163,7 +163,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_smoothness_weight_zeroes_smoothness_reward(self):
-        env = TRexEnv(smoothness_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(smoothness_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)
@@ -173,7 +173,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_head_proximity_weight_zeroes_head_proximity_reward(self):
-        env = TRexEnv(bite_head_proximity_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(bite_head_proximity_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -181,7 +181,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_positive_head_proximity_weight_gives_reward(self):
-        env = TRexEnv(bite_head_proximity_weight=1.0)
+        env = TyrannosaurusRexAnatomicalEnv(bite_head_proximity_weight=1.0)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
@@ -191,7 +191,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_height_weight_zeroes_height_reward(self):
-        env = TRexEnv(height_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(height_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -200,7 +200,7 @@ class TestTRexRewardWeightEffects:
 
     def test_nonzero_height_weight_gives_positive_reward(self):
         """Height reward should be positive when the T-Rex is standing."""
-        env = TRexEnv(height_weight=1.0)
+        env = TyrannosaurusRexAnatomicalEnv(height_weight=1.0)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, terminated, _, info = env.step(action)
@@ -209,7 +209,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_new_stance_rewards_default_to_zero(self):
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
@@ -225,7 +225,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_spin_weight_zeroes_spin_reward(self):
-        env = TRexEnv(spin_penalty_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(spin_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -233,7 +233,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_nonzero_spin_weight_gives_nonpositive_reward(self):
-        env = TRexEnv(spin_penalty_weight=0.5)
+        env = TyrannosaurusRexAnatomicalEnv(spin_penalty_weight=0.5)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -242,7 +242,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_drift_weight_zeroes_drift_reward(self):
-        env = TRexEnv(drift_penalty_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(drift_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -250,7 +250,7 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_zero_backward_vel_weight_zeroes_backward_reward(self):
-        env = TRexEnv(backward_vel_penalty_weight=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(backward_vel_penalty_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -259,7 +259,7 @@ class TestTRexRewardWeightEffects:
 
     def test_actuator_count(self):
         """15 actuators: 3 neck/head + 8 legs + 4 tail (no arms; toes passive)."""
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         assert env.model.nu == 15, f"Expected 15 actuators, got {env.model.nu}"
         assert env.action_space.shape == (15,)
         env.close()
@@ -270,7 +270,7 @@ class TestCurriculumStageRewards:
 
     def test_stage1_balance_no_forward_reward(self):
         """Stage 1 config disables forward velocity reward."""
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             forward_vel_weight=0.0,
             bite_bonus=0.0,
             bite_approach_weight=0.0,
@@ -284,7 +284,7 @@ class TestCurriculumStageRewards:
 
     def test_stage3_bite_has_approach_shaping(self):
         """Stage 3 config enables approach shaping (delta-based)."""
-        env = TRexEnv(bite_approach_weight=10.0)
+        env = TyrannosaurusRexAnatomicalEnv(bite_approach_weight=10.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         env.step(action)
@@ -297,7 +297,7 @@ class TestCurriculumStageRewards:
 
     def test_stage2_locomotion_has_heading_and_gait(self):
         """Stage 2 enables heading alignment and gait symmetry."""
-        env = TRexEnv(heading_weight=0.5, gait_symmetry_weight=0.3)
+        env = TyrannosaurusRexAnatomicalEnv(heading_weight=0.5, gait_symmetry_weight=0.3)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -316,7 +316,7 @@ class TestStageOneStanceRewardPrimitives:
         return info
 
     def test_bilateral_support_is_bounded_and_uses_weaker_foot(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             bilateral_support_weight=2.0,
             foot_contact_saturation_force=100.0,
             reset_noise_scale=0.0,
@@ -350,7 +350,7 @@ class TestStageOneStanceRewardPrimitives:
         ],
     )
     def test_foot_load_balance_is_normalized(self, forces, expected_imbalance):
-        env = TRexEnv(foot_load_balance_weight=2.0, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(foot_load_balance_weight=2.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env._foot_contact_forces = lambda: forces
@@ -361,7 +361,7 @@ class TestStageOneStanceRewardPrimitives:
             env.close()
 
     def test_alive_bonus_can_be_partially_conditioned_on_support(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             alive_bonus=2.0,
             support_conditioned_alive_fraction=0.25,
             foot_contact_saturation_force=100.0,
@@ -380,7 +380,7 @@ class TestStageOneStanceRewardPrimitives:
 
     def test_leg_home_pose_is_soft_and_uses_authored_keyframe(self):
         tolerance = 0.35
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             leg_home_pose_weight=3.0,
             leg_home_pose_tolerance=tolerance,
             reset_noise_scale=0.0,
@@ -403,7 +403,7 @@ class TestStageOneStanceRewardPrimitives:
 
     def test_neck_posture_is_soft_and_uses_authored_keyframe(self):
         tolerance = 0.25
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             neck_posture_weight=2.0,
             neck_posture_tolerance=tolerance,
             reset_noise_scale=0.0,
@@ -425,7 +425,7 @@ class TestStageOneStanceRewardPrimitives:
 
     def test_settled_neck_reference_targets_the_statue_not_the_keyframe(self):
         tolerance = 0.25
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             neck_posture_weight=2.0,
             neck_posture_tolerance=tolerance,
             neck_posture_reference="settled",
@@ -433,7 +433,7 @@ class TestStageOneStanceRewardPrimitives:
         )
         try:
             env.reset(seed=0)
-            settled = np.asarray(TRexEnv._NECK_SETTLED_QPOS)
+            settled = np.asarray(TyrannosaurusRexAnatomicalEnv._NECK_SETTLED_QPOS)
             np.testing.assert_array_equal(env._neck_home_qpos, settled)
             # The noise-free reset holds the keyframe's zeros, a full servo
             # sag away from the settled target.
@@ -453,7 +453,9 @@ class TestStageOneStanceRewardPrimitives:
 
     def test_foot_flatness_averages_a_gaussian_of_each_pad_tilt(self):
         tolerance = 3.0
-        env = TRexEnv(foot_flatness_weight=2.0, foot_flatness_tolerance_deg=tolerance, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(
+            foot_flatness_weight=2.0, foot_flatness_tolerance_deg=tolerance, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             level_info = self._reward_info(env)
@@ -474,7 +476,7 @@ class TestStageOneStanceRewardPrimitives:
     @pytest.mark.parametrize("axis", [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)], ids=["roll", "pitch"])
     def test_sole_tilt_reads_the_plantar_pad_frames(self, axis):
         """Tipping the whole animal by a known angle tips both level pads by exactly that angle."""
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             angle = np.radians(4.0)
@@ -486,7 +488,9 @@ class TestStageOneStanceRewardPrimitives:
 
     def test_stance_width_is_a_gaussian_around_the_home_keyframe_width(self):
         tolerance = 0.05
-        env = TRexEnv(stance_width_weight=2.0, stance_width_tolerance_m=tolerance, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(
+            stance_width_weight=2.0, stance_width_tolerance_m=tolerance, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             # Computed plant-side from the home keyframe's foot sites.
@@ -507,7 +511,7 @@ class TestStageOneStanceRewardPrimitives:
             env.close()
 
     def test_stance_width_is_free_of_heading(self):
-        env = TRexEnv(reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             home_width = env._stance_width(env.data)
@@ -565,7 +569,7 @@ class TestStageOneStanceRewardPrimitives:
             "reward_speed",
             "reward_idle",
         )
-        env = TRexEnv(**kwargs)
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
             assert env.neck_posture_reference == "keyframe"
             np.testing.assert_array_equal(
@@ -628,7 +632,7 @@ class TestStageOneStanceRewardPrimitives:
             "reward_speed",
             "reward_idle",
         )
-        env = TRexEnv(**kwargs)
+        env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
             assert (env.stance_width_reference, env.action_penalty_source) == ("keyframe", "filtered")
             assert env.foot_terms_min_support_force == env.floor_impact_weight == env.airborne_substep_weight == 0.0
@@ -650,7 +654,7 @@ class TestStageOneStanceRewardPrimitives:
             env.close()
 
     def test_head_clearance_is_smooth_and_saturates_at_target(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             head_clearance_target=0.60,
             head_clearance_tolerance=0.48,
         )
@@ -667,8 +671,8 @@ class TestStageOneStanceRewardPrimitives:
     def test_target_centered_height_is_opt_in(self):
         tolerance = 0.10
         target_z = 0.9260
-        legacy = TRexEnv(height_weight=2.0, reset_noise_scale=0.0)
-        centered = TRexEnv(
+        legacy = TyrannosaurusRexAnatomicalEnv(height_weight=2.0, reset_noise_scale=0.0)
+        centered = TyrannosaurusRexAnatomicalEnv(
             height_weight=2.0,
             height_target_tolerance=tolerance,
             reset_noise_scale=0.0,
@@ -718,7 +722,7 @@ class TestStageOneStanceRewardPrimitives:
     )
     def test_invalid_stance_settings_fail_fast(self, kwargs, message):
         with pytest.raises(ValueError, match=message):
-            TRexEnv(**kwargs)
+            TyrannosaurusRexAnatomicalEnv(**kwargs)
 
 
 class TestStanceFollowupTerms:
@@ -731,7 +735,7 @@ class TestStanceFollowupTerms:
         return info
 
     def test_settled_width_reference_captures_the_animals_own_width_and_pays_only_after(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             stance_width_weight=2.0,
             stance_width_reference="settled",
             stance_width_settle_steps=5,
@@ -763,7 +767,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_a_horizon_shorter_than_the_settle_never_pays_the_settled_width(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             stance_width_weight=1.0, stance_width_reference="settled", max_episode_steps=40, reset_noise_scale=0.0
         )
         try:
@@ -775,7 +779,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_keyframe_reference_pays_from_the_first_step(self):
-        env = TRexEnv(stance_width_weight=2.0, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(stance_width_weight=2.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env._step_count = 1
@@ -786,14 +790,14 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_target_is_defined_before_the_first_reset(self):
-        env = TRexEnv(stance_width_reference="settled")
+        env = TyrannosaurusRexAnatomicalEnv(stance_width_reference="settled")
         try:
             assert env._stance_width_target == env._home_stance_width
         finally:
             env.close()
 
     def test_load_gate_drops_an_unloaded_foots_flatness_share_and_the_width_term(self):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             foot_flatness_weight=2.0,
             stance_width_weight=1.0,
             foot_terms_min_support_force=168.0,
@@ -827,7 +831,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_ungated_terms_ignore_the_load(self):
-        env = TRexEnv(foot_flatness_weight=2.0, stance_width_weight=1.0, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(foot_flatness_weight=2.0, stance_width_weight=1.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env._sole_tilts_deg = lambda: np.array([0.0, 0.0])
@@ -839,7 +843,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_body_weight_is_the_whole_animal(self):
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             # 85.72 kg x 9.81: stance.toml's foot_load_balance_min_support_force divides the same weight.
             assert env._body_weight_n == pytest.approx(840.9, abs=0.1)
@@ -847,7 +851,9 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_floor_impact_prices_the_peak_above_the_threshold_linearly(self):
-        env = TRexEnv(floor_impact_weight=2.0, floor_impact_threshold_bw=1.4, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(
+            floor_impact_weight=2.0, floor_impact_threshold_bw=1.4, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             weight = env._body_weight_n
@@ -862,7 +868,9 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_floor_impact_peak_is_the_summed_force_not_each_foots_own_peak(self):
-        env = TRexEnv(floor_impact_weight=2.0, floor_impact_threshold_bw=1.2, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(
+            floor_impact_weight=2.0, floor_impact_threshold_bw=1.2, reset_noise_scale=0.0
+        )
         try:
             env.reset(seed=0)
             weight = env._body_weight_n
@@ -883,7 +891,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_airborne_substeps_count_substeps_with_every_foot_unloaded(self):
-        env = TRexEnv(airborne_substep_weight=1.0, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(airborne_substep_weight=1.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             # Substeps 0 and 1 airborne (every foot <= 0.1 N); 2 is single support, not airborne.
@@ -896,7 +904,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_new_terms_enter_the_total_only_when_weighted(self):
-        env = TRexEnv(floor_impact_weight=2.0, airborne_substep_weight=1.0, reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(floor_impact_weight=2.0, airborne_substep_weight=1.0, reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             block = np.array([[0.0, 0.0]] * 4 + [[2000.0, 2000.0]])
@@ -914,7 +922,7 @@ class TestStanceFollowupTerms:
             env.close()
 
     def test_substep_block_matches_the_min_aggregate_and_is_step_tagged(self):
-        env = TRexEnv()
+        env = TyrannosaurusRexAnatomicalEnv()
         try:
             env.reset(seed=0)
             # Before any step: the instantaneous read, as one row.
@@ -936,7 +944,7 @@ class TestStanceFollowupTerms:
 
     @staticmethod
     def _square_wave_run(source: str, steps: int = 6, amplitude: float = 1.0, **kwargs):
-        env = TRexEnv(
+        env = TyrannosaurusRexAnatomicalEnv(
             smoothness_weight=2.0,
             action_jerk_weight=3.0,
             action_saturation_weight=0.5,
@@ -990,7 +998,7 @@ class TestStanceFollowupTerms:
                 assert beyond[index][key] == clipped[index][key], (index, key)
 
     def test_raw_equals_filtered_without_the_filter(self):
-        class _UnfilteredTRex(TRexEnv):
+        class _UnfilteredTRex(TyrannosaurusRexAnatomicalEnv):
             action_filter_cutoff_hz = 0.0
 
         def run(source):
@@ -1005,7 +1013,7 @@ class TestStanceFollowupTerms:
         assert run("raw") == run("filtered")
 
     def test_a_stale_policy_command_is_never_priced(self):
-        env = TRexEnv(smoothness_weight=2.0, action_penalty_source="raw", reset_noise_scale=0.0)
+        env = TyrannosaurusRexAnatomicalEnv(smoothness_weight=2.0, action_penalty_source="raw", reset_noise_scale=0.0)
         try:
             env.reset(seed=0)
             env.step(np.ones(env.action_space.shape))
