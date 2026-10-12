@@ -835,7 +835,8 @@ class TestCheckpointPlantProvenance:
 
     def test_zero_action_records_none_because_there_is_no_checkpoint(self, monkeypatch):
         report = self._report(monkeypatch, zero_action=True)
-        assert report["schema"] == "mesozoic.stance-gate-report/v2"
+        # Re-pinned from /v2 (decision D-D33); /v3 already named the kind-v2 report, so the bump is /v4.
+        assert report["schema"] == "mesozoic.stance-gate-report/v4"
         assert report["checkpoint_plant_validated"] is None
 
     def test_zero_action_with_allow_legacy_still_records_none(self, monkeypatch):
@@ -2321,7 +2322,8 @@ class TestAblationVerdicts:
         reports = self._reports({"tail": (1.0, 1.0)}, hold_all=1.0)
         written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
         payload = json.loads(written["constant_hold_ablation_json"].read_text())
-        assert payload["schema"] == "mesozoic.constant-hold-ablation/v3"
+        # Re-pinned from /v3 when the payload began naming the embodiment (decision D-D33).
+        assert payload["schema"] == "mesozoic.constant-hold-ablation/v4"
         assert payload["statistics"] == {
             "test": "fisher-exact",
             "sided": "one",

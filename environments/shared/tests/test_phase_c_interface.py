@@ -48,9 +48,11 @@ contract code:
   change; the committed compsognathus calibrations load (decision D-C2).  The
   robot's still carries its Phase C restamp; the anatomical one was
   re-measured on compsognathus physics r2 (D-D26), the physics change a
-  restamp refuses, and carries exactly one restamp since: the heading-free
+  restamp refuses, and carries one interface restamp since: the heading-free
   policy interface r4 (plant_versions note 18, D-D31), an interface-only
-  revision on the physics it was measured on.
+  revision on the physics it was measured on.  Both then carry the identity
+  migration of decision D-D33 (``--migrate-identity``, plant_versions note
+  19), which the tool reproduces byte for byte from the schema-v1 profile.
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
@@ -777,12 +779,14 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
 # ---------------------------------------------------------------------------
 
 CALIBRATED_MODELS = (COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT)
-#: The profiles carrying exactly one restamp.  The robot's is the Phase C restamp.  The anatomical profile was
-#: re-measured on compsognathus physics r2 (D-D26; ``calibrate_recovery.py``), a physics change being exactly
-#: what a restamp refuses, and restamped once since, for its heading-free policy interface r4 (plant_versions
-#: note 18, D-D31), an interface-only revision on the physics it was measured on.
+#: Every committed profile carries two restamps.  The first is its interface restamp: the robot's is the Phase C
+#: restamp; the anatomical profile was re-measured on compsognathus physics r2 (D-D26; ``calibrate_recovery.py``),
+#: a physics change being exactly what a restamp refuses, and restamped once since, for its heading-free policy
+#: interface r4 (plant_versions note 18, D-D31), an interface-only revision on the physics it was measured on.  The
+#: second is the identity migration of decision D-D33 (plant_versions note 19, ``--migrate-identity``): an
+#: interface-only revision that also renamed the profile's model, so its entry records the identity it replaced.
 RESTAMPED_MODELS = (COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT)
-#: Each restamp's reason (the tool's default is the Phase C one) and the observation width before it.
+#: Each first restamp's reason (the tool's default is the Phase C one).
 RESTAMP_REASONS = {
     COMPSOGNATHUS_LONGIPES: (
         "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free "
@@ -791,7 +795,9 @@ RESTAMP_REASONS = {
         "(tests/fixtures/phase_c_reset_golden.json)"
     ),
 }
-PRE_RESTAMP_OBSERVATION_DIM = {COMPSOGNATHUS_LONGIPES: 56, COMPSOGNATHUS_LONGIPES_ROBOT: 43}
+#: The identity migration's recorded reason, and the one schema it migrated from (decision D-D33).
+IDENTITY_MIGRATION_REASON = "plant_versions note 19 (D-D33)"
+PRE_D_D33_PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
 CONFIGS_ROOT = Path(__file__).resolve().parents[3] / "configs"
 
 
@@ -801,21 +807,67 @@ def _committed_profile(model_id: ModelId) -> tuple[Path, str, dict[str, Any]]:
     return path, text, json.loads(text)
 
 
-def _pre_restamp_copy(model_id: ModelId, root: Path) -> tuple[Path, dict[str, Any]]:
-    """The committed profile rolled back to what the tool found before the bump."""
-    _, _, profile = _committed_profile(model_id)
-    entry = profile["restamp_history"][-1]
+def _render(profile: dict[str, Any]) -> str:
+    return json.dumps(profile, indent=2, ensure_ascii=False) + "\n"
+
+
+def _rolled_back(profile: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """*profile* with its last restamp undone: the plant identity's interface fields and the task hash it replaced.
+
+    The D-D33 migration moved no observation width, so ``observation_dim`` stays.
+    """
+    profile = copy.deepcopy(profile)
+    history = profile["restamp_history"]
+    entry = history.pop()
     identity = dict(profile["plant_identity"])
     identity["policy_interface_revision"] = entry["previous_policy_interface_revision"]
     identity["policy_interface_sha256"] = entry["previous_policy_interface_sha256"]
-    identity["observation_dim"] = PRE_RESTAMP_OBSERVATION_DIM[model_id]
     profile["plant_identity"] = identity
     profile["task_sha256"] = entry["previous_task_sha256"]
-    del profile["restamp_history"]
+    if not history:
+        del profile["restamp_history"]
+    return profile, entry
+
+
+def _write(model_id: ModelId, root: Path, profile: dict[str, Any]) -> Path:
     path = model_id.path(root) / "recovery_calibration.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(json.dumps(profile, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return path, entry
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_render(profile), encoding="utf-8")
+    return path
+
+
+def _pre_restamp_copy(model_id: ModelId, root: Path) -> tuple[Path, dict[str, Any]]:
+    """The committed profile one interface revision behind, still at the current schema (what a plain restamp
+    finds after an interface-only revision)."""
+    profile, entry = _rolled_back(_committed_profile(model_id)[2])
+    return _write(model_id, root, profile), entry
+
+
+def _pre_migration_copy(model_id: ModelId, root: Path) -> tuple[Path, dict[str, Any]]:
+    """The committed profile rolled back to the schema-v1 profile ``--migrate-identity`` found (decision D-D33).
+
+    The schema, species and ``calibration_id`` come from the migration entry's ``previous_identity``; the
+    measurement artifact is the recorded path under the recorded species' directory.  Of the replaced plant
+    identity, the tool reads only the physics digest and the interface fields its entry records.
+    """
+    rolled, entry = _rolled_back(_committed_profile(model_id)[2])
+    previous = entry["previous_identity"]
+    profile: dict[str, Any] = {}
+    for key, value in rolled.items():
+        if key == "schema":
+            profile[key] = previous["schema"]
+        elif key == "species":
+            profile[key] = previous["species"]
+        elif key == "embodiment":
+            continue
+        elif key == "calibration_id":
+            profile[key] = previous["calibration_id"]
+        elif key == "provenance":
+            artifact = Path("environments", previous["species"], "data", Path(value["measurement_artifact"]).name)
+            profile[key] = {**value, "measurement_artifact": artifact.as_posix()}
+        else:
+            profile[key] = value
+    return _write(model_id, root, profile), entry
 
 
 def _committed_copy(model_id: ModelId, root: Path) -> Path:
@@ -826,7 +878,7 @@ def _committed_copy(model_id: ModelId, root: Path) -> Path:
 
 
 @pytest.mark.parametrize("model_id", RESTAMPED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_committed_recovery_calibrations_load_and_record_one_restamp(model_id):
+def test_committed_recovery_calibrations_load_and_record_their_two_restamps(model_id):
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts.restamp_recovery_calibration import RESTAMP_REASON
 
@@ -836,22 +888,34 @@ def test_committed_recovery_calibrations_load_and_record_one_restamp(model_id):
     assert calibration.profile["restamp_history"] == profile["restamp_history"]
     identity = current_plant_identity(model_id, verify_generated=False)
     assert profile["plant_identity"] == identity.to_dict()
-    history = profile["restamp_history"]
-    assert len(history) == 1
-    entry = history[0]
-    assert entry["previous_policy_interface_revision"] == identity.policy_interface_revision - 1
-    assert entry["previous_policy_interface_sha256"] != identity.policy_interface_sha256
-    assert entry["previous_task_sha256"] != profile["task_sha256"]
-    assert entry["reason"] == RESTAMP_REASONS.get(model_id, RESTAMP_REASON)
-    assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
+    interface, migration = profile["restamp_history"]
+    assert interface["previous_policy_interface_revision"] == identity.policy_interface_revision - 2
+    assert interface["reason"] == RESTAMP_REASONS.get(model_id, RESTAMP_REASON)
+    assert "previous_identity" not in interface
+    # The identity migration (decision D-D33): one interface revision, the replaced identity recorded whole.
+    assert migration["previous_policy_interface_revision"] == identity.policy_interface_revision - 1
+    assert migration["previous_policy_interface_sha256"] != identity.policy_interface_sha256
+    assert migration["previous_task_sha256"] != profile["task_sha256"]
+    assert migration["reason"] == IDENTITY_MIGRATION_REASON
+    previous = migration["previous_identity"]
+    assert set(previous) == {"schema", "species", "calibration_id"}
+    assert previous["schema"] == PRE_D_D33_PROFILE_SCHEMA and previous["species"] != model_id.species
+    assert profile["calibration_id"] == (
+        f"{model_id.species}-{model_id.embodiment}-"
+        + previous["calibration_id"].removeprefix(previous["species"] + "-")
+    )
+    assert profile["provenance"]["measurement_artifact"].startswith(f"environments/{model_id.species}/data/")
+    for entry in (interface, migration):
+        assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
 
 
 def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement_with_one_heading_interface_restamp(
     tmp_path,
 ):
-    """Measured on the current physics, then restamped once for the heading-free interface: it loads, names the
-    physics it was measured on, measured the committed recovery [env] block, carries the one restamp from policy
-    interface r3, and the restamp tool leaves it byte-identical."""
+    """Measured on the current physics, then restamped once for the heading-free interface and once for the
+    identity migration (decision D-D33): it loads, names the physics it was measured on, measured the committed
+    recovery [env] block, carries the restamp from policy interface r3, and the restamp tool leaves it
+    byte-identical."""
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
@@ -860,8 +924,10 @@ def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement_with_on
     identity = current_plant_identity(COMPSOGNATHUS_LONGIPES, verify_generated=False)
     assert profile["plant_identity"] == identity.to_dict()
     assert profile["plant_identity"]["physics_revision"] == 2
-    (entry,) = calibration.profile["restamp_history"]
-    assert (entry["previous_policy_interface_revision"], identity.policy_interface_revision) == (3, 4)
+    entry, migration = calibration.profile["restamp_history"]
+    # Re-pinned (decision D-D33): r3 -> r4 heading-free, then r4 -> r5 for the identity migration.
+    assert (entry["previous_policy_interface_revision"], identity.policy_interface_revision) == (3, 5)
+    assert migration["previous_policy_interface_revision"] == 4
     assert "heading-free" in entry["reason"] and "note 18" in entry["reason"]
     measured_env = json.loads(json.dumps(load_stage_config(COMPSOGNATHUS_LONGIPES, "recovery")["env_kwargs"]))
     assert profile["recovery_env_kwargs"] == measured_env
@@ -874,9 +940,11 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
     root = tmp_path / "configs"
-    # Roll the restamped committed profile back to its pre-bump identity: the
-    # tool must reproduce the committed bytes (the recorded commit is passed
-    # explicitly so the replay does not depend on the checkout's HEAD).
+    # Roll the committed profile back one interface revision: a plain restamp
+    # must reproduce the committed bytes, except that its entry names no
+    # replaced identity (only the D-D33 migration renamed the model).  The
+    # recorded commit is passed explicitly so the replay does not depend on
+    # the checkout's HEAD.
     for model_id in RESTAMPED_MODELS:
         path, entry = _pre_restamp_copy(model_id, root)
         assert (
@@ -885,7 +953,9 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
             )
             is True
         )
-        assert path.read_text(encoding="utf-8") == _committed_profile(model_id)[1], model_id
+        expected = _committed_profile(model_id)[2]
+        del expected["restamp_history"][-1]["previous_identity"]
+        assert path.read_text(encoding="utf-8") == _render(expected), model_id
     for model_id in (model_id for model_id in CALIBRATED_MODELS if model_id not in RESTAMPED_MODELS):
         _committed_copy(model_id, root)
 
@@ -897,7 +967,7 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
     for model_id in CALIBRATED_MODELS:
         after = (model_id.path(root) / "recovery_calibration.json").read_bytes()
         assert after == before[model_id], model_id
-        assert len(json.loads(after).get("restamp_history", [])) == int(model_id in RESTAMPED_MODELS)
+        assert len(json.loads(after).get("restamp_history", [])) == 2 * int(model_id in RESTAMPED_MODELS)
 
     # A physics change needs a real recalibration, not a restamp.
     path = COMPSOGNATHUS_LONGIPES.path(root) / "recovery_calibration.json"
@@ -920,16 +990,93 @@ def test_restamp_recovery_calibration_is_idempotent_and_refuses_a_physics_change
         tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
 
     # An unknown model is a refusal (the function's RestampError; the CLI's usage error, exit 2), not a traceback.
-    with pytest.raises(tool.RestampError, match="Unknown species"):
+    # (The function checks the profile names the model before it reads the model's stage config.)
+    with pytest.raises(tool.RestampError, match="is not a recovery calibration of stegosaurus_stenops/anatomical"):
         tool.restamp_recovery_calibration(ModelId("stegosaurus_stenops", "anatomical"), path=path)
     with pytest.raises(SystemExit) as usage:
         tool.main(["--model-id", "stegosaurus_stenops", "anatomical", "--configs-root", str(root)])
     assert usage.value.code == 2
 
 
+def test_restamp_refuses_the_other_embodiments_profile_and_one_that_names_half_its_model(tmp_path):
+    """Decision D-D33 (review H3): the restamp target is the model, both fields; never matched on species."""
+    from environments.shared.scripts import restamp_recovery_calibration as tool
+
+    robot_profile = _committed_profile(COMPSOGNATHUS_LONGIPES_ROBOT)[2]
+    path = _write(COMPSOGNATHUS_LONGIPES, tmp_path, robot_profile)
+    with pytest.raises(tool.RestampError, match="is not a recovery calibration of compsognathus_longipes/anatomical"):
+        tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
+    halved = {key: value for key, value in _committed_profile(COMPSOGNATHUS_LONGIPES)[2].items() if key != "embodiment"}
+    path.write_text(_render(halved), encoding="utf-8")
+    with pytest.raises(tool.RestampError, match="does not name its model.*embodiment"):
+        tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
+    # A schema-v1 profile is the migration's, never a plain restamp's.
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "v1")
+    with pytest.raises(tool.RestampError, match="--migrate-identity migrates it"):
+        tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
+
+
+@pytest.mark.parametrize("model_id", CALIBRATED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_migrate_identity_reproduces_the_committed_profile_from_its_schema_v1_form(model_id, tmp_path):
+    """``--migrate-identity`` (decision D-D33, plan section 3.5) rebuilds the committed profile byte for byte from
+    the schema-v1 profile it found, and a second run is a byte no-op."""
+    from environments.shared.scripts import restamp_recovery_calibration as tool
+
+    path, entry = _pre_migration_copy(model_id, tmp_path / "configs")
+    assert json.loads(path.read_text(encoding="utf-8"))["schema"] == PRE_D_D33_PROFILE_SCHEMA
+    assert (
+        tool.migrate_recovery_calibration_identity(
+            model_id, path=path, commit=entry["restamped_at_commit"], reason=entry["reason"]
+        )
+        is True
+    )
+    committed = _committed_profile(model_id)[1]
+    assert path.read_text(encoding="utf-8") == committed
+    assert tool.migrate_recovery_calibration_identity(model_id, path=path, reason=entry["reason"]) is False
+    assert path.read_text(encoding="utf-8") == committed
+
+
+def test_migrate_identity_refuses_another_models_profile_and_a_changed_plant_or_task(tmp_path):
+    from environments.shared.scripts import restamp_recovery_calibration as tool
+
+    def refused(model_id: ModelId, path: Path, match: str) -> None:
+        before = path.read_bytes()
+        with pytest.raises(tool.RestampError, match=match):
+            tool.migrate_recovery_calibration_identity(model_id, path=path, reason=IDENTITY_MIGRATION_REASON)
+        assert path.read_bytes() == before  # never writes on a refusal
+
+    # The robot's schema-v1 profile offered for the anatomical model: the identity is the directory's, checked by
+    # the measured task and the physics digest, so the other embodiment's profile is refused (review H3).
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "robot")
+    refused(COMPSOGNATHUS_LONGIPES, path, "recovery_env_kwargs differ|not this model's")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "physics")
+    profile = json.loads(path.read_text(encoding="utf-8"))
+    profile["plant_identity"]["physics_sha256"] = "sha256:" + "0" * 64
+    path.write_text(_render(profile), encoding="utf-8")
+    refused(COMPSOGNATHUS_LONGIPES, path, "not this model's")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "task")
+    profile = json.loads(path.read_text(encoding="utf-8"))
+    profile["recovery_env_kwargs"]["perturbation_interval"] = 99.0
+    path.write_text(_render(profile), encoding="utf-8")
+    refused(COMPSOGNATHUS_LONGIPES, path, "recovery_env_kwargs differ")
+    # A schema-v1 profile that already names an embodiment is not guessed at.
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "half")
+    profile = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(_render({**profile, "embodiment": "anatomical"}), encoding="utf-8")
+    refused(COMPSOGNATHUS_LONGIPES, path, "already records an embodiment")
+    # A current-schema profile is migrated only when it is already the model's current one (a byte no-op).
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "behind")
+    refused(COMPSOGNATHUS_LONGIPES, path, "only a schema-v1 profile")
+    # The CLI mode records its own reason, never the Phase C default.
+    with pytest.raises(SystemExit) as usage:
+        tool.main(["--migrate-identity", "--configs-root", str(tmp_path / "robot")])
+    assert usage.value.code == 2
+
+
 def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
     """A later interface-only revision must name its own reason; the Phase C text is only the default."""
     from environments.shared.scripts import restamp_recovery_calibration as tool
+    from environments.shared.scripts.restamp_recovery_calibration import RESTAMP_REASON
 
     root = tmp_path / "named"
     path, entry = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, root)
@@ -940,8 +1087,8 @@ def test_restamp_recovery_calibration_records_the_given_reason(tmp_path):
         == 0
     )
     history = json.loads(path.read_text(encoding="utf-8"))["restamp_history"]
-    assert [item["reason"] for item in history] == ["r99 bump"]
-    assert history[0]["previous_task_sha256"] == entry["previous_task_sha256"]
+    assert [item["reason"] for item in history] == [RESTAMP_REASON, "r99 bump"]
+    assert history[-1]["previous_task_sha256"] == entry["previous_task_sha256"]
 
     path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "blank")
     with pytest.raises(tool.RestampError, match="non-empty"):

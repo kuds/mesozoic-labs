@@ -63,7 +63,14 @@ FEET = {
     DIBOTHROSUCHUS_ELAPHROS: ("fr", "fl", "rr", "rl"),
     BRACHIOSAURUS_ALTITHORAX: ("fr", "fl", "rr", "rl"),
 }
-ROOT = {DIBOTHROSUCHUS_ELAPHROS: "torso", BRACHIOSAURUS_ALTITHORAX: "torso"}  # pelvis elsewhere
+ROOT = {
+    TYRANNOSAURUS_REX: "pelvis",
+    VELOCIRAPTOR_MONGOLIENSIS: "pelvis",
+    COMPSOGNATHUS_LONGIPES: "pelvis",
+    COMPSOGNATHUS_LONGIPES_ROBOT: "pelvis",
+    DIBOTHROSUCHUS_ELAPHROS: "torso",
+    BRACHIOSAURUS_ALTITHORAX: "torso",
+}
 
 #: Per foot, the support geoms the generic rule takes and the registry drops ...
 GENERIC_ONLY = {
@@ -122,6 +129,14 @@ def stance_env():
 # ── the registry ─────────────────────────────────────────────────────────────
 
 
+@pytest.mark.parametrize(
+    "name", ["MODEL_IDS", "BODY_WEIGHT_N", "FEET", "ROOT", "GENERIC_ONLY", "REGISTRY_ONLY", "SOLE"]
+)
+def test_every_per_model_table_covers_every_model(name):
+    """A new model fails here, naming the table, instead of going unpinned (review M4)."""
+    assert set(globals()[name]) == set(model_ids()), f"{name} must pin every manifest model"
+
+
 def test_every_model_has_an_explicit_registry_entry_with_a_pinned_reference_site():
     assert set(MODEL_IDS) == set(model_ids())
     for model_id in MODEL_IDS:
@@ -158,7 +173,7 @@ def test_legs_are_whole_limbs_rooted_below_the_animal_root(stance_env, model_id)
     env = stance_env(model_id)
     morphology = Morphology.from_env(env, model_id)
     model = env.model
-    assert model.body(morphology.root_body).name == ROOT.get(model_id, "pelvis")
+    assert model.body(morphology.root_body).name == ROOT[model_id]
     tops = []
     for foot in morphology.feet:
         (top,) = [body for body in foot.leg_bodies if int(model.body_parentid[body]) not in foot.leg_bodies]

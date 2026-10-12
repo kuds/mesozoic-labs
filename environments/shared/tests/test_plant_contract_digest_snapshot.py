@@ -113,6 +113,12 @@ _POSE_REASONS = {
 }
 
 
+@pytest.mark.parametrize("name", ["_SUCCESS", "_POSE_REASONS"])
+def test_the_per_model_tables_cover_every_model(name: str) -> None:
+    """A new model fails here, naming the table, instead of going unpinned (review M4)."""
+    assert set(globals()[name]) == set(model_ids()), f"{name} must pin every manifest model"
+
+
 # -- the CI step --------------------------------------------------------------
 
 

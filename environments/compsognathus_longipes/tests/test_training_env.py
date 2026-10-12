@@ -19,6 +19,17 @@ from environments.shared.species_registry import get_species_config
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
+
+class _LinearAnatomicalEnv(CompsognathusLongipesEnv):
+    """The anatomical plant on the species base's linear residual: ``CompsognathusLongipesEnv`` is the abstract
+    species base (decision D-D33), so the embodiment, MJCF and nominal pelvis height come from the anatomical
+    class."""
+
+    embodiment = CompsognathusLongipesAnatomicalEnv.embodiment
+    MODEL_PATH = CompsognathusLongipesAnatomicalEnv.MODEL_PATH
+    nominal_pelvis_height = CompsognathusLongipesAnatomicalEnv.nominal_pelvis_height
+
+
 LEG_ACTUATORS = [f"{side}_{joint}_act" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle", "toe")]
 
 
@@ -112,7 +123,7 @@ def test_soft_cubic_leg_residual_keeps_home_and_both_endpoints():
     map's and the map is monotone.  Neck, jaw and tail keep the linear residual."""
     with (
         CompsognathusLongipesAnatomicalEnv(reset_noise_scale=0) as soft,
-        CompsognathusLongipesEnv(reset_noise_scale=0) as linear,
+        _LinearAnatomicalEnv(reset_noise_scale=0) as linear,
     ):
         model = soft.model
         names = [model.actuator(i).name for i in range(model.nu)]

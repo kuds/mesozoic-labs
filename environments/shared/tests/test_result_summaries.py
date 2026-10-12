@@ -10,12 +10,20 @@ import pytest
 
 from environments.shared.model_id import ModelId
 from environments.shared.result_schema import (
+    RESULT_SCHEMA_VERSION,
     ResultSchemaError,
     expected_result_directory,
+    validate_result_path,
     validate_result_summary,
 )
 
-from .result_bundle_helpers import REPOSITORY_ROOT, _canonical_summary, _load_summary, _published_summary
+from .result_bundle_helpers import (
+    REPOSITORY_ROOT,
+    _canonical_summary,
+    _load_summary,
+    _plant_identity,
+    _published_summary,
+)
 
 #: results/<species>/<embodiment>/<algorithm>/summary.json (decision D-D33).
 RESULT_SUMMARIES = tuple(sorted((REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")))
@@ -39,6 +47,55 @@ def test_result_summary_schema_and_provenance(summary_path: Path) -> None:
     )
 
     assert validated is summary
+
+
+def test_a_summary_of_one_embodiment_is_refused_for_the_other() -> None:
+    """Decision D-D33 (review H3): a summary, its path and its provenance name one model by both fields.
+
+    The anatomical Compsognathus's summary is refused for the robot, filed under the robot's directory, and
+    beside a provenance naming the other embodiment; a summary or provenance without its embodiment is refused,
+    never matched on its species alone.  (Only the identity fields of the committed fixture are relabelled: every
+    check below runs before the stages are read.)
+    """
+    anatomical = ModelId("compsognathus_longipes", "anatomical")
+    robot = ModelId("compsognathus_longipes", "robot")
+    summary = deepcopy(_published_summary())
+    summary.update(anatomical.record())
+    with pytest.raises(
+        ResultSchemaError,
+        match="result model mismatch in result summary: expected compsognathus_longipes/robot, "
+        "found compsognathus_longipes/anatomical",
+    ):
+        validate_result_summary(summary, expected_model_id=robot, require_complete=False)
+    with pytest.raises(
+        ResultSchemaError,
+        match="result model/path mismatch .*: expected compsognathus_longipes/robot, found compsognathus_longipes/anatomical",
+    ):
+        validate_result_path(
+            "results/compsognathus_longipes/anatomical/ppo/summary.json",
+            model_id=robot,
+            algorithm="PPO",
+            backend="stable-baselines3",
+        )
+    del summary["embodiment"]
+    with pytest.raises(ResultSchemaError, match="result summary does not name a model.*embodiment"):
+        validate_result_summary(summary, require_complete=False)
+
+    # The canonical fixture recut as the robot's summary beside the anatomical model's provenance (each with
+    # its own plant identity, so the summary-to-provenance comparison is what refuses it).
+    canonical = _canonical_summary()
+    canonical.update(robot.record())
+    canonical["plant_identity"] = _plant_identity(robot)
+    canonical["provenance"].update(anatomical.record())
+    canonical["provenance"]["plant_identity"] = _plant_identity(anatomical)
+    with pytest.raises(
+        ResultSchemaError,
+        match="does not match the provenance's: compsognathus_longipes/robot != compsognathus_longipes/anatomical",
+    ):
+        validate_result_summary(canonical, canonical_provenance=True)
+    del canonical["provenance"]["embodiment"]
+    with pytest.raises(ResultSchemaError, match="provenance .*(does not name a model|missing fields).*embodiment"):
+        validate_result_summary(canonical, canonical_provenance=True)
 
 
 def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
@@ -75,11 +132,12 @@ def test_partial_summary_rejects_empty_or_unknown_stages() -> None:
         validate_result_summary(summary, require_complete=False)
 
 
-def _tyrannosaurus_rex_summary_with_recovery() -> dict[str, Any]:
-    """The committed trex summary plus a synthetic recovery stage (schema v3)."""
+def _tyrannosaurus_rex_summary_with_recovery(schema_version: int = RESULT_SCHEMA_VERSION) -> dict[str, Any]:
+    """The committed T-Rex summary plus a synthetic recovery stage, at the writers' schema (v5; was v3 before
+    decision D-D33 retired it)."""
     summary = _load_summary(REPOSITORY_ROOT / "results" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "summary.json")
     summary = deepcopy(summary)
-    summary["schema_version"] = 3
+    summary["schema_version"] = schema_version
     recovery_stage = deepcopy(summary["stages"]["1"])
     recovery_stage["name"] = "recovery"
     recovery_stage["description"] = "Hold the stance against scheduled pushes"
@@ -95,13 +153,23 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
     """Recovery joins the summary without weakening the advancing-stage rule.
 
     The v2 ``exactly {1, 2, 3}`` equality enforced "a complete curriculum
-    recorded every advancing stage".  v3 keeps that rule bit-for-bit for the
-    advancing trio while the non-advancing recovery stage rides along — and
-    its recorded verdict may be False, because a non-advancing pilot's
-    failure must not be laundered into (or block) the curriculum's own
-    completeness.
+    recorded every advancing stage".  The pre-v4 rule set keeps that rule
+    bit-for-bit for the advancing trio while the non-advancing recovery stage
+    rides along, and its recorded verdict may be False, because a
+    non-advancing pilot's failure must not be laundered into (or block) the
+    curriculum's own completeness.  Schema 3 is retired (decision D-D33): the
+    writers' v5 records the recovery stage as a stage subset (publication per
+    deliverable is ``test_result_schema_v4.py``'s), and schema 2, the curated
+    form the reader still accepts, keeps the advancing-trio rule.
     """
     summary = _tyrannosaurus_rex_summary_with_recovery()
+    validate_result_summary(
+        summary,
+        expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
+        relative_path="results/tyrannosaurus_rex/anatomical/ppo/summary.json",
+        require_complete=False,
+    )
+    summary = _tyrannosaurus_rex_summary_with_recovery(schema_version=2)
     validate_result_summary(
         summary,
         expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
@@ -111,7 +179,7 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
 
     # Still fail-closed on the advancing trio: recovery cannot substitute
     # for a missing numbered stage.
-    summary = _tyrannosaurus_rex_summary_with_recovery()
+    summary = _tyrannosaurus_rex_summary_with_recovery(schema_version=2)
     summary["total_timesteps"] -= summary["stages"]["2"]["timesteps"]
     del summary["stages"]["2"]
     with pytest.raises(ResultSchemaError, match=r"must contain every advancing stage; missing \['2'\]"):
@@ -153,20 +221,31 @@ def test_summary_rejects_two_spellings_of_one_stage() -> None:
 
 
 def test_summary_accepts_both_supported_schema_versions() -> None:
+    """Re-pinned {2, 3, 4} -> {2, 5} (decision D-D33, review M2): a v3 or v4 summary is refused by name."""
     summary = deepcopy(_published_summary())
-    for version in (2, 3):
-        summary["schema_version"] = version
-        validate_result_summary(
-            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
-        )
-    # Schema 4 accepts the same fixture as a non-publishable stage subset; the
-    # publishable rules need the deliverables map (tested below).
-    summary["schema_version"] = 4
+    summary["schema_version"] = 2
+    validate_result_summary(
+        summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
+    )
+    # Schema 5 accepts the same fixture as a non-publishable stage subset; the
+    # publishable rules need the deliverables map (test_result_schema_v4.py).
+    assert RESULT_SCHEMA_VERSION == 5
+    summary["schema_version"] = 5
     validate_result_summary(
         summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
     )
+    for version in (3, 4):
+        summary["schema_version"] = version
+        with pytest.raises(
+            ResultSchemaError,
+            match=rf"must be one of \[2, 5\], not {version}; schema 3 and 4 summaries name species IDs decision "
+            "D-D33 retired",
+        ):
+            validate_result_summary(
+                summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
+            )
     summary["schema_version"] = 1
-    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 3, 4\]"):
+    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 5\], not 1: "):
         validate_result_summary(
             summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
         )

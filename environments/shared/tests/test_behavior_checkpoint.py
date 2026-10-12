@@ -198,7 +198,8 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
             assert not hasattr(artifact, "mesozoic_behavior_preparation")
         assert report["mode"] == "initialize_next_stage" and report["task_fingerprint"] == BEHAVIOR
         assert (report["parent_task_sha256"], report["child_task_sha256"]) == ("sha256:walker", "sha256:b")
-        assert report["schema"] == "mesozoic.behavior-preparation/v2"
+        # Re-pinned from /v2 when the report began naming the embodiment (decision D-D33).
+        assert report["schema"] == "mesozoic.behavior-preparation/v3"
         assert source_hashes == (sha256_file(model_path), sha256_file(vecnorm_path))
     finally:
         normalizer.close()
@@ -314,7 +315,8 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         np.testing.assert_array_equal(loaded.normalize_obs(raw), normalized)
         assert report["resume_checkpoint_sha256"] == sha256_file(tmp_path / "behavior.zip")
         # The preparation report travels as the task lineage and comes back on resume.
-        assert report["schema"] == "mesozoic.behavior-preparation/v2" and report["task_fingerprint"] == BEHAVIOR
+        # Re-pinned from /v2 when the report began naming the embodiment (decision D-D33).
+        assert report["schema"] == "mesozoic.behavior-preparation/v3" and report["task_fingerprint"] == BEHAVIOR
         resumed.learn(16, reset_num_timesteps=False)
         assert resumed.num_timesteps == 48
     finally:
@@ -496,6 +498,37 @@ def test_a_behavior_checkpoint_is_not_a_walker_parent(parent, tmp_path):
             CommandEnv(),
             task_fingerprint=BEHAVIOR,
             model_id=TYRANNOSAURUS_REX,
+        )
+
+
+def test_preparation_refuses_another_embodiment_and_a_task_naming_half_its_model(parent, tmp_path):
+    """Decision D-D33 (review H3): both the requested task and the walker's recorded task must name the model
+    whole.  A record of the same species in another embodiment is refused, and one without its embodiment is
+    refused rather than matched on its species alone."""
+    model_path, vecnorm_path, *_ = parent
+    robot = {**BEHAVIOR, "embodiment": "robot"}
+    halved = {key: value for key, value in BEHAVIOR.items() if key != "embodiment"}
+    with pytest.raises(BehaviorCheckpointError, match="requested model tyrannosaurus_rex/anatomical disagree"):
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(), task_fingerprint=robot, model_id=TYRANNOSAURUS_REX
+        )
+    with pytest.raises(BehaviorCheckpointError, match="does not name its model.*embodiment"):
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(), task_fingerprint=halved, model_id=TYRANNOSAURUS_REX
+        )
+    walker = {"species": "tyrannosaurus_rex", "embodiment": "robot", "stage": 2, "task_sha256": "sha256:walker"}
+    other_walker = tmp_path / "robot_walker.zip"
+    _metadata_copy(model_path, other_walker, MODEL_TASK_ATTRIBUTE, walker)
+    with pytest.raises(BehaviorCheckpointError, match="must record the tyrannosaurus_rex/anatomical locomotion task"):
+        prepare_behavior_checkpoint(
+            other_walker, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
+    halved_walker = tmp_path / "halved_walker.zip"
+    del walker["embodiment"]
+    _metadata_copy(model_path, halved_walker, MODEL_TASK_ATTRIBUTE, walker)
+    with pytest.raises(BehaviorCheckpointError, match="source's task fingerprint does not name its model"):
+        prepare_behavior_checkpoint(
+            halved_walker, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
         )
 
 

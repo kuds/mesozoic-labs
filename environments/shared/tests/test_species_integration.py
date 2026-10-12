@@ -18,6 +18,7 @@ from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAl
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
@@ -25,6 +26,11 @@ VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+
+#: Models these tables leave out on purpose (review M4): the two Compsognathus models reach a target, not prey, on
+#: their own reward, and their shared behaviour (the Gymnasium contract, every stage resetting and stepping, the
+#: registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
+EXEMPT = {ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")}
 
 # Parametrise across the four reward-shaped anatomical models
 MODEL_ENVS = [
@@ -111,6 +117,21 @@ SPECIES_REWARD_KEYS = {
 }
 
 
+_TABLES = {
+    "MODEL_ENVS": {param.values[1] for param in MODEL_ENVS},
+    "SPECIES_DIMS": SPECIES_DIMS,
+    "SPECIES_REWARD_KEYS": SPECIES_REWARD_KEYS,
+}
+
+
+@pytest.mark.parametrize("name", list(_TABLES))
+def test_every_model_is_pinned_or_exempt(name):
+    """A new model fails here, naming the table, instead of going untested (review M4)."""
+    table = _TABLES[name]
+    assert not set(table) & EXEMPT, f"{name} pins an exempt model"
+    assert set(table) | EXEMPT == set(model_ids()), f"{name} must pin every model outside EXEMPT"
+
+
 # ── Gymnasium registration ───────────────────────────────────────────────
 
 
@@ -127,6 +148,7 @@ class TestGymnasiumRegistration:
         ],
     )
     def test_gym_make(self, gym_id):
+        assert gym_id in {param.values[1].gym_id for param in MODEL_ENVS}
         import gymnasium as gym
 
         env = gym.make(gym_id)

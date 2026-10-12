@@ -260,7 +260,8 @@ class TestThePanel:
 
     def test_the_report_records_what_scored_it(self, statue):
         stage_dir, report = statue
-        assert report["schema"] == STANCE_V2_REPORT_SCHEMA == "mesozoic.stance-gate-report/v3"
+        # Re-pinned from /v3 when the report began naming the embodiment (decision D-D33).
+        assert report["schema"] == STANCE_V2_REPORT_SCHEMA == "mesozoic.stance-gate-report/v5"
         assert report["gate_kind"] == report["scored_gate_kind"] == STANCE_GATE_V2_KIND
         # The task the panel rolled is the one training records for this stage config.
         assert report["task_sha256"] == json.loads((stage_dir / "task_fingerprint.json").read_text())["task_sha256"]
@@ -912,7 +913,8 @@ class TestProbesAndHygiene:
         monkeypatch.setattr(stance_report, "run_panel", counted)
         report = _report(monkeypatch, tmp_path, np.zeros(nu), episodes=1, filter_actions_hz=5.0)
         assert panels == [False]  # one panel, unrecorded: no statue roll
-        assert report["schema"] == "mesozoic.stance-gate-report/v2"
+        # Re-pinned from /v2 (decision D-D33); /v3 already named the kind-v2 report, so the bump is /v4.
+        assert report["schema"] == "mesozoic.stance-gate-report/v4"
         assert report["scored_gate_kind"] == "stance_quality/v1" and report["gate_kind"] == STANCE_GATE_V2_KIND
         assert "statue" not in report and "measurement" not in report
         written = stance_report.write_stance_gate_report(tmp_path, report)

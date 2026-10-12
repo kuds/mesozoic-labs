@@ -1321,6 +1321,32 @@ class TestSelectTrunk:
         # among the same-species, same-backend runs.
         assert _select(tmp_path).run_dir == sac
 
+    def test_a_run_of_the_species_other_embodiment_or_naming_half_its_model_is_refused(self, tmp_path, fixture_tasks):
+        """Decision D-D33 (review H3): the foreign-run rule compares the model, both fields; a provenance naming the
+        same species in another embodiment is foreign, and one naming the species alone is refused, not matched."""
+        usable = tmp_path / "20260901_000000"
+        build_trunk_run(usable)
+        record = {"run_id": "other-run", "algorithm": "PPO", "backend": "stable-baselines3"}
+        robot = tmp_path / "20260910_000000"
+        build_trunk_run(robot)
+        (robot / "provenance.json").write_text(
+            json.dumps({**record, "species": "tyrannosaurus_rex", "embodiment": "robot"})
+        )
+        halved = tmp_path / "20260911_000000"
+        build_trunk_run(halved)
+        (halved / "provenance.json").write_text(json.dumps({**record, "species": "tyrannosaurus_rex"}))
+
+        selection = _select(tmp_path)
+
+        assert selection.run_dir == usable, "a newer run of another embodiment, or of a half-named model, was taken"
+        refusals = {c.run_dir.name: c.refusal for c in selection.candidates}
+        assert (
+            "species 'tyrannosaurus_rex' and embodiment 'robot', not tyrannosaurus_rex/anatomical"
+            in refusals["20260910_000000"][1]
+        )
+        assert "does not record the model it was trained as" in refusals["20260911_000000"][1]
+        assert "embodiment" in refusals["20260911_000000"][1]
+
     def test_retrain_from_at_the_root_consults_no_run(self, tmp_path, fixture_tasks):
         build_trunk_run(tmp_path / "20260905_000000")
         stance, _, _ = _tyrannosaurus_rex_chain()

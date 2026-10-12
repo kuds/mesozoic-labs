@@ -19,6 +19,7 @@ from environments.shared.behavior_env import RECIPE_TASK_STAGE, SpeciesBehaviorM
 from environments.shared.direction_commands import DirectionCommandConfig, gaussian_tracking_reward
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity, validate_compiled_plant
+from environments.shared.species_names import model_ids
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import STAGE_ID_PATTERN, load_stage_manifest
 from environments.shared.task_fingerprint import (
@@ -118,6 +119,12 @@ def _translate_surface_and_animal(env, height):
         apply_terrain(env._probe_model, realization, env._probe_data)
     env.data.qpos[2] += realization.height_at(0.0, 0.0)
     mujoco.mj_forward(env.model, env.data)
+
+
+def test_the_model_tables_cover_every_model():
+    """A new model fails here, naming the table, instead of going untested (review M4)."""
+    assert set(MODEL_IDS) == set(model_ids()), "MODEL_IDS must list every manifest model"
+    assert set(SPEEDS) == set(model_ids()), "SPEEDS must pin every manifest model"
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")

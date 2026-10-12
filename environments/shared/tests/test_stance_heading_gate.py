@@ -137,7 +137,8 @@ def judge(rows: list[HeadingEpisode], block: StanceV2Thresholds | None = None, *
 class TestRegistration:
     def test_the_schema_registers_the_kind_with_the_v2_key_sets(self):
         assert STANCE_HEADING_GATE_KIND == "stance_quality_heading/v1"
-        assert STANCE_HEADING_REPORT_SCHEMA == "mesozoic.stance-heading-report/v1"
+        # Re-pinned from /v1 when the report began naming the embodiment (decision D-D33).
+        assert STANCE_HEADING_REPORT_SCHEMA == "mesozoic.stance-heading-report/v2"
         assert HEADING_PROTOCOL == "whole_scene_yaw/v1"
         assert GATE_KINDS[STANCE_HEADING_GATE_KIND] == STANCE_HEADING_THRESHOLD_KEYS == STANCE_V2_THRESHOLD_KEYS
         assert gate_schema._REQUIRED_THRESHOLD_KEYS[STANCE_HEADING_GATE_KIND] == STANCE_HEADING_REQUIRED_KEYS

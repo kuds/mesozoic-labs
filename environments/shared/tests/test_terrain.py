@@ -2,12 +2,13 @@
 
 import json
 from dataclasses import FrozenInstanceError, replace
-from pathlib import Path
 
 import mujoco
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
+from environments.shared.paths import ENVIRONMENTS_ROOT
 from environments.shared.terrain import (
     TerrainConfig,
     TerrainRealization,
@@ -16,13 +17,7 @@ from environments.shared.terrain import (
     generate_terrain,
 )
 
-_TYRANNOSAURUS_REX_XML = (
-    Path(__file__).resolve().parents[2]
-    / "tyrannosaurus_rex"
-    / "anatomical"
-    / "assets"
-    / "tyrannosaurus_rex_anatomical.xml"
-)
+_TYRANNOSAURUS_REX_XML = ModelId("tyrannosaurus_rex", "anatomical").asset_path(ENVIRONMENTS_ROOT)
 
 
 @pytest.fixture

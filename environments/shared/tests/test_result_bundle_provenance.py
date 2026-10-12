@@ -71,6 +71,42 @@ def test_initialize_result_bundle_is_idempotent_and_rejects_reuse(
         initialize_result_bundle(run_dir, **changed_kwargs)
 
 
+def test_a_bundle_of_one_embodiment_is_refused_for_the_other(tmp_path: Path, stable_provenance: None) -> None:
+    """Decision D-D33 (review H3): a run directory, and the plant identity it records, belong to one model, named
+    by species AND embodiment.  The anatomical Compsognathus's run is refused for the robot, so is its plant
+    identity, and a provenance naming the species alone is refused rather than matched."""
+    anatomical = ModelId("compsognathus_longipes", "anatomical")
+    robot = ModelId("compsognathus_longipes", "robot")
+    run_dir = tmp_path / "run"
+    kwargs: _InitializeResultBundleKwargs = {
+        "model_id": anatomical,
+        "algorithm": "PPO",
+        "backend": "stable-baselines3",
+        "seed": 42,
+        "evaluation_seeds": [11, 12],
+        "evaluation_episodes": 2,
+        "parallel_envs": 4,
+        "plant_identity": _plant_identity(anatomical),
+        "run_id": "fixed-run-id",
+        "captured_at": "2026-07-18T12:00:00+00:00",
+    }
+    path = initialize_result_bundle(run_dir, **kwargs)
+    as_robot: _InitializeResultBundleKwargs = {**kwargs, "model_id": robot, "plant_identity": _plant_identity(robot)}
+    with pytest.raises(ResultBundleError, match=r"different run: \{'embodiment': \('anatomical', 'robot'\)"):
+        initialize_result_bundle(run_dir, **as_robot)
+    anatomical_plant: _InitializeResultBundleKwargs = {**kwargs, "model_id": robot}
+    with pytest.raises(
+        ResultBundleError,
+        match="plant identity model mismatch: expected compsognathus_longipes/robot, found compsognathus_longipes/anatomical",
+    ):
+        initialize_result_bundle(tmp_path / "robot", **anatomical_plant)
+    halved = json.loads(path.read_text(encoding="utf-8"))
+    del halved["embodiment"]
+    path.write_text(json.dumps(halved), encoding="utf-8")
+    with pytest.raises(ResultBundleError, match=r"different run: \{'embodiment': \(None, 'anatomical'\)"):
+        initialize_result_bundle(run_dir, **kwargs)
+
+
 def test_initialize_result_bundle_rejects_duplicate_evaluation_seeds(
     tmp_path: Path,
     stable_provenance: None,

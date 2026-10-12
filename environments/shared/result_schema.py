@@ -1423,8 +1423,15 @@ def validate_result_summary(
     summary = _require_mapping(summary, field=f"result summary {label}")
     schema_version = summary.get("schema_version")
     if schema_version not in SUPPORTED_RESULT_SCHEMA_VERSIONS:
+        # Refused by name: a v3 or v4 summary predates the model identity (decision D-D33).
+        retired = (
+            "; schema 3 and 4 summaries name species IDs decision D-D33 retired"
+            if type(schema_version) is int and schema_version in (3, 4)
+            else ""
+        )
         raise ResultSchemaError(
-            f"result summary schema_version must be one of {sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}: {label}"
+            f"result summary schema_version must be one of {sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}, not "
+            f"{schema_version!r}{retired}: {label}"
         )
     v4 = int(schema_version) >= 4
     if not v4:

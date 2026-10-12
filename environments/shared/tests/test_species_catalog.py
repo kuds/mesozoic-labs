@@ -48,6 +48,7 @@ from environments.shared.species_catalog import (
     render_readme_species,
     render_readme_species_summary,
 )
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest, resolve_stage_key
 
 from .notebook_cells import cell_sources, code_cell_sources
@@ -170,6 +171,8 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
 
 
 def test_catalog_publishes_layered_plant_contract() -> None:
+    """Re-pinned plant-manifest/v1 -> v2 on 2026-10-11 (decision D-D33): plants are keyed by species and
+    embodiment."""
     catalog = build_catalog()
 
     assert catalog["plant_manifest"] == {
@@ -259,6 +262,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update({COMPSOGNATHUS_LONGIPES: 2, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+    # Every table pins every model (review M4): a new model fails here, naming the table.
+    for name, table in (
+        ("expected_policy_revisions", expected_policy_revisions),
+        ("expected_observation_schemas", expected_observation_schemas),
+        ("expected_physics_revisions", expected_physics_revisions),
+        ("expected_visual_revisions", expected_visual_revisions),
+    ):
+        assert set(table) == set(_models(catalog)) == set(model_ids()), name
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for model_id, entry in _models(catalog).items():
         plant = entry["model"]["plant_contract"]
@@ -1200,14 +1211,15 @@ def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> 
 _SHA = "sha256:" + "a" * 64
 
 
-def _tyrannosaurus_rex_v4_summary(
+def _tyrannosaurus_rex_v5_summary(
     verdicts: dict[str, bool],
     *,
     target: str | None,
     primary: str | None,
     bundle_status: str,
 ) -> dict[str, Any]:
-    """The committed trex ladder summary re-cut as a schema-4 result.
+    """The committed T-Rex ladder summary re-cut as a result under the deliverable rules, at the writers' schema
+    (v5; it was schema 4 until decision D-D33 retired it).
 
     Non-canonical provenance (historical, identifiers null), which is the
     shape the catalog validates: `provenance.species` / `backend` plus the
@@ -1220,7 +1232,7 @@ def _tyrannosaurus_rex_v4_summary(
             (REPOSITORY_ROOT / "results/tyrannosaurus_rex/anatomical/ppo/summary.json").read_text(encoding="utf-8")
         )
     )
-    summary["schema_version"] = 4
+    summary["schema_version"] = 5
     summary["bundle_status"] = bundle_status
     summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
     gates = current_gate_kinds(TYRANNOSAURUS_REX)
@@ -1274,7 +1286,7 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     kind, certification, hash, replication and headline, and the stance
     headline names its statistics with null values (D-A9).
     """
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
     )
 
@@ -1354,7 +1366,7 @@ def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkey
     The recorded pair is validated (the schema refuses an inconsistent one)
     but never re-served over the current bar.
     """
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
     )
     stance = summary["provenance"]["deliverables"]["1"]
@@ -1413,7 +1425,7 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
     ladder projection that carries only the fixed ladder columns: Phase
     B's export must surface without a second catalog edit.
     """
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
     )
     summary["stages"]["1"]["gate_kind"] = gate_kind
@@ -1431,7 +1443,7 @@ def test_v4_headline_reads_the_statistic_the_summary_records(
 
 def test_v4_headline_reads_the_task_success_lcb_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
     """A task_success/v1 hunt deliverable headlines selected_model_success_lcb from the stage row as written."""
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
     )
     summary["stages"]["3"]["gate_kind"] = "task_success/v1"
@@ -1462,7 +1474,7 @@ def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected
     validator rejects it with a message naming the keys (a CatalogError
     here, never a bare StopIteration escaping ``python -m ...species_catalog``).
     """
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="locomotion", bundle_status="partial"
     )
     with pytest.raises(
@@ -1473,7 +1485,7 @@ def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected
 
 def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """The catalog never headlines a failed leaf: an uncertified primary is fatal."""
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="3", bundle_status="partial"
     )
     with pytest.raises(CatalogError, match="not certified"):
@@ -1481,13 +1493,13 @@ def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, mon
 
     # A certified primary that is not the one the deliverables and target
     # imply (walk is the deepest certified, so stance cannot be primary).
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="1", bundle_status="partial"
     )
     with pytest.raises(CatalogError, match="is not the one its deliverables and target"):
         _build_result_from(tmp_path, monkeypatch, summary)
 
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary=None, bundle_status="partial"
     )
     with pytest.raises(CatalogError, match="no primary deliverable"):
@@ -1496,7 +1508,7 @@ def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, mon
 
 def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
     """A deliverable key outside the species' manifest vocabulary fails closed."""
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete"
     )
     summary["provenance"]["deliverables"]["follow_direction"] = deepcopy(summary["provenance"]["deliverables"]["3"])
@@ -1506,7 +1518,7 @@ def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, m
 
 def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -> None:
     """A walk-targeted run with no behavior stage publishes (plan §8.5) and has no ladder headline."""
-    summary = _tyrannosaurus_rex_v4_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
+    summary = _tyrannosaurus_rex_v5_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
 
     result = _build_result_from(tmp_path, monkeypatch, summary)
 
@@ -1876,15 +1888,37 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     The golden fixture is the block between the RESULTS markers of
     README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
     2026-09-12 before any WS4 edit).  A Deliverables line is only emitted
-    for a schema-4 result, and the four committed summaries are schema 2.
-    Since cleanup CU-17 the block lives in docs/SPECIES_CATALOG.md (D-A10's
-    amendment), whose links are relative to docs/: the committed block there
-    is the golden with its four source-summary links one directory up, and
-    the root README no longer embeds it.
+    for a result under the deliverable rules (schema 5), and the four
+    committed summaries are schema 2.  Since cleanup CU-17 the block lives in
+    docs/SPECIES_CATALOG.md (D-A10's amendment), whose links are relative to
+    docs/: the committed block there is the golden with its four
+    source-summary links one directory up, and the root README no longer
+    embeds it.
+
+    Decision D-D33 moved the four summaries to ``results/<species>/<embodiment>/``
+    and heads each section with the model display name.  The fixture is
+    unchanged: its four headings and four source links are normalised here
+    from the catalog's own records (the species display name becomes the
+    model's, each link the recorded ``summary_path``), and every other byte
+    must still match.
     """
     golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
     assert golden.count("### ") == 4
     catalog = build_catalog()
+    recorded = [(entry, result) for entry in catalog["models"] for result in entry["historical_results"]]
+    assert len(recorded) == 4
+    lines = golden.splitlines(keepends=True)
+    sections = iter(recorded)
+    for index, line in enumerate(lines):
+        if line.startswith("### "):
+            entry, _ = next(sections)
+            heading = f"### {entry['species_display_name']} ("
+            assert line.startswith(heading), line
+            lines[index] = f"### {entry['display_name']} (" + line[len(heading) :]
+    golden = "".join(lines)
+    links = iter(result["summary_path"] for _, result in recorded)
+    golden = re.sub(r"\]\(results/[^)]+/summary\.json\)", lambda _: f"]({next(links)})", golden)
+    assert next(links, None) is None
     assert render_readme_results(catalog).rstrip() + "\n" == golden
     assert golden.count("](results/") == 4
     on_page = golden.replace("](results/", "](../results/")
@@ -2064,10 +2098,11 @@ def test_main_writes_each_output_where_it_is_told_and_checks_the_same_paths(
 
 
 def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
-    """A schema-4 result adds one Deliverables line, and every ladder section stays as it was."""
+    """A result under the deliverable rules (schema 5; schema 4 before decision D-D33) adds one Deliverables line,
+    and every ladder section stays as it was."""
     catalog = build_catalog()
     baseline = render_readme_results(catalog)
-    summary = _tyrannosaurus_rex_v4_summary(
+    summary = _tyrannosaurus_rex_v5_summary(
         {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
     )
     v4_result = _build_result_from(tmp_path, monkeypatch, summary)
@@ -2089,8 +2124,12 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert "; 2 runs of 2 seeds; " in _format_deliverable(replicated, primary=False)
     assert "provisional" not in _format_deliverable(replicated, primary=False)
     assert rendered.count("**Deliverables:**") == 1
-    # The non-trex sections are untouched by the new line.
-    for heading in ("### Velociraptor Mongoliensis (PPO", "### Velociraptor Mongoliensis (SAC", "### Brachiosaurus"):
+    # The other models' sections are untouched by the new line (headed by the model display name, D-D33).
+    for heading in (
+        "### Velociraptor Mongoliensis (Anatomical) (PPO",
+        "### Velociraptor Mongoliensis (Anatomical) (SAC",
+        "### Brachiosaurus Altithorax (Anatomical)",
+    ):
         section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
         assert section(rendered) == section(baseline)
 
@@ -2182,7 +2221,7 @@ def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch
     v4_result = _build_result_from(
         tmp_path,
         monkeypatch,
-        _tyrannosaurus_rex_v4_summary(
+        _tyrannosaurus_rex_v5_summary(
             {"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"
         ),
     )

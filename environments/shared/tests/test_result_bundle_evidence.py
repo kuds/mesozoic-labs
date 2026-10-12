@@ -1011,7 +1011,7 @@ def test_a_recovery_resolution_must_start_at_the_certification_panel_seed(
 
     def _freeze(panel_seed_start: Any) -> None:
         resolution = {
-            "schema": "mesozoic.gate-resolution/v1",
+            "schema": "mesozoic.gate-resolution/v2",
             "decision_procedure": {"panel_seed_start": panel_seed_start},
         }
         resolution_path.write_text(json.dumps(resolution) + "\n", encoding="utf-8")

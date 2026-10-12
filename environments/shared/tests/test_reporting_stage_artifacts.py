@@ -1151,7 +1151,8 @@ class TestStanceHeadingStageGate:
             stage_dir=tmp_path,
             model_dir=tmp_path / "models",
         )
-        assert report is not None and report["schema"] == "mesozoic.stance-heading-report/v1"
+        # Re-pinned from /v1 when the report began naming the embodiment (decision D-D33).
+        assert report is not None and report["schema"] == "mesozoic.stance-heading-report/v2"
         assert seen == {"model_path": str(tmp_path / "models" / "robust_best_model.zip"), "episodes": 40}
         assert (tmp_path / "stance_heading_report.json").is_file()
         assert (tmp_path / "stance_heading_panel_selected.csv").is_file()

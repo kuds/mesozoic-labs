@@ -96,10 +96,11 @@ def _retune_constructor_default(monkeypatch, env_class, name, value):
 
 
 class TestEffectiveEnvSection:
-    def test_schema_is_v2(self):
+    def test_schema_is_v3(self):
+        """Re-pinned from /v2: the fingerprint names the embodiment (decision D-D33)."""
         payload = _fingerprint()
         assert payload["schema"] == TASK_FINGERPRINT_SCHEMA
-        assert payload["schema"].endswith("/v2")
+        assert payload["schema"].endswith("/v3")
 
     def test_constructor_defaults_enter_the_env_section(self):
         env = _fingerprint()["env"]

@@ -445,3 +445,65 @@ def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
             _jax_policy_interface_payload(model, interface, version)
     finally:
         interface.close()
+
+
+#: Where each model's hashed SB3 interface methods sit, by qualname (plant_versions note 19, decision D-D33;
+#: review H1).  The four species define them on the species base ``<Species>Env``, so a later robot of the species
+#: moves none of the anatomical plant's qualnames.  The anatomical Compsognathus overrides two on its embodiment
+#: class (the soft-cubic residual, D-D26; the heading-free observation, D-D31); the robot inherits all three.
+#: Values are double-entered on purpose: a qualname move is a policy revision.
+SB3_INTERFACE_QUALNAMES: dict[ModelId, dict[str, str]] = {
+    VELOCIRAPTOR_MONGOLIENSIS: {
+        "sb3_observation": "VelociraptorMongoliensisEnv._get_obs",
+        "sb3_action_mapping": "VelociraptorMongoliensisEnv._scale_action",
+        "sb3_sensor_cache": "VelociraptorMongoliensisEnv._cache_ids",
+    },
+    TYRANNOSAURUS_REX: {
+        "sb3_observation": "TyrannosaurusRexEnv._get_obs",
+        "sb3_action_mapping": "TyrannosaurusRexEnv._scale_action",
+        "sb3_sensor_cache": "TyrannosaurusRexEnv._cache_ids",
+    },
+    BRACHIOSAURUS_ALTITHORAX: {
+        "sb3_observation": "BrachiosaurusAltithoraxEnv._get_obs",
+        "sb3_action_mapping": "BrachiosaurusAltithoraxEnv._scale_action",
+    },
+    ModelId("dibothrosuchus_elaphros", "anatomical"): {
+        "sb3_observation": "DibothrosuchusElaphrosEnv._get_obs",
+        "sb3_action_mapping": "DibothrosuchusElaphrosEnv._scale_action",
+    },
+    COMPSOGNATHUS_LONGIPES: {
+        "sb3_observation": "CompsognathusLongipesAnatomicalEnv._get_obs",
+        "sb3_action_mapping": "CompsognathusLongipesAnatomicalEnv._scale_action",
+        "sb3_sensor_cache": "CompsognathusLongipesEnv._cache_ids",
+    },
+    ModelId("compsognathus_longipes", "robot"): {
+        "sb3_observation": "CompsognathusLongipesEnv._get_obs",
+        "sb3_action_mapping": "CompsognathusLongipesEnv._scale_action",
+        "sb3_sensor_cache": "CompsognathusLongipesEnv._cache_ids",
+    },
+}
+
+
+def test_the_qualname_table_covers_every_model():
+    from environments.shared.species_names import model_ids
+
+    assert set(SB3_INTERFACE_QUALNAMES) == set(model_ids()), (
+        "SB3_INTERFACE_QUALNAMES must name every manifest model's hashed interface methods"
+    )
+
+
+@pytest.mark.parametrize("model_id", list(SB3_INTERFACE_QUALNAMES), ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_hashed_interface_methods_sit_where_note_19_put_them(model_id):
+    from environments.shared.species_registry import env_class
+
+    env = env_class(model_id)(reset_noise_scale=0.0)
+    try:
+        version = load_plant_versions()[1][model_id]
+        implementations = _policy_interface_payload(env.model, env, version)["interface_implementations"]
+        recorded = {key: value["qualname"] for key, value in implementations.items() if key.startswith("sb3_")}
+        assert recorded == SB3_INTERFACE_QUALNAMES[model_id]
+        assert implementations["home_reset"]["sb3"]["qualname"] == "BaseDinoEnv.reset"
+        if model_id.species != "compsognathus_longipes":
+            assert {name.split(".")[0] for name in recorded.values()} == {f"{model_id.species_pascal}Env"}
+    finally:
+        env.close()

@@ -97,6 +97,7 @@ class TestWrite:
         assert path == stage_dir / GATE_VERDICT_FILENAME
         verdict = json.loads(path.read_text())
         assert verdict == read_gate_verdict(stage_dir)
+        # Re-pinned from /v1 when the verdict began naming the embodiment (decision D-D33).
         assert verdict["schema"] == GATE_VERDICT_SCHEMA == "mesozoic.gate-verdict/v2"
         assert ModelId.from_record(verdict) == TYRANNOSAURUS_REX
         assert verdict["stage"] == 1 and verdict["stage_id"] == "stance"

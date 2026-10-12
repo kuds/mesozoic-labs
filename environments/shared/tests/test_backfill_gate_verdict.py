@@ -453,7 +453,8 @@ class TestStanceReports:
             backfill_gate_verdict(stage_dir, gate="current", force=True)
         message = str(excinfo.value)
         assert "cannot back a stance_quality_heading/v1 verdict under the current 'stance' block" in message
-        assert "not 'mesozoic.stance-heading-report/v1'" in message
+        # The certificate schema was re-pinned from /v1 to /v2 (decision D-D33).
+        assert "not 'mesozoic.stance-heading-report/v2'" in message
         assert "notebook JUDGE branch" in message
         assert read_gate_verdict(stage_dir) is None
         (stage_dir / "stance_heading_report.json").unlink()

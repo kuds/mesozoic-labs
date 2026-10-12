@@ -58,7 +58,7 @@ def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     assert set(summary["stages"]) == {"1", "recovery", "2", "3"}
-    assert summary["schema_version"] == 4
+    assert summary["schema_version"] == 5  # re-pinned from 4: the summary names its embodiment (decision D-D33)
     assert summary["bundle_status"] == "partial"
     # The pilot's honest verdict is recorded, not laundered.
     assert summary["stages"]["recovery"]["stage_passed"] is False
@@ -301,4 +301,4 @@ def test_recovery_collected_results_row_round_trips(tmp_path: Path) -> None:
         reread = list(csv.DictReader(source))
     assert [row["stage"] for row in reread] == ["1", "recovery"]
     assert ModelId.from_record(reread[1]) == ModelId("tyrannosaurus_rex", "anatomical")
-    assert reread[1]["schema_version"] == "4"
+    assert reread[1]["schema_version"] == "5"  # re-pinned from 4 (decision D-D33)

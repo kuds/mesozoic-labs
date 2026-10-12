@@ -84,6 +84,27 @@ def test_a_record_whose_hashes_disagree_with_its_verdict_is_refused(tmp_path: Pa
         load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
+def test_a_copied_verdict_of_the_other_embodiment_or_naming_half_its_model_is_refused(tmp_path: Path) -> None:
+    """Decision D-D33 (review H3): a copied verdict judges one model, both fields.  The anatomical Compsognathus's
+    stance verdict is refused for the robot, and a verdict without its embodiment is refused, never matched."""
+    run_dir = tmp_path / "child"
+    run_dir.mkdir()
+    record_dir, _ = _write_ancestor_record(run_dir, 1, model_id=ModelId("compsognathus_longipes", "anatomical"))
+
+    with pytest.raises(
+        ResultBundleError,
+        match="judges species 'compsognathus_longipes' and embodiment 'anatomical', not compsognathus_longipes/robot",
+    ):
+        load_ancestor_records(run_dir, model_id=ModelId("compsognathus_longipes", "robot"))
+
+    verdict_path = record_dir / "gate_verdict.json"
+    verdict = json.loads(verdict_path.read_text(encoding="utf-8"))
+    del verdict["embodiment"]
+    verdict_path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(ResultBundleError, match="embodiment"):
+        load_ancestor_records(run_dir, model_id=ModelId("compsognathus_longipes", "anatomical"))
+
+
 def test_a_record_for_an_unknown_stage_id_is_refused(tmp_path: Path) -> None:
     run_dir = tmp_path / "child"
     run_dir.mkdir()

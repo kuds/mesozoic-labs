@@ -75,7 +75,7 @@ def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
 
     assert paths["summary"] == run_dir / "summary.json"
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
-    assert summary["schema_version"] == 4
+    assert summary["schema_version"] == 5  # re-pinned from 4: the summary names its embodiment (decision D-D33)
     assert summary["bundle_status"] == "partial"
     assert summary["provenance"]["primary_deliverable"] == "1"
     assert summary["provenance"]["target_deliverable"] == "3"

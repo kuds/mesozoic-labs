@@ -87,6 +87,20 @@ def test_profile_loads_physical_judge_not_tyrannosaurus_rex_defaults(profile_tas
     assert loaded.evaluation_spec()["profile_sha256"].startswith("sha256:")
 
 
+def test_the_anatomical_profile_offered_for_the_robot_and_one_naming_half_its_model_are_refused(profile_task):
+    """Decision D-D33 (review H3): a profile is the model's only when its species AND embodiment name it."""
+    profile, path, env = profile_task
+    robot_path = COMPSOGNATHUS_LONGIPES_ROBOT.path(calibration.CONFIGS_ROOT) / "recovery_calibration.json"
+    robot_path.parent.mkdir(parents=True)
+    robot_path.write_text(json.dumps(profile))  # the anatomical profile, filed in the robot's directory
+    with pytest.raises(GateResolutionError, match="is not a recovery calibration of compsognathus_longipes/robot"):
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, env=env)
+    del profile["embodiment"]
+    path.write_text(json.dumps(profile))
+    with pytest.raises(GateResolutionError, match="does not name its model.*embodiment"):
+        calibration.load_recovery_calibration(COMPSOGNATHUS_LONGIPES, env=env)
+
+
 @pytest.mark.parametrize(
     "field,value,match",
     [

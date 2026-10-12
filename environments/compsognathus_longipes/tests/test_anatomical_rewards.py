@@ -57,6 +57,18 @@ LEGACY_INFO_KEYS = (
 )
 
 
+class _LinearAnatomicalEnv(CompsognathusLongipesEnv):
+    """The anatomical plant on the species base's linear residual and reward.
+
+    ``CompsognathusLongipesEnv`` is the abstract species base (decision D-D33): it names no embodiment, MJCF or
+    nominal pelvis height, so the legacy comparison takes them from the anatomical class.
+    """
+
+    embodiment = CompsognathusLongipesAnatomicalEnv.embodiment
+    MODEL_PATH = CompsognathusLongipesAnatomicalEnv.MODEL_PATH
+    nominal_pelvis_height = CompsognathusLongipesAnatomicalEnv.nominal_pelvis_height
+
+
 def _stance_kwargs(**overrides):
     return {**load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")["env_kwargs"], **overrides}
 
@@ -85,7 +97,7 @@ def test_default_kwargs_reproduce_the_legacy_reward_bit_for_bit(sigma):
     new = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
     legacy = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
     legacy._get_reward_info = types.MethodType(CompsognathusLongipesEnv._get_reward_info, legacy)
-    linear = CompsognathusLongipesEnv(**_legacy_kwargs())
+    linear = _LinearAnatomicalEnv(**_legacy_kwargs())
     # Policy interface r4 gave the subclass its own heading-free _get_obs; the reward under test reads none of it.
     linear._get_obs = types.MethodType(CompsognathusLongipesAnatomicalEnv._get_obs, linear)
     linear_new = CompsognathusLongipesAnatomicalEnv(**_legacy_kwargs())
@@ -381,7 +393,9 @@ def test_the_support_geoms_are_the_floor_truth_registry_entry():
 
     entry = support_entry(ModelId("compsognathus_longipes", "anatomical"))
     assert entry is not None
-    assert tuple("{s}_" + name for name in CompsognathusLongipesAnatomicalEnv.support_geoms) == entry.support
+    support = tuple("{s}_" + name for name in CompsognathusLongipesAnatomicalEnv.support_geoms)
+    # The registry entry is the class's own FOOT_SUPPORT (decision D-D33): one source, two readers.
+    assert support == entry.support == CompsognathusLongipesAnatomicalEnv.FOOT_SUPPORT["support"]
     assert entry.sole == "{s}_plantar_pad" and entry.foot_site == "{s}_foot_touch_volume"
 
 
@@ -429,24 +443,13 @@ def test_invalid_stance_terms_are_refused(bad):
         CompsognathusLongipesAnatomicalEnv(**bad)
 
 
-#: The robot's stage task digests on main before the anatomical revision (configs/digest_snapshot.generated.txt
-#: at 46e0b7c).  The stance-quality kwargs live on CompsognathusLongipesAnatomicalEnv alone, so the robot's constructor, and
-#: with it every robot task fingerprint, must not move.
-ROBOT_TASK_SHA256 = {
-    "stance": "sha256:26a8ec2b563e7bdc3808085b52edf0e8e0a785088d5f102f18274d4ab378c36c",
-    "recovery": "sha256:84414f4c9c4d3544479c5fe21f7fe5fd56540cfa244a006bc264054d6eb6d98d",
-    "locomotion": "sha256:ae9b535cdbab8bb95fc2e9482c6b119d0c68c4c34047fb2f7f245735bb31707b",
-    "behavior": "sha256:5e42c9c772ff91e11040d65b15222a2463b24151c361360776df7746361ec045",
-}
+def test_the_robot_constructor_takes_none_of_the_anatomical_reward_terms():
+    """The stance-quality kwargs live on CompsognathusLongipesAnatomicalEnv alone, so the robot's constructor, and
+    with it every robot task fingerprint, does not move with them.
 
-
-@pytest.mark.parametrize("stage", sorted(ROBOT_TASK_SHA256))
-def test_the_robot_tasks_did_not_move_with_the_anatomical_reward(stage):
-    from environments.shared.task_fingerprint import stage_task_fingerprint
-
-    assert (
-        stage_task_fingerprint(ModelId("compsognathus_longipes", "robot"), stage)["task_sha256"]
-        == ROBOT_TASK_SHA256[stage]
-    )
+    The four robot task digests this test once pinned (configs/digest_snapshot.generated.txt at 46e0b7c) moved
+    with the fingerprint v3 identity fields (decision D-D33); the digest golden pins the current ones, so only
+    this structural check stays.
+    """
     parameters = inspect.signature(get_species_config(ModelId("compsognathus_longipes", "robot")).env_class).parameters
     assert "support_geom_coverage_weight" not in parameters and "bilateral_support_weight" not in parameters

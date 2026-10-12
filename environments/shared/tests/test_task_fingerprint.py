@@ -322,6 +322,19 @@ class TestDeclaredParent:
         ):
             self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2, model_id=VELOCIRAPTOR_MONGOLIENSIS)
 
+    def test_the_other_embodiments_checkpoint_and_one_naming_half_its_model_are_refused(self):
+        """Decision D-D33 (review H3): the lineage names the model by both fields, never by the species alone."""
+        robot = ModelId("compsognathus_longipes", "robot")
+        anatomical = {**_fingerprint(stage=1), **ModelId("compsognathus_longipes", "anatomical").record()}
+        with pytest.raises(
+            TaskFingerprintError,
+            match="records species 'compsognathus_longipes' and embodiment 'anatomical', not compsognathus_longipes/robot",
+        ):
+            self._check(anatomical, declared_parent=1, child_stage=2, model_id=robot)
+        halved = {key: value for key, value in anatomical.items() if key != "embodiment"}
+        with pytest.raises(TaskFingerprintError, match="does not name its model.*embodiment"):
+            self._check(halved, declared_parent=1, child_stage=2, model_id=robot)
+
     def test_a_bool_or_missing_stage_never_matches(self):
         recorded = dict(_fingerprint(stage=1))
         recorded["stage"] = True

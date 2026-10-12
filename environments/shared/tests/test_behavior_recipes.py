@@ -46,6 +46,14 @@ def _terrain(recipe):
     return TerrainConfig(**values)
 
 
+def test_the_sb3_models_are_discovered():
+    """Protect the parametrized tests below against an empty, vacuously passing model list (review G7)."""
+    assert MODEL_IDS, "the manifest lists no Stable-Baselines3 model"
+    # Coverage equality with the committed recipe directories: one per SB3 model, configs/<species>/<embodiment>/.
+    recipe_dirs = {path.parent.parent for path in (ROOT / "configs").glob("*/*/behaviors/*.toml")}
+    assert recipe_dirs == {model_id.path(ROOT / "configs") for model_id in MODEL_IDS}
+
+
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 def test_every_registered_sb3_model_has_all_supported_behaviors(model_id):
     paths = model_id.path(ROOT / "configs") / "behaviors"
@@ -238,6 +246,28 @@ def test_bad_recipe_refuses_before_environment_or_policy_loading(tmp_path, conte
     path.write_text(_BEHAVIOR_HEADER + content)
     with pytest.raises((ValueError, TypeError)):
         read_recipe(path, TYRANNOSAURUS_REX)
+
+
+def test_a_recipe_of_the_other_embodiment_or_naming_half_its_model_is_refused(tmp_path):
+    """Decision D-D33 (review H3): a recipe names its model by both fields.  The anatomical Compsognathus's
+    recipe is refused for the robot, and a recipe without its embodiment is refused, never matched."""
+    from environments.shared.train_behaviors import read_recipe
+
+    anatomical = ModelId("compsognathus_longipes", "anatomical")
+    robot = ModelId("compsognathus_longipes", "robot")
+    source = anatomical.path(ROOT / "configs") / "behaviors" / "follow_direction.toml"
+    with pytest.raises(
+        ValueError,
+        match="names species 'compsognathus_longipes' and embodiment 'anatomical', not the requested model "
+        "compsognathus_longipes/robot",
+    ):
+        read_recipe(source, robot)
+    halved = tmp_path / "follow_direction.toml"
+    halved.write_text(
+        "".join(line for line in source.read_text().splitlines(keepends=True) if not line.startswith("embodiment"))
+    )
+    with pytest.raises(ValueError, match="behavior requires species, embodiment, name and parent"):
+        read_recipe(halved, anatomical)
 
 
 @pytest.mark.parametrize(

@@ -673,7 +673,9 @@ class TestPublicationKeys:
         assert hyperparameters_sha256(stance, "PPO") == hyperparameters_sha256(
             {**stance, "curriculum_kwargs": without}, "PPO"
         )
-        for model_id in model_ids():
+        models = model_ids()
+        assert models, "the manifest lists no model"
+        for model_id in models:
             for stage, cfg in load_all_stages(model_id).items():
                 if (model_id, stage) == (ModelId("tyrannosaurus_rex", "anatomical"), 1):
                     continue

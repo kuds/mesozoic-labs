@@ -980,7 +980,8 @@ def test_lineage_records_the_parent_hashes_in_the_archive_and_the_run_block(wide
     parent_obs = widened["parent_obs"]
 
     lineage = read_checkpoint_attribute(result.model_zip, MODEL_WIDEN_LINEAGE_ATTRIBUTE)
-    assert lineage["schema"] == "mesozoic.widen-lineage/v1"
+    # Re-pinned from /v1 when the lineage began naming the embodiment (decision D-D33).
+    assert lineage["schema"] == "mesozoic.widen-lineage/v2"
     assert lineage["tool"] == WIDEN_TOOL_VERSION
     assert lineage["parent_checkpoint_sha256"] == sha256_file(parent["model_zip"]) == result.parent_checkpoint_sha256
     assert lineage["parent_normalization_sha256"] == sha256_file(parent["vecnorm_pkl"])
@@ -1040,6 +1041,8 @@ REFUSAL_CASES = (
     "width_changing_hop_under_gap_2",
     "max_revision_gap_zero",
     "physics_sha256_differs",
+    "parent_of_another_embodiment",
+    "parent_identity_naming_half_its_model",
     "action_dim_differs",
     "parent_verdict_failed",
     "occupied_target",
@@ -1048,6 +1051,7 @@ REFUSAL_CASES = (
     "missing_sidecar",
     "unstamped_sidecar",
     "legacy_sidecar_foreign_species",
+    "legacy_sidecar_of_another_embodiment",
     "target_not_a_stage_dirname",
     "target_inside_parent_run",
     "parent_inside_target",
@@ -1135,6 +1139,16 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         other = "sha256:" + hashlib.sha256(b"another physics plant").hexdigest()
         restamp_identity(parent["model_zip"], dataclasses.replace(narrow, physics_sha256=other).to_dict())
         fragments = (gate_prefix, f"physics_sha256: parent={other!r}, current={current.physics_sha256!r}")
+    elif case == "parent_of_another_embodiment":
+        # Decision D-D33 (review H3): the gate compares the model, both fields; the same species' other
+        # embodiment, on the same physics digest and widths, is refused.
+        restamp_identity(parent["model_zip"], dataclasses.replace(narrow, embodiment="robot").to_dict())
+        fragments = (gate_prefix, f"model: parent=tyrannosaurus_rex/robot, current={MODEL_ID}")
+    elif case == "parent_identity_naming_half_its_model":
+        identity = narrow.to_dict()
+        del identity["embodiment"]
+        restamp_identity(parent["model_zip"], identity)
+        fragments = (str(parent["model_zip"]), "embodiment")
     elif case == "action_dim_differs":
         restamp_identity(parent["model_zip"], dataclasses.replace(narrow, action_dim=narrow.action_dim + 1).to_dict())
         fragments = (gate_prefix, f"action_dim: parent={current.action_dim + 1}, current={current.action_dim}")
@@ -1184,6 +1198,17 @@ def test_refusals(case, narrow_parent_ppo, tmp_path):
         fragments = (
             f"{parent['vecnorm_pkl']} records a velociraptor_mongoliensis/anatomical plant of observation_dim {foreign.observation_dim}, "
             f"not the {MODEL_ID} parent's {narrow.observation_dim}",
+        )
+    elif case == "legacy_sidecar_of_another_embodiment":
+        # Decision D-D33 (review H3): a sidecar of the species' other embodiment with the parent's width is
+        # still not the parent's; the observation width alone does not tell two embodiments apart.
+        restamp_identity(parent["model_zip"], None)
+        other = dataclasses.replace(narrow, embodiment="robot")
+        rewrite_sidecar(parent["vecnorm_pkl"], lambda wrapper: attach_plant_identity(wrapper, other))
+        kwargs["allow_legacy_plant"] = True
+        fragments = (
+            f"{parent['vecnorm_pkl']} records a tyrannosaurus_rex/robot plant of observation_dim "
+            f"{narrow.observation_dim}, not the {MODEL_ID} parent's {narrow.observation_dim}",
         )
     elif case == "target_not_a_stage_dirname":
         target = tmp_path / "widened" / "01_stanc"

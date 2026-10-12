@@ -176,14 +176,15 @@ def test_a_v2_pass_cannot_be_promoted_by_attaching_a_heading_report(tmp_path):
     # Under the heading kind the v2 PASS is refused by name.
     passed, failures = evaluate_stage_gate(HEADING_CURRICULUM, {}, stage=1, stance_report=v2_pass, stage_dir=stage_dir)
     assert passed is False and "certifies yaw zero only and cannot be promoted" in failures[0]
-    # A heading report attached to the v2 report, or relabelled as one, is still a v3 report.
+    # A heading report attached to the v2 report, or relabelled as one, is still a kind-v2 (schema /v5) report.
     attached = {**v2_pass, "headings": heading_report(tmp_path / "other")["headings"]}
     passed, failures = evaluate_stage_gate(HEADING_CURRICULUM, {}, stage=1, stance_report=attached, stage_dir=stage_dir)
     assert passed is False and "certifies yaw zero only" in failures[0]
     # And under v2, a certificate is not a v2 report either: each kind admits only its own.
     certificate = heading_report(tmp_path / "third")
     passed, failures = evaluate_stage_gate(V2_CURRICULUM, {}, stage=1, stance_report=certificate, stage_dir=stage_dir)
-    assert passed is False and any("not 'mesozoic.stance-gate-report/v3'" in failure for failure in failures)
+    # The kind-v2 report schema was re-pinned from /v3 to /v5 (decision D-D33).
+    assert passed is False and any("not 'mesozoic.stance-gate-report/v5'" in failure for failure in failures)
 
 
 def test_the_cli_curriculum_judges_a_heading_node_after_training(tmp_path, monkeypatch):

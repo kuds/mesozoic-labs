@@ -20,6 +20,7 @@ from environments.shared.plant_contract import (
     load_plant_versions,
 )
 from environments.shared.plant_contract.manifest import _enforce_revision_changes
+from environments.shared.species_names import model_ids
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
@@ -29,6 +30,51 @@ COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
+#: The two dual-backend models (the frozen MJX registrations, D-D17).
+DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
+
+# Per-model pins, keyed by the model (review M4); each names the models it leaves out and why, and
+# test_the_per_model_tables_cover_every_model fails on a model in neither.  Widths carry the Phase C 3-dim command
+# segment (BEHAVIOR_RECIPES_PLAN §4.6): 67/61/83/77 -> 70/64/86/80, and 43 / 53 -> 46 / 56 for the two Compsognathus
+# plants; velociraptor left the frozen MJX core at policy-interface revision 11, and trex at revision 14 with the
+# heading-free observation (64 -> 63), which also took the anatomical compsognathus from 56 to 55 (projected gravity
+# replaces the 4-wide quaternion).
+#: Each SB3-only model's observation width.  Exempt: DUAL_BACKEND, which does claim MJX parity.
+SB3_ONLY_OBSERVATION_WIDTH = {
+    COMPSOGNATHUS_LONGIPES: 55,
+    COMPSOGNATHUS_LONGIPES_ROBOT: 46,
+    VELOCIRAPTOR_MONGOLIENSIS: 70,
+    TYRANNOSAURUS_REX: 63,
+}
+#: Each SB3-only model's action width, resolved from the bundled manifest alone.  Exempt: DUAL_BACKEND: the
+#: bundled manifest records no training backends, and the default the fallback assumes is theirs.
+BUNDLED_ACTION_DIM = {
+    VELOCIRAPTOR_MONGOLIENSIS: 22,
+    TYRANNOSAURUS_REX: 15,
+    COMPSOGNATHUS_LONGIPES: 14,
+    COMPSOGNATHUS_LONGIPES_ROBOT: 12,
+}
+#: (observation_dim, action_dim) of the identity generated from each executable environment.  Exempt: both
+#: Compsognathus models, whose widths SB3_ONLY_OBSERVATION_WIDTH and BUNDLED_ACTION_DIM pin.
+IDENTITY_DIMS = {
+    VELOCIRAPTOR_MONGOLIENSIS: (70, 22),
+    TYRANNOSAURUS_REX: (63, 15),
+    BRACHIOSAURUS_ALTITHORAX: (86, 30),
+    DIBOTHROSUCHUS_ELAPHROS: (80, 27),
+}
+_TABLES = {
+    "SB3_ONLY_OBSERVATION_WIDTH": (SB3_ONLY_OBSERVATION_WIDTH, DUAL_BACKEND),
+    "BUNDLED_ACTION_DIM": (BUNDLED_ACTION_DIM, DUAL_BACKEND),
+    "IDENTITY_DIMS": (IDENTITY_DIMS, frozenset({COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT})),
+}
+
+
+@pytest.mark.parametrize("name", list(_TABLES))
+def test_the_per_model_tables_cover_every_model(name):
+    """A new model fails here, naming the table, instead of going unpinned (review M4)."""
+    table, exempt = _TABLES[name]
+    assert not set(table) & exempt, f"{name} pins a model it exempts"
+    assert set(table) | exempt == set(model_ids()), f"{name} must pin every model it does not exempt"
 
 
 @pytest.mark.skipif(
@@ -64,11 +110,7 @@ def _readable(value: object) -> str | None:
     return f"{value.species}-{value.embodiment}" if isinstance(value, ModelId) else None
 
 
-@pytest.mark.parametrize(
-    "model_id",
-    [COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT, VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX],
-    ids=lambda m: f"{m.species}-{m.embodiment}",
-)
+@pytest.mark.parametrize("model_id", list(SB3_ONLY_OBSERVATION_WIDTH), ids=lambda m: f"{m.species}-{m.embodiment}")
 def test_sb3_only_species_do_not_claim_mjx_parity(model_id, monkeypatch):
     from environments.shared.plant_contract import policy_layer
     from environments.shared.species_registry import get_species_config
@@ -86,30 +128,10 @@ def test_sb3_only_species_do_not_claim_mjx_parity(model_id, monkeypatch):
         )
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     assert payload["backend_observation_equal"] is None
-    # 43 / 53 before the Phase C command segment (BEHAVIOR_RECIPES_PLAN §4.6);
-    # velociraptor left the frozen MJX core at policy-interface revision 11, and
-    # trex at revision 14 with the heading-free observation, which also took the
-    # anatomical compsognathus from 56 to 55 (projected gravity replaces the
-    # 4-wide quaternion).
-    expected_width = {
-        COMPSOGNATHUS_LONGIPES: 55,
-        COMPSOGNATHUS_LONGIPES_ROBOT: 46,
-        VELOCIRAPTOR_MONGOLIENSIS: 70,
-        TYRANNOSAURUS_REX: 63,
-    }[model_id]
-    assert payload["observation"]["shape"] == [expected_width]
+    assert payload["observation"]["shape"] == [SB3_ONLY_OBSERVATION_WIDTH[model_id]]
 
 
-@pytest.mark.parametrize(
-    ("model_id", "action_dim"),
-    [
-        (VELOCIRAPTOR_MONGOLIENSIS, 22),
-        (TYRANNOSAURUS_REX, 15),
-        (COMPSOGNATHUS_LONGIPES, 14),
-        (COMPSOGNATHUS_LONGIPES_ROBOT, 12),
-    ],
-    ids=_readable,
-)
+@pytest.mark.parametrize(("model_id", "action_dim"), list(BUNDLED_ACTION_DIM.items()), ids=_readable)
 def test_runtime_identity_falls_back_to_bundled_manifest(model_id, action_dim, monkeypatch, tmp_path):
     """The bundled manifest resolves dual-backend and SB3-only species alike.
 
@@ -130,15 +152,7 @@ def test_runtime_identity_falls_back_to_bundled_manifest(model_id, action_dim, m
 
 @pytest.mark.parametrize(
     ("model_id", "observation_dim", "action_dim"),
-    # Widths carry the Phase C 3-dim command segment (BEHAVIOR_RECIPES_PLAN
-    # §4.6): 67/61/83/77 -> 70/64/86/80; trex's heading-free observation
-    # (policy interface r14) then went 64 -> 63.
-    [
-        (VELOCIRAPTOR_MONGOLIENSIS, 70, 22),
-        (TYRANNOSAURUS_REX, 63, 15),
-        (BRACHIOSAURUS_ALTITHORAX, 86, 30),
-        (DIBOTHROSUCHUS_ELAPHROS, 80, 27),
-    ],
+    [(model_id, *dims) for model_id, dims in IDENTITY_DIMS.items()],
     ids=_readable,
 )
 def test_current_identity_matches_each_executable_environment(model_id, observation_dim, action_dim):

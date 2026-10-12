@@ -43,6 +43,7 @@ from environments.shared.gait.recorder import (
 )
 from environments.shared.gait.stance_metrics import episode_stance_metrics
 from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 from environments.shared.species_registry import get_species_config
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
@@ -487,6 +488,12 @@ STATUE_COP_FORE_AFT_CEILING = {
     DIBOTHROSUCHUS_ELAPHROS: 0.78,
     BRACHIOSAURUS_ALTITHORAX: None,
 }
+
+
+def test_the_statue_tables_cover_every_model():
+    """A new model fails here, naming the table, instead of going untested (review M4)."""
+    assert set(MODEL_IDS) == set(model_ids()), "MODEL_IDS must list every manifest model"
+    assert set(STATUE_COP_FORE_AFT_CEILING) == set(model_ids()), "STATUE_COP_FORE_AFT_CEILING must pin every model"
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
