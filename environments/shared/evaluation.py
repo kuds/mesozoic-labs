@@ -691,7 +691,7 @@ def _log_eval_results(
     logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
 
     if "mean_initial_prey_distance" in agg:
-        logger.info("--- %s ---", species_cfg.stage3_section_label)
+        logger.info("--- %s ---", species_cfg.behavior_section_label)
         logger.info(
             "  Initial dist:   %.3f m",
             agg.get("mean_initial_prey_distance", 0),

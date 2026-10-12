@@ -1,4 +1,4 @@
-"""Semantic stage identity: the per-species stage manifest, v2 (a DAG on ids).
+"""Semantic stage identity: the per-model stage manifest, v2 (a DAG on ids).
 
 Why (STAGE1_SPLIT_PLAN §4, decided 2026-08-15): the T-Rex curriculum gains a
 real fourth stage — recovery — between stance and locomotion.  Renumbering
@@ -11,9 +11,9 @@ is carried explicitly as a ``legacy_number``.
 
 The no-silent-renumbering guarantee, concretely: **an integer stage
 reference always means the legacy number**, never the manifest position.
-``resolve("trex", 2)`` is locomotion today and stays locomotion after the
-manifest gives locomotion position 3; the recovery stage, having no legacy
-number, is reachable only by its semantic ID.  New code should iterate
+On the T-Rex, ``resolve(2)`` is locomotion today and stays locomotion after
+the manifest gives locomotion position 3; the recovery stage, having no
+legacy number, is reachable only by its semantic ID.  New code should iterate
 ``manifest.stages`` in order (positions 1..N) instead of ``range(1, 4)``;
 old code and old artifacts keep meaning without translation.
 
@@ -47,12 +47,17 @@ Two vocabularies live on one manifest (plan §7):
 
 They coincide for the legacy trio only by coincidence.
 
-A v1 manifest, or one synthesized from ``stage{1,2,3}_*.toml`` files for a
-species without a ``stages.toml``, reads bit-identically to before: the
-same entries and advancing trio, with ``warm_start_from`` derived as the
-previous advancing entry and ``deliverable`` set on the last advancing
-entry only (:func:`_derive_legacy_edges`).  Stand and walk become
-deliverables only where a v2 file declares them.
+A v1 manifest reads bit-identically to before: the same entries and
+advancing trio, with ``warm_start_from`` derived as the previous advancing
+entry and ``deliverable`` set on the last advancing entry only
+(:func:`_derive_legacy_edges`).  Stand and walk become deliverables only
+where a v2 file declares them.
+
+Every model (species, embodiment; decision D-D33) declares its manifest in
+``configs/<species>/<embodiment>/stages.toml``, and a model without one is
+refused.  The manifest once synthesized from ``stage{1,2,3}_*.toml`` file
+names for a species without a ``stages.toml`` is gone: stage files are named
+by their stage, with no number (decision D).
 """
 
 from __future__ import annotations
@@ -62,6 +67,8 @@ import tomllib
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from .model_id import ModelId
+
 STAGE_MANIFEST_SCHEMA_V1 = "mesozoic.stage-manifest/v1"
 STAGE_MANIFEST_SCHEMA_V2 = "mesozoic.stage-manifest/v2"
 #: Every schema this reader accepts.
@@ -70,15 +77,14 @@ STAGE_MANIFEST_SCHEMAS = (STAGE_MANIFEST_SCHEMA_V1, STAGE_MANIFEST_SCHEMA_V2)
 #: The four historical ids (STAGE1_SPLIT_PLAN §4).  Since manifest v2 this is
 #: NO LONGER the complete vocabulary — any id matching
 #: :data:`STAGE_ID_PATTERN` may be declared — but these four keep their
-#: meaning everywhere: species-free readers (:func:`stage_ref_from_dirname`,
+#: meaning everywhere: model-free readers (:func:`stage_ref_from_dirname`,
 #: ``evaluation.detect_stage_from_path``) recognise them
 #: without a manifest in hand, and the numbered three map through
 #: :data:`LEGACY_STAGE_IDS`.
 RESERVED_STAGE_IDS = ("stance", "recovery", "locomotion", "behavior")
 
-#: Semantic identity of the historical numeric stages, used both to
-#: synthesize manifests for manifest-less species and to validate that a
-#: declared manifest's legacy claims agree with history.
+#: Semantic identity of the historical numeric stages, used to validate that
+#: a declared manifest's legacy claims agree with history.
 LEGACY_STAGE_IDS = {1: "stance", 2: "locomotion", 3: "behavior"}
 
 #: The open id vocabulary.  Lower-case, digits and underscores, so an id is
@@ -95,7 +101,6 @@ _V1_ENTRY_KEYS = frozenset({"id", "config", "legacy_number"})
 _V2_ENTRY_KEYS = _V1_ENTRY_KEYS | {"warm_start_from", "deliverable", "recipe"}
 
 _CONFIGS_DIR = Path(__file__).resolve().parent.parent.parent / "configs"
-_LEGACY_STAGE_FILE_PREFIXES = {1: "stage1_", 2: "stage2_", 3: "stage3_"}
 
 
 class StageManifestError(RuntimeError):
@@ -104,15 +109,15 @@ class StageManifestError(RuntimeError):
 
 @dataclass(frozen=True)
 class StageEntry:
-    """One stage (node) of a species' curriculum."""
+    """One stage (node) of a model's curriculum."""
 
     id: str
-    #: 1-based order in the curriculum — the DISPLAY number.  For a species
+    #: 1-based order in the curriculum — the DISPLAY number.  For a model
     #: with a recovery stage this diverges from legacy_number (locomotion is
     #: position 3, legacy 2); artifacts written by manifest-aware code carry
     #: the id, and integers in old artifacts resolve through legacy_number.
     position: int
-    #: TOML file name under configs/<species>/.
+    #: TOML file name under configs/<species>/<embodiment>/.
     config_file: str
     #: The integer this stage was known as before the manifest, or None for
     #: stages (recovery) that never had a numeric identity.
@@ -155,27 +160,32 @@ class StageEntry:
 
 @dataclass(frozen=True)
 class StageManifest:
-    species: str
+    #: The model whose ``configs/<species>/<embodiment>/stages.toml`` this
+    #: is; None for a file read by :func:`load_stage_manifest_file`, which
+    #: takes no identity.
+    model_id: ModelId | None
     stages: tuple[StageEntry, ...]
-    #: True when synthesized from stage{N}_*.toml files rather than read
-    #: from a declared configs/<species>/stages.toml.
-    synthesized: bool
-    #: The schema string the file declared; None for a synthesized manifest.
-    schema: str | None = None
+    #: The schema string the file declared.
+    schema: str
+
+    @property
+    def _owner(self) -> str:
+        """How messages name the manifest: its model, else "this stage manifest"."""
+        return str(self.model_id) if self.model_id is not None else "this stage manifest"
 
     def by_id(self, stage_id: str) -> StageEntry:
         for entry in self.stages:
             if entry.id == stage_id:
                 return entry
         known = [entry.id for entry in self.stages]
-        raise StageManifestError(f"{self.species} has no stage {stage_id!r}; declared stages: {known}")
+        raise StageManifestError(f"{self._owner} has no stage {stage_id!r}; declared stages: {known}")
 
     def by_legacy_number(self, number: int) -> StageEntry:
         for entry in self.stages:
             if entry.legacy_number == number:
                 return entry
         raise StageManifestError(
-            f"{self.species} has no stage with legacy number {number}; integer references resolve "
+            f"{self._owner} has no stage with legacy number {number}; integer references resolve "
             "through legacy numbers only (a stage without one, like recovery, must be named by ID)"
         )
 
@@ -261,19 +271,19 @@ class StageManifest:
             entry = self.by_id(name)
         except StageManifestError:
             raise StageManifestError(
-                f"{self.species} has no behavior {name!r}; recipe labels: {list(self.recipe_labels)}, "
+                f"{self._owner} has no behavior {name!r}; recipe labels: {list(self.recipe_labels)}, "
                 f"deliverable ids: {[entry.id for entry in self.deliverables]}"
             ) from None
         if not entry.deliverable:
             raise StageManifestError(
-                f"{self.species} stage {name!r} is not a deliverable, so it is not a behavior a chain can "
+                f"{self._owner} stage {name!r} is not a deliverable, so it is not a behavior a chain can "
                 "target; train it on its own through the notebook's manual single-node cell"
             )
         return entry
 
 
 def _derive_legacy_edges(entries: "list[StageEntry]") -> "list[StageEntry]":
-    """The v1 / synthesized reading of the DAG: bit-identical to pre-v2 behaviour.
+    """The v1 reading of the DAG: bit-identical to pre-v2 behaviour.
 
     ``warm_start_from`` = the last advancing (legacy-numbered) entry at a
     lower position, or None — the 2026-08-23 lineage rule — so
@@ -297,47 +307,45 @@ def _derive_legacy_edges(entries: "list[StageEntry]") -> "list[StageEntry]":
     return derived
 
 
-def _synthesize_legacy_manifest(species: str, species_dir: Path) -> StageManifest:
-    entries: list[StageEntry] = []
-    for number in sorted(LEGACY_STAGE_IDS):
-        matches = sorted(species_dir.glob(f"{_LEGACY_STAGE_FILE_PREFIXES[number]}*.toml"))
-        if not matches:
-            continue
-        if len(matches) > 1:
-            raise StageManifestError(f"multiple stage-{number} config files for {species}: {matches}")
-        entries.append(
-            StageEntry(
-                id=LEGACY_STAGE_IDS[number],
-                position=len(entries) + 1,
-                config_file=matches[0].name,
-                legacy_number=number,
-            )
-        )
-    if not entries:
-        raise StageManifestError(f"no stage config files found for {species} in {species_dir}")
-    return StageManifest(species=species, stages=tuple(_derive_legacy_edges(entries)), synthesized=True, schema=None)
+def load_stage_manifest(model_id: ModelId, configs_dir: "Path | str | None" = None) -> StageManifest:
+    """Load the model's declared manifest, ``configs/<species>/<embodiment>/stages.toml``.
 
-
-def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -> StageManifest:
-    """Load the species' declared manifest, or synthesize the legacy one.
-
-    Fail-closed on everything a declared manifest can get wrong: schema,
-    malformed or duplicate IDs, missing config files, duplicate or
-    historically-wrong legacy numbers, legacy ordering that disagrees with
-    the declared order, and — under v2 — an edge that does not name an
-    earlier entry, a non-boolean ``deliverable``, a recipe label that is
-    malformed or collides with a stage id, a numbered reserved id without
-    its legacy number, or a manifest with nothing to publish.  A v1 body
-    carrying v2 keys is fatal rather than silently derived over.
+    A model without one is refused: there is no manifest synthesized from
+    stage file names (module docstring).  *configs_dir* replaces the
+    repository's ``configs/`` root.  Everything the file can get wrong is
+    refused by :func:`load_stage_manifest_file`.
     """
     base = Path(configs_dir) if configs_dir is not None else _CONFIGS_DIR
-    species_dir = base / species
-    if not species_dir.is_dir():
-        raise StageManifestError(f"config directory not found: {species_dir}")
-    manifest_path = species_dir / "stages.toml"
+    model_dir = model_id.path(base)
+    if not model_dir.is_dir():
+        raise StageManifestError(f"config directory not found: {model_dir}")
+    manifest_path = model_dir / "stages.toml"
     if not manifest_path.is_file():
-        return _synthesize_legacy_manifest(species, species_dir)
+        raise StageManifestError(f"{model_id} declares no stage manifest: {manifest_path} not found")
+    return replace(load_stage_manifest_file(manifest_path), model_id=model_id)
 
+
+def load_stage_manifest_file(path: "Path | str") -> StageManifest:
+    """Read the stage manifest file at *path*, with no model identity.
+
+    The reader under :func:`load_stage_manifest`, and the one a stage TOML's
+    ``extends`` resolves through (``config._read_stage_toml``): the
+    ``stages.toml`` beside that TOML, so no identity is read off directory
+    names (review L2).  Config files resolve against *path*'s own directory.
+
+    Fail-closed on everything a declared manifest can get wrong: a missing
+    file, schema, malformed or duplicate IDs, missing config files,
+    duplicate or historically-wrong legacy numbers, legacy ordering that
+    disagrees with the declared order, and — under v2 — an edge that does
+    not name an earlier entry, a non-boolean ``deliverable``, a recipe label
+    that is malformed or collides with a stage id, a numbered reserved id
+    without its legacy number, or a manifest with nothing to publish.  A v1
+    body carrying v2 keys is fatal rather than silently derived over.
+    """
+    manifest_path = Path(path)
+    model_dir = manifest_path.parent
+    if not manifest_path.is_file():
+        raise StageManifestError(f"stage manifest not found: {manifest_path}")
     with open(manifest_path, "rb") as handle:
         raw = tomllib.load(handle)
     schema = raw.get("schema")
@@ -372,7 +380,7 @@ def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -
                 "that shape is reserved for integer references"
             )
         config_file = raw_stage.get("config")
-        if not isinstance(config_file, str) or not (species_dir / config_file).is_file():
+        if not isinstance(config_file, str) or not (model_dir / config_file).is_file():
             raise StageManifestError(f"{manifest_path} stage {stage_id!r}: config file {config_file!r} not found")
         legacy_number = raw_stage.get("legacy_number")
         if legacy_number is not None and (isinstance(legacy_number, bool) or not isinstance(legacy_number, int)):
@@ -437,7 +445,7 @@ def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -
             "(a behavior name must resolve to exactly one thing)"
         )
     if is_v2:
-        # Species-free readers map these ids through LEGACY_STAGE_IDS no
+        # Model-free readers map these ids through LEGACY_STAGE_IDS no
         # matter what the manifest says; the manifest must agree.
         numbered_ids = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
         for entry in entries:
@@ -452,7 +460,7 @@ def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -
             )
     else:
         entries = _derive_legacy_edges(entries)
-    return StageManifest(species=species, stages=tuple(entries), synthesized=False, schema=schema)
+    return StageManifest(model_id=None, stages=tuple(entries), schema=schema)
 
 
 def stage_display_name(ref: "int | str", configured_name: "str | None" = None) -> str:
@@ -482,8 +490,8 @@ def stage_label(ref: "int | str") -> str:
     ``recovery_*`` directory, never a fabricated number; an open id such as
     ``follow_direction`` labels ``follow_direction_final.zip`` the same way).
 
-    Species-free, so this validates SHAPE only (:data:`STAGE_ID_PATTERN`,
-    never the ``stage{N}`` shape): membership in a species' manifest is
+    Model-free, so this validates SHAPE only (:data:`STAGE_ID_PATTERN`,
+    never the ``stage{N}`` shape): membership in a model's manifest is
     enforced by every caller's earlier resolution — ``train()`` and
     ``evaluate()`` resolve the stage through the manifest before any label
     is written, and the reporting, wandb and notebook call sites are
@@ -502,7 +510,7 @@ def stage_label(ref: "int | str") -> str:
     return ref
 
 
-def resolve_stage_key(species: str, key: "int | str") -> StageEntry:
+def resolve_stage_key(model_id: ModelId, key: "int | str") -> StageEntry:
     """Resolve a stage reference as serialized artifacts spell it.
 
     JSON object keys and CSV cells force every reference through a string,
@@ -513,13 +521,13 @@ def resolve_stage_key(species: str, key: "int | str") -> StageEntry:
     Everything else — booleans, empty strings, non-decimal non-id strings —
     fails closed with :class:`StageManifestError`.
     """
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     if isinstance(key, str) and key.isdigit():
         return manifest.by_legacy_number(int(key))
     return manifest.resolve(key)
 
 
-def stage_dirname(species: str, ref: "int | str") -> str:
+def stage_dirname(model_id: ModelId, ref: "int | str") -> str:
     """Stage DIRECTORY name for new run artifacts: ``{position:02d}_{id}``.
 
     Adopted 2026-08-20 (project decision): stage directories inside a run
@@ -546,11 +554,11 @@ def stage_dirname(species: str, ref: "int | str") -> str:
     deliberately stay on :func:`stage_label` — they live inside the stage
     directory, where the position would be redundant.
     """
-    entry = load_stage_manifest(species).resolve(ref)
+    entry = load_stage_manifest(model_id).resolve(ref)
     return f"{entry.position:02d}_{entry.id}"
 
 
-def stage_dir_candidates(species: str, ref: "int | str") -> "tuple[str, ...]":
+def stage_dir_candidates(model_id: ModelId, ref: "int | str") -> "tuple[str, ...]":
     """Every directory name this stage has ever been written under.
 
     Newest first: the position-prefixed form for runs from 2026-08-20 on,
@@ -561,7 +569,7 @@ def stage_dir_candidates(species: str, ref: "int | str") -> "tuple[str, ...]":
     locate a stage inside an existing run directory should take the first
     candidate that exists.
     """
-    entry = load_stage_manifest(species).resolve(ref)
+    entry = load_stage_manifest(model_id).resolve(ref)
     labels = [f"{entry.position:02d}_{entry.id}"]
     if entry.legacy_number is not None:
         labels.append(f"stage{entry.legacy_number}")
@@ -576,11 +584,11 @@ def stage_dir_candidates(species: str, ref: "int | str") -> "tuple[str, ...]":
 def find_stage_dir(run_path: "Path | str", stage: "int | str") -> "Path":
     """Locate a stage's directory inside an existing run, any generation.
 
-    Species-free on purpose — bundle readers often hold only a run path
+    Model-free on purpose — bundle readers often hold only a run path
     and a stage reference. Tries the layouts in age order: the historical
     exact name (``stage{N}`` for legacy integers, the bare id for semantic
     stages), then the position-prefixed ``NN_{id}`` form new runs write
-    (matched by glob, because the position prefix depends on the species'
+    (matched by glob, because the position prefix depends on the model's
     manifest at run time; the glob is exact after the prefix, so
     ``follow_direction`` never matches ``06_follow_direction_speed``).
     Returns the first directory that exists; when none does, returns the
@@ -607,7 +615,7 @@ def find_stage_dir(run_path: "Path | str", stage: "int | str") -> "Path":
     return exact
 
 
-def stage_ref_from_dirname(name: str, *, species: "str | None" = None) -> "int | str | None":
+def stage_ref_from_dirname(name: str, *, model_id: "ModelId | None" = None) -> "int | str | None":
     """The stage reference a run-directory child NAME denotes, or None.
 
     The one place that recognises every directory generation, replacing the
@@ -615,22 +623,22 @@ def stage_ref_from_dirname(name: str, *, species: "str | None" = None) -> "int |
     as the complete vocabulary:
 
     * ``stage{N}`` with N in :data:`LEGACY_STAGE_IDS` -> N (universal: the
-      legacy token means the same stage for every species; ``stage4`` is
+      legacy token means the same stage for every model; ``stage4`` is
       nothing).
     * ``NN_{id}`` (:func:`stage_dirname`) -> the id's reference.  With no
-      *species* only the :data:`RESERVED_STAGE_IDS` are recognised (a
+      *model_id* only the :data:`RESERVED_STAGE_IDS` are recognised (a
       numbered one as its legacy int, ``recovery`` as itself) — an
       ``NN_<word>`` directory on some path cannot claim to be a stage
-      without a manifest to vouch for it (decision D-A12).  With *species*,
-      any id that species' manifest declares (legacy int when numbered,
+      without a manifest to vouch for it (decision D-A12).  With *model_id*,
+      any id that model's manifest declares (legacy int when numbered,
       else the id); an id the manifest does not declare -> None.
     * a bare id (the 20260819 layout, which predates every open id) -> only
-      a reserved id, and with *species* only one that species declares —
+      a reserved id, and with *model_id* only one that model declares —
       deliberately closed, so ``models`` / ``replays`` / ``ancestors`` are
       never read as stages.
     * anything else -> None.
 
-    A :class:`StageManifestError` from loading *species*' manifest is not
+    A :class:`StageManifestError` from loading *model_id*'s manifest is not
     swallowed.
     """
     if not isinstance(name, str):
@@ -647,14 +655,14 @@ def stage_ref_from_dirname(name: str, *, species: "str | None" = None) -> "int |
         return None
     if _LEGACY_LABEL_SHAPE.match(stage_id):
         return None
-    if species is None:
+    if model_id is None:
         if stage_id not in RESERVED_STAGE_IDS:
             return None
         for number, legacy_id in LEGACY_STAGE_IDS.items():
             if legacy_id == stage_id:
                 return number
         return stage_id
-    for entry in load_stage_manifest(species).stages:
+    for entry in load_stage_manifest(model_id).stages:
         if entry.id == stage_id:
             return entry.reference
     return None

@@ -2,8 +2,11 @@
 Shared training infrastructure for all dinosaur species.
 
 Provides the common training, curriculum, and evaluation logic used by every
-species.  Species-specific entry points (``environments/<species>/scripts/train_sb3.py``)
-define a :class:`SpeciesConfig` and delegate to :func:`main`.
+model (species, embodiment; decision D-D33).  The one entry point,
+``python -m environments.shared.train --species <species> --embodiment
+<embodiment>``, builds the model's :class:`SpeciesConfig` through
+``species_registry.get_species_config`` and delegates to :func:`main`; there
+is no per-species wrapper script.
 
 The original monolithic module has been split into focused submodules for
 maintainability:
@@ -54,6 +57,8 @@ from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from .model_id import ModelId
+from .paths import REPOSITORY_ROOT
 from .plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
     PlantIdentity,
@@ -64,7 +69,7 @@ from .plant_contract import (
     validate_recorded_identity,
 )
 from .policy_loading import load_sb3_model
-from .species_names import species_display_name
+from .species_names import model_display_name
 from .stage_manifest import StageEntry, StageManifest, stage_display_name, stage_label
 from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
@@ -81,14 +86,16 @@ logging.getLogger("tensorboardX").setLevel(logging.ERROR)
 
 @dataclasses.dataclass
 class SpeciesConfig:
-    """Species-specific parameters that differ across training scripts.
+    """The per-model parameters the trainers read.
 
-    Each species defines one of these in its thin ``train_sb3.py`` wrapper.
+    Built for each manifest model by
+    :func:`environments.shared.species_registry.get_species_config`
+    (decision D-D33).
     """
 
-    species: str
-    """Species identifier used for directory names and config lookup
-    (e.g. ``"velociraptor"``, ``"trex"``, ``"brachiosaurus"``)."""
+    model_id: ModelId
+    """The model, used for config lookup and directory names
+    (``configs/<species>/<embodiment>/``, ``logs/<species>/<embodiment>/``)."""
 
     env_class: type
     """The Gymnasium environment class (e.g. ``VelociraptorMongoliensisAnatomicalEnv``)."""
@@ -100,8 +107,8 @@ class SpeciesConfig:
     height_label: str
     """Label used in evaluation log output (``"Pelvis height"`` or ``"Torso height"``)."""
 
-    stage3_section_label: str
-    """Section header for stage-3 eval results (``"Hunting"`` or ``"Food Reaching"``)."""
+    behavior_section_label: str
+    """Section header for the behavior stage's eval results (``"Hunting"`` or ``"Food Reaching"``)."""
 
     success_keys: list
     """Info-dict keys that signal a successful episode
@@ -197,7 +204,7 @@ def make_env(
             validate_environment_plant(
                 env,
                 plant_identity,
-                artifact=f"{species_cfg.species} stage {stage} environment",
+                artifact=f"{species_cfg.model_id} stage {stage} environment",
             )
         env = sb3["Monitor"](env)
         env.reset(seed=seed + rank)
@@ -649,7 +656,7 @@ def _build_core_callbacks(
     use_wandb: bool = False,
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
-    species: str | None = None,
+    model_id: ModelId | None = None,
     total_timesteps: int | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
@@ -816,19 +823,19 @@ def _build_core_callbacks(
     # so -- reward was climbing, full-horizon was 100%, the backstop correctly
     # never fired. The comparison costs one float already on disk. See
     # `curriculum.baseline_watch` for why this warns rather than stops.
-    # `species` is optional so the existing positional callers keep working,
+    # `model_id` is optional so the existing positional callers keep working,
     # but a caller that omits it silently loses the watch -- so every caller
     # in this module passes it and a test pins that they do.
     baseline_cb = (
         build_baseline_progress_callback(
             eval_callback,
             run_dir=Path(log_path).parent if log_path is not None else None,
-            species=species,
+            model_id=model_id,
             stage_config=stage_config,
             total_timesteps=total_timesteps,
             verbose=verbose,
         )
-        if species
+        if model_id is not None
         else None
     )
     if baseline_cb is not None:
@@ -1180,7 +1187,7 @@ def _train_stage_body(
     wandb_run = None
     if use_wandb:
         wandb_run = init_wandb(
-            species=species_cfg.species,
+            model_id=species_cfg.model_id,
             stage=stage,
             config=config,
             run_dir=str(log_path),
@@ -1258,7 +1265,7 @@ def _train_stage_body(
         use_wandb,
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
-        species=species_cfg.species,
+        model_id=species_cfg.model_id,
         # The cumulative target this session trains to, not the TOML budget:
         # the budget-anchored advisories must follow --timesteps and resumes.
         total_timesteps=target_timesteps,
@@ -1525,12 +1532,12 @@ def train(
     )
 
     config = stage_configs[stage]
-    species = species_cfg.species
-    plant_identity = current_plant_identity(species)
-    task_fingerprint = stage_task_fingerprint(species, stage, stage_config=config, plant_identity=plant_identity)
+    model_id = species_cfg.model_id
+    plant_identity = current_plant_identity(model_id)
+    task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
     # The node and its declared edge, resolved once: the edge keys the
     # declared-parent refusal below and the stage-entry shaping further down.
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     entry = manifest.resolve(stage)
     parent = manifest.parent_of(stage)
 
@@ -1544,7 +1551,7 @@ def train(
         validate_declared_parent(
             read_checkpoint_task_fingerprint(load_path),
             declared_parent=parent.reference if parent is not None else None,
-            species=species,
+            model_id=model_id,
             child_stage=entry.reference,
             artifact=str(load_path),
         )
@@ -1558,7 +1565,7 @@ def train(
     sb3 = _ensure_sb3()
 
     logger.info("=" * 60)
-    logger.info("Species: %s", species_display_name(species))
+    logger.info("Model: %s", model_display_name(model_id))
     logger.info("Training stage %s: %s", stage, stage_display_name(stage, config["name"]))
     logger.info("Description: %s", config["description"])
     logger.info("=" * 60)
@@ -1571,9 +1578,7 @@ def train(
     elif log_dir is None:
         from .stage_manifest import stage_dirname
 
-        log_path = (
-            Path(__file__).parent.parent / species / "logs" / species / f"{stage_dirname(species, stage)}_{timestamp}"
-        )
+        log_path = model_id.path(REPOSITORY_ROOT / "logs") / f"{stage_dirname(model_id, stage)}_{timestamp}"
     else:
         log_path = Path(log_dir)
 
@@ -1600,7 +1605,7 @@ def train(
         algorithm.upper(),
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         env_class=species_cfg.env_class,
-        species=species_cfg.species,
+        model_id=model_id,
         plant_identity=plant_identity,
         task_fingerprint=task_fingerprint,
         # Load lineage into the run block (review RP4): the checkpoint is
@@ -1734,7 +1739,7 @@ def _report_hpt_metrics(
     # Accumulate all metrics for the JSON sidecar.  Run identity + effective
     # seed make each run reproducible from metrics.json alone.
     aux_metrics: dict[str, Any] = {
-        "species": species_cfg.species,
+        **species_cfg.model_id.record(),
         "algorithm": algorithm,
         "library_version": get_library_version(),
         "best_mean_reward": float(eval_callback.best_mean_reward),
@@ -2143,7 +2148,7 @@ STANCE_HEADING_POST_TRAINING_JUDGED_BY = "train_base.train_curriculum/stance_hea
 
 
 def _post_training_stance_verdict(
-    species: str,
+    model_id: ModelId,
     stage: "int | str",
     config: dict[str, Any],
     *,
@@ -2178,7 +2183,7 @@ def _post_training_stance_verdict(
     curriculum = config.get("curriculum_kwargs", {})
     kind = curriculum.get("gate_kind")
     report = _write_stance_gate_report(
-        species=species, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
+        model_id=model_id, stage=stage, stage_config=config, stage_dir=stage_dir, model_dir=model_dir
     )
     try:
         passed, failures = evaluate_stage_gate(curriculum, {}, stage=stage, stance_report=report, stage_dir=stage_dir)
@@ -2259,7 +2264,7 @@ def _resolve_curriculum_target(
     try:
         entry = manifest.resolve(target) if isinstance(target, int) else manifest.resolve_behavior(target)
     except StageManifestError as exc:
-        raise ValueError(f"{flag} {target!r} does not name a behavior of {manifest.species}: {exc}") from exc
+        raise ValueError(f"{flag} {target!r} does not name a behavior of {manifest.model_id}: {exc}") from exc
     chain = manifest.chain_for(entry.id)
     non_advancing = [node.id for node in chain if node not in advancing]
     if non_advancing:
@@ -2312,7 +2317,7 @@ def _resolve_retrain_from(
         entry = manifest.resolve(retrain_from)
     except StageManifestError as exc:
         raise ValueError(
-            f"{flag} {retrain_from!r} is not a stage of {manifest.species}: {exc}. "
+            f"{flag} {retrain_from!r} is not a stage of {manifest.model_id}: {exc}. "
             f"It must name one of the advancing stages: {advancing_ids}"
         ) from exc
     if entry not in advancing:
@@ -2350,7 +2355,7 @@ def train_curriculum(
 ):
     """Run the curriculum to its target: the target's chain, in manifest order, with automatic advancement.
 
-    Walks ``load_stage_manifest(species).stages`` rather than a hardcoded
+    Walks ``load_stage_manifest(model_id).stages`` rather than a hardcoded
     ``range(1, 4)``: indexed into ``load_all_stages``' ``[1, "recovery", 2,
     3]``, the range trained stance -> locomotion -> behavior and skipped the
     T-Rex recovery stage without a log line (review TC7/OP6).  Each node
@@ -2479,10 +2484,10 @@ def train_curriculum(
     from .task_fingerprint import stage_task_fingerprint
 
     sb3 = _ensure_sb3()
-    species = species_cfg.species
-    plant_identity = current_plant_identity(species)
+    model_id = species_cfg.model_id
+    plant_identity = current_plant_identity(model_id)
 
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     advancing = manifest.advancing_stages
 
     # D-A24 / D-A19: the target and the retrain-from node resolve once,
@@ -2500,13 +2505,13 @@ def train_curriculum(
             )
 
     thresholds = thresholds_from_configs(stage_configs)
-    manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))
+    manager = CurriculumManager(model_id=model_id, stage_thresholds=thresholds, total_stages=len(advancing))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if output_dir is not None:
         base_dir = Path(output_dir)
     elif log_dir is None:
-        base_dir = Path(__file__).parent.parent / species / "logs" / species / f"curriculum_{timestamp}"
+        base_dir = model_id.path(REPOSITORY_ROOT / "logs") / f"curriculum_{timestamp}"
     else:
         base_dir = Path(log_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -2523,7 +2528,7 @@ def train_curriculum(
     if isinstance(trunk_from, str) and trunk_from == AUTO_TRUNK:
         selection = select_trunk(
             base_dir.resolve().parent,
-            species=species,
+            model_id=model_id,
             chain=chain,
             stage_configs=stage_configs,
             plant_identity=plant_identity,
@@ -2586,7 +2591,7 @@ def train_curriculum(
         parent = manifest.parent_of(stage)
 
         logger.info("=" * 60)
-        logger.info("Species: %s", species_display_name(species))
+        logger.info("Model: %s", model_display_name(model_id))
         logger.info(
             "Curriculum stage %s (%s, position %d/%d): %s",
             stage,
@@ -2599,9 +2604,7 @@ def train_curriculum(
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
 
-        task_fingerprint = stage_task_fingerprint(
-            species_cfg.species, stage, stage_config=config, plant_identity=plant_identity
-        )
+        task_fingerprint = stage_task_fingerprint(model_id, stage, stage_config=config, plant_identity=plant_identity)
 
         # The parent resolves first, for a reused node as much as a trained
         # one: a node is satisfied — by a checkpoint from anywhere — only on
@@ -2658,7 +2661,7 @@ def train_curriculum(
                 # must not opt in for that candidate.
                 ancestor = find_certified_ancestor(
                     trunk_from,
-                    species=species,
+                    model_id=model_id,
                     entry=entry,
                     current_task_sha256=task_fingerprint.get("task_sha256"),
                     plant_identity=plant_identity,
@@ -2724,7 +2727,7 @@ def train_curriculum(
         if parent_node is not None:
             _warn_on_heading_probe_handoff(parent_node.stage_dir, stage=entry.id)
 
-        stage_dir = base_dir / stage_dirname(species, stage)
+        stage_dir = base_dir / stage_dirname(model_id, stage)
         # D-A20: the curriculum has no resume mode, so a stage directory
         # that already records a stage is never written into.  The mode
         # passed is the one recorded below (a root loads nothing).
@@ -2740,7 +2743,7 @@ def train_curriculum(
             algorithm.upper(),
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
             env_class=species_cfg.env_class,
-            species=species_cfg.species,
+            model_id=model_id,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
             # The parent's handoff checkpoint this node enters on (review
@@ -2863,7 +2866,7 @@ def train_curriculum(
             # panels for the heading kind) on the handoff pair, judged by
             # evaluate_stage_gate (D-D23, D-D32).
             passed, verdict_failures, verdict_stage_result = _post_training_stance_verdict(
-                species, stage, config, stage_dir=stage_dir, model_dir=model_dir
+                model_id, stage, config, stage_dir=stage_dir, model_dir=model_dir
             )
             verdict_judged_by = (
                 STANCE_HEADING_POST_TRAINING_JUDGED_BY
@@ -2880,7 +2883,7 @@ def train_curriculum(
             try:
                 write_gate_verdict(
                     stage_dir,
-                    species=species,
+                    model_id=model_id,
                     stage=stage,
                     stage_id=entry.id,
                     gate_kind=cur_kwargs.get("gate_kind"),
@@ -2912,7 +2915,7 @@ def train_curriculum(
 
         # Record stage result to CSV
         _record_stage_result(
-            species,
+            model_id,
             algorithm,
             timestamp,
             base_dir,
@@ -2963,7 +2966,7 @@ def train_curriculum(
 
 
 def _record_stage_result(
-    species,
+    model_id: ModelId,
     algorithm,
     timestamp,
     base_dir,
@@ -3024,7 +3027,7 @@ def _record_stage_result(
     # Use canonical column names matching CSV_METRIC_COLUMNS and the prefixed
     # <algo>_* / env_* hyperparameter columns of build_results_csv_rows.
     result_row: dict = {
-        "species": species,
+        **model_id.record(),
         "algorithm": algorithm.upper(),
         "run_date": timestamp,
         "run_dir": base_dir.name,

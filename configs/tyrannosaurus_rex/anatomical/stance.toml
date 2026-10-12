@@ -329,7 +329,7 @@ smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -
                                                #   policy std (algo_std)       0.959 -> 0.850
                                                #   tail_contact terminations   39.1% -> 11.5%
                                                # Still deep in thrash territory, and the legs visibly bounce in
-                                               # trex_ppo_stage1_best.mp4 from the post run.
+                                               # the post run's stage-1 best replay.
                                                #
                                                # Sized from the penalty formula -w*sum(da^2)/(n*4), which reduces
                                                # to w*r^2/4 per step at RMS rate r (it reproduces the doc's
@@ -400,7 +400,8 @@ ent_coef_end = 0.0                      # Decay entropy to ZERO, not to a 0.001 
                                         #
                                         # The target is known reachable and known still: `action = 0` IS the home
                                         # keyframe under home-keyframe-residual/v1, and scores 3274.4 +/- 7.6 with
-                                        # duty 0.0000 (measured, stance_gate_report.py trex --stage 1 --zero-action).
+                                        # duty 0.0000 (measured, stance_gate_report.py --species tyrannosaurus_rex --embodiment anatomical
+                                        # --stage 1 --zero-action).
                                         # The trained policy scored 2686.9 -- 588 BELOW the do-nothing policy. This is
                                         # a convergence failure, not a reward-shaping one, so the usual risk of
                                         # zeroing entropy (premature convergence to a bad optimum) is unusually low:

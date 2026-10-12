@@ -551,7 +551,8 @@ min_avg_reward_statue_ratio = 0.60       # The same 0.60 rail against the statue
 collapse_peak_floor_reference = 4570.4   # The zero-action statue's standing reward under this [env]: 4570.4 +/- 7.2,
                                          # 40 episodes, seeds 3042-3081, on physics r2 with its toe armature
                                          # (4565.8 on 7042-7081, 4570.4 on 9042-9081), measured with
-                                         # `zero_action_baseline.py compsognathus --episodes 40 --seed 3042`.
+                                         # `zero_action_baseline.py --model-id compsognathus_longipes anatomical --episodes 40
+                                         # --seed 3042`.
                                          # Declared for its provenance pin. Deliberately omit a collapse floor:
                                          # with no collapse_peak_floor and no collapse_peak_floor_fraction the
                                          # shared detector stays unarmed, as before, until this plant has a learning

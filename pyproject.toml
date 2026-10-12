@@ -43,7 +43,7 @@ viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
     "imageio-ffmpeg>=0.5.0",
-    # compsognathus/scripts/view_model.py --video (imageio.v2 needs 2.16; 2.16.0 was yanked).
+    # compsognathus_longipes/scripts/view_model.py --video (imageio.v2 needs 2.16; 2.16.0 was yanked).
     "imageio>=2.16.1",
 ]
 test = [
@@ -67,9 +67,8 @@ all = [
 include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
-"*" = ["assets/*.xml", "data/*.json"]
-"environments.compsognathus_longipes" = ["assets/meshes/*.stl", "references/*.xml", "references/LICENSE*", "references/*.md"]
-"configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json", "*/behaviors/*.toml"]
+"*" = ["assets/*.xml", "assets/meshes/*.stl", "data/*.json", "references/*"]
+"configs" = ["*.toml", "*.json", "*/*/*.toml", "*/*/*.json", "*/*/behaviors/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = [
