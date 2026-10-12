@@ -583,7 +583,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - catalog 5.
 
   Every identity check compares both fields, so the two Compsognathus plants
-  never pass for each other; mypy runs with `strict_equality`. The plant
+  never pass for each other; mypy runs with `strict_equality`. A plant
+  identity whose species or embodiment names no model is refused when it is
+  read. `backfill_gate_verdict.py`'s `--species` and `--embodiment` name the
+  model only for a `stage_config.json` that does not name it whole, and an
+  override that disagrees with one that does is refused. The plant
   contract's revision check pairs a baseline's plants by key, then by
   physics digest, and refuses a plant that leaves the manifest.
 
@@ -607,9 +611,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   visual digests are unchanged, which the PR-base check proves by pairing
   the v1 baseline's plants by physics digest.
 
-  Digest golden (643 → 649 lines): every line gains the embodiment column
-  and six `embodiment` lines are new. After mapping the 643 old rows to their
-  models, 232 values move: plant 36 (`species`, `schema`, `model_path`,
+  Digest golden (643 → 649 lines): every model line gains the embodiment
+  column and six `embodiment` lines are new. After mapping the 643 old rows to
+  their models, 232 values move: plant 36 (`species`, `schema`, `model_path`,
   `source_closure_sha256`, `policy_interface_sha256` and
   `policy_interface_revision` of each model), policy 32, stage 30 (21
   `task_sha256`, 9 `config_file`), recovery 2 (the two calibrations'

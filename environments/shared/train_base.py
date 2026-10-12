@@ -905,9 +905,9 @@ def _stage_entry_shaping_callbacks(
     passed an exact task-fingerprint identity check and must resume the
     exact task — warm-up clamps and a forward-velocity ramp would train it
     for ~500k steps on a task the fingerprint claims is unchanged (review
-    F4).  On every v1 and synthesized manifest the derived edge is non-None
-    exactly when the position is > 1, so this is behaviourally identical to
-    the position rule it replaces (BEHAVIOR_RECIPES_PLAN §4.2 retarget 1).
+    F4).  On every v1 manifest the derived edge is non-None exactly when the
+    position is > 1, so this is behaviourally identical to the position rule
+    it replaces (BEHAVIOR_RECIPES_PLAN §4.2 retarget 1).
 
     Both launch paths (:func:`train` and :func:`train_curriculum`) MUST build
     their shaping here rather than inline — the notebook's inline copy is how

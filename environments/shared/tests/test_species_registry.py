@@ -40,9 +40,9 @@ class TestGetSpeciesConfig:
         with pytest.raises(ValueError, match="Unknown species"):
             get_species_config(ModelId("stegosaurus_stenops", "anatomical"))
 
-    def test_unknown_embodiment_raises_value_error(self):
-        with pytest.raises(ValueError, match="has no 'robot' embodiment"):
-            get_species_config(ModelId("tyrannosaurus_rex", "robot"))
+    def test_unknown_embodiment_raises_value_error(self, missing_model_id):
+        with pytest.raises(ValueError, match=f"has no {missing_model_id.embodiment!r} embodiment"):
+            get_species_config(missing_model_id)
 
     @MODEL_IDS
     def test_config_has_required_fields(self, model_id):

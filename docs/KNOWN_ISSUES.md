@@ -1793,7 +1793,7 @@ note 15 and the stance-hack audit's §11). What it leaves open:
 
 ## Configs, docs & website
 
-- Brachio stage-2 `natural_pitch = -0.15` while stages 1/3 use 0.0 —
+- Brachiosaurus stage-2 `natural_pitch = -0.15` while stages 1/3 use 0.0 —
   intentional? (June §4)
 - `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
   names that don't exist. (June §5)

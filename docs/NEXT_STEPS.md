@@ -273,7 +273,7 @@ bundle, and `save_result_bundle` refuses to rewrite a `complete` bundle once
 `TRUNK_FROM = "auto"` finds no T-Rex trunk; the gait plan's §5.4 T-Rex
 `TRUNK_FROM = "20260914_123816"` is no longer possible (its §12).*
 
-Trex stance seed inventory at r13: seed 42 certified, seed 43 failed, seed 44
+T-Rex stance seed inventory at r13: seed 42 certified, seed 43 failed, seed 44
 certified on 2026-09-20 by the widened run `20260920_010912`, whose bundle
 (`complete`, written 2026-09-21 after the recovery verdict) records the stance
 deliverable as `certified true, provisional false, replication count 2`

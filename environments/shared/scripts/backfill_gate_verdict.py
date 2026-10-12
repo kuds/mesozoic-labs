@@ -79,6 +79,12 @@ verdicts carry no ``gate_sha256`` and are refused by reuse rule 7;
 ``--force`` re-derives them.  Recovery stays refused, so a recovery
 threshold edit forces a notebook re-roll of the node.
 
+Decision D-D33: the verdict names the model ``stage_config.json`` records.
+``--species``/``--embodiment`` name it only for a record that does not name
+it whole (a pre-D-D33 directory has no ``embodiment``); an override that
+differs from a whole record is refused, so no verdict pairs one model with
+another model's task.
+
 Run: ``python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>
 [--species tyrannosaurus_rex --embodiment anatomical] [--stage 1] [--force] [--gate recorded|current]``.
 """
@@ -221,11 +227,14 @@ def backfill_gate_verdict(
 
     *model_id* and *stage* default to what the directory's
     ``stage_config.json`` records (its ``species`` and ``embodiment``, both
-    required; decision D-D33).  *gate* names the block the verdict is
-    judged under and digests (:data:`GATE_SOURCES`): ``"recorded"``, the
-    directory's own ``stage_config.json`` block, or ``"current"``, the
-    checkout's block for the stage.  Raises :class:`BackfillError` on any
-    missing evidence; returns the written path.
+    required; decision D-D33).  *model_id* overrides only a record that does
+    not name its model whole (a pre-D-D33 directory has no ``embodiment``);
+    an override that differs from a record's whole model is refused.
+    *gate* names the block the verdict is judged under and digests
+    (:data:`GATE_SOURCES`): ``"recorded"``, the directory's own
+    ``stage_config.json`` block, or ``"current"``, the checkout's block for
+    the stage.  Raises :class:`BackfillError` on any missing evidence or a
+    disagreeing override; returns the written path.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
     from environments.shared.curriculum.gate_schema import gate_config_view
@@ -260,13 +269,20 @@ def backfill_gate_verdict(
     record = _load_json(stage_path / "stage_config.json", what="stage_config.json")
     if not isinstance(record, Mapping):
         raise BackfillError(f"{stage_path / 'stage_config.json'} must hold a JSON object")
-    if model_id is None:
-        try:
-            model_id = ModelId.from_record(record)
-        except ValueError as exc:
+    # A record that names its model whole is the directory's model, and an
+    # override must agree with it; the override is for a record that names
+    # no model or half of one (decision D-D33).
+    try:
+        recorded_model = ModelId.from_record(record)
+    except ValueError as exc:
+        if model_id is None:
             raise BackfillError(
                 f"stage_config.json does not name its model ({exc}); pass --species and --embodiment"
             ) from exc
+    else:
+        if model_id is not None and model_id != recorded_model:
+            raise BackfillError(f"stage_config.json names its model {recorded_model}, not the override {model_id}")
+        model_id = recorded_model
     stage_ref: Any = stage if stage is not None else record.get("stage")
     if isinstance(stage_ref, bool) or not isinstance(stage_ref, (int, str)):
         raise BackfillError(f"stage_config.json records no usable stage ({stage_ref!r}); pass --stage")
@@ -521,13 +537,19 @@ def main(argv: "list[str] | None" = None) -> int:
         "--species",
         default=None,
         choices=species_ids(),
-        help="override the model stage_config.json records: its species (with --embodiment)",
+        help=(
+            "the model's species (with --embodiment), for a stage_config.json that does not name its model "
+            "whole; one that does must agree"
+        ),
     )
     parser.add_argument(
         "--embodiment",
         default=None,
         choices=EMBODIMENTS,
-        help="override the model stage_config.json records: its embodiment (with --species)",
+        help=(
+            "the model's embodiment (with --species), for a stage_config.json that does not name its model "
+            "whole; one that does must agree"
+        ),
     )
     parser.add_argument(
         "--stage",

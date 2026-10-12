@@ -1278,6 +1278,33 @@ class TestSelectTrunk:
         assert refusal[0] == "stance" and refusal[1].startswith("unreadable:")
         assert "refused 20260910_000000: stance: unreadable:" in selection.describe()
 
+    def test_a_plant_identity_that_names_no_model_refuses_that_run_only(self, tmp_path, fixture_tasks):
+        """No neighbour aborts the scan (decision D-D33): a run whose ``plant_identity.json`` names an embodiment
+        outside the vocabulary is listed as refused and gives no older-interface hint, while a well-formed
+        older-interface sibling is still reported."""
+        from environments.shared.command_frame import COMMAND_WIDTH
+
+        current = trunk_plant()
+        older_plant = make_plant_identity(
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
+            model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+            policy_interface_revision=current.policy_interface_revision - 2,
+            observation_dim=current.observation_dim - COMMAND_WIDTH,
+        )
+        build_trunk_run(tmp_path / "20260815_205206", plant=older_plant, task_sha256=OTHER_TASK)
+        malformed = tmp_path / "20260901_000000"
+        stage_dir = build_trunk_run(malformed, plant=older_plant, task_sha256=OTHER_TASK)
+        identity = json.loads((stage_dir / "plant_identity.json").read_text())
+        identity["embodiment"] = "exoskeleton"
+        (stage_dir / "plant_identity.json").write_text(json.dumps(identity))
+
+        selection = _select(tmp_path, plant_identity=current)
+
+        assert selection.run_dir is None
+        assert [parent.run_dir.name for parent in selection.older_interface] == ["20260815_205206"]
+        assert next(c.refusal for c in selection.candidates if c.run_dir == malformed) is not None
+
     def test_a_run_of_another_algorithm_species_or_backend_is_refused_before_the_rules(self, tmp_path, fixture_tasks):
         ppo = tmp_path / "20260901_000000"
         build_trunk_run(ppo, algorithm="ppo", hyperparameters={"n_steps": 8})

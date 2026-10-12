@@ -179,8 +179,8 @@ def save_result_bundle(
     and a manifest; a publishable one additionally requires the selected
     checkpoint (and SB3 sidecar), resolved config with plant identity, and
     evaluation evidence for every PRESENT stage, plus a recorded backend
-    version.  Under a v1 or synthesized stage manifest — one deliverable, the
-    last advancing node — all of this collapses to the pre-Phase-A rule.
+    version.  Under a v1 stage manifest — one deliverable, the last advancing
+    node — all of this collapses to the pre-Phase-A rule.
 
     Seed replication (plan §4.5, decisions D-B10/D-B11/D-B16): *replicates*
     maps a deliverable's stage key to the ``{run_id, training_seed}`` records

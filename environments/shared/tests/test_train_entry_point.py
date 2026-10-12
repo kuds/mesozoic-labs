@@ -25,7 +25,7 @@ from environments.shared.model_id import ModelId
 from environments.shared.species_names import species_ids
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
-VELOCIRAPTOR_ARGS = ["--species", "velociraptor_mongoliensis", "--embodiment", "anatomical"]
+VELOCIRAPTOR_MONGOLIENSIS_ARGS = ["--species", "velociraptor_mongoliensis", "--embodiment", "anatomical"]
 TYRANNOSAURUS_REX_ARGS = ["--species", "tyrannosaurus_rex", "--embodiment", "anatomical"]
 
 
@@ -86,16 +86,20 @@ class TestModelFlagValidation:
         assert excinfo.value.code == 2
         assert "expected one argument" in capsys.readouterr().err
 
-    def test_an_embodiment_the_species_lacks_is_refused(self, monkeypatch, capsys):
+    def test_an_embodiment_the_species_lacks_is_refused(self, monkeypatch, capsys, missing_model_id):
         monkeypatch.setattr(
-            sys, "argv", ["train.py", "--species", "tyrannosaurus_rex", "--embodiment", "robot", "train"]
+            sys,
+            "argv",
+            ["train.py", "--species", missing_model_id.species, "--embodiment", missing_model_id.embodiment, "train"],
         )
 
         with pytest.raises(SystemExit) as excinfo:
             train_entry._main()
 
         assert excinfo.value.code == 2
-        assert "tyrannosaurus_rex has no 'robot' embodiment" in capsys.readouterr().err
+        assert f"{missing_model_id.species} has no {missing_model_id.embodiment!r} embodiment" in (
+            capsys.readouterr().err
+        )
 
     def test_an_unknown_species_is_refused(self, monkeypatch, capsys):
         monkeypatch.setattr(sys, "argv", ["train.py", "--species", "stegosaurus_stenops", "--embodiment", "anatomical"])
@@ -119,7 +123,7 @@ class TestHandoffToTrainBase:
     """The model is resolved, and both flag pairs are removed before hand-off."""
 
     def test_model_is_resolved_and_its_config_passed_to_main(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_ARGS, "train", "--stage", "1"])
+        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_MONGOLIENSIS_ARGS, "train", "--stage", "1"])
 
         train_entry._main()
 
@@ -127,7 +131,7 @@ class TestHandoffToTrainBase:
         assert recorded_run["config"] == "config-for-velociraptor_mongoliensis/anatomical"
 
     def test_model_flags_are_stripped_before_main_parses_argv(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_ARGS, "train", "--stage", "1"])
+        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_MONGOLIENSIS_ARGS, "train", "--stage", "1"])
 
         train_entry._main()
 

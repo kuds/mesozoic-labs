@@ -20,12 +20,17 @@ Exempt: docstrings and comments (prose may name an animal, "the T-Rex"),
 ``fixtures/``, this module (which holds the refusal cases below), the
 retired schema name ``mesozoic.trex-command-terrain/v1`` in the test that
 proves it refused, a hyphenated binomial (``compsognathus-longipes-sensors/v1``:
-a genus followed by ``-`` and its own epithet), and recorded history: each
+a genus followed by ``-`` and its own epithet), a record's file name in
+capitals (``RAPTOR_SCALING_AND_ALTERNATIVES.md``), a genus in capitals that
+stands as a word in a rendered heading, and recorded history: each
 calibration's ``restamp_history`` (the identities and reasons it recorded) and
 a test string quoting one of those reasons verbatim.
 
-The boundary pattern is the plan's guard prototype, verbatim: a plain ``\\b``
-would let ``test_trex_bite`` pass, because ``_`` is a word character.
+The boundary pattern is the plan's guard prototype (a plain ``\\b`` would let
+``test_trex_bite`` pass, because ``_`` is a word character), widened by the
+final review to every retired class and Gymnasium ID that spells a genus out
+(``CompsognathusRobotEnv``, ``MesozoicLabs/Dibothrosuchus-v0``) and to the
+upper-case names of constants (``VELOCIRAPTOR_ARGS``, ``TREX_STAGE1``).
 """
 
 from __future__ import annotations
@@ -53,12 +58,26 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ENVIRONMENTS = REPOSITORY_ROOT / "environments"
 CONFIGS = REPOSITORY_ROOT / "configs"
 
+#: A retired genus ID in capitals (the epithet's ``_<EPITHET>`` spared).
+_UPPER_GENERA = (
+    r"(?:VELOCIRAPTOR(?!_MONGOLIENSIS)|BRACHIOSAURUS(?!_ALTITHORAX)"
+    r"|DIBOTHROSUCHUS(?!_ELAPHROS)|COMPSOGNATHUS(?!_LONGIPES))"
+)
 RETIRED = re.compile(
     r"(?<![A-Za-z0-9])(?:"
     r"(?:compsognathus_robot|velociraptor|trex|brachiosaurus|dibothrosuchus|compsognathus)(?![a-z0-9]|_(?:mongoliensis|rex|altithorax|elaphros|longipes))"
     r"|raptor(?=_|\b|[A-Z])|t-rex|t_rex|brachio(?!saurus)|dibo(?!thro)|compso(?!gnathus)|biological"
     r")"
-    r"|(?:Raptor|TRex|Brachio(?!saurus)|Dibo(?!thro)|Compso(?!gnathus)|Biological)(?=[A-Z_]|Env|-v\d|\b)",
+    r"|(?:Raptor|TRex|Trex|Brachio(?!saurus)|Dibo(?!thro)|Compso(?!gnathus)|Biological)(?=[A-Z_]|Env|-v\d|\b)"
+    # A genus spelled out where a retired class or Gymnasium ID had it (``CompsognathusRobotEnv``,
+    # ``MesozoicLabs/Dibothrosuchus-v0``); the display word ``Velociraptor`` and the binomials are spared.
+    r"|(?:Velociraptor|Brachiosaurus|Dibothrosuchus)(?=Env|-v\d)|Compsognathus(?=Env|_?Robot|_?Biological|-v\d)"
+    # Upper case, as a constant's name spells it (``TREX_STAGE1``, ``VELOCIRAPTOR_ARGS``), a record's file name
+    # (``RAPTOR_SCALING_AND_ALTERNATIVES.md``) aside.  A genus in capitals counts only joined to a word by ``_``
+    # or standing alone, since a rendered heading spells the animal so ("MESOZOIC LABS  /  COMPSOGNATHUS").
+    r"|(?:(?<![A-Z0-9])(?:TREX|T_REX|RAPTOR|BRACHIO(?!SAURUS)|DIBO(?!THRO)|COMPSO(?!GNATHUS)|BIOLOGICAL)(?=_|\b)"
+    rf"|(?<=_){_UPPER_GENERA}(?=_|\b)|(?<![A-Za-z0-9]){_UPPER_GENERA}(?=_)|^{_UPPER_GENERA}$)"
+    r"(?![A-Z0-9_]*\.md\b)",
 )
 #: Each retired genus ID's epithet: the genus followed by ``-<epithet>`` is a hyphenated binomial, not the old ID.
 EPITHETS = {
@@ -293,6 +312,26 @@ def test_the_pattern_catches_a_retired_identifier_at_any_boundary_and_spares_the
         "t-rex",
         "compsognathus",
         "compsognathus_anatomical",
+        "DibothrosuchusEnv",
+        "CompsognathusEnv",
+        "CompsognathusRobotEnv",
+        "VelociraptorEnv",
+        "MesozoicLabs/Compsognathus-v0",
+        "MesozoicLabs/Dibothrosuchus-v0",
+        "MesozoicLabs/CompsognathusRobot-v0",
+        "MesozoicLabs/Velociraptor-v0",
+        "Trex",
+        "Compsognathus_Robot",
+        "TREX",
+        "T_REX",
+        "TREX_STAGE1",
+        "VELOCIRAPTOR",
+        "VELOCIRAPTOR_ARGS",
+        "VELOCIRAPTOR_ANATOMICAL",
+        "COMPSOGNATHUS_ROBOT",
+        "MAX_BRACHIOSAURUS",
+        "DIBO_SNAP",
+        "BIOLOGICAL",
     ):
         assert retired_names(retired), retired
     for current in (
@@ -311,6 +350,14 @@ def test_the_pattern_catches_a_retired_identifier_at_any_boundary_and_spares_the
         "mesozoic.compsognathus-longipes-preflight/v3",
         "trexler",
         "anatomical",
+        "VELOCIRAPTOR_MONGOLIENSIS_ARGS",
+        "TYRANNOSAURUS_REX_ARGS",
+        "COMPSOGNATHUS_LONGIPES_ROBOT",
+        "DIBOTHROSUCHUS_ELAPHROS",
+        "BRACHIOSAURUS_ALTITHORAX_ANATOMICAL",
+        "MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
+        "docs/RAPTOR_SCALING_AND_ALTERNATIVES.md",
+        "MESOZOIC LABS  /  COMPSOGNATHUS",
     ):
         assert not retired_names(current), current
 

@@ -26,7 +26,8 @@ naming what is missing:
   edit here;
 * only the two frozen MJX registrations declare ``jax-mjx`` (review L5);
 * the website's species folders and the intro's model list follow the
-  manifest (review L9).
+  manifest (review L9), and so do the hand-written model lists of
+  ``docs/SPECIES_NAMING.md`` and the website's API overview.
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ from environments.shared.model_id import EMBODIMENTS, ModelId
 from environments.shared.paths import ENVIRONMENTS_ROOT
 from environments.shared.species_names import (
     embodiments_of,
+    model_display_name,
     model_entry,
     model_ids,
     species_display_name,
@@ -213,3 +215,18 @@ def test_the_intro_links_exactly_the_model_pages() -> None:
     intro = (WEBSITE_DOCS / "intro.md").read_text(encoding="utf-8")
     linked = set(re.findall(r"\(/docs/models/([a-z_]+/[a-z_]+)\)", intro))
     assert linked == {f"{model_id.species}/{model_id.embodiment}" for model_id in MODEL_IDS}
+
+
+def test_the_naming_guide_tables_exactly_the_models() -> None:
+    """``docs/SPECIES_NAMING.md``'s model table: one row per model, with its display name and Gymnasium ID."""
+    naming = (REPOSITORY_ROOT / "docs" / "SPECIES_NAMING.md").read_text(encoding="utf-8")
+    rows = re.findall(r"^\| `([a-z_]+)` \| `([a-z_]+)` \| ([^|]+?) \| `([^`]+)` \|", naming, flags=re.MULTILINE)
+    assert rows == [
+        (model_id.species, model_id.embodiment, model_display_name(model_id), model_id.gym_id) for model_id in MODEL_IDS
+    ]
+
+
+def test_the_api_overview_lists_exactly_the_gymnasium_ids() -> None:
+    overview = (WEBSITE_DOCS / "api" / "overview.md").read_text(encoding="utf-8")
+    listed = re.findall(r"^- `(MesozoicLabs/[^`]+)` - ", overview, flags=re.MULTILINE)
+    assert listed == [model_id.gym_id for model_id in MODEL_IDS]

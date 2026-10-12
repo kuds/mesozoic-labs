@@ -46,11 +46,11 @@ and [T-Rex home-equilibrium investigation](investigations/TREX_HOME_EQUILIBRIUM.
 
 The generator compares the existing committed manifest with the new one and refuses to write a changed semantic layer
 unless its revision increased. It pairs the baseline's plants with the current ones by identity key first, then pairs
-the plants left over on both sides by their physics digest (refusing a digest shared by more than one leftover on either
-side), and refuses any baseline plant still unpaired; a current plant left unpaired is new. A baseline of
-`mesozoic.plant-manifest/v1`, keyed by the species alone, is accepted only in this comparison and only against a v2
-manifest (the D-D33 transition), so its six plants pair by physics digest. Pull-request CI also compares against the
-base branch, so deleting or replacing the local manifest cannot bypass revision monotonicity.
+the plants left over on both sides by their physics digest (refusing a baseline leftover's physics digest that is shared
+by more than one leftover on either side), and refuses any baseline plant still unpaired; a current plant left unpaired
+is new. A baseline of `mesozoic.plant-manifest/v1`, keyed by the species alone, is accepted only in this comparison and
+only against a v2 manifest (the D-D33 transition), so its six plants pair by physics digest. Pull-request CI also
+compares against the base branch, so deleting or replacing the local manifest cannot bypass revision monotonicity.
 
 ## Regeneration
 

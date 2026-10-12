@@ -346,7 +346,7 @@ function HowItWorksSection() {
    ============================================================================= */
 
 /** The model the code sample creates; its observation width is printed from the catalog. */
-const VELOCIRAPTOR_ANATOMICAL = requireModel('velociraptor_mongoliensis', 'anatomical');
+const VELOCIRAPTOR_MONGOLIENSIS_ANATOMICAL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 function SimulationSection() {
   const ref = useScrollReveal();
@@ -415,7 +415,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR_ANATOMICAL.observationDim},)`}</span>
+                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR_MONGOLIENSIS_ANATOMICAL.observationDim},)`}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>

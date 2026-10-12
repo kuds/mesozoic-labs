@@ -13,6 +13,7 @@ from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     MODEL_IDENTITY_ATTRIBUTE,
     PlantCompatibilityError,
+    PlantIdentity,
     attach_plant_identity,
     current_plant_identity,
     validate_compiled_plant,
@@ -57,6 +58,20 @@ def test_malformed_checkpoint_identity_is_a_compatibility_error():
     recorded = current.to_dict()
     recorded["physics_sha256"] = "not-a-digest"
 
+    with pytest.raises(PlantCompatibilityError, match="invalid plant identity metadata"):
+        validate_recorded_identity(recorded, current)
+
+
+@pytest.mark.parametrize(("field", "value"), [("species", "tyrannosaurus"), ("embodiment", "exoskeleton")])
+def test_an_identity_that_names_no_model_is_a_compatibility_error(field, value):
+    """Decision D-D33: a species or embodiment that names no model is refused when the identity is parsed,
+    so ``PlantIdentity.model_id`` never raises a bare ``ValueError`` in a reader."""
+    current = current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False)
+    recorded = current.to_dict()
+    recorded[field] = value
+
+    with pytest.raises(PlantCompatibilityError, match=f"invalid plant identity metadata: {field} must be"):
+        PlantIdentity.from_mapping(recorded)
     with pytest.raises(PlantCompatibilityError, match="invalid plant identity metadata"):
         validate_recorded_identity(recorded, current)
 

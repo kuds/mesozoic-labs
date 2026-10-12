@@ -22,9 +22,10 @@ results.  Nothing is re-derived at run time.
 Every other model loads a measured, model-specific recovery calibration
 profile. Its frozen resolution also hashes ``evaluation_spec``: profile identity,
 height reference, control timestep and safe set. A changed or missing judge
-refuses evaluation. Historical resolutions of the anatomical T-Rex
-(``gate_resolver.LEGACY_RECOVERY_JUDGE_MODEL_ID``) retain their original judge
-and remain readable; its constants below are never a fallback for other models.
+refuses evaluation. A v2 resolution of the anatomical T-Rex
+(``gate_resolver.LEGACY_RECOVERY_JUDGE_MODEL_ID``) may still use the
+historical judge; v1 resolutions, every one written before decision D-D33,
+are refused. Its constants below are never a fallback for other models.
 
 Examples (repo root; ``--species`` and ``--embodiment`` are required):
 

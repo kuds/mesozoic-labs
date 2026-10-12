@@ -42,21 +42,22 @@ pytest environments/compsognathus_longipes/tests environments/shared/tests/test_
 The repository pins **MuJoCo 3.10.0**, used for these checks. The original
 Rev B package used 3.12.0. On macOS use `mjpython` for the interactive viewer.
 The viewer starts at `home`, holds fixed joint-angle targets and steps real
-physics. `--embodiment` (`anatomical` or `robot`) is required and has no
-default. `--motors-off` disables actuation at solver level; `--mass-scale 1.15` increases
-body masses and inertias while preserving motor limits.
+physics. `--embodiment` (`anatomical` or `robot`) is required unless `--compare`
+is given, and has no default. `--motors-off` disables actuation at solver
+level; `--mass-scale 1.15` increases body masses and inertias while preserving
+motor limits.
 
 Pictures need Pillow; videos additionally need `imageio` and `imageio-ffmpeg`,
 both in the `viz` extra (`pip install -e ".[viz]"`):
 
 ```bash
-python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --compare /tmp/models.png
+python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/models.png
 python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --snapshot /tmp/robot.png
 python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --head-camera --snapshot /tmp/onboard.png
 python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --video /tmp/standing.mp4 --seconds 5
 ```
 
-`--compare` renders both models side by side, whichever `--embodiment` is named.
+`--compare` renders both models side by side and takes no `--embodiment`.
 
 Headless rendering needs a working OSMesa runtime with `MUJOCO_GL=osmesa`,
 or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.

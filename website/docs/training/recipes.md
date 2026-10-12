@@ -251,10 +251,12 @@ rule 2 until it is re-judged from its recorded evidence:
 python -m environments.shared.scripts.backfill_gate_verdict logs/<run>/<stage_dir>
 ```
 
-`--species` with `--embodiment`, and `--stage`, override what the directory's
-`stage_config.json` records, and `--force` re-derives over an existing verdict — the path for a
-verdict written before D-A22, which records no `gate_sha256` and is refused
-by rule 7. `--gate recorded` (the default) judges under the block
+`--species` with `--embodiment` names the model of a directory whose
+`stage_config.json` does not name it whole (a pre-D-D33 directory records no
+`embodiment`; an override that disagrees with a whole record is refused),
+`--stage` overrides the stage it records, and `--force` re-derives over an
+existing verdict — the path for a verdict written before D-A22, which records
+no `gate_sha256` and is refused by rule 7. `--gate recorded` (the default) judges under the block
 `stage_config.json` recorded and digests it; `--gate current` judges under
 the checkout's block for the stage and digests that one, the re-judge path
 after a threshold edit for a `reward_and_length/v1` directory, whose episode

@@ -83,7 +83,11 @@ class PlantIdentity:
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> PlantIdentity:
-        """Parse and validate checkpoint metadata; a v1 identity is refused by name."""
+        """Parse and validate checkpoint metadata.
+
+        A v1 identity is refused by name, and so is a species or embodiment
+        that names no model (decision D-D33).
+        """
         if value.get("schema") == _PLANT_IDENTITY_SCHEMA_V1:
             raise PlantCompatibilityError(
                 f"plant identity schema {_PLANT_IDENTITY_SCHEMA_V1} predates decision D-D33: it names its plant "
@@ -95,9 +99,11 @@ class PlantIdentity:
                 f"unsupported plant identity schema: {value.get('schema')!r}; expected {PLANT_IDENTITY_SCHEMA}"
             )
         try:
+            # Refused here, so ``model_id`` never raises on a parsed identity.
+            model_id = ModelId(str(value["species"]), str(value["embodiment"]))
             identity = cls(
-                species=str(value["species"]),
-                embodiment=str(value["embodiment"]),
+                species=model_id.species,
+                embodiment=model_id.embodiment,
                 model_path=str(value["model_path"]),
                 physics_revision=int(value["physics_revision"]),
                 policy_interface_revision=int(value["policy_interface_revision"]),

@@ -37,6 +37,7 @@ from environments.shared.scripts.backfill_gate_verdict import (
 )
 
 TASK = "sha256:" + "5" * 64
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 
 #: The block the fixture directory recorded as its ``[curriculum]``: a
 #: ``reward_and_length/v1`` gate the evidence below passes, plus schedule
@@ -64,12 +65,19 @@ TASK_SUCCESS_CURRICULUM: dict[str, Any] = {
 }
 
 
-def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evidence: bool = True) -> Path:
+def _stage_dir(
+    tmp_path: Path,
+    *,
+    curriculum: dict[str, Any] | None = None,
+    evidence: bool = True,
+    model_id: ModelId = DIBOTHROSUCHUS_ELAPHROS,
+) -> Path:
     """A dibothrosuchus stance directory as a pre-Phase-A run left it: config, handoff pair, evidence.
 
     Dibothrosuchus because its stance still declares ``reward_and_length/v1``, the kind ``--gate current``
     re-judges this evidence under; the velociraptor stance these tests used moved to ``stance_quality/v2``
-    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.
+    with physics r3 (D-D25), whose arm admits only a report scored on the handoff pair.  *model_id* names
+    another model in ``stage_config.json``.
     """
     stage_dir = tmp_path / "20260801_120000" / "stage1"
     models = stage_dir / "models"
@@ -81,8 +89,7 @@ def _stage_dir(tmp_path: Path, *, curriculum: dict[str, Any] | None = None, evid
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
-                "species": "dibothrosuchus_elaphros",
-                "embodiment": "anatomical",
+                **model_id.record(),
                 "stage": 1,
                 "name": "Balance",
                 "description": "Stand",
@@ -380,10 +387,36 @@ class TestBackfill:
                 "recovery_t_recover_steps": 100,
                 "recovery_dwell_steps": 50,
             },
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         )
         with pytest.raises(BackfillError, match="never persisted"):
-            backfill_gate_verdict(stage_dir, model_id=ModelId("tyrannosaurus_rex", "anatomical"), stage="recovery")
+            backfill_gate_verdict(stage_dir, stage="recovery")
         assert read_gate_verdict(stage_dir) is None
+
+    def test_an_override_names_the_model_only_of_a_record_that_does_not_name_it_whole(self, tmp_path):
+        """Decision D-D33: a pre-D-D33 record (no ``embodiment``) needs the override, and a record that names
+        its model whole is the directory's model, so an override naming another model, even the other
+        embodiment of the same species, is refused and writes nothing."""
+        robot = ModelId("compsognathus_longipes", "robot")
+        anatomical = ModelId("compsognathus_longipes", "anatomical")
+        stage_dir = _stage_dir(tmp_path, model_id=robot)
+        with pytest.raises(
+            BackfillError,
+            match="names its model compsognathus_longipes/robot, not the override compsognathus_longipes/anatomical",
+        ):
+            backfill_gate_verdict(stage_dir, model_id=anatomical)
+        assert read_gate_verdict(stage_dir) is None
+        backfill_gate_verdict(stage_dir, model_id=robot)
+        assert ModelId.from_record(read_gate_verdict(stage_dir)) == robot
+
+        config_path = stage_dir / "stage_config.json"
+        record = json.loads(config_path.read_text(encoding="utf-8"))
+        del record["embodiment"]
+        config_path.write_text(json.dumps(record), encoding="utf-8")
+        with pytest.raises(BackfillError, match="does not name its model .*pass --species and --embodiment"):
+            backfill_gate_verdict(stage_dir, force=True)
+        backfill_gate_verdict(stage_dir, model_id=anatomical, force=True)
+        assert ModelId.from_record(read_gate_verdict(stage_dir)) == anatomical
 
     def test_missing_evidence_is_refused(self, tmp_path):
         stage_dir = _stage_dir(tmp_path, evidence=False)
@@ -569,6 +602,13 @@ class TestCommandLine:
         stage_dir = _stage_dir(tmp_path)
         with pytest.raises(SystemExit):
             main([str(stage_dir), "--gate", "edited"])
+        assert read_gate_verdict(stage_dir) is None
+
+    def test_an_override_that_disagrees_with_the_record_is_refused(self, tmp_path, caplog):
+        stage_dir = _stage_dir(tmp_path)
+        with caplog.at_level(logging.ERROR):
+            assert main([str(stage_dir), "--species", "tyrannosaurus_rex", "--embodiment", "anatomical"]) == 1
+        assert "names its model dibothrosuchus_elaphros/anatomical, not the override" in caplog.text
         assert read_gate_verdict(stage_dir) is None
 
 

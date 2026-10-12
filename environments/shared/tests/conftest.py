@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from environments.shared.model_id import ModelId
+from environments.shared.model_id import EMBODIMENTS, ModelId
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PlantVersion,
     fingerprint_model_layers,
 )
 from environments.shared.result_bundle import provenance as result_bundle_provenance
+from environments.shared.species_names import embodiments_of, species_ids
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 from .result_bundle_helpers import _COMMIT
@@ -44,6 +45,26 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
             "optax": "0.2.8",
         },
     )
+
+
+@pytest.fixture
+def missing_model_id() -> ModelId:
+    """A (species, embodiment) pair the manifest does not declare, found at run time.
+
+    A test that a missing model is refused must not name one: the next model
+    is added by a manifest table (decision D-D33), and its refusal would turn
+    into whatever that model does (a training run, for the entry point).
+    Skips once every species has every embodiment.
+    """
+    missing = [
+        ModelId(species, embodiment)
+        for species in species_ids()
+        for embodiment in EMBODIMENTS
+        if embodiment not in embodiments_of(species)
+    ]
+    if not missing:
+        pytest.skip("every species has every embodiment, so no model is missing")
+    return missing[0]
 
 
 @pytest.fixture(scope="module")
