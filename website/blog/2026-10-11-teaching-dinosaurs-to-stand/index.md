@@ -19,7 +19,7 @@ Every body here is an engineering abstraction inspired by dinosaur morphology, n
 
 ## The lessons at a glance
 
-We train six MuJoCo models, [T. rex](/docs/models/trex), [Velociraptor](/docs/models/velociraptor), [Compsognathus](/docs/models/compsognathus), a [Compsognathus-inspired robot](/docs/models/compsognathus_robot), [Brachiosaurus](/docs/models/brachiosaurus) and the crocodylomorph-inspired [Dibothrosuchus](/docs/models/dibothrosuchus), with PPO through a staged curriculum: stance, recovery from pushes, locomotion, then behaviours such as hunting. Every later stage starts from the stance, so a flawed stance contaminates everything after it.
+We train six MuJoCo models, [T. rex](/docs/models/tyrannosaurus_rex/anatomical), [Velociraptor](/docs/models/velociraptor_mongoliensis/anatomical), [Compsognathus](/docs/models/compsognathus_longipes/anatomical), a [Compsognathus-inspired robot](/docs/models/compsognathus_longipes/robot), [Brachiosaurus](/docs/models/brachiosaurus_altithorax/anatomical) and the crocodylomorph-inspired [Dibothrosuchus](/docs/models/dibothrosuchus_elaphros/anatomical), with PPO through a staged curriculum: stance, recovery from pushes, locomotion, then behaviours such as hunting. Every later stage starts from the stance, so a flawed stance contaminates everything after it.
 
 Two terms recur. The **plant** is the simulated body as a control engineer sees it: geometry, masses, joints, servos, sensors and contacts, versioned by revision (T. rex physics r8, say). The **statue** is the zero-action policy: actions are offsets from a home pose that position servos hold, so zero means "hold still".
 

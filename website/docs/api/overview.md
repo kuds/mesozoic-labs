@@ -8,27 +8,30 @@ Reference documentation for the Mesozoic Labs environments.
 
 ## Gymnasium Registration
 
-All environments are registered with the `MesozoicLabs` namespace:
+All environments are registered with the `MesozoicLabs` namespace, one per
+model, as `MesozoicLabs/<Species>-<Embodiment>-v0`:
 
 ```python
 import gymnasium as gym
 
-# Import to trigger registration
-import environments.velociraptor_mongoliensis.anatomical.env  # noqa: F401
+# Registers every model of the species manifest
+import environments  # noqa: F401
 
 env = gym.make("MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0")
 ```
 
 Available environment IDs:
 
-- `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor
-- `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus
-- `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - T-Rex
-- `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus
-- `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus
-- `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus robot prototype
+- `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` - Velociraptor Mongoliensis (Anatomical)
+- `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` - Tyrannosaurus Rex (Anatomical)
+- `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` - Brachiosaurus Altithorax (Anatomical)
+- `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` - Dibothrosuchus Elaphros (Anatomical)
+- `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` - Compsognathus Longipes (Anatomical)
+- `MesozoicLabs/CompsognathusLongipes-Robot-v0` - Compsognathus Longipes (Robot), the robot prototype
 
-`import environments` registers all six at once.
+`import environments` registers all six at once, from `configs/species_manifest.toml`.
+Each class is `<Species><Embodiment>Env` in `environments.<species>.<embodiment>.env`,
+a subclass of the species base class `<Species>Env` in `environments.<species>.base_env`.
 
 ## Velociraptor Environment
 
@@ -128,33 +131,37 @@ vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = PPO("MlpPolicy", vec_env, learning_rate=3e-4)
 # Illustrative standalone run, not a committed curriculum-stage budget.
 model.learn(total_timesteps=10_000, progress_bar=True)
-model.save("raptor_stage1")
+model.save("velociraptor_mongoliensis_anatomical_stance")
 ```
 
-Or use the included training script. The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
+Or use the shared training CLI from the repository root, which takes the model as
+`--species <species> --embodiment <embodiment>` (both required). The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
 
 ```bash
-cd environments/velociraptor_mongoliensis
-
 # Full 3-stage curriculum (recommended) — one command, stages 1-3
-python scripts/train_sb3.py curriculum --algorithm ppo --n-envs 4
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --n-envs 4
 
 # Or control stages individually; each command reads its budget from TOML
-python scripts/train_sb3.py train --stage 1 --algorithm ppo
-python scripts/train_sb3.py train --stage 2 --algorithm ppo \
-  --load logs/stage1/models/stage1_final.zip
-python scripts/train_sb3.py eval logs/stage2/models/stage2_final.zip --algorithm ppo --stage 2
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage 1 --algorithm ppo
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage 2 --algorithm ppo --load logs/stage1/models/stage1_final.zip
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  eval logs/stage2/models/stage2_final.zip --algorithm ppo --stage 2
 
 # Use SAC instead
-python scripts/train_sb3.py curriculum --algorithm sac
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm sac
 
 # Override hyperparameters without editing TOML files
-python scripts/train_sb3.py train --stage 1 \
-  --override ppo.learning_rate=1e-3 env.alive_bonus=3.0
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage 1 --override ppo.learning_rate=1e-3 env.alive_bonus=3.0
 
 # Write outputs to a specific directory, a fresh one per run (the curriculum
 # refuses a stage directory that already records a stage)
-python scripts/train_sb3.py curriculum --output-dir logs/<new_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --output-dir logs/<new_run>
 ```
 
 ## Diagnostic Metrics
@@ -214,6 +221,6 @@ The key names are stable API labels, not biomechanical claims. In particular,
 `bite_success` is fixed head-geom contact and `food_reached` is head-tip
 proximity to the target.
 
-The `evaluate` command in each `train_sb3.py` script prints all metrics above grouped
+The shared CLI's `eval` command prints all metrics above grouped
 into **Core Performance**, **Velocity**, **Gait Quality**, **Balance**, and a species-specific
 **Hunting / Food Reaching** section.

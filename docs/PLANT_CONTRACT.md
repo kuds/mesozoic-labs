@@ -1,8 +1,12 @@
 # Plant contract
 
-The plant contract gives each species a reviewable identity that is more precise than a single model-file hash. The
-committed output is `configs/plant_manifest.generated.json`; it is generated from the species registry, MJCF assets,
-executable environments, and the human revision counters in `configs/plant_versions.toml`.
+The plant contract gives each model a reviewable identity that is more precise than a single model-file hash. A plant is
+keyed by its model, the pair (species, embodiment) of [SPECIES_NAMING.md](SPECIES_NAMING.md): its revision counters are
+the `[plants.<species>.<embodiment>]` table of `configs/plant_versions.toml` (schema 2), the manifest holds it at
+`plants.<species>.<embodiment>` (`mesozoic.plant-manifest/v2`), and its identity record (`mesozoic.plant-identity/v2`)
+carries `species` and `embodiment` as two fields, both compared. The committed output is
+`configs/plant_manifest.generated.json`; it is generated from the species manifest, MJCF assets, executable
+environments, and the human revision counters in `configs/plant_versions.toml`.
 
 The public species catalog reads the committed manifest. It does not recompile fingerprints during a website build.
 
@@ -28,6 +32,11 @@ Each semantic layer has an independent positive revision: `policy_interface_revi
 - Do not bump a semantic revision for a source-only change.
 - A visual-only change does not make a policy incompatible.
 - A policy-interface or physics change makes an existing policy incompatible, even when dimensions happen to match.
+- A change of a plant's identity key (a renamed species or embodiment) carries its counters forward: the generator pairs
+  the old plant with the new key by physics digest (below), and the layer rules apply to the pair. Moving or renaming a
+  method the policy layer hashes changes its recorded qualname, which is a policy-interface change and needs that bump
+  even when no token moved; decision D-D33 is the example (`configs/plant_versions.toml` note 19).
+- A plant leaves the manifest only by an explicit decision: the generator refuses a baseline plant it cannot pair.
 
 The biped home-residual changes are examples where tensor dimensions can stay
 fixed while action meaning changes, requiring a policy-interface revision and
@@ -36,8 +45,12 @@ fresh checkpoints. See the
 and [T-Rex home-equilibrium investigation](investigations/TREX_HOME_EQUILIBRIUM.md).
 
 The generator compares the existing committed manifest with the new one and refuses to write a changed semantic layer
-unless its revision increased. Pull-request CI also compares against the base branch, so deleting or replacing the local
-manifest cannot bypass revision monotonicity.
+unless its revision increased. It pairs the baseline's plants with the current ones by identity key first, then pairs
+the plants left over on both sides by their physics digest (refusing a digest shared by more than one leftover on either
+side), and refuses any baseline plant still unpaired; a current plant left unpaired is new. A baseline of
+`mesozoic.plant-manifest/v1`, keyed by the species alone, is accepted only in this comparison and only against a v2
+manifest (the D-D33 transition), so its six plants pair by physics digest. Pull-request CI also compares against the
+base branch, so deleting or replacing the local manifest cannot bypass revision monotonicity.
 
 ## Regeneration
 
@@ -106,8 +119,8 @@ python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_r
 
 - **The identity gate.** The parent archive's recorded plant identity must be the current plant at most
   `max_revision_gap` interface-only revisions behind (default 1 — exactly r → r+1, the Phase C bump alone;
-  `--max-revision-gap N` on the CLI, `max_revision_gap=N` in the API; decision D-C17): same `species`,
-  `physics_sha256`, `nq` / `nv` / `nu` and `action_dim`,
+  `--max-revision-gap N` on the CLI, `max_revision_gap=N` in the API; decision D-C17): same `species` and
+  `embodiment`, `physics_sha256`, `nq` / `nv` / `nu` and `action_dim`,
   `1 <= current - parent.policy_interface_revision <= max_revision_gap` and `observation_dim + 3 == current`.
   Anything else is refused with every differing field named; a parent further behind than the bound is refused with
   both revisions, the measured gap, the bound and the flag named. The fields other than the revision apply whatever
@@ -116,13 +129,13 @@ python -m environments.shared.scripts.widen_checkpoint --species tyrannosaurus_r
   no ladder of intermediate manifests to walk: the widening is applied once, against the checkout's manifest).
   Setting N > 1 asserts, from `configs/plant_versions.toml`'s numbered notes, that the intermediate bumps changed
   nothing the widening cannot bridge; the report records `revision_gap` / `max_revision_gap`. The two certified
-  trex stance runs of 2026-08 are r11 archives, two revisions behind r13 across the fingerprint-only r11 → r12 bump
+  T-Rex stance runs of 2026-08 are r11 archives, two revisions behind r13 across the fingerprint-only r11 → r12 bump
   (note 11, the perturbation engine): refused under the default, widened under `--max-revision-gap 2`
   (`docs/KNOWN_ISSUES.md`, the Phase C entry). A bump that changed action meaning at fixed dimensions (the biped
   home-residual examples above) is not widenable and still needs fresh checkpoints. A parent without an identity is refused unless
   `--allow-legacy-plant`, which reads its width from the saved observation space. The VecNormalize sidecar must
   record the parent archive's plant; under the legacy allowance an unstamped sidecar is accepted with a warning,
-  and a stamped sidecar of a legacy (unstamped) archive must record the parent's species and width.
+  and a stamped sidecar of a legacy (unstamped) archive must record the parent's species, embodiment and width.
 - **What is written.** Into a fresh stage directory named as the stage's directory (`stage_dir_candidates`), outside
   the parent's run: `models/<handoff>.zip` + `models/<handoff>_vecnorm.pkl` under the parent's own handoff name
   (`robust_best_model` or `best_model`, exactly one), byte-identical `models/<stage_label>_final.*` copies (what the
@@ -153,7 +166,7 @@ This command-line tool is the only widen path (decision D-D14 removed the SB3 no
 into a NEW run id, one no run uses and the notebook has not opened yet, written as a timestamp `YYYYMMDD_HHMMSS` like
 the ids the storage cell mints (`TRUNK_FROM = "auto"` breaks a coverage tie by the greatest directory name, so an id in
 another format would outrank every later run), with
-`--to-stage-dir <LOG_BASE>/<species>/<algo>/<new run id>/<stage_dirname(species, root)>` and `--label` when the
+`--to-stage-dir <LOG_BASE>/<species>/<embodiment>/<algo>/<new run id>/<stage_dirname(model_id, root)>` and `--label` when the
 session sets `RUN_LABEL`. On Colab: (1) run the notebook's section 1, then a scratch cell
 `from google.colab import drive; drive.mount("/content/drive")`, never the storage cell, which would mint a run
 directory and its provenance; (2) `LOG_BASE` is `/content/drive/MyDrive/mesozoic-labs/logs`; (3) run
@@ -167,14 +180,14 @@ widened root before it consults any trunk (D-C13 as amended by cleanup ROW-4/6's
 ## Backend parity and runtime binding
 
 The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes.
-Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17). Two species
-(brachiosaurus and dibothrosuchus) still declare the dual SB3/MJX backend, because their policy-interface
+Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17). Two models (the anatomical
+brachiosaurus and dibothrosuchus) still declare the dual SB3/MJX backend, because their policy-interface
 digests hash the source tokens of a frozen MJX interface core (`build_mjx_observation` in `environments/shared/mjx_env.py`,
 `jax_setup.make_obs_fn`, the `mjx_utils` action-mapping and home-reset functions and the `obs_functions.py` observation
-builders), record each species' `mjx_config.py` registration (its module name and registered values) and record an MJX
-observation probe. For these
-species the canonical writer requires SB3 and MJX to produce the same ordered observation (the two compsognathus plants,
-the velociraptor since its policy-interface revision 11 (decision D-D25) and the trex since its revision 14 (decision
+builders), record each model's `environments/<species>/anatomical/mjx_config.py` registration (its module name and
+registered values) and record an MJX observation probe. For these
+models the canonical writer requires SB3 and MJX to produce the same ordered observation (the two Compsognathus plants,
+the velociraptor since its policy-interface revision 11 (decision D-D25) and the T-Rex since its revision 14 (decision
 D-D31) are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the environment lists
 `jax-mjx` among its training backends). Since
 the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) both probes inject the non-zero
@@ -187,22 +200,27 @@ roots on `torso` whenever one is registered. MJX registration values (root-body 
 and frame skip) are versioned alongside the SB3 interface.
 
 Nothing trains on the frozen core, and it is never edited, reformatted or moved: any token change moves those two
-species' policy-interface digests, which `plant_contract --check` reports and
-`environments/shared/tests/test_plant_contract_frozen_mjx.py` pins function by function. A species leaves the core only
+models' policy-interface digests, which `plant_contract --check` reports and
+`environments/shared/tests/test_plant_contract_frozen_mjx.py` pins function by function. The two registrations moved
+once, into `environments/<species>/anatomical/`, when decision D-D33 renamed the species (their registered `species`
+value became the new ID; nothing else changed); their recorded module name moved with them, inside that decision's
+policy-interface bump (`configs/plant_versions.toml` note 19). A model leaves the core only
 by declaring itself SB3-only (`supported_training_backends = ("stable-baselines3",)` on the environment and
-`training_backends = ["stable-baselines3"]` in `configs/species_manifest.toml`, which must agree) inside its next
-deliberate `policy_interface_revision` bump; once both have done so, the core and its pin test are deleted
-([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1). The velociraptor did so at its policy-interface revision 11
-(decision D-D25), whose summed foot touch sensors the frozen registration cannot mirror, and the trex at its revision 14
-(decision D-D31), whose heading-free observation the frozen builders cannot produce; each `mjx_config.py` was deleted.
-An SB3-only species' `_cache_ids` tokens then enter its policy digest (`interface_implementations.sb3_sensor_cache`),
-so on the trex a token edit there, reward-target setup included, is a policy-interface revision. The trex keeps its
-action low-pass filter in its interface (`interface_implementations.action_low_pass_filter` hashes the cutoff and
-`action_filter.py`'s two functions), which the pin test keeps pinning. A new species declares SB3 only.
+`training_backends = ["stable-baselines3"]` on its embodiment table in `configs/species_manifest.toml`, which must
+agree) inside its next deliberate `policy_interface_revision` bump; once both have done so, the core and its pin test
+are deleted ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1). The velociraptor did so at its policy-interface
+revision 11 (decision D-D25), whose summed foot touch sensors the frozen registration cannot mirror, and the T-Rex at
+its revision 14 (decision D-D31), whose heading-free observation the frozen builders cannot produce; each
+`mjx_config.py` was deleted. An SB3-only model's `_cache_ids` tokens then enter its policy digest
+(`interface_implementations.sb3_sensor_cache`), so on the T-Rex a token edit there, reward-target setup included, is a
+policy-interface revision. The T-Rex keeps its action low-pass filter in its interface
+(`interface_implementations.action_low_pass_filter` hashes the cutoff and `action_filter.py`'s two functions), which
+the pin test keeps pinning. A new species or embodiment declares SB3 only; the model-identity contract test allows
+`jax-mjx` on the two frozen anatomical registrations alone.
 
 ### The heading-free observation schema
 
-`bipedal-target-heading-free/v1` (the trex from policy interface 14, the anatomical compsognathus from 4; decision
+`bipedal-target-heading-free/v1` (the anatomical T-Rex from policy interface 14, the anatomical Compsognathus from 4; decision
 D-D31, `configs/plant_versions.toml` note 18) carries no world heading: projected gravity replaces the root's world
 quaternion, the root's linear velocity is expressed in the gravity-aligned heading frame and the target direction in
 pelvis coordinates, all built from the free root's own quaternion `qpos[3:7]` by
@@ -212,20 +230,20 @@ For this schema only, the policy layer records segments that name each block's f
 fallback, `prey_direction_body`) and describe the foot channels per foot by sensor name, and it refuses a payload whose
 segment widths do not sum to the observation width or whose last segment is not the command. It hashes the helpers'
 function tokens beside `_get_obs` (`interface_implementations.heading_free_observation`), because `_get_obs` only calls
-them, and it refuses the schema on a species that declares `jax-mjx`. The legacy schemas' segment tables are
-unchanged, so no other species' digest moved. The synthetic probe's non-unit quaternion is normalized like any other,
+them, and it refuses the schema on a model that declares `jax-mjx`. The legacy schemas' segment tables are
+unchanged, so no other model's digest moved. The synthetic probe's non-unit quaternion is normalized like any other,
 so the probe still exercises a real tilt.
 
 Before any artifact is tagged, training validates the environment that actually runs: SB3 validates the concrete
-Gymnasium model and observation interface behind the VecEnv, and on the two dual species that validation also
+Gymnasium model and observation interface behind the VecEnv, and on the two dual models that validation also
 requires the backend parity above (`validate_environment_plant`). This prevents a stale runtime registry, alternate
 model path, or modified sensor/body mapping from being mislabeled with the canonical identity.
 
-`current_plant_identity` keeps one build per species for the life of the process (cleanup CU-14b). Every call still
+`current_plant_identity` keeps one build per model for the life of the process (cleanup CU-14b). Every call still
 re-reads `configs/`, re-hashes the model's source closure, re-runs the policy-interface layer on a fresh environment and,
 unless `verify_generated=False`, compares the result with the committed manifest; what is reused is the declared model's
-compilation and the physics and visual fingerprints, seconds per call for the mesh-heavy `compsognathus_robot`. The
-build is reused only while the species entry, the plant version, the repository root, the resolved model path, the
+compilation and the physics and visual fingerprints, seconds per call for the mesh-heavy Compsognathus robot. The
+build is reused only while the model's manifest entry, the plant version, the repository root, the resolved model path, the
 source-closure digest, the environment class and the MuJoCo version are unchanged and the policy layer still matches, and only a build equal to
 the committed manifest entry, hashed from the bytes the key read, is kept, so a stale plant is rebuilt on every call.
 The manifest build, `--write` and `--check` never read it. Python code is not part of the key, so a kept build does not
@@ -263,5 +281,5 @@ metrics, and run directories all carry the same identity. Promotion validates th
 payloads, not only an adjacent sidecar.
 
 The checked-in result summaries predate this contract and remain schema-v2, historical, unverified records with nullable
-legacy `model_hash` fields. Do not translate those null values into current layered fingerprints without a reproducible
-run and evaluation record.
+legacy `model_hash` fields; decision D-D33 amended only their identity in place (`species` and `embodiment`). Do not
+translate those null values into current layered fingerprints without a reproducible run and evaluation record.

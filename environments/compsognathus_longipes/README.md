@@ -11,7 +11,7 @@ environments, PPO/SAC recipes, evaluation and checkpoint contracts.
 
 | Property | Anatomical proxy | Rev B robot |
 |---|---|---|
-| MJCF | `assets/compsognathus.xml` | `assets/compsognathus_robot.xml` |
+| MJCF | `anatomical/assets/compsognathus_longipes_anatomical.xml` | `robot/assets/compsognathus_longipes_robot.xml` |
 | Home standing height | 38.4 cm | **35.3 cm** |
 | Nose-to-tail envelope | 85.8 cm | **47.1 cm** |
 | Maximum visual width | 13.8 cm | 25.8 cm, including leg hardware |
@@ -32,7 +32,7 @@ From the repository root with Python 3.11+:
 
 ```bash
 python -m pip install -e ".[test]"
-python -m environments.compsognathus_longipes.scripts.view_model --model robot
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot
 python -m environments.compsognathus_longipes.scripts.view_model --embodiment anatomical
 python -m environments.compsognathus_longipes.scripts.build_models
 python -m environments.compsognathus_longipes.scripts.validate_models --output /tmp/compsognathus_longipes-preflight.json
@@ -42,36 +42,45 @@ pytest environments/compsognathus_longipes/tests environments/shared/tests/test_
 The repository pins **MuJoCo 3.10.0**, used for these checks. The original
 Rev B package used 3.12.0. On macOS use `mjpython` for the interactive viewer.
 The viewer starts at `home`, holds fixed joint-angle targets and steps real
-physics. `--motors-off` disables actuation at solver level; `--mass-scale 1.15` increases
+physics. `--embodiment` (`anatomical` or `robot`) is required and has no
+default. `--motors-off` disables actuation at solver level; `--mass-scale 1.15` increases
 body masses and inertias while preserving motor limits.
 
 Pictures need Pillow; videos additionally need `imageio` and `imageio-ffmpeg`,
 both in the `viz` extra (`pip install -e ".[viz]"`):
 
 ```bash
-python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/models.png
-python -m environments.compsognathus_longipes.scripts.view_model --model robot --snapshot /tmp/robot.png
-python -m environments.compsognathus_longipes.scripts.view_model --model robot --head-camera --snapshot /tmp/onboard.png
-python -m environments.compsognathus_longipes.scripts.view_model --model robot --video /tmp/standing.mp4 --seconds 5
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --compare /tmp/models.png
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --snapshot /tmp/robot.png
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --head-camera --snapshot /tmp/onboard.png
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --video /tmp/standing.mp4 --seconds 5
 ```
+
+`--compare` renders both models side by side, whichever `--embodiment` is named.
 
 Headless rendering needs a working OSMesa runtime with `MUJOCO_GL=osmesa`,
 or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
 
 ## Training
 
-In `notebooks/sb3_training.ipynb`, choose **Compsognathus Longipes** or
-**Compsognathus Longipes (Robot)** and set `ALGORITHM` to `ppo` or `sac`.
+In `notebooks/sb3_training.ipynb`, set `SPECIES = "compsognathus_longipes"`,
+`EMBODIMENT` to `anatomical` or `robot`, and `ALGORITHM` to `ppo` or `sac`.
 The notebook's normal training, checkpoint, evaluation, graph, video and
-curriculum-gate cells apply to both variants. `QUICK_TEST` reduces the budget
+curriculum-gate cells apply to both models. `QUICK_TEST` reduces the budget
 to 50,000 steps a node and writes the run under `ppo_quick_test/` (or
 `sac_quick_test/`), where it is never selected as a trunk; a short run may fail
 the advancement gate and stop, as intended.
 
-| Contract | Anatomical proxy | Robot |
+The species has two models, one per embodiment, each the pair (species,
+embodiment) of [docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+
+| Model | Anatomical proxy | Robot |
 |---|---|---|
-| Stable ID / config directory | `compsognathus` | `compsognathus_robot` |
+| Species / embodiment | `compsognathus_longipes` / `anatomical` | `compsognathus_longipes` / `robot` |
+| Environment class (species base `CompsognathusLongipesEnv`, `base_env.py`) | `CompsognathusLongipesAnatomicalEnv` (`anatomical/env.py`) | `CompsognathusLongipesRobotEnv` (`robot/env.py`) |
+| Config directory | `configs/compsognathus_longipes/anatomical/` | `configs/compsognathus_longipes/robot/` |
 | Gymnasium ID | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | `MesozoicLabs/CompsognathusLongipes-Robot-v0` |
+| Catalog | [Compsognathus Longipes (Anatomical)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) | [Compsognathus Longipes (Robot)](../../docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) |
 | Observation dimensions | 55 | 46 |
 | Action dimensions | 14 | 12 |
 | Control rate / episode horizon | 50 Hz / 1,000 steps (20 s) | 50 Hz / 1,000 steps (20 s) |
@@ -115,8 +124,8 @@ on the robot. `env.render_head_camera()` exposes the single 640 × 480 RGB
 camera separately. Real pose/velocity estimation, noisy sensors, control
 latency, motor calibration and sim-to-real validation remain future work.
 
-Each variant has three advancing stages and a recovery node that, like
-locomotion, warm-starts from stance (`configs/<species>/stages.toml`);
+Each model has three advancing stages and a recovery node that, like
+locomotion, warm-starts from stance (`configs/compsognathus_longipes/<embodiment>/stages.toml`);
 recovery is the second deliverable of the `stand` recipe (`BEHAVIOR = "stand"`
 in the notebook) and the CLI `curriculum` command skips it:
 
@@ -245,9 +254,10 @@ From the repository root:
 
 ```bash
 python -m pip install -e ".[train,test,viz]"
-python -m environments.shared.train --species "Compsognathus Longipes" train --stage 1
-python -m environments.shared.train --species "Compsognathus Longipes (Robot)" curriculum --n-envs 4
-python -m environments.shared.scripts.zero_action_baseline compsognathus compsognathus_robot --episodes 20
+python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical train --stage 1
+python -m environments.shared.train --species compsognathus_longipes --embodiment robot curriculum --n-envs 4
+python -m environments.shared.scripts.zero_action_baseline \
+    --model-id compsognathus_longipes anatomical --model-id compsognathus_longipes robot --episodes 20
 pytest environments/compsognathus_longipes/tests environments/shared/tests/test_compsognathus_longipes_training.py
 ```
 
@@ -256,10 +266,10 @@ shared-trainer stages, checkpoint handoffs and the actual notebook training
 function. The tests shorten horizons and budgets while preserving the
 production gate criteria; they verify infrastructure, not learned behavior.
 
-Both variants explicitly support **SB3 only**.
+Both models explicitly support **SB3 only**.
 The plant contract fingerprints the actual SB3 interface and records separate
-anatomical/robot identities; a checkpoint from one variant is rejected by
-the other. Save each checkpoint with its matched VecNormalize sidecar.
+anatomical/robot identities, keyed by species and embodiment; a checkpoint
+from one model is rejected by the other. Save each checkpoint with its matched VecNormalize sidecar.
 
 The training integration also corrects `diagnostic_pelvis_quat` and
 `diagnostic_pelvis_velocity` to use MuJoCo's body frame (`xbody`). The previous
@@ -354,7 +364,8 @@ render, not a generated illustration. To reproduce it or the local envelope
 screen, recover the previous robot XML from the v2 commit:
 
 ```bash
-git show 11d8469fb6973fa5638ce9f491f25f739ece3de9:environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml > /tmp/robot_v2.xml
+# the path the robot MJCF had at that commit, before decision D-D33 moved it
+git show 11d8469fb6973fa5638ce9f491f25f739ece3de9:environments/compsognathus/assets/compsognathus_robot.xml > /tmp/robot_v2.xml
 python -m environments.compsognathus_longipes.scripts.render_style_comparison --before /tmp/robot_v2.xml --output /tmp/style.png
 python -m environments.compsognathus_longipes.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
 ```
@@ -518,7 +529,7 @@ The robot retains upstream `left_`/`right_` joint names and mirrored signs
 for traceability. Raw MJCF controls are **absolute angles in actuator order**;
 the Gymnasium wrappers map normalized residual actions onto those angles.
 
-Both variants are in the model inventory, species catalog, SB3 registry,
+Both models are in the model inventory, species catalog, SB3 registry,
 plant contracts and CI suites, with separate observation/action contracts
 and three-stage recipes. Next steps are measured training of weight transfer,
 slow walking and target reaching, plus loaded-servo identification. Before
@@ -527,8 +538,8 @@ onboard-observable quantities and validate transfer with the tail kept fixed.
 
 ## Sources
 
-- [T-Rex](../trex/assets/trex.xml) and [raptor](../velociraptor/assets/raptor.xml): repository conventions.
-- [Open Duck Mini v2, pinned commit](https://github.com/apirrone/Open_Duck_Mini/tree/b23317a485b3cec7d8417f352478778b3475173c): inherited robot material via Rev B; see [attribution](references/NOTICE.md).
+- [T-Rex](../tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml) and [raptor](../velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml): repository conventions.
+- [Open Duck Mini v2, pinned commit](https://github.com/apirrone/Open_Duck_Mini/tree/b23317a485b3cec7d8417f352478778b3475173c): inherited robot material via Rev B; see [attribution](robot/references/NOTICE.md).
 - [Scott Hartman's Compsognathus reconstruction](https://www.skeletaldrawing.com/theropods/compsognathus-longipes/): approximate scale/silhouette reference, including an 85 cm reconstruction. No illustration was copied. The proxy's 95/114/64 mm leg lengths, mass, joint limits and soft tissues are engineering choices, not measurements from that drawing.
 - [Bidar, Demay and Thomel (1972), Smithsonian-hosted translation](https://naturalhistory.si.edu/sites/default/files/media/translated_publications/Bidar%26amp%3B%25201972.pdf): anatomical context for longer tibiae, slender metatarsals and three functional foot digits; not used for current taxonomic or palaeoecological claims.
 - [Feetech STS3215-C018](https://www.feetechrc.com/525603.html) and [STS3250](https://www.feetechrc.com/562636.html): ratings carried forward from the September 6 Rev B research.

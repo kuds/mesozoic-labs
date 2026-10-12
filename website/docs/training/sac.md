@@ -33,32 +33,34 @@ vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 model = SAC("MlpPolicy", vec_env, learning_rate=3e-4, buffer_size=1_000_000)
 # Illustrative standalone run, not a committed curriculum-stage budget.
 model.learn(total_timesteps=10_000, progress_bar=True)
-model.save("raptor_sac")
+model.save("velociraptor_mongoliensis_anatomical_sac")
 ```
 
-Or use the included training script:
+Or use the shared training CLI from the repository root:
 
 ```bash
-cd environments/velociraptor_mongoliensis
-
 # Single stage; the current budget comes from its TOML config
-python scripts/train_sb3.py train --stage 1 --algorithm sac
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage 1 --algorithm sac
 
 # The advancing stages in manifest order (per-stage hyperparameters applied automatically)
-python scripts/train_sb3.py curriculum --algorithm sac
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm sac
 
 # Reuse an earlier SAC run's certified stance and walk; train hunt in a fresh directory
-python scripts/train_sb3.py curriculum --algorithm sac \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm sac --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
 ## SAC Hyperparameters
 
-SAC settings vary by species and curriculum stage. The authoritative values are
-the `[sac]` sections in the stage TOML files each species' `stages.toml` names
-(`stage1_*.toml`, `stage2_*.toml`, `stage3_*.toml` for Velociraptor,
-Brachiosaurus and Dibothrosuchus; `stance.toml`, `locomotion.toml`,
-`behavior.toml` for T-Rex and both Compsognathus variants — the T-Rex
+SAC settings vary by model and curriculum stage. The authoritative values are
+the `[sac]` sections in the stage TOML files each model's `stages.toml` names,
+under `configs/<species>/<embodiment>/` and each named by its stage
+(`stance.toml`, `locomotion.toml` and `strike.toml`, `food_reach.toml` or
+`snap.toml` for the Velociraptor, Brachiosaurus and Dibothrosuchus;
+`stance.toml`, `locomotion.toml`, `behavior.toml` for the T-Rex and both
+Compsognathus models — the T-Rex
 `recovery.toml` is PPO-only, while both Compsognathus `recovery.toml` files
 inherit their `stance.toml`'s `[sac]` through `extends`); copied defaults
 here would quickly become stale.
@@ -68,7 +70,7 @@ The main fields are `learning_rate`, `batch_size`, `gamma`, `tau`, `ent_coef`,
 ## Curriculum and Recipes
 
 SAC walks the same recipe graph as PPO. The `curriculum` command runs the
-species' advancing stages in manifest order up to its `--target` (default
+model's advancing stages in manifest order up to its `--target` (default
 the last advancing stage; `--target walk` stops at walk); each node warm-starts from its
 declared `warm_start_from` parent's handoff checkpoint and VecNormalize
 sidecar, a node whose parent has no certified checkpoint stops the run, and
@@ -79,12 +81,12 @@ each trained node writes `gate_verdict.json` beside its handoff:
 3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
 
 The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
-not inherit stance's `[sac]`; both Compsognathus variants do. Every node is a
+not inherit stance's `[sac]`; both Compsognathus models do. Every node is a
 deliverable, so stand, walk and hunt are each certified and published on
 their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
 `--label TEXT` work with `--algorithm sac` exactly as with PPO. Keep SAC
 trunks for SAC runs: the notebook refuses a `TRUNK_FROM` run of a different
-species, algorithm or backend outright, and the command line reuses a trunk
+model (species or embodiment), algorithm or backend outright, and the command line reuses a trunk
 node only where its recorded task and plant match this run's. See
 [Behavior Recipes](recipes.md).
 

@@ -9,8 +9,22 @@ This Tyrannosaurus-inspired model has a heavy head, vestigial forelimbs, and a t
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Tyrannosaurus Rex catalog entry](../../docs/SPECIES_CATALOG.md#t-rex). They are derived from the species
+results are in the generator-managed [Tyrannosaurus Rex (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical). They are derived from the species
 manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+
+## Models
+
+The species has one model, the pair (species, embodiment) of
+[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+
+| | Anatomical |
+|---|---|
+| Species / embodiment | `tyrannosaurus_rex` / `anatomical` |
+| Environment class | `TyrannosaurusRexAnatomicalEnv` (`anatomical/env.py`), on the species base `TyrannosaurusRexEnv` (`base_env.py`) |
+| Gymnasium ID | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` |
+| MJCF | `anatomical/assets/tyrannosaurus_rex_anatomical.xml` |
+| Configs | `configs/tyrannosaurus_rex/anatomical/` |
+| Catalog | [Tyrannosaurus Rex (Anatomical)](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) |
 
 ## Implementation Notes
 
@@ -28,7 +42,7 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 - **Tail stability** - Penalizes tail angular velocity
 - **Bite bonus** - Large reward when the fixed head contact geom touches prey
 - **Approach shaping** - Reward for closing distance to prey
-- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TyrannosaurusRexAnatomicalEnv` kwarg that is inert at its default and set in `configs/tyrannosaurus_rex/anatomical/stance.toml`
+- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TyrannosaurusRexEnv` kwarg that is inert at its default and set in `configs/tyrannosaurus_rex/anatomical/stance.toml`
 
 ### Stance gate
 The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (decision D-D32), which
@@ -66,11 +80,12 @@ pip install -e ".[all]"
 python -m pytest environments/tyrannosaurus_rex/tests/ -v
 
 # Train stage 1 using its current TOML-configured budget
-python environments/tyrannosaurus_rex/scripts/train_sb3.py train --stage 1
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
 
 # Train the hunt chain (stance -> locomotion -> behavior), reusing an earlier
 # run's certified trunk and training only what is missing above it
-python environments/tyrannosaurus_rex/scripts/train_sb3.py curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
+    curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
 
 # Train the recovery stage — the second node of the `stand` recipe, a published
 # deliverable judged post-stage against the frozen recovery_quality/v1 gate
@@ -79,10 +94,11 @@ python environments/tyrannosaurus_rex/scripts/train_sb3.py curriculum --trunk-fr
 # a certified stance checkpoint: the load is refused unless the checkpoint records
 # stance, recovery's declared parent. The `curriculum` command skips this
 # non-advancing node; the notebook runs it with BEHAVIOR = "stand".
-python environments/tyrannosaurus_rex/scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
+    train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 
 # View the model (requires display)
-python environments/tyrannosaurus_rex/scripts/view_model.py
+python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
 ```
 
 Behaviors, their warm-start edges (`configs/tyrannosaurus_rex/anatomical/stages.toml`) and what a run
@@ -112,22 +128,26 @@ the endpoints retain access to the full actuator ranges.
 ## Files
 
 ```
-trex/
-├── assets/
-│   └── trex.xml                # MuJoCo MJCF model
-├── envs/
+tyrannosaurus_rex/
+├── __init__.py
+├── base_env.py                 # TyrannosaurusRexEnv, the species base class
+├── anatomical/
 │   ├── __init__.py
-│   └── trex_env.py             # Gymnasium environment
+│   ├── env.py                  # TyrannosaurusRexAnatomicalEnv and its body data
+│   └── assets/
+│       └── tyrannosaurus_rex_anatomical.xml   # MuJoCo MJCF model
 ├── scripts/
 │   ├── view_model.py           # MuJoCo passive viewer
 │   ├── test_actuators.py       # Test joint movements
-│   ├── test_env.py             # Environment validation script
-│   └── train_sb3.py            # SB3 PPO training with curriculum
+│   └── test_env.py             # Environment validation script
 ├── tests/
-│   ├── test_anatomical_env.py        # Species-specific env tests
-│   ├── test_anatomical_rewards.py    # Species-specific reward tests
+│   ├── test_anatomical_env.py        # Model-specific env tests
+│   ├── test_anatomical_rewards.py    # Model-specific reward tests
+│   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
 │   └── test_anatomical_static_balance.py  # Static balance tests
+├── requirements.txt
 └── README.md
 ```
 
-Hyperparameter configs are at `configs/tyrannosaurus_rex/anatomical/` in the repo root.
+Hyperparameter configs are at `configs/tyrannosaurus_rex/anatomical/` in the repo root
+(`stance.toml`, `recovery.toml`, `locomotion.toml`, `behavior.toml`, `stages.toml` and `behaviors/`).

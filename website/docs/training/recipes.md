@@ -4,7 +4,7 @@ sidebar_position: 0
 
 # Behavior Recipes
 
-Every species trains a small set of named behaviors — stand, walk and hunt —
+Every model trains a small set of named behaviors — stand, walk and hunt —
 and each one is its own policy: certified against its own gate, published on
 its own, and built by reusing the certified trunk beneath it and training
 only what is missing above it. This page owns that vocabulary and workflow;
@@ -29,7 +29,7 @@ already certified.
 | **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "walk" = stance → locomotion; "hunt" = stance → locomotion → behavior; "stand" = stance → recovery where a recovery node exists. |
 | **Certified** | A property of one checkpoint: the node's own gate passed *and* every ancestor's gate passed, with every piece of evidence hash-bound to the checkpoint it describes. |
 
-The hunting node keeps its id `behavior` for every species; its recipe
+The hunting node keeps its id `behavior` for every model; its recipe
 label is `hunt`, and the task name (strike, bite proxy, food reach, snap,
 target reach) comes from the stage TOML's `[stage] name`.
 
@@ -41,13 +41,13 @@ set on this page will grow; nothing on this page changes until then.
 
 ## The stage manifest
 
-Each species declares its graph in `configs/<species>/stages.toml` under
+Each model declares its graph in `configs/<species>/<embodiment>/stages.toml` under
 schema `mesozoic.stage-manifest/v2`. Per `[[stages]]` entry:
 
 | Key | Meaning |
 |---|---|
 | `id` | The stage's identity; an open vocabulary matching `^[a-z][a-z0-9_]*$`. The four ids `stance`, `recovery`, `locomotion` and `behavior` are reserved and keep their meaning everywhere. |
-| `config` | The stage TOML file, relative to the species config directory. |
+| `config` | The stage TOML file, relative to the model's config directory. |
 | `legacy_number` | The integer the stage was known as before manifests existed (1, 2, 3); absent on a stage that is addressed by id only. |
 | `warm_start_from` | The id of an **earlier** entry this node initialises from; absent means root. A self or forward reference is fatal. |
 | `deliverable` | `true` when the node's certified checkpoint is a published policy. A v2 manifest with no deliverable is fatal. |
@@ -90,19 +90,21 @@ recipe = "hunt"
 deliverable = true
 ```
 
-Compsognathus and the Compsognathus robot commit the same four-node layout.
-Velociraptor, Brachiosaurus and Dibothrosuchus commit three nodes — `stance`
-(`stand`), `locomotion` (`walk`, warm-started from stance) and `behavior`
-(`hunt`, warm-started from locomotion) — over their existing
-`stage1_*.toml`, `stage2_*.toml` and `stage3_*.toml` files. Every node in
+The anatomical Compsognathus and the Compsognathus robot commit the same
+four-node layout. The anatomical Velociraptor, Brachiosaurus and
+Dibothrosuchus commit three nodes — `stance` (`stand`), `locomotion` (`walk`,
+warm-started from stance) and `behavior` (`hunt`, warm-started from
+locomotion) — over `stance.toml`, `locomotion.toml` and their task file
+(`strike.toml`, `food_reach.toml` or `snap.toml`); every stage file is named by
+its stage, with no number. Every node in
 every committed manifest is a deliverable.
 
-Two consequences of label resolution: on a species with a recovery node,
+Two consequences of label resolution: on a model with a recovery node,
 `"stand"` resolves to `recovery` (the deepest `stand` deliverable), so the
 stance node alone is addressed by its id `"stance"`; and `"hunt"` resolves to
-`behavior` for every species, which is why the notebook's default works
+`behavior` for every model, which is why the notebook's default works
 everywhere. Inside a run, stage directories are named `{position:02d}_{id}`
-(`01_stance`, `02_locomotion`, `03_behavior` for the three-node species;
+(`01_stance`, `02_locomotion`, `03_behavior` for the three-node models;
 `01_stance`, `02_recovery`, `03_locomotion`, `04_behavior` on the T-Rex), and
 file labels keep `stage1`, `stage2`, `stage3` for the legacy-numbered stages
 and the bare id otherwise (`recovery_final.zip`).
@@ -121,7 +123,7 @@ root-first. At each node it does exactly one of three things:
    lives, by the CLI and the notebook alike.
    The trunk run is the one `TRUNK_FROM` / `--trunk-from` names, or, under
    `"auto"` (the notebook default, decision D-A25), the run beside this one
-   (under the species/algorithm log directory in the notebook; the siblings
+   (under the species/embodiment/algorithm log directory in the notebook; the siblings
    of the run directory on the command line) whose certified ancestors cover
    the most of the chain root-first, the greatest run directory name on a
    tie (the newest timestamp id; a custom `RUN_ID` such as `my_run` sorts
@@ -249,8 +251,8 @@ rule 2 until it is re-judged from its recorded evidence:
 python -m environments.shared.scripts.backfill_gate_verdict logs/<run>/<stage_dir>
 ```
 
-`--species` and `--stage` override what the directory's `stage_config.json`
-records, and `--force` re-derives over an existing verdict — the path for a
+`--species` with `--embodiment`, and `--stage`, override what the directory's
+`stage_config.json` records, and `--force` re-derives over an existing verdict — the path for a
 verdict written before D-A22, which records no `gate_sha256` and is refused
 by rule 7. `--gate recorded` (the default) judges under the block
 `stage_config.json` recorded and digests it; `--gate current` judges under
@@ -277,12 +279,12 @@ RUN_LABEL = ""  # optional free-text label recorded beside each trained node's h
 RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
 ```
 
-`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<algorithm>/`
+`RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`
 (`<algorithm>_quick_test/` when `QUICK_TEST` is on, so a 50,000-step quick
 test is never selected as a trunk or counted as a seed replicate of a real
 run):
 `""` keeps the run this runtime's storage cell resolved last in the tree that
-`SPECIES`, `ALGORITHM` and `QUICK_TEST` select and mints a fresh timestamped
+`SPECIES`, `EMBODIMENT`, `ALGORITHM` and `QUICK_TEST` select and mints a fresh timestamped
 run when there is none there (the first pass in a runtime, or after one of
 those changed),
 a new id starts a fresh run, and an existing run's id re-enters that run in
@@ -301,7 +303,7 @@ certified nodes across runs.
 A checkpoint trained behind this checkout's policy interface is widened on the
 command line into a new run, one the notebook has not opened yet (`python -m
 environments.shared.scripts.widen_checkpoint ... --to-stage-dir
-<LOG_BASE>/<species>/<algorithm>/<new run id>/01_stance`, where `<new run id>`
+<LOG_BASE>/<species>/<embodiment>/<algorithm>/<new run id>/01_stance`, where `<new run id>`
 is a new timestamp id `YYYYMMDD_HHMMSS` that no run uses yet, with
 `--max-revision-gap N` for a parent more than one revision behind, decision
 D-C17, and `--label` when the session sets `RUN_LABEL`; on Colab, the three
@@ -316,7 +318,7 @@ consults any trunk (decisions D-C13, D-D14, and the cleanup's decision
 cell were removed once the two pending widen sessions had run.
 
 `TRUNK_FROM` defaults to `"auto"`: once the chain is resolved, the resolve
-cell selects the run under `<LOG_BASE>/<species>/<algorithm>/` whose
+cell selects the run under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/` whose
 certified ancestors cover the most of the chain root-first (the greatest run
 directory name on a tie, the newest timestamp id)
 and prints the choice, what it rests on and every refusal; `""` turns reuse
@@ -328,7 +330,7 @@ warned about (the trunk those records came through when the cells ran in
 order; see `docs/KNOWN_ISSUES.md`) and a missing file is never guessed. A
 pinned `TRUNK_FROM` is a run id, resolved under the same directory, or an
 absolute path to a run directory. It must be a run whose
-`provenance.json` names the same species, algorithm and backend, whatever its
+`provenance.json` names the same species, embodiment, algorithm and backend, whatever its
 bundle status (a node is reused only when the reuse rule certifies it), and it
 must not be this run — certified nodes of an earlier run come in through
 `TRUNK_FROM`, never by pointing `RUN_ID` at that run. `RETRAIN_FROM` must name
@@ -369,7 +371,7 @@ stance and locomotion — certified through the trunk's verdicts and still
 published by the trunk run.
 
 **Stand on the T-Rex.** `"stand"` resolves to the deepest `stand`
-deliverable, which on a species with a recovery node is `recovery`:
+deliverable, which on a model with a recovery node is `recovery`:
 
 ```python
 BEHAVIOR = "stand"
@@ -411,7 +413,7 @@ D-D16).
 
 ## On the command line
 
-The `curriculum` command runs the species' advancing stages in manifest
+The `curriculum` command runs the model's advancing stages in manifest
 order; each node warm-starts from its declared parent's handoff checkpoint
 and VecNormalize sidecar, a node whose parent has no certified checkpoint
 stops the run, and every trained node writes `gate_verdict.json` from the
@@ -433,30 +435,32 @@ node after the gap against the skipped stage's thresholds. `--retrain-from`
 must name a node on the target's chain.
 
 ```bash
-cd environments/velociraptor_mongoliensis
-
 # Reuse an earlier run's certified stance and locomotion; train behavior here
-python scripts/train_sb3.py curriculum --algorithm ppo \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 
 # A walk-only run: reuse the certified stance, train locomotion here as the target, stop
-python scripts/train_sb3.py curriculum --algorithm ppo --target walk \
-  --trunk-from logs/<earlier_run> --output-dir logs/<walk_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --target walk --trunk-from logs/<earlier_run> --output-dir logs/<walk_run>
 
 # Reuse only the certified stance; retrain locomotion and behavior here
-python scripts/train_sb3.py curriculum --algorithm ppo \
-  --trunk-from logs/<earlier_run> --retrain-from locomotion --output-dir logs/<new_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion \
+  --output-dir logs/<new_run>
 
 # Tag every trained node (recorded beside its hyperparameter digest; W&B tag label:<TEXT>)
-python scripts/train_sb3.py curriculum --algorithm ppo --label "lr-3e-4"
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --label "lr-3e-4"
 
 # One node by hand, entering from its declared parent's handoff
-python scripts/train_sb3.py train --stage locomotion --algorithm ppo \
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  train --stage locomotion --algorithm ppo \
   --load logs/<run>/01_stance/models/robust_best_model.zip \
   --load-mode initialize_next_stage
 
 # The non-advancing recovery node (T-Rex, Compsognathus): never part of the CLI curriculum
-python scripts/train_sb3.py train --stage recovery --algorithm ppo \
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
+  train --stage recovery --algorithm ppo \
   --load logs/<run>/01_stance/models/robust_best_model.zip \
   --load-mode initialize_next_stage
 ```
@@ -464,15 +468,17 @@ python scripts/train_sb3.py train --stage recovery --algorithm ppo \
 `--stage` accepts a legacy number or a stage id; `--retrain-from` accepts
 either too. `--load` takes the checkpoint (`.zip` or its stem) and finds its
 VecNormalize sidecar beside it as `<stem>_vecnorm.pkl`; the handoff the
-curriculum promotes is `robust_best_model`, else `best_model`. The same flags
-are exposed by the shared entry point:
-`python -m environments.shared.train --species <species> curriculum ...`.
+curriculum promotes is `robust_best_model`, else `best_model`. Every model
+trains through this one entry point,
+`python -m environments.shared.train --species <species> --embodiment <embodiment> <subcommand> ...`,
+and both identity flags are required.
 
 A single-node `train` run is unjudged: `train()` records the stage config,
 lineage and checkpoint pair but writes no `gate_verdict.json` (the
 curriculum, `generate_stage_artifacts` and the backfill tool are what write
 one), and it writes into its own `--output-dir` — by default
-`logs/<species>/<stage_dir>_<timestamp>/` — not into a `<run>/01_stance/`
+`logs/<species>/<embodiment>/<stage_dir>_<timestamp>/` under the repository
+root — not into a `<run>/01_stance/`
 layout. A hand-chained ladder therefore cannot be passed as `--trunk-from`
 until each stage directory has been re-judged from its recorded evidence
 with the backfill tool above.
@@ -504,16 +510,16 @@ bundle described below is written by the notebook. A CLI run can still serve
 as a later CLI run's `--trunk-from` (it is named by its directory), and a
 notebook run can serve as a CLI trunk. A pinned notebook `TRUNK_FROM`
 requires a run with a `provenance.json`; `"auto"` judges siblings by their
-stage records and refuses one whose `provenance.json` names another species,
-algorithm or backend.
+stage records and refuses one whose `provenance.json` names another species
+or embodiment, algorithm or backend.
 
 ## What a run directory holds
 
 After a notebook run that reused a trunk's stance, a T-Rex run directory
-looks like this:
+(under `<LOG_BASE>/tyrannosaurus_rex/anatomical/ppo/`) looks like this:
 
 ```
-20260912_trex_ppo/
+20260912_120000/
 ├── ancestors/
 │   └── stance/                 reused from run 20260901: ancestor.json + copies of its
 │       ├── ancestor.json         gate_verdict, stage_config, task_fingerprint, plant_identity
@@ -541,16 +547,17 @@ The `run` block of each `stage_config.json` records:
 | `label` | The free-text label from `--label` / `RUN_LABEL`, when one was given. |
 | `duration_seconds` | Seconds from `train_base.train`'s start (for a `curriculum` node, from the point the node is trained rather than reused) to the stage's final save, summed over the sessions that reached a final save in this stage directory: a same-stage resume into the same directory adds its session (D-A15). A notebook session stopped before its final save records nothing, so an interrupted-then-resumed node reports the resumed session only; a CLI resume into a fresh `--output-dir` records its own session. Written by the CLI `train` and `curriculum` subcommands (every node a curriculum trains, one a Ctrl-C ended included) and the notebook's `train_stage`. `curriculum_results.csv`'s `training_duration_seconds` is the time `learn()` alone took. |
 
-`gate_verdict.json` (schema `mesozoic.gate-verdict/v1`) records the species,
-stage and stage id, the gate kind and schema version, `passed` and the list
+`gate_verdict.json` (schema `mesozoic.gate-verdict/v2`) records the species
+and embodiment, stage and stage id, the gate kind and schema version, `passed` and the list
 of failures, the handoff checkpoint and its normalization sidecar with their
 digests, the `task_sha256` it was judged on, when it was judged and
 `judged_by` (the post-stage judge, the in-training manager, or `backfill`).
 
 ## Publication per deliverable
 
-Result schema v4 (`provenance.json` and `summary.json`; v2 and v3 still
-read):
+Result schema v5 (`summary.json`, v4's per-deliverable shape with the
+`embodiment` field; `provenance.json` is provenance schema 2; the curated
+schema-2 summaries still read):
 
 - `provenance.deliverables` maps each deliverable the run holds to
   `model_path`, `model_hash`, `normalization_hash`, `gate_kind`, `certified`
@@ -562,7 +569,7 @@ read):
   summary-side projection of `ancestors/<stage_id>/`.
 - `replication` is writer-recorded (decision D-B10). When the notebook's
   publication cell runs, `environments.shared.replication.discover_replicates_for_run`
-  looks through the sibling runs under `LOG_BASE/<species>/<algo>/` for the
+  looks through the sibling runs under `LOG_BASE/<species>/<embodiment>/<algo>/` for the
   same recipe on another seed — a passed, reusable `gate_verdict.json` for
   the node with equal `task_sha256` and `gate_sha256`, a `stage_config.json`
   with the same plant identity and `hyperparameters_sha256` (derived from
@@ -570,10 +577,10 @@ read):
   a different training seed (decision D-B16) — and `replication.runs` lists
   this run first, then those replicates. A sibling whose verdict has no
   `gate_sha256` is skipped until re-backfilled (rule 7). A deliverable with
-  fewer runs than its stage's `certification_seeds` is `provisional` (trex
+  fewer runs than its stage's `certification_seeds` is `provisional` (the T-Rex
   stance declares 2; once a stance bundle is published the catalog and the
-  species page render it as `1 run of 2 seeds; provisional`, re-deriving
-  the label from the current config — no trex stance bundle is committed
+  model page render it as `1 run of 2 seeds; provisional`, re-deriving
+  the label from the current config — no T-Rex stance bundle is committed
   yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted by re-running the
   publication cell of the run that should count it, with the sibling
   present: a `partial` bundle is rebuilt, and a `complete` bundle
@@ -599,8 +606,8 @@ read):
   `complete`. The audit reports `canonical-partial` for a bundle with at
   least one certified deliverable.
 
-The species catalog (schema 4) and `configs/species_manifest.toml` (schema 2)
-follow: stage rows carry `deliverable`, `warm_start_from` and `recipe`; the
+The species catalog (schema 5 today) and `configs/species_manifest.toml`
+(schema 3 today) follow: stage rows carry `deliverable`, `warm_start_from` and `recipe`; the
 generated species catalog page (`docs/SPECIES_CATALOG.md`) and each model
 page's stage table show Recipe and Warm-start-from columns (generated,
 never hand-edited); result rows list one entry per deliverable
@@ -613,7 +620,7 @@ videos are keyed by stage id. The four historical ladder summaries publish
 ## Experiments on a node that already passes
 
 Certification belongs to a checkpoint for a task. The task digest covers
-the species, stage, backend, plant, the effective `[env]` block (every
+the species and embodiment, stage, backend, plant, the effective `[env]` block (every
 reward weight, episode length, reset noise) and the push schedule. It does
 not cover the `[ppo]` / `[sac]` block, the timesteps budget, or the gate
 thresholds. That one fact decides what an edit does to a trunked run:
@@ -631,8 +638,9 @@ To try new algorithm values on a node the trunk already certified, retrain
 from it:
 
 ```bash
-python scripts/train_sb3.py curriculum --algorithm ppo \
-  --trunk-from logs/<certified_run> --retrain-from locomotion --output-dir logs/<variant_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<certified_run> --retrain-from locomotion \
+  --output-dir logs/<variant_run>
 ```
 
 The variant reuses stance as an ancestor and trains locomotion and behavior

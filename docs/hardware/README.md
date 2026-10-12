@@ -11,6 +11,10 @@ now load and stand in MuJoCo. The robot preserves the later twelve-leg-axis,
 1.5856 kg design with a fixed passive tail. Use that page for current
 geometry and validation limits; the older cost figures below are not an
 updated bill of materials for Rev B. Neither prototype has demonstrated walking.
+In the repository a robot is the `robot` embodiment of its species
+([species naming](../SPECIES_NAMING.md)): the Rev B prototype is the model
+`compsognathus_longipes` / `robot`, and a later hardware revision of it would
+be a physics revision of that embodiment, not a new one.
 
 > **Headline conclusion (2026): there is no buildable-today, sub-$10k,
 > two-legged _running_ recipe — the limit is control, not motors.** The

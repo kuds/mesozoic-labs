@@ -5,31 +5,50 @@ A bipedal dinosaur locomotion and predatory strike environment built with MuJoCo
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Velociraptor Mongoliensis catalog entry](../../docs/SPECIES_CATALOG.md#velociraptor). They are derived from
+results are in the generator-managed [Velociraptor Mongoliensis (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical). They are derived from
 the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+
+## Models
+
+The species has one model, the pair (species, embodiment) of
+[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+
+| | Anatomical |
+|---|---|
+| Species / embodiment | `velociraptor_mongoliensis` / `anatomical` |
+| Environment class | `VelociraptorMongoliensisAnatomicalEnv` (`anatomical/env.py`), on the species base `VelociraptorMongoliensisEnv` (`base_env.py`) |
+| Gymnasium ID | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` |
+| MJCF | `anatomical/assets/velociraptor_mongoliensis_anatomical.xml` |
+| Configs | `configs/velociraptor_mongoliensis/anatomical/` |
+| Catalog | [Velociraptor Mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
 
 ## Project Structure
 
 ```
-velociraptor/
-├── assets/
-│   └── raptor.xml              # MJCF model definition
-├── envs/
+velociraptor_mongoliensis/
+├── __init__.py
+├── base_env.py                 # VelociraptorMongoliensisEnv, the species base class
+├── anatomical/
 │   ├── __init__.py
-│   └── raptor_env.py           # Gymnasium environment
+│   ├── env.py                  # VelociraptorMongoliensisAnatomicalEnv and its body data
+│   └── assets/
+│       └── velociraptor_mongoliensis_anatomical.xml   # MJCF model definition
 ├── scripts/
 │   ├── view_model.py           # Passive viewer for MJCF iteration
 │   ├── test_actuators.py       # Test joint movements
 │   ├── test_env.py             # Verify environment works
-│   └── train_sb3.py            # Training with Stable-Baselines3
+│   └── actuator_saturation_report.py   # Actuator saturation report
 ├── tests/
-│   ├── test_anatomical_env.py      # Species-specific env tests
-│   ├── test_anatomical_rewards.py  # Species-specific reward tests
+│   ├── test_anatomical_env.py      # Model-specific env tests
+│   ├── test_anatomical_rewards.py  # Model-specific reward tests
+│   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
 │   └── test_anatomical_static_balance.py  # Static balance tests
+├── requirements.txt
 └── README.md
 ```
 
-Hyperparameter configs are at `configs/velociraptor_mongoliensis/anatomical/` in the repo root.
+Hyperparameter configs are at `configs/velociraptor_mongoliensis/anatomical/` in the repo root
+(`stance.toml`, `locomotion.toml`, `strike.toml`, `stages.toml` and `behaviors/`).
 
 ## Installation
 
@@ -51,7 +70,7 @@ cd environments/velociraptor_mongoliensis
 First, verify the MJCF loads correctly:
 
 ```bash
-python scripts/view_model.py
+python scripts/view_model.py --embodiment anatomical
 ```
 
 This opens a passive viewer. Check that:
@@ -64,7 +83,7 @@ This opens a passive viewer. Check that:
 See all joints move through their ranges:
 
 ```bash
-python scripts/test_actuators.py
+python scripts/test_actuators.py --embodiment anatomical
 ```
 
 ### 3. Test Environment
@@ -72,25 +91,27 @@ python scripts/test_actuators.py
 Run the environment test suite:
 
 ```bash
-python scripts/test_env.py
-python scripts/test_env.py --render  # With visualization
+python scripts/test_env.py --embodiment anatomical
+python scripts/test_env.py --embodiment anatomical --render  # With visualization
 ```
 
 ### 4. Train with Curriculum Learning
 
-Run the three advancing stages — each warm-started from its declared parent
+Training runs from the repository root through the shared CLI. Run the three
+advancing stages — each warm-started from its declared parent
 (`configs/velociraptor_mongoliensis/anatomical/stages.toml`: stance → locomotion → behavior, all
 published deliverables) — using the current TOML-configured budgets:
 
 ```bash
-python scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 ```
 
 To reuse the certified stance and locomotion of an earlier run and train only
 the strike leaf (the notebook's `TRUNK_FROM`):
 
 ```bash
-python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+    curriculum --algorithm ppo --trunk-from <earlier_run_dir> --output-dir <new_run_dir>
 ```
 
 See [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md) for
@@ -99,7 +120,8 @@ the behavior recipes and the reuse rule.
 ### 5. Evaluate Trained Policy
 
 ```bash
-python scripts/train_sb3.py eval logs/<run_dir>/03_behavior/models/stage3_final.zip
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+    eval <run_dir>/03_behavior/models/stage3_final.zip
 ```
 
 ## Environment Details
@@ -134,15 +156,15 @@ text and wherever the stance is handed on or reused (the maintainer's decisions 
 
 ### Reward Components
 
-Reward weights vary by stage. The `[env]` section of each
-`configs/velociraptor_mongoliensis/anatomical/stage*.toml` file is authoritative; this README does not
+Reward weights vary by stage. The `[env]` section of each stage file in
+`configs/velociraptor_mongoliensis/anatomical/*.toml` is authoritative; this README does not
 copy numeric weights. Components include locomotion, survival, posture, energy,
 tail stability, approach shaping, target contact, and fall penalties. Posture
 shaping is direction-aware and centred on the raptor's natural forward lean;
 absolute tilt remains the safety signal for termination. The stance stage also
 pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
 and charges commands parked at their limits and command chatter (action jerk),
-with part of the alive bonus conditioned on support; each is a `VelociraptorMongoliensisAnatomicalEnv` kwarg
+with part of the alive bonus conditioned on support; each is a `VelociraptorMongoliensisEnv` kwarg
 that is inert at its default and set in `configs/velociraptor_mongoliensis/anatomical/stance.toml`.
 
 ### Termination Conditions
@@ -153,7 +175,7 @@ that is inert at its default and set in `configs/velociraptor_mongoliensis/anato
 
 ## Tuning Guide
 
-### MJCF Model (`assets/raptor.xml`)
+### MJCF Model (`anatomical/assets/velociraptor_mongoliensis_anatomical.xml`)
 
 **If the raptor falls immediately:**
 - Increase `damping` on leg joints
@@ -187,9 +209,10 @@ that is inert at its default and set in `configs/velociraptor_mongoliensis/anato
 
 ## Troubleshooting
 
-**"No module named 'envs'"**
-Run scripts from the species directory:
-`cd environments/velociraptor_mongoliensis && python scripts/test_env.py`.
+**"No module named 'environments'"**
+Install the package from the repository root (`pip install -e ".[all]"`), then
+run the species scripts from the species directory:
+`cd environments/velociraptor_mongoliensis && python scripts/test_env.py --embodiment anatomical`.
 
 **Viewer doesn't open**
 Install a display backend: `pip install glfw` or run with `MUJOCO_GL=egl` for headless.

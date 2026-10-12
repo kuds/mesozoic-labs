@@ -7,7 +7,7 @@ loop; their bundles are not certified deliverables and are not reused as
 training parents (decision D-D9). The SB3 training notebook has no
 direction/terrain path since the consolidation's notebook-only PR-12 slice
 (decision D-D13): its `BEHAVIOR` takes `stand`, `walk`, `hunt` or a stage id, and
-its `BEHAVIOR_*` knobs are gone. The final goal (every species
+its `BEHAVIOR_*` knobs are gone. The final goal (every model
 follows a direction on difficult terrain) is reached by re-homing
 `follow_direction` and `follow_direction_difficult_terrain` as manifest nodes
 under `locomotion`, trained by `train_base` and judged by a registered gate kind
@@ -16,18 +16,20 @@ goal decisions G1-G4 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
 §6.2). Until then this page is the operator guide for the pilots; every pilot
 session, in every load mode and for evaluation, takes an explicit pair (the
 certified library left with consolidation PR-5), so give explicit
-`--checkpoint` / `--vecnormalize` paths (for the certified trex walker `20260914_123816`, the handoff pair that
-`logs/trex/ppo/20260914_123816/03_locomotion/gate_verdict.json` names in its
-`checkpoint` and `normalization` fields, under that node's `models/`).
+`--checkpoint` / `--vecnormalize` paths (for a certified walker, the handoff
+pair that its node's `gate_verdict.json` names in its `checkpoint` and
+`normalization` fields, under that node's `models/`). The walkers certified
+before decision D-D33, such as the T-Rex walker `20260914_123816`, no longer
+load: that decision moved every plant's policy-interface revision.
 
 Direction following and difficult-terrain training are supported SB3/PPO behaviors
-for all six registered species: Velociraptor, Tyrannosaurus Rex, Brachiosaurus,
-Dibothrosuchus, Compsognathus, and Compsognathus Robot. Every species has the same
-eleven behavior recipes, a complete set of TOML files under
-`configs/<species>/behaviors/`.
+for all six registered models: the anatomical Velociraptor, Tyrannosaurus Rex,
+Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus robot.
+Every model has the same eleven behavior recipes, a complete set of TOML files
+under `configs/<species>/<embodiment>/behaviors/`.
 
 These recipes activate the existing three command inputs while preserving the
-species' observation and action dimensions. Terrain scenes retain the animal's
+model's observation and action dimensions. Terrain scenes retain the animal's
 model and replace its floor. A trained locomotion checkpoint and its matched
 normalization file provide the starting gait. Supported training does not mean a
 new policy has already learned the behavior: saved evaluations report measured
@@ -45,7 +47,7 @@ status table).
 The node order is `stance` (the notebook's `stand`), `locomotion` (its
 `walk`), `follow_direction`, then `follow_direction_difficult_terrain`
 (decision G1 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). On
-trex and the two Compsognathus models, `stand` also trains `recovery`, a side
+the T-Rex and the two Compsognathus models, `stand` also trains `recovery`, a side
 branch that `walk` does not use. It is second in their manifests, so their
 walker is node `03_locomotion` (`02_locomotion` elsewhere).
 `difficult_terrain` is an optional diagnostic sibling, not a step. The
@@ -60,7 +62,7 @@ cleanup plan's decision 12 (recommended, not taken) would land it right after
 PR-11.
 
 The blocker is heightfield contact. On 2026-09-25 three certified walkers
-(trex, velociraptor, compsognathus) finished every plane episode. On a flat
+(T-Rex, velociraptor, compsognathus) finished every plane episode. On a flat
 heightfield they finished only 1/13, 0/13 and 0/13 (the HIGH terrain blocker
 in [KNOWN_ISSUES.md](KNOWN_ISSUES.md)). Velociraptor's walker also runs at
 3.64–3.66 m/s against its recipes' 2.0 m/s cruise, so its maps are too small.
@@ -71,7 +73,8 @@ taken. Until both are decided, no terrain pilot should start
 
 From Colab today, a scratch cell run after the setup cell can evaluate a
 certified walker. The paths in its node's `gate_verdict.json` are relative to
-the node. The recipe names its species, so `--species` is optional. `OUT` must
+the node. `--species` and `--embodiment` are required and must match the
+recipe's `[behavior]` table. `OUT` must
 be new or empty; the run writes only there, never under `logs/`, and its
 output is evaluation-only. Dropping `--eval-only` trains a pilot, which the
 blocker above says to hold.
@@ -81,17 +84,17 @@ import json, sys
 from pathlib import Path
 from google.colab import drive
 drive.mount("/content/drive")
-WALKER = Path("/content/drive/MyDrive/mesozoic-labs/logs/trex/ppo/<run_id>/03_locomotion")
+WALKER = Path("/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<run_id>/03_locomotion")
 verdict = json.loads((WALKER / "gate_verdict.json").read_text())
 assert verdict["passed"], "not a certified walker"
 CKPT, NORM = WALKER / verdict["checkpoint"], WALKER / verdict["normalization"]
-RECIPE = "/content/trex_gentle_contact.toml"  # any recipe file, such as the one below
-OUT = "/content/drive/MyDrive/mesozoic-labs/behavior_pilots/trex_gentle_1"
-!cd /content/mesozoic-labs && {sys.executable} -m environments.shared.train_behaviors --recipe "{RECIPE}" --checkpoint "{CKPT}" --vecnormalize "{NORM}" --output "{OUT}" --eval-only --eval-episodes 25 --seed 1
+RECIPE = "/content/tyrannosaurus_rex_gentle_contact.toml"  # any recipe file, such as the one below
+OUT = "/content/drive/MyDrive/mesozoic-labs/behavior_pilots/tyrannosaurus_rex_gentle_1"
+!cd /content/mesozoic-labs && {sys.executable} -m environments.shared.train_behaviors --species tyrannosaurus_rex --embodiment anatomical --recipe "{RECIPE}" --checkpoint "{CKPT}" --vecnormalize "{NORM}" --output "{OUT}" --eval-only --eval-episodes 25 --seed 1
 ```
 
 For a gentle start once terrain resumes, begin with `terrain_contact`, as
-"Follow directions on difficult terrain" advises. Copy trex's
+"Follow directions on difficult terrain" advises. Copy the T-Rex's
 `terrain_contact.toml` recipe outside `configs/`: CI checks every recipe there
 against a committed digest, and the setup cell refuses to change `REPO_REF` on
 a checkout with local edits. In its `[terrain_sampler]`, set `flat = 3` and
@@ -105,8 +108,8 @@ same with `bumps_terrain.toml` (`flat = 3`, `bumps = 1`; optionally
 ## The eleven behaviors
 
 Each behavior is a recipe that the command-line runner below takes as
-`--recipe configs/<species>/behaviors/<behavior>.toml`, for any registered
-species, with PPO.
+`--recipe configs/<species>/<embodiment>/behaviors/<behavior>.toml`, for any
+registered model, with PPO.
 
 For general terrain training, use **`difficult_terrain`** or
 **`follow_direction_difficult_terrain`**. Each trains one policy across five of
@@ -135,37 +138,37 @@ Each filename ends in `.toml`; for example,
 [`configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml).
 None of these names is a notebook `BEHAVIOR` value: the notebook's `stand`,
 `walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
-PR-11 adds the direction and terrain nodes to the species' manifests.
+PR-11 adds the direction and terrain nodes to the models' stage manifests.
 
-## Species-specific recipe settings
+## Model-specific recipe settings
 
-Speeds start from each species' locomotion target. Terrain sizes follow the
+Speeds start from each model's locomotion target. Terrain sizes follow the
 actual simulated animal, including the tail; the two Compsognathus models have
 much smaller ground features and slower commands than T. rex. Each terrain map
 fits a 25-second straight cruise and the animal's full extent. The Compsognathus
-recipes use 1,250 control steps; the other species use 2,500, giving the same
+recipes use 1,250 control steps; the other models use 2,500, giving the same
 25-second horizon at their respective control rates.
 
-| Species ID | Cruise speed (m/s) | Bump height / depression depth (mm) | Feature radius (m) | Flat spawn radius (m) | Map width (m) |
-|---|---:|---:|---|---:|---:|
-| `velociraptor` | 2.00 | 10 | 0.45–0.70 | 1.50 | 110 |
-| `trex` | 1.05 | 20 | 0.70–1.20 | 3.00 | 70 |
-| `brachiosaurus` | 0.75 | 25 | 0.90–1.50 | 3.50 | 50 |
-| `dibothrosuchus` | 0.90 | 6 | 0.32–0.50 | 1.25 | 60 |
-| `compsognathus` | 0.08 | 5 | 0.18–0.32 | 0.80 | 8 |
-| `compsognathus_robot` | 0.04 | 4 | 0.15–0.25 | 0.50 | 5 |
+| Species ID | Embodiment | Cruise speed (m/s) | Bump height / depression depth (mm) | Feature radius (m) | Flat spawn radius (m) | Map width (m) |
+|---|---|---:|---:|---|---:|---:|
+| `velociraptor_mongoliensis` | `anatomical` | 2.00 | 10 | 0.45–0.70 | 1.50 | 110 |
+| `tyrannosaurus_rex` | `anatomical` | 1.05 | 20 | 0.70–1.20 | 3.00 | 70 |
+| `brachiosaurus_altithorax` | `anatomical` | 0.75 | 25 | 0.90–1.50 | 3.50 | 50 |
+| `dibothrosuchus_elaphros` | `anatomical` | 0.90 | 6 | 0.32–0.50 | 1.25 | 60 |
+| `compsognathus_longipes` | `anatomical` | 0.08 | 5 | 0.18–0.32 | 0.80 | 8 |
+| `compsognathus_longipes` | `robot` | 0.04 | 4 | 0.15–0.25 | 0.50 | 5 |
 
 These are initial training settings, not measured competence thresholds.
 Feature heights are nominal maxima: overlapping features and the 3° grade cap
 can change the final physical height. Maps record their measured height range,
 maximum grade, and exact sample hash. Heightfield resolution and smooth feature
 radii are specified in each TOML. Command normalization scales stay fixed across
-one species' recipes so adaptation preserves the meaning of learned inputs.
+one model's recipes so adaptation preserves the meaning of learned inputs.
 
-Every recipe declares `[behavior] species`, its stable behavior `name`, and
-`parent = "locomotion"`. The runner resolves that parent through the species'
-`stages.toml`, loads its locomotion environment settings, and checks the supplied
-checkpoint's species and stage. Parentage is explicit: the runner takes its
+Every recipe declares `[behavior] species` and `embodiment`, its stable behavior
+`name`, and `parent = "locomotion"`. The runner resolves that parent through the
+model's `stages.toml`, loads its locomotion environment settings, and checks the
+supplied checkpoint's species, embodiment and stage. Parentage is explicit: the runner takes its
 source only from an explicit `--checkpoint` / `--vecnormalize` pair, in every
 load mode and for evaluation (it refuses a missing one), and it never adds these
 behaviors to the canonical certification curriculum.
@@ -179,7 +182,7 @@ pip install -e '.[train,test]'
 ```
 
 Use a current-interface PPO locomotion checkpoint and its matching,
-identity-tagged normalization file for the selected species. Checkpoints are not
+identity-tagged normalization file for the selected model. Checkpoints are not
 included in the repository.
 
 ```bash
@@ -204,11 +207,11 @@ the parent checkpoint's PPO network and rollout settings.
 The loading mode follows from the flags, always with the matching saved pair in
 `--checkpoint` / `--vecnormalize`:
 
-- no flag (preparation) starts from that species' current canonical
+- no flag (preparation) starts from that model's current canonical
   **locomotion** PPO checkpoint and activates its reserved command inputs;
 - `--resume` continues the same behavior recipe from a matched behavior bundle;
 - `--adapt` transfers a learned behavior to a compatible next recipe for the same
-  species, retaining learned command connections and recording its parent.
+  model, retaining learned command connections and recording its parent.
 
 Use at least five evaluation episodes (`--eval-episodes`, default 5) for the
 general terrain behaviors to cover every enabled family. Results show each
@@ -243,7 +246,7 @@ consolidation PR-9 a behavior checkpoint carries the canonical stamps: the
 plant identity, the recipe env's task fingerprint (`run.json` and
 `bundle.json` record it as `task_fingerprint`) and the preparation report
 as its task lineage. `--resume` requires the same fingerprint; `--adapt`
-the same species, plant, command mode, scales and adapter, and the same
+the same species and embodiment, plant, command mode, scales and adapter, and the same
 versioned implementation (the fingerprint's stage, `command-terrain/v2`,
 not source-file hashes). A bundle saved earlier records no task
 fingerprint: `--resume` and `--adapt` refuse it by name (its
@@ -317,7 +320,7 @@ At reset, the sampler chooses the episode's family and creates its seeded course
 **The family and the physical surface stay fixed throughout that episode.**
 Commands can change during the episode, but the ground does not change underneath
 the animal. The next reset advances the seeded family schedule and course
-variation. The TOML's `[terrain]` section supplies the selected species' common
+variation. The TOML's `[terrain]` section supplies the selected model's common
 map dimensions, smoothness limits, spawn apron, and feature sizes; each family
 sets its own surface on that map.
 
@@ -390,7 +393,7 @@ original paths. (The notebook's display helper left with the PR-12 slice.)
 
 The output includes matched `model.zip`, `vecnormalize.pkl`, and `bundle.json`,
 along with `run.json`, `progress.csv`, reset manifests, and per-episode command
-and step logs. Results retain the starting checkpoint, species and parent
+and step logs. Results retain the starting checkpoint, species, embodiment and parent
 identity, resolved settings, requested and actual steps, duration, and evaluation
 measurements. Video recording adds the matched replay directories above.
 
@@ -403,10 +406,10 @@ terrain exposure and keep a frozen parent for paired checks.
 
 ### Existing T. rex runs
 
-The eight `[pilot]` recipes that #540 shipped under `configs/tyrannosaurus_rex/anatomical/behavior_pilots/`
+The eight `[pilot]` recipes that #540 shipped under `configs/trex/behavior_pilots/`
 left with consolidation PR-6 (2026-09-20), together with the `[pilot]` recipe
-dialect and the `environments/tyrannosaurus_rex/scripts/train_behaviors.py` entry point. Six
-of them were the `configs/tyrannosaurus_rex/anatomical/behaviors/` recipes with the defaults left
+dialect and the `environments/trex/scripts/train_behaviors.py` entry point. Six
+of them were the `configs/trex/behaviors/` recipes with the defaults left
 unwritten (`trex_gentle_terrain` was `sloped_terrain`); `trex_combined_terrain`
 and `trex_follow_direction_speed` commanded a minimum speed of 0.5 where the
 supported recipes command 0.525 (half the 1.05 cruise speed). A 2026-09-15 pilot
@@ -419,7 +422,7 @@ rename old recipe contents to force a resume: bundle identities guard the
 meaning of the saved evidence.
 
 Consolidation PR-7 (#556) deleted the separate T. rex behavior class
-(`environments/tyrannosaurus_rex/anatomical/behavior_env.py`); T. rex now uses the same behavior
+(`environments/trex/envs/behavior_env.py`); T. rex now uses the same behavior
 environment as every species. Its bundles carried the
 `mesozoic.trex-command-terrain/v1` identity, which `--adapt` no longer accepts,
 and every species' identity hashed the behavior sources that PR-7 changed. A

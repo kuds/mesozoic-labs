@@ -1,35 +1,40 @@
 # Training Results
 
-Curated training results (GIFs and metrics) organized by species and algorithm.
+Curated training results (GIFs and metrics) organized by model (species and
+embodiment, [docs/SPECIES_NAMING.md](../docs/SPECIES_NAMING.md)) and algorithm.
 
 ## Directory Structure
 
 ```
 results/
-├── velociraptor/
-│   ├── ppo/
-│   │   ├── collected_results.csv
-│   │   ├── stage1_balance.gif
-│   │   ├── stage3_strike.gif
-│   │   └── summary.json
-│   └── sac/
-│       ├── collected_results.csv
-│       ├── stage3_strike.gif
-│       └── summary.json
-├── trex/
-│   └── ppo/
-│       ├── collected_results.csv
-│       └── summary.json
-├── brachiosaurus/
-│   └── ppo/
-│       ├── collected_results.csv
-│       └── summary.json
+├── velociraptor_mongoliensis/
+│   └── anatomical/
+│       ├── ppo/
+│       │   ├── collected_results.csv
+│       │   ├── stance.gif
+│       │   ├── strike.gif
+│       │   └── summary.json
+│       └── sac/
+│           ├── collected_results.csv
+│           ├── strike.gif
+│           └── summary.json
+├── tyrannosaurus_rex/
+│   └── anatomical/
+│       └── ppo/
+│           ├── collected_results.csv
+│           └── summary.json
+├── brachiosaurus_altithorax/
+│   └── anatomical/
+│       └── ppo/
+│           ├── collected_results.csv
+│           └── summary.json
 └── README.md
 ```
 
 ## Naming Conventions
 
-- **GIFs**: `stage<N>_<task>.gif` — matches the TOML config filenames in `configs/<species>/`
+- **Paths**: `results/<species>/<embodiment>/<algo>/`
+- **GIFs**: `<stage>.gif`, the stage config's name under `configs/<species>/<embodiment>/`
 
 Task filenames and metric keys are shorthand for implemented simulation
 criteria. T-Rex `bite` means contact between a fixed head geom and prey (there
@@ -45,7 +50,12 @@ top-level `backend` identifies the training implementation; the legacy
 not recorded. A run may be labeled `current` or `verified` only when its
 repository commit, model hash, configuration hash, backend version, and
 evaluation-episode count are recorded. Summary schema version 2 makes this
-backend and provenance metadata mandatory.
+backend and provenance metadata mandatory. On 2026-10-11 decision D-D33 moved
+the four summaries to `results/<species>/anatomical/<algo>/` and amended only
+their identity in place: `species` is the binomial, `"embodiment":
+"anatomical"` is added, and each CSV gains an `embodiment` column. They stay
+schema 2, every other value is as recorded, and the GIFs were renamed by
+stage with their bytes unchanged.
 
 ## How Results Are Generated
 
