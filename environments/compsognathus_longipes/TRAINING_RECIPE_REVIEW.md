@@ -154,7 +154,7 @@ the combined recipe, not identify which individual change caused it.
    supports multiple seeds, separate evaluation, and environment-specific tuning.
 
 Both variants take their mechanical gate settings from
-[Tyrannosaurus Rex's stance configuration](../../configs/trex/stance.toml),
+[Tyrannosaurus Rex's stance configuration](../../configs/tyrannosaurus_rex/anatomical/stance.toml),
 including the 200-step settling window and 40-episode panel. The window is
 20% of each 1,000-step horizon: **4 seconds** at Compsognathus's 50 Hz control
 rate and **2 seconds** at Tyrannosaurus Rex's 100 Hz rate. The control rates,

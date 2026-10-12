@@ -20,10 +20,24 @@ The model is a research abstraction, not a validated reconstruction.
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Dibothrosuchus Elaphros catalog entry](../../docs/SPECIES_CATALOG.md#dibothrosuchus). They are derived
+results are in the generator-managed [Dibothrosuchus Elaphros (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical). They are derived
 from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
 
 No training runs have been published for this species yet, so the catalog entry carries no results table.
+
+## Models
+
+The species has one model, the pair (species, embodiment) of
+[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+
+| | Anatomical |
+|---|---|
+| Species / embodiment | `dibothrosuchus_elaphros` / `anatomical` |
+| Environment class | `DibothrosuchusElaphrosAnatomicalEnv` (`anatomical/env.py`), on the species base `DibothrosuchusElaphrosEnv` (`base_env.py`) |
+| Gymnasium ID | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` |
+| MJCF | `anatomical/assets/dibothrosuchus_elaphros_anatomical.xml` |
+| Configs | `configs/dibothrosuchus_elaphros/anatomical/` |
+| Catalog | [Dibothrosuchus Elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
 
 ## Implementation Notes
 
@@ -71,20 +85,18 @@ pip install -e ".[all]"
 python -m pytest environments/dibothrosuchus_elaphros/tests/ -v
 
 # Train stage 1 using its current TOML-configured budget
-python environments/dibothrosuchus_elaphros/scripts/train_sb3.py train --stage 1
-
-# Or through the shared entry point
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 
 # Train the full chain (stance -> locomotion -> snap), each stage warm-started
 # from its declared parent in configs/dibothrosuchus_elaphros/anatomical/stages.toml
-python environments/dibothrosuchus_elaphros/scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
 
 # Or reuse an earlier run's certified trunk and train only what is missing above it
-python environments/dibothrosuchus_elaphros/scripts/train_sb3.py curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical \
+    curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
 
 # View the model (requires display)
-python environments/dibothrosuchus_elaphros/scripts/view_model.py
+python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
 ```
 
 Stance, locomotion and snap are each a published deliverable (`stand`,
@@ -107,7 +119,7 @@ zero commands the complete XML `home` control and the endpoints retain access to
 
 ### Plant Characterization
 The zero-action baseline
-(`python environments/shared/scripts/zero_action_baseline.py dibothrosuchus --sweep-noise`) is what calibrates the
+(`python environments/shared/scripts/zero_action_baseline.py --model-id dibothrosuchus_elaphros anatomical --sweep-noise`) is what calibrates the
 Stage 1 reset noise: at `reset_noise_scale=0.05` a do-nothing policy reaches the full horizon in 100% of episodes, so
 the stage would reward a statue. The committed 0.14 leaves 62%, with failures dominated by real balance losses.
 
@@ -115,30 +127,32 @@ Actuator `forcerange` is sized from the repository's documented stage-2 failure 
 1.5x-kp headroom on **every** leg (a 1.24 m animal strides fast relative to its body length, so all three stance
 joints see gait-scale torque), and everything else keeps a 0.7x-kp spike cap. Measured clipping is 0.0% under
 home-control settling, a 1.5 Hz walk, and a 2.5 Hz trot, and 0.5% worst-case under sprint-like 4 Hz full-amplitude
-excitation. Run `python environments/shared/scripts/actuator_saturation_report.py dibothrosuchus` for the current
-per-actuator numbers.
+excitation. Run `python environments/shared/scripts/actuator_saturation_report.py --model-id dibothrosuchus_elaphros anatomical`
+for the current per-actuator numbers.
 
 ## Files
 
 ```
-dibothrosuchus/
-├── assets/
-│   └── dibothrosuchus.xml          # MuJoCo MJCF model
-├── envs/
+dibothrosuchus_elaphros/
+├── __init__.py
+├── base_env.py                     # DibothrosuchusElaphrosEnv, the species base class
+├── anatomical/
 │   ├── __init__.py
-│   └── dibothrosuchus_env.py       # Gymnasium environment
-├── mjx_config.py                   # Frozen MJX registration (D-D17 digest input)
+│   ├── env.py                      # DibothrosuchusElaphrosAnatomicalEnv and its body data
+│   ├── mjx_config.py               # Frozen MJX registration (D-D17 digest input)
+│   └── assets/
+│       └── dibothrosuchus_elaphros_anatomical.xml   # MuJoCo MJCF model
 ├── scripts/
 │   ├── view_model.py               # MuJoCo passive viewer
 │   ├── test_actuators.py           # Test joint movements
-│   ├── test_env.py                 # Environment validation script
-│   └── train_sb3.py                # SB3 PPO training with curriculum
+│   └── test_env.py                 # Environment validation script
 ├── tests/
-│   ├── test_anatomical_env.py      # Species-specific env tests
-│   ├── test_anatomical_rewards.py  # Species-specific reward tests
+│   ├── test_anatomical_env.py      # Model-specific env tests
+│   ├── test_anatomical_rewards.py  # Model-specific reward tests
 │   ├── test_anatomical_static_balance.py          # Home-pose and mass-distribution tests
 │   └── test_anatomical_actuator_bounds.py         # Bounded-actuator plant characterization
 └── README.md
 ```
 
-Hyperparameter configs are at `configs/dibothrosuchus_elaphros/anatomical/` in the repo root.
+Hyperparameter configs are at `configs/dibothrosuchus_elaphros/anatomical/` in the repo root
+(`stance.toml`, `locomotion.toml`, `snap.toml`, `stages.toml` and `behaviors/`).

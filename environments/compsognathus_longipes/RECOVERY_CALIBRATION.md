@@ -19,7 +19,8 @@ claim. The robot's head and tail remain fixed and unpowered.
 - The notebook supports PPO and SAC checkpoint inference, freezes the null
   comparisons before recovery training, and saves per-episode and per-shove
   CSV evidence for the nulls and the evaluated policy.
-- Each new species uses its own calibration JSON. The frozen evaluation
+- Each model uses its own calibration JSON,
+  `configs/<species>/<embodiment>/recovery_calibration.json`. The frozen evaluation
   identity includes the measured height reference, safe set, control clock,
   and profile hash. A changed plant, task, or profile requires recalibration;
   missing or inconsistent evidence refuses a verdict.
@@ -63,7 +64,7 @@ than on r1, and the toe armature (note 15 e) lets the zero-command null ride
 out more of each push: of the 32 selection episodes it succeeds on 32, 20, 6
 and 2 at 1.1, 1.2, 1.3 and 1.4, so the selection rule now picks 1.30 (r1:
 1.32), a 1.250 N pulse (r1: 0.848 N); without the armature it picked 1.20
-(28, 13, 5 and 2). The script measures both variants in one run, and the robot
+(28, 13, 5 and 2). The script, as it was then, measured both models in one run, and the robot
 reproduced its profile exactly: the same selection, safe set, height
 reference and every episode and shove row, but for 81 of its 45,121 recorded
 values, episode reward sums that differ in the last bit because the original
@@ -77,7 +78,25 @@ same seeds, and the terms take 0.104 of the 0.134 per step it loses (flatness
 0.039, coverage 0.038, bilateral 0.015, alive 0.006, width 0.005), for the
 pads and digits a push rocks off the floor
 (`configs/compsognathus_longipes/anatomical/recovery.toml`). The recorded source hashes
-(`provenance.source_sha256`) match the committed files.
+(`provenance.source_sha256`) matched the committed files.
+
+### Identity migration (D-D33)
+
+Decision D-D33 renamed the species to `compsognathus_longipes` and made the
+two models its `anatomical` and `robot` embodiments, which moved no physics
+digest and no recovery `[env]`. Both profiles were therefore migrated in
+place, identity only, by
+`python -m environments.shared.scripts.restamp_recovery_calibration --migrate-identity`:
+schema v2 with `species` and `embodiment`, the current plant identity and
+task hashes, and the renamed `calibration_id`
+(`compsognathus_longipes-anatomical-fixed-command-recovery-2026-10-v2` and
+`compsognathus_longipes-robot-fixed-command-recovery-2026-09-v1`), with the
+recorded schema, species and `calibration_id` kept in `restamp_history`. The
+tool refuses a changed physics digest or a changed recovery `[env]`, and a
+second run is a byte no-op. `provenance.measurement_artifact` points to the
+measurement at its current path, whose recorded content, source paths and
+source hashes are those of the layout before D-D33. The profile bytes
+changed, so every recovery freeze made before the migration is refused.
 
 ## Disturbance definition
 
@@ -227,8 +246,9 @@ The historical Tyrannosaurus Rex gate retains its original single-null rule.
 
 ## Running the pilot
 
-1. Use this revision in a fresh SB3 notebook runtime and select
-   **Compsognathus Longipes** or **Compsognathus Longipes (Robot)**.
+1. Use this revision in a fresh SB3 notebook runtime and set
+   `SPECIES = "compsognathus_longipes"` and `EMBODIMENT` to `anatomical` or
+   `robot`.
 2. Train or load a passing stance policy first. Preserve its policy and matching
    VecNormalize checkpoint. Balance unit tests alone do not satisfy this step.
    Newly exposed, implicitly disabled push defaults preserve the exact task
@@ -258,7 +278,8 @@ than changing the judge after seeing recovery results.
 ## Reproduction and validation
 
 The calibration script and measurements live in
-`scripts/calibrate_recovery.py` and `data/recovery_calibration_v1.json`.
+`environments/shared/scripts/calibrate_recovery.py` and
+`data/recovery_calibration_v1.json`.
 The runtime profiles are in `configs/compsognathus_longipes/anatomical/recovery_calibration.json`
 and `configs/compsognathus_longipes/robot/recovery_calibration.json`.
 
@@ -266,8 +287,14 @@ From the repository root, with the training dependencies installed:
 
 ```bash
 python -m environments.shared.scripts.calibrate_recovery \
-  --output environments/compsognathus_longipes/data/recovery_calibration_v1.json
+  --species compsognathus_longipes --embodiment anatomical \
+  --output /tmp/recovery_calibration_anatomical.json
 ```
+
+The tool measures one model per run (`--embodiment robot` for the robot) and
+serves any model whose stage graph has a recovery stage. The committed
+`data/recovery_calibration_v1.json` holds both models' rows from one run of
+the tool as it was before decision D-D33, and stays as recorded.
 
 The artifact records dependency versions and hashes of the calibration and
 physics sources, with all episode and shove rows. Its working-tree head

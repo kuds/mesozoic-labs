@@ -200,7 +200,7 @@ source-frozen extension remains research.
 
 Relevant code supports the velociraptor experiment ordering:
 
-- The [raptor observation](../../environments/velociraptor/envs/raptor_env.py)
+- The [raptor observation](../../environments/velociraptor_mongoliensis/base_env.py)
   sums digit-III, metatarsal and digit-IV touch signals into two foot
   totals. Individual load channels can expose a missing support site.
 - The research coverage penalty averages loaded-site indicators within a
@@ -208,7 +208,7 @@ Relevant code supports the velociraptor experiment ordering:
   deficit is a candidate for better feedback, subject to calibration.
 - The recorder's [`max_actuator_saturation_fraction`](../../environments/shared/gait/stance_metrics.py)
   measures raw normalized actions, not actual actuator-force clipping.
-- The [raptor home keyframe](../../environments/velociraptor/assets/raptor.xml)
+- The [raptor home keyframe](../../environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml)
   already includes digit-IV preload and unequal anatomical support loads.
   Quiet home success does not justify stronger actuators or altered
   geometry without a diagnosis.

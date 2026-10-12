@@ -110,13 +110,13 @@ robustness, **LOW** = cosmetic / QoL.
   **Update 4 (2026-10-06):** the passes were not what they looked like, and
   the configuration they passed is gone. The stance-hack audit
   ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
-  §3.1) found every current trex PASS (seed 42 `20260914_123816`, seed 44
+  §3.1) found every current T-Rex PASS (seed 42 `20260914_123816`, seed 44
   `20260920_010912` and `20260930_024929`) hopping at reset and standing on
   a propped, rolled pad, which v1 admits. Decision D-D24 then changed the
   plant (physics r7 → r8: hip-roll servos kp 150 → 600), the stance task (a
   settled neck target, pad flatness, stance width) and the gate
   (`stance_quality/v2`, on which those three stances score 0/40), so every
-  number above, and every trex checkpoint, belongs to a plant and a task
+  number above, and every T-Rex checkpoint, belongs to a plant and a task
   that no longer exist. No r8 stance has trained yet: the ask is the same
   one, now for r8 under v2 — how often a seed certifies, at
   `certification_seeds = 2`.
@@ -136,7 +136,7 @@ robustness, **LOW** = cosmetic / QoL.
   unloaded feet), starts exploration at std 0.22 (`log_std_init = -1.5`),
   adds a hop watch that stops a seed still hopping at 7M, and tightens the
   gate ([investigations/STANCE_HACK_AUDIT_2026_10.md](investigations/STANCE_HACK_AUDIT_2026_10.md)
-  §9). No trex stance is certified on r8, and the D-D27 task has trained no
+  §9). No T-Rex stance is certified on r8, and the D-D27 task has trained no
   policy past 0.45M steps. The ask stands, on the D-D27 task: at least two
   seeds (plan three), each judged on 3042–3081 and re-judged on 7042–7081;
   whether the quieter start changes the basin split is the first thing those
@@ -180,9 +180,9 @@ robustness, **LOW** = cosmetic / QoL.
   [PLANT_CONTRACT.md](PLANT_CONTRACT.md#widening-a-checkpoint-across-a-policy-interface-bump)
   holds the widen command, the three Colab steps, the identity gate and what
   the tool writes). Phase C appended a 3-dim command segment to every species'
-  observation (`policy_interface_revision` trex 12 → 13, velociraptor 9 → 10,
-  brachiosaurus 7 → 8, dibothrosuchus 6 → 7, compsognathus and
-  compsognathus_robot 1 → 2). The task payload carries the plant's
+  observation (`policy_interface_revision` T-Rex 12 → 13, velociraptor 9 → 10,
+  brachiosaurus 7 → 8, dibothrosuchus 6 → 7, both Compsognathus models
+  1 → 2). The task payload carries the plant's
   `policy_interface_sha256` (`task_fingerprint.py`), so every stage's
   `task_sha256` moved with it: reuse rule 3 (the verdict's `task_sha256` must
   equal the fingerprint of the CURRENT stage config) refuses every
@@ -190,7 +190,7 @@ robustness, **LOW** = cosmetic / QoL.
   must validate against the current plant, no legacy allowance) would refuse
   the archive too (rules run 1, 2, 3, 7, 4, 5, 6). As with rule 7 the refusal
   is a log line, and the node then TRAINS in the new run. Every recovery
-  `gate_resolution.json` frozen before Phase C, the 2026-08-28 trex freeze
+  `gate_resolution.json` frozen before Phase C, the 2026-08-28 T-Rex freeze
   included, records a pre-Phase-C `task_sha256`, which
   `require_gate_resolution` refuses ("Recalibrate — re-measure the null
   panels under the current task"), so each is re-frozen from a widened
@@ -217,7 +217,7 @@ robustness, **LOW** = cosmetic / QoL.
   archives (`sha256:96ef13…`;
   [investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md](investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md),
   [investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md](investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md)),
-  not r12: trex went r11 → r12 on 2026-08-16 (commit `8795e28`, the
+  not r12: T-Rex went r11 → r12 on 2026-08-16 (commit `8795e28`, the
   perturbation engine entering the interface fingerprint; `observation_dim`
   stayed 61, physics r7 and `action_dim` 15 unchanged, no tensor moved) after
   both had trained, and an archive's identity is stamped at training time.
@@ -231,7 +231,7 @@ robustness, **LOW** = cosmetic / QoL.
   max_revision_gap=1; pass --max-revision-gap 2 / max_revision_gap=2 …)`, and
   `--allow-legacy-plant` does not apply (it covers only an archive with NO
   recorded identity). **The remedy is decision D-C17**: `--max-revision-gap 2`,
-  which for trex r11 → r13 crosses `configs/plant_versions.toml`'s note 11
+  which for T-Rex r11 → r13 crosses `configs/plant_versions.toml`'s note 11
   (the perturbation engine) and note 12 (the command segment); the widened
   stage's `widen_report.json` then records `revision_gap: 2` /
   `max_revision_gap: 2` and its run block
@@ -245,22 +245,22 @@ robustness, **LOW** = cosmetic / QoL.
   only among siblings judged under the SAME `task_sha256`: session 1 of
   [NEXT_STEPS.md](NEXT_STEPS.md) §3 widened the seed-44 parent on 2026-09-20 as
   `20260920_010912` (re-panel identical to the r11 certificate, recovery
-  certified 2026-09-21, bundle `complete` with trex stance at replication 2,
+  certified 2026-09-21, bundle `complete` with T-Rex stance at replication 2,
   beside `20260914_123816`). The outcome table is
   [investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md](investigations/TREX_STANCE_WIDENED_INTERFACE_2026_09.md)
   (its §1–§3 seed-44 columns filled, §7 and §8 appended; its §6, appended
   2026-09-19, marks Session 1 (the seed-42 widen) and Session 2 superseded by
   `20260914_123816`). One neighbour: the two compsognathus recovery
   calibrations were restamped, not re-measured, which moved their
-  `profile_sha256`, so every compsognathus / compsognathus_robot recovery
+  `profile_sha256`, so every recovery of either Compsognathus model
   freeze made before Phase C is refused and must be re-frozen from the
   restamped profile (`environments/compsognathus_longipes/RECOVERY_CALIBRATION.md`);
   the anatomical profile has since been re-measured on physics r2 (D-D26,
   2026-10-07), which refuses every anatomical freeze made before it.
   **Update (2026-10-06):** moot for the T. rex since its physics revision
-  r7 → r8 (D-D24): the plant contract refuses every trex checkpoint, the r13
+  r7 → r8 (D-D24): the plant contract refuses every T-Rex checkpoint, the r13
   `20260914_123816` and the widened `20260920_010912` included, and no widen
-  crosses a physics revision, so every trex node retrains from a fresh r8
+  crosses a physics revision, so every T-Rex node retrains from a fresh r8
   stance and its recovery re-freezes on that stance.
 - **MEDIUM (operational)** — **SB3 archives are bound to the interpreter that
   saved them; only `policy_loading.load_sb3_model` opens one safely, and the
@@ -285,7 +285,7 @@ robustness, **LOW** = cosmetic / QoL.
   `20260915_160239`). Both first attempts at NEXT_STEPS.md session 1
   (`20260919_170528` at `22c1fc8` and `20260919_190251` at `ab35dbd`) died
   with `AsyncIOLoopKernelRestarter: restarting kernel` in the widen tool's
-  self-verification, a bare `alg_cls.load` of the r11 parent; two trex
+  self-verification, a bare `alg_cls.load` of the r11 parent; two T-Rex
   seed-44 widen sessions of 2026-09-18 at `22c1fc8` (`20260918_230155`,
   `20260918_230335`, on Drive, recorded 2026-09-23) had been the first to
   load an archive saved under the older image and left the same four-file
@@ -302,7 +302,7 @@ robustness, **LOW** = cosmetic / QoL.
   `policy_loading.sb3_archive_load_preflight` since cleanup CU-6
   (`test_policy_loading.py`, with fixture archives saved under 3.12 and
   3.13). **What stays true and is why this entry stands:** every archive on
-  Drive trained before that date — every trex and compsognathus stage
+  Drive trained before that date — every T-Rex and compsognathus stage
   checkpoint, both r11 stance parents and the compsognathus r1 parent
   included — embeds its saving interpreter's bytecode in those three members
   for good, so any path outside the loader (an ad-hoc `PPO.load` in a notebook
@@ -318,7 +318,7 @@ robustness, **LOW** = cosmetic / QoL.
   session 1 re-ran beside them on 2026-09-20 without harm, and they are still
   to be deleted (housekeeping in [NEXT_STEPS.md](NEXT_STEPS.md) §3).
 - **MEDIUM (operational)** — **run-level records go stale when a run is
-  continued in a later session.** The certified r13 trex walker
+  continued in a later session.** The certified r13 T-Rex walker
   `20260914_123816` shows it: its run-level `summary.json`,
   `provenance.json` and `artifact_manifest.json` were written 2026-09-15
   02:08 UTC, after the stance verdict (judged 01:57 UTC), and the
@@ -475,7 +475,7 @@ robustness, **LOW** = cosmetic / QoL.
   verdict, `backfill_gate_verdict.py --force` for a pre-D-A22 verdict) and the
   digest measurement owed before the first Phase-B trunked run are dead for a
   checkpoint minted under the previous policy interface, which covers the
-  certified trex stance run `20260810_145546` and the seed-44 replicate
+  certified T-Rex stance run `20260810_145546` and the seed-44 replicate
   `20260815_205206` (the 2026-09-17 Drive survey found no `gate_verdict.json`
   in either `stage1/`); see the Phase C entry above. The widened copy is
   re-paneled under the current gate in a new run, which settles the digest
@@ -500,7 +500,7 @@ robustness, **LOW** = cosmetic / QoL.
   and a recovery `gate_resolution.json`'s `decision_procedure.panel_seed_start`
   to the role, and REFUSES a recorded `stance_quality/v1` pass whose
   provenance declares no such role. No committed bundle is affected, but
-  every Drive bundle published before this change — the certified trex
+  every Drive bundle published before this change — the certified T-Rex
   stance run `20260810_145546` (the bundle
   `TREX_STAGE1_GATE_PASS_RUN_2026_08.md` audits) and the seed-44 replicate
   `20260815_205206` — carries a `seed_roles` without it and fails its next
@@ -514,7 +514,7 @@ robustness, **LOW** = cosmetic / QoL.
   widened into a new run instead and the seed-42 widen is superseded by the
   fresh r13 run `20260914_123816` (the Phase C entry above), whose bundles
   carry the `certification_panel` role from the start. Replication is
-  writer-recorded from `LOG_BASE/<species>/<algo>/` siblings whose verdict
+  writer-recorded from `LOG_BASE/<species>/<embodiment>/<algo>/` siblings whose verdict
   carries `gate_sha256`. For the r13 pair (2026-09-21): the
   widened seed-44 run `20260920_010912` and the fresh seed-42 run
   `20260914_123816` share the r13 stance `task_sha256`, the seed-44 bundle
@@ -522,7 +522,7 @@ robustness, **LOW** = cosmetic / QoL.
   replication 1: its `complete` bundle cannot be rewritten in place (the
   MEDIUM entry "run-level records go stale" above; a complete bundle is
   immutable, [RESULT_BUNDLES.md](RESULT_BUNDLES.md)).
-- **MEDIUM (provisional threshold)** — **the trex hunting bar
+- **MEDIUM (provisional threshold)** — **the T-Rex hunting bar
   `min_success_lcb = 0.5` in `configs/tyrannosaurus_rex/anatomical/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
   on the strength of the schema-2 committed result (`results/tyrannosaurus_rex/anatomical/ppo/
@@ -537,7 +537,7 @@ robustness, **LOW** = cosmetic / QoL.
   verdict minted under the provisional bar (a moved threshold is a re-judge
   under D-B7/D-B8).
 - **LOW (calibration owed)** — **`collapse_peak_warmup_timesteps =
-  1_000_000` on the trex behavior stage is a judgment, not a measurement
+  1_000_000` on the T-Rex behavior stage is a judgment, not a measurement
   (decision D-B5).** Stance's 1.0M was measured by replaying run
   `20260803_012355`'s evaluation series through the detector; no
   behavior-stage series under the current config exists to replay, so the
@@ -547,8 +547,8 @@ robustness, **LOW** = cosmetic / QoL.
   and above by the ≤ 0.5× budget pin in `test_curriculum_early_stopping.py`.
   Follow-up: replay the first full hunting run's `evaluations.npz` through
   `EvalCollapseEarlyStopCallback` (as STAGE1_SPLIT_PLAN §12.4 did) and
-  re-derive; re-measure the statue (`zero_action_baseline.py trex:3
-  --episodes 40 --seed 3042`) whenever a behavior reward weight or the plant
+  re-derive; re-measure the statue (`zero_action_baseline.py --model-id
+  tyrannosaurus_rex anatomical --stage 3 --episodes 40 --seed 3042`) whenever a behavior reward weight or the plant
   moves, and re-derive the 361 rail and the 602.0 reference together.
 - **MEDIUM (operational)** — **a CLI-certified hunt (`curriculum --target
   hunt`) is judged IN-TRAINING on the last EvalCallback panel and cannot be
@@ -599,8 +599,8 @@ robustness, **LOW** = cosmetic / QoL.
   three species' stage-1 configs and cannot survive a reward-function edit.**
   The T-Rex is done: `stance.toml` and `recovery.toml` use the relative
   `collapse_peak_floor_fraction` (PLANT_VALIDATION §14 item 3) after the
-  absolute floor failed to arm twice. `velociraptor`, `brachiosaurus` and
-  `dibothrosuchus` `stance.toml` still carry absolute floors
+  absolute floor failed to arm twice. The anatomical `velociraptor_mongoliensis`,
+  `brachiosaurus_altithorax` and `dibothrosuchus_elaphros` `stance.toml` still carry absolute floors
   (1300 / 1300 / 1950, each commented "Absolute pending §14 item 3") derived
   from their statues' standing reward; re-derive them as fractions the same
   way. (PLANT_VALIDATION §11.4) **Update 2026-09-23:** an absolute floor at
@@ -619,7 +619,7 @@ robustness, **LOW** = cosmetic / QoL.
   `statue_constants_physics_revision` pin, once the planned dibothrosuchus
   and brachiosaurus plant updates have settled; the locomotion statues
   re-measured 2026-09-23 are 2196.9 +/- 217.7 and 2242.7 +/- 7.8,
-  `zero_action_baseline.py <species>:2 --episodes 40 --seed 3042`), and
+  `zero_action_baseline.py --model-id <species> <embodiment> --stage 2 --episodes 40 --seed 3042`), and
   velociraptor stage 1 has the same shape with no warm-up (its session-3 run
   `20260922_125248` trained the full 6M by its trajectory, not by protection).
   **Update 2026-10-06:** velociraptor physics r3 (D-D25) re-derived its floor
@@ -650,7 +650,7 @@ robustness, **LOW** = cosmetic / QoL.
   most of a typical do-nothing episode: dibothrosuchus 1994.0 of 2244.2
   (`gait_symmetry_weight` 2.0 x 997 steps, 89 percent), brachiosaurus
   2200.0 of 2244.0 (2.2 x 1000, 98 percent), measured with
-  `zero_action_baseline.py <species>:2`. Standing still is therefore a
+  `zero_action_baseline.py --model-id <species> <embodiment> --stage 2`. Standing still is therefore a
   strong local optimum of the walk stage, and dibothrosuchus run
   `20260923_020654` judged a stand-still locomotion checkpoint
   (2249.86, 0.0012 m/s; gate FAIL on the forward rail). In two of 40
@@ -800,7 +800,7 @@ robustness, **LOW** = cosmetic / QoL.
   PR-B). They stay, with their six `[env]` keys (`configs/tyrannosaurus_rex/anatomical/stance.toml:13-14`,
   `configs/tyrannosaurus_rex/anatomical/recovery.toml:62-63`, `configs/dibothrosuchus_elaphros/anatomical/stance.toml:13-14`),
   because `task_sha256` hashes the constructor defaults overlaid with `[env]`:
-  removing either moves the trex and dibothrosuchus task digests (stripping the
+  removing either moves the T-Rex and dibothrosuchus task digests (stripping the
   dibothrosuchus keys moved its certified stance task from `083e2966` to
   `abfb339f`, measured 2026-09-26). Do not delete them
   ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §7). A typo'd weight
@@ -849,8 +849,8 @@ robustness, **LOW** = cosmetic / QoL.
   `TRexBehaviorEnv`); a second checkpoint preparer
   (`environments/shared/behavior_checkpoint.py`); a second PPO trainer
   (`environments/shared/train_behaviors.py`, one CPU env) with its own
-  recipe dialect; 66 behavior TOMLs under `configs/<species>/behaviors/`
-  (11 templates × 6 species); a second gate outside `GATE_KINDS`
+  recipe dialect; 66 behavior TOMLs under `configs/<species>/<embodiment>/behaviors/`
+  (11 templates × 6 models); a second gate outside `GATE_KINDS`
   (`configs/behavior_certification.toml`, judged by `judge_behavior_panel` and
   reached only from tests; never a `gate_verdict.json`); a checkpoint identity
   keyed on source-file hashes (any edit to `behavior_env.py` strands exact
@@ -899,12 +899,12 @@ robustness, **LOW** = cosmetic / QoL.
   `20260921_203149/03_locomotion` — on four direction/terrain recipes kept all
   23 plane episodes per walker at full horizon. On the `terrain_contact`
   family, an all-zero heightfield (`mode = "flat"`, `terrain.py:391`) with the
-  plane's geometry, full horizon fell to 1/13 for trex (fallen 11,
+  plane's geometry, full horizon fell to 1/13 for T-Rex (fallen 11,
   head_contact 1), 0/13 for velociraptor (tail_contact 3, fallen 1; the other
   9 left the map) and 0/13 for compsognathus (excessive_tilt 12, body_contact
   1); the sloped, bumps, depressions and mixed families gave 3/24, 0/24 and
-  0/24. Cells are the committed 200 mm (trex), 137.5 mm (velociraptor) and
-  20 mm (compsognathus); trex at 100 mm fell 7/7, although its zero-action
+  0/24. Cells are the committed 200 mm (T-Rex), 137.5 mm (velociraptor) and
+  20 mm (compsognathus); T-Rex at 100 mm fell 7/7, although its zero-action
   statue survives 3/4 there, so statue results do not predict the walker. The
   cause is open. The two precompiled scenes
   (`SpeciesBehaviorMixin._select_contact_model`, `behavior_env.py:248`) give
@@ -920,8 +920,8 @@ robustness, **LOW** = cosmetic / QoL.
   and consolidation PR-11 copies the terrain keys verbatim. Plan: a dated
   heightfield-contact investigation before PR-11, decided together with the
   recipe speeds and map sizes
-  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1). The trex
-  walker no longer loads since trex physics r8 (D-D24, 2026-10-06), nor the
+  ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §2 and §5.1). The T-Rex
+  walker no longer loads since T-Rex physics r8 (D-D24, 2026-10-06), nor the
   velociraptor walker since velociraptor physics r3 (D-D25, the same day),
   whose keyframe puts the toes at −0.5 mm of contact instead of −44.6 mm; the
   finding stands for the walkers that replace them.
@@ -943,9 +943,9 @@ robustness, **LOW** = cosmetic / QoL.
   judge `reward_and_length/v1` (`reporting/gates.py:617-682`) on mean reward,
   length and forward velocity, with reward floors 3–22× below the zero-action
   statue, so beyond mean length the only test is mean root speed. On floor
-  contact, trex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
+  contact, T-Rex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
   both feet at 7.7 and 9.2 Hz, airborne 35% and 43% of steps (both retired
-  by trex physics r8, D-D24, which refuses every r7 trex checkpoint), and
+  by T-Rex physics r8, D-D24, which refuses every r7 T-Rex checkpoint), and
   compsognathus_robot `20260924_031815` micro-hops at 9.2 Hz, airborne 48%;
   only compsognathus `20260921_203149` walks (retired by anatomical
   compsognathus physics r2, D-D26, which refuses every r1 compsognathus
@@ -957,7 +957,7 @@ robustness, **LOW** = cosmetic / QoL.
   `locomotion_gait/v1` in the six locomotion TOMLs, then retrains
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) PR-G5 and PR-G7; GQ-8, open).
 
-- **HIGH (hardware target)** — **compsognathus_robot stands and walks on
+- **HIGH (hardware target)** — **the Compsognathus robot stands and walks on
   stacked feet, and its touch sensors count sole-on-sole force as support
   (replayed 2026-09-28).** Its 10 × 9 cm soles collide with each other
   (`compsognathus_longipes_robot.xml:181,254`), and both certified nodes of run
@@ -982,7 +982,7 @@ robustness, **LOW** = cosmetic / QoL.
   reward rail at 0.60× the statue; the zero-action statue passes all six by
   design (`stance_gate.py:13-20`). No current stance node stands as its statue
   does ([stance-hack audit](investigations/STANCE_HACK_AUDIT_2026_10.md) §3):
-  all three passing trex stances (seed 42 `20260914_123816`, which the
+  all three passing T-Rex stances (seed 42 `20260914_123816`, which the
   2026-09-28 audit called clean, and seed 44 `20260920_010912` and
   `20260930_024929`) hop at reset inside the settle window, replant their feet
   5–7 cm wider and stand with one leg splayed on a pad rolled 3–4.4° onto its
@@ -996,9 +996,9 @@ robustness, **LOW** = cosmetic / QoL.
   episodes ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3–§4). The
   floor-truth gate kind `stance_quality/v2` exists (D-D23, 2026-10-06): on
   40-episode panels it fails every one of these checkpoints while every statue
-  is clean on 40/40 (the stance-hack audit's §5). The trex stance adopted it
-  with trex physics r8 (D-D24, 2026-10-06), on bars set on the r8 statue
-  (clean on 40/40; the three trex stances above and the failed seed-45 node on
+  is clean on 40/40 (the stance-hack audit's §5). The T-Rex stance adopted it
+  with T-Rex physics r8 (D-D24, 2026-10-06), on bars set on the r8 statue
+  (clean on 40/40; the three T-Rex stances above and the failed seed-45 node on
   0/40 each, the audit's §7), and the velociraptor stance with velociraptor
   physics r3 (D-D25, the same day), on bars set on the r3 statue (clean on
   40/40; both audited checkpoints of `20260922_125248` on 0/40, the audit's
@@ -1013,22 +1013,22 @@ robustness, **LOW** = cosmetic / QoL.
   declared on the compsognathus stance, refuse all 410 such square-wave hops
   measured, so that gap is narrowed there, not closed: a softer two-foot
   bounce, a one-foot flutter and a fast weight shuttle still certify (the next
-  entry; the trex and velociraptor blocks do not declare the pair). The other
-  three stance stages (compsognathus_robot, dibothrosuchus, brachiosaurus)
+  entry; the T-Rex and velociraptor blocks do not declare the pair). The other
+  three stance stages (the Compsognathus robot, dibothrosuchus, brachiosaurus)
   still certify under v1 or their reward rail. Plan: each remaining stance
   stage adopts v2, a gate revision with bars re-measured on that species' own
   statue panel ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §11–§16 and PR-G8;
   GQ-10, open); each species stays open until its stance certifies under v2,
-  the trex, velociraptor and compsognathus included: no r2 compsognathus
+  the T-Rex, velociraptor and compsognathus included: no r2 compsognathus
   stance has trained yet; every r3 velociraptor stance trained so far is clean
   on 0/40 (two 6M runs and nine 1M-step reward pilots,
   [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.3–§1.4; every one is stranded by velociraptor physics r4, D-D30,
   whose statue fails the 0.35 windowed load-share bar on 1 of 240
-  out-of-sample episodes, every bar kept); and the first two r8 trex
+  out-of-sample episodes, every bar kept); and the first two r8 T-Rex
   stances fail v2 (a two-foot micro-hop, and a settle stomp with a
   few-percent whole-episode hop mode;
-  the audit's §9), after which D-D27 revised the trex stance task and added
+  the audit's §9), after which D-D27 revised the T-Rex stance task and added
   settle-touchdown, yaw and hop-or-fall keys to its block. Of the D-D27
   runs, seeds 42 and 48 fail (0/40 and 36/40), and seed 52
   (`20261009_155723`) passed v2 on its own 3042–3081 panel (39/40) but is
@@ -1109,7 +1109,7 @@ robustness, **LOW** = cosmetic / QoL.
   panel's the unweighted mean of those (`reporting/stage_artifacts.py:1356`,
   `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
   weighs as much as a 1,000-step one. Through the repository's own evaluation
-  and gate code on trex locomotion (length 750, speed 1.0 m/s), three scripted
+  and gate code on T-Rex locomotion (length 750, speed 1.0 m/s), three scripted
   episodes at 0.7 m/s for 1,000 steps and one at 2.0 m/s that falls at step
   250 give mean length 812.5 and speed 1.025 m/s (recorded 1.02) and pass,
   though distance over time is 0.80 m/s
@@ -1122,7 +1122,7 @@ robustness, **LOW** = cosmetic / QoL.
   GQ-7, open for locomotion; taken for stance only, as D-D23, on 2026-10-06).
 
 - **MEDIUM** — **the recovery safe set has no support clause, and the
-  certified trex recovery answers forward pushes with two-footed hops
+  certified T-Rex recovery answers forward pushes with two-footed hops
   (replayed 2026-09-28).** The calibrated judge is posture-only on purpose,
   `min_foot_force_n = 0.0` (`recovery_evaluation.py:74-79`; the compsognathus
   pair's calibrations the same), because quiet certified stance reads 0.0 N on
@@ -1138,17 +1138,17 @@ robustness, **LOW** = cosmetic / QoL.
   5/40.
 
 - **MEDIUM** — **hunt success counts on a step that ends in a fall, and the
-  panel and training definitions disagree (executed 2026-09-28).** On trex,
+  panel and training definitions disagree (executed 2026-09-28).** On T-Rex,
   velociraptor, brachiosaurus and dibothrosuchus the reward info sets the
   success flag and pays the 1,000 bonus whenever the contact or reach holds,
   but `_is_terminated` runs every fall check except floor contact before its
   success check, so such a step ends as a fall with `is_success` False
   (`base_env.py:1372`). The post-training panel reads the flag on every step
-  (`evaluation.py:100`) and counts the episode, for trex in the `task_success`
+  (`evaluation.py:100`) and counts the episode, for T-Rex in the `task_success`
   that `task_success/v1` judges; training reads `is_success` and does not.
   Executed on each hunt env with the body rolled past `max_tilt_angle` and the
   prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
-  success (trex 30/30, gate PASS) and 0 in training; a floor-contact fall on
+  success (T-Rex 30/30, gate PASS) and 0 in training; a floor-contact fall on
   the contact step ends as a success in both. The compsognathus pair reads
   success after its fall checks (`compsognathus_longipes/anatomical/env.py:233-234`) and is
   unaffected. Leaves with each hunt's task revision, which the gait plan does
@@ -1167,20 +1167,20 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9).
 
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
-  episode on trex, velociraptor, brachiosaurus or dibothrosuchus (read from
+  episode on T-Rex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
   only the torso (and belly), head and distal tail (`tyrannosaurus_rex/base_env.py:386-393`,
   `velociraptor_mongoliensis/base_env.py:298-305`, `brachiosaurus_altithorax/base_env.py:224-230`,
   `dibothrosuchus_elaphros/base_env.py:240-247`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
-  clearance of the lowest such geom, then the root drop allowed: trex tibia
+  clearance of the lowest such geom, then the root drop allowed: T-Rex tibia
   0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
   brachiosaurus shins 0.067 m, 0.186 m (0.336 m on locomotion); dibothrosuchus
   shins 0.047 m, 0.133–0.153 m. The compsognathus pair ends on any non-foot
   geom ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Plan: the
   reward kit's `terminate_on_leg_contact`, set in the dibothrosuchus and
   brachiosaurus `gait-r1` revisions ([gait plan](GAIT_QUALITY_PLAN_2026_09.md)
-  PR-G6 and PR-G7); none is planned for trex or velociraptor.
+  PR-G6 and PR-G7); none is planned for T-Rex or velociraptor.
 
 - **LOW** — **the shared stance diagnostic reads only the forefeet on
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
@@ -1244,7 +1244,7 @@ robustness, **LOW** = cosmetic / QoL.
   certified and record both blocks (`stance_gate_report.py --episodes`
   already sizes such a panel). No cleanup PR owns it. (2026-08 gap review SS3
   and SS4)
-  *Update (2026-10-07):* the r8 trex seed-44 stance `20261006_185704` is the
+  *Update (2026-10-07):* the r8 T-Rex seed-44 stance `20261006_185704` is the
   measured case. On the certification block 3042–3081 it fails 1 of 40
   episodes in the window (seed 3080, after a floating-point divergence), on
   the fresh block 7042–7081 4 of 40 (three whole-episode hops and a fall);
@@ -1252,17 +1252,17 @@ robustness, **LOW** = cosmetic / QoL.
   2.0–8.1%) and rolls over on one more, a hop-or-fall rate of 4.8%. A bound
   of 0.80 at n = 40 admits up to 3 unclean episodes, so a panel whose only
   unclean episodes are such a mode's passes with probability about 0.87. The
-  trex stance now declares the `max_hop_or_fall_episodes = 1` rail (D-D27),
+  T-Rex stance now declares the `max_hop_or_fall_episodes = 1` rail (D-D27),
   which counts the falls too and cuts that to about 0.42, and refuses a
   statue-quality policy on about 1 panel in 23; the fresh-block confirmation
   stays manual ([NEXT_STEPS.md](NEXT_STEPS.md) asks for a re-judgement on
-  7042–7081 before a trex stance is handed on), and no other species declares
+  7042–7081 before a T-Rex stance is handed on), and no other species declares
   the rail.
 
 - **MEDIUM** — **only the T. rex and anatomical compsognathus stances
-  certify heading, and both r8 trex stances stand only near the heading
+  certify heading, and both r8 T-Rex stances stand only near the heading
   they trained at (measured 2026-10-07).** The stance stage spawns every episode facing +x (yaw 0, the
-  prey within about ±11°), and up to policy interface r13 the trex
+  prey within about ±11°), and up to policy interface r13 the T-Rex
   observation carried heading only in world-frame quantities (the pelvis
   quaternion, the pelvis linear velocity, the prey vector), so a policy could
   learn a stance that reads its absolute heading, and no v2 bar sees it.
@@ -1416,7 +1416,7 @@ robustness, **LOW** = cosmetic / QoL.
   (executed 2026-09-30).** `BaseDinoEnv.step` (`base_env.py:1244-1384`, its
   frame-skip loop at :1302) never reads `data.warning`, and on a bad `qvel`
   or `qacc` MuJoCo resets the state to the model's default pose (`qpos0`) and
-  carries on. On the trex stance config, setting `qvel` to 1e12 and taking
+  carries on. On the T-Rex stance config, setting `qvel` to 1e12 and taking
   one zero-action step printed MuJoCo's "The simulation is unstable" warning
   and returned `terminated=False`, reward 1.101 and a finite observation, with the pelvis
   at 0.977 m (`qpos0`, not the settled stance) and
@@ -1446,7 +1446,7 @@ robustness, **LOW** = cosmetic / QoL.
   reads 0 N for the first few steps (executed 2026-09-30).**
   `_settle_root_on_ground` (`base_env.py:1556-1587`) shifts the root so the
   lowest geom sits at the home clearance, which grounds one foot and can
-  leave the other millimetres up. On the trex stance config
+  leave the other millimetres up. On the T-Rex stance config
   (`reset_noise_scale` 0.05, zero action), seeds 0–3 read 0.0 N on one foot
   for the first 5, 3, 3 and 4 control steps, with a step reward of 1.86–1.99
   on those steps against 3.19–3.38 within two steps of the second foot's
@@ -1473,8 +1473,8 @@ robustness, **LOW** = cosmetic / QoL.
   `reporting/stage_artifacts.py:226,515`, `result_bundle/evidence.py:509`).
   The gate schema requires `min_eval_episodes` for `task_success/v1` only
   (`curriculum/gate_schema.py:148-179`), so nothing stops a new
-  `stance_quality/v1` TOML from leaving it out; the three that exist (trex,
-  compsognathus and compsognathus_robot `stance.toml`) set 40, so it is latent. #519 named both
+  `stance_quality/v1` TOML from leaving it out; the three that exist (the
+  T-Rex's and both Compsognathus models' `stance.toml`) set 40, so it is latent. #519 named both
   values and kept them apart on purpose, because unifying them would change
   which panels the SB3 manager certifies (gap review DU4, part 2 not applied).
   Fix: require `min_eval_episodes` for `stance_quality/v1` in the gate schema,
@@ -1494,8 +1494,8 @@ robustness, **LOW** = cosmetic / QoL.
   verdict's `stage_result` projection (`_PERSISTED_STAGE_RESULT_KEYS`,
   `result_bundle/gate_verdict.py:67`) omits `sim_dt`, so
   `write_training_summary` falls back to 0.01 s
-  (`reporting/text_summaries.py:156`): a reused compsognathus or
-  compsognathus_robot node shows 1,000 steps as "10.00s sim time" instead of
+  (`reporting/text_summaries.py:156`): a reused node of either
+  Compsognathus model shows 1,000 steps as "10.00s sim time" instead of
   20 s, while a freshly trained one shows 20 s. No gate, verdict or digest
   reads it. CU-2 fixed the other 0.01 s fallback, in summaries built from
   `evaluations.npz`, but not this one. Fix: persist `sim_dt` in the
@@ -1599,7 +1599,7 @@ All three models now use
 `integrator="implicitfast"` and bounded
 `forcerange` on position actuators, sized to clip impact/reset spikes only,
 with gait-critical actuators at 1.5×kp on every species (raptor hip
-pitch/knee/ankle; trex hip pitch/knee/ankle; brachiosaurus all four hip
+pitch/knee/ankle; T-Rex hip pitch/knee/ankle; brachiosaurus all four hip
 pitches — the raptor knee joined the 1.5× set in July 2026 after measuring
 0 % clip at the moderate 2.5 Hz/0.8-amplitude regime but 30–46 % at
 sprint-like 3–4 Hz full-amplitude excitation while still capped at
@@ -1649,12 +1649,12 @@ minimum ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §2.2). The gait pla
 floor contact instead ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §3.2; GQ-6, open for gait and
 rewards; taken for the stance gate, as D-D23, on 2026-10-06, whose `stance_quality/v2` reads floor
 truth and never touch). `BaseDinoEnv.step` now also keeps every substep's per-foot force beside the
-minimum (D-D27, 2026-10-07): the trex stance's floor-impact and airborne-substep terms read its peak
+minimum (D-D27, 2026-10-07): the T-Rex stance's floor-impact and airborne-substep terms read its peak
 and its airborne substeps, and the anatomical compsognathus stance's new support terms read its
 mean (D-D26); its legacy alive, posture and height terms keep the minimum on purpose, since that is what
 prices a two-foot hop (a one-foot unload leaves the other foot's minimum above the support bar, so
 only the new bilateral and coverage terms price a one-foot chatter), and every other species, and
-every legacy term, still reads the minimum alone. The opposite error, touch over-reporting through compsognathus_robot's
+every legacy term, still reads the minimum alone. The opposite error, touch over-reporting through the Compsognathus robot's
 stacked soles, is under Training / RL.
 
 ### Velociraptor plant — open (July 2026 raptor review)
@@ -1739,7 +1739,7 @@ Still open:
   symmetry test.
 - **LOW** — raptor claw `motor gear="50"` on a 0.05 kg claw (huge
   torque-to-inertia; slams its limits); contype-0 neck geoms can visually
-  clip the floor; no `<light>`/`<visual>` block for nicer renders; brachio
+  clip the floor; no `<light>`/`<visual>` block for nicer renders; the brachiosaurus
   food has no collision partner.
 - ~~HIGH — the brachiosaurus cannot hold its home stance.~~ **FIXED**
   (plant_versions notes 7–8): the collapse decomposed into the midpoint action
