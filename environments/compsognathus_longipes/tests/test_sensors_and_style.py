@@ -16,6 +16,7 @@ from environments.compsognathus_longipes.model import (
     set_motors_enabled,
 )
 from environments.compsognathus_longipes.sensors import onboard_readings
+from environments.shared.model_id import ModelId
 
 
 @pytest.mark.parametrize("embodiment", ["anatomical", "robot"])
@@ -146,10 +147,12 @@ def test_robot_imu_is_inside_core_and_head_mass_is_accounted_for():
 
 def test_anatomical_palette_and_major_proportions_follow_species_style():
     root = ET.parse(MODEL_PATHS["anatomical"])
-    trex = ET.parse(MODEL_PATHS["anatomical"].parents[2] / "trex/assets/trex.xml")
+    tyrannosaurus_rex = ET.parse(
+        ModelId("tyrannosaurus_rex", "anatomical").asset_path(MODEL_PATHS["anatomical"].parents[3])
+    )
     for material in ("body_mat", "belly_mat", "head_mat", "claw_mat", "tooth_mat"):
         actual = root.find(f"asset/material[@name='{material}']").get("rgba")
-        expected = trex.find(f"asset/material[@name='{material}']").get("rgba")
+        expected = tyrannosaurus_rex.find(f"asset/material[@name='{material}']").get("rgba")
         np.testing.assert_allclose(np.fromstring(actual, sep=" "), np.fromstring(expected, sep=" "))
     p = PARAMETERS["anatomical"]
     assert sum(p["tail_segment_lengths_m"]) > 0.4

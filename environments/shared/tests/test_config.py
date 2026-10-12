@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from environments.shared.config import (
-    _CONFIGS_DIR,
     LOAD_LINEAGE_KEYS,
     RESUME_LINEAGE_KEYS,
     STAGE_DIR_OCCUPANCY_FILES,
@@ -30,66 +29,70 @@ from environments.shared.config import (
     refuse_occupied_stage_dir,
     save_stage_config,
 )
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 
 from .notebook_cells import first_code_cell
 from .reporting_helpers import make_plant_identity as _plant_identity
 
-SPECIES = ["velociraptor", "brachiosaurus", "trex"]
-#: Every species with committed stage configs, manifest-less ones included.
-COMMITTED_SPECIES = sorted(path.name for path in _CONFIGS_DIR.iterdir() if path.is_dir())
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+PILOT = ModelId("pilot_species", "anatomical")
+MODEL_IDS = [VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX, TYRANNOSAURUS_REX]
 
 
 class TestLoadStageConfig:
     """Test loading individual stage configs."""
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_loads_successfully(self, species, stage):
-        config = load_stage_config(species, stage)
+    def test_loads_successfully(self, model_id, stage):
+        config = load_stage_config(model_id, stage)
         assert isinstance(config, dict)
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_has_required_keys(self, species, stage):
-        config = load_stage_config(species, stage)
+    def test_has_required_keys(self, model_id, stage):
+        config = load_stage_config(model_id, stage)
         assert "name" in config
         assert "description" in config
         assert "env_kwargs" in config
         assert "ppo_kwargs" in config
         assert "sac_kwargs" in config
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_env_kwargs_has_common_keys(self, species, stage):
-        config = load_stage_config(species, stage)
+    def test_env_kwargs_has_common_keys(self, model_id, stage):
+        config = load_stage_config(model_id, stage)
         env_kw = config["env_kwargs"]
         assert "forward_vel_weight" in env_kw
         assert "alive_bonus" in env_kw
         assert "energy_penalty_weight" in env_kw
         assert "max_episode_steps" in env_kw
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_ppo_kwargs_has_common_keys(self, species, stage):
-        config = load_stage_config(species, stage)
+    def test_ppo_kwargs_has_common_keys(self, model_id, stage):
+        config = load_stage_config(model_id, stage)
         ppo_kw = config["ppo_kwargs"]
         assert "learning_rate" in ppo_kw
         assert "batch_size" in ppo_kw
         assert "gamma" in ppo_kw
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_range_params_are_tuples(self, species, stage):
+    def test_range_params_are_tuples(self, model_id, stage):
         """TOML lists should be converted to tuples for range parameters."""
-        config = load_stage_config(species, stage)
+        config = load_stage_config(model_id, stage)
         env_kw = config["env_kwargs"]
         for key, value in env_kw.items():
             if key.endswith("_range"):
                 assert isinstance(value, tuple), f"{key} should be a tuple, got {type(value)}"
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_net_arch_only_under_policy_kwargs(self, species, stage):
+    def test_net_arch_only_under_policy_kwargs(self, model_id, stage):
         """net_arch must live under [<alg>.policy_kwargs], never in [<alg>].
 
         A lost [ppo.policy_kwargs] table header silently drops net_arch
@@ -97,20 +100,20 @@ class TestLoadStageConfig:
         crashes at model construction — hours into a Colab run instead of
         in CI (run 20260712_185931).
         """
-        config = load_stage_config(species, stage)
+        config = load_stage_config(model_id, stage)
         for alg_key in ("ppo_kwargs", "sac_kwargs"):
             kwargs = config[alg_key]
             assert "net_arch" not in kwargs, (
-                f"{species} stage {stage}: net_arch is a top-level [{alg_key[:-7]}] key — "
+                f"{model_id} stage {stage}: net_arch is a top-level [{alg_key[:-7]}] key — "
                 f"a [{alg_key[:-7]}.policy_kwargs] header is missing in the TOML."
             )
         assert "net_arch" in config["ppo_kwargs"].get("policy_kwargs", {}), (
-            f"{species} stage {stage}: [ppo.policy_kwargs] must define net_arch."
+            f"{model_id} stage {stage}: [ppo.policy_kwargs] must define net_arch."
         )
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_ppo_kwargs_accepted_by_sb3(self, species, stage):
+    def test_ppo_kwargs_accepted_by_sb3(self, model_id, stage):
         """Every top-level [ppo] key must be a PPO constructor kwarg or a harness schedule key."""
         sb3 = pytest.importorskip("stable_baselines3")
         import inspect
@@ -124,28 +127,28 @@ class TestLoadStageConfig:
             "clip_range_end",
         }
         accepted = set(inspect.signature(sb3.PPO.__init__).parameters) | harness_keys
-        config = load_stage_config(species, stage)
+        config = load_stage_config(model_id, stage)
         unknown = set(config["ppo_kwargs"]) - accepted
         assert not unknown, (
-            f"{species} stage {stage}: [ppo] keys {sorted(unknown)} are neither PPO "
+            f"{model_id} stage {stage}: [ppo] keys {sorted(unknown)} are neither PPO "
             "constructor kwargs nor harness schedule keys — they would crash "
             "PPO.__init__ at run time."
         )
 
-    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     @pytest.mark.parametrize("stage", [1, 2, 3])
-    def test_env_kwargs_accepted_by_env_constructor(self, species, stage):
+    def test_env_kwargs_accepted_by_env_constructor(self, model_id, stage):
         """[env] is passed verbatim to the species env constructor; unknown keys crash at reset."""
         import inspect
 
         from environments.shared.species_registry import get_species_config
 
-        env_class = get_species_config(species).env_class
+        env_class = get_species_config(model_id).env_class
         accepted = set(inspect.signature(env_class.__init__).parameters)
-        config = load_stage_config(species, stage)
+        config = load_stage_config(model_id, stage)
         unknown = set(config["env_kwargs"]) - accepted
         assert not unknown, (
-            f"{species} stage {stage}: [env] keys {sorted(unknown)} are not "
+            f"{model_id} stage {stage}: [env] keys {sorted(unknown)} are not "
             f"{env_class.__name__}.__init__ parameters — they would crash env "
             "construction at run time."
         )
@@ -154,7 +157,7 @@ class TestLoadStageConfig:
         from environments.shared.stage_manifest import StageManifestError
 
         with pytest.raises(StageManifestError, match="config directory not found"):
-            load_stage_config("stegosaurus", 1)
+            load_stage_config(ModelId("stegosaurus_stenops", "anatomical"), 1)
 
     def test_explicit_config_path(self, tmp_path):
         toml_content = b"""
@@ -184,66 +187,66 @@ gamma = 0.99
 class TestLoadAllStages:
     """Test loading all stages for a species."""
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_returns_every_manifest_stage(self, species):
-        stages = load_all_stages(species)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_returns_every_manifest_stage(self, model_id):
+        stages = load_all_stages(model_id)
         # The legacy numbers are present for every species; a species whose
         # manifest declares semantic-only stages (trex: recovery) carries
         # them under their IDs without moving the integers.
         assert {1, 2, 3} <= set(stages.keys())
         extra = set(stages.keys()) - {1, 2, 3}
-        assert extra == ({"recovery"} if species == "trex" else set())
+        assert extra == ({"recovery"} if model_id == TYRANNOSAURUS_REX else set())
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage1_is_stance(self, species):
-        stages = load_all_stages(species)
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage1_is_stance(self, model_id):
+        stages = load_all_stages(model_id)
         assert stages[1]["name"] == "stance"
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage1_no_forward_reward(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage1_no_forward_reward(self, model_id):
         """Stage 1 (stance) should have zero forward velocity weight."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         assert stages[1]["env_kwargs"]["forward_vel_weight"] == 0.0
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage_progression_alive_bonus(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage_progression_alive_bonus(self, model_id):
         """Alive bonus should not increase across stages (less reliance on survival)."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         assert stages[1]["env_kwargs"]["alive_bonus"] >= stages[2]["env_kwargs"]["alive_bonus"]
         assert stages[2]["env_kwargs"]["alive_bonus"] >= stages[3]["env_kwargs"]["alive_bonus"]
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage_progression_learning_rate(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage_progression_learning_rate(self, model_id):
         """Later stages should use moderate LRs (Stage 1 can be lower due to sweep-tuned warmup in S2)."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         assert stages[2]["ppo_kwargs"]["learning_rate"] >= stages[3]["ppo_kwargs"]["learning_rate"]
 
 
 class TestCurriculumInvariants:
     """Test that curriculum configs maintain expected invariants."""
 
-    def test_velociraptor_strike_bonus_only_stage3(self):
-        stages = load_all_stages("velociraptor")
+    def test_velociraptor_mongoliensis_strike_bonus_only_stage3(self):
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         assert stages[1]["env_kwargs"]["strike_bonus"] == 0.0
         assert stages[2]["env_kwargs"]["strike_bonus"] == 0.0
         assert stages[3]["env_kwargs"]["strike_bonus"] > 0.0
 
-    def test_brachiosaurus_food_reach_only_stage3(self):
-        stages = load_all_stages("brachiosaurus")
+    def test_brachiosaurus_altithorax_food_reach_only_stage3(self):
+        stages = load_all_stages(BRACHIOSAURUS_ALTITHORAX)
         assert stages[1]["env_kwargs"]["food_reach_bonus"] == 0.0
         assert stages[2]["env_kwargs"]["food_reach_bonus"] == 0.0
         assert stages[3]["env_kwargs"]["food_reach_bonus"] > 0.0
 
-    def test_trex_bite_bonus_only_stage3(self):
-        stages = load_all_stages("trex")
+    def test_tyrannosaurus_rex_bite_bonus_only_stage3(self):
+        stages = load_all_stages(TYRANNOSAURUS_REX)
         assert stages[1]["env_kwargs"]["bite_bonus"] == 0.0
         assert stages[2]["env_kwargs"]["bite_bonus"] == 0.0
         assert stages[3]["env_kwargs"]["bite_bonus"] > 0.0
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_consistent_episode_length(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_consistent_episode_length(self, model_id):
         """All stages should use the same max_episode_steps for consistent return horizons."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         assert stages[1]["env_kwargs"]["max_episode_steps"] == stages[2]["env_kwargs"]["max_episode_steps"]
 
 
@@ -256,73 +259,73 @@ class TestCatastrophicForgettingMitigation:
     in docs/investigations/TRAINING_REVIEW.md.
     """
 
-    def test_velociraptor_stage2_reduces_posture_weight(self):
+    def test_velociraptor_mongoliensis_stage2_reduces_posture_weight(self):
         """Stage 2 posture_weight must be strictly lower than Stage 1."""
-        stages = load_all_stages("velociraptor")
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         assert stages[2]["env_kwargs"]["posture_weight"] < stages[1]["env_kwargs"]["posture_weight"], (
             "Stage 2 posture_weight must be reduced from Stage 1 to allow forward lean during locomotion"
         )
 
-    def test_velociraptor_stage2_reduces_nosedive_weight(self):
+    def test_velociraptor_mongoliensis_stage2_reduces_nosedive_weight(self):
         """Stage 2 nosedive_weight must be strictly lower than Stage 1."""
-        stages = load_all_stages("velociraptor")
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         assert stages[2]["env_kwargs"]["nosedive_weight"] < stages[1]["env_kwargs"]["nosedive_weight"], (
             "Stage 2 nosedive_weight must be reduced from Stage 1 to allow natural walking lean"
         )
 
-    def test_velociraptor_stage2_reduces_alive_bonus(self):
+    def test_velociraptor_mongoliensis_stage2_reduces_alive_bonus(self):
         """Stage 2 alive_bonus must be lower than Stage 1."""
-        stages = load_all_stages("velociraptor")
+        stages = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
         assert stages[2]["env_kwargs"]["alive_bonus"] < stages[1]["env_kwargs"]["alive_bonus"], (
             "Stage 2 alive_bonus must be reduced so forward velocity reward can dominate"
         )
 
-    def test_trex_stage2_reduces_posture_weight(self):
+    def test_tyrannosaurus_rex_stage2_reduces_posture_weight(self):
         """T-Rex Stage 2 posture_weight must be strictly lower than Stage 1."""
-        stages = load_all_stages("trex")
+        stages = load_all_stages(TYRANNOSAURUS_REX)
         assert stages[2]["env_kwargs"]["posture_weight"] < stages[1]["env_kwargs"]["posture_weight"], (
             "T-Rex Stage 2 posture_weight must be reduced to allow locomotion"
         )
 
-    def test_trex_stage2_reduces_nosedive_weight(self):
+    def test_tyrannosaurus_rex_stage2_reduces_nosedive_weight(self):
         """T-Rex Stage 2 nosedive_weight must be strictly lower than Stage 1."""
-        stages = load_all_stages("trex")
+        stages = load_all_stages(TYRANNOSAURUS_REX)
         assert stages[2]["env_kwargs"]["nosedive_weight"] < stages[1]["env_kwargs"]["nosedive_weight"], (
             "T-Rex Stage 2 nosedive_weight must be reduced to allow head-forward walking"
         )
 
-    def test_trex_stage2_reduces_alive_bonus(self):
+    def test_tyrannosaurus_rex_stage2_reduces_alive_bonus(self):
         """T-Rex Stage 2 alive_bonus must be lower than Stage 1."""
-        stages = load_all_stages("trex")
+        stages = load_all_stages(TYRANNOSAURUS_REX)
         assert stages[2]["env_kwargs"]["alive_bonus"] < stages[1]["env_kwargs"]["alive_bonus"], (
             "T-Rex Stage 2 alive_bonus must be reduced so forward velocity reward can dominate"
         )
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage2_has_warmup_config(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage2_has_warmup_config(self, model_id):
         """Stage 2 must have warmup configuration to stabilise critic during transition."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
-        assert "warmup_timesteps" in cur, f"{species} Stage 2 missing warmup_timesteps"
+        assert "warmup_timesteps" in cur, f"{model_id} Stage 2 missing warmup_timesteps"
         assert cur["warmup_timesteps"] > 0
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage2_has_reward_ramp_config(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage2_has_reward_ramp_config(self, model_id):
         """Stage 2 must have reward ramp config to gradually introduce forward_vel_weight."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
-        assert "ramp_timesteps" in cur, f"{species} Stage 2 missing ramp_timesteps"
+        assert "ramp_timesteps" in cur, f"{model_id} Stage 2 missing ramp_timesteps"
         assert cur["ramp_timesteps"] > 0
-        assert "ramp_start_value" in cur, f"{species} Stage 2 missing ramp_start_value"
+        assert "ramp_start_value" in cur, f"{model_id} Stage 2 missing ramp_start_value"
         assert 0 < cur["ramp_start_value"] < 1.0
 
-    @pytest.mark.parametrize("species", SPECIES)
-    def test_stage2_has_warmup_for_catastrophic_forgetting(self, species):
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stage2_has_warmup_for_catastrophic_forgetting(self, model_id):
         """Stage 2 must have warmup to mitigate catastrophic forgetting (replaces LR-drop requirement)."""
-        stages = load_all_stages(species)
+        stages = load_all_stages(model_id)
         cur = stages[2].get("curriculum_kwargs", {})
         assert cur.get("warmup_timesteps", 0) > 0, (
-            f"{species}: Stage 2 needs warmup_timesteps > 0 to mitigate catastrophic forgetting"
+            f"{model_id}: Stage 2 needs warmup_timesteps > 0 to mitigate catastrophic forgetting"
         )
 
 
@@ -338,10 +341,10 @@ class TestSaveStageConfig:
             "sac_kwargs": {"learning_rate": 1e-4},
             "curriculum_kwargs": {"min_avg_reward": 10.0},
         }
-        out = save_stage_config(tmp_path / "stage1", 1, stage_config, "PPO", species="velociraptor")
+        out = save_stage_config(tmp_path / "stage1", 1, stage_config, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         assert out.exists()
         data = json.loads(out.read_text())
-        assert data["species"] == "velociraptor"
+        assert (data["species"], data["embodiment"]) == ("velociraptor_mongoliensis", "anatomical")
         assert data["stage"] == 1
         assert data["name"] == "balance"
         assert data["algorithm"] == "PPO"
@@ -359,7 +362,7 @@ class TestSaveStageConfig:
             "sac_kwargs": {"learning_rate": 1e-4, "batch_size": 256},
             "curriculum_kwargs": {},
         }
-        out = save_stage_config(tmp_path / "stage2", 2, stage_config, "SAC")
+        out = save_stage_config(tmp_path / "stage2", 2, stage_config, "SAC", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         data = json.loads(out.read_text())
         assert data["algorithm"] == "SAC"
         assert data["hyperparameters"]["learning_rate"] == 1e-4
@@ -373,7 +376,9 @@ class TestSaveStageConfig:
             "curriculum_kwargs": {},
         }
         extra = {"seed": 42, "n_envs": 4}
-        out = save_stage_config(tmp_path / "run", 1, stage_config, "PPO", extra=extra)
+        out = save_stage_config(
+            tmp_path / "run", 1, stage_config, "PPO", extra=extra, model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
         data = json.loads(out.read_text())
         assert data["run"]["seed"] == 42
         assert data["run"]["n_envs"] == 4
@@ -389,14 +394,16 @@ class TestSaveStageConfig:
             "curriculum_kwargs": {},
         }
 
-        out = save_stage_config(stage_dir, 1, stage_config, "PPO", plant_identity=identity)
+        out = save_stage_config(
+            stage_dir, 1, stage_config, "PPO", plant_identity=identity, model_id=VELOCIRAPTOR_MONGOLIENSIS
+        )
 
         assert json.loads(out.read_text())["plant_identity"] == identity.to_dict()
         assert json.loads((stage_dir / "plant_identity.json").read_text()) == identity.to_dict()
 
     def test_creates_nested_directories(self, tmp_path):
         stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
-        out = save_stage_config(tmp_path / "a" / "b" / "c", 1, stage_config, "PPO")
+        out = save_stage_config(tmp_path / "a" / "b" / "c", 1, stage_config, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         assert out.exists()
 
     def test_includes_gpu_info_when_available(self, tmp_path):
@@ -408,7 +415,7 @@ class TestSaveStageConfig:
             "cuda_version": "12.1",
         }
         with patch("environments.shared.config._detect_gpu_info", return_value=fake_gpu):
-            out = save_stage_config(tmp_path / "gpu_run", 1, stage_config, "PPO")
+            out = save_stage_config(tmp_path / "gpu_run", 1, stage_config, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         data = json.loads(out.read_text())
         assert data["gpu"]["gpu_model"] == "A100"
         assert data["gpu"]["gpu_memory_gb"] == 40.0
@@ -417,7 +424,7 @@ class TestSaveStageConfig:
     def test_omits_gpu_key_when_no_gpu(self, tmp_path):
         stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
         with patch("environments.shared.config._detect_gpu_info", return_value={}):
-            out = save_stage_config(tmp_path / "cpu_run", 1, stage_config, "PPO")
+            out = save_stage_config(tmp_path / "cpu_run", 1, stage_config, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         data = json.loads(out.read_text())
         assert "gpu" not in data
 
@@ -570,26 +577,16 @@ class TestAppendStageResultCsv:
 
 
 class TestStageFileResolution:
-    """Integer stages resolve through the manifest; its synthesizer keeps
-    the old edge-case guarantees for manifest-less species."""
+    """Integer stages resolve through the manifest; a model without one is refused (no synthesizer, D-D33)."""
 
-    def test_no_config_files_raises(self, tmp_path):
+    def test_a_model_without_a_stage_manifest_is_refused(self, tmp_path):
         from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
-        species_dir = tmp_path / "configs" / "unknown_species"
-        species_dir.mkdir(parents=True)
-        with pytest.raises(StageManifestError, match="no stage config files"):
-            load_stage_manifest("unknown_species", configs_dir=tmp_path / "configs")
-
-    def test_multiple_matching_files_raises(self, tmp_path):
-        from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
-
-        species_dir = tmp_path / "configs" / "multi"
-        species_dir.mkdir(parents=True)
-        (species_dir / "stage1_a.toml").write_text("")
-        (species_dir / "stage1_b.toml").write_text("")
-        with pytest.raises(StageManifestError, match="multiple stage-1 config files"):
-            load_stage_manifest("multi", configs_dir=tmp_path / "configs")
+        model_dir = PILOT.path(tmp_path / "configs")
+        model_dir.mkdir(parents=True)
+        (model_dir / "stance.toml").write_text("")
+        with pytest.raises(StageManifestError, match="declares no stage manifest"):
+            load_stage_manifest(PILOT, configs_dir=tmp_path / "configs")
 
 
 class TestLoadStageConfigTableValidation:
@@ -650,23 +647,23 @@ class TestLoadStageConfigTableValidation:
             load_stage_config("ignored", 1, config_path=str(path))
         assert any("no algorithm table" in record.message for record in caplog.records)
 
-    @pytest.mark.parametrize("species", COMMITTED_SPECIES)
-    def test_every_committed_stage_config_still_loads_quietly(self, species, caplog):
+    @pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_every_committed_stage_config_still_loads_quietly(self, model_id, caplog):
         from environments.shared.stage_manifest import load_stage_manifest
 
         with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
-            for entry in load_stage_manifest(species).stages:
-                config = load_stage_config(species, entry.reference)
-                assert config["env_kwargs"], f"{species}/{entry.config_file} loaded an empty [env]"
+            for entry in load_stage_manifest(model_id).stages:
+                config = load_stage_config(model_id, entry.reference)
+                assert config["env_kwargs"], f"{model_id}/{entry.config_file} loaded an empty [env]"
         assert not [r for r in caplog.records if "no [env] table" in r.message or "no algorithm table" in r.message]
 
 
 class TestStageConfigExtends:
     """CU-13: a stage TOML inherits the tables it lists from a parent stage through ``extends``.
 
-    Each case builds a tmp configs root whose species ``pilot`` declares
+    Each case builds a tmp configs root whose model ``PILOT`` declares
     stance, recovery and push in its manifest, and loads by explicit path:
-    the parent resolves through the file's own directory, never the species
+    the parent resolves through the file's own directory, never the model
     argument or the repository's configs.
     """
 
@@ -682,7 +679,7 @@ class TestStageConfigExtends:
     def _tree(self, tmp_path, recovery, *, stance=None, push=None):
         from environments.shared.stage_manifest import STAGE_MANIFEST_SCHEMA_V1
 
-        species_dir = tmp_path / "configs" / "pilot"
+        species_dir = PILOT.path(tmp_path / "configs")
         species_dir.mkdir(parents=True)
         (species_dir / "stages.toml").write_text(
             f'schema = "{STAGE_MANIFEST_SCHEMA_V1}"\n'
@@ -696,7 +693,7 @@ class TestStageConfigExtends:
         return species_dir
 
     def _load(self, species_dir, stage_file="recovery.toml"):
-        return load_stage_config("ignored", "ignored", config_path=str(species_dir / stage_file))
+        return load_stage_config(PILOT, "ignored", config_path=str(species_dir / stage_file))
 
     def test_only_the_listed_tables_are_inherited(self, tmp_path):
         species_dir = self._tree(
@@ -779,7 +776,7 @@ class TestStageConfigExtends:
 
     def test_a_missing_parent_id_is_refused(self, tmp_path):
         species_dir = self._tree(tmp_path, 'extends = { stage = "balance", tables = ["env"] }\n')
-        with pytest.raises(ValueError, match="extends stage 'balance'.*pilot has no stage 'balance'"):
+        with pytest.raises(ValueError, match="extends stage 'balance'.*this stage manifest has no stage 'balance'"):
             self._load(species_dir)
 
     def test_a_listed_table_the_parent_lacks_is_refused(self, tmp_path):
@@ -827,14 +824,14 @@ class TestStageConfigExtends:
         with pytest.raises(ValueError, match=f"^{re.escape(refusal)}"):
             self._load(species_dir)
 
-    def test_a_copy_outside_its_species_directory_fails_clearly(self, tmp_path):
+    def test_a_copy_outside_its_model_directory_fails_clearly(self, tmp_path):
         species_dir = self._tree(tmp_path, 'extends = { stage = "stance", tables = ["env"] }\n')
         elsewhere = tmp_path / "elsewhere"
         elsewhere.mkdir()
         copied = elsewhere / "recovery.toml"
         copied.write_text((species_dir / "recovery.toml").read_text())
-        with pytest.raises(ValueError, match="loads only from its species directory") as excinfo:
-            load_stage_config("pilot", "recovery", config_path=str(copied))
+        with pytest.raises(ValueError, match="loads only from its model directory") as excinfo:
+            load_stage_config(PILOT, "recovery", config_path=str(copied))
         assert str(copied) in str(excinfo.value)
 
     def test_the_warnings_judge_the_resolved_tables(self, tmp_path, caplog):
@@ -875,7 +872,15 @@ class TestSaveStageConfigLoadLineage:
     STAGE_CONFIG = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
 
     def _run_block(self, tmp_path, **kwargs):
-        out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO", extra={"seed": 1}, **kwargs)
+        out = save_stage_config(
+            tmp_path / "run",
+            1,
+            self.STAGE_CONFIG,
+            "PPO",
+            extra={"seed": 1},
+            **kwargs,
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        )
         return json.loads(out.read_text())["run"]
 
     def test_from_scratch_records_no_lineage_keys(self, tmp_path):
@@ -890,7 +895,7 @@ class TestSaveStageConfigLoadLineage:
         """Re-pinned for decision D-A21 (was "writes no run block"): the digest is recorded
         unconditionally, so the run block always exists and, without *extra* or a load, holds
         exactly it — still none of the lineage keys, still no label."""
-        out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO")
+        out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS)
         run = json.loads(out.read_text())["run"]
         assert set(run) == {"hyperparameters_sha256"}
         assert run["hyperparameters_sha256"] == hyperparameters_sha256(self.STAGE_CONFIG, "PPO")
@@ -1035,7 +1040,7 @@ class TestSaveStageConfigLoadLineage:
 
         parent, _, periodic = self._entered_from_parent(tmp_path)
         self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
-        locomotion = load_stage_manifest("velociraptor").by_id("locomotion")
+        locomotion = load_stage_manifest(VELOCIRAPTOR_MONGOLIENSIS).by_id("locomotion")
         _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(parent))
         with pytest.raises(AncestorReuseError, match="a certified node is reusable only on top of the parent"):
             _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(periodic))
@@ -1201,7 +1206,11 @@ class TestHyperparameterDigestAndLabel:
         assert hyperparameters_sha256(self.BASE, "SAC") != digest
 
     def test_the_diff_names_dotted_keys_on_either_side(self, tmp_path):
-        recorded = json.loads(save_stage_config(tmp_path / "recorded", 1, self.BASE, "PPO").read_text())
+        recorded = json.loads(
+            save_stage_config(
+                tmp_path / "recorded", 1, self.BASE, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS
+            ).read_text()
+        )
         assert hyperparameter_diff(self.BASE, "PPO", recorded) == []
         edited = self._with(
             self._with(self.BASE, "ppo_kwargs", learning_rate=1e-4, n_epochs=5),
@@ -1233,7 +1242,9 @@ class TestHyperparameterDigestAndLabel:
     def test_the_ignored_edits_of_a_reuse_are_the_diff_against_the_ancestors_record(self, tmp_path):
         """What reusing a certified ancestor ignores (cleanup CU-8a: the one check the curriculum loop
         and the notebook's chain loop share): the diff against ``<stage_dir>/stage_config.json``."""
-        stage_dir = save_stage_config(tmp_path / "ancestor", 1, self.BASE, "PPO").parent
+        stage_dir = save_stage_config(
+            tmp_path / "ancestor", 1, self.BASE, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS
+        ).parent
         assert ignored_hyperparameter_edits(self.BASE, "PPO", stage_dir) == []
         edited = self._with(
             self._with(self.BASE, "ppo_kwargs", learning_rate=1e-4), "curriculum_kwargs", warmup_timesteps=1
@@ -1262,14 +1273,28 @@ class TestHyperparameterDigestAndLabel:
             assert ignored_hyperparameter_edits(self.BASE, "PPO", stage_dir) == ["<unreadable stage_config.json>"]
 
     def test_save_stage_config_records_the_digest_always_and_the_label_only_when_non_empty(self, tmp_path):
-        run = json.loads(save_stage_config(tmp_path / "a", 1, self.BASE, "PPO").read_text())["run"]
+        run = json.loads(
+            save_stage_config(tmp_path / "a", 1, self.BASE, "PPO", model_id=VELOCIRAPTOR_MONGOLIENSIS).read_text()
+        )["run"]
         assert run["hyperparameters_sha256"] == hyperparameters_sha256(self.BASE, "PPO")
         assert "label" not in run
         for empty in ("", "   ", None):
-            run = json.loads(save_stage_config(tmp_path / "b", 1, self.BASE, "PPO", label=empty).read_text())["run"]
+            run = json.loads(
+                save_stage_config(
+                    tmp_path / "b", 1, self.BASE, "PPO", label=empty, model_id=VELOCIRAPTOR_MONGOLIENSIS
+                ).read_text()
+            )["run"]
             assert "label" not in run
         run = json.loads(
-            save_stage_config(tmp_path / "c", 1, self.BASE, "PPO", extra={"seed": 7}, label=" lr-sweep-a ").read_text()
+            save_stage_config(
+                tmp_path / "c",
+                1,
+                self.BASE,
+                "PPO",
+                extra={"seed": 7},
+                label=" lr-sweep-a ",
+                model_id=VELOCIRAPTOR_MONGOLIENSIS,
+            ).read_text()
         )["run"]
         assert run == {
             "seed": 7,

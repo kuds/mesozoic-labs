@@ -8,6 +8,7 @@ import mujoco
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
 
@@ -71,7 +72,7 @@ class TestHeadFloorTermination:
             )
 
 
-class TestTRexSpecific:
+class TestTyrannosaurusRexSpecific:
     """T-Rex-specific reward component tests."""
 
     def test_bite_not_triggered_initially(self, env):
@@ -306,7 +307,7 @@ class TestFootContactForceSummationOrder:
     a per-item ``float()`` or ``.tolist()`` would hand it.  Exact equality throughout.
     """
 
-    def test_trex_four_sensor_feet_add_the_pad_to_the_digit_sum(self, env):
+    def test_tyrannosaurus_rex_four_sensor_feet_add_the_pad_to_the_digit_sum(self, env):
         env.reset(seed=0)
         right, left = env._foot_sensor_groups
         assert len(right) == len(left) == 4, "the T-Rex feet are a pad plus three digit sensors"
@@ -325,7 +326,7 @@ class TestFootContactForceSummationOrder:
         assert forces == (1.0000000000000002, 1.0)
         assert all(type(force) is float for force in forces)
 
-    def test_brachiosaurus_two_sensor_legs_add_pad_and_meta_in_group_order(self):
+    def test_brachiosaurus_altithorax_two_sensor_legs_add_pad_and_meta_in_group_order(self):
         from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 
         env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
@@ -544,7 +545,7 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
     def test_stage1_reset_never_spawns_out_of_bounds(self):
         from environments.shared.config import load_stage_config
 
-        kwargs = load_stage_config("trex", 1)["env_kwargs"]
+        kwargs = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
         env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
@@ -562,7 +563,7 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
         """The specific seed that produced the first failure of a 40-episode panel."""
         from environments.shared.config import load_stage_config
 
-        kwargs = load_stage_config("trex", 1)["env_kwargs"]
+        kwargs = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
         env = TyrannosaurusRexAnatomicalEnv(**kwargs)
         try:
@@ -799,33 +800,34 @@ class TestFootSensorGroupLockstep:
     groups by name in its foot_contact segment instead."""
 
     @pytest.mark.parametrize(
-        "species, env_factory",
+        "model_id, env_factory",
         [
             (
-                "brachiosaurus",
+                ModelId("brachiosaurus_altithorax", "anatomical"),
                 lambda: __import__(
                     "environments.brachiosaurus_altithorax.anatomical.env",
                     fromlist=["BrachiosaurusAltithoraxAnatomicalEnv"],
                 ).BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0),
             ),
             (
-                "dibothrosuchus",
+                ModelId("dibothrosuchus_elaphros", "anatomical"),
                 lambda: __import__(
                     "environments.dibothrosuchus_elaphros.anatomical.env",
                     fromlist=["DibothrosuchusElaphrosAnatomicalEnv"],
                 ).DibothrosuchusElaphrosAnatomicalEnv(reset_noise_scale=0.0),
             ),
         ],
+        ids=["brachiosaurus_altithorax-anatomical", "dibothrosuchus_elaphros-anatomical"],
     )
-    def test_sb3_groups_match_mjx_registration(self, species, env_factory):
+    def test_sb3_groups_match_mjx_registration(self, model_id, env_factory):
         import importlib
 
         from environments.shared.mjx_env import _SPECIES_CONFIGS
 
         # Registration happens at mjx_config import time; the SB3 env class
         # never imports it, so pull it in explicitly (idempotent).
-        importlib.import_module(f"environments.{species}.mjx_config")
-        config = _SPECIES_CONFIGS[species]
+        importlib.import_module(f"{model_id.package}.mjx_config")
+        config = _SPECIES_CONFIGS[model_id.species]
 
         foot_indices = config["sensor_foot_indices"]
         aux_groups = config.get("sensor_foot_aux_indices", ()) or ()

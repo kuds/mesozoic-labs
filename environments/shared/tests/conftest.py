@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PlantVersion,
@@ -46,7 +47,7 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(scope="module")
-def raptor_layers():
+def velociraptor_mongoliensis_layers():
     """Return original model source, interface shell, version, and hashes."""
     env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
     try:
@@ -56,7 +57,7 @@ def raptor_layers():
         ).read_text()
         interface = env
         version = PlantVersion(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             physics_revision=1,
             policy_interface_revision=1,
             visual_revision=1,

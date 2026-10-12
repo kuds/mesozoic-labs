@@ -96,9 +96,10 @@ import re
 import sys
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
-from environments.shared.model_id import ModelId
+if TYPE_CHECKING:
+    from environments.shared.model_id import ModelId
 
 logger = logging.getLogger(__name__)
 

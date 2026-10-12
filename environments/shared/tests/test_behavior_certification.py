@@ -12,6 +12,9 @@ from environments.shared.behavior_certification import (
     judge_behavior_panel,
     load_certification_rules,
 )
+from environments.shared.model_id import ModelId
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -19,7 +22,8 @@ ROOT = Path(__file__).resolve().parents[3]
 def _identity():
     """The task fingerprint's sections the judge reads (consolidation PR-9)."""
     return {
-        "species": "trex",
+        "species": "tyrannosaurus_rex",
+        "embodiment": "anatomical",
         "command": {"config": {"stop_probability": 0.15, "turn_increment_max": 0.5}},
         "env": {"course_distance": 10.0, "terrain": {"apron_radius": 3.0, "blend_width": 1.5}},
     }
@@ -124,9 +128,9 @@ def test_real_panel_env_preserves_identity_and_stratifies_actual_ground(behavior
     from environments.shared.train_behaviors import create_behavior_env, read_recipe
 
     recipe = ROOT / "configs/tyrannosaurus_rex/anatomical/behaviors" / f"{behavior}.toml"
-    _, commands, terrain, kwargs = read_recipe(recipe)
-    original = create_behavior_env("trex", commands=commands, terrain=terrain, run_seed=17, **kwargs)
-    panel = _panel_env("trex", recipe, 910001)
+    _, commands, terrain, kwargs = read_recipe(recipe, TYRANNOSAURUS_REX)
+    original = create_behavior_env(TYRANNOSAURUS_REX, commands=commands, terrain=terrain, run_seed=17, **kwargs)
+    panel = _panel_env(TYRANNOSAURUS_REX, recipe, 910001)
     try:
         # Consolidation PR-8: the panel is the recipe's own env; its reset option stratifies the families.
         assert type(panel) is type(original)
@@ -177,7 +181,7 @@ def test_the_saved_panel_scores_a_checkpoint_only_on_its_own_task(monkeypatch, t
     ):
         monkeypatch.setitem(sys.modules, f"environments.shared.{name}", SimpleNamespace(**{attribute: reached}))
     recipes = ROOT / "configs/tyrannosaurus_rex/anatomical/behaviors"
-    env = _panel_env("trex", recipes / "follow_direction.toml", 910001)
+    env = _panel_env(TYRANNOSAURUS_REX, recipes / "follow_direction.toml", 910001)
     try:
         saved = env.task_fingerprint
     finally:
@@ -188,7 +192,7 @@ def test_the_saved_panel_scores_a_checkpoint_only_on_its_own_task(monkeypatch, t
     panel = {
         "model_path": model,
         "normalization_path": normalization,
-        "species": "trex",
+        "model_id": TYRANNOSAURUS_REX,
         "identity": saved,
         "output_dir": tmp_path,
         "run_seed": 910001,

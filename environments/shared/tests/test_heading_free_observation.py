@@ -1,4 +1,4 @@
-"""The heading-free observation on its two species (``bipedal-target-heading-free/v1``; plant_versions note 18).
+"""The heading-free observation on its two models (``bipedal-target-heading-free/v1``; plant_versions note 18).
 
 The T-Rex (policy interface r14) and the anatomical Compsognathus (r4) build
 their observation through ``environments/shared/heading_observation.py``.
@@ -40,6 +40,7 @@ from environments.compsognathus_longipes.anatomical.env import CompsognathusLong
 from environments.shared.command_frame import COMMAND_SEGMENT_NAME, COMMAND_WIDTH
 from environments.shared.config import load_stage_config
 from environments.shared.heading_observation import HEADING_FREE_OBSERVATION_SCHEMA, body_to_world, root_quaternion
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import load_plant_versions
 from environments.shared.plant_contract.policy_layer import _policy_interface_payload
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
@@ -47,9 +48,15 @@ from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatom
 
 from .heading_free_helpers import FLOAT32_BUDGET, assert_paired, linear_policy, paired_traces, zero_policy
 
-SPECIES = (
-    pytest.param("trex", TyrannosaurusRexAnatomicalEnv, id="trex"),
-    pytest.param("compsognathus", CompsognathusLongipesAnatomicalEnv, id="compsognathus"),
+MODELS = (
+    pytest.param(
+        ModelId("tyrannosaurus_rex", "anatomical"), TyrannosaurusRexAnatomicalEnv, id="tyrannosaurus_rex-anatomical"
+    ),
+    pytest.param(
+        ModelId("compsognathus_longipes", "anatomical"),
+        CompsognathusLongipesAnatomicalEnv,
+        id="compsognathus_longipes-anatomical",
+    ),
 )
 #: Whole-scene turns for the pointwise test, across the yaw wrap.
 TURNS_DEG = (-179.9, -90.0, -45.0, 17.0, 90.0, 180.0, 359.0)
@@ -57,21 +64,21 @@ TURNS_DEG = (-179.9, -90.0, -45.0, 17.0, 90.0, 180.0, 359.0)
 PAIRED_STEPS = 250
 
 
-def _stance_env(env_class, species: str):
-    return env_class(**load_stage_config(species, "stance")["env_kwargs"])
+def _stance_env(env_class, model_id: ModelId):
+    return env_class(**load_stage_config(model_id, "stance")["env_kwargs"])
 
 
-@pytest.fixture(params=[pytest.param(tuple(param.values), id=param.id) for param in SPECIES])
+@pytest.fixture(params=[pytest.param(tuple(param.values), id=param.id) for param in MODELS])
 def animal(request):
-    species, env_class = request.param
-    env = _stance_env(env_class, species)
-    yield species, env
+    model_id, env_class = request.param
+    env = _stance_env(env_class, model_id)
+    yield model_id, env
     env.close()
 
 
-def _layout(species: str, env) -> dict[str, slice]:
+def _layout(model_id: ModelId, env) -> dict[str, slice]:
     """Each observation segment's slice, read off the plant contract's ``observation_segments``."""
-    version = load_plant_versions()[1][species]
+    version = load_plant_versions()[1][model_id]
     assert version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
     payload = _policy_interface_payload(env.model, env, version)
     layout: dict[str, slice] = {}
@@ -94,11 +101,11 @@ def _target_body(env) -> int:
 
 
 def test_layout_matches_segments_and_command_is_last(animal):
-    species, env = animal
+    model_id, env = animal
     obs, _ = env.reset(seed=3042)
     for _ in range(5):
         obs, *_ = env.step(np.full(env.action_space.shape, 0.05, dtype=np.float32))
-    layout = _layout(species, env)
+    layout = _layout(model_id, env)
     names = list(layout)
     assert names == [
         "joint_position",
@@ -146,24 +153,24 @@ def test_layout_matches_segments_and_command_is_last(animal):
     np.testing.assert_allclose(obs[layout["prey_direction_body"]], rotation.T @ direction, atol=1e-6)
 
 
-@pytest.mark.parametrize(("species", "env_class"), SPECIES)
-def test_construction_observation_is_finite_and_upright(species, env_class):
+@pytest.mark.parametrize(("model_id", "env_class"), MODELS)
+def test_construction_observation_is_finite_and_upright(model_id, env_class):
     """The constructor calls _get_obs before any forward pass: the orientation sensor still reads zero there."""
-    env = _stance_env(env_class, species)
+    env = _stance_env(env_class, model_id)
     try:
         quat = env._sensor_quat_start
         np.testing.assert_array_equal(env.data.sensordata[quat : quat + 4], np.zeros(4))
         obs = env._get_obs()
         assert obs.shape == env.observation_space.shape and obs.dtype == np.float32
         assert np.all(np.isfinite(obs))
-        gravity = _layout(species, env)["pelvis_projected_gravity"]
+        gravity = _layout(model_id, env)["pelvis_projected_gravity"]
         np.testing.assert_array_equal(obs[gravity], [0.0, 0.0, -1.0])
     finally:
         env.close()
 
 
 def test_reset_step_terminal_observations_are_finite(animal):
-    species, env = animal
+    model_id, env = animal
     obs, _ = env.reset(seed=3042)
     assert obs.shape == env.observation_space.shape and np.all(np.isfinite(obs))
     rng = np.random.default_rng(1)
@@ -175,16 +182,16 @@ def test_reset_step_terminal_observations_are_finite(animal):
         obs, _, terminated, truncated, info = env.step(action)
         steps += 1
         assert obs.shape == env.observation_space.shape and obs.dtype == np.float32
-        assert np.all(np.isfinite(obs)), f"{species} step {steps}"
-    assert terminated, f"{species}: wild actions should end the episode early, so the terminal state is exercised"
+        assert np.all(np.isfinite(obs)), f"{model_id} step {steps}"
+    assert terminated, f"{model_id}: wild actions should end the episode early, so the terminal state is exercised"
     assert steps < env.max_episode_steps and info.get("termination_reason")
     np.testing.assert_array_equal(obs[-COMMAND_WIDTH:], np.zeros(COMMAND_WIDTH))
 
 
 def test_local_sensors_are_not_rotated_twice(animal):
     """The gyro and accelerometer report in their own site frame already; a second rotation would re-leak yaw."""
-    species, env = animal
-    layout = _layout(species, env)
+    model_id, env = animal
+    layout = _layout(model_id, env)
     env.reset(seed=3043)
     rng = np.random.default_rng(5)
     gyro, accel = env._sensor_gyro_start, env._sensor_accel_start
@@ -252,8 +259,8 @@ def test_whole_scene_rotation_preserves_observation(animal):
 
 
 def test_animal_only_turn_changes_only_target_bearing(animal):
-    species, env = animal
-    bearing = _layout(species, env)["prey_direction_body"]
+    model_id, env = animal
+    bearing = _layout(model_id, env)["prey_direction_body"]
     others = np.ones(env.observation_space.shape, dtype=bool)
     others[bearing] = False
     for before, state in _lifted_moving_states(env, 10):
@@ -273,8 +280,8 @@ def test_quaternion_sign_has_no_effect(animal):
 
 
 @pytest.mark.parametrize("policy", ["zero", "linear"])
-@pytest.mark.parametrize(("species", "env_class"), SPECIES)
-def test_six_heading_paired_rollouts_repeat_to_solver_tolerance(species, env_class, policy):
-    traces = paired_traces(species, 3042, {"zero": zero_policy, "linear": linear_policy}[policy], PAIRED_STEPS)
+@pytest.mark.parametrize(("model_id", "env_class"), MODELS)
+def test_six_heading_paired_rollouts_repeat_to_solver_tolerance(model_id, env_class, policy):
+    traces = paired_traces(model_id, 3042, {"zero": zero_policy, "linear": linear_policy}[policy], PAIRED_STEPS)
     assert len(traces[0.0]["actions"]) == PAIRED_STEPS, "the comparison must cover the whole window"
     assert_paired(traces)

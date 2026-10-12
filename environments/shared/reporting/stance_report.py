@@ -998,14 +998,14 @@ class SpawnYaw:
     """The spawn turned about vertical right after reset: the heading probe's one modification.
 
     The stance stage always spawns facing +x with the prey within about 11
-    degrees of it, and up to policy interface r13 the trex observation
+    degrees of it, and up to policy interface r13 the T-Rex observation
     carried heading through the world-frame pelvis quaternion (and the
     world-frame velocity and prey direction), so a stance could depend on
     the world heading without any v2 criterion seeing it: both physics-r8
-    trex stances fell when spawned 90 degrees off, where the statue stands.
-    The velociraptor and the compsognathus robot still observe those
-    world-frame channels; the trex from policy interface r14 and the
-    anatomical compsognathus from r4 observe no world heading (D-D31,
+    T-Rex stances fell when spawned 90 degrees off, where the statue stands.
+    The Velociraptor and the Compsognathus robot still observe those
+    world-frame channels; the T-Rex from policy interface r14 and the
+    anatomical Compsognathus from r4 observe no world heading (D-D31,
     ``bipedal-target-heading-free/v1``: projected gravity, the root velocity
     in the gravity-aligned heading frame and the prey direction in pelvis
     coordinates, :mod:`environments.shared.heading_observation`).  Turning the spawn
@@ -3340,8 +3340,8 @@ def render_heading_probe(
             "UNMODIFIED policy; 'animal' turns the animal alone (the prey stays, so the heading reward term pays a "
             "turn toward it), 'scene' turns the prey and the episode's reference direction with it, so the physics "
             "is the same at every heading (every plant declares the elliptic friction cone) and only a world-frame "
-            "observation differs: the velociraptor's and the compsognathus robot's; the trex (policy interface "
-            "r14) and the anatomical compsognathus (r4) observe no world heading (D-D31), so their 'scene' rows "
+            "observation differs: the Velociraptor's and the Compsognathus robot's; the T-Rex (policy interface "
+            "r14) and the anatomical Compsognathus (r4) observe no world heading (D-D31), so their 'scene' rows "
             "differ from the unturned one only by rounding the closed loop amplifies. The statue is the control. "
             "Not a gate verdict; the six-heading certificate (stance_quality_heading/v1, D-D32) is the gate, on the "
             "stages that declare it."
@@ -3369,7 +3369,7 @@ def render_heading_probe(
         "turned              animal = the animal alone (the prey stays; the heading term pays a turn toward it);",
         "                    scene  = the prey and the reference direction too (every plant's elliptic friction cone",
         "                             makes the physics the same at every heading; only a world-frame observation",
-        "                             differs, and the trex r14 and anatomical compsognathus r4 observe none)",
+        "                             differs, and the T-Rex r14 and anatomical Compsognathus r4 observe none)",
         "",
         f"  {'yaw':>6} {'turned':<7}{'policy fh':>10}{'reward':>9}{'|dyaw| mean/max':>17}"
         f"{'statue fh':>11}{'reward':>9}{'|dyaw| max':>11}",

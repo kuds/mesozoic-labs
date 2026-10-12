@@ -7,11 +7,10 @@ import numpy as np
 import pytest
 
 from environments.compsognathus_longipes import MODEL_PATHS
-from environments.compsognathus_longipes.anatomical.env import (
-    CompsognathusLongipesAnatomicalEnv,
-    CompsognathusLongipesRobotEnv,
-)
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.model import pelvis_subtree_body_ids
+from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
+from environments.shared.model_id import ModelId
 from environments.shared.perturbation import derive_push_parameters
 from environments.shared.task_fingerprint import compute_task_fingerprint, derive_stage_task_fingerprint
 
@@ -226,10 +225,9 @@ def test_massive_anatomical_root_keeps_its_original_force_target_and_manifest():
 
 def test_task_fingerprint_records_the_resolved_force_target(env_class):
     with env_class(**PUSH_KWARGS) as env:
-        species = "compsognathus_robot" if env.embodiment == "robot" else "compsognathus"
         plant = {"model_path": str(MODEL_PATHS[env.embodiment])}
         kwargs = {
-            "species": species,
+            "model_id": ModelId("compsognathus_longipes", env.embodiment),
             "stage": "recovery",
             "backend": "stable-baselines3",
             "env_kwargs": PUSH_KWARGS,

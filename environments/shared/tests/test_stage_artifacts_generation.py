@@ -4,15 +4,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from environments.shared.species_names import species_display_names
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
 
 
 @pytest.mark.parametrize(
-    "species,stage",
-    [(species, 1) for species in species_display_names()]
-    + [(species, "recovery") for species in ("trex", "compsognathus", "compsognathus_robot")],
+    "model_id,stage",
+    [(model_id, 1) for model_id in model_ids()]
+    + [
+        (model_id, "recovery")
+        for model_id in (
+            ModelId("tyrannosaurus_rex", "anatomical"),
+            ModelId("compsognathus_longipes", "anatomical"),
+            ModelId("compsognathus_longipes", "robot"),
+        )
+    ],
+    ids=lambda value: f"{value.species}-{value.embodiment}" if isinstance(value, ModelId) else str(value),
 )
-def test_stance_replay_producer_enables_the_same_outputs_and_matched_checkpoints(tmp_path, species, stage):
+def test_stance_replay_producer_enables_the_same_outputs_and_matched_checkpoints(tmp_path, model_id, stage):
     from environments.shared.config import load_stage_config
     from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
     from environments.shared.reporting.stage_artifacts import _record_stage_replays
@@ -26,7 +35,7 @@ def test_stance_replay_producer_enables_the_same_outputs_and_matched_checkpoints
         (models / f"{name}.zip").write_bytes(b"model")
         (models / f"{name}_vecnorm.pkl").write_bytes(b"normalization")
     model = MagicMock()
-    attach_plant_identity(model, current_plant_identity(species))
+    attach_plant_identity(model, current_plant_identity(model_id))
     algorithm = MagicMock()
     algorithm.load.return_value = model
     replays = tmp_path / "replays"
@@ -35,8 +44,8 @@ def test_stance_replay_producer_enables_the_same_outputs_and_matched_checkpoints
         patch("environments.shared.evaluation.record_stage_video") as video,
     ):
         _record_stage_replays(
-            species_cfg=get_species_config(species),
-            stage_config=load_stage_config(species, stage),
+            species_cfg=get_species_config(model_id),
+            stage_config=load_stage_config(model_id, stage),
             stage=stage,
             algorithm="ppo",
             stage_dir=tmp_path,
@@ -55,9 +64,9 @@ def test_stance_replay_producer_enables_the_same_outputs_and_matched_checkpoints
         assert set(call["camera_views"]) == {"side", "front"}
         # Other species retain their own camera distance, rather than the
         # 3.4 m framing that makes the small Compsognathus barely visible.
-        if species not in ("trex", "brachiosaurus"):
+        if model_id.species not in ("tyrannosaurus_rex", "brachiosaurus_altithorax"):
             assert all("distance" not in preset for preset in call["camera_views"].values())
-        if species == "brachiosaurus":
+        if model_id.species == "brachiosaurus_altithorax":
             assert call["camera_views"]["front"]["distance"] > call["env_class"]._camera_distance
 
 
@@ -95,7 +104,7 @@ class TestGenerateTrialArtifacts:
         )
 
         mock_species_cfg = MagicMock()
-        mock_species_cfg.species = "velociraptor"
+        mock_species_cfg.model_id = ModelId("velociraptor_mongoliensis", "anatomical")
         mock_species_cfg.env_class = MagicMock
 
         stage_config = {
@@ -106,7 +115,10 @@ class TestGenerateTrialArtifacts:
         }
 
         fake_model = MagicMock()
-        attach_plant_identity(fake_model, current_plant_identity("velociraptor", verify_generated=False))
+        attach_plant_identity(
+            fake_model,
+            current_plant_identity(ModelId("velociraptor_mongoliensis", "anatomical"), verify_generated=False),
+        )
         mock_algorithm = MagicMock()
         mock_algorithm.load.return_value = fake_model
         mock_sb3 = {"PPO": mock_algorithm, "SAC": mock_algorithm}
@@ -191,7 +203,7 @@ def test_generate_stage_artifacts_takes_sim_dt_from_the_nodes_env(tmp_path):
         raise Stop
 
     species_cfg = MagicMock()
-    species_cfg.species = "compsognathus"
+    species_cfg.model_id = ModelId("compsognathus_longipes", "anatomical")
     species_cfg.env_class = ProbeEnv
     stage_config = {"name": "Locomotion", "description": "Walk", "env_kwargs": {"alive_bonus": 0.5}}
     with patch.object(stage_artifacts, "build_stage_results_from_eval_data", side_effect=fake_build):
@@ -210,12 +222,16 @@ def test_generate_stage_artifacts_takes_sim_dt_from_the_nodes_env(tmp_path):
     assert ProbeEnv.closed
 
 
-@pytest.mark.parametrize("env_path", ["CompsognathusLongipesAnatomicalEnv", "CompsognathusLongipesRobotEnv"])
-def test_the_compsognathus_pair_steps_at_twenty_milliseconds(env_path):
+@pytest.mark.parametrize(
+    "model_id",
+    [ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
+def test_the_compsognathus_longipes_pair_steps_at_twenty_milliseconds(model_id):
     """The premise of the probe: a 0.01 s default halves this pair's printed sim time."""
-    from environments.compsognathus_longipes.anatomical.env import compsognathus_env
+    from environments.shared.species_registry import env_class
 
-    env = getattr(compsognathus_env, env_path)()
+    env = env_class(model_id)()
     try:
         assert env.dt == pytest.approx(0.02)
     finally:

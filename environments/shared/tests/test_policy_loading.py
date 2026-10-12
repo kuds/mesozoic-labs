@@ -60,6 +60,7 @@ from environments.shared.curriculum.schedules import (
     _ConstantSchedule,
     schedule_members_from_hyperparameters,
 )
+from environments.shared.model_id import ModelId
 from environments.shared.policy_loading import (
     INFERENCE_SCHEDULE_DEFAULTS,
     SCHEDULE_MEMBERS,
@@ -71,6 +72,10 @@ from environments.shared.policy_loading import (
 )
 
 from .notebook_cells import code_cell_sources, code_cells, strip_magics
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sb3_archives"
@@ -207,9 +212,9 @@ def test_schedule_members_from_hyperparameters_mirrors_prepare_alg_kwargs(tmp_pa
     from environments.shared.config import load_stage_config
     from environments.shared.train_base import _prepare_alg_kwargs
 
-    config = load_stage_config("trex", "stance")
+    config = load_stage_config(TYRANNOSAURUS_REX, "stance")
     block = config["ppo_kwargs"]
-    assert block.get("learning_rate_end") is not None, "the trex stance trains under an LR decay (the Drive parents)"
+    assert block.get("learning_rate_end") is not None, "the T-Rex stance trains under an LR decay (the Drive parents)"
     prepared, _, _ = _prepare_alg_kwargs(dict(config), "ppo", 0, tmp_path, False)
     members = schedule_members_from_hyperparameters("ppo", block)
     assert isinstance(members["learning_rate"], LinearSchedule)
@@ -949,10 +954,10 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
     from environments.shared.config import load_all_stages
     from environments.shared.reporting import stage_artifacts
 
-    monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+    monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: SimpleNamespace(to_dict=dict))
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
     monkeypatch.setitem(sys.modules, "mediapy", SimpleNamespace())
-    species_cfg: Any = SimpleNamespace(species="trex", env_class=object, success_keys=["bite_success"])
+    species_cfg: Any = SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object, success_keys=["bite_success"])
     models = tmp_path / "models"
     models.mkdir()
     (models / "robust_best_model.zip").write_bytes(b"weights")
@@ -963,7 +968,7 @@ def _ensure_sb3_callers(monkeypatch, tmp_path) -> dict[str, Callable[[], object]
         "create_vec_env": lambda: train_base.create_vec_env(species_cfg, {}, 1, 1),
         "train": lambda: train_base.train(
             species_cfg,
-            load_all_stages("trex"),
+            load_all_stages(TYRANNOSAURUS_REX),
             1,
             total_timesteps=1,
             output_dir=str(tmp_path),
@@ -1045,11 +1050,11 @@ def test_one_patch_of_the_resolver_reaches_every_caller(caller, monkeypatch, tmp
     model_path = str(tmp_path / "stage1_5_steps.zip")
     monkeypatch.setattr(policy_loading, "_resolve_vecnorm_sidecar", reached)
     monkeypatch.setattr(policy_loading, "_ensure_sb3", dict)
-    monkeypatch.setattr(plant_contract, "current_plant_identity", lambda species: None)
+    monkeypatch.setattr(plant_contract, "current_plant_identity", lambda model_id: None)
     callers = {
         "resolve_vecnorm_path": lambda: policy_loading.resolve_vecnorm_path(model_path, None, False),
         "evaluate": lambda: evaluation.evaluate(
-            SimpleNamespace(species="trex"), {1: {"env_kwargs": {}}}, model_path, stage=1
+            SimpleNamespace(model_id=TYRANNOSAURUS_REX), {1: {"env_kwargs": {}}}, model_path, stage=1
         ),
         "_load_vecnorm_into_envs": lambda: train_base._load_vecnorm_into_envs(
             model_path, None, None, task_load_mode="resume_same_stage"
@@ -1207,9 +1212,9 @@ def test_policy_loading_imports_only_the_standard_library_at_import_time():
 
 PREFLIGHT = "sb3_archive_load_preflight"
 PREFLIGHT_HELPERS = ("_root_handoff_archive", "_save_throwaway_ppo")
-#: The ``walk`` chain's root in ``compsognathus_robot``: stance, stage 1, written as ``01_stance`` since 2026-08-20 and
-#: as ``stage1`` or ``stance`` before (``stage_manifest.stage_dir_candidates``, newest naming first).
-PREFLIGHT_SPECIES, PREFLIGHT_ROOT = "compsognathus_robot", 1
+#: The ``walk`` chain's root in the Compsognathus robot: stance, stage 1, written as ``01_stance`` since 2026-08-20
+#: and as ``stage1`` or ``stance`` before (``stage_manifest.stage_dir_candidates``, newest naming first).
+PREFLIGHT_MODEL, PREFLIGHT_ROOT = COMPSOGNATHUS_LONGIPES_ROBOT, 1
 PREFLIGHT_ROOT_DIRECTORIES = ("01_stance", "stage1", "stance")
 PREFLIGHT_PASSED = "SB3 archive load preflight passed: archives load back on this runtime through load_sb3_model.\n"
 
@@ -1301,7 +1306,7 @@ def test_the_preflight_prints_flushed_immediately_before_its_one_load():
             assert not _named_calls(function, name), f"{function.name} calls {name}"
     # A forgotten trunk is a TypeError, never a silent throwaway: trunk_dir is keyword-only and has no default.
     arguments = definition.args
-    assert [argument.arg for argument in (*arguments.posonlyargs, *arguments.args)] == ["species", "root_reference"]
+    assert [argument.arg for argument in (*arguments.posonlyargs, *arguments.args)] == ["model_id", "root_reference"]
     assert [argument.arg for argument in arguments.kwonlyargs] == ["trunk_dir"] and arguments.kw_defaults == [None]
 
 
@@ -1318,7 +1323,7 @@ def test_the_preflight_flushes_its_line_before_the_load_starts(tmp_path, monkeyp
 
     monkeypatch.setattr(policy_loading, "load_sb3_model", load)
     inspection = policy_loading.sb3_archive_load_preflight(
-        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
+        PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
     )
     kinds = [kind for kind, _ in stdout.events]
     at = kinds.index("load")
@@ -1344,7 +1349,7 @@ def test_the_preflight_raises_what_the_load_raises_and_reports_no_pass(tmp_path,
 
     monkeypatch.setattr(policy_loading, "load_sb3_model", refuse)
     with pytest.raises(PolicyLoadError) as raised:
-        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk")
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk")
     assert raised.value is refusal
     out = capsys.readouterr().out
     assert out.endswith("a kernel death HERE means this image cannot load SB3 archives\n") and "passed" not in out
@@ -1353,7 +1358,7 @@ def test_the_preflight_raises_what_the_load_raises_and_reports_no_pass(tmp_path,
     monkeypatch.setattr(policy_loading, "load_sb3_model", lambda path, **kwargs: loaded.append(path))
     _trunk_with_handoff(tmp_path / "unreadable", "01_stance", FIXTURES / FIXTURE_NAMES[0]).write_bytes(b"not a zip")
     with pytest.raises(PolicyLoadError):
-        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "unreadable")
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=tmp_path / "unreadable")
     assert loaded == [] and capsys.readouterr().out == ""
 
 
@@ -1369,12 +1374,12 @@ def test_the_preflight_loads_the_trunks_root_handoff_under_any_directory_name(tm
         # An older naming loses to the newest one whenever both hold a pair.
         _trunk_with_handoff(tmp_path / "both", PREFLIGHT_ROOT_DIRECTORIES[0], FIXTURES / FIXTURE_NAMES[0])
         _trunk_with_handoff(tmp_path / "both", directory, FIXTURES / FIXTURE_NAMES[0])
-        policy_loading.sb3_archive_load_preflight(PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "both")
+        policy_loading.sb3_archive_load_preflight(PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=tmp_path / "both")
         assert loaded.pop() == tmp_path / "both" / PREFLIGHT_ROOT_DIRECTORIES[0] / "models" / "robust_best_model.zip"
         capsys.readouterr()
     before = _tree_bytes(tmp_path)
     inspection = policy_loading.sb3_archive_load_preflight(
-        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=str(tmp_path / "trunk")
+        PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=str(tmp_path / "trunk")
     )
     assert loaded == [handoff] and inspection.path == handoff
     assert inspection.saved_python == tuple(MANIFEST[FIXTURE_NAMES[0]]["python_minor"])
@@ -1390,7 +1395,7 @@ def test_the_preflight_loads_the_trunks_root_handoff_under_any_directory_name(tm
 def test_the_preflight_loads_the_handoff_of_the_species_and_root_it_is_given(tmp_path, monkeypatch, capsys):
     """Executed (no SB3 needed): the archive is the handoff ``select_handoff_checkpoint`` picks in the directory of
     *root_reference* in *species*' manifest, the cell's ``SPECIES`` and ``CHAIN[0].reference``. Velociraptor's stage
-    2 is ``02_locomotion``; its stage 1 (``01_stance``) and compsognathus_robot's stage 2 (``03_locomotion``) hold
+    2 is ``02_locomotion``; its stage 1 (``01_stance``) and the Compsognathus robot's stage 2 (``03_locomotion``) hold
     pairs that are never loaded. A ``best_model`` pair alone is the handoff, and ``robust_best_model`` wins once
     both are complete."""
     loaded: list[Path] = []
@@ -1403,7 +1408,7 @@ def test_the_preflight_loads_the_handoff_of_the_species_and_root_it_is_given(tmp
     for name in ("best_model", "robust_best_model"):
         (models / f"{name}.zip").write_bytes((FIXTURES / FIXTURE_NAMES[0]).read_bytes())
         (models / f"{name}_vecnorm.pkl").write_bytes(b"")
-        inspection = policy_loading.sb3_archive_load_preflight("velociraptor", 2, trunk_dir=trunk)
+        inspection = policy_loading.sb3_archive_load_preflight(VELOCIRAPTOR_MONGOLIENSIS, 2, trunk_dir=trunk)
         assert loaded == [models / f"{name}.zip"] and inspection.path == models / f"{name}.zip", name
         assert f"loading the trunk run's root handoff {models / name}.zip (saved by " in capsys.readouterr().out
         loaded.clear()
@@ -1435,7 +1440,7 @@ def test_without_a_complete_trunk_handoff_the_preflight_loads_a_throwaway_and_wr
 
     monkeypatch.setattr(policy_loading, "load_sb3_model", load)
     inspection = policy_loading.sb3_archive_load_preflight(
-        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=None if trunk == "none" else trunk_dir
+        PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=None if trunk == "none" else trunk_dir
     )
     [(path, existed)] = seen
     assert existed and path.name == "preflight_ppo.zip" and path.parent.name.startswith("sb3_load_preflight_")
@@ -1465,7 +1470,7 @@ def test_the_preflight_loads_each_fixture_archive_through_the_loader(tmp_path, c
     entry = MANIFEST[name]
     handoff = _trunk_with_handoff(tmp_path / "trunk", "01_stance", FIXTURES / name)
     inspection = policy_loading.sb3_archive_load_preflight(
-        PREFLIGHT_SPECIES, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
+        PREFLIGHT_MODEL, PREFLIGHT_ROOT, trunk_dir=tmp_path / "trunk"
     )
     assert inspection.path == handoff and sorted(inspection.bytecode_members) == entry["bytecode_members"]
     out = capsys.readouterr().out
@@ -1485,9 +1490,12 @@ def test_calling_the_preflight_never_loads_train_base(tmp_path):
 import sys
 
 from environments.shared import policy_loading
+from environments.shared.model_id import ModelId
 
 for trunk in ({str(tmp_path / "trunk")!r}, None):
-    policy_loading.sb3_archive_load_preflight({PREFLIGHT_SPECIES!r}, {PREFLIGHT_ROOT!r}, trunk_dir=trunk)
+    policy_loading.sb3_archive_load_preflight(
+        ModelId({PREFLIGHT_MODEL.species!r}, {PREFLIGHT_MODEL.embodiment!r}), {PREFLIGHT_ROOT!r}, trunk_dir=trunk
+    )
 print("train_base loaded:", "environments.shared.train_base" in sys.modules)
 """
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO_ROOT), os.environ.get("PYTHONPATH")]))}

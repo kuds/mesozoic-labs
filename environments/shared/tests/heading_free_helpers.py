@@ -37,11 +37,15 @@ import numpy as np
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
+from environments.shared.model_id import ModelId
 from environments.shared.reporting.stance_report import SpawnYaw, _apply_spawn_yaw
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
-#: The heading-free species and their environments.
-HEADING_FREE_ENVS = {"trex": TyrannosaurusRexAnatomicalEnv, "compsognathus": CompsognathusLongipesAnatomicalEnv}
+#: The heading-free models and their environments.
+HEADING_FREE_ENVS = {
+    ModelId("tyrannosaurus_rex", "anatomical"): TyrannosaurusRexAnatomicalEnv,
+    ModelId("compsognathus_longipes", "anatomical"): CompsognathusLongipesAnatomicalEnv,
+}
 #: The certificate's heading grid, in degrees (``whole_scene_yaw/v1``, D-D32).
 HEADINGS_DEG = HEADING_GRID_DEG
 FLOAT32_BUDGET = 2e-6
@@ -55,8 +59,8 @@ CLOSED_LOOP_OBSERVATION_ATOL = 1e-5
 PolicyFactory = Callable[[Any, int], Callable[[np.ndarray], np.ndarray]]
 
 
-def stance_env(species: str) -> Any:
-    return HEADING_FREE_ENVS[species](**load_stage_config(species, "stance")["env_kwargs"])
+def stance_env(model_id: ModelId) -> Any:
+    return HEADING_FREE_ENVS[model_id](**load_stage_config(model_id, "stance")["env_kwargs"])
 
 
 def zero_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.ndarray]:
@@ -70,11 +74,11 @@ def linear_policy(env: Any, observation_dim: int) -> Callable[[np.ndarray], np.n
     return lambda observation: np.tanh(weights @ np.clip(observation, -10.0, 10.0)).astype(np.float32)
 
 
-def paired_traces(species: str, seed: int, make_policy: PolicyFactory, steps: int) -> dict[float, dict[str, Any]]:
+def paired_traces(model_id: ModelId, seed: int, make_policy: PolicyFactory, steps: int) -> dict[float, dict[str, Any]]:
     """*seed*'s episode at every heading of the grid, each in a fresh env with its whole scene turned."""
     traces: dict[float, dict[str, Any]] = {}
     for heading in HEADINGS_DEG:
-        env = stance_env(species)
+        env = stance_env(model_id)
         try:
             env.reset(seed=seed)
             observation = _apply_spawn_yaw(env, SpawnYaw(heading, whole_scene=True))

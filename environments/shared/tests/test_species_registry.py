@@ -1,76 +1,63 @@
-"""Unit tests for the species registry module."""
+"""Unit tests for the species registry module.
+
+The registry holds no table (decision D-D33): every model's config is derived
+from the manifest, its stage manifest and its env class, so each manifest
+model resolves and nothing else does.  Retired IDs and aliases are refused in
+``test_retired_species_identifiers.py``.
+"""
 
 import pytest
 
-from environments.shared.species_registry import (
-    SPECIES_FACTORIES,
-    get_species_config,
-)
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
+from environments.shared.species_registry import env_class, get_species_config
 from environments.shared.train_base import SpeciesConfig
 
+MODEL_IDS = pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
 
-class TestSpeciesFactories:
-    """Verify the SPECIES_FACTORIES registry is well-formed."""
 
-    def test_registry_contains_all_canonical_names(self):
-        for name in ("velociraptor", "trex", "brachiosaurus", "dibothrosuchus"):
-            assert name in SPECIES_FACTORIES
+class TestEnvClass:
+    """Every manifest model resolves to the embodiment class its derived name says."""
 
-    def test_registry_contains_aliases(self):
-        for alias in ("raptor", "t-rex", "brachio", "dibo"):
-            assert alias in SPECIES_FACTORIES
-
-    def test_alias_resolves_to_same_species(self):
-        assert SPECIES_FACTORIES["raptor"] is SPECIES_FACTORIES["velociraptor"]
-        assert SPECIES_FACTORIES["t-rex"] is SPECIES_FACTORIES["trex"]
-        assert SPECIES_FACTORIES["brachio"] is SPECIES_FACTORIES["brachiosaurus"]
-        assert SPECIES_FACTORIES["dibo"] is SPECIES_FACTORIES["dibothrosuchus"]
+    @MODEL_IDS
+    def test_every_manifest_model_resolves_to_its_embodiment_class(self, model_id):
+        cls = env_class(model_id)
+        assert cls.__name__ == model_id.env_class_name
+        assert cls.__module__ == f"{model_id.package}.env"
+        assert cls.embodiment == model_id.embodiment
 
 
 class TestGetSpeciesConfig:
     """Verify get_species_config returns valid SpeciesConfig objects."""
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
-    def test_canonical_names_return_config(self, name):
-        config = get_species_config(name)
+    @MODEL_IDS
+    def test_every_model_returns_a_config(self, model_id):
+        config = get_species_config(model_id)
         assert isinstance(config, SpeciesConfig)
-        assert config.species == name
-
-    @pytest.mark.parametrize(
-        "alias, expected_species",
-        [
-            ("raptor", "velociraptor"),
-            ("t-rex", "trex"),
-            ("brachio", "brachiosaurus"),
-            ("dibo", "dibothrosuchus"),
-        ],
-    )
-    def test_aliases_return_correct_species(self, alias, expected_species):
-        config = get_species_config(alias)
-        assert config.species == expected_species
-
-    def test_case_insensitive_lookup(self):
-        config = get_species_config("Velociraptor")
-        assert config.species == "velociraptor"
+        assert config.model_id == model_id
 
     def test_unknown_species_raises_value_error(self):
         with pytest.raises(ValueError, match="Unknown species"):
-            get_species_config("stegosaurus")
+            get_species_config(ModelId("stegosaurus_stenops", "anatomical"))
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
-    def test_config_has_required_fields(self, name):
-        config = get_species_config(name)
+    def test_unknown_embodiment_raises_value_error(self):
+        with pytest.raises(ValueError, match="has no 'robot' embodiment"):
+            get_species_config(ModelId("tyrannosaurus_rex", "robot"))
+
+    @MODEL_IDS
+    def test_config_has_required_fields(self, model_id):
+        config = get_species_config(model_id)
         assert config.env_class is not None
         assert isinstance(config.stage_descriptions, str)
         assert isinstance(config.height_label, str)
-        assert isinstance(config.stage3_section_label, str)
+        assert isinstance(config.behavior_section_label, str)
         assert isinstance(config.success_keys, list)
         assert len(config.success_keys) > 0
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
-    def test_env_class_is_instantiable(self, name):
+    @MODEL_IDS
+    def test_env_class_is_instantiable(self, model_id):
         """The env_class in the config should be importable and callable."""
-        config = get_species_config(name)
+        config = get_species_config(model_id)
         env = config.env_class()
         obs, _ = env.reset(seed=0)
         assert obs is not None

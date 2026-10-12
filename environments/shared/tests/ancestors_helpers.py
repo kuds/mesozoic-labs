@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from environments.shared.curriculum.gate_schema import gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE
 from environments.shared.result_bundle import sha256_file, write_gate_verdict
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, TASK_FINGERPRINT_SCHEMA
@@ -27,6 +28,8 @@ STANCE_TASK = "sha256:" + "1" * 64
 OTHER_TASK = "sha256:" + "2" * 64
 LOCOMOTION_TASK = "sha256:" + "3" * 64
 JUDGED_BY = "reporting.stage_artifacts.generate_stage_artifacts"
+#: The model every trunk fixture is stamped with unless a test passes another.
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: The ``[curriculum]`` block the trunk fixture's stance node records and is
 #: judged under, and the CURRENT block ``_find`` compares it against (rule
@@ -66,9 +69,10 @@ def _sb3_style_zip(path: Path, data: dict[str, Any]) -> Path:
 
 
 def trunk_plant():
-    """The plant every trunk fixture is tagged with (a fake trex)."""
+    """The plant every trunk fixture is tagged with (a fake T-Rex)."""
     return make_plant_identity(
-        species="trex", model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
+        **TYRANNOSAURUS_REX.record(),
+        model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
     )
 
 
@@ -87,7 +91,7 @@ def build_trunk_run(
     verdict: bool = True,
     passed: bool = True,
     lineage: "dict[str, Any] | None" = None,
-    species: str = "trex",
+    model_id: ModelId = TYRANNOSAURUS_REX,
     judged_under: "dict[str, Any] | None" = None,
     seed: int = 1,
     algorithm: "str | None" = None,
@@ -99,9 +103,9 @@ def build_trunk_run(
     *lineage* is merged into the ``stage_config.json`` run block: the load
     keys ``save_stage_config`` records for a node that entered from a parent
     (``load_mode``, ``parent_checkpoint_sha256``, ...).  None is a node
-    trained from scratch, which records no load keys at all.  *species*
-    names the species every record is stamped with; the default plant is
-    the trex fake, so pass a matching *plant* for another species.
+    trained from scratch, which records no load keys at all.  *model_id*
+    names the model every record is stamped with (both identity fields); the
+    default plant is the T-Rex fake, so pass a matching *plant* for another model.
     *curriculum* is the block the stage records AND is judged under (its
     ``gate_config_view`` is the verdict's ``gate``), :data:`STANCE_CURRICULUM`
     by default; *judged_under* judges the verdict under another block than
@@ -119,7 +123,7 @@ def build_trunk_run(
     models.mkdir(parents=True, exist_ok=True)
     fingerprint = {
         "schema": fingerprint_schema,
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "backend": "stable-baselines3",
         "task_sha256": task_sha256,
@@ -133,7 +137,7 @@ def build_trunk_run(
     (stage_dir / "task_fingerprint.json").write_text(json.dumps(fingerprint, indent=2) + "\n", encoding="utf-8")
     curriculum = curriculum if curriculum is not None else STANCE_CURRICULUM
     stage_config: dict[str, Any] = {
-        "species": species,
+        **model_id.record(),
         "stage": stage,
         "name": stage_id,
         "description": "",
@@ -158,7 +162,7 @@ def build_trunk_run(
     if verdict:
         write_gate_verdict(
             stage_dir,
-            species=species,
+            model_id=model_id,
             stage=stage,
             stage_id=stage_id,
             gate_kind=curriculum.get("gate_kind", "stance_quality/v1"),

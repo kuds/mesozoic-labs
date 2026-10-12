@@ -21,8 +21,10 @@ from typing import Any, Iterator
 import pytest
 
 from environments.shared import task_fingerprint
-from environments.shared.config import SPECIES_NAMES, load_all_stages, load_stage_config
+from environments.shared.config import load_all_stages, load_stage_config
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import PlantIdentity, current_plant_identity
+from environments.shared.species_names import model_ids
 from environments.shared.stage_manifest import load_stage_manifest
 
 from .notebook_cells import code_cells, strip_magics
@@ -40,28 +42,28 @@ DERIVATION_MODULES = {
 }
 
 
-def _golden_task_digests() -> dict[tuple[str, str], str]:
-    """``(species, stage id) -> task_sha256`` from the committed digest snapshot."""
-    digests: dict[tuple[str, str], str] = {}
+def _golden_task_digests() -> dict[tuple[ModelId, str], str]:
+    """``(model, stage id) -> task_sha256`` from the committed digest snapshot (species and embodiment columns)."""
+    digests: dict[tuple[ModelId, str], str] = {}
     for line in GOLDEN.read_text(encoding="utf-8").splitlines():
         fields = line.split("\t")
-        if len(fields) == 5 and fields[0] == "stage" and fields[3] == "task_sha256":
-            digests[(fields[1], fields[2])] = fields[4]
+        if len(fields) == 6 and fields[0] == "stage" and fields[4] == "task_sha256":
+            digests[(ModelId(fields[1], fields[2]), fields[3])] = fields[5]
     return digests
 
 
 GOLDEN_TASKS = _golden_task_digests()
-STAGES = [(species, entry.id) for species in SPECIES_NAMES for entry in load_stage_manifest(species).stages]
+STAGES = [(model_id, entry.id) for model_id in model_ids() for entry in load_stage_manifest(model_id).stages]
 
 
 @cache
-def _identity(species: str) -> PlantIdentity:
-    return current_plant_identity(species)
+def _identity(model_id: ModelId) -> PlantIdentity:
+    return current_plant_identity(model_id)
 
 
 @cache
-def _stage_configs(species: str) -> dict[Any, dict[str, Any]]:
-    return load_all_stages(species)
+def _stage_configs(model_id: ModelId) -> dict[Any, dict[str, Any]]:
+    return load_all_stages(model_id)
 
 
 def _non_test_trees() -> Iterator[tuple[str, ast.AST]]:
@@ -114,49 +116,55 @@ def test_only_the_helper_and_the_digest_oracle_name_the_low_level_derivation():
 
 
 def test_the_golden_names_every_manifest_stage():
-    """The equality test below covers every stage of every species' manifest (21 stages of six species
+    """The equality test below covers every stage of every model's manifest (21 stages of six models
     today), each exactly once and each with a committed digest."""
     assert len(STAGES) == len(set(STAGES)) == len(GOLDEN_TASKS)
     assert set(STAGES) == set(GOLDEN_TASKS)
-    assert {species for species, _ in STAGES} == set(SPECIES_NAMES)
+    assert {model_id for model_id, _ in STAGES} == set(model_ids())
 
 
-@pytest.mark.parametrize(("species", "stage_id"), STAGES, ids=[f"{s}-{i}" for s, i in STAGES])
-def test_every_form_of_the_helper_is_the_committed_digest(species, stage_id):
+@pytest.mark.parametrize(("model_id", "stage_id"), STAGES, ids=[f"{m.species}-{m.embodiment}-{i}" for m, i in STAGES])
+def test_every_form_of_the_helper_is_the_committed_digest(model_id, stage_id):
     """An id or a reference, an in-memory config or the committed one, the identity object or its
     dict: all give the digest the golden records, which is the low-level derivation's under the
     literal backend, the committed ``[env]`` block and the current plant.  (A helper that hashed the
     id would move every numbered stage's digest.)"""
-    entry = load_stage_manifest(species).by_id(stage_id)
+    entry = load_stage_manifest(model_id).by_id(stage_id)
     reference = entry.reference
-    identity = _identity(species)
+    identity = _identity(model_id)
     helper = task_fingerprint.stage_task_fingerprint
-    by_id = helper(species, stage_id)
-    by_reference = helper(species, reference)
-    in_memory = helper(species, reference, stage_config=_stage_configs(species)[reference], plant_identity=identity)
-    as_mapping = helper(species, stage_id, plant_identity=identity.to_dict())
+    by_id = helper(model_id, stage_id)
+    by_reference = helper(model_id, reference)
+    in_memory = helper(model_id, reference, stage_config=_stage_configs(model_id)[reference], plant_identity=identity)
+    as_mapping = helper(model_id, stage_id, plant_identity=identity.to_dict())
     derived = task_fingerprint.derive_stage_task_fingerprint(
-        species=species,
+        model_id=model_id,
         stage=reference,
         backend="stable-baselines3",
-        env_kwargs=load_stage_config(species, reference).get("env_kwargs", {}),
+        env_kwargs=load_stage_config(model_id, reference).get("env_kwargs", {}),
         plant_identity=identity.to_dict(),
     )
     assert by_id == by_reference == in_memory == as_mapping == derived
-    assert derived["task_sha256"] == GOLDEN_TASKS[(species, stage_id)]
+    assert derived["task_sha256"] == GOLDEN_TASKS[(model_id, stage_id)]
     assert derived["stage"] == reference and derived["backend"] == task_fingerprint.FINGERPRINT_BACKEND
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
-def test_the_measured_recovery_env_gives_each_committed_profile_digest(species):
+@pytest.mark.parametrize(
+    "model_id",
+    [ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
+def test_the_measured_recovery_env_gives_each_committed_profile_digest(model_id):
     """The recovery calibration and its restamp derive from the profile's MEASURED ``[env]`` block
     (``env_kwargs=``); on the committed profiles that is the digest each one records."""
-    profile = json.loads((REPO_ROOT / "configs" / species / "recovery_calibration.json").read_text(encoding="utf-8"))
+    profile = json.loads(
+        (model_id.path(REPO_ROOT / "configs") / "recovery_calibration.json").read_text(encoding="utf-8")
+    )
     measured = profile["recovery_env_kwargs"]
     helper = task_fingerprint.stage_task_fingerprint
-    assert helper(species, "recovery", env_kwargs=measured)["task_sha256"] == profile["task_sha256"]
+    assert helper(model_id, "recovery", env_kwargs=measured)["task_sha256"] == profile["task_sha256"]
     assert (
-        helper(species, "recovery", env_kwargs=measured, plant_identity=profile["plant_identity"])["task_sha256"]
+        helper(model_id, "recovery", env_kwargs=measured, plant_identity=profile["plant_identity"])["task_sha256"]
         == profile["task_sha256"]
     )
 
@@ -174,27 +182,34 @@ def test_the_helper_hands_the_derivation_exactly_its_five_inputs(monkeypatch):
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
     identity = {"physics_sha256": "sha256:plant"}
     assert task_fingerprint.stage_task_fingerprint(
-        "trex", "stance", stage_config={"env_kwargs": {"push_prob": 0.25}}, plant_identity=identity
+        ModelId("tyrannosaurus_rex", "anatomical"),
+        "stance",
+        stage_config={"env_kwargs": {"push_prob": 0.25}},
+        plant_identity=identity,
     ) == {"task_sha256": "sha256:derived"}
-    task_fingerprint.stage_task_fingerprint("trex", "recovery", env_kwargs={"a": 1}, plant_identity=identity)
-    task_fingerprint.stage_task_fingerprint("trex", 1, stage_config={"name": "no env block"}, plant_identity=identity)
+    task_fingerprint.stage_task_fingerprint(
+        ModelId("tyrannosaurus_rex", "anatomical"), "recovery", env_kwargs={"a": 1}, plant_identity=identity
+    )
+    task_fingerprint.stage_task_fingerprint(
+        ModelId("tyrannosaurus_rex", "anatomical"), 1, stage_config={"name": "no env block"}, plant_identity=identity
+    )
     assert derived == [
         {
-            "species": "trex",
+            "model_id": ModelId("tyrannosaurus_rex", "anatomical"),
             "stage": 1,
             "backend": "stable-baselines3",
             "env_kwargs": {"push_prob": 0.25},
             "plant_identity": identity,
         },
         {
-            "species": "trex",
+            "model_id": ModelId("tyrannosaurus_rex", "anatomical"),
             "stage": "recovery",
             "backend": "stable-baselines3",
             "env_kwargs": {"a": 1},
             "plant_identity": identity,
         },
         {
-            "species": "trex",
+            "model_id": ModelId("tyrannosaurus_rex", "anatomical"),
             "stage": 1,
             "backend": "stable-baselines3",
             "env_kwargs": {},
@@ -216,9 +231,15 @@ def test_the_helper_forwards_a_command_manifest_only_when_given(monkeypatch):
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", derive)
     identity = {"physics_sha256": "sha256:plant"}
     manifest = {"schema": "mesozoic.direction-commands/v1"}
-    task_fingerprint.stage_task_fingerprint("trex", "stance", env_kwargs={}, plant_identity=identity)
     task_fingerprint.stage_task_fingerprint(
-        "trex", "stance", env_kwargs={}, plant_identity=identity, command_manifest=manifest
+        ModelId("tyrannosaurus_rex", "anatomical"), "stance", env_kwargs={}, plant_identity=identity
+    )
+    task_fingerprint.stage_task_fingerprint(
+        ModelId("tyrannosaurus_rex", "anatomical"),
+        "stance",
+        env_kwargs={},
+        plant_identity=identity,
+        command_manifest=manifest,
     )
     assert "command_manifest" not in derived[0] and len(derived[0]) == 5
     assert derived[1] == {**derived[0], "command_manifest": manifest}
@@ -231,14 +252,27 @@ def test_a_live_stage_is_derived_with_its_manifest_and_refused_without_it():
 
     config = DirectionCommandConfig(cruise_speed=0.5, speed_range=(0.25, 0.5), stop_probability=0.2)
     manifest = DirectionCommandController(config).manifest()
-    env = {**load_stage_config("trex", "locomotion")["env_kwargs"], "command_mode": "heading_and_speed"}
+    env = {
+        **load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "locomotion")["env_kwargs"],
+        "command_mode": "heading_and_speed",
+    }
     live = task_fingerprint.stage_task_fingerprint(
-        "trex", "locomotion", env_kwargs={**env, "command_config": config}, command_manifest=manifest
+        ModelId("tyrannosaurus_rex", "anatomical"),
+        "locomotion",
+        env_kwargs={**env, "command_config": config},
+        command_manifest=manifest,
     )
     assert live["command"] == json.loads(json.dumps(manifest)) and live["env"]["command_mode"] == "heading_and_speed"
-    assert live["task_sha256"] != task_fingerprint.stage_task_fingerprint("trex", "locomotion")["task_sha256"]
+    assert (
+        live["task_sha256"]
+        != task_fingerprint.stage_task_fingerprint(ModelId("tyrannosaurus_rex", "anatomical"), "locomotion")[
+            "task_sha256"
+        ]
+    )
     with pytest.raises(task_fingerprint.TaskFingerprintError, match="exactly when command_mode is not 'none'"):
-        task_fingerprint.stage_task_fingerprint("trex", "locomotion", env_kwargs={**env, "command_config": config})
+        task_fingerprint.stage_task_fingerprint(
+            ModelId("tyrannosaurus_rex", "anatomical"), "locomotion", env_kwargs={**env, "command_config": config}
+        )
 
 
 def test_a_stage_config_and_a_measured_env_together_are_refused(monkeypatch):
@@ -250,7 +284,11 @@ def test_a_stage_config_and_a_measured_env_together_are_refused(monkeypatch):
     monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", never)
     with pytest.raises(TypeError, match="stage_config or env_kwargs, not both"):
         task_fingerprint.stage_task_fingerprint(
-            "trex", "recovery", stage_config={"env_kwargs": {}}, env_kwargs={}, plant_identity={}
+            ModelId("tyrannosaurus_rex", "anatomical"),
+            "recovery",
+            stage_config={"env_kwargs": {}},
+            env_kwargs={},
+            plant_identity={},
         )
 
 
@@ -261,4 +299,6 @@ def test_a_stage_the_manifest_does_not_name_is_refused_not_hashed(stage):
     from environments.shared.stage_manifest import StageManifestError
 
     with pytest.raises(StageManifestError):
-        task_fingerprint.stage_task_fingerprint("trex", stage, stage_config={}, plant_identity={})
+        task_fingerprint.stage_task_fingerprint(
+            ModelId("tyrannosaurus_rex", "anatomical"), stage, stage_config={}, plant_identity={}
+        )

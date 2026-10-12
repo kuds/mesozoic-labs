@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import environments.shared.wandb_integration as wi
+from environments.shared.model_id import ModelId
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def test_init_wandb(mock_wandb):
     mock_wandb.init.return_value = mock_run
 
     config = {"name": "test_stage", "env_kwargs": {"foo": "bar"}, "ppo_kwargs": {"lr": 0.001}}
-    run = wi.init_wandb("velociraptor", 1, config)
+    run = wi.init_wandb(ModelId("velociraptor_mongoliensis", "anatomical"), 1, config)
 
     assert run == mock_run
     mock_wandb.init.assert_called_once()
@@ -137,7 +138,7 @@ def test_is_available():
 
 def test_init_wandb_not_available():
     with patch.object(wi, "is_available", return_value=False):
-        result = wi.init_wandb("velociraptor", 1, {})
+        result = wi.init_wandb(ModelId("velociraptor_mongoliensis", "anatomical"), 1, {})
         assert result is None
 
 

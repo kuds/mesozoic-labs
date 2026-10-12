@@ -43,6 +43,7 @@ from stable_baselines3 import PPO  # noqa: E402
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize  # noqa: E402
 
 from environments.shared.config import load_stage_config  # noqa: E402
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import (  # noqa: E402
     PlantCompatibilityError,
     PlantIdentity,
@@ -53,22 +54,24 @@ from environments.shared.species_registry import get_species_config  # noqa: E40
 
 from .ancestors_helpers import STANCE_CURRICULUM, STANCE_TASK, build_trunk_run  # noqa: E402
 
-SPECIES = ("trex", "compsognathus")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+MODELS = (TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES)
 #: The pre-migration policy interfaces, as the committed plant manifest recorded them before note 18.
-PRE_MIGRATION: dict[str, dict[str, Any]] = {
-    "trex": {
+PRE_MIGRATION: dict[ModelId, dict[str, Any]] = {
+    TYRANNOSAURUS_REX: {
         "policy_interface_revision": 13,
         "observation_dim": 64,
         "policy_interface_sha256": "sha256:0b43de19860b3b6e8ea7d010d8b7069b265b14040d57ece7fffab49a9cb51252",
     },
-    "compsognathus": {
+    COMPSOGNATHUS_LONGIPES: {
         "policy_interface_revision": 3,
         "observation_dim": 56,
         "policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
     },
 }
 #: Current widths: the 4-wide quaternion became 3-wide projected gravity.
-CURRENT_WIDTH = {"trex": 63, "compsognathus": 55}
+CURRENT_WIDTH = {TYRANNOSAURUS_REX: 63, COMPSOGNATHUS_LONGIPES: 55}
 PPO_KWARGS: dict[str, Any] = {
     "n_steps": 64,
     "batch_size": 32,
@@ -79,20 +82,20 @@ PPO_KWARGS: dict[str, Any] = {
 }
 
 
-def _factory(species: str):
-    env_class = get_species_config(species).env_class
-    kwargs = load_stage_config(species, "stance")["env_kwargs"]
+def _factory(model_id: ModelId):
+    env_class = get_species_config(model_id).env_class
+    kwargs = load_stage_config(model_id, "stance")["env_kwargs"]
     return lambda: env_class(**kwargs)
 
 
-def _old_identity(species: str) -> PlantIdentity:
-    return dataclasses.replace(current_plant_identity(species), **PRE_MIGRATION[species])
+def _old_identity(model_id: ModelId) -> PlantIdentity:
+    return dataclasses.replace(current_plant_identity(model_id), **PRE_MIGRATION[model_id])
 
 
-def _refused(excinfo, species: str) -> None:
+def _refused(excinfo, model_id: ModelId) -> None:
     message = str(excinfo.value)
-    old = PRE_MIGRATION[species]
-    current = current_plant_identity(species)
+    old = PRE_MIGRATION[model_id]
+    current = current_plant_identity(model_id)
     assert (
         f"policy_interface_revision: checkpoint={old['policy_interface_revision']}, "
         f"current={current.policy_interface_revision}" in message
@@ -100,33 +103,34 @@ def _refused(excinfo, species: str) -> None:
     assert f"observation_dim: checkpoint={old['observation_dim']}, current={current.observation_dim}" in message
 
 
-@pytest.fixture(scope="module", params=SPECIES)
-def species(request) -> str:
-    return str(request.param)
+@pytest.fixture(scope="module", params=MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def model_id(request) -> ModelId:
+    selected: ModelId = request.param
+    return selected
 
 
 @pytest.fixture(scope="module")
-def trained(species, tmp_path_factory):
+def trained(model_id, tmp_path_factory):
     """A briefly trained PPO pair on the current stance env, saved the way a run saves its handoff pair."""
-    root = tmp_path_factory.mktemp(f"heading-free-{species}") / "01_stance" / "models"
+    root = tmp_path_factory.mktemp(f"heading-free-{model_id.anchor}") / "01_stance" / "models"
     root.mkdir(parents=True)
-    identity = current_plant_identity(species)
-    venv = VecNormalize(DummyVecEnv([_factory(species)]), norm_reward=True)
+    identity = current_plant_identity(model_id)
+    venv = VecNormalize(DummyVecEnv([_factory(model_id)]), norm_reward=True)
     model = PPO("MlpPolicy", venv, **PPO_KWARGS)
     attach_plant_identity(model, identity)
     attach_plant_identity(venv, identity)
     model.learn(128)
     model.save(root / "robust_best_model")
     venv.save(str(root / "robust_best_model_vecnorm.pkl"))
-    yield {"species": species, "root": root, "model": model, "venv": venv, "identity": identity}
+    yield {"model_id": model_id, "root": root, "model": model, "venv": venv, "identity": identity}
     venv.close()
 
 
 @pytest.fixture(scope="module")
-def pre_migration(species, tmp_path_factory):
-    """A pre-migration pair: the old width, stamped with the committed r13 (trex) / r3 (compsognathus) identity."""
-    width = PRE_MIGRATION[species]["observation_dim"]
-    actions = current_plant_identity(species).action_dim
+def pre_migration(model_id, tmp_path_factory):
+    """A pre-migration pair: the old width, stamped with the committed r13 (T-Rex) / r3 (Compsognathus) identity."""
+    width = PRE_MIGRATION[model_id]["observation_dim"]
+    actions = current_plant_identity(model_id).action_dim
 
     class _OldInterfaceEnv(gym.Env):
         observation_space = gym.spaces.Box(-np.inf, np.inf, shape=(width,), dtype=np.float32)
@@ -139,8 +143,8 @@ def pre_migration(species, tmp_path_factory):
         def step(self, action):
             return np.zeros(width, dtype=np.float32), 0.0, False, False, {}
 
-    root = tmp_path_factory.mktemp(f"pre-migration-{species}")
-    old = _old_identity(species)
+    root = tmp_path_factory.mktemp(f"pre-migration-{model_id.anchor}")
+    old = _old_identity(model_id)
     venv = VecNormalize(DummyVecEnv([_OldInterfaceEnv]))
     model = PPO("MlpPolicy", venv, **PPO_KWARGS)
     attach_plant_identity(model, old)
@@ -148,21 +152,21 @@ def pre_migration(species, tmp_path_factory):
     model.save(root / "robust_best_model")
     venv.save(str(root / "robust_best_model_vecnorm.pkl"))
     venv.close()
-    return {"species": species, "root": root, "identity": old}
+    return {"model_id": model_id, "root": root, "identity": old}
 
 
 def test_ppo_save_load_evaluate_and_normalizer_round_trip(trained, caplog):
     from environments.shared.evaluation import evaluate
     from environments.shared.policy_loading import load_sb3_checkpoint
 
-    species, root, identity = trained["species"], trained["root"], trained["identity"]
-    factory = _factory(species)
+    model_id, root, identity = trained["model_id"], trained["root"], trained["identity"]
+    factory = _factory(model_id)
     loaded, normalizer, resolved = load_sb3_checkpoint(
         str(root / "robust_best_model.zip"), None, factory, plant_identity=identity
     )
     try:
         assert resolved == str(root / "robust_best_model_vecnorm.pkl")
-        assert normalizer.obs_rms.mean.shape == (CURRENT_WIDTH[species],) == (identity.observation_dim,)
+        assert normalizer.obs_rms.mean.shape == (CURRENT_WIDTH[model_id],) == (identity.observation_dim,)
         np.testing.assert_array_equal(normalizer.obs_rms.mean, trained["venv"].obs_rms.mean)
         np.testing.assert_array_equal(normalizer.obs_rms.var, trained["venv"].obs_rms.var)
         env = factory()
@@ -180,8 +184,8 @@ def test_ppo_save_load_evaluate_and_normalizer_round_trip(trained, caplog):
     # The CLI evaluator: the sidecar is found, both artifacts pass the plant check, one episode is scored.
     with caplog.at_level("INFO", logger="environments.shared.evaluation"):
         evaluate(
-            species_cfg=get_species_config(species),
-            stage_configs={"stance": load_stage_config(species, "stance")},
+            species_cfg=get_species_config(model_id),
+            stage_configs={"stance": load_stage_config(model_id, "stance")},
             model_path=str(root / "robust_best_model.zip"),
             n_episodes=1,
             render=False,
@@ -193,10 +197,10 @@ def test_ppo_save_load_evaluate_and_normalizer_round_trip(trained, caplog):
 def test_interrupted_run_resumes_on_the_new_env(trained):
     from environments.shared import train_base
 
-    species, root, identity = trained["species"], trained["root"], trained["identity"]
+    model_id, root, identity = trained["model_id"], trained["root"], trained["identity"]
     stem = str(root / "robust_best_model")
-    train_env = VecNormalize(DummyVecEnv([_factory(species)]), norm_reward=True)
-    eval_env = VecNormalize(DummyVecEnv([_factory(species)]), norm_reward=False)
+    train_env = VecNormalize(DummyVecEnv([_factory(model_id)]), norm_reward=True)
+    eval_env = VecNormalize(DummyVecEnv([_factory(model_id)]), norm_reward=False)
     try:
         train_base._load_vecnorm_into_envs(
             stem, train_env, eval_env, plant_identity=identity, task_load_mode="resume_same_stage"
@@ -209,26 +213,26 @@ def test_interrupted_run_resumes_on_the_new_env(trained):
         assert model.num_timesteps == trained["model"].num_timesteps == 128
         model.learn(64, reset_num_timesteps=False)
         assert model.num_timesteps == 192
-        assert model.observation_space.shape == (CURRENT_WIDTH[species],)
+        assert model.observation_space.shape == (CURRENT_WIDTH[model_id],)
     finally:
         train_env.close()
         eval_env.close()
 
 
-def test_pre_migration_pair_is_refused_by_the_trainer(species, pre_migration):
+def test_pre_migration_pair_is_refused_by_the_trainer(model_id, pre_migration):
     from environments.shared import train_base
 
     stem = str(pre_migration["root"] / "robust_best_model")
-    current = current_plant_identity(species)
-    train_env = VecNormalize(DummyVecEnv([_factory(species)]))
-    eval_env = VecNormalize(DummyVecEnv([_factory(species)]))
+    current = current_plant_identity(model_id)
+    train_env = VecNormalize(DummyVecEnv([_factory(model_id)]))
+    eval_env = VecNormalize(DummyVecEnv([_factory(model_id)]))
     try:
         for mode in ("resume_same_stage", "initialize_next_stage"):
             with pytest.raises(PlantCompatibilityError) as excinfo:
                 train_base._load_vecnorm_into_envs(
                     stem, train_env, eval_env, plant_identity=current, task_load_mode=mode
                 )
-            _refused(excinfo, species)
+            _refused(excinfo, model_id)
             # Warm start and resume alike refuse the model before SB3 rebuilds it around the new env.
             with pytest.raises(PlantCompatibilityError) as excinfo:
                 train_base._create_or_load_model(
@@ -240,22 +244,22 @@ def test_pre_migration_pair_is_refused_by_the_trainer(species, pre_migration):
                     plant_identity=current,
                     task_load_mode=mode,
                 )
-            _refused(excinfo, species)
+            _refused(excinfo, model_id)
     finally:
         train_env.close()
         eval_env.close()
 
 
-def test_pre_migration_pair_is_refused_by_the_loaders(species, pre_migration, trained):
+def test_pre_migration_pair_is_refused_by_the_loaders(model_id, pre_migration, trained):
     from environments.shared.evaluation import evaluate
     from environments.shared.policy_loading import load_sb3_checkpoint
 
     old_root = pre_migration["root"]
-    current = current_plant_identity(species)
-    factory = _factory(species)
+    current = current_plant_identity(model_id)
+    factory = _factory(model_id)
     with pytest.raises(PlantCompatibilityError) as excinfo:
         load_sb3_checkpoint(str(old_root / "robust_best_model.zip"), None, factory, plant_identity=current)
-    _refused(excinfo, species)
+    _refused(excinfo, model_id)
     # A current model beside pre-migration statistics: refused by plant, not as a damaged file.
     with pytest.raises(PlantCompatibilityError) as excinfo:
         load_sb3_checkpoint(
@@ -264,17 +268,17 @@ def test_pre_migration_pair_is_refused_by_the_loaders(species, pre_migration, tr
             factory,
             plant_identity=current,
         )
-    _refused(excinfo, species)
+    _refused(excinfo, model_id)
     with pytest.raises(PlantCompatibilityError) as excinfo:
         evaluate(
-            species_cfg=get_species_config(species),
-            stage_configs={"stance": load_stage_config(species, "stance")},
+            species_cfg=get_species_config(model_id),
+            stage_configs={"stance": load_stage_config(model_id, "stance")},
             model_path=str(old_root / "robust_best_model.zip"),
             n_episodes=1,
             render=False,
             stage="stance",
         )
-    _refused(excinfo, species)
+    _refused(excinfo, model_id)
 
 
 def test_pre_migration_pair_is_refused_as_a_trunk_and_by_the_widen_gate(pre_migration, tmp_path, monkeypatch):
@@ -282,24 +286,24 @@ def test_pre_migration_pair_is_refused_as_a_trunk_and_by_the_widen_gate(pre_migr
     from environments.shared.scripts.widen_checkpoint import identity_gate_errors
     from environments.shared.stage_manifest import load_stage_manifest
 
-    species, old = pre_migration["species"], pre_migration["identity"]
-    current = current_plant_identity(species)
+    model_id, old = pre_migration["model_id"], pre_migration["identity"]
+    current = current_plant_identity(model_id)
     run = tmp_path / "20261009_155723"
     run.mkdir()
-    build_trunk_run(run, plant=old, species=species)
-    stance = load_stage_manifest(species).by_id("stance")
+    build_trunk_run(run, plant=old, model_id=model_id)
+    stance = load_stage_manifest(model_id).by_id("stance")
     for follow_records in (False, True):  # the chain loop's own run, and a manual TRUNK_FROM
         with pytest.raises(AncestorReuseError) as excinfo:
             find_certified_ancestor(
                 run,
-                species=species,
+                model_id=model_id,
                 entry=stance,
                 current_task_sha256=STANCE_TASK,
                 plant_identity=current,
                 current_gate_config=STANCE_CURRICULUM,
                 follow_records=follow_records,
             )
-        _refused(excinfo, species)
+        _refused(excinfo, model_id)
 
     # TRUNK_FROM = "auto": the run is scanned and refused at its root.
     from environments.shared import task_fingerprint as task_fingerprint_module
@@ -307,13 +311,13 @@ def test_pre_migration_pair_is_refused_as_a_trunk_and_by_the_widen_gate(pre_migr
     monkeypatch.setattr(
         task_fingerprint_module, "derive_stage_task_fingerprint", lambda **kwargs: {"task_sha256": STANCE_TASK}
     )
-    manifest = load_stage_manifest(species)
+    manifest = load_stage_manifest(model_id)
     chain = manifest.chain_for("locomotion")
     stage_configs = {
         entry.reference: {"env_kwargs": {}, "curriculum_kwargs": STANCE_CURRICULUM, "name": entry.id} for entry in chain
     }
     selection = select_trunk(
-        tmp_path, species=species, chain=chain, stage_configs=stage_configs, plant_identity=current
+        tmp_path, model_id=model_id, chain=chain, stage_configs=stage_configs, plant_identity=current
     )
     assert selection.selected is None
     ((candidate),) = selection.candidates
@@ -328,32 +332,37 @@ def test_pre_migration_pair_is_refused_as_a_trunk_and_by_the_widen_gate(pre_migr
 def test_pre_migration_walker_is_refused_by_the_behavior_preparation(pre_migration):
     from environments.shared.behavior_checkpoint import prepare_behavior_checkpoint
 
-    species, root = pre_migration["species"], pre_migration["root"]
-    env = _factory(species)()
+    model_id, root = pre_migration["model_id"], pre_migration["root"]
+    env = _factory(model_id)()
     try:
         with pytest.raises(PlantCompatibilityError) as excinfo:
             prepare_behavior_checkpoint(
                 root / "robust_best_model.zip",
                 root / "robust_best_model_vecnorm.pkl",
                 env,
-                task_fingerprint={"schema": "test-behavior/v1", "species": species, "task_sha256": "sha256:b"},
-                species=species,
+                task_fingerprint={"schema": "test-behavior/v1", **model_id.record(), "task_sha256": "sha256:b"},
+                model_id=model_id,
             )
-        _refused(excinfo, species)
+        _refused(excinfo, model_id)
     finally:
         env.close()
 
 
 def test_pre_migration_statistics_beside_a_current_walker_are_refused_by_the_behavior_paths(
-    species, pre_migration, tmp_path
+    model_id, pre_migration, tmp_path
 ):
     from environments.shared.behavior_checkpoint import load_behavior_checkpoint, prepare_behavior_checkpoint
     from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
 
-    current = current_plant_identity(species)
+    current = current_plant_identity(model_id)
     # A current walker that passes every check before the statistics load: its plant and its locomotion task.
-    walker_task = {"schema": "test-locomotion/v1", "species": species, "stage": "locomotion", "task_sha256": "sha256:a"}
-    venv = DummyVecEnv([_factory(species)])
+    walker_task = {
+        "schema": "test-locomotion/v1",
+        **model_id.record(),
+        "stage": "locomotion",
+        "task_sha256": "sha256:a",
+    }
+    venv = DummyVecEnv([_factory(model_id)])
     try:
         walker = PPO("MlpPolicy", venv, **PPO_KWARGS)
         attach_plant_identity(walker, current)
@@ -362,7 +371,7 @@ def test_pre_migration_statistics_beside_a_current_walker_are_refused_by_the_beh
     finally:
         venv.close()
     old_stats = pre_migration["root"] / "robust_best_model_vecnorm.pkl"
-    env = _factory(species)()
+    env = _factory(model_id)()
     try:
         # Refused by plant, not by SB3's "spaces must have the same shape" as the statistics bind to the env.
         with pytest.raises(PlantCompatibilityError) as excinfo:
@@ -370,14 +379,14 @@ def test_pre_migration_statistics_beside_a_current_walker_are_refused_by_the_beh
                 tmp_path / "walker.zip",
                 old_stats,
                 env,
-                task_fingerprint={"schema": "test-behavior/v1", "species": species, "task_sha256": "sha256:b"},
-                species=species,
+                task_fingerprint={"schema": "test-behavior/v1", **model_id.record(), "task_sha256": "sha256:b"},
+                model_id=model_id,
             )
-        _refused(excinfo, species)
+        _refused(excinfo, model_id)
         with pytest.raises(PlantCompatibilityError) as excinfo:
             load_behavior_checkpoint(
-                tmp_path / "walker.zip", old_stats, env, task_fingerprint=walker_task, species=species
+                tmp_path / "walker.zip", old_stats, env, task_fingerprint=walker_task, model_id=model_id
             )
-        _refused(excinfo, species)
+        _refused(excinfo, model_id)
     finally:
         env.close()

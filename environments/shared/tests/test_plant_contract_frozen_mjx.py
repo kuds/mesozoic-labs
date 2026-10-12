@@ -58,8 +58,8 @@ def test_frozen_function_keeps_its_hashed_tokens(target: str) -> None:
     expected = {"qualname": name, "tokens_sha256": f"sha256:{FROZEN_TOKEN_DIGESTS[target]}"}
     if module == "action_filter":
         why = (
-            "Its tokens are part of trex's policy-interface digest (the low-pass filter): change it only inside a "
-            "trex policy_interface_revision bump and update this pin, otherwise revert the change."
+            "Its tokens are part of the T-Rex's policy-interface digest (the low-pass filter): change it only inside a "
+            "T-Rex policy_interface_revision bump and update this pin, otherwise revert the change."
         )
     else:
         why = "It is frozen by D-D17: its tokens are part of two species' policy-interface digests. Revert the change."

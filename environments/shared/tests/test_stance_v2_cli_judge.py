@@ -18,6 +18,7 @@ import inspect
 
 import environments.shared.reporting.stage_artifacts as stage_artifacts
 from environments.shared import train_base
+from environments.shared.model_id import ModelId
 
 from .stance_v2_helpers import V2_CURRICULUM, v2_report
 
@@ -29,15 +30,15 @@ def _config() -> dict:
 def test_a_passing_report_on_the_handoff_pair_passes_the_node(tmp_path, monkeypatch):
     calls = []
 
-    def fake_write(*, species, stage, stage_config, stage_dir, model_dir):
-        calls.append((species, stage, model_dir))
+    def fake_write(*, model_id, stage, stage_config, stage_dir, model_dir):
+        calls.append((model_id, stage, model_dir))
         return v2_report(stage_dir)
 
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", fake_write)
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+        ModelId("tyrannosaurus_rex", "anatomical"), 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
-    assert calls == [("trex", 1, tmp_path / "models")]
+    assert calls == [(ModelId("tyrannosaurus_rex", "anatomical"), 1, tmp_path / "models")]
     assert (passed, failures) == (True, [])
     assert stage_result["gate_kind"] == "stance_quality/v2" and stage_result["gate_passed"] is True
     assert stage_result["stance_clean_count"] == 40 and stage_result["stance_n_episodes"] == 40
@@ -46,7 +47,7 @@ def test_a_passing_report_on_the_handoff_pair_passes_the_node(tmp_path, monkeypa
 def test_no_report_is_a_named_fail_never_a_pass(tmp_path, monkeypatch):
     monkeypatch.setattr(stage_artifacts, "_write_stance_gate_report", lambda **kwargs: None)
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+        ModelId("tyrannosaurus_rex", "anatomical"), 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert passed is False and any("no stance gate report was produced" in failure for failure in failures)
     assert "stance_clean_count" not in stage_result
@@ -59,7 +60,7 @@ def test_a_failing_panel_fails_the_node_with_its_reasons(tmp_path, monkeypatch):
         lambda *, stage_dir, **kwargs: v2_report(stage_dir, n_clean=36, defect={"touchdown_rate": 9.9}),
     )
     passed, failures, stage_result = train_base._post_training_stance_verdict(
-        "trex", 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
+        ModelId("tyrannosaurus_rex", "anatomical"), 1, _config(), stage_dir=tmp_path, model_dir=tmp_path / "models"
     )
     assert passed is False and any("36/40 episodes clean" in failure for failure in failures)
     assert stage_result["stance_clean_count"] == 36  # an admitted report's numbers travel with its FAIL

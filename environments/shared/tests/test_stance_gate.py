@@ -36,6 +36,7 @@ from environments.shared.curriculum.stance_gate import (
     one_sided_t95,
     stance_panel_from_episode_duties,
 )
+from environments.shared.model_id import ModelId
 
 HORIZON = 1000
 SETTLE = 200
@@ -119,17 +120,17 @@ class TestDiscrimination:
         assert any("full_horizon_fraction" in f for f in failures)
 
 
-#: The compsognathus stance that keeps stance_quality/v1: the robot.  The anatomical stance moved to
+#: The Compsognathus stance that keeps stance_quality/v1: the robot's.  The anatomical stance moved to
 #: stance_quality/v2 with its physics r2 (decision D-D26) and to the six-heading certificate
 #: stance_quality_heading/v1 with D-D32; test_compsognathus_longipes_stance_gate_config.py pins it.
-V1_COMPSOGNATHUS = ["compsognathus_robot"]
+V1_COMPSOGNATHUS_LONGIPES = [ModelId("compsognathus_longipes", "robot")]
 
 
-@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
+@pytest.mark.parametrize("model_id", V1_COMPSOGNATHUS_LONGIPES, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("reward, expected_pass", [(1500.0, False), (1799.0, False), (1800.0, True)])
-def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
+def test_compsognathus_longipes_configured_reward_rail(model_id, reward, expected_pass):
     """Good support cannot bypass the configured 60% standing reward floor."""
-    config = load_all_stages(species)[1]
+    config = load_all_stages(model_id)[1]
     thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
     horizon = config["env_kwargs"]["max_episode_steps"]
     panel = stance_panel_from_episode_duties(
@@ -161,24 +162,30 @@ TYRANNOSAURUS_REX_STANCE_V1_CURRICULUM = {
 }
 
 
-@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
-def test_compsognathus_mechanical_gate_matches_trex(species):
+@pytest.mark.parametrize("model_id", V1_COMPSOGNATHUS_LONGIPES, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_compsognathus_longipes_mechanical_gate_matches_tyrannosaurus_rex(model_id):
     """T-Rex's last v1 block is the source of truth; only the species reward rail differs.
 
     The trex stance itself left v1 with physics r8 and the anatomical compsognathus stance with its
     physics r2 (both declare the six-heading certificate since D-D32); the robot keeps v1 until its own
     adoption of stance_quality/v2, so it is held to the block it copied, not to trex's current one.
     """
-    assert load_all_stages("trex")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"
-    assert load_all_stages("compsognathus")[1]["curriculum_kwargs"]["gate_kind"] == "stance_quality_heading/v1"
-    config = load_all_stages(species)[1]
+    assert (
+        load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]["curriculum_kwargs"]["gate_kind"]
+        == "stance_quality_heading/v1"
+    )
+    assert (
+        load_all_stages(ModelId("compsognathus_longipes", "anatomical"))[1]["curriculum_kwargs"]["gate_kind"]
+        == "stance_quality_heading/v1"
+    )
+    config = load_all_stages(model_id)[1]
     assert config["curriculum_kwargs"]["gate_kind"] == TYRANNOSAURUS_REX_STANCE_V1_CURRICULUM["gate_kind"]
     assert StanceGateThresholds.from_curriculum(config["curriculum_kwargs"]) == replace(
         StanceGateThresholds.from_curriculum(TYRANNOSAURUS_REX_STANCE_V1_CURRICULUM), min_avg_reward=1800.0
     )
 
 
-@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
+@pytest.mark.parametrize("model_id", V1_COMPSOGNATHUS_LONGIPES, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize(
     "n_full, duties, failed_criterion",
     [
@@ -190,9 +197,9 @@ def test_compsognathus_mechanical_gate_matches_trex(species):
         pytest.param(20, [0.0] * 20, "n_episodes", id="old-panel-size-rejected"),
     ],
 )
-def test_compsognathus_configured_mechanical_gate(species, n_full, duties, failed_criterion):
+def test_compsognathus_longipes_configured_mechanical_gate(model_id, n_full, duties, failed_criterion):
     """High reward cannot bypass the adopted T-Rex mechanical criteria."""
-    config = load_all_stages(species)[1]
+    config = load_all_stages(model_id)[1]
     thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
     horizon = config["env_kwargs"]["max_episode_steps"]
     panel = stance_panel_from_episode_duties(
@@ -210,9 +217,9 @@ def test_compsognathus_configured_mechanical_gate(species, n_full, duties, faile
         assert len(failures) == 1
 
 
-@pytest.mark.parametrize("species", V1_COMPSOGNATHUS)
-def test_compsognathus_configured_settling_window(species):
-    config = load_all_stages(species)[1]
+@pytest.mark.parametrize("model_id", V1_COMPSOGNATHUS_LONGIPES, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_compsognathus_longipes_configured_settling_window(model_id):
+    config = load_all_stages(model_id)[1]
     thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
     horizon = config["env_kwargs"]["max_episode_steps"]
     # Reset corrections throughout the first 20% must not count as stance duty.
@@ -435,7 +442,9 @@ class TestManagerReachesThePanelVerdict:
             "min_avg_reward": TYRANNOSAURUS_REX_1A.min_avg_reward,
             "required_consecutive": 1,
         }
-        manager = CurriculumManager(species="trex", stage_thresholds={1: thresholds})
+        manager = CurriculumManager(
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"), stage_thresholds={1: thresholds}
+        )
         sb3_verdict = manager.should_advance(
             [panel.mean_reward] * panel.n_episodes,
             [float(HORIZON)] * panel.n_episodes,
@@ -450,7 +459,7 @@ class TestManagerFailsClosedWithoutAPanel:
         from environments.shared.curriculum.manager import CurriculumManager
 
         manager = CurriculumManager(
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             stage_thresholds={
                 1: {
                     "gate_kind": STANCE_GATE_KIND,

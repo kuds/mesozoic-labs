@@ -18,30 +18,21 @@ species or stage is covered the moment its config lands.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from environments.shared.config import load_all_stages
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CONFIGS_ROOT = REPO_ROOT / "configs"
-
-
-def _species_dirs() -> list[str]:
-    """Every species with committed stage configs, discovered from configs/."""
-    return sorted(p.name for p in CONFIGS_ROOT.iterdir() if p.is_dir())
+from environments.shared.species_names import model_ids
 
 
 def test_ent_coef_decay_completes_within_every_committed_stage_budget() -> None:
     checked = 0
-    for species in _species_dirs():
-        for stage, cfg in load_all_stages(species).items():
+    for model_id in model_ids():
+        for stage, cfg in load_all_stages(model_id).items():
             decay = cfg["ppo_kwargs"].get("ent_coef_decay_timesteps")
             budget = cfg["curriculum_kwargs"].get("timesteps")
             if decay is None or budget is None:
                 continue
             checked += 1
             assert decay <= budget, (
-                f"{species} stage {stage}: ent_coef_decay_timesteps={decay} exceeds "
+                f"{model_id} stage {stage}: ent_coef_decay_timesteps={decay} exceeds "
                 f"timesteps={budget}, so the entropy decay can never complete and the "
                 "stage trains its whole budget above the intended ent_coef_end — the "
                 "recovery-pilot bug this test exists to prevent (2026-08 review §3.4)."

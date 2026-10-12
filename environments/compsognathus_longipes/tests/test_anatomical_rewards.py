@@ -28,11 +28,10 @@ import types
 import numpy as np
 import pytest
 
-from environments.compsognathus_longipes.anatomical.env import (
-    CompsognathusLongipesAnatomicalEnv,
-    CompsognathusLongipesEnv,
-)
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.compsognathus_longipes.base_env import CompsognathusLongipesEnv
 from environments.shared.config import load_stage_config
+from environments.shared.model_id import ModelId
 from environments.shared.species_registry import get_species_config
 
 #: Info keys the legacy reward writes; the subclass rewrites only reward_alive and reward_total.
@@ -59,7 +58,7 @@ LEGACY_INFO_KEYS = (
 
 
 def _stance_kwargs(**overrides):
-    return {**load_stage_config("compsognathus", "stance")["env_kwargs"], **overrides}
+    return {**load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")["env_kwargs"], **overrides}
 
 
 def _legacy_kwargs():
@@ -378,9 +377,10 @@ def test_floor_impact_and_airborne_substeps_price_the_whole_block():
 
 def test_the_support_geoms_are_the_floor_truth_registry_entry():
     """The env names the gate's support set itself (no species env imports the gait package); they must agree."""
-    from environments.shared.gait.morphology import SUPPORT_REGISTRY
+    from environments.shared.gait.morphology import support_entry
 
-    entry = SUPPORT_REGISTRY["compsognathus"]
+    entry = support_entry(ModelId("compsognathus_longipes", "anatomical"))
+    assert entry is not None
     assert tuple("{s}_" + name for name in CompsognathusLongipesAnatomicalEnv.support_geoms) == entry.support
     assert entry.sole == "{s}_plantar_pad" and entry.foot_site == "{s}_foot_touch_volume"
 
@@ -444,6 +444,9 @@ ROBOT_TASK_SHA256 = {
 def test_the_robot_tasks_did_not_move_with_the_anatomical_reward(stage):
     from environments.shared.task_fingerprint import stage_task_fingerprint
 
-    assert stage_task_fingerprint("compsognathus_robot", stage)["task_sha256"] == ROBOT_TASK_SHA256[stage]
-    parameters = inspect.signature(get_species_config("compsognathus_robot").env_class).parameters
+    assert (
+        stage_task_fingerprint(ModelId("compsognathus_longipes", "robot"), stage)["task_sha256"]
+        == ROBOT_TASK_SHA256[stage]
+    )
+    parameters = inspect.signature(get_species_config(ModelId("compsognathus_longipes", "robot")).env_class).parameters
     assert "support_geom_coverage_weight" not in parameters and "bilateral_support_weight" not in parameters

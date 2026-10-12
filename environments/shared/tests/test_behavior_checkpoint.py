@@ -28,6 +28,7 @@ from environments.shared.behavior_checkpoint import (  # noqa: E402
     load_behavior_checkpoint,
     prepare_behavior_checkpoint,
 )
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import (  # noqa: E402
     MODEL_IDENTITY_ATTRIBUTE,
     PlantCompatibilityError,
@@ -38,20 +39,29 @@ from environments.shared.plant_contract import (  # noqa: E402
 from environments.shared.result_bundle import sha256_file  # noqa: E402
 from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, MODEL_TASK_LINEAGE_ATTRIBUTE  # noqa: E402
 
-BEHAVIOR = {"schema": "test-behavior/v1", "species": "trex", "env": {"terrain": "flat"}, "task_sha256": "sha256:b"}
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
+BEHAVIOR = {
+    "schema": "test-behavior/v1",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "env": {"terrain": "flat"},
+    "task_sha256": "sha256:b",
+}
 #: The stamp every behavior checkpoint carried before consolidation PR-9 (D-D9: evaluation-only).
 OLD_MARKER = {
     "schema": "mesozoic.behavior-artifact/v1",
-    "species": "trex",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
     "behavior_identity": {"schema": "mesozoic.command-terrain/v1"},
     "canonical_certification": False,
 }
-PRESETS = Path(__file__).parents[3] / "configs" / "trex" / "behaviors"
+PRESETS = Path(__file__).parents[3] / "configs" / "tyrannosaurus_rex" / "anatomical" / "behaviors"
 
 
-#: The current trex observation width (63 since its heading-free policy interface r14), read from the plant
+#: The current T-Rex observation width (63 since its heading-free policy interface r14), read from the plant
 #: contract so the cheap env below keeps the canonical tensor shape across interface revisions.
-OBS_DIM = current_plant_identity("trex").observation_dim
+OBS_DIM = current_plant_identity(TYRANNOSAURUS_REX).observation_dim
 
 
 class CommandEnv(gym.Env):
@@ -94,13 +104,19 @@ def parent(tmp_path_factory):
         policy_kwargs={"net_arch": [16, 16]},
     )
     model.learn(32)
-    identity = current_plant_identity("trex")
+    identity = current_plant_identity(TYRANNOSAURUS_REX)
     for obj in (model, normalizer):
         attach_plant_identity(obj, identity)
     setattr(
         model,
         MODEL_TASK_ATTRIBUTE,
-        {"schema": "mesozoic.task-fingerprint/v2", "species": "trex", "stage": 2, "task_sha256": "sha256:walker"},
+        {
+            "schema": "mesozoic.task-fingerprint/v2",
+            "species": "tyrannosaurus_rex",
+            "embodiment": "anatomical",
+            "stage": 2,
+            "task_sha256": "sha256:walker",
+        },
     )
     # Nonzero synthetic moments make accidental carryover into the newly live
     # command connections observable, without changing the parent's function.
@@ -139,6 +155,7 @@ def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent)
         vecnorm_path,
         CommandEnv(live=True),
         task_fingerprint=BEHAVIOR,
+        model_id=TYRANNOSAURUS_REX,
     )
     try:
         assert type(normalizer) is VecNormalize
@@ -201,7 +218,9 @@ def test_the_shared_probe_refuses_a_preparation_that_leaves_commands_live(parent
     with pytest.raises(
         BehaviorCheckpointError, match=r"^Command preparation changed parent actions: max delta "
     ) as caught:
-        prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR)
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
     assert float(str(caught.value).rsplit(" ", 1)[1]) > 1e-6
 
 
@@ -221,14 +240,16 @@ def test_the_preparation_still_compares_the_prepared_walker_with_its_parent(pare
 
     monkeypatch.setattr(behavior_checkpoint, "neutralize_command_columns", over_reach)
     with pytest.raises(BehaviorCheckpointError, match=r"^Command preparation changed parent actions: max delta "):
-        prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR)
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
 
 
 def test_the_report_records_the_shared_primitives_result(parent):
     """The zeroed names and the probe's seed, size and deltas come from policy_loading, under the report's keys."""
     model_path, vecnorm_path, *_ = parent
     _, normalizer, report = prepare_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
     )
     normalizer.close()
     assert report["zeroed_command_parameters"] == [f"{name}.weight" for name in COMMAND_LAYERS]
@@ -246,6 +267,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         vecnorm_path,
         CommandEnv(live=True),
         task_fingerprint=BEHAVIOR,
+        model_id=TYRANNOSAURUS_REX,
     )
     raw = np.ones((2, OBS_DIM), dtype=np.float32)
     raw[:, -3:] = [0.7, -0.2, 0.4]
@@ -277,6 +299,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
         tmp_path / "behavior.pkl",
         CommandEnv(live=True),
         task_fingerprint=BEHAVIOR,
+        model_id=TYRANNOSAURUS_REX,
     )
     try:
         for name, value in state.items():
@@ -302,6 +325,7 @@ def test_commands_follow_reseeded_statistics_and_survive_saved_reload(parent, tm
             tmp_path / "behavior.pkl",
             CommandEnv(),
             task_fingerprint={**BEHAVIOR, "env": {"terrain": "other"}},
+            model_id=TYRANNOSAURUS_REX,
         )
 
 
@@ -310,7 +334,7 @@ def test_a_normalizer_stamped_for_another_task_is_refused(parent, tmp_path):
     model_path, vecnorm_path, *_ = parent
     for name, task in (("this", BEHAVIOR), ("other", {**BEHAVIOR, "task_sha256": "sha256:other"})):
         model, normalizer, _ = prepare_behavior_checkpoint(
-            model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=task
+            model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=task, model_id=TYRANNOSAURUS_REX
         )
         try:
             model.save(tmp_path / f"{name}.zip")
@@ -319,7 +343,11 @@ def test_a_normalizer_stamped_for_another_task_is_refused(parent, tmp_path):
             normalizer.close()
     with pytest.raises(BehaviorCheckpointError, match="model and normalization identities disagree"):
         load_behavior_checkpoint(
-            tmp_path / "this.zip", tmp_path / "other.pkl", CommandEnv(live=True), task_fingerprint=BEHAVIOR
+            tmp_path / "this.zip",
+            tmp_path / "other.pkl",
+            CommandEnv(live=True),
+            task_fingerprint=BEHAVIOR,
+            model_id=TYRANNOSAURUS_REX,
         )
 
 
@@ -330,7 +358,7 @@ def test_a_behavior_checkpoint_from_before_the_task_fingerprint_is_refused_by_na
 
     model_path, vecnorm_path, *_ = parent
     model, normalizer, _ = prepare_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
     )
     try:
         model.save(tmp_path / "new.zip")
@@ -343,7 +371,13 @@ def test_a_behavior_checkpoint_from_before_the_task_fingerprint_is_refused_by_na
     load = load_behavior_checkpoint if mode == "resume" else adapt_behavior_checkpoint
     requested = OLD_MARKER if mode == "resume" else BEHAVIOR
     with pytest.raises(BehaviorCheckpointError, match="records no task fingerprint.*D-D9.*git_commit"):
-        load(tmp_path / "old.zip", tmp_path / "new.pkl", CommandEnv(live=True), task_fingerprint=requested)
+        load(
+            tmp_path / "old.zip",
+            tmp_path / "new.pkl",
+            CommandEnv(live=True),
+            task_fingerprint=requested,
+            model_id=TYRANNOSAURUS_REX,
+        )
 
 
 @pytest.mark.parametrize("name", ["BehaviorVecNormalize", "OtherVecNormalize"])
@@ -355,7 +389,7 @@ def test_sidecar_pickling_the_deleted_passthrough_class_is_refused(parent, tmp_p
 
     model_path, vecnorm_path, *_ = parent
     model, normalizer, _ = prepare_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
     )
     retired = type(name, (VecNormalize,), {"__module__": behavior_checkpoint.__name__})
     try:
@@ -376,7 +410,11 @@ def test_sidecar_pickling_the_deleted_passthrough_class_is_refused(parent, tmp_p
     )
     with refusal:
         load_behavior_checkpoint(
-            tmp_path / "old.zip", tmp_path / "old.pkl", CommandEnv(live=True), task_fingerprint=BEHAVIOR
+            tmp_path / "old.zip",
+            tmp_path / "old.pkl",
+            CommandEnv(live=True),
+            task_fingerprint=BEHAVIOR,
+            model_id=TYRANNOSAURUS_REX,
         )
 
 
@@ -393,21 +431,28 @@ def test_parent_identity_is_checked_before_policy_load(parent, tmp_path, identit
     source = tmp_path / "incompatible.zip"
     _metadata_copy(model_path, source, MODEL_IDENTITY_ATTRIBUTE, raw)
     with pytest.raises(PlantCompatibilityError):
-        prepare_behavior_checkpoint(source, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR)
+        prepare_behavior_checkpoint(
+            source, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
 
 
-@pytest.mark.parametrize("fingerprint", [None, {}, {"schema": "test-behavior/v1", "species": "trex"}])
+@pytest.mark.parametrize(
+    "fingerprint",
+    [None, {}, {"schema": "test-behavior/v1", "species": "tyrannosaurus_rex", "embodiment": "anatomical"}],
+)
 def test_preparation_requires_the_recipe_task_fingerprint(parent, fingerprint):
     """An artifact stamped without the recipe env's task_sha256 could never be resumed or adapted (the loaders would
     refuse it as one from before the task fingerprint, D-D9), so preparation refuses it before loading anything."""
     model_path, vecnorm_path, *_ = parent
     if fingerprint is None:
         with pytest.raises(TypeError, match="task_fingerprint"):
-            prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True))
+            prepare_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(live=True), model_id=TYRANNOSAURUS_REX)
         return
     message = r"needs the recipe env's task fingerprint \(env\.task_fingerprint\) with its task_sha256: .*adapted$"
     with pytest.raises(BehaviorCheckpointError, match=message):
-        prepare_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=fingerprint)
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, None, task_fingerprint=fingerprint, model_id=TYRANNOSAURUS_REX
+        )
 
 
 @pytest.mark.parametrize("task", ["locomotion", "stage_id"])
@@ -420,9 +465,11 @@ def test_preparation_refuses_a_task_a_manifest_node_could_resume(parent, task):
     model_path, vecnorm_path, *_ = parent
     fingerprint = {**BEHAVIOR, "stage": "behavior"}
     if task == "locomotion":
-        fingerprint = stage_task_fingerprint("trex", "locomotion")
+        fingerprint = stage_task_fingerprint(TYRANNOSAURUS_REX, "locomotion")
     with pytest.raises(BehaviorCheckpointError, match="whose stage is never a stage id"):
-        prepare_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=fingerprint)
+        prepare_behavior_checkpoint(
+            model_path, vecnorm_path, None, task_fingerprint=fingerprint, model_id=TYRANNOSAURUS_REX
+        )
 
 
 def test_a_behavior_checkpoint_is_not_a_walker_parent(parent, tmp_path):
@@ -431,31 +478,50 @@ def test_a_behavior_checkpoint_is_not_a_walker_parent(parent, tmp_path):
 
     model_path, vecnorm_path, *_ = parent
     model, normalizer, _ = prepare_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint={**BEHAVIOR, "stage": RECIPE_TASK_STAGE}
+        model_path,
+        vecnorm_path,
+        CommandEnv(live=True),
+        task_fingerprint={**BEHAVIOR, "stage": RECIPE_TASK_STAGE},
+        model_id=TYRANNOSAURUS_REX,
     )
     try:
         model.save(tmp_path / "behavior.zip")
         normalizer.save(str(tmp_path / "behavior.pkl"))
     finally:
         normalizer.close()
-    with pytest.raises(BehaviorCheckpointError, match="must record the trex locomotion task"):
+    with pytest.raises(BehaviorCheckpointError, match="must record the tyrannosaurus_rex/anatomical locomotion task"):
         prepare_behavior_checkpoint(
-            tmp_path / "behavior.zip", tmp_path / "behavior.pkl", CommandEnv(), task_fingerprint=BEHAVIOR
+            tmp_path / "behavior.zip",
+            tmp_path / "behavior.pkl",
+            CommandEnv(),
+            task_fingerprint=BEHAVIOR,
+            model_id=TYRANNOSAURUS_REX,
         )
 
 
 def test_refuses_wrong_task_missing_sidecar_and_existing_normalization(parent, tmp_path):
     model_path, vecnorm_path, *_ = parent
     wrong_task = tmp_path / "stance.zip"
-    _metadata_copy(model_path, wrong_task, MODEL_TASK_ATTRIBUTE, {"species": "trex", "stage": 1})
+    _metadata_copy(
+        model_path,
+        wrong_task,
+        MODEL_TASK_ATTRIBUTE,
+        {"species": "tyrannosaurus_rex", "embodiment": "anatomical", "stage": 1},
+    )
     with pytest.raises(BehaviorCheckpointError, match="locomotion task"):
-        prepare_behavior_checkpoint(wrong_task, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR)
+        prepare_behavior_checkpoint(
+            wrong_task, vecnorm_path, CommandEnv(), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
     with pytest.raises(BehaviorCheckpointError, match="must exist"):
-        prepare_behavior_checkpoint(model_path, tmp_path / "absent.pkl", CommandEnv(), task_fingerprint=BEHAVIOR)
+        prepare_behavior_checkpoint(
+            model_path, tmp_path / "absent.pkl", CommandEnv(), task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+        )
     wrapped = VecNormalize(DummyVecEnv([CommandEnv]))
     try:
         with pytest.raises(BehaviorCheckpointError, match="unnormalized"):
-            prepare_behavior_checkpoint(model_path, vecnorm_path, wrapped, task_fingerprint=BEHAVIOR)
+            prepare_behavior_checkpoint(
+                model_path, vecnorm_path, wrapped, task_fingerprint=BEHAVIOR, model_id=TYRANNOSAURUS_REX
+            )
     finally:
         wrapped.close()
 
@@ -469,7 +535,7 @@ def learned_behavior(parent, tmp_path_factory):
     model_path, vecnorm_path, _, _, identity = parent
     config = DirectionCommandConfig()
     task = compute_task_fingerprint(
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         stage=RECIPE_TASK_STAGE,
         backend="stable-baselines3",
         env_kwargs={
@@ -490,6 +556,7 @@ def learned_behavior(parent, tmp_path_factory):
         vecnorm_path,
         CommandEnv(live=True),
         task_fingerprint=task,
+        model_id=TYRANNOSAURUS_REX,
     )
     model.learn(32)
     root = tmp_path_factory.mktemp("learned-behavior")
@@ -530,6 +597,7 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
         vecnorm_path,
         CommandEnv(live=True),
         task_fingerprint=requested,
+        model_id=TYRANNOSAURUS_REX,
     )
     try:
         assert any(
@@ -567,6 +635,7 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
         tmp_path / "adapted.pkl",
         CommandEnv(live=True),
         task_fingerprint=requested,
+        model_id=TYRANNOSAURUS_REX,
     )
     try:
         assert resumed.num_timesteps == 48
@@ -578,6 +647,7 @@ def test_adaptation_keeps_learned_commands_and_records_new_stage(learned_behavio
             tmp_path / "adapted.pkl",
             CommandEnv(live=True),
             task_fingerprint=previous,
+            model_id=TYRANNOSAURUS_REX,
         )
 
 
@@ -592,7 +662,7 @@ def test_the_lineage_names_the_task_an_adaptation_stamps(learned_behavior):
     requested["env"]["command_config"] = copy.deepcopy(requested["command"]["config"])
     requested["task_sha256"] = "sha256:requested"
     adapted, normalizer, report = adapt_behavior_checkpoint(
-        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=requested
+        model_path, vecnorm_path, CommandEnv(live=True), task_fingerprint=requested, model_id=TYRANNOSAURUS_REX
     )
     try:
         lineage = getattr(adapted, MODEL_TASK_LINEAGE_ATTRIBUTE)
@@ -624,7 +694,9 @@ def test_adaptation_requires_the_recipe_task_fingerprint(learned_behavior, finge
         r"an artifact stamped without one could never be resumed or adapted$"
     )
     with pytest.raises(BehaviorCheckpointError, match=message):
-        adapt_behavior_checkpoint(model_path, vecnorm_path, None, task_fingerprint=requested)
+        adapt_behavior_checkpoint(
+            model_path, vecnorm_path, None, task_fingerprint=requested, model_id=TYRANNOSAURUS_REX
+        )
 
 
 @pytest.mark.parametrize("field", ["stage", "command.schema", "command.adapter"])
@@ -740,7 +812,9 @@ def test_adaptation_refuses_interface_source_or_dynamics_changes(learned_behavio
     elif field == "backend":
         requested["backend"] = "jax-mjx"
     with pytest.raises(BehaviorCheckpointError, match="Incompatible behavior transition fields"):
-        adapt_behavior_checkpoint(model_path, vecnorm_path, CommandEnv(), task_fingerprint=requested)
+        adapt_behavior_checkpoint(
+            model_path, vecnorm_path, CommandEnv(), task_fingerprint=requested, model_id=TYRANNOSAURUS_REX
+        )
 
 
 def _bundle(tmp_path):
@@ -860,6 +934,10 @@ def stubbed_cli(monkeypatch, tmp_path):
 
 def _args(config, checkpoint, normalization, output):
     return [
+        "--species",
+        "tyrannosaurus_rex",
+        "--embodiment",
+        "anatomical",
         "--config",
         str(config),
         "--checkpoint",
@@ -1050,8 +1128,8 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
     try:
         parent.learn(32)
         for artifact in (parent, parent_normalizer):
-            attach_plant_identity(artifact, current_plant_identity("trex"))
-        setattr(parent, MODEL_TASK_ATTRIBUTE, {"species": "trex", "stage": 2})
+            attach_plant_identity(artifact, current_plant_identity(TYRANNOSAURUS_REX))
+        setattr(parent, MODEL_TASK_ATTRIBUTE, {"species": "tyrannosaurus_rex", "embodiment": "anatomical", "stage": 2})
         parent.save(checkpoint)
         parent_normalizer.save(str(stats))
     finally:
@@ -1065,7 +1143,8 @@ def test_real_ppo_cli_resume_preserves_recipe_and_releases_stage_warmup(tmp_path
     monkeypatch.setattr(train_behaviors, "get_behavior_env_class", lambda species: PilotEnv)
     config = tmp_path / "short.toml"
     config.write_text(
-        '[behavior]\nspecies = "trex"\nname = "short"\nparent = "locomotion"\ntimesteps = 48\n[ppo]\nwarmup_timesteps = 24\n'
+        '[behavior]\nspecies = "tyrannosaurus_rex"\nembodiment = "anatomical"\nname = "short"\nparent = "locomotion"\n'
+        "timesteps = 48\n[ppo]\nwarmup_timesteps = 24\n"
     )
     updates = []
     train = PPO.train

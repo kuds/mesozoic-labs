@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 from environments.shared.curriculum.gate_schema import gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
@@ -32,12 +33,14 @@ _COMMIT = "a" * 40
 #: The task fingerprint a reused ancestor carries in every record of it.
 _ANCESTOR_TASK_SHA256 = "sha256:" + "7" * 64
 #: The run the reused trunk came from (its provenance run_id).
-_TRUNK_RUN_ID = "velociraptor-stable-baselines3-ppo-trunk"
+_TRUNK_RUN_ID = "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-trunk"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+#: The model every synthetic bundle names unless a test passes another.
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 
 
 class _InitializeResultBundleKwargs(TypedDict):
-    species: str
+    model_id: ModelId
     algorithm: str
     backend: str
     seed: int
@@ -49,12 +52,9 @@ class _InitializeResultBundleKwargs(TypedDict):
     captured_at: str
 
 
-def _plant_identity(species: str = "velociraptor") -> dict[str, Any]:
-    model_paths = {
-        "velociraptor": "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml",
-        "trex": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
-    }
-    return make_plant_identity(species=species, model_path=model_paths[species]).to_dict()
+def _plant_identity(model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS) -> dict[str, Any]:
+    model_path = model_id.asset_path(Path("environments")).as_posix()
+    return make_plant_identity(**model_id.record(), model_path=model_path).to_dict()
 
 
 def _stage_result(
@@ -62,7 +62,7 @@ def _stage_result(
     *,
     model_path: Path | None = None,
     magnitude: int | None = None,
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
 ) -> dict[str, Any]:
     # ``magnitude`` decouples the synthetic metric values from the stage
     # REFERENCE, which since the manifest migration may be a semantic id
@@ -100,7 +100,7 @@ def _stage_result(
         "best_model_success_rate": 0.6667,
         "gate_passed": True,
         "publication_gate_passed": True,
-        "plant_identity": _plant_identity(species),
+        "plant_identity": _plant_identity(model_id),
     }
     if model_path is not None:
         result["model_path"] = str(model_path)
@@ -137,7 +137,7 @@ def _write_stage_configs(
     run_dir: Path,
     stage_configs: "dict[int | str, dict[str, Any]]",
     dirname=_legacy_stage_dirname,
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
 ) -> None:
     for stage, config in stage_configs.items():
         stage_dir = run_dir / dirname(stage)
@@ -150,10 +150,10 @@ def _write_stage_configs(
             algorithm = "PPO"
         saved_config = {
             **config,
-            "species": species,
+            **model_id.record(),
             "stage": stage,
             "algorithm": algorithm,
-            "plant_identity": _plant_identity(species),
+            "plant_identity": _plant_identity(model_id),
         }
         (stage_dir / "stage_config.json").write_text(
             json.dumps(saved_config, indent=2, sort_keys=True) + "\n",
@@ -204,7 +204,7 @@ def _complete_bundle_inputs(
     *,
     algorithm: str,
     dirname=_legacy_stage_dirname,
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
     stage_refs: "tuple[int | str, ...]" = (1, 2, 3),
 ) -> "tuple[list[dict[str, Any]], dict[int | str, dict[str, Any]]]":
     # Metric magnitudes stay keyed to the legacy trio's historical values;
@@ -221,7 +221,7 @@ def _complete_bundle_inputs(
         else:
             curriculum = None
         stage_configs[stage] = _stage_config(stage, algorithm, curriculum=curriculum, magnitude=_magnitude(stage))
-    _write_stage_configs(run_dir, stage_configs, dirname=dirname, species=species)
+    _write_stage_configs(run_dir, stage_configs, dirname=dirname, model_id=model_id)
     stage_results = []
     for stage in stage_refs:
         magnitude = _magnitude(stage)
@@ -230,7 +230,7 @@ def _complete_bundle_inputs(
         selected_model.write_bytes(f"selected model stage {stage}".encode())
         selected_vecnorm = run_dir / dirname(stage) / "models" / "best_model_vecnorm.pkl"
         selected_vecnorm.write_bytes(f"selected normalization stage {stage}".encode())
-        stage_result = _stage_result(stage, model_path=selected_model, magnitude=magnitude, species=species)
+        stage_result = _stage_result(stage, model_path=selected_model, magnitude=magnitude, model_id=model_id)
         stage_result["vecnorm_path"] = str(selected_vecnorm)
         if stage == "recovery":
             # none/v1 refuses to pass; the pilot's honest verdict is False.
@@ -286,7 +286,7 @@ def _write_ancestor_record(
     run_dir: Path,
     stage: "int | str",
     *,
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
     passed: bool = True,
     parent_run_id: str = _TRUNK_RUN_ID,
     task_sha256: str = _ANCESTOR_TASK_SHA256,
@@ -303,7 +303,7 @@ def _write_ancestor_record(
     its hashes travel.  Returns the record directory and the handoff
     checkpoint's sha256.
     """
-    entry = load_stage_manifest(species).resolve(stage)
+    entry = load_stage_manifest(model_id).resolve(stage)
     source_root = source_run_dir if source_run_dir is not None else run_dir.parent / "trunk-run"
     source_stage_dir = source_root / _legacy_stage_dirname(stage)
     source_models = source_stage_dir / "models"
@@ -316,10 +316,10 @@ def _write_ancestor_record(
         normalization.write_bytes(f"trunk normalization for {entry.id}".encode())
     stage_config = {
         **_stage_config(stage, "PPO", magnitude=1),
-        "species": species,
+        **model_id.record(),
         "stage": entry.reference,
         "algorithm": "PPO",
-        "plant_identity": _plant_identity(species),
+        "plant_identity": _plant_identity(model_id),
         "task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": task_sha256},
     }
     (source_stage_dir / "stage_config.json").write_text(
@@ -327,7 +327,7 @@ def _write_ancestor_record(
     )
     write_gate_verdict(
         source_stage_dir,
-        species=species,
+        model_id=model_id,
         stage=entry.reference,
         stage_id=entry.id,
         gate_kind="reward_and_length/v1",
@@ -350,7 +350,7 @@ def _write_ancestor_record(
         json.dumps(stage_config["task_fingerprint"], indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     (record_dir / "plant_identity.json").write_text(
-        json.dumps(_plant_identity(species), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(_plant_identity(model_id), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     record = {
         "schema": ANCESTOR_RECORD_SCHEMA,
@@ -381,7 +381,7 @@ def _reused_trunk_bundle_inputs(
     *,
     reused: "tuple[int | str, ...]" = (1,),
     trained: "tuple[int | str, ...]" = (2, 3),
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
     reused_passed: bool = True,
 ) -> "tuple[list[dict[str, Any]], dict[int | str, dict[str, Any]]]":
     """A run that reused *reused* from another run and trained *trained* here.
@@ -392,14 +392,14 @@ def _reused_trunk_bundle_inputs(
     ``parent_run_id`` and ``parent_checkpoint_sha256`` bound to the record.
     """
     stage_results, stage_configs = _complete_bundle_inputs(
-        run_dir, algorithm="PPO", species=species, stage_refs=trained
+        run_dir, algorithm="PPO", model_id=model_id, stage_refs=trained
     )
     hashes: dict[Any, str] = {}
     for stage in reused:
-        record_dir, checkpoint_hash = _write_ancestor_record(run_dir, stage, species=species, passed=reused_passed)
+        record_dir, checkpoint_hash = _write_ancestor_record(run_dir, stage, model_id=model_id, passed=reused_passed)
         hashes[stage] = checkpoint_hash
     first_trained = trained[0]
-    parent = load_stage_manifest(species).parent_of(first_trained)
+    parent = load_stage_manifest(model_id).parent_of(first_trained)
     if parent is not None and parent.reference in hashes:
         config_path = run_dir / _legacy_stage_dirname(first_trained) / "stage_config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -423,20 +423,20 @@ def _complete_bundle(
     algorithm: str,
     backend: str,
     dirname=_legacy_stage_dirname,
-    species: str = "velociraptor",
+    model_id: ModelId = VELOCIRAPTOR_MONGOLIENSIS,
     stage_refs: "tuple[int | str, ...]" = (1, 2, 3),
 ) -> "tuple[dict[str, Path], list[dict[str, Any]], dict[int | str, dict[str, Any]]]":
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
         algorithm=algorithm,
         dirname=dirname,
-        species=species,
+        model_id=model_id,
         stage_refs=stage_refs,
     )
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        species,
+        model_id,
         algorithm,
         42,
         run_dir,
@@ -445,8 +445,8 @@ def _complete_bundle(
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity(species),
-        run_id=f"{species}-{backend}-{algorithm.lower()}-test",
+        plant_identity=_plant_identity(model_id),
+        run_id=f"{model_id.species}-{model_id.embodiment}-{backend}-{algorithm.lower()}-test",
     )
     return paths, stage_results, stage_configs
 
@@ -457,7 +457,7 @@ def _load_summary(path: Path) -> dict[str, Any]:
 
 
 def _published_summary() -> dict[str, Any]:
-    return _load_summary(REPOSITORY_ROOT / "results" / "velociraptor" / "ppo" / "summary.json")
+    return _load_summary(VELOCIRAPTOR_MONGOLIENSIS.path(REPOSITORY_ROOT / "results") / "ppo" / "summary.json")
 
 
 def _canonical_plant_identity() -> dict[str, Any]:
@@ -470,7 +470,7 @@ def _canonical_summary() -> dict[str, Any]:
     summary.update(
         {
             "bundle_status": "complete",
-            "run_id": "velociraptor-stable-baselines3-ppo-test",
+            "run_id": "velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
             "backend_version": "2.7.0",
             "plant_identity": plant_identity,
         }
@@ -483,6 +483,7 @@ def _canonical_summary() -> dict[str, Any]:
             "config_hash": "sha256:" + "c" * 64,
             "run_id": summary["run_id"],
             "species": summary["species"],
+            "embodiment": summary["embodiment"],
             "algorithm": summary["algorithm"],
             "backend": summary["backend"],
             "backend_version": summary["backend_version"],

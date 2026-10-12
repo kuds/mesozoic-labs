@@ -53,6 +53,7 @@ from environments.shared.curriculum.recovery_gate import (
     binomial_ucb,
     evaluate_recovery_gate,
 )
+from environments.shared.model_id import ModelId
 
 RECOVERY_CONFIG = Path("configs/tyrannosaurus_rex/anatomical/recovery.toml")
 
@@ -68,7 +69,7 @@ STATUE_SUCCESSES = 0
 @pytest.fixture(scope="module")
 def curriculum() -> dict[str, Any]:
     """The committed ``[curriculum]`` block, read the way a stage reads it."""
-    loaded = load_stage_config("trex", "recovery")
+    loaded = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "recovery")
     block: dict[str, Any] = dict(loaded["curriculum_kwargs"])
     # The loader is the path that matters, but the raw TOML is what a reviewer
     # edits; a divergence between them would make every pin below vacuous.

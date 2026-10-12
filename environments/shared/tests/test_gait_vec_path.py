@@ -21,14 +21,19 @@ import pytest
 from environments.shared.config import load_stage_config
 from environments.shared.gait.morphology import Morphology
 from environments.shared.gait.recorder import EpisodeTrace, SubstepContactRecorder
+from environments.shared.model_id import ModelId
 from environments.shared.species_registry import get_species_config
 
 HORIZON = 40
 
 
 def make_env(**overrides):
-    kwargs = {**dict(load_stage_config("trex", "stance")["env_kwargs"]), "max_episode_steps": HORIZON, **overrides}
-    return get_species_config("trex").env_class(**kwargs)
+    kwargs = {
+        **dict(load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["env_kwargs"]),
+        "max_episode_steps": HORIZON,
+        **overrides,
+    }
+    return get_species_config(ModelId("tyrannosaurus_rex", "anatomical")).env_class(**kwargs)
 
 
 def test_the_vec_path_with_auto_reset_gives_the_explicit_trace():
@@ -38,7 +43,9 @@ def test_the_vec_path_with_auto_reset_gives_the_explicit_trace():
 
     explicit_env = make_env()
     try:
-        with SubstepContactRecorder(explicit_env, Morphology.from_env(explicit_env, "trex")) as recorder:
+        with SubstepContactRecorder(
+            explicit_env, Morphology.from_env(explicit_env, ModelId("tyrannosaurus_rex", "anatomical"))
+        ) as recorder:
             explicit_env.reset(seed=3042)
             zero = np.zeros(explicit_env.model.nu)
             while True:
@@ -55,7 +62,9 @@ def test_the_vec_path_with_auto_reset_gives_the_explicit_trace():
         vec_env.seed(3042)
         inner = vec_env.venv.envs[0].unwrapped
         traces = []
-        with SubstepContactRecorder(inner, Morphology.from_env(inner, "trex")) as recorder:
+        with SubstepContactRecorder(
+            inner, Morphology.from_env(inner, ModelId("tyrannosaurus_rex", "anatomical"))
+        ) as recorder:
             vec_env.reset()
             while len(traces) < 2:
                 actions = np.zeros((1, inner.model.nu), dtype=np.float32)

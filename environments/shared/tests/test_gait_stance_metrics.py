@@ -39,6 +39,7 @@ from environments.shared.gait.stance_metrics import (
     episode_stance_metrics,
     spawn_grace_steps,
 )
+from environments.shared.model_id import ModelId
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GAIT = REPO_ROOT / "environments" / "shared" / "gait"
@@ -58,7 +59,7 @@ def statue_trace(steps: int = 400, *, n_feet: int = 2, dt: float = 0.01, frame_s
     zeros = np.zeros((steps, n_feet))
     labels = ("r", "l") if n_feet == 2 else ("fr", "fl", "rr", "rl")
     return EpisodeTrace(
-        species="synthetic",
+        model_id=ModelId("synthetic_biped", "anatomical"),
         dt=dt,
         frame_skip=frame_skip,
         body_weight_n=BODY_WEIGHT,
@@ -860,11 +861,11 @@ def test_the_gait_package_imports_neither_curriculum_nor_reporting():
 
 def test_no_species_env_module_imports_the_gait_package():
     """An import line would change an env module's bytes, and with them its identity (and digests)."""
-    modules = sorted((REPO_ROOT / "environments").glob("*/envs/*.py"))
-    modules += sorted((REPO_ROOT / "environments").glob("*/mjx_config.py"))
-    modules += [
-        REPO_ROOT / "environments" / "shared" / name for name in ("base_env.py", "behavior_env.py", "mjx_env.py")
-    ]
+    environments = REPO_ROOT / "environments"
+    # Each species' base class, each embodiment's class and the two frozen MJX registrations (decision D-D33).
+    modules = sorted({*environments.glob("*/base_env.py"), *environments.glob("*/*/env.py")})
+    modules += sorted(environments.glob("*/*/mjx_config.py"))
+    modules += [environments / "shared" / name for name in ("behavior_env.py", "mjx_env.py")]
     assert len(modules) > 10
     offenders = [
         path.relative_to(REPO_ROOT).as_posix()

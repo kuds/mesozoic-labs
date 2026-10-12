@@ -29,10 +29,14 @@ import pytest
 
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.shared.config import load_stage_config
+from environments.shared.model_id import ModelId
 
 
 def _survivors(sigma: float, episodes: int) -> int:
-    kwargs = {**load_stage_config("compsognathus", "stance")["env_kwargs"], "support_geom_coverage_weight": 0.0}
+    kwargs = {
+        **load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")["env_kwargs"],
+        "support_geom_coverage_weight": 0.0,
+    }
     env = CompsognathusLongipesAnatomicalEnv(**kwargs)
     survivors = 0
     try:

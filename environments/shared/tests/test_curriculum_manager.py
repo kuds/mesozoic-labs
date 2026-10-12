@@ -19,6 +19,7 @@ from environments.shared.curriculum.gate_schema import (
     validate_gate_config,
     validate_gate_configs,
 )
+from environments.shared.model_id import ModelId
 
 #: The gate declaration every real stage config carries. Tests that exercise a
 #: working gate must include it, because an undeclared gate is now fatal.
@@ -59,7 +60,7 @@ class TestCurriculumManager:
     @pytest.fixture
     def manager(self):
         return CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -89,7 +90,7 @@ class TestCurriculumManager:
 
     def test_current_threshold_returns_effective_override(self):
         manager = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={1: {"min_success_rate": 0.75}},
             start_stage=1,
         )
@@ -162,14 +163,14 @@ class TestCurriculumManager:
     def test_summary_contains_history(self, manager):
         manager.record_eval([10.0, 20.0], [100.0, 200.0])
         s = manager.summary()
-        assert s["species"] == "velociraptor"
+        assert (s["species"], s["embodiment"]) == ("velociraptor_mongoliensis", "anatomical")
         assert s["current_stage"] == 1
         assert len(s["eval_history"][1]) == 1
 
     def test_min_eval_episodes_enforced(self):
         """Threshold requires 5 episodes but we only provide 3."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {"min_avg_reward": 0.0, "min_eval_episodes": 5, "required_consecutive": 1},
             },
@@ -180,7 +181,7 @@ class TestCurriculumManager:
     def test_forward_vel_gate_blocks_without_velocity(self):
         """Stage with forward velocity threshold should block if velocity is too low."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -199,7 +200,7 @@ class TestCurriculumManager:
     def test_forward_vel_gate_blocks_low_velocity(self):
         """Stage with forward velocity threshold should block if velocity is below threshold."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -218,7 +219,7 @@ class TestCurriculumManager:
     def test_forward_vel_gate_passes_with_good_velocity(self):
         """Stage with forward velocity threshold should pass when all metrics met."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -237,7 +238,7 @@ class TestCurriculumManager:
     def test_success_rate_gate_blocks_low_rate(self):
         """Success rate below threshold should block advancement."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -256,7 +257,7 @@ class TestCurriculumManager:
     def test_success_rate_gate_passes_high_rate(self):
         """Success rate above threshold should allow advancement."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "min_avg_reward": 10.0,
@@ -275,7 +276,7 @@ class TestCurriculumManager:
     def test_record_eval_with_forward_vel(self):
         """record_eval should include forward velocity in summary."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={1: {"min_avg_reward": 0.0, "required_consecutive": 1}},
         )
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0])
@@ -284,7 +285,7 @@ class TestCurriculumManager:
     def test_task_success_gate_blocks_low_lcb(self):
         """19/30 bounds at 0.467 < 0.5: refused, whatever the reward."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "gate_kind": "task_success/v1",
@@ -301,7 +302,7 @@ class TestCurriculumManager:
 
     def test_task_success_gate_passes_high_lcb(self):
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "gate_kind": "task_success/v1",
@@ -318,7 +319,7 @@ class TestCurriculumManager:
 
     def test_task_success_gate_keeps_the_reward_rail_as_a_conjunct(self):
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={
                 1: {
                     "gate_kind": "task_success/v1",
@@ -334,7 +335,7 @@ class TestCurriculumManager:
     def test_record_eval_with_success_rate(self):
         """record_eval should include success rate in summary."""
         mgr = CurriculumManager(
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             stage_thresholds={1: {"min_avg_reward": 0.0, "required_consecutive": 1}},
         )
         summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], success_rates=[1.0, 0.0])
@@ -471,30 +472,29 @@ class TestThresholdsFromConfigs:
         advance.
         """
         from environments.shared.config import load_all_stages
-        from environments.shared.stage_manifest import _CONFIGS_DIR
+        from environments.shared.species_names import model_ids
 
-        # Every species with a stage manifest, compsognathus and its robot
-        # included: D-B14 keeps them on reward_and_length/v1, and the loop
-        # must see them so a kind drift there fails here too.
-        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
-        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus"} <= set(species_ids)
-        for species in species_ids:
-            stages = load_all_stages(species)
+        # Every model, both Compsognathus embodiments included: D-B14 keeps
+        # them on reward_and_length/v1, and the loop must see them so a kind
+        # drift there fails here too.
+        assert len(model_ids()) == 6
+        for model_id in model_ids():
+            stages = load_all_stages(model_id)
             chain = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, int)}
             kinds = validate_gate_configs(chain)
-            assert set(kinds.values()) <= set(GATE_KINDS), species
+            assert set(kinds.values()) <= set(GATE_KINDS), model_id
             # "none/v1" refuses to advance, so a stage on the advancing
             # chain must never declare it.
-            assert "none/v1" not in set(kinds.values()), species
+            assert "none/v1" not in set(kinds.values()), model_id
             pilots = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, str)}
             pilot_kinds = validate_gate_configs(pilots, advancement_enabled=False)
-            assert set(pilot_kinds.values()) <= set(GATE_KINDS), species
+            assert set(pilot_kinds.values()) <= set(GATE_KINDS), model_id
 
-    def test_trex_stage1_gates_on_stance_quality(self):
+    def test_tyrannosaurus_rex_stage1_gates_on_stance_quality(self):
         """T-Rex 1a must not be gated on return: a statue is the reward optimum."""
         from environments.shared.config import load_all_stages
 
-        curriculum = load_all_stages("trex")[1]["curriculum_kwargs"]
+        curriculum = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]["curriculum_kwargs"]
         # The six-heading certificate since D-D32, stance_quality/v2 from physics r8 (D-D24) and
         # stance_quality/v1 before it: a stance kind every time.
         assert curriculum["gate_kind"] == "stance_quality_heading/v1"
@@ -508,7 +508,7 @@ class TestThresholdsFromConfigs:
         # The bound's power is specified at this panel size.
         assert curriculum["min_eval_episodes"] == 40
 
-    def test_trex_behavior_gates_on_task_success(self):
+    def test_tyrannosaurus_rex_behavior_gates_on_task_success(self):
         """The trex hunt is certified on the binomial LCB95, not on speed or a raw mean (plan §4.4, WS-B2).
 
         Review CF2 / plan D1 retired ``min_avg_forward_vel`` (a bite episode
@@ -526,7 +526,7 @@ class TestThresholdsFromConfigs:
         from environments.shared.config import load_all_stages
         from environments.shared.curriculum import TASK_SUCCESS_GATE_KIND
 
-        curriculum = load_all_stages("trex")[3]["curriculum_kwargs"]
+        curriculum = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[3]["curriculum_kwargs"]
         assert curriculum["gate_kind"] == TASK_SUCCESS_GATE_KIND
         assert "min_avg_forward_vel" not in curriculum
         assert "min_success_rate" not in curriculum
@@ -553,7 +553,7 @@ class TestThresholdsFromConfigs:
         # The scheduler's hysteresis stays as an allowed key (D-B3); the
         # thresholds the manager extracts carry the bar.
         assert curriculum["required_consecutive"] == 3
-        thresholds = thresholds_from_configs(load_all_stages("trex"))[3]
+        thresholds = thresholds_from_configs(load_all_stages(ModelId("tyrannosaurus_rex", "anatomical")))[3]
         assert thresholds["gate_kind"] == TASK_SUCCESS_GATE_KIND
         assert thresholds["min_success_lcb"] == 0.5
         assert thresholds["min_eval_episodes"] == 30
@@ -563,7 +563,7 @@ class TestThresholdsFromConfigs:
         """Integration test: extract thresholds from actual TOML configs."""
         from environments.shared.config import load_all_stages
 
-        configs = load_all_stages("velociraptor")
+        configs = load_all_stages(ModelId("velociraptor_mongoliensis", "anatomical"))
         thresholds = thresholds_from_configs(configs)
         assert isinstance(thresholds, dict)
 
@@ -605,11 +605,11 @@ class TestPublicationKeys:
         from environments.shared.config import load_all_stages
         from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REQUIRED_KEYS
         from environments.shared.curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
-        from environments.shared.stage_manifest import _CONFIGS_DIR
+        from environments.shared.species_names import model_ids
 
         seen = set()
-        for species in sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml")):
-            for stage, cfg in load_all_stages(species).items():
+        for model_id in model_ids():
+            for stage, cfg in load_all_stages(model_id).items():
                 block = {**cfg["curriculum_kwargs"], "certification_seeds": 3}
                 kind = validate_gate_config(stage, block, advancement_enabled=isinstance(stage, int))
                 seen.add(kind)
@@ -657,14 +657,14 @@ class TestPublicationKeys:
         thresholds = thresholds_from_configs({1: {"curriculum_kwargs": block}})
         assert "certification_seeds" not in thresholds[1]
 
-    def test_trex_stance_declares_two_certification_seeds_outside_every_digest(self):
+    def test_tyrannosaurus_rex_stance_declares_two_certification_seeds_outside_every_digest(self):
         """configs/tyrannosaurus_rex/anatomical/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES) and
         every other committed stage keeps the default 1; the stance gate digest AND its recipe digest
         are exactly what they were without the key, so the certified stance trunk stays reusable."""
         from environments.shared.config import hyperparameters_sha256, load_all_stages
-        from environments.shared.stage_manifest import _CONFIGS_DIR
+        from environments.shared.species_names import model_ids
 
-        stance = load_all_stages("trex")[1]
+        stance = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]
         block = stance["curriculum_kwargs"]
         assert block["certification_seeds"] == 2 == declared_certification_seeds(block, stage=1)
         without = {key: value for key, value in block.items() if key != "certification_seeds"}
@@ -673,9 +673,9 @@ class TestPublicationKeys:
         assert hyperparameters_sha256(stance, "PPO") == hyperparameters_sha256(
             {**stance, "curriculum_kwargs": without}, "PPO"
         )
-        for species in sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml")):
-            for stage, cfg in load_all_stages(species).items():
-                if (species, stage) == ("trex", 1):
+        for model_id in model_ids():
+            for stage, cfg in load_all_stages(model_id).items():
+                if (model_id, stage) == (ModelId("tyrannosaurus_rex", "anatomical"), 1):
                     continue
-                assert "certification_seeds" not in cfg["curriculum_kwargs"], (species, stage)
+                assert "certification_seeds" not in cfg["curriculum_kwargs"], (model_id, stage)
                 assert declared_certification_seeds(cfg["curriculum_kwargs"], stage=stage) == 1

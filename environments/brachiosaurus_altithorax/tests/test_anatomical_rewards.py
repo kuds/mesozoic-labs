@@ -18,7 +18,7 @@ def env():
     e.close()
 
 
-class TestBrachioRewardComponents:
+class TestBrachiosaurusAltithoraxRewardComponents:
     """Brachiosaurus-specific reward component tests."""
 
     def test_total_reward_is_sum_of_components(self, env):
@@ -81,7 +81,7 @@ class TestBrachioRewardComponents:
         assert info["reward_speed"] <= 0.0
 
 
-class TestBrachioRewardWeightEffects:
+class TestBrachiosaurusAltithoraxRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_zero_food_bonus_gives_no_food_reward(self):

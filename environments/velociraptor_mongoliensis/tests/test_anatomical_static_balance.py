@@ -56,11 +56,11 @@ class TestHomePoseCOM(HomePoseCOMBase):
     ankle_body_names = ("r_metatarsus", "l_metatarsus")
     max_ankle_offset = 0.10
     max_support_distance = 0.15
-    species_label = "raptor"
+    species_label = "Velociraptor"
 
 
 class TestNeutralActionStability(NeutralActionStabilityBase):
-    species_name = "Raptor"
+    species_name = "Velociraptor"
     root_body_id_attr = "pelvis_id"
     max_height_drop = 0.10
     max_tilt_increase = 0.53  # 30 degrees
@@ -73,14 +73,14 @@ class TestNeutralActionStability(NeutralActionStabilityBase):
         for step in range(1, env.max_episode_steps + 1):
             _, _, terminated, truncated, info = env.step(neutral_action)
             assert not terminated, (
-                f"Raptor terminated at step {step}/{env.max_episode_steps} "
+                f"Velociraptor terminated at step {step}/{env.max_episode_steps} "
                 f"under the XML home command: {info.get('termination_reason', 'unknown')}"
             )
             assert truncated is (step == env.max_episode_steps)
 
 
 class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):
-    species_name = "Raptor"
+    species_name = "Velociraptor"
     root_body_id_attr = "pelvis_id"
     max_height_drop = 0.08
     max_tilt_increase = 0.30

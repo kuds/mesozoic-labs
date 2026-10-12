@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import (
     ResultBundleError,
     audit_result_bundle,
@@ -33,7 +34,7 @@ def test_artifact_manifest_is_root_and_creation_order_independent(
         run_dir = tmp_path / f"copy{index}"
         initialize_result_bundle(
             run_dir,
-            species="velociraptor",
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             algorithm="PPO",
             seed=42,
             run_id="fixed-run-id",
@@ -53,7 +54,9 @@ def test_artifact_manifest_detects_post_write_tampering(
     stable_provenance: None,
 ) -> None:
     run_dir = tmp_path / "run"
-    initialize_result_bundle(run_dir, species="velociraptor", algorithm="PPO", seed=42)
+    initialize_result_bundle(
+        run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"), algorithm="PPO", seed=42
+    )
     artifact = run_dir / "checkpoint.bin"
     artifact.write_bytes(b"abcd")
     write_artifact_manifest(run_dir, status="partial")
@@ -172,7 +175,7 @@ def test_a_bundle_saves_with_litter_already_present(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        ModelId("velociraptor_mongoliensis", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -182,7 +185,7 @@ def test_a_bundle_saves_with_litter_already_present(
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
         plant_identity=_plant_identity(),
-        run_id="velociraptor-stable-baselines3-ppo-test",
+        run_id="velociraptor_mongoliensis-anatomical-stable-baselines3-ppo-test",
     )
 
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "complete"

@@ -14,10 +14,9 @@ import numpy as np
 import pytest
 
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
-from environments.compsognathus_longipes.anatomical.env import (
-    CompsognathusLongipesAnatomicalEnv,
-    CompsognathusLongipesEnv,
-)
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.compsognathus_longipes.base_env import CompsognathusLongipesEnv
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PlantContractError,
@@ -30,9 +29,14 @@ from environments.shared.plant_contract.policy_layer import _jax_policy_interfac
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 
-def test_visual_only_material_change_only_changes_visual_layer(raptor_layers):
-    source, interface, version, original = raptor_layers
+
+def test_visual_only_material_change_only_changes_visual_layer(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace('rgba="0.6 0.5 0.4 1"', 'rgba="0.55 0.48 0.38 1"', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
@@ -44,8 +48,8 @@ def test_visual_only_material_change_only_changes_visual_layer(raptor_layers):
     assert changed["visual_sha256"] != original["visual_sha256"]
 
 
-def test_mass_change_changes_physics_without_changing_interface(raptor_layers):
-    source, interface, version, original = raptor_layers
+def test_mass_change_changes_physics_without_changing_interface(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace('mass="4.0" material="body_mat"', 'mass="4.1" material="body_mat"', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
@@ -56,8 +60,8 @@ def test_mass_change_changes_physics_without_changing_interface(raptor_layers):
     assert changed["physics_sha256"] != original["physics_sha256"]
 
 
-def test_home_control_change_updates_policy_and_physics_fingerprints(raptor_layers):
-    source, interface, version, original = raptor_layers
+def test_home_control_change_updates_policy_and_physics_fingerprints(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace('ctrl="0.652647', 'ctrl="0.650000', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
@@ -69,8 +73,8 @@ def test_home_control_change_updates_policy_and_physics_fingerprints(raptor_laye
     assert changed["visual_sha256"] == original["visual_sha256"]
 
 
-def test_joint_actuator_force_cap_changes_physics_fingerprint(raptor_layers):
-    source, interface, version, original = raptor_layers
+def test_joint_actuator_force_cap_changes_physics_fingerprint(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace(
         'name="r_hip_pitch" class="leg_joint" type="hinge"',
         'name="r_hip_pitch" class="leg_joint" type="hinge" actuatorfrcrange="-5 5"',
@@ -88,8 +92,8 @@ def test_joint_actuator_force_cap_changes_physics_fingerprint(raptor_layers):
     assert changed["visual_sha256"] == original["visual_sha256"]
 
 
-def test_active_contact_override_option_changes_physics_fingerprint(raptor_layers):
-    source, interface, version, _original = raptor_layers
+def test_active_contact_override_option_changes_physics_fingerprint(velociraptor_mongoliensis_layers):
+    source, interface, version, _original = velociraptor_mongoliensis_layers
     base_source = source.replace(
         '<flag warmstart="enable"/>',
         '<flag warmstart="enable" override="enable"/>',
@@ -106,8 +110,8 @@ def test_active_contact_override_option_changes_physics_fingerprint(raptor_layer
     assert changed["visual_sha256"] == base["visual_sha256"]
 
 
-def test_all_public_mujoco_options_are_fingerprinted(raptor_layers):
-    _source, interface, _version, _original = raptor_layers
+def test_all_public_mujoco_options_are_fingerprinted(velociraptor_mongoliensis_layers):
+    _source, interface, _version, _original = velociraptor_mongoliensis_layers
     expected = {
         name
         for name in dir(interface.model.opt)
@@ -117,8 +121,8 @@ def test_all_public_mujoco_options_are_fingerprinted(raptor_layers):
     assert set(_option_payload(interface.model)) == expected
 
 
-def test_heightfield_samples_change_physics_and_visual_fingerprints(raptor_layers):
-    source, interface, version, _original = raptor_layers
+def test_heightfield_samples_change_physics_and_visual_fingerprints(velociraptor_mongoliensis_layers):
+    source, interface, version, _original = velociraptor_mongoliensis_layers
     base_source = source.replace(
         "<asset>",
         '<asset>\n    <hfield name="terrain" nrow="2" ncol="2" size="50 50 1 0.1" elevation="0 0 0 0"/>',
@@ -154,7 +158,7 @@ def test_noncolliding_fluid_geom_changes_physics_fingerprint():
             1,
         )
         version = PlantVersion(
-            species="brachiosaurus",
+            model_id=BRACHIOSAURUS_ALTITHORAX,
             physics_revision=1,
             policy_interface_revision=1,
             visual_revision=1,
@@ -170,8 +174,8 @@ def test_noncolliding_fluid_geom_changes_physics_fingerprint():
     assert changed["visual_sha256"] == base["visual_sha256"]
 
 
-def test_camera_resolution_changes_only_visual_fingerprint(raptor_layers):
-    source, interface, version, _original = raptor_layers
+def test_camera_resolution_changes_only_visual_fingerprint(velociraptor_mongoliensis_layers):
+    source, interface, version, _original = velociraptor_mongoliensis_layers
     base_source = source.replace(
         "<worldbody>",
         '<worldbody>\n    <camera name="contract_camera" pos="0 0 2" resolution="640 480"/>',
@@ -186,8 +190,8 @@ def test_camera_resolution_changes_only_visual_fingerprint(raptor_layers):
     assert changed["visual_sha256"] != base["visual_sha256"]
 
 
-def test_control_range_change_changes_interface_and_physics(raptor_layers):
-    source, interface, version, original = raptor_layers
+def test_control_range_change_changes_interface_and_physics(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace('ctrlrange="-1.0472 1.5708"', 'ctrlrange="-1.0 1.5708"', 1)
     assert changed_source != source
     changed_model = mujoco.MjModel.from_xml_string(changed_source)
@@ -198,8 +202,8 @@ def test_control_range_change_changes_interface_and_physics(raptor_layers):
     assert changed["physics_sha256"] != original["physics_sha256"]
 
 
-def test_touch_site_shape_change_changes_interface_and_visual_layers(raptor_layers):
-    source, interface, version, original = raptor_layers
+def test_touch_site_shape_change_changes_interface_and_visual_layers(velociraptor_mongoliensis_layers):
+    source, interface, version, original = velociraptor_mongoliensis_layers
     changed_source = source.replace(
         '<site name="r_foot" pos="0.05 0 0" size="0.08" group="4"/>',
         '<site name="r_foot" pos="0.05 0 0" size="0.085" group="4"/>',
@@ -215,8 +219,8 @@ def test_touch_site_shape_change_changes_interface_and_visual_layers(raptor_laye
     assert changed["visual_sha256"] != original["visual_sha256"]
 
 
-def test_cached_observation_body_mapping_changes_interface_fingerprint(raptor_layers):
-    _source, env, version, original = raptor_layers
+def test_cached_observation_body_mapping_changes_interface_fingerprint(velociraptor_mongoliensis_layers):
+    _source, env, version, original = velociraptor_mongoliensis_layers
     original_pelvis_id = env.pelvis_id
     env.pelvis_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, "head")
     try:
@@ -230,13 +234,17 @@ def test_cached_observation_body_mapping_changes_interface_fingerprint(raptor_la
 
 
 @pytest.mark.parametrize(
-    ("env_class", "species"),
-    ((VelociraptorMongoliensisAnatomicalEnv, "velociraptor"), (TyrannosaurusRexAnatomicalEnv, "trex")),
+    ("env_class", "model_id"),
+    (
+        (VelociraptorMongoliensisAnatomicalEnv, VELOCIRAPTOR_MONGOLIENSIS),
+        (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
+    ),
+    ids=["velociraptor_mongoliensis-anatomical", "tyrannosaurus_rex-anatomical"],
 )
-def test_biped_policy_contract_records_home_residual_action_mapping(env_class, species):
+def test_biped_policy_contract_records_home_residual_action_mapping(env_class, model_id):
     env = env_class(reset_noise_scale=0.0)
     try:
-        version = load_plant_versions()[1][species]
+        version = load_plant_versions()[1][model_id]
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
         mapping = payload["action_mapping"]
 
@@ -260,7 +268,7 @@ def test_biped_policy_contract_records_home_residual_action_mapping(env_class, s
         env.close()
 
 
-def test_brachio_records_home_residual_action_mapping():
+def test_brachiosaurus_altithorax_records_home_residual_action_mapping():
     """Brachiosaurus migrated off the midpoint mapping, and must stay off it.
 
     It was the last species on ``clip[-1,1]-then-affine-to-ordered-ctrlrange/v1``,
@@ -275,7 +283,7 @@ def test_brachio_records_home_residual_action_mapping():
     """
     env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
     try:
-        version = load_plant_versions()[1]["brachiosaurus"]
+        version = load_plant_versions()[1][BRACHIOSAURUS_ALTITHORAX]
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
         mapping = payload["action_mapping"]
 
@@ -289,7 +297,7 @@ def test_brachio_records_home_residual_action_mapping():
         env.close()
 
 
-def test_compsognathus_records_its_soft_cubic_leg_residual():
+def test_compsognathus_longipes_records_its_soft_cubic_leg_residual():
     """home-keyframe-residual-softcubic/v1 (compsognathus policy interface r3, D-D26).
 
     The ten leg residuals are shaped to ``b = s*a + (1 - s)*a**3`` before the home-keyframe span, so the slope at
@@ -299,7 +307,7 @@ def test_compsognathus_records_its_soft_cubic_leg_residual():
     """
     env = CompsognathusLongipesAnatomicalEnv(reset_noise_scale=0.0)
     try:
-        version = load_plant_versions()[1]["compsognathus"]
+        version = load_plant_versions()[1][COMPSOGNATHUS_LONGIPES]
         payload = _policy_interface_payload(env.model, env, version)
         mapping = payload["action_mapping"]
         legs = np.array([env.model.actuator(i).name[:2] in ("r_", "l_") for i in range(env.model.nu)])
@@ -361,7 +369,7 @@ def test_an_edit_of_the_parents_cache_ids_moves_the_anatomical_policy_interface(
     The anatomical class must not override it (an override would be what the interface hashes, and a parent
     edit would leave every anatomical checkpoint loading silently while the robot's digest moved).
     """
-    version = load_plant_versions()[1]["compsognathus"]
+    version = load_plant_versions()[1][COMPSOGNATHUS_LONGIPES]
     env = CompsognathusLongipesAnatomicalEnv(reset_noise_scale=0.0)
     try:
         original = fingerprint_model_layers(env.model, env, version)
@@ -383,8 +391,8 @@ def test_an_edit_of_the_parents_cache_ids_moves_the_anatomical_policy_interface(
     assert changed["physics_sha256"] == original["physics_sha256"]
 
 
-def test_human_revision_counters_do_not_change_semantic_fingerprints(raptor_layers):
-    _source, interface, version, original = raptor_layers
+def test_human_revision_counters_do_not_change_semantic_fingerprints(velociraptor_mongoliensis_layers):
+    _source, interface, version, original = velociraptor_mongoliensis_layers
     env = VelociraptorMongoliensisAnatomicalEnv(reset_noise_scale=0.0)
     try:
         revised = fingerprint_model_layers(
@@ -420,18 +428,18 @@ def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
             GENERATED_MANIFEST_PATH.parent.parent
             / "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
         ).read_text()
-        version = load_plant_versions()[1]["brachiosaurus"]
+        version = load_plant_versions()[1][BRACHIOSAURUS_ALTITHORAX]
         changed_source = source.replace("</worldbody>", '  <body name="pelvis" pos="0.3 0 1.5"/>\n  </worldbody>', 1)
         assert changed_source != source
         model = mujoco.MjModel.from_xml_string(changed_source)
         registration_module = importlib.import_module("environments.brachiosaurus_altithorax.anatomical.mjx_config")
         registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
-        if version.species not in registry:
+        if version.model_id.species not in registry:
             importlib.reload(registration_module)
-        registration = dict(registry[version.species])
+        registration = dict(registry[version.model_id.species])
         pelvis_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
         registration["body_ids"] = {**registration["body_ids"], "pelvis": pelvis_id}
-        monkeypatch.setitem(registry, version.species, registration)
+        monkeypatch.setitem(registry, version.model_id.species, registration)
 
         with pytest.raises(PlantContractError, match="exactly one root body, 'torso'"):
             _jax_policy_interface_payload(model, interface, version)

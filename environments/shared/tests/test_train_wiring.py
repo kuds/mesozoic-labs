@@ -20,10 +20,13 @@ from pathlib import Path
 import pytest
 
 from environments.shared.curriculum import early_stopping
+from environments.shared.model_id import ModelId
 from environments.shared.tb_sync import PeriodicTbSyncCallback
 from environments.shared.train_base import _build_core_callbacks, _prepare_alg_kwargs
 
 from .tiny_env_helpers import tiny_env_class
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 _CONFIG = {
     "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64, "clip_range": 0.2},
@@ -199,7 +202,8 @@ class TestAdvisoriesAnchorOnTheActualBudget:
 
         run_dir = tmp_path
         (run_dir / "zero_action_baseline.json").write_text(
-            json.dumps({"results": {"trex": {"reward_mean": 3271.77, "episodes": 40}}}), encoding="utf-8"
+            json.dumps({"results": {"tyrannosaurus_rex": {"anatomical": {"reward_mean": 3271.77, "episodes": 40}}}}),
+            encoding="utf-8",
         )
         stage_config = {
             "curriculum_kwargs": {
@@ -210,7 +214,9 @@ class TestAdvisoriesAnchorOnTheActualBudget:
             }
         }
         with caplog.at_level(logging.WARNING, logger=early_stopping.logger.name):
-            callbacks = _build(run_dir / "01_stance", stage_config, None, None, species="trex", total=2_000_000)
+            callbacks = _build(
+                run_dir / "01_stance", stage_config, None, None, model_id=TYRANNOSAURUS_REX, total=2_000_000
+            )
 
         baseline = next(cb for cb in callbacks if isinstance(cb, BaselineProgressCallback))
         assert baseline.total_timesteps == 2_000_000, "anchored on the TOML budget, not the session's"
@@ -219,7 +225,7 @@ class TestAdvisoriesAnchorOnTheActualBudget:
         )
 
 
-def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, species=None, total=None):
+def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, model_id=None, total=None):
     pytest.importorskip("stable_baselines3")
     from stable_baselines3.common.callbacks import CheckpointCallback
     from stable_baselines3.common.vec_env import DummyVecEnv
@@ -239,7 +245,7 @@ def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, species=None, 
             stage_config,
             local_tb_dir=local_tb_dir,
             gcs_tb_path=gcs_tb_path,
-            species=species,
+            model_id=model_id,
             total_timesteps=total,
         )
     finally:

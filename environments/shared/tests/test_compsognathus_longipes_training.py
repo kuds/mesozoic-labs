@@ -4,6 +4,7 @@ Tiny budgets exercise gradient updates and artifact contracts; they are not
 learning-performance tests. Production curriculum thresholds remain intact.
 """
 
+import ast
 import csv
 import json
 from copy import deepcopy
@@ -18,6 +19,7 @@ sb3 = pytest.importorskip("stable_baselines3")
 from environments.shared.config import load_all_stages  # noqa: E402
 from environments.shared.curriculum import load_vecnorm_stats  # noqa: E402
 from environments.shared.evaluation import eval_policy  # noqa: E402
+from environments.shared.model_id import ModelId  # noqa: E402
 from environments.shared.plant_contract import (  # noqa: E402
     PlantCompatibilityError,
     current_plant_identity,
@@ -35,7 +37,29 @@ from environments.shared.train_base import create_vec_env, train  # noqa: E402
 from .notebook_cells import exec_top_level_def, first_code_cell  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
-SPECIES = ("compsognathus", "compsognathus_robot")
+MODEL_IDS = (ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot"))
+
+
+def _selection_code(source, model_id):
+    """The notebook's selection cell with ``SPECIES`` and ``EMBODIMENT`` set to *model_id*'s IDs through the AST.
+
+    A text replace of the default selection would silently train the default model under another ID once the
+    default changed; the assignment is found and replaced, or the test fails.
+    """
+    tree = ast.parse(source)
+    values = {"SPECIES": model_id.species, "EMBODIMENT": model_id.embodiment}
+    assigned = set()
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id in values
+            and statement.targets[0].id not in assigned
+        ):
+            statement.value = ast.Constant(values[statement.targets[0].id])
+            assigned.add(statement.targets[0].id)
+    assert assigned == set(values), f"the selection cell assigns {sorted(assigned)}, not SPECIES and EMBODIMENT"
+    return compile(ast.fix_missing_locations(tree), "sb3_selection", "exec")
 
 
 @pytest.fixture(autouse=True)
@@ -65,8 +89,8 @@ def ppo_updates(monkeypatch):
     return updates
 
 
-def smoke_configs(species):
-    configs = deepcopy(load_all_stages(species))
+def smoke_configs(model_id):
+    configs = deepcopy(load_all_stages(model_id))
     for config in configs.values():
         if config["curriculum_kwargs"].get("gate_kind") == "stance_quality/v1":
             # Compress the settling prefix with the tiny test horizon while
@@ -120,19 +144,19 @@ def assert_optimizer_recipe(model, algorithm, config):
         assert all(group["lr"] == pytest.approx(expected_lr) for group in optimizer.param_groups)
 
 
-def assert_checkpoint_round_trip(species, algorithm, configs, stage, checkpoint, stats):
-    identity = current_plant_identity(species)
+def assert_checkpoint_round_trip(model_id, algorithm, configs, stage, checkpoint, stats):
+    identity = current_plant_identity(model_id)
     model = getattr(sb3, algorithm.upper()).load(checkpoint, device="cpu")
     validate_model_plant(model, identity)
     assert getattr(model, MODEL_TASK_ATTRIBUTE)
     assert model._n_updates > 0
     assert all(torch.isfinite(parameter).all() for parameter in model.policy.parameters())
     assert_optimizer_recipe(model, algorithm, configs[stage])
-    other = SPECIES[1] if species == SPECIES[0] else SPECIES[0]
+    other = MODEL_IDS[1] if model_id == MODEL_IDS[0] else MODEL_IDS[0]
     with pytest.raises(PlantCompatibilityError):
         validate_model_plant(model, current_plant_identity(other))
     eval_env = create_vec_env(
-        get_species_config(species),
+        get_species_config(model_id),
         configs,
         stage,
         1,
@@ -155,11 +179,11 @@ def assert_checkpoint_round_trip(species, algorithm, configs, stage, checkpoint,
         eval_env.close()
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_shared_trainer_all_stages_and_checkpoint_handoffs(species, algorithm, tmp_path, ppo_updates):
-    config = get_species_config(species)
-    stages = smoke_configs(species)
+def test_shared_trainer_all_stages_and_checkpoint_handoffs(model_id, algorithm, tmp_path, ppo_updates):
+    config = get_species_config(model_id)
+    stages = smoke_configs(model_id)
     previous = None
     for stage in (1, 2, 3):
         directory = tmp_path / f"stage{stage}"
@@ -195,17 +219,17 @@ def test_shared_trainer_all_stages_and_checkpoint_handoffs(species, algorithm, t
             assert ppo_updates[-1]["ent_coef"] == model.ent_coef
         previous = str(directory / "models" / f"stage{stage}_final.zip")
         stats = str(directory / "models" / f"stage{stage}_final_vecnorm.pkl")
-        assert_checkpoint_round_trip(species, algorithm, stages, stage, previous, stats)
+        assert_checkpoint_round_trip(model_id, algorithm, stages, stage, previous, stats)
         metadata = json.loads((directory / "stage_config.json").read_text())
-        assert metadata["plant_identity"]["species"] == species
+        assert model_id.matches(metadata["plant_identity"])
         assert (directory / "metrics.json").is_file()
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_recovery_warm_start_updates_and_checkpoint_handoff(species, algorithm, tmp_path, ppo_updates):
-    species_config = get_species_config(species)
-    stages = smoke_configs(species)
+def test_recovery_warm_start_updates_and_checkpoint_handoff(model_id, algorithm, tmp_path, ppo_updates):
+    species_config = get_species_config(model_id)
+    stages = smoke_configs(model_id)
     stance_dir = tmp_path / "stance"
     common = {
         "total_timesteps": 64,
@@ -250,17 +274,17 @@ def test_recovery_warm_start_updates_and_checkpoint_handoff(species, algorithm, 
         assert ppo_updates[-1]["clip_range"] == stages["recovery"]["ppo_kwargs"]["clip_range"]
     checkpoint = str(recovery_dir / "models/recovery_final.zip")
     stats = str(recovery_dir / "models/recovery_final_vecnorm.pkl")
-    assert_checkpoint_round_trip(species, algorithm, stages, "recovery", checkpoint, stats)
+    assert_checkpoint_round_trip(model_id, algorithm, stages, "recovery", checkpoint, stats)
     restored = getattr(sb3, algorithm.upper()).load(checkpoint, device="cpu")
     assert getattr(restored, MODEL_TASK_LINEAGE_ATTRIBUTE) == lineage
     metadata = json.loads((recovery_dir / "stage_config.json").read_text())
-    assert metadata["plant_identity"]["species"] == species
+    assert model_id.matches(metadata["plant_identity"])
     assert metadata["reward_weights"]["perturbation_capture_velocity_multiple"] > 0
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algorithm, tmp_path):
+def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(model_id, algorithm, tmp_path):
     """Roll the committed physical task and judge without weakening its gate."""
     from environments.shared.curriculum.gate_resolver import GateResolutionError, require_gate_resolution
     from environments.shared.harnesses.freeze_recovery_gate import (
@@ -272,10 +296,10 @@ def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algori
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.task_fingerprint import attach_task_fingerprint
 
-    calibration = load_recovery_calibration(species)
-    identity = current_plant_identity(species)
+    calibration = load_recovery_calibration(model_id)
+    identity = current_plant_identity(model_id)
     env = create_vec_env(
-        get_species_config(species), load_all_stages(species), 1, 1, 42, algorithm=algorithm, plant_identity=identity
+        get_species_config(model_id), load_all_stages(model_id), 1, 1, 42, algorithm=algorithm, plant_identity=identity
     )
     try:
         env.reset()
@@ -290,7 +314,7 @@ def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algori
             for parameter in model.policy.parameters():
                 parameter.zero_()
         attach_plant_identity(model, identity)
-        attach_task_fingerprint(model, stage_task_fingerprint(species, 1))
+        attach_task_fingerprint(model, stage_task_fingerprint(model_id, 1))
         checkpoint = tmp_path / "stance.zip"
         stats = tmp_path / "stance_vecnorm.pkl"
         model.save(checkpoint)
@@ -298,7 +322,7 @@ def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algori
     finally:
         env.close()
     frozen = freeze_recovery_gate(
-        tmp_path, species=species, episodes=1, policy_zip=checkpoint, vecnorm=stats, algorithm=algorithm
+        tmp_path, model_id=model_id, episodes=1, policy_zip=checkpoint, vecnorm=stats, algorithm=algorithm
     )
     assert set(frozen.null_evidence) == {"zero_action", "brace"}
     evidence = frozen.null_evidence["zero_action"]
@@ -315,7 +339,7 @@ def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algori
     # The real policy-panel path refuses before checkpoint loading: this is
     # plumbing evidence, never qualification from one lucky episode.
     with pytest.raises(GateResolutionError, match="rehearsal freeze"):
-        roll_policy_panel(tmp_path, "unused_policy.zip", "unused_vecnorm.pkl", species=species)
+        roll_policy_panel(tmp_path, "unused_policy.zip", "unused_vecnorm.pkl", model_id=model_id)
 
 
 def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(tmp_path):
@@ -331,22 +355,24 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
     from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label
 
     source = first_code_cell(ROOT / "notebooks/sb3_training.ipynb", "# ===== BEHAVIOR CHAIN LOOP =====")
-    directory = tmp_path / stage_dirname("compsognathus", "recovery")
+    directory = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "anatomical"), "recovery")
     directory.mkdir()
     (directory / "gate_resolution.json").write_text("{}")
 
     def forbidden(**kwargs):
         pytest.fail("an existing but invalid recovery resolution must refuse before training")
 
-    manifest = load_stage_manifest("compsognathus")
+    manifest = load_stage_manifest(ModelId("compsognathus_longipes", "anatomical"))
     recovery = manifest.resolve("recovery")
     namespace = {
         "Path": Path,
         "RUN_DIR": tmp_path,
-        "SPECIES": "compsognathus",
-        "SPECIES_CFG": get_species_config("compsognathus"),
-        "STAGE_CONFIGS": load_all_stages("compsognathus"),
-        "PLANT_IDENTITY": current_plant_identity("compsognathus"),
+        "SPECIES": "compsognathus_longipes",
+        "EMBODIMENT": "anatomical",
+        "MODEL_ID": ModelId("compsognathus_longipes", "anatomical"),
+        "SPECIES_CFG": get_species_config(ModelId("compsognathus_longipes", "anatomical")),
+        "STAGE_CONFIGS": load_all_stages(ModelId("compsognathus_longipes", "anatomical")),
+        "PLANT_IDENTITY": current_plant_identity(ModelId("compsognathus_longipes", "anatomical")),
         "QUICK_TEST": False,
         "ALGORITHM": "ppo",
         "SEED": 42,
@@ -366,7 +392,7 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
             "stance": {
                 "model": "unused_stance",
                 "vecnorm": "unused_vecnorm.pkl",
-                "stage_dir": tmp_path / stage_dirname("compsognathus", 1),
+                "stage_dir": tmp_path / stage_dirname(ModelId("compsognathus_longipes", "anatomical"), 1),
                 "run_dir": tmp_path,
                 "run_id": None,
                 "model_sha256": "sha256:" + "0" * 64,
@@ -383,23 +409,21 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
         exec(compile(source, "sb3_recovery_invalid_resolution", "exec"), namespace)
 
 
-@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm, tmp_path, monkeypatch):
+def test_actual_notebook_training_stance_and_recovery_reports(model_id, algorithm, tmp_path, monkeypatch):
     def cell(marker):
         return first_code_cell(ROOT / "notebooks/sb3_training.ipynb", marker)
 
     namespace = {"IN_COLAB": False}
     exec(compile(cell("# Add repo root to path"), "sb3_setup", "exec"), namespace)
-    selection = cell("# ===== SPECIES SELECTION =====")
-    selection = selection.replace('SPECIES = "Velociraptor Mongoliensis"', f'SPECIES = "{species}"')
-    exec(compile(selection, "sb3_selection", "exec"), namespace)
+    exec(_selection_code(cell("# ===== SPECIES SELECTION ====="), model_id), namespace)
     exec(compile(cell("EnvClass = SPECIES_CFG.env_class"), "sb3_environment", "exec"), namespace)
     namespace.update(
-        STAGE_CONFIGS=smoke_configs(species),
+        STAGE_CONFIGS=smoke_configs(model_id),
         ALGORITHM=algorithm,
         N_ENVS=1,
-        PLANT_IDENTITY=current_plant_identity(species),
+        PLANT_IDENTITY=current_plant_identity(model_id),
         EVALUATION_SEED=3042,
         USE_GOOGLE_DRIVE=False,
         AUTO_DISCONNECT=False,
@@ -412,7 +436,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     )
     assert model._n_updates > 0
     assert_optimizer_recipe(model, algorithm, namespace["STAGE_CONFIGS"][1])
-    assert_checkpoint_round_trip(species, algorithm, namespace["STAGE_CONFIGS"], 1, selected + ".zip", stats)
+    assert_checkpoint_round_trip(model_id, algorithm, namespace["STAGE_CONFIGS"], 1, selected + ".zip", stats)
     results = generate_stage_artifacts(
         namespace["SPECIES_CFG"],
         namespace["STAGE_CONFIGS"][1],
@@ -468,7 +492,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     original_train_stage = namespace["train_stage"]
 
     def record_freeze(stage_dir, **kwargs):
-        assert kwargs["species"] == species
+        assert kwargs["model_id"] == model_id
         assert kwargs["algorithm"] == algorithm
         assert kwargs["policy_zip"] == selected + ".zip"
         assert kwargs["vecnorm"] == stats
@@ -485,7 +509,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     def record_validation(stage_dir, **kwargs):
         # `stage=` is passed since the loop is generic over FROZEN_NULL_GATE_KINDS.
         assert kwargs == {
-            "species": species,
+            "model_id": model_id,
             "stage": "recovery",
             "policy_zip": selected + ".zip",
             "vecnorm": stats,
@@ -495,7 +519,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         events.append("validate")
 
     def one_episode_panel(stage_dir, policy_zip, vecnorm_pkl, **kwargs):
-        assert kwargs == {"species": species, "stage": "recovery", "algorithm": algorithm}
+        assert kwargs == {"model_id": model_id, "stage": "recovery", "algorithm": algorithm}
         assert events == ["freeze", "validate", "train"]
         events.append("panel")
         recovery_model, recovery_selected, _, _, recovery_stats, _ = trained["result"]
@@ -594,6 +618,6 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     recovery_results = namespace["NODE_RESULTS"]["recovery"]
     assert not recovery_results["publication_gate_passed"]
     assert recovery_results["gate_failures"]
-    assert namespace["completed_stages"] == [("recovery", tmp_path / stage_dirname(species, "recovery"))]
+    assert namespace["completed_stages"] == [("recovery", tmp_path / stage_dirname(model_id, "recovery"))]
     assert "recovery" not in namespace["NODE_HANDOFF"]  # a failed node never feeds the chain
     assert namespace["NODE_HANDOFF"]["stance"]["model"] == selected  # the chain still starts from stance

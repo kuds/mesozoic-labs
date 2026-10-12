@@ -420,6 +420,6 @@ class TestNaturalPitchTracksStance:
             env.close()
 
 
-def test_velociraptor_is_sb3_only():
+def test_velociraptor_mongoliensis_is_sb3_only():
     """The summed foot cannot be mirrored by the frozen MJX registration (D-D17)."""
     assert VelociraptorMongoliensisAnatomicalEnv.supported_training_backends == ("stable-baselines3",)

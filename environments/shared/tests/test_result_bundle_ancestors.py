@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from environments.shared.curriculum.gate_schema import gate_config_sha256
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import ResultBundleError
 from environments.shared.result_bundle.ancestors import (
     ANCESTOR_RECORD_KEYS,
@@ -39,7 +40,7 @@ def _rewrite(record_dir: Path, mutate) -> None:
 def test_no_ancestors_directory_is_an_empty_result(tmp_path: Path) -> None:
     run_dir = tmp_path / "child"
     run_dir.mkdir()
-    assert load_ancestor_records(run_dir, species="velociraptor") == {}
+    assert load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical")) == {}
 
 
 def test_records_load_and_project_to_provenance_fields(tmp_path: Path) -> None:
@@ -47,7 +48,7 @@ def test_records_load_and_project_to_provenance_fields(tmp_path: Path) -> None:
     run_dir.mkdir()
     _, checkpoint_hash = _write_ancestor_record(run_dir, 1)
 
-    records = load_ancestor_records(run_dir, species="velociraptor")
+    records = load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
     assert list(records) == ["1"]
     record = records["1"]
@@ -67,7 +68,10 @@ def test_a_failed_verdict_loads_as_not_passed(tmp_path: Path) -> None:
     run_dir = tmp_path / "child"
     run_dir.mkdir()
     _write_ancestor_record(run_dir, 1, passed=False)
-    assert load_ancestor_records(run_dir, species="velociraptor")["1"]["passed"] is False
+    assert (
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))["1"]["passed"]
+        is False
+    )
 
 
 def test_a_record_whose_hashes_disagree_with_its_verdict_is_refused(tmp_path: Path) -> None:
@@ -77,7 +81,7 @@ def test_a_record_whose_hashes_disagree_with_its_verdict_is_refused(tmp_path: Pa
     _rewrite(record_dir, lambda record: record["handoff"].__setitem__("model_sha256", "sha256:" + "0" * 64))
 
     with pytest.raises(ResultBundleError, match="hashes the handoff checkpoint"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
 def test_a_record_for_an_unknown_stage_id_is_refused(tmp_path: Path) -> None:
@@ -87,7 +91,7 @@ def test_a_record_for_an_unknown_stage_id_is_refused(tmp_path: Path) -> None:
     record_dir.rename(record_dir.parent / "sprint")
 
     with pytest.raises(ResultBundleError, match="does not declare"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
 def test_a_record_missing_its_gate_verdict_is_refused(tmp_path: Path) -> None:
@@ -97,7 +101,7 @@ def test_a_record_missing_its_gate_verdict_is_refused(tmp_path: Path) -> None:
     (record_dir / "gate_verdict.json").unlink()
 
     with pytest.raises(ResultBundleError, match="absence is never a pass"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
 def test_a_record_missing_its_stage_config_is_refused(tmp_path: Path) -> None:
@@ -107,7 +111,7 @@ def test_a_record_missing_its_stage_config_is_refused(tmp_path: Path) -> None:
     (record_dir / "stage_config.json").unlink()
 
     with pytest.raises(ResultBundleError, match="missing its stage_config.json"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
 def test_a_task_fingerprint_that_disagrees_between_record_and_config_is_refused(tmp_path: Path) -> None:
@@ -120,7 +124,7 @@ def test_a_task_fingerprint_that_disagrees_between_record_and_config_is_refused(
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     with pytest.raises(ResultBundleError, match="records task_sha256"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
 
 def test_a_copied_verdict_whose_gate_digest_disagrees_with_its_recorded_gate_is_refused(tmp_path: Path) -> None:
@@ -138,12 +142,15 @@ def test_a_copied_verdict_whose_gate_digest_disagrees_with_its_recorded_gate_is_
     verdict_path.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     with pytest.raises(ResultBundleError, match="not the digest of the recorded gate block"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
 
     # A verdict judged under a block other than the one the copied config records still loads.
     verdict["gate_sha256"] = gate_config_sha256(verdict["gate"])
     verdict_path.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    assert load_ancestor_records(run_dir, species="velociraptor")["1"]["passed"] is True
+    assert (
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))["1"]["passed"]
+        is True
+    )
 
 
 def test_a_phase_a_record_without_gate_sha256_still_loads(tmp_path: Path) -> None:
@@ -156,7 +163,7 @@ def test_a_phase_a_record_without_gate_sha256_still_loads(tmp_path: Path) -> Non
     phase_a = {key: value for key, value in verdict.items() if key not in {"gate", "gate_sha256"}}
     verdict_path.write_text(json.dumps(phase_a, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    records = load_ancestor_records(run_dir, species="velociraptor")
+    records = load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))
     assert set(records["1"]) == set(ANCESTOR_RECORD_KEYS)
     assert records["1"]["model_hash"] == checkpoint_hash and records["1"]["passed"] is True
 
@@ -168,4 +175,4 @@ def test_a_record_without_a_parent_run_id_is_refused(tmp_path: Path) -> None:
     _rewrite(record_dir, lambda record: record.__setitem__("parent_run_id", ""))
 
     with pytest.raises(ResultBundleError, match="parent_run_id"):
-        load_ancestor_records(run_dir, species="velociraptor")
+        load_ancestor_records(run_dir, model_id=ModelId("velociraptor_mongoliensis", "anatomical"))

@@ -75,6 +75,7 @@ from environments.shared.gait.stance_metrics import (
     episode_stance_metrics,
     spawn_grace_steps,
 )
+from environments.shared.model_id import ModelId
 
 from .test_gait_stance_metrics import statue_trace
 
@@ -458,7 +459,7 @@ TOE_TAP: dict[str, Any] = {
 
 @pytest.fixture(scope="module")
 def stage() -> dict[str, Any]:
-    return load_stage_config("compsognathus", "stance")
+    return load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")
 
 
 @pytest.fixture(scope="module")

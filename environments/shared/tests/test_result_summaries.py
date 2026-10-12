@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.result_schema import (
     ResultSchemaError,
     expected_result_directory,
@@ -16,12 +17,13 @@ from environments.shared.result_schema import (
 
 from .result_bundle_helpers import REPOSITORY_ROOT, _canonical_summary, _load_summary, _published_summary
 
-RESULT_SUMMARIES = tuple(sorted((REPOSITORY_ROOT / "results").glob("*/*/summary.json")))
+#: results/<species>/<embodiment>/<algorithm>/summary.json (decision D-D33).
+RESULT_SUMMARIES = tuple(sorted((REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")))
 
 
 def test_result_summaries_are_discovered() -> None:
     """Protect against a vacuous schema test caused by a bad repository path."""
-    assert RESULT_SUMMARIES, "no results/*/*/summary.json files were found"
+    assert RESULT_SUMMARIES, "no results/*/*/*/summary.json files were found"
 
 
 @pytest.mark.parametrize("summary_path", RESULT_SUMMARIES, ids=lambda path: str(path.relative_to(REPOSITORY_ROOT)))
@@ -31,7 +33,7 @@ def test_result_summary_schema_and_provenance(summary_path: Path) -> None:
 
     validated = validate_result_summary(
         summary,
-        expected_species=summary_path.parents[1].name,
+        expected_model_id=ModelId(summary_path.parents[2].name, summary_path.parents[1].name),
         relative_path=relative_path,
         require_complete=True,
     )
@@ -47,14 +49,14 @@ def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
 
     validate_result_summary(
         summary,
-        expected_species="velociraptor",
+        expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
         relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         require_complete=False,
     )
     with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
         validate_result_summary(
             summary,
-            expected_species="velociraptor",
+            expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
             require_complete=True,
         )
@@ -73,9 +75,9 @@ def test_partial_summary_rejects_empty_or_unknown_stages() -> None:
         validate_result_summary(summary, require_complete=False)
 
 
-def _trex_summary_with_recovery() -> dict[str, Any]:
+def _tyrannosaurus_rex_summary_with_recovery() -> dict[str, Any]:
     """The committed trex summary plus a synthetic recovery stage (schema v3)."""
-    summary = _load_summary(REPOSITORY_ROOT / "results" / "trex" / "ppo" / "summary.json")
+    summary = _load_summary(REPOSITORY_ROOT / "results" / "tyrannosaurus_rex" / "anatomical" / "ppo" / "summary.json")
     summary = deepcopy(summary)
     summary["schema_version"] = 3
     recovery_stage = deepcopy(summary["stages"]["1"])
@@ -99,61 +101,75 @@ def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
     failure must not be laundered into (or block) the curriculum's own
     completeness.
     """
-    summary = _trex_summary_with_recovery()
+    summary = _tyrannosaurus_rex_summary_with_recovery()
     validate_result_summary(
         summary,
-        expected_species="trex",
+        expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         relative_path="results/tyrannosaurus_rex/anatomical/ppo/summary.json",
         require_complete=True,
     )
 
     # Still fail-closed on the advancing trio: recovery cannot substitute
     # for a missing numbered stage.
-    summary = _trex_summary_with_recovery()
+    summary = _tyrannosaurus_rex_summary_with_recovery()
     summary["total_timesteps"] -= summary["stages"]["2"]["timesteps"]
     del summary["stages"]["2"]
     with pytest.raises(ResultSchemaError, match=r"must contain every advancing stage; missing \['2'\]"):
-        validate_result_summary(summary, expected_species="trex", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
+        )
 
 
 def test_summary_rejects_stage_references_outside_the_species_vocabulary() -> None:
     # An id no manifest declares fails closed.
-    summary = _trex_summary_with_recovery()
+    summary = _tyrannosaurus_rex_summary_with_recovery()
     summary["stages"]["warp"] = deepcopy(summary["stages"]["recovery"])
     summary["total_timesteps"] += 3_000_000
     with pytest.raises(ResultSchemaError, match="invalid stage reference 'warp'"):
-        validate_result_summary(summary, expected_species="trex", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
+        )
 
     # A valid id the SPECIES does not declare fails closed too: only trex
     # carries a recovery stage today.
     summary = deepcopy(_published_summary())
     summary["stages"]["recovery"] = deepcopy(summary["stages"]["1"])
     with pytest.raises(ResultSchemaError, match="invalid stage reference 'recovery'"):
-        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
+        )
 
 
 def test_summary_rejects_two_spellings_of_one_stage() -> None:
     """ "2" and "locomotion" are the same trex stage; recording both would
     double-count it in every aggregate."""
-    summary = _trex_summary_with_recovery()
+    summary = _tyrannosaurus_rex_summary_with_recovery()
     summary["stages"]["locomotion"] = deepcopy(summary["stages"]["2"])
     summary["total_timesteps"] += summary["stages"]["2"]["timesteps"]
     with pytest.raises(ResultSchemaError, match="references stage 'locomotion' twice"):
-        validate_result_summary(summary, expected_species="trex", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
+        )
 
 
 def test_summary_accepts_both_supported_schema_versions() -> None:
     summary = deepcopy(_published_summary())
     for version in (2, 3):
         summary["schema_version"] = version
-        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
+        )
     # Schema 4 accepts the same fixture as a non-publishable stage subset; the
     # publishable rules need the deliverables map (tested below).
     summary["schema_version"] = 4
-    validate_result_summary(summary, expected_species="velociraptor", require_complete=False)
+    validate_result_summary(
+        summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=False
+    )
     summary["schema_version"] = 1
     with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 3, 4\]"):
-        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"), require_complete=True
+        )
 
 
 def test_canonical_selected_checkpoints_require_every_advancing_stage() -> None:
@@ -459,14 +475,14 @@ def test_result_paths_are_backend_aware() -> None:
     summary["backend"] = "jax-mjx"
     validate_result_summary(
         summary,
-        expected_species="velociraptor",
-        relative_path="results/velociraptor/jax_ppo/summary.json",
+        expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
+        relative_path="results/velociraptor_mongoliensis/anatomical/jax_ppo/summary.json",
     )
 
     with pytest.raises(ResultSchemaError, match=r"expected jax_ppo for jax-mjx"):
         validate_result_summary(
             summary,
-            expected_species="velociraptor",
+            expected_model_id=ModelId("velociraptor_mongoliensis", "anatomical"),
             relative_path="results/velociraptor_mongoliensis/anatomical/ppo/summary.json",
         )
 

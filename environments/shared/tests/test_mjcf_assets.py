@@ -21,19 +21,27 @@ class ModelExpectations:
 ENVIRONMENTS_DIR = Path(__file__).resolve().parents[2]
 
 EXPECTED_MODELS = {
-    "brachiosaurus/assets/brachiosaurus.xml": ModelExpectations(38, 37, 30, 175.3),
+    "brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml": ModelExpectations(
+        38, 37, 30, 175.3
+    ),
     # Model-only prototypes; these entries do not register training environments.
-    "compsognathus/assets/compsognathus.xml": ModelExpectations(24, 23, 14, 1.0),
-    "compsognathus/assets/compsognathus_robot.xml": ModelExpectations(19, 18, 12, 1.5856),
-    "dibothrosuchus/assets/dibothrosuchus.xml": ModelExpectations(35, 34, 27, 8.65),
-    "trex/assets/trex.xml": ModelExpectations(28, 27, 15, 85.72),
-    "velociraptor/assets/raptor.xml": ModelExpectations(31, 30, 22, 13.5),
+    "compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml": ModelExpectations(
+        24, 23, 14, 1.0
+    ),
+    "compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml": ModelExpectations(19, 18, 12, 1.5856),
+    "dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml": ModelExpectations(
+        35, 34, 27, 8.65
+    ),
+    "tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml": ModelExpectations(28, 27, 15, 85.72),
+    "velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml": ModelExpectations(
+        31, 30, 22, 13.5
+    ),
 }
 
 
 def _discover_mjcf_assets() -> tuple[Path, ...]:
-    """Return every species MJCF asset in a deterministic order."""
-    return tuple(sorted(ENVIRONMENTS_DIR.glob("*/assets/*.xml")))
+    """Return every model's MJCF asset (``<species>/<embodiment>/assets/``) in a deterministic order."""
+    return tuple(sorted(ENVIRONMENTS_DIR.glob("*/*/assets/*.xml")))
 
 
 MJCF_ASSETS = _discover_mjcf_assets()

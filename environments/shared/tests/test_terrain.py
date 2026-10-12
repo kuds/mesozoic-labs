@@ -16,7 +16,13 @@ from environments.shared.terrain import (
     generate_terrain,
 )
 
-_TYRANNOSAURUS_REX_XML = Path(__file__).resolve().parents[2] / "trex" / "assets" / "tyrannosaurus_rex_anatomical.xml"
+_TYRANNOSAURUS_REX_XML = (
+    Path(__file__).resolve().parents[2]
+    / "tyrannosaurus_rex"
+    / "anatomical"
+    / "assets"
+    / "tyrannosaurus_rex_anatomical.xml"
+)
 
 
 @pytest.fixture

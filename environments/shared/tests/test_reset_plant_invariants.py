@@ -35,10 +35,10 @@ from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatom
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 SPECIES = [
-    pytest.param(TyrannosaurusRexAnatomicalEnv, id="trex"),
-    pytest.param(VelociraptorMongoliensisAnatomicalEnv, id="velociraptor"),
-    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, id="brachiosaurus"),
-    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, id="dibothrosuchus"),
+    pytest.param(TyrannosaurusRexAnatomicalEnv, id="tyrannosaurus_rex-anatomical"),
+    pytest.param(VelociraptorMongoliensisAnatomicalEnv, id="velociraptor_mongoliensis-anatomical"),
+    pytest.param(BrachiosaurusAltithoraxAnatomicalEnv, id="brachiosaurus_altithorax-anatomical"),
+    pytest.param(DibothrosuchusElaphrosAnatomicalEnv, id="dibothrosuchus_elaphros-anatomical"),
 ]
 
 # Reset noise large enough to exercise the settling path.  Every shipped stage

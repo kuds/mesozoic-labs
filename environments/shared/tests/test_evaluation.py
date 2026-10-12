@@ -9,9 +9,14 @@ import numpy as np
 import pytest
 
 from environments.shared.evaluation import eval_policy, eval_policy_quality, evaluate, record_stage_video
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import PlantCompatibilityError, attach_plant_identity
 
 from .reporting_helpers import make_plant_identity as _plant_identity
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+PILOT = ModelId("pilot_species", "anatomical")
 
 
 class TestEvalPolicy:
@@ -153,7 +158,7 @@ class TestEvalPolicyQuality:
         assert result["eval_mean_r_foot_load_share"] == pytest.approx(0.625)
         assert result["eval_std_r_foot_load_share"] == pytest.approx(0.125)
 
-    def test_omits_stance_metrics_without_trex_marker(self):
+    def test_omits_stance_metrics_without_tyrannosaurus_rex_marker(self):
         env = MagicMock()
         env.reset.return_value = np.zeros(10)
         env.step.return_value = (
@@ -307,7 +312,6 @@ class TestRecordStageVideo:
                 env_kwargs={},
                 stage=1,
                 stage_dir=str(tmp_path),
-                species="dino",
                 label="best",
                 max_steps=1,
                 camera_views={
@@ -363,9 +367,9 @@ class TestEvaluateFunction:
         mock_sb3["PPO"].load.return_value = mock_model
 
         mock_species_cfg = MagicMock()
-        mock_species_cfg.species = "velociraptor"
+        mock_species_cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         mock_species_cfg.height_label = "Pelvis height"
-        mock_species_cfg.stage3_section_label = "Hunting"
+        mock_species_cfg.behavior_section_label = "Hunting"
 
         stage_configs = {
             1: {"name": "balance", "env_kwargs": {"forward_vel_weight": 0.0}},
@@ -399,10 +403,10 @@ class TestEvaluateFunction:
         mock_sb3["DummyVecEnv"].return_value = mock_vec_env
         mock_sb3["PPO"].load.return_value = SimpleNamespace()
         species_cfg = SimpleNamespace(
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            stage3_section_label="Hunting",
+            behavior_section_label="Hunting",
         )
 
         with (
@@ -434,10 +438,10 @@ class TestEvaluateFunction:
         mock_sb3["DummyVecEnv"].return_value = mock_vec_env
         mock_sb3["VecNormalize"].load.return_value = legacy_vecnorm
         species_cfg = SimpleNamespace(
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             env_class=MagicMock(),
             height_label="Pelvis height",
-            stage3_section_label="Hunting",
+            behavior_section_label="Hunting",
         )
 
         with (
@@ -470,10 +474,10 @@ def _mock_sb3():
 
 def _species_cfg():
     return SimpleNamespace(
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         env_class=MagicMock(),
         height_label="Pelvis height",
-        stage3_section_label="Hunting",
+        behavior_section_label="Hunting",
     )
 
 
@@ -717,7 +721,7 @@ class TestEvaluateSeeding:
                 ),
             ):
                 evaluate(
-                    species_cfg=SimpleNamespace(species="velociraptor", env_class=NoisyEnv),
+                    species_cfg=SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, env_class=NoisyEnv),
                     stage_configs={1: {"name": "balance", "env_kwargs": {}}},
                     model_path=str(tmp_path / "stage1_model.zip"),
                     n_episodes=4,
@@ -755,7 +759,7 @@ class TestPostEvalEpisodes:
         monkeypatch.setattr(train_base, "_post_training_eval_panels", _panels)
         (tmp_path / "models").mkdir()
         train_base._report_hpt_metrics(
-            SimpleNamespace(species="velociraptor", success_keys=["strike_success"]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=["strike_success"]),
             MagicMock(),
             MagicMock(),
             SimpleNamespace(best_mean_reward=12.5),
@@ -802,7 +806,7 @@ class TestPostEvalEpisodes:
         )
         (tmp_path / "models").mkdir()
         panel = train_base._post_training_eval_panels(
-            SimpleNamespace(species="velociraptor", success_keys=[]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
             MagicMock(),
             MagicMock(),
             tmp_path / "models",
@@ -861,7 +865,7 @@ class TestPostEvalEpisodes:
 
         monkeypatch.setattr(train_base, "eval_policy", eval_policy)
         panel = train_base._post_training_eval_panels(
-            SimpleNamespace(species="trex", success_keys=["bite_success"]),
+            SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
             MagicMock(),
             eval_env,
             models,
@@ -918,7 +922,7 @@ class TestPostEvalEpisodes:
         }
         with caplog.at_level(logging.WARNING):
             panel = train_base._post_training_eval_panels(
-                SimpleNamespace(species="trex", success_keys=["bite_success"]),
+                SimpleNamespace(model_id=TYRANNOSAURUS_REX, success_keys=["bite_success"]),
                 MagicMock(),
                 eval_env,
                 tmp_path / "models",
@@ -948,7 +952,7 @@ class TestPostEvalEpisodes:
             lambda *a, n_episodes: ([1.0] * 3, [10] * 3, [0.0] * 3, [1.0, 0.0, 0.0], [0.0] * 3),
         )
         panel = train_base._post_training_eval_panels(
-            SimpleNamespace(species="velociraptor", success_keys=[]),
+            SimpleNamespace(model_id=VELOCIRAPTOR_MONGOLIENSIS, success_keys=[]),
             MagicMock(),
             eval_env,
             tmp_path / "models",
@@ -985,7 +989,7 @@ class TestPostEvalEpisodes:
         mock_train = MagicMock()
         mock_load = MagicMock(return_value={1: {"env_kwargs": {}, "ppo_kwargs": {}}})
         cfg = MagicMock()
-        cfg.species = "velociraptor"
+        cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         cfg.stage_descriptions = "1=balance"
         with (
             patch("environments.shared.config.load_all_stages", mock_load),
@@ -1005,7 +1009,7 @@ class TestEvalCliFlags:
 
         mock_eval = MagicMock()
         cfg = MagicMock()
-        cfg.species = "velociraptor"
+        cfg.model_id = VELOCIRAPTOR_MONGOLIENSIS
         cfg.stage_descriptions = "1=balance"
         with (
             patch("environments.shared.config.load_all_stages", MagicMock(return_value={1: {}})),
@@ -1056,19 +1060,19 @@ class TestDetectStageFromPath:
         assert detect_stage_from_path("/tmp/some_model.zip") == 1
 
     @staticmethod
-    def _declare_pilot_species(tmp_path, monkeypatch):
-        """A tmp configs root whose species ``pilot`` declares the open id follow_direction."""
+    def _declare_pilot_model(tmp_path, monkeypatch):
+        """A tmp configs root whose model ``PILOT`` declares the open id follow_direction."""
         import shutil
 
         from environments.shared import stage_manifest
 
-        for real in ("trex", "velociraptor"):
-            shutil.copytree(stage_manifest._CONFIGS_DIR / real, tmp_path / "configs" / real)
-        species_dir = tmp_path / "configs" / "pilot"
-        species_dir.mkdir(parents=True)
+        for real in (TYRANNOSAURUS_REX, VELOCIRAPTOR_MONGOLIENSIS):
+            shutil.copytree(real.path(stage_manifest._CONFIGS_DIR), real.path(tmp_path / "configs"))
+        model_dir = PILOT.path(tmp_path / "configs")
+        model_dir.mkdir(parents=True)
         for name in ("stance.toml", "follow_direction.toml"):
-            (species_dir / name).write_text("[stage]\nname = 'x'\n")
-        (species_dir / "stages.toml").write_text(
+            (model_dir / name).write_text("[stage]\nname = 'x'\n")
+        (model_dir / "stages.toml").write_text(
             f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V2}"\n'
             '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
             '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "stance"\n'
@@ -1079,11 +1083,11 @@ class TestDetectStageFromPath:
     def test_open_id_nn_layout_passes_through_as_id_when_the_species_declares_it(self, tmp_path, monkeypatch):
         from environments.shared.evaluation import detect_stage_from_path
 
-        self._declare_pilot_species(tmp_path, monkeypatch)
+        self._declare_pilot_model(tmp_path, monkeypatch)
         path = "/runs/x/05_follow_direction/models/best_model.zip"
-        assert detect_stage_from_path(path, species="pilot") == "follow_direction"
+        assert detect_stage_from_path(path, model_id=PILOT) == "follow_direction"
         assert detect_stage_from_path(
-            "/runs/x/05_follow_direction_20260901_120000/models/best.zip", species="pilot"
+            "/runs/x/05_follow_direction_20260901_120000/models/best.zip", model_id=PILOT
         ) == ("follow_direction")
         # Species-free, an NN_<word> directory cannot claim a stage (D-A12).
         assert detect_stage_from_path(path) == 1
@@ -1091,17 +1095,22 @@ class TestDetectStageFromPath:
     def test_species_filter_rejects_an_undeclared_id(self, tmp_path, monkeypatch):
         from environments.shared.evaluation import detect_stage_from_path
 
-        self._declare_pilot_species(tmp_path, monkeypatch)
+        self._declare_pilot_model(tmp_path, monkeypatch)
         path = "/runs/x/05_follow_direction/models/best_model.zip"
-        assert detect_stage_from_path(path, species="velociraptor") == 1
+        assert detect_stage_from_path(path, model_id=VELOCIRAPTOR_MONGOLIENSIS) == 1
         # A reserved id the species does not declare is filtered the same way.
-        assert detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", species="velociraptor") == 1
-        assert detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", species="trex") == "recovery"
+        assert (
+            detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", model_id=VELOCIRAPTOR_MONGOLIENSIS) == 1
+        )
+        assert (
+            detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", model_id=TYRANNOSAURUS_REX)
+            == "recovery"
+        )
 
     def test_bare_open_id_is_not_read_as_a_stage(self, tmp_path, monkeypatch):
         from environments.shared.evaluation import detect_stage_from_path
 
-        self._declare_pilot_species(tmp_path, monkeypatch)
+        self._declare_pilot_model(tmp_path, monkeypatch)
         path = "/runs/x/follow_direction/models/best_model.zip"
         assert detect_stage_from_path(path) == 1
-        assert detect_stage_from_path(path, species="pilot") == 1
+        assert detect_stage_from_path(path, model_id=PILOT) == 1

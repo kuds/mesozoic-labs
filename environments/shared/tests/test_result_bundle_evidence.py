@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
 from environments.shared.reporting.stance_report import STANCE_PANEL_FIELDNAMES
 from environments.shared.result_bundle import (
@@ -290,7 +291,7 @@ def test_publication_gate_is_recomputed_from_frozen_thresholds(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "velociraptor",
+            ModelId("velociraptor_mongoliensis", "anatomical"),
             "PPO",
             42,
             run_dir,
@@ -363,7 +364,7 @@ def _save_bundle(run_dir: Path, stage_results: Any, stage_configs: Any) -> Any:
     return save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        ModelId("velociraptor_mongoliensis", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -464,7 +465,7 @@ def test_the_certification_panel_role_must_name_the_registered_block(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "velociraptor",
+            ModelId("velociraptor_mongoliensis", "anatomical"),
             "PPO",
             42,
             run_dir,
@@ -1165,7 +1166,9 @@ def _write_stance_v2_panel(run_dir: Path, tmp_path: Path, stage: int = 1, **repo
 
     from .stance_v2_helpers import v2_report
 
-    report = v2_report(tmp_path / "scratch_stage", species="velociraptor", **report_kwargs)
+    report = v2_report(
+        tmp_path / "scratch_stage", model_id=ModelId("velociraptor_mongoliensis", "anatomical"), **report_kwargs
+    )
     models = run_dir / f"stage{stage}" / "models"
     report["handoff"] = {
         "checkpoint": "best_model.pkl",
@@ -1305,7 +1308,9 @@ def _write_stance_heading_grid(run_dir: Path, tmp_path: Path, stage: int = 1, **
 
     from .stance_heading_helpers import heading_report
 
-    report = heading_report(tmp_path / "scratch_stage", species="velociraptor", **report_kwargs)
+    report = heading_report(
+        tmp_path / "scratch_stage", model_id=ModelId("velociraptor_mongoliensis", "anatomical"), **report_kwargs
+    )
     models = run_dir / f"stage{stage}" / "models"
     report["handoff"] = {
         "checkpoint": "best_model.pkl",

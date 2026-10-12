@@ -34,6 +34,7 @@ from environments.shared.ancestors import (
     run_id_for,
 )
 from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
@@ -44,10 +45,7 @@ from environments.shared.result_bundle import (
     write_gate_verdict,
 )
 from environments.shared.stage_manifest import load_stage_manifest
-from environments.shared.task_fingerprint import (
-    MODEL_TASK_ATTRIBUTE,
-    TASK_FINGERPRINT_SCHEMA_V1,
-)
+from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
 
 from .ancestors_helpers import (
     JUDGED_BY,
@@ -64,6 +62,8 @@ from .ancestors_helpers import (
 )
 from .reporting_helpers import make_plant_identity
 
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
 
 @pytest.fixture
 def trunk_run(tmp_path):
@@ -75,8 +75,8 @@ def trunk_run(tmp_path):
 
 def _find(run_dir, **overrides):
     kwargs: dict[str, Any] = dict(
-        species="trex",
-        entry=load_stage_manifest("trex").by_id("stance"),
+        model_id=TYRANNOSAURUS_REX,
+        entry=load_stage_manifest(TYRANNOSAURUS_REX).by_id("stance"),
         current_task_sha256=STANCE_TASK,
         plant_identity=trunk_plant(),
         current_gate_config=STANCE_CURRICULUM,
@@ -141,7 +141,7 @@ class TestFindCertifiedAncestor:
         stage_dir = build_trunk_run(tmp_path)
         write_gate_verdict(
             stage_dir,
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage=1,
             stage_id="stance",
             gate_kind="stance_quality/v1",
@@ -195,11 +195,14 @@ class TestFindCertifiedAncestor:
     def test_refuses_a_plant_mismatch(self, tmp_path):
         build_trunk_run(tmp_path)
         other_plant = make_plant_identity(
-            species="trex",
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
             model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             physics_sha256="sha256:" + "9" * 64,
         )
-        with pytest.raises(AncestorReuseError, match="incompatible with the current trex plant"):
+        with pytest.raises(
+            AncestorReuseError, match="incompatible with the current tyrannosaurus_rex/anatomical plant"
+        ):
             _find(tmp_path, plant_identity=other_plant)
 
     def test_refuses_an_untagged_legacy_checkpoint(self, tmp_path):
@@ -217,7 +220,7 @@ class TestFindCertifiedAncestor:
         """Invariant 6: reuse compares task digests exactly; the dated schema-v1
         valve resume_same_stage applies is deliberately not extended here."""
         v1_digest = "sha256:" + "f" * 64
-        build_trunk_run(tmp_path, fingerprint_schema=TASK_FINGERPRINT_SCHEMA_V1, task_sha256=v1_digest)
+        build_trunk_run(tmp_path, fingerprint_schema="mesozoic.task-fingerprint/v1", task_sha256=v1_digest)
         with pytest.raises(AncestorReuseError, match="schema-v1 fingerprint valve does not apply"):
             _find(tmp_path, current_task_sha256=STANCE_TASK)
 
@@ -249,8 +252,8 @@ class TestFindCertifiedAncestor:
         with pytest.raises(TypeError, match="current_gate_config"):
             find_certified_ancestor(  # type: ignore[call-arg]
                 tmp_path,
-                species="trex",
-                entry=load_stage_manifest("trex").by_id("stance"),
+                model_id=TYRANNOSAURUS_REX,
+                entry=load_stage_manifest(TYRANNOSAURUS_REX).by_id("stance"),
                 current_task_sha256=STANCE_TASK,
                 plant_identity=trunk_plant(),
             )
@@ -380,7 +383,7 @@ class TestFindCertifiedAncestor:
 
 def _find_locomotion(run_dir, **overrides):
     kwargs: dict[str, Any] = dict(
-        entry=load_stage_manifest("trex").by_id("locomotion"),
+        entry=load_stage_manifest(TYRANNOSAURUS_REX).by_id("locomotion"),
         current_task_sha256=LOCOMOTION_TASK,
         current_gate_config=LOCOMOTION_CURRICULUM,
     )
@@ -490,15 +493,19 @@ class TestRunIdFor:
         run = tmp_path / "20260901_120000"
         run.mkdir()
         assert run_id_for(run) == "20260901_120000"
-        (run / "provenance.json").write_text(json.dumps({"run_id": "trex-sb3-ppo-abc123"}), encoding="utf-8")
-        assert run_id_for(run) == "trex-sb3-ppo-abc123"
+        (run / "provenance.json").write_text(
+            json.dumps({"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-abc123"}), encoding="utf-8"
+        )
+        assert run_id_for(run) == "tyrannosaurus_rex-anatomical-sb3-ppo-abc123"
         build_trunk_run(run)
-        assert _find(run).run_id == "trex-sb3-ppo-abc123"
+        assert _find(run).run_id == "tyrannosaurus_rex-anatomical-sb3-ppo-abc123"
 
     def test_a_provenance_without_a_run_id_is_an_error_not_a_guess(self, tmp_path):
         run = tmp_path / "run"
         run.mkdir()
-        (run / "provenance.json").write_text(json.dumps({"species": "trex"}), encoding="utf-8")
+        (run / "provenance.json").write_text(
+            json.dumps({"species": "tyrannosaurus_rex", "embodiment": "anatomical"}), encoding="utf-8"
+        )
         with pytest.raises(AncestorReuseError, match="records no run_id"):
             run_id_for(run)
         (run / "provenance.json").write_text("{broken", encoding="utf-8")
@@ -647,7 +654,7 @@ def _rejudge_rewritten_stance(stage_dir: Path) -> None:
     )
     write_gate_verdict(
         stage_dir,
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         stage=1,
         stage_id="stance",
         gate_kind="stance_quality/v1",
@@ -732,7 +739,9 @@ class TestTrunksCompose:
     def test_a_trunk_of_a_trunk_resolves_to_the_run_that_certified_the_node(self, tmp_path, caplog):
         original = tmp_path / "logs" / "20260901_120000"
         original.mkdir(parents=True)
-        (original / "provenance.json").write_text(json.dumps({"run_id": "trex-sb3-ppo-original"}), encoding="utf-8")
+        (original / "provenance.json").write_text(
+            json.dumps({"run_id": "tyrannosaurus_rex-anatomical-sb3-ppo-original"}), encoding="utf-8"
+        )
         stage_dir = build_trunk_run(original)
         middle = tmp_path / "logs" / "20260902_120000"
         build_middle_run(middle, original)
@@ -743,7 +752,7 @@ class TestTrunksCompose:
 
         direct = _follow(original)
         assert found == CertifiedAncestor(**{**direct.__dict__, "via": (middle,)})
-        assert found.run_id == "trex-sb3-ppo-original"
+        assert found.run_id == "tyrannosaurus_rex-anatomical-sb3-ppo-original"
         assert found.source_run_dir == original and found.stage_dir == stage_dir
         assert found.via == (middle,)
         assert direct.via == ()
@@ -755,7 +764,7 @@ class TestTrunksCompose:
         with caplog.at_level(logging.INFO):
             record_dir = record_ancestor(child, found)
         record = json.loads((record_dir / ANCESTOR_RECORD_NAME).read_text(encoding="utf-8"))
-        assert record["parent_run_id"] == "trex-sb3-ppo-original"
+        assert record["parent_run_id"] == "tyrannosaurus_rex-anatomical-sb3-ppo-original"
         assert record["source_run_dir"] == str(original) and record["source_stage_dir"] == str(stage_dir)
         assert "via" not in record
         assert f"resolved via {middle}" in caplog.text
@@ -824,12 +833,12 @@ class TestTrunksCompose:
         assert str(original) in message and str(tmp_path / "new" / "original") in message
 
     def test_the_sibling_fallback_finds_a_moved_log_base(self, tmp_path, caplog):
-        old_base = tmp_path / "old" / "logs" / "trex" / "ppo"
+        old_base = tmp_path / "old" / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo"
         original = old_base / "20260901_120000"
         original.mkdir(parents=True)
         build_trunk_run(original)
         build_middle_run(old_base / "20260902_120000", original)
-        new_base = tmp_path / "new" / "logs" / "trex" / "ppo"
+        new_base = tmp_path / "new" / "logs" / "tyrannosaurus_rex" / "anatomical" / "ppo"
         new_base.parent.mkdir(parents=True)
         shutil.move(str(old_base), str(new_base))
         assert not original.exists()
@@ -995,12 +1004,12 @@ class TestTrunksCompose:
 BEHAVIOR_TASK = "sha256:" + "4" * 64
 
 
-def _trex_chain():
-    manifest = load_stage_manifest("trex")
+def _tyrannosaurus_rex_chain():
+    manifest = load_stage_manifest(TYRANNOSAURUS_REX)
     return tuple(manifest.by_id(stage_id) for stage_id in ("stance", "locomotion", "behavior"))
 
 
-def _trex_stage_configs(**stance_curriculum_overrides):
+def _tyrannosaurus_rex_stage_configs(**stance_curriculum_overrides):
     return {
         1: {"env_kwargs": {}, "curriculum_kwargs": {**STANCE_CURRICULUM, **stance_curriculum_overrides}},
         2: {"env_kwargs": {}, "curriculum_kwargs": LOCOMOTION_CURRICULUM},
@@ -1025,9 +1034,9 @@ def _select(log_dir, **overrides):
     from environments.shared.ancestors import select_trunk
 
     kwargs: dict[str, Any] = dict(
-        species="trex",
-        chain=_trex_chain(),
-        stage_configs=_trex_stage_configs(),
+        model_id=TYRANNOSAURUS_REX,
+        chain=_tyrannosaurus_rex_chain(),
+        stage_configs=_tyrannosaurus_rex_stage_configs(),
         plant_identity=trunk_plant(),
     )
     kwargs.update(overrides)
@@ -1131,7 +1140,7 @@ class TestSelectTrunk:
     def test_retrain_from_limits_the_nodes_consulted(self, tmp_path, fixture_tasks):
         deeper = tmp_path / "20260905_000000"
         build_chained_trunk(deeper)
-        stance, locomotion, _ = _trex_chain()
+        stance, locomotion, _ = _tyrannosaurus_rex_chain()
 
         selection = _select(tmp_path, retrain_from=locomotion)
         assert selection.considered == ("stance",)
@@ -1173,7 +1182,7 @@ class TestSelectTrunk:
         build_trunk_run(tmp_path / "20260905_000000", seed=9, **recipe)
         build_trunk_run(tmp_path / "20260906_000000", seed=9, **recipe)  # repeats a seed: not a replicate
 
-        selection = _select(tmp_path, stage_configs=_trex_stage_configs(certification_seeds=3))
+        selection = _select(tmp_path, stage_configs=_tyrannosaurus_rex_stage_configs(certification_seeds=3))
 
         assert selection.run_dir == tmp_path / "20260906_000000"
         (support,) = selection.support
@@ -1186,7 +1195,8 @@ class TestSelectTrunk:
 
         current = trunk_plant()
         older_plant = make_plant_identity(
-            species="trex",
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
             model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 2,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
@@ -1198,7 +1208,8 @@ class TestSelectTrunk:
         build_trunk_run(failed_older, plant=older_plant, task_sha256=OTHER_TASK, passed=False)
         # Older interface but behind a physics bump: the widen gate would refuse it, so no hint.
         physics_bumped = make_plant_identity(
-            species="trex",
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
             model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 2,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
@@ -1207,7 +1218,8 @@ class TestSelectTrunk:
         build_trunk_run(tmp_path / "20260601_000000", plant=physics_bumped, task_sha256=OTHER_TASK)
         # Older interface but not exactly COMMAND_WIDTH narrower: not widenable either.
         wrong_width = make_plant_identity(
-            species="trex",
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
             model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 1,
             observation_dim=current.observation_dim - 7,
@@ -1234,7 +1246,8 @@ class TestSelectTrunk:
 
         current = trunk_plant()
         older_plant = make_plant_identity(
-            species="trex",
+            species="tyrannosaurus_rex",
+            embodiment="anatomical",
             model_path="environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
             policy_interface_revision=current.policy_interface_revision - 1,
             observation_dim=current.observation_dim - COMMAND_WIDTH,
@@ -1273,13 +1286,27 @@ class TestSelectTrunk:
         jax = tmp_path / "20260911_000000"
         build_trunk_run(jax)
         (jax / "provenance.json").write_text(
-            json.dumps({"run_id": "jax-run", "species": "trex", "algorithm": "PPO", "backend": "jax-mjx"})
+            json.dumps(
+                {
+                    "run_id": "jax-run",
+                    "species": "tyrannosaurus_rex",
+                    "embodiment": "anatomical",
+                    "algorithm": "PPO",
+                    "backend": "jax-mjx",
+                }
+            )
         )
         other_species = tmp_path / "20260912_000000"
         build_trunk_run(other_species)
         (other_species / "provenance.json").write_text(
             json.dumps(
-                {"run_id": "raptor", "species": "velociraptor", "algorithm": "PPO", "backend": "stable-baselines3"}
+                {
+                    "run_id": "velociraptor_mongoliensis-run",
+                    "species": "velociraptor_mongoliensis",
+                    "embodiment": "anatomical",
+                    "algorithm": "PPO",
+                    "backend": "stable-baselines3",
+                }
             )
         )
 
@@ -1289,14 +1316,14 @@ class TestSelectTrunk:
         refusals = {c.run_dir.name: c.refusal for c in selection.candidates}
         assert "records algorithm SAC, not PPO" in refusals["20260910_000000"][1]
         assert "backend 'jax-mjx'" in refusals["20260911_000000"][1]
-        assert "species 'velociraptor'" in refusals["20260912_000000"][1]
+        assert "species 'velociraptor_mongoliensis' and embodiment 'anatomical'" in refusals["20260912_000000"][1]
         # Without an algorithm to compare, the SAC run's records decide nothing and it wins on recency
         # among the same-species, same-backend runs.
         assert _select(tmp_path).run_dir == sac
 
     def test_retrain_from_at_the_root_consults_no_run(self, tmp_path, fixture_tasks):
         build_trunk_run(tmp_path / "20260905_000000")
-        stance, _, _ = _trex_chain()
+        stance, _, _ = _tyrannosaurus_rex_chain()
 
         selection = _select(tmp_path, retrain_from=stance)
 
@@ -1317,7 +1344,7 @@ class TestSelectTrunk:
 
         with pytest.raises(ValueError, match="needs the target's chain"):
             _select(tmp_path, chain=())
-        manifest = load_stage_manifest("trex")
+        manifest = load_stage_manifest(TYRANNOSAURUS_REX)
         with pytest.raises(ValueError, match="is not on the chain"):
             _select(tmp_path, retrain_from=manifest.by_id("recovery"))
 
@@ -1358,7 +1385,7 @@ class TestSelectTrunk:
             return {"task_sha256": {1: STANCE_TASK, 2: LOCOMOTION_TASK}[kwargs["stage"]]}
 
         monkeypatch.setattr(task_fingerprint_module, "derive_stage_task_fingerprint", derive)
-        configs = _trex_stage_configs()
+        configs = _tyrannosaurus_rex_stage_configs()
         configs[1]["env_kwargs"] = {"push_prob": 0.25}
         build_trunk_run(tmp_path / "20260901_000000")
 
@@ -1366,7 +1393,7 @@ class TestSelectTrunk:
 
         assert [d["stage"] for d in derived] == [1, 2]
         assert derived[0] == {
-            "species": "trex",
+            "model_id": TYRANNOSAURUS_REX,
             "stage": 1,
             "backend": "stable-baselines3",
             "env_kwargs": {"push_prob": 0.25},

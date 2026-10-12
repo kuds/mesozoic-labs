@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from environments.shared import result_bundle
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import (
     ResultBundleError,
@@ -31,14 +32,16 @@ from .result_bundle_helpers import (
     _write_stage_configs,
 )
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+
 
 def test_initialize_result_bundle_is_idempotent_and_rejects_reuse(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
+    run_dir = tmp_path / "logs" / "velociraptor_mongoliensis" / "anatomical" / "ppo" / "20260718_120000"
     kwargs: _InitializeResultBundleKwargs = {
-        "species": "velociraptor",
+        "model_id": VELOCIRAPTOR_MONGOLIENSIS,
         "algorithm": "PPO",
         "backend": "stable-baselines3",
         "seed": 42,
@@ -75,7 +78,7 @@ def test_initialize_result_bundle_rejects_duplicate_evaluation_seeds(
     with pytest.raises(ResultBundleError, match="must not contain duplicates"):
         initialize_result_bundle(
             tmp_path / "run",
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             algorithm="PPO",
             seed=42,
             evaluation_seeds=[11, 11],
@@ -89,7 +92,7 @@ def test_initialize_result_bundle_rejects_an_unlisted_evaluation_role_seed(
     with pytest.raises(ResultBundleError, match="exactly match"):
         initialize_result_bundle(
             tmp_path / "run",
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             algorithm="PPO",
             seed=42,
             evaluation_seeds=[11],
@@ -109,7 +112,7 @@ def test_initialize_result_bundle_rejects_a_publication_seed_shared_with_trainin
     with pytest.raises(ResultBundleError, match=r"publication_evaluation reuses the training seed 42"):
         initialize_result_bundle(
             tmp_path / "run",
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             algorithm="PPO",
             seed=42,
             evaluation_seeds=[42],
@@ -125,7 +128,7 @@ def test_initialize_result_bundle_rejects_a_publication_seed_shared_with_selecti
     with pytest.raises(ResultBundleError, match=r"reuses the checkpoint_selection_evaluation seed 1042"):
         initialize_result_bundle(
             tmp_path / "run",
-            species="velociraptor",
+            model_id=VELOCIRAPTOR_MONGOLIENSIS,
             algorithm="PPO",
             seed=42,
             evaluation_seeds=[1042],
@@ -148,7 +151,11 @@ def test_default_seed_roles_declare_the_certification_panel(
     from environments.shared.constants import PUBLICATION_SEED_START
 
     path = initialize_result_bundle(
-        tmp_path / "run", species="velociraptor", algorithm="PPO", seed=42, evaluation_seeds=[101, 102]
+        tmp_path / "run",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
+        algorithm="PPO",
+        seed=42,
+        evaluation_seeds=[101, 102],
     )
     provenance = json.loads(path.read_text(encoding="utf-8"))
     assert provenance["seed_roles"] == {
@@ -187,7 +194,7 @@ def test_the_certification_panel_role_may_equal_the_publication_seed(
 
     path = initialize_result_bundle(
         tmp_path / "run",
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         algorithm="PPO",
         seed=42,
         evaluation_seeds=[1042, 3042],
@@ -210,7 +217,7 @@ def test_distinct_seed_roles_publish_canonical_valid(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -244,7 +251,7 @@ def test_initialize_result_bundle_rejects_changed_evaluation_identity(
 ) -> None:
     run_dir = tmp_path / "run"
     kwargs: dict[str, Any] = {
-        "species": "velociraptor",
+        "model_id": VELOCIRAPTOR_MONGOLIENSIS,
         "algorithm": "PPO",
         "backend": "stable-baselines3",
         "seed": 42,
@@ -267,7 +274,7 @@ def test_initialize_result_bundle_rejects_changed_evaluation_identity(
 def _resume_run_kwargs() -> dict[str, Any]:
     """Initializer kwargs shared by the multi-session (resume) tests."""
     return {
-        "species": "velociraptor",
+        "model_id": VELOCIRAPTOR_MONGOLIENSIS,
         "algorithm": "PPO",
         "backend": "stable-baselines3",
         "seed": 42,
@@ -377,7 +384,7 @@ def test_old_style_provenance_without_sessions_still_audits_and_resumes(
     paths = save_result_bundle(
         [failed_stance],
         configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -402,7 +409,7 @@ def test_old_style_provenance_without_sessions_still_audits_and_resumes(
     monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
     resumed_path = initialize_result_bundle(
         run_dir,
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         algorithm="PPO",
         backend="stable-baselines3",
         seed=42,
@@ -439,7 +446,7 @@ def test_complete_bundle_with_a_resumed_session_audits_canonical_valid(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -484,7 +491,15 @@ def test_fresh_process_reexport_of_a_complete_bundle_records_no_session(
         "plant_identity": _plant_identity(),
         "run_id": "resumed-run",
     }
-    paths = save_result_bundle(stage_results, stage_configs, "velociraptor", "PPO", 42, run_dir, **save_kwargs)
+    paths = save_result_bundle(
+        stage_results,
+        stage_configs,
+        VELOCIRAPTOR_MONGOLIENSIS,
+        "PPO",
+        42,
+        run_dir,
+        **save_kwargs,
+    )
     before = paths["provenance"].read_bytes()
 
     # A fresh runtime re-runs the storage cell (and even a full re-export) on
@@ -493,7 +508,15 @@ def test_fresh_process_reexport_of_a_complete_bundle_records_no_session(
     second = initialize_result_bundle(run_dir, **(kwargs | {"captured_at": "2026-07-19T09:00:00+00:00"}))
     assert second.read_bytes() == before
 
-    reexport = save_result_bundle(stage_results, stage_configs, "velociraptor", "PPO", 42, run_dir, **save_kwargs)
+    reexport = save_result_bundle(
+        stage_results,
+        stage_configs,
+        VELOCIRAPTOR_MONGOLIENSIS,
+        "PPO",
+        42,
+        run_dir,
+        **save_kwargs,
+    )
     assert reexport["provenance"].read_bytes() == before
     assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
 
@@ -530,7 +553,7 @@ def test_an_unpublishable_bundle_requires_complete_capture_time_provenance(
     paths = save_result_bundle(
         [failed_stance],
         configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -558,7 +581,7 @@ def test_summary_date_is_derived_from_immutable_capture_time(
     run_dir = tmp_path / "run"
     initialize_result_bundle(
         run_dir,
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         algorithm="PPO",
         backend="stable-baselines3",
         seed=42,
@@ -574,7 +597,7 @@ def test_summary_date_is_derived_from_immutable_capture_time(
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "velociraptor",
+        VELOCIRAPTOR_MONGOLIENSIS,
         "PPO",
         42,
         run_dir,
@@ -626,7 +649,7 @@ def test_initializer_defaults_to_the_repository_root(tmp_path: Path, monkeypatch
     monkeypatch.setattr(result_bundle_provenance, "_repository_state", spy)
     initialize_result_bundle(
         tmp_path / "run",
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         algorithm="PPO",
         backend="stable-baselines3",
         seed=42,

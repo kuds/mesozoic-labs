@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.reporting import save_result_bundle
 from environments.shared.reporting.csv_output import build_results_csv_rows, write_results_csv
 from environments.shared.result_bundle import (
@@ -35,7 +36,7 @@ from .result_bundle_helpers import (
 _TYRANNOSAURUS_REX_STAGES: "tuple[int | str, ...]" = (1, "recovery", 2, 3)
 
 
-def test_trex_bundle_with_recovery_stage_is_canonical_valid(
+def test_tyrannosaurus_rex_bundle_with_recovery_stage_is_canonical_valid(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
@@ -46,12 +47,12 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
     certified and published, recovery is recorded honestly as uncertified, and
     the bundle is not ``complete`` (plan decision D4).
     """
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     paths, _, _ = _complete_bundle(
         run_dir,
         algorithm="PPO",
         backend="stable-baselines3",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
 
@@ -72,13 +73,15 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
     assert summary["final_avg_reward"] == summary["stages"]["3"]["final_eval_reward"]
     validate_result_summary(
         summary,
-        expected_species="trex",
+        expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         require_complete=False,
         require_publishable=True,
         canonical_provenance=True,
     )
     with pytest.raises(ResultSchemaError, match="complete"):
-        validate_result_summary(summary, expected_species="trex", require_complete=True)
+        validate_result_summary(
+            summary, expected_model_id=ModelId("tyrannosaurus_rex", "anatomical"), require_complete=True
+        )
     assert set(summary["provenance"]["selected_checkpoints"]) == {"1", "recovery", "2", "3"}
 
     with paths["collected_results_csv"].open(newline="", encoding="utf-8") as source:
@@ -98,16 +101,16 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
         validate_result_bundle(run_dir, require_complete=True)
 
 
-def test_trex_bundle_with_recovery_stage_resaves_byte_identically(
+def test_tyrannosaurus_rex_bundle_with_recovery_stage_resaves_byte_identically(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     paths, stage_results, stage_configs = _complete_bundle(
         run_dir,
         algorithm="PPO",
         backend="stable-baselines3",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
     before = _snapshot_files(run_dir)
@@ -115,7 +118,7 @@ def test_trex_bundle_with_recovery_stage_resaves_byte_identically(
     second = save_result_bundle(
         stage_results,
         stage_configs,
-        "trex",
+        ModelId("tyrannosaurus_rex", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -124,8 +127,8 @@ def test_trex_bundle_with_recovery_stage_resaves_byte_identically(
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity("trex"),
-        run_id="trex-stable-baselines3-ppo-test",
+        plant_identity=_plant_identity(ModelId("tyrannosaurus_rex", "anatomical")),
+        run_id="tyrannosaurus_rex-anatomical-stable-baselines3-ppo-test",
     )
 
     assert second["summary"].is_file()
@@ -138,11 +141,11 @@ def test_recovery_verdict_cannot_be_laundered_into_a_pass(
 ) -> None:
     """gate_kind none/v1 never passes, so stage_passed=True is a
     contradiction the bundle must refuse to publish."""
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
         algorithm="PPO",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=_TYRANNOSAURUS_REX_STAGES,
     )
     recovery_result = next(result for result in stage_results if result["stage"] == "recovery")
@@ -153,7 +156,7 @@ def test_recovery_verdict_cannot_be_laundered_into_a_pass(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "trex",
+            ModelId("tyrannosaurus_rex", "anatomical"),
             "PPO",
             42,
             run_dir,
@@ -162,8 +165,8 @@ def test_recovery_verdict_cannot_be_laundered_into_a_pass(
             parallel_envs=4,
             evaluation_episodes=3,
             evaluation_seeds=[101, 102, 103],
-            plant_identity=_plant_identity("trex"),
-            run_id="trex-laundered-recovery",
+            plant_identity=_plant_identity(ModelId("tyrannosaurus_rex", "anatomical")),
+            run_id="tyrannosaurus_rex-anatomical-laundered-recovery",
         )
 
 
@@ -174,11 +177,11 @@ def test_recovery_without_its_stance_parent_is_rejected(
     """Recovery warm-starts from stance; a bundle recording it without the
     earlier advancing stage is incoherent (the historical contiguous-prefix
     rule, restated over the manifest)."""
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
         algorithm="PPO",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=(1, "recovery"),
     )
     orphaned = [result for result in stage_results if result["stage"] == "recovery"]
@@ -187,7 +190,7 @@ def test_recovery_without_its_stance_parent_is_rejected(
         save_result_bundle(
             orphaned,
             {"recovery": stage_configs["recovery"]},
-            "trex",
+            ModelId("tyrannosaurus_rex", "anatomical"),
             "PPO",
             42,
             run_dir,
@@ -195,7 +198,7 @@ def test_recovery_without_its_stance_parent_is_rejected(
             backend_version="test-backend-1.0",
             parallel_envs=4,
             evaluation_seeds=[101],
-            plant_identity=_plant_identity("trex"),
+            plant_identity=_plant_identity(ModelId("tyrannosaurus_rex", "anatomical")),
         )
 
 
@@ -205,18 +208,18 @@ def test_partial_stance_plus_recovery_bundle_publishes_the_certified_stance(
 ) -> None:
     """The pilot's recorded False verdict must not read as a FAILED
     curriculum: the certified stance publishes and the bundle is partial."""
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
         algorithm="PPO",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=(1, "recovery"),
     )
 
     paths = save_result_bundle(
         stage_results,
         stage_configs,
-        "trex",
+        ModelId("tyrannosaurus_rex", "anatomical"),
         "PPO",
         42,
         run_dir,
@@ -225,8 +228,8 @@ def test_partial_stance_plus_recovery_bundle_publishes_the_certified_stance(
         parallel_envs=4,
         evaluation_episodes=3,
         evaluation_seeds=[101, 102, 103],
-        plant_identity=_plant_identity("trex"),
-        run_id="trex-partial-with-recovery",
+        plant_identity=_plant_identity(ModelId("tyrannosaurus_rex", "anatomical")),
+        run_id="tyrannosaurus_rex-anatomical-partial-with-recovery",
     )
 
     assert paths["summary"].is_file()
@@ -248,11 +251,11 @@ def test_a_stage_reference_outside_the_manifest_fails_closed(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    run_dir = tmp_path / "trex-run"
+    run_dir = tmp_path / "tyrannosaurus_rex-anatomical-run"
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
         algorithm="PPO",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=(1,),
     )
     stage_results[0]["stage"] = "warp"
@@ -261,7 +264,7 @@ def test_a_stage_reference_outside_the_manifest_fails_closed(
         save_result_bundle(
             stage_results,
             stage_configs,
-            "trex",
+            ModelId("tyrannosaurus_rex", "anatomical"),
             "PPO",
             42,
             run_dir,
@@ -269,7 +272,7 @@ def test_a_stage_reference_outside_the_manifest_fails_closed(
             backend_version="test-backend-1.0",
             parallel_envs=4,
             evaluation_seeds=[101],
-            plant_identity=_plant_identity("trex"),
+            plant_identity=_plant_identity(ModelId("tyrannosaurus_rex", "anatomical")),
         )
 
 
@@ -278,13 +281,13 @@ def test_recovery_collected_results_row_round_trips(tmp_path: Path) -> None:
     stage_results, stage_configs = _complete_bundle_inputs(
         tmp_path / "inputs",
         algorithm="PPO",
-        species="trex",
+        model_id=ModelId("tyrannosaurus_rex", "anatomical"),
         stage_refs=(1, "recovery"),
     )
     rows = build_results_csv_rows(
         stage_results,
         stage_configs,
-        "trex",
+        ModelId("tyrannosaurus_rex", "anatomical"),
         "PPO",
         42,
         backend="stable-baselines3",
@@ -297,5 +300,5 @@ def test_recovery_collected_results_row_round_trips(tmp_path: Path) -> None:
     with csv_path.open(newline="", encoding="utf-8") as source:
         reread = list(csv.DictReader(source))
     assert [row["stage"] for row in reread] == ["1", "recovery"]
-    assert reread[1]["species"] == "trex"
+    assert ModelId.from_record(reread[1]) == ModelId("tyrannosaurus_rex", "anatomical")
     assert reread[1]["schema_version"] == "4"

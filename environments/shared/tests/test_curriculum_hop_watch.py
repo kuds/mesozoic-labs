@@ -25,6 +25,7 @@ from environments.shared.curriculum.hop_watch import (
     build_hop_watch_callback,
     hop_watch_settings,
 )
+from environments.shared.model_id import ModelId
 
 #: Evaluation unsupported duty of the two r8 runs (gate_progress.npz).
 SEED_42 = [(4_000_000, 0.418), (5_000_000, 0.365), (6_000_000, 0.372), (6_500_000, 0.375), (7_000_000, 0.375)]
@@ -79,13 +80,15 @@ class TestSettings:
     def test_undeclared_is_none(self):
         assert hop_watch_settings({}) is None
 
-    def test_the_trex_stance_block(self):
-        curriculum = load_stage_config("trex", "stance")["curriculum_kwargs"]
+    def test_the_tyrannosaurus_rex_stance_block(self):
+        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["curriculum_kwargs"]
         assert hop_watch_settings(curriculum) == (0.05, 7_000_000, True)
         # Anchored to the entropy anneal's end: move the two together.
         assert (
             curriculum["hop_watch_after_timesteps"]
-            == load_stage_config("trex", "stance")["ppo_kwargs"]["ent_coef_decay_timesteps"]
+            == load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["ppo_kwargs"][
+                "ent_coef_decay_timesteps"
+            ]
         )
 
     def test_defaults_warn_from_the_start(self):
@@ -109,7 +112,7 @@ class TestSettings:
 
     def test_the_keys_configure_early_stopping_not_the_gate(self):
         assert set(HOP_WATCH_KEYS) <= _COLLAPSE_KEYS
-        curriculum = load_stage_config("trex", "stance")["curriculum_kwargs"]
+        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["curriculum_kwargs"]
         assert validate_gate_config("stance", curriculum) == "stance_quality_heading/v1"
 
 
@@ -149,19 +152,31 @@ class TestBuild:
     def test_built_only_where_declared(self):
         plateau = _Plateau()
         assert build_hop_watch_callback(plateau, {"curriculum_kwargs": {}}, stage_dir=None) is None
-        raptor = load_stage_config("velociraptor", 1)
-        assert build_hop_watch_callback(plateau, raptor, stage_dir=None) is None
-        assert build_hop_watch_callback(None, load_stage_config("trex", "stance"), stage_dir=None) is None
+        velociraptor_mongoliensis = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
+        assert build_hop_watch_callback(plateau, velociraptor_mongoliensis, stage_dir=None) is None
+        assert (
+            build_hop_watch_callback(
+                None, load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance"), stage_dir=None
+            )
+            is None
+        )
 
-    def test_trex_stance_builds_a_stopping_watch(self, tmp_path):
+    def test_tyrannosaurus_rex_stance_builds_a_stopping_watch(self, tmp_path):
         pytest.importorskip("stable_baselines3")
-        watch = build_hop_watch_callback(_Plateau(), load_stage_config("trex", "stance"), stage_dir=tmp_path)
+        watch = build_hop_watch_callback(
+            _Plateau(), load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance"), stage_dir=tmp_path
+        )
         assert isinstance(watch, HopRegimeWatchCallback)
         assert (watch.max_unsupported_duty, watch.after_timesteps, watch.stop) == (0.05, 7_000_000, True)
 
     def test_recovery_inherits_no_watch(self):
         # [curriculum] is never inherited (recovery.toml's extends), so the warm-started stage has none.
-        assert build_hop_watch_callback(_Plateau(), load_stage_config("trex", "recovery"), stage_dir=None) is None
+        assert (
+            build_hop_watch_callback(
+                _Plateau(), load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "recovery"), stage_dir=None
+            )
+            is None
+        )
 
 
 class TestTrainerWiring:
@@ -205,10 +220,12 @@ class TestTrainerWiring:
             eval_env.close()
         return callbacks
 
-    def test_the_trex_stance_trains_with_the_watch_after_the_plateau_callback(self, tmp_path, monkeypatch):
+    def test_the_tyrannosaurus_rex_stance_trains_with_the_watch_after_the_plateau_callback(self, tmp_path, monkeypatch):
         from environments.shared.eval_diagnostics import StageGatePlateauCallback
 
-        callbacks = self._callbacks(tmp_path, monkeypatch, load_stage_config("trex", "stance"))
+        callbacks = self._callbacks(
+            tmp_path, monkeypatch, load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")
+        )
         kinds = [type(callback) for callback in callbacks]
         assert kinds.count(HopRegimeWatchCallback) == 1
         # After the plateau callback, so each evaluation is recorded before the watch reads the series.
@@ -219,7 +236,9 @@ class TestTrainerWiring:
         assert watch.stage_dir == tmp_path / "logs"
 
     def test_a_stage_without_the_keys_trains_without_one(self, tmp_path, monkeypatch):
-        callbacks = self._callbacks(tmp_path, monkeypatch, load_stage_config("velociraptor", 1))
+        callbacks = self._callbacks(
+            tmp_path, monkeypatch, load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), 1)
+        )
         assert not any(isinstance(callback, HopRegimeWatchCallback) for callback in callbacks)
 
 

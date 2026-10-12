@@ -9,6 +9,7 @@ import mujoco
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.tests.reward_test_helpers import (
     assert_backward_vel_penalty_non_positive,
     assert_drift_penalty_non_positive,
@@ -42,7 +43,7 @@ def env():
     e.close()
 
 
-class TestTRexRewardComponents:
+class TestTyrannosaurusRexRewardComponents:
     """T-Rex-specific reward component tests."""
 
     def test_total_reward_is_sum_of_components(self, env):
@@ -121,7 +122,7 @@ class TestTRexRewardComponents:
         assert info["reward_height"] >= 0.0
 
 
-class TestTRexRewardWeightEffects:
+class TestTyrannosaurusRexRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_zero_bite_bonus_gives_no_bite_reward(self):
@@ -539,7 +540,11 @@ class TestStageOneStanceRewardPrimitives:
             "stance_width_tolerance_m",
             *_FOLLOWUP_KEYS,
         }
-        kwargs = {k: v for k, v in load_stage_config("trex", "stance")["env_kwargs"].items() if k not in new_keys}
+        kwargs = {
+            k: v
+            for k, v in load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["env_kwargs"].items()
+            if k not in new_keys
+        }
         legacy_terms = (
             "reward_forward",
             "reward_backward",
@@ -600,7 +605,11 @@ class TestStageOneStanceRewardPrimitives:
         """
         from environments.shared.config import load_stage_config
 
-        kwargs = {k: v for k, v in load_stage_config("trex", "stance")["env_kwargs"].items() if k not in _FOLLOWUP_KEYS}
+        kwargs = {
+            k: v
+            for k, v in load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), "stance")["env_kwargs"].items()
+            if k not in _FOLLOWUP_KEYS
+        }
         r8_terms = (
             "reward_forward",
             "reward_backward",
@@ -998,11 +1007,13 @@ class TestStanceFollowupTerms:
                 assert beyond[index][key] == clipped[index][key], (index, key)
 
     def test_raw_equals_filtered_without_the_filter(self):
-        class _UnfilteredTRex(TyrannosaurusRexAnatomicalEnv):
+        class _UnfilteredTyrannosaurusRex(TyrannosaurusRexAnatomicalEnv):
             action_filter_cutoff_hz = 0.0
 
         def run(source):
-            env = _UnfilteredTRex(smoothness_weight=2.0, action_jerk_weight=3.0, action_penalty_source=source)
+            env = _UnfilteredTyrannosaurusRex(
+                smoothness_weight=2.0, action_jerk_weight=3.0, action_penalty_source=source
+            )
             try:
                 env.reset(seed=0)
                 rng = np.random.default_rng(1)

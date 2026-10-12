@@ -42,9 +42,24 @@ from environments.shared.gait.recorder import (
     _sole_corners,
 )
 from environments.shared.gait.stance_metrics import episode_stance_metrics
+from environments.shared.model_id import ModelId
 from environments.shared.species_registry import get_species_config
 
-SIX = ("trex", "velociraptor", "compsognathus", "compsognathus_robot", "dibothrosuchus", "brachiosaurus")
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+
+MODEL_IDS = (
+    TYRANNOSAURUS_REX,
+    VELOCIRAPTOR_MONGOLIENSIS,
+    COMPSOGNATHUS_LONGIPES,
+    COMPSOGNATHUS_LONGIPES_ROBOT,
+    DIBOTHROSUCHUS_ELAPHROS,
+    BRACHIOSAURUS_ALTITHORAX,
+)
 #: One cheap species per friction cone, keyed by the cone (the pytest id), so both of the recorder's normal-force
 #: decodes stay covered.  Every plant has declared the elliptic cone since D-D30 (plant_versions note 17;
 #: test_friction_cone.py guards it), so none exercises the pyramidal decode -- the sum of a contact's 2 * (condim - 1)
@@ -52,22 +67,22 @@ SIX = ("trex", "velociraptor", "compsognathus", "compsognathus_robot", "dibothro
 #: default.  dibothrosuchus (box feet, four contacts each) therefore runs with its model's cone switched to
 #: pyramidal in memory, before any reset or recorder attach; compsognathus runs as built.
 CONE_CASES = {
-    "pyramidal": ("dibothrosuchus", mujoco.mjtCone.mjCONE_PYRAMIDAL),
-    "elliptic": ("compsognathus", mujoco.mjtCone.mjCONE_ELLIPTIC),
+    "pyramidal": (DIBOTHROSUCHUS_ELAPHROS, mujoco.mjtCone.mjCONE_PYRAMIDAL),
+    "elliptic": (COMPSOGNATHUS_LONGIPES, mujoco.mjtCone.mjCONE_ELLIPTIC),
 }
 
 
-def make_env(species: str, **overrides):
-    kwargs = {**dict(load_stage_config(species, "stance")["env_kwargs"]), **overrides}
-    return get_species_config(species).env_class(**kwargs)
+def make_env(model_id: ModelId, **overrides):
+    kwargs = {**dict(load_stage_config(model_id, "stance")["env_kwargs"]), **overrides}
+    return get_species_config(model_id).env_class(**kwargs)
 
 
 @pytest.fixture
 def envs():
     built = []
 
-    def factory(species: str, **overrides):
-        env = make_env(species, **overrides)
+    def factory(model_id: ModelId, **overrides):
+        env = make_env(model_id, **overrides)
         built.append(env)
         return env
 
@@ -78,10 +93,10 @@ def envs():
 
 def cone_env(envs, case: str):
     """The case's species and its env, the model's friction cone set to the case's (in memory only)."""
-    species, cone = CONE_CASES[case]
-    env = envs(species)
+    model_id, cone = CONE_CASES[case]
+    env = envs(model_id)
     env.model.opt.cone = cone
-    return species, env
+    return model_id, env
 
 
 def random_actions(env, steps: int, seed: int = 0) -> np.ndarray:
@@ -133,8 +148,8 @@ class ContactForceLoop:
 @pytest.mark.parametrize("case", list(CONE_CASES))
 def test_each_case_runs_on_its_cone(envs, case):
     """The in-memory switch reaches the physics: MuJoCo builds the case's contact rows and the recorder decodes them."""
-    species, env = cone_env(envs, case)
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach()
+    model_id, env = cone_env(envs, case)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, model_id)).attach()
     env.reset(seed=3042)
     zero = np.zeros(env.model.nu)
     env.step(zero)
@@ -155,9 +170,9 @@ def test_recording_leaves_the_trajectory_bit_identical(envs, case):
     steps = 120
     trajectories = []
     for record in (False, True):
-        species, env = cone_env(envs, case)
+        model_id, env = cone_env(envs, case)
         actions = random_actions(env, steps)
-        recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach() if record else None
+        recorder = SubstepContactRecorder(env, Morphology.from_env(env, model_id)).attach() if record else None
         env.reset(seed=3042)
         rows = []
         for action in actions:
@@ -175,8 +190,8 @@ def test_recording_leaves_the_trajectory_bit_identical(envs, case):
 @pytest.mark.parametrize("case", list(CONE_CASES))
 @pytest.mark.parametrize("decode", ["one_gather", "per_contact_dim"])
 def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, case, decode):
-    species, env = cone_env(envs, case)
-    morphology = Morphology.from_env(env, species)
+    model_id, env = cone_env(envs, case)
+    morphology = Morphology.from_env(env, model_id)
     reference = ContactForceLoop(env, morphology)
     env._substep_probe_hook = reference  # the recorder chains it, so both read every substep
     recorder = SubstepContactRecorder(env, morphology).attach()
@@ -200,8 +215,8 @@ def test_the_normal_forces_equal_an_mj_contact_force_loop(envs, case, decode):
 
 @pytest.mark.parametrize("case", list(CONE_CASES))
 def test_touch_is_the_env_aggregate_and_the_samples_are_the_env_state(envs, case):
-    species, env = cone_env(envs, case)
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, species)).attach()
+    model_id, env = cone_env(envs, case)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, model_id)).attach()
     env.reset(seed=3043)
     spawn = (
         env.data.site_xpos[[foot.primary_site for foot in recorder._morphology.feet]].copy(),
@@ -242,11 +257,13 @@ def test_the_behavior_env_terrain_probe_stays_chained_and_comes_back(monkeypatch
         return probe(self)
 
     monkeypatch.setattr(SpeciesBehaviorMixin, "_probe_terrain_contacts", counting_probe)
-    env = get_behavior_env_class("trex")(commands=DirectionCommandConfig(cruise_speed=1.05, speed_scale=1.575))
+    env = get_behavior_env_class(TYRANNOSAURUS_REX)(
+        commands=DirectionCommandConfig(cruise_speed=1.05, speed_scale=1.575)
+    )
     try:
         installed = env._substep_probe_hook
         assert installed == env._probe_terrain_contacts
-        recorder = SubstepContactRecorder(env, Morphology.from_env(env, "trex")).attach()
+        recorder = SubstepContactRecorder(env, Morphology.from_env(env, TYRANNOSAURUS_REX)).attach()
         env.reset(seed=1)
         zero = np.zeros(env.model.nu)
         for _ in range(3):
@@ -261,9 +278,9 @@ def test_the_behavior_env_terrain_probe_stays_chained_and_comes_back(monkeypatch
 
 
 def test_detach_restores_the_class_level_none_on_a_canonical_env(envs):
-    env = envs("compsognathus")
+    env = envs(COMPSOGNATHUS_LONGIPES)
     assert env._substep_probe_hook is None and "_substep_probe_hook" not in vars(env)
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, "compsognathus"))
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, COMPSOGNATHUS_LONGIPES))
     recorder.detach()  # not attached: a no-op
     recorder.attach()
     assert "_substep_probe_hook" in vars(env) and recorder.attached
@@ -272,8 +289,8 @@ def test_detach_restores_the_class_level_none_on_a_canonical_env(envs):
 
 
 def test_hooks_unwind_in_order_and_a_foreign_hook_on_top_is_refused(envs):
-    env = envs("compsognathus")
-    morphology = Morphology.from_env(env, "compsognathus")
+    env = envs(COMPSOGNATHUS_LONGIPES)
+    morphology = Morphology.from_env(env, COMPSOGNATHUS_LONGIPES)
     first = SubstepContactRecorder(env, morphology).attach()
     with pytest.raises(RecorderError, match="already attached"):
         first.attach()
@@ -292,9 +309,9 @@ def test_hooks_unwind_in_order_and_a_foreign_hook_on_top_is_refused(envs):
 
 
 def test_the_context_manager_detaches_when_the_rollout_raises(envs):
-    env = envs("compsognathus")
+    env = envs(COMPSOGNATHUS_LONGIPES)
     with pytest.raises(ZeroDivisionError):
-        with SubstepContactRecorder(env, Morphology.from_env(env, "compsognathus")):
+        with SubstepContactRecorder(env, Morphology.from_env(env, COMPSOGNATHUS_LONGIPES)):
             env.reset(seed=1)
             1 / 0
     assert "_substep_probe_hook" not in vars(env)
@@ -305,8 +322,8 @@ def test_the_context_manager_detaches_when_the_rollout_raises(envs):
 
 @pytest.fixture
 def attached(envs):
-    env = envs("trex")
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, "trex")).attach()
+    env = envs(TYRANNOSAURUS_REX)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, TYRANNOSAURUS_REX)).attach()
     yield env, recorder, np.zeros(env.model.nu)
     if recorder.attached and env._substep_probe_hook is recorder._bound_hook:
         recorder.detach()
@@ -361,11 +378,11 @@ def test_a_hook_overwritten_after_attach_is_reported_not_ignored(attached):
 
 
 def test_a_recorder_attached_mid_episode_is_refused(envs):
-    env = envs("trex")
+    env = envs(TYRANNOSAURUS_REX)
     zero = np.zeros(env.model.nu)
     env.reset(seed=1)
     env.step(zero)
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, "trex")).attach()
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, TYRANNOSAURUS_REX)).attach()
     env.step(zero)
     with pytest.raises(RecorderError, match="mid-episode"):
         recorder.end_step(zero)
@@ -385,8 +402,8 @@ def test_an_action_of_the_wrong_size_is_refused(attached):
 
 
 def test_a_morphology_for_another_env_is_refused(envs):
-    env = envs("trex")
-    morphology = Morphology.from_env(env, "trex")
+    env = envs(TYRANNOSAURUS_REX)
+    morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
     with pytest.raises(RecorderError, match="frame_skip"):
         SubstepContactRecorder(env, replace(morphology, frame_skip=10))
     with pytest.raises(RecorderError, match="another model"):
@@ -416,8 +433,8 @@ def test_the_policy_command_is_recorded_clipped_and_an_absent_one_as_nan(attache
 
 
 def test_per_geom_mode_splits_the_total_floor_force_by_geom(envs):
-    env = envs("compsognathus")
-    recorder = SubstepContactRecorder(env, Morphology.from_env(env, "compsognathus"), per_geom=True).attach()
+    env = envs(COMPSOGNATHUS_LONGIPES)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, COMPSOGNATHUS_LONGIPES), per_geom=True).attach()
     env.reset(seed=1)
     for action in random_actions(env, 20, seed=3):
         env.step(action)
@@ -432,8 +449,8 @@ def test_per_geom_mode_splits_the_total_floor_force_by_geom(envs):
 
 def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
     """The geometry behind the trex audit's finding (pad rolled 3-6 degrees outer edge up, CoP on the inner edge)."""
-    env = envs("trex")
-    morphology = Morphology.from_env(env, "trex")
+    env = envs(TYRANNOSAURUS_REX)
+    morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
     right = morphology.feet[0]
     corners = _sole_corners(env.model, right)
     half_width = env.model.geom_size[right.sole_geom][1]
@@ -463,21 +480,21 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
 #: foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose
 #: one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
-    "trex": 0.47,
-    "velociraptor": None,
-    "compsognathus": 0.20,
-    "compsognathus_robot": 0.35,
-    "dibothrosuchus": 0.78,
-    "brachiosaurus": None,
+    TYRANNOSAURUS_REX: 0.47,
+    VELOCIRAPTOR_MONGOLIENSIS: None,
+    COMPSOGNATHUS_LONGIPES: 0.20,
+    COMPSOGNATHUS_LONGIPES_ROBOT: 0.35,
+    DIBOTHROSUCHUS_ELAPHROS: 0.78,
+    BRACHIOSAURUS_ALTITHORAX: None,
 }
 
 
-@pytest.mark.parametrize("species", SIX)
-def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
-    env = envs(species)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_each_statue_stands_on_its_registered_support_geoms(envs, model_id):
+    env = envs(model_id)
     settle = int(round(1.0 / env.dt))  # 1 s
     zero = np.zeros(env.model.nu)
-    with SubstepContactRecorder(env, Morphology.from_env(env, species)) as recorder:
+    with SubstepContactRecorder(env, Morphology.from_env(env, model_id)) as recorder:
         env.reset(seed=3042)
         for _ in range(settle + 150):
             env.step(zero)
@@ -491,7 +508,7 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
     assert result.touchdown_rate == 0.0 and result.phantom_support_fraction == 0.0
     assert result.max_actuator_saturation_fraction == 0.0
     assert sum(result.foot_load_share) == pytest.approx(1.0)
-    ceiling = STATUE_COP_FORE_AFT_CEILING[species]
+    ceiling = STATUE_COP_FORE_AFT_CEILING[model_id]
     if ceiling is None:
         assert math.isnan(result.max_sole_cop_fore_aft)
     else:
@@ -499,10 +516,15 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, species):
 
 
 @pytest.mark.parametrize(
-    ("species", "seed", "airborne"),
-    [("dibothrosuchus", 3045, 8.0), ("compsognathus_robot", 3052, 3.0), ("compsognathus", 3045, 0.0)],
+    ("model_id", "seed", "airborne"),
+    [
+        (DIBOTHROSUCHUS_ELAPHROS, 3045, 8.0),
+        (COMPSOGNATHUS_LONGIPES_ROBOT, 3052, 3.0),
+        (COMPSOGNATHUS_LONGIPES, 3045, 0.0),
+    ],
+    ids=lambda value: f"{value.species}-{value.embodiment}" if isinstance(value, ModelId) else None,
 )
-def test_the_spawn_pop_is_counted_substep_by_substep(envs, species, seed, airborne):
+def test_the_spawn_pop_is_counted_substep_by_substep(envs, model_id, seed, airborne):
     """The reset pop ``constants.SPAWN_GRACE_S`` exists for, pinned at the panel seeds that show it.
 
     Every leg's floor force at or below ``CONTACT_THRESHOLD_N`` on a substep
@@ -517,10 +539,10 @@ def test_the_spawn_pop_is_counted_substep_by_substep(envs, species, seed, airbor
     the pop: 0 airborne substeps on every panel seed, pinned at the seed
     that showed it.
     """
-    env = envs(species)
+    env = envs(model_id)
     settle = int(round(1.0 / env.dt))
     zero = np.zeros(env.model.nu)
-    with SubstepContactRecorder(env, Morphology.from_env(env, species)) as recorder:
+    with SubstepContactRecorder(env, Morphology.from_env(env, model_id)) as recorder:
         env.reset(seed=seed)
         for _ in range(settle + 20):
             env.step(zero)

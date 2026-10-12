@@ -13,6 +13,14 @@ from environments.shared.curriculum import (
     early_stopping,
 )
 from environments.shared.curriculum.early_stopping import collapse_settings_from_config
+from environments.shared.model_id import ModelId
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 
 class TestEvalCollapseEarlyStopCallback:
@@ -481,24 +489,28 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         decision, still fails here.
         """
         from environments.shared.config import load_all_stages
+        from environments.shared.species_names import model_ids
         from environments.shared.stage_manifest import _CONFIGS_DIR, resolve_stage_key
 
-        unarmed_by_recorded_decision = {"compsognathus", "compsognathus_robot"}
-        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
-        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus"} | unarmed_by_recorded_decision <= set(
-            species_ids
-        )
-        for species in species_ids:
-            if species in unarmed_by_recorded_decision:
-                stance_toml = _CONFIGS_DIR / species / resolve_stage_key(species, "stance").config_file
+        unarmed_by_recorded_decision = {COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT}
+        models = model_ids()
+        assert {
+            TYRANNOSAURUS_REX,
+            VELOCIRAPTOR_MONGOLIENSIS,
+            BRACHIOSAURUS_ALTITHORAX,
+            DIBOTHROSUCHUS_ELAPHROS,
+        } | unarmed_by_recorded_decision <= set(models)
+        for model_id in models:
+            if model_id in unarmed_by_recorded_decision:
+                stance_toml = model_id.path(_CONFIGS_DIR) / resolve_stage_key(model_id, "stance").config_file
                 assert "Deliberately omit a collapse floor" in stance_toml.read_text(encoding="utf-8"), (
                     f"{stance_toml} no longer records the unarmed-detector decision this exemption rests on"
                 )
-            for stage, cfg in load_all_stages(species).items():
+            for stage, cfg in load_all_stages(model_id).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 floor = collapse_settings_from_config(cur)["peak_floor"]
-                assert math.isfinite(floor) or species in unarmed_by_recorded_decision, (
-                    f"{species} stage {stage} configures no collapse floor (neither collapse_peak_floor "
+                assert math.isfinite(floor) or model_id in unarmed_by_recorded_decision, (
+                    f"{model_id} stage {stage} configures no collapse floor (neither collapse_peak_floor "
                     "nor the fraction/reference pair), so the backstop can never arm"
                 )
 
@@ -536,11 +548,13 @@ class TestRelativeCollapsePeakFloor:
         for partial in ({"collapse_peak_floor_fraction": 0.45}, {"collapse_peak_floor_reference": 3271.8}):
             assert collapse_settings_from_config(partial)["peak_floor"] == float("inf")
 
-    def test_trex_stage_one_floor_would_have_armed_on_the_failing_run(self):
+    def test_tyrannosaurus_rex_stage_one_floor_would_have_armed_on_the_failing_run(self):
         """Regression against the measured miss, not against a chosen number."""
         from environments.shared.config import load_stage_config
 
-        floor = collapse_settings_from_config(load_stage_config("trex", 1)["curriculum_kwargs"])["peak_floor"]
+        floor = collapse_settings_from_config(load_stage_config(TYRANNOSAURUS_REX, 1)["curriculum_kwargs"])[
+            "peak_floor"
+        ]
         best_eval_20260801 = 2347.67
         collapse_bottom = 888.0
         assert best_eval_20260801 >= floor, "the detector must arm on a run that reached this peak"
@@ -782,33 +796,39 @@ class TestPeakWarmup:
         the backstop just as completely.
         """
         from environments.shared.config import load_all_stages
-        from environments.shared.stage_manifest import _CONFIGS_DIR
+        from environments.shared.species_names import model_ids
 
-        # Every species with a stage manifest (D-B14 enumerates compsognathus
-        # and its robot too).
-        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
-        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus"} <= set(species_ids)
-        for species in species_ids:
-            for stage, cfg in load_all_stages(species).items():
+        # Every model with a stage manifest (D-B14 enumerates the Compsognathus
+        # pair too).
+        models = model_ids()
+        assert {
+            TYRANNOSAURUS_REX,
+            VELOCIRAPTOR_MONGOLIENSIS,
+            BRACHIOSAURUS_ALTITHORAX,
+            DIBOTHROSUCHUS_ELAPHROS,
+            COMPSOGNATHUS_LONGIPES,
+        } <= set(models)
+        for model_id in models:
+            for stage, cfg in load_all_stages(model_id).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 warmup = collapse_settings_from_config(cur)["peak_warmup_timesteps"]
                 if warmup <= 0.0:
                     continue
                 budget = float(cur["timesteps"])
                 assert warmup < budget, (
-                    f"{species} stage {stage} sets collapse_peak_warmup_timesteps={warmup:.0f} "
+                    f"{model_id} stage {stage} sets collapse_peak_warmup_timesteps={warmup:.0f} "
                     f"at or beyond its timesteps={budget:.0f}, so no window can ever set the "
                     "peak and the collapse backstop can never arm"
                 )
                 # Not merely reachable: reachable with enough of the run left
                 # for `patience` consecutive evaluations to accumulate.
                 assert warmup <= 0.5 * budget, (
-                    f"{species} stage {stage} spends {100 * warmup / budget:.0f}% of its budget "
+                    f"{model_id} stage {stage} spends {100 * warmup / budget:.0f}% of its budget "
                     "in collapse warm-up, leaving too little of the run protected"
                 )
 
 
-class TestDibothrosuchusAndBrachiosaurusWarmups:
+class TestDibothrosuchusElaphrosAndBrachiosaurusAltithoraxWarmups:
     """The peak warm-ups on dibothrosuchus and brachiosaurus stages 1-2.
 
     Regression for run `20260923_020654` (dibothrosuchus, seed 42), which hit
@@ -848,10 +868,10 @@ class TestDibothrosuchusAndBrachiosaurusWarmups:
     ]  # fmt: skip
 
     @staticmethod
-    def _settings(species, stage, **overrides):
+    def _settings(model_id, stage, **overrides):
         from environments.shared.config import load_all_stages
 
-        settings = collapse_settings_from_config(dict(load_all_stages(species)[stage]["curriculum_kwargs"]))
+        settings = collapse_settings_from_config(dict(load_all_stages(model_id)[stage]["curriculum_kwargs"]))
         settings.update(overrides)
         return settings
 
@@ -883,14 +903,14 @@ class TestDibothrosuchusAndBrachiosaurusWarmups:
     )
     def test_without_the_warmup_the_committed_config_reproduces_the_stop(self, stage, trace_name, peak):
         """Not an approximation of the failure — the failure itself, on both nodes."""
-        settings = self._settings("dibothrosuchus", stage, peak_warmup_timesteps=0.0)
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, stage, peak_warmup_timesteps=0.0)
         stopped_at, cb = self._drive(getattr(self, trace_name), settings)
         assert stopped_at == 1_450_000
         assert cb._peak_score == pytest.approx(peak)
 
     @pytest.mark.parametrize(("stage", "trace_name"), [(1, "STANCE_20260923"), (2, "LOCOMOTION_20260923")])
     def test_the_committed_warmup_lets_the_real_run_continue(self, stage, trace_name):
-        settings = self._settings("dibothrosuchus", stage)
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, stage)
         stopped_at, cb = self._drive(getattr(self, trace_name), settings)
         assert stopped_at is None
         # Never armed: no window past the warm-up reaches the floor.
@@ -903,33 +923,37 @@ class TestDibothrosuchusAndBrachiosaurusWarmups:
         regime itself (peak ~115), which clears the absolute floor of 100 and
         arms the backstop on a level that was never good.
         """
-        settings = self._settings("dibothrosuchus", 2, peak_warmup_timesteps=1_000_000)
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2, peak_warmup_timesteps=1_000_000)
         _, cb = self._drive(self.LOCOMOTION_20260923, settings)
         assert settings["peak_floor"] <= cb._peak_score < 200.0
 
     def test_a_genuine_collapse_after_the_locomotion_warmup_still_stops(self):
         """The warm-up delays the peak; it must not disarm the backstop."""
-        settings = self._settings("dibothrosuchus", 2)
+        settings = self._settings(DIBOTHROSUCHUS_ELAPHROS, 2)
         trace = [2245.0] * 66 + [2500.0] * 10 + [300.0] * 12
         stopped_at, cb = self._drive(trace, settings)
         assert stopped_at is not None
         assert cb._peak_score == pytest.approx(2500.0)
 
-    @pytest.mark.parametrize("species", ["dibothrosuchus", "brachiosaurus"])
-    def test_stance_warmup_is_the_trex_value(self, species):
-        assert self._settings(species, 1)["peak_warmup_timesteps"] == 1_000_000
+    @pytest.mark.parametrize(
+        "model_id", [DIBOTHROSUCHUS_ELAPHROS, BRACHIOSAURUS_ALTITHORAX], ids=lambda m: f"{m.species}-{m.embodiment}"
+    )
+    def test_stance_warmup_is_the_tyrannosaurus_rex_value(self, model_id):
+        assert self._settings(model_id, 1)["peak_warmup_timesteps"] == 1_000_000
 
-    @pytest.mark.parametrize("species", ["dibothrosuchus", "brachiosaurus"])
-    def test_locomotion_warmup_covers_the_stage_entry_window(self, species):
+    @pytest.mark.parametrize(
+        "model_id", [DIBOTHROSUCHUS_ELAPHROS, BRACHIOSAURUS_ALTITHORAX], ids=lambda m: f"{m.species}-{m.embodiment}"
+    )
+    def test_locomotion_warmup_covers_the_stage_entry_window(self, model_id):
         """The D-B5 bound trex behavior already carries, applied to locomotion."""
         from environments.shared.config import load_all_stages
 
-        cur = load_all_stages(species)[2]["curriculum_kwargs"]
+        cur = load_all_stages(model_id)[2]["curriculum_kwargs"]
         warmup = collapse_settings_from_config(dict(cur))["peak_warmup_timesteps"]
         assert warmup >= cur["warmup_timesteps"] + cur["ramp_timesteps"]
 
 
-class TestTrexBehaviorCollapseFloor:
+class TestTyrannosaurusRexBehaviorCollapseFloor:
     """The hunting stage's backstop is the measured relative pair (WS-B2; review CF3).
 
     The absolute ``collapse_peak_floor = 100.0`` sat 6x below the measured
@@ -944,9 +968,9 @@ class TestTrexBehaviorCollapseFloor:
     def _behavior_curriculum(self) -> dict:
         from environments.shared.config import load_all_stages
 
-        return dict(load_all_stages("trex")[3]["curriculum_kwargs"])
+        return dict(load_all_stages(TYRANNOSAURUS_REX)[3]["curriculum_kwargs"])
 
-    def test_trex_behavior_collapse_floor_is_the_pair_not_an_absolute(self):
+    def test_tyrannosaurus_rex_behavior_collapse_floor_is_the_pair_not_an_absolute(self):
         cur = self._behavior_curriculum()
         assert "collapse_peak_floor" not in cur
         settings = collapse_settings_from_config(cur)
@@ -962,7 +986,7 @@ class TestTrexBehaviorCollapseFloor:
         # The freshness pin that lets test_statue_constant_freshness.py guard it.
         assert cur["statue_constants_physics_revision"] == 9
 
-    def test_trex_behavior_rail_sits_below_the_statue(self):
+    def test_tyrannosaurus_rex_behavior_rail_sits_below_the_statue(self):
         """D-B4: the rail is round(0.6 x reference); a statue must clear it, a collapse must not."""
         cur = self._behavior_curriculum()
         assert 0 < cur["min_avg_reward"] < cur["collapse_peak_floor_reference"]

@@ -40,6 +40,7 @@ from environments.shared.curriculum.gate_resolver import (
 from environments.shared.curriculum.recovery_gate import RecoveryGateThresholds
 from environments.shared.harnesses import freeze_recovery_gate as producer
 from environments.shared.harnesses import recovery_offdist_panel as offdist
+from environments.shared.model_id import ModelId
 from environments.shared.recovery_evaluation import (
     CALIBRATED_HEIGHT_REFERENCE_M,
     CALIBRATED_POSTURE_ONLY,
@@ -48,6 +49,8 @@ from environments.shared.recovery_evaluation import (
     roll_recovery_panel,
     zero_action_controller,
 )
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: The same short-horizon pushed task the panel-harness tests use: several
 #: judged shoves per episode inside 120 steps.
@@ -219,9 +222,9 @@ class TestNumpyForwardPass:
 
 @pytest.fixture(scope="module")
 def frozen(tmp_path_factory):
-    """One real freeze of the trex recovery stage, at a rehearsal panel size."""
+    """One real freeze of the T-Rex recovery stage, at a rehearsal panel size."""
     stage_dir = tmp_path_factory.mktemp("recovery_stage")
-    return producer.freeze_recovery_gate(stage_dir, episodes=2, seed=3042)
+    return producer.freeze_recovery_gate(stage_dir, episodes=2, seed=3042, model_id=TYRANNOSAURUS_REX)
 
 
 class TestProducer:
@@ -271,16 +274,21 @@ class TestProducer:
             require_gate_resolution(frozen.path.parent, current_task_sha256="sha256:some-other-task")
 
     def test_the_frozen_task_is_the_stage_fingerprint(self, frozen):
-        assert frozen.resolution["task_sha256"] == producer.stage_task_fingerprint("trex", "recovery")["task_sha256"]
+        assert (
+            frozen.resolution["task_sha256"]
+            == producer.stage_task_fingerprint(TYRANNOSAURUS_REX, "recovery")["task_sha256"]
+        )
 
     def test_half_a_brace_configuration_is_refused(self, tmp_path):
         with pytest.raises(ValueError, match="must be supplied together"):
-            producer.freeze_recovery_gate(tmp_path, policy_zip="model.zip", vecnorm=None)
+            producer.freeze_recovery_gate(tmp_path, policy_zip="model.zip", vecnorm=None, model_id=TYRANNOSAURUS_REX)
 
     def test_refreezing_is_guarded_and_reproducible(self, frozen):
         with pytest.raises(ValueError, match="already exists"):
-            producer.freeze_recovery_gate(frozen.path.parent, episodes=2, seed=3042)
-        again = producer.freeze_recovery_gate(frozen.path.parent, episodes=2, seed=3042, replace=True)
+            producer.freeze_recovery_gate(frozen.path.parent, episodes=2, seed=3042, model_id=TYRANNOSAURUS_REX)
+        again = producer.freeze_recovery_gate(
+            frozen.path.parent, episodes=2, seed=3042, replace=True, model_id=TYRANNOSAURUS_REX
+        )
         # Deterministic panels mean a re-freeze is byte-identical: a changed
         # digest would mean the "frozen" record depends on when it was made.
         assert again.resolution == frozen.resolution
@@ -313,7 +321,12 @@ class TestHistoricalBraceNull:
         monkeypatch.setattr(producer, "brace_controller", library_brace)
         monkeypatch.setattr(producer, "_roll_null", spy_roll_null)
         result = producer.freeze_recovery_gate(
-            tmp_path, episodes=2, seed=3042, policy_zip="stance.zip", vecnorm="stance_vecnorm.pkl"
+            tmp_path,
+            episodes=2,
+            seed=3042,
+            policy_zip="stance.zip",
+            vecnorm="stance_vecnorm.pkl",
+            model_id=TYRANNOSAURUS_REX,
         )
 
         [(args, kwargs)] = calls
@@ -323,7 +336,7 @@ class TestHistoricalBraceNull:
         # And the brace null the producer rolls is that controller, not the checkpoint or the statue.
         assert [rolled["brace"]] == held and rolled["brace"] is not policies[0]
         # The historical judge is T-Rex's own: no species or stage expectation.
-        assert kwargs["expected_species"] is None and kwargs["expected_stage"] is None
+        assert kwargs["expected_model_id"] is None and kwargs["expected_stage"] is None
         manifest = result.resolution["null_manifest"]
         assert set(manifest) == {"zero_action", "brace"}
         assert manifest["brace"]["safe_set"] == dict(CALIBRATED_POSTURE_ONLY)

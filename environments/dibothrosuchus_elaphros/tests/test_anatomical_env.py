@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
+from environments.shared.model_id import ModelId
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def env():
     e.close()
 
 
-class TestDibothrosuchusSpecific:
+class TestDibothrosuchusElaphrosSpecific:
     """Observation and info keys unique to this species."""
 
     def test_trunk_height_tracked_under_both_names(self, env):
@@ -254,7 +255,7 @@ class TestResetStaysInsideTheHealthyEnvelope:
         """At the committed stage-1 noise, no seed starts already terminated."""
         from environments.shared.config import load_stage_config
 
-        kwargs = load_stage_config("dibothrosuchus", 1)["env_kwargs"]
+        kwargs = load_stage_config(ModelId("dibothrosuchus_elaphros", "anatomical"), 1)["env_kwargs"]
         kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
         env = DibothrosuchusElaphrosAnatomicalEnv(**kwargs)
         try:

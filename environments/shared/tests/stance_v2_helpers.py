@@ -5,7 +5,7 @@ for a panel of synthetic statue episodes (the perfect-statue trace of
 ``test_gait_stance_metrics.py``, measured with the block's settle window),
 bound to a byte-file handoff pair it creates under ``<stage_dir>/models``,
 to a measurement manifest that passes the judge's checks for the named
-species (this checkout's constants and support-registry entry), and to the
+model (this checkout's constants and support-registry entry), and to the
 synthetic task :data:`TASK_SHA256` -- which :func:`stage_record` records as
 the task the stage ran, in the ``stage_config.json`` :func:`v2_report`
 writes when the directory has none.  Every number in it is re-derivable
@@ -32,13 +32,17 @@ from environments.shared.curriculum.stance_gate_v2 import (
     statue_reference,
 )
 from environments.shared.gait.constants import MEASUREMENT_MANIFEST_SCHEMA, measurement_constants, measurement_sha256
-from environments.shared.gait.morphology import SUPPORT_REGISTRY
+from environments.shared.gait.morphology import support_entry
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics, episode_stance_metrics
+from environments.shared.model_id import ModelId
 from environments.shared.result_bundle import sha256_file
 
 from .test_gait_stance_metrics import statue_trace
 
 HORIZON = 1000
+
+#: The model a synthetic report names unless a test passes another.
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: The task the synthetic panel rolled under and its stage records (a stand-in
 #: for ``task_fingerprint.stage_task_fingerprint``'s digest).
@@ -79,7 +83,7 @@ def stage_record(
     stage_dir: Path,
     curriculum: dict[str, Any] | None = None,
     *,
-    species: str = "trex",
+    model_id: ModelId = TYRANNOSAURUS_REX,
     task_sha256: str = TASK_SHA256,
 ) -> Path:
     """The ``stage_config.json`` the synthetic stage ran under: its horizon and step, the block and the task.
@@ -90,7 +94,7 @@ def stage_record(
     path = Path(stage_dir) / "stage_config.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     record = {
-        "species": species,
+        **model_id.record(),
         "stage": 1,
         "name": "Balance",
         "description": "Stand",
@@ -103,16 +107,18 @@ def stage_record(
     return path
 
 
-def measurement(species: str = "trex") -> dict[str, Any]:
-    """A manifest the judge accepts for *species*: current constants and registry entry (feet abridged)."""
+def measurement(model_id: ModelId = TYRANNOSAURUS_REX) -> dict[str, Any]:
+    """A manifest the judge accepts for *model_id*: current constants and registry entry (feet abridged)."""
+    entry = support_entry(model_id)
+    assert entry is not None, f"{model_id} declares no FOOT_SUPPORT"
     return {
         "schema": MEASUREMENT_MANIFEST_SCHEMA,
         "constants": measurement_constants(),
-        "species": species,
+        **model_id.record(),
         "frame_skip": 5,
         "dt": 0.01,
         "body_weight_n": 100.0,
-        "registry": SUPPORT_REGISTRY[species].as_manifest(),
+        "registry": entry.as_manifest(),
         "feet": [],
     }
 
@@ -124,7 +130,7 @@ def v2_report(
     n: int = 40,
     n_clean: int | None = None,
     defect: dict[str, Any] | None = None,
-    species: str = "trex",
+    model_id: ModelId = TYRANNOSAURUS_REX,
 ) -> dict[str, Any]:
     """The report a v2 panel of *n* synthetic statue episodes scores to (*n_clean* clean, the rest with *defect*).
 
@@ -136,7 +142,7 @@ def v2_report(
 
     block = dict(V2_CURRICULUM if curriculum is None else curriculum)
     if not (Path(stage_dir) / "stage_config.json").exists():
-        stage_record(stage_dir, block, species=species)
+        stage_record(stage_dir, block, model_id=model_id)
     thresholds = StanceV2Thresholds.from_curriculum(block)
     clean = episode_stance_metrics(statue_trace(HORIZON), settle_steps=thresholds.settle_steps)
     k = n if n_clean is None else n_clean
@@ -144,12 +150,12 @@ def v2_report(
     statue = statue_reference([clean] * n, horizon=HORIZON) if thresholds.declares_statue_criteria() else None
     result = evaluate_stance_v2_gate(metrics, thresholds, horizon=HORIZON, statue=statue, control_dt=0.01)
     model, vecnorm = handoff_pair(stage_dir)
-    manifest = measurement(species)
+    manifest = measurement(model_id)
     touch = [{"unsupported_duty": 0.0, "bilateral_support_duty": 1.0, "single_support_duty": 0.0}] * n
     seed = PUBLICATION_SEED_START
     return {
         "schema": STANCE_V2_REPORT_SCHEMA,
-        "species": species,
+        **model_id.record(),
         "stage": 1,
         "gate_kind": block.get("gate_kind"),
         "scored_gate_kind": STANCE_GATE_V2_KIND,

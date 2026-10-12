@@ -31,4 +31,4 @@ REWARD_KEYS = [
 ]
 
 if __name__ == "__main__":
-    sys.exit(run_env_tests(SPECIES, REWARD_KEYS, "Raptor"))
+    sys.exit(run_env_tests(SPECIES, REWARD_KEYS, "Velociraptor"))

@@ -12,6 +12,7 @@ import json
 
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.task_fingerprint import (
     MODEL_TASK_ATTRIBUTE,
     MODEL_TASK_LINEAGE_ATTRIBUTE,
@@ -28,6 +29,9 @@ from environments.shared.task_fingerprint import (
     write_task_fingerprint,
 )
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+
 _PLANT = {
     "physics_sha256": "sha256:aaaa",
     "policy_interface_sha256": "sha256:bbbb",
@@ -38,7 +42,7 @@ _ENV = {"alive_bonus": 1.0, "healthy_z_range": (0.70, 1.30), "max_episode_steps"
 
 def _fingerprint(**overrides):
     kwargs = dict(
-        species="trex",
+        model_id=TYRANNOSAURUS_REX,
         stage=1,
         backend="stable-baselines3",
         env_kwargs=_ENV,
@@ -108,7 +112,8 @@ class TestInitializeNextStage:
             "mode": "initialize_next_stage",
             "parent_task_sha256": parent["task_sha256"],
             "child_task_sha256": child["task_sha256"],
-            "parent_species": "trex",
+            "parent_species": "tyrannosaurus_rex",
+            "parent_embodiment": "anatomical",
             "parent_stage": 1,
         }
 
@@ -152,7 +157,7 @@ class TestModelAttachment:
 class TestDeriveStageFingerprint:
     def test_push_free_stage_has_no_perturbation_block(self):
         payload = derive_stage_task_fingerprint(
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             stage=1,
             backend="stable-baselines3",
             env_kwargs=_ENV,
@@ -163,17 +168,17 @@ class TestDeriveStageFingerprint:
     def test_pushed_stage_derives_the_real_force_constants(self):
         pytest.importorskip("mujoco")
         payload = derive_stage_task_fingerprint(
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             stage=1,
             backend="stable-baselines3",
             env_kwargs={**_ENV, "perturbation_capture_velocity_multiple": 1.5},
             plant_identity=_PLANT,
         )
-        # Same derivation as BaseDinoEnv: the r7 trex constants.
+        # Same derivation as BaseDinoEnv: the r7 T-Rex constants.
         assert payload["perturbation"]["force_n"] == pytest.approx(165.5, abs=2.0)
         assert payload["perturbation"]["interval_s"] == 2.0
         push_free = derive_stage_task_fingerprint(
-            species="trex",
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
             stage=1,
             backend="stable-baselines3",
             env_kwargs=_ENV,
@@ -184,7 +189,7 @@ class TestDeriveStageFingerprint:
     def test_pushed_stage_without_model_path_is_fatal(self):
         with pytest.raises(TaskFingerprintError, match="model_path"):
             derive_stage_task_fingerprint(
-                species="trex",
+                model_id=ModelId("tyrannosaurus_rex", "anatomical"),
                 stage=1,
                 backend="stable-baselines3",
                 env_kwargs={"perturbation_capture_velocity_multiple": 1.5},
@@ -202,7 +207,7 @@ class TestDeriveStageFingerprint:
         """
         pytest.importorskip("mujoco")
         kwargs = dict(
-            species="trex",
+            model_id=TYRANNOSAURUS_REX,
             stage="recovery",
             backend="stable-baselines3",
             env_kwargs={**_ENV, "perturbation_capture_velocity_multiple": 1.5},
@@ -216,7 +221,7 @@ class TestDeriveStageFingerprint:
     def test_pushed_stage_names_a_missing_model_clearly(self):
         with pytest.raises(TaskFingerprintError, match="cannot find the plant model"):
             derive_stage_task_fingerprint(
-                species="trex",
+                model_id=ModelId("tyrannosaurus_rex", "anatomical"),
                 stage="recovery",
                 backend="stable-baselines3",
                 env_kwargs={"perturbation_capture_velocity_multiple": 1.5},
@@ -234,6 +239,7 @@ class TestStageConfigWiring:
             1,
             {"name": "balance", "description": "", "env_kwargs": dict(_ENV)},
             "PPO",
+            model_id=TYRANNOSAURUS_REX,
             task_fingerprint=payload,
         )
         sidecar = json.loads((tmp_path / "task_fingerprint.json").read_text())
@@ -280,17 +286,17 @@ class TestCheckpointReaders:
 class TestDeclaredParent:
     """BEHAVIOR_RECIPES_PLAN §8 invariant 4: an initialize_next_stage load crosses the declared edge."""
 
-    def _check(self, recorded, *, declared_parent, child_stage, species="trex"):
+    def _check(self, recorded, *, declared_parent, child_stage, model_id=TYRANNOSAURUS_REX):
         validate_declared_parent(
             recorded,
             declared_parent=declared_parent,
-            species=species,
+            model_id=model_id,
             child_stage=child_stage,
             artifact="parent.zip",
         )
 
     def test_a_parent_recorded_as_the_declared_edge_is_accepted(self):
-        # trex locomotion (legacy 2) declares warm_start_from = stance (legacy 1).
+        # T-Rex locomotion (legacy 2) declares warm_start_from = stance (legacy 1).
         self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2)
         # A semantic edge compares by id: recovery declares stance too.
         self._check(_fingerprint(stage=1), declared_parent=1, child_stage="recovery")
@@ -300,7 +306,7 @@ class TestDeclaredParent:
     def test_a_parent_from_another_node_is_refused(self):
         with pytest.raises(TaskFingerprintError, match="declares warm_start_from = 1 \\(stance\\)"):
             self._check(_fingerprint(stage=3), declared_parent=1, child_stage=2)
-        with pytest.raises(TaskFingerprintError, match="records trex stage 'recovery'"):
+        with pytest.raises(TaskFingerprintError, match="records tyrannosaurus_rex/anatomical stage 'recovery'"):
             self._check(_fingerprint(stage="recovery"), declared_parent=1, child_stage=2)
 
     def test_a_root_accepts_only_an_earlier_checkpoint_of_itself(self):
@@ -309,9 +315,12 @@ class TestDeclaredParent:
         with pytest.raises(TaskFingerprintError, match="is a root node"):
             self._check(_fingerprint(stage=2), declared_parent=None, child_stage=1)
 
-    def test_another_species_checkpoint_is_refused_before_the_stage_is_read(self):
-        with pytest.raises(TaskFingerprintError, match="records species 'trex', not 'velociraptor'"):
-            self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2, species="velociraptor")
+    def test_another_models_checkpoint_is_refused_before_the_stage_is_read(self):
+        with pytest.raises(
+            TaskFingerprintError,
+            match="records species 'tyrannosaurus_rex' and embodiment 'anatomical', not velociraptor_mongoliensis/anatomical",
+        ):
+            self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2, model_id=VELOCIRAPTOR_MONGOLIENSIS)
 
     def test_a_bool_or_missing_stage_never_matches(self):
         recorded = dict(_fingerprint(stage=1))

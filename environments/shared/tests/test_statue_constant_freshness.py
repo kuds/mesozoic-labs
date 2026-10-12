@@ -22,19 +22,26 @@ import json
 import tomllib
 from pathlib import Path
 
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import model_ids
+from environments.shared.stage_manifest import load_stage_manifest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_PATH = REPO_ROOT / "configs" / "plant_manifest.generated.json"
 CONFIGS_ROOT = REPO_ROOT / "configs"
 
 
-def _stage_curriculum_tables() -> list[tuple[str, Path, dict]]:
-    """Every per-species stage TOML's [curriculum] table, with its species."""
+def _stage_curriculum_tables() -> list[tuple[ModelId, Path, dict]]:
+    """Every model's stage TOML [curriculum] table, with its model: the stage files its stages.toml lists, and its
+    behavior recipes (decision D-D33: one directory per model, ``configs/<species>/<embodiment>/``)."""
     tables = []
-    for species_dir in sorted(p for p in CONFIGS_ROOT.iterdir() if p.is_dir()):
-        for toml_path in sorted(species_dir.glob("*.toml")):
+    for model_id in model_ids():
+        model_dir = model_id.path(CONFIGS_ROOT)
+        stage_files = [model_dir / entry.config_file for entry in load_stage_manifest(model_id).stages]
+        for toml_path in [*stage_files, *sorted(model_dir.glob("behaviors/*.toml"))]:
             config = tomllib.loads(toml_path.read_text())
             if "curriculum" in config:
-                tables.append((species_dir.name, toml_path, config["curriculum"]))
+                tables.append((model_id, toml_path, config["curriculum"]))
     return tables
 
 
@@ -48,7 +55,7 @@ def test_statue_derived_constants_record_the_plant_they_were_measured_on() -> No
     plants = manifest["plants"]
 
     checked = 0
-    for species, toml_path, curriculum in _stage_curriculum_tables():
+    for model_id, toml_path, curriculum in _stage_curriculum_tables():
         if "collapse_peak_floor_reference" not in curriculum:
             assert "statue_constants_physics_revision" not in curriculum, (
                 f"{toml_path}: statue_constants_physics_revision without "
@@ -63,7 +70,7 @@ def test_statue_derived_constants_record_the_plant_they_were_measured_on() -> No
             "with zero_action_baseline.py if the plant moved)"
         )
         recorded = curriculum["statue_constants_physics_revision"]
-        current = plants[species]["physics"]["revision"]
+        current = plants[model_id.species][model_id.embodiment]["physics"]["revision"]
         assert recorded == current, (
             f"{toml_path}: statue constants were measured on physics "
             f"revision {recorded}, but the manifest is at revision {current}. "
@@ -74,7 +81,7 @@ def test_statue_derived_constants_record_the_plant_they_were_measured_on() -> No
         )
         checked += 1
 
-    # The check must never pass vacuously: trex stage 1 carries the reference
+    # The check must never pass vacuously: the T-Rex stage 1 carries the reference
     # today, and losing it without a conscious edit here means the constants
     # lost their only freshness guard.
     assert checked >= 1, "no stage TOML carries collapse_peak_floor_reference; update this test's premise"

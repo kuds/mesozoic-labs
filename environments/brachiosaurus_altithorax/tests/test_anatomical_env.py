@@ -17,7 +17,7 @@ def env():
     e.close()
 
 
-class TestBrachioSpecific:
+class TestBrachiosaurusAltithoraxSpecific:
     """Brachiosaurus-specific observation and info tests."""
 
     def test_pelvis_height_tracked(self, env):

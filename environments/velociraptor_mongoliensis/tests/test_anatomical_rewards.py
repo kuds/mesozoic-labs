@@ -27,7 +27,7 @@ def env():
     e.close()
 
 
-class TestRaptorRewardComponents:
+class TestVelociraptorMongoliensisRewardComponents:
     """Raptor-specific reward component tests."""
 
     def test_strike_success_is_zero_initially(self, env):
@@ -135,7 +135,7 @@ class TestRaptorRewardComponents:
         assert 0.0 <= info["claw_proximity"] <= 1.0
 
 
-class TestRaptorRewardWeightEffects:
+class TestVelociraptorMongoliensisRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
 
     def test_high_alive_bonus_dominates(self):

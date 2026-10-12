@@ -124,7 +124,7 @@ class TestDerivation:
     test: a plant revision that moves the mass or stance geometry must be
     seen here, with the re-derivation, not discovered mid-run."""
 
-    def test_trex_derivation_matches_design_doc_scale(self):
+    def test_tyrannosaurus_rex_derivation_matches_design_doc_scale(self):
         mujoco = pytest.importorskip("mujoco")
         model = mujoco.MjModel.from_xml_path(
             "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml"
@@ -160,14 +160,14 @@ class TestEnvIntegration:
     """SB3-path integration: off is inert, on pushes exactly on schedule."""
 
     @staticmethod
-    def _trex(**kwargs):
+    def _tyrannosaurus_rex(**kwargs):
         from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
         return TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0, **kwargs)
 
     def test_off_is_inert_and_deterministic(self):
-        a = self._trex()
-        b = self._trex()
+        a = self._tyrannosaurus_rex()
+        b = self._tyrannosaurus_rex()
         a.reset(seed=7)
         b.reset(seed=7)
         action = np.zeros(a.action_space.shape, dtype=np.float32)
@@ -179,8 +179,8 @@ class TestEnvIntegration:
         assert a.perturbation_manifest() is None
 
     def test_on_diverges_only_after_the_first_push(self):
-        off = self._trex()
-        on = self._trex(perturbation_capture_velocity_multiple=1.5)
+        off = self._tyrannosaurus_rex()
+        on = self._tyrannosaurus_rex(perturbation_capture_velocity_multiple=1.5)
         off.reset(seed=11)
         on.reset(seed=11)
         first_push = int(on._push_schedule_starts[0])
@@ -197,7 +197,7 @@ class TestEnvIntegration:
         assert not np.array_equal(off.data.qpos, on.data.qpos)
 
     def test_push_window_writes_the_derived_force_at_the_root(self):
-        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        env = self._tyrannosaurus_rex(perturbation_capture_velocity_multiple=1.5)
         env.reset(seed=3)
         start = int(env._push_schedule_starts[0])
         direction = np.asarray(env._push_schedule_directions[0])
@@ -213,7 +213,7 @@ class TestEnvIntegration:
         assert not np.any(env.data.xfrc_applied)  # self-cleared after the window
 
     def test_reset_clears_forces_and_pairs_schedules(self):
-        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        env = self._tyrannosaurus_rex(perturbation_capture_velocity_multiple=1.5)
         env.reset(seed=5)
         start = int(env._push_schedule_starts[0])
         action = np.zeros(env.action_space.shape, dtype=np.float32)
@@ -229,7 +229,7 @@ class TestEnvIntegration:
         assert not np.array_equal(first, env._push_schedule_starts)
 
     def test_manifest_carries_the_derived_parameters(self):
-        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        env = self._tyrannosaurus_rex(perturbation_capture_velocity_multiple=1.5)
         manifest = env.perturbation_manifest()
         assert manifest is not None
         assert manifest["force_n"] == pytest.approx(165.5, abs=2.0)

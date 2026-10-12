@@ -120,7 +120,6 @@ def test_identity_is_a_frozen_hashable_value_ordered_by_species_then_embodiment(
 @pytest.mark.parametrize(
     "species",
     [
-        "trex",  # an alias: no alias resolves
         "tyrannosaurus_rex/anatomical",  # a joined identity is never parsed
         "Tyrannosaurus_Rex",  # no normalisation: case
         "tyrannosaurus-rex",  # no normalisation: separator
@@ -153,10 +152,9 @@ def test_there_is_no_default_embodiment():
         ({"embodiment": "anatomical"}, "no 'species' field"),
         ({"species": "tyrannosaurus_rex", "embodiment": None}, "'embodiment' must be a string"),
         ({"species": "tyrannosaurus_rex/anatomical", "embodiment": "anatomical"}, "binomial"),
-        ({"species": "trex", "embodiment": "anatomical"}, "binomial"),
     ],
 )
-def test_from_record_refuses_a_missing_field_a_joined_string_or_an_alias(record, message):
+def test_from_record_refuses_a_missing_field_or_a_joined_string(record, message):
     with pytest.raises(ValueError, match=message):
         ModelId.from_record(record)
 

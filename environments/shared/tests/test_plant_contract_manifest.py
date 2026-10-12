@@ -21,6 +21,13 @@ from environments.shared.plant_contract import (
 )
 from environments.shared.plant_contract.manifest import _enforce_revision_changes
 
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
+
 CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
 
 
@@ -28,15 +35,21 @@ CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
     mujoco.__version__ != CANONICAL_MUJOCO_VERSION,
     reason="exact manifest checks run only with the canonical MuJoCo version",
 )
-def test_committed_manifest_is_current_and_covers_all_species():
+def test_committed_manifest_is_current_and_covers_all_models():
     manifest = check_plant_manifest()
 
     assert manifest["fingerprint_tool_version"] == plant_contract.FINGERPRINT_TOOL_VERSION == 2
     assert manifest["generated_with"]["float_significant_digits"] == 12
-    from environments.shared.config import SPECIES_NAMES
+    from environments.shared.species_names import model_ids
 
-    assert set(manifest["plants"]) == set(SPECIES_NAMES)
-    for entry in manifest["plants"].values():
+    # plant-manifest/v2 nests every plant as plants[species][embodiment] (decision D-D33).
+    plants = {
+        ModelId(model_id, embodiment): entry
+        for model_id, embodiments in manifest["plants"].items()
+        for embodiment, entry in embodiments.items()
+    }
+    assert set(plants) == set(model_ids())
+    for entry in plants.values():
         assert entry["policy_interface"]["revision"] >= 1
         assert entry["physics"]["revision"] >= 1
         assert entry["visual"]["revision"] >= 1
@@ -46,8 +59,17 @@ def test_bundled_runtime_manifest_matches_repository_manifest():
     assert BUNDLED_MANIFEST_PATH.read_bytes() == GENERATED_MANIFEST_PATH.read_bytes()
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot", "velociraptor", "trex"])
-def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
+def _readable(value: object) -> str | None:
+    """A model's parameter id is ``<species>-<embodiment>``; any other value keeps pytest's own."""
+    return f"{value.species}-{value.embodiment}" if isinstance(value, ModelId) else None
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT, VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX],
+    ids=lambda m: f"{m.species}-{m.embodiment}",
+)
+def test_sb3_only_species_do_not_claim_mjx_parity(model_id, monkeypatch):
     from environments.shared.plant_contract import policy_layer
     from environments.shared.species_registry import get_species_config
 
@@ -55,11 +77,11 @@ def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
         pytest.fail("An explicitly SB3-only model attempted an MJX interface probe")
 
     monkeypatch.setattr(policy_layer, "_jax_policy_interface_payload", unexpected_mjx)
-    with get_species_config(species).env_class() as env:
+    with get_species_config(model_id).env_class() as env:
         payload = policy_layer._policy_interface_payload(
             env.model,
             env,
-            load_plant_versions()[1][species],
+            load_plant_versions()[1][model_id],
             require_backend_parity=True,
         )
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
@@ -69,15 +91,26 @@ def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
     # trex at revision 14 with the heading-free observation, which also took the
     # anatomical compsognathus from 56 to 55 (projected gravity replaces the
     # 4-wide quaternion).
-    expected_width = {"compsognathus": 55, "compsognathus_robot": 46, "velociraptor": 70, "trex": 63}[species]
+    expected_width = {
+        COMPSOGNATHUS_LONGIPES: 55,
+        COMPSOGNATHUS_LONGIPES_ROBOT: 46,
+        VELOCIRAPTOR_MONGOLIENSIS: 70,
+        TYRANNOSAURUS_REX: 63,
+    }[model_id]
     assert payload["observation"]["shape"] == [expected_width]
 
 
 @pytest.mark.parametrize(
-    ("species", "action_dim"),
-    [("velociraptor", 22), ("trex", 15), ("compsognathus", 14), ("compsognathus_robot", 12)],
+    ("model_id", "action_dim"),
+    [
+        (VELOCIRAPTOR_MONGOLIENSIS, 22),
+        (TYRANNOSAURUS_REX, 15),
+        (COMPSOGNATHUS_LONGIPES, 14),
+        (COMPSOGNATHUS_LONGIPES_ROBOT, 12),
+    ],
+    ids=_readable,
 )
-def test_runtime_identity_falls_back_to_bundled_manifest(species, action_dim, monkeypatch, tmp_path):
+def test_runtime_identity_falls_back_to_bundled_manifest(model_id, action_dim, monkeypatch, tmp_path):
     """The bundled manifest resolves dual-backend and SB3-only species alike.
 
     It records no training backends, so an SB3-only species (both
@@ -89,22 +122,28 @@ def test_runtime_identity_falls_back_to_bundled_manifest(species, action_dim, mo
     monkeypatch.setattr(plant_contract.constants, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
     monkeypatch.setattr(plant_contract.constants, "GENERATED_MANIFEST_PATH", tmp_path / "missing-manifest.json")
 
-    identity = plant_contract.current_plant_identity(species)
+    identity = plant_contract.current_plant_identity(model_id)
 
-    assert identity.species == species
+    assert identity.model_id == model_id
     assert identity.nu == identity.action_dim == action_dim
 
 
 @pytest.mark.parametrize(
-    ("species", "observation_dim", "action_dim"),
+    ("model_id", "observation_dim", "action_dim"),
     # Widths carry the Phase C 3-dim command segment (BEHAVIOR_RECIPES_PLAN
     # §4.6): 67/61/83/77 -> 70/64/86/80; trex's heading-free observation
     # (policy interface r14) then went 64 -> 63.
-    [("velociraptor", 70, 22), ("trex", 63, 15), ("brachiosaurus", 86, 30), ("dibothrosuchus", 80, 27)],
+    [
+        (VELOCIRAPTOR_MONGOLIENSIS, 70, 22),
+        (TYRANNOSAURUS_REX, 63, 15),
+        (BRACHIOSAURUS_ALTITHORAX, 86, 30),
+        (DIBOTHROSUCHUS_ELAPHROS, 80, 27),
+    ],
+    ids=_readable,
 )
-def test_current_identity_matches_each_executable_environment(species, observation_dim, action_dim):
+def test_current_identity_matches_each_executable_environment(model_id, observation_dim, action_dim):
     # Identity generation requires exact SB3/MJX observation parity on the dual-backend species.
-    identity = current_plant_identity(species, verify_generated=False)
+    identity = current_plant_identity(model_id, verify_generated=False)
 
     assert identity.observation_dim == observation_dim
     assert identity.action_dim == identity.nu == action_dim
@@ -115,7 +154,7 @@ def test_current_identity_matches_each_executable_environment(species, observati
 # keys here are made up rather than the retired species IDs.
 MANIFEST_V1 = "mesozoic.plant-manifest/v1"
 MANIFEST_V2 = "mesozoic.plant-manifest/v2"
-MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+MONGOLIENSIS = VELOCIRAPTOR_MONGOLIENSIS
 FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 FRAGILIS_ROBOT = ModelId("allosaurus_fragilis", "robot")
 # The same plant after an epithet correction.
@@ -282,7 +321,7 @@ def test_only_the_v1_to_v2_transition_crosses_schemas(v2_is_current, old_schema,
 )
 def test_manifest_check_enforces_revisions_against_external_baseline(tmp_path):
     baseline = json.loads(GENERATED_MANIFEST_PATH.read_text(encoding="utf-8"))
-    baseline["plants"]["velociraptor"]["physics"]["sha256"] = "sha256:" + "0" * 64
+    baseline["plants"]["velociraptor_mongoliensis"]["anatomical"]["physics"]["sha256"] = "sha256:" + "0" * 64
     baseline_path = tmp_path / "base-plant-manifest.json"
     baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
 

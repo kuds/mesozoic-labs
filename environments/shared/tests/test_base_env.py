@@ -11,6 +11,7 @@ from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAl
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared import reward_functions as rf
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.species_names import model_ids
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
@@ -463,7 +464,7 @@ class TestGaitSymmetry:
         reward, ratio = env._compute_gait_symmetry(0.0, 0.0, 1.0)
         assert ratio == 0.0
 
-    def test_trex_uses_shared_helper(self):
+    def test_tyrannosaurus_rex_uses_shared_helper(self):
         """TyrannosaurusRexAnatomicalEnv should use the shared gait symmetry (not the old buggy version)."""
         from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
@@ -563,12 +564,12 @@ class TestQuadrupedGaitSymmetry:
         reward, ratio = env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
         assert ratio == 0.0
 
-    def test_brachio_uses_quadruped_helper(self, env):
+    def test_brachiosaurus_altithorax_uses_quadruped_helper(self, env):
         """BrachiosaurusAltithoraxAnatomicalEnv should use quadrupedal gait state."""
         assert hasattr(env, "_quad_touchdown_sequence")
         assert env._quad_touchdown_sequence == []
 
-    def test_brachio_info_has_all_foot_contacts(self, env):
+    def test_brachiosaurus_altithorax_info_has_all_foot_contacts(self, env):
         """BrachiosaurusAltithoraxAnatomicalEnv step info should include all 4 foot contacts."""
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
@@ -987,7 +988,7 @@ class TestContactGeom:
             floor = env.floor_geom_id
             pairs = [(int(env.data.contact[i].geom1), int(env.data.contact[i].geom2)) for i in range(env.data.ncon)]
             touching = [geom1 if geom2 == floor else geom2 for geom1, geom2 in pairs if floor in (geom1, geom2)]
-            assert touching, "the settled raptor should stand on the floor"
+            assert touching, "the settled Velociraptor should stand on the floor"
             assert env._contact_geom(set(touching), floor) == touching[0]
             assert env._contact_geom(set(touching), -2) is None
         finally:
@@ -1133,13 +1134,13 @@ class TestCacheHomeKeyframe:
         np.testing.assert_array_equal(holder._home_ctrl, [0.25])
 
 
-#: One stance env per species, every registered plant: the substep foot-force block and the species
+#: One stance env per model, every registered plant: the substep foot-force block and the species
 #: substep hook live in the shared step loop.
-_SUBSTEP_SPECIES = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus", "compsognathus_robot")
+_SUBSTEP_MODELS = model_ids()
 
 
-@pytest.mark.parametrize("species", _SUBSTEP_SPECIES)
-def test_the_substep_force_block_and_hook_leave_every_species_bit_identical(species):
+@pytest.mark.parametrize("model_id", _SUBSTEP_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_substep_force_block_and_hook_leave_every_model_bit_identical(model_id):
     """The block is the MIN's own rows, and a hook that reads the state cannot move a trajectory.
 
     ``BaseDinoEnv.step`` keeps every substep's per-foot force beside the
@@ -1152,8 +1153,8 @@ def test_the_substep_force_block_and_hook_leave_every_species_bit_identical(spec
     from environments.shared.config import load_stage_config
     from environments.shared.species_registry import get_species_config
 
-    env_class = get_species_config(species).env_class
-    kwargs = load_stage_config(species, "stance")["env_kwargs"]
+    env_class = get_species_config(model_id).env_class
+    kwargs = load_stage_config(model_id, "stance")["env_kwargs"]
     plain = env_class(**kwargs)
     probed = env_class(**kwargs)
     calls: list[int] = []

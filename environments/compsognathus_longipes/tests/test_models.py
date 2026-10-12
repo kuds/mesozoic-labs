@@ -13,6 +13,7 @@ from environments.compsognathus_longipes import MODEL_PATHS
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.model import PARAMETERS, load_model, model_bounds, pelvis_subtree_body_ids
 from environments.compsognathus_longipes.scripts.validate_models import geometry, hold_trial
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import GENERATED_MANIFEST_PATH, current_plant_identity
 
 
@@ -105,10 +106,11 @@ def test_settled_statue_keeps_the_metatarsus_four_millimetres_off_the_floor(seed
 
 def test_robot_plant_did_not_move_with_the_anatomical_revision():
     """D-D26 confines physics r2 to build_anatomical and policy r3 to CompsognathusLongipesAnatomicalEnv: the robot keeps
-    physics 1 / policy 2 / visual 1 and the digests the committed manifest records for them."""
-    committed = json.loads(GENERATED_MANIFEST_PATH.read_text())["plants"]["compsognathus_robot"]
-    identity = current_plant_identity("compsognathus_robot", verify_generated=False)
-    assert (identity.physics_revision, identity.policy_interface_revision, identity.visual_revision) == (1, 2, 1)
+    physics 1 / visual 1, its policy interface moved only by the rename's qualnames (r3, plant_versions note 19), and
+    the digests the committed manifest records for them."""
+    committed = json.loads(GENERATED_MANIFEST_PATH.read_text())["plants"]["compsognathus_longipes"]["robot"]
+    identity = current_plant_identity(ModelId("compsognathus_longipes", "robot"), verify_generated=False)
+    assert (identity.physics_revision, identity.policy_interface_revision, identity.visual_revision) == (1, 3, 1)
     assert identity.physics_sha256 == committed["physics"]["sha256"]
     assert identity.policy_interface_sha256 == committed["policy_interface"]["sha256"]
     assert identity.visual_sha256 == committed["visual"]["sha256"]
@@ -118,7 +120,7 @@ def test_robot_plant_did_not_move_with_the_anatomical_revision():
 def test_robot_preserves_rev_b_mechanics():
     root = Path(__file__).resolve().parents[1]
     source = ET.parse(root / "robot/references/compsognathus_longipes_robot_rev_b.xml")
-    source.find("compiler").set("meshdir", str(root / "assets/meshes"))
+    source.find("compiler").set("meshdir", str(root / "robot/assets/meshes"))
     reference = mujoco.MjModel.from_xml_string(ET.tostring(source.getroot(), encoding="unicode"))
     model, _ = load_model("robot")
     for body in range(1, reference.nbody):

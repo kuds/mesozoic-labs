@@ -1,7 +1,7 @@
 """Unit tests for the unified training entry point (``environments/shared/train.py``).
 
-The module is a thin argv shim: it pulls ``--species <name>`` out of ``sys.argv``,
-resolves the species config, and hands the remainder to
+The module is a thin argv shim: it pulls ``--species <id> --embodiment <id>``
+out of ``sys.argv``, resolves the model's config, and hands the remainder to
 :func:`environments.shared.train_base.main`.  It deliberately defers those two
 imports to call time so that ``--help``-style misuse fails fast without dragging
 in the training stack.
@@ -9,7 +9,8 @@ in the training stack.
 That deferral is also what makes these tests cheap: patching ``main`` and
 ``get_species_config`` on their *owning modules* is enough, because the
 function-level ``from ... import`` statements read the attributes fresh on every
-call.  No stable-baselines3 required, and no training is ever started.
+call.  No stable-baselines3 required, and no training is ever started.  The
+refusal of retired IDs and aliases lives in ``test_retired_species_identifiers.py``.
 """
 
 import importlib
@@ -20,6 +21,12 @@ from pathlib import Path
 import pytest
 
 from environments.shared import train as train_entry
+from environments.shared.model_id import ModelId
+from environments.shared.species_names import species_ids
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+VELOCIRAPTOR_ARGS = ["--species", "velociraptor_mongoliensis", "--embodiment", "anatomical"]
+TYRANNOSAURUS_REX_ARGS = ["--species", "tyrannosaurus_rex", "--embodiment", "anatomical"]
 
 
 @pytest.fixture
@@ -32,9 +39,9 @@ def recorded_run(monkeypatch):
     """
     calls: dict = {}
 
-    def fake_get_species_config(species):
-        calls["species"] = species
-        return f"config-for-{species}"
+    def fake_get_species_config(model_id):
+        calls["model_id"] = model_id
+        return f"config-for-{model_id}"
 
     def fake_main(config):
         calls["config"] = config
@@ -45,30 +52,59 @@ def recorded_run(monkeypatch):
     return calls
 
 
-class TestSpeciesFlagValidation:
-    """Misuse of --species must fail loudly instead of reaching train_base."""
+class TestModelFlagValidation:
+    """Misuse of --species or --embodiment must fail loudly instead of reaching train_base."""
 
     def test_missing_species_flag_exits_with_usage(self, monkeypatch, capsys):
-        monkeypatch.setattr(sys, "argv", ["train.py", "train", "--stage", "1"])
+        monkeypatch.setattr(sys, "argv", ["train.py", "--embodiment", "anatomical", "train", "--stage", "1"])
 
         with pytest.raises(SystemExit) as excinfo:
             train_entry._main()
 
-        assert excinfo.value.code == 1
+        assert excinfo.value.code == 2
         stderr = capsys.readouterr().err
         assert "--species" in stderr
-        # The usage text is the only place a user learns the valid names.
-        for name in ("velociraptor", "trex", "brachiosaurus", "dibothrosuchus"):
-            assert name in stderr
+        # The usage text is the only place a user learns the valid IDs.
+        for species in species_ids():
+            assert species in stderr
 
-    def test_species_flag_without_a_value_exits(self, monkeypatch, capsys):
-        monkeypatch.setattr(sys, "argv", ["train.py", "train", "--species"])
+    def test_missing_embodiment_flag_exits_without_a_default(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["train.py", "--species", "tyrannosaurus_rex", "train"])
 
         with pytest.raises(SystemExit) as excinfo:
             train_entry._main()
 
-        assert excinfo.value.code == 1
-        assert "requires a value" in capsys.readouterr().err
+        assert excinfo.value.code == 2
+        assert "--embodiment" in capsys.readouterr().err
+
+    def test_species_flag_without_a_value_exits(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["train.py", "train", "--embodiment", "anatomical", "--species"])
+
+        with pytest.raises(SystemExit) as excinfo:
+            train_entry._main()
+
+        assert excinfo.value.code == 2
+        assert "expected one argument" in capsys.readouterr().err
+
+    def test_an_embodiment_the_species_lacks_is_refused(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            sys, "argv", ["train.py", "--species", "tyrannosaurus_rex", "--embodiment", "robot", "train"]
+        )
+
+        with pytest.raises(SystemExit) as excinfo:
+            train_entry._main()
+
+        assert excinfo.value.code == 2
+        assert "tyrannosaurus_rex has no 'robot' embodiment" in capsys.readouterr().err
+
+    def test_an_unknown_species_is_refused(self, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["train.py", "--species", "stegosaurus_stenops", "--embodiment", "anatomical"])
+
+        with pytest.raises(SystemExit) as excinfo:
+            train_entry._main()
+
+        assert excinfo.value.code == 2
+        assert "invalid choice: 'stegosaurus_stenops'" in capsys.readouterr().err
 
     def test_validation_failure_does_not_reach_train_base(self, monkeypatch, recorded_run):
         monkeypatch.setattr(sys, "argv", ["train.py", "train"])
@@ -80,32 +116,36 @@ class TestSpeciesFlagValidation:
 
 
 class TestHandoffToTrainBase:
-    """The species is resolved, and the flag pair is removed before hand-off."""
+    """The model is resolved, and both flag pairs are removed before hand-off."""
 
-    def test_species_is_resolved_and_its_config_passed_to_main(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", "--species", "velociraptor", "train", "--stage", "1"])
+    def test_model_is_resolved_and_its_config_passed_to_main(self, monkeypatch, recorded_run):
+        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_ARGS, "train", "--stage", "1"])
 
         train_entry._main()
 
-        assert recorded_run["species"] == "velociraptor"
-        assert recorded_run["config"] == "config-for-velociraptor"
+        assert recorded_run["model_id"] == VELOCIRAPTOR_MONGOLIENSIS
+        assert recorded_run["config"] == "config-for-velociraptor_mongoliensis/anatomical"
 
-    def test_species_pair_is_stripped_before_main_parses_argv(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", "--species", "velociraptor", "train", "--stage", "1"])
+    def test_model_flags_are_stripped_before_main_parses_argv(self, monkeypatch, recorded_run):
+        monkeypatch.setattr(sys, "argv", ["train.py", *VELOCIRAPTOR_ARGS, "train", "--stage", "1"])
 
         train_entry._main()
 
         assert recorded_run["argv_at_main"] == ["train.py", "train", "--stage", "1"]
 
-    def test_species_pair_is_stripped_from_the_middle_of_argv(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", "curriculum", "--species", "trex", "--n-envs", "4"])
+    def test_model_flags_are_stripped_from_the_middle_of_argv(self, monkeypatch, recorded_run):
+        monkeypatch.setattr(sys, "argv", ["train.py", "curriculum", *TYRANNOSAURUS_REX_ARGS, "--n-envs", "4"])
 
         train_entry._main()
 
         assert recorded_run["argv_at_main"] == ["train.py", "curriculum", "--n-envs", "4"]
 
-    def test_species_pair_is_stripped_from_the_end_of_argv(self, monkeypatch, recorded_run):
-        monkeypatch.setattr(sys, "argv", ["train.py", "curriculum", "--species", "dibo"])
+    def test_model_flags_are_stripped_from_the_end_of_argv(self, monkeypatch, recorded_run):
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["train.py", "curriculum", "--species", "dibothrosuchus_elaphros", "--embodiment", "anatomical"],
+        )
 
         train_entry._main()
 
@@ -113,18 +153,11 @@ class TestHandoffToTrainBase:
 
     def test_program_name_survives_the_rewrite(self, monkeypatch, recorded_run):
         """argv[0] feeds argparse's usage line, so it must not be dropped."""
-        monkeypatch.setattr(sys, "argv", ["/path/to/train.py", "--species", "trex", "train"])
+        monkeypatch.setattr(sys, "argv", ["/path/to/train.py", *TYRANNOSAURUS_REX_ARGS, "train"])
 
         train_entry._main()
 
         assert recorded_run["argv_at_main"][0] == "/path/to/train.py"
-
-    def test_an_unknown_species_propagates_the_registry_error(self, monkeypatch):
-        """No blanket except: a typo'd species surfaces the registry's message."""
-        monkeypatch.setattr(sys, "argv", ["train.py", "--species", "stegosaurus", "train"])
-
-        with pytest.raises(ValueError, match="Unknown species"):
-            train_entry._main()
 
 
 class TestRepositoryRootBootstrap:
@@ -160,7 +193,7 @@ class TestRepositoryRootBootstrap:
 class TestModuleExecution:
     """The ``__main__`` guard is the real entry point; exercise it as one."""
 
-    def test_running_the_module_without_species_fails_with_usage(self):
+    def test_running_the_module_without_a_model_fails_with_usage(self):
         result = subprocess.run(
             [sys.executable, "-m", "environments.shared.train", "train"],
             capture_output=True,
@@ -168,5 +201,6 @@ class TestModuleExecution:
             cwd=train_entry._repo_root,
         )
 
-        assert result.returncode == 1
+        assert result.returncode == 2
         assert "--species" in result.stderr
+        assert "--embodiment" in result.stderr

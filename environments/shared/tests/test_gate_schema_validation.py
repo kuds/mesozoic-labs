@@ -18,6 +18,7 @@ from environments.shared.curriculum.gate_schema import (
     GateSchemaError,
     validate_gate_config,
 )
+from environments.shared.model_id import ModelId
 
 _GATE = {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "reward_and_length/v1"}
 _STANCE = {
@@ -84,7 +85,9 @@ class TestBackendOverrideTable:
     def test_a_toml_sub_table_loads_and_validates(self, tmp_path):
         path = tmp_path / "good.toml"
         path.write_text(_OVERRIDE_TOML)
-        curriculum = load_stage_config("trex", 1, config_path=str(path))["curriculum_kwargs"]
+        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1, config_path=str(path))[
+            "curriculum_kwargs"
+        ]
         assert curriculum["min_avg_reward"] == 100.0
         assert curriculum["jax"] == {"min_avg_reward": 40.0}
         assert _validate(curriculum) == "reward_and_length/v1"
@@ -93,7 +96,9 @@ class TestBackendOverrideTable:
         """The loader passes the misspelling through, so the schema must refuse it."""
         path = tmp_path / "bad.toml"
         path.write_text(_OVERRIDE_TOML.replace("[curriculum.jax]\nmin_avg_reward", "[curriculum.jax]\nmin_avg_rewrad"))
-        curriculum = load_stage_config("trex", 1, config_path=str(path))["curriculum_kwargs"]
+        curriculum = load_stage_config(ModelId("tyrannosaurus_rex", "anatomical"), 1, config_path=str(path))[
+            "curriculum_kwargs"
+        ]
         assert curriculum["jax"] == {"min_avg_rewrad": 40.0}
         with pytest.raises(GateSchemaError, match="cannot be overridden"):
             _validate(curriculum)
@@ -211,7 +216,9 @@ class TestStanceQualityV2Declaration:
         assert copied.min_clean_stance_lcb == 0.80 and copied.settle_steps == 200
         assert copied.max_sole_corner_lift_m == 0.006 and copied.min_sole_contacts is None
         assert copied.min_avg_reward is None and copied.min_full_horizon_fraction is None
-        manager = CurriculumManager(species="velociraptor", stage_thresholds=thresholds)
+        manager = CurriculumManager(
+            model_id=ModelId("velociraptor_mongoliensis", "anatomical"), stage_thresholds=thresholds
+        )
         assert not manager.should_advance([1e9] * 40, [1000.0] * 40)
 
     def test_every_v2_key_is_copied_onto_the_threshold(self):

@@ -7,9 +7,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from environments.shared.model_id import ModelId
 from environments.shared.scripts.zero_action_baseline import gate_margin, score
 
 from .notebook_cells import code_cell
+
+VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 
 
 class _StubEnv:
@@ -84,27 +90,35 @@ def _stub_stage(monkeypatch, lengths, gates):
         def to_dict():
             return {"plant_revision": 1}
 
-    monkeypatch.setattr(baseline_module, "build_env", lambda species, stage: _StubEnv(lengths[species]))
+    monkeypatch.setattr(baseline_module, "build_env", lambda model_id, stage: _StubEnv(lengths[model_id]))
     monkeypatch.setattr(
         baseline_module,
         "load_stage_config",
-        lambda species, stage: {"curriculum_kwargs": {"min_avg_reward": gates[species]}, "env_kwargs": {}},
+        lambda model_id, stage: {"curriculum_kwargs": {"min_avg_reward": gates[model_id]}, "env_kwargs": {}},
     )
-    monkeypatch.setattr(baseline_module, "current_plant_identity", lambda species: _PlantIdentity())
+    monkeypatch.setattr(baseline_module, "current_plant_identity", lambda model_id: _PlantIdentity())
     return baseline_module
 
 
 def _exec_preflight_cell(tmp_path, monkeypatch, run_dir):
     """Execute the production notebook cell (a call to ``preflight``, consolidation PR-14b) for a statue that
     never stands, with the stage-1 config stubbed."""
-    _stub_stage(monkeypatch, {"brachiosaurus": [100] * 40}, {"brachiosaurus": 100.0})
+    _stub_stage(monkeypatch, {BRACHIOSAURUS_ALTITHORAX: [100] * 40}, {BRACHIOSAURUS_ALTITHORAX: 100.0})
 
     notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "sb3_training.ipynb"
     preflight_cell = code_cell(notebook_path, "Pre-flight: zero-action baseline")
 
-    namespace = {"SPECIES": "brachiosaurus", "LOG_BASE": tmp_path / "logs", "RUN_DIR": run_dir}
+    namespace = {
+        "SPECIES": "brachiosaurus_altithorax",
+        "EMBODIMENT": "anatomical",
+        "MODEL_ID": BRACHIOSAURUS_ALTITHORAX,
+        "LOG_BASE": tmp_path / "logs",
+        "RUN_DIR": run_dir,
+    }
     exec(compile(preflight_cell, str(notebook_path), "exec"), namespace)
-    return next((tmp_path / "logs" / "brachiosaurus" / "zero_action_baselines").glob("*.json"))
+    return next(
+        (tmp_path / "logs" / "brachiosaurus_altithorax" / "anatomical" / "zero_action_baselines").glob("*.json")
+    )
 
 
 def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
@@ -113,7 +127,7 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
     run_dir.mkdir()
     saved_path = _exec_preflight_cell(tmp_path, monkeypatch, run_dir)
     saved_text = saved_path.read_text()
-    saved_result = json.loads(saved_text)["results"]["brachiosaurus"]
+    saved_result = json.loads(saved_text)["results"]["brachiosaurus_altithorax"]["anatomical"]
 
     assert "NaN" not in saved_text
     assert saved_text == json.dumps(json.loads(saved_text), indent=2, sort_keys=True, allow_nan=False)
@@ -139,21 +153,22 @@ def test_notebook_preflight_leaves_a_complete_bundle_untouched(tmp_path, monkeyp
 
     saved_path = _exec_preflight_cell(tmp_path, monkeypatch, run_dir)
 
-    assert json.loads(saved_path.read_text())["results"]["brachiosaurus"]["verdict"]
+    assert json.loads(saved_path.read_text())["results"]["brachiosaurus_altithorax"]["anatomical"]["verdict"]
     if status == "complete":
         assert {path: path.read_bytes() for path in run_dir.rglob("*") if path.is_file()} == before
     else:
         assert json.loads(sealed.read_text()) == json.loads(saved_path.read_text())
 
 
-#: The table ``preflight`` prints and saves for the two-species case below (the pre-PR-14b cell's, byte for byte).
-_TWO_SPECIES_TABLE = """\
+#: The table ``preflight`` prints and saves for the two-model case below (the pre-PR-14b cell's, its first column the
+#: model display name since decision D-D33).
+_TWO_MODEL_TABLE = """\
 zero-action baseline — stage 1, 4 episodes, seed 7
 
-species                           reward  mean-std  standing  full-hz     gate  verdict
----------------------------------------------------------------------------------------
-Tyrannosaurus Rex                  850.0     590.2    1000.0     75%     5000  OK
-Velociraptor Mongoliensis          150.0     100.0         —      0%        —  NO GATE
+model                                         reward  mean-std  standing  full-hz     gate  verdict
+---------------------------------------------------------------------------------------------------
+Tyrannosaurus Rex (Anatomical)                 850.0     590.2    1000.0     75%     5000  OK
+Velociraptor Mongoliensis (Anatomical)         150.0     100.0         —      0%        —  NO GATE
 
 A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have
 learned to balance at all, and 'standing' to have learned more than 'do not fall'."""
@@ -161,12 +176,12 @@ learned to balance at all, and 'standing' to have learned more than 'do not fall
 
 @pytest.mark.parametrize("with_log_base", [True, False])
 def test_preflight_table_records_and_run_copy(tmp_path, monkeypatch, capsys, with_log_base):
-    """Every species gets its own record, the table goes beside the trained species' record, and only that
-    species' record is copied into the run; without ``LOG_BASE`` the table is printed and nothing is written."""
+    """Every model gets its own record, the table goes beside the trained model's record, and only that
+    model's record is copied into the run; without ``LOG_BASE`` the table is printed and nothing is written."""
     baseline_module = _stub_stage(
         monkeypatch,
-        {"trex": [1000, 1000, 1000, 400], "velociraptor": [100, 200, 100, 200]},
-        {"trex": 5000.0, "velociraptor": None},
+        {TYRANNOSAURUS_REX: [1000, 1000, 1000, 400], VELOCIRAPTOR_MONGOLIENSIS: [100, 200, 100, 200]},
+        {TYRANNOSAURUS_REX: 5000.0, VELOCIRAPTOR_MONGOLIENSIS: None},
     )
 
     class _FrozenClock(datetime):
@@ -179,36 +194,41 @@ def test_preflight_table_records_and_run_copy(tmp_path, monkeypatch, capsys, wit
     run_dir.mkdir()
 
     baseline_module.preflight(
-        ["trex", "velociraptor"],
+        [TYRANNOSAURUS_REX, VELOCIRAPTOR_MONGOLIENSIS],
         stage=1,
         episodes=4,
         seed=7,
-        species="velociraptor",
+        model_id=VELOCIRAPTOR_MONGOLIENSIS,
         log_base=log_base if with_log_base else None,
         run_dir=run_dir,
     )
 
     out = capsys.readouterr().out
-    assert out.startswith(_TWO_SPECIES_TABLE + "\n")
+    assert out.startswith(_TWO_MODEL_TABLE + "\n")
     if not with_log_base:
         assert out.endswith("LOG_BASE not defined — run the storage-configuration cell to save results.\n")
         assert not log_base.exists() and not any(run_dir.iterdir())
         return
     assert sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob("*.*")) == [
-        "logs/trex/zero_action_baselines/20260924_120000.json",
-        "logs/velociraptor/zero_action_baselines/20260924_120000.json",
-        "logs/velociraptor/zero_action_baselines/20260924_120000.txt",
+        "logs/tyrannosaurus_rex/anatomical/zero_action_baselines/20260924_120000.json",
+        "logs/velociraptor_mongoliensis/anatomical/zero_action_baselines/20260924_120000.json",
+        "logs/velociraptor_mongoliensis/anatomical/zero_action_baselines/20260924_120000.txt",
         "run/zero_action_baseline.json",
     ]
-    assert (log_base / "velociraptor/zero_action_baselines/20260924_120000.txt").read_text() == (
-        _TWO_SPECIES_TABLE + "\n"
-    )
-    for name, verdict in (("trex", "OK"), ("velociraptor", "NO GATE")):
-        record = json.loads((log_base / name / "zero_action_baselines/20260924_120000.json").read_text())
+    assert (
+        log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines/20260924_120000.txt"
+    ).read_text() == (_TWO_MODEL_TABLE + "\n")
+    for model_id, verdict in ((TYRANNOSAURUS_REX, "OK"), (VELOCIRAPTOR_MONGOLIENSIS, "NO GATE")):
+        record = json.loads((model_id.path(log_base) / "zero_action_baselines/20260924_120000.json").read_text())
         assert record["captured_at"] == "2026-09-24T12:00:00"
-        assert list(record["results"]) == [name] and record["results"][name]["verdict"] == verdict
+        assert list(record["results"]) == [model_id.species]
+        assert list(record["results"][model_id.species]) == [model_id.embodiment]
+        assert record["results"][model_id.species][model_id.embodiment]["verdict"] == verdict
     run_copy = (run_dir / "zero_action_baseline.json").read_text()
-    assert run_copy == (log_base / "velociraptor/zero_action_baselines/20260924_120000.json").read_text()
+    assert (
+        run_copy
+        == (log_base / "velociraptor_mongoliensis/anatomical/zero_action_baselines/20260924_120000.json").read_text()
+    )
 
 
 @pytest.mark.parametrize("passed", [True, False])
@@ -219,19 +239,19 @@ def test_a_stance_gated_stage_is_judged_by_the_stance_gate_on_the_statue(tmp_pat
     seeds, for both stance kinds."""
     import environments.shared.reporting.stance_report as stance_report
 
-    baseline_module = _stub_stage(monkeypatch, {"compsognathus": [1000] * 4}, {"compsognathus": 100.0})
+    baseline_module = _stub_stage(monkeypatch, {COMPSOGNATHUS_LONGIPES: [1000] * 4}, {COMPSOGNATHUS_LONGIPES: 100.0})
     monkeypatch.setattr(
         baseline_module,
         "load_stage_config",
-        lambda species, stage: {
+        lambda model_id, stage: {
             "curriculum_kwargs": {"gate_kind": "stance_quality/v2", "min_avg_reward": 100.0},
             "env_kwargs": {},
         },
     )
     calls = []
 
-    def fake_report(species, stage, *, stage_config, zero_action, episodes, seed):
-        calls.append((species, stage, zero_action, episodes, seed))
+    def fake_report(model_id, stage, *, stage_config, zero_action, episodes, seed):
+        calls.append((model_id, stage, zero_action, episodes, seed))
         return {
             "gate_kind": "stance_quality/v2",
             "scored_gate_kind": "stance_quality/v2",
@@ -242,20 +262,22 @@ def test_a_stance_gated_stage_is_judged_by_the_stance_gate_on_the_statue(tmp_pat
 
     monkeypatch.setattr(stance_report, "build_stance_gate_report", fake_report)
     baseline_module.preflight(
-        ["compsognathus"],
+        [COMPSOGNATHUS_LONGIPES],
         stage=1,
         episodes=4,
         seed=7,
-        species="compsognathus",
+        model_id=COMPSOGNATHUS_LONGIPES,
         log_base=tmp_path / "logs",
         run_dir=None,
     )
-    assert calls == [("compsognathus", 1, True, 4, 7)]
+    assert calls == [(COMPSOGNATHUS_LONGIPES, 1, True, 4, 7)]
     out = capsys.readouterr().out
     record = json.loads(
-        next((tmp_path / "logs" / "compsognathus" / "zero_action_baselines").glob("*.json")).read_text()
+        next(
+            (tmp_path / "logs" / "compsognathus_longipes" / "anatomical" / "zero_action_baselines").glob("*.json")
+        ).read_text()
     )
-    result = record["results"]["compsognathus"]
+    result = record["results"]["compsognathus_longipes"]["anatomical"]
     assert result["stance_gate"]["passed"] is passed and result["stance_gate"]["n_episodes"] == 40
     if passed:
         assert result["verdict"] == "OK — the statue passes the stance gate"
@@ -280,7 +302,7 @@ def test_a_heading_certificate_stage_is_preflighted_at_its_zero_heading_cell_onl
     monkeypatch.setattr(
         stance_report, "build_stance_heading_report", lambda *a, **k: pytest.fail("the preflight rolled the grid")
     )
-    config = copy.deepcopy(load_stage_config("compsognathus", 1))
+    config = copy.deepcopy(load_stage_config(COMPSOGNATHUS_LONGIPES, 1))
     config["env_kwargs"]["max_episode_steps"] = 150
     config["curriculum_kwargs"] = {
         **HEADING_CURRICULUM,
@@ -289,7 +311,7 @@ def test_a_heading_certificate_stage_is_preflighted_at_its_zero_heading_cell_onl
         "settle_steps": 50,
         "max_sole_corner_lift_m": 0.003,
     }
-    record = statue_stance_verdict("compsognathus", 1, config, episodes=2, seed=3042)
+    record = statue_stance_verdict(COMPSOGNATHUS_LONGIPES, 1, config, episodes=2, seed=3042)
     assert record["gate_kind"] == "stance_quality_heading/v1"
     assert record["scored_gate_kind"] == "stance_quality/v2"
     assert record["headings_deg"] == [0.0]

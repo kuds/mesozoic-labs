@@ -63,12 +63,14 @@ from environments.shared.curriculum.gate_schema import gate_config_view
 from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA, StatueReference
 from environments.shared.gait.constants import measurement_constants, measurement_sha256
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
 from environments.shared.reporting import evaluate_stage_gate, stance_report
 from environments.shared.result_bundle import ResultBundleError, sha256_file
+from environments.shared.species_registry import env_class as model_env_class
 from environments.shared.task_fingerprint import stage_task_fingerprint
 
-SPECIES = "compsognathus"
+MODEL_ID = ModelId("compsognathus_longipes", "anatomical")
 HORIZON = 150
 EPISODES = 3
 
@@ -96,24 +98,24 @@ CURRICULUM: dict[str, Any] = {
 
 
 def _stage_config(**curriculum: Any) -> dict[str, Any]:
-    config = copy.deepcopy(load_stage_config(SPECIES, 1))
+    config = copy.deepcopy(load_stage_config(MODEL_ID, 1))
     config["env_kwargs"]["max_episode_steps"] = HORIZON
     config["curriculum_kwargs"] = {**CURRICULUM, **curriculum}
     return config
 
 
-def _record_stage(stage_dir: Path, config: dict[str, Any] | None = None, *, species: str = SPECIES) -> str:
+def _record_stage(stage_dir: Path, config: dict[str, Any] | None = None, *, model_id: ModelId = MODEL_ID) -> str:
     """Write the ``stage_config.json`` / ``task_fingerprint.json`` training writes for *config*; its task digest."""
     config = _stage_config() if config is None else config
-    identity = current_plant_identity(species)
-    fingerprint = stage_task_fingerprint(species, 1, stage_config=config, plant_identity=identity)
+    identity = current_plant_identity(model_id)
+    fingerprint = stage_task_fingerprint(model_id, 1, stage_config=config, plant_identity=identity)
     save_stage_config(
         stage_dir,
         1,
         config,
         "PPO",
-        env_class=stance_report.SPECIES_FACTORIES[species]().env_class,
-        species=species,
+        env_class=model_env_class(model_id),
+        model_id=model_id,
         plant_identity=identity,
         task_fingerprint=fingerprint,
     )
@@ -142,14 +144,14 @@ def _scripted(command: np.ndarray, *, raise_at: int | None = None) -> Any:
 
 
 def _report(
-    monkeypatch: Any, stage_dir: Path, command: Any, *, species: str = SPECIES, **kwargs: Any
+    monkeypatch: Any, stage_dir: Path, command: Any, *, model_id: ModelId = MODEL_ID, **kwargs: Any
 ) -> dict[str, Any]:
     """Score *command* (an action, or a ``predict`` callable) as the checkpoint in *stage_dir*'s handoff pair."""
     model, vecnorm = _handoff(stage_dir)
     predict = command if callable(command) else _scripted(command)
     monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (predict, "scripted command"))
     return stance_report.build_stance_gate_report(
-        species,
+        model_id,
         1,
         stage_config=kwargs.pop("stage_config", _stage_config()),
         model_path=str(model),
@@ -171,7 +173,7 @@ class _PostSettleHop:
              "l_hip_pitch_act": -1}  # fmt: skip
 
     def __init__(self, nu: int, *, settle: int, amplitude: float = 0.15, period: int = 5) -> None:
-        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
+        env = model_env_class(MODEL_ID)(**_stage_config()["env_kwargs"])
         try:
             self.pattern = np.zeros(nu)
             for name, sign in self.SIGNS.items():
@@ -192,7 +194,7 @@ class _PostSettleHop:
 
 @pytest.fixture(scope="module")
 def nu() -> int:
-    env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**_stage_config()["env_kwargs"])
+    env = model_env_class(MODEL_ID)(**_stage_config()["env_kwargs"])
     try:
         return int(env.action_space.shape[0])
     finally:
@@ -266,7 +268,7 @@ class TestThePanel:
         assert report["thresholds"] == gate_config_view(CURRICULUM)["thresholds"]
         assert report["thresholds"]["settle_steps"] == 50  # unlike the v1 report
         assert report["measurement"]["constants"] == measurement_constants()
-        assert report["measurement"]["species"] == SPECIES and report["measurement"]["frame_skip"] == 10
+        assert ModelId.from_record(report["measurement"]) == MODEL_ID and report["measurement"]["frame_skip"] == 10
         assert report["handoff"] == {
             "checkpoint": "robust_best_model.zip",
             "checkpoint_sha256": sha256_file(stage_dir / "models" / "robust_best_model.zip"),
@@ -354,7 +356,7 @@ class TestThePanel:
         model, vecnorm = _handoff(tmp_path)
         monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (hop, "scripted post-settle hop"))
         report = stance_report.build_stance_gate_report(
-            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+            MODEL_ID, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
         )
         step_level = {"min_all_feet_support", "max_touchdown_rate", "max_settle_airborne_substeps",
                       "max_settle_peak_floor_force_bw"}  # fmt: skip
@@ -381,7 +383,7 @@ class TestThePanel:
         model, vecnorm = _handoff(statue_dir)
         monkeypatch.setattr(stance_report, "_load_policy", lambda *a, **k: (_scripted(np.zeros(nu)), "zero"))
         quiet = stance_report.build_stance_gate_report(
-            SPECIES, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
+            MODEL_ID, 1, stage_config=config, model_path=str(model), vecnorm_path=str(vecnorm)
         )
         assert quiet["passed"] is True and quiet["result"]["n_clean"] == EPISODES
         stance_report.write_stance_gate_report(statue_dir, quiet)
@@ -419,13 +421,13 @@ def _without_later_metrics(report: dict[str, Any]) -> dict[str, Any]:
 # ── the pad's centre of pressure, on the T. rex and the compsognathus (D-D28) ──
 
 #: The species whose stance block declared ``max_sole_cop_fore_aft`` first (0.80, calibrated on its statue).
-TYRANNOSAURUS_REX = "trex"
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 TYRANNOSAURUS_REX_HORIZON = 400
 #: The compsognathus stance declares it too (0.70, on its r2 statue): 200 window steps after its 200-step settle.
-COMPSOGNATHUS_HORIZON = 400
+COMPSOGNATHUS_LONGIPES_HORIZON = 400
 
 
-def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
+def _declared_stage_config(model_id: ModelId, horizon: int) -> dict[str, Any]:
     """*species*' stance block on a 3-episode panel at a shortened horizon: every bar it declares but the reward
     floor, which is set for its 1000 steps.
 
@@ -433,7 +435,7 @@ def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
     certificate since D-D32, which classifies each heading's cell under these same bars
     (``test_stance_heading_report.py`` rolls it).
     """
-    config = copy.deepcopy(load_stage_config(species, 1))
+    config = copy.deepcopy(load_stage_config(model_id, 1))
     config["env_kwargs"]["max_episode_steps"] = horizon
     block = {key: value for key, value in config["curriculum_kwargs"].items() if key != "min_avg_reward"}
     config["curriculum_kwargs"] = {
@@ -445,7 +447,7 @@ def _declared_stage_config(species: str, horizon: int) -> dict[str, Any]:
     return config
 
 
-def _trex_stage_config() -> dict[str, Any]:
+def _tyrannosaurus_rex_stage_config() -> dict[str, Any]:
     return _declared_stage_config(TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_HORIZON)
 
 
@@ -478,18 +480,18 @@ class TestThePadCentreOfPressure:
         0.829-1.000 with the corner lift at most 3.8 mm, and -0.085 trips
         the 4 mm corner-lift bar too.
         """
-        config = _trex_stage_config()
+        config = _tyrannosaurus_rex_stage_config()
         curriculum = config["curriculum_kwargs"]
         assert curriculum["max_sole_cop_fore_aft"] == 0.80
-        _record_stage(tmp_path, config, species=TYRANNOSAURUS_REX)
-        env = stance_report.SPECIES_FACTORIES[TYRANNOSAURUS_REX]().env_class(**config["env_kwargs"])
+        _record_stage(tmp_path, config, model_id=TYRANNOSAURUS_REX)
+        env = model_env_class(TYRANNOSAURUS_REX)(**config["env_kwargs"])
         try:
             command = np.zeros(int(env.action_space.shape[0]))
             command[env.model.actuator("l_ankle_act").id] = -0.0825
         finally:
             env.close()
         predict = _ramped(command, steps=300, horizon=TYRANNOSAURUS_REX_HORIZON)
-        report = _report(monkeypatch, tmp_path, predict, species=TYRANNOSAURUS_REX, stage_config=config)
+        report = _report(monkeypatch, tmp_path, predict, model_id=TYRANNOSAURUS_REX, stage_config=config)
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
             assert row["length"] == TYRANNOSAURUS_REX_HORIZON and row["all_feet_support"] == 1.0
@@ -514,7 +516,9 @@ class TestThePadCentreOfPressure:
         without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
         assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TYRANNOSAURUS_REX_HORIZON))
 
-    def test_compsognathus_pads_leaned_onto_their_front_edges_fail_the_bar_alone(self, tmp_path, monkeypatch, nu):
+    def test_compsognathus_longipes_pads_leaned_onto_their_front_edges_fail_the_bar_alone(
+        self, tmp_path, monkeypatch, nu
+    ):
         """Real physics on the compsognathus r2 plant, under its own stance block.
 
         Both ankles, ramped to -0.573 (servo targets 0.15 rad below home under
@@ -525,22 +529,22 @@ class TestThePadCentreOfPressure:
         centre-of-pressure bar is the one that refuses it, and the statue the
         same report rolls reads under it.
         """
-        config = _declared_stage_config(SPECIES, COMPSOGNATHUS_HORIZON)
+        config = _declared_stage_config(MODEL_ID, COMPSOGNATHUS_LONGIPES_HORIZON)
         curriculum = config["curriculum_kwargs"]
         assert curriculum["max_sole_cop_fore_aft"] == 0.70
         _record_stage(tmp_path, config)
-        env = stance_report.SPECIES_FACTORIES[SPECIES]().env_class(**config["env_kwargs"])
+        env = model_env_class(MODEL_ID)(**config["env_kwargs"])
         try:
             command = np.zeros(nu)
             for name in ("r_ankle_act", "l_ankle_act"):
                 command[env.model.actuator(name).id] = -0.573
         finally:
             env.close()
-        predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_HORIZON)
+        predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_LONGIPES_HORIZON)
         report = _report(monkeypatch, tmp_path, predict, stage_config=config)
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
-            assert row["length"] == COMPSOGNATHUS_HORIZON and row["all_feet_support"] == 1.0
+            assert row["length"] == COMPSOGNATHUS_LONGIPES_HORIZON and row["all_feet_support"] == 1.0
             assert row["min_support_geom_coverage"] == 1.0 and row["max_sole_tilt_deg"] < 0.1
             assert row["max_sole_cop_fore_aft"] > 0.85
             assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
@@ -550,7 +554,7 @@ class TestThePadCentreOfPressure:
         # The block's foot-share statue ratio reads the statue panel's own reference.
         reference = StatueReference.from_dict(report["statue"]["reference"])
         statue = _reclassified(
-            {"episode_evidence": statue_rows}, curriculum, horizon=COMPSOGNATHUS_HORIZON, statue=reference
+            {"episode_evidence": statue_rows}, curriculum, horizon=COMPSOGNATHUS_LONGIPES_HORIZON, statue=reference
         )
         assert all(row["reasons"] == [] for row in statue)
         stance_report.write_stance_gate_report(tmp_path, report)
@@ -562,7 +566,7 @@ class TestThePadCentreOfPressure:
         )
         assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
         without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
-        rederived = _reclassified(report, without, horizon=COMPSOGNATHUS_HORIZON, statue=reference)
+        rederived = _reclassified(report, without, horizon=COMPSOGNATHUS_LONGIPES_HORIZON, statue=reference)
         assert all(row["reasons"] == [] for row in rederived)
 
 
@@ -585,7 +589,10 @@ class TestTheJudge:
             (lambda r: r.update(checkpoint_plant_validated=False), "checkpoint_plant_validated=False"),
             (lambda r: r["measurement"]["constants"].update(contact_threshold_n=0.5), "measured under constants"),
             (lambda r: r["measurement"].update(body_weight_n=1.0), "is not the digest of its own manifest"),
-            (_rehashed(lambda m: m.update(species="trex")), "was measured on 'trex', not 'compsognathus'"),
+            (
+                _rehashed(lambda m: m.update(TYRANNOSAURUS_REX.record())),
+                "was measured on tyrannosaurus_rex/anatomical, not compsognathus_longipes/anatomical",
+            ),
             (_rehashed(lambda m: m.update(schema="mesozoic.floor-truth-measurement/v0")), "measurement manifest is"),
             (lambda r: r["measurement"].update(registry=None), "support registry entry"),
             (_rehashed(lambda m: m.update(dt=0.01, frame_skip=5)), "was measured at dt 0.01 / frame_skip 5"),
@@ -784,7 +791,7 @@ class TestPublication:
         *,
         certified_hash: Any = None,
         normalization: Any = None,
-        species: str = SPECIES,
+        model_id: ModelId = MODEL_ID,
         task: Any = None,
         **curriculum: Any,
     ):
@@ -799,7 +806,7 @@ class TestPublication:
             certified_hash=certified_hash or sha256_file(stage_dir / "models" / "robust_best_model.zip"),
             certified_normalization=normalization
             or sha256_file(stage_dir / "models" / "robust_best_model_vecnorm.pkl"),
-            species=species,
+            model_id=model_id,
             task_sha256=json.loads((stage_dir / "task_fingerprint.json").read_text())["task_sha256"]
             if task is None
             else task,
@@ -828,8 +835,10 @@ class TestPublication:
     def test_the_panel_is_bound_to_this_checkouts_measurement_definition(self, statue):
         """A registry or constant edit with MEASUREMENT_VERSION unbumped: the definition digest still moves."""
         stage_dir, _ = statue
-        with pytest.raises(ResultBundleError, match="not this checkout's sha256:[0-9a-f]+ for trex"):
-            self._validate(stage_dir, species="trex")
+        with pytest.raises(
+            ResultBundleError, match="not this checkout's sha256:[0-9a-f]+ for tyrannosaurus_rex/anatomical"
+        ):
+            self._validate(stage_dir, model_id=TYRANNOSAURUS_REX)
 
     def test_a_tampered_row_is_refused(self, statue, tmp_path):
         stage_dir, _ = statue
@@ -931,7 +940,7 @@ class TestProbesAndHygiene:
         )
         with pytest.raises(RuntimeError, match="failed mid-episode"):
             stance_report.build_stance_gate_report(
-                SPECIES, 1, stage_config=_stage_config(), model_path=str(model), vecnorm_path=str(vecnorm)
+                MODEL_ID, 1, stage_config=_stage_config(), model_path=str(model), vecnorm_path=str(vecnorm)
             )
         assert detached == [False]
 
@@ -940,14 +949,14 @@ class TestProbesAndHygiene:
         incomplete = _stage_config()
         del incomplete["curriculum_kwargs"]["min_all_feet_support"]
         with pytest.raises(ValueError, match="min_all_feet_support is missing"):
-            stance_report.build_stance_gate_report(SPECIES, 1, stage_config=incomplete, zero_action=True)
+            stance_report.build_stance_gate_report(MODEL_ID, 1, stage_config=incomplete, zero_action=True)
         with pytest.raises(ValueError, match="spawn grace"):
             stance_report.build_stance_gate_report(
-                SPECIES, 1, stage_config=_stage_config(settle_steps=5), zero_action=True
+                MODEL_ID, 1, stage_config=_stage_config(settle_steps=5), zero_action=True
             )
 
     def test_a_zero_action_report_is_its_own_statue_and_certifies_no_checkpoint(self, tmp_path):
-        report = stance_report.build_stance_gate_report(SPECIES, 1, stage_config=_stage_config(), zero_action=True)
+        report = stance_report.build_stance_gate_report(MODEL_ID, 1, stage_config=_stage_config(), zero_action=True)
         assert report["passed"] is True
         assert report["statue"]["reused_policy_panel"] is True
         assert report["handoff"] == {"checkpoint": None, "checkpoint_sha256": None, "normalization_sha256": None}

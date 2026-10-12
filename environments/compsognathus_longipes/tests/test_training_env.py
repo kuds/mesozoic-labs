@@ -6,16 +6,18 @@ import numpy as np
 import pytest
 from gymnasium.utils.env_checker import check_env
 
-from environments.compsognathus_longipes.anatomical.env import (
-    CompsognathusLongipesAnatomicalEnv,
-    CompsognathusLongipesEnv,
-    CompsognathusLongipesRobotEnv,
-)
+from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
+from environments.compsognathus_longipes.base_env import CompsognathusLongipesEnv
+from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract.manifest import _load_environment
 from environments.shared.plant_contract.versions import _species_entries
 from environments.shared.species_registry import get_species_config
+
+COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
+COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 LEG_ACTUATORS = [f"{side}_{joint}_act" for side in "rl" for joint in ("hip_pitch", "hip_roll", "knee", "ankle", "toe")]
 
@@ -44,10 +46,12 @@ def test_registered_horizon_is_configurable(gym_id):
         assert not info["is_success"]
 
 
-@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
-def test_every_stage_resets_and_steps_across_seeds(species):
-    config = get_species_config(species)
-    for stage in load_all_stages(species).values():
+@pytest.mark.parametrize(
+    "model_id", [COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT], ids=lambda m: f"{m.species}-{m.embodiment}"
+)
+def test_every_stage_resets_and_steps_across_seeds(model_id):
+    config = get_species_config(model_id)
+    for stage in load_all_stages(model_id).values():
         with config.env_class(**stage["env_kwargs"]) as instance:
             for seed in range(10):
                 first, _ = instance.reset(seed=seed)
@@ -56,7 +60,7 @@ def test_every_stage_resets_and_steps_across_seeds(species):
                 obs, reward, terminated, truncated, info = instance.step(np.zeros(instance.action_space.shape))
                 assert instance.observation_space.contains(obs)
                 assert np.isfinite(reward)
-                assert not terminated and not truncated, (species, seed, info)
+                assert not terminated and not truncated, (model_id, seed, info)
                 assert reward == info["reward_total"]
 
 
@@ -88,13 +92,14 @@ def test_home_residual_holds_full_twenty_second_episode(env):
 def test_the_anatomical_species_trains_on_the_soft_cubic_subclass():
     """Every path that builds the anatomical species gets CompsognathusLongipesAnatomicalEnv (D-D26); the robot keeps the
     linear residual of CompsognathusLongipesEnv, so its policy interface does not move."""
-    assert get_species_config("compsognathus").env_class is CompsognathusLongipesAnatomicalEnv
+    assert get_species_config(COMPSOGNATHUS_LONGIPES).env_class is CompsognathusLongipesAnatomicalEnv
     assert (
-        _load_environment(_species_entries()["compsognathus"]["env_entrypoint"]) is CompsognathusLongipesAnatomicalEnv
+        _load_environment(_species_entries()[COMPSOGNATHUS_LONGIPES]["env_entrypoint"])
+        is CompsognathusLongipesAnatomicalEnv
     )
     with gym.make("MesozoicLabs/CompsognathusLongipes-Anatomical-v0") as instance:
         assert type(instance.unwrapped) is CompsognathusLongipesAnatomicalEnv
-    assert get_species_config("compsognathus_robot").env_class is CompsognathusLongipesRobotEnv
+    assert get_species_config(COMPSOGNATHUS_LONGIPES_ROBOT).env_class is CompsognathusLongipesRobotEnv
     assert not issubclass(CompsognathusLongipesRobotEnv, CompsognathusLongipesAnatomicalEnv)
     assert CompsognathusLongipesRobotEnv._scale_action is CompsognathusLongipesEnv._scale_action
     assert CompsognathusLongipesRobotEnv.action_mapping == "home-keyframe-residual/v1"

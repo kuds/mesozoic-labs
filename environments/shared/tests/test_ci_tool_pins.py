@@ -261,8 +261,9 @@ def test_reduced_depth_leaves_out_only_the_robot_training_runs() -> None:
         and [ast.unparse(target) for target in node.targets] == ["MODEL_IDS"]
         and isinstance(node.value, (ast.Tuple, ast.List))
     ]
-    assert all(isinstance(call, ast.Call) and ast.unparse(call.func) == "ModelId" for call in calls), calls
-    model_ids = [tuple(ast.literal_eval(argument) for argument in call.args) for call in calls]
+    model_calls = [call for call in calls if isinstance(call, ast.Call) and ast.unparse(call.func) == "ModelId"]
+    assert len(model_calls) == len(calls), calls
+    model_ids = [tuple(ast.literal_eval(argument) for argument in call.args) for call in model_calls]
     assert model_ids == [("compsognathus_longipes", "anatomical"), ("compsognathus_longipes", "robot")], model_ids
     anatomical, robot = ("-".join(model_id) for model_id in model_ids)
     assert robot not in anatomical

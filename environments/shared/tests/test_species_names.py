@@ -1,4 +1,9 @@
-"""Full-name selection must keep configs and saved species identities stable."""
+"""The manifest's species and models: exact IDs, display names, and the notebook's model selection.
+
+Decision D-D33: a model is the pair (species, embodiment), named by the exact
+manifest IDs.  The refusal of every retired ID, alias and display-name form
+lives in ``test_retired_species_identifiers.py``.
+"""
 
 import ast
 import json
@@ -7,21 +12,34 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from environments.shared.config import SPECIES_NAMES, load_all_stages
-from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
+from environments.shared.config import load_all_stages
+from environments.shared.model_id import EMBODIMENTS, ModelId
+from environments.shared.species_names import (
+    model_display_name,
+    model_ids,
+    species_display_name,
+    species_ids,
+)
 from environments.shared.species_registry import get_species_config
 from environments.shared.stage_manifest import load_stage_manifest
 
 from .notebook_cells import cell_sources, first_code_cell
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-FULL_NAMES = {
-    "velociraptor": "Velociraptor Mongoliensis",
-    "trex": "Tyrannosaurus Rex",
-    "brachiosaurus": "Brachiosaurus Altithorax",
-    "dibothrosuchus": "Dibothrosuchus Elaphros",
-    "compsognathus": "Compsognathus Longipes",
-    "compsognathus_robot": "Compsognathus Longipes (Robot)",
+SPECIES_DISPLAY_NAMES = {
+    "velociraptor_mongoliensis": "Velociraptor Mongoliensis",
+    "tyrannosaurus_rex": "Tyrannosaurus Rex",
+    "brachiosaurus_altithorax": "Brachiosaurus Altithorax",
+    "dibothrosuchus_elaphros": "Dibothrosuchus Elaphros",
+    "compsognathus_longipes": "Compsognathus Longipes",
+}
+MODEL_DISPLAY_NAMES = {
+    ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor Mongoliensis (Anatomical)",
+    ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus Rex (Anatomical)",
+    ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus Altithorax (Anatomical)",
+    ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus Elaphros (Anatomical)",
+    ModelId("compsognathus_longipes", "anatomical"): "Compsognathus Longipes (Anatomical)",
+    ModelId("compsognathus_longipes", "robot"): "Compsognathus Longipes (Robot)",
 }
 
 
@@ -29,33 +47,37 @@ def _notebook_cell(marker):
     return first_code_cell(REPO_ROOT / "notebooks/sb3_training.ipynb", marker)
 
 
-def _selection_code(name):
+def _selection_code(model_id):
+    """The selection cell with ``SPECIES`` and ``EMBODIMENT`` set to *model_id*'s IDs through the AST."""
     tree = ast.parse(_notebook_cell("# ===== SPECIES SELECTION ====="))
-    selection = next(
-        statement
-        for statement in tree.body
-        if isinstance(statement, ast.Assign)
-        and isinstance(statement.targets[0], ast.Name)
-        and statement.targets[0].id == "SPECIES"
-    )
-    selection.value = ast.Constant(name)
+    values = {"SPECIES": model_id.species, "EMBODIMENT": model_id.embodiment}
+    assigned = set()
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id in values
+            and statement.targets[0].id not in assigned
+        ):
+            statement.value = ast.Constant(values[statement.targets[0].id])
+            assigned.add(statement.targets[0].id)
+    assert assigned == set(values), f"the selection cell assigns {sorted(assigned)}, not SPECIES and EMBODIMENT"
     return compile(ast.fix_missing_locations(tree), "sb3_training.ipynb", "exec")
 
 
-@pytest.mark.parametrize("species_id,label", FULL_NAMES.items())
-def test_full_name_runs_notebook_selection_and_environment(species_id, label, capsys):
+@pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_notebook_selection_runs_the_model_and_its_environment(model_id, capsys):
     # The environment cell also resolves BEHAVIOR's chain through the manifest
     # (Phase A WS5); the setup cell that imports load_stage_manifest is not
     # executed here, so it is supplied like load_all_stages.
     namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
-    exec(_selection_code(label), namespace)
+    exec(_selection_code(model_id), namespace)
     exec(compile(_notebook_cell("EnvClass = SPECIES_CFG.env_class"), "sb3_training.ipynb", "exec"), namespace)
 
-    assert namespace["SPECIES"] == species_id
-    assert namespace["SPECIES_DISPLAY_NAME"] == label
-    assert namespace["STAGE_CONFIGS"] == load_all_stages(species_id)
-    assert namespace["SPECIES_CFG"].success_keys == get_species_config(species_id).success_keys
-    assert f"Species: {label}" in capsys.readouterr().out
+    assert namespace["MODEL_ID"] == model_id
+    assert namespace["STAGE_CONFIGS"] == load_all_stages(model_id)
+    assert namespace["SPECIES_CFG"].success_keys == get_species_config(model_id).success_keys
+    assert model_display_name(model_id) in capsys.readouterr().out
     env = namespace["EnvClass"]()
     try:
         obs, _ = env.reset(seed=42)
@@ -67,51 +89,48 @@ def test_full_name_runs_notebook_selection_and_environment(species_id, label, ca
         env.close()
 
 
-@pytest.mark.parametrize("name", ["Tyrannosaurus Rex", "tyrannosaurus_rex", " TYRANNOSAURUS-REX ", "T-Rex", "trex"])
-def test_full_names_and_legacy_aliases_keep_checkpoint_identity(name):
-    assert resolve_species_id(name) == "trex"
-    assert get_species_config(name).species == "trex"
-    assert species_display_name(name) == "Tyrannosaurus Rex"
+def test_manifest_display_names_cover_every_model():
+    assert model_ids() == tuple(MODEL_DISPLAY_NAMES)
+    assert species_ids() == tuple(SPECIES_DISPLAY_NAMES)
+    for species, label in SPECIES_DISPLAY_NAMES.items():
+        assert species_display_name(species) == label
+    for model_id, label in MODEL_DISPLAY_NAMES.items():
+        assert model_display_name(model_id) == label
 
 
-def test_manifest_labels_cover_every_training_species():
-    assert species_display_names() == FULL_NAMES
-    assert set(species_display_names()) == set(SPECIES_NAMES)
-    assert species_display_names(include_prototypes=True)["compsognathus"] == "Compsognathus Longipes"
-
-
-@pytest.mark.parametrize("name", ["Compsognathus Longipes", "compsognathus", "compso"])
-def test_compsognathus_aliases_are_trainable(name):
-    assert get_species_config(name).species == "compsognathus"
-
-
-def test_backend_specific_names_do_not_advertise_unimplemented_jax():
-    assert species_display_names(backend="stable-baselines3") == FULL_NAMES
+def test_backend_specific_models_do_not_advertise_unimplemented_jax():
+    assert model_ids(backend="stable-baselines3") == tuple(MODEL_DISPLAY_NAMES)
     # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14),
-    # trex at its revision 14 (note 18, the heading-free observation).
-    sb3_only = {"compsognathus", "compsognathus_robot", "velociraptor", "trex"}
-    assert set(species_display_names(backend="jax-mjx")) == set(FULL_NAMES) - sb3_only
+    # the T-Rex at its revision 14 (note 18, the heading-free observation).
+    assert model_ids(backend="jax-mjx") == (
+        ModelId("brachiosaurus_altithorax", "anatomical"),
+        ModelId("dibothrosuchus_elaphros", "anatomical"),
+    )
     with pytest.raises(ValueError, match="Unknown training backend"):
-        species_display_names(backend="unsupported")
+        model_ids(backend="unsupported")
 
 
-def test_unknown_training_name_is_rejected_but_custom_plot_label_is_preserved():
+def test_an_unknown_species_is_refused_for_training_and_for_labels():
     with pytest.raises(ValueError, match="Unknown species"):
-        get_species_config("My custom dinosaur")
-    assert species_display_name("My custom dinosaur") == "My custom dinosaur"
+        get_species_config(ModelId("stegosaurus_stenops", "anatomical"))
+    with pytest.raises(ValueError, match="Unknown species"):
+        species_display_name("My custom dinosaur")
 
 
-def test_colab_species_selectors_match_the_manifest():
-    for filename in ("sb3_training.ipynb",):
-        for source in cell_sources(REPO_ROOT / "notebooks" / filename):
-            for line in source.splitlines():
-                if line.startswith("SPECIES = ") and "# @param [" in line:
-                    labels = json.loads(line.split("# @param ", 1)[1])
-                    backend = "stable-baselines3"
-                    assert labels == list(species_display_names(backend=backend).values())
-                    break
-            else:
-                continue
+def _selector_options(source, name):
+    for line in source.splitlines():
+        if line.startswith(f"{name} = ") and "# @param [" in line:
+            return json.loads(line.split("# @param ", 1)[1])
+    return None
+
+
+def test_colab_model_selectors_match_the_manifest():
+    """The notebook selects a model with two dropdowns: the five species IDs and the embodiments."""
+    for source in cell_sources(REPO_ROOT / "notebooks" / "sb3_training.ipynb"):
+        species = _selector_options(source, "SPECIES")
+        if species is not None:
+            assert species == list(species_ids())
+            assert _selector_options(source, "EMBODIMENT") == list(EMBODIMENTS)
             break
-        else:
-            pytest.fail(f"{filename} has no full-name species selector")
+    else:
+        pytest.fail("sb3_training.ipynb has no SPECIES selector")

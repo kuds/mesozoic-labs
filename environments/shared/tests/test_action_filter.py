@@ -49,7 +49,7 @@ class TestLowPassPrimitives:
 
 
 class TestSB3ActionFilter:
-    def test_trex_declares_ten_hz(self) -> None:
+    def test_tyrannosaurus_rex_declares_ten_hz(self) -> None:
         env = TyrannosaurusRexAnatomicalEnv()
         assert env.action_filter_cutoff_hz == 10.0
         assert env._action_filter_alpha == pytest.approx(low_pass_alpha(10.0, env.dt))
