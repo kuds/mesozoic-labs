@@ -519,11 +519,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The development version is `0.4.0.dev1`** (`pyproject.toml`; the
+  maintainer's request of 2026-10-11 to bump the version when training
+  restarts). Training restarts on the D-D33 identifiers. Every run records
+  the package version in its provenance (`dependency_versions`), so the runs
+  from here on are told apart from the `0.4.0.dev0` runs, which include every
+  run recorded under the retired identifiers. No code, config, plant or
+  digest changes.
 - **Species are named by their binomial, and every model is a species and an
-  embodiment** (breaking — identifier change: every species ID, package,
-  module, class, Gymnasium ID, MJCF, config path, record field, plant key,
-  results path and model page; no alias remains; decision D-D33, the
-  maintainer's approval of 2026-10-11).
+  embodiment** (#618; breaking — identifier change: every species ID,
+  package, module, class, Gymnasium ID, MJCF, config path, record field,
+  plant key, results path and model page; no alias remains; decision D-D33,
+  the maintainer's approval of 2026-10-11).
 
   The species IDs are `velociraptor_mongoliensis`, `tyrannosaurus_rex`,
   `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` and
@@ -2377,8 +2384,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
-- **`pre-commit run --all-files` modifies nothing on a fresh checkout** (with
-  D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
+- **`pre-commit run --all-files` modifies nothing on a fresh checkout** (#618;
+  with D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
   final newline, so `end-of-file-fixer` rewrote both on every run (noted in
   `docs/investigations/TREX_REVIEW_2026_07.md`); each now ends with one. The
   hook keeps its scope, and no digest data file changes.
