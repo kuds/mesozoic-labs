@@ -14,9 +14,10 @@ display names. Title-case labels name the animal inspiring each simplified
 model; they do not certify specimen-level anatomical accuracy. A model's
 display name is always the species display name followed by the embodiment
 label, as in "Tyrannosaurus Rex (Anatomical)". It labels logs, reports, plots,
-W&B titles and the catalog's results headings; the species display name labels
-the species itself (the website's species category, the README, notebook
-prose). Regenerate the public catalog with
+W&B titles, the model rows of the README and the species catalog, and the
+catalog's results headings; the species display name labels the species itself
+(the website's species category, the species READMEs, notebook prose).
+Regenerate the public catalog with
 `python -m environments.shared.species_catalog` after editing the manifest.
 
 | Species ID | Embodiment | Display name | Gymnasium ID | Model page |
