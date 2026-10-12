@@ -50,7 +50,8 @@ from environments.shared.task_fingerprint import (
     read_checkpoint_attribute,
 )
 
-PREPARATION_SCHEMA = "mesozoic.behavior-preparation/v2"
+#: v3 (decision D-D33): the report names its model by ``species`` and ``embodiment``.
+PREPARATION_SCHEMA = "mesozoic.behavior-preparation/v3"
 #: The two first layers ``policy_loading.neutralize_command_columns`` zeroes in a PPO walker.
 COMMAND_LAYERS = ("mlp_extractor.policy_net.0", "mlp_extractor.value_net.0")
 ACTION_EQUIVALENCE_ATOL = ACTION_DELTA_ATOL

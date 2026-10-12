@@ -22,7 +22,11 @@ from .model_id import ModelId
 from .plant_contract import current_plant_identity
 from .task_fingerprint import stage_task_fingerprint
 
-PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
+#: v2 (decision D-D33): a profile names its model by ``species`` and
+#: ``embodiment`` and lives at ``configs/<species>/<embodiment>/``.  A v1
+#: profile is refused; ``restamp_recovery_calibration --migrate-identity``
+#: migrates the committed ones.
+PROFILE_SCHEMA = "mesozoic.recovery-calibration/v2"
 CONFIGS_ROOT = Path(__file__).resolve().parents[2] / "configs"
 SAFE_SET_KEYS = {"height_error_max_m", "tilt_max_rad", "planar_speed_max_mps", "min_foot_force_n"}
 CAPABILITY_KEYS = {
@@ -68,7 +72,7 @@ class RecoveryCalibration:
 
     def evaluation_spec(self) -> dict[str, Any]:
         return {
-            "schema": "mesozoic.recovery-evaluation/v1",
+            "schema": "mesozoic.recovery-evaluation/v2",
             "species": self.profile["species"],
             "embodiment": self.profile["embodiment"],
             "calibration_id": self.profile["calibration_id"],
@@ -99,7 +103,9 @@ def load_recovery_calibration(
     except (OSError, ValueError) as exc:
         raise GateResolutionError(f"cannot load recovery calibration {path}: {exc}") from exc
     if profile.get("schema") != PROFILE_SCHEMA:
-        raise GateResolutionError(f"{path} has the wrong recovery calibration schema")
+        raise GateResolutionError(
+            f"{path} has the wrong recovery calibration schema {profile.get('schema')!r}; expected {PROFILE_SCHEMA!r}"
+        )
     try:
         same_model = model_id.matches(profile)
     except ValueError as exc:

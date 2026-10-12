@@ -3,8 +3,8 @@
 <!-- Written whole by `python -m environments.shared.species_catalog`, which CI runs with `--check`;
 do not edit by hand. -->
 
-Each species' full entry and the published run summaries. The [root README](../README.md#species)
-has one row per species, and each species' page on [mesozoiclabs.com](https://mesozoiclabs.com)
+Each model's full entry and the published run summaries. The [root README](../README.md#species)
+has one row per model, and each model's page on [mesozoiclabs.com](https://mesozoiclabs.com)
 renders the same entry.
 
 ## Species
@@ -14,10 +14,9 @@ The active-species tables are generated from `configs/species_manifest.toml`, th
 the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and
 gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
 
-<a id="velociraptor"></a>
-<a id="raptor"></a>
+<a id="velociraptor_mongoliensis-anatomical"></a>
 
-### Velociraptor Mongoliensis
+### Velociraptor Mongoliensis (Anatomical)
 
 Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
@@ -27,8 +26,8 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
-| Plant contract revisions | policy r11; physics r4; visual r4 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/velociraptor/assets/raptor.xml` |
+| Plant contract revisions | policy r12; physics r4; visual r4 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -44,12 +43,11 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Strike) · Stable-Baselines3 — Sickle-claw contact success:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-[Full documentation →](../environments/velociraptor/README.md)
+[Full documentation →](../environments/velociraptor_mongoliensis/README.md)
 
-<a id="trex"></a>
-<a id="t-rex"></a>
+<a id="tyrannosaurus_rex-anatomical"></a>
 
-### Tyrannosaurus Rex
+### Tyrannosaurus Rex (Anatomical)
 
 Apex Predator. **Specialty:** Head-contact attack task.
 
@@ -59,8 +57,8 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r14; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/trex/assets/trex.xml` |
+| Plant contract revisions | policy r15; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -78,12 +76,11 @@ Apex Predator. **Specialty:** Head-contact attack task.
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Bite) · Stable-Baselines3 — Head-contact bite success (task_success/v1):** The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate.
 
-[Full documentation →](../environments/trex/README.md)
+[Full documentation →](../environments/tyrannosaurus_rex/README.md)
 
-<a id="brachiosaurus"></a>
-<a id="brachio"></a>
+<a id="brachiosaurus_altithorax-anatomical"></a>
 
-### Brachiosaurus Altithorax
+### Brachiosaurus Altithorax (Anatomical)
 
 Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
@@ -93,8 +90,8 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r8; physics r5; visual r2 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
+| Plant contract revisions | policy r9; physics r5; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -110,12 +107,11 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Food Reach) · Stable-Baselines3 / JAX/MJX — Head-tip distance-threshold success:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
 
-[Full documentation →](../environments/brachiosaurus/README.md)
+[Full documentation →](../environments/brachiosaurus_altithorax/README.md)
 
-<a id="dibothrosuchus"></a>
-<a id="dibo"></a>
+<a id="dibothrosuchus_elaphros-anatomical"></a>
 
-### Dibothrosuchus Elaphros
+### Dibothrosuchus Elaphros (Anatomical)
 
 Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
@@ -125,8 +121,8 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
 | Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r7; physics r2; visual r1 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
+| Plant contract revisions | policy r8; physics r2; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -144,12 +140,11 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 - **hunt (3 — Snap) · Stable-Baselines3 — Snout-contact snap proxy:** The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw.
 - **hunt (3 — Snap) · JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
-[Full documentation →](../environments/dibothrosuchus/README.md)
+[Full documentation →](../environments/dibothrosuchus_elaphros/README.md)
 
-<a id="compsognathus"></a>
-<a id="compso"></a>
+<a id="compsognathus_longipes-anatomical"></a>
 
-### Compsognathus Longipes
+### Compsognathus Longipes (Anatomical)
 
 Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
@@ -159,8 +154,8 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r4; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/compsognathus/assets/compsognathus.xml` |
+| Plant contract revisions | policy r5; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -178,10 +173,9 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
 
-[Full documentation →](../environments/compsognathus/README.md)
+[Full documentation →](../environments/compsognathus_longipes/README.md)
 
-<a id="compsognathus_robot"></a>
-<a id="compso-robot"></a>
+<a id="compsognathus_longipes-robot"></a>
 
 ### Compsognathus Longipes (Robot)
 
@@ -193,8 +187,8 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 | Action dimension / actuators | 12 |
 | Generalized coordinates / velocities | nq=19, nv=18 |
 | Compiled dynamic model mass | 1.6 kg |
-| Plant contract revisions | policy r2; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
-| Model | `environments/compsognathus/assets/compsognathus_robot.xml` |
+| Plant contract revisions | policy r3; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
@@ -212,7 +206,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 - **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
 - **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
 
-[Full documentation →](../environments/compsognathus/README.md)
+[Full documentation →](../environments/compsognathus_longipes/README.md)
 <!-- END GENERATED: SPECIES -->
 
 ## Training Results
@@ -222,9 +216,9 @@ The summaries below are historical experiment records generated from the version
 `results/`. They are not evidence for the current model revision unless provenance is marked both current
 and verified. Current stage budgets may therefore differ from the steps reported here.
 
-### Velociraptor Mongoliensis (PPO · Stable-Baselines3) — 2026-03-15
+### Velociraptor Mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15
 
-**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](../results/velociraptor/ppo/summary.json).
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](../results/velociraptor_mongoliensis/anatomical/ppo/summary.json).
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
@@ -234,9 +228,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Velociraptor Mongoliensis (SAC · Stable-Baselines3) — 2026-03-21
+### Velociraptor Mongoliensis (Anatomical) (SAC · Stable-Baselines3) — 2026-03-21
 
-**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](../results/velociraptor/sac/summary.json).
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](../results/velociraptor_mongoliensis/anatomical/sac/summary.json).
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
@@ -246,9 +240,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Tyrannosaurus Rex (PPO · Stable-Baselines3) — 2026-03-18
+### Tyrannosaurus Rex (Anatomical) (PPO · Stable-Baselines3) — 2026-03-18
 
-**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](../results/trex/ppo/summary.json).
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](../results/tyrannosaurus_rex/anatomical/ppo/summary.json).
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
@@ -258,9 +252,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
-### Brachiosaurus Altithorax (PPO · Stable-Baselines3) — 2026-07-18
+### Brachiosaurus Altithorax (Anatomical) (PPO · Stable-Baselines3) — 2026-07-18
 
-**Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](../results/brachiosaurus/ppo/summary.json).
+**Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](../results/brachiosaurus_altithorax/anatomical/ppo/summary.json).
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|

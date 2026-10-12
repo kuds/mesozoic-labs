@@ -892,7 +892,7 @@ def stance_heading_report_refusals(
     only ever a certificate whose rows re-derive cleanly to a failing
     verdict.  Refused, each by name:
 
-    * no certificate; a ``stance_quality/v2`` report (``mesozoic.stance-gate-report/v3``),
+    * no certificate; a ``stance_quality/v2`` report (``mesozoic.stance-gate-report/v5``),
       which certifies yaw zero only and cannot be promoted; the report-only
       heading probe (``mesozoic.stance-heading-probe/v1``); any other schema;
     * everything a v2 report is refused for
@@ -1643,9 +1643,10 @@ def evaluate_stage_gate(
             ``best_eval_*`` and then the live-eval means).
         stage: Stage identifier, used only in failure messages.
         stance_report: The stance gate report dict produced for this stage
-            (``mesozoic.stance-gate-report/v2`` for ``stance_quality/v1``,
-            ``/v3`` for ``stance_quality/v2``, the
-            ``mesozoic.stance-heading-report/v1`` certificate for
+            (``mesozoic.stance-gate-report/v4`` for ``stance_quality/v1``,
+            ``/v5`` for ``stance_quality/v2`` -- the report revisions, bumped
+            from /v2 and /v3 by decision D-D33, not the kinds -- the
+            ``mesozoic.stance-heading-report/v2`` certificate for
             ``stance_quality_heading/v1``), required by every stance kind
             and ignored by every other kind.
         stage_dir: The stage's own directory, required by

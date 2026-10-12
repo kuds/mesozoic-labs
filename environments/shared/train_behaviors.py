@@ -380,7 +380,7 @@ def main(argv: list[str] | None = None) -> None:
     git = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True, capture_output=True)
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True, capture_output=True)
     manifest: dict[str, Any] = {
-        "schema": "mesozoic.behavior-run/v2",
+        "schema": "mesozoic.behavior-run/v3",  # v3: species and embodiment (decision D-D33)
         **model_id.record(),
         "parent_behavior": "walk",
         "parent_stage": "locomotion",

@@ -13,7 +13,7 @@ A stage that declares ``stance_quality/v2`` (decision D-D23) is scored by
 :mod:`~environments.shared.curriculum.stance_gate_v2` instead: the same
 rollout with the floor-truth recorder (``environments.shared.gait``)
 attached, a statue panel on the same seeds when the gate's statue-relative
-criteria need one, and a ``mesozoic.stance-gate-report/v3`` report that
+criteria need one, and a ``mesozoic.stance-gate-report/v5`` report that
 records what scored it, under which thresholds and measurement, for which
 handoff pair -- everything ``reporting.gates`` checks before it re-derives
 the verdict.  Probes on such a stage stay v1-shaped and unrecorded.
@@ -23,7 +23,7 @@ certified by :func:`build_stance_heading_report` instead: the v2 panel and
 its statue panel rolled at each heading of the fixed whole-scene grid
 (:data:`~environments.shared.curriculum.stance_heading_gate.HEADING_GRID_DEG`),
 scored by :mod:`~environments.shared.curriculum.stance_heading_gate` into a
-``mesozoic.stance-heading-report/v1`` certificate and its
+``mesozoic.stance-heading-report/v2`` certificate and its
 ``stance_heading_panel_selected.csv``.  Such a stage writes no
 ``stance_gate_report.*``; its probes annotate the certificate's 0 degree
 cell (:func:`heading_zero_panel`).
@@ -819,13 +819,15 @@ def _roll_episodes(
 
 #: Bumped when the JSON report's field meanings change.  This is the schema
 #: of a report that scored the ``stance_quality/v1`` criteria (every probe
-#: report among them); "v2" here is the REPORT's revision, not the gate kind's.
-REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
+#: report among them); the number is the REPORT's revision, not the gate
+#: kind's.  /v4 since decision D-D33 (the report names its model by
+#: ``species`` and ``embodiment``): /v3 already named the v2 kind's report.
+REPORT_SCHEMA = "mesozoic.stance-gate-report/v4"
 
 #: A report that scored ``stance_quality/v2`` (decision D-D23) has another
 #: shape (per-episode floor-truth rows, the measurement manifest, the handoff
 #: digests, the statue block) and its own revision,
-#: ``stance_gate_v2.STANCE_V2_REPORT_SCHEMA`` = ``mesozoic.stance-gate-report/v3``.
+#: ``stance_gate_v2.STANCE_V2_REPORT_SCHEMA`` = ``mesozoic.stance-gate-report/v5``.
 
 
 def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
@@ -1209,7 +1211,7 @@ def build_stance_gate_report(
     A stage declaring ``stance_quality/v2`` is scored under THAT kind
     (:func:`_stance_v2_report`): strict thresholds, the floor-truth recorder
     on the panel, a statue panel on the same seeds when a statue-relative
-    criterion is declared, and a ``mesozoic.stance-gate-report/v3`` report
+    criterion is declared, and a ``mesozoic.stance-gate-report/v5`` report
     that records which code scored it (``scored_gate_kind``), the handoff
     digests and the measurement manifest, so the judge can refuse a report
     that does not describe this gate, this checkpoint or this measurement.
@@ -2557,7 +2559,7 @@ def write_action_filter_sweep(
     # row. Strip it; the per-cutoff values are the table's first column.
     policy = str(reports[0]["policy"]).split(" — actions low-passed at ")[0]
     payload = {
-        "schema": "mesozoic.action-filter-sweep/v1",
+        "schema": "mesozoic.action-filter-sweep/v2",
         **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,
@@ -2662,7 +2664,7 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
         [],
     )
     payload = {
-        "schema": "mesozoic.constant-hold-probe/v1",
+        "schema": "mesozoic.constant-hold-probe/v2",
         **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,
@@ -3187,7 +3189,7 @@ def render_impulse_probe(
         )
     disturbed = [row for row in rows if row["speed"] > 0 and row["margin_steps"] is not None]
     payload = {
-        "schema": "mesozoic.impulse-recovery-probe/v1",
+        "schema": "mesozoic.impulse-recovery-probe/v2",
         **ModelId.from_record(policy_reports[0]).record(),
         "stage": policy_reports[0]["stage"],
         "policy": policy,
@@ -3649,7 +3651,7 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
     horizon = reports[0]["horizon"]
     policy = str(reports[0]["policy"]).split(" — ")[0]
     payload = {
-        "schema": "mesozoic.constant-hold-ablation/v3",
+        "schema": "mesozoic.constant-hold-ablation/v4",
         **ModelId.from_record(reports[0]).record(),
         "stage": reports[0]["stage"],
         "policy": policy,

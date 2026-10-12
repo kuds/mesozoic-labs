@@ -1,7 +1,8 @@
 {
-  "schema": "mesozoic.recovery-calibration/v1",
-  "species": "compsognathus",
-  "calibration_id": "compsognathus-fixed-command-recovery-2026-10-v2",
+  "schema": "mesozoic.recovery-calibration/v2",
+  "species": "compsognathus_longipes",
+  "embodiment": "anatomical",
+  "calibration_id": "compsognathus_longipes-anatomical-fixed-command-recovery-2026-10-v2",
   "status": "physical pilot calibration; learned-policy qualification outstanding",
   "control_dt_s": 0.02,
   "height_reference_m": 0.24447244198030454,
@@ -80,14 +81,15 @@
     "brace"
   ],
   "plant_identity": {
-    "schema": "mesozoic.plant-identity/v1",
-    "species": "compsognathus",
-    "model_path": "environments/compsognathus/assets/compsognathus.xml",
+    "schema": "mesozoic.plant-identity/v2",
+    "species": "compsognathus_longipes",
+    "embodiment": "anatomical",
+    "model_path": "environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml",
     "physics_revision": 2,
-    "policy_interface_revision": 4,
+    "policy_interface_revision": 5,
     "visual_revision": 2,
-    "source_closure_sha256": "sha256:0748b0a88012be7a8f191cb3f7ca0a54a2a3421da8894584758c1fcb3e374d85",
-    "policy_interface_sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769",
+    "source_closure_sha256": "sha256:6c8ae74fd658aeabf513e8fc529700dfe8f9a4af175d053e7611cc4fc15a25eb",
+    "policy_interface_sha256": "sha256:997ba18017a8673aaeb607267fac03e90fabe7d1f7bfae3b3cfa9518b6247d76",
     "physics_sha256": "sha256:5920646d31570f1ed5b80f9cf2a54697c1818d7b309377de8782176f732b6036",
     "visual_sha256": "sha256:340185bee8e965548753e59813f9b7096e3d6c2fcbfcf41a6cca63e4eaea4766",
     "nq": 24,
@@ -96,7 +98,7 @@
     "observation_dim": 55,
     "action_dim": 14
   },
-  "task_sha256": "sha256:b1d8238de47d3da2a89cb8168da23d3b5b6686bf2360b00bbe9775b936f078cb",
+  "task_sha256": "sha256:7ec053100a59d199b83aaa50dc94e9c3275e49e60c73136717b62c2f16120f88",
   "derived_push_manifest": {
     "root_body_id": 2.0,
     "subtree_mass_kg": 0.9999999999999999,
@@ -113,7 +115,7 @@
     "direction": "uniform_horizontal"
   },
   "provenance": {
-    "measurement_artifact": "environments/compsognathus/data/recovery_calibration_v1.json",
+    "measurement_artifact": "environments/compsognathus_longipes/data/recovery_calibration_v1.json",
     "method": "Fixed-command PD quiet reference; max(engineering floor, 1.5 * quiet p99.9). Force selection on 32 separate seeds; no trained-policy calibration.",
     "quiet_seed_range": [
       1042,
@@ -146,6 +148,18 @@
       "previous_policy_interface_sha256": "sha256:8253fcf4ef8bc65e809cbe3caf552f897b30e5f6b1fae8af56ba66da0edf1abd",
       "previous_task_sha256": "sha256:fce8b5199e4755334fab78de9d6f257cc37475b0aec80daeb6930681ca3db55a",
       "reason": "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free observations bipedal-target-heading-free/v1; physics r2 and the recovery [env] block unchanged; the fixed-command nulls do not read the observation and the reset draw stream is unchanged (tests/fixtures/phase_c_reset_golden.json)"
+    },
+    {
+      "restamped_at_commit": "60dd12beb6fa0ce685d4621fc13a79231be82eff",
+      "previous_identity": {
+        "schema": "mesozoic.recovery-calibration/v1",
+        "species": "compsognathus",
+        "calibration_id": "compsognathus-fixed-command-recovery-2026-10-v2"
+      },
+      "previous_policy_interface_revision": 4,
+      "previous_policy_interface_sha256": "sha256:5f89dfb450c4a15cfa5ebd1aacd08c660eb36cd66c32fa35a168a0871ea0a769",
+      "previous_task_sha256": "sha256:b1d8238de47d3da2a89cb8168da23d3b5b6686bf2360b00bbe9775b936f078cb",
+      "reason": "plant_versions note 19 (D-D33)"
     }
   ]
 }

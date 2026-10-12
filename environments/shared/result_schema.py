@@ -35,12 +35,24 @@ least one is.
 The rules are VERSION-GATED: every rule for a schema below 4 runs verbatim
 (the four committed ``results/**/summary.json`` are the bit-identity pins),
 and a provenance block without a ``deliverables`` key is read under the v3
-rules when no version is given.  Under a v1 or synthesized stage manifest
-the loader derives exactly one deliverable (the last advancing node) with
-edges to the previous advancing node, so the v4 rules collapse to the v3
-"every advancing stage present and passed / terminal = last advancing"
-rule.  All three versions are accepted here; writers emit
-:data:`RESULT_SCHEMA_VERSION`.
+rules when no version is given.  Under a v1 stage manifest the loader
+derives exactly one deliverable (the last advancing node) with edges to the
+previous advancing node, so the v4 rules collapse to the v3 "every advancing
+stage present and passed / terminal = last advancing" rule.
+
+Schema v5 (decision D-D33, 2026-10-11): a summary names its model by two
+fields, ``species`` (the binomial ID) and ``embodiment``, and lives at
+``results/<species>/<embodiment>/<algorithm>/summary.json``.  The v4 rules
+carry over to v5 unchanged; the canonical runtime provenance gains
+``embodiment`` (:data:`CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5`).  The reader
+accepts exactly {2, 5} (:data:`SUPPORTED_RESULT_SCHEMA_VERSIONS`): every v3
+or v4 summary names a species ID D-D33 retired and no writer emits either,
+so they are refused.  Schema 2 is the curated historical form of the four
+committed summaries under ``results/``, their identity amended in place by
+D-D33: ``species`` is the binomial and ``embodiment`` is required, and every
+other byte is as curated.  Both identity fields are required on every
+accepted version, and a record is never matched on its species alone.
+Writers emit :data:`RESULT_SCHEMA_VERSION`.
 
 Decision D-A21 (2026-09-13, Phase A WS5) adds two OPTIONAL fields to each
 ``provenance.deliverables`` record — :data:`OPTIONAL_DELIVERABLE_RECORD_FIELDS`:
@@ -74,12 +86,12 @@ from typing import Any, Mapping, cast
 from . import record_fields
 from .model_id import ModelId
 
-RESULT_SCHEMA_VERSION = 4
-#: Versions this reader accepts.  v2 is the integer-stage schema every
-#: committed summary under results/ carries; v3 widened the stage-key
-#: vocabulary and v4 added per-deliverable certification (module docstring)
-#: without changing any earlier-valid artifact.
-SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, 3, RESULT_SCHEMA_VERSION})
+RESULT_SCHEMA_VERSION = 5
+#: Versions this reader accepts (module docstring).  v2 is the integer-stage
+#: schema every committed summary under results/ carries, its identity
+#: amended in place by decision D-D33; v5 is what writers emit.  v3 and v4
+#: summaries name retired species IDs and are refused.
+SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, RESULT_SCHEMA_VERSION})
 ALLOWED_BUNDLE_STATUSES = frozenset({"complete", "partial", "failed"})
 #: Exactly the fields of one ``provenance.deliverables`` record (schema v4).
 #: ``replication`` is ``{count, runs: [{run_id, training_seed}]}``: this run
@@ -149,12 +161,22 @@ CANONICAL_RUNTIME_PROVENANCE_FIELDS = (
     "selected_model_path",
 )
 #: The v4 canonical runtime fields.  Deliberately a NEW tuple rather than an
-#: extension of the v3 one: the v3 tuple is what a schema-2/3 summary is
-#: validated against, and it must not grow.
+#: extension of the v3 one: the v3 tuple is what a schema-2 summary is
+#: validated against, and it must not grow (schema 2's identity amendment,
+#: decision D-D33, is checked by the identity rule, not by this tuple).
 CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4 = CANONICAL_RUNTIME_PROVENANCE_FIELDS + (
     "deliverables",
     "primary_deliverable",
     "target_deliverable",
+)
+#: The v5 canonical runtime fields (decision D-D33): the v4 tuple with
+#: ``embodiment`` after ``species``.  Again a NEW tuple, so neither earlier
+#: one grows.
+_AFTER_SPECIES = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4.index("species") + 1
+CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 = (
+    CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[:_AFTER_SPECIES]
+    + ("embodiment",)
+    + CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4[_AFTER_SPECIES:]
 )
 
 _GIT_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
@@ -362,7 +384,7 @@ def deliverable_chain(entry: Any, manifest: Any) -> "tuple[Any, ...]":
     """*entry*'s transitive ``warm_start_from`` ancestors, root first (manifest order).
 
     The loader only accepts edges to earlier entries, so the chain is finite
-    and its order is the manifest's.  Under a v1 or synthesized manifest the
+    and its order is the manifest's.  Under a v1 manifest the
     derived edge is "the previous advancing entry", so the chain of the last
     advancing node is exactly ``advancing_stages[:-1]``.
     """
@@ -494,7 +516,7 @@ def bundle_status_for(
     key) — refines ``failed``: a run in which nothing is certified because
     no DELIVERABLE is present yet, while every recorded stage passed, is
     still in progress and reads ``partial``.  That is the pre-Phase-A rule
-    for a v1 / synthesized manifest, whose only deliverable is the last
+    for a v1 manifest, whose only deliverable is the last
     advancing node (a passing stance-only run was ``partial`` without a
     summary).  Under the committed v2 manifests every node is a
     deliverable, so the refinement never changes a status.
@@ -715,7 +737,7 @@ def validate_provenance(
     canonical: bool = False,
     schema_version: int | None = None,
 ) -> dict[str, Any]:
-    """Validate result-summary provenance (schema v2/v3/v4).
+    """Validate result-summary provenance (schema v2/v5).
 
     Historical summaries may retain unknown identifiers as ``null``.  Canonical
     mode is for newly exported bundles and requires complete, well-formed
@@ -724,9 +746,9 @@ def validate_provenance(
     *schema_version* selects the rule set: below 4 the advancing-trio /
     terminal-key rules run verbatim; from 4 on the deliverable rules
     (module docstring) replace them.  ``None`` infers it from the block —
-    v4 iff it carries a ``deliverables`` key — so a reader of the summary's
-    provenance alone (the species catalog) needs no version in hand and
-    every schema-2/3 artifact keeps its rules.
+    the deliverable rules iff it carries a ``deliverables`` key — so a
+    reader of the summary's provenance alone (the species catalog) needs no
+    version in hand and every schema-2 artifact keeps its rules.
     """
 
     provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
@@ -796,7 +818,7 @@ def validate_provenance(
             if not record_fields.is_sha256_digest(value):
                 raise ResultSchemaError(f"provenance.{key} in {result_path} must be sha256:<64 lowercase hex>")
 
-        runtime_fields = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4 if v4 else CANONICAL_RUNTIME_PROVENANCE_FIELDS
+        runtime_fields = CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5 if v4 else CANONICAL_RUNTIME_PROVENANCE_FIELDS
         missing_runtime_fields = [field for field in runtime_fields if field not in provenance]
         if missing_runtime_fields:
             raise ResultSchemaError(
@@ -1237,10 +1259,13 @@ def validate_captured_provenance(
     """
     provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
     validate_provenance(provenance, result_path=result_path, canonical=False)
-    captured_fields = set(CANONICAL_RUNTIME_PROVENANCE_FIELDS) - {
+    captured_fields = set(CANONICAL_RUNTIME_PROVENANCE_FIELDS_V5) - {
         "backend_version",
         "selected_checkpoints",
         "selected_model_path",
+        "deliverables",
+        "primary_deliverable",
+        "target_deliverable",
     }
     missing_fields = sorted(captured_fields - provenance.keys())
     if missing_fields:
@@ -1368,7 +1393,7 @@ def validate_result_summary(
     canonical_provenance: bool = False,
     require_canonical_provenance: bool | None = None,
 ) -> dict[str, Any]:
-    """Validate a schema v2/v3/v4 result summary.
+    """Validate a schema v2/v5 result summary.
 
     Below schema 4, complete public summaries contain every advancing stage
     the model declares (1, 2, and 3 — non-advancing semantic stages such

@@ -312,8 +312,12 @@ HORIZON_REASON = "horizon"
 #: contract below, because the judge and the backfill tool check it without
 #: importing the report module (which pulls the species registry); the
 #: report's own revision, distinct from the v1 report's
-#: ``mesozoic.stance-gate-report/v2`` so "report v2" is never "kind v2".
-STANCE_V2_REPORT_SCHEMA = "mesozoic.stance-gate-report/v3"
+#: ``mesozoic.stance-gate-report/v4`` so "report v2" is never "kind v2".
+#: Decision D-D33 bumped both report revisions, because both now name the
+#: model by ``species`` and ``embodiment``: the v1 report /v2 -> /v4 and this
+#: one /v3 -> /v5 (a plain "+1" would have given the v1 report this
+#: report's old /v3).
+STANCE_V2_REPORT_SCHEMA = "mesozoic.stance-gate-report/v5"
 
 
 def _finite_number(value: Any, *, key: str) -> float:

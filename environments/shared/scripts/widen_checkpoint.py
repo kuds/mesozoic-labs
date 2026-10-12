@@ -148,8 +148,10 @@ logger = logging.getLogger(__name__)
 #: Archive attribute recording the parent the checkpoint was widened from.
 MODEL_WIDEN_LINEAGE_ATTRIBUTE = "mesozoic_widen_lineage"
 WIDEN_TOOL_VERSION = "widen_checkpoint/v1"
-WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v1"
-WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v1"
+#: v2 (decision D-D33): the report names its model by ``species`` and
+#: ``embodiment``, and the lineage's parent plant identity is ``plant-identity/v2``.
+WIDEN_LINEAGE_SCHEMA = "mesozoic.widen-lineage/v2"
+WIDEN_REPORT_SCHEMA = "mesozoic.widen-report/v2"
 WIDEN_REPORT_FILENAME = "widen_report.json"
 ALGORITHMS = ("ppo", "sac")
 #: The handoff names ``select_handoff_checkpoint`` recognises, in its order.

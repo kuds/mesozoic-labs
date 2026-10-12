@@ -105,9 +105,9 @@ from .stance_gate_v2 import (
 
 #: The gate kind this module evaluates.  Imported by ``gate_schema`` so the
 #: registry and the implementation cannot drift apart.  Not
-#: ``stance_quality/v3``: the v2 kind already writes reports with schema
-#: ``mesozoic.stance-gate-report/v3``, and a v3 kind would invite reading a
-#: v3 report as a v3 certificate.
+#: ``stance_quality/v3``: the v2 kind wrote reports with schema
+#: ``mesozoic.stance-gate-report/v3`` (``/v5`` since decision D-D33), and a v3
+#: kind would invite reading a v3 report as a v3 certificate.
 STANCE_HEADING_GATE_KIND = "stance_quality_heading/v1"
 
 #: The protocol the grid is rolled under: the whole scene (the animal, every
@@ -119,8 +119,9 @@ HEADING_PROTOCOL = "whole_scene_yaw/v1"
 
 #: The certificate's report schema (``reporting.stance_report``), defined here
 #: beside the panel CSV contract so the judge, publication and the backfill
-#: tool check it without importing the report module.
-STANCE_HEADING_REPORT_SCHEMA = "mesozoic.stance-heading-report/v1"
+#: tool check it without importing the report module.  v2 (decision D-D33):
+#: the certificate names its model by ``species`` and ``embodiment``.
+STANCE_HEADING_REPORT_SCHEMA = "mesozoic.stance-heading-report/v2"
 
 #: The files a heading-kind stage writes in place of v2's
 #: ``stance_gate_report.{txt,json}`` and ``stance_panel_selected.csv``.

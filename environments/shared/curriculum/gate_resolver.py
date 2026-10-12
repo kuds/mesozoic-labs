@@ -41,7 +41,9 @@ from .recovery_gate import (
     evaluate_recovery_gate,
 )
 
-GATE_RESOLUTION_SCHEMA = "mesozoic.gate-resolution/v1"
+#: v2 (decision D-D33): the resolution names its model by ``species`` and
+#: ``embodiment`` (from the task fingerprint, v3).  A v1 resolution is refused.
+GATE_RESOLUTION_SCHEMA = "mesozoic.gate-resolution/v2"
 
 #: The one model whose recovery gate may still run on the historical legacy
 #: judge (no ``evaluation_spec``): the anatomical T-Rex, which has no recovery

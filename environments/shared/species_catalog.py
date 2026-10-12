@@ -450,9 +450,8 @@ def _public_plant_contract(
 def _configs_root(configs_dir: "Path | str | None") -> Path:
     """The configs directory the catalog reads stage manifests and TOMLs from.
 
-    ``None`` is the repository's ``configs/``; a test may point at a
-    synthesized tree (a model directory without ``stages.toml``) without
-    monkeypatching the loaders' private constants.
+    ``None`` is the repository's ``configs/``; a test may point at a tree
+    of its own without monkeypatching the loaders' private constants.
     """
     return DEFAULT_CONFIGS_DIR if configs_dir is None else Path(configs_dir).resolve()
 
@@ -644,7 +643,7 @@ def _build_stages(
 
     # config_path is rendered relative to the configs root's parent: the
     # repository root for the committed tree (unchanged), a temporary root
-    # for a synthesized fixture.
+    # for a test's fixture tree.
     path_root = _configs_root(configs_dir).parent
     stages: list[dict[str, Any]] = []
     # Every stage the manifest declares, in manifest (curriculum) order —
@@ -675,7 +674,7 @@ def _build_stages(
                 # EARLIER stage id it warm-starts from (null for a root), and
                 # the behavior label it belongs to.  Top-level rather than
                 # inside advancement_gate, which stays the gate alone.  A v1
-                # or synthesized manifest derives these as the loader did
+                # manifest derives these as the loader did
                 # before v2 (last advancing entry the only deliverable, no
                 # labels), so the catalog never invents a recipe.
                 "deliverable": entry.deliverable,
@@ -853,7 +852,7 @@ def _build_result(model_id: ModelId, relative_path: str) -> dict[str, Any]:
         "stage3_success_rate": stage_three.get("mean_success_rate") if stage_three else None,
         "provenance": provenance,
         # Per-deliverable publication (schema 4): [] and nulls for every
-        # schema-2/3 summary — never synthesized from a ladder pass.
+        # schema-2 summary — never synthesized from a ladder pass.
         "deliverables": deliverables,
         "primary_deliverable": primary_deliverable,
         "target_deliverable": target_deliverable,
@@ -880,7 +879,7 @@ def _build_result_deliverables(
     hunt is exported now) rather than the ladder projection, which carries
     only the fixed ladder columns.
 
-    A schema-2/3 ladder summary publishes NO deliverable: its ``stage_passed``
+    A schema-2 ladder summary publishes NO deliverable: its ``stage_passed``
     was a pass of the retired reward gate, and relabelling it "certified"
     would mint a certification nothing measured.  From schema 4 on each
     ``provenance.deliverables`` record becomes a row carrying its gate kind,

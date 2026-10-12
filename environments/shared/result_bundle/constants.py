@@ -5,7 +5,9 @@ from __future__ import annotations
 from ..paths import REPOSITORY_ROOT as REPOSITORY_ROOT
 
 ARTIFACT_MANIFEST_SCHEMA_VERSION = 1
-PROVENANCE_SCHEMA_VERSION = 1
+#: 2 (decision D-D33): the provenance names its model by ``species`` and
+#: ``embodiment``, and the default ``run_id`` includes the embodiment.
+PROVENANCE_SCHEMA_VERSION = 2
 DEFAULT_MANIFEST_NAME = "artifact_manifest.json"
 DEFAULT_PROVENANCE_NAME = "provenance.json"
 
