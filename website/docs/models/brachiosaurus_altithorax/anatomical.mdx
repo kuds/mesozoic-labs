@@ -1,16 +1,19 @@
 ---
-sidebar_position: 3
+sidebar_position: 1
+sidebar_label: Anatomical
 ---
 
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
-import {BRACHIOSAURUS} from '@site/src/data/species';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('brachiosaurus_altithorax', 'anatomical');
 
 # Brachiosaurus Model
 
 A sauropod-inspired quadrupedal simulation model designed for four-legged locomotion and head-positioning tasks.
 
-<SpeciesCatalog species={BRACHIOSAURUS} />
+<SpeciesCatalog species={MODEL} />
 
 ## Features
 
@@ -44,24 +47,22 @@ After each training stage the `eval` command reports:
 
 ## Training Videos
 
-<SpeciesVideoSection species={BRACHIOSAURUS.name} stages={BRACHIOSAURUS.stages} />
+<SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 
 ## Usage
 
 ```bash
-cd environments/brachiosaurus_altithorax
-
-# View the model
-python scripts/view_model.py
+# From the repository root. View the model
+python environments/brachiosaurus_altithorax/scripts/view_model.py --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget
-python scripts/train_sb3.py train --stage 1
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
 
 # The advancing stages (stance, locomotion, behavior) in manifest order
-python scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 
 # Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
-python scripts/train_sb3.py curriculum --algorithm ppo \
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 

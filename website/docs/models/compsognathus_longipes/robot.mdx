@@ -1,19 +1,22 @@
 ---
-sidebar_position: 6
+sidebar_position: 2
+sidebar_label: Robot
 ---
 
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
-import {COMPSOGNATHUS_ROBOT} from '@site/src/data/species';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('compsognathus_longipes', 'robot');
 
 # Compsognathus Longipes (Robot)
 
 The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 46 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
 
-<SpeciesCatalog species={COMPSOGNATHUS_ROBOT} />
+<SpeciesCatalog species={MODEL} />
 
 ## Training
 
-Select **Compsognathus Longipes (Robot)** in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every species. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
 python -m pip install -e ".[train]"

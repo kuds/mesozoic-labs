@@ -1,10 +1,13 @@
 ---
 sidebar_position: 1
+sidebar_label: Anatomical
 ---
 
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
-import {TREX} from '@site/src/data/species';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
 
 # T-Rex Model
 
@@ -12,7 +15,7 @@ A dinosaur-inspired bipedal simulation model with an oversized head and vestigia
 
 Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
 
-<SpeciesCatalog species={TREX} />
+<SpeciesCatalog species={MODEL} />
 
 ## Curriculum
 
@@ -87,29 +90,27 @@ After each training stage the `eval` command reports:
 
 ## Training Videos
 
-<SpeciesVideoSection species={TREX.name} stages={TREX.stages} />
+<SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 
 ## Usage
 
 ```bash
-cd environments/tyrannosaurus_rex
-
-# View the model
-python scripts/view_model.py
+# From the repository root. View the model
+python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget
-python scripts/train_sb3.py train --stage 1
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
 
 # The advancing stages (stance, locomotion, behavior) in manifest order
-python scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo
 
 # Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
-python scripts/train_sb3.py curriculum --algorithm ppo \
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 
 # The recovery node, entering from a certified stance handoff (PPO-only)
-python scripts/train_sb3.py train --stage recovery --algorithm ppo \
-  --load logs/<run>/01_stance/models/robust_best_model.zip \
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage recovery \
+  --algorithm ppo --load logs/<run>/01_stance/models/robust_best_model.zip \
   --load-mode initialize_next_stage
 ```
 

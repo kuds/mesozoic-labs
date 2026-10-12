@@ -131,7 +131,8 @@ def test_notebook_preflight_writes_null_margin(tmp_path, monkeypatch):
 
     assert "NaN" not in saved_text
     assert saved_text == json.dumps(json.loads(saved_text), indent=2, sort_keys=True, allow_nan=False)
-    assert json.loads(saved_text)["schema"] == "mesozoic.zero-action-baseline/v1"
+    # Re-pinned: the record keys results by species, then embodiment (decision D-D33).
+    assert json.loads(saved_text)["schema"] == "mesozoic.zero-action-baseline/v2"
     assert saved_result["verdict"] == "FAILS — a statue clears this gate"  # the gate (100) is the statue's mean
     assert saved_result["reward_mean_standing"] is None
     assert saved_result["reward_std_standing"] is None

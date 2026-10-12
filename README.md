@@ -9,10 +9,11 @@ not recorded); not evidence for the current model or configuration.*
 
 Mesozoic Labs is a set of [Gymnasium](https://gymnasium.farama.org) environments built on
 [MuJoCo](https://mujoco.org), with a pipeline that trains agents in them with PPO or SAC from
-[Stable-Baselines3](https://stable-baselines3.readthedocs.io). Most of its articulated models are dinosaurs; one is a
-twelve-servo robot version of Compsognathus, and one is the crocodylomorph Dibothrosuchus, whose erect, long-limbed
-posture is a different locomotion problem from the sprawl of a modern crocodilian. The models are research
-abstractions rather than validated anatomical reconstructions.
+[Stable-Baselines3](https://stable-baselines3.readthedocs.io). A model is a species in one embodiment: `anatomical`,
+the animal-proportioned body, or `robot`, a buildable robot of the species. Most of the species are dinosaurs; one is
+the crocodylomorph Dibothrosuchus, whose erect, long-limbed posture is a different locomotion problem from the sprawl
+of a modern crocodilian, and Compsognathus also has a twelve-servo robot. The models are research abstractions rather
+than validated anatomical reconstructions.
 
 Each model learns a small set of behaviors, such as stand, walk and hunt (a species task such as a claw strike or a
 reach for food). Each behavior is a policy of its own, checked against its own gate and published on its own, and it
@@ -73,12 +74,12 @@ for _ in range(500):
 env.close()
 ```
 
-On a machine with a display, `python environments/velociraptor_mongoliensis/scripts/view_model.py` opens the model in MuJoCo's
-interactive viewer (on macOS, run it with `mjpython` instead of `python`).
+On a machine with a display, `python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment
+anatomical` opens the model in MuJoCo's interactive viewer (on macOS, run it with `mjpython` instead of `python`).
 
 To train a policy, the easiest route is the training notebook, which installs its own dependencies:
 [open `notebooks/sb3_training.ipynb` in Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb),
-pick a species and a behavior, and set `QUICK_TEST = True` for a short pipeline check first.
+pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` for a short pipeline check first.
 
 <!-- BEGIN GENERATED: NOTEBOOKS -->
 | Notebook | Description |
@@ -87,16 +88,16 @@ pick a species and a behavior, and set `QUICK_TEST = True` for a short pipeline 
 | [`notebooks/google_drive_summary.ipynb`](notebooks/google_drive_summary.ipynb) | Collect and summarize training artifacts from Google Drive. |
 <!-- END GENERATED: NOTEBOOKS -->
 
-On the command line, one command trains a species from balance up to its task, each stage with the budget and
+On the command line, one command trains a model from balance up to its task, each stage with the budget and
 hyperparameters of its stage config. Stages run for millions of steps, so a full run takes hours:
 
 ```bash
-cd environments/velociraptor_mongoliensis
-python scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
+    curriculum --algorithm ppo
 ```
 
-Every species, including `compsognathus_robot`, which has no script of its own, also trains from the repository root
-through the shared entry point: `python -m environments.shared.train --species <id> curriculum --algorithm ppo`.
+Every model trains from the repository root through this one entry point: `--species` and `--embodiment` are both
+required and take the IDs of the table above (`--species compsognathus_longipes --embodiment robot` for the robot).
 Reusing certified stages from an earlier run, stopping at a behavior, retraining a stage, the recovery stage and the
 notebook's settings are covered in the [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes).
 
@@ -107,12 +108,12 @@ notebook's settings are covered in the [behavior recipes guide](https://mesozoic
 | Install, view a model, train, evaluate and override hyperparameters step by step | [Installation](https://mesozoiclabs.com/docs/getting-started/installation) and [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) |
 | Train stand, walk and hunt, reuse certified stages across runs and read a run directory; the curriculum's command-line flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
 | Tune PPO, SAC and the stage configs | [Training guides](https://mesozoiclabs.com/docs/training/ppo) |
-| Look up one species: specifications, stages with their budgets and gates, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the species' model page; both are linked from the table above |
+| Look up one model: specifications, stages with their budgets and gates, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page; both are linked from the table above |
 | Find the published run-summary files and the rules for when a summary counts as current | [results/README.md](results/README.md) |
 | See what is done, what comes next and the known open problems | [Roadmap](docs/ROADMAP.md), [next steps](docs/NEXT_STEPS.md) and [known issues](docs/KNOWN_ISSUES.md) |
 | Find the plans, design records and investigations | [Documentation map](docs/README.md) |
 | See what changed in each release | [Changelog](CHANGELOG.md) |
-| Set up for development, find your way around the repository, run the tests, add a species | [Contributing](CONTRIBUTING.md) |
+| Set up for development, find your way around the repository, run the tests, add a species or a robot | [Contributing](CONTRIBUTING.md) |
 | Read how the project started | [From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning) (blog post) |
 
 ## Citation

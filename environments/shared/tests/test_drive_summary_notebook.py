@@ -5,7 +5,7 @@ section 4.9 keeps it in the notebook), so no library test reaches it, and a chan
 would otherwise surface only in a Colab session. The reader test runs those cells whole and in
 order -- cell 9 keeps cell 8's ``scan_run`` as ``_legacy_scan_run`` before replacing it, so
 defining one function at a time would not do -- on a logs tree that takes every route of cell 9's
-``scan_run``: in today's layout (``<species>/<algorithm>/<run_id>/NN_<stage id>/``, built by the
+``scan_run``: in today's layout (``<species>/<embodiment>/<algorithm>/<run_id>/NN_<stage id>/``, built by the
 bundle test helpers) a complete run, a partial one, a failed one and one whose summary no longer
 matches its manifest, and beside them an older flat run and a March 2026 sweep. Two folders pin
 the walk itself: an interrupted run, which ``discover_runs`` finds only by its ``NN_<stage id>``
@@ -210,6 +210,9 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     (unread_sweep / "collected_results.csv").write_text(
         "trial_id,stage,stage_name,stage_passed,best_mean_reward\nt9,1,Stance,True,99.0\n", encoding="utf-8"
     )
+    # A top-level directory that is no species of the manifest (a tree written under a species ID decision D-D33
+    # retired looks the same) is named as skipped and never read, though it holds a run.
+    _legacy_run(logs / "pre_rename_tree" / legacy)
 
     sources = code_cell_sources(DRIVE_SUMMARY_PATH)
     indexes = [cell_index(sources, marker) for marker in READER_CELL_MARKERS]
@@ -219,7 +222,14 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     for index in indexes:
         exec(compile(sources[index], f"google_drive_summary code cell {index}", "exec"), namespace)
 
-    assert "Found 13 stage results across 5 runs/sweeps." in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Found 13 stage results across 5 runs/sweeps." in out
+    assert "Skipped top-level directories (not a species of the manifest; not read): pre_rename_tree" in out
+    assert namespace["SKIPPED_DIRS"] == ["pre_rename_tree"]
+    assert set(zip(namespace["df"]["species"], namespace["df"]["embodiment"])) == {
+        ("velociraptor_mongoliensis", "anatomical"),
+        ("tyrannosaurus_rex", "anatomical"),
+    }
     columns = ["species", "run_dir", "stage", "stage_name", "stage_passed", "source", "backend", "bundle_status"]
     rows = [tuple(str(value) for value in row) for row in namespace["df"][columns].itertuples(index=False)]
     sb3 = "stable-baselines3"
@@ -292,19 +302,19 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
 
     # Section 7's example names a run as <algorithm>/<run_id>; its stage directory is found by reference.
     exec(compile(code_cell(DRIVE_SUMMARY_PATH, "def show_full_config("), "show_full_config", "exec"), namespace)
-    namespace["show_full_config"]("tyrannosaurus_rex", partial, 1)
+    namespace["show_full_config"]("tyrannosaurus_rex", "anatomical", partial, 1)
     assert json.loads(capsys.readouterr().out.split("---\n", 1)[1])["name"] == "Stage 1"
 
 
 def test_display_and_export_cells_align_historical_stance_names_without_rewriting_ids(tmp_path, capsys):
     pd = pytest.importorskip("pandas")
-    from environments.shared.species_names import species_display_name, species_ids
+    from environments.shared.species_names import model_ids, species_display_name, species_ids
 
     labels = {species: species_display_name(species) for species in species_ids()}
 
     rows = [
         {
-            "species": species,
+            **model_id.record(),
             "source": source,
             "run_dir": f"ppo/{source}_{index}",
             "algorithm": "PPO",
@@ -316,7 +326,7 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
             "stage_passed": index != 0,
             "best_mean_reward": float(index),
         }
-        for species in labels
+        for model_id in model_ids()
         for index, (source, name) in enumerate((("training", "balance"), ("training", "stance"), ("sweep", None)))
     ]
     frame = pd.DataFrame(rows)
@@ -338,6 +348,9 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
     pd.testing.assert_frame_equal(frame, before)
     exported = pd.read_csv(tmp_path / "runs_summary.csv")
     assert set(exported["species"]) == set(labels)
+    assert set(zip(exported["species"], exported["embodiment"])) == {(m.species, m.embodiment) for m in model_ids()}
     assert set(exported["stage_name"].dropna()) == {"balance", "stance"}
-    for species in labels:
-        assert (tmp_path / species / "runs_summary.csv").is_file()
+    # One file per model, in its own directory (decision D-D33).
+    for model_id in model_ids():
+        assert (model_id.path(tmp_path) / "runs_summary.csv").is_file()
+        assert (model_id.path(tmp_path) / "sweeps" / "sweeps_summary.csv").is_file()

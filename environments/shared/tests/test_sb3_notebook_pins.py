@@ -49,7 +49,7 @@ TRAIN_BASE_PATH = REPO_ROOT / "environments" / "shared" / "train_base.py"
 # cell numbers move when a markdown cell is added).
 CONFIG_CELL_MARKER = "# ===== SPECIES SELECTION ====="
 STORAGE_CELL_MARKER = "# Storage Configuration"
-RESOLVE_CELL_MARKER = "STAGE_CONFIGS = load_all_stages(SPECIES)"
+RESOLVE_CELL_MARKER = "STAGE_CONFIGS = load_all_stages(MODEL_ID)"
 INFRA_CELL_MARKER = "def train_stage("
 CHAIN_CELL_MARKER = "# ===== BEHAVIOR CHAIN LOOP ====="
 MANUAL_CELL_MARKER = "# ===== MANUAL SINGLE NODE"
@@ -396,7 +396,7 @@ class TestChainResolution:
         cells = _code_cells()
         resolve_src = cells[_cell_index(cells, RESOLVE_CELL_MARKER)]
         assigns = _top_level_assigns(resolve_src)
-        assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(SPECIES)"
+        assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(MODEL_ID)"
         assert ast.unparse(assigns["TARGET_NODE"]) == "MANIFEST.resolve_behavior(BEHAVIOR)"
         assert ast.unparse(assigns["CHAIN"]) == "MANIFEST.chain_for(TARGET_NODE.id)"
         # D-A19: RETRAIN_FROM is resolved beside the chain and must lie on it.
@@ -439,7 +439,7 @@ class TestReuseRule:
         assert "canonical_algorithm(ALGORITHM)" in body
         assert '"stable-baselines3"' in body
         assert len(_raises(trunk_if, "RuntimeError")) >= 3, (
-            "missing provenance, this run's own directory, and a species/algorithm/backend mismatch each refuse"
+            "missing provenance, this run's own directory, and a model/algorithm/backend mismatch each refuse"
         )
         # The resolution happens BEFORE any node runs, at the top level of the storage cell.
         assert trunk_if in tree.body
@@ -448,7 +448,7 @@ class TestReuseRule:
         src, loop = _chain_loop()
         find = _call(loop, "find_certified_ancestor")
         assert {
-            "species",
+            "model_id",
             "entry",
             "current_task_sha256",
             "plant_identity",
@@ -468,7 +468,7 @@ class TestReuseRule:
         # refuse every reuse with "judged under task". Executed:
         # test_executed_the_loop_derives_the_task_through_the_stage_helper below.
         fingerprint = _call(loop, "stage_task_fingerprint")
-        assert [ast.unparse(arg) for arg in fingerprint.args] == ["SPECIES", "stage"]
+        assert [ast.unparse(arg) for arg in fingerprint.args] == ["MODEL_ID", "stage"]
         assert {kw.arg: ast.get_source_segment(src, kw.value) for kw in fingerprint.keywords} == {
             "stage_config": "config",
             "plant_identity": "PLANT_IDENTITY",
@@ -1062,8 +1062,8 @@ class TestStorageCellRerun:
             exec(compile(src, "sb3_storage_bad_quick", "exec"), namespace)
 
     def test_the_memo_counts_only_in_the_tree_it_was_opened_in(self, tmp_path, monkeypatch, capsys):
-        """With ``RUN_ID = ""`` the memo re-enters this runtime's run only in the tree SPECIES, ALGORITHM and
-        QUICK_TEST select: a quick test first and then the real session (the usual order in one runtime) gives the
+        """With ``RUN_ID = ""`` the memo re-enters this runtime's run only in the tree SPECIES, EMBODIMENT,
+        ALGORITHM and QUICK_TEST select: a quick test first and then the real session (the usual order in one runtime) gives the
         real run its own timestamp, instead of opening ``ppo/<the quick test's id>``; a rerun in one tree keeps its
         run as before."""
         src = _cell(STORAGE_CELL_MARKER)
@@ -1103,11 +1103,11 @@ class TestStorageCellRerun:
         ``RUN_DIR``'s parent), and replicate discovery scans ``RUN_DIR``'s own siblings."""
         resolve = _cell(RESOLVE_CELL_MARKER)
         select = _call(ast.parse(resolve), "select_trunk")
-        assert ast.unparse(select.args[0]) == "LOG_BASE / SPECIES / ALGORITHM.lower()"
+        assert ast.unparse(select.args[0]) == "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()"
         storage = _cell(STORAGE_CELL_MARKER)
         assigns = _top_level_assigns(storage)
         assert ast.unparse(assigns["_runs_root"]) == (
-            "LOG_BASE / SPECIES / (ALGORITHM.lower() + ('_quick_test' if QUICK_TEST else ''))"
+            "MODEL_ID.path(LOG_BASE) / (ALGORITHM.lower() + ('_quick_test' if QUICK_TEST else ''))"
         )
         assert ast.unparse(assigns["_run_dir"]) == "_runs_root / _run_id"
 
@@ -1173,8 +1173,8 @@ class TestAutoTrunk:
         auto_if = _the_if(tree, src, lambda test: test == 'globals().get("AUTO_TRUNK", False)', "selecting the trunk")
         assert auto_if in tree.body, "the selection runs at the top level of the resolve cell"
         select = _call(auto_if, "select_trunk")
-        assert ast.unparse(select.args[0]) == "LOG_BASE / SPECIES / ALGORITHM.lower()", (
-            "the siblings under this species/algorithm log directory are scanned"
+        assert ast.unparse(select.args[0]) == "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()", (
+            "the siblings under this model/algorithm log directory are scanned"
         )
         assert _keyword_source(src, select, "chain") == "CHAIN"
         assert _keyword_source(src, select, "stage_configs") == "STAGE_CONFIGS"
@@ -1201,7 +1201,7 @@ class TestAutoTrunk:
         assert auto_if in tree.body and auto_if.lineno < loop.lineno, "before the loop, at the top level"
         body = _branch_source(src, auto_if.body)
         assert 'globals().get("TRUNK_SELECTION")' in body
-        assert "LOG_BASE / SPECIES / ALGORITHM.lower()" in body, "a selection for another log directory is refused"
+        assert "MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()" in body, "a selection for another log directory is refused"
         assert "TRUNK_DIR = _selection.run_dir" in body
         assert len(_raises(auto_if, "RuntimeError")) == 1
         assert "WIDEN_FROM" not in src, "D-D14: widening is the command-line tool's; no widen session is special-cased"
@@ -1225,7 +1225,7 @@ class TestAutoTrunk:
         complete = _call(guard, "refuse_complete_run_session")
         assert [ast.unparse(arg) for arg in complete.args] == ["RUN_DIR"]
         for keyword, value in (
-            ("species", "SPECIES"),
+            ("model_id", "MODEL_ID"),
             ("chain", "CHAIN"),
             ("target", "TARGET_NODE"),
             ("retrain_from", "RETRAIN_NODE"),
@@ -1239,7 +1239,7 @@ class TestAutoTrunk:
         ]
         assert isinstance(refused, ast.Expr) and refused.value is complete, "the refusal comes first"
         assert isinstance(recorded, ast.Expr) and ast.unparse(recorded) == (
-            "print(record_trunk_run(RUN_DIR, trunk_dir=TRUNK_DIR, log_dir=LOG_BASE / SPECIES / ALGORITHM.lower()))"
+            "print(record_trunk_run(RUN_DIR, trunk_dir=TRUNK_DIR, log_dir=MODEL_ID.path(LOG_BASE) / ALGORITHM.lower()))"
         ), "then the trunk record, printed, under the directory a TRUNK_FROM id resolves under"
         every = _all_cell_sources()
         section = every[every.index(_cell(STORAGE_CELL_MARKER)) - 1]
@@ -1350,7 +1350,7 @@ class TestTrunkRecord:
 
     def test_executed_a_trunk_outside_the_log_directory_is_recorded_as_its_absolute_directory(self, tmp_path):
         """A pinned ``TRUNK_FROM`` may be an absolute path to a run anywhere; its name alone would resolve under
-        ``LOG_BASE/<species>/<algo>/``, another directory."""
+        ``LOG_BASE/<species>/<embodiment>/<algo>/``, another directory."""
         elsewhere = tmp_path / "elsewhere" / self.TRUNK_ID
         self._resolve(tmp_path, trunk=elsewhere)
         assert self._recorded(self._run_dir(tmp_path)) == str(elsewhere.resolve())
@@ -1761,8 +1761,8 @@ class TestJudgeBranch:
         assert excinfo.value.code == 0
         help_text = " ".join(capsys.readouterr().out.split())
         for phrase in (
-            "<LOG_BASE>/<species>/<algo>/<new run",
-            "<stage_dirname(species, root)>",
+            "<LOG_BASE>/<species>/<embodiment>/<algo>/<new run",
+            "<stage_dirname(model_id, root)>",
             "has not opened yet",
             'RUN_ID = "<new run id>"',
             "SEED = the parent's run seed",
@@ -2544,7 +2544,7 @@ class TestPublication:
             for call in _calls(tree, "save_run_bundle"):
                 bundle_calls += 1
                 assert call.args and ast.unparse(call.args[0]) == "chain_results()", f"cell {index} line {call.lineno}"
-                assert _keyword_source(src, call, "species") == "SPECIES"
+                assert _keyword_source(src, call, "model_id") == "MODEL_ID"
             for call in _calls(tree, "write_training_summary"):
                 summary_calls += 1
                 assert [ast.unparse(arg) for arg in call.args] == ["RUN_DIR", "chain_results()"], (
@@ -2560,9 +2560,9 @@ class TestPublication:
         assert ast.unparse(forwarded.args[0]) == "stage_results_list"
         assert _keyword_source(infra, forwarded, "run_dir") == "RUN_DIR", "the bundle is this run's, never another"
         summary_def = _top_level_def(infra, "write_training_summary")
-        assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "species") == "SPECIES"
-        # No dead parameters (cleanup CU-5): the run directory and species are forwarded, never taken and ignored.
-        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "species"]
+        assert _keyword_source(infra, _call(summary_def, "_lib_write_training_summary"), "model_id") == "MODEL_ID"
+        # No dead parameters (cleanup CU-5): the run directory and model are forwarded, never taken and ignored.
+        assert [arg.arg for arg in bundle_def.args.args] == ["stage_results_list", "model_id"]
         assert [arg.arg for arg in summary_def.args.args] == ["run_dir", "stage_results_list"]
         assert not bundle_def.args.kwonlyargs and not summary_def.args.kwonlyargs
         chain_def = _top_level_def(infra, "chain_results")
@@ -2904,7 +2904,7 @@ class TestResumeCell:
         assert _raises(spent_body, "RuntimeError") and not _calls(spent_body, "train_stage")
         assert train in [node for stmt in spent.orelse for node in ast.walk(stmt)]
         assert "entry_res = MANIFEST.resolve(RESUME_STAGE)" in src and "stage_res = entry_res.reference" in src
-        assert "stage_dirname(SPECIES, stage_res)" in src and "stage_label(stage_res)" in src
+        assert "stage_dirname(MODEL_ID, stage_res)" in src and "stage_label(stage_res)" in src
 
     @staticmethod
     def _write_pair(zip_path: Path, vecnorm_path: Path) -> None:
@@ -2936,7 +2936,7 @@ class TestResumeCell:
         None: a widened root holds only its handoff and final pairs); return the train_stage calls. Whatever else the
         stage directory holds (a verdict, a final pair, an ``ancestors/`` record, ``trunk_run.json``) is the
         caller's. ``RUN_DIR`` is *tmp_path*, and ``LOG_BASE`` and ``ALGORITHM`` are bound as the storage and
-        configuration cells bind them, so a trunk under ``LOG_BASE/<species>/ppo/`` is recorded by its id;
+        configuration cells bind them, so a trunk under ``LOG_BASE/<species>/<embodiment>/ppo/`` is recorded by its id;
         ``TRUNK_DIR`` is *trunk_dir* (cleanup ROW-4/6, decision 4 (a))."""
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_dirname, stage_label
@@ -3013,10 +3013,19 @@ class TestResumeCell:
         from environments.shared.result_bundle import GATE_VERDICT_SCHEMA
         from environments.shared.stage_manifest import stage_dirname
 
-        stage_dir = tmp_path / stage_dirname(ModelId("compsognathus_longipes", "robot"), 2)
+        model_id = ModelId("compsognathus_longipes", "robot")
+        stage_dir = tmp_path / stage_dirname(model_id, 2)
         stage_dir.mkdir(parents=True)
+        # A gate verdict names its model whole (gate-verdict/v2, decision D-D33); the reader refuses one that does not.
         (stage_dir / "gate_verdict.json").write_text(
-            json.dumps({"schema": GATE_VERDICT_SCHEMA, "passed": passed, "failures": [] if passed else ["too slow"]})
+            json.dumps(
+                {
+                    "schema": GATE_VERDICT_SCHEMA,
+                    **model_id.record(),
+                    "passed": passed,
+                    "failures": [] if passed else ["too slow"],
+                }
+            )
         )
         assert (
             self._run_resume_cell(
@@ -3353,11 +3362,11 @@ class TestResumeCell:
         assert isinstance(second, ast.Expr) and second.value is recorded, "right after the complete-run guard"
         assert ast.unparse(recorded) == (
             "refuse_trunk_other_than_recorded(RUN_DIR, trunk_dir=globals().get('TRUNK_DIR'), "
-            "log_dir=LOG_BASE / SPECIES / ALGORITHM.lower(), what=f'Resuming {stage_res!r}', resumed=entry_res)"
+            "log_dir=MODEL_ID.path(LOG_BASE) / ALGORITHM.lower(), what=f'Resuming {stage_res!r}', resumed=entry_res)"
         ), "the session's trunk, under the directory a TRUNK_FROM id resolves under, and the node to resume"
         assert recorded.lineno < _call(tree, "train_stage").lineno
 
-    #: The trunk the ``trunk_run.json`` of the resume tests below records, under ``LOG_BASE/compsognathus_robot/ppo/``.
+    #: The trunk the ``trunk_run.json`` of the resume tests below records, under ``LOG_BASE/compsognathus_longipes/robot/ppo/``.
     RECORDED_TRUNK = "20260921_000000"
 
     @staticmethod
@@ -3594,14 +3603,14 @@ class TestArchiveLoadPreflightCell:
         assert "COMMAND_TERRAIN_BEHAVIOR" not in src
 
     def test_the_preflight_loads_a_real_archive_through_the_loader_with_the_print_flushed_first(self):
-        """Since cleanup CU-6 the cell is one call of the library's preflight on this session's species, chain root
+        """Since cleanup CU-6 the cell is one call of the library's preflight on this session's model, chain root
         and trunk; the one load, the flushed print right before it, the trunk's root handoff under either directory
         naming else a throwaway in a temporary directory, and the fall-back that never raises are the function's,
         pinned and executed in test_policy_loading.py. The cell itself neither loads nor prints."""
         src, tree = _preflight_cell()
         assert "from environments.shared.policy_loading import sb3_archive_load_preflight" in src
         (call,) = _calls(tree, "sb3_archive_load_preflight")
-        assert ast.unparse(call) == "sb3_archive_load_preflight(SPECIES, CHAIN[0].reference, trunk_dir=TRUNK_DIR)"
+        assert ast.unparse(call) == "sb3_archive_load_preflight(MODEL_ID, CHAIN[0].reference, trunk_dir=TRUNK_DIR)"
         statements = [node for node in tree.body if not isinstance(node, ast.ImportFrom)]
         assert len(statements) == 1 and isinstance(statements[0], ast.Assign) and statements[0].value is call, (
             "one top-level call and nothing around it, its result bound so the notebook shows no repr"
@@ -3646,7 +3655,7 @@ class TestArchiveLoadPreflightCell:
         }
         free = _loaded_names(tree) - bound - parameters - set(dir(builtins))
         assert free <= earlier, f"the preflight cell reads names no earlier cell binds: {sorted(free - earlier)}"
-        assert free <= {"SPECIES", "CHAIN", "TRUNK_DIR"}, sorted(free)
+        assert free <= {"MODEL_ID", "CHAIN", "TRUNK_DIR"}, sorted(free)
 
 
 class TestCommandSliceReseed:

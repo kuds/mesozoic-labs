@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
 import {
-  ALL_SPECIES,
+  ALL_MODELS,
   PROJECT_CAPABILITIES,
-  VELOCIRAPTOR,
   backendLabel,
   headlineFor,
   posterFor,
+  requireModel,
   TOTAL_ACTUATORS,
   TOTAL_TRAINED_STEPS,
 } from '@site/src/data/species';
@@ -140,8 +140,8 @@ function HeroSection() {
 
         <dl className={styles.statsContainer}>
           <div className={styles.statItem}>
-            <dt className={styles.statLabel}>SPECIES</dt>
-            <dd className={styles.statNumber}>{ALL_SPECIES.length}</dd>
+            <dt className={styles.statLabel}>MODELS</dt>
+            <dd className={styles.statNumber}>{ALL_MODELS.length}</dd>
           </div>
           <div className={styles.statDivider} aria-hidden="true"></div>
           <div className={styles.statItem}>
@@ -226,10 +226,10 @@ const features = [
   },
   {
     icon: FeatureIcons.species,
-    title: `${ALL_SPECIES.length} Species`,
-    description: `${ALL_SPECIES.map(
-      (species) => `${species.name} (${species.actionDim} actuators)`,
-    ).join(', ')}.`,
+    title: `${ALL_MODELS.length} Models`,
+    description: `${ALL_MODELS.map(
+      (model) => `${model.name}: ${model.actionDim} actuators`,
+    ).join('; ')}.`,
   },
   {
     icon: FeatureIcons.openSource,
@@ -345,6 +345,9 @@ function HowItWorksSection() {
    SIMULATION PREVIEW SECTION
    ============================================================================= */
 
+/** The model the code sample creates; its observation width is printed from the catalog. */
+const VELOCIRAPTOR_ANATOMICAL = requireModel('velociraptor_mongoliensis', 'anatomical');
+
 function SimulationSection() {
   const ref = useScrollReveal();
   return (
@@ -383,7 +386,12 @@ function SimulationSection() {
               <div className={styles.codeLine}>&nbsp;</div>
               <div className={styles.codeLine}>
                 <span>env = gym.make(</span>
+              </div>
+              <div className={styles.codeLine}>
+                <span>{'    '}</span>
                 <span className={styles.codeString}>"MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0"</span>
+              </div>
+              <div className={styles.codeLine}>
                 <span>)</span>
               </div>
               <div className={styles.codeLine}>
@@ -407,7 +415,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR.observationDim},)`}</span>
+                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR_ANATOMICAL.observationDim},)`}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>
@@ -436,19 +444,24 @@ function SimulationSection() {
    SPECIES SHOWCASE (Tabbed)
    ============================================================================= */
 
-// Species/stage/video data lives in src/data/species.ts (shared with the
+// Model/stage/video data lives in src/data/species.ts (shared with the
 // model docs pages so the two can't drift apart).
+
+/** A tab and panel id for a model, built from its species ID and embodiment (decision D-D33). */
+function modelKey(model: {species: string; embodiment: string}): string {
+  return `${model.species}-${model.embodiment}`;
+}
 
 function SpeciesShowcase() {
   const [activeSpecies, setActiveSpecies] = useState(0);
   const ref = useScrollReveal();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const species = ALL_SPECIES[activeSpecies];
+  const species = ALL_MODELS[activeSpecies];
   const result = species.featuredResult;
 
   // WAI-ARIA tabs keyboard support: arrows move + activate, Home/End jump.
   const onTabKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    const last = ALL_SPECIES.length - 1;
+    const last = ALL_MODELS.length - 1;
     let next: number | null = null;
     if (e.key === 'ArrowRight') next = idx === last ? 0 : idx + 1;
     else if (e.key === 'ArrowLeft') next = idx === 0 ? last : idx - 1;
@@ -475,10 +488,10 @@ function SpeciesShowcase() {
         </p>
       </div>
 
-      <div className={styles.speciesTabs} role="tablist" aria-label="Select species">
-        {ALL_SPECIES.map((sp, idx) => (
+      <div className={styles.speciesTabs} role="tablist" aria-label="Select model">
+        {ALL_MODELS.map((sp, idx) => (
           <button
-            key={sp.id}
+            key={modelKey(sp)}
             ref={(el) => {
               tabRefs.current[idx] = el;
             }}
@@ -488,7 +501,7 @@ function SpeciesShowcase() {
             role="tab"
             tabIndex={idx === activeSpecies ? 0 : -1}
             aria-selected={idx === activeSpecies}
-            aria-controls={`species-panel-${sp.id}`}
+            aria-controls={`species-panel-${modelKey(sp)}`}
           >
             <span className={styles.speciesTabName}>{sp.name}</span>
             <span className={styles.speciesTabMeta}>{sp.actuators} actuators &middot; {sp.gait}</span>
@@ -499,7 +512,7 @@ function SpeciesShowcase() {
       <div
         className={styles.speciesPanel}
         role="tabpanel"
-        id={`species-panel-${species.id}`}
+        id={`species-panel-${modelKey(species)}`}
         aria-label={species.name}
       >
         <div className={styles.speciesInfo}>
@@ -547,7 +560,7 @@ function SpeciesShowcase() {
               </p>
             </>
           ) : (
-            <p className={styles.speciesProvenance}>No run summary has been published for this species.</p>
+            <p className={styles.speciesProvenance}>No run summary has been published for this model.</p>
           )}
         </div>
 

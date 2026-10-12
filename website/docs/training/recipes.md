@@ -276,7 +276,7 @@ BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable
 TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
-RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
+RUN_ID = ""  # "" = the run this runtime's storage cell resolved last (a fresh timestamped run on the first pass or after SPECIES, EMBODIMENT, ALGORITHM or QUICK_TEST changed); a new id starts a fresh run; an existing run id re-enters that run to finish an interrupted or partial run (section 5)
 ```
 
 `RUN_ID` names the run directory under `<LOG_BASE>/<species>/<embodiment>/<algorithm>/`

@@ -393,7 +393,7 @@ robustness, **LOW** = cosmetic / QoL.
   `TRUNK_FROM`, and then, as before: under another trunk that certifies a
   recorded node the chain loop refuses a second parent for it
   (`record_ancestor`: "a run cannot reuse two parents for one node",
-  `ancestors.py:690-700`) before it trains anything there, and under
+  `ancestors.py:777-780`) before it trains anything there, and under
   `TRUNK_FROM = ""` it trains the nodes this run holds only as records again
   here (found by the review of #559's first round, `ee91f51`; review 2 in
   CLEANUP_PLAN_2026_09.md §5.4), as it does a recorded node that another
@@ -438,15 +438,15 @@ robustness, **LOW** = cosmetic / QoL.
   elsewhere: the target, for example, after its parent's own verdict was
   refused (a gate edit, say) and a trunk's copy of the parent was reused and
   recorded. The bundle's lineage check passes it, because it hashes the
-  in-run parent that `load_path` names (`reporting/bundles.py:686-710`).
+  in-run parent that `load_path` names (`reporting/bundles.py:694-718`).
   ROW-4/6's `result_bundle.refuse_judging_off_the_resolved_parent` covers
   only a node the loop judges ahead of a trunk (decision 6 (b)); calling it
   in the JUDGE branch would close the rest, and is a separate change.
 - **MEDIUM (operational)** — **`train --load <checkpoint>` (default
   `--load-mode resume_same_stage`) writes into a stage directory that already
   holds `gate_verdict.json` (guard executed 2026-09-26).** The D-A20 guard
-  `config.refuse_occupied_stage_dir` (`config.py:550-573`, called at
-  `train_base.py:1513`) lets any same-stage resume through. Against a
+  `config.refuse_occupied_stage_dir` (`config.py:539-562`, called at
+  `train_base.py:1588`) lets any same-stage resume through. Against a
   directory holding `stage_config.json` and a passed `gate_verdict.json`, it
   returns for `resume_same_stage` and raises only for `initialize_next_stage`
   or no load. `train()` has no complete-bundle refusal either. Read from the
@@ -794,11 +794,11 @@ robustness, **LOW** = cosmetic / QoL.
   needs uniqueness. (2026-07 Dibothrosuchus review)
 
 - **LOW** — the T-Rex and Dibothrosuchus SB3 envs accept
-  `foot_contact_weight` / `foot_contact_gate` (`tyrannosaurus_rex/base_env.py:155-156`,
-  `dibothrosuchus_elaphros/base_env.py:109-110`) and no SB3 reward reads them: they were
+  `foot_contact_weight` / `foot_contact_gate` (`tyrannosaurus_rex/base_env.py:195-196`,
+  `dibothrosuchus_elaphros/base_env.py:123-124`) and no SB3 reward reads them: they were
   knobs of the MJX reward, which left with the JAX/MJX runtime (D-D17, cleanup
   PR-B). They stay, with their six `[env]` keys (`configs/tyrannosaurus_rex/anatomical/stance.toml:13-14`,
-  `configs/tyrannosaurus_rex/anatomical/recovery.toml:62-63`, `configs/dibothrosuchus_elaphros/anatomical/stance.toml:13-14`),
+  `configs/tyrannosaurus_rex/anatomical/recovery.toml:77-78`, `configs/dibothrosuchus_elaphros/anatomical/stance.toml:13-14`),
   because `task_sha256` hashes the constructor defaults overlaid with `[env]`:
   removing either moves the T-Rex and dibothrosuchus task digests (stripping the
   dibothrosuchus keys moved its certified stance task from `083e2966` to
@@ -940,7 +940,7 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **HIGH** — **no locomotion gate reads a foot contact, and three of the five
   certified walkers hop (replayed 2026-09-28).** All six locomotion stages
-  judge `reward_and_length/v1` (`reporting/gates.py:617-682`) on mean reward,
+  judge `reward_and_length/v1` (`reporting/gates.py:1560-1625`) on mean reward,
   length and forward velocity, with reward floors 3–22× below the zero-action
   statue, so beyond mean length the only test is mean root speed. On floor
   contact, T-Rex seed 42 `20260914_123816` and seed 44 `20260925_033501` hop on
@@ -966,7 +966,7 @@ robustness, **LOW** = cosmetic / QoL.
   0.9988 is 0.62 on floor contact. The walker's feet touch on 96% of substeps,
   pushing 1.12 body weights into each touch sensor, so the support flag that
   scales its alive, posture and height rewards (touch sum above 4% of body
-  weight, `compsognathus_longipes/anatomical/env.py:182,232`) is on 99.6% of steps by touch and
+  weight, `compsognathus_longipes/base_env.py:200,250`) is on 99.6% of steps by touch and
   34.3% by floor: about 838 of its about 2627 reward pays for support the
   floor never gives ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §5).
   Plan: the robot's `gait-r1` revisions, with floor-contact support and a
@@ -1105,9 +1105,9 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **MEDIUM** — **locomotion gates average per-episode means, so a policy that
   lunges and falls passes (executed 2026-09-28).** An episode's speed is the
-  mean of its per-step `info["forward_vel"]` (`evaluation.py:97-105`), the
-  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1356`,
-  `curriculum/manager.py:197`), and length a panel mean, so a 250-step episode
+  mean of its per-step `info["forward_vel"]` (`evaluation.py:105-123`), the
+  panel's the unweighted mean of those (`reporting/stage_artifacts.py:1714`,
+  `curriculum/manager.py:259`), and length a panel mean, so a 250-step episode
   weighs as much as a 1,000-step one. Through the repository's own evaluation
   and gate code on T-Rex locomotion (length 750, speed 1.0 m/s), three scripted
   episodes at 0.7 m/s for 1,000 steps and one at 2.0 m/s that falls at step
@@ -1116,7 +1116,7 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3); on a 30-episode
   panel, 23 walks and 7 lunges pass both the post-training judge and the
   in-training `CurriculumManager`, while 24 and 6 fail. The post-training
-  judge also compares the speed rounded to two decimals (:1356): a 0.996 m/s
+  judge also compares the speed rounded to two decimals (`reporting/stage_artifacts.py:1714`): a 0.996 m/s
   panel passed the 1.0 bar. Plan: per-episode qualification under
   `locomotion_gait/v1` ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §4.2, PR-G5;
   GQ-7, open for locomotion; taken for stance only, as D-D23, on 2026-10-06).
@@ -1144,13 +1144,13 @@ robustness, **LOW** = cosmetic / QoL.
   but `_is_terminated` runs every fall check except floor contact before its
   success check, so such a step ends as a fall with `is_success` False
   (`base_env.py:1372`). The post-training panel reads the flag on every step
-  (`evaluation.py:100`) and counts the episode, for T-Rex in the `task_success`
+  (`evaluation.py:118-119`) and counts the episode, for T-Rex in the `task_success`
   that `task_success/v1` judges; training reads `is_success` and does not.
   Executed on each hunt env with the body rolled past `max_tilt_angle` and the
   prey on the success geometry: `excessive_tilt`, 991–992 reward, a panel
   success (T-Rex 30/30, gate PASS) and 0 in training; a floor-contact fall on
   the contact step ends as a success in both. The compsognathus pair reads
-  success after its fall checks (`compsognathus_longipes/anatomical/env.py:233-234`) and is
+  success after its fall checks (`compsognathus_longipes/base_env.py:298-312`) and is
   unaffected. Leaves with each hunt's task revision, which the gait plan does
   not schedule ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9;
   [gait audit](investigations/GAIT_AUDIT_2026_09.md) §3).
@@ -1169,9 +1169,9 @@ robustness, **LOW** = cosmetic / QoL.
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on T-Rex, velociraptor, brachiosaurus or dibothrosuchus (read from
   the code, clearances measured 2026-09-28).** Their `_body_ground_geoms` hold
-  only the torso (and belly), head and distal tail (`tyrannosaurus_rex/base_env.py:386-393`,
-  `velociraptor_mongoliensis/base_env.py:298-305`, `brachiosaurus_altithorax/base_env.py:224-230`,
-  `dibothrosuchus_elaphros/base_env.py:240-247`; velociraptor adds its neck), so a policy
+  only the torso (and belly), head and distal tail (`tyrannosaurus_rex/base_env.py:471-478`,
+  `velociraptor_mongoliensis/base_env.py:314-321`, `brachiosaurus_altithorax/base_env.py:238-244`,
+  `dibothrosuchus_elaphros/base_env.py:254-261`; velociraptor adds its neck), so a policy
   may kneel or crawl while the root stays above the height floor. Settled
   clearance of the lowest such geom, then the root drop allowed: T-Rex tibia
   0.157 m, 0.226 m; velociraptor metatarsus already touching, 0.194 m;
@@ -1184,9 +1184,9 @@ robustness, **LOW** = cosmetic / QoL.
 
 - **LOW** — **the shared stance diagnostic reads only the forefeet on
   quadrupeds (read from the code 2026-09-28).** `derive_stance_info`
-  (`stance_diagnostics.py:75`) takes `r_foot_contact` and `l_foot_contact`,
+  (`stance_diagnostics.py:77`) takes `r_foot_contact` and `l_foot_contact`,
   which the brachiosaurus and dibothrosuchus envs set to their front feet
-  (`brachiosaurus_altithorax/base_env.py:403-404`, `dibothrosuchus_elaphros/base_env.py:442-443`), so its
+  (`brachiosaurus_altithorax/base_env.py:417-418`, `dibothrosuchus_elaphros/base_env.py:456-457`), so its
   unsupported duty and balance ignore the hind feet, which carry 79% of the
   certified dibothrosuchus stance's floor load
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). No quadruped gate
@@ -1205,14 +1205,14 @@ robustness, **LOW** = cosmetic / QoL.
   `forward_vel_weight` is positive, `RewardRampCallback` (from 0.1 to the
   stage's weight over 500k steps by default). A `resume_same_stage` load
   attaches neither: `_stage_entry_shaping_callbacks` returns nothing for that
-  mode (`train_base.py:870-871`, called at :1275-1282), so the env trains at
+  mode (`train_base.py:916-917`, called at :1321-1328), so the env trains at
   the stage's full `forward_vel_weight` from the first resumed step. Since the
   gap review's TC1 fix a continuation keeps the checkpoint's step counter
-  (`train_base.py:1172-1186`, `reset_num_timesteps=not resuming` at :1303),
+  (`train_base.py:1218-1232`, `reset_num_timesteps=not resuming` at :1349),
   and the ramp reads that counter (`curriculum/advancement.py:640-659`), so
   its position is recoverable; nothing re-applies it. The warm-up marker is
   cleared with a warning that the rest of the warm-up is not re-applied
-  (`train_base.py:580-594`); the ramp's remainder goes without a log line. It bites when a
+  (`train_base.py:611-626`); the ramp's remainder goes without a log line. It bites when a
   session dies early in a locomotion or behavior stage and the RESUME cell
   continues it: 200k steps into a 0.1 → 1.0 ramp, the policy meets the other
   0.54 of the weight in one step. Fix: re-attach the shaping on a
@@ -1230,13 +1230,13 @@ robustness, **LOW** = cosmetic / QoL.
   held-out panel"). Every certifying panel runs on the registered block
   3042–3081 (`constants.py:34`, `PUBLICATION_SEED_START`): publication
   refuses a `certification_panel` role that starts anywhere else
-  (`result_bundle/evidence.py:682-686`) and binds each stance panel row to it
-  (:441-448). The panel is deterministic given the policy, so a marginal
+  (`result_bundle/evidence.py:1095-1099`) and binds each stance panel row to it
+  (:456-463). The panel is deterministic given the policy, so a marginal
   policy that happens to fit the block passes every re-check; by the review's
   arithmetic, one with a true full-horizon rate near 0.93 fits about 46% of
   blocks and would fail a fresh one about 54% of the time. The blocks do
   differ: on physics r7 the statue scored 119/120 over three of them
-  (`configs/tyrannosaurus_rex/anatomical/stance.toml:453`), and on r8 it is clean on 40/40, 80/80
+  (`configs/tyrannosaurus_rex/anatomical/stance.toml:667`), and on r8 it is clean on 40/40, 80/80
   and 39/40 of three disjoint blocks under `stance_quality/v2` (seed 3174
   nosedives on reset noise alone). Seed replication (`certification_seeds`,
   the review's SS1 fix) counts training seeds, not fresh evaluation seeds.
@@ -1439,7 +1439,7 @@ robustness, **LOW** = cosmetic / QoL.
   lane disjoint from {`k*2`, `k*2+1`} (renumbering the lanes would silently
   change every existing schedule and its null-controller pairing), and it
   changes the transition, so `SCHEDULE_IMPLEMENTATION`
-  (`task_fingerprint.py:76`) and every recovery task digest move. No cleanup
+  (`task_fingerprint.py:77`) and every recovery task digest move. No cleanup
   PR owns it. (2026-08 gap review EP2)
 
 - **LOW** — **after a noisy reset one foot spawns just above the floor and
@@ -1462,15 +1462,15 @@ robustness, **LOW** = cosmetic / QoL.
   gets a 10-episode panel floor in training and in the recorded-gate reader,
   and a 40-episode one in the stance report and publication (read from the
   code 2026-09-30).** The SB3 curriculum manager's `StageThreshold` falls
-  back to `DEFAULT_MIN_EVAL_EPISODES` = 10 (`curriculum/manager.py:29-36,73`)
+  back to `DEFAULT_MIN_EVAL_EPISODES` = 10 (`curriculum/manager.py:32-39,113`)
   and hands it to the stance gate as a field copy (`stance_thresholds`,
-  :76-92), the in-training diagnostics callback sizes the gate's duty count
+  :116-132), the in-training diagnostics callback sizes the gate's duty count
   from the same 10 (`eval_diagnostics.py:636-639`), the recorded-gate reader
-  the Drive summary uses falls back to it too (`reporting/gates.py:105`), and
-  the species catalog publishes it (`species_catalog.py:467`), while the
+  the Drive summary uses falls back to it too (`reporting/gates.py:147`), and
+  the species catalog publishes it (`species_catalog.py:545`), while the
   stance report, its probes and publication fall back to
   `DEFAULT_MIN_EVAL_EPISODES_STANCE` = 40 (`curriculum/stance_gate.py:142`,
-  `reporting/stage_artifacts.py:226,515`, `result_bundle/evidence.py:509`).
+  `reporting/stage_artifacts.py:239,629`, `result_bundle/evidence.py:511`).
   The gate schema requires `min_eval_episodes` for `task_success/v1` only
   (`curriculum/gate_schema.py:148-179`), so nothing stops a new
   `stance_quality/v1` TOML from leaving it out; the three that exist (the
@@ -1492,9 +1492,9 @@ robustness, **LOW** = cosmetic / QoL.
   a certified node's results from its verdict
   (`NODE_RESULTS[NODE.id] = dict(stage_result)`, the `same_run` branch). The
   verdict's `stage_result` projection (`_PERSISTED_STAGE_RESULT_KEYS`,
-  `result_bundle/gate_verdict.py:67`) omits `sim_dt`, so
+  `result_bundle/gate_verdict.py:72`) omits `sim_dt`, so
   `write_training_summary` falls back to 0.01 s
-  (`reporting/text_summaries.py:156`): a reused node of either
+  (`reporting/text_summaries.py:158`): a reused node of either
   Compsognathus model shows 1,000 steps as "10.00s sim time" instead of
   20 s, while a freshly trained one shows 20 s. No gate, verdict or digest
   reads it. CU-2 fixed the other 0.01 s fallback, in summaries built from
@@ -1505,10 +1505,10 @@ robustness, **LOW** = cosmetic / QoL.
   warning, when the final pair has lost its sidecar (reproduced
   2026-10-01).** `_record_stage_replays` records the selected checkpoint only
   from a pair whose `_vecnorm.pkl` exists and otherwise skips it with a
-  warning (`reporting/stage_artifacts.py:1668-1676`). The final replay checks
-  only the `.zip` (`:1705`) and passes `<stage>_final_vecnorm.pkl` (`:1646`,
-  `:1723`), which `evaluation.record_stage_video` ignores when the file is
-  missing (`evaluation.py:289`): the policy is replayed on unnormalised
+  warning (`reporting/stage_artifacts.py:2029-2037`). The final replay checks
+  only the `.zip` (`:2066`) and passes `<stage>_final_vecnorm.pkl` (`:2007`,
+  `:2091`), which `evaluation.record_stage_video` ignores when the file is
+  missing (`evaluation.py:316`): the policy is replayed on unnormalised
   observations, which makes it a different policy, and its `_final.mp4` is
   written as usual. In a probe through the unchanged library code (the SB3
   classes, the loader, the plant checks and mediapy stubbed; the same at
@@ -1527,17 +1527,17 @@ robustness, **LOW** = cosmetic / QoL.
   `UnicodeDecodeError` instead of the reader's own refusal (reproduced
   2026-10-01).** These readers read with `encoding="utf-8"` but catch only
   `OSError` and `json.JSONDecodeError` (and their own errors), so the
-  decode error, a `ValueError`, passes through: `result_bundle/audit.py:193`
-  (the summary), `:230` (the artifact manifest) and `:343` (the plant
-  identity), `reporting/bundles.py:530` (the previous manifest in
-  `save_result_bundle`), `result_bundle/evidence.py:530` (the gate
+  decode error, a `ValueError`, passes through: `result_bundle/audit.py:208`
+  (the summary), `:245` (the artifact manifest) and `:357` (the plant
+  identity), `reporting/bundles.py:538` (the previous manifest in
+  `save_result_bundle`), `result_bundle/evidence.py:943` (the gate
   resolution), `result_bundle/manifest.py:216` (`verify_artifact_manifest`),
-  `result_bundle/provenance.py:368` (`load_provenance`) and
-  `curriculum/baseline_watch.py:66` (`read_zero_action_baseline`, which
+  `result_bundle/provenance.py:371` (`load_provenance`) and
+  `curriculum/baseline_watch.py:68` (`read_zero_action_baseline`, which
   training calls when it builds its callbacks, so there a bad file stops
   the stage before it trains instead of skipping the advisory watch).
   `initialize_result_bundle` reads an existing `provenance.json` with no
-  handler at all (`result_bundle/provenance.py:251`), so a file there that
+  handler at all (`result_bundle/provenance.py:252`), so a file there that
   is not UTF-8, or not JSON, escapes raw too, also from
   `save_result_bundle` given a `run_id`. In a probe, a run directory
   holding only a `summary.json` with a 0xff byte inside a string makes
@@ -1559,10 +1559,10 @@ robustness, **LOW** = cosmetic / QoL.
   while the package pins `mujoco==3.10.0` (`pyproject.toml:25`), the version
   the plant digests are built on. An install from one of them gets a newer
   MuJoCo, and training then stops in `current_plant_identity` with
-  "generated plant manifest is stale for <species>; run the plant-contract
-  check before training" (`plant_contract/manifest.py:365-370`); only the
+  "generated plant manifest is stale for <species>/<embodiment>; run the plant-contract
+  check before training" (`plant_contract/manifest.py:487-492`); only the
   check it points to names the cause ("plant manifest generation requires
-  MuJoCo 3.10.0", :168-171). In the review's reproduction (MuJoCo 3.12.0)
+  MuJoCo 3.10.0", :176-179). In the review's reproduction (MuJoCo 3.12.0)
   training stopped before its first step, so the cost is a two-step
   diagnosis, not a wrong result. Fix: pin or delete the three files
   (`pip install -e ".[train]"` is the documented install) and name the
@@ -1816,8 +1816,8 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   training. (July §5)
 - **LOW** — the SB3 notebook trains SAC on 4 environments where the command
   line trains it on 8: `cli.py` raises `n_envs` from 4 to 8 for SAC unless
-  `--n-envs` says otherwise (`cli.py:430-432`, applied at :454-456 for
-  `train` and :515-517 for `curriculum`), while the configuration cell of
+  `--n-envs` says otherwise (`cli.py:437-439`, applied at :461-463 for
+  `train` and :522-524 for `curriculum`), while the configuration cell of
   [notebooks/sb3_training.ipynb](../notebooks/sb3_training.ipynb) sets
   `N_ENVS = 4` whatever `ALGORITHM` is and says nothing about SAC. The two
   entry points' default SAC runs differ twofold in collection against
@@ -1829,13 +1829,13 @@ note 15 and the stance-hack audit's §11). What it leaves open:
   run with a result bundle it is the training backend's version:
   `_bundle_fields` (cell 9 of
   [notebooks/google_drive_summary.ipynb](../notebooks/google_drive_summary.ipynb),
-  `:763`) takes `summary.json`'s `backend_version`, else `provenance.json`'s,
-  and both record the Stable-Baselines3 version (`reporting/bundles.py:354`,
-  `:643`); a partial or failed run, which `_canonical_csv_rows` reads
-  without a summary (`:784-796`), takes the provenance one. For an older
+  `:773`) takes `summary.json`'s `backend_version`, else `provenance.json`'s,
+  and both record the Stable-Baselines3 version (`reporting/bundles.py:355`,
+  `:651`); a partial or failed run, which `_canonical_csv_rows` reads
+  without a summary (`:794-806`), takes the provenance one. For an older
   run without a bundle it is the mesozoic-labs version, which the legacy
-  `scan_run` (cell 8, `:526`) reads from `stage_config.json`
-  (`config.py:948`). The summary tables (cells 14, 16 and 18) and the
+  `scan_run` (cell 8, `:535`) reads from `stage_config.json`
+  (`config.py:938`). The summary tables (cells 14, 16 and 18) and the
   export to `runs_summary.csv` (cell 24) show both under the one name. In
   a probe of the reader cells, a complete and a failed run read the
   backend version their bundles record and a flat run its stage config's

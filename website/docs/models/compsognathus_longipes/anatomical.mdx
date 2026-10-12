@@ -1,11 +1,14 @@
 ---
-sidebar_position: 5
+sidebar_position: 1
+sidebar_label: Anatomical
 ---
 
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
-import {COMPSOGNATHUS} from '@site/src/data/species';
+import {requireModel} from '@site/src/data/species';
 
-# Compsognathus Longipes
+export const MODEL = requireModel('compsognathus_longipes', 'anatomical');
+
+# Compsognathus Longipes (Anatomical)
 
 The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 55 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the target's direction relative to its body, so turning the whole scene changes nothing it observes.
 
@@ -19,11 +22,11 @@ that lifts for less than half of a 20 ms control step, can still pass it, so a t
 softened near the standing pose (a soft-cubic residual that keeps both ends of each joint's range), so the small
 exploration noise PPO starts with no longer topples the standing animal.
 
-<SpeciesCatalog species={COMPSOGNATHUS} />
+<SpeciesCatalog species={MODEL} />
 
 ## Training
 
-Select **Compsognathus Longipes** in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every species. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
 python -m pip install -e ".[train]"

@@ -1,16 +1,19 @@
 ---
-sidebar_position: 4
+sidebar_position: 1
+sidebar_label: Anatomical
 ---
 
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
-import {DIBOTHROSUCHUS} from '@site/src/data/species';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('dibothrosuchus_elaphros', 'anatomical');
 
 # Dibothrosuchus Model
 
 A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs and a snout-contact hunting task. Its stage 3 task uses contact from a fixed snout geom as a snap proxy; the model has no articulated jaw. Its manifest (`configs/dibothrosuchus_elaphros/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stand), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the snap task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
-<SpeciesCatalog species={DIBOTHROSUCHUS} />
+<SpeciesCatalog species={MODEL} />
 
 ## Anatomy
 
@@ -50,24 +53,22 @@ After each training stage the `eval` command reports:
 
 ## Training Videos
 
-<SpeciesVideoSection species={DIBOTHROSUCHUS.name} stages={DIBOTHROSUCHUS.stages} />
+<SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 
 ## Usage
 
 ```bash
-cd environments/dibothrosuchus_elaphros
-
-# View the model
-python scripts/view_model.py
+# From the repository root. View the model
+python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget
-python scripts/train_sb3.py train --stage 1
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
 
 # The advancing stages (stance, locomotion, behavior) in manifest order
-python scripts/train_sb3.py curriculum --algorithm ppo
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
 
 # Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
-python scripts/train_sb3.py curriculum --algorithm ppo \
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
