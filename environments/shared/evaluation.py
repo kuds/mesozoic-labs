@@ -7,6 +7,7 @@ evaluation loop, video recorder, and human-readable result logger.
 from __future__ import annotations
 
 import logging
+import math
 import re
 import zlib
 from pathlib import Path
@@ -264,7 +265,12 @@ def record_stage_video(
 
     When *camera_views* is supplied, one additional synchronized video is
     written per named camera preset. When *collect_stance_diagnostics* is
-    true, a per-frame ``*_stance.csv`` is written beside the replay. Playback
+    true, a per-frame ``*_stance.csv`` is written beside the replay; with a
+    *model_id* whose feet have a box sole it also carries, per such foot,
+    the step's signed fore-aft pad centre of pressure and the digits' share
+    of the foot's load (``<label>_sole_cop_fore_aft``, ``<label>_digit_share``,
+    :func:`~environments.shared.gait.pad_telemetry.pad_step_columns`), from
+    the floor-truth recorder attached to the replay env. Playback
     follows the environment's control timestep, including 0.02 s species.
 
     *model_id* names the model the replay shows (decision D-D33): it checks
@@ -348,6 +354,12 @@ def record_stage_video(
     named_frames: dict[str, list[Any]] = {name: [] for name in (camera_views or {})}
     stance_rows: list[dict[str, float]] = []
     episode_reward = 0.0
+    # The pad columns of the stance CSV come from the floor-truth recorder, on
+    # this replay env only and only when the CSV is written.
+    pad_capture = (
+        _attach_pad_recorder(render_env, model_id) if collect_stance_diagnostics and model_id is not None else None
+    )
+    terminated = truncated = False
 
     for step_index in range(max_steps):
         if vec_normalize is not None:
@@ -356,6 +368,8 @@ def record_stage_video(
             obs_input = obs
         action, _ = model.predict(obs_input, deterministic=True)
         obs, reward, terminated, truncated, info = render_env.step(action)
+        if pad_capture is not None:
+            pad_capture = _close_pad_step(pad_capture, action, reward)
         frames.append(render_env.render())
         if collect_stance_diagnostics:
             from .stance_diagnostics import capture_stance_snapshot
@@ -390,6 +404,8 @@ def record_stage_video(
         if terminated or truncated:
             break
 
+    if pad_capture is not None:
+        _merge_pad_columns(pad_capture, stance_rows, terminated=bool(terminated), truncated=bool(truncated))
     render_env.close()
     if vec_normalize is not None:
         vec_normalize.close()
@@ -425,6 +441,73 @@ def record_stage_video(
     )
     logger.info("  Saved to: %s", video_path)
     return video_path, frames
+
+
+def _attach_pad_recorder(env: Any, model_id: ModelId) -> "tuple[Any, Any] | None":
+    """``(recorder, layout)`` for the stance CSV's pad columns, or ``None`` when *model_id* has no box sole.
+
+    The floor-truth recorder (``gait.recorder``) reads the physics and never
+    writes it, so the replay is the one an unrecorded replay shows.  A model
+    the morphology cannot describe costs the pad columns, never the replay.
+    """
+    try:
+        from .gait.morphology import Morphology
+        from .gait.pad_telemetry import PadLayout
+        from .gait.recorder import SubstepContactRecorder
+
+        morphology = Morphology.from_env(env, model_id)
+        layout = PadLayout.from_morphology(morphology)
+        if not layout.feet:
+            return None
+        return SubstepContactRecorder(env, morphology).attach(), layout
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink a replay
+        logger.warning("Stance CSV pad columns skipped: the %s replay env cannot be recorded.", model_id, exc_info=True)
+        return None
+
+
+def _close_pad_step(pad_capture: "tuple[Any, Any]", action: Any, reward: Any) -> "tuple[Any, Any] | None":
+    """Close the replay step on the recorder; on a failure take it off the env and drop the pad columns."""
+    recorder = pad_capture[0]
+    try:
+        recorder.end_step(action, float(reward))
+        return pad_capture
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink a replay
+        logger.warning("Stance CSV pad columns skipped: the replay could not be recorded.", exc_info=True)
+        try:
+            recorder.detach()
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+
+def _merge_pad_columns(
+    pad_capture: "tuple[Any, Any]", rows: list[dict[str, float]], *, terminated: bool, truncated: bool
+) -> None:
+    """Add each step's pad columns (``gait.pad_telemetry.pad_step_columns``) to its stance row, then detach.
+
+    A value that is not finite (an unloaded pad, a limb carrying nothing) is
+    left out of its row, as every unavailable measurement in the CSV is.
+    """
+    from .gait.pad_telemetry import pad_step_columns
+
+    recorder, layout = pad_capture
+    try:
+        trace = recorder.end_episode(terminated=terminated, truncated=truncated)
+        columns = pad_step_columns(trace, layout)
+        if rows and trace.length != len(rows):
+            raise ValueError(f"{trace.length} recorded steps for {len(rows)} stance rows")
+        for step, row in enumerate(rows):
+            for name, values in columns.items():
+                value = float(values[step])
+                if math.isfinite(value):
+                    row[name] = value
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink a replay
+        logger.warning("Stance CSV pad columns skipped: the replay could not be reduced.", exc_info=True)
+    finally:
+        try:
+            recorder.detach()
+        except Exception:  # noqa: BLE001
+            logger.warning("Could not detach the replay's floor-truth recorder.", exc_info=True)
 
 
 #: train()'s default single-stage directory is ``{stage_dirname}_{timestamp}``

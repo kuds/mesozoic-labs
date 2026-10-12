@@ -224,6 +224,16 @@ class TestAdvisoriesAnchorOnTheActualBudget:
             "the warm-up sanity log compared against the TOML budget, not the session's"
         )
 
+    def test_core_callbacks_hand_the_model_to_the_evaluation_for_its_pad_telemetry(self, tmp_path):
+        """Without the model the evaluations record no pad field and no leg DC in gate_progress.npz."""
+        from environments.shared.eval_diagnostics import StageAwareEvalCallback
+
+        stage_config = {"curriculum_kwargs": {"min_avg_reward": 1.0}}
+        for model_id in (TYRANNOSAURUS_REX, None):
+            callbacks = _build(tmp_path / str(model_id), stage_config, None, None, model_id=model_id)
+            (evaluation,) = [cb for cb in callbacks if isinstance(cb, StageAwareEvalCallback)]
+            assert evaluation.model_id == model_id
+
 
 def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, model_id=None, total=None):
     pytest.importorskip("stable_baselines3")

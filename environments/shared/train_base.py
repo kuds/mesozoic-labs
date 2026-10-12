@@ -719,6 +719,9 @@ def _build_core_callbacks(
         # the artifact a human (or a Drive reader) checks mid-run, so it has
         # to land beside diagnostics.npz rather than in a temp directory.
         gate_progress_dir=log_path,
+        # The model the eval env runs: the pad telemetry and the sagittal leg DC
+        # in gate_progress.npz read its feet and leg joints (None records neither).
+        model_id=model_id,
         best_model_save_path=str(handoff_staging_dir or model_dir),
         log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,

@@ -24,7 +24,11 @@ Modules, bottom-up:
   ``EpisodeTrace`` it reduces an episode to; imports mujoco;
 * :mod:`~environments.shared.gait.stance_metrics` --
   ``episode_stance_metrics`` and the ``StanceEpisodeMetrics`` row every v2
-  threshold key reads; pure numpy.
+  threshold key reads; pure numpy;
+* :mod:`~environments.shared.gait.pad_telemetry` -- report-only per-foot
+  pad telemetry on the same trace (each box pad's signed fore-aft centre of
+  pressure, the gate's per-foot statistic, the digits' load share) for the
+  periodic evaluations and the stance replay CSV; pure numpy.
 
 Layering rules: no species env module imports this package (an import line
 would change the env module's bytes, and with them its identity), and this

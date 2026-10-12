@@ -8,6 +8,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Per-foot pad telemetry and the sagittal leg DC at every periodic
+  evaluation** (the maintainer's approval of 2026-10-12, after the T. rex
+  stance run `20261011_165957` was refused by `stance_quality/v2` on its pad
+  centre-of-pressure rail, `max_sole_cop_fore_aft`, 39/40 at 0.9999).
+  The left-right ankle offset that put its right pad on the toe edge had
+  formed by about 1M steps, 11M steps before the verdict, and was readable
+  only from the unnamed per-actuator action DC. Its artifacts kept only the
+  per-episode maximum over the feet, so they could not say which foot was on
+  which edge, or when the posture formed. Report-only: no gate verdict, reward,
+  observation, checkpoint selection, training rollout or digest changes.
+  - A new pure module, `environments/shared/gait/pad_telemetry.py`, reduces
+    the floor-truth recorder's `EpisodeTrace` per foot. The pad feet are those
+    whose `FOOT_SUPPORT` sole is a box (`PadLayout.from_morphology`). It
+    records the signed fore-aft pad centre of pressure, in pad half-lengths
+    with + toward the toe, averaged over the window steps the gate counts as
+    loaded. It records the gate's own per-foot statistic, whose maximum over
+    the feet is `max_sole_cop_fore_aft` bit for bit. It records the digits'
+    share of the limb's floor force. Each value has a per-episode form
+    (`episode_pad_telemetry`) and a per-step form (`pad_step_columns`).
+  - A field exists only on a foot that has what it measures. There is no pad
+    field on the Velociraptor's capsule feet or the Brachiosaurus's
+    ellipsoids. There is no digit share on the Compsognathus robot's soles
+    or the Dibothrosuchus's pads. NaN in an existing field means that it was
+    not measured.
+  - `StageAwareEvalCallback` takes the `model_id`, which `_build_core_callbacks`
+    passes through `build_stage_evaluation_callbacks`. It attaches the
+    recorder to the in-process evaluation env for each evaluation only, never
+    to the training envs, and detaches it as each sub-env finishes its share
+    of the panel. It reduces each episode, keeping the values aligned with the
+    episode lengths. A failure costs that evaluation's pad values (NaN), never
+    the run.
+  - `StageGatePlateauCallback` writes the mean over full-horizon episodes of
+    each pad field into `gate_progress.npz` and TensorBoard
+    (`diagnostics/eval_<key>`). The keys are `<label>_sole_cop_fore_aft`,
+    `<label>_sole_cop_fore_aft_gate` and `<label>_digit_share`.
+  - It also writes `leg_dc_<left>_minus_<right>_<joint>`: the left minus
+    right action DC of hip pitch, knee and ankle, in action units, from
+    `action_dc_per_actuator`. Each side's joints are spelled with the prefix
+    of its foot site. All six models have these keys, two pairs on the
+    quadrupeds.
+  - The stance replay CSV (`*_selected_stance.csv`, `*_final_stance.csv`)
+    gains `<label>_sole_cop_fore_aft` and `<label>_digit_share` per step, from
+    the recorder attached to the replay env.
+  - Measured on the T. rex, the recorder adds 34% to an evaluation's
+    simulation time (best of three 4,000-step evaluations, 5.66 s to 7.61 s,
+    single-threaded). On the 40-episode panel that is about 20 s per
+    evaluation on that machine, and about 80 minutes over a 12M stance at the
+    default `eval_freq` of 50,000. A model without a box pad attaches no
+    recorder.
+  - `gate_progress.npz` and the CSV carry no schema or version, and the new
+    keys are additive. `StanceEpisodeMetrics`, the v2 panel CSV and every
+    report schema are unchanged.
+  - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`, which now also
+    describes `gate_progress.npz`.
 - **A six-heading stance certificate, `stance_quality_heading/v1`** (#617; decision
   D-D32, the maintainer's approval of 2026-10-11;
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). `stance_quality/v2` judges a
@@ -519,7 +573,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
-- **The development version is `0.4.0.dev1`** (`pyproject.toml`; the
+- **The development version is `0.4.0.dev1`** (#619; `pyproject.toml`; the
   maintainer's request of 2026-10-11 to bump the version when training
   restarts). Training restarts on the D-D33 identifiers. Every run records
   the package version in its provenance (`dependency_versions`), so the runs
