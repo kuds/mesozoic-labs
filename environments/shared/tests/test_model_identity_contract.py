@@ -61,7 +61,12 @@ ENVIRONMENTS = REPOSITORY_ROOT / "environments"
 WEBSITE_DOCS = REPOSITORY_ROOT / "website" / "docs"
 
 MODEL_IDS = model_ids()
-_IDS = {"ids": lambda m: f"{m.species}-{m.embodiment}"}
+
+
+def _model_label(model_id: ModelId) -> str:
+    return f"{model_id.species}-{model_id.embodiment}"
+
+
 #: The two frozen D-D17 registrations, the only models that may declare jax-mjx (review L5).
 FROZEN_MJX_MODELS = {
     ModelId("brachiosaurus_altithorax", "anatomical"),
@@ -98,7 +103,7 @@ def test_the_manifest_lists_models() -> None:
 # ── names built from the pair ─────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("model_id", MODEL_IDS, **_IDS)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=_model_label)
 def test_entrypoint_and_model_path_are_the_derived_names(model_id: ModelId) -> None:
     entry = model_entry(model_id)
     assert entry["env_entrypoint"] == f"{model_id.package}.env:{model_id.env_class_name}"
@@ -109,7 +114,7 @@ def test_entrypoint_and_model_path_are_the_derived_names(model_id: ModelId) -> N
     assert Path(cls.MODEL_PATH).is_file()
 
 
-@pytest.mark.parametrize("model_id", MODEL_IDS, **_IDS)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=_model_label)
 def test_the_embodiment_class_carries_its_own_identity_and_body_data(model_id: ModelId) -> None:
     """``embodiment``, ``MODEL_PATH``, ``FOOT_SUPPORT`` and ``REWARD_PROBE`` sit on the embodiment class itself, not
     on the species base it shares with the species' other embodiments (review H2): a new robot adds its own."""
@@ -134,7 +139,7 @@ def test_the_gymnasium_registry_holds_exactly_the_manifest_models() -> None:
 # ── stage files ───────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("model_id", MODEL_IDS, **_IDS)
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=_model_label)
 def test_stage_files_are_named_by_their_stage_with_unique_names(model_id: ModelId) -> None:
     directory = model_id.path(CONFIGS)
     assert (directory / "stages.toml").is_file(), f"{model_id} has no {directory / 'stages.toml'}"
