@@ -392,7 +392,7 @@ class TestStanceCsvPadColumns:
             rows = list(csv.DictReader(handle))
         return rows, Unrendered, env_kwargs
 
-    def test_the_trex_csv_has_each_pads_columns_and_they_are_the_recorders(self, tmp_path):
+    def test_the_tyrannosaurus_rex_csv_has_each_pads_columns_and_they_are_the_recorders(self, tmp_path):
         from environments.shared.evaluation import replay_seed
         from environments.shared.gait.morphology import Morphology
         from environments.shared.gait.pad_telemetry import PadLayout, pad_step_columns
