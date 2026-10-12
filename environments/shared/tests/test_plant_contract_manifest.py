@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import copy
 import json
+from typing import Any
 
 import mujoco
 import pytest
 
 import environments.shared.plant_contract as plant_contract
+from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import (
     BUNDLED_MANIFEST_PATH,
     GENERATED_MANIFEST_PATH,
@@ -108,40 +110,169 @@ def test_current_identity_matches_each_executable_environment(species, observati
     assert identity.action_dim == identity.nu == action_dim
 
 
-def test_changed_layer_requires_revision_increment():
-    old = {
-        "plants": {
-            "velociraptor": {
-                "policy_interface": {"sha256": "interface-a", "revision": 1},
-                "physics": {"sha256": "physics-a", "revision": 1},
-                "visual": {"sha256": "visual-a", "revision": 1},
-            }
-        }
+# The revision check on synthetic manifests.  v1 keyed a plant by its species
+# string; v2 nests it as plants[species][embodiment] (decision D-D33).  The v1
+# keys here are made up rather than the retired species IDs.
+MANIFEST_V1 = "mesozoic.plant-manifest/v1"
+MANIFEST_V2 = "mesozoic.plant-manifest/v2"
+MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
+FRAGILIS_ROBOT = ModelId("allosaurus_fragilis", "robot")
+# The same plant after an epithet correction.
+JIMMADSENI = ModelId("allosaurus_jimmadseni", "anatomical")
+
+
+@pytest.fixture
+def v2_is_current(monkeypatch):
+    """The revision check reads v2 as the current schema, the one a v1 baseline may cross to."""
+    monkeypatch.setattr(plant_contract.constants, "PLANT_MANIFEST_SCHEMA", MANIFEST_V2)
+
+
+def _plant(physics: str = "physics-a", *, revision: int = 1) -> dict[str, Any]:
+    """The three layers of one synthetic manifest entry, each at ``revision``."""
+    return {
+        "policy_interface": {"sha256": "interface-a", "revision": revision},
+        "physics": {"sha256": physics, "revision": revision},
+        "visual": {"sha256": "visual-a", "revision": revision},
     }
+
+
+def _v1(plants: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    return {"schema": MANIFEST_V1, "plants": copy.deepcopy(plants)}
+
+
+def _v2(plants: dict[ModelId, dict[str, Any]]) -> dict[str, Any]:
+    nested: dict[str, dict[str, Any]] = {}
+    for model_id, entry in plants.items():
+        nested.setdefault(model_id.species, {})[model_id.embodiment] = copy.deepcopy(entry)
+    return {"schema": MANIFEST_V2, "plants": nested}
+
+
+def test_changed_layer_requires_revision_increment(v2_is_current):
+    old = _v2({MONGOLIENSIS: _plant()})
     new = copy.deepcopy(old)
-    new["plants"]["velociraptor"]["physics"]["sha256"] = "physics-b"
+    new["plants"]["velociraptor_mongoliensis"]["anatomical"]["physics"]["sha256"] = "physics-b"
 
     with pytest.raises(PlantContractError, match="physics fingerprint changed"):
         _enforce_revision_changes(old, new)
 
-    new["plants"]["velociraptor"]["physics"]["revision"] = 2
+    new["plants"]["velociraptor_mongoliensis"]["anatomical"]["physics"]["revision"] = 2
     _enforce_revision_changes(old, new)
 
 
-def test_layer_revision_cannot_roll_back_when_fingerprint_is_unchanged():
-    old = {
-        "plants": {
-            "velociraptor": {
-                "policy_interface": {"sha256": "interface-a", "revision": 2},
-                "physics": {"sha256": "physics-a", "revision": 2},
-                "visual": {"sha256": "visual-a", "revision": 2},
-            }
-        }
-    }
+def test_layer_revision_cannot_roll_back_when_fingerprint_is_unchanged(v2_is_current):
+    old = _v2({MONGOLIENSIS: _plant(revision=2)})
     new = copy.deepcopy(old)
-    new["plants"]["velociraptor"]["visual"]["revision"] = 1
+    new["plants"]["velociraptor_mongoliensis"]["anatomical"]["visual"]["revision"] = 1
 
     with pytest.raises(PlantContractError, match="visual_revision cannot decrease"):
+        _enforce_revision_changes(old, new)
+
+
+def test_v1_baseline_re_keyed_to_v2_pairs_by_physics_digest(v2_is_current):
+    old = _v1({"allosaurus": _plant("physics-a", revision=3), "allosaurus_robot": _plant("physics-b", revision=2)})
+    new = _v2({FRAGILIS: _plant("physics-a", revision=3), FRAGILIS_ROBOT: _plant("physics-b", revision=2)})
+
+    _enforce_revision_changes(old, new)
+
+    # Each pair is then checked layer by layer: a moved digest needs its revision raised.
+    new["plants"]["allosaurus_fragilis"]["robot"]["policy_interface"]["sha256"] = "interface-b"
+    with pytest.raises(
+        PlantContractError,
+        match=r"allosaurus_robot \(now allosaurus_fragilis/robot\) policy_interface fingerprint changed",
+    ):
+        _enforce_revision_changes(old, new)
+    new["plants"]["allosaurus_fragilis"]["robot"]["policy_interface"]["revision"] = 3
+    _enforce_revision_changes(old, new)
+
+
+def test_physics_change_and_lowered_revision_across_a_re_key_are_refused(v2_is_current):
+    # Compared by key alone, this re-keyed plant used to pass vacuously.
+    old = _v1({"allosaurus": _plant("physics-a", revision=4)})
+    new = _v2({FRAGILIS: _plant("physics-b", revision=1)})
+
+    with pytest.raises(PlantContractError, match="allosaurus left the plant manifest"):
+        _enforce_revision_changes(old, new)
+
+
+@pytest.mark.parametrize(
+    ("old_plants", "new_plants"),
+    [
+        # Two baseline plants with one digest.
+        (
+            {"allosaurus": _plant("physics-a"), "allosaurus_twin": _plant("physics-a")},
+            {FRAGILIS: _plant("physics-a"), FRAGILIS_ROBOT: _plant("physics-b")},
+        ),
+        # Two current plants with one digest.
+        (
+            {"allosaurus": _plant("physics-a"), "allosaurus_robot": _plant("physics-b")},
+            {FRAGILIS: _plant("physics-a"), FRAGILIS_ROBOT: _plant("physics-a")},
+        ),
+    ],
+    ids=["baseline", "current"],
+)
+def test_a_physics_digest_shared_by_re_keyed_plants_is_refused(v2_is_current, old_plants, new_plants):
+    with pytest.raises(PlantContractError, match="physics-a is shared by more than one re-keyed plant"):
+        _enforce_revision_changes(_v1(old_plants), _v2(new_plants))
+
+
+def test_an_unmatched_baseline_plant_is_refused(v2_is_current):
+    old = _v1({"allosaurus": _plant("physics-a"), "allosaurus_robot": _plant("physics-b")})
+    new = _v2({FRAGILIS: _plant("physics-a")})
+
+    with pytest.raises(PlantContractError, match="allosaurus_robot left the plant manifest"):
+        _enforce_revision_changes(old, new)
+
+
+def test_same_schema_re_key_with_unchanged_physics_pairs_by_digest(v2_is_current):
+    old = _v2({FRAGILIS: _plant(revision=2)})
+    new = _v2({JIMMADSENI: _plant(revision=2)})
+
+    _enforce_revision_changes(old, new)
+
+    new["plants"]["allosaurus_jimmadseni"]["anatomical"]["visual"]["sha256"] = "visual-b"
+    with pytest.raises(
+        PlantContractError,
+        match=r"allosaurus_fragilis/anatomical \(now allosaurus_jimmadseni/anatomical\) visual fingerprint changed",
+    ):
+        _enforce_revision_changes(old, new)
+
+
+def test_same_schema_re_key_cannot_restart_the_counters(v2_is_current):
+    old = _v2({FRAGILIS: _plant(revision=3)})
+    new = _v2({JIMMADSENI: _plant(revision=1)})
+
+    with pytest.raises(PlantContractError, match="policy_interface_revision cannot decrease from 3 to 1"):
+        _enforce_revision_changes(old, new)
+
+
+def test_same_schema_removal_is_refused_and_addition_passes(v2_is_current):
+    both = _v2({FRAGILIS: _plant("physics-a"), FRAGILIS_ROBOT: _plant("physics-b")})
+    anatomical_only = _v2({FRAGILIS: _plant("physics-a")})
+
+    with pytest.raises(
+        PlantContractError,
+        match="allosaurus_fragilis/robot left the plant manifest.*retired only by an explicit decision",
+    ):
+        _enforce_revision_changes(both, anatomical_only)
+    # A current plant without a baseline is new.
+    _enforce_revision_changes(anatomical_only, both)
+
+
+@pytest.mark.parametrize(
+    ("old_schema", "new_schema", "message"),
+    [
+        (MANIFEST_V1, MANIFEST_V1, "current plant manifest must use schema mesozoic.plant-manifest/v2"),
+        (MANIFEST_V2, MANIFEST_V1, "current plant manifest must use schema mesozoic.plant-manifest/v2"),
+        ("mesozoic.plant-manifest/v0", MANIFEST_V2, "only mesozoic.plant-manifest/v1 against .*/v2 crosses schemas"),
+    ],
+    ids=["v1-baseline-v1-current", "v2-baseline-v1-current", "v0-baseline-v2-current"],
+)
+def test_only_the_v1_to_v2_transition_crosses_schemas(v2_is_current, old_schema, new_schema, message):
+    old = {"schema": old_schema, "plants": {"allosaurus": _plant()}}
+    new = {"schema": new_schema, "plants": {"allosaurus": _plant()}}
+
+    with pytest.raises(PlantContractError, match=message):
         _enforce_revision_changes(old, new)
 
 

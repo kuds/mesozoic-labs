@@ -98,6 +98,9 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+# A comparison of non-overlapping types is an error, so a species string is
+# never compared with a ModelId: an identity is compared whole (decision D-D33).
+strict_equality = true
 
 [tool.ruff]
 line-length = 120

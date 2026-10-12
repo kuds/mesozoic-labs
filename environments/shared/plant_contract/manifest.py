@@ -14,6 +14,7 @@ from typing import Any, Mapping, cast
 import mujoco
 import numpy as np
 
+from ..model_id import ModelId
 from . import constants, physics_layer, policy_layer, source_layer, visual_layer
 from .constants import (
     FINGERPRINT_TOOL_VERSION,
@@ -192,12 +193,125 @@ def render_plant_manifest(manifest: Mapping[str, Any]) -> str:
     return json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
 
+# Decision D-D33 re-keyed every plant from its species to (species, embodiment)
+# and moved the manifest from v1 to v2.  The revision check reads a v1
+# baseline only against a v2 current manifest, the one transition it bridges;
+# runtime reads stay strict (versions._load_generated_manifest).
+_D_D33_BASELINE_SCHEMA = "mesozoic.plant-manifest/v1"
+_D_D33_CURRENT_SCHEMA = "mesozoic.plant-manifest/v2"
+
+
+def _load_baseline_manifest(path: Path) -> dict[str, Any]:
+    """Read a revision-check baseline: the committed manifest, or CI's copy of the PR base.
+
+    Its schema is left to :func:`_enforce_revision_changes`, which accepts the
+    current schema and, against a v2 current manifest, the v1 baseline of
+    decision D-D33.
+    """
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PlantContractError(f"cannot read baseline plant manifest {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise PlantContractError(f"baseline plant manifest {path} is not a JSON object")
+    return value
+
+
+def _check_manifest_schemas(old: Mapping[str, Any], new: Mapping[str, Any]) -> None:
+    current_schema = constants.PLANT_MANIFEST_SCHEMA
+    if new.get("schema") != current_schema:
+        raise PlantContractError(
+            f"the current plant manifest must use schema {current_schema}, not {new.get('schema')!r}"
+        )
+    baseline_schema = old.get("schema")
+    if baseline_schema == current_schema or (
+        (baseline_schema, current_schema) == (_D_D33_BASELINE_SCHEMA, _D_D33_CURRENT_SCHEMA)
+    ):
+        return
+    raise PlantContractError(
+        f"baseline plant manifest schema {baseline_schema!r} cannot be checked against {current_schema}; "
+        f"only {_D_D33_BASELINE_SCHEMA} against {_D_D33_CURRENT_SCHEMA} crosses schemas (decision D-D33)"
+    )
+
+
+def _keyed_plants(manifest: Mapping[str, Any], role: str) -> dict[str | ModelId, Mapping[str, Any]]:
+    """The manifest's plants by identity key.
+
+    v1 keys a plant by its species string; v2 nests it as
+    ``plants[species][embodiment]`` and keys it by its :class:`ModelId`.
+    """
+    plants = manifest.get("plants", {})
+    if not isinstance(plants, Mapping):
+        raise PlantContractError(f"{role} plant manifest has no plants table")
+    if manifest.get("schema") == _D_D33_BASELINE_SCHEMA:
+        return {str(species): entry for species, entry in plants.items()}
+    keyed: dict[str | ModelId, Mapping[str, Any]] = {}
+    for species, embodiments in plants.items():
+        if not isinstance(embodiments, Mapping):
+            raise PlantContractError(f"{role} plant manifest species {species!r} is not a table of embodiments")
+        for embodiment, entry in embodiments.items():
+            try:
+                keyed[ModelId(species, embodiment)] = entry
+            except ValueError as exc:
+                raise PlantContractError(f"{role} plant manifest key {species!r}.{embodiment!r}: {exc}") from exc
+    return keyed
+
+
+def _physics_sha256(key: str | ModelId, entry: Mapping[str, Any]) -> str:
+    try:
+        return str(entry["physics"]["sha256"])
+    except (KeyError, TypeError) as exc:
+        raise PlantContractError(f"plant {key} records no physics digest") from exc
+
+
+def _pair_plants(
+    old: Mapping[str, Any], new: Mapping[str, Any]
+) -> list[tuple[str, Mapping[str, Any], Mapping[str, Any]]]:
+    """Pair every baseline plant with a current plant: by key, then by physics digest.
+
+    A plant re-keyed under the same physics (decision D-D33's rename, or a
+    later epithet correction) keeps its counters through the digest; a
+    baseline plant with neither a key nor a digest in the current manifest is
+    refused, because a plant leaves the manifest only by an explicit decision.
+    Current plants left unpaired are new.  Returns (label, baseline entry,
+    current entry) per pair, in baseline key order.
+    """
+    old_plants = _keyed_plants(old, "baseline")
+    new_plants = _keyed_plants(new, "current")
+    pairs = [(str(key), old_plants[key], new_plants[key]) for key in sorted(old_plants, key=str) if key in new_plants]
+    # The plants left over on each side, by physics digest.
+    old_left = {key: _physics_sha256(key, entry) for key, entry in old_plants.items() if key not in new_plants}
+    new_left = {key: _physics_sha256(key, entry) for key, entry in new_plants.items() if key not in old_plants}
+    for old_key, digest in sorted(old_left.items(), key=lambda item: str(item[0])):
+        twins = sorted(str(key) for key, value in old_left.items() if value == digest)
+        matches = [key for key, value in new_left.items() if value == digest]
+        if len(twins) > 1 or len(matches) > 1:
+            raise PlantContractError(
+                f"physics digest {digest} is shared by more than one re-keyed plant (baseline: {', '.join(twins)}; "
+                f"current: {', '.join(sorted(map(str, matches)))}), so they cannot be paired"
+            )
+        if not matches:
+            raise PlantContractError(
+                f"{old_key} left the plant manifest: no current plant has its key or its physics digest; "
+                "a plant is retired only by an explicit decision, and a re-keyed plant keeps its physics "
+                "in the change that re-keys it"
+            )
+        (new_key,) = matches
+        _logger.info("paired baseline plant %s with %s by physics digest", old_key, new_key)
+        pairs.append((f"{old_key} (now {new_key})", old_plants[old_key], new_plants[new_key]))
+    return pairs
+
+
 def _enforce_revision_changes(old: Mapping[str, Any], new: Mapping[str, Any]) -> None:
-    old_plants = old.get("plants", {})
-    new_plants = new.get("plants", {})
-    for species in sorted(set(old_plants) & set(new_plants)):
-        old_entry = old_plants[species]
-        new_entry = new_plants[species]
+    """Refuse a lowered revision, or a changed layer whose revision did not increase.
+
+    ``old`` is the baseline (the committed manifest, or the PR base in CI) and
+    ``new`` the current manifest; their plants are paired by
+    :func:`_pair_plants`, so re-keying or removing a plant cannot bypass the
+    rules.
+    """
+    _check_manifest_schemas(old, new)
+    for label, old_entry, new_entry in _pair_plants(old, new):
         for layer, revision_field in (
             ("policy_interface", "policy_interface_revision"),
             ("physics", "physics_revision"),
@@ -209,13 +323,13 @@ def _enforce_revision_changes(old: Mapping[str, Any], new: Mapping[str, Any]) ->
             new_revision = int(new_layer["revision"])
             if new_revision < old_revision:
                 raise PlantContractError(
-                    f"{species} {revision_field} cannot decrease from {old_revision} to {new_revision}"
+                    f"{label} {revision_field} cannot decrease from {old_revision} to {new_revision}"
                 )
             if old_layer["sha256"] == new_layer["sha256"]:
                 continue
             if new_revision <= old_revision:
                 raise PlantContractError(
-                    f"{species} {layer} fingerprint changed without increasing {revision_field} "
+                    f"{label} {layer} fingerprint changed without increasing {revision_field} "
                     f"above {old_layer['revision']} in {constants.PLANT_VERSIONS_PATH.relative_to(constants.REPOSITORY_ROOT)}"
                 )
 
@@ -226,7 +340,7 @@ def write_plant_manifest() -> Path:
         raise PlantContractError("plant manifest generation requires a source checkout with configs/")
     new_manifest = build_plant_manifest(require_canonical_mujoco=True)
     if constants.GENERATED_MANIFEST_PATH.exists():
-        _enforce_revision_changes(_load_generated_manifest(), new_manifest)
+        _enforce_revision_changes(_load_baseline_manifest(constants.GENERATED_MANIFEST_PATH), new_manifest)
     rendered = render_plant_manifest(new_manifest)
     for output_path in (constants.GENERATED_MANIFEST_PATH, constants.BUNDLED_MANIFEST_PATH):
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -262,7 +376,7 @@ def check_plant_manifest(*, baseline_path: Path | None = None) -> dict[str, Any]
             raise PlantContractError("bundled plant manifest is stale; regenerate with `--write`")
     current = cast(dict[str, Any], json.loads(actual))
     if baseline_path is not None:
-        _enforce_revision_changes(_load_generated_manifest(baseline_path), current)
+        _enforce_revision_changes(_load_baseline_manifest(baseline_path), current)
     return current
 
 
